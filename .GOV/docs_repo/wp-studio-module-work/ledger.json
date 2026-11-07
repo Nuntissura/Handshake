@@ -292,8 +292,8 @@
    "lane_id": "SMB-PULSE",
    "crate": "hsk-studio-pulse",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-pulse",
-   "phase": "done (STUDIO-R58 PASS_V36 @89bbf702)",
-   "status": "PASS_V36",
+   "phase": "done (STUDIO-R59 PASS_V37 @c4d06841)",
+   "status": "PASS_V37",
    "owner": "builder-pulse",
    "brief": "builders/briefs/hsk-studio-pulse.md",
    "commits": [
@@ -340,7 +340,8 @@
     "STUDIO-R55 PASS_V33 @ce644577 (NOT_PROVEN lines: 4, see round-R55.json)",
     "STUDIO-R56 PASS_V34 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V35 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V36 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V36 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V37 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-pulse.json",
    "candidate": "b12a524",
@@ -1068,8 +1069,8 @@
    "lane_id": "SMB-INTEROP-MEDIA",
    "crate": "hsk-studio-interop-media",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-media",
-   "phase": "done (STUDIO-R58 PASS_V32 @89bbf702)",
-   "status": "PASS_V32",
+   "phase": "done (STUDIO-R59 PASS_V33 @c4d06841)",
+   "status": "PASS_V33",
    "owner": "builder-pulse (reused)",
    "brief": "builders/briefs/hsk-studio-interop-media.md",
    "commits": [
@@ -1110,7 +1111,8 @@
     "STUDIO-R55 PASS_V29 @ce644577 (NOT_PROVEN lines: 0, see round-R55.json)",
     "STUDIO-R56 PASS_V30 @091c4d1b (NOT_PROVEN lines: 0, see round-R56.json)",
     "STUDIO-R57 PASS_V31 @4ffe1b06 (NOT_PROVEN lines: 0, see round-R57.json)",
-    "STUDIO-R58 PASS_V32 @89bbf702 (NOT_PROVEN lines: 0, see round-R58.json)"
+    "STUDIO-R58 PASS_V32 @89bbf702 (NOT_PROVEN lines: 0, see round-R58.json)",
+    "STUDIO-R59 PASS_V33 @c4d06841 (NOT_PROVEN lines: 0, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-media.json",
    "candidate": "4a6bb19",
@@ -1241,8 +1243,8 @@
    "lane_id": "SMB-HARNESS",
    "crate": "hsk-studio-harness",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V37 @89bbf702)",
-   "status": "PASS_V37",
+   "phase": "done (STUDIO-R59 PASS_V38 @c4d06841)",
+   "status": "PASS_V38",
    "owner": "builder-controls (reused)",
    "brief": null,
    "commits": [
@@ -1286,7 +1288,8 @@
     "STUDIO-R55 PASS_V34 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V35 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V36 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V37 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V37 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V38 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-harness.json",
    "candidate": "c41b067",
@@ -2019,8 +2022,8 @@
    "crate": "hsk-studio-pulse",
    "origin": "research/engine-video.md",
    "scope": "explicit rounding rule + receipt for 100 ns (Media Foundation) <-> 254016000000 ticks/s conversion (25401.6 ticks per 100 ns)",
-   "phase": "done (STUDIO-R58 PASS_V34 @89bbf702)",
-   "status": "PASS_V34",
+   "phase": "done (STUDIO-R59 PASS_V35 @c4d06841)",
+   "status": "PASS_V35",
    "owner": "builder-pulse-eng-1",
    "commits": [
     "6a60ef6"
@@ -2059,7 +2062,8 @@
     "STUDIO-R55 PASS_V31 @ce644577 (NOT_PROVEN lines: 4, see round-R55.json)",
     "STUDIO-R56 PASS_V32 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V33 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V34 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V34 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V35 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "brief": "research/engine-video.md + builders/briefs/hsk-studio-pulse.md",
    "candidate": "6a60ef6",
@@ -2842,8 +2846,8 @@
    "crate": "hsk-studio-interop-media",
    "origin": "interop-media builder; CX-CAP-001 timecode duplicate",
    "scope": "after steward adds interop-media->pulse edge (provisional D9): replace src/time.rs timecode/DF arithmetic with pulse APIs; tests unchanged; also interop-media src/time.rs:114 fps_fraction copy",
-   "phase": "done (STUDIO-R58 PASS_V32 @89bbf702)",
-   "status": "PASS_V32",
+   "phase": "done (STUDIO-R59 PASS_V33 @c4d06841)",
+   "status": "PASS_V33",
    "blocked_on": "Operator: the permission system denied adding hsk-studio-pulse to interop-media Cargo.toml (D9); lead does not route around a denial",
    "owner": "builder-interop-media-pulse-20261014",
    "commits": [
@@ -2882,7 +2886,8 @@
     "STUDIO-R55 PASS_V29 @ce644577 (NOT_PROVEN lines: 0, see round-R55.json)",
     "STUDIO-R56 PASS_V30 @091c4d1b (NOT_PROVEN lines: 0, see round-R56.json)",
     "STUDIO-R57 PASS_V31 @4ffe1b06 (NOT_PROVEN lines: 0, see round-R57.json)",
-    "STUDIO-R58 PASS_V32 @89bbf702 (NOT_PROVEN lines: 0, see round-R58.json)"
+    "STUDIO-R58 PASS_V32 @89bbf702 (NOT_PROVEN lines: 0, see round-R58.json)",
+    "STUDIO-R59 PASS_V33 @c4d06841 (NOT_PROVEN lines: 0, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-media-pulse.json",
    "reopened": "STUDIO-R37 CX-VAL-009 @1d139a6 (was PASS_V11): crate, closure or root input changed a105766..1d139a6"
@@ -7164,10 +7169,11 @@
     "STUDIO-R55 PASS_V30 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V31 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V32 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V34 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
-   "status": "PASS_V33",
-   "phase": "done (STUDIO-R58 PASS_V33 @89bbf702)",
+   "status": "PASS_V34",
+   "phase": "done (STUDIO-R59 PASS_V34 @c4d06841)",
    "lane_file": "builders/lanes/hsk-studio-convert-native.json",
    "commits": [
     "a7c2fa1",
@@ -7295,8 +7301,8 @@
   {
    "lane_id": "SMB-CONVERT-COLOUR",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V33 @89bbf702)",
-   "status": "PASS_V33",
+   "phase": "done (STUDIO-R59 PASS_V34 @c4d06841)",
+   "status": "PASS_V34",
    "owner": "builder-convert-20261014",
    "commits": [
     "3a496bb"
@@ -7334,7 +7340,8 @@
     "STUDIO-R55 PASS_V30 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V31 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V32 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V34 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "harness has no prism edge: embedded ICC preserved but not applied on import; add harness->prism edge and apply profiles in convert_to_native",
    "lane_file": "builders/lanes/hsk-studio-convert-colour.json",
@@ -7343,8 +7350,8 @@
   {
    "lane_id": "SMB-CONVERT-TIFF",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V33 @89bbf702)",
-   "status": "PASS_V33",
+   "phase": "done (STUDIO-R59 PASS_V34 @c4d06841)",
+   "status": "PASS_V34",
    "owner": "builder-convert-20261014",
    "commits": [
     "8398c7a",
@@ -7383,7 +7390,8 @@
     "STUDIO-R55 PASS_V30 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V31 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V32 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V34 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "wire interop-tiff into harness import/convert (feature import-tiff) via interop-psd raster_proposal; layered TIFF 37724 via interop-psd layer parser",
    "lane_file": "builders/lanes/hsk-studio-convert-tiff.json",
@@ -7561,8 +7569,8 @@
   {
    "lane_id": "SMB-CONVERT-FOLLOWUPS",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V33 @89bbf702)",
-   "status": "PASS_V33",
+   "phase": "done (STUDIO-R59 PASS_V34 @c4d06841)",
+   "status": "PASS_V34",
    "owner": "builder-convert-followups-20261014",
    "commits": [
     "e0c3473",
@@ -7604,7 +7612,8 @@
     "STUDIO-R55 PASS_V30 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V31 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V32 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V33 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V34 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "(1) prism exposes a working-profile constant (linear sRGB) and harness drops its private CC0 profile copy (CX-CAP-001); (2) harness detects DNG/TIFF-raw via interop-tiff Container (DNGVersion 50706, NewSubfileType) so raw never falls through to plain TIFF IFD0; (3) interop-psd public ImageSourceData/layer-record parser and harness imports layered Photoshop TIFF (37724) as layers",
    "lane_file": "builders/lanes/hsk-studio-convert-followups.json",
@@ -7663,8 +7672,8 @@
   {
    "lane_id": "SMB-HARNESS-UI",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V31 @89bbf702)",
-   "status": "PASS_V31",
+   "phase": "done (STUDIO-R59 PASS_V32 @c4d06841)",
+   "status": "PASS_V32",
    "owner": "builder-harness-ui-20261014",
    "commits": [
     "c4c6d4d",
@@ -7703,7 +7712,8 @@
     "STUDIO-R55 PASS_V28 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V29 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V30 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V32 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Operator D11 2026-10-14: eframe 0.33.3 (wgpu backend) allowed for hsk-studio-harness ONLY; first visible desktop app: open file (convert flow), show composite render (render-gpu texture, wgpu 27.0.1 shared), layer panel via controls; plus re-shard psd_tools sweep shard_3 (120 s cap)",
    "lane_file": "builders/lanes/hsk-studio-harness-ui.json",
@@ -8399,8 +8409,8 @@
   {
    "lane_id": "SMB-UI-SUPPORT-APIS",
    "crate": "multi",
-   "phase": "done (STUDIO-R58 PASS_V31 @89bbf702)",
-   "status": "PASS_V31",
+   "phase": "done (STUDIO-R59 PASS_V32 @c4d06841)",
+   "status": "PASS_V32",
    "owner": null,
    "commits": [
     "6762593",
@@ -8438,7 +8448,8 @@
     "STUDIO-R55 PASS_V28 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V29 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V30 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V32 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "composite single root for multiple graph outputs; convert flow sets document blending space on import; chronicle opacity property; session exposes tile bytes for viewers (from SMB-HARNESS-UI missing APIs)",
    "lane_file": "builders/lanes/hsk-studio-ui-support-apis.json",
@@ -8447,8 +8458,8 @@
   {
    "lane_id": "SMB-HARNESS-UI-2",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V30 @89bbf702)",
-   "status": "PASS_V30",
+   "phase": "done (STUDIO-R59 PASS_V31 @c4d06841)",
+   "status": "PASS_V31",
    "owner": null,
    "commits": [
     "bff3713"
@@ -8483,7 +8494,8 @@
     "STUDIO-R55 PASS_V27 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V28 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V29 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V30 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V30 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V31 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "UI slice 2: editable opacity/blend, masks/effects rendering once supported, selection + brush tools on canvas, AccessKit on, text layers, export JPEG/PNG",
    "lane_file": "builders/lanes/hsk-studio-harness-ui-2.json",
@@ -8492,8 +8504,8 @@
   {
    "lane_id": "SMB-CONVERT-RASTER",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V31 @89bbf702)",
-   "status": "PASS_V31",
+   "phase": "done (STUDIO-R59 PASS_V32 @c4d06841)",
+   "status": "PASS_V32",
    "owner": "builder-raster-20261014",
    "commits": [
     "bf5d703",
@@ -8531,7 +8543,8 @@
     "STUDIO-R55 PASS_V28 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V29 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V30 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V32 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "harness import-raster route (PNG/JPEG open + convert to native) per notes.harness_route; plus PNG/JPEG export of the composited document",
    "lane_file": "builders/lanes/hsk-studio-convert-raster.json",
@@ -8644,8 +8657,8 @@
   {
    "lane_id": "SMB-HARNESS-SWEEP-PERF",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V31 @89bbf702)",
-   "status": "PASS_V31",
+   "phase": "done (STUDIO-R59 PASS_V32 @c4d06841)",
+   "status": "PASS_V32",
    "owner": null,
    "commits": [],
    "verdicts": [
@@ -8679,7 +8692,8 @@
     "STUDIO-R55 PASS_V28 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V29 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V30 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V31 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V32 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "R25: psd_tools_sweep_shard_3 TIMEOUT at 120 s (largest CMYK files); suspected Prism colour route from 3a496bb (UNVERIFIED): diagnose cost, fix or re-shard; never raise caps silently",
    "lane_file": "builders/lanes/hsk-studio-harness-sweep-perf.json",
@@ -8948,8 +8962,8 @@
   {
    "lane_id": "SMB-HARNESS-UI-3",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V28 @89bbf702)",
-   "status": "PASS_V28",
+   "phase": "done (STUDIO-R59 PASS_V29 @c4d06841)",
+   "status": "PASS_V29",
    "owner": "builder-ui3-20261015",
    "commits": [
     "63af66e",
@@ -8988,7 +9002,8 @@
     "STUDIO-R55 PASS_V25 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V26 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V27 @4ffe1b06 (NOT_PROVEN lines: 111, see round-R57.json)",
-    "STUDIO-R58 PASS_V28 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V28 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V29 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "layer create/delete/duplicate/reorder (raster/text/vector) via chronicle; paint creating tiles; brush pixel mix through pigment masked_replace (parity); selection persisted in package; text tool via type + composite text; commit-authority tile path test; filters/retouch tools when pigment lanes land",
    "lane_file": "builders/lanes/hsk-studio-harness-ui-3.json",
@@ -9391,8 +9406,8 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V28 @89bbf702)",
-   "status": "PASS_V28",
+   "phase": "done (STUDIO-R59 PASS_V29 @c4d06841)",
+   "status": "PASS_V29",
    "owner": "builder-harness-dev-20261015",
    "commits": [
     "4746028"
@@ -9425,7 +9440,8 @@
     "STUDIO-R55 PASS_V25 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V26 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V27 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V28 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V28 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V29 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "harness: open raw -> develop recipe sliders -> develop_to_output -> JPEG/PNG export (CLI + viewer); after SMB-HARNESS-UI-3",
    "lane_file": "builders/lanes/hsk-studio-harness-develop-export.json",
@@ -9968,8 +9984,8 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-2",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V28 @89bbf702)",
-   "status": "PASS_V28",
+   "phase": "done (STUDIO-R59 PASS_V29 @c4d06841)",
+   "status": "PASS_V29",
    "owner": "builder-harness-dev-20261015",
    "commits": [
     "84c33c3",
@@ -10004,7 +10020,8 @@
     "STUDIO-R55 PASS_V25 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V26 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V27 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V28 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V28 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V29 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "develop recipe persisted as session typed entry token `develop` (lead decision, interim like selection); panel adds Kelvin/tint WB, colour grading, point colour, detail, local corrections with range masks (CONTROLS-2 types)",
    "lane_file": "builders/lanes/hsk-studio-harness-develop-2.json",
@@ -10184,8 +10201,8 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-3",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V27 @89bbf702)",
-   "status": "PASS_V27",
+   "phase": "done (STUDIO-R59 PASS_V28 @c4d06841)",
+   "status": "PASS_V28",
    "owner": "builder-harness-dev-20261015",
    "commits": [
     "718a3ad",
@@ -10219,7 +10236,8 @@
     "STUDIO-R55 PASS_V24 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V25 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V26 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V27 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V27 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V28 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "panel: HSL mixer, parametric curve, grayscale mix, gradient/brush masks (stored entries refuse them today); no-op point colour/correction as its own undo step; display of >1 values after SMB-RENDER-SCENE-DISPLAY",
    "lane_file": "builders/lanes/hsk-studio-harness-develop-3.json",
@@ -10418,8 +10436,8 @@
   {
    "lane_id": "SMB-PULSE-EDITING",
    "crate": "hsk-studio-pulse",
-   "phase": "done (STUDIO-R58 PASS_V27 @89bbf702)",
-   "status": "PASS_V27",
+   "phase": "done (STUDIO-R59 PASS_V28 @c4d06841)",
+   "status": "PASS_V28",
    "owner": "builder-pulse-edit-20261015",
    "commits": [
     "3da782c",
@@ -10453,7 +10471,8 @@
     "STUDIO-R55 PASS_V24 @ce644577 (NOT_PROVEN lines: 4, see round-R55.json)",
     "STUDIO-R56 PASS_V25 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V26 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V27 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V27 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V28 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "note": "Premiere PR-07/10/11/20: three-point insert/overwrite, ripple/roll/slip/slide, markers, cross-dissolve transitions rendered via composite temporal path",
    "lane_file": "builders/lanes/hsk-studio-pulse-editing.json",
@@ -10772,8 +10791,8 @@
   {
    "lane_id": "SMB-FOLIO-TIMELINE-RECORDS",
    "crate": "hsk-studio-folio",
-   "phase": "done (STUDIO-R58 PASS_V26 @89bbf702)",
-   "status": "PASS_V26",
+   "phase": "done (STUDIO-R59 PASS_V27 @c4d06841)",
+   "status": "PASS_V27",
    "owner": "builder-pulse-edit-20261015",
    "commits": [
     "b91bf9d",
@@ -10805,7 +10824,8 @@
     "STUDIO-R55 PASS_V23 @ce644577 (NOT_PROVEN lines: 4, see round-R55.json)",
     "STUDIO-R56 PASS_V24 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V25 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V27 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "note": "Folio stores no markers or transitions; session/chronicle record no timeline undo; host-side persistence today (SMB-PULSE-EDITING gaps)",
    "lane_file": "builders/lanes/hsk-studio-folio-timeline-records.json",
@@ -11125,8 +11145,8 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN",
    "crate": "hsk-studio-nib",
-   "phase": "done (STUDIO-R58 PASS_V26 @89bbf702)",
-   "status": "PASS_V26",
+   "phase": "done (STUDIO-R59 PASS_V27 @c4d06841)",
+   "status": "PASS_V27",
    "owner": "builder-illustrator-pen-20261015",
    "commits": [
     "8698329",
@@ -11162,7 +11182,8 @@
     "STUDIO-R55 PASS_V23 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V24 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V25 @4ffe1b06 (NOT_PROVEN lines: 111, see round-R57.json)",
-    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V27 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "slice 4 save/reopen NOT_PROVEN until session vector entry token (SMB-ILLUSTRATOR-PEN-2)",
    "lane_file": "builders/lanes/hsk-studio-illustrator-pen.json",
@@ -11213,8 +11234,8 @@
   {
    "lane_id": "SMB-PULSE-PLAYBACK",
    "crate": "hsk-studio-pulse",
-   "phase": "done (STUDIO-R58 PASS_V26 @89bbf702)",
-   "status": "PASS_V26",
+   "phase": "done (STUDIO-R59 PASS_V27 @c4d06841)",
+   "status": "PASS_V27",
    "owner": "builder-pulse-edit-20261015",
    "commits": [
     "42005c4",
@@ -11247,7 +11268,8 @@
     "STUDIO-R55 PASS_V23 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V24 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V25 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V27 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "do not judge transition parameters at 42005c4 (value key collision fixed in 3b24b22); 68b0dd4 committed from a temp index excluding SMB-ILLUSTRATOR-PEN harness edits, standalone tree not built by the builder",
    "lane_file": "builders/lanes/hsk-studio-pulse-playback.json",
@@ -11502,8 +11524,8 @@
   {
    "lane_id": "SMB-PULSE-PLAYBACK-2",
    "crate": "hsk-studio-pulse",
-   "phase": "done (STUDIO-R58 PASS_V25 @89bbf702)",
-   "status": "PASS_V25",
+   "phase": "done (STUDIO-R59 PASS_V26 @c4d06841)",
+   "status": "PASS_V26",
    "owner": "builder-pulse-play2-20261015",
    "commits": [
     "a107124",
@@ -11539,7 +11561,8 @@
     "STUDIO-R55 PASS_V22 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V23 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V24 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V26 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "viewer decodes timeline media via reel/interop-media, audio out via score-device, loop + in/out playback, >64 clip mixing via streaming",
    "lane_file": "builders/lanes/hsk-studio-pulse-playback-2.json",
@@ -11548,8 +11571,8 @@
   {
    "lane_id": "SMB-R31-FINDINGS",
    "crate": "multi",
-   "phase": "done (STUDIO-R58 PASS_V26 @89bbf702)",
-   "status": "PASS_V26",
+   "phase": "done (STUDIO-R59 PASS_V27 @c4d06841)",
+   "status": "PASS_V27",
    "owner": "builder-r31-findings-20261015",
    "commits": [
     "bd0229a",
@@ -11584,7 +11607,8 @@
     "STUDIO-R55 PASS_V23 @ce644577 (NOT_PROVEN lines: 139, see round-R55.json)",
     "STUDIO-R56 PASS_V24 @091c4d1b (NOT_PROVEN lines: 139, see round-R56.json)",
     "STUDIO-R57 PASS_V25 @4ffe1b06 (NOT_PROVEN lines: 139, see round-R57.json)",
-    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 139, see round-R58.json)"
+    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 139, see round-R58.json)",
+    "STUDIO-R59 PASS_V27 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "F-R31-1 harness tests/import_psd.rs:544 expects old CR3 refusal (blocks R32 harness ignored unit); F-R31-2 interop-layout pdfx.rs:111 XMP PDF/X marker by text search -> parse XMP; F-R31-3 harness 3 deprecated with_display_transform call sites -> PlanExtensions output stage; plus SMB-V4-01-DENY-SWEEP (develop output.rs:72, layout parent_adapter.rs)",
    "lane_file": "builders/lanes/hsk-studio-r31-findings.json",
@@ -11593,8 +11617,8 @@
   {
    "lane_id": "SMB-HARNESS-PROTOTYPE-PLAY",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V26 @89bbf702)",
-   "status": "PASS_V26",
+   "phase": "done (STUDIO-R59 PASS_V27 @c4d06841)",
+   "status": "PASS_V27",
    "owner": "builder-fig-inst-20261015",
    "commits": [
     "0cd4de8"
@@ -11625,7 +11649,8 @@
     "STUDIO-R55 PASS_V23 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V24 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V25 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V27 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-harness-prototype-play.json",
    "reopened": "STUDIO-R37 CX-VAL-009 @1d139a6 (was PASS_V5): crate, closure or root input changed a105766..1d139a6"
@@ -11633,8 +11658,8 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN-2",
    "crate": "hsk-studio-nib",
-   "phase": "done (STUDIO-R58 PASS_V26 @89bbf702)",
-   "status": "PASS_V26",
+   "phase": "done (STUDIO-R59 PASS_V27 @c4d06841)",
+   "status": "PASS_V27",
    "owner": "builder-illustrator-pen-20261015",
    "commits": [
     "dcb9377",
@@ -11669,7 +11694,8 @@
     "STUDIO-R55 PASS_V23 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V24 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V25 @4ffe1b06 (NOT_PROVEN lines: 111, see round-R57.json)",
-    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V26 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V27 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "session DOCUMENT_ENTRY_TOKENS + vector (interim persistence, like develop); chronicle vector-path property so edits keep layer id; curvature/pencil/knife/shape-builder tools, arc/grid/spiral, fancy corners; vector networks if spec names them",
    "lane_file": "builders/lanes/hsk-studio-illustrator-pen-2.json",
@@ -11678,8 +11704,8 @@
   {
    "lane_id": "SMB-FIG-SMART-ANIMATE",
    "crate": "hsk-studio-components",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-fig-smart-20261015",
    "commits": [
     "afcfec2",
@@ -11710,7 +11736,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 113, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 113, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 113, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 113, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "66c900b replaces the cross-fade assertion in viewer_prototype.rs (SMB-HARNESS-PROTOTYPE-PLAY reopens)",
    "lane_file": "builders/lanes/hsk-studio-fig-smart-animate.json",
@@ -11856,8 +11883,8 @@
   {
    "lane_id": "SMB-PS-SELECT-LIQUIFY",
    "crate": "hsk-studio-pigment",
-   "phase": "done (STUDIO-R58 PASS_V25 @89bbf702)",
-   "status": "PASS_V25",
+   "phase": "done (STUDIO-R59 PASS_V26 @c4d06841)",
+   "status": "PASS_V26",
    "owner": "builder-ps-select-20261015",
    "commits": [
     "176aa99",
@@ -11892,7 +11919,8 @@
     "STUDIO-R55 PASS_V22 @ce644577 (NOT_PROVEN lines: 111, see round-R55.json)",
     "STUDIO-R56 PASS_V23 @091c4d1b (NOT_PROVEN lines: 111, see round-R56.json)",
     "STUDIO-R57 PASS_V24 @4ffe1b06 (NOT_PROVEN lines: 111, see round-R57.json)",
-    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 111, see round-R58.json)"
+    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 111, see round-R58.json)",
+    "STUDIO-R59 PASS_V26 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "PS-13/14/21/22/24: magic wand, quick select (graph cut), Select and Mask refine (guided filter/closed-form matting, decontaminate), liquify mesh warp, smart filters; object select typed model_unavailable",
    "lane_file": "builders/lanes/hsk-studio-ps-select-liquify.json",
@@ -11901,8 +11929,8 @@
   {
    "lane_id": "SMB-DEVELOP-CAMERA-COLOUR",
    "crate": "hsk-studio-develop",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": null,
    "commits": [
     "cca35dc",
@@ -11932,7 +11960,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 134, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 134, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 134, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "52-model table fitted from rawtoaces-data (Apache-2.0); R6 CR3 imports (median dE76 1.44 vs preview neutrals); ORF single-illuminant route pending lead decision",
    "lane_file": "builders/lanes/hsk-studio-develop-camera-colour.json",
@@ -11941,8 +11970,8 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN-3",
    "crate": "hsk-studio-nib",
-   "phase": "done (STUDIO-R58 PASS_V25 @89bbf702)",
-   "status": "PASS_V25",
+   "phase": "done (STUDIO-R59 PASS_V26 @c4d06841)",
+   "status": "PASS_V26",
    "owner": "builder-illustrator-pen-20261015",
    "commits": [
     "f738033",
@@ -11976,7 +12005,8 @@
     "STUDIO-R55 PASS_V22 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V23 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V24 @4ffe1b06 (NOT_PROVEN lines: 111, see round-R57.json)",
-    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V26 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "viewer stores/edits vector networks (folio network record), region detection with T-junction splitting, knife on open paths, width tool + variable-width strokes, reshape, blob brush",
    "lane_file": "builders/lanes/hsk-studio-illustrator-pen-3.json",
@@ -12025,8 +12055,8 @@
   {
    "lane_id": "SMB-REEL-ENCODE",
    "crate": "hsk-studio-reel",
-   "phase": "done (STUDIO-R58 PASS_V25 @89bbf702)",
-   "status": "PASS_V25",
+   "phase": "done (STUDIO-R59 PASS_V26 @c4d06841)",
+   "status": "PASS_V26",
    "owner": "builder-reel-encode-20261015",
    "commits": [
     "a922e2e",
@@ -12059,7 +12089,8 @@
     "STUDIO-R55 PASS_V22 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V23 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V24 @4ffe1b06 (NOT_PROVEN lines: 134, see round-R57.json)",
-    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V26 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "MP4/MOV mux, VC-3 DNxHR/DNxHD encode, AV1 encode (rav1e), export queue + receipts, timeline export; no H.264/HEVC (D24), no AAC encode",
    "lane_file": "builders/lanes/hsk-studio-reel-encode.json",
@@ -12178,8 +12209,8 @@
   {
    "lane_id": "SMB-DEVELOP-CAMERA-COLOUR-2",
    "crate": "hsk-studio-develop",
-   "phase": "done (STUDIO-R58 PASS_V25 @89bbf702)",
-   "status": "PASS_V25",
+   "phase": "done (STUDIO-R59 PASS_V26 @c4d06841)",
+   "status": "PASS_V26",
    "owner": "builder-r31-findings-20261015",
    "commits": [
     "14590e8",
@@ -12210,7 +12241,8 @@
     "STUDIO-R55 PASS_V22 @ce644577 (NOT_PROVEN lines: 134, see round-R55.json)",
     "STUDIO-R56 PASS_V23 @091c4d1b (NOT_PROVEN lines: 134, see round-R56.json)",
     "STUDIO-R57 PASS_V24 @4ffe1b06 (NOT_PROVEN lines: 134, see round-R57.json)",
-    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)"
+    "STUDIO-R58 PASS_V25 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)",
+    "STUDIO-R59 PASS_V26 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "no permissive spectral data for Z6/X-S10/LX7/D70s/D1H/350D/7S/C5060WZ; refusal stays",
    "lane_file": "builders/lanes/hsk-studio-develop-camera-colour-2.json",
@@ -12219,8 +12251,8 @@
   {
    "lane_id": "SMB-COMPOSITE-STROKE-GEOMETRY",
    "crate": "hsk-studio-composite",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-illustrator-pen-20261015",
    "commits": [
     "7671aaf",
@@ -12251,7 +12283,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 123, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 123, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 125, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 123, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 123, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "per-row/per-edge stroke geometry in composite so network and variable-width layers with fill+stroke paint exact (no blended tile); curve-crossing detection exact (not 64 samples); pen joins network edges",
    "lane_file": "builders/lanes/hsk-studio-composite-stroke-geometry.json",
@@ -12260,8 +12293,8 @@
   {
    "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
    "crate": "hsk-studio-pigment",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-ps-select-20261015",
    "commits": [
     "677c45f",
@@ -12295,7 +12328,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 115, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 115, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 115, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 115, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 115, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "fca0c25 updates lane-1 test viewer_select_liquify.rs (sample-merged now works) -> SMB-PS-SELECT-LIQUIFY reopens (CX-VAL-009)",
    "lane_file": "builders/lanes/hsk-studio-ps-select-liquify-2.json",
@@ -12346,8 +12380,8 @@
   {
    "lane_id": "SMB-COMPOSITE-NETWORK-ADAPTER",
    "crate": "hsk-studio-composite",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "5fef9fb"
@@ -12376,7 +12410,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 119, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "composite Folio adapter reads StudioVectorNetwork records (today the harness builds them); DESCRIPTOR update for stroke rows",
    "lane_file": "builders/lanes/hsk-studio-composite-network-adapter.json",
@@ -12474,8 +12509,8 @@
   {
    "lane_id": "SMB-AUDIO-IMPORT-WIRING",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "29bf1c2"
@@ -12504,7 +12539,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 134, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "score import of compressed audio via harness -> reel (edge exists); Registry::with_audio() opt-in constructor instead of changing Registry::standard()",
    "lane_file": "builders/lanes/hsk-studio-audio-import-wiring.json",
@@ -12531,8 +12567,8 @@
   {
    "lane_id": "SMB-VECTOR-STYLES",
    "crate": "hsk-studio-folio",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "1da1d3e",
@@ -12562,7 +12598,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 119, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "harness authoring of folio fill/stroke styles (swatches, gradient, stroke panel); per-region fill styles on networks; folio record for variable-width strokes so composite renders them",
    "lane_file": "builders/lanes/hsk-studio-vector-styles.json",
@@ -12571,8 +12608,8 @@
   {
    "lane_id": "SMB-AE-MOTION-TOOLS",
    "crate": "hsk-studio-motion",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-ae-motion-20261015",
    "commits": [
     "9f11b2e",
@@ -12605,7 +12642,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 122, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "AE-09/11/12: graph editor + keyframe assistants, text animators/selectors, shape layers + operators, render queue from compositions",
    "lane_file": "builders/lanes/hsk-studio-ae-motion-tools.json",
@@ -12614,8 +12652,8 @@
   {
    "lane_id": "SMB-PS-SMART-FILTER-WIRING",
    "crate": "hsk-studio-composite",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-ps-select-20261015",
    "commits": [
     "7f29a88",
@@ -12646,7 +12684,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 123, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 123, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 123, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 123, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 123, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "composite lowers folio smart-filter records to the pigment render-plan entry (SmartFilterOp::from_record); GPU smart-filter pass; refine-brush viewer tool; face-aware liquify typed model_unavailable",
    "lane_file": "builders/lanes/hsk-studio-ps-smart-filter-wiring.json",
@@ -12655,8 +12694,8 @@
   {
    "lane_id": "SMB-FIG-SMART-ANIMATE-2",
    "crate": "hsk-studio-components",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-fig-smart-20261015",
    "commits": [
     "cfbd732",
@@ -12687,7 +12726,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 113, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 113, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 113, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 113, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "directional transitions (push/slide/move in/out) from .fig; spring easing (mass/stiffness/damping, analytic); gradient fill tweening; text match when autoRename=false via content similarity (typed rule)",
    "lane_file": "builders/lanes/hsk-studio-fig-smart-animate-2.json",
@@ -12696,8 +12736,8 @@
   {
    "lane_id": "SMB-AUDIO-IMPORT-2",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-audio-codecs-20261015",
    "commits": [
     "33efc32",
@@ -12727,7 +12767,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 134, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": ">2-channel downmix (ITU-R BS.775 coefficients), FLAC export MD5 computed, WAV through the same import, desktop viewer opens audio files; Audition batch processing (AU gap) over import/effect chain/export",
    "lane_file": "builders/lanes/hsk-studio-audio-import-2.json",
@@ -12834,8 +12875,8 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
    "crate": "hsk-studio-nib",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-illustrator-pen-20261015",
    "commits": [
     "13bb770",
@@ -12867,7 +12908,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 121, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "AI gaps: folio swatch references (global swatches, CMYK/spot entries), align/distribute, transform tools (rotate/scale/reflect/shear, transform each), envelope + warp effects, art/scatter/pattern brushes, graphic styles",
    "lane_file": "builders/lanes/hsk-studio-illustrator-tools-2.json",
@@ -12876,8 +12918,8 @@
   {
    "lane_id": "SMB-HARNESS-RENDER-RECORDS",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-ps-select-20261015",
    "commits": [
     "d8a2451",
@@ -12908,7 +12950,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 119, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "harness.rs resolver + mod.rs own-line changes accepted by lead",
    "lane_file": "builders/lanes/hsk-studio-harness-render-records.json",
@@ -12945,8 +12988,8 @@
   {
    "lane_id": "SMB-LAYOUT-UI",
    "crate": "hsk-studio-layout",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-layout-ui-20261015",
    "commits": [
     "863fa73",
@@ -12980,7 +13023,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 118, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 118, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 118, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 118, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 118, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "manifests pushed before steward sync (regex 1.12.4 in layout; harness -> layout edge)",
    "lane_file": "builders/lanes/hsk-studio-layout-ui.json",
@@ -12989,8 +13033,8 @@
   {
    "lane_id": "SMB-AE-MOTION-RECORDS",
    "crate": "hsk-studio-folio",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "a45d2c6",
@@ -13021,7 +13065,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 119, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "expression selector proven with stub engine only (no composite/harness -> motion-js edge): NOT_PROVEN",
    "lane_file": "builders/lanes/hsk-studio-ae-motion-records.json",
@@ -13030,8 +13075,8 @@
   {
    "lane_id": "SMB-PACKAGE-MASK-TILES",
    "crate": "hsk-studio-package",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-ps-select-20261015",
    "commits": [
     "8749f0a"
@@ -13060,7 +13105,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "data-loss fix: all tile planes saved/read; schema test guards future kinds; save now fails on missing referenced plane (was silent drop)",
    "lane_file": "builders/lanes/hsk-studio-package-mask-tiles.json",
@@ -13069,8 +13115,8 @@
   {
    "lane_id": "SMB-AE-MOTION-RECORDS-2",
    "crate": "hsk-studio-session",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-ae-motion-20261015",
    "commits": [
     "00649b8"
@@ -13099,7 +13145,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 119, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "session/package loader for motion_records set; text-animator glyphs placed by type shaping; output module resize/crop/alpha; motion blur (shutter angle/phase, samples per frame) per spec; render once, encode many output modules",
    "lane_file": "builders/lanes/hsk-studio-ae-motion-records-2.json",
@@ -13108,8 +13155,8 @@
   {
    "lane_id": "SMB-AUDITION-SESSION",
    "crate": "hsk-studio-score",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "c901059",
@@ -13140,7 +13187,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-audition-session.json",
    "reopened": "STUDIO-R37 CX-VAL-009 @1d139a6 (was PASS_V3): crate, closure or root input changed a105766..1d139a6"
@@ -13148,8 +13196,8 @@
   {
    "lane_id": "SMB-AUDITION-SESSION-2",
    "crate": "hsk-studio-score",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-audio-codecs-20261015",
    "commits": [
     "2d0e685",
@@ -13180,7 +13228,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "mix graph wired to pulse timeline sends + audio_out; preset keyframes applied; session save/reopen of mix graph; clip gain envelopes",
    "lane_file": "builders/lanes/hsk-studio-audition-session-2.json",
@@ -13189,8 +13238,8 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-INTEROP",
    "crate": "hsk-studio-interop-vector",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-illustrator-pen-20261015",
    "commits": [
     "164e468"
@@ -13219,7 +13268,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 119, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 119, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 121, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 119, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "14 commits ending 164e468; harness .ai/SVG glue cfg-gated until harness -> interop-vector edge synced",
    "lane_file": "builders/lanes/hsk-studio-illustrator-interop.json",
@@ -13228,8 +13278,8 @@
   {
    "lane_id": "SMB-PACKAGE-COMPLETENESS",
    "crate": "hsk-studio-package",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-package-20261015",
    "commits": [
     "6b60b22"
@@ -13258,7 +13308,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "packages do not carry timeline media references/embeds or stored story text (layout); audit every folio record kind that references external data and save/read all per spec (linked vs embedded), with the same schema-guard test",
    "lane_file": "builders/lanes/hsk-studio-package-completeness.json",
@@ -13309,8 +13360,8 @@
   {
    "lane_id": "SMB-DEVELOP-LENS-PRESETS",
    "crate": "hsk-studio-develop + prism + harness",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": "builder-lens-presets-20261015",
    "commits": [
     "c0ebc3c",
@@ -13342,7 +13393,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 134, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 134, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 136, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "slice 6: harness develop panel controls (lens/transform/Upright, grain/vignette, calibration, looks, presets, masks refused model_unavailable); harness viewer suite 125/125",
    "lane_file": "builders/lanes/hsk-studio-develop-lens-presets.json",
@@ -13351,8 +13403,8 @@
   {
    "lane_id": "SMB-R33-FINDINGS",
    "crate": "multi",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-r33-findings-20261015",
    "commits": [
     "6dfcf8d",
@@ -13383,7 +13435,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 29, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 30, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 55, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 30, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 30, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "note": "camera_colour split into 5 per-file tests; X-S10 44-61 s debug (half the cap)",
    "lane_file": "builders/lanes/hsk-studio-r33-findings.json",
@@ -13436,8 +13489,8 @@
   {
    "lane_id": "SMB-AUDITION-UI",
    "crate": "hsk-studio-harness",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "1d4e8e5"
@@ -13466,7 +13519,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "viewer routing/mixer editor (tracks, buses, sends, faders, meters), keyframes on bus effects, seek exactness for effects with long tails (pre-roll)",
    "lane_file": "builders/lanes/hsk-studio-audition-ui.json",
@@ -13475,8 +13529,8 @@
   {
    "lane_id": "SMB-LAYOUT-UI-2",
    "crate": "hsk-studio-harness (layout UI) + layout",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-layout-ui-2-20261016",
    "commits": [
     "20fb3f4",
@@ -13508,7 +13562,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 114, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "pages/parents, threads+story editor, style panels + layout find engine, tables + find/change, preflight panel (9 rules). Gaps: panel edits not persisted via session/chronicle; nested/line styles; find glyph/object/translit/colour modes (to SMB-ID-PREPRESS); cell/table styles; preflight link/colour/ink/font/image rules + stored profiles; style name rules enforced in harness not folio. Remote backup branch origin/lane/smb-layout-ui-2-backup left for Operator to delete",
    "lane_file": "builders/lanes/hsk-studio-layout-ui-2.json",
@@ -13535,8 +13590,8 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
    "crate": "hsk-studio-interop-vector",
-   "phase": "done (STUDIO-R58 PASS_V24 @89bbf702)",
-   "status": "PASS_V24",
+   "phase": "done (STUDIO-R59 PASS_V25 @c4d06841)",
+   "status": "PASS_V25",
    "owner": null,
    "commits": [
     "f2c1845",
@@ -13567,7 +13622,8 @@
     "STUDIO-R55 PASS_V21 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V22 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V23 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V24 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V25 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "text-as-text .ai import, AI layers preserved, colour kept in document space (CMYK/Lab), clips + masks in SVG/PDF export",
    "lane_file": "builders/lanes/hsk-studio-illustrator-interop-2.json",
@@ -13576,8 +13632,8 @@
   {
    "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
    "crate": "folio + package + kernel-bindings + 5 consumers",
-   "phase": "done (STUDIO-R58 PASS_V22 @89bbf702)",
-   "status": "PASS_V22",
+   "phase": "done (STUDIO-R59 PASS_V23 @c4d06841)",
+   "status": "PASS_V23",
    "owner": "builder-package-20261015",
    "commits": [
     "608dbce"
@@ -13604,7 +13660,8 @@
     "STUDIO-R55 PASS_V19 @ce644577 (NOT_PROVEN lines: 114, see round-R55.json)",
     "STUDIO-R56 PASS_V20 @091c4d1b (NOT_PROVEN lines: 115, see round-R56.json)",
     "STUDIO-R57 PASS_V21 @4ffe1b06 (NOT_PROVEN lines: 115, see round-R57.json)",
-    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 115, see round-R58.json)"
+    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 115, see round-R58.json)",
+    "STUDIO-R59 PASS_V23 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "resolver ports (fonts/audio/LUT/linked placed) with typed losses; linked-source health check with path-escape refusal; optional catalog asset_id; schema guard extended (book, clip-finishing, layout-grid). 433/433 over 8 crates. Gaps: folio validators not yet calling ports; chapter hash checks; schema list hand-maintained",
    "lane_file": "builders/lanes/hsk-studio-package-completeness-2.json",
@@ -13613,8 +13670,8 @@
   {
    "lane_id": "SMB-AUDITION-UI-2",
    "crate": "hsk-studio-score + harness",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-audio-codecs-20261015",
    "commits": [
     "1bc8395",
@@ -13643,7 +13700,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "seek checkpoints (1 s, 64 MiB; bit-equal to continuous play) for gain/EQ/dynamics/limiter/reverb, other effects fall back to exact re-render; mixer bus/master effect add/remove/reorder/enable/params with undo. Gap: checkpoints for remaining effect kinds",
    "lane_file": "builders/lanes/hsk-studio-audition-ui-2.json",
@@ -13652,8 +13710,8 @@
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS",
    "crate": "press, interop-vector, harness",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-r33-findings-20261015",
    "commits": [
     "46d8e4d",
@@ -13683,7 +13741,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "harness -> harness-core + harness-view (pure move, features forwarded by old names); 154/156 (2 wall-clock audio-device tests flaky under parallel load, pass serially). interop-fig and web splits for a fresh agent. Steward: sync incl. score-plugin edge + eframe/egui owner rows",
    "lane_file": "builders/lanes/hsk-studio-crate-seam-splits.json",
@@ -13730,8 +13789,8 @@
   {
    "lane_id": "SMB-D24A-CODEC-DEFAULTS",
    "crate": "reel + reel-native + harness",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-d24a-20261015",
    "commits": [
     "c91f791",
@@ -13760,7 +13819,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 114, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 147, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "R35 FAIL_V1 remediated 3b73143",
    "lane_file": "builders/lanes/hsk-studio-d24a-codec-defaults.json",
@@ -13769,8 +13829,8 @@
   {
    "lane_id": "SMB-PREMIERE-COLOR-TITLES",
    "crate": "folio + prism + composite + interop-media",
-   "phase": "done (STUDIO-R58 PASS_V23 @89bbf702)",
-   "status": "PASS_V23",
+   "phase": "done (STUDIO-R59 PASS_V24 @c4d06841)",
+   "status": "PASS_V24",
    "owner": "builder-premiere-ct-20261016",
    "commits": [
     "e48b8f5"
@@ -13798,7 +13858,8 @@
     "STUDIO-R55 PASS_V20 @ce644577 (NOT_PROVEN lines: 14, see round-R55.json)",
     "STUDIO-R56 PASS_V21 @091c4d1b (NOT_PROVEN lines: 14, see round-R56.json)",
     "STUDIO-R57 PASS_V22 @4ffe1b06 (NOT_PROVEN lines: 16, see round-R57.json)",
-    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 14, see round-R58.json)"
+    "STUDIO-R58 PASS_V23 @89bbf702 (NOT_PROVEN lines: 14, see round-R58.json)",
+    "STUDIO-R59 PASS_V24 @c4d06841 (NOT_PROVEN lines: 0, see round-R59.json)"
    ],
    "note": "gaps: render-gpu parity for graded clips; harness/monitor wiring; keyframed grade params; Lumetri HDR/faded film/sharpen; caption streams in export",
    "lane_file": "builders/lanes/hsk-studio-premiere-color-titles.json",
@@ -13944,8 +14005,8 @@
   {
    "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
    "crate": "composite + pulse + motion + folio",
-   "phase": "done (STUDIO-R58 PASS_V22 @89bbf702)",
-   "status": "PASS_V22",
+   "phase": "done (STUDIO-R59 PASS_V23 @c4d06841)",
+   "status": "PASS_V23",
    "owner": "builder-ae-particles-20261016",
    "commits": [
     "b7fb9a1",
@@ -13974,7 +14035,8 @@
     "STUDIO-R55 PASS_V19 @ce644577 (NOT_PROVEN lines: 16, see round-R55.json)",
     "STUDIO-R56 PASS_V20 @091c4d1b (NOT_PROVEN lines: 17, see round-R56.json)",
     "STUDIO-R57 PASS_V21 @4ffe1b06 (NOT_PROVEN lines: 18, see round-R57.json)",
-    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 17, see round-R58.json)"
+    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 17, see round-R58.json)",
+    "STUDIO-R59 PASS_V23 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "note": "particle world (seeded, random-access frames), comp audio via score + amplitude keyframes, Studio-native presets (.ffx typed refusal). Gaps: folio record + per-frame comp hook for particle layers; 13 of 14 STU-CMP-075 sim types; comp audio from folio records; bezier level keys; preset apply not adding effect to stack; GPU not run",
    "lane_file": "builders/lanes/hsk-studio-ae-particles-audio-presets.json",
@@ -14068,8 +14130,8 @@
   {
    "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
    "crate": "type + prism + nib + render-cpu + folio + harness",
-   "phase": "done (STUDIO-R58 PASS_V22 @89bbf702)",
-   "status": "PASS_V22",
+   "phase": "done (STUDIO-R59 PASS_V23 @c4d06841)",
+   "status": "PASS_V23",
    "owner": null,
    "commits": [
     "395d080",
@@ -14099,7 +14161,8 @@
     "STUDIO-R55 PASS_V19 @ce644577 (NOT_PROVEN lines: 115, see round-R55.json)",
     "STUDIO-R56 PASS_V20 @091c4d1b (NOT_PROVEN lines: 115, see round-R56.json)",
     "STUDIO-R57 PASS_V21 @4ffe1b06 (NOT_PROVEN lines: 119, see round-R57.json)",
-    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 111, see round-R58.json)"
+    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 111, see round-R58.json)",
+    "STUDIO-R59 PASS_V23 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "type on a path (5 effects), recolour artwork (13 harmonies), gradient mesh (Coons/tensor), vector separations via press. Gaps -> SMB-AI-MESH-2",
    "lane_file": "builders/lanes/hsk-studio-ai-type-path-recolor.json",
@@ -14148,8 +14211,8 @@
   {
    "lane_id": "SMB-AU-WAVEFORM-EDITOR",
    "crate": "score + harness + session + score-plugin",
-   "phase": "done (STUDIO-R58 PASS_V22 @89bbf702)",
-   "status": "PASS_V22",
+   "phase": "done (STUDIO-R59 PASS_V23 @c4d06841)",
+   "status": "PASS_V23",
    "owner": "builder-au-waveform-20261016",
    "commits": [
     "04bb6ed",
@@ -14181,7 +14244,8 @@
     "STUDIO-R55 PASS_V19 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V20 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V21 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V23 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "slice 4b: hosted plugin on waveform selection (opt-in feature audio-plugin; VST3 refused). 331/331 at 8411820; pushed 557ac06 after a rebase over pigment/render commits without re-run (rule 3 deviation: rebase touched dependencies; round covers it). Steward: lock entry + round feature [audio-plugin]",
    "lane_file": "builders/lanes/hsk-studio-au-waveform-editor.json",
@@ -14190,8 +14254,8 @@
   {
    "lane_id": "SMB-PR-SOURCE-MONITOR",
    "crate": "harness + render-gpu + prism + reel + reel-native",
-   "phase": "done (STUDIO-R58 PASS_V22 @89bbf702)",
-   "status": "PASS_V22",
+   "phase": "done (STUDIO-R59 PASS_V23 @c4d06841)",
+   "status": "PASS_V23",
    "owner": "builder-pr-monitor-20261016",
    "commits": [
     "c5ab9e5",
@@ -14221,7 +14285,8 @@
     "STUDIO-R55 PASS_V19 @ce644577 (NOT_PROVEN lines: 123, see round-R55.json)",
     "STUDIO-R56 PASS_V20 @091c4d1b (NOT_PROVEN lines: 123, see round-R56.json)",
     "STUDIO-R57 PASS_V21 @4ffe1b06 (NOT_PROVEN lines: 158, see round-R57.json)",
-    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 123, see round-R58.json)"
+    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 123, see round-R58.json)",
+    "STUDIO-R59 PASS_V23 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "source monitor + 3/4-point edits, AAC default in viewer, GPU graded clips (<=8.9e-7), keyframed grades, sharpen/faded film, captions in export (tx3g + WebVTT sidecar), 6 presets incl. os-encode H.264/HEVC. Round-features request reel-native [mf-worker,test-faults,os-encode,studio-aac] + harness [os-encode] for steward (R36). Gaps: ganged monitors/zoom/output channels, source audio, styled captions, 6 of 704 presets, duplicate small WebVTT writer in reel vs interop-media",
    "lane_file": "builders/lanes/hsk-studio-pr-source-monitor.json",
@@ -14230,8 +14295,8 @@
   {
    "lane_id": "SMB-AFFINITY-INTEROP-1",
    "crate": "hsk-studio-interop-affinity (new) + harness",
-   "phase": "done (STUDIO-R58 PASS_V22 @89bbf702)",
-   "status": "PASS_V22",
+   "phase": "done (STUDIO-R59 PASS_V23 @c4d06841)",
+   "status": "PASS_V23",
    "owner": "builder-affinity-interop-20261016",
    "commits": [
     "9844243",
@@ -14260,7 +14325,8 @@
     "STUDIO-R55 PASS_V19 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V20 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V21 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V22 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V23 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "typed refusal naming export route; read-only KA container reader (caps, CRC, sha256 assets); opt-in flattened thumbnail preview. Steward registry sync pending. Gaps: layer decode, native write, V2/V3 behaviour (Operator-attended oracle)",
    "lane_file": "builders/lanes/hsk-studio-affinity-interop-1.json",
@@ -14320,8 +14386,8 @@
   {
    "lane_id": "SMB-D5-PS-COMPARE",
    "crate": "harness + pigment + render-gpu + interop-psd",
-   "phase": "done (STUDIO-R58 PASS_V21 @89bbf702)",
-   "status": "PASS_V21",
+   "phase": "done (STUDIO-R59 PASS_V22 @c4d06841)",
+   "status": "PASS_V22",
    "owner": "builder-d5-ps-20261016",
    "commits": [
     "3d5fbda",
@@ -14349,7 +14415,8 @@
     "STUDIO-R55 PASS_V18 @ce644577 (NOT_PROVEN lines: 114, see round-R55.json)",
     "STUDIO-R56 PASS_V19 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V20 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V22 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-d5-ps-compare.json",
    "note": "588 Photoshop oracle entries: 196 MATCH, 301 MISMATCH (271 layer effects), 84 NOT_SUPPORTED, 6 ORACLE_INVALID, 1 ORACLE_ABSENT; oracle-cited fixes (blend NaN on gray, vivid light ends, hard mix tie, threshold rounding, legacy B/C pivot, PSD 16-bit Lab a/b). Cross-lane re-pins: pigment adjust_coverage, interop-psd precision_color_export (to measured oracle values)",
@@ -14509,8 +14576,8 @@
   {
    "lane_id": "SMB-PS-ORACLE-PARITY-1",
    "crate": "pigment + render-cpu + render-gpu",
-   "phase": "done (STUDIO-R58 PASS_V21 @89bbf702)",
-   "status": "PASS_V21",
+   "phase": "done (STUDIO-R59 PASS_V22 @c4d06841)",
+   "status": "PASS_V22",
    "owner": "builder-ps-oracle-parity-20261016",
    "commits": [
     "30ea18e",
@@ -14544,7 +14611,8 @@
     "STUDIO-R55 PASS_V18 @ce644577 (NOT_PROVEN lines: 130, see round-R55.json)",
     "STUDIO-R56 PASS_V19 @091c4d1b (NOT_PROVEN lines: 130, see round-R56.json)",
     "STUDIO-R57 PASS_V20 @4ffe1b06 (NOT_PROVEN lines: 130, see round-R57.json)",
-    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 130, see round-R58.json)"
+    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 130, see round-R58.json)",
+    "STUDIO-R59 PASS_V22 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Photoshop oracle MATCH 196->340 (no regressions): tent effect kernel, offsets, knockout, interior alpha, special-8 fill, levels toe, Blend-If ramps. Satin/soften re-pins UNVERIFIED (rescript requested). render-gpu concurrent timeouts = infra (pass alone 13/13). Gaps: ~100 spread/choke/stroke corners, gamma 1.5 toe, this-gray Blend-If, 8-bit quantisation, C14/C16, Lab->SWOP | R36 FAIL_V1 remediated 2026-10-22: Figma-sourced shadows keep a Gaussian kernel, Photoshop paths keep the tent; fig_paints_2 back to its pin (p99 5.697709, mean 0.920768, no re-pin); lead waiver for carrier edits in folio raster.rs, composite lower_extensions.rs, interop-psd effects.rs, interop-fig effects.rs/fig_geometry.rs; R37 judges",
    "lane_file": "builders/lanes/hsk-studio-ps-oracle-parity-1.json",
@@ -14794,8 +14862,8 @@
   {
    "lane_id": "SMB-PS-ORACLE-PARITY-2",
    "crate": "pigment + render-cpu + render-gpu",
-   "phase": "done (STUDIO-R58 PASS_V21 @89bbf702)",
-   "status": "PASS_V21",
+   "phase": "done (STUDIO-R59 PASS_V22 @c4d06841)",
+   "status": "PASS_V22",
    "owner": "builder-ps-oracle-parity-2-20261020",
    "commits": [
     "e64eacd",
@@ -14823,7 +14891,8 @@
     "STUDIO-R55 PASS_V18 @ce644577 (NOT_PROVEN lines: 129, see round-R55.json)",
     "STUDIO-R56 PASS_V19 @091c4d1b (NOT_PROVEN lines: 129, see round-R56.json)",
     "STUDIO-R57 PASS_V20 @4ffe1b06 (NOT_PROVEN lines: 129, see round-R57.json)",
-    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 129, see round-R58.json)"
+    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 129, see round-R58.json)",
+    "STUDIO-R59 PASS_V22 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "rebased and pushed as ..e64eacd on 2026-10-21; Photoshop oracle 340 -> 489/588; 408/408 at pre-rebase base | R36 FAIL_V1 remediated 2026-10-22 (stale_dependent_test_pin): composite tests re-pinned; derivation recorded in the lane file; R37 judges",
    "lane_file": "builders/lanes/hsk-studio-ps-oracle-parity-2.json",
@@ -14892,8 +14961,8 @@
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS-2",
    "crate": "interop-fig, web",
-   "phase": "done (STUDIO-R58 PASS_V21 @89bbf702)",
-   "status": "PASS_V21",
+   "phase": "done (STUDIO-R59 PASS_V22 @c4d06841)",
+   "status": "PASS_V22",
    "owner": "builder-seam-2-20261020",
    "commits": [
     "31b35b0 interop-fig split into hsk-studio-interop-fig-base + hsk-studio-interop-fig-native + facade (rebased onto 9c48de8, blur_kernel mapping preserved)",
@@ -14920,7 +14989,8 @@
     "STUDIO-R55 PASS_V18 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V19 @091c4d1b (NOT_PROVEN lines: 113, see round-R56.json)",
     "STUDIO-R57 PASS_V20 @4ffe1b06 (NOT_PROVEN lines: 113, see round-R57.json)",
-    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 113, see round-R58.json)"
+    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 113, see round-R58.json)",
+    "STUDIO-R59 PASS_V22 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-crate-seam-splits-2.json",
    "note": "not pushed: web split 67a7496 untested; fig split fef312e local only | 2026-10-22 pushed after rebase (no conflicts); steward owes: registry pins/APPROVED/probe/lock for the 4 new members, .config duplicate-fingerprints D16 path and machine-paths path repoints; R37 judges",
@@ -14951,8 +15021,8 @@
   {
    "lane_id": "SMB-DEVELOP-EXPORT-TIFF",
    "crate": "hsk-studio-develop + hsk-studio-interop-tiff (+ harness cli/develop export hunks)",
-   "phase": "done (STUDIO-R58 PASS_V21 @89bbf702)",
-   "status": "PASS_V21",
+   "phase": "done (STUDIO-R59 PASS_V22 @c4d06841)",
+   "status": "PASS_V22",
    "blocked_on": null,
    "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
    "lane_file": "builders/lanes/hsk-studio-develop-export-tiff.json",
@@ -14984,15 +15054,16 @@
     "STUDIO-R55 PASS_V18 @ce644577 (NOT_PROVEN lines: 134, see round-R55.json)",
     "STUDIO-R56 PASS_V19 @091c4d1b (NOT_PROVEN lines: 134, see round-R56.json)",
     "STUDIO-R57 PASS_V20 @4ffe1b06 (NOT_PROVEN lines: 134, see round-R57.json)",
-    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)"
+    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 134, see round-R58.json)",
+    "STUDIO-R59 PASS_V22 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Lightroom export parity gap (LR top gap 4): TIFF export 8/16-bit, None/LZW/ZIP(+predictor), LE/BE, BigTIFF, dpi, metadata, sRGB/Display P3 with embedded profile; typed refusals incl. colour_space_profile_missing (adobe_rgb_1998/prophoto_rgb: no profile in corpus). Missing: DNG writer, resize/output sharpening, STU-COL-132 embed selection. Bundled run 264/264 (pre-rebase tree; rebase brought interop-fig/web only). Lead-accepted scope exception: small hunks in harness cli.rs and harness-view view/develop.rs (DevelopExport::Tiff). Lightroom parity UNVERIFIED (no oracle). R37 judges."
   },
   {
    "lane_id": "SMB-HARNESS-SHELL-1",
    "crate": "hsk-studio-harness-view + hsk-studio-harness (+ harness-core hooks)",
-   "phase": "done (STUDIO-R58 PASS_V21 @89bbf702)",
-   "status": "PASS_V21",
+   "phase": "done (STUDIO-R59 PASS_V22 @c4d06841)",
+   "status": "PASS_V22",
    "blocked_on": null,
    "owner": "builder (Opus, lead dispatch 2026-10-22)",
    "lane_file": "builders/lanes/hsk-studio-harness-shell-1.json",
@@ -15025,7 +15096,8 @@
     "STUDIO-R55 PASS_V18 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V19 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V20 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V21 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V22 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "GUI reachability gap (gui-surfaces.json): layout editor F5, program monitor F6, prototype player F12 now reachable in the desktop build; source monitor F7, mixer F8, waveform editor F9, spectral display F11 with feature audio-batch (greyed otherwise, label names the feature); Open/Save/Export via dialogs; Ctrl+O/S/Shift+S/W/Z/Y. No dependency added. Whole suites of the three crates (desktop,audio-batch): 162/162, re-run after rebase onto 09a5b29. Gaps: menus/dialog not via hsk-studio-controls descriptors (STU-ARC-014, out of lane); layout editor edits not saved (layout_ui needs a save API); program monitor on a document sequence has no frame decoder; recent files persist only with --recent; no HELP menu; harness DESCRIPTOR not_proven mask entry stale. R37 judges."
   },
@@ -15197,8 +15269,8 @@
   {
    "lane_id": "SMB-DEVELOP-DNG-WRITER",
    "crate": "hsk-studio-develop + hsk-studio-interop-tiff (+ harness cli / harness-view DevelopExport::Dng hunks)",
-   "phase": "done (STUDIO-R58 PASS_V20 @89bbf702)",
-   "status": "PASS_V20",
+   "phase": "done (STUDIO-R59 PASS_V21 @c4d06841)",
+   "status": "PASS_V21",
    "blocked_on": null,
    "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
    "lane_file": "builders/lanes/hsk-studio-develop-dng-writer.json",
@@ -15230,15 +15302,16 @@
     "STUDIO-R55 PASS_V17 @ce644577 (NOT_PROVEN lines: 95, see round-R55.json)",
     "STUDIO-R56 PASS_V18 @091c4d1b (NOT_PROVEN lines: 95, see round-R56.json)",
     "STUDIO-R57 PASS_V19 @4ffe1b06 (NOT_PROVEN lines: 95, see round-R57.json)",
-    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)"
+    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)",
+    "STUDIO-R59 PASS_V21 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Lightroom export gap: CFA-preserving lossless DNG 1.4 writer (uncompressed 16-bit or lossless JPEG SOF3), IFD0 preview + colour/calibration tags + XMP (700) + Exif subset, raw SubIFD with CFA/black/white/active area/crop; every written file is read back and compared; 3 CC0 corpus DNGs round-trip equal (samples and tags). 294/294 over develop, interop-tiff, harness, harness-view (viewer). Gaps: recipe XMP only via --dng-xmp FILE (harness has no interop-lrcat edge: lead decision: approve a feature-gated edge harness -> interop-lrcat for the CLI to generate the crs: packet itself, steward adds at the next sync; a write_sidecar -> DNG -> read_sidecar test goes into interop-lrcat tests); not carried from source DNGs: opcode lists, masked areas, hue-sat maps, default user crop; strips only; no deflate/lossy DNG. Lightroom parity UNVERIFIED; Adobe DNG Converter output compared by tag profile only. R38 judges."
   },
   {
    "lane_id": "SMB-AE-RENDER-QUEUE-2",
    "crate": "hsk-studio-harness-view (timeline_export render_queue.rs, composition.rs) + hsk-studio-composite (scale_scene, render_scene_with_output) + hsk-studio-folio (composition_work_areas)",
-   "phase": "done (STUDIO-R58 PASS_V20 @89bbf702)",
-   "status": "PASS_V20",
+   "phase": "done (STUDIO-R59 PASS_V21 @c4d06841)",
+   "status": "PASS_V21",
    "blocked_on": null,
    "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
    "lane_file": "builders/lanes/hsk-studio-ae-render-queue-2.json",
@@ -15268,15 +15341,16 @@
     "STUDIO-R55 PASS_V17 @ce644577 (NOT_PROVEN lines: 80, see round-R55.json)",
     "STUDIO-R56 PASS_V18 @091c4d1b (NOT_PROVEN lines: 80, see round-R56.json)",
     "STUDIO-R57 PASS_V19 @4ffe1b06 (NOT_PROVEN lines: 80, see round-R57.json)",
-    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 80, see round-R58.json)"
+    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 80, see round-R58.json)",
+    "STUDIO-R59 PASS_V21 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "AE-22: render queue honours resolution, bit depth, spans, frame blending and alpha laws (13 new tests; 469/469 over folio, composite, harness-view, harness, package, session before the last rebase, which pulled only tiff/dng changes). Still refused by design: fields/3:2 pulldown (no field path, no encoder field flags), rgb_alpha output codec (no reel encoder carries alpha), wireframe, effects-off, frame-rate conversion, non-BT.709 output. Spec gaps recorded: matte colour for premultiplied output, composition frame-blending master switch, 8/16 bpc quantisation and reduced-size rounding rules, draft switch. Finding for the motion lane: shape-layer streams in a nested composition do not follow the nested source time (frame blending proven at scene level + synthetic renderer test only). AE parity UNVERIFIED (no D5 case). R38 judges."
   },
   {
    "lane_id": "SMB-TIMELINE-UI-1",
    "crate": "hsk-studio-harness-view (view/timeline*.rs, registration + Workspace menu hunks) + hsk-studio-pulse (snap.rs additive)",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus) -> diagnostics (Opus), lead dispatch 2026-10-22",
    "lane_file": "builders/lanes/hsk-studio-timeline-ui-1.json",
@@ -15311,15 +15385,16 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 74, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 75, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "Premiere/AE/Audition GUI 0 % gap: first timeline surface; not pushed until the two drag tests pass (never push a lane with failing own tests) | 2026-10-23 READY at 5ab33c9 (pushed 23b1bb7..5ab33c9, lane paths only + registration hunks in view/mod.rs, shell.rs): confirming bundled run 223 passed / 0 failed / 20 skipped (harness-view, harness, pulse whole suites + clippy) at c48872d, rebased over the steward's run-round.sh commit only. Diagnosis H3: the test aimed the pointer at the first egui frame; panels sit 35 px lower from frame 2; fix in the test file (settle()). F-TL-2 recorded (headless pointer tests settle layout first). Unfixed observation: viewer top bars end at y 825 on a 1200 px screen (~800 px tall), unverified in the real window; toolbar owner to look. No Folio record field: rule 4b not triggered."
   },
   {
    "lane_id": "SMB-EPS-FREE-FONTS",
    "crate": "vendored stet fork (EPS -> PDF crates, Apache-2.0 OR MIT) + hsk-studio-interop-vector-core EPS worker",
-   "phase": "done (STUDIO-R58 PASS_V20 @89bbf702)",
-   "status": "PASS_V20",
+   "phase": "done (STUDIO-R59 PASS_V21 @c4d06841)",
+   "status": "PASS_V21",
    "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 on the Operator decision 'replace EPS with open source fonts'",
    "lane_file": "builders/lanes/hsk-studio-eps-free-fonts.json",
@@ -15351,7 +15426,8 @@
     "STUDIO-R55 PASS_V17 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V18 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V19 @4ffe1b06 (NOT_PROVEN lines: 85, see round-R57.json)",
-    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V21 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "replace the AGPL-published URW base35 fonts with free fonts (TeX Gyre GFL, Liberation/STIX Two/Noto Sans Symbols 2 OFL), trim hayro-jpeg2000 default features so image/moxcms never enter the lock, restore the EPS worker on the fork | 2026-10-23: removed the 35 URW Type 1 fonts, NimbusRoman CFF FontSet, LICENSE-URW-FONTS (never copied), glob and jpeg-encoder (DCTEncode now errors); hayro-jpeg2000 built with std only (image stays out of the lock); host font scanning and render feature off. Fonts: 33 TeX Gyre Type 1 (GUST Font License, an LPPL-1.3c instance; URW++ released these to GUST under it) for the Latin families; Symbol = STIX Two Math (OFL-1.1, 189/189 glyphs, 29 via Unicode fallback); ZapfDingbats = DejaVu Sans (Bitstream Vera/Arev licence, 201/201; Noto Sans Symbols 2 covered only 153, dropped); PDFs embed the standard 14. New lock crates: hayro-jbig2 0.1.0, hayro-ccitt 0.2.0, jpeg-decoder 0.3.2; Cargo.lock uncommitted. Steward items: 7 members + edges in root Cargo.toml; interop-vector-core optional edges hsk-studio-ps, hsk-studio-ps-core, hsk-studio-worker; 40 dep-requests lines filed (20 internal, 20 crates.io); round-features interop-vector-core [[eps-worker]]; step-0 machine-path pin crates/hsk-studio-ps-engine/src/eval.rs = 1. Build evidence so far: cargo check -p hsk-studio-ps --tests clean. Gaps: EPS import proven only against a recording provider (not Press end to end); no harness .eps import route; Symbol/ZapfDingbats spacing not Adobe-compatible (UNVERIFIED); upstream tests needing URW fonts print NOT_PROVEN. The licence gate (steward) judges the GUST Font License. | 2026-10-23 READY at 88edeb0 (pushed 347026e..88edeb0: 284 files, 10 lane paths, Cargo.lock not committed; lead verified on origin). Run 4 (ebe8689 pre-rebase tree; rebase brought only dependents) green 808/808 over the 7 ps crates + interop-vector-core + interop-vector, clippy incl. dependents; lock wait 7395 s. STEWARD SYNC OWED before R39 can include it: 7 new members + edges (in root Cargo.toml on origin), interop-vector-core optional edges ps/ps-core/worker, 40 dep-requests, registry pins, lock additions hayro-ccitt 0.2.0 / hayro-jbig2 0.1.0 / jpeg-decoder 0.3.2, round-features interop-vector-core [[eps-worker]], machine-path pin ps-engine/src/eval.rs = 1, licences GUST/LPPL-1.3c + OFL-1.1 + Bitstream Vera/Arev. UNVERIFIED: Symbol/ZapfDingbats metrics vs Adobe (D5). Builder's record command hook-blocked (kernel cwd, unconfirmed WP-012 steps); lead applied its prepared update.",
    "remediation": {
@@ -15366,8 +15442,8 @@
   {
    "lane_id": "SMB-HARNESS-SHELL-2",
    "crate": "hsk-studio-harness-view / harness / harness-core (+controls descriptors if spec-placed)",
-   "phase": "done (STUDIO-R58 PASS_V20 @89bbf702)",
-   "status": "PASS_V20",
+   "phase": "done (STUDIO-R59 PASS_V21 @c4d06841)",
+   "status": "PASS_V21",
    "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-harness-shell-2.json",
@@ -15398,15 +15474,16 @@
     "STUDIO-R55 PASS_V17 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V18 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V19 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V21 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "F-R37-3 vendor-name dialog filter label; HARNESS-SHELL-1 gaps (HELP leaves STU-SHL-004, layout editor save API, controls descriptors STU-ARC-014); SSD slot | 2026-10-23: gaps: layout editor save API not built (chronicle has no page-spread/text_frame/story write: hsk-studio-chronicle/src/lib.rs:425); Alt mnemonics and reserved-band node ids belong to the shell, not the harness. Remaining: bundled run, rebase (timeline lane also touches harness-view), diff check, guarded push, READY, START_LOG line. Never built on C: (77 refusal). | 2026-10-23 READY at 1709b748 (pushed 5739eb5..1709b748, 8 lane paths in controls/harness/harness-view; lead verified). Bundled lane-check 227/227 passed, 20 skipped, at 1709b748 (clippy + whole suites controls, harness-view, harness, harness-core, desktop + audio-batch); 4 runs in all because origin moved twice; run 1 had 3 test-side AccessKit lookup failures fixed in one commit. Conflicts: PANELS-1 4 hunks in shell.rs both kept (hosted panels under WORKSPACE > Panels); timeline registration, descriptor menus and HELP survived. Gap: layout editor save API not built (chronicle lacks the write path). Lock wait 11778 s over 4 runs."
   },
   {
    "lane_id": "SMB-HARNESS-PANELS-1",
    "crate": "hsk-studio-harness-view (panel hosting, registration, Workspace menu hunks)",
-   "phase": "done (STUDIO-R58 PASS_V20 @89bbf702)",
-   "status": "PASS_V20",
+   "phase": "done (STUDIO-R59 PASS_V21 @c4d06841)",
+   "status": "PASS_V21",
    "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-harness-panels-1.json",
@@ -15436,7 +15513,8 @@
     "STUDIO-R55 PASS_V17 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V18 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V19 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V21 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "host the 16 PASS-judged surfaces unreachable from the window (gui-surfaces.json: layout editor, program/source monitor, mixer, spectral display, prototype player, ...) as WORKSPACE > Panels; headless proof per surface; SSD slot | 2026-10-23: 13 surfaces hosted (appearance, stroke, swatches, graphic_styles, align_distribute, transform, path_operations, masks, envelope_distort, brushes, vector_export, vector_import, audio_batch) via Viewer::hosted_action; shell-1 had already hosted layout editor, program/source monitor, mixer, waveform, spectral, prototype player (per-surface proof added, state under state_json shell.surfaces). Left unreachable: timeline/composition/render-queue export (engine wiring, not hosting). Lock waits 6174 s + 5110 s behind R38/timeline; never built on C: (77 refusal). | 2026-10-23 READY at 347026e (pushed 5ab33c9..347026e, 5 lane paths only; one shell.rs Panel::ALL conflict resolved 11+13 -> 24): run 2: 203 passed / 0 failed / 20 skipped, viewer_panels 18/18, viewer-only clippy OK; lock wait 3484 s. 13 surfaces hosted; gaps: timeline/composition/render-queue export (engine wiring), swatch/gradient/envelope/network/pathfinder controls API-only. Builder's record command hook-blocked (kernel cwd); lead wrote the records."
   },
@@ -15495,8 +15573,8 @@
   {
    "lane_id": "SMB-TIMELINE-TRIM-1",
    "crate": "hsk-studio-harness-view (view/timeline.rs, timeline_ui.rs, new view/timeline/trim*.rs, tests/viewer_timeline_trim.rs)",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24 ~01:30Z",
    "lane_file": "builders/lanes/hsk-studio-timeline-trim-1.json",
@@ -15529,7 +15607,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Premiere ripple/roll/slip/slide trims, nudges, trim session (STU-VID-026/026a/026b/035a/090); single writer of timeline.rs/timeline_ui.rs; any R39 remediation of SMB-TIMELINE-UI-1 is assigned here; PUSH HOLD until the R39 candidate is frozen (V4-14: carries READY SMB-TIMELINE-UI-1 files); green locally 2026-10-24 at 17652963 (220 passed / 0 failed, clippy clean), HEAD d0bd918a adds RUN-UI.md trim section + stale-line fix (doc-only); waiting for the R39 freeze to push; PUSHED after the R39 freeze, READY 2026-10-24 on b9c311e5: 231 passed / 0 failed / 20 skipped, clippy clean, re-run on C: after rebasing onto 7d62c5da; for R40",
    "remediation": null
@@ -15572,8 +15651,8 @@
   {
    "lane_id": "SMB-PR-MULTICAM-1",
    "crate": "hsk-studio-folio + hsk-studio-pulse + hsk-studio-session (new multicam.rs) + package tests/externals.rs line",
-   "phase": "done (STUDIO-R58 PASS_V20 @89bbf702)",
-   "status": "PASS_V20",
+   "phase": "done (STUDIO-R59 PASS_V21 @c4d06841)",
+   "status": "PASS_V21",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24 ~01:30Z",
    "lane_file": "builders/lanes/hsk-studio-pr-multicam-1.json",
@@ -15606,7 +15685,8 @@
     "STUDIO-R55 PASS_V17 @ce644577 (NOT_PROVEN lines: 4, see round-R55.json)",
     "STUDIO-R56 PASS_V18 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V19 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V20 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V21 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "note": "Premiere multicam as a separate record set (STU-VID-033); rule 4b package suite; active-angle playback NOT_PROVEN (pulse resolves no nested sequences); READY 2026-10-24 on dbc31c18: bundled run 221 passed / 0 failed, clippy 4 crates + 19 dependents; gaps: flatten refuses markers/non-unit speed, session commit of a new source sequence not wired, folio DESCRIPTOR text pending (notes.folio_descriptor_text_for_lead); spec deltas in lane notes.spec_deltas",
    "remediation": null
@@ -15640,8 +15720,8 @@
   {
    "lane_id": "SMB-PS-SOFT-PROOF-2",
    "crate": "hsk-studio-folio (proof_state.rs, lib.rs module + DESCRIPTOR text for proof and multicam) + session source.rs 'proof' token + package tests/externals.rs + harness-view view/proof.rs + shell.rs/view/mod.rs hunks + RUN-UI.md + prism src/proof/gamut.rs:17-18 doc fix",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T02:46:25Z",
    "lane_file": "builders/lanes/hsk-studio-ps-soft-proof-2.json",
@@ -15674,7 +15754,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 72, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "document-scoped proof state record (STU-COL-240), VIEW/COLOR proof menus, preset menu, canvas gamut overlay; PUSH HOLD until the R39 candidate is frozen (V4-14: SOFT-PROOF-1, MULTICAM-1 and folio/session/package READY lanes); green locally 2026-10-24 at d5af057a (578 passed / 0 failed, clippy exit 0; folio, session, package, prism, harness-view, harness desktop+audio-batch); lead-approved scope exception harness tests/viewer_shell.rs:641 titles add \"Color\" (STU-SHL-011); waiting for the R39 freeze to push; PUSHED after the R39 freeze, READY 2026-10-24 on 7d62c5da: 583 passed / 0 failed / 22 pre-existing skips, clippy exit 0, re-run on C: after rebasing onto MULTICAM-2 087d4a9d; for R40",
    "remediation": null
@@ -15682,8 +15763,8 @@
   {
    "lane_id": "SMB-PR-MULTICAM-2",
    "crate": "hsk-studio-pulse (src/multicam.rs) + hsk-studio-session (multicam.rs, timeline.rs or a step file, session.rs, lib.rs) + tests",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T02:46:25Z",
    "lane_file": "builders/lanes/hsk-studio-pr-multicam-2.json",
@@ -15715,7 +15796,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 4, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ],
    "note": "one-step session commit for multicam changes incl. new source sequence, flatten/resolve at non-unit forward speed, markers through flatten, named refusals; PUSH HOLD until the R39 candidate is frozen (V4-14); green locally 2026-10-24 at 6979d6eb (90 passed / 0 failed, clippy no errors); waiting for the R39 freeze to push; PUSHED after the R39 freeze (b7ef882e..087d4a9d), READY 2026-10-24 on 087d4a9d: 90 passed / 0 failed at pre-rebase 6979d6eb (rebase brought only hsk-studio-ps* docs/NOTICE, no re-run); for R40",
    "remediation": null
@@ -15723,8 +15805,8 @@
   {
    "lane_id": "SMB-LR-HEALING-1",
    "crate": "hsk-studio-develop (new retouch.rs + additive hunks) + harness-view develop_entry.rs + interop-lrcat xmp_sidecar.rs",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T04:28:09Z",
    "lane_file": "builders/lanes/hsk-studio-lr-healing-1.json",
@@ -15755,7 +15837,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 95, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 95, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 95, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Lightroom heal/clone/spot removal (STU-RAW-015/124) + core distraction removal via pigment on-device fill (STU-RAS-143); generative fill refuses model_unavailable; red-eye refused (no spec fields); READY 2026-10-24 on c9a32dd6: 402 passed / 0 failed / 39 skipped on C: (develop, harness-view, harness, interop-lrcat). Lead-accepted scope exceptions (HBR-STOP-005, to disclose to the Operator): develop local.rs windowed brush raster (same arithmetic) + Mask::validate pub(crate); interop-lrcat fix: nested rdf:Description in a list item no longer counts as a repeated top-level property (previously failed the read with xmp_property_repeated). Gaps: window does not enable_retouch (harness-view view/develop.rs), no spot tool, no XMP write-back of retouch areas, circle/gradient masks dropped with loss note; lrcat field names UNVERIFIED",
    "remediation": null
@@ -15763,8 +15846,8 @@
   {
    "lane_id": "SMB-FIG-EDIT-1",
    "crate": "hsk-studio-harness-view (new view/design*, additive view/mod.rs, shell.rs Open routing, file_dialog.rs filter, vector.rs accessor) + RUN-UI.md",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T04:28:09Z",
    "lane_file": "builders/lanes/hsk-studio-fig-edit-1.json",
@@ -15797,7 +15880,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Figma: File > Open makes .fig an editable native document; instance inspector (variant switch, overrides with reset, component swap) in Properties (STU-IO-006 row 35, STU-DS-008/016/017/160); no new edge; READY 2026-10-24 on 74daa7a8: 248 passed / 0 failed / 20 skipped on C: after rebasing onto e3fc44b5; 11/11 viewer_fig_edit incl. AccessKit. Lead decision: instance variant/override state persists via a Folio design-state record + session token \"design\" + package classifier (pattern of proof/multicam) in follow-up lane SMB-FIG-EDIT-2; until then edits are session-only and a reopened edited instance reads state unknown. Gaps: binding layers dropped (receipt), image paints not drawn, single-line first-style text, translation-only redraw; 2 clippy warnings in tests/viewer_fig_edit.rs (271, 510). Infra: warm-up build OS error 1455 (paging file too small) at default jobs; CARGO_BUILD_JOBS=6 succeeded",
    "remediation": {
@@ -15812,8 +15896,8 @@
   {
    "lane_id": "SMB-PR-RATE-STRETCH-1",
    "crate": "hsk-studio-pulse (new rate.rs + lib.rs lines) + harness-view timeline.rs, timeline_ui.rs, timeline/trim.rs, new timeline/rate.rs",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24T04:28:09Z",
    "lane_file": "builders/lanes/hsk-studio-pr-rate-stretch-1.json",
@@ -15845,7 +15929,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 74, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 75, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "Premiere rate stretch + Speed/Duration planners, rate_stretch tool (R), Ctrl+R, exact slip at non-unit speed (STU-VID-026/031); single writer of TRIM-1's files; READY 2026-10-24 on e3fc44b5: 298 passed / 0 failed / 20 skipped on C: after rebasing onto HEALING-1 c9a32dd6 (pre-rebase 297/297); RUN-UI.md lines routed to SMB-FIG-EDIT-1 (owner of RUN-UI.md tonight); gaps: time remapping (PR-09 stays PARTIAL), no ripple-trailing option; Premiere limits UNVERIFIED",
    "remediation": null
@@ -15883,8 +15968,8 @@
   {
    "lane_id": "SMB-FIG-EDIT-2",
    "crate": "hsk-studio-folio (design_state record) + session source.rs 'design' token + package externals + harness-view view/design* + RUN-UI.md",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T05:57:21Z",
    "lane_file": "builders/lanes/hsk-studio-fig-edit-2.json",
@@ -15916,7 +16001,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "persist Figma instance state (variant, properties, overrides, swap) across save/reopen (lead decision on FIG-EDIT-1's open item); Folio slice pushed first; READY 2026-10-24 on 42b304c7: 442 passed / 0 failed / 20 skipped on C: (folio, session, package, harness-view, harness desktop+audio-batch). Declared deviations accepted by the lead: undo does not restore the design entry (harness-core Run::restructure carries no entry; state kept per instance layer + current children, newest 256); a folio lib.rs DESCRIPTOR rebase conflict with ID-LIQUID was resolved by the builder (kept origin line, re-applied its two edits, word-diff checked, full bundled re-run) although the brief said stop",
    "remediation": null
@@ -15924,8 +16010,8 @@
   {
    "lane_id": "SMB-LR-HEALING-2",
    "crate": "hsk-studio-harness-view view/develop.rs + view/develop/spot.rs + interop-lrcat xmp_sidecar.rs + develop records.rs",
-   "phase": "done (STUDIO-R58 PASS_V19 @89bbf702)",
-   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V20 @c4d06841)",
+   "status": "PASS_V20",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24T05:57:21Z",
    "lane_file": "builders/lanes/hsk-studio-lr-healing-2.json",
@@ -15959,7 +16045,8 @@
     "STUDIO-R55 PASS_V16 @ce644577 (NOT_PROVEN lines: 95, see round-R55.json)",
     "STUDIO-R56 PASS_V17 @091c4d1b (NOT_PROVEN lines: 95, see round-R56.json)",
     "STUDIO-R57 PASS_V18 @4ffe1b06 (NOT_PROVEN lines: 95, see round-R57.json)",
-    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)"
+    "STUDIO-R58 PASS_V19 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)",
+    "STUDIO-R59 PASS_V20 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Lightroom spot removal in the window: enable retouch, Develop panel spot section (heal/clone/distraction), XMP write-back of crs:RetouchAreas, circle-mask decode, copy/sync group; local commits 574047ff, 3a1a3c28, 80ea5c88, 19516258 (unpushed): window retouch enable + six typed spot ops, Develop panel spot section, XMP write-back + circle-mask decode, copy/sync group; new flags moved to develop.retouch_enables (viewer_develop_2.rs pins develop.enables); DIAGNOSIS diagnostics/smb-lr-healing-2-1.md: product layout bug: buttons wrapped in ui.push_id inside horizontal_wrapped never wrap, so the auto-sized right panel widened every frame (~300 -> ~1200 px over ~10 frames in the real window); fix wrap_item in view/develop.rs (pre-existing develop rows changed: lead-accepted scope exception). Probe 3/3 at 46b5bcdd; confirming 430/430 at fd02e21b; after rebase 435/435 at 09b4f637 (exit 2 only because tools/lane-check.sh was rewritten in place by the steward while the run executed; tests had completed). READY 2026-10-24 on 09b4f637. Same row bug in view/mod.rs toolbar and Layers panel (likely F-TL-1 800 px toolbar): follow-up lane.",
    "remediation": null
@@ -16048,8 +16135,8 @@
   {
    "lane_id": "SMB-SHELL-ROW-WRAP-1",
    "crate": "hsk-studio-harness-view (new view/wrap.rs; view/mod.rs toolbar + Layers; vector.rs, select_liquify.rs, hosted.rs, waveform.rs, design/instance.rs rows; develop.rs uses the shared helper) + tests/viewer_shell_rows.rs",
-   "phase": "done (STUDIO-R58 PASS_V18 @89bbf702)",
-   "status": "PASS_V18",
+   "phase": "done (STUDIO-R59 PASS_V19 @c4d06841)",
+   "status": "PASS_V19",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24 ~09:25Z",
    "lane_file": "builders/lanes/hsk-studio-shell-row-wrap-1.json",
@@ -16078,7 +16165,8 @@
     "STUDIO-R55 PASS_V15 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V16 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V17 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V19 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "product layout bug from diagnostics/smb-lr-healing-2-1.md (F-TL-1): toolbar 803 px -> 107 px at 1400x900 (825 -> 192 px at 900x700); Layers panel widened 262->282 px per frame, then (after wrapping) narrowed 206->96 px until content spans the width; new tests viewer_shell_rows (3) RED 3/3 on old code, GREEN in the whole-suite run 265/265 on D:. Not fixed: waveform fade-curve combo (id would change); right Properties/Develop panel may narrow the same way (unchecked). For R41.",
    "remediation": null
@@ -16168,8 +16256,8 @@
   {
    "lane_id": "SMB-PS-INFO-HISTOGRAM-1",
    "crate": "hsk-studio-pigment (new diagnostics.rs) + harness-view (new view/info.rs, shell.rs/view/mod.rs hunks) + session source.rs 'info' token + RUN-UI.md",
-   "phase": "done (STUDIO-R58 PASS_V18 @89bbf702)",
-   "status": "PASS_V18",
+   "phase": "done (STUDIO-R59 PASS_V19 @c4d06841)",
+   "status": "PASS_V19",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24T12:45:14Z",
    "lane_file": "builders/lanes/hsk-studio-ps-info-histogram-1.json",
@@ -16202,15 +16290,16 @@
     "STUDIO-R55 PASS_V15 @ce644577 (NOT_PROVEN lines: 72, see round-R55.json)",
     "STUDIO-R56 PASS_V16 @091c4d1b (NOT_PROVEN lines: 72, see round-R56.json)",
     "STUDIO-R57 PASS_V17 @4ffe1b06 (NOT_PROVEN lines: 72, see round-R57.json)",
-    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 72, see round-R58.json)"
+    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 72, see round-R58.json)",
+    "STUDIO-R59 PASS_V19 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Photoshop PS-30 histogram, info readout, colour sampler (Info panel, Ctrl+Shift+F4); right Properties/Develop panel narrowing check with view/wrap.rs; READY 2026-10-30 on ce5df74c: 531 passed / 0 failed / 20 skipped on C:, step 0 clean; product fix: histogram with no document is null, not an error; the lane loosened two of its OWN new width assertions (R41 validator to review); shortcut Ctrl+Shift+F1 (F4 clashes with Develop in the unmodified-key uniqueness test); right panel: no narrowing reproduced; Properties opens at 445 px vs 300 px default (cause UNVERIFIED); CMYK readout unmanaged; Photoshop numerics UNVERIFIED (D5)",
    "remediation": null
   },
   {
    "lane_id": "SMB-R40-FOLLOWUPS-1",
-   "status": "PASS_V18",
-   "phase": "done (STUDIO-R58 PASS_V18 @89bbf702)",
+   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V19 @c4d06841)",
    "candidate": "c2422d23",
    "owner_paths": [
     "crates/hsk-studio-motion-js",
@@ -16244,13 +16333,14 @@
     "STUDIO-R55 PASS_V15 @ce644577 (NOT_PROVEN lines: 29, see round-R55.json)",
     "STUDIO-R56 PASS_V16 @091c4d1b (NOT_PROVEN lines: 29, see round-R56.json)",
     "STUDIO-R57 PASS_V17 @4ffe1b06 (NOT_PROVEN lines: 29, see round-R57.json)",
-    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)"
+    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)",
+    "STUDIO-R59 PASS_V19 @c4d06841 (NOT_PROVEN lines: 24, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-AU-MULTITRACK-1",
-   "status": "PASS_V17",
-   "phase": "done (STUDIO-R58 PASS_V17 @89bbf702)",
+   "status": "PASS_V18",
+   "phase": "done (STUDIO-R59 PASS_V18 @c4d06841)",
    "candidate": "1c57c17a",
    "owner_paths": [
     "crates/hsk-studio-harness-view/src/view/timeline*",
@@ -16283,13 +16373,14 @@
     "STUDIO-R55 PASS_V14 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V15 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V16 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V18 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-2",
-   "status": "PASS_V18",
-   "phase": "done (STUDIO-R58 PASS_V18 @89bbf702)",
+   "status": "PASS_V19",
+   "phase": "done (STUDIO-R59 PASS_V19 @c4d06841)",
    "candidate": "9ee2b546",
    "owner_paths": [
     "crates/hsk-studio-harness-view/src/view/vector.rs",
@@ -16321,13 +16412,14 @@
     "STUDIO-R55 PASS_V15 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V16 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V17 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V18 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V19 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-3",
-   "status": "PASS_V17",
-   "phase": "done (STUDIO-R58 PASS_V17 @89bbf702)",
+   "status": "PASS_V18",
+   "phase": "done (STUDIO-R59 PASS_V18 @c4d06841)",
    "candidate": "815e8571",
    "owner_paths": [
     "crates/hsk-studio-harness-view/src/view/{vector,text,path_text,interop,pdf_export,separations}.rs",
@@ -16363,14 +16455,15 @@
     "STUDIO-R55 PASS_V14 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V15 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V16 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V18 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-R41-FOLLOWUPS-1",
    "crate": "hsk-studio-layout + hsk-studio-harness-view",
-   "phase": "done (STUDIO-R58 PASS_V17 @89bbf702)",
-   "status": "PASS_V17",
+   "phase": "done (STUDIO-R59 PASS_V18 @c4d06841)",
+   "status": "PASS_V18",
    "owner": "builder opus/medium",
    "lane_file": "builders/lanes/hsk-studio-r41-followups-1.json",
    "brief": "builders/briefs/lane-smb-r41-followups-1.md",
@@ -16400,7 +16493,8 @@
     "STUDIO-R55 PASS_V14 @ce644577 (NOT_PROVEN lines: 75, see round-R55.json)",
     "STUDIO-R56 PASS_V15 @091c4d1b (NOT_PROVEN lines: 75, see round-R56.json)",
     "STUDIO-R57 PASS_V16 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V18 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "R41 findings: F-R41-1 (MEDIUM) CJK W3C licence citation in layout NOTICE/cjk.rs/DESCRIPTOR; F-R41-3 Info min width at 900 px; F-R41-4 NOT_PROVEN prints (viewer_info, cjk_kinsoku); F-R41-5 residual text-entry decode error. Base c719b1dc. F-R41-2 (sha2 for folio) deferred to the next steward change (root input: would force a canary).; READY at cf2e46da: F-R41-1 W3C SW&Doc licences (JLREQ 2015, CLREQ 2023) with dated URIs/status/years in NOTICE, cjk.rs, DESCRIPTOR + pin test; F-R41-3 fallback (Info clamp asserted at 900x700, doc narrowed; wide row probably receipt_ui loss grid in src/view/mod.rs, by reading, not measured); F-R41-4 NOT_PROVEN prints (cjk_kinsoku 5, viewer_info 4); F-R41-5 render paths name the decode error (exports routed to AREA-TYPE-3 remediation). Runs on C:: run1 391/1/20 (layout+harness-view+harness), runs 2-3 after rebases 288/1/20; the 1 failure each time is AREA-TYPE-3 create_outlines (not this lane). Red-first by construction, not run.",
    "remediation": null
@@ -16408,8 +16502,8 @@
   {
    "lane_id": "SMB-PS-ACTIONS-1",
    "crate": "hsk-studio-harness-core (+ harness src/cli.rs slice 4)",
-   "phase": "done (STUDIO-R58 PASS_V17 @89bbf702)",
-   "status": "PASS_V17",
+   "phase": "done (STUDIO-R59 PASS_V18 @c4d06841)",
+   "status": "PASS_V18",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ps-actions-1.json",
    "brief": "builders/briefs/lane-smb-ps-actions-1.md",
@@ -16440,7 +16534,8 @@
     "STUDIO-R55 PASS_V14 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V15 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V16 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V18 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Photoshop PS-31 actions (STU-RAS-169, STU-AUT-106/109/010): record the Run command stream, replay as one undo step, batch over documents with receipts; serves Affinity AF-12; push held for lead release (upstream of running harness-view lanes) (planner opus/high 2026-10-30, base c719b1dc); 2026-10-30T08:58:19Z slices 1-3 green locally be8dbe7c (b5ef8e70, 2f1bf5f5, 3505f115, be8dbe7c): harness-core whole suite 21/21 exit 0; lead requires harness + harness-view suites before READY (private HistoryStep gained group field: undo internals); slice 4 CLI being built; HOLD until AREA-TYPE-3 pushes. Spec-delta: STU-AUT-106/178 seven vs eight value types; STU-AUT-105 should cite STU-AUT-136; STU-AUT-128 action by id without a library (inline record).; slice 4 CLI (batch JOB.json / action check SET.json) committed c79067a4, unbuilt until release run; 2026-10-30T09:32:33Z READY at 179dc3d6 (rebased on 815e8571): release lane-check exit 0, harness-core + harness + harness-view whole suites with desktop+audio-batch 314/314 (20 skipped); log scratchpad/smb-ps-actions-1/lanecheck-smb-ps-actions-1-179dc3d6-release.log. Slice 4 CLI batch / action check + manual entries.",
    "remediation": null
@@ -16518,8 +16613,8 @@
   {
    "lane_id": "SMB-AU-MULTITRACK-2",
    "crate": "hsk-studio-folio + pulse/score mix + harness-view timeline",
-   "phase": "done (STUDIO-R58 PASS_V17 @89bbf702)",
-   "status": "PASS_V17",
+   "phase": "done (STUDIO-R59 PASS_V18 @c4d06841)",
+   "status": "PASS_V18",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-au-multitrack-2.json",
    "brief": "builders/briefs/lane-smb-au-multitrack-2.md",
@@ -16550,7 +16645,8 @@
     "STUDIO-R55 PASS_V14 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V15 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V16 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V17 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V18 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "AU-MULTITRACK-1 gaps: (1) data integrity first: trim-in / razor / lift must carry clip volume envelopes (shift, split, remove) so a lifted clip never leaves an envelope that fails routing validation; (2) track volume/pan automation over time: Folio StudioAudioRouting.track_automation + pulse bus_mix reads it instead of a constant (rule 4b package suite); (3) clip pan envelope, master lane row, lanes for disabled bus effects. No AU-14 clause: spec-delta request.; dispatched 2026-10-30T09:03:36Z at cf2e46da; bundled run after the held-lane chain lands; 2026-10-30T09:36:56Z slices 1-3 committed locally (3ed23b66 envelopes follow timeline edits in one undo step via new harness-core Run::submit_sequence_and_entry; 80551ce9 folio track_automation + pulse bus_mix linear lanes; b7304a01 editable Volume/Pan lanes); lead scope grant: source_monitor.rs insert/overwrite envelope fix; bundled run after HDR push, then R42 freeze includes it. Spec-delta: track automation semantics (interpolation, replace vs multiply fader) undefined; envelope behaviour on trim/slip/razor undefined; no AU-14 clause set.; 2026-10-30T09:59:25Z READY at 2bc9103a (base b64650e8): run 2 exit 0, 557/557 (20 skipped) over folio, pulse, package, harness-core, harness, harness-view; run 1 at b6df88e0 556/557 (own slip test needed source extents the fixture lacks; test now slips -2: validator to check +2 is not a product bug). Rebase conflict in harness-core harness.rs resolved (PS-ACTIONS group field kept with the restored entry). Scope extension (lead grant): source_monitor insert/overwrite update envelopes. Slice 4 not built (clip pan needs pulse src/audio.rs; no master row type). Log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-2/lane-check-smb-au-multitrack-2-2bc9103a.log",
    "remediation": null
@@ -16667,8 +16763,8 @@
   {
    "lane_id": "SMB-RUN-UI-MERGE-1",
    "crate": "docs (RUN-UI.md)",
-   "phase": "done (STUDIO-R58 PASS_V16 @89bbf702)",
-   "status": "PASS_V16",
+   "phase": "done (STUDIO-R59 PASS_V17 @c4d06841)",
+   "status": "PASS_V17",
    "owner": "docs lane sonnet/low",
    "lane_file": "builders/lanes/hsk-studio-run-ui-merge-1.json",
    "brief": "lead dispatch prompt 2026-10-30T10:01:20Z",
@@ -16694,7 +16790,8 @@
     "STUDIO-R55 PASS_V13 @ce644577 (NOT_PROVEN lines: 46, see round-R55.json)",
     "STUDIO-R56 PASS_V14 @091c4d1b (NOT_PROVEN lines: 46, see round-R56.json)",
     "STUDIO-R57 PASS_V15 @4ffe1b06 (NOT_PROVEN lines: 46, see round-R57.json)",
-    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 46, see round-R58.json)"
+    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 46, see round-R58.json)",
+    "STUDIO-R59 PASS_V17 @c4d06841 (NOT_PROVEN lines: 46, see round-R59.json)"
    ],
    "note": "RUN-UI.md merges window lines of AREA-TYPE-2/3, AU-MULTITRACK-1/2 (new Multitrack section; -1 display-only line superseded), LR-HEALING-2; TIMELINE-TRIM-1 and PR-RATE-STRETCH-1 already present; step-0 exit 0; no include_str! of RUN-UI.md. For R43.",
    "remediation": null
@@ -16738,8 +16835,8 @@
   {
    "lane_id": "SMB-VIEW-POLISH-1",
    "crate": "hsk-studio-harness-view",
-   "phase": "done (STUDIO-R58 PASS_V16 @89bbf702)",
-   "status": "PASS_V16",
+   "phase": "done (STUDIO-R59 PASS_V17 @c4d06841)",
+   "status": "PASS_V17",
    "owner": "builder opus/medium (GUI lane 1)",
    "lane_file": "builders/lanes/hsk-studio-view-polish-1.json",
    "brief": "builders/briefs/lane-smb-view-polish-1.md",
@@ -16763,7 +16860,8 @@
     "STUDIO-R55 PASS_V13 @ce644577 (NOT_PROVEN lines: 70, see round-R55.json)",
     "STUDIO-R56 PASS_V14 @091c4d1b (NOT_PROVEN lines: 70, see round-R56.json)",
     "STUDIO-R57 PASS_V15 @4ffe1b06 (NOT_PROVEN lines: 70, see round-R57.json)",
-    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)"
+    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 70, see round-R58.json)",
+    "STUDIO-R59 PASS_V17 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "F-R41-3 Properties wide row measured + wrapped, INFO_MIN restored; Text tool click on open path -> path text, inside closed path -> area text; Create Outlines Type menu leaf + key; overset echo after path edits + Path Operations live-text summary. Base 169d082c.; 2026-10-30T10:37:53Z items 1-4 coded locally (fc10ccbd measurement test, aafd450f Type > Convert > Create Outlines Ctrl+Shift+O checked before Ctrl+O, e8979ba9 receipt loss rows wrap + INFO_MIN restored, Text-tool click path/area/point, overset echo + Path Operations live-text line); measured wide row: receipt loss grid row document/layer_extras | transformed | merged_image_oracle_unknown (x 481..892 at 900x700). HBR-STOP-005 waiver (lead): one-line title-order updates in tests/viewer_proof.rs:184 and hsk-studio-harness/tests/viewer_shell.rs:641 for the new Type menu. Bundled run after R42 verdicts.; 2026-10-30T13:38:26Z pushed d208bc0e on 2832b1d0 (ls-remote verified); claim run 4 309/309 (20 skipped) exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-d208bc0e.log); run1 fix: replace_vector_layer moves path/area text bindings to the new path id in the same undo step (vector.rs beyond helper scope, lead waiver); run2: test changed from one corner drag (slanted quad, area text placed 0/32) to a rectangle grow: the slanted-frame placement is NOT_INSPECTED, routed to SMB-AI-AREA-TYPE-4; waiver lines tests/viewer_proof.rs:184, hsk-studio-harness/tests/viewer_shell.rs:641",
    "remediation": null
@@ -16806,8 +16904,8 @@
   {
    "lane_id": "SMB-R42-FOLLOWUPS-1",
    "crate": "hsk-studio-harness-core + hsk-studio-layout (NOTICE)",
-   "phase": "done (STUDIO-R58 PASS_V16 @89bbf702)",
-   "status": "PASS_V16",
+   "phase": "done (STUDIO-R59 PASS_V17 @c4d06841)",
+   "status": "PASS_V17",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r42-followups-1.json",
    "brief": "builders/briefs/lane-smb-r42-followups-1.md",
@@ -16835,15 +16933,16 @@
     "STUDIO-R55 PASS_V13 @ce644577 (NOT_PROVEN lines: 114, see round-R55.json)",
     "STUDIO-R56 PASS_V14 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V15 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V17 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "F-R42-2 redo history kept after a refused entry write in the four Run::*_and_entry APIs; F-R42-3 submit_sequence_and_entry in RUN_COMMANDS + quiet rollback; F-R42-4 full W3C 2015/2023 licence texts in layout NOTICE. Base a259a3df; push after VIEW-POLISH-1.; 2026-10-30T14:14:41Z pushed d208bc0e..6f005d28 (ls-remote verified); 443 passed / 0 failed / 20 skipped exit 0 on C: (lane-check-smb-r42-followups-1-6f005d28.log, re-run after a rebase that brought folio); F-R42-2 shared Run::keeping_redo_without_new_step; F-R42-3 corpus row + source-reading corpus check; F-R42-4 LICENSES-W3C verbatim. Steward request deferred to after R43 (root input, would void canary reuse): .config/round-features.toml hsk-studio-harness-core = [[\"import\"]] (two submit_sequence_and_entry tests print NOT_PROVEN without it)"
   },
   {
    "lane_id": "SMB-AU-MULTITRACK-3",
    "crate": "hsk-studio-pulse + hsk-studio-harness-view (+ folio additive)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-au-multitrack-3.json",
    "brief": "builders/briefs/lane-smb-au-multitrack-3.md",
@@ -16871,15 +16970,16 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 28, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 29, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 29, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 32, see round-R59.json)"
    ],
    "note": "Audition AU-14 slice 3: clip pan envelope in pulse TimelineMixStream, master row (StudioAudioMaster volume + effect lanes), automated-fader state in the mixer. Base a259a3df; pulse depends on composite, so it runs after AE-17 pushes.; 2026-10-30T13:13:57Z local 2c38798f (folio clip_pans + master.volume_automation, pulse with_clip_envelopes), 8c05fa58 (Clip Pan lane, master row, mixer AUTO; fader on automated track writes a point at the playhead, no playhead -> fader_automated_no_playhead), 38e94ab6 (panned/unpanned and mono/stereo crossfades refused by name, strip_crossfade_mismatch); clip pan then track balance is a Studio reading, Audition UNVERIFIED; 2026-10-30T14:16:45Z claim run 1 at e7c62712 574/575 (all 10 new green; viewer_timeline_audio lane-cycle pin extended with ClipPan, 225ac4c9, outside owned paths); re-run 2 stopped before taking the lock; rebased clean on 6f005d28; 2026-10-30T14:49:00Z pushed ae6452c4..5328a6a2 (ls-remote verified); D: claim run 585/585 (20 skipped) exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/lane-check-smb-au-multitrack-3-5328a6a2.log, first line the sha); spec deltas: clip/track pan composition, master automation and master row, fader on automated tracks, no AU-14 clause set"
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-4",
    "crate": "hsk-studio-type (+ harness-view test only)",
-   "phase": "done (STUDIO-R58 PASS_V16 @89bbf702)",
-   "status": "PASS_V16",
+   "phase": "done (STUDIO-R59 PASS_V17 @c4d06841)",
+   "status": "PASS_V17",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ai-area-type-4.json",
    "brief": "builders/briefs/lane-smb-ai-area-type-4.md",
@@ -16907,15 +17007,16 @@
     "STUDIO-R55 PASS_V13 @ce644577 (NOT_PROVEN lines: 97, see round-R55.json)",
     "STUDIO-R56 PASS_V14 @091c4d1b (NOT_PROVEN lines: 97, see round-R56.json)",
     "STUDIO-R57 PASS_V15 @4ffe1b06 (NOT_PROVEN lines: 97, see round-R57.json)",
-    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 93, see round-R58.json)"
+    "STUDIO-R58 PASS_V16 @89bbf702 (NOT_PROVEN lines: 93, see round-R58.json)",
+    "STUDIO-R59 PASS_V17 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Area text in a non-rectangular closed frame placed 0 of 32 glyphs after one corner drag (SMB-VIEW-POLISH-1 run 2); AREA-TYPE-1 claims any closed container. Reproduce at engine level, fix the cause (engine or viewer drag), restore the one-corner-drag viewer test. Base d208bc0e.; 2026-10-30T14:14:41Z cause: type src/area_text.rs:617-620 skipped a narrowed band without checking whether a later band held the word, so the slanted quad (bands 30/34.02/10.02 pt < word 42.47 pt) placed 0/32; fix: lookahead within max_bands, else break the word in the band; 78688e5a + b32420ad local; ai_area_text circle tolerance scaled by r/hw (lead accepted with derivation + cap; AREA-TYPE-1 re-judged under CX-VAL-009); lead waiver HBR-STOP-005: no re-run after rebasing onto 6f005d28 (harness-core refused-entry path only, not exercised; R43 full union covers); 2026-10-30T14:40:51Z pushed 61bb4d58..ae6452c4 (ls-remote verified); bundled C: run at 8bf652bb 950/950 (20 skipped) exit 0, type + nine direct dependents, harness-view viewer+desktop+audio-batch (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-area-type-4/smb-ai-area-type-4-bundled1-8bf652bb.log); tolerance derivation + hw >= 12.5 cap (<= 0.4 pt); waiver extended to the develop commits (lane notes)"
   },
   {
    "lane_id": "SMB-PS-GRADIENT-BUCKET-1",
    "crate": "hsk-studio-pigment + hsk-studio-harness-view (+ harness test)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-ps-gradient-bucket-1.json",
    "brief": "builders/briefs/lane-smb-ps-gradient-bucket-1.md",
@@ -16946,7 +17047,8 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 72, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 72, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 72, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 72, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 72, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Photoshop PS-19: raster Gradient tool (five geometries), Paint Bucket and Edit > Fill on pixel layers, one undo step each (planner brief, STU-RAS-025/160/161/119/117/170, STU-SHL-155). Base d208bc0e.; 2026-10-30T14:40:51Z 8 local commits (gradient, bucket + Edit > Fill, viewer Tool::Gradient / Tool::FloodFill, dedupe 3a83e851 onto brush helpers + prism DisplayEncoding::Srgb.encode); pigment 254/254 + viewer fill 4/4 focused on D:; scope extension in edit.rs (fill field, pub(super) tile helpers) and brush_mix.rs visibility granted by the lead; 2026-10-30T15:00:13Z pushed 5328a6a2..e1e06156 (ls-remote verified); D: run 506/506 (20 skipped) exit 0, suites pigment + harness-view + harness, clippy over pigment dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/lane-check-smb-ps-gradient-bucket-1-e1e06156.log); non-compiling red commit squashed (RED COMMITS); gaps: no gradient on masks, pattern bucket not tested end to end in the window"
   },
@@ -16990,8 +17092,8 @@
   {
    "lane_id": "SMB-PR-NEST-1",
    "crate": "hsk-studio-pulse + hsk-studio-harness-core (one Run step) + hsk-studio-harness-view (timeline)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-pr-nest-1.json",
    "brief": "builders/briefs/lane-smb-pr-nest-1.md",
@@ -17021,7 +17123,8 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "Premiere PR-08 Nest / Make Subsequence (STU-VID-030) with nested video/audio/trim playback (pulse playback does not follow nested sequences today). Base 5328a6a2; STU-VID-030a keep-frame-rate/resolution booleans deferred (MAY clause, folio collision with ARROWHEADS).; 2026-10-30T15:29:48Z pushed e1e06156..bdc15f15 (ls-remote verified); D: run 432/432 (20 skipped) exit 0, pulse + harness-core + harness-view + harness + interop-media (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/lane-check-smb-pr-nest-1-bdc15f15.log); history labels sequence.nest / sequence.make_subsequence, RUN_COMMANDS document.submit_sequence_edits (session receipt stays multicam.step); export refuses nested clips (nest_unresolved: TimelineExport carries no document); nesting clips with routing envelopes refused (nest_clip_envelopes_unsupported); scope extensions mixer.rs + timeline_export.rs"
   },
@@ -17059,8 +17162,8 @@
   {
    "lane_id": "SMB-LR-EXPORT-GUI-1",
    "crate": "hsk-studio-harness-view (develop export dialog) + hsk-studio-harness (cli flags, test)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/medium (GUI)",
    "lane_file": "builders/lanes/hsk-studio-lr-export-gui-1.json",
    "brief": "builders/briefs/lane-smb-lr-export-gui-1.md",
@@ -17091,15 +17194,16 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 95, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 95, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 95, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 95, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Window export dialog for SMB-LR-EXPORT-SIZING-1 (resize, sharpening, watermark) plus Export TIFF / DNG buttons; empty stage byte-identical to today.; base e1e06156; 2026-10-30T15:41:16Z pushed bdc15f15..c7b8d78e (ls-remote verified); D: run 338/338 (20 skipped) exit 0, harness-view + harness whole suites with viewer features (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-gui-1/lane-check-smb-lr-export-gui-1-c7b8d78e.log); stage starts with every group off (Studio reading); spec group order image_sizing, watermarking, output_sharpening; remote backup branch origin/lane/smb-lr-export-gui-1 at 7e69b83d created by the builder under the kernel backup rule (not deleted; remote branch deletion is Operator-only)"
   },
   {
    "lane_id": "SMB-PR-NEST-2",
    "crate": "hsk-studio-pulse + hsk-studio-harness-core (one undo step) + hsk-studio-harness-view (export, monitor, nest UI)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/high (GUI lane 1)",
    "lane_file": "builders/lanes/hsk-studio-pr-nest-2.json",
    "brief": "builders/briefs/lane-smb-pr-nest-2.md",
@@ -17126,15 +17230,16 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 113, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "note": "From SMB-PR-NEST-1 gaps: export resolves nested sequence clips (TimelineExport gains the document or a resolver; today refused nest_unresolved); nesting clips that carry routing envelopes (today refused nest_clip_envelopes_unsupported); program monitor resolves nested clips without a prior timeline sync.; base 2a60acf3; timeline_export_job_with(t, NestedDocument, cancel) keeps the 5 TimelineExport literals; NestedAudioSources::with_routing; envelopes move unchanged into the nested routing in the same undo step (parent mix sample-equal before/after); 2026-10-30T16:19:40Z pushed 2a60acf3..e83eae43 (ls-remote verified); D: run 450/450 (20 skipped) exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-2/lane-check-smb-pr-nest-2-e83eae43.log); rewrote NEST-1 test nest_refuses_a_clip_with_a_routing_envelope -> nest_moves_a_clip_routing_envelope_with_the_clip (validator re-judges NEST-1 claim scope); new Run::submit_sequence_edits_and_entry"
   },
   {
    "lane_id": "SMB-AI-ARROWHEADS-2",
    "crate": "hsk-studio-interop-fig-native + hsk-studio-interop-vector-svg + hsk-studio-harness-view (Stroke panel markers)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-ai-arrowheads-2.json",
    "brief": "builders/briefs/lane-smb-ai-arrowheads-2.md",
@@ -17168,7 +17273,8 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 74, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 74, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 74, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 74, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 74, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Arrowheads usable: .fig import/export (native.rs:938 today drops marker caps), SVG marker-start/end import/export (svg_adapter.rs:1274 today unsupported_marker), Stroke panel start/end/scale/align as undoable commands, PDF export. AI importer already sees geometry; IDML refuses graphics (follow-up). Base 2a60acf3.; 2026-10-30T16:33:36Z pushed e83eae43..8780b3e9 (ls-remote verified); D: run 364/364 (20 skipped) exit 0, six crates whole suites, harness-view/harness viewer unit only (desktop+audio-batch unit left to the round) (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-2/smb-ai-arrowheads-2-bundled1-8780b3e9.log); lead-approved: interop-fig tests/fig_paints.rs assertion (ARROW_LINES now a marker), interop-vector DESCRIPTOR line, .fig export draws nib outlines (no .fig writer); gaps: IDML line ends, ERD drawn"
   },
@@ -17212,8 +17318,8 @@
   {
    "lane_id": "SMB-PR-SEQ-EXPORT-UI-1",
    "crate": "hsk-studio-harness-view (timeline/export_media.rs, timeline toolbar) + hsk-studio-harness (export-sequence CLI)",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/medium (GUI lane 1)",
    "lane_file": "builders/lanes/hsk-studio-pr-seq-export-ui-1.json",
    "brief": "builders/briefs/lane-smb-pr-seq-export-ui-1.md",
@@ -17239,15 +17345,16 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "From SMB-PR-NEST-2: no window or CLI path builds a sequence export (render queue handles compositions only); wire timeline_export_job_with into the render queue and a CLI flag.; planner: the window has no render queue at all (composition export is API-only); this lane adds the first window export surface (Export Media form) + Viewer::export_sequence + CLI export-sequence; no frame decoder wired -> typed refusal, never black frames. Base 91cb8889.; 2026-10-30T17:25:21Z pushed 2f8e13d5..ff4ca080 (ls-remote verified); D: run 385/385 (20 skipped) exit 0, harness-core + harness-view + harness whole suites with desktop + audio-batch (os-encode unit not run) (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/lane-check-smb-pr-seq-export-ui-1-ff4ca080.log); audio clips without set_export_audio refused audio_sources_missing (never silent); gaps: frames decode on the UI thread, hidden timeline pauses export (toolbar label + resume line, no hide-time status line), sound via set_export_audio not the mixer; compositions export from API only"
   },
   {
    "lane_id": "SMB-FIG-GRID-2",
    "crate": "hsk-studio-interop-fig-base + interop-fig-native (GRID import) + hsk-studio-harness-view (design/auto_layout.rs panel)",
-   "phase": "done (STUDIO-R58 PASS_V14 @89bbf702)",
-   "status": "PASS_V14",
+   "phase": "done (STUDIO-R59 PASS_V15 @c4d06841)",
+   "status": "PASS_V15",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-fig-grid-2.json",
    "brief": "builders/briefs/lane-smb-fig-grid-2.md",
@@ -17269,7 +17376,8 @@
     "STUDIO-R55 PASS_V11 @ce644577 (NOT_PROVEN lines: 74, see round-R55.json)",
     "STUDIO-R56 PASS_V12 @091c4d1b (NOT_PROVEN lines: 74, see round-R56.json)",
     "STUDIO-R57 PASS_V13 @4ffe1b06 (NOT_PROVEN lines: 74, see round-R57.json)",
-    "STUDIO-R58 PASS_V14 @89bbf702 (NOT_PROVEN lines: 74, see round-R58.json)"
+    "STUDIO-R58 PASS_V14 @89bbf702 (NOT_PROVEN lines: 74, see round-R58.json)",
+    "STUDIO-R59 PASS_V15 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "Figma GRID end to end: .fig GRID fields decoded from the embedded kiwi schema (no guessed names; stop if no fixture declares them) and mapped to FIG-GRID-1 folio fields; first window auto-layout panel with re-solve on edit (one undo step); only frame/rectangle children resized, vector size changes refused typed; solved vs stored .fig geometry as GRID parity evidence. Base 91cb8889.; 2026-10-30T17:44:44Z pushed ff4ca080..91038884; D: run 2 435/435 (bundled1 broken by the lead editing lane-check.sh mid-run: infrastructure); restyle keeps grid anchors; fig_import carries imported auto-layout into window records; imported frames with text children refused auto_layout_text_layer_unsupported (needs a harness-core second-entry undo step); GRID parity NOT_PROVEN (no GRID fixture); 2026-10-30T17:52:12Z recolour keeps grid anchors: 8dd54d12 (red) + 825598c6 pushed (ls-remote verified); D: run 3 368/368 harness-view + harness (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-bundled3-825598c6.log)",
    "host_integration": {
@@ -17284,8 +17392,8 @@
   {
    "lane_id": "SMB-ID-FRAME-AUTOSIZE-1",
    "crate": "hsk-studio-layout",
-   "phase": "done (STUDIO-R58 PASS_V15 @89bbf702)",
-   "status": "PASS_V15",
+   "phase": "done (STUDIO-R59 PASS_V16 @c4d06841)",
+   "status": "PASS_V16",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-id-frame-autosize-1.json",
    "brief": "builders/briefs/lane-smb-id-frame-autosize-1.md",
@@ -17318,7 +17426,8 @@
     "STUDIO-R55 PASS_V12 @ce644577 (NOT_PROVEN lines: 75, see round-R55.json)",
     "STUDIO-R56 PASS_V13 @091c4d1b (NOT_PROVEN lines: 75, see round-R56.json)",
     "STUDIO-R57 PASS_V14 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V15 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V16 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "InDesign ID-04: text frame auto-size (five kinds) and first baseline (six kinds) in layout (STU-LAY-119/120; folio already stores both); reference point, minimum sizes and no-line-breaks are UNVERIFIED readings + spec-delta. Base 91cb8889.; 2026-10-30T17:19:55Z pushed 91cb8889..2f8e13d5 (ls-remote verified); D: bundled run 3 165/165 exit 0, layout + interop-layout suites + clippy over dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-1/smb-id-frame-autosize-1-bundled3-2f8e13d5.log); first baseline six kinds in threaded reflow; auto-size on the last frame of a thread (typed refusals autosize_threaded_frame / autosize_multi_column / autosize_over_bound); reflow_autosize + autosized_document (LayoutProposal unchanged: interop-layout longdoc_pdf.rs literal); two threaded_reflow.rs refusal pins now assert the new behaviour"
   },
@@ -17426,8 +17535,8 @@
   {
    "lane_id": "SMB-R44-FOLLOWUPS-1",
    "crate": "hsk-studio-pigment + prism (decode) + harness-view (two egui-free files + one function in fill_tools.rs) + harness CLI + harness-core manual + pulse + interop-vector-svg + composite + interop-fig-native + layout (last slice)",
-   "phase": "done (STUDIO-R58 PASS_V13 @89bbf702)",
-   "status": "PASS_V13",
+   "phase": "done (STUDIO-R59 PASS_V14 @c4d06841)",
+   "status": "PASS_V14",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r44-followups-1.json",
    "brief": "builders/briefs/lane-smb-r44-followups-1.md",
@@ -17458,7 +17567,8 @@
     "STUDIO-R55 PASS_V10 @ce644577 (NOT_PROVEN lines: 134, see round-R55.json)",
     "STUDIO-R56 PASS_V11 @091c4d1b (NOT_PROVEN lines: 135, see round-R56.json)",
     "STUDIO-R57 PASS_V12 @4ffe1b06 (NOT_PROVEN lines: 137, see round-R57.json)",
-    "STUDIO-R58 PASS_V13 @89bbf702 (NOT_PROVEN lines: 135, see round-R58.json)"
+    "STUDIO-R58 PASS_V13 @89bbf702 (NOT_PROVEN lines: 135, see round-R58.json)",
+    "STUDIO-R59 PASS_V14 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17477,8 +17587,8 @@
   {
    "lane_id": "SMB-OBSERVE-RING-PORT-1",
    "crate": "hsk-studio-observe (additive)",
-   "phase": "done (STUDIO-R58 PASS_V13 @89bbf702)",
-   "status": "PASS_V13",
+   "phase": "done (STUDIO-R59 PASS_V14 @c4d06841)",
+   "status": "PASS_V14",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-observe-ring-port-1.json",
    "brief": "builders/briefs/lane-smb-observe-ring-port-1.md",
@@ -17506,7 +17616,8 @@
     "STUDIO-R55 PASS_V10 @ce644577 (NOT_PROVEN lines: 85, see round-R55.json)",
     "STUDIO-R56 PASS_V11 @091c4d1b (NOT_PROVEN lines: 85, see round-R56.json)",
     "STUDIO-R57 PASS_V12 @4ffe1b06 (NOT_PROVEN lines: 85, see round-R57.json)",
-    "STUDIO-R58 PASS_V13 @89bbf702 (NOT_PROVEN lines: 85, see round-R58.json)"
+    "STUDIO-R58 PASS_V13 @89bbf702 (NOT_PROVEN lines: 85, see round-R58.json)",
+    "STUDIO-R59 PASS_V14 @c4d06841 (NOT_PROVEN lines: 46, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17525,8 +17636,8 @@
   {
    "lane_id": "SMB-GPU-CLIENT-PORT-1",
    "crate": "hsk-studio-render-gpu (+ one harness dev-dependency line)",
-   "phase": "done (STUDIO-R58 PASS_V13 @89bbf702)",
-   "status": "PASS_V13",
+   "phase": "done (STUDIO-R59 PASS_V14 @c4d06841)",
+   "status": "PASS_V14",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-gpu-client-port-1.json",
    "brief": "builders/briefs/lane-smb-gpu-client-port-1.md",
@@ -17551,7 +17662,8 @@
     "STUDIO-R55 PASS_V10 @ce644577 (NOT_PROVEN lines: 72, see round-R55.json)",
     "STUDIO-R56 PASS_V11 @091c4d1b (NOT_PROVEN lines: 72, see round-R56.json)",
     "STUDIO-R57 PASS_V12 @4ffe1b06 (NOT_PROVEN lines: 72, see round-R57.json)",
-    "STUDIO-R58 PASS_V13 @89bbf702 (NOT_PROVEN lines: 72, see round-R58.json)"
+    "STUDIO-R58 PASS_V13 @89bbf702 (NOT_PROVEN lines: 72, see round-R58.json)",
+    "STUDIO-R59 PASS_V14 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17585,8 +17697,8 @@
   {
    "lane_id": "SMB-R46-FOLLOWUPS-1",
    "crate": "hsk-studio-render-gpu + hsk-studio-observe + hsk-studio-harness (cli) + hsk-studio-interop-fig-base + hsk-studio-harness-view (design auto-layout walk bound only) + composite tests",
-   "phase": "done (STUDIO-R58 PASS_V12 @89bbf702)",
-   "status": "PASS_V12",
+   "phase": "done (STUDIO-R59 PASS_V13 @c4d06841)",
+   "status": "PASS_V13",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r46-followups-1.json",
    "brief": "builders/briefs/lane-smb-r46-followups-1.md",
@@ -17616,7 +17728,8 @@
     "STUDIO-R55 PASS_V9 @ce644577 (NOT_PROVEN lines: 82, see round-R55.json)",
     "STUDIO-R56 PASS_V10 @091c4d1b (NOT_PROVEN lines: 82, see round-R56.json)",
     "STUDIO-R57 PASS_V11 @4ffe1b06 (NOT_PROVEN lines: 82, see round-R57.json)",
-    "STUDIO-R58 PASS_V12 @89bbf702 (NOT_PROVEN lines: 82, see round-R58.json)"
+    "STUDIO-R58 PASS_V12 @89bbf702 (NOT_PROVEN lines: 82, see round-R58.json)",
+    "STUDIO-R59 PASS_V13 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17633,8 +17746,8 @@
   {
    "lane_id": "SMB-ATTRIBUTION-1",
    "crate": "hsk-studio-accord (additive CommandContext) + kernel-bindings + harness-core + harness-view (call sites, no toolkit code) + harness",
-   "phase": "done (STUDIO-R58 PASS_V11 @89bbf702)",
-   "status": "PASS_V11",
+   "phase": "done (STUDIO-R59 PASS_V12 @c4d06841)",
+   "status": "PASS_V12",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-attribution-1.json",
    "brief": "builders/briefs/lane-smb-attribution-1.md",
@@ -17658,7 +17771,8 @@
     "STUDIO-R55 PASS_V8 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V9 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V10 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V11 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V11 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V12 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17677,8 +17791,8 @@
   {
    "lane_id": "SMB-BUSINESS-EVENTS-1",
    "crate": "hsk-studio-accord (additive: event catalog, record, sink trait) + kernel-bindings + harness-core",
-   "phase": "done (STUDIO-R58 PASS_V11 @89bbf702)",
-   "status": "PASS_V11",
+   "phase": "done (STUDIO-R59 PASS_V12 @c4d06841)",
+   "status": "PASS_V12",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-business-events-1.json",
    "brief": "builders/briefs/lane-smb-business-events-1.md",
@@ -17705,7 +17819,8 @@
     "STUDIO-R55 PASS_V8 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V9 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V10 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V11 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V11 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V12 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17724,8 +17839,8 @@
   {
    "lane_id": "SMB-JOB-ADMISSION-1",
    "crate": "hsk-studio-session (additive lifecycle types) + harness-view (egui-free queue files; one line each in hosted.rs and mod.rs, no toolkit code)",
-   "phase": "done (STUDIO-R58 PASS_V11 @89bbf702)",
-   "status": "PASS_V11",
+   "phase": "done (STUDIO-R59 PASS_V12 @c4d06841)",
+   "status": "PASS_V12",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-job-admission-1.json",
    "brief": "builders/briefs/lane-smb-job-admission-1.md",
@@ -17749,7 +17864,8 @@
     "STUDIO-R55 PASS_V8 @ce644577 (NOT_PROVEN lines: 109, see round-R55.json)",
     "STUDIO-R56 PASS_V9 @091c4d1b (NOT_PROVEN lines: 109, see round-R56.json)",
     "STUDIO-R57 PASS_V10 @4ffe1b06 (NOT_PROVEN lines: 109, see round-R57.json)",
-    "STUDIO-R58 PASS_V11 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V11 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V12 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -17768,8 +17884,8 @@
   {
    "lane_id": "SMB-R47-FOLLOWUPS-1",
    "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs entry; business-event entry path), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables), hsk-studio-accord (business_event id), hsk-studio-session (additive correlation submit, deadline outcome), hsk-studio-harness-view (job correlations, deadline, clippy allows)",
-   "phase": "done (STUDIO-R58 PASS_V10 @89bbf702)",
-   "status": "PASS_V10",
+   "phase": "done (STUDIO-R59 PASS_V11 @c4d06841)",
+   "status": "PASS_V11",
    "owner": null,
    "lane_file": "builders/lanes/hsk-studio-r47-followups-1.json",
    "brief": "builders/briefs/lane-smb-r47-followups-1.md",
@@ -17787,7 +17903,8 @@
     "STUDIO-R55 PASS_V7 @ce644577 (NOT_PROVEN lines: 111, see round-R55.json)",
     "STUDIO-R56 PASS_V8 @091c4d1b (NOT_PROVEN lines: 111, see round-R56.json)",
     "STUDIO-R57 PASS_V9 @4ffe1b06 (NOT_PROVEN lines: 136, see round-R57.json)",
-    "STUDIO-R58 PASS_V10 @89bbf702 (NOT_PROVEN lines: 111, see round-R58.json)"
+    "STUDIO-R58 PASS_V10 @89bbf702 (NOT_PROVEN lines: 111, see round-R58.json)",
+    "STUDIO-R59 PASS_V11 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ],
    "note": "2026-10-31T10:04:58Z from R47: F-R47-1 one --audio decode can transiently hold up to 16.6 GB (reel caps frames not samples; 8-channel FLAC): charge samples before decode or cap channels; F-R47-2 export-sequence manual entry lacks audio_too_many / audio_too_large and the limits; F-R47-3 DX12 parity of the threshold fix only in the lane probe: add a DX12 threshold row like the FXC rows; F-R47-4 fig-base variable alias walk has the F-R45-1 shape (bound before work, cancellable)",
    "host_integration": {
@@ -17816,8 +17933,8 @@
   {
    "lane_id": "SMB-SETTINGS-SCHEMA-1",
    "crate": "hsk-studio-accord (additive settings schema) + pigment + develop + harness-view (egui-free files only)",
-   "phase": "done (STUDIO-R58 PASS_V10 @89bbf702)",
-   "status": "PASS_V10",
+   "phase": "done (STUDIO-R59 PASS_V11 @c4d06841)",
+   "status": "PASS_V11",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-settings-schema-1.json",
    "brief": "builders/briefs/lane-smb-settings-schema-1.md",
@@ -17835,7 +17952,8 @@
     "STUDIO-R55 PASS_V7 @ce644577 (NOT_PROVEN lines: 51, see round-R55.json)",
     "STUDIO-R56 PASS_V8 @091c4d1b (NOT_PROVEN lines: 51, see round-R56.json)",
     "STUDIO-R57 PASS_V9 @4ffe1b06 (NOT_PROVEN lines: 51, see round-R57.json)",
-    "STUDIO-R58 PASS_V10 @89bbf702 (NOT_PROVEN lines: 51, see round-R58.json)"
+    "STUDIO-R58 PASS_V10 @89bbf702 (NOT_PROVEN lines: 51, see round-R58.json)",
+    "STUDIO-R59 PASS_V11 @c4d06841 (NOT_PROVEN lines: 24, see round-R59.json)"
    ],
    "host_integration": {
     "gui_host": "none",
@@ -18034,8 +18152,8 @@
   },
   {
    "lane_id": "SMB-R49-FOLLOWUPS-1",
-   "status": "PASS_V9",
-   "phase": "done (STUDIO-R58 PASS_V9 @89bbf702)",
+   "status": "PASS_V10",
+   "phase": "done (STUDIO-R59 PASS_V10 @c4d06841)",
    "crate": "hsk-studio-harness-view (viewer audio import sample budget) + hsk-studio-accord, hsk-studio-session (DESCRIPTOR text) + hsk-studio-observe (ring.rs doctest codes)",
    "lane_file": "builders/lanes/hsk-studio-r49-followups-1.json",
    "brief": "builders/briefs/lane-smb-r49-followups-1.md",
@@ -18067,7 +18185,8 @@
     "STUDIO-R55 PASS_V6 @ce644577 (NOT_PROVEN lines: 24, see round-R55.json)",
     "STUDIO-R56 PASS_V7 @091c4d1b (NOT_PROVEN lines: 24, see round-R56.json)",
     "STUDIO-R57 PASS_V8 @4ffe1b06 (NOT_PROVEN lines: 49, see round-R57.json)",
-    "STUDIO-R58 PASS_V9 @89bbf702 (NOT_PROVEN lines: 24, see round-R58.json)"
+    "STUDIO-R58 PASS_V9 @89bbf702 (NOT_PROVEN lines: 24, see round-R58.json)",
+    "STUDIO-R59 PASS_V10 @c4d06841 (NOT_PROVEN lines: 24, see round-R59.json)"
    ]
   },
   {
@@ -18236,8 +18355,8 @@
   },
   {
    "lane_id": "SMB-R50-FOLLOWUPS-1",
-   "status": "PASS_V8",
-   "phase": "done (STUDIO-R58 PASS_V8 @89bbf702)",
+   "status": "PASS_V9",
+   "phase": "done (STUDIO-R59 PASS_V9 @c4d06841)",
    "crate": "hsk-studio-composite, hsk-studio-folio (additive), hsk-studio-interop-psd, hsk-studio-harness-core, hsk-studio-harness (tests)",
    "lane_file": "builders/lanes/hsk-studio-r50-followups-1.json",
    "brief": "builders/briefs/lane-smb-r50-followups-1.md",
@@ -18277,7 +18396,8 @@
     "STUDIO-R55 PASS_V5 @ce644577 (NOT_PROVEN lines: 96, see round-R55.json)",
     "STUDIO-R56 PASS_V6 @091c4d1b (NOT_PROVEN lines: 96, see round-R56.json)",
     "STUDIO-R57 PASS_V7 @4ffe1b06 (NOT_PROVEN lines: 96, see round-R57.json)",
-    "STUDIO-R58 PASS_V8 @89bbf702 (NOT_PROVEN lines: 96, see round-R58.json)"
+    "STUDIO-R58 PASS_V8 @89bbf702 (NOT_PROVEN lines: 96, see round-R58.json)",
+    "STUDIO-R59 PASS_V9 @c4d06841 (NOT_PROVEN lines: 46, see round-R59.json)"
    ]
   },
   {
@@ -18403,8 +18523,8 @@
   },
   {
    "lane_id": "SMB-ID-TOC-PERSIST-1",
-   "status": "PASS_V7",
-   "phase": "done (STUDIO-R58 PASS_V7 @89bbf702)",
+   "status": "PASS_V8",
+   "phase": "done (STUDIO-R59 PASS_V8 @c4d06841)",
    "crate": "hsk-studio-folio (TOC/index contract fields, StudioPage applied_trap_preset), hsk-studio-layout (lift), hsk-studio-interop-layout (literals only)",
    "lane_file": "builders/lanes/hsk-studio-id-toc-persist-1.json",
    "brief": "builders/briefs/lane-smb-id-toc-persist-1.md",
@@ -18427,13 +18547,14 @@
     "STUDIO-R55 PASS_V4 @ce644577 (NOT_PROVEN lines: 75, see round-R55.json)",
     "STUDIO-R56 PASS_V5 @091c4d1b (NOT_PROVEN lines: 75, see round-R56.json)",
     "STUDIO-R57 PASS_V6 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V7 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V7 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V8 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-R51-FOLLOWUPS-1",
-   "status": "PASS_V7",
-   "phase": "done (STUDIO-R58 PASS_V7 @89bbf702)",
+   "status": "PASS_V8",
+   "phase": "done (STUDIO-R59 PASS_V8 @c4d06841)",
    "crate": "hsk-studio-composite (unitless-row mappings per SD-27), hsk-studio-interop-psd (export a channel added in edit)",
    "lane_file": "builders/lanes/hsk-studio-r51-followups-1.json",
    "brief": "builders/briefs/lane-smb-r51-followups-1.md",
@@ -18456,7 +18577,8 @@
     "STUDIO-R55 PASS_V4 @ce644577 (NOT_PROVEN lines: 57, see round-R55.json)",
     "STUDIO-R56 PASS_V5 @091c4d1b (NOT_PROVEN lines: 57, see round-R56.json)",
     "STUDIO-R57 PASS_V6 @4ffe1b06 (NOT_PROVEN lines: 57, see round-R57.json)",
-    "STUDIO-R58 PASS_V7 @89bbf702 (NOT_PROVEN lines: 57, see round-R58.json)"
+    "STUDIO-R58 PASS_V7 @89bbf702 (NOT_PROVEN lines: 57, see round-R58.json)",
+    "STUDIO-R59 PASS_V8 @c4d06841 (NOT_PROVEN lines: 46, see round-R59.json)"
    ]
   },
   {
@@ -18601,8 +18723,8 @@
   },
   {
    "lane_id": "SMB-TIFF-CHANNELS-1",
-   "status": "PASS_V6",
-   "phase": "done (STUDIO-R58 PASS_V6 @89bbf702)",
+   "status": "PASS_V7",
+   "phase": "done (STUDIO-R59 PASS_V7 @c4d06841)",
    "crate": "hsk-studio-interop-tiff (Folio-free multi extra-sample planes), hsk-studio-harness-core (TIFF extra planes <-> Folio channel records)",
    "lane_file": "builders/lanes/hsk-studio-tiff-channels-1.json",
    "brief": "builders/briefs/lane-smb-tiff-channels-1.md",
@@ -18622,7 +18744,8 @@
     "STUDIO-R55 PASS_V3 @ce644577 (NOT_PROVEN lines: 85, see round-R55.json)",
     "STUDIO-R56 PASS_V4 @091c4d1b (NOT_PROVEN lines: 85, see round-R56.json)",
     "STUDIO-R57 PASS_V5 @4ffe1b06 (NOT_PROVEN lines: 85, see round-R57.json)",
-    "STUDIO-R58 PASS_V6 @89bbf702 (NOT_PROVEN lines: 85, see round-R58.json)"
+    "STUDIO-R58 PASS_V6 @89bbf702 (NOT_PROVEN lines: 85, see round-R58.json)",
+    "STUDIO-R59 PASS_V7 @c4d06841 (NOT_PROVEN lines: 46, see round-R59.json)"
    ]
   },
   {
@@ -18683,8 +18806,8 @@
   },
   {
    "lane_id": "SMB-R54-FOLLOWUPS-1",
-   "status": "PASS_V4",
-   "phase": "done (STUDIO-R58 PASS_V4 @89bbf702)",
+   "status": "PASS_V5",
+   "phase": "done (STUDIO-R59 PASS_V5 @c4d06841)",
    "crate": "hsk-studio-type (U+2028 forced line break; terminator fast path), hsk-studio-layout (marker attribution before overset)",
    "lane_file": "builders/lanes/hsk-studio-r54-followups-1.json",
    "brief": "builders/briefs/lane-smb-r54-followups-1.md",
@@ -18705,7 +18828,8 @@
     "STUDIO-R55 FAIL_V1 @ce644577 (a second forced line break and a leading one make no line; one line per mandatory break in a glyph gap and before the first glyph; test LS LS, leading LS; V4-06; NOT_PROVEN lines: 9, see round-R55.json)",
     "STUDIO-R56 PASS_V2 @091c4d1b (NOT_PROVEN lines: 33, see round-R56.json)",
     "STUDIO-R57 PASS_V3 @4ffe1b06 (NOT_PROVEN lines: 33, see round-R57.json)",
-    "STUDIO-R58 PASS_V4 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)"
+    "STUDIO-R58 PASS_V4 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)",
+    "STUDIO-R59 PASS_V5 @c4d06841 (NOT_PROVEN lines: 24, see round-R59.json)"
    ],
    "claim": "5c189873..2fba5f61"
   },
@@ -18766,8 +18890,8 @@
   },
   {
    "lane_id": "SMB-PR-SEQUENCE-SESSION-1",
-   "status": "PASS_V3",
-   "phase": "done (STUDIO-R58 PASS_V3 @89bbf702)",
+   "status": "PASS_V4",
+   "phase": "done (STUDIO-R59 PASS_V4 @c4d06841)",
    "crate": "hsk-studio-session (sequence records entry and commit step), hsk-studio-folio (docs), hsk-studio-pulse (agreement test)",
    "lane_file": "builders/lanes/hsk-studio-pr-sequence-session-1.json",
    "brief": "builders/briefs/lane-smb-pr-sequence-session-1.md",
@@ -18787,13 +18911,14 @@
    "verdicts": [
     "STUDIO-R56 PASS_V1 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V2 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V3 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V3 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V4 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-PR-RETIME-HOLD-1",
-   "status": "PASS_V3",
-   "phase": "done (STUDIO-R58 PASS_V3 @89bbf702)",
+   "status": "PASS_V4",
+   "phase": "done (STUDIO-R59 PASS_V4 @c4d06841)",
    "crate": "hsk-studio-folio (clip retime property), hsk-studio-pulse (frame hold planners, source-frame resolution)",
    "lane_file": "builders/lanes/hsk-studio-pr-retime-hold-1.json",
    "brief": "builders/briefs/lane-smb-pr-retime-hold-1.md",
@@ -18811,13 +18936,14 @@
    "verdicts": [
     "STUDIO-R56 PASS_V1 @091c4d1b (NOT_PROVEN lines: 114, see round-R56.json)",
     "STUDIO-R57 PASS_V2 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V3 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V3 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V4 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-PR-MERGE-SYNC-1",
-   "status": "PASS_V3",
-   "phase": "done (STUDIO-R58 PASS_V3 @89bbf702)",
+   "status": "PASS_V4",
+   "phase": "done (STUDIO-R59 PASS_V4 @c4d06841)",
    "crate": "hsk-studio-pulse (merge clips, synchronize, link operations)",
    "lane_file": "builders/lanes/hsk-studio-pr-merge-sync-1.json",
    "brief": "builders/briefs/lane-smb-pr-merge-sync-1.md",
@@ -18834,7 +18960,8 @@
    "verdicts": [
     "STUDIO-R56 PASS_V1 @091c4d1b (NOT_PROVEN lines: 5, see round-R56.json)",
     "STUDIO-R57 PASS_V2 @4ffe1b06 (NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 PASS_V3 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)"
+    "STUDIO-R58 PASS_V3 @89bbf702 (NOT_PROVEN lines: 5, see round-R58.json)",
+    "STUDIO-R59 PASS_V4 @c4d06841 (NOT_PROVEN lines: 8, see round-R59.json)"
    ]
   },
   {
@@ -18863,8 +18990,8 @@
   },
   {
    "lane_id": "SMB-PR-EDIT-FOOTPRINT-1",
-   "status": "PASS_V2",
-   "phase": "done (STUDIO-R58 PASS_V2 @89bbf702)",
+   "status": "PASS_V3",
+   "phase": "done (STUDIO-R59 PASS_V3 @c4d06841)",
    "crate": "hsk-studio-pulse (edit proposal change list and write footprint)",
    "lane_file": "builders/lanes/hsk-studio-pr-edit-footprint-1.json",
    "brief": "builders/briefs/lane-smb-pr-edit-footprint-1.md",
@@ -18879,7 +19006,8 @@
    "claim": "56c3a5f3..41d0e0da",
    "verdicts": [
     "STUDIO-R57 PASS_V1 @4ffe1b06 (NOT_PROVEN lines: 29, see round-R57.json)",
-    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)"
+    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 29, see round-R58.json)",
+    "STUDIO-R59 PASS_V3 @c4d06841 (NOT_PROVEN lines: 32, see round-R59.json)"
    ]
   },
   {
@@ -18951,8 +19079,8 @@
   },
   {
    "lane_id": "SMB-PR-ENTRY-REFERENCES-1",
-   "status": "PASS_V2",
-   "phase": "done (STUDIO-R58 PASS_V2 @89bbf702)",
+   "status": "PASS_V3",
+   "phase": "done (STUDIO-R59 PASS_V3 @c4d06841)",
    "crate": "hsk-studio-session (document entries against sequence and clip removal), hsk-studio-folio (entry validation)",
    "lane_file": "builders/lanes/hsk-studio-pr-entry-references-1.json",
    "brief": "builders/briefs/lane-smb-pr-entry-references-1.md",
@@ -18971,13 +19099,14 @@
    "claim": "d47d8e82..a92b8d85",
    "verdicts": [
     "STUDIO-R57 PASS_V1 @4ffe1b06 (NOT_PROVEN lines: 114, see round-R57.json)",
-    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)"
+    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 114, see round-R58.json)",
+    "STUDIO-R59 PASS_V3 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
-   "status": "PASS_V2",
-   "phase": "done (STUDIO-R58 PASS_V2 @89bbf702)",
+   "status": "PASS_V3",
+   "phase": "done (STUDIO-R59 PASS_V3 @c4d06841)",
    "crate": "hsk-studio-session (authored composition token and upgrade), hsk-studio-harness-view (reads the stored token), hsk-studio-type (DESCRIPTOR)",
    "lane_file": "builders/lanes/hsk-studio-type-authored-token-1.json",
    "brief": "builders/briefs/lane-smb-type-authored-token-1.md",
@@ -18994,13 +19123,14 @@
    "claim": "1894d7f7..1940292c",
    "verdicts": [
     "STUDIO-R57 PASS_V1 @4ffe1b06 (NOT_PROVEN lines: 113, see round-R57.json)",
-    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)"
+    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 109, see round-R58.json)",
+    "STUDIO-R59 PASS_V3 @c4d06841 (NOT_PROVEN lines: 70, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-PR-RETIME-OUTPUT-1",
-   "status": "PASS_V2",
-   "phase": "done (STUDIO-R58 PASS_V2 @89bbf702)",
+   "status": "PASS_V3",
+   "phase": "done (STUDIO-R59 PASS_V3 @c4d06841)",
    "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
    "lane_file": "builders/lanes/hsk-studio-pr-retime-output-1.json",
    "brief": "builders/briefs/lane-smb-pr-retime-output-1.md",
@@ -19020,13 +19150,14 @@
    "claim": "c629c0c5..d54293da",
    "verdicts": [
     "STUDIO-R57 PASS_V1 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V3 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-PR-MEDIA-MARKERS-1",
-   "status": "READY_FOR_VALIDATION",
-   "phase": "validation",
+   "status": "PASS_V3",
+   "phase": "done (STUDIO-R59 PASS_V3 @c4d06841)",
    "crate": "hsk-studio-folio (media item marker records), hsk-studio-session (document entry and commit), hsk-studio-pulse (resolved read)",
    "lane_file": "builders/lanes/hsk-studio-pr-media-markers-1.json",
    "brief": "builders/briefs/lane-smb-pr-media-markers-1.md",
@@ -19044,13 +19175,14 @@
    "claim": "9ecc69cd..c4d06841 (remediation of FAIL_V2), plus e0697ed6..89bbf702 and 149482df..4ffe1b06 judged in R58 and R57",
    "verdicts": [
     "STUDIO-R57 FAIL_V1 @4ffe1b06 (a zero-length marker on a reversed clip appears one source frame from the frame shown; point marker on a reversed clip maps to the frame's first shown tick; oracle frame_layers, not clip_source_at; NOT_PROVEN lines: 5, see round-R57.json)",
-    "STUDIO-R58 FAIL_V2 @89bbf702 (a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays; frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F; NOT_PROVEN lines: 29, see round-R58.json)"
+    "STUDIO-R58 FAIL_V2 @89bbf702 (a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays; frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F; NOT_PROVEN lines: 29, see round-R58.json)",
+    "STUDIO-R59 PASS_V3 @c4d06841 (NOT_PROVEN lines: 32, see round-R59.json)"
    ]
   },
   {
    "lane_id": "SMB-PR-NUDGE-1",
-   "status": "PASS_V2",
-   "phase": "done (STUDIO-R58 PASS_V2 @89bbf702)",
+   "status": "PASS_V3",
+   "phase": "done (STUDIO-R59 PASS_V3 @c4d06841)",
    "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
    "lane_file": "builders/lanes/hsk-studio-pr-nudge-1.json",
    "brief": "builders/briefs/lane-smb-pr-nudge-1.md",
@@ -19068,7 +19200,8 @@
    "claim": "8172b2c5..b9a87c7b",
    "verdicts": [
     "STUDIO-R57 PASS_V1 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
-    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
+    "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)",
+    "STUDIO-R59 PASS_V3 @c4d06841 (NOT_PROVEN lines: 78, see round-R59.json)"
    ]
   },
   {
@@ -22993,5 +23126,71 @@
   ],
   "by": "wp_validator STUDIO-R58",
   "completed_at": "2026-11-06T16:36:16Z"
+ },
+ "round_R59": {
+  "candidate": "c4d06841",
+  "candidate_full": "c4d068417b1fe065453510460d86c0df8eb83559",
+  "origin_at_fetch": "c4d06841 (fetch at the freeze)",
+  "scope": "SCOPED (CX-VAL-011; R57 full, R58 scoped): 4 crates; changed: pulse; 52 crates reuse under CX-VAL-002; no root input",
+  "opened_at": "2026-11-07T05:27:18Z",
+  "frozen_at": "2026-11-07T05:19:55Z",
+  "canary": "reused: R54-canary @96ace3ca + R54 and R57 full unions, R55, R56 and R58 unions (entrypoint byte-identical, CX-VAL-010 / CX-VERIFY-002)",
+  "status": "COMPLETE",
+  "round_ref": "validation/round-R59.json",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R59",
+  "union_exit": 73,
+  "union": "50 units build 0 / run 0; 3182 reported: 2912 passed / 0 failed / 270 skipped / 0 timed out; 78 NOT_PROVEN; 2026-11-07T05:27:18Z..2026-11-07T08:29:30Z",
+  "ready_claims": {
+   "SMB-PR-MEDIA-MARKERS-1": "PASS_V3"
+  },
+  "verdict_counts": {
+   "PASS": 133,
+   "FAIL": 0,
+   "INCONCLUSIVE": 0
+  },
+  "inconclusive": [],
+  "fails": [],
+  "timeouts": [],
+  "reopened": 132,
+  "reused_pass": 274,
+  "c_tree_gib": {
+   "start": 314.346,
+   "peak": 314.74,
+   "end": 314.397,
+   "cap": 360
+  },
+  "unit_growth": "the default unit: 69 new files / 0.305 GiB; all units 337 files / 1.882 GiB",
+  "gpu_backend": "no unit printed a backend line: render-gpu is outside this selection (pulse's closure is harness, harness-view, interop-media), so its R58 rows stand under CX-VAL-002; canary reused, none run; the one GPU-touching row in the selection, harness viewer_renders_on_the_host_device_into_the_display_texture, passed; 'vulkan' in R58's lines is wgpu's Vulkan backend: asset-local proof only (D7)",
+  "mts_passed": [
+   "MT-33736"
+  ],
+  "mts_passed_count": 1,
+  "matrix_cut_no_objection": true,
+  "matrix_cut_reason": "All 241 test ids of the 5 units pass in retained supersets at R58 and R59, and in 31 recorded rounds none of the 5 failed to build or held a failing row a retained unit lacked except R32 (worker not prebuilt, infrastructure) and R36 (device flake); the exact sets are the asset-local test host's, and reel-native and score-device keep their own units.",
+  "time": "union 2026-11-07T05:27:18Z..08:29:30Z, 3 h 02 m for 50 units (R52 92 units 2 h 03, R56 94 units 2 h 23, R58 91 units 3 h 48); builds 9127 s and test runs 708 s from result-file times; default unit build 1266 s",
+  "memory": "commit free 128.5 GB at the freeze (limit 191.0), 126.9 before the union, minimum 107.1 during it, 120.7 after it, 118.1 at recording; Chrome private 16.1 to 22.2 GB; 22 samples about every 10 minutes (validator-R59/mem-log.txt). No build failed on memory",
+  "mts_rejudged_not_written": [],
+  "mts_carried_pass": [],
+  "host_integration": {
+   "SMB-PR-MEDIA-MARKERS-1": "PASS"
+  },
+  "probes": {
+   "PROBE-R59-SYNC-1": "6713 'PROBE s' lines identical at both commits (sorted sha256 0575730ffde72c10). s1: 1500 seeded units of 2 to 5 clips, Video, Audio, Caption and Submix, forward and reversed, 14 speeds, 8 rates, windows on and off the frame grid, markers on and off frames and outside the window, spans, holds, every anchor and merge where allowed: 5491 operations, 2324 accepted, 3167 refused (not_frame_aligned 2045, sync_marker_missing 988, sync_hold_unsupported 134); 0 off this file's own arithmetic, 0 landings that depend on the anchor, 0 clips of one shared window apart. s2: in and out point controls equal. s3: 280 rows, sound against the anchor's position within 0.0021F (one source sample at -1/4). s4/s5: F-R59-1. s6: F-R59-3. d4/d5: marker_spans after the alignment, the only lines meant to differ (4ffe1b06 read the reversed picture's flag on the mark)",
+   "PROBE-R59-CLAIM-1": "c1, c2, c3: F-R59-4. c4: F-R59-2. c5: F-PR59-2 unchanged. c6: 216 rows, marker_span given a kind, marker_spans, sequence_appearing_markers, clip_appearing_markers given the kind's grid and snap_targets agree on every kind and speed. c7: F-R59-1 (sampling, nothing aligned)",
+   "PROBE-R59-RERUN-1": "r58_probe_audio: a1 worst 0.001F at -1 and -1/2, 0.000 at -2 and -3/2, forward 0.000; a2 the merge_sync row placed 15F, clap heard 22.999F, -2 23.000F, -1/2 22.999F, forward controls 23.000F: the 4ffe1b06 numbers of R58's base-audio.log. r57_probe_markers: 9 lines identical to R58's (0 of 12 off at -1, -2, -1/2 and forward; MT-33736's scenario by hand). r58_probe_markers: 131 lines identical to R58's at 89bbf702. r58_probe_walk: rows identical, timing 1.020 s. The lane's three test targets at the candidate: 44 of 44",
+   "PROBE-R59-MUT-1": "control 14/15/15 pass; align:Video 8 fail, align:Audio 9, align:Caption 2, align:Submix 1, merge:Audio 3, anchor:Video 7, member:Video 8, read:all 6, read:none 7, lone:law 1 (a_lone_clip_answers_by_the_grid_it_is_given_r58_f1), lone:ignore 5; F-R59-5"
+  },
+  "findings": [
+   "F-R59-1 MEDIUM no lane (the alignment by marker of a reversed picture; spec owner SD-73, candidate lane); SMB-PR-MEDIA-MARKERS-1's named limit, graded as asked; MT-33727 when it is judged: Graded: an acceptable named limit, not a defect in this claim, and not new. Measured: forward picture marked at 23F, reversed picture and its sound of one windo",
+   "F-R59-2 LOW SMB-PR-MEDIA-MARKERS-1 (doc sentences, the module docs and the DESCRIPTOR merge_sync clause): Three sentences a model reading only the docs would act on are true only in the rows they cite. (1) 'the marked frame is presented in the frame before the mark'",
+   "F-R59-3 LOW no lane (SMB-PR-MERGE-SYNC-1's behaviour, the same at 4ffe1b06; not this claim): A synchronize by a marker that is not on the sample grid, or at a speed whose distance is not a whole number of samples, places an audio clip off the 48 kHz sam",
+   "F-R59-4 INFO SMB-PR-MEDIA-MARKERS-1 (the lane's not_proven list, measured): Closed by run: reversed audio against the mix at 44.1 and 96 kHz as well as 48, on windows off the frame grid (2.5..26.5F, 0.25..24.75F), at -1, -2, -1/2, -3/2,",
+   "F-R59-5 INFO SMB-PR-MEDIA-MARKERS-1 (proof quality, graded as asked): The proof is sound. The audio rows are measured against the rendered mix (TimelineMixStream and score's varispeed; audio.rs holds no source_to_timeline or marke",
+   "F-R59-6 INFO SMB-PR-MEDIA-MARKERS-1 (named, not fixed here, as asked): None became worse. F-R58-2 / SD-56: r58_m8's lines identical to R58's (sequence read off up to 2 source frames for 30 on 25, the clip read given the grid 0). F-",
+   "F-R59-7 LOW all MT proof commands (carried, F-R55-3, F-R56-13, F-R57-13, F-R58-9): MT-33736 still names hsk-studio-pulse --test contracts: no such target, status NOT_IMPLEMENTED, v02.207 spec refs. Judged with the real targets. Not edited.",
+   "F-R59-8 INFO round (time and machine state, as asked; no cause investigated): The union took 3 h 02 for 50 units (23 nextest, 24 doctest, 3 prebuild) over 4 crates, against R52 2 h 03 for 92, R56 2 h 23 for 94, R58 3 h 48 for 91. From the"
+  ],
+  "by": "wp_validator STUDIO-R59",
+  "completed_at": "2026-11-07T09:07:37Z"
  }
 }
