@@ -185,6 +185,10 @@ Build rules: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`, 61 rules. P
 
 **Do not forget this.** Studio's only GUI today is an egui test host on a retired path. All GUI lanes are paused. Full evidence: `research/truth-check-20261105-vulkan-pivot.json`.
 
+### Decisions of 2026-11-07
+
+The lead decided O1 to O10 on the Operator's word, after an agent team and a red team: `ledger.json` `direction.blocker_decisions_20261107`, which wins over the open questions below. GUI work is running: asset-local Vulkan host first, winit in one leaf crate, ash, offline SPIR-V, `kumihimo-*` crates, designer's spec in `gui-design/`.
+
 ### What was decided
 
 | When | Decision | Words |
@@ -262,7 +266,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 8. **Watch test-run time.** Compare each union's duration when recording a round. On file: R52 92 units 2 h 03; R54 160 units 2 h 03; R56 94 units 2 h 23; R57 160 units 3 h 48; R58 91 units 3 h 48. The slowdown's cause is UNVERIFIED; 44 of the lead's leftover watchers and a Chrome memory shortage were both present during R57 and R58. Look into a scoped union over 3 hours.
 9. **Priority (Operator, 2026-11-07).** Width and depth across every Adobe, Figma and Affinity tool and feature, and a working, coherent GUI, come first. Then fix what is broken. Finish fixes already underway quickly and open no new edge-case lanes while feature work waits. The lead may expand scope and create MTs when that helps: do not spend time on MT paperwork that moves nothing.
 10. **Review before expensive builds.** A builder's first runs are `cargo check` and its focused tests. Before its bundled run, read-only code-check and red-team agents inspect the diff (`builders/DISPATCH_TEMPLATES.md` is not changed by this; the prompts are in `direction.operator_direction_20261107.review_prompts`). They report only what would break or be wrong, never polish.
-11. **Minimal testing, no busy work.** Red test and focused tests per item, one bundled run. `--per-sha` runs on the tip only (`--per-sha HEAD~1`), not on every commit. Rounds run in batches when a real wave has landed, not after each fix, while CX-VAL-011's full-round rule still applies to the rounds that run. READY still means unjudged, and only a validator's verdict says PASS.
+11. **Minimal testing, no busy work.** Red test and focused tests per item, one bundled run. `--per-sha` runs on the tip only (`--per-sha HEAD~1`), not on every commit. Landing has no push slot and no round hold (`direction.blocker_decisions_20261107.landing`); a READY lane with its tip on origin hands over its tree and target. Rounds run in batches when a real wave has landed, not after each fix, while CX-VAL-011's full-round rule still applies to the rounds that run. READY still means unjudged, and only a validator's verdict says PASS.
 12. **No stray cargo.** Builders run cargo only through `lane-check.sh` or after sourcing `builders/studio-env.sh` with their owner. `tools/lead/stray_cargo.py` reports repo-local targets, stray artifact folders and processes writing outside the assigned roots; `lane_watch.sh` prints it.
 13. **Blockers are the lead's to resolve.** The Operator: "resolve all blockers on your own, deliberate with a fitting agent team". Use a position agent per concern, then a red team, then record the decision in `direction.blocker_decisions_20261107`. Do not hold work on a question to the Operator when a recorded decision can be reversed later.
 14. **GUI designer and workflow agents.** A designer owns the Vulkan GUI's look, layout and coherence (`gui-design/`). Workflow agents write professional projects end to end as scenarios (`workflows/scenario-*.json`): tool calls, GUI expectations and a measured gap list. The gap lists choose the next feature lanes, and later the same scenarios test the tools and the GUI.

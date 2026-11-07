@@ -1,0 +1,582 @@
+{
+ "schema": "hsk.studio.gui_design.acceptance_checks@1",
+ "file_id": "STUDIO-GUI-ACCEPTANCE",
+ "status": "DRAFT. A reviewer's checklist; only an independent validator's verdict says PASS.",
+ "updated_at": "2026-11-07",
+ "spec_version": "v02.229",
+ "how_to_use": "Run against a real rendered frame of the real binary, not against these mocks. Use the matrix for each screen under review. Machine checks read the AccessKit tree and studio.dock.state through Argus, with no foreground focus (STU-QUIET-005). Screenshot checks open the PNG and judge it against the named mock. Report per check: id, target, expected, observed, evidence path. A screenshot alone never proves behaviour (GUI-DESKTOP-012).",
+ "methods": {
+  "tree": "Read the AccessKit snapshot and compute from bounds, roles and properties. Scriptable.",
+  "state": "Read studio.dock.state, studio.gesture.active, studio.slot.*.resolved, studio.tool.active as strings.",
+  "token": "Compare pixels or source to design-system.json tokens. Scriptable from a screenshot with no AA on flat fills.",
+  "drive": "Drive the command API or AccessKit actions, then re-read. No OS input injection (STU-QUIET-002).",
+  "shot": "A human or model opens the screenshot and judges it against the mock and this text. Must state what was seen."
+ },
+ "matrix": {
+  "windows": [
+   [
+    1280,
+    720,
+    1
+   ],
+   [
+    1920,
+    1080,
+    1
+   ],
+   [
+    2560,
+    1440,
+    1.5
+   ],
+   [
+    3840,
+    2160,
+    2
+   ]
+  ],
+  "themes": [
+   "dark",
+   "light"
+  ],
+  "first_screen": "raster at 1920x1080, scale 1, dark, compared to mock-raster.html. Passing this is the first GUI milestone.",
+  "per_preset": "Every shipped Layout Preset at the four windows in dark; light at 1920x1080 only unless a theme token changed."
+ },
+ "severity": {
+  "block": "Fails the screen.",
+  "major": "Must be fixed before the lane's verdict, or recorded with a reason.",
+  "minor": "Record, fix in passing."
+ },
+ "checks": [
+  {
+   "id": "AC-GEOM-01",
+   "name": "No overlap between regions",
+   "severity": "block",
+   "method": "tree",
+   "rule": "The bounds of the seven regions, the menu bar, tab strip and status bar do not intersect, and together cover the window with no gap, except a 6px seam on an empty edge.",
+   "how": "Sum areas and test pairwise intersection on physical pixels. Floating popups are excluded. A mock-side version of this runs in tools/shoot.py.",
+   "spec": [
+    "GUI-DESKTOP-007",
+    "GUI-DESKTOP-009"
+   ]
+  },
+  {
+   "id": "AC-GEOM-02",
+   "name": "No overlap between controls",
+   "severity": "block",
+   "method": "tree",
+   "rule": "Inside a panel, sibling interactive nodes do not intersect. Floating layers may cover content only when open by the operator.",
+   "how": "Pairwise intersection of leaf interactive bounds per panel. Excepted: a field's own stopwatch is a separate sibling and must not intersect either.",
+   "spec": [
+    "GUI-DESKTOP-009"
+   ]
+  },
+  {
+   "id": "AC-GEOM-03",
+   "name": "Shared edges",
+   "severity": "block",
+   "method": "tree",
+   "rule": "Adjacent docked panes share one physical edge: the gap is 0. Docked panes have radius 0.",
+   "how": "For each splitter, leading pane's x1p equals trailing pane's x0p at every scale in the matrix.",
+   "spec": [
+    "GUI-DESKTOP-007",
+    "GUI-DESKTOP-008"
+   ]
+  },
+  {
+   "id": "AC-GEOM-04",
+   "name": "Grid and sizes",
+   "severity": "major",
+   "method": "tree",
+   "rule": "At scale 1, control heights and panel row pitch match components.json. Row tops in a panel land on the 4px grid measured from the panel body's top; a ScrubValue is at least 72 x 24.",
+   "how": "Compare bounds with the component records. List every deviation over 1 logical px. Text-driven x positions are exempt in the Context Bar.",
+   "spec": [
+    "STU-SHL-072",
+    "STU-SHL-196"
+   ]
+  },
+  {
+   "id": "AC-GEOM-05",
+   "name": "Row budget",
+   "severity": "major",
+   "method": "tree",
+   "rule": "At 300 wide, no row holds three numeric fields; the scroll lane holds no field; the field's hit rect clears a splitter hit strip by 8.",
+   "how": "Group fields per row by y. Test x against the panel's right edge minus 10.",
+   "spec": [
+    "STU-SHL-072",
+    "STU-SHL-103",
+    "STU-SHL-105"
+   ]
+  },
+  {
+   "id": "AC-GEOM-06",
+   "name": "Docks at rest",
+   "severity": "major",
+   "method": "state",
+   "rule": "The default layout of a preset matches layouts.json: regions, groups, tab order, active tab and sizes within 1 px, after the fit ladder for that window as tabled in fit_table.",
+   "how": "Compare studio.dock.state to the table.",
+   "spec": [
+    "STU-SHL-084",
+    "STU-MDL-106"
+   ]
+  },
+  {
+   "id": "AC-TEXT-01",
+   "name": "No clipped labels",
+   "severity": "block",
+   "method": "tree",
+   "rule": "A label's measured text width fits its box, except where the component declares an ellipsis. Tabs, menu titles, buttons and Context Bar labels never ellipsize.",
+   "how": "Compare shaped text width to bounds per label. Report the string, component and overflow px. Rulers drop labels near their end, which is not clipping.",
+   "spec": [
+    "GUI-DESKTOP-009"
+   ]
+  },
+  {
+   "id": "AC-TEXT-02",
+   "name": "Ellipsized text is recoverable",
+   "severity": "major",
+   "method": "tree",
+   "rule": "Any truncated string has its full value in the accessible name and in L0.",
+   "how": "Find truncated nodes; compare accessible_name to the source value.",
+   "spec": [
+    "STU-SHL-244"
+   ]
+  },
+  {
+   "id": "AC-TEXT-03",
+   "name": "Text floor",
+   "severity": "block",
+   "method": "token",
+   "rule": "No text under 11 logical px. Only styles from design-system.json type.styles are in use.",
+   "how": "Check the renderer's text run list; a run with an unknown style fails.",
+   "spec": [
+    "GUI-DESKTOP-010"
+   ]
+  },
+  {
+   "id": "AC-TEXT-04",
+   "name": "Numbers align",
+   "severity": "minor",
+   "method": "shot",
+   "rule": "Digits in a column of fields line up, using tabular figures, right-aligned, with the unit in tertiary text.",
+   "how": "Open a panel with 4 or more stacked fields at 200 percent zoom in the screenshot.",
+   "spec": [
+    "GUI-DESKTOP-010"
+   ]
+  },
+  {
+   "id": "AC-TEXT-05",
+   "name": "Rendered value equals accessible value",
+   "severity": "block",
+   "method": "tree",
+   "rule": "For a numeric field, the drawn string is exactly the accessible value string.",
+   "how": "Agreement test of STU-MDL-113, item 1, on every visible numeric field.",
+   "spec": [
+    "STU-SHL-193",
+    "STU-MDL-113"
+   ]
+  },
+  {
+   "id": "AC-COL-01",
+   "name": "Tokens only",
+   "severity": "block",
+   "method": "token",
+   "rule": "Every chrome pixel on a flat fill equals a token of the active theme. No colour literal in UI code.",
+   "how": "Quantise the screenshot outside viewers and text; the set of colours must be a subset of the theme table. Also grep UI source for hex literals.",
+   "spec": [
+    "GUI-DESKTOP-010",
+    "STU-SHL-072"
+   ]
+  },
+  {
+   "id": "AC-COL-02",
+   "name": "Neutral chrome",
+   "severity": "block",
+   "method": "token",
+   "rule": "Surface, edge and text pixels have R=G=B, within 1 for gamma rounding. Hue appears only in accent and status tokens, overlays, tags, clips and meters.",
+   "how": "Scan the chrome region; report the first 20 chromatic pixels outside allowed components.",
+   "spec": [
+    "GUI-DESKTOP-011"
+   ]
+  },
+  {
+   "id": "AC-COL-03",
+   "name": "Text contrast",
+   "severity": "block",
+   "method": "token",
+   "rule": "Text pairs in use meet 4.5:1, as listed in design-system.json contrast.pairs. A new pair is added to that list and passes first. Disabled text is exempt.",
+   "how": "Re-run tools/gen_design_system.py after any token change; on the real frame, sample the text colour and its background for each style in use.",
+   "spec": [
+    "GUI-DESKTOP-010",
+    "WCAG 1.4.3"
+   ]
+  },
+  {
+   "id": "AC-COL-04",
+   "name": "Non-text contrast",
+   "severity": "block",
+   "method": "token",
+   "rule": "Control edges and focus rings meet 3:1 against adjacent colours. Ratios are not rounded up.",
+   "how": "As AC-COL-03 for edge.control, accent.base and focus.ring.",
+   "spec": [
+    "WCAG 1.4.11"
+   ]
+  },
+  {
+   "id": "AC-COL-05",
+   "name": "One accent, used as a signal",
+   "severity": "major",
+   "method": "shot",
+   "rule": "On a screen at rest, accent colour shows only on the active tool, the active tabs, selected rows and selected objects. No large accent fill except a dialog's one primary button.",
+   "how": "Open the screenshot; name every green region and why it is there.",
+   "spec": [
+    "GUI-DESKTOP-010"
+   ]
+  },
+  {
+   "id": "AC-COL-06",
+   "name": "Status is never colour alone",
+   "severity": "major",
+   "method": "shot",
+   "rule": "Each error, warning and success carries a glyph and a word. Check with a greyscale copy of the screenshot.",
+   "how": "Convert to greyscale; the state must still read.",
+   "spec": [
+    "GUI-DESKTOP-012"
+   ]
+  },
+  {
+   "id": "AC-COL-07",
+   "name": "Overlays hold on any image",
+   "severity": "major",
+   "method": "shot",
+   "rule": "Selection, handles, guides and ants stay visible over a white image, a black image and a pure green image.",
+   "how": "Render three test documents and open their screenshots.",
+   "spec": [
+    "GUI-DESKTOP-011"
+   ]
+  },
+  {
+   "id": "AC-REACH-01",
+   "name": "All tools reachable",
+   "severity": "block",
+   "method": "drive",
+   "rule": "Every one of the 362 tools resolves through Tool Rail or strip, menu leaf, search and family browse with one command id, whatever the preset.",
+   "how": "For each tool id: find the menu leaf, search result and family row; dispatch; read studio.tool.active. Compare ids.",
+   "spec": [
+    "STU-SHL-144",
+    "MENU-INV-7"
+   ]
+  },
+  {
+   "id": "AC-REACH-02",
+   "name": "Variant disclosure is untimed",
+   "severity": "block",
+   "method": "drive",
+   "rule": "The variant strip opens with no timer through the corner marker or a secondary click; each slot with variants shows its corner marker.",
+   "how": "Activate the marker's accessibility action; assert the strip node appears in the next frame.",
+   "spec": [
+    "STU-SHL-149"
+   ]
+  },
+  {
+   "id": "AC-REACH-03",
+   "name": "Nothing hidden without an affordance",
+   "severity": "block",
+   "method": "tree",
+   "rule": "Any panel not visible is reachable from a visible control: a +N, a dock foot, an icon rail, or a seam plus WORKSPACE > Panels. Any overflowed toolbar control sits behind a visible More button. A collapsed bar or dock shows how to reopen it.",
+   "how": "For each registered panel in studio.dock.state with a hidden-type state, find the control that opens it and activate it.",
+   "spec": [
+    "STU-SHL-052",
+    "STU-SHL-068",
+    "GUI-DESKTOP-015"
+   ]
+  },
+  {
+   "id": "AC-REACH-04",
+   "name": "Menu is an index",
+   "severity": "block",
+   "method": "tree",
+   "rule": "19 titles in order at every window. Every node exists whatever its availability; greyed items carry a reason, and INAPPLICABLE_HERE carries an enabled remedy sibling.",
+   "how": "Walk the menu tree; compare to STU-SHL-011 and STU-SHL-023 to 037; check reason fields.",
+   "spec": [
+    "STU-SHL-011",
+    "STU-SHL-018",
+    "STU-SHL-019",
+    "STU-SHL-020"
+   ]
+  },
+  {
+   "id": "AC-REACH-05",
+   "name": "Dimmed things explain themselves",
+   "severity": "block",
+   "method": "tree",
+   "rule": "Each dimmed element has reason_code, reason_text and, for INAPPLICABLE_HERE, remedy_command_id on the node, and the L1 tooltip shows the same text.",
+   "how": "Collect disabled nodes; open L1 through the accessibility action; compare strings.",
+   "spec": [
+    "STU-SHL-019",
+    "STU-SHL-232"
+   ]
+  },
+  {
+   "id": "AC-REACH-06",
+   "name": "Search never filters",
+   "severity": "block",
+   "method": "drive",
+   "rule": "Searching a NOT_IN_THIS_DOCUMENT tool returns a row with a reason.",
+   "how": "Search 'ripple edit' in a page layout document.",
+   "spec": [
+    "STU-SHL-053"
+   ]
+  },
+  {
+   "id": "AC-FOCUS-01",
+   "name": "Focus visible",
+   "severity": "block",
+   "method": "drive",
+   "rule": "Each focusable control shows the focus ring, or the inset ring on rows and tabs, and it is not clipped.",
+   "how": "Step through the panel by Tab via the tree; after each step take a crop and find focus.ring pixels on the node's edge.",
+   "spec": [
+    "GUI-DESKTOP-041",
+    "WCAG 2.4.7"
+   ]
+  },
+  {
+   "id": "AC-FOCUS-02",
+   "name": "Keyboard reaches every region",
+   "severity": "block",
+   "method": "drive",
+   "rule": "F6 cycles the regions as components.json says; Tab reaches every control inside; Escape returns from popups to the previous focus.",
+   "how": "Drive the keyboard path through the accessibility layer; record the focus sequence as author_id strings.",
+   "spec": [
+    "GUI-DESKTOP-041",
+    "GUI-DESKTOP-008"
+   ]
+  },
+  {
+   "id": "AC-FOCUS-03",
+   "name": "No focus theft",
+   "severity": "block",
+   "method": "drive",
+   "rule": "A model lane running a command, a job finishing, or a receipt arriving never changes the operator's focus, viewport, active tool or selection, and opens no pane.",
+   "how": "Record focus, viewport, tool and dock state; run a model-lane batch; compare byte for byte.",
+   "spec": [
+    "STU-QUIET-001",
+    "STU-QUIET-003"
+   ]
+  },
+  {
+   "id": "AC-CONS-01",
+   "name": "One set of states",
+   "severity": "major",
+   "method": "shot",
+   "rule": "Hover, active, selected, focus and disabled look the same on the same component kind across all panels.",
+   "how": "Open the state sheet: render each component in each state in a test panel and compare to design-system.json state.",
+   "spec": [
+    "GUI-DESKTOP-010"
+   ]
+  },
+  {
+   "id": "AC-CONS-02",
+   "name": "Consistent spacing",
+   "severity": "major",
+   "method": "tree",
+   "rule": "Panels use padding 12 and 12 plus the 10 lane; row pitch is one value inside a density mode; section header height is one value.",
+   "how": "Histogram of vertical gaps per panel: gaps must come from the spacing tokens.",
+   "spec": [
+    "STU-SHL-072"
+   ]
+  },
+  {
+   "id": "AC-CONS-03",
+   "name": "Consistent iconography",
+   "severity": "major",
+   "method": "shot",
+   "rule": "One grid per use: 20 on the Tool Rail, 16 in panels, 12 micro. Same stroke weight in each grid. Each tool icon has exactly one hot point; only the active tool's is accent. No vendor icon.",
+   "how": "Open an icon contact sheet at 400 percent next to the rail.",
+   "spec": [
+    "GUI-DESKTOP-010",
+    "STU-SHL-008"
+   ]
+  },
+  {
+   "id": "AC-CONS-04",
+   "name": "Same frame everywhere",
+   "severity": "block",
+   "method": "state",
+   "rule": "Menu bar, tab strip, Context Bar, Tool Rail and status bar have identical bounds across all presets in a window.",
+   "how": "Switch through the presets; compare bounds strings.",
+   "spec": [
+    "STU-SHL-084"
+   ]
+  },
+  {
+   "id": "AC-CONS-05",
+   "name": "Vendor names absent",
+   "severity": "block",
+   "method": "tree",
+   "rule": "No vendor product name in any label, tooltip, id or preset.",
+   "how": "Scan all strings against a denylist of the source suites. The Pathfinder label stays flagged under D-11 until the spec owner rules.",
+   "spec": [
+    "STU-SHL-008"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-01",
+   "name": "Preset gates nothing",
+   "severity": "block",
+   "method": "drive",
+   "rule": "availability_state of every element is identical before and after switching Layout Preset; documents, selection, colour, history and tool unchanged.",
+   "how": "Snapshot both; compare.",
+   "spec": [
+    "STU-SHL-055",
+    "STU-SHL-093"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-02",
+   "name": "Preset switch is atomic",
+   "severity": "major",
+   "method": "state",
+   "rule": "A switch produces one studio.dock.state change, in one frame, with every registered panel in exactly one tree.",
+   "how": "Subscribe to the node; count updates; run the registry assertion.",
+   "spec": [
+    "STU-SHL-070",
+    "STU-SHL-138"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-03",
+   "name": "Fit never rewrites the stored layout",
+   "severity": "block",
+   "method": "state",
+   "rule": "Shrink to 1280x720 and return to 1920x1080: the layout is identical to the start; L2 was not written by the ladder.",
+   "how": "Compare studio.dock.state and the stored L2 blob before and after.",
+   "spec": [
+    "GUI-DESKTOP-009"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-04",
+   "name": "Gesture arbitration",
+   "severity": "block",
+   "method": "drive",
+   "rule": "The seven tests of STU-SHL-109 pass, including byte-identical dock state during a scrub and one undo entry per gesture.",
+   "how": "As the clause says.",
+   "spec": [
+    "STU-SHL-109"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-05",
+   "name": "Reselect is byte-identical",
+   "severity": "block",
+   "method": "state",
+   "rule": "Select, deselect, reselect the same node: the AccessKit tree is byte-identical across the selected states.",
+   "how": "As the clause says.",
+   "spec": [
+    "STU-SHL-061"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-06",
+   "name": "Truthful states",
+   "severity": "major",
+   "method": "drive",
+   "rule": "Each panel has an empty, loading, error, denied and recovery rendering, reached by real conditions, not a static sample.",
+   "how": "Drive each condition, then read and open a screenshot.",
+   "spec": [
+    "GUI-DESKTOP-012"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-07",
+   "name": "Vulkan is really active",
+   "severity": "block",
+   "method": "tree",
+   "rule": "The frame judged came from the Vulkan path on the running binary: the device and backend are identified in the status bar and diagnostics, tied to the frame under test.",
+   "how": "Read the diagnostic state. A config name or a build does not count.",
+   "spec": [
+    "GUI-DESKTOP-023",
+    "GUI-DESKTOP-024"
+   ]
+  },
+  {
+   "id": "AC-BEHAV-08",
+   "name": "DPI change",
+   "severity": "major",
+   "method": "drive",
+   "rule": "Moving between monitors at different scales keeps logical layout, keeps edges shared, and redraws without blur.",
+   "how": "Run the window at scale 1, then 1.5, then 2. Compare AC-GEOM-03, and open crops of text and icons.",
+   "spec": [
+    "GUI-DESKTOP-009",
+    "GUI-DESKTOP-022"
+   ]
+  },
+  {
+   "id": "AC-LOOK-01",
+   "name": "Hierarchy at a glance",
+   "severity": "major",
+   "method": "shot",
+   "rule": "Shrink the screenshot to 25 percent. The document is what draws the eye; the regions read as calm bands; the active tool and active tabs can still be found.",
+   "how": "Open at 25 percent and state what is seen first, second and third.",
+   "spec": [
+    "GUI-DESKTOP-001",
+    "STU-SHL-072"
+   ]
+  },
+  {
+   "id": "AC-LOOK-02",
+   "name": "Matches the mock",
+   "severity": "major",
+   "method": "shot",
+   "rule": "Side by side at 100 percent against the named mock, the regions, proportions, density and materials read as the same design. Differences are listed one by one, with a reason; canvas content is excluded.",
+   "how": "Open both images. A difference over 2 px in any frame band is a defect.",
+   "spec": [
+    "STU-SHL-078"
+   ]
+  },
+  {
+   "id": "AC-LOOK-03",
+   "name": "Readable at the small end",
+   "severity": "major",
+   "method": "shot",
+   "rule": "At 1280x720, labels are legible at 100 percent, the Tool Rail is usable, the Viewport stays the largest region, and no panel is a sliver.",
+   "how": "Open the screenshot at 100 percent.",
+   "spec": [
+    "GUI-DESKTOP-009",
+    "GUI-DESKTOP-011"
+   ]
+  },
+  {
+   "id": "AC-LOOK-04",
+   "name": "Long-use comfort",
+   "severity": "minor",
+   "method": "shot",
+   "rule": "No bright band, no large saturated block in the chrome, no blinking or looping motion at rest.",
+   "how": "Open the screenshot, and read the redraw counter for 60 seconds at rest: it must not advance.",
+   "spec": [
+    "STU-QUIET-001"
+   ]
+  },
+  {
+   "id": "AC-MAN-01",
+   "name": "Every control has its manual entry",
+   "severity": "major",
+   "method": "drive",
+   "rule": "F1 on a focused control opens that element's manual anchor in the side sheet with no browser and no network; the author_id reverse lookup finds the same entry; a null summary is a tracked gap, not a blank tip.",
+   "how": "Sample every kind of control per screen; read the opened anchor's id; compare with the element's author_id. CI gates 1 to 10 of STU-MAN-112 cover the rest.",
+   "spec": [
+    "STU-SHL-233",
+    "STU-MAN-001",
+    "STU-MAN-004",
+    "STU-MAN-112"
+   ]
+  }
+ ],
+ "mock_results": {
+  "tool": "tools/shoot.py renders a mock in headless Edge at 1920x1080 and runs the geometric checks over its DOM: no clipped text, no row overflow, on-grid rects, text floor, no region overlap.",
+  "scope": "These results prove the mocks only, not the product.",
+  "run": "2026-11-07: all five mocks pass with zero findings. Each PNG was opened and judged by the designer.",
+  "not_run": "No mock was rendered at 1280x720, 2560x1440 or 3840x2160. fit_table in layouts.json is computed, not seen. UNVERIFIED until the first real frame."
+ }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T06:23:52Z",
+ "updated_at": "2026-11-07T07:10:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21672,6 +21672,59 @@
    },
    "root_authority_not_changed": "CLAUDE.md and AGENTS.md were not edited for this direction.",
    "review_prompts": "builder lanes get read-only code-check and red-team agents before the bundled run; they report only what would break or be wrong."
+  },
+  "blocker_decisions_20261107": {
+   "at": "2026-11-07T07:10:08Z",
+   "authority": "Operator 2026-11-07: 'resolve all blockers on your own, deliberate with a fitting agent team on the blockers, this include also the gui/vulkan work.' Decided by the lead after four positions and a red team. All reversible; the Operator may overrule any.",
+   "evidence": [
+    "research/blockers-20261107-vulkan-engineer.json",
+    "research/blockers-20261107-shell-architect.json",
+    "research/blockers-20261107-authority-and-spec.json",
+    "research/blockers-20261107-delivery.json",
+    "research/blockers-20261107-red-team.json",
+    "research/round-time-audit-20261107.json",
+    "research/cargo-reuse-research-20261107.json",
+    "workflows/backlog-20261107.json",
+    "gui-design/"
+   ],
+   "O1": "Studio takes no dependency on WP-KERNEL-012 and edits none of its files; WP-012 keeps its pin. The GUI proves on an asset-local Vulkan host. The eframe, egui-wgpu and kumihimo-egui conflict with D7 stays WP-012's own, and the Operator is told in the morning report.",
+   "O2": "ash =0.38.0, Vulkan 1.3 baseline, all unsafe in one leaf crate, no ash type in a public contract. Versions already in Cargo.lock.",
+   "O3": "D7 removes wgpu and runtime naga and WGSL. WGSL as offline source stays allowed: a tool under the Vulkan crate with its own workspace, naga 27.0.3 as a library, committed SPIR-V plus a manifest and hash test. Not needed before the first shader lane. The 2,942 lines get compiled later, not rewritten.",
+   "O4": "Widgets, display list, focus, gestures and IME composition state belong to the toolkit; the Vulkan renderer takes a host-supplied device; window, swapchain, OS IME and AccessKit adapter belong to the host; text stays in hsk-studio-type behind a port, atlas in the renderer.",
+   "O5": "D8 stands. New toolkit-free crates are named kumihimo-* from the first commit with no hsk-studio-* dependency in their closure, hsk-studio-controls depends on them and not the reverse, and they publish through create-assets at green. Records one deviation from CX-MODULE-LIFECYCLE-002 until then.",
+   "O6": "Build the non-egui asset-local Vulkan host now. First milestone: a CPU-painted RGBA buffer copied to the swapchain, showing a real document through Prefer::Cpu, with no shader.",
+   "O7": "Allowed after the first window lane: moves only, no net growth in wgpu use. Port split and RF-12 do not go READY without the validation layer.",
+   "O8": "Windows x86-64 with Vulkan 1.3 only. No Vulkan means a typed refusal. Linux and macOS stay unscoped.",
+   "O9": "Closed: STU-ARC-024 already states D3's reading.",
+   "O10": "Working decisions as in the authority position for the 6 D7A items and 11 SD items that block; the rest do not block. No spec cut tonight. MT-33738 is not amended to fit the code. A third FAIL parks a lane.",
+   "window_layer": "winit =0.30.13 with windows-sys in hsk-studio-native-host only, with a typed HostEvent stream past it. No Operator word bans winit; the ban was lead text and D7 says pure Vulkan, no wgpu. It already has pen and IMM32, it is locked, and it is the only path with first-party quiet proof. Lead reversal path: raw Win32 behind the same HostEvent stream. The quarantine gate's allow list names this crate only.",
+   "layout_and_text": "No Taffy: stack layout with spec tokens behind a layout port. AccessKit adapter in a later lane; gui.tree is the model path until then.",
+   "rf_01": "After the R60 freeze, one short lane, not a predecessor of any panel. Viewer::canvas_event is additive in the first panel lane.",
+   "gpu_contention": "The steward extends the GPU lock and test group to the new Vulkan crates, and host binary runs take the GPU lock, because foreign GPU clients broke R39.",
+   "validation_layer": "Absent here. Lanes proceed with receipts saying validation: absent. One question to the Operator: the Vulkan SDK download.",
+   "order": [
+    "first wave lands",
+    "SMB-GUI-STEWARD-1",
+    "SMB-VK-HOST-1 and SMB-UI-TREE-1 in parallel",
+    "SMB-COMMAND-SURFACE-1 (RUN_COMMANDS per domain, UiDescriptor seed, typed decoders, from backlog SMB-DRIVE-TYPED-1) and SMB-DOC-NEW-1 beside them",
+    "width lanes from workflows/backlog-20261107.json",
+    "SMB-GUI-SPINE-1",
+    "the Vulkan UI pass",
+    "panel fan-out after an independent GATE_CHECK"
+   ],
+   "landing": "No push slot and no round hold (CX-VAL-001 allows pushes during a round; the candidate stays frozen). Each lane: rebase, lane-check --per-sha HEAD~1, non-force push. A failed push rebases again. A trunk check runs after about every 3 landings. If trunk stays red for 30 minutes, the landing that broke it is reverted by a new commit, never a force push.",
+   "capacity": "A READY lane whose tip is on origin hands over its tree and target. A remediation after a FAIL takes a fresh tree. Root P3 (6 live targets per disk) stands, with live meaning a builder is working in it. R60 FULL freezes about T+7 with the steward landed. Plan on 8 to 11 lanes READY in 8 hours, not 15 to 18.",
+   "cargo_settings": "No debug=0, linker change or probe tonight: adoption is a forced rebuild of every target. After R60: probe, then merge harness-view and harness test binaries with a name map (estimated 1.4 to 1.8 h off a round, research/cargo-reuse-research-20261107.json).",
+   "matrix_cut": "Dropping 5 strict-subset harness feature units saves 0.56 to 1.12 h a round. It lands only on the validator's written no-objection.",
+   "spine_gate": "Panel fan-out opens on a fresh independent agent running the 8 named tests at the tip, recorded as GATE_CHECK, never PASS_Vn. Builder-green is not acceptance.",
+   "deferred": [
+    "STUB paperwork",
+    "SPEC_DEBT rows",
+    "older worktrees list",
+    "waivers",
+    "composition and board spec questions"
+   ],
+   "scoped_lanes": "Per the backlog: SMB-TYPE-INDENT-SPACING-1 and SMB-AI-LIVE-EFFECTS-1 close few steps and wait; SMB-PR-EXPORT-RECIPE-1 keeps its publish-safety part first; SMB-SCORE-EFFECTS-6 is re-scoped against noise and multiband hosts; SMB-PARSER-HOSTILE-1 is a safety track behind features."
   }
  },
  "round_R45": {

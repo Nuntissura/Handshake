@@ -1,0 +1,2244 @@
+{
+ "schema": "hsk.studio.gui_design.components@1",
+ "file_id": "STUDIO-GUI-COMPONENTS",
+ "status": "DRAFT, for engineering; spec clauses remain the authority",
+ "updated_at": "2026-11-07",
+ "spec_version": "v02.229",
+ "reading": {
+  "role": "AccessKit Role name, checked against accesskit 0.25.2. Pinned version UNVERIFIED: GraphicsObject and some others may need a Group fallback.",
+  "style": "An id under design-system.json state.interaction. Every state not listed here comes from it, focus included.",
+  "size": "Logical px at scale 1. Density modes change only what design-system.json density says.",
+  "author_id": "Grammar of STU-MDL-100. Never position, never index, never locale text. stable_id derives mechanically (STU-MDL-103).",
+  "text": "A style under design-system.json type.styles.",
+  "owner": "Kumihimo owns the control mechanic and its pure-Vulkan renderer (STU-ARC-023, D8). Where it lives between Kumihimo and hsk-studio-controls is open decision O5. Each record here is the theme and behaviour input, not a new asset."
+ },
+ "universal_rules": [
+  "Every interactive control takes a UiDescriptor generated id; no literal strings in tooltip or accessible APIs (STU-SHL-245).",
+  "Every control shows hover, active, focus and disabled, and every disabled control exposes its reason (STU-SHL-019).",
+  "Focus is always a 2px ring, or an inset ring on a row or tab, in focus.ring with focus.halo. It is shown on keyboard focus only, never removed, and never clipped.",
+  "Hover states never fire while a widget owns the pointer (STU-SHL-104).",
+  "A press claims at press; panel and tab drags start only from designated chrome (STU-SHL-101, 102).",
+  "All on-screen commands have a menu leaf; context menus and rails are projections (STU-SHL-013, 014).",
+  "A status is never carried by colour alone.",
+  "Every region, panel, tool, Layout Preset and control has a generated manual entry resolved by its author_id, in the same change as its behaviour (STU-MAN-102, STU-SHL-139)."
+ ],
+ "keyboard": {
+  "status": "Default chords are PROVISIONAL until SHL-P-16 (STU-SHL-045, 131). Navigation keys below are not document commands. Every chord is a shortcut_id, resolved at render.",
+  "region_cycle": "F6 moves focus forward through Tool Rail, Browse Dock, Viewport, Inspect Dock, Time and Results Dock, Context Bar, status bar. Shift+F6 goes back. A collapsed edge is one stop: its rail.",
+  "inside_region": "Tab and Shift+Tab move between controls in reading order. Arrow keys move inside composite controls such as rails, tabs, trees and menus, with one roving tab stop per composite.",
+  "escape": "Closes the topmost popup; aborts an owned gesture restoring the pre-press value; exits text edit. Escape never closes a Task Scope silently.",
+  "help": "F1 on the focused control opens its manual anchor in the side sheet (STU-SHL-230).",
+  "palette": "Ctrl+K opens the search and command surface, PROVISIONAL.",
+  "focus_never_stolen": "Agent activity, job completion and receipts never move focus (STU-QUIET-003)."
+ },
+ "groups": {
+  "chrome": [
+   {
+    "id": "menu_bar",
+    "name": "Menu bar",
+    "spec": [
+     "STU-SHL-004",
+     "STU-SHL-010",
+     "STU-SHL-011",
+     "STU-SHL-012"
+    ],
+    "role": "MenuBar",
+    "author_id": "menu (shell owned), titles at fixed reserved node ids, Studio titles studio.menu.<title>",
+    "size": {
+     "h": 28,
+     "title_pad_x": 8,
+     "title_pad_x_tight": 5
+    },
+    "text": "menu_title",
+    "style": "ghost",
+    "anatomy": [
+     "module switch button, 32 wide",
+     "19 titles in the closed order",
+     "window title, secondary text",
+     "presence chips",
+     "window buttons, 46 wide each"
+    ],
+    "keyboard": [
+     "Alt then the mnemonic opens a title",
+     "Left and Right move across titles, Down opens",
+     "Escape returns focus to where it was"
+    ],
+    "fit": "FIT-M1",
+    "notes": "Never reordered, never hides a title. On chevron overflow all titles stay in AccessKit."
+   },
+   {
+    "id": "menu_popup",
+    "name": "Menu and submenu",
+    "spec": [
+     "STU-SHL-018",
+     "STU-SHL-019",
+     "STU-SHL-020",
+     "STU-SHL-021"
+    ],
+    "role": "Menu",
+    "author_id": "studio.menu.<title>[.<submenu>]",
+    "size": {
+     "min_w": 220,
+     "max_w": 480,
+     "item_h": 24,
+     "pad_y": 4,
+     "radius": 6,
+     "icon_gutter": 24,
+     "separator_h": 9
+    },
+    "text": "body",
+    "elevation": "menu_tooltip",
+    "anatomy": [
+     "optional 16px icon in the gutter",
+     "label",
+     "reason line under a greyed item, caption style",
+     "chord right-aligned in text.tertiary",
+     "chevron on a submenu"
+    ],
+    "states": {
+     "hover_or_key": "surface.row_selected + 2px accent left edge",
+     "INAPPLICABLE_HERE": "greyed, reason line, remedy as the enabled next sibling",
+     "NOT_IN_THIS_DOCUMENT": "greyed, reason line, never hidden"
+    },
+    "keyboard": [
+     "Up and Down move, skipping nothing: greyed items are focusable so their reason can be read",
+     "Right opens a submenu, Left closes it",
+     "Enter activates; on a greyed item it does nothing and the reason stays visible",
+     "Typing jumps by first letter"
+    ],
+    "pointer": [
+     "Open submenus on hover with no delay when moving vertically, with a safe triangle toward the submenu",
+     "Menus never scroll under 25 items; above that a scroll lane with arrows"
+    ],
+    "notes": "A 400 ms open delay is not used. Depth at most 4."
+   },
+   {
+    "id": "menu_item",
+    "name": "Menu item",
+    "spec": [
+     "STU-SHL-015",
+     "MENU-INV-5"
+    ],
+    "role": "MenuItem",
+    "author_id": "menu.<command_id>",
+    "variants": {
+     "check": "MenuItemCheckBox",
+     "radio": "MenuItemRadio"
+    },
+    "size": {
+     "h": 24
+    },
+    "text": "body",
+    "keyboard": [
+     "Enter or Space"
+    ],
+    "a11y": "Node carries availability_state, reason_code, reason_text, remedy_command_id (STU-SHL-019)"
+   },
+   {
+    "id": "context_menu",
+    "name": "Context menu",
+    "spec": [
+     "STU-SHL-014"
+    ],
+    "role": "Menu",
+    "author_id": "studio.ctx.<surface>",
+    "size": {
+     "same_as": "menu_popup"
+    },
+    "keyboard": [
+     "Shift+F10 or the Menu key on the focused element"
+    ],
+    "notes": "Every entry references a menu leaf and dispatches its command id."
+   },
+   {
+    "id": "document_tab_strip",
+    "name": "Studio tab strip",
+    "spec": [
+     "STU-SHL-005",
+     "STU-SHL-081",
+     "STU-SHL-097",
+     "STU-SHL-098"
+    ],
+    "role": "TabList",
+    "author_id": "studio.tabstrip",
+    "size": {
+     "h": 32
+    },
+    "fit": "FIT-T1",
+    "anatomy": [
+     "document tabs",
+     "new document button, 24",
+     "search field, 240",
+     "Layout Preset dropdown",
+     "panel layout menu"
+    ],
+    "keyboard": [
+     "Ctrl+Tab cycles documents, PROVISIONAL",
+     "Arrows move between tabs when the strip has focus",
+     "Ctrl+W closes, PROVISIONAL"
+    ]
+   },
+   {
+    "id": "document_tab",
+    "name": "Document tab",
+    "spec": [
+     "STU-SHL-097"
+    ],
+    "role": "Tab",
+    "author_id": "studio.tab.document#<n>",
+    "size": {
+     "h": 32,
+     "min_w": 96,
+     "max_w": 220,
+     "close": 20,
+     "pad_l": 12,
+     "pad_r": 6
+    },
+    "text": "tab",
+    "style": "tab",
+    "anatomy": [
+     "name, middle ellipsis at min width",
+     "6px dot when unsaved",
+     "close, always visible on the active tab, on hover for the rest",
+     "2px progress edge at the bottom while loading"
+    ],
+    "pointer": [
+     "Press starts a tab drag on the tab only (STU-SHL-102)",
+     "Middle-click closes",
+     "Double-click on empty strip opens New Document"
+    ],
+    "keyboard": [
+     "Enter activates",
+     "Delete asks to close when unsaved"
+    ]
+   },
+   {
+    "id": "layout_preset_dropdown",
+    "name": "Layout Preset dropdown",
+    "spec": [
+     "STU-SHL-081",
+     "STU-SHL-093"
+    ],
+    "role": "ComboBox",
+    "author_id": "studio.layout-preset.dropdown",
+    "size": {
+     "h": 24
+    },
+    "text": "body",
+    "style": "ghost",
+    "anatomy": [
+     "caption 'Layout'",
+     "preset name",
+     "6px dot when modified",
+     "chevron"
+    ],
+    "keyboard": [
+     "Enter or Down opens",
+     "Next Layout Preset command cycles without opening"
+    ],
+    "notes": "See layouts.json preset_switch."
+   },
+   {
+    "id": "search_field",
+    "name": "Search and command field",
+    "spec": [
+     "GUI-DESKTOP-013",
+     "STU-SHL-041",
+     "STU-SHL-053"
+    ],
+    "role": "SearchInput",
+    "author_id": "studio.search",
+    "size": {
+     "h": 24,
+     "w": 240
+    },
+    "text": "body",
+    "style": "field",
+    "anatomy": [
+     "search icon",
+     "placeholder",
+     "chord chip"
+    ],
+    "keyboard": [
+     "Ctrl+K focuses and opens results",
+     "Escape returns to the previous focus"
+    ],
+    "notes": "Must bind the existing Handpick capability. UNVERIFIED: Handpick's API was not inspected, so this is its visual slot, not an integration claim."
+   },
+   {
+    "id": "command_palette",
+    "name": "Search results popup",
+    "spec": [
+     "STU-SHL-041",
+     "STU-SHL-053",
+     "MENU-INV-6"
+    ],
+    "role": "ListBox",
+    "author_id": "studio.search.results",
+    "size": {
+     "w": 560,
+     "row_h": 32,
+     "max_rows": 12,
+     "radius": 6
+    },
+    "text": "body",
+    "elevation": "menu_tooltip",
+    "anatomy": [
+     "row: icon, display name",
+     "second line in caption: menu path as a breadcrumb",
+     "right side: chord, or reason text for an unavailable element"
+    ],
+    "states": {
+     "order": "AVAILABLE, then INAPPLICABLE_HERE with reason, then NOT_IN_THIS_DOCUMENT with reason. Never filtered."
+    },
+    "keyboard": [
+     "Up and Down, Enter dispatches, Tab opens the remedy of a dimmed row",
+     "Ctrl+Enter opens the manual entry"
+    ]
+   },
+   {
+    "id": "context_bar",
+    "name": "Context Bar",
+    "spec": [
+     "STU-SHL-160",
+     "STU-SHL-161",
+     "STU-SHL-162",
+     "STU-SHL-163",
+     "STU-SHL-164"
+    ],
+    "role": "Toolbar",
+    "author_id": "studio.slot.context-bar",
+    "size": {
+     "h": 34,
+     "max_controls_per_zone": 12,
+     "gap": 8,
+     "zone_divider": "1 x 20"
+    },
+    "fit": "FIT-C1",
+    "anatomy": [
+     "Tool Zone: identity chip, preset picker, declared controls, overflow, reset",
+     "flexible space",
+     "Selection Zone: selection kind label, resolved controls"
+    ],
+    "states": {
+     "nothing_selected": "Selection Zone empty, no placeholder",
+     "task_scope": "Done button leads the Tool Zone"
+    },
+    "keyboard": [
+     "F6 reaches it; arrows move between controls; Tab enters a field"
+    ],
+    "notes": "Controls keep their owner-based ids (STU-MDL-102). No tab stacks. Over 30 controls: top 3 mirrored here, rest in Properties."
+   },
+   {
+    "id": "status_bar",
+    "name": "Status bar",
+    "spec": [
+     "STU-SHL-234",
+     "STU-UNI-005"
+    ],
+    "role": "Status",
+    "author_id": "studio.status",
+    "size": {
+     "h": 24,
+     "gap": 12
+    },
+    "text": "caption and body",
+    "fit": "FIT-S1",
+    "anatomy": [
+     "hintline: gesture name, then key chip plus what it does",
+     "readouts: document size, colour mode, zoom",
+     "jobs summary",
+     "device state",
+     "each readout is a ghost button"
+    ],
+    "keyboard": [
+     "F6 reaches it; arrows move between readouts; Enter opens the related panel or command"
+    ],
+    "notes": "Hintline is generated from the tool's gesture map. Live updates do not announce per frame; a throttled polite announcement only on tool change."
+   },
+   {
+    "id": "key_chip",
+    "name": "Key chip",
+    "spec": [
+     "STU-SHL-234"
+    ],
+    "role": "Label",
+    "author_id": "none: part of its row",
+    "size": {
+     "h": 16,
+     "pad_x": 4,
+     "radius": 3
+    },
+    "text": "caption",
+    "fill": "surface.control",
+    "color": "text.secondary",
+    "notes": "Chord text resolves from shortcut_id, never baked."
+   },
+   {
+    "id": "presence_chip",
+    "name": "Presence chip",
+    "spec": [
+     "STU-UNI-004",
+     "STU-SHL-221"
+    ],
+    "role": "Button",
+    "author_id": "studio.presence.<actor>",
+    "size": {
+     "d": 18
+    },
+    "text": "caption 600",
+    "states": {
+     "operator": "presence.operator",
+     "model": "presence.model_1 to 4",
+     "held_lease": "same colour as a 2px edge on the held row or field"
+    },
+    "keyboard": [
+     "Enter opens Follow Actor and Actor Attribution"
+    ],
+    "notes": "Initial letter inside, never colour alone. Never pops anything."
+   }
+  ],
+  "tools": [
+   {
+    "id": "tool_rail",
+    "name": "Tool Rail",
+    "spec": [
+     "STU-SHL-145",
+     "STU-SHL-147",
+     "STU-SHL-148",
+     "STU-SHL-151"
+    ],
+    "role": "Toolbar",
+    "author_id": "studio.panel.tools",
+    "size": {
+     "w": 44,
+     "w_double": 80,
+     "pad_top": 2,
+     "slot_pitch": 32,
+     "slot_pitch_compact": 28
+    },
+    "fit": "FIT-R1, FIT-R2",
+    "keyboard": [
+     "F6 reaches it; Up and Down move through slots",
+     "Enter selects the slot's face tool",
+     "Right opens the variant strip"
+    ],
+    "notes": "20 slots by default, hard cap 26. Order logic in layouts.json tool_rail. May be single or double column."
+   },
+   {
+    "id": "tool_slot",
+    "name": "Tool slot",
+    "spec": [
+     "STU-SHL-146",
+     "STU-SHL-149",
+     "STU-SHL-150"
+    ],
+    "role": "Button",
+    "author_id": "studio.toolgroup.<group_id>",
+    "size": {
+     "w": 36,
+     "h": 32,
+     "icon": 20,
+     "marker": 4,
+     "marker_hit": 12,
+     "radius": "0 3 3 0"
+    },
+    "style": "tool_slot",
+    "anatomy": [
+     "face icon: the last used member",
+     "persistent 4px corner marker when the group has variants"
+    ],
+    "states": {
+     "active": "surface.slot_active, 2px accent left edge, hot point accent",
+     "INAPPLICABLE_HERE": "icon text.disabled, L1 with reason and remedy",
+     "NOT_IN_THIS_DOCUMENT": "absent from the rail, present in AccessKit"
+    },
+    "pointer": [
+     "Click selects the face tool",
+     "Click the marker or secondary-click anywhere opens the variant strip at once, with no timer",
+     "A long press may alias this, never load-bearing"
+    ],
+    "keyboard": [
+     "The group shortcut selects it; press again to cycle forward, Shift to cycle back"
+    ],
+    "a11y": "toggled state on the active slot; description names the face tool and member count; studio.tool.active is readable"
+   },
+   {
+    "id": "tool_flyout",
+    "name": "Tool variant strip",
+    "spec": [
+     "STU-SHL-149"
+    ],
+    "role": "Menu",
+    "author_id": "studio.toolgroup.<group_id>.strip",
+    "size": {
+     "w": 232,
+     "row_h": 24,
+     "icon": 20,
+     "max_rows": 12,
+     "radius": 6,
+     "offset_from_slot": 8
+    },
+    "text": "body",
+    "elevation": "menu_tooltip",
+    "anatomy": [
+     "icon, name, chord",
+     "a final row: All N <family>, opening family browse, when the family has more members than the group"
+    ],
+    "keyboard": [
+     "Up and Down, Enter picks and closes",
+     "Escape closes without changing the tool"
+    ],
+    "pointer": [
+     "Picks on click; opens no timer; closes on an outside click"
+    ],
+    "notes": "The largest captured group has 24 members; over 12 rows the rest goes to family browse."
+   },
+   {
+    "id": "family_browse",
+    "name": "Family browse",
+    "spec": [
+     "STU-SHL-039",
+     "STU-SHL-144",
+     "STU-SHL-148"
+    ],
+    "role": "Dialog",
+    "author_id": "studio.tool.family-browse",
+    "size": {
+     "w": 640,
+     "h_max": 560,
+     "column": 200
+    },
+    "text": "body",
+    "elevation": "floating_panel",
+    "anatomy": [
+     "family list left: 22 families",
+     "tools right, with availability state and reason",
+     "search on top"
+    ],
+    "keyboard": [
+     "Arrows move between lists; Enter selects the tool; Escape closes"
+    ],
+    "notes": "A modeless popover. Same command id as the other three projections."
+   },
+   {
+    "id": "colour_proxy",
+    "name": "Fill and stroke proxy",
+    "spec": [
+     "STU-UNI-003",
+     "COLOR > Colour Picker & Sampling"
+    ],
+    "role": "Group",
+    "author_id": "studio.colour.proxy",
+    "size": {
+     "box": 36,
+     "chip": 22
+    },
+    "children": [
+     "fill ColorWell",
+     "stroke ColorWell",
+     "swap Button",
+     "default Button"
+    ],
+    "keyboard": [
+     "Enter opens the picker for the focused chip",
+     "Swap and Default commands have chords"
+    ],
+    "notes": "Pinned at the rail's bottom in every Layout Preset."
+   },
+   {
+    "id": "task_scope_band",
+    "name": "Task Scope exit",
+    "spec": [
+     "STU-SHL-152",
+     "STU-SHL-096"
+    ],
+    "role": "Group",
+    "author_id": "studio.task_scope.active",
+    "size": {
+     "done_h": 24,
+     "band_h": 4
+    },
+    "anatomy": [
+     "A 4px accent band across the top of the Tool Rail",
+     "Scope name and Done primary button at the Tool Zone's left",
+     "Cancel ghost button beside it"
+    ],
+    "keyboard": [
+     "Enter on Done commits and exits; the Exit Task Scope command also exits"
+    ],
+    "notes": "Always a visible exit. Panels, menus and shortcuts do not change."
+   },
+   {
+    "id": "tool_chip",
+    "name": "Tool identity chip",
+    "spec": [
+     "STU-SHL-162"
+    ],
+    "role": "Label",
+    "author_id": "studio.options.identity",
+    "size": {
+     "h": 24,
+     "icon": 20
+    },
+    "text": "body_strong",
+    "keyboard": [],
+    "notes": "Shows the current tool. Clicking it opens the tool's manual anchor."
+   }
+  ],
+  "docks": [
+   {
+    "id": "dock_region",
+    "name": "Dock region",
+    "spec": [
+     "STU-SHL-063",
+     "STU-SHL-064",
+     "STU-SHL-069"
+    ],
+    "role": "Region",
+    "author_id": "studio.dock.<region_id> (region is a property, not part of a panel id)",
+    "size": {
+     "see": "design-system size.dock.*"
+    },
+    "states": {
+     "expanded": "groups stacked",
+     "collapsed": "icon rail",
+     "empty": "6px seam, drop target"
+    },
+    "keyboard": [
+     "F6 stop",
+     "Ctrl+Shift+1 to 4 toggle edges, PROVISIONAL"
+    ],
+    "a11y": "studio.dock.state always reflects it"
+   },
+   {
+    "id": "group_header",
+    "name": "Group header",
+    "spec": [
+     "STU-SHL-102",
+     "STU-SHL-060"
+    ],
+    "role": "TabList",
+    "author_id": "studio.group.<first-panel-id>",
+    "size": {
+     "h": 26,
+     "disclosure": 20,
+     "panel_menu": 20
+    },
+    "fill": "surface.strip",
+    "anatomy": [
+     "disclosure chevron",
+     "panel tabs",
+     "+N overflow",
+     "panel menu"
+    ],
+    "keyboard": [
+     "Left and Right change tab",
+     "Space on the disclosure collapses the group"
+    ],
+    "pointer": [
+     "Tabs and empty strip start a drag; the body never does"
+    ],
+    "fit": "layouts.json docking.tab_overflow"
+   },
+   {
+    "id": "panel_tab",
+    "name": "Panel tab",
+    "spec": [
+     "STU-MDL-101"
+    ],
+    "role": "Tab",
+    "author_id": "studio.tab.<panel_id>",
+    "size": {
+     "h": 26,
+     "pad_x": 8,
+     "edge": 2
+    },
+    "text": "tab",
+    "style": "tab",
+    "states": {
+     "active_focused_group": "2px accent top edge",
+     "active_other_group": "2px edge.control top edge"
+    },
+    "keyboard": [
+     "Arrow keys",
+     "Enter moves focus into the panel",
+     "F1 opens help for the panel"
+    ],
+    "notes": "Region and group are node properties, never in the id."
+   },
+   {
+    "id": "panel_body",
+    "name": "Panel body",
+    "spec": [
+     "STU-SHL-072",
+     "STU-SHL-105"
+    ],
+    "role": "TabPanel",
+    "author_id": "studio.panel.<panel_id>",
+    "size": {
+     "pad_l": 12,
+     "pad_r": 12,
+     "scroll_lane": 10,
+     "usable_at_300": 266
+    },
+    "fill": "surface.panel",
+    "notes": "Every dense panel reserves the 10px lane. Wheel over a label, header or blank area scrolls; wheel over a field steps it."
+   },
+   {
+    "id": "section_header",
+    "name": "Section header",
+    "spec": [
+     "STU-SHL-165"
+    ],
+    "role": "DisclosureTriangle",
+    "author_id": "studio.panel.<panel_id>.<group_path>",
+    "size": {
+     "h": 24,
+     "chevron": 12
+    },
+    "text": "body_strong",
+    "style": "ghost",
+    "anatomy": [
+     "chevron",
+     "title from group_path",
+     "optional 12px actions right"
+    ],
+    "keyboard": [
+     "Space toggles",
+     "Left collapses, Right expands"
+    ],
+    "pointer": [
+     "One click anywhere on the header toggles",
+     "Panel menu offers Solo: one section open at a time"
+    ],
+    "notes": "Order is generated, never re-decided. Top edge is 1px edge.subtle."
+   },
+   {
+    "id": "param_row",
+    "name": "Parameter row",
+    "spec": [
+     "STU-SHL-072"
+    ],
+    "role": "Group",
+    "author_id": "none: its controls carry ids",
+    "size": {
+     "pitch": 28,
+     "h": 24,
+     "gap": 4,
+     "label_w": 96,
+     "label_gap": 8,
+     "field_w": 72,
+     "linked_label_w": 24,
+     "affordance": 20
+    },
+    "layouts": {
+     "labelled_scalar": "label 96 + gap 8 + field 72 + affordances up to 90",
+     "linked_scalars": "label 24 + field 72 + gap 8 + label 24 + field 72",
+     "wide": "label row, then full-width rail: see scrub_value.variants.wide"
+    },
+    "text": "body",
+    "color": "text.secondary",
+    "notes": "Three fields on one row do not fit at 300 and must not be attempted (STU-SHL-072). The linked form above uses two labels at 24: 200 of 266."
+   },
+   {
+    "id": "dock_foot",
+    "name": "Dock foot",
+    "spec": [
+     "STU-SHL-084"
+    ],
+    "role": "Toolbar",
+    "author_id": "studio.rail.<region>.foot",
+    "size": {
+     "h": 28,
+     "button": 24,
+     "icon": 14
+    },
+    "fill": "surface.strip",
+    "keyboard": [
+     "Arrows",
+     "Enter opens overlay, Shift+Enter docks"
+    ],
+    "notes": "Designer addition. See layouts.json docking.dock_foot."
+   },
+   {
+    "id": "icon_rail",
+    "name": "Dock icon rail",
+    "spec": [
+     "STU-SHL-064",
+     "STU-SHL-068"
+    ],
+    "role": "Toolbar",
+    "author_id": "studio.rail.<region>.<panel_id>",
+    "size": {
+     "w_side": 32,
+     "h_bottom": 28,
+     "button": 32,
+     "icon": 16
+    },
+    "fill": "surface.strip",
+    "anatomy": [
+     "expand chevrons at the start",
+     "one button per registered panel",
+     "bottom rail shows labels at regular width"
+    ],
+    "states": {
+     "open_overlay": "surface.panel + 2px accent edge on the rail-side"
+    },
+    "keyboard": [
+     "Arrows; Enter opens overlay; Shift+Enter pins the edge open; Escape closes overlay"
+    ],
+    "pointer": [
+     "Click opens overlay",
+     "Shift-click pins"
+    ]
+   },
+   {
+    "id": "splitter",
+    "name": "Splitter",
+    "spec": [
+     "STU-SHL-103",
+     "GUI-DESKTOP-008"
+    ],
+    "role": "Splitter",
+    "author_id": "studio.splitter.<region>.<n>",
+    "size": {
+     "rest": 1,
+     "active": 4,
+     "hit": 8
+    },
+    "states": {
+     "rest": "edge.seam",
+     "hover": "accent.base 4px over the seam",
+     "drag": "accent.base 4px; snaps to preset size within 8px"
+    },
+    "keyboard": [
+     "Arrows 8px, Shift+arrows 40px, Home and End to the limits"
+    ],
+    "pointer": [
+     "Double-click restores the preset size"
+    ],
+    "a11y": "numeric_value is the leading pane's size in px"
+   },
+   {
+    "id": "drop_zone_overlay",
+    "name": "Drop zones",
+    "spec": [
+     "STU-SHL-067",
+     "STU-SHL-069"
+    ],
+    "role": "GenericContainer",
+    "author_id": "studio.dock.dropzones",
+    "size": {
+     "outline": 2,
+     "tab_caret": 2
+    },
+    "states": {
+     "target": "surface.row_selected fill, 2px accent.base outline",
+     "refused": "no-drop cursor, flat status.error outline"
+    },
+    "notes": "Only during a drag. Drawn over the panes as flat rects; no blur. See layouts.json docking.drop_zones."
+   },
+   {
+    "id": "overlay_panel",
+    "name": "Overlay panel",
+    "spec": [
+     "STU-SHL-064",
+     "STU-SHL-068"
+    ],
+    "role": "Pane",
+    "author_id": "studio.panel.<panel_id>",
+    "size": {
+     "w": "panel preferred, capped at 420",
+     "radius": 0
+    },
+    "elevation": "floating_panel",
+    "keyboard": [
+     "Escape closes and returns focus to the rail"
+    ],
+    "notes": "Anchored to its rail with a square edge, so it reads as part of the dock."
+   },
+   {
+    "id": "floating_panel",
+    "name": "Floating panel",
+    "spec": [
+     "STU-SHL-067",
+     "STU-SHL-068",
+     "GUI-DESKTOP-009"
+    ],
+    "role": "Window",
+    "author_id": "studio.panel.<panel_id>",
+    "size": {
+     "radius": 6,
+     "resize_hit": 8
+    },
+    "elevation": "floating_panel",
+    "keyboard": [
+     "Ctrl+Shift+M opens the move sheet, PROVISIONAL"
+    ],
+    "notes": "A popped_out panel reuses the shell's window path."
+   },
+   {
+    "id": "panel_action_bar",
+    "name": "Panel action bar",
+    "spec": [
+     "GUI-DESKTOP-010",
+     "STU-SHL-013"
+    ],
+    "role": "Toolbar",
+    "author_id": "studio.panel.<panel_id>.actions",
+    "size": {
+     "h": 28,
+     "button": 24,
+     "icon": 14,
+     "gap": 2
+    },
+    "fill": "surface.panel",
+    "style": "ghost",
+    "anatomy": [
+     "icon buttons, right-aligned, 1px edge.subtle above"
+    ],
+    "keyboard": [
+     "Arrows move; Enter activates"
+    ],
+    "notes": "Each button is a projection of a menu leaf, with an L0 name. Also the shape of a panel's top filter row."
+   },
+   {
+    "id": "scrollbar",
+    "name": "Scrollbar",
+    "spec": [
+     "GUI-DESKTOP-010",
+     "STU-SHL-105"
+    ],
+    "role": "ScrollBar",
+    "author_id": "studio.scroll.<owner>",
+    "size": {
+     "lane": 10,
+     "thumb": 6,
+     "thumb_hover": 8,
+     "min_thumb": 24,
+     "radius": 3
+    },
+    "states": {
+     "rest": "surface.control_hover",
+     "hover": "text.tertiary",
+     "drag": "text.secondary"
+    },
+    "keyboard": [
+     "Page Up and Down, Home and End on the focused view"
+    ],
+    "notes": "Always visible when content overflows: an auto-hiding bar hides that there is more. Absent when content fits."
+   },
+   {
+    "id": "empty_state",
+    "name": "Panel empty state",
+    "spec": [
+     "STU-SHL-052",
+     "STU-SHL-059",
+     "GUI-DESKTOP-012"
+    ],
+    "role": "Group",
+    "author_id": "studio.panel.<panel_id>.empty",
+    "size": {
+     "pad": 16,
+     "icon": 16
+    },
+    "text": "title + body",
+    "anatomy": [
+     "one line naming what is missing",
+     "one line on how to get it",
+     "remedy button when a remedy exists"
+    ],
+    "notes": "A dimmed panel explains itself; never stale content from a past selection."
+   },
+   {
+    "id": "viewer_group_header",
+    "name": "Viewer tab header",
+    "spec": [
+     "STU-SHL-065",
+     "STU-SHL-066"
+    ],
+    "role": "TabList",
+    "author_id": "studio.editor-group.<n>",
+    "size": {
+     "h": 26
+    },
+    "fill": "surface.strip",
+    "notes": "Shown only when a document's centre has more than one editor group. One group shows no header, so one document costs no extra chrome."
+   }
+  ],
+  "controls": [
+   {
+    "id": "button",
+    "name": "Button",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "Button",
+    "author_id": "studio.<surface>.<group>.<element>",
+    "size": {
+     "h": 24,
+     "h_dialog": 28,
+     "min_w": 56,
+     "pad_x": 8,
+     "radius": 3,
+     "icon": 14
+    },
+    "text": "body",
+    "style": "control",
+    "variants": {
+     "primary": {
+      "style": "primary",
+      "note": "At most one per dialog; Default role DefaultButton"
+     },
+     "ghost": {
+      "style": "ghost"
+     },
+     "danger": {
+      "note": "Same as control; label and glyph say it. Colour alone is not the warning."
+     }
+    },
+    "keyboard": [
+     "Enter or Space activates on release"
+    ],
+    "pointer": [
+     "Activates on release inside"
+    ]
+   },
+   {
+    "id": "icon_button",
+    "name": "Icon button",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "Button",
+    "author_id": "studio.<surface>.<group>.<element>",
+    "size": {
+     "box": 24,
+     "icon": 14,
+     "radius": 3
+    },
+    "style": "ghost",
+    "keyboard": [
+     "Enter or Space"
+    ],
+    "a11y": "accessible_name is display_name; L0 is required since there is no visible label"
+   },
+   {
+    "id": "toggle_button",
+    "name": "Toggle button",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "Button",
+    "author_id": "studio.<surface>.<group>.<element>",
+    "size": {
+     "h": 24,
+     "pad_x": 8,
+     "radius": 3
+    },
+    "style": "ghost",
+    "states": {
+     "on": "surface.row_selected, text.primary"
+    },
+    "keyboard": [
+     "Space toggles"
+    ],
+    "a11y": "toggled property"
+   },
+   {
+    "id": "segmented",
+    "name": "Segmented control",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "RadioGroup",
+    "author_id": "studio.<surface>.<group>.<element>",
+    "size": {
+     "h": 24,
+     "segment_w": 28,
+     "radius": 3
+    },
+    "states": {
+     "selected": "surface.row_selected + 2px accent bottom edge"
+    },
+    "children": "RadioButton",
+    "keyboard": [
+     "Arrow keys move and select"
+    ]
+   },
+   {
+    "id": "dropdown",
+    "name": "Dropdown",
+    "spec": [
+     "STU-MDL-114"
+    ],
+    "role": "ComboBox",
+    "author_id": "owner-based, as for a ScrubValue",
+    "size": {
+     "h": 24,
+     "min_w": 72,
+     "pad_l": 8,
+     "chevron": 12
+    },
+    "text": "body",
+    "style": "field",
+    "keyboard": [
+     "Enter or Down opens",
+     "Up and Down change the value without opening, one undo entry per commit",
+     "Typing jumps by first letter"
+    ],
+    "a11y": "options as literal captured tokens, plus selected index"
+   },
+   {
+    "id": "checkbox",
+    "name": "Checkbox",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "CheckBox",
+    "author_id": "owner-based",
+    "size": {
+     "box": 14,
+     "row_h": 24,
+     "gap": 6,
+     "radius": 2
+    },
+    "states": {
+     "off": "1px edge.control on surface.field",
+     "on": "accent.base fill, check in text.on_accent",
+     "mixed": "accent.base fill, dash"
+    },
+    "keyboard": [
+     "Space"
+    ]
+   },
+   {
+    "id": "radio",
+    "name": "Radio",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "RadioButton",
+    "author_id": "owner-based",
+    "size": {
+     "box": 14,
+     "dot": 6,
+     "row_h": 24
+    },
+    "states": {
+     "on": "accent.base ring and dot"
+    },
+    "keyboard": [
+     "Arrows within the group"
+    ]
+   },
+   {
+    "id": "text_field",
+    "name": "Text field",
+    "spec": [
+     "GUI-DESKTOP-022"
+    ],
+    "role": "TextInput",
+    "author_id": "owner-based",
+    "size": {
+     "h": 24,
+     "min_w": 72,
+     "pad_x": 6,
+     "radius": "2 2 0 0"
+    },
+    "text": "body",
+    "style": "field",
+    "keyboard": [
+     "Standard editing keys; IME composition shown underlined",
+     "Enter commits, Escape reverts"
+    ],
+    "notes": "Commit on blur. Dialog form: 28 high."
+   },
+   {
+    "id": "scrub_value",
+    "name": "ScrubValue",
+    "spec": [
+     "STU-SHL-185",
+     "STU-SHL-186",
+     "STU-SHL-187",
+     "STU-SHL-188",
+     "STU-SHL-189",
+     "STU-SHL-190",
+     "STU-SHL-191",
+     "STU-SHL-192",
+     "STU-SHL-193",
+     "STU-SHL-195",
+     "STU-SHL-196",
+     "STU-MDL-110",
+     "STU-MDL-111",
+     "STU-MDL-112"
+    ],
+    "role": "Slider when a soft range exists, otherwise SpinButton (STU-MDL-110)",
+    "author_id": "studio.panel.<panel>.<param-path> or studio.options.<tool>.<param>",
+    "size": {
+     "h": 24,
+     "min_w": 72,
+     "pad_x": 6,
+     "radius": "2 2 0 0",
+     "edge": 1,
+     "edge_meter": 2,
+     "gutter": 2
+    },
+    "text": "value, right-aligned; unit in text.tertiary",
+    "style": "field",
+    "anatomy": [
+     "recessed well",
+     "1px bottom edge at 3:1",
+     "optional 2px edge meter along the bottom: position inside the soft range, text.secondary",
+     "value, unit"
+    ],
+    "states": {
+     "hover": "fill field_hover, column-resize cursor, 2px accent gutter on the left",
+     "scrubbing": "2px accent bottom edge; no tooltip, no other hover anywhere",
+     "typing": "selected text in accent.row_tint, focus ring",
+     "at_soft_limit": "edge meter full; drag decelerates and parks",
+     "at_hard_limit": "edge meter full + a 2px tick at the end in text.primary; the gesture continues",
+     "Static_keyframable": "unlit stopwatch beside it",
+     "Animated": "lit stopwatch, three-part navigator; key at playhead shows the middle diamond filled",
+     "Expression": "transparent well, edge.subtle, expression badge; no column cursor; press refused with EXPRESSION_DRIVEN",
+     "AnimatedAndExpression": "as Expression, plus a keyframed-input badge",
+     "disabled": "field disabled, reason in L1",
+     "held_by_other_actor": "presence colour 2px left edge",
+     "error": "2px status.error bottom edge, glyph, message",
+     "bounds_unknown": "no edge meter; plain number entry"
+    },
+    "pointer": [
+     "Press under 3px of motion enters text edit, select all",
+     "Press and drag: delta = dx - dy in screen space, claimed at press",
+     "Double-click resets to the default",
+     "Secondary-click: Reset, Copy, Paste, Keyframe, Expression, What does this do",
+     "Wheel steps by step_default and consumes the event",
+     "Shift x10, Ctrl /10, Shift+Ctrl x100"
+    ],
+    "keyboard": [
+     "Up and Down step by step_default, with the same modifiers",
+     "Page Up and Down step by step_coarse",
+     "Home and End go to soft min and max",
+     "Enter or Tab commits, Escape reverts",
+     "Typing starts text edit",
+     "Ctrl+Up and Down jump to the next or previous key on an Animated field, PROVISIONAL"
+    ],
+    "a11y": "Reported bounds are the grab rect. value is the exact rendered string. numeric_value, min, max, step, jump, temporal_state, time, keyframed_at_time. One clamped write path (STU-SHL-210).",
+    "variants": {
+     "compact": {
+      "min_w": 56,
+      "note": "Only for grouped pairs at the 72 total grab where the row budget forces it; AccessKit bounds stay at the grab rect. Grabs under 72 need a spec ruling, so the default is 72."
+     },
+     "wide": {
+      "note": "The slider presentation, not a second widget. Row 1: label left, value field right. Row 2: 4px rail, surface.rail_track, soft-range fill text.tertiary, 12px thumb. The rail drags with the same gesture rules; it claims at press. Used in Develop, Adjustments and brush panels. Row pitch 44."
+     },
+     "inline_context_bar": {
+      "note": "Label to the left in text.secondary; same 72 x 24."
+     }
+    }
+   },
+   {
+    "id": "slider",
+    "name": "Slider",
+    "spec": [
+     "STU-SHL-185",
+     "STU-MDL-110"
+    ],
+    "role": "Slider",
+    "author_id": "as scrub_value: the parameter's owner-based id",
+    "size": {
+     "rail_h": 4,
+     "thumb": 12,
+     "thumb_hit": 24,
+     "row_pitch": 44,
+     "field_w": 72
+    },
+    "text": "value",
+    "style": "field",
+    "anatomy": [
+     "row 1: label left, ScrubValue right",
+     "row 2: full-width rail in surface.rail_track, soft-range fill in text.tertiary, 12px thumb in text.primary"
+    ],
+    "states": {
+     "hover": "thumb gets 1px accent.base ring",
+     "active": "thumb accent.base",
+     "focus": "focus ring around the thumb",
+     "disabled": "rail and thumb in text.disabled"
+    },
+    "keyboard": [
+     "Same keys as scrub_value; the field and the rail are one stop"
+    ],
+    "pointer": [
+     "Press on the rail claims the gesture and jumps there, in one undo entry"
+    ],
+    "notes": "Not a second widget: this is the wide presentation of ScrubValue (STU-SHL-185 allows one numeric widget). Bound, step and unit come from the same ParamSpec. Hard limit past the rail's end stays reachable by typing."
+   },
+   {
+    "id": "keyframe_affordances",
+    "name": "Stopwatch and key navigator",
+    "spec": [
+     "STU-SHL-201",
+     "STU-SHL-204"
+    ],
+    "role": "Button",
+    "author_id": "<field>.animate, <field>.key.prev, .key.toggle, .key.next",
+    "size": {
+     "box": 20,
+     "icon_stopwatch": 14,
+     "icon_key": 12
+    },
+    "states": {
+     "unlit": "text.tertiary",
+     "lit": "accent.base",
+     "key_here": "accent.base filled diamond"
+    },
+    "keyboard": [
+     "Each is a tab stop; Enter or Space"
+    ],
+    "notes": "Separate hit targets beside the field, never inside it. Absent when the parameter is not keyframable."
+   },
+   {
+    "id": "colour_chip",
+    "name": "Colour chip",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "ColorWell",
+    "author_id": "owner-based",
+    "size": {
+     "chip": 18,
+     "field": "72 x 24 with hex",
+     "radius": 2
+    },
+    "states": {
+     "rest": "1px edge.control inner edge so any colour keeps a boundary",
+     "none": "white with a red diagonal",
+     "mixed": "split chip with caption Mixed",
+     "hover": "gutter as for a field"
+    },
+    "keyboard": [
+     "Enter opens the picker",
+     "Ctrl+C copies the value"
+    ],
+    "pointer": [
+     "Click opens the picker",
+     "Press and drag carries the colour to another target"
+    ],
+    "a11y": "value is the colour in the document's mode, as text"
+   },
+   {
+    "id": "colour_field",
+    "name": "Colour field",
+    "spec": [
+     "STU-SHL-030",
+     "14.8.14"
+    ],
+    "role": "Slider",
+    "author_id": "studio.panel.colour.field",
+    "size": {
+     "field_h": 72,
+     "hue_h": 8,
+     "thumb": 12,
+     "ring": "2px white + 1px black"
+    },
+    "keyboard": [
+     "Arrows move saturation and value by 1 percent, Shift 10",
+     "The hue rail takes Left and Right"
+    ],
+    "pointer": [
+     "Claims at press; tracks in screen space"
+    ],
+    "notes": "Rendered by the ramp primitive in the document colour space. Out-of-gamut warning: small triangle with a text label."
+   },
+   {
+    "id": "colour_picker",
+    "name": "Colour picker popup",
+    "spec": [
+     "14.8.14"
+    ],
+    "role": "Dialog",
+    "author_id": "studio.colour.picker",
+    "size": {
+     "w": 300,
+     "radius": 6
+    },
+    "elevation": "floating_panel",
+    "anatomy": [
+     "field and hue",
+     "mode dropdown",
+     "channel ScrubValues",
+     "hex",
+     "sample from screen button",
+     "swatch row"
+    ],
+    "keyboard": [
+     "Escape reverts",
+     "Enter commits"
+    ],
+    "notes": "Modeless. Live preview in the private draft until commit (STU-SHL-194)."
+   },
+   {
+    "id": "swatch_cell",
+    "name": "Swatch cell",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "ListBoxOption",
+    "author_id": "studio.panel.swatches.<swatch-id>",
+    "size": {
+     "cell": 20,
+     "gap": 6
+    },
+    "states": {
+     "selected": "2px panel gap then 2px accent ring",
+     "spot": "corner dot",
+     "global": "corner triangle"
+    },
+    "keyboard": [
+     "Arrows in the grid",
+     "Enter applies",
+     "Delete removes with confirmation"
+    ]
+   },
+   {
+    "id": "gradient_editor",
+    "name": "Gradient stops",
+    "spec": [
+     "14.8.11"
+    ],
+    "role": "Group",
+    "author_id": "studio.panel.gradient.stops",
+    "size": {
+     "rail_h": 12,
+     "stop": 12,
+     "stop_hit": 16
+    },
+    "keyboard": [
+     "Tab moves between stops; Left and Right nudge; Delete removes"
+    ],
+    "pointer": [
+     "Claims at press; a click on the rail adds a stop"
+    ]
+   }
+  ],
+  "rows_and_time": [
+   {
+    "id": "layer_row",
+    "name": "Layer row",
+    "spec": [
+     "STU-SHL-078",
+     "STU-UNI-004"
+    ],
+    "role": "TreeItem",
+    "author_id": "studio.panel.layers.row.<layer-id>",
+    "size": {
+     "h": 32,
+     "h_dense": 24,
+     "tag_edge": 3,
+     "eye": 22,
+     "thumb": 24,
+     "indent": 16,
+     "badge": 12
+    },
+    "text": "body",
+    "style": "row",
+    "anatomy": [
+     "3px colour tag edge",
+     "visibility",
+     "indent",
+     "thumbnail with mask thumbnail beside it",
+     "name",
+     "badges: fx, group, link, lock, pending proposal, presence"
+    ],
+    "states": {
+     "selected": "lifted neutral + 2px accent edge, drawn over the tag",
+     "hidden": "eye off, name in text.disabled",
+     "locked": "lock badge; dimmed thumbnail",
+     "drop_between": "2px accent line at the insert point",
+     "drop_into": "2px accent outline",
+     "proposal_pending": "badge",
+     "lease_held": "presence colour 2px edge"
+    },
+    "pointer": [
+     "Click selects",
+     "Double-click on the name renames",
+     "Drag from the row only; visibility click-drag sweeps eyes in one undo entry"
+    ],
+    "keyboard": [
+     "Up and Down move; Left and Right collapse or expand",
+     "Space toggles visibility, F2 renames, Shift or Ctrl extend",
+     "Alt+Up and Down reorder"
+    ],
+    "a11y": "level, expanded, selected; name is the layer name; description lists kind and states"
+   },
+   {
+    "id": "tree_row",
+    "name": "Tree row",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "TreeItem",
+    "author_id": "studio.panel.<panel_id>.row.<id>",
+    "size": {
+     "h": 24,
+     "h_dense": 20,
+     "indent": 16,
+     "icon": 14,
+     "chevron_hit": 16
+    },
+    "text": "body",
+    "style": "row",
+    "keyboard": [
+     "Up and Down, Left and Right, Enter opens",
+     "Typing filters when the tree has a filter field"
+    ],
+    "pointer": [
+     "Click on the row selects; double-click opens; the chevron toggles"
+    ]
+   },
+   {
+    "id": "list_row",
+    "name": "List row",
+    "spec": [
+     "GUI-DESKTOP-010"
+    ],
+    "role": "ListItem",
+    "author_id": "studio.panel.<panel_id>.row.<id>",
+    "size": {
+     "h": 24,
+     "h_dense": 20
+    },
+    "text": "body",
+    "style": "row",
+    "keyboard": [
+     "Up and Down, Home and End, Enter"
+    ]
+   },
+   {
+    "id": "time_ruler",
+    "name": "Time ruler",
+    "spec": [
+     "STU-SHL-091"
+    ],
+    "role": "Slider",
+    "author_id": "studio.panel.timeline.ruler",
+    "size": {
+     "h": 28,
+     "range_h": 6,
+     "major_tick": 10,
+     "minor_tick": 4
+    },
+    "text": "caption tnum",
+    "fill": "time.ruler_bg",
+    "pointer": [
+     "Press moves the playhead; it claims the gesture",
+     "Drag ends of the range to set In and Out"
+    ],
+    "keyboard": [
+     "Left and Right step a frame; Shift steps 10",
+     "I and O mark, PROVISIONAL"
+    ],
+    "a11y": "numeric_value is the playhead time; value is the timecode string"
+   },
+   {
+    "id": "playhead",
+    "name": "Playhead",
+    "spec": [
+     "STU-SHL-091"
+    ],
+    "role": "Slider",
+    "author_id": "studio.timeline.playhead",
+    "size": {
+     "line": 1,
+     "halo": 1,
+     "head": "11 x 12"
+    },
+    "colors": [
+     "time.playhead",
+     "time.playhead_halo",
+     "time.playhead_head"
+    ],
+    "notes": "One shared time model: the same time in every viewer, meter and time panel."
+   },
+   {
+    "id": "track_header",
+    "name": "Track header",
+    "spec": [
+     "STU-SHL-090",
+     "STU-VID-090"
+    ],
+    "role": "RowHeader",
+    "author_id": "studio.timeline.track.<track-id>",
+    "size": {
+     "w": 180,
+     "button": 20,
+     "name_w": 22
+    },
+    "fill": "surface.strip",
+    "anatomy": [
+     "track name; accent text when targeted",
+     "lock",
+     "output on video; mute and solo on audio",
+     "expands to volume and pan at large height"
+    ],
+    "keyboard": [
+     "Up and Down between tracks",
+     "Space toggles target; M, S for mute and solo, PROVISIONAL"
+    ],
+    "notes": "Mute and solo are letter buttons, with on-state fill plus edge."
+   },
+   {
+    "id": "timeline_row",
+    "name": "Timeline row",
+    "spec": [
+     "STU-SHL-091",
+     "STU-VID-090"
+    ],
+    "role": "Row",
+    "author_id": "studio.timeline.track.<track-id>.lane",
+    "size": {
+     "h_small": 24,
+     "h_medium": 40,
+     "h_large": 64,
+     "default_video": 56,
+     "default_audio": 40
+    },
+    "fills": [
+     "time.track_bg",
+     "time.track_alt_bg"
+    ],
+    "notes": "Height set per track and by Track Height. Horizontal scroll at 400 minimum, never a squashed ruler."
+   },
+   {
+    "id": "timeline_clip",
+    "name": "Clip",
+    "spec": [
+     "STU-VID-090"
+    ],
+    "role": "GridCell",
+    "author_id": "studio.timeline.clip.<clip-id>",
+    "size": {
+     "radius": 2,
+     "label_pad": 6,
+     "trim_hit": 8,
+     "min_visible_w": 2
+    },
+    "text": "caption in clip.text",
+    "colors": [
+     "clip.video",
+     "clip.audio",
+     "clip.title",
+     "clip.nested",
+     "clip.adjustment"
+    ],
+    "states": {
+     "rest": "kind colour + 1px dark inner edge",
+     "selected": "2px accent inner edge",
+     "hover_trim_end": "2px text.primary edge at the end; trim cursor",
+     "disabled": "kind colour at reduced lightness + diagonal hatch",
+     "offline": "status.error_bg fill, error glyph, 'Media offline' text",
+     "tag": "2px tag colour along the top"
+    },
+    "anatomy": [
+     "label left-aligned; hidden under 40 wide",
+     "waveform or thumbnails inside",
+     "fade handles at large height",
+     "speed badge"
+    ],
+    "pointer": [
+     "Claim at press: end 8px trims, body moves, tool decides the rest"
+    ],
+    "keyboard": [
+     "Arrow keys select the neighbour",
+     "Alt+Left and Right nudge, PROVISIONAL"
+    ]
+   },
+   {
+    "id": "keyframe_row",
+    "name": "Property row in keyframe timeline",
+    "spec": [
+     "STU-SHL-091",
+     "STU-SHL-201"
+    ],
+    "role": "TreeItem",
+    "author_id": "studio.panel.keyframe-timeline.<param-path>",
+    "size": {
+     "h": 24,
+     "tree_w": 320,
+     "tree_min_w": 220,
+     "time_min_w": 400,
+     "indent": 16
+    },
+    "text": "body",
+    "style": "row",
+    "anatomy": [
+     "tree column: twirl, stopwatch, name, ScrubValue",
+     "time column: keyframes on the same row height"
+    ],
+    "keyboard": [
+     "Up and Down, Left and Right, Space toggles the key at the playhead"
+    ],
+    "notes": "Under the tree minimum the value column drops: name-only tree. Divider between columns is a splitter."
+   },
+   {
+    "id": "keyframe_marker",
+    "name": "Keyframe diamond",
+    "spec": [
+     "STU-SHL-206"
+    ],
+    "role": "Button",
+    "author_id": "studio.panel.keyframe-timeline.<param-path>.key.<time>",
+    "size": {
+     "box": 10,
+     "hit": 16
+    },
+    "states": {
+     "rest": "time.key_default + 1px time.key_edge",
+     "selected": "time.key_selected",
+     "hold": "square",
+     "ease": "rounded on the eased side"
+    },
+    "pointer": [
+     "Press claims; drag moves in time; Shift snaps"
+    ],
+    "keyboard": [
+     "Arrows nudge when focused"
+    ],
+    "notes": "Shape carries interpolation, so it is readable without colour."
+   },
+   {
+    "id": "graph_editor",
+    "name": "Graph mode",
+    "spec": [
+     "SHL-P-17",
+     "STU-SHL-080"
+    ],
+    "role": "Canvas",
+    "author_id": "studio.panel.keyframe-timeline.graph",
+    "size": {
+     "handle": 8,
+     "line": 1.5
+    },
+    "notes": "Replaces the key strip in the same panel. Temporal only; spatial half waits on SD-4."
+   },
+   {
+    "id": "transport",
+    "name": "Viewer transport",
+    "spec": [
+     "STU-SHL-032",
+     "STU-SHL-066"
+    ],
+    "role": "Toolbar",
+    "author_id": "studio.viewer.<kind>.transport",
+    "size": {
+     "h": 36,
+     "button": 24,
+     "play": "32 x 24",
+     "icon": 14,
+     "scrub_h": 20
+    },
+    "text": "timecode",
+    "anatomy": [
+     "timecode left",
+     "mark in and out, go to in, step, play, step, go to out, loop, safe margins",
+     "duration right"
+    ],
+    "keyboard": [
+     "Space plays; J, K, L shuttle, PROVISIONAL"
+    ]
+   },
+   {
+    "id": "timecode_field",
+    "name": "Timecode field",
+    "spec": [
+     "STU-SHL-171"
+    ],
+    "role": "SpinButton",
+    "author_id": "owner-based",
+    "size": {
+     "h": 24,
+     "w": 96
+    },
+    "text": "timecode",
+    "style": "field",
+    "notes": "A ScrubValue with value_kind time; dragging scrubs frames."
+   },
+   {
+    "id": "meter",
+    "name": "Audio meter",
+    "spec": [
+     "STU-SHL-090"
+    ],
+    "role": "Meter",
+    "author_id": "studio.panel.audio-meters.<channel>",
+    "size": {
+     "bar_w": 8,
+     "gap": 4,
+     "rail_w": 36,
+     "peak_hold_h": 2
+    },
+    "colors": [
+     "meter.low",
+     "meter.mid",
+     "meter.high",
+     "meter.track"
+    ],
+    "notes": "Green to -12, yellow to -3, red over: exact breakpoints UNVERIFIED, set by the audio owner. Clip indicator has text 'CLIP' on hover and in AccessKit; reset on click."
+   },
+   {
+    "id": "mixer_strip",
+    "name": "Mixer strip",
+    "spec": [
+     "STU-SHL-113 audio-mixer"
+    ],
+    "role": "Group",
+    "author_id": "studio.panel.audio-mixer.<track-id>",
+    "size": {
+     "w": 84,
+     "fader_w": 16,
+     "fader_h": 12,
+     "rail_w": 4
+    },
+    "anatomy": [
+     "name",
+     "pan ScrubValue",
+     "mute, solo",
+     "fader plus two meter bars",
+     "level readout"
+    ],
+    "keyboard": [
+     "Up and Down on the fader step 0.5 dB"
+    ],
+    "notes": "The fader is a ScrubValue presentation with vertical travel."
+   },
+   {
+    "id": "scope_tile",
+    "name": "Scope tile",
+    "spec": [
+     "STU-SHL-080"
+    ],
+    "role": "Image",
+    "author_id": "studio.panel.scopes.<kind>",
+    "size": {
+     "min_h": 96,
+     "label_pad": 6
+    },
+    "fill": "canvas.viewer",
+    "text": "caption",
+    "notes": "N-up grid, not a mode switch. Trace colour is fixed to preserve its reading across themes."
+   }
+  ],
+  "feedback": [
+   {
+    "id": "tooltip_l0",
+    "name": "Tooltip L0",
+    "spec": [
+     "STU-SHL-230",
+     "STU-SHL-231",
+     "STU-SHL-235"
+    ],
+    "role": "Tooltip",
+    "author_id": "studio.tooltip",
+    "size": {
+     "h": 24,
+     "pad_x": 8,
+     "radius": 6,
+     "offset": 8
+    },
+    "text": "body + chord caption",
+    "elevation": "menu_tooltip",
+    "notes": "One line. 400 ms dwell. Never over its own control or the canvas under the cursor. Not in a headless session."
+   },
+   {
+    "id": "tooltip_l1",
+    "name": "Tooltip L1",
+    "spec": [
+     "STU-SHL-232",
+     "STU-SHL-019",
+     "STU-SHL-020"
+    ],
+    "role": "Tooltip",
+    "author_id": "studio.tooltip",
+    "size": {
+     "max_w": 320,
+     "pad": "8 10",
+     "radius": 6
+    },
+    "text": "body",
+    "elevation": "menu_tooltip",
+    "anatomy": [
+     "name and chord",
+     "summary sentence, when not null",
+     "numeric: soft range, hard in parentheses, default, unit, modifiers",
+     "dimmed: reason plus one-click remedy in accent.text",
+     "keyframable: temporal state",
+     "F1 hint"
+    ],
+    "keyboard": [
+     "F1 opens L2 while shown"
+    ],
+    "notes": "The remedy is a real button; the tip must remain while the pointer moves to it. A null summary renders without the sentence."
+   },
+   {
+    "id": "side_sheet",
+    "name": "Manual side sheet",
+    "spec": [
+     "STU-SHL-233",
+     "STU-MAN-001"
+    ],
+    "role": "Complementary",
+    "author_id": "shell manual topic address",
+    "size": {
+     "w": 420
+    },
+    "text": "heading + body",
+    "elevation": "floating_panel",
+    "keyboard": [
+     "Escape closes and returns focus"
+    ],
+    "notes": "Opens beside the Inspect Dock, over the Viewport. No browser, no network."
+   },
+   {
+    "id": "dialog",
+    "name": "Dialog",
+    "spec": [
+     "GUI-DESKTOP-012",
+     "STU-QUIET-001"
+    ],
+    "role": "Dialog",
+    "author_id": "studio.dialog.<command_id>",
+    "size": {
+     "small_w": 360,
+     "medium_w": 560,
+     "large_w": 800,
+     "max_h_pct": 85,
+     "header_h": 40,
+     "footer_h": 52,
+     "pad": 16,
+     "radius": 8
+    },
+    "text": "heading + body",
+    "elevation": "dialog",
+    "anatomy": [
+     "heading",
+     "content scrolls, header and footer stay",
+     "footer right: secondary, then primary"
+    ],
+    "states": {
+     "blocking": "flat scrim, only when data is at risk",
+     "modeless": "default: panel work stays possible",
+     "error": "status band under the header"
+    },
+    "keyboard": [
+     "Tab cycles inside",
+     "Enter runs the default unless in a multi-line field",
+     "Escape cancels"
+    ],
+    "notes": "Spec's trailing '...' leaves open a dialog. Never opens for an agent; agent paths use the typed command. Never centred over a tool the dialog adjusts when live preview is on: it opens beside the Inspect Dock."
+   },
+   {
+    "id": "alert_dialog",
+    "name": "Confirm dialog",
+    "spec": [
+     "GUI-DESKTOP-012"
+    ],
+    "role": "AlertDialog",
+    "author_id": "studio.dialog.confirm.<command_id>",
+    "size": {
+     "w": 360
+    },
+    "elevation": "dialog",
+    "notes": "Buttons name the action: 'Delete 3 layers', never 'OK'. Only for what undo cannot restore."
+   },
+   {
+    "id": "status_band",
+    "name": "Status band",
+    "spec": [
+     "GUI-DESKTOP-012",
+     "STU-SHL-083"
+    ],
+    "role": "Alert",
+    "author_id": "studio.band.<kind>",
+    "size": {
+     "h": 28,
+     "pad_x": 8,
+     "edge": 2
+    },
+    "text": "body",
+    "anatomy": [
+     "2px left edge",
+     "status glyph",
+     "one sentence",
+     "action buttons",
+     "close"
+    ],
+    "notes": "Sits under the Context Bar and pushes the Viewport, not over it. Used for the signature offer, errors and recovery. Never takes focus."
+   },
+   {
+    "id": "progress",
+    "name": "Progress",
+    "spec": [
+     "STU-UNI-005"
+    ],
+    "role": "ProgressIndicator",
+    "author_id": "studio.progress.<job-id>",
+    "size": {
+     "edge": 2,
+     "bar": 4
+    },
+    "states": {
+     "determinate": "fills text.secondary on rail_track",
+     "indeterminate": "1200 ms pulse; static under reduced motion"
+    },
+    "notes": "Long work belongs in the status bar and Jobs pane, not a modal."
+   },
+   {
+    "id": "proposal_badge",
+    "name": "Pending proposal badge",
+    "spec": [
+     "STU-UNI-004",
+     "14.18"
+    ],
+    "role": "Button",
+    "author_id": "studio.proposal.<id>",
+    "size": {
+     "h": 18,
+     "radius": 9
+    },
+    "text": "caption",
+    "notes": "Presence colour edge; count; opens Review Proposals. Never intrusive."
+   }
+  ],
+  "canvas": [
+   {
+    "id": "viewer",
+    "name": "Viewer",
+    "spec": [
+     "STU-SHL-066",
+     "STU-MDL-109"
+    ],
+    "role": "Canvas",
+    "author_id": "studio.viewer.<kind>#<n>",
+    "size": {
+     "min": "360 x 240"
+    },
+    "fill": "canvas.surround; video viewers canvas.viewer",
+    "keyboard": [
+     "Space held pans, Ctrl plus and minus zoom, Ctrl+0 fits, PROVISIONAL",
+     "Arrow keys nudge the selection"
+    ],
+    "notes": "Double-stroke rule for all overlays. Overlays are the only chrome over user content."
+   },
+   {
+    "id": "ruler",
+    "name": "Ruler",
+    "spec": [
+     "STU-SHL-025"
+    ],
+    "role": "Group",
+    "author_id": "studio.viewer.ruler.<axis>",
+    "size": {
+     "thickness": 20,
+     "major": 10,
+     "minor": 5
+    },
+    "text": "caption tnum",
+    "fill": "surface.strip",
+    "pointer": [
+     "Press and drag out a guide; origin corner resets"
+    ],
+    "notes": "Labels drop out near the end rather than clipping."
+   },
+   {
+    "id": "selection_bounds",
+    "name": "Selection bounds",
+    "spec": [
+     "STU-QUIET-005"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.selection",
+    "size": {
+     "line": 1,
+     "halo": 1,
+     "handle": 8,
+     "handle_hit": 16
+    },
+    "colors": [
+     "overlay.selection",
+     "overlay.selection_halo",
+     "overlay.handle_fill",
+     "overlay.handle_edge"
+    ],
+    "keyboard": [
+     "Arrows nudge 1 unit, Shift 10",
+     "Enter commits a free transform, Escape cancels"
+    ],
+    "notes": "Line stays 1 physical px at any zoom. Handles do not scale with the document."
+   },
+   {
+    "id": "marching_ants",
+    "name": "Marching ants",
+    "spec": [
+     "STU-SHL-027"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.ants",
+    "size": {
+     "dash": 4,
+     "line": 1
+    },
+    "colors": [
+     "overlay.ants_a",
+     "overlay.ants_b"
+    ],
+    "motion": "step 120 ms; static under reduced motion",
+    "notes": "White dashes over a black line, so they read on any image."
+   },
+   {
+    "id": "path_anchor",
+    "name": "Path anchor and handle",
+    "spec": [
+     "14.5.2"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.anchor.<id>",
+    "size": {
+     "anchor": 7,
+     "handle_dot": 7,
+     "hit": 16,
+     "line": 1
+    },
+    "states": {
+     "selected": "accent fill",
+     "unselected": "white fill",
+     "first_point": "ring"
+    },
+    "notes": "Corner anchors are square, smooth anchors round, so type is visible without colour."
+   },
+   {
+    "id": "guide",
+    "name": "Guides and grids",
+    "spec": [
+     "STU-SHL-025"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.guide.<id>",
+    "size": {
+     "line": 1
+    },
+    "colors": [
+     "overlay.guide",
+     "overlay.smart_guide",
+     "overlay.margin",
+     "overlay.bleed",
+     "overlay.grid",
+     "overlay.pixel_grid"
+    ],
+    "notes": "Smart guides appear only during a gesture, with a distance chip."
+   },
+   {
+    "id": "brush_cursor",
+    "name": "Brush cursor",
+    "spec": [
+     "STU-SHL-104"
+    ],
+    "role": "GenericContainer",
+    "author_id": "none: drawn over the canvas",
+    "size": {
+     "ring": "1px white + 1px black"
+    },
+    "notes": "Actual size of the brush at this zoom; a small cross appears under 6 px. Not an OS cursor warp."
+   },
+   {
+    "id": "size_chip",
+    "name": "On-canvas chip",
+    "spec": [
+     "STU-QUIET-005"
+    ],
+    "role": "Status",
+    "author_id": "studio.overlay.chip",
+    "size": {
+     "h": 18,
+     "pad_x": 6,
+     "radius": 3,
+     "offset": 6
+    },
+    "text": "caption tnum",
+    "colors": [
+     "overlay.chip_bg",
+     "overlay.chip_text"
+    ],
+    "notes": "Reports only. Holds no controls: controls stay in the Context Bar."
+   },
+   {
+    "id": "spacing_overlay",
+    "name": "Auto layout spacing",
+    "spec": [
+     "14.10"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.spacing",
+    "colors": [
+     "overlay.spacing"
+    ],
+    "notes": "Flat tinted bands in the gaps, with a number chip when hovered."
+   },
+   {
+    "id": "connector_line",
+    "name": "Prototype connector",
+    "spec": [
+     "STU-SHL-032"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.connector.<id>",
+    "size": {
+     "line": 1.5,
+     "halo": 1,
+     "port": 8
+    },
+    "colors": [
+     "overlay.selection"
+    ],
+    "keyboard": [
+     "Selectable by Tab inside Interactions; details there"
+    ],
+    "notes": "Same double-stroke rule."
+   },
+   {
+    "id": "safe_margins",
+    "name": "Safe margins",
+    "spec": [
+     "STU-SHL-025"
+    ],
+    "role": "GraphicsObject",
+    "author_id": "studio.overlay.safe",
+    "colors": [
+     "overlay.safe_action",
+     "overlay.safe_title"
+    ],
+    "size": {
+     "dash": 3
+    }
+   },
+   {
+    "id": "transparency_grid",
+    "name": "Transparency grid",
+    "spec": [
+     "STU-SHL-025"
+    ],
+    "role": "GenericContainer",
+    "author_id": "none",
+    "size": {
+     "cell": 8
+    },
+    "colors": [
+     "canvas.checker_a",
+     "canvas.checker_b"
+    ],
+    "notes": "Cell size stays constant on screen at any zoom."
+   }
+  ]
+ },
+ "count": 88
+}

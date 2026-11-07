@@ -1,0 +1,497 @@
+{
+ "schema": "hsk.studio.gui_design.build_order@1",
+ "file_id": "STUDIO-GUI-BUILD-ORDER",
+ "status": "DRAFT, design recommendation. Lead assigns lanes. Spec chain STU-SHL-110 remains normative where steps overlap.",
+ "updated_at": "2026-11-07",
+ "spec_version": "v02.229",
+ "goal": "First screen: a real Vulkan frame of the raster layout at 1920x1080 that passes AC-LOOK-02 against mock-raster.html, with live ScrubValue fields and a real image in the Viewport.",
+ "why_this_order": "The look comes from three things that every later widget inherits: exact pixel snapping, good text, and tokens. If those are wrong, every panel is wrong and rework multiplies. So they come first, and panels last. STU-SHL-078 says the same for risk: it sits in the centre tree, the scrub widget and the slot resolver, not in the panels.",
+ "decisions_needed_first": {
+  "note": "All from HANDOFF topic vulkan-gui-pivot. HANDOFF says the lead resolves blockers and records them in ledger direction.blocker_decisions_20261107; that key was empty when this file was written (read 2026-11-07). The right-hand column is this designer's view of what the design needs, not a decision.",
+  "items": [
+   {
+    "id": "O1",
+    "question": "WP-012 leaves eframe, egui-wgpu, kumihimo-egui?",
+    "design_needs": "Yes. Everything here assumes pure Vulkan."
+   },
+   {
+    "id": "O2",
+    "question": "Vulkan binding crate",
+    "design_needs": "Anything that can draw renderer.primitives in design-system.json. No design dependency."
+   },
+   {
+    "id": "O4",
+    "question": "Boundary between shell UI layer and Kumihimo renderer",
+    "design_needs": "One owner of text, one owner of the primitive pass, or B2 and B3 are built twice."
+   },
+   {
+    "id": "O5",
+    "question": "Where the control mechanic lives",
+    "design_needs": "One home for ScrubValue before B7."
+   },
+   {
+    "id": "O6",
+    "question": "Test host until the host layer exists",
+    "design_needs": "A non-egui asset-local Vulkan test host. Without one, no frame can be judged by AC checks, so B2 onward has no proof surface."
+   },
+   {
+    "id": "OD-1",
+    "question": "Two left rails",
+    "design_needs": "Mocks assume the recorded recommendation."
+   },
+   {
+    "id": "OD-2",
+    "question": "Row height",
+    "design_needs": "Build both density modes as data; ship standard as default."
+   },
+   {
+    "id": "OD-4",
+    "question": "Preset names",
+    "design_needs": "Only names change; layout data does not. Do not block on it."
+   },
+   {
+    "id": "OD-13",
+    "question": "Model invocation for each tool",
+    "design_needs": "None for the GUI. The Tool Rail dispatches command ids either way."
+   }
+  ]
+ },
+ "steps": [
+  {
+   "id": "B0",
+   "name": "Tokens as generated code",
+   "does": "Generate a token crate from design-system.json: colours per theme, sizes, text styles, state table. Add a check that fails on a colour or size literal in UI source.",
+   "components": [],
+   "depends_on": [],
+   "spec_chain": [],
+   "owner_hint": "control asset",
+   "proof": [
+    "AC-COL-01 source half",
+    "AC-COL-03 by generator"
+   ],
+   "done_when": "A UI crate compiles against the tokens, and nothing else can name a colour."
+  },
+  {
+   "id": "B1",
+   "name": "Window and test host",
+   "does": "Window, per-monitor scale, resize, minimize and restore, surface recreation, on-damage redraw, quiet idle; under the device hand-off contract, or an asset-local adapter behind the same port (STU-ARC-024, O6).",
+   "components": [],
+   "depends_on": [
+    "O1",
+    "O2",
+    "O6"
+   ],
+   "spec_chain": [
+    "MT-197",
+    "MT-203"
+   ],
+   "owner_hint": "shell UI layer",
+   "proof": [
+    "AC-BEHAV-07"
+   ],
+   "done_when": "A frame clears to surface.frame on Vulkan with the device named; idle frame count is zero."
+  },
+  {
+   "id": "B2",
+   "name": "Primitive pass",
+   "does": "rect, rrect, line, dash, image, checker, ramp, shadow, scissor. Edge-based pixel snapping per scale_rules, in one function every rect goes through. Headless capture from day one.",
+   "components": [
+    "scrollbar",
+    "splitter",
+    "drop_zone_overlay"
+   ],
+   "depends_on": [
+    "B1"
+   ],
+   "spec_chain": [],
+   "owner_hint": "O4 owner",
+   "proof": [
+    "AC-GEOM-03 at scales 1, 1.25, 1.5, 2"
+   ],
+   "done_when": "A test scene of adjacent panes has no gap at any scale in a screenshot, and flat colours equal tokens exactly.",
+   "risk": "A pass that snaps sizes instead of edges looks right at scale 1 and gaps at 1.25. Test fractional scales now."
+  },
+  {
+   "id": "B3",
+   "name": "Text and icons",
+   "does": "Shaping with tnum, coverage atlas per physical size, baseline snap, ellipsis, fallback chain, width measurement API. Two-layer icon atlas from the tool and panel glyph grids. Compare at 11 and 12 px on real monitors before moving on; choice of rasteriser is UNVERIFIED and this is where to find out.",
+   "components": [
+    "key_chip"
+   ],
+   "depends_on": [
+    "B2"
+   ],
+   "spec_chain": [],
+   "owner_hint": "O4 owner",
+   "proof": [
+    "AC-TEXT-03",
+    "AC-TEXT-04",
+    "AC-CONS-03"
+   ],
+   "done_when": "A side-by-side crop of 12px labels against the mock reads as sharp.",
+   "risk": "Biggest single lever on perceived quality. If text is soft, the product reads as a toy whatever else is right."
+  },
+  {
+   "id": "B4",
+   "name": "AccessKit tree and addressing",
+   "does": "Node tree from day one, with numeric and temporal fields (SHL-P-04), author_id grammar, availability fields, studio.dock.state, studio.gesture.active. Everything after this is proved through it.",
+   "components": [],
+   "depends_on": [
+    "B1"
+   ],
+   "spec_chain": [
+    "SHL-P-04"
+   ],
+   "owner_hint": "shell UI layer",
+   "proof": [
+    "Tree readable from out of process, no foreground"
+   ],
+   "done_when": "A tool outside the process reads a test control's bounds and value."
+  },
+  {
+   "id": "B5",
+   "name": "The static frame",
+   "does": "Menu bar titles, tab strip, Context Bar, status bar, Tool Rail background, seven regions with shared edges at preset sizes, no docking yet. Reads layouts.json data for raster. Viewport shows the image quad from render-cpu read-back.",
+   "components": [
+    "menu_bar",
+    "document_tab_strip",
+    "document_tab",
+    "context_bar",
+    "status_bar",
+    "dock_region",
+    "viewer",
+    "ruler"
+   ],
+   "depends_on": [
+    "B2",
+    "B3",
+    "B4"
+   ],
+   "spec_chain": [
+    "SHL-P-01"
+   ],
+   "owner_hint": "Studio shell",
+   "proof": [
+    "AC-GEOM-01",
+    "AC-CONS-04",
+    "AC-COL-02"
+   ],
+   "done_when": "A screenshot at 1920x1080 matches mock-raster.html frame bands within 2 px, with empty panels.",
+   "note": "First visible milestone. Show the Operator here: wrong proportions are cheap to change now."
+  },
+  {
+   "id": "B6",
+   "name": "Descriptors and menu",
+   "does": "UiDescriptor, generated id enum, one registry, menu derived from it, availability fields rendered, one tooltip helper L0 and L1.",
+   "components": [
+    "menu_popup",
+    "menu_item",
+    "tooltip_l0",
+    "tooltip_l1",
+    "context_menu"
+   ],
+   "depends_on": [
+    "B5"
+   ],
+   "spec_chain": [
+    "SHL-P-05",
+    "SHL-P-06",
+    "SHL-P-07",
+    "SHL-P-08"
+   ],
+   "owner_hint": "Studio plus shell, see OD-7",
+   "proof": [
+    "AC-REACH-04",
+    "AC-REACH-05"
+   ],
+   "done_when": "All 19 titles open, greyed items show a reason, and a remedy runs."
+  },
+  {
+   "id": "B7",
+   "name": "Core controls and ScrubValue",
+   "does": "button, icon button, toggle, dropdown, text field, section header, param row, then ScrubValue with TemporalState and the single write path. Gesture claim at press, screen-space tracking, hidden cursor at the edge.",
+   "components": [
+    "button",
+    "icon_button",
+    "toggle_button",
+    "segmented",
+    "dropdown",
+    "checkbox",
+    "text_field",
+    "scrub_value",
+    "keyframe_affordances",
+    "section_header",
+    "param_row",
+    "colour_chip",
+    "slider"
+   ],
+   "depends_on": [
+    "B6",
+    "O5"
+   ],
+   "spec_chain": [
+    "SHL-P-09"
+   ],
+   "owner_hint": "Kumihimo or control owner",
+   "proof": [
+    "AC-TEXT-05",
+    "AC-BEHAV-04",
+    "AC-CONS-01 with the state sheet"
+   ],
+   "done_when": "The state sheet matches design-system.json state, and the STU-SHL-109 tests pass.",
+   "note": "Hard and soft bounds from the first commit (STU-SHL-172)."
+  },
+  {
+   "id": "B8",
+   "name": "Tool Rail",
+   "does": "Slots, corner markers, hot point tint, adaptive face, variant strip, colour proxy, family browse, Tool Zone binding, hintline.",
+   "components": [
+    "tool_rail",
+    "tool_slot",
+    "tool_flyout",
+    "family_browse",
+    "colour_proxy",
+    "tool_chip"
+   ],
+   "depends_on": [
+    "B6",
+    "B7"
+   ],
+   "spec_chain": [
+    "STU-SHL-145 to 151"
+   ],
+   "owner_hint": "Studio shell",
+   "proof": [
+    "AC-REACH-01",
+    "AC-REACH-02"
+   ],
+   "done_when": "Rail and strip match the mock; a tool picked in four ways gives one id."
+  },
+  {
+   "id": "B9",
+   "name": "Dock host",
+   "does": "One tree per region, groups, tabs with +N overflow, splitters, disclosure, icon rails, dock foot, drop zones, overlay and floating panels, one registry transaction.",
+   "components": [
+    "group_header",
+    "panel_tab",
+    "panel_body",
+    "dock_foot",
+    "icon_rail",
+    "splitter",
+    "drop_zone_overlay",
+    "overlay_panel",
+    "floating_panel",
+    "scrollbar",
+    "empty_state",
+    "viewer_group_header",
+    "panel_action_bar"
+   ],
+   "depends_on": [
+    "B7"
+   ],
+   "spec_chain": [
+    "SHL-P-03",
+    "SHL-P-10"
+   ],
+   "owner_hint": "Studio shell",
+   "proof": [
+    "AC-GEOM-06",
+    "AC-REACH-03"
+   ],
+   "done_when": "Drag and keyboard both move a panel; a panel is never lost; a registry assert runs each debug frame."
+  },
+  {
+   "id": "B10",
+   "name": "Spine panels",
+   "does": "Properties, Layers, Colour, Swatches, History, Info, re-hosted from existing non-draw logic, behind the registry API. Layer rows with thumbnails. Colour field.",
+   "components": [
+    "layer_row",
+    "tree_row",
+    "list_row",
+    "colour_field",
+    "colour_picker",
+    "swatch_cell"
+   ],
+   "depends_on": [
+    "B9"
+   ],
+   "spec_chain": [
+    "SHL-P-11"
+   ],
+   "owner_hint": "Studio panels, parallel lanes",
+   "proof": [
+    "AC-LOOK-02 for raster",
+    "AC-COL-05",
+    "AC-CONS-02"
+   ],
+   "done_when": "FIRST SCREEN PASSES against mock-raster.html.",
+   "note": "Existing logic lives in hsk-studio-harness-view at c4d06841 (layers.rs, shell.rs, info.rs, hosted.rs). About 87 percent of that crate is non-draw by the HANDOFF heuristic, so move logic, redraw UI. Do not port egui layouts."
+  },
+  {
+   "id": "B11",
+   "name": "Canvas overlays and gestures",
+   "does": "Selection bounds, ants, brush cursor, chips, guides, double-stroke rule, viewer zoom and pan.",
+   "components": [
+    "selection_bounds",
+    "marching_ants",
+    "path_anchor",
+    "guide",
+    "brush_cursor",
+    "size_chip",
+    "transparency_grid"
+   ],
+   "depends_on": [
+    "B5",
+    "B7"
+   ],
+   "spec_chain": [],
+   "owner_hint": "Studio shell",
+   "proof": [
+    "AC-COL-07"
+   ],
+   "done_when": "Ants and handles hold on white, black and green images."
+  },
+  {
+   "id": "B12",
+   "name": "Predicate and resolver, end to end",
+   "does": "Availability predicate, slot resolver for inspector and Context Bar selection zone, anti-thrash.",
+   "components": [
+    "context_bar"
+   ],
+   "depends_on": [
+    "B10"
+   ],
+   "spec_chain": [
+    "SHL-P-12"
+   ],
+   "owner_hint": "Studio shell",
+   "proof": [
+    "AC-BEHAV-01",
+    "AC-BEHAV-05"
+   ],
+   "done_when": "Reselect is byte-identical. Unlocks all other panels (SHL-P-22)."
+  },
+  {
+   "id": "B13",
+   "name": "Presets, fit ladder, persistence",
+   "does": "L0 data for every signature from layouts.json, fit ladder, L1 to L3, dropdown with modified dot, signature offer, reset and revert, width classes.",
+   "components": [
+    "layout_preset_dropdown",
+    "status_band"
+   ],
+   "depends_on": [
+    "B12"
+   ],
+   "spec_chain": [
+    "STU-SHL-081 to 096"
+   ],
+   "owner_hint": "Studio shell",
+   "proof": [
+    "AC-BEHAV-02",
+    "AC-BEHAV-03",
+    "AC-LOOK-03",
+    "AC-BEHAV-08"
+   ],
+   "done_when": "Fit table reproduced by the real app in all windows."
+  },
+  {
+   "id": "B14",
+   "name": "Search, dialogs, help",
+   "does": "Handpick binding, results with breadcrumb and reason rows, dialog frame, confirm dialog, side sheet, status bands.",
+   "components": [
+    "search_field",
+    "command_palette",
+    "dialog",
+    "alert_dialog",
+    "side_sheet",
+    "progress",
+    "presence_chip",
+    "proposal_badge",
+    "task_scope_band"
+   ],
+   "depends_on": [
+    "B12"
+   ],
+   "spec_chain": [
+    "STU-SHL-041",
+    "STU-SHL-233",
+    "GUI-DESKTOP-013"
+   ],
+   "owner_hint": "Studio plus shell",
+   "proof": [
+    "AC-REACH-06",
+    "AC-FOCUS-03"
+   ],
+   "done_when": "Palette finds a NOT_IN_THIS_DOCUMENT tool, with reason."
+  },
+  {
+   "id": "B15",
+   "name": "Time surfaces",
+   "does": "Document time model, playhead, ruler, track headers, clips, transport, viewers, meters, mixer, keyframe rows and diamonds, graph mode.",
+   "components": [
+    "time_ruler",
+    "playhead",
+    "track_header",
+    "timeline_row",
+    "timeline_clip",
+    "keyframe_row",
+    "keyframe_marker",
+    "graph_editor",
+    "transport",
+    "timecode_field",
+    "meter",
+    "mixer_strip",
+    "scope_tile",
+    "safe_margins",
+    "gradient_editor"
+   ],
+   "depends_on": [
+    "B12"
+   ],
+   "spec_chain": [
+    "SHL-P-13",
+    "SHL-P-15",
+    "SHL-P-17",
+    "SHL-P-20"
+   ],
+   "owner_hint": "Studio timeline lanes, re-briefed from paused GUI lanes",
+   "proof": [
+    "AC-LOOK-02 for video"
+   ],
+   "done_when": "mock-video.html matches."
+  },
+  {
+   "id": "B16",
+   "name": "The other 82 panels",
+   "does": "Content work behind a stable registry API, by domain. Vector and design first since they share Properties, using spacing_overlay and connector_line.",
+   "components": [
+    "spacing_overlay",
+    "connector_line",
+    "radio"
+   ],
+   "depends_on": [
+    "B12",
+    "B13"
+   ],
+   "spec_chain": [
+    "SHL-P-22"
+   ],
+   "owner_hint": "parallel lanes",
+   "proof": [
+    "AC-LOOK-02 for vector and design",
+    "AC-BEHAV-06"
+   ],
+   "done_when": "Each panel passes its own AC-REACH and AC-CONS checks."
+  }
+ ],
+ "parallel_from": "After B9: panels, overlays, time surfaces and search run as separate lanes. Before B9, keep one line of work: a mistake in B2 or B3 repeats everywhere.",
+ "engineer_notes": [
+  "A panel never positions by hand. It declares rows; param_row and section_header do the layout.",
+  "No panel-local colours, no panel-local clamps, no panel-local gating. If a panel needs one, the shared component is missing something: extend it.",
+  "Do not recreate the existing test host's menu with 4 titles or its 33-tool toolbar row. Both are test surfaces, and the design replaces them.",
+  "Test-host panels with no catalogue row (Waveform Editor, Spectral Display, Prototype Player, Develop, Layout Editor) need the mappings in layouts.json catalogue gaps and design-system.json departures, or a spec ruling, before re-hosting.",
+  "Re-run tools/gen_design_system.py after any token change: it fails on a contrast miss or a tinted chrome token.",
+  "Manual entries come from the descriptor generator in the same change (STU-MAN-102, STU-MAN-003). A Layout Preset, Task Scope, region and panel each need one (STU-SHL-139).",
+  "Fit is computed, not seen: fit_table was calculated and never rendered at 1280x720. Check it first on the real frame at step B13, and report back any row that looks wrong."
+ ]
+}

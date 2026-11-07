@@ -1,0 +1,547 @@
+{
+ "schema": "hsk.studio_blocker_red_team@1",
+ "member": "red-team",
+ "generated_at": "2026-11-07",
+ "scope_split": {
+  "Handshake (Product)": "NONE changed; read at c4d06841 and Kumihimo at e75e34ff with git show and git grep",
+  "Repo Governance": "this file only"
+ },
+ "path_legend": {
+  "K": "wt-gov-kernel",
+  "S": "K/.GOV/docs_repo/wp-studio-module-work",
+  "P": "handshake-studio-assets at c4d06841",
+  "KUM": "Kumihimo at e75e34ff",
+  "REG": "local cargo registry source",
+  "CX": "K/.GOV/codex/Handshake_Codex_v1.4.md",
+  "SP14": "K/.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md",
+  "HBR": "K/.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+ },
+ "naming_note": "Lane and crate names are proposals. No canonical name is verified for them.",
+ "attacks": [
+  {
+   "target_position": "Vulkan engineer 'The ban holds on Windows', and the framing that D1 and D7 ban new winit lines",
+   "finding": "No recorded Operator word bans winit. D7 reads 'pure Vulkan, no wgpu', D1 reads 'drop egui'. Spec modules 14 and 15 contain the word winit zero times. HBR-HOST-001 bars a winit type in a module's public contract and permits an asset-local test host. The common brief bars a winit type in a NEW public signature only. WORKSPACE_RULES' no-new-use list names egui-winit, not winit. 'No new winit line' is lead text, and that text defers to direction.blocker_decisions_20261107. So the lead may simply decide.",
+   "evidence": [
+    "S/ledger.json direction.d1, direction.d7",
+    "S/HANDOFF.md:44 'unless direction.blocker_decisions_20261107 in ledger.json says otherwise'; :420",
+    "S/builders/briefs/lane-smb-controls-egui-gate-1.md:23, :33",
+    "S/builders/briefs/wave-parity-2-common.md line 18 rule 1",
+    "S/builders/WORKSPACE_RULES.md:44",
+    "HBR-HOST-001 required_action",
+    "Python scan of SP14 and module 15: 0 winit hits; S/START_LOG.md hits are all lead lines"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Record that the winit rule was a lead gloss. Allow winit in one named asset-local host leaf, with no winit type past that leaf."
+  },
+  {
+   "target_position": "Vulkan engineer: raw Win32 through windows-sys is the better window and input layer",
+   "finding": "The technical reasons fail against the locked source. winit 0.30.13 already handles WM_POINTER with frame history and pen pressure, uses the same IMM32 calls proposed, does SetCapture on press, and catches panics around every callback. Only two things are missing: tilt, and PT_PEN arrives as Touch. with_msg_hook sees each queued MSG before dispatch, so tilt and pen history can come from GetPointerPenInfoHistory in about 60 lines in the leaf (ESTIMATE, not exercised). The render-thread argument does not separate them either: a render thread with the raw HWND works under winit. Cost side: winit's Windows backend is 9,625 lines, 2,229 of them keyboard and layouts, against the engineer's 'few thousand' and a 5-commit lane that lists keyboard, pen, IME, DPI, cursors, clipboard, AccessKit and multiwindow. A raw WndProc is unsafe code where a panic through extern system aborts the process, and SetWindowPos inside WM_DPICHANGED re-enters it. First-party quiet proof exists only for winit: KUM native.rs creates windows with_visible(false), with_active(false), sets WS_EX_NOACTIVATE through the raw handle, and its README records 22 hidden native captures and six UIA stages. GPUI being winit-free shows it can be done by a team whose product is that layer; it says nothing about one night here. Pick: winit. It saves about one lane (ESTIMATE) and removes the input-corner defect class, at the price of a thin hook for tilt.",
+   "evidence": [
+    "REG winit-0.30.13/src/platform_impl/windows/event_loop.rs:980, :996, :1135, :1155, :1513-1614, :1985-2110, :2466, :2550",
+    "REG winit-0.30.13/src/platform_impl/windows/ime.rs: ImmGetContext, ImmGetCompositionStringW, ImmSetCompositionWindow, ImmSetCandidateWindow",
+    "REG winit-0.30.13/src/platform/windows.rs:199-225 with_msg_hook; event_loop.rs:412",
+    "Line counts of src/platform_impl/windows: total 9625; keyboard.rs 1243, keyboard_layout.rs 986",
+    "S/research/blockers-20261107-vulkan-engineer.json plan SMB-VK-WIN32-INPUT-1 'size 5 commits'",
+    "KUM kumihimo-egui/src/native.rs:1172-1173, :3206-3223; kumihimo-egui/Cargo.toml feature native; product/README.md lines 29, 44, 46"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "winit =0.30.13 plus windows-sys in hsk-studio-native-host only. The typed HostEvent queue from the engineer's position stays, so a Win32 backend can replace winit later by editing one crate."
+  },
+  {
+   "target_position": "Shell architect O6: treat the host as 'the standalone Studio application, not as a throwaway test host'",
+   "finding": "HBR-HOST-001 says no module creates its own window, viewport, event loop or renderer in product code, and permits an asset-local test host for asset proof only. Calling it the application relabels the one thing the rule allows. The Operator also kept 'Studio is not integrated into Handshake'. The working window is fine; the label and any claim built on it are not.",
+   "evidence": [
+    "S/research/blockers-20261107-shell-architect.json position O6",
+    "HBR-HOST-001 required_action",
+    "S/ledger.json direction.operator_direction_20261107.kept"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Name it asset-local host in the crate README, receipts and MT rows. The 2,266 vulkan_shell_client MTs can reach an asset-local half at most."
+  },
+  {
+   "target_position": "Vulkan engineer SMB-VK-HOST-1 against the binding common brief and the device rule",
+   "finding": "The common brief binds every lane: 'no new GPU device, instance, queue, pool or budget owner anywhere: GPU work goes through render-gpu's typed client port', and validators have recorded 'no GPU owner' under HOST INTEGRATION. HOST-1 creates a device, so it fails that row as briefed. Internally the position also says the owner implements 'the same GpuClientPort' while the host 'does not link render-gpu until RF-12' and the port split comes after HOST-1, so there is no trait to implement yet. HBR-HOST-003 asks for proof 'against a typed client port with a transient in-process adapter'.",
+   "evidence": [
+    "S/builders/briefs/wave-parity-2-common.md line 18 rule 2",
+    "S/START_LOG.md:649 'HOST INTEGRATION PASS ... no GPU owner'",
+    "S/research/blockers-20261107-vulkan-engineer.json 'Device ownership' position and plan SMB-GPU-PORT-SPLIT-1 depends_on SMB-VK-HOST-1",
+    "HBR-HOST-003; SP14:259, :275"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Before HOST-1 is dispatched, write into blocker_decisions and the common brief that the transient adapter of STU-ARC-024 is allowed in hsk-studio-vulkan, behind a local trait shaped like GpuClientPort, evidence asset-local. Name it in the R60 dispatch as a claim the validator may reject."
+  },
+  {
+   "target_position": "Shell architect O5: start in Studio, lift later (SMB-KUMIHIMO-LIFT-1)",
+   "finding": "As written the lift will not happen. Its end condition is 'spine gate passed, or before any Handshake adoption': no adoption is planned, and the spine gate sits behind 63 commits of lanes. Its own falsifier already fires on reading: 'the lift takes more than path moves, renames and one pin line', because the probe rule lets the UI crates depend on hsk-studio-controls, and controls' manifest depends on hsk-studio-accord and hsk-studio-observe. The rename would hit every `use hsk_studio_ui` while panel lanes are live. It also runs against STU-ARC-023's near-duplicate wording and HBR-MODULE-LIFECYCLE-007 'do not implement standalone module changes inside the host first'. Separately, the authority member's 'no covered worktree' is not a real stop for publication: asset_sync publish uses a private index and `git clone --shared` in a temp session, no worktree.",
+   "evidence": [
+    "S/research/blockers-20261107-shell-architect.json O5 control, proven_wrong_if, plan sizes (2+5+6+4+6+6+5+6+6+3+6+8 = 63)",
+    "P crates/hsk-studio-controls/Cargo.toml lines naming hsk-studio-accord, hsk-studio-observe",
+    "SP14:257; HBR-MODULE-LIFECYCLE-007",
+    "CX:61, CX:107",
+    "C:/Users/Ilja Smets/.claude/skills/create-assets/SKILL.md ASSET-SYNC-004; scripts/asset_sync.py:306-332"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Name the toolkit-free crates kumihimo-* from their first commit, so no rename ever exists. Forbid any hsk-studio-* dependency in them from birth by probe rule, reversing the edge: hsk-studio-controls and glue depend on them. Publish through asset_sync at a dated point, first when kumihimo-ui is green and at latest before panel fan-out, then consume by the exact tree id the architect already designed. Record the inversion once as a CX-021 deviation with that end date."
+  },
+  {
+   "target_position": "Shell architect and Vulkan engineer: new UI code with no catalog inspection (GLOBAL-ASSETS-001)",
+   "finding": "Neither ran the create-assets bootstrap, and the shell read list covers Kumihimo only. The catalog holds handshake_text_mechanics (text buffer, cursor, Unicode layout, navigation history), handshake_context_menu (context-menu model and keyboard navigation with a separate egui adapter) and Cabinet (tree). hsk-studio-ui plans text-edit state, caret and menus from scratch. Whether these fit is NOT_INSPECTED; the point is nobody looked, and GLOBAL-ASSETS-002 forbids divergent copies.",
+   "evidence": [
+    "S/research/blockers-20261107-vulkan-engineer.json read.asset_catalog",
+    "S/research/blockers-20261107-shell-architect.json read.files",
+    "assets-index.yaml at e75e34ff entries HANDSHAKE-TEXT-MECHANICS-ASSET-001, HANDSHAKE-CONTEXT-MENU-ASSET-001, CABINET-ASSET-001"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "The UI tree builder reads those three public APIs before its first commit and records reuse or the reason not. The lead runs the bootstrap once; if it stops on the dirty local checkout, record that and read origin refs only."
+  },
+  {
+   "target_position": "Shader path: committed SPIR-V through a small naga tool, under the 'no new naga or WGSL line' rule",
+   "finding": "It does not contradict any Operator word: D7 names wgpu, HANDOFF:44 defers to the decision record, and the TECH-WGSL retirement says it must not authorize implementation, which is not a prohibition. The real collisions are mechanical. (1) The egui-gate lane in flight fails on any added .wgsl and any manifest gaining naga, so GUI shaders go red the moment it lands unless its brief is amended first. (2) The shell's GLSL proposal needs naga's glsl-in, which needs pp-rs, absent from the registry cache: a download. WGSL is the only no-download path. (3) tools/spv-build is a NEW tools/ file, which forces a full round, and every later edit under tools/ does too. (4) The first window needs no shader at all.",
+   "evidence": [
+    "S/builders/briefs/lane-smb-controls-egui-gate-1.md:23",
+    "S/research/blockers-20261107-shell-architect.json needs_from_other_members first item",
+    "REG naga-27.0.3/Cargo.toml:62 glsl-in = [dep:pp-rs]; no pp-rs directory in REG",
+    "S/tools/round-select.py header 'any NEW tools/ or .config/ file', 'every tools/* and .config/* file'",
+    "S/research/blockers-20261107-vulkan-engineer.json position 'Smallest first lane' (no shader, no pipeline)"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "WGSL source through the naga library to committed SPIR-V, as the engineer says. Put the tool under crates/hsk-studio-vulkan/ with its own [workspace], outside tools/. Amend the gate's allow list today: one named shader directory, naga allowed only in that tool's manifest."
+  },
+  {
+   "target_position": "Vulkan engineer's validation-layer ask: 'the Vulkan-ValidationLayers release unpacked under Handshake_Artifacts'",
+   "finding": "That file does not exist for Windows. The latest release, vulkan-sdk-1.4.363.1 of 2026-11-02, has two assets, both Android binaries of about 32.7 MB. The Windows layer comes in the LunarG SDK installer: vulkansdk-windows-X64-1.4.363.1.exe, 303,066,832 bytes, sdk.lunarg.com, read by HEAD request only. It also carries spirv-val and glslc. An installer may change system environment and registry (UNVERIFIED), which is the Operator's to run. The ask as written would have been approved and then found empty.",
+   "evidence": [
+    "gh api repos/KhronosGroup/Vulkan-ValidationLayers/releases/latest: assets android-binaries-1.4.363.1.tar.gz 32758598, .zip 32750599",
+    "curl -I https://sdk.lunarg.com/sdk/download/latest/windows/vulkan_sdk.exe: Content-Length 303066832, filename vulkansdk-windows-X64-1.4.363.1.exe",
+    "reg query HKLM\\SOFTWARE\\Khronos\\Vulkan\\ExplicitLayers: key absent; C:/VulkanSDK absent"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Ask for the SDK installer by that exact name and size, one question in the next-step box. Nothing waits on the answer tonight."
+  },
+  {
+   "target_position": "Raw Vulkan overnight with no validation layer: where it actually bites",
+   "finding": "The concrete failure is not corruption on screen. It is the GPU test lock. Three predicates key on render-gpu only: studio-env.sh takes the lock for `--workspace` or render-gpu selections, run-round's crate_gpu returns 1 only for render-gpu, and the nextest test-group filter is package(hsk-studio-render-gpu). New Vulkan crates would run unlocked at test-threads 8 beside a round's GPU units, and `studio-vk offscreen` runs are not nextest at all. R39 already showed the result of foreign GPU clients: 22 render-gpu TIMEOUTs, class gpu_contention_foreign_clients. Two rounds of that class trigger CX-EXEC-015(4), no round on those MTs until a pushed config commit. A bad raw submit that resets the driver would also reach the Operator's Chrome (blast radius UNVERIFIED). Next: NVIDIA tolerates wrong layouts and missing barriers, so tonight's green means little on other GPUs, and there is no other GPU here. An unbounded fence wait hangs a builder while it holds the lock.",
+   "evidence": [
+    "S/builders/studio-env.sh:218-227",
+    "P tools/run-round.sh:349; :76-78",
+    "P .config/nextest.toml test-threads = 8, filter package(hsk-studio-render-gpu), R39 comment",
+    "CX:171 CX-EXEC-015(4)",
+    "S/research/blockers-20261107-vulkan-engineer.json 'Validation layers absent'"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Steward adds the new Vulkan crates to all three predicates, plus a wrapper for host binary runs, before any Vulkan lane runs a test. Stand-ins until the layer exists: first window is transfer and present only, with no pipeline or descriptor; vkDeviceWaitIdle before every swapchain recreate; semaphores per swapchain image; every fence wait bounded and typed; naga validation plus a spv-in reparse in the tool; pixel compare of Vulkan against the CPU painter; receipt field validation: absent. Submit-heavy lanes do not go READY without the layer, as the engineer says."
+  },
+  {
+   "target_position": "Vulkan engineer: disable overlay layers per process in proof runs only; 'whether each is implicit is UNVERIFIED'",
+   "finding": "Now verified: all are registered implicit and enabled (value 0): EOS overlay, Overwolf 0.311.1.4 and 0.311.1.6 with two manifests each, Steam overlay, Steam Fossilize. The Operator's interactive run would get all of them hooking a brand-new swapchain with no validation, so a morning crash could be Overwolf's and look like ours.",
+   "evidence": [
+    "reg query HKLM\\SOFTWARE\\Khronos\\Vulkan\\ImplicitLayers",
+    "S/research/blockers-20261107-vulkan-engineer.json 'Headless and quiet proof' control"
+   ],
+   "severity": "LOW",
+   "what_to_decide_instead": "The host sets VK_LOADER_LAYERS_DISABLE in its own process before loading the loader, in every mode, with an explicit flag to allow overlays. The receipt lists what was disabled. Nothing system-wide changes."
+  },
+  {
+   "target_position": "First lanes: SMB-VK-HOST-1, then RF-01, then SMB-GUI-SPINE-1",
+   "finding": "RF-01 is not a predecessor of a real panel on a real document. Viewer::with_context with Prefer::Cpu and BackendChoice::None creates no GPU device (GpuBackend::new only when prefer == Gpu), and Viewer::open, render_if_dirty (takes no egui context), layers, frame, state_json, hosted_action and Frame.rgba8 are public. A host with a `document` feature can link harness-view[viewer] today and show demo.handshake with zero edits to harness-view and no new egui line; egui and wgpu are only linked through. Meanwhile RF-01 is the widest conflict surface in the plan: cfg over draw functions in 35 files, Viewer fields (Delivery counts 74 Viewer literal sites in 71 files), and 'no other lane in view/mod.rs, shell.rs, hosted.rs during it'. 97 of 132 scenario gaps name harness-view, and 28 of 86 recent lanes touched it. So width stalls behind a lane with no visible result, and it adds a manifest edge once measured at 146.3 GiB of new artifacts (F-R46-8). Stacking it into R60 with the steward sync and matrix cut also makes a red hard to attribute. The arithmetic confirms it: the shell chain to a real panel is at least 17 serial commits, and to a real window 15, so 7 to 14 hours at the recorded 25 to 49 minutes per commit per lane (ESTIMATE). That misses the night. The Vulkan engineer's render.rs extraction has the same collision and is unnecessary tonight.",
+   "evidence": [
+    "P crates/hsk-studio-harness-view/src/view/mod.rs:310, :515, :608, :755-766, :811, :837; hosted.rs:1348; render.rs:64, :72",
+    "P crates/hsk-studio-harness/tests/fixtures/demo.handshake",
+    "S/research/blockers-20261107-shell-architect.json RF-01 position, plan SMB-GUI-SPINE-1 depends_on",
+    "S/research/blockers-20261107-delivery.json conflict rule (d), 'Literal sites' Viewer 74 in 71, 'harness-view touched by 28'",
+    "S/workflows/scenario-*.json gaps[].crates_likely: 97 of 132",
+    "S/ledger.json direction.workflow_20261107.why.hours: 30 commits 4.9 h on five lanes; 11 commits 4.5 h on one"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Order: steward; host and UI tree in parallel; first real panel on the CPU painter presented through a Vulkan copy; then the Vulkan UI pass. RF-01 lands after the R60 freeze as a short lane. Viewer::canvas_event is added additively inside the first panel lane. Critical path about 11 to 12 commits, 5 to 10 hours (ESTIMATE). The window must state 'chrome: cpu painter, Vulkan UI pass pending', because HBR-HOST-001 says a software path cannot PASS a Vulkan obligation."
+  },
+  {
+   "target_position": "Shell architect: panel view functions in harness-view at view/panels/<key>.rs",
+   "finding": "Every panel lane then edits harness-view source, and Delivery's bundled-run rule requires the whole suite of an edited crate for that crate. That is 32 targets at about 278 MiB of PDB each, with bundles seen from 700 to 2248 s and heavy units at 584 to 784 s. Fan-out would cost harness-level lock time per panel on two slots, the opposite of 'explicitly parallelisable'. The architect's split solves window and Vulkan rebuilds, not panel rebuilds.",
+   "evidence": [
+    "S/research/blockers-20261107-shell-architect.json 'Route for 25 panels', plan SMB-GUI-PANELS-*",
+    "S/research/blockers-20261107-delivery.json 'Bundled run size', measurements.worst_bundles, r58_heavy_units",
+    "S/research/cargo-reuse-research-20261107.json two_crates_dominate, why_merging_works",
+    "SP14 STU-SHL-110 row SHL-P-22"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Panels live in one leaf crate above harness-view, reading view models and dispatching command ids. harness-view gets a lane only when a view model must grow. Check on hosted.rs's PanelView first: whether panels need private Viewer fields is UNVERIFIED."
+  },
+  {
+   "target_position": "All four positions: no lane addresses the foundation gap, and GUI lanes come first by default",
+   "finding": "The scenarios measure it. Process-level reach is 1.1% (product design), 1% (audio), 2.8% (print), 3% (video), 4.3% (motion), 5% (board and web), 7.4% (photo), 11.8% (vector). Step 1 has no path in product design, vector, print, board and video. None of the plans holds a New Document, artboard or frame lane, although the MTs exist (MT-34444, MT-34447, MT-34454, MT-002, MT-30020) and the size is marked small. A panel spine over this can open a fixture and nothing else. Second problem: RF-05's UiDescriptor seed and the scenarios' 'one typed command surface' are the same job, and common brief rule 3 already requires a Registry id and a RUN_COMMANDS row for every new command. Built separately they make a sixth vocabulary, the exact root cause RF-05 exists to remove. Third: RUN_COMMANDS is one table in harness-core/src/action.rs, not on Delivery's conflict map, and every command lane would hit it.",
+   "evidence": [
+    "S/workflows/scenario-*.json coverage and gaps; scenario-product-design.json coverage.reading 'Step 1 (new document) is missing'",
+    "S/workflows/scenario-vector-brand.json gap 'Blank vector document', mts",
+    "S/builders/briefs/wave-parity-2-common.md line 18 rule 3",
+    "S/research/blockers-20261107-shell-architect.json RF-05 position",
+    "P crates/hsk-studio-harness-core/src/action.rs:843-877"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Foundation runs beside the window, and before panel fan-out rather than before the first window. One lane merges RF-05 and the command surface, and its first commit splits RUN_COMMANDS per domain file. Contract for the split: a feature lane delivers engine, command id and a JSONL test, with no draw code. A panel lane delivers a view function over command ids, with no logic. A row with no command yet shows disabled with its reason. Width never waits on panels and panels never wait on width."
+  },
+  {
+   "target_position": "Delivery: '5 on D:, 3 on C:', and R60 at '8 READY lanes or T+5.5 h, whichever is first'",
+   "finding": "This squeezes new work out of the night. READY lanes keep their live targets until judged (START_LOG:707), D: already has 6 of 6 live targets from the first wave, and the first verdict after R59 comes around T+10. So D: frees no target all night and its lock idles once the first wave lands. New lanes can only go on C:, which R59 holds until T+2 to T+3 and R60 holds from its freeze. And 8 READY arrives early: the 6 first-wave lanes plus 2 Group A lanes reach it around T+3 to T+4 (ESTIMATE), before the GUI crates have built. That leaves C: as a builder slot for 1 to 2 hours, not Delivery's 2.75, and the GUI wave has no real slot.",
+   "evidence": [
+    "S/START_LOG.md:707",
+    "S/research/blockers-20261107-delivery.json 'Reuse pairs', 'Round policy', operating_plan_8h phases",
+    "S/HANDOFF.md workflow items 2, 3",
+    "CX:107 CX-GIT-001A",
+    "S/builders/lanes/hsk-studio-*.json first-wave phases"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "(1) A lane at READY with its tip on origin may hand its tree and target to the next lane. Rounds judge the origin SHA, not the tree, and a later fix takes whichever tree is free. The target count stays at 6, so root P3 is untouched. This is a lead workflow change, no Operator or root edit. (2) R60 freezes at T+7 with the steward landed, not at 8 READY. C: stays a builder slot 2 to 3 hours longer. R60 ends about T+12, so the Operator wakes to a window and READY lanes, stated as unjudged."
+  },
+  {
+   "target_position": "Delivery push_gate.py: 'If no crate in O has a dependency path to or from a crate in L, the rebase is disjoint'",
+   "finding": "O is computed from crates. A change to root Cargo.toml, Cargo.lock, .cargo/, .config/, tools/, rust-toolchain.toml, vendored trees or workspace metadata maps to no crate, so O is empty and the gate prints DISJOINT with no build. The steward sync is exactly that landing, and a lockfile change can alter feature unification in the round's --workspace default unit. Otherwise the rule is sound, but where it applies the build was cheap anyway: hub closures (accord 48, observe 43, folio 25) never come out disjoint, so most expensive lanes still pay.",
+   "evidence": [
+    "S/research/blockers-20261107-delivery.json 'The push slot' decision, needs_from_other_members red team item, measurements.graph",
+    "S/tools/round-select.py header, full-round triggers",
+    "S/research/cargo-reuse-research-20261107.json Q1 selection_and_round_effect"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Any changed path outside crates/ intersects every lane, and the gate prints it. Add this to its self-test. The rest of the gate stands."
+  },
+  {
+   "target_position": "Delivery: trunk check of `cargo check --workspace --tests` plus harness [viewer], after every 3 landings or 2 hours, 'owning lane fixes forward'",
+   "finding": "Broken-main cases it misses. (a) Feature-gated compile breaks: per-sha was the only pre-round check of the 21 feature units, and 40 cfg(not(feature)) sites exist. A break first shows at the canary, where failure 'is infrastructure, starts no round': about 2 h of C: gone (R54 canary 1:57), with R60 not started. (b) Behaviour breaks: with harness suites narrowed in lanes, a folio or session break is first seen at the R60 verdict about T+12, and it costs a FAIL from a budget of 3. Round history cannot settle this: R52 to R58 show 4 FAILs, 3 from validator probes, but those lanes all ran the harness suites, so the rate of lane-level catches is UNVERIFIED. (c) Lag: at about one landing an hour, '3 landings or 2 hours' is 2 hours, not 1. (d) No target is named, and a new one would be over P3 on D:. (e) Fix-forward by an owner that has ended or sits in a queue with a median wait of 642 s plus link time leaves everyone behind it stuck; every later rebase inherits the red, and lanes debug someone else's break on lock time.",
+   "evidence": [
+    "CX:181 CX-VAL-005 'a canary failure is infrastructure'",
+    "S/research/round-time-audit-20261107.json cuts note 'R54-canary took 1:57'",
+    "S/research/blockers-20261107-delivery.json per_sha, 'Round duration' risk, today_on_d, 'Bundled run size'",
+    "S/validation/round-R52..R58.json verdict_counts, attributed_failures.probe_failures",
+    "K/CLAUDE.md HSK-ART-003 fixed slots; directories studio-team-dev on C: and D:"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Run it in the fixed slot studio-team-dev on D:. Trigger: after any landing touching accord, observe, folio, session, harness-core, harness-view, render-* or any non-crate path; otherwise every 45 minutes if origin moved. Content: the check, then harness-view[viewer] tests (312 s unit in R58) and package --test externals, about 12 lock-minutes at most (one check measured at 411 s on a reused tree). That moves the suite from per-lane to per-interval. Red protocol: a one-line record names the landings since last green; lanes neither rebase onto red nor land in its closure; if no fix in 30 minutes the lead pushes a plain revert, no force. Before R60 freezes, run the 21-unit matrix once at the tip (about 240 s). Results are detection only, never proof. Budget it: about 1 lock-hour a night, which Delivery's plan omitted."
+  },
+  {
+   "target_position": "Delivery target: 15 to 18 lanes READY in 8 hours",
+   "finding": "Not credible. Commits per day at c4d06841: 150, 80, 69, 27, 61, 41. The best day ever is 50 commits per 8 hours. 15 to 18 lanes at 3 to 5 commits is 50 to 90 commits in 8 hours, with GUI lanes larger and cold, trees relinking after Plan R, and at most about 11 lock-hours across both disks before trunk checks and the probe. Lock budgets of 12 and 30 minutes are unproven: today's reused-target bundled run took 582 s for a lane in controls, and bundles reach 2248 s. The rate on 11-06 was about 1 lane an hour. WF3's evidence also records the cost of size: 'up to ~13 agents', 'hundreds of interim hand-backs', and an all-agents stop 10-16 to 10-20 with about 3000 uncommitted lines rescued.",
+   "evidence": [
+    "git log c4d06841 --since=2026-10-28 by committer date",
+    "S/research/blockers-20261107-delivery.json operating_plan_8h.targets, measurements",
+    "S/builders/lanes/hsk-studio-controls-egui-gate-1.json notes.first_bundled_run",
+    "S/workflow/workflow-v3.json evidence"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Plan and report 8 to 11 READY by T+8, 4 to 6 of them GUI (ESTIMATE, needs the tree handoff). Do not cut scope for it. Every builder pushes each green slice to its lane branch so a stop loses nothing."
+  },
+  {
+   "target_position": "Shell architect 'Order': 'Passed acceptance before fan-out means the seven STU-SHL-109 tests ... green at the lane tip ... READY stays unjudged'",
+   "finding": "This is the one quiet relabel of a gate. STU-SHL-110 says a downstream step must not start before predecessors 'have passed their acceptance', and STU-SHL-109 says the tests 'MUST pass before any further panel is authored'. Builder-green is the author accepting its own proof (GLOBAL-CLOSURE-042). Also the plan claims to follow the chain while SMB-GUI-SPINE-1 runs parallel with UI-INTERACT and UI-DOCK, so a panel starts before SHL-P-09 and SHL-P-10. And test 2 asks the cursor 'restored at the press point' with 'no OS cursor warp', which the architect admits conflicts on Windows, so a strict gate never opens.",
+   "evidence": [
+    "SP14:32316-32324, :32387, table rows SHL-P-09, 10, 11, 12, 22",
+    "S/research/blockers-20261107-shell-architect.json 'Order' decision, plan parallel_with of SMB-GUI-SPINE-1, 'Input' risk",
+    "Global CLAUDE.md GLOBAL-CLOSURE-042"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Say it openly: the first panel lane is a recorded deviation from STU-SHL-110 under the Operator's working-GUI priority (CX-021). Fan-out opens only on an independent run: a fresh agent, not the builder, runs the 8 named tests at the tip under its own owner and records GATE_CHECK, never PASS_Vn. The leaf crate keeps this cheap. Test 2 is written at the synthetic input layer, with its OS half stated NOT_PROVEN."
+  },
+  {
+   "target_position": "Authority member SD-59: 'Keep the built behaviour ... Amend the MT-33738 row by contract revision'",
+   "finding": "This rewrites acceptance to match the code. MT-33738 says a 'locked/overlapping destination ... refuses atomically'; left and right nudge overwrite. Vendor behaviour is forum-level and UNVERIFIED. Every round record says 'acceptance text is never changed', and CX-EXEC-003 says the Operator's persistence authorization 'never authorizes PASS, reduced acceptance'. A later PASS on that row would be a verdict on a text the lead changed to fit.",
+   "evidence": [
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/MT-33738.json:1650",
+    "S/spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json:490-491",
+    "S/research/blockers-20261107-authority-and-spec.json spec_items.sd SD-59",
+    "S/validation/round-R5x.json mt_judgments.rule; CX:137"
+   ],
+   "severity": "HIGH",
+   "what_to_decide_instead": "Keep the code as a labelled reading. MT-33738 stays unclaimed and open. Carry SD-59 as a spec item for the Operator with the forum evidence; do not revise the row."
+  },
+  {
+   "target_position": "Authority member: the delegation can serve as 'an Operator decision' under CX-EXEC-015(1); SD-39 'Remove the refusal'",
+   "finding": "Park is right and survives. Reopening a budget-exhausted MT by citing 'resolve all blockers' records a lead choice as an Operator decision for an MT the Operator never saw. The label is the problem, and the clause exists to stop the team deciding this for itself. Separately SD-39 replaces a typed refusal with invented math ('360 degrees is one full A & B colour loop', no vendor source). That turns a truthful limit into possibly wrong output, the class HANDOFF ranks worst.",
+   "evidence": [
+    "CX:171",
+    "S/research/blockers-20261107-authority-and-spec.json 'Fix budget at its limit', spec_items.sd SD-39",
+    "S/HANDOFF.md:114 'Silent wrong output'"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Parked stays parked; a reopen is one question to the Operator. For SD-39 and SD-40, keep the width but mark the output provenance studio_declared in the receipt, so the row can never read as parity."
+  },
+  {
+   "target_position": "Delivery: round matrix cut lands in the steward sync, 'If the matrix drop needs validator input, it still lands here'",
+   "finding": "The evidence is good (241 test ids, 0 unique). The process is not: the party whose lanes get judged edits the definition of the independent round first and asks after. GLOBAL-CLOSURE-042 and GLOBAL-VALIDATION-022 both speak to this. What is lost is compile under exact feature sets, at 40 cfg(not(feature)) sites, and that is the validator's call, not the lead's. If rejected at R60 dispatch, a canary-and-union cycle is already spent on the wrong config.",
+   "evidence": [
+    "S/research/blockers-20261107-delivery.json plan SMB-GUI-STEWARD-1 + SMB-ROUND-MATRIX-1, 'Round duration' risk",
+    "S/research/round-time-audit-20261107.json cuts rank 2",
+    "CX:185 CX-VAL-007"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Give the R59 validator the audit row when R59 closes, read-only, no cargo. It lands only on that agent's written no-objection; otherwise R60 runs the old matrix. Rebuilding the old matrix at the WP boundary stays."
+  },
+  {
+   "target_position": "Authority member GOV-BLOCKER-RECORD-1 and the STUB correction, tonight",
+   "finding": "Its own text says it 'Does not change any build'. Two commits across TASK_BOARD, packet lifecycle, traceability registry, BUILD_ORDER, enrichment fields and SPEC_DEBT fail the paperwork gate GLOBAL-CLOSURE-010 and 011 and the Operator's 'no busy work'. An agent rewriting execution_authority on its own packet may also meet the permission check that refused the HSK-ART-005 edit (UNVERIFIED). The only records anything waits on are direction.blocker_decisions_20261107, which HANDOFF:44 requires before the first winit line, and the amended briefs.",
+   "evidence": [
+    "S/research/blockers-20261107-authority-and-spec.json 'Studio packet and task board read STUB', plan GOV-BLOCKER-RECORD-1",
+    "S/HANDOFF.md:44, :258",
+    "Global CLAUDE.md GLOBAL-CLOSURE-010, 011"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Tonight: one ledger block and two brief edits. The STUB correction waits for a morning line to the Operator. Its substance is honest; only its timing is wrong."
+  },
+  {
+   "target_position": "Authority member: '7 NEEDS_OPERATOR' list",
+   "finding": "None of the 7 blocks work, which is what it says, but the list misses the things that do need a yes. The validation SDK is absent from it. Taffy is too: the shell plan needs one network fetch, Taffy is in neither Cargo.lock nor the registry cache, and it changes the lock set. A fetch is a download, which needs the Operator's yes. Without one, SMB-UI-TREE-1 as written stalls.",
+   "evidence": [
+    "S/research/blockers-20261107-authority-and-spec.json operator_items",
+    "S/research/blockers-20261107-shell-architect.json 'Architecture: crates' risk; plan SMB-GUI-STEWARD-1",
+    "git show c4d06841:handshake-studio-assets/Cargo.lock: no taffy; REG: no taffy directory"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "Drop Taffy for now. Row and column stack layout with STU-SHL-072's numbers as tokens covers the first panels, kumihimo-core plans cover regions, and a layout port keeps Taffy possible later. That removes the ask."
+  },
+  {
+   "target_position": "Delivery: adopt debug=0 and rust-lld 'only at each target's next natural rebuild'; GOV-CARGO-PROBE-1 in the first wave",
+   "finding": "There is no natural rebuild. Reuse exists so a target never recompiles third-party (egui-gate's first bundled run compiled 26 of 549), and steward syncs do not invalidate it. The profile is in unit_id, so adoption is the forced rebuild, whenever it happens: 13 to 30 minutes per target, 3 to 6 lock-hours across 12, losing exactly the compile reuse HSK-ART-005 asks for. Tonight it buys nothing urgent: C: has 403 GB free and D: 1,205 GB. The probe is up to 45 lock-minutes on D: during the first wave, a 7th target there, for a result that cannot be adopted tonight. Also, research says run-round must refuse CARGO_TARGET_*_LINKER before any lane adopts, or CX-VAL-007 breaks; Delivery's plan omits that guard. Merging test binaries after R60 is right, but its real cost is larger than stated: required_proof keys in every verdict use binary names, 797 --test references need a map, the ladder Delivery just wrote names --test files, and one full round costs about 4 to 6 h. Do it before panel fan-out, since panel lanes convert tests.",
+   "evidence": [
+    "S/research/cargo-reuse-research-20261107.json Q2 'Profile is in unit_id', Q3 failure_modes env leak, Q4 risks",
+    "S/builders/lanes/hsk-studio-controls-egui-gate-1.json notes.first_bundled_run",
+    "S/research/blockers-20261107-delivery.json 'Faster linking', measurements.machine",
+    "S/validation/round-R52.json lanes[].required_proof",
+    "S/research/round-time-audit-20261107.json cuts note"
+   ],
+   "severity": "MEDIUM",
+   "what_to_decide_instead": "No probe, debug=0 or linker change tonight. Put the run-round linker guard in the steward sync, since R60 is FULL anyway. After R60: probe, then adopt both settings in one rebuild per target. Merge harness-view then harness in that same quiet gap."
+  },
+  {
+   "target_position": "Delivery: Plan R 'prune first on C:', 'D: rows at background rate'",
+   "finding": "Plan R's own condition: 'If any candidate's newest file changed, or a process or lane uses it, that candidate needs fresh approval.' The first wave is writing into those D: targets now, so those rows need the Operator, who is asleep. Pruned rows also relink on first use just as the C: window opens.",
+   "evidence": [
+    "S/research/cargo-cleanup-plan-20261107-R.json before_execution",
+    "S/ledger.json direction.workflow_20261107.target_reuse, cargo_proposal_approved.condition"
+   ],
+   "severity": "LOW",
+   "what_to_decide_instead": "Run only rows that pass fresh inspection unchanged. List the rest for the morning. No disk reading forces more tonight."
+  },
+  {
+   "target_position": "Shell architect display list against the GUI designer's renderer list",
+   "finding": "The designer's draft already needs 11 primitives: rect, rrect, line, dash, glyph, icon, image, checker, ramp, shadow, scissor. Its icons need an RG two-tint atlas. The architect plans about 6 kinds, an 'alpha-only page', one vertex and one fragment shader of about 150 lines, and a falsifier at 'about 10 primitive kinds', which has effectively fired on paper. SMB-UI-VK-1 at 6 commits and a two-painter pair are both undersized against this.",
+   "evidence": [
+    "S/gui-design/design-system.json renderer.primitives",
+    "S/research/blockers-20261107-shell-architect.json 'Architecture: crates', 'Text', needs_from_other_members"
+   ],
+   "severity": "LOW",
+   "what_to_decide_instead": "Take the designer's list as the display-list enum in the first tree commit, and size the Vulkan pass from it."
+  }
+ ],
+ "survived": [
+  "ash =0.38.0 in one leaf crate, no ash type in any port: in the lock, thin, permissive.",
+  "Offscreen as the default path with a separate quiet window proof, one PaneTarget path, and the swapchain state machine.",
+  "RF-12 does not gate the first GUI.",
+  "Compile rather than rewrite the 9 WGSL files at RF-12; SPIR-V as the contract.",
+  "O7: moving wgpu code behind a seam is not new wgpu code, with the line-count gate.",
+  "No dependency on WP-012 and no ask to it; FYI line only; no WP-012 file is touched by any position.",
+  "O9 closed by STU-ARC-024.",
+  "Retained node arena with action-as-data and a view function.",
+  "kumihimo-core by exact tree id as a path dependency: consuming an already published revision, stronger than a label.",
+  "Two build slots, no third on C:, CX-984-002 unchanged.",
+  "Delivery beats the authority member on test execution: 4.7% of lock time does not justify editing a script running lanes source. Drop GOV-LANE-CHECK-LOCK-1.",
+  "Abolish the push slot and round hold: non-force push is compare-and-swap and CX-VAL-001 freezes the candidate, given the non-crate path fix.",
+  "Tip-only per-sha and the --test ladder, given the pre-freeze matrix run.",
+  "CX-VAL-005 'starts when' read as a precondition: the lead dispatches, the validator may challenge, nothing is lost.",
+  "New MT rows only at dispatch through lanegen, status null, validators alone write PASS.",
+  "Union merge driver: fine for session and pulse lib.rs (21 and 29 non-mod lines); leave layout and type off it (179 and 125 non-mod lines)."
+ ],
+ "recommended_decisions": [
+  {
+   "blocker": "Window and input layer",
+   "decision": "winit =0.30.13 with windows-sys in hsk-studio-native-host only. Typed HostEvent stream past that crate. Tilt and pen history through with_msg_hook. WS_EX_NOACTIVATE and quiet handling read from KUM native.rs. Egui-gate allow list names the crate.",
+   "why": "No Operator word bans it, the locked source already does what the Win32 plan would write, and it is the only path with first-party quiet proof on this machine.",
+   "reversible_how": "HostEvent boundary: a Win32 backend replaces one crate. Remove the allow-list line."
+  },
+  {
+   "blocker": "First visible GUI",
+   "decision": "First window presents a CPU-painted RGBA buffer with vkCmdCopyBufferToImage or vkCmdBlitImage: no shader, pipeline or descriptor. The document comes through a `document` feature linking harness-view[viewer] with Prefer::Cpu and BackendChoice::None. The default build of the Vulkan crate keeps 'no wgpu, naga, winit, eframe, egui' in its closure. The window and receipts say the chrome is CPU-painted. The Vulkan UI pass follows at once on the same display list.",
+   "why": "Removes shaders, RF-01, render.rs extraction and most synchronisation risk from the first milestone, and uses Viewer as it stands today.",
+   "reversible_how": "Delete the feature edge when RF-01 and RF-12 land; swap the painter behind the display list."
+  },
+  {
+   "blocker": "RF-01 order",
+   "decision": "After the R60 freeze, one short lane. Not a predecessor of any panel. Viewer::canvas_event is additive in the first panel lane.",
+   "why": "Widest conflict surface, no visible result, 97 of 132 gaps touch its crate, and stacking it into R60 hurts attribution.",
+   "reversible_how": "Run it earlier any time the Viewer files are quiet."
+  },
+  {
+   "blocker": "O5 Kumihimo",
+   "decision": "New toolkit-free crates are named kumihimo-* from the first commit, with no hsk-studio-* dependency in their closure from birth (probe rule). hsk-studio-controls depends on them, not the reverse. Publish through create-assets asset_sync at kumihimo-ui green and at latest before fan-out. Record one CX-021 deviation from CX-MODULE-LIFECYCLE-002 with that end date.",
+   "why": "Makes the lift a path copy at a date rather than a rename lane behind a gate that may never open; satisfies D8's owner in every import; needs no CX-GIT-001A worktree.",
+   "reversible_how": "Path dependency points back or forward; rule on the deviation in the morning."
+  },
+  {
+   "blocker": "Shaders",
+   "decision": "WGSL source, naga 27.0.3 as a library in a tool under crates/hsk-studio-vulkan/ with its own [workspace], committed SPIR-V plus manifest, include_bytes!, hash test. One named shader directory on the gate's allow list. Not needed before lane 8.",
+   "why": "No Operator word against it, the only no-download path, and it avoids tools/ full-round triggers.",
+   "reversible_how": "SPIR-V is the contract, so a file can change source language later."
+  },
+  {
+   "blocker": "Validation absent",
+   "decision": "Proceed with receipts saying validation: absent and the stand-ins in the attacks list. Port split and RF-12 do not go READY without the layer. Ask once for the SDK.",
+   "why": "Copy-and-present survives one night; a compute port does not.",
+   "reversible_how": "Install arrives, rerun the same lanes with the layer on."
+  },
+  {
+   "blocker": "GPU contention from new crates",
+   "decision": "Steward extends studio-env.sh, run-round crate_gpu and the nextest test-group to the new Vulkan crates, and wraps host binary runs in the GPU lock. Fence waits bounded. Host disables overlay layers in its own process.",
+   "why": "Otherwise the GUI lanes are the foreign GPU clients that broke R39, with CX-EXEC-015(4) waiting behind them.",
+   "reversible_how": "Remove the crate names once a central owner exists."
+  },
+  {
+   "blocker": "Foundation gap, and feature against GUI order",
+   "decision": "One lane merges RF-05's UiDescriptor seed with the typed command surface; first commit splits RUN_COMMANDS into per-domain files. New Document, artboard and frame creation and place-image next, on MT-34444, 34447, 34454, 002, 30020. Feature lanes deliver engine, command and JSONL test without draw code. Panel lanes deliver a view over command ids without logic. Panels live in a leaf crate above harness-view.",
+   "why": "Step 1 is missing in five of eight scenarios and process reach is 1 to 12 percent. One registry removes a sixth vocabulary and takes panels and width off each other's backs.",
+   "reversible_how": "Tables are data; a panel can move back into harness-view by file."
+  },
+  {
+   "blocker": "Spine gate",
+   "decision": "Fan-out opens on an independent fresh agent running the 8 named tests at the tip, recorded GATE_CHECK, never PASS_Vn. The first panel lane is a named deviation. Test 2 at the synthetic layer with its OS half NOT_PROVEN.",
+   "why": "Keeps 'passed acceptance' from meaning the author's own green run, at about the cost of one small crate's tests.",
+   "reversible_how": "The Operator can tighten to a round or waive it."
+  },
+  {
+   "blocker": "Landing and broken main",
+   "decision": "No push slot, no round hold. push_gate treats any path outside crates/ as intersecting. Trunk check and red protocol as in the attacks list, in slot studio-team-dev. 21-unit matrix once before R60 freeze. Revert after 30 minutes red. Push each green slice.",
+   "why": "Detection inside an hour for compile and for the highest-yield tests, one failing landing never stalls the rest, and no canary is lost to a feature-gated break.",
+   "reversible_how": "Two trunk breaks in a night bring back a slot for folio and session lanes, as Delivery says."
+  },
+  {
+   "blocker": "Capacity and R60",
+   "decision": "READY lanes with tips on origin hand over tree and target. R60 FULL freezes at T+7 with the steward landed. Report a target of 8 to 11 READY by T+8.",
+   "why": "Unlocks D: for the second wave and keeps C: as a builder slot; root P3 is not touched.",
+   "reversible_how": "Freeze earlier if no lane would lose by it; lanes keep their targets if a handoff causes a stale-artifact sign."
+  },
+  {
+   "blocker": "Matrix cut",
+   "decision": "Lands only on the R59 validator's written no-objection to the audit row, before the steward sync if timing allows, otherwise for R61.",
+   "why": "Proof scope is the validator's to accept. The saving is 0.56 to 1.12 h a round, not worth a contested R60.",
+   "reversible_how": "Restore the units in round-features.toml."
+  },
+  {
+   "blocker": "Cargo settings",
+   "decision": "No debug=0, linker change or probe tonight; run-round linker guard goes in the steward sync. After R60: probe, adopt in one rebuild per target, merge harness-view and harness tests with a name map before fan-out.",
+   "why": "Adoption is a forced 3 to 6 lock-hours and disk is not short.",
+   "reversible_how": "All are later choices; nothing is changed tonight."
+  },
+  {
+   "blocker": "Authority items",
+   "decision": "Do not amend MT-33738. No delegated reopen of a budget-exhausted MT. SD-39 and SD-40 stay width with studio_declared provenance in the receipt. Tonight's records: direction.blocker_decisions_20261107 and two brief edits. STUB, SPEC_DEBT and enrichment fields wait.",
+   "why": "Each keeps an independent stop or truthful label intact and drops work that moves nothing tonight.",
+   "reversible_how": "The Operator can decide any of them in the morning."
+  },
+  {
+   "blocker": "Taffy and AccessKit patch",
+   "decision": "No Taffy. Stack layout with spec tokens behind a layout port. accesskit_windows patch and adapter come in a later lane; gui.tree is the model path until then, and R61 pays its lock-set change.",
+   "why": "Removes a download and a full-round input from the first wave.",
+   "reversible_how": "Add both behind existing ports when a lane names them."
+  }
+ ],
+ "recommended_first_8_lanes": [
+  {
+   "order": 0,
+   "lane_id_suggestion": "first wave landing (in flight, not counted)",
+   "what": "Lead writes direction.blocker_decisions_20261107 and amends the common brief and the egui-gate brief, with no cargo. Release the push hold. SMB-CONTROLS-EGUI-GATE-1 lands first with the allow list amended, then the other five as they go READY.",
+   "depends_on": [],
+   "parallel_with": ["each other"],
+   "disk": "D:"
+  },
+  {
+   "order": 1,
+   "lane_id_suggestion": "SMB-GUI-STEWARD-1",
+   "crates": ["root manifest", "Cargo.lock", "tools/workspace-probe.rs", "tools/run-round.sh", ".config/nextest.toml", "skeletons"],
+   "what": "One landing: skeletons for hsk-studio-vulkan, hsk-studio-native-host, kumihimo-ui; pins at locked versions (ash, winit, windows-sys, png); probe rules; GPU lock and test-group predicates; run-round linker guard. Not in it: Taffy, accesskit patch, egui-test-host unit, matrix cut unless cleared.",
+   "depends_on": ["SMB-CONTROLS-EGUI-GATE-1"],
+   "parallel_with": ["first wave engine lanes"],
+   "disk": "D:, on the gate lane's handed-over tree"
+  },
+  {
+   "order": 2,
+   "lane_id_suggestion": "SMB-VK-HOST-1",
+   "crates": ["hsk-studio-vulkan", "hsk-studio-native-host"],
+   "what": "The engineer's acceptance with winit in place of Win32: offscreen clear to PNG with no window, quiet window with focus_changes 0, swapchain state machine with injected faults. Plus buffer present and the document feature: demo.handshake on screen. 3 to 5 commits (ESTIMATE). Visible result: the first real document in a real Vulkan window.",
+   "depends_on": ["SMB-GUI-STEWARD-1"],
+   "parallel_with": ["SMB-UI-TREE-1", "SMB-COMMAND-SURFACE-1", "SMB-SCORE-EFFECTS-6"],
+   "disk": "D: on a handed-over tree; C: once R59 records"
+  },
+  {
+   "order": 3,
+   "lane_id_suggestion": "SMB-UI-TREE-1",
+   "crates": ["kumihimo-ui"],
+   "what": "Node arena and builder, stack layout, designer's primitive list as the display-list enum, CPU painter, hit test, semantic tree, text port over hsk-studio-type with cache. Reads handshake_text_mechanics and handshake_context_menu first.",
+   "depends_on": ["SMB-GUI-STEWARD-1"],
+   "parallel_with": ["SMB-VK-HOST-1", "SMB-COMMAND-SURFACE-1"],
+   "disk": "Smallest clean tree"
+  },
+  {
+   "order": 4,
+   "lane_id_suggestion": "SMB-COMMAND-SURFACE-1",
+   "crates": ["hsk-studio-controls", "hsk-studio-harness-core", "hsk-studio-harness", "hsk-studio-harness-view (command file only)"],
+   "what": "First commit: RUN_COMMANDS split per domain. Then UiDescriptor with command_id, seed from existing enumerations, alias tables, and command.run reachable through the DRIVE-1 JSONL loop for Viewer operations.",
+   "depends_on": ["SMB-HARNESS-DRIVE-1"],
+   "parallel_with": ["SMB-VK-HOST-1", "SMB-UI-TREE-1"],
+   "disk": "D:, harness-capable tree"
+  },
+  {
+   "order": 5,
+   "lane_id_suggestion": "SMB-DOC-FOUNDATION-1",
+   "crates": ["hsk-studio-folio", "hsk-studio-session", "hsk-studio-harness-core", "hsk-studio-harness-view"],
+   "what": "New Document with the composition token entry, artboard and frame creation, place image, each one a command id with a JSONL test. No draw code.",
+   "depends_on": ["SMB-COMMAND-SURFACE-1 first commit"],
+   "parallel_with": ["SMB-VK-HOST-1", "SMB-UI-TREE-1", "SMB-SCORE-EFFECTS-6"],
+   "disk": "D:, harness-capable tree"
+  },
+  {
+   "order": 6,
+   "lane_id_suggestion": "SMB-SCORE-EFFECTS-6, then SMB-PR-EXPORT-RECIPE-1",
+   "crates": ["hsk-studio-score", "hsk-studio-reel"],
+   "what": "Scoped width with no folio edge, per research/scope-20261107-audio-processors.json and scope-20261107-timeline-delivery.json. Commands per the feature-lane contract.",
+   "depends_on": [],
+   "parallel_with": ["all"],
+   "disk": "C: after R59, or a handed-over D: tree"
+  },
+  {
+   "order": 7,
+   "lane_id_suggestion": "SMB-GUI-SPINE-1",
+   "crates": ["hsk-studio-panels (leaf)", "hsk-studio-native-host", "hsk-studio-harness-view (Viewer::canvas_event, additive)"],
+   "what": "Layers and Canvas in the real window on a real document, select and visibility commit through command ids, File Open and Save, New Document as soon as lane 5 lands. CPU-painted chrome, stated. Recorded STU-SHL-110 deviation. Visible result: the Operator's morning proof. Designer judges real shots.",
+   "depends_on": ["SMB-VK-HOST-1", "SMB-UI-TREE-1"],
+   "parallel_with": ["SMB-COMMAND-SURFACE-1", "SMB-DOC-FOUNDATION-1"],
+   "disk": "D:, harness-capable tree"
+  },
+  {
+   "order": 8,
+   "lane_id_suggestion": "SMB-VK-UI-PASS-1",
+   "crates": ["kumihimo-vulkan", "crates/hsk-studio-vulkan shader tool"],
+   "what": "SPIR-V tool with wgpu-hal's options set, then the Vulkan pass for the display list, offscreen first, pixel compare to the CPU painter. Replaces the CPU chrome. Next after this: interaction with STU-SHL-109 tests and dock, spine gate, then fan-out; RF-01 after the R60 freeze.",
+   "depends_on": ["SMB-VK-HOST-1", "SMB-UI-TREE-1 display-list commit"],
+   "parallel_with": ["SMB-GUI-SPINE-1"],
+   "disk": "Smallest clean tree, under the GPU lock for its tests"
+  }
+ ],
+ "must_ask_operator": [
+  {
+   "question": "May the lead download vulkansdk-windows-X64-1.4.363.1.exe (303,066,832 bytes) from sdk.lunarg.com for the Khronos validation layer and spirv-val, and will you run or approve its install?",
+   "why_only_operator": "A download needs the Operator's yes, and an installer may change system environment and registry (UNVERIFIED). The Khronos GitHub release holds Android binaries only.",
+   "blocks": "READY for the port split and RF-12 only.",
+   "default_without_answer": "GUI lanes continue with receipts saying validation: absent; those two stay not READY."
+  }
+ ],
+ "not_verified": [
+  "No cargo, build, test or process control was run. All lane sizes, hours and the 8 to 11 READY figure are ESTIMATE.",
+  "with_msg_hook delivering WM_POINTER messages with pen history intact: read from winit source, not exercised. Whether WM_POINTER arrives as a queued message there is from Microsoft's general behaviour, UNVERIFIED here.",
+  "Viewer running under a non-egui host with egui merely linked: read from code (open, render_if_dirty, frame are public and take no egui type), not built or run.",
+  "UNVERIFIED that panels can live above harness-view without private field access; hosted.rs PanelView shape suggests yes.",
+  "UNVERIFIED that a nested [workspace] under crates/hsk-studio-vulkan/ stays out of root workspace handling and round-select; root members are an explicit list.",
+  "Blast radius of a driver reset on Chrome and on a concurrent round on this machine: UNVERIFIED. vulkaninfo was not run by this member; diagnostic extensions not checked.",
+  "SDK installer behaviour without admin, its bundled licences, and any portable layer package: not inspected. GitHub reports the validation layers repo licence as NOASSERTION.",
+  "Rate of lane-level catches by harness suites: not measured, so narrowed suites cannot be scored from round history.",
+  "asset_sync publish against the local .assets/assets checkout, reported 29 behind with local edits: read from the script, not run. Whether it inherits a safe cargo environment for its proof commands: it runs argv with the parent environment, so the lead must wrap cargo.",
+  "Catalog read at e75e34ff from local refs; freshness not checked and the create-assets bootstrap not run. handshake_text_mechanics and handshake_context_menu fit NOT_INSPECTED beyond their catalog entries.",
+  "T+ times rest on Delivery's T0 and its UNVERIFIED R59 end of 09:00 to 10:00Z; R59 has no round record yet.",
+  "The Operator's raw chat for D1 and D7 is not stored; the 'no winit word' finding covers the ledger, START_LOG, HANDOFF, briefs, HBR and spec only."
+ ]
+}
