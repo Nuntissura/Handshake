@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T15:52:03Z",
+ "updated_at": "2026-11-07T15:58:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19533,6 +19533,31 @@
    "closes": [
     "workflows/backlog-20261107.json SMB-WEB-HOST-1"
    ]
+  },
+  {
+   "lane_id": "SMB-GUI-SPINE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-native-host (feature document), kumihimo-ui (one additive widget)",
+   "lane_file": "builders/lanes/hsk-studio-gui-spine-1.json",
+   "brief": "builders/briefs/lane-smb-gui-spine-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+   "base": "e85e1440",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T15:58:42Z",
+   "closes": [
+    "direction.blocker_decisions_20261107 order step SMB-GUI-SPINE-1: the first real panel on a real document in the asset-local Vulkan window (CPU-painted chrome, recorded STU-SHL-110 deviation)",
+    "lead message 2026-11-07: a real .handshake document with a working profile reaches the window (demo.handshake stays the refused edit fixture)",
+    "spine gate test 8 of 8: byte-identical reselect (AC-BEHAV-05) exists and is green at the lane tip; GATE_CHECK stays with an independent agent",
+    "MT-34514 (read; STU-SHL-078 spine; no claim)",
+    "MT-34562 (read; STU-SHL-113 Layers catalogue row; asset-local evidence only, no claim)",
+    "MT-34654 (read; STU-SHL-110 chain; the lane is a recorded deviation, no claim)",
+    "MT-34640 (read; STU-SHL-109 tests belong to later slices; no claim)",
+    "MT-34646 (read; STU-MDL-105 numeric node fields; no claim)",
+    "MT-34496 (read; STU-SHL-061 anti-thrash; no claim)",
+    "MT-36250 (read; host workbench proof, an asset-local half at most; no claim)"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22133,7 +22158,8 @@
     "lane/smb-doc-export-1-d",
     "lane/smb-audio-out-mix-1-d",
     "lane/smb-ui-tree-1-d",
-    "lane/smb-project-bin-1-d"
+    "lane/smb-project-bin-1-d",
+    "lane/smb-gui-spine-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22245,6 +22271,11 @@
      "tree": "smb-sentinels-native-1",
      "branch": "lane/smb-web-host-1",
      "previous_branch": "lane/smb-sentinels-native-1"
+    },
+    "SMB-GUI-SPINE-1": {
+     "tree": "smb-pr-entry-references-1",
+     "branch": "lane/smb-gui-spine-1",
+     "previous_branch": "lane/smb-vk-host-1"
     }
    },
    "why": {
@@ -22402,7 +22433,11 @@
     "at": "2026-11-07T13:31:42Z",
     "reading": "HANDOFF reads P3 'live' as not yet PASS. After the move D: holds 10 lane targets in use by lanes that are not PASS (doc-new, vk-host, layout-persist, web-host, layout-pdf-host, doc-export, audio, ui-tree, project-bin, plus filters READY), C: none besides the round target. The move created no target and no disk growth (each target already existed and is reused), and the total across both disks stays within 2 x 6, but D: alone is over 6.",
     "decision": "No new lane goes on D: until D: is back at 6 or the Operator rules. Width lanes already scoped (SMB-AI-LIVE-EFFECTS-1, SMB-SCORE-EFFECTS-6, SMB-TYPE-INDENT-SPACING-1, SMB-PR-EXPORT-RECIPE-1, SMB-PARSER-HOSTILE-1, SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1, SMB-DRIVE-TYPED-2) wait. The D: lock, not coding, is the bottleneck now, so more lanes would mostly queue.",
-    "question_for_operator": "Is the per-disk P3 limit about disk space (then reused targets on a disk with 1.7 TB free are fine) or about concurrency (then 4 of the 10 D: lanes pause until C: has room)?"
+    "question_for_operator": "Is the per-disk P3 limit about disk space (then reused targets on a disk with 1.7 TB free are fine) or about concurrency (then 4 of the 10 D: lanes pause until C: has room)?",
+    "amended": {
+     "at": "2026-11-07T15:58:41Z",
+     "decision": "A new lane may take over a READY lane's tree and target on D: (no new target, so the live-target count does not grow). No lane may create a new target on D: until D: is back at 6 or the Operator rules. First use: SMB-GUI-SPINE-1 on smb-pr-entry-references-1 (SMB-VK-HOST-1 READY at 672a1804, on origin)."
+    }
    }
   }
  },

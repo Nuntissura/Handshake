@@ -1,0 +1,53 @@
+{
+  "crate": "hsk-studio-native-host (feature document), kumihimo-ui (one additive widget)",
+  "lane": "SMB-GUI-SPINE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+  "base": "e85e1440",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-07T15:58:42Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: every panel command reaches a Run operation that emits its own observe frame (harness-core); the host keeps its terminal frame (native-host src/diag.rs:24) and adds codes and counters to the receipt, never document text",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "the Viewer's run context: Viewer::new on the asset-local test host context (harness-view src/view/mod.rs:303-305), carried by every undo step (Run::history undo_steps, harness-core src/harness.rs:1911-1918); the host mints no actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "high"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-07T15:58:42Z",
+    "disk": "D",
+    "closes": [
+      "direction.blocker_decisions_20261107 order step SMB-GUI-SPINE-1: the first real panel on a real document in the asset-local Vulkan window (CPU-painted chrome, recorded STU-SHL-110 deviation)",
+      "lead message 2026-11-07: a real .handshake document with a working profile reaches the window (demo.handshake stays the refused edit fixture)",
+      "spine gate test 8 of 8: byte-identical reselect (AC-BEHAV-05) exists and is green at the lane tip; GATE_CHECK stays with an independent agent"
+    ],
+    "closes_candidates": [
+      "MT-34514 (read; STU-SHL-078 spine; no claim)",
+      "MT-34562 (read; STU-SHL-113 Layers catalogue row; asset-local evidence only, no claim)",
+      "MT-34654 (read; STU-SHL-110 chain; the lane is a recorded deviation, no claim)",
+      "MT-34640 (read; STU-SHL-109 tests belong to later slices; no claim)",
+      "MT-34646 (read; STU-MDL-105 numeric node fields; no claim)",
+      "MT-34496 (read; STU-SHL-061 anti-thrash; no claim)",
+      "MT-36250 (read; host workbench proof, an asset-local half at most; no claim)"
+    ],
+    "reuses_tree_and_target": "smb-pr-entry-references-1"
+  }
+}
