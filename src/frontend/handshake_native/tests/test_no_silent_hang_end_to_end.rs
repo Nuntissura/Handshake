@@ -24,7 +24,13 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+    let root = PathBuf::from(
+        std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("HANDSHAKE_ARTIFACTS_ROOT required"),
+    );
+    assert!(root.is_absolute(), "artifact root must be absolute");
+    let root = root.canonicalize().expect("artifact root exists");
+    assert!(root.is_dir(), "artifact root must be a directory");
+    root.join("handshake-test").join(subdir)
 }
 
 fn unique_session_id(label: &str) -> String {
