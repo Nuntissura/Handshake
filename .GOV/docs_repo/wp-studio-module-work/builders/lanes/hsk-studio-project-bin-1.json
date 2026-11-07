@@ -1,19 +1,74 @@
 {
   "crate": "hsk-studio-folio, hsk-studio-session, hsk-studio-pulse, hsk-studio-harness-view, hsk-studio-harness-core",
   "lane": "SMB-PROJECT-BIN-1",
-  "status": null,
-  "phase": "build",
-  "worktree": "wt-studio-lanes/smb-r54-followups-1",
-  "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
-  "commits": [],
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
+  "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+  "base": "3972c165",
+  "commits": [
+    {
+      "sha": "64214f58",
+      "kind": "green",
+      "what": "folio project_bin.rs record, commands, sequence_from_settings, with_tracks, with_clip; package externals rows",
+      "pushed": true
+    },
+    {
+      "sha": "633881c1",
+      "kind": "green",
+      "what": "session project_bin entry; F3 merged with DOC-NEW-1 (NOT_APPLICABLE 15, both tokens)",
+      "pushed": true
+    },
+    {
+      "sha": "af872f3d",
+      "kind": "green",
+      "what": "harness-core Run methods, video.rs rows, DRIVE_VIEWER rows; F2 containers: None; F4 viewer_domain video arm for the 8 project_* methods",
+      "pushed": true
+    },
+    {
+      "sha": "57949d29",
+      "kind": "red",
+      "what": "harness-view project.rs, drive_viewer arms, harness tests; proven red pre-rebase as bc4332c6 (3 run, 0 passed)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-red1-bc4332c6.log",
+      "pushed": true
+    },
+    {
+      "sha": "caef41a7",
+      "kind": "green",
+      "what": "stub removed",
+      "pushed": true
+    },
+    {
+      "sha": "43a6eb2e",
+      "kind": "green",
+      "what": "review F1 F5 F6 F7",
+      "pushed": true
+    },
+    {
+      "sha": "9ab80edd",
+      "kind": "green",
+      "what": "project_place_item tick parameters as integer rows (bundled-run failure)",
+      "pushed": true
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_bc4332c6": "harness project_bin 3 run, 0 passed (not_built), EXIT 100 (pre-rebase sha of c6cf031e)",
+    "focused_d3af9bc1": "10 run, 10 passed, EXIT 0: folio project_bin::tests x4, harness project_bin x3 incl. the drive process test, session entry_references token test, package externals classification, harness-core corpus coverage (pre-rebase sha of f3200e74)",
+    "check_after_rebase_f3200e74": "cargo check -p session -p harness-core -p harness --features hsk-studio-harness/audio-batch --tests EXIT 0",
+    "step0": "lane-check --step0-only clean",
+    "focused_3f2c64a5": "8 run, 8 passed, EXIT 0 (folio project_bin::tests x4, harness project_bin x4)",
+    "bundled_45f7dab7": "lane-check --owner smb-folio-angle-unbounded-1 --disk d, clippy over 6 crates + 17 dependents ok; nextest -p folio session package harness-core harness-view harness --features hsk-studio-harness/audio-batch, no target flags: 1064 run, 1063 passed, 1 failed (harness_drive every_viewer_row_of_the_manual_reaches_its_method: kind ticks), EXIT 100",
+    "rerun_0b84d1b5": "lane-check, -E binary(harness_drive)|binary(project_bin)|binary(action_records): 32 run, 32 passed, EXIT 0",
+    "per_sha_0b84d1b5": "lane-check --per-sha HEAD~1: PER_SHA_RESULT OK shas=1, EXIT 0",
+    "land_9ab80edd": "lane-check (clippy 6 crates + dependents) + nextest -E harness_drive|action_records|project_bin|folio project_bin::tests|entry token|externals classification, no target flags: 38 run, 38 passed, EXIT 0",
+    "per_sha_9ab80edd": "PER_SHA_RESULT OK shas=1, EXIT 0"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T09:57:08Z",
+  "next": "validator",
+  "updated_at": "2026-11-07T16:55:42Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +88,84 @@
   },
   "notes": {
     "dispatched_at": "2026-11-07T09:57:08Z",
-    "disk": "C",
+    "disk": "D",
     "closes": [
       "workflows/backlog-20261107.json SMB-PROJECT-BIN-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-r54-followups-1"
-  }
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1",
+    "spec_basis": [
+      "STU-VID-010 sequence is a document member",
+      "STU-VID-016/016a preset = complete settings record, initial track counts",
+      "STU-VID-021 track kinds video|audio|caption|submix, index per kind",
+      "STU-VID-024/025 assembly edits",
+      "STU-VID-050 typed import, MEDIA_IMPORT_UNSUPPORTED naming the detected type",
+      "STU-VID-053 conform and peaks are background ops (cut)",
+      "STU-SHL-113 project-bin panel (panel cut)",
+      "spec command keys cmd.sequence.addtracks / addaudiosubmixtrack"
+    ],
+    "decisions": [
+      "Studio command ids project_bin.new_folder/.import/.move/.remove, sequence.new, sequence.add_tracks, sequence.place_clip: the spec names no new-sequence or new-bin command id",
+      "bin edits are entry-only undo steps (no document revision), as set_tiles_and_entry without tiles; sequence.new = insert + settings entry as one step",
+      "one bin item per content digest; a second import of the same bytes is already_imported (UNVERIFIED vs Premiere, D5)",
+      "media bytes staged through Session::stage_tile and embedded by the save (EmbedExternal::Granted, the item's source is a ClipSource::Media the package walks); Run::asset_bytes reads them back after reopen",
+      "ids minted in the Viewer: seq-<n>, bin-<n>, item-<n>, STRK block 7e1e-9002, SCLP block 7e1e-9003, skipping ReservedIds",
+      "pulse untouched: the builders live in Folio (no id minting) and the Viewer"
+    ],
+    "cuts": [
+      "stills, the audio track of a video file, conform/resample (audio at another rate is not_bound audio_rate_mismatch), background peak jobs",
+      "folder rename and removal, item rename",
+      "composition record fields (motion-comp steps 3, 12, 14) not touched",
+      "no panel, no draw code; viewer pre-run refusals reach drive as command_refused with the code in detail.message",
+      "commands not recordable (typed Rust payloads)"
+    ],
+    "paths_beyond_brief": [
+      "hsk-studio-harness-core/src/harness.rs (Run methods; sequence_edits_and_entry_step takes the command id)",
+      "hsk-studio-harness-core/src/action/commands/video.rs (rows, per the lead)",
+      "hsk-studio-harness-core/src/manual.rs (DRIVE_VIEWER rows)",
+      "hsk-studio-harness/src/cli/drive_viewer.rs (arms)",
+      "hsk-studio-harness-view/src/view/mod.rs (mod line, state_json project_bin)",
+      "hsk-studio-session/src/sequence_records.rs, source.rs (token registration), tests/entry_references.rs (row)"
+    ],
+    "v4_06": {
+      "class": "a media list a project can only build in code (file lists, one Option, caller-built ports)",
+      "regex": "bind_program_media|open_source_media|open_audio_bytes|open_multitrack",
+      "fixed": [
+        "view/project.rs project_bind builds the monitor frames, export sound and open_multitrack from the bin"
+      ],
+      "named_not_fixed": [
+        "timeline/export_media.rs bind_program_media (file list, CLI --media)",
+        "source_monitor.rs open_source_media (one file)",
+        "audio_import.rs open_audio_bytes (one ViewerAudio)",
+        "shell.rs Panel::Mixer NoAudio binding"
+      ]
+    },
+    "mts_proved_candidates": [
+      "MT-33685",
+      "MT-33695",
+      "MT-33706",
+      "MT-33761",
+      "MT-33762"
+    ],
+    "rule_4e": "harness tests/project_bin.rs is #![cfg(feature = \"media\")]: round units hsk-studio-harness [media], [audio-batch] (mixer branch) compile it",
+    "logs": [
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-red1-bc4332c6.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-focus1-d3af9bc1.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-check3-rebased.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-bundled1-45f7dab7.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-rerun1-0b84d1b5.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-persha-0b84d1b5.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-land1-9ab80edd.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-project-bin-1/smb-project-bin-1-persha2-9ab80edd.log"
+    ],
+    "review_f3200e74": "FIX_FIRST; F1, F5, F6, F7 fixed in 3f2c64a5; F2-F4 wait for the rebase onto SMB-DOC-NEW-1 and SMB-COMMAND-SURFACE-1",
+    "not_proven": [
+      "F1 and F5 fixes have no red proof (test added after the fix)",
+      "F6 has no dedicated test (folio Remove by digest)",
+      "F7 bind_too_large has no test (would need over 1 GiB of media)"
+    ],
+    "old_tree_idle": "smb-r54-followups-1 (C:)",
+    "pushed": "9ab80edd on origin/codex/handshake-studio-assets, base 3972c165 (rebase clean)"
+  },
+  "branch": "lane/smb-project-bin-1-d"
 }
