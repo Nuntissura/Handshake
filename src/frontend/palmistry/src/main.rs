@@ -634,10 +634,7 @@ fn spawn_freeze_poll(
                         "FREEZE CONFIRMED (heartbeat stale + hung-window probe not responding) — \
                          the §6.13.5 double-signal gate fired; persisting the durable survivor record (MT-093)"
                     );
-                    // MT-093 (AC-013-1): persist a DURABLE survivor record on the freeze edge. Read the
-                    // ring's last-N events PASSIVELY for the evidence count (the events are POD integers;
-                    // only the COUNT enters the typed-allowlist record). The probe corroborated NOT
-                    // RESPONDING (that is what made this a confirmed freeze).
+                    // MT-093 (AC-013-1/2): retain the raw count and bounded ordinary-event snapshot.
                     let last_events = reader.read_last_events(reader.capacity().min(64));
                     let record = survivor_store::SurvivorRecord::from_freeze(
                         &session_id,
@@ -645,7 +642,8 @@ fn spawn_freeze_poll(
                         report,
                         last_events.count(),
                         survivor_store::SurvivorProbeResult::NotResponding,
-                    );
+                    )
+                    .with_last_events(&last_events.ordinary_events());
                     match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
                         Ok(path) => tracing::warn!(
                             path = %path.display(),
@@ -728,7 +726,8 @@ fn spawn_child_stall_poll(
                             parent_pid,
                             &report,
                             last_events.count(),
-                        );
+                        )
+                        .with_last_events(&last_events.ordinary_events());
                         match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
                             Ok(path) => tracing::warn!(
                                 path = %path.display(),
@@ -1597,5 +1596,200 @@ mod control_loop_tests {
             Some(ControlLoopExit::Shutdown),
             "a successful Continue must reset the error streak so a later Shutdown still wins"
         );
+    }
+}
+
+#[cfg(test)]
+mod survivor_producer_tests {
+    use super::*;
+    use handshake_diag_ring::{
+        ring::DiagRingWriterV2, schema::DiagEventV2, DiagEvent, DiagEventCode, DiagPhase,
+        DiagSeverity,
+    };
+    use std::time::Instant;
+    use survivor_store::{assert_typed_allowlist, SurvivorRecordKind, MAX_SURVIVOR_EVENTS};
+
+    struct TestDirectory(PathBuf);
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    struct SnapshotFixture {
+        _writer: DiagRingWriterV2,
+        reader: Arc<WatcherRingReader>,
+        store: Arc<Mutex<SurvivorStore>>,
+        expected: Vec<DiagEvent>,
+        directory: TestDirectory,
+    }
+
+    impl SnapshotFixture {
+        fn new() -> Self {
+            let directory = TestDirectory(std::env::temp_dir().join(format!(
+                "palmistry-survivor-producer-{}", uuid::Uuid::now_v7()
+            )));
+            std::fs::create_dir_all(&directory.0).unwrap();
+            let path = directory.0.join("events.ring");
+            let nonce = [0x55; 16];
+            let writer = DiagRingWriterV2::create(&path, 128, nonce).unwrap();
+            writer.write_heartbeat(7, 11);
+            let mut expected = Vec::new();
+            for sequence in 0..96 {
+                let mut event = DiagEvent::generic(
+                    DiagEventCode::Other, DiagPhase::End, DiagSeverity::Info, 0,
+                    sequence, 0x4755_4900_0000_0008, 3, 0, sequence,
+                );
+                match sequence % 16 {
+                    0 => {
+                        assert!(writer.write(DiagEventV2::behavior_observation(
+                            sequence, 7, 13, nonce, [0xa7; 32],
+                        )));
+                        continue;
+                    }
+                    1 => event.phase_marker = u8::MAX,
+                    2 => event.severity = u8::MAX,
+                    3 => event._reserved = [1; 4],
+                    _ => {
+                        if sequence >= 32 {
+                            expected.push(event);
+                        }
+                    }
+                }
+                assert!(writer.write(DiagEventV2::ordinary(event).unwrap()));
+            }
+            expected.reverse();
+            let reader = Arc::new(WatcherRingReader::V2(
+                PalmistryRingReaderV2::open(&path, nonce).unwrap(),
+            ));
+            let store = Arc::new(Mutex::new(
+                SurvivorStore::open(directory.0.join("survivors")).unwrap(),
+            ));
+            Self { _writer: writer, reader, store, expected, directory }
+        }
+
+        fn wait_for_record(&self, timeout: Duration) -> bool {
+            let deadline = Instant::now() + timeout;
+            while Instant::now() < deadline {
+                if self.store.try_lock().is_ok_and(|store| !store.records().is_empty()) {
+                    return true;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            false
+        }
+
+        fn assert_persisted_snapshot(&self, kind: SurvivorRecordKind) {
+            let reopened = SurvivorStore::open(self.directory.0.join("survivors")).unwrap();
+            assert_eq!(reopened.records().len(), 1);
+            let record = &reopened.records()[0].record;
+            assert_eq!(record.kind, kind);
+            assert_eq!(record.schema_version, survivor_store::SURVIVOR_SCHEMA_VERSION);
+            assert_eq!(record.session_id, "snapshot-session");
+            assert_eq!(record.process_id, 1234);
+            assert_eq!(record.last_event_count as usize, MAX_SURVIVOR_EVENTS);
+            assert_eq!(record.last_events, self.expected);
+            assert_eq!(record.last_events.len(), 48);
+            assert!(record.last_events.len() <= MAX_SURVIVOR_EVENTS);
+            assert!(!record.forwarded);
+            assert_typed_allowlist(record).unwrap();
+            let json = serde_json::to_value(record).unwrap();
+            for event in json["last_events"].as_array().unwrap() {
+                assert!(event.get("correlation_hmac").is_none());
+                assert!(event.get("launch_nonce").is_none());
+            }
+            if kind == SurvivorRecordKind::ChildStall {
+                assert_eq!(record.child_process_id, Some(5678));
+                assert_eq!(record.child_session_id, Some(42));
+                assert_eq!(record.last_progress_counter, Some(9));
+            }
+        }
+    }
+
+    struct PollThread {
+        run: Arc<AtomicBool>,
+        handle: Option<std::thread::JoinHandle<()>>,
+    }
+
+    impl PollThread {
+        fn finish(mut self) {
+            self.run.store(false, Ordering::SeqCst);
+            let deadline = Instant::now() + Duration::from_secs(2);
+            let handle = self.handle.as_ref().unwrap();
+            while !handle.is_finished() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert!(handle.is_finished(), "owned poll thread did not settle before deadline");
+            self.handle.take().unwrap().join().unwrap();
+        }
+    }
+
+    impl Drop for PollThread {
+        fn drop(&mut self) {
+            self.run.store(false, Ordering::SeqCst);
+            if let Some(handle) = self.handle.take() {
+                let deadline = Instant::now() + Duration::from_secs(2);
+                while !handle.is_finished() && Instant::now() < deadline {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                if handle.is_finished() {
+                    let _ = handle.join();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn freeze_poll_persists_bounded_ordinary_events() {
+        let fixture = SnapshotFixture::new();
+        let run = Arc::new(AtomicBool::new(true));
+        let handle = spawn_freeze_poll(
+            Arc::clone(&fixture.reader),
+            Box::new(hung_window_probe::FakeHungWindowProbe::new(
+                hung_window_probe::ProbeResult::NotResponding,
+            )),
+            Arc::new(FreezeStatus::default()), Arc::clone(&run), Duration::from_millis(5),
+            "snapshot-session".to_owned(), 1234, Arc::clone(&fixture.store),
+            Arc::new(FrForwarder::for_existing_fr(String::new())),
+        );
+        let poll = PollThread { run, handle: Some(handle) };
+        let recorded = fixture.wait_for_record(
+            freeze_detect::FREEZE_THRESHOLD + Duration::from_secs(3),
+        );
+        poll.finish();
+        assert!(recorded, "freeze producer did not persist before deadline");
+        fixture.assert_persisted_snapshot(SurvivorRecordKind::Freeze);
+    }
+
+    struct AliveChild;
+
+    impl child_registry::ChildProcessProbe for AliveChild {
+        fn state(&self) -> child_stall::ChildProcessState {
+            child_stall::ChildProcessState::Alive
+        }
+    }
+
+    #[test]
+    fn child_stall_poll_persists_bounded_ordinary_events() {
+        let fixture = SnapshotFixture::new();
+        let progress = fixture.directory.0.join("child-progress");
+        std::fs::write(&progress, "9").unwrap();
+        let registry = Arc::new(child_registry::ChildRegistry::new(
+            Arc::new(|_| Box::new(AliveChild)),
+        ));
+        registry.register_file_child(
+            5678, 42, progress, Duration::from_millis(5), Instant::now(),
+        ).unwrap();
+        let run = Arc::new(AtomicBool::new(true));
+        let handle = spawn_child_stall_poll(
+            registry, Arc::clone(&fixture.reader), Arc::clone(&run), Duration::from_millis(5),
+            "snapshot-session".to_owned(), 1234, Arc::clone(&fixture.store),
+        );
+        let poll = PollThread { run, handle: Some(handle) };
+        let recorded = fixture.wait_for_record(Duration::from_secs(3));
+        poll.finish();
+        assert!(recorded, "child-stall producer did not persist before deadline");
+        fixture.assert_persisted_snapshot(SurvivorRecordKind::ChildStall);
     }
 }
