@@ -22902,6 +22902,14 @@
     },
     "use": "The loader finds the layer machine-wide through the HKLM ExplicitLayers key, so no VK_ADD_LAYER_PATH is needed. A process turns it on with VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation or by naming it at instance creation. VULKAN_SDK and the PATH entry reach only processes started after the install. Lane receipts now say validation: on (VK_LAYER_KHRONOS_validation 1.4.363) instead of validation: absent; O7 (port split, RF-12) and vk_ui_pass_1 go READY only validation-clean. render-gpu (wgpu) keeps validation off by design.",
     "supersedes": "blocker_decisions_20261107.validation_layer ('Absent here ... One question to the Operator: the Vulkan SDK download')"
+   },
+   "gui_frame_1_amendment": {
+    "at": "2026-11-08T07:52:59Z",
+    "withdrawn": "'unbuilt controls are disabled with a reason (B6)' is withdrawn for frame controls. build-order B6 ('Descriptors and menu', done_when 'greyed items show a reason') is about greyed items inside opened menus; the designer's review (research/design-review-smb-gui-frame-1-ba592e46.json F1) showed 51 frame controls drawn greyed against the mock.",
+    "now": "Unbuilt frame controls are drawn in normal rest styling; a click answers not_implemented_yet in the status bar and the receipt; the node keeps availability not_implemented_yet as data; never a silent drop.",
+    "kept": "Window buttons stay omitted in the asset-local host (the OS frame provides them; recorded default).",
+    "statusfacts_chrome": "SMB-GUI-FRAME-1 adds a StatusFacts chrome field read by view.rs; SMB-VK-UI-PASS-1 fills it after GUI-FRAME-1 lands (VK's view.rs edit request denied to avoid a two-lane conflict).",
+    "tool_rail_foot": "80 px (the mock and the capture win over the generator's 72 px assumption); generator rounding: each group rounded, the last takes the remainder."
    }
   },
   "resume_20261108": {
