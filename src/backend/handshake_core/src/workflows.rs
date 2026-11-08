@@ -614,6 +614,7 @@ struct RegistryMultiModelSession {
 pub struct SessionRegistry {
     inner: Arc<RwLock<SessionRegistryInner>>,
     dispatch_lock: Arc<TokioMutex<()>>,
+    pub(crate) registry_extractions: Arc<crate::capability_registry_workflow::extraction::InvocationRegistry>,
 }
 
 struct OperatorChatAdmissionOwner {
@@ -1529,6 +1530,7 @@ impl SessionRegistry {
                 ),
             })),
             dispatch_lock: Arc::new(TokioMutex::new(())),
+            registry_extractions: Arc::new(crate::capability_registry_workflow::extraction::InvocationRegistry::default()),
         }
     }
 
@@ -12615,23 +12617,6 @@ async fn run_job(
 
         if job.protocol_id == "capability_registry_build" {
             let inputs = parse_inputs(job.job_inputs.as_ref());
-            let policy_decision_id = inputs
-                .get("policy_decision_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| WorkflowError::Terminal("policy_decision_id is required".into()))?;
-            let model_id = inputs
-                .get("model_id")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "llama3".to_string());
-            let approve = inputs
-                .get("approve")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            let reviewer_id = inputs
-                .get("reviewer_id")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
 
             // Existing job/profile enforcement remains in force. Publication uses
             // the authenticated job's workspace and immutable native identity;
@@ -12658,6 +12643,39 @@ async fn run_job(
             if session.session_id != scope.session_id {
                 return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
             }
+            if inputs.get("stage").and_then(Value::as_str) == Some("extract") {
+                if inputs.get("approve").and_then(Value::as_bool) == Some(true) {
+                    return Err(WorkflowError::Terminal("registry extraction cannot approve publication".into()));
+                }
+                let repo_root = repo_root_from_manifest_dir()
+                    .map_err(|error| WorkflowError::Terminal(error.to_string()))?;
+                let payload = crate::capability_registry_workflow::extraction::prepare(
+                    state, &repo_root, job.job_id, workflow_run_id, trace_id, workspace_id,
+                ).await.map_err(|error| WorkflowError::Terminal(error.to_string()))?;
+                state.storage.set_job_outputs(&job.job_id.to_string(), Some(payload.clone())).await?;
+                return Ok(RunJobOutcome {
+                    state: JobState::AwaitingValidation,
+                    status_reason: "extracted_pending_human_diff_review".into(),
+                    output: Some(payload), error_message: None,
+                });
+            }
+            let policy_decision_id = inputs
+                .get("policy_decision_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| WorkflowError::Terminal("policy_decision_id is required".into()))?;
+            let model_id = inputs
+                .get("model_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "llama3".to_string());
+            let approve = inputs
+                .get("approve")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let reviewer_id = inputs
+                .get("reviewer_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
             let approved_input = ApprovedRegistryInput::from_server_configuration(
                 state.surreal.clone(),
                 json!({

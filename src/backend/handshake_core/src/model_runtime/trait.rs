@@ -8,6 +8,14 @@ use super::{
     RuntimeArtifactIntegrityReceipt, Score, SteeringHookHandle, TokenStream,
 };
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct RuntimeExecutionProfile {
+    pub max_context_tokens: u32,
+    pub context_source: String,
+    pub supports_streaming: bool,
+    pub configuration: serde_json::Value,
+}
+
 #[async_trait]
 pub trait ModelRuntime: Send + Sync {
     fn adapter_name(&self) -> &'static str {
@@ -67,6 +75,13 @@ pub trait ModelRuntime: Send + Sync {
     }
 
     fn capabilities(&self, id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError>;
+
+    fn execution_profile(&self, _id: ModelId) -> Result<RuntimeExecutionProfile, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "loaded_runtime_execution_profile".into(),
+            adapter: self.adapter_name().into(),
+        })
+    }
 
     fn kv_cache(&self, id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError>;
 

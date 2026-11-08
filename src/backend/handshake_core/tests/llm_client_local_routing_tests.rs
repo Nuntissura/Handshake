@@ -1454,3 +1454,6 @@ fn llm_routing_surface_stays_engine_agnostic() {
         }
     }
 }
+
+#[path = "llm_client_local_routing_tests/binding_tests.rs"]
+mod binding_tests;

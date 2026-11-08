@@ -758,6 +758,14 @@ impl GenieXBootClient {
 
 #[async_trait::async_trait]
 impl crate::llm::LlmClient for GenieXBootClient {
+    async fn bind_selected_model(&self, deadline: tokio::time::Instant) -> Result<crate::llm::BoundLlmModel, crate::llm::LlmError> {
+        self.inner.bind_selected_model(deadline).await
+    }
+
+    fn revalidate_model_binding(&self, binding: &crate::llm::BoundLlmModel) -> Result<(), crate::llm::LlmError> {
+        self.inner.revalidate_model_binding(binding)
+    }
+
     fn owned_completion(
         self: Arc<Self>,
         req: crate::llm::CompletionRequest,

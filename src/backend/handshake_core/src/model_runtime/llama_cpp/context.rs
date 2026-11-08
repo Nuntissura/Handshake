@@ -36,6 +36,39 @@ pub struct LlamaCppContext {
 }
 
 impl LlamaCppContext {
+    pub(super) fn context_configuration(&self) -> Result<serde_json::Value, ModelRuntimeError> {
+        #[cfg(feature = "llama-cpp-runtime-engine")]
+        {
+            let LlamaCppBackend::Native(native) = &self.backend;
+            let config = &native.context_config;
+            Ok(serde_json::json!({
+                "n_ctx": config.n_ctx.max(1), "n_batch": config.n_batch,
+                "n_threads": config.n_threads, "embeddings": config.embeddings,
+                "causal_attn": config.causal_attn, "n_seq_max": config.n_seq_max,
+                "embedding_pooling": format!("{:?}", config.embedding_pooling),
+            }))
+        }
+        #[cfg(not(feature = "llama-cpp-runtime-engine"))]
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "loaded_runtime_context_configuration".into(),
+            adapter: LLAMA_CPP_NATIVE_FEATURE_DISABLED.into(),
+        })
+    }
+
+    pub(super) fn configured_context_tokens(&self) -> Result<u32, ModelRuntimeError> {
+        #[cfg(feature = "llama-cpp-runtime-engine")]
+        {
+            match &self.backend {
+                LlamaCppBackend::Native(native) => Ok(native.context_config.n_ctx.max(1)),
+            }
+        }
+        #[cfg(not(feature = "llama-cpp-runtime-engine"))]
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "loaded_runtime_execution_profile".into(),
+            adapter: LLAMA_CPP_NATIVE_FEATURE_DISABLED.into(),
+        })
+    }
+
     pub(super) fn load_from_file(
         path: &Path,
         config: &LlamaCppLoadConfig,

@@ -834,6 +834,20 @@ pub(crate) struct WorkspaceArtifactPublicationPermit<'tx> {
     transaction: &'tx super::SurrealTransactionContext<'tx>,
 }
 
+#[derive(Clone)]
+pub(crate) struct RegistryExtractionArtifact {
+    publication: artifact_publications::ArtifactPublicationRow,
+    grant: RegistryPublicationAuthority,
+    managed_root: std::path::PathBuf,
+    manifest: crate::storage::artifacts::ArtifactManifest,
+    payload: std::sync::Arc<[u8]>,
+}
+
+impl RegistryExtractionArtifact {
+    pub(crate) fn manifest(&self) -> &crate::storage::artifacts::ArtifactManifest { &self.manifest }
+    pub(crate) fn payload(&self) -> &[u8] { &self.payload }
+}
+
 impl WorkspaceArtifactPublicationAuthorization {
     pub(crate) fn publication_resources(&self) -> &std::sync::Arc<crate::storage::artifacts::ArtifactPublicationResources> {
         &self.resources
@@ -1140,6 +1154,88 @@ struct ProducerRunCompletion {
 }
 
 impl SurrealStorage {
+    async fn registry_extraction_artifact_binding(
+        &self, permit: &WorkspaceArtifactPublicationPermit<'_>, artifact_id: Uuid,
+    ) -> Result<(artifact_publications::ArtifactPublicationRow, RegistryPublicationAuthority), ResourceAuthorityError> {
+        if artifact_id.is_nil() {
+            return Err(ResourceAuthorityError::InvalidInput("registry extraction artifact UUID required"));
+        }
+        self.revalidate_workspace_artifact_publication_in_transaction(permit.authorization, permit.transaction).await?;
+        let capture = &permit.authorization.capture;
+        let source = self.read_producer_source_facts(AuthorizationRequest {
+            session_token: capture.credentials.session_token.clone(),
+            channel_binding_hash: Some(capture.credentials.channel_binding_hash.clone()),
+            capability_id: "artifact.read".to_owned(), resource_kind: ResourceKind::Artifact,
+            external_resource_id: artifact_id.to_string(), action: ResourceAction::Read,
+        }, &capture.session, &capture.registry).await?;
+        let artifact = self.canonical_resource_locator(ResourceKind::Artifact, &artifact_id.to_string()).await?
+            .ok_or(ResourceAuthorityError::InvalidInput("registry extraction Artifact is not registered"))?;
+        let workspace = permit.workspace_parent();
+        if artifact.id != source.authority.resource_id
+            || artifact.parent_resource_id.as_ref() != Some(&workspace.id)
+            || source.authority.account_id != workspace.owner_account_id
+            || source.authority.access_space_id != workspace.access_space_id
+        {
+            return Err(ResourceAuthorityError::InvalidInput("registry extraction Artifact owner or parent differs"));
+        }
+        let rows: Vec<RegistryPublicationAuthority> = permit.transaction.query_values_at(
+            REGISTRY_PUBLICATION_AUTHORITY, RegistryPublicationBindings {
+                resource: source.authority.resource_id.clone(), original_grant: source.authority.grant_id.clone(),
+                kind: ResourceKind::Artifact.as_str().to_owned(), action: ResourceAction::Read.as_str().to_owned(),
+                capability: "artifact.read".to_owned(),
+            }, 0,
+        ).await?;
+        if rows.as_slice() != std::slice::from_ref(&source.authority) {
+            return Err(ResourceAuthorityError::InvalidInput("registry extraction Artifact read grant changed"));
+        }
+        let locator = artifact_publications::read_artifact_publication_locator(
+            permit.transaction, &artifact_id.to_string(), &workspace.external_resource_id,
+        ).await?.ok_or(ResourceAuthorityError::InvalidInput("registry extraction Artifact publication unavailable"))?;
+        let publication = artifact_publications::read_artifact_publication(
+            permit.transaction, &artifact, workspace, &locator,
+        ).await?.ok_or(ResourceAuthorityError::InvalidInput("registry extraction Artifact publication unavailable"))?;
+        Ok((publication, source.authority))
+    }
+
+    pub(crate) async fn read_registry_extraction_artifact(
+        &self, permit: &WorkspaceArtifactPublicationPermit<'_>, artifact_id: Uuid,
+    ) -> Result<RegistryExtractionArtifact, ResourceAuthorityError> {
+        let (publication, grant) = self.registry_extraction_artifact_binding(permit, artifact_id).await?;
+        let manifest = publication.validated_manifest()?;
+        permit.authorization.require_current_managed_root()?;
+        let (persisted, payload) = permit.authorization.resources
+            .read_file_artifact_payload_owned(manifest.layer, artifact_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("registry extraction owned payload read failed"))?;
+        let actual = serde_json::to_value(persisted.manifest())
+            .map_err(|_| ResourceAuthorityError::InvalidInput("registry extraction manifest serialization failed"))?;
+        let expected = serde_json::to_value(&manifest)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("registry extraction manifest serialization failed"))?;
+        if actual != expected {
+            return Err(ResourceAuthorityError::InvalidInput("registry extraction canonical manifest differs"));
+        }
+        let (after, current_grant) = self.registry_extraction_artifact_binding(permit, artifact_id).await?;
+        permit.authorization.require_current_managed_root()?;
+        if after != publication || current_grant != grant {
+            return Err(ResourceAuthorityError::InvalidInput("registry extraction Artifact changed during read"));
+        }
+        Ok(RegistryExtractionArtifact {
+            publication, grant, managed_root: permit.managed_root().to_path_buf(), manifest,
+            payload: std::sync::Arc::from(payload),
+        })
+    }
+
+    pub(crate) async fn revalidate_registry_extraction_artifact(
+        &self, permit: &WorkspaceArtifactPublicationPermit<'_>, original: &RegistryExtractionArtifact,
+    ) -> Result<(), ResourceAuthorityError> {
+        let (publication, grant) = self.registry_extraction_artifact_binding(permit, original.manifest.artifact_id).await?;
+        if original.managed_root != permit.managed_root()
+            || original.publication != publication || original.grant != grant
+        {
+            return Err(ResourceAuthorityError::InvalidInput("registry extraction original Artifact binding changed"));
+        }
+        Ok(())
+    }
+
     pub(crate) async fn capture_workspace_artifact_publication_authorization(
         &self, operation_id: Uuid, registry: &crate::capabilities::CapabilityRegistry,
         credentials: RoleAuthorityAuthInput, workspace_id: &str,

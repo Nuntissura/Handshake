@@ -225,13 +225,25 @@ pub struct LocalModelRuntimeLlmClient {
     embedded_processes: Mutex<Vec<Arc<EmbeddedModelProcess>>>,
     runtime_control_ledger: Option<LedgerBatcher>,
     runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
-    graceful_shutdown_serial: AsyncMutex<()>,
-    model_swap_serial: AsyncMutex<()>,
+    graceful_shutdown_serial: Arc<AsyncMutex<()>>,
+    model_swap_serial: Arc<AsyncMutex<()>>,
     /// Bounded idempotency surface for destructive runtime-control requests.
     /// Partial receipts are retained exactly like complete receipts so a retry
     /// cannot repeat a mutation after the process-ledger verdict was lost.
     runtime_control_receipts: Mutex<HashMap<Uuid, CachedRuntimeControlReceipt>>,
     graceful_shutdown_complete: AtomicBool,
+}
+
+struct BoundLocalSelection {
+    owner: Arc<AsyncMutex<()>>,
+    _selection_guard: tokio::sync::OwnedMutexGuard<()>,
+    _shutdown_guard: tokio::sync::OwnedMutexGuard<()>,
+    runtime: Arc<dyn ModelRuntime>,
+    registration: ModelRegistration,
+    execution_profile: crate::model_runtime::RuntimeExecutionProfile,
+    artifact_integrity: crate::model_runtime::RuntimeArtifactIntegrityReceipt,
+    catalog_revision: u64,
+    selection_revision: Option<u64>,
 }
 
 #[derive(Clone)]
@@ -301,8 +313,8 @@ impl LocalModelRuntimeLlmClient {
             embedded_processes: Mutex::new(Vec::new()),
             runtime_control_ledger: None,
             runtime_instance: None,
-            graceful_shutdown_serial: AsyncMutex::new(()),
-            model_swap_serial: AsyncMutex::new(()),
+            graceful_shutdown_serial: Arc::new(AsyncMutex::new(())),
+            model_swap_serial: Arc::new(AsyncMutex::new(())),
             runtime_control_receipts: Mutex::new(HashMap::new()),
             graceful_shutdown_complete: AtomicBool::new(false),
         }
@@ -876,6 +888,9 @@ impl LocalModelRuntimeLlmClient {
         control: Option<&super::LlmInvocationControl>,
     ) -> Result<CompletionResponse, LlmError> {
         let started = Instant::now();
+        if let Some(binding) = control.and_then(|control| control.inner.model_binding.as_ref()) {
+            self.revalidate_model_binding(binding)?;
+        }
         let runtime = self.router.resolve(model_id)?;
         let cancel = control.map(super::LlmInvocationControl::token).unwrap_or_default();
         let _active_request = self.register_active_request(model_id, cancel.clone());
@@ -1002,6 +1017,70 @@ impl LocalModelRuntimeLlmClient {
 
 #[async_trait]
 impl LlmClient for LocalModelRuntimeLlmClient {
+    async fn bind_selected_model(&self, deadline: tokio::time::Instant) -> Result<super::BoundLlmModel, LlmError> {
+        let selection_guard = tokio::time::timeout_at(deadline, self.model_swap_serial.clone().lock_owned())
+            .await.map_err(|_| LlmError::ProviderError("model selection binding deadline expired".into()))?;
+        let shutdown_guard = tokio::time::timeout_at(deadline, self.graceful_shutdown_serial.clone().lock_owned())
+            .await.map_err(|_| LlmError::ProviderError("model lifecycle binding deadline expired".into()))?;
+        if self.graceful_shutdown_complete.load(Ordering::Acquire) {
+            return Err(LlmError::ProviderError("model runtime is shut down".into()));
+        }
+        let selected = self.selected_model_id();
+        let Some(model_id) = Self::parse_local_model_id(&selected)? else {
+            return self.fallback.bind_selected_model(deadline).await;
+        };
+        let runtime = self.router.resolve(model_id)?;
+        let registration = self.router.registration(model_id)
+            .ok_or_else(|| LlmError::ProviderError("selected model registration is absent".into()))?;
+        let execution_profile = runtime.execution_profile(model_id).map_err(Self::map_runtime_error)?;
+        if execution_profile.max_context_tokens == 0 {
+            return Err(LlmError::ProviderError("selected model context capacity is unknown".into()));
+        }
+        let artifact_integrity = runtime.artifact_integrity(model_id).map_err(Self::map_runtime_error)?;
+        let selection_revision = *self.active_application_selection_revision.lock()
+            .map_err(|_| LlmError::ProviderError("model selection revision is unavailable".into()))?;
+        let catalog_revision = self.router.runtime_availability.revision();
+        let profile = ModelProfile::new(selected, execution_profile.max_context_tokens)
+            .with_streaming(execution_profile.supports_streaming);
+        let provenance = json!({
+            "registration": registration, "runtime_execution_profile": execution_profile,
+            "artifact_integrity": artifact_integrity, "catalog_revision": catalog_revision,
+            "selection_revision": selection_revision, "model_tier": "local",
+        });
+        let binding = super::BoundLlmModel {
+            profile, provenance,
+            custody: Arc::new(BoundLocalSelection {
+                owner: self.model_swap_serial.clone(), _selection_guard: selection_guard,
+                _shutdown_guard: shutdown_guard, runtime, registration, execution_profile,
+                artifact_integrity, catalog_revision, selection_revision,
+            }),
+        };
+        self.revalidate_model_binding(&binding)?;
+        Ok(binding)
+    }
+
+    fn revalidate_model_binding(&self, binding: &super::BoundLlmModel) -> Result<(), LlmError> {
+        let Some(bound) = binding.custody.downcast_ref::<BoundLocalSelection>() else {
+            return self.fallback.revalidate_model_binding(binding);
+        };
+        let id = bound.registration.model_id;
+        let current = self.router.resolve(id)?;
+        let selection_revision = *self.active_application_selection_revision.lock()
+            .map_err(|_| LlmError::ProviderError("model selection revision is unavailable".into()))?;
+        if !Arc::ptr_eq(&bound.owner, &self.model_swap_serial)
+            || !Arc::ptr_eq(&current, &bound.runtime)
+            || self.selected_model_id() != id.to_string()
+            || selection_revision != bound.selection_revision
+            || self.router.runtime_availability.revision() != bound.catalog_revision
+            || self.router.registration(id).as_ref() != Some(&bound.registration)
+            || current.execution_profile(id).map_err(Self::map_runtime_error)? != bound.execution_profile
+            || current.artifact_integrity(id).map_err(Self::map_runtime_error)? != bound.artifact_integrity
+        {
+            return Err(LlmError::ProviderError("bound selected model changed".into()));
+        }
+        Ok(())
+    }
+
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
         self.completion_inner(req, None).await
     }

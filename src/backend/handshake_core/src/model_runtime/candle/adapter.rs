@@ -175,7 +175,9 @@ impl CandleRuntime {
                     tokenizer.vocab_size, tokenizer.eos_token_ids, &self.native_device)?;
                 let width = model.hidden_dim() as usize;
                 let capabilities = candle_qwen3_gguf_capabilities();
+                let context_capacity_tokens = model.context_capacity_tokens();
                 let handle = CandleModelHandle {
+                    context_capacity_tokens,
                     backend: CandleModelBackend::Qwen3Gguf { model: Arc::new(Mutex::new(Box::new(model))),
                         chat_template: tokenizer.chat_template },
                     capabilities, cancel: CancellationToken::new(),
@@ -345,7 +347,18 @@ impl CandleRuntime {
             }
         };
 
+        let context_capacity_tokens = match &backend {
+            CandleModelBackend::Transformer { model }
+            | CandleModelBackend::Qwen3Gguf { model, .. }
+            | CandleModelBackend::Mamba2 { model }
+            | CandleModelBackend::RwkvV5 { model }
+            | CandleModelBackend::RwkvV6 { model }
+            | CandleModelBackend::RwkvV7 { model } => model.lock()
+                .map_err(|_| ModelRuntimeError::LoadError("Candle model configuration ownership is poisoned".into()))?
+                .context_capacity_tokens(),
+        };
         let handle = CandleModelHandle {
+            context_capacity_tokens,
             backend,
             capabilities,
             cancel: CancellationToken::new(),
@@ -415,6 +428,7 @@ impl Default for CandleRuntime {
 
 #[allow(dead_code)]
 struct CandleModelHandle {
+    context_capacity_tokens: Option<u32>,
     backend: CandleModelBackend,
     capabilities: ModelCapabilities,
     cancel: CancellationToken,
@@ -842,6 +856,23 @@ impl ModelRuntime for CandleRuntime {
                 "hook registry + active steering hooks (Section 10.13.2)"
             } else { "activation steering unsupported by this backend" },
         }))
+    }
+
+    fn execution_profile(&self, id: ModelId) -> Result<crate::model_runtime::RuntimeExecutionProfile, ModelRuntimeError> {
+        let handle = self.models.get(&id)
+            .ok_or_else(|| ModelRuntimeError::LoadError(Self::not_loaded_message(id)))?;
+        let max_context_tokens = handle.context_capacity_tokens.ok_or_else(|| {
+            ModelRuntimeError::CapabilityNotSupported {
+                capability: "observed_context_capacity".into(),
+                adapter: candle_backend_arch_name(&handle.backend).into(),
+            }
+        })?;
+        Ok(crate::model_runtime::RuntimeExecutionProfile {
+            max_context_tokens,
+            context_source: "loaded_candle_model_context_configuration".into(),
+            supports_streaming: true,
+            configuration: self.engine_internals(id)?,
+        })
     }
 
     fn cancel(&self, token: CancellationToken) {

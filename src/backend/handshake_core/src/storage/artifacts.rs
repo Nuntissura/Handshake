@@ -267,6 +267,19 @@ impl ArtifactPublicationResources {
         })
     }
 
+    pub(crate) fn read_file_artifact_payload_owned(
+        &self,
+        layer: ArtifactLayer,
+        id: Uuid,
+    ) -> Result<(PersistedFileArtifact, Vec<u8>), ArtifactError> {
+        self.with_owned_io(artifact_root_dir(&self.workspace_root, layer, id), |inventory| {
+            #[cfg(windows)]
+            { inventory.native.read_payload(&self.workspace_root, layer, id) }
+            #[cfg(not(windows))]
+            { let _ = inventory; Err(ArtifactError::PublicationCustody("native custody unsupported on this target".into())) }
+        })
+    }
+
     fn with_owned_io<T>(&self, target: PathBuf, operation: impl FnOnce(&mut ArtifactPublicationFilesystemInventory) -> Result<T, ArtifactError>) -> Result<T, ArtifactError> {
         let mut inventory = self.inventory.lock().map_err(|_| {
             ArtifactError::PublicationCustody("owner inventory poisoned".into())
@@ -605,6 +618,11 @@ mod native_artifact_custody {
 
         pub(super) fn read(&mut self, root: &Path, layer: ArtifactLayer, id: Uuid)
             -> Result<PersistedFileArtifact, ArtifactError> {
+            self.read_payload(root, layer, id).map(|(persisted, _)| persisted)
+        }
+
+        pub(super) fn read_payload(&mut self, root: &Path, layer: ArtifactLayer, id: Uuid)
+            -> Result<(PersistedFileArtifact, Vec<u8>), ArtifactError> {
             self.acquire(root)?;
             let relative = Self::artifact_relative(layer, id);
             let manifest: ArtifactManifest = serde_json::from_slice(&self.read_bytes(&relative.join(ARTIFACT_MANIFEST_FILENAME))?)?;
@@ -615,7 +633,7 @@ mod native_artifact_custody {
             if sha256_hex(&payload) != manifest.content_hash || payload.len() as u64 != manifest.size_bytes {
                 return Err(ArtifactError::ContentHashMismatch);
             }
-            Ok(PersistedFileArtifact { manifest })
+            Ok((PersistedFileArtifact { manifest }, payload))
         }
 
         pub(super) fn close(&mut self, committed: bool) -> Result<(), ArtifactError> {

@@ -228,18 +228,38 @@ struct InvocationControlInner {
     observer: Arc<crate::model_runtime::activity::RuntimeActivityObserver>,
     kind: Mutex<InvocationResourceKind>,
     finished: tokio::sync::watch::Sender<Option<tokio::time::Instant>>,
+    model_binding: Option<BoundLlmModel>,
+}
+
+#[derive(Clone)]
+pub struct BoundLlmModel {
+    profile: ModelProfile,
+    provenance: Value,
+    custody: Arc<dyn std::any::Any + Send + Sync>,
+}
+
+impl BoundLlmModel {
+    pub fn profile(&self) -> &ModelProfile { &self.profile }
+    pub fn provenance(&self) -> &Value { &self.provenance }
+}
+
+struct BoundRuntimeModel {
+    runtime: Arc<dyn ModelRuntime>,
+    model_id: ModelId,
+    execution_profile: crate::model_runtime::RuntimeExecutionProfile,
+    artifact_integrity: crate::model_runtime::RuntimeArtifactIntegrityReceipt,
 }
 
 #[derive(Clone)]
 pub struct LlmInvocationControl { inner: Arc<InvocationControlInner> }
 
 impl LlmInvocationControl {
-    fn new(deadline: tokio::time::Instant) -> Self {
+    fn with_model_binding(deadline: tokio::time::Instant, model_binding: Option<BoundLlmModel>) -> Self {
         let observer = Arc::new(crate::model_runtime::activity::RuntimeActivityObserver::default());
         let (finished, _) = tokio::sync::watch::channel(None);
         Self { inner: Arc::new(InvocationControlInner {
             deadline, cancel: CancellationToken::observed(observer.clone()), observer,
-            kind: Mutex::new(InvocationResourceKind::NeverSubmitted), finished,
+            kind: Mutex::new(InvocationResourceKind::NeverSubmitted), finished, model_binding,
         }) }
     }
 
@@ -359,7 +379,21 @@ pub trait LlmClient: Send + Sync + 'static {
         req: CompletionRequest,
         deadline: tokio::time::Instant,
     ) -> OwnedLlmCompletion {
-        let control = LlmInvocationControl::new(deadline);
+        self.owned_completion_with_optional_binding(req, None, deadline)
+    }
+
+    fn owned_completion_with_binding(
+        self: Arc<Self>, req: CompletionRequest, binding: BoundLlmModel,
+        deadline: tokio::time::Instant,
+    ) -> OwnedLlmCompletion {
+        self.owned_completion_with_optional_binding(req, Some(binding), deadline)
+    }
+
+    fn owned_completion_with_optional_binding(
+        self: Arc<Self>, req: CompletionRequest, binding: Option<BoundLlmModel>,
+        deadline: tokio::time::Instant,
+    ) -> OwnedLlmCompletion {
+        let control = LlmInvocationControl::with_model_binding(deadline, binding);
         let execution = control.clone();
         let future = Box::pin(async move {
             if execution.inner.cancel.is_cancelled() {
@@ -367,6 +401,12 @@ pub trait LlmClient: Send + Sync + 'static {
             }
             if tokio::time::Instant::now() >= deadline {
                 return Err(LlmError::ProviderError("invocation deadline expired".to_string()));
+            }
+            if let Some(binding) = &execution.inner.model_binding {
+                if req.model_id != binding.profile.model_id {
+                    return Err(LlmError::ProviderError("bound model differs from request".into()));
+                }
+                self.revalidate_model_binding(binding)?;
             }
             tokio::select! {
                 _ = execution.inner.cancel.cancelled() => {
@@ -391,6 +431,9 @@ pub trait LlmClient: Send + Sync + 'static {
         req: CompletionRequest,
         control: LlmInvocationControl,
     ) -> Result<CompletionResponse, LlmError> {
+        if control.inner.model_binding.is_some() {
+            return Err(LlmError::ProviderError("bound model dispatch is unavailable".into()));
+        }
         control.mark_dispatch(InvocationResourceKind::Unknown);
         self.completion(req).await
     }
@@ -514,6 +557,14 @@ pub trait LlmClient: Send + Sync + 'static {
 
     /// Returns the model profile (capabilities, token limits).
     fn profile(&self) -> &ModelProfile;
+
+    async fn bind_selected_model(&self, _deadline: tokio::time::Instant) -> Result<BoundLlmModel, LlmError> {
+        Err(LlmError::ProviderError("selected runtime profile binding is unavailable".into()))
+    }
+
+    fn revalidate_model_binding(&self, _binding: &BoundLlmModel) -> Result<(), LlmError> {
+        Err(LlmError::ProviderError("selected runtime profile binding is unavailable".into()))
+    }
 
     /// Returns the model currently selected for new default-routed calls.
     /// Providers without runtime selection inherit the static profile model.
@@ -1117,6 +1168,41 @@ impl ModelRuntimeLlmClient {
 
 #[async_trait]
 impl LlmClient for ModelRuntimeLlmClient {
+    async fn bind_selected_model(&self, _deadline: tokio::time::Instant) -> Result<BoundLlmModel, LlmError> {
+        let execution_profile = self.runtime.execution_profile(self.model_id)
+            .map_err(|error| LlmError::ProviderError(error.to_string()))?;
+        let artifact_integrity = self.runtime.artifact_integrity(self.model_id)
+            .map_err(|error| LlmError::ProviderError(error.to_string()))?;
+        let limit = execution_profile.max_context_tokens.min(self.profile.max_context_tokens);
+        if limit == 0 {
+            return Err(LlmError::ProviderError("loaded runtime context capacity is unknown".into()));
+        }
+        Ok(BoundLlmModel {
+            profile: ModelProfile::new(self.model_id.to_string(), limit)
+                .with_streaming(execution_profile.supports_streaming),
+            provenance: json!({"model_id": self.model_id, "runtime_execution_profile": execution_profile,
+                "artifact_integrity": artifact_integrity, "adapter_request_ceiling": self.profile.max_context_tokens,
+                "model_tier": "local"}),
+            custody: Arc::new(BoundRuntimeModel {
+                runtime: self.runtime.clone(), model_id: self.model_id, execution_profile, artifact_integrity,
+            }),
+        })
+    }
+
+    fn revalidate_model_binding(&self, binding: &BoundLlmModel) -> Result<(), LlmError> {
+        let bound = binding.custody.downcast_ref::<BoundRuntimeModel>()
+            .ok_or_else(|| LlmError::ProviderError("runtime model binding has a different owner".into()))?;
+        if !Arc::ptr_eq(&bound.runtime, &self.runtime) || bound.model_id != self.model_id
+            || self.runtime.execution_profile(self.model_id)
+                .map_err(|error| LlmError::ProviderError(error.to_string()))? != bound.execution_profile
+            || self.runtime.artifact_integrity(self.model_id)
+                .map_err(|error| LlmError::ProviderError(error.to_string()))? != bound.artifact_integrity
+        {
+            return Err(LlmError::ProviderError("loaded runtime model binding changed".into()));
+        }
+        Ok(())
+    }
+
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
         self.completion_inner(req, None).await
     }

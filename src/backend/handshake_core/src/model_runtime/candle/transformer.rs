@@ -16,6 +16,8 @@ use super::{
 use crate::model_runtime::{LoraId, LoraStackHandle, ModelId, ModelRuntimeError, SteeringVectorId};
 
 pub trait TransformerModel: Send {
+    fn context_capacity_tokens(&self) -> Option<u32> { None }
+
     fn forward(
         &mut self,
         input_ids: &Tensor,
@@ -215,6 +217,10 @@ impl CandleLlamaModel {
 }
 
 impl TransformerModel for CandleLlamaModel {
+    fn context_capacity_tokens(&self) -> Option<u32> {
+        u32::try_from(self.config.max_position_embeddings).ok().filter(|limit| *limit > 0)
+    }
+
     fn forward(
         &mut self,
         input_ids: &Tensor,
@@ -403,6 +409,10 @@ impl CandleQwen3GgufModel {
 }
 
 impl TransformerModel for CandleQwen3GgufModel {
+    fn context_capacity_tokens(&self) -> Option<u32> {
+        u32::try_from(self.context).ok().filter(|limit| *limit > 0)
+    }
+
     fn forward(&mut self, input_ids: &Tensor, hooks: &CandleSteeringHooks,
         steering: &[SteeringVectorId], lora: &[LoraId]) -> Result<Tensor, ModelRuntimeError> {
         self.validate_lora_overrides(lora)?;

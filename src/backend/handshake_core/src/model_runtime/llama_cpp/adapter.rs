@@ -555,6 +555,21 @@ impl ModelRuntime for LlamaCppRuntime {
         }))
     }
 
+    fn execution_profile(&self, id: ModelId) -> Result<crate::model_runtime::RuntimeExecutionProfile, ModelRuntimeError> {
+        let handle = self.models.get(&id).ok_or_else(|| {
+            ModelRuntimeError::LoadError(format!("llama.cpp model is not loaded: {id}"))
+        })?;
+        Ok(crate::model_runtime::RuntimeExecutionProfile {
+            max_context_tokens: handle.context.configured_context_tokens()?,
+            context_source: "loaded_llama_cpp_context_params.n_ctx".into(),
+            supports_streaming: true,
+            configuration: serde_json::json!({
+                "engine": self.engine_internals(id)?,
+                "context": handle.context.context_configuration()?,
+            }),
+        })
+    }
+
     fn cancel(&self, token: CancellationToken) {
         token.cancel();
         for handle in self.models.values() {

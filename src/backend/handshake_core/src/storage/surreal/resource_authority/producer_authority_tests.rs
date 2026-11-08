@@ -46,6 +46,7 @@ struct Fixture {
     original_operation: Option<Uuid>,
     activation_unsettled: bool,
     producer_run: Option<ProducerRunRecovery>,
+    artifact_case: Option<registry_extraction_tests::ArtifactCaseState>,
 }
 
 type ProducerRunInvocation = Pin<Box<dyn Future<Output = ProducerRunCompletion>>>;
@@ -87,7 +88,7 @@ impl Fixture {
             workspace: None, runtime: None, runtime_start_uncertain: false, runtime_drained: false,
             settlement: None, revocation: None, revocation_uncertain: false,
             prepared_latch: None, original_operation: None,
-            activation_unsettled: false, producer_run: None,
+            activation_unsettled: false, producer_run: None, artifact_case: None,
         })
     }
 
@@ -447,6 +448,9 @@ impl Fixture {
         if self.activation_unsettled || self.runtime_start_uncertain || self.session_exchange_uncertain
             || self.revocation_uncertain || self.settlement.is_some() {
             return Err("original activation owner is unresolved; retain complete fixture".into());
+        }
+        if let Some(artifacts) = self.artifact_case.as_mut() {
+            artifacts.reconcile(&self.bootstrap.surreal).await?;
         }
         self.reconcile_producer_run().await?;
         if self.session.is_some() {
@@ -985,3 +989,5 @@ fn workspace_activation_observation_http_preserves_original_uuid_prepared_unknow
         Ok(())
     }))
 }
+
+mod registry_extraction_tests;

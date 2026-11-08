@@ -19,6 +19,8 @@ use crate::flight_recorder::{
 };
 use crate::mex::registry::MexRegistry;
 
+pub(crate) mod extraction;
+
 #[derive(Debug, Error)]
 pub enum CapabilityRegistryWorkflowError {
     #[error("CAP_REG_REPO_ROOT_RESOLVE_FAILED")]
