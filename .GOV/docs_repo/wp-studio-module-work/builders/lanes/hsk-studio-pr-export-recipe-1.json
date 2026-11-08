@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-reel",
   "lane": "SMB-PR-EXPORT-RECIPE-1",
-  "status": null,
-  "phase": "review",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 8712fa23 to origin/codex/handshake-studio-assets (rebased on cede5958); unjudged",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "aa68164c",
   "commits": [
@@ -25,24 +25,49 @@
       "sha": "c79c858d",
       "what": "items 2-9: export_parameters (453 rows), export_recipe (StudioExportRecipe, job_from_recipe), Container::capability, presets through the record, DESCRIPTOR",
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/focus2-smb-pr-export-recipe-1-f5406a31.log (run on the tree committed as c79c858d; 17/17)"
+    },
+    {
+      "sha": "fa7c2c4d",
+      "what": "red: review F1 (*.vtt output with a sidecar) and F2 (caption receipt after a sidecar rename failure, Windows) in tests/export_publish_safety.rs; 2 of 11 red by running",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-export-recipe-1/red-f1f2-smb-pr-export-recipe-1-fa7c2c4d.log (9 passed, 2 failed, EXIT 100)"
+    },
+    {
+      "sha": "345f8e99",
+      "what": "F1 fix: CaptionPlan::new refuses export-sidecar-path when the output extension is vtt in any case"
+    },
+    {
+      "sha": "5ee985bc",
+      "what": "F2 fix: receipt.captions filled (sidecar_sha256 None) when the media is published and the sidecar rename fails"
+    },
+    {
+      "sha": "91000d02",
+      "what": "F3 fix: publish() uses std::fs::hard_link without overwrite (AlreadyExists = export-output-exists / export-sidecar-exists), exists re-check + rename fallback when the link fails otherwise; unit test publish_without_overwrite_never_replaces_an_existing_entry",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-export-recipe-1/focus-f123-smb-pr-export-recipe-1-91000d02.log (18/18: publish_safety 11, export_queue + export_captions 6, unit 1; EXIT 0)"
+    },
+    {
+      "sha": "9784bcf5",
+      "what": "clippy collapsible_if on the sidecar publish (let chain)"
     }
   ],
   "capabilities_done": [],
   "tests": {
-    "focused_not_bundled": "focused runs only; the bundled lane-check has NOT run (held for the lead's review, HANDOFF workflow item 10)",
-    "export_publish_safety": "9 tests (1 cfg(windows)); 7 red at e072cb46, all green after the fix",
+    "focused_not_bundled": "superseded by tests.bundled",
+    "export_publish_safety": "11 tests (2 cfg(windows)); F1/F2 red at fa7c2c4d, green at 91000d02 and in the bundled run",
     "export_queue+export_captions": "unedited, green with the fix (export_captions.rs:161 unedited)",
     "export_parameters": "4 tests green",
     "export_recipe": "9 tests green (preset pin green before and after the change)",
     "unit": "export::tests::capability_equals_the_muxer_answer green (140 cells, 70 carried)",
-    "clippy": "cargo clippy -p hsk-studio-reel --tests clean (default features) at f5406a31 + the c79c858d tree; dependents and feature units not yet"
+    "clippy": "cargo clippy -p hsk-studio-reel --tests clean (default features) at f5406a31 + the c79c858d tree; dependents and feature units not yet",
+    "bundled": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-export-recipe-1/bundled-smb-pr-export-recipe-1-9784bcf5.log (first line sha 9784bcf5), one disk-lock hold on D:, EXIT 0: lane-check step 0 clean + clippy reel and its dependents clean of errors (no reel warning; pre-existing observe/harness-core/type warnings), nextest reel default 175/175; reel+av1 182/182; reel+prores 181/181; reel+av1-encode 180/180; reel+av1,av1-encode 187/187; reel+studio-aac 181/181; doctest reel 2 result lines, 1 passed each, 0 failed; harness+media 6 named binaries 22/22; harness-view+desktop,audio-batch viewer_timeline_nest + _2 15/15",
+    "per_sha": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-export-recipe-1/per-sha-smb-pr-export-recipe-1-8712fa23.log (first line sha 8712fa23): lane-check --owner smb-r53-followups-1 --disk d --per-sha HEAD~1, range 270b12d6..8712fa23, 1 sha, changed [hsk-studio-reel], dependents [harness, harness-view, reel-native]: default + 31 feature units ok (32), PER_SHA_RESULT OK, EXIT 0; unit logs under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/per-sha-8712fa23/",
+    "rebase": "rebased on origin cede5958: the 12 landed commits since aa68164c touch no hsk-studio-reel file, so no extra cargo check or suite run (lead RELEASED step 2); the bundled run at 9784bcf5 is the suite proof, tree content of reel identical"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 129,
   "bg_pids": [],
-  "next": "lead: read-only code-check and red-team on aa68164c..c79c858d; then the builder runs the one bundled lane-check",
-  "updated_at": "2026-11-07T17:58:44Z",
+  "next": "validator: judge SMB-PR-EXPORT-RECIPE-1 at 8712fa23 (range cede5958..8712fa23; READY claim cites the bundled log at 9784bcf5 and the per-sha log at 8712fa23); never PASS by the builder",
+  "updated_at": "2026-11-08T06:21:39Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -178,10 +203,11 @@
       "tests that collapse hard and soft": "none: no soft_min/soft_max in any reel test before this lane; export_parameters asserts soft absent on all 453"
     },
     "not_proven_or_not_run": [
-      "bundled lane-check not run yet (clippy dependents, round feature units av1/prores/av1-encode/av1+av1-encode/studio-aac, doctests, harness/harness-view focused tests)",
-      "e (no delete before rename): proven only that overwrite replaces and a directory target keeps the old entry; a rename failing after a successful delete cannot be forced portably",
-      "d sidecar-rename-after-media receipt: Windows-only test (POSIX rename replaces an open file)",
-      "race with a writer outside reel between the re-check and the rename: narrowed, not closed (atomic no-replace publish needs a platform call; next lane)",
+      "F3 atomicity under a real concurrent writer: not forceable in a test; the unit test proves only refusal of an existing entry and the link publish",
+      "F3 fallback path (no hard links) not run: no FAT/exFAT volume in the test",
+      "a hard-linked temp name whose removal fails (Windows: output held open without delete sharing by another process) is left behind silently, as the item cleanup ignores remove errors",
+      "e (no delete before rename): a rename failing after a successful delete cannot be forced portably",
+      "d and F2 sidecar-rename-after-media receipts: Windows-only tests",
       "vendor parity UNVERIFIED (D5)"
     ],
     "mts_read": "read active acceptance of all 51; MT proof commands name hsk-studio-pulse tests/contracts.rs (F-R55-3 class), not repointed",
@@ -222,6 +248,27 @@
       "JSON parser / import",
       "harness-view render_queue through the recipe"
     ],
-    "host_integration_note": "job_from_recipe returns ExportJob, so AdmittedExportQueue::submit admits it unchanged (no harness-view edit). New receipt fields published_media / published_sidecar: harness settlement of a Failed receipt does not read them yet (NOT_INSPECTED beyond job_admission.rs submit/run)"
+    "host_integration_note": "job_from_recipe returns ExportJob, so AdmittedExportQueue::submit admits it unchanged (no harness-view edit). New receipt fields published_media / published_sidecar: harness settlement of a Failed receipt does not read them yet (NOT_INSPECTED beyond job_admission.rs submit/run)",
+    "review_c79c858d": {
+      "F1": "applied as stated (345f8e99), red fa7c2c4d: x.vtt and x.VTT refused export-sidecar-path, 0 frame calls, no entries",
+      "F2": "applied as stated (5ee985bc), red fa7c2c4d (Windows test, embed true): captions Some, track_samples > 0, sidecar_sha256 None",
+      "F3": "applied (91000d02); the review named no red test (the race is not forceable without a fault hook, V4-04); the unit test proves refusal without replace and the link publish on this machine (no NOT_PROVEN line printed)",
+      "beyond_review": "F3 also applied to the sidecar publish without overwrite (same failure class, V4-06; code export-sidecar-exists; after the media is published that is a Failed receipt with published_media true)",
+      "f3_fallback": "every hard_link error except AlreadyExists falls back to the exists re-check + rename: the FAT/exFAT/ReFS error code is not documented (CreateHardLinkW docs), and std maps only ERROR_CALL_NOT_IMPLEMENTED to Unsupported (library/std/src/sys/io/error/windows.rs, master); the fallback keeps the old narrowed race",
+      "incident": "2026-11-08 06:04Z the builder ran the previous builder's scratchpad lane_update.py by a name collision (V4-12); its only effect on this file was updated_at; this update was written by lane_update_r2_fix.py"
+    },
+    "push": "guarded push SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\": cede5958..8712fa23, exit 0; git ls-remote shows 8712fa2366e8117f430a2160ced3afd0d9a77e64"
+  },
+  "ready_sha": "8712fa23",
+  "rebased_shas": {
+    "e072cb46": "9e0cd70d",
+    "a4e4557e": "a2bcf679",
+    "f5406a31": "a6a1adaa",
+    "c79c858d": "54ca1b94",
+    "fa7c2c4d": "6146bbd9",
+    "345f8e99": "ce22ae45",
+    "5ee985bc": "3f275bd0",
+    "91000d02": "270b12d6",
+    "9784bcf5": "8712fa23"
   }
 }

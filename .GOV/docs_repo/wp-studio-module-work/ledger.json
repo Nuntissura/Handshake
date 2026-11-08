@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T06:00:13Z",
+ "updated_at": "2026-11-08T06:22:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19598,8 +19598,8 @@
   },
   {
    "lane_id": "SMB-PR-EXPORT-RECIPE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-reel",
    "lane_file": "builders/lanes/hsk-studio-pr-export-recipe-1.json",
    "brief": "builders/briefs/lane-smb-pr-export-recipe-1.md",
@@ -19607,7 +19607,7 @@
    "base": "aa68164c",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T17:22:06Z",
+   "updated_at": "2026-11-08T06:22:19Z",
    "closes": [
     "Fixed sidecar temp name at src/export.rs:866, noted by the lead from SMB-SESSION-WRITE-SAFETY-1",
     "New finding from this read, not yet run: an item refused or failing in one ExportQueue deletes another queue's live temp in the same process (src/export.rs:755-761, :798, :836)",
@@ -19665,7 +19665,8 @@
     "MT-33438",
     "MT-35261",
     "MT-35295"
-   ]
+   ],
+   "claim": "cede5958..8712fa23"
   },
   {
    "lane_id": "SMB-DRIVE-TYPED-2",
