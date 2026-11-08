@@ -22965,6 +22965,16 @@
      "how": "new GitHub branches, plain push of each pre-rebase tip, no force, each verified with ls-remote; their content landed on the product branch in rebased form, so these are durability copies only. Deleting them later needs the Operator."
     },
     "p3": "C: live lane targets go from 0 to 4 (cap 6). D: unchanged at 11."
+   },
+   "r60_attempt_1": {
+    "at": "2026-11-08T06:20:01Z",
+    "result": "not opened: canary exit 75 at step 0 after 82 s (05:43:39Z to 05:45:01Z); no build, no union, no verdict; all 19 claims stay READY (round-R60.json, ledger round_R60, kernel d477d06e).",
+    "cause": "F-R60-1 HIGH: png =0.18.1 and sha2 =0.10.9 in hsk-studio-native-host (045bb059, SMB-VK-HOST-1) have no registry pin in root Cargo.toml and no workspace-probe APPROVED entry; dep-requests lines 205-206 were filed and never applied.",
+    "lead_action": "Steward sync dispatched about 06:20Z (tools/steward-sync.sh, dry run first; record research/steward-sync-20261108-F-R60-1.json). Then R60 attempt 2: fresh freeze at the new origin tip, FULL with canary (root inputs change again).",
+    "c_disk": "C: is free until attempt 2: the four C: builders were told C: OPEN for cargo check and focused tests; bundled runs still wait for pre-build review; HOLD C: goes out before attempt 2 is dispatched.",
+    "follow_up_F_R60_2": "lane-check.sh never runs the registry-sync check, so builders did not see F-R60-1. Fix it in the kernel tool only when no lane run is in flight (HANDOFF lessons: never edit a tool script a running builder may be reading), or ship it as a new file and switch over. Until then the lead checks dep-requests against registry pins before each round.",
+    "leads_for_attempt_2": "validator-R60/review-R60-A..H.json (17 of 19 claims read; LAYOUT-PDF-HOST-1 and WEB-HOST-1 not inspected). HIGH lead: DOC-EXPORT-1 export_document outside the session JobPort (doc_export.rs:844).",
+    "lead_note": "The lead learned of the step-0 failure only at the validator's end of turn, about 35 minutes after it happened (C: idle meanwhile). Next round prompts tell the validator to message the lead at once when the canary fails."
    }
   }
  },
