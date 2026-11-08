@@ -254,7 +254,7 @@ fn prestarted_mcp_transfers_live_connection_to_headless_app_and_cleans_on_drop()
         "live inspect failed: {snapshot}"
     );
     assert!(
-        snapshot["result"]["widget_count"]
+        snapshot["result"]["snapshot"]["widget_count"]
             .as_u64()
             .expect("live widget count")
             > 1
