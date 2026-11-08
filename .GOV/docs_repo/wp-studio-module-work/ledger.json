@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T08:53:46Z",
+ "updated_at": "2026-11-08T09:25:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19728,8 +19728,8 @@
   },
   {
    "lane_id": "SMB-VK-UI-PASS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-vulkan (UI pass, atlases, checked-in SPIR-V, offline spv-build tool with its own workspace), hsk-studio-native-host (feature document: compose hook, --chrome switch, receipts)",
    "lane_file": "builders/lanes/hsk-studio-vk-ui-pass-1.json",
    "brief": "builders/briefs/lane-smb-vk-ui-pass-1.md",
@@ -19737,7 +19737,7 @@
    "base": "cede5958",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T05:38:24Z",
+   "updated_at": "2026-11-08T09:25:46Z",
    "closes": [
     "direction.blocker_decisions_20261107 order step 'the Vulkan UI pass' (after SMB-GUI-SPINE-1, before panel fan-out): the chrome drawn on Vulkan, offscreen and in the quiet window, behind a switch",
     "scope-20261107-gui-spine-1 next_slices[0]: offline WGSL to SPIR-V with naga 27.0.3 under crates/hsk-studio-vulkan (O3), the 11-prim list on the host device, shelf-packed glyph alpha atlas and two-tint icon atlas, offscreen first, pixel compare against the CPU painter",
@@ -19749,7 +19749,8 @@
     "MT-34654 (read; STU-SHL-110 chain: the spine's recorded deviation continues; no claim)",
     "MT-34640 (read; STU-SHL-109 gate tests belong to a later slice; no claim)",
     "Scan of all 6220 rows in K/.GOV/task_packets/WP-KERNEL-STUDIO/ (python): no row names a glyph atlas, SPIR-V, a display list, a primitive pass or a Vulkan UI pass; shader-named rows MT-31216, MT-31268, MT-31291, MT-31292, MT-31479, MT-31480, MT-32923, MT-32962 are user-content shaders, not this pass"
-   ]
+   ],
+   "claim": "cede5958..88b5500c (compose hook 42e9e5a4 landed early)"
   },
   {
    "lane_id": "SMB-AI-LIVE-EFFECTS-1",

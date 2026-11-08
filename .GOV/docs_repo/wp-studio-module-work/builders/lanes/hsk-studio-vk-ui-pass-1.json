@@ -1,19 +1,84 @@
 {
   "crate": "hsk-studio-vulkan (UI pass, atlases, checked-in SPIR-V, offline spv-build tool with its own workspace), hsk-studio-native-host (feature document: compose hook, --chrome switch, receipts)",
   "lane": "SMB-VK-UI-PASS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
   "base": "cede5958",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "42e9e5a4",
+      "subject": "the compose hook (pushed to origin)"
+    },
+    {
+      "sha": "e221ddd8",
+      "subject": "item V red"
+    },
+    {
+      "sha": "920e2efb",
+      "subject": "item V, the validation layer on and counted"
+    },
+    {
+      "sha": "503f6874",
+      "subject": "item 1 red (Cargo.lock line)"
+    },
+    {
+      "sha": "980685f4",
+      "subject": "item 2, offline SPIR-V (O3)"
+    },
+    {
+      "sha": "ff7dd346",
+      "subject": "items 3 to 6"
+    },
+    {
+      "sha": "def127d7",
+      "subject": "item 7 red"
+    },
+    {
+      "sha": "6da0ed31",
+      "subject": "item 7, --chrome vulkan in the host"
+    },
+    {
+      "sha": "c1206737",
+      "subject": "item 8, README"
+    },
+    {
+      "sha": "c2538479",
+      "subject": "review F1 to F4 red"
+    },
+    {
+      "sha": "0a257713",
+      "subject": "review F1 to F6"
+    },
+    {
+      "sha": "88b5500c",
+      "subject": "full-frame parity on SMB-GUI-FRAME-1 frame"
+    }
+  ],
+  "capabilities_done": [
+    "compose hook (pushed 42e9e5a4)",
+    "item V: validation layer on in debug builds, messenger counting errors and warnings, receipts carry state and report, positive control",
+    "item 2: offline SPIR-V via spv-build (own workspace, lock subset), manifest, workspace-probe entry",
+    "items 3-6: dynamicRendering enabled, pane views, UI pass pipeline, glyph and icon pages, all 11 primitive classes at measured parity",
+    "item 7: --chrome cpu|vulkan, VulkanChrome through the compose hook, offscreen parity and CPU/diff PNGs, window draws, receipt ui_pass (SPIR-V sha2 vs manifest), --ui-trace, truth strings",
+    "item 8: spine frame parity at four scales (exact), offscreen = quiet window, two runs equal, exercise without new glyph uploads, idle frames, no-focus source scan over hsk-studio-vulkan/src, README"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-pr-retime-hold-1 --disk d -- cargo nextest run -p hsk-studio-vulkan -p hsk-studio-native-host -p kumihimo-ui --features hsk-studio-native-host/document --no-fail-fast --no-capture; then lane-check.sh --owner smb-pr-retime-hold-1 --disk d --per-sha 920e2efb..503f6874",
+    "exit": 0,
+    "sha": "88b5500c",
+    "passed": 124,
+    "failed": 0,
+    "per_sha": "PER_SHA_RESULT OK (503f6874, whole workspace: default unit and every round feature unit), exit 0",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-ui-pass-1/smb-vk-ui-pass-1-bundled-88b5500c.log",
+    "validation": "on (VK_LAYER_KHRONOS_validation 1.4.363): 20 GPU checks errors 0 warnings 0; only VUID the intentional positive control (VUID-vkResetFences-fenceCount-arraylength, owner::tests); loader notes pattern-checked"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T05:38:24Z",
+  "next": "validator: judge SMB-VK-UI-PASS-1 at 88b5500c (READY_FOR_VALIDATION); builder holds",
+  "updated_at": "2026-11-08T09:25:19Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -48,6 +113,70 @@
       "MT-34640 (read; STU-SHL-109 gate tests belong to a later slice; no claim)",
       "Scan of all 6220 rows in K/.GOV/task_packets/WP-KERNEL-STUDIO/ (python): no row names a glyph atlas, SPIR-V, a display list, a primitive pass or a Vulkan UI pass; shader-named rows MT-31216, MT-31268, MT-31291, MT-31292, MT-31479, MT-31480, MT-32923, MT-32962 are user-content shaders, not this pass"
     ],
-    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+    "reuses_tree_and_target": "smb-pr-retime-hold-1",
+    "branch": "lane/smb-vk-ui-pass-1 from cede5958 (tree was lane/smb-ui-tree-1-d at 12133fdf, contained in origin/codex/handshake-studio-assets)",
+    "clippy_preexisting": "lane-check clippy shows 4 pre-existing native-host warnings at cede5958 code (scene.rs:135 x2, window.rs:237, window.rs:733), none in gui/mod.rs; not fixed in the hook commit",
+    "hook_pushed": {
+      "sha": "42e9e5a4e7d8148c16ac695eeafbf8d5321188c2",
+      "at": "2026-11-08T06:40:05Z",
+      "origin_before": "8712fa23",
+      "ls_remote": "42e9e5a4e7d8148c16ac695eeafbf8d5321188c2 refs/heads/codex/handshake-studio-assets",
+      "ready": false
+    },
+    "byte_identity_proof": {
+      "method": "temporary probe test (removed before commit): canvas fnv64 at 800x480 and 1000x600, scales 1000/1250/1500/2000, before and after a command",
+      "base_log": "probe-base-cede5958.log",
+      "hook_log": "hook-green-cede5958.log",
+      "hashes_16_identical": true,
+      "hashes": [
+        "800x480@1000 dc6d84a86e9bec22 61c91d7cd75209f7",
+        "800x480@1250 faca7e0a85297400 0cb4d9425036fa12",
+        "800x480@1500 b380b9b6597f4da3 70a4f1ecfea2c6c7",
+        "800x480@2000 74d945a517a19d0d 51722b876fe9bf27",
+        "1000x600@1000 b33b0c551ab8f1a7 6c4b0e356059b312",
+        "1000x600@1250 6470596c3e472199 a20f1c0af91dcfef",
+        "1000x600@1500 38b672f7e5bd6a67 c61a44ecc93731ea",
+        "1000x600@2000 4f5eb6edc90cdefd 68ee16df297cf7b5"
+      ]
+    },
+    "validation_warnings": [
+      {
+        "id": "Loader Message",
+        "count": "9 per instance",
+        "text": "Layer \"<implicit layer>\" forced disabled because name matches filter of env var VK_LOADER_LAYERS_DISABLE.",
+        "ruling": "lead 2026-11-08: counted apart as loader_warnings; F1 makes it verifiable (pattern-checked, any other loader message is a warning and fails the tests)"
+      }
+    ],
+    "parity_bounds": "Measured maxima, all bounds equal to them: synthetic classes at scales 1, 1.25, 1.5, 2: 0 for rect, edge, checker, scissor, opaque and translucent image, translucent rect, box glyphs, icons; 1 for gradient glyphs, rrect, line, dash, shadow, ramp; gallery scenes and specimen 0; spine frame 800x480 at 4 scales before and after a command 0; SMB-GUI-FRAME-1 full frame 1920x1080 and 1280x720, 11 lists with rotated ruler labels: 0 in every class (aa, flat, glyph, icon, image_translucent, scissor, translucent).",
+    "spv_build": "spv-build/Cargo.lock: 34 packages (33 registry + spv-build), root lock pruned by cargo metadata --offline; release --check reproduces debug bytes; spirv-val --target-env vulkan1.3 accepts both modules; capabilities Shader and ImageQuery (the Restrict image bounds check needs OpImageQuerySize); explicit binding map since fake_missing_bindings is false.",
+    "workspace_probe": "TOOLKIT_ALLOWED_WGSL + crates/hsk-studio-vulkan/shaders/ui.wgsl; self-test case for a second shader under that crate; self-test 81 cases ok (rustc 1.97.1, artifact folder).",
+    "captures": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-ui-pass-1/captures-88b5500c/ (gui-vulkan-offscreen.png, .cpu.png, .diff.png, gui-vulkan-swapchain.png, receipts, gui-vulkan-trace.json, GUI-FRAME-1 frame captures, layered.handshake)",
+    "not_proven": [
+      "real device loss (fake ChromeTarget only)",
+      "Core/generation mismatch refusal of UiPass::draw (no test)",
+      "F5 invalid_extent above the framebuffer/viewport limits (unreachable here, no test)",
+      "MAX_FRAME_IMAGES skip (no test)",
+      "GPU draw of 1,000,000 rects and of the 3,000-glyph flood (recorder-only; GPU pass breaks proven by the 128-page test)",
+      "studio-vk binary runs through studio_gpu_run (captures come from the test run)",
+      "synchronization validation (VkValidationFeaturesEXT) not enabled: lead question open"
+    ],
+    "rebase": "Rebased on origin eb17fad6 (SMB-GUI-FRAME-1 landed). Conflicts resolved per review rebase_note: gui/mod.rs (doc header; StatusFacts.chrome and status_texts readout 3 = self.chrome.code(); \"; chrome vulkan\" device suffix before cut(256); paint_stats in the Cpu arm; drive_chrome kept beside GUI-FRAME-1 helpers) and README.md. Approved: tests/gui_chrome.rs:535 expects \"cpu painter\"; chrome.rs:466 comment. Two semantic fixes folded into their commits by autosquash fixups: set_chrome bumps [STATUS] (GUI-FRAME-1 changed bump to take panels); GUI-FRAME-1 GuiArgs literals in gui_window.rs gain ..GuiArgs::default().",
+    "known_temporary_state_closed": "Closed by the rebase: studio.status.chrome reads \"vulkan ui pass\" in --chrome vulkan mode (capture captures-88b5500c/gui-vulkan-offscreen.png).",
+    "review_a4e03d68": "FIX_FIRST F1-F7 applied: F1 classify() with the loader forced-disabled pattern, loader notes kept (16, text 256), warnings == 0 asserted everywhere; F2 rollback on refused attempts and full invalidation on any failed draw (red test showed max 221 over 1039 px); F3 MAX_PIXELS per image, staging cap 256 MiB with split upload submits, capped buffers, try_reserve; F4 oversized glyph or icon refused alone; F5 invalid_extent above min(maxFramebuffer, maxViewportDimensions) (untested, unreachable on the RTX 3090: limits 32768); F6 spine bound 0; F7 rebase as ruled.",
+    "landed": {
+      "sha": "88b5500c90b212e2c13702b3732816f19a6b42c3",
+      "at": "2026-11-08T09:25:19Z",
+      "origin_before": "eb17fad6",
+      "ls_remote": "88b5500c90b212e2c13702b3732816f19a6b42c3 refs/heads/codex/handshake-studio-assets",
+      "per_sha": "PER_SHA_RESULT OK shas=1 range=0a257713..88b5500c, exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-ui-pass-1/smb-vk-ui-pass-1-land-per-sha-88b5500c.log)",
+      "bundled": "smb-vk-ui-pass-1-bundled-88b5500c.log: 124 passed, BUNDLED_EXIT 0; per-sha 920e2efb..503f6874 whole workspace OK",
+      "claim": "commits 42e9e5a4 (hook) and e221ddd8..88b5500c"
+    },
+    "cut_list": [
+      "synchronization validation (VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT) for the next Vulkan host lane (lead ruling 2026-11-08)",
+      "Vulkan chrome as the default",
+      "rebind after device loss; frames in flight; damage-rect redraw",
+      "pass RecordStats into gui.frame.paint in Vulkan mode (lead question)"
+    ]
   }
 }
