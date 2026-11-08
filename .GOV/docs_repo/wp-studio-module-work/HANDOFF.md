@@ -282,7 +282,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 **Operator:** "ok lets continue, i will go to bed, i expect you to resolve blockers and deliberate with your team on questions so you dont have to ask me." Vox Vulgi may be closed only if it blocks work (its old bugs read or wrote nonstop); Chrome stays open. Record: `direction.resume_20261108`.
 
-- **R60 FULL with canary** at cede5958 (102 commits since c4d06841, 19 READY claims) runs on C: from about 05:45Z. Prompt: `validation/dispatch-prompt-R60.txt`. It names the Vulkan SDK install as a machine change.
+- **R60 FULL with canary** at cede5958 (102 commits since c4d06841, 19 READY claims) runs on C: from about 05:33Z. Prompt: `validation/dispatch-prompt-R60.txt`. It names the Vulkan SDK install as a machine change.
 - **Builders on D: (gated):** SMB-PR-EXPORT-RECIPE-1 applies review F1..F3, then runs bundled. SMB-GUI-FRAME-1 is new on smb-pr-entry-references-1. SMB-VK-UI-PASS-1 is new on smb-pr-retime-hold-1: compose hook first, then item V (validation layer on in debug builds, zero errors), then the pass. Builders stop at HOOK GREEN, REVIEW READY and BUNDLED GREEN; the lead resumes them with findings or RELEASED, one landing at a time.
 - **Pre-build reviews running:** SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1, SMB-DRIVE-TYPED-2 (`research/review-<lane>-<tip>.json`). Their builders are dispatched with the findings.
 - **Width lanes:** a position and red-team agent rules the open questions of SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1 and SMB-PARSER-HOSTILE-1, picks their trees (C: has 0 live lane targets, D: has 11), and re-scopes SMB-SCORE-EFFECTS-6 (`research/rulings-20261108-width-lanes.json`).

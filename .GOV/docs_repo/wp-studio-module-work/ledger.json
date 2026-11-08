@@ -22774,7 +22774,7 @@
     "i am running vox vulgi in the background doing downloads, you are allowed to close it. but only if it is blocking work. in the past there were bugs that made it read and write non stop or hammering the disk trying to access its db. so close it if you see simial behaviour. i am also running chrome but this can not be closed."
    ],
    "r60": {
-    "dispatched_at": "2026-11-08T05:45Z",
+    "dispatched_at": "about 2026-11-08T05:33Z (between the 05:27:37Z status check and the 05:38:24Z lane write)",
     "candidate": "cede5958",
     "commits_since_r59": 102,
     "scope": "FULL with canary",
@@ -22791,7 +22791,7 @@
    },
    "vox_vulgi": {
     "processes": "desktop.exe 141544 (started 05:27:43Z), engine.exe 178752 and 129192",
-    "measured_at": "about 05:40Z",
+    "measured_at": "about 05:29Z to 05:32Z",
     "finding": "desktop.exe reads in bursts of 5,000 to 9,000 read operations per second at about 18 MB/s, 6.2 GB read in its first 18 minutes, 0.03 GB written, 0.1 GB private memory; physical C: reads stayed near 15 to 41 per second, so the reads are served from cache; both download engines were idle; later 10 s sample: 0 CPU seconds, C: queue 0.",
     "decision": "Not blocking work: left running. The R60 validator and the lead re-measure if a C: build slows; it is closed only on measured disk or memory pressure that blocks a build, under the Operator's words of 2026-11-08."
    },
