@@ -1,0 +1,348 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261108-T",
+ "generated_at": "2026-11-08T09:58:44Z",
+ "status": "PROPOSED (not approved)",
+ "authority": "root HSK-ART-005 (Operator 2026-11-07: 'reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal'); CX-107: the Operator approves this exact list",
+ "why": "R60 attempt 2 was stopped on the C: cap projection (ledger round_R60, validation/round-R60.json attempt_2). Attempt 3 needs studio-round to grow about 95 GiB more while the four C: width lanes finish, all under the 360 GiB cap with margin.",
+ "inspection": [
+  "research/cargo-inspect-20261108-C.json (tools/lead/target_report.py --disk c, generated 2026-11-08T09:55:49Z; copied from the cargo manager's scratchpad)",
+  "research/cargo-inspect-20261108-C-round.json (target_report.inspect_target on the round target plus an mtime split of target_prune's older_copies selection; read-only, 2026-11-08 09:56Z to 09:58Z)"
+ ],
+ "measured_tree_gib": {
+  "studio_round": 96.15,
+  "studio_team_dev": 211.79,
+  "tree": 307.94,
+  "at": "studio-team-dev 2026-11-08T09:55Z, studio-round 09:56Z to 09:58Z (newest file 09:38Z, idle since the stop)",
+  "check": "matches the validator's 09:39Z du: round 96.155, team-dev 211.760, tree 307.915",
+  "cap": 360,
+  "guard_alert": 330,
+  "guard_stop": 355,
+  "grant": "400 GB, about 372.5 GiB (CX-984-014)"
+ },
+ "headroom": {
+  "round_growth_gib": 95.0,
+  "round_growth_basis": "studio-round must reach about 180 to 190 GiB for a FULL canary plus union (R57 warm about 180; attempt 2 grew 32.76 to 96.16 GiB over 11 of 164 units and the fixture; R57 warm union growth 5.9 GiB). 96.16 + 95 = 191.16",
+  "lane_growth_gib": 40.0,
+  "lane_growth_basis": "UNVERIFIED allowance: 10 GiB per C: lane x 4. Basis: 2026-11-07 the five C: lanes grew the tree 333.2 to 377 GiB in about 64 min (ledger direction.c_cap_20261107.growth), about 8.8 GiB per lane. Between 09:39Z and 09:55Z studio-team-dev stayed at 211.76 to 211.79 while two lanes wrote files (rebuilds in place), so the real figure may be lower.",
+  "ceiling_gib": 330.0,
+  "ceiling_basis": "the guard's alert line: 30 GiB margin to the 360 cap, 42.5 GiB to the grant",
+  "formula": "need = tree + round_growth + lane_growth - ceiling",
+  "need_gib": 112.94,
+  "need_for_cap_without_margin_gib": 82.94
+ },
+ "candidates": [
+  {
+   "id": "T-C01",
+   "disk": "C",
+   "owner": "smb-r54-followups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r54-followups-1",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (as S-C01/S-C02)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 34.47,
+   "target_total_gib": 67.85,
+   "parts_gib": {
+    "test_and_binary_outputs": 61.1,
+    "workspace_libraries": 4.32,
+    "third_party_libraries": 1.67,
+    "other:examples": 0.59,
+    "build_scripts": 0.13,
+    "fingerprints": 0.03,
+    "dep_info_and_other": 0.01,
+    "other:tmp": 0.0,
+    "incremental": 0.0
+   },
+   "lane_status": "owner smb-r54-followups-1 PASS_V5; tree in use by SMB-TYPE-INDENT-SPACING-1 (building on C: now, branch lane/smb-type-indent-spacing-1 at 4b762334)",
+   "newest_file_utc": "2026-11-08T09:50Z",
+   "when": "after SMB-TYPE-INDENT-SPACING-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
+   "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
+   "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
+   "why_safe": "the largest older set on C:; 34.47 of 61.10 GiB of its test binaries are older identities left by SMB-R54-FOLLOWUPS-1 and SMB-PROJECT-BIN-1 before this lane"
+  },
+  {
+   "id": "T-C02",
+   "disk": "C",
+   "owner": "smb-pr-retime-output-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-retime-output-1",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (as S-C01/S-C02)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 24.48,
+   "target_total_gib": 56.06,
+   "parts_gib": {
+    "test_and_binary_outputs": 51.56,
+    "workspace_libraries": 2.22,
+    "third_party_libraries": 1.72,
+    "other:examples": 0.43,
+    "build_scripts": 0.1,
+    "fingerprints": 0.02,
+    "other:tmp": 0.01,
+    "dep_info_and_other": 0.01,
+    "incremental": 0.0
+   },
+   "lane_status": "owner smb-pr-retime-output-1 PASS_V3; tree in use by SMB-SCORE-EFFECTS-6 (building on C: now, branch lane/smb-score-effects-6 at 04eb03d9)",
+   "newest_file_utc": "2026-11-08T09:51Z",
+   "when": "after SMB-SCORE-EFFECTS-6 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
+   "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
+   "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
+   "why_safe": "24.48 of 51.56 GiB of its test binaries are older identities left by earlier lanes (SMB-AUDIO-OUT-MIX-1 and before)"
+  },
+  {
+   "id": "T-C03",
+   "disk": "C",
+   "owner": "smb-pr-nudge-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-nudge-1",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (as S-C01/S-C02)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 7.78,
+   "target_total_gib": 40.4,
+   "parts_gib": {
+    "test_and_binary_outputs": 34.62,
+    "workspace_libraries": 3.32,
+    "third_party_libraries": 1.8,
+    "other:examples": 0.55,
+    "build_scripts": 0.1,
+    "fingerprints": 0.01,
+    "dep_info_and_other": 0.01,
+    "incremental": 0.0,
+    "other:tmp": 0.0
+   },
+   "lane_status": "owner smb-pr-nudge-1 PASS_V3; tree in use by SMB-AI-LIVE-EFFECTS-1 (building on C: now, branch lane/smb-ai-live-effects-1 at 1e652818)",
+   "newest_file_utc": "2026-11-08T07:34Z",
+   "when": "after SMB-AI-LIVE-EFFECTS-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
+   "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
+   "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
+   "why_safe": "7.78 of 34.62 GiB of test binaries are older identities (SMB-DOC-EXPORT-1 and before)"
+  },
+  {
+   "id": "T-C04",
+   "disk": "C",
+   "owner": "smb-layout-composer-depth-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-composer-depth-1",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (as S-C01/S-C02)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 0.69,
+   "target_total_gib": 21.03,
+   "parts_gib": {
+    "test_and_binary_outputs": 15.98,
+    "workspace_libraries": 2.75,
+    "third_party_libraries": 1.72,
+    "other:examples": 0.42,
+    "build_scripts": 0.13,
+    "fingerprints": 0.02,
+    "dep_info_and_other": 0.01,
+    "incremental": 0.0,
+    "other:tmp": 0.0
+   },
+   "lane_status": "owner smb-layout-composer-depth-1 PASS_V2; tree in use by SMB-PARSER-HOSTILE-1 (building on C: now, branch lane/smb-parser-hostile-1 at 655b83bb)",
+   "newest_file_utc": "2026-11-08T07:02Z",
+   "when": "after SMB-PARSER-HOSTILE-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
+   "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
+   "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
+   "why_safe": "0.69 GiB older identities (SMB-LAYOUT-PDF-HOST-1 and before); small, listed so the batch covers every C: lane"
+  }
+ ],
+ "totals_gib": {
+  "C": 67.42
+ },
+ "shortfall": {
+  "freed_gib": 67.42,
+  "need_gib": 112.94,
+  "short_by_gib": 45.52,
+  "reading": "The removal tool's supported kind (partial older_copies) reaches 67.42 GiB on C:, and only on lane targets that are in use now. It does not reach the 113 GiB target, and it cannot run before attempt 3 unless the tool change N1 is made, because the tool counts a lane as in use until its status is PASS_V, and these lanes are judged by R60 itself."
+ },
+ "projection_gib": {
+  "A_this_plan_lanes_keep_building_on_C": {
+   "tree_after_removal": 240.52,
+   "plus_round": 335.52,
+   "plus_lanes": 375.52,
+   "verdict": "over the 360 cap"
+  },
+  "B_this_plan_lanes_landed_no_C_lane_build_during_round": {
+   "value": 335.52,
+   "verdict": "under the cap, above the 330 alert; counts no lane growth on C:, so it assumes the lanes build nothing more on C: before and during the round, or that what they add is itself removed as older copies at landing (UNVERIFIED)"
+  },
+  "C_B_plus_N2_whole_idle_targets": {
+   "value": 309.07,
+   "verdict": "under the 330 alert"
+  },
+  "D_this_plan_plus_N2_lanes_keep_building": {
+   "value": 349.07,
+   "verdict": "under the cap by 10.9 GiB, above the alert"
+  }
+ },
+ "rejected": [
+  {
+   "owner": "studio-round",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+   "older_copies_gib": 51.56,
+   "files": 2146,
+   "by_mtime_gib": {
+    "before_R60_attempt_2": 9.7,
+    "written_by_R60_attempt_2": 41.86
+   },
+   "exe_names_by_identity_count": {
+    "1": 623,
+    "2": 112,
+    "3": 10,
+    "4": 4,
+    "10": 14,
+    "11": 74,
+    "16": 1
+   },
+   "newest_file_utc": "2026-11-08T09:38Z",
+   "reason": "These are not stale. The round builds one identity of each test binary per feature unit (89 exe names hold 10 to 16 identities), and 41.86 GiB were written by attempt 2's canary as warm state for attempt 3. Dropping them repeats what plan S caused: attempt 2 had to rebuild them (32.8 to 96.2 GiB, cause_reading in round-R60.json). The 9.70 GiB written before attempt 2 are copies superseded only by mtime in their name group; which of them the round will not rebuild is unknown without the round's unit hashes (N3). The tool would accept this path (round owner, no status check), so it is rejected here by judgement, not by the tool."
+  }
+ ],
+ "needs_tool_change": [
+  {
+   "id": "N1",
+   "what": "target_prune in-use check: treat a lane as not in use when it is READY with its tip on origin and no process names its tree, as the workflow already does for handing over a tree and target (HANDOFF workflow item 11, direction.blocker_decisions_20261107.landing). Today it is in use until PASS_V, which needs R60.",
+   "unlocks": "T-C01..T-C04 before attempt 3, as each lane lands",
+   "gib": 67.42
+  },
+  {
+   "id": "N2",
+   "what": "a whole-target kind for idle lane targets with no lane planned to reuse them (lessons rule P2), keeping the worktree; not supported by target_prune (partial only), and target_report marks four of these as reuse candidates, so reuse comes first",
+   "targets": [
+    {
+     "owner": "smb-pr-media-markers-1",
+     "gib": 14.66,
+     "status": "PASS_V3",
+     "reuse_candidate": true,
+     "tree_clean": true,
+     "newest_file_utc": "2026-11-06T20:00Z"
+    },
+    {
+     "owner": "smb-pr-sequence-presets-1",
+     "gib": 4.59,
+     "status": "PASS_V4",
+     "reuse_candidate": true,
+     "tree_clean": true,
+     "newest_file_utc": "2026-11-02T15:11Z"
+    },
+    {
+     "owner": "smb-layout-sentinels-1",
+     "gib": 2.73,
+     "status": "PASS_V6",
+     "reuse_candidate": true,
+     "tree_clean": true,
+     "newest_file_utc": "2026-11-01T14:42Z"
+    },
+    {
+     "owner": "smb-layout-blank-line-lookups-1",
+     "gib": 2.65,
+     "status": "PASS_V2",
+     "reuse_candidate": true,
+     "tree_clean": true,
+     "newest_file_utc": "2026-11-05T16:44Z"
+    },
+    {
+     "owner": "smb-press-observe-1",
+     "gib": 1.34,
+     "status": "PASS_V3",
+     "reuse_candidate": false,
+     "tree_clean": false,
+     "newest_file_utc": "2026-11-01T13:17Z"
+    },
+    {
+     "owner": "smb-pr-sequence-presets-1-red",
+     "gib": 0.28,
+     "status": "no ledger row",
+     "reuse_candidate": false,
+     "tree_clean": null,
+     "newest_file_utc": "2026-11-02T14:47Z"
+    },
+    {
+     "owner": "smb-type-sentinels-registry-1",
+     "gib": 0.2,
+     "status": "PASS_V6",
+     "reuse_candidate": false,
+     "tree_clean": false,
+     "newest_file_utc": "2026-11-07T12:24Z"
+    }
+   ],
+   "gib": 26.45,
+   "what_rebuilds": "a full dependency compile for any later lane that reuses one of these trees; none has 0.01 GiB or more of older copies left",
+   "note": "smb-pr-sequence-presets-1-red has no ledger row and is bound to a session scratchpad tree that no longer exists; smb-press-observe-1 and smb-type-sentinels-registry-1 trees are not clean"
+  },
+  {
+   "id": "N3",
+   "what": "a round selector that keeps every identity the current round's units will build (by metadata hash from the round's own unit list) and removes only hashes no unit names",
+   "unlocks": "up to 9.70 GiB of pre-attempt-2 copies in studio-round, exact amount unknown until the unit hashes are known"
+  }
+ ],
+ "levers_not_removal": [
+  "Keep the four C: lanes' bundled runs off C: while attempt 3 runs (as the 2026-11-07 c_cap decision did): lane growth on C: becomes 0 during the round, projection B.",
+  "Land the steward's cut of the 5 strict-subset harness feature units (R59 matrix_cut_no_objection): fewer round identities, less round growth.",
+  "Plan R finding debug_symbols: .pdb files were 36.2 of 47.0 GiB of test binaries in one lane target; no-debuginfo for builder lanes is not measured."
+ ],
+ "not_candidates": "The cargo registry cache; anything outside C:/HandshakeBuild/WP-KERNEL-STUDIO; the D: disk; logs, results, fixtures; whole-target removal (tool does not support it, see N2).",
+ "execute_command_after_approval": "python .GOV/docs_repo/wp-studio-module-work/tools/lead/target_prune.py --plan .GOV/docs_repo/wp-studio-module-work/research/cargo-cleanup-plan-20261108-T.json --approve T-C01,T-C02,T-C03,T-C04 --execute",
+ "dry_run": {
+  "command": "python .GOV/docs_repo/wp-studio-module-work/tools/lead/target_prune.py --plan .GOV/docs_repo/wp-studio-module-work/research/cargo-cleanup-plan-20261108-T.json --approve T-C01,T-C02,T-C03,T-C04",
+  "reading": "The tool accepts each path and kind (no REFUSED_PATH, no REFUSED_NOT_A_TARGET) and skips all four as in use, as designed: none is removable now. Each needs its lane landed and N1, then a refreshed list.",
+  "output": {
+   "schema": "hsk.studio.cleanup_result@1",
+   "plan": "CARGO-CLEANUP-PLAN-20261108-T",
+   "execute": false,
+   "at": "2026-11-08T09:58:44Z",
+   "total_gib": 0.0,
+   "results": [
+    {
+     "id": "T-C01",
+     "owner": "smb-r54-followups-1",
+     "planned_gib": 34.47,
+     "status": "SKIPPED_IN_USE_BY_LANE"
+    },
+    {
+     "id": "T-C02",
+     "owner": "smb-pr-retime-output-1",
+     "planned_gib": 24.48,
+     "status": "SKIPPED_IN_USE_BY_LANE"
+    },
+    {
+     "id": "T-C03",
+     "owner": "smb-pr-nudge-1",
+     "planned_gib": 7.78,
+     "status": "SKIPPED_IN_USE_BY_LANE"
+    },
+    {
+     "id": "T-C04",
+     "owner": "smb-layout-composer-depth-1",
+     "planned_gib": 0.69,
+     "status": "SKIPPED_IN_USE_BY_LANE"
+    }
+   ]
+  }
+ },
+ "before_execution": "After each lane lands: re-run target_report.py --disk c, refresh that candidate's gib and newest_file_utc, mark the plan APPROVED only on the Operator's word for the refreshed list, dry-run, then execute. Not during a round. Without N1 every candidate is skipped as in use.",
+ "default_without_answer": "Nothing is removed. Attempt 3 does not start on C: while the projection is over the cap."
+}

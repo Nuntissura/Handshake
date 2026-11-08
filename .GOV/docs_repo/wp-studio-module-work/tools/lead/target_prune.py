@@ -109,7 +109,16 @@ def main():
         sys.exit("target_prune: refused: the plan is not marked APPROVED")
     approved = set(a.approve.split(","))
     statuses = {str(x.get("lane_id", "")).lower(): x.get("status") for x in led["lanes"]}
-    in_use = {v["tree"] for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items() if not str(statuses.get(k.lower(), "")).startswith("PASS_V")}
+
+    def settled(status):
+        # Plan T finding N1 (lead, 2026-11-08): a READY_FOR_VALIDATION lane's commits are on origin (record_ready.py
+        # checks this before it writes READY), so its builder no longer writes the target. Removing its older test-binary
+        # copies costs a relink only. The process check and the newest-file check below still refuse a target that is
+        # being written.
+        s = str(status or "")
+        return s.startswith("PASS_V") or s == "READY_FOR_VALIDATION"
+
+    in_use = {v["tree"] for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items() if not settled(statuses.get(k.lower()))}
     procs = command_lines()
     results = []
     total = 0
@@ -128,7 +137,7 @@ def main():
         if c["owner"] in in_use:
             row["status"] = "SKIPPED_IN_USE_BY_LANE"
             continue
-        if c["owner"] != "studio-round" and not str(statuses.get(c["owner"], "")).startswith("PASS_V"):
+        if c["owner"] != "studio-round" and not settled(statuses.get(c["owner"], "")):
             row["status"] = "SKIPPED_STATUS"
             continue
         if path.lower() in procs:

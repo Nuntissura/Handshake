@@ -23287,6 +23287,16 @@
      "GUI-FRAME-1 after its code and design reviews",
      "VK-UI-PASS-1 after review"
     ]
+   },
+   "plan_t": {
+    "at": "2026-11-08T10:00:10Z",
+    "plan": "research/cargo-cleanup-plan-20261108-T.json (PROPOSED, not approved); inspections research/cargo-inspect-20261108-C.json and -C-round.json",
+    "candidates": "T-C01 smb-r54-followups-1 34.47, T-C02 smb-pr-retime-output-1 24.48, T-C03 smb-pr-nudge-1 7.78, T-C04 smb-layout-composer-depth-1 0.69 GiB: partial older_copies only (newest copy of each binary, all libraries, build scripts and fingerprints kept; the cost is a relink, no compile). Total 67.42 GiB.",
+    "rejected": "studio-round older copies (51.56 GiB): 41.86 GiB of it is the per-feature warm state attempt 2's canary just rebuilt; removing it would repeat what plan S caused.",
+    "projection": "Tree 307.94 GiB now. With T executed after the four C: lanes land, and NO C: lane build during R60 attempt 3, the round peaks at about 335.5 GiB, under the 355 stop. If lanes keep building on C: during the round: about 375.5 GiB (over the cap).",
+    "tool_change_N1": "tools/lead/target_prune.py: a READY_FOR_VALIDATION lane counts as settled like PASS_V, because record_ready.py checks its commits are on origin before writing READY. The process check and the newest-file check still refuse a target being written. Dry run now: all four SKIPPED_IN_USE_BY_LANE (their lanes are building), total 0.",
+    "not_done": "N2 (a whole-target kind for 7 idle targets, 26.45 GiB) and N3 (round selection by unit hash, 9.70 GiB) need tool work; reuse comes before removal for 4 of those targets.",
+    "operator_decision": "Approve plan T (T-C01..T-C04). The lead executes it only after the four C: lanes have landed, with a fresh inspection and a refreshed gib and newest_file_utc per candidate (a changed candidate needs fresh approval), then dispatches R60 attempt 3 with no C: lane build during the round."
    }
   }
  },
