@@ -13254,5 +13254,31 @@
       "parent_file_sha256_before_addition": "a4109cb400878eca0975a138faa91a6c902e54508eb0b72eda704d7093568f59",
       "parent_file_bytes_before_addition": 770625
     }
+  },
+  "official_cli_operator_selection_20261108": {
+    "id": "WP012-MT172-OFFICIAL-CLI-INPUTS-20261108",
+    "operator_selected": {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "source": "Direct operator reply to call_844e2b18807a49e5a578a21eea88d82c and repeated live-chat selection on 2026-11-08"
+    },
+    "prepared_config": {
+      "artifacts_root_relative_path": "WP-KERNEL-012/MT-172/shared-compile-preparation-20261025-01/official-cli-config-20261108-01/official-cli-config.json",
+      "sha256": "0d826c1051eb4f3e05418b884258ee1ae8a4c411ad80c8e25b105c31ab8ffe87",
+      "locator": "Resolve the artifact-relative path against the canonical artifact root and supply that absolute path as HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH only in the admitted runner environment",
+      "prepared_by": "Master",
+      "state": "PREPARED_RUNTIME_ADMISSION_PENDING"
+    },
+    "local_cli_observation": {
+      "version": "0.163.0",
+      "installation_runtime_relative_path": "tools/codex/0.163.0-win32-x64",
+      "entrypoint": "Official npm codex.cmd with verified launcher and win32-x64 package tuple",
+      "native_executable_sha256": "2692c8c7bb2cf8b0aefe638741fc90236f4b824c59578ce84994f9de58200993",
+      "auth_status_command_exit": 0,
+      "auth_status": "Logged in using ChatGPT",
+      "credential_contents_read": false,
+      "model_invoked": false
+    },
+    "scope": "Records supplied model/provider input and local setup only. Actual production-loader validation, model compatibility, authenticated routing, process admission, Flight Recorder readback and independent runtime acceptance remain required. Historical NOT_SUPPLIED observations are retained as history."
   }
 }
