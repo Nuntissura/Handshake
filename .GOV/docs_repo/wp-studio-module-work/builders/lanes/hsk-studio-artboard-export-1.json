@@ -12,7 +12,8 @@
     "c91fc814 export.run writes every node's named files at its constraints",
     "5e3a77a1 red: review F2 to F6 on 9db105fc",
     "fd247ec8 review F2 to F6 on 9db105fc",
-    "35c50d3b drop the export slot with take (unused_assignments warning)"
+    "35c50d3b drop the export slot with take (unused_assignments warning)",
+    "89e9a2ac follow-up: the drive tests give the SVG export an artboard"
   ],
   "capabilities_done": [
     "SVG/EPS/PDF framed on a named board incl. origin",
@@ -42,8 +43,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "READY_FOR_VALIDATION at 35c50d3b (pushed to origin/codex/handshake-studio-assets, confirmed by ls-remote 2026-11-08). Unjudged: a validator round judges it; never claim PASS. Tree and target smb-ai-distort-effects-1 can be handed over once the lead records it.",
-  "updated_at": "2026-11-08T07:18:44Z",
+  "next": "READY_FOR_VALIDATION at 89e9a2ac (pushed to origin/codex/handshake-studio-assets, confirmed by ls-remote 2026-11-08; follow_up_20261108 fixed the harness_drive_typed svg_export fixture). Unjudged: a validator round judges it; never claim PASS. Tree and target smb-ai-distort-effects-1 can be handed over once the lead records it.",
+  "updated_at": "2026-11-08T07:48:28Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -131,7 +132,16 @@
       "F5": "folio::file_name_fold (per-char simple upper case) keys the run collision map and check_node_settings; a file absent at plan time is written with write_new even with overwrite; tests names_that_fold_to_one_file_collide, collisions_suffixes_shapes_and_bounds_are_refused, hostile_export_settings_are_typed_and_change_nothing",
       "F6": "action_records scans harness/export_settings.rs; Surface::Run row document.set_export_settings (not recordable, mutates authority)",
       "not_proven": "effect reach is unit-tested on synthetic stacks only (no package with raster records driven through export.run); NTFS $UpCase entries and Windows 11 device-name behaviour UNVERIFIED; drop-shadow reach is symmetric (margin also on the side away from the offset)"
+    },
+    "follow_up_20261108": {
+      "cause": "2b884024 moved the artboard check of Viewer::vector_svg (view/vector/interop.rs:425) ahead of Folio validation; harness_drive_typed known_defect_export_svg_group_duplicate_identity and every_panel_family_runs_through_the_process_with_the_callers_attribution got 'svg_export: the document has no artboard' on the boardless demo fixture (found by the SMB-PLACE-ASSET-1 bundled run; this lane's bundled run did not include harness_drive_typed)",
+      "fix": "test-only, crates/hsk-studio-harness/tests/harness_drive_typed.rs: add_board helper (artboard.add 400x100 at 0,0) before both svg_export calls, which again reach and pin DuplicateIdentity; the known-defect test also asserts the boardless refusal and that no file is written. Refusal order unchanged.",
+      "base": "35c50d3b",
+      "sha": "89e9a2ac",
+      "run": "one disk-lock hold: cargo build -p hsk-studio-harness --example studio-harness --features viewer,media (fresh, 08:41 local), clippy -p hsk-studio-harness --features viewer,media --tests, nextest -p hsk-studio-harness --features viewer,media over the process targets harness_drive_typed, artboard_export, harness_drive, audio_out_mix, diag_sink_process, layout_pdf_host, project_bin, web_host: 60 passed, 0 skipped, exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-artboard-export-1/smb-artboard-export-1-followup-harness-89e9a2ac.log)",
+      "per_sha": "PER_SHA_RESULT OK shas=1 range=35c50d3b..89e9a2ac, 19 units ok, exit 0 (smb-artboard-export-1-per-sha-89e9a2ac.log)",
+      "pushed": "89e9a2acfb4957ddf21fe1093d0aee147bb69311, ls-remote confirmed"
     }
   },
-  "pushed": "35c50d3ba928be27a980443230cbe351f7644982"
+  "pushed": "89e9a2acfb4957ddf21fe1093d0aee147bb69311"
 }

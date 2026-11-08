@@ -22954,7 +22954,8 @@
     "SMB-AI-LIVE-EFFECTS-1": "review dd9ef0b6 FIX_FIRST: F1 budget charges outputs, F2 non-finite transform refused, F3 bundled adds harness-core whole suite plus harness_drive_typed and document_new, F4 envelope.rs path approved (expand refused while any live-filter stack is present), F5 deterministic cancel tests, F6 reachability check, then fix or pin.",
     "SMB-SCORE-EFFECTS-6": "review 9322e833 FIX_FIRST: F1 apply approved audio_batch.rs:235 change; F2 path approved after the DRIVE-TYPED-2 rebase (harness_drive_audio.rs:403, TEMPLATES to 16 names in both crates, waveform.noise_reduce rows); F3 no bit-for-bit digest block (recompute with the same source plus a recorded noise_print_recomputed; refuse only on a different source); F4 one 256 MiB aggregate effect budget, extended to bus_stream, playback, export and stems; F5 MEASURED line plus an ignored decay test.",
     "SMB-PARSER-HOSTILE-1": "stop rule: keep XML_MAX_NESTING 256 and parse on an 8 MiB worker thread. Review ed1a8ab5 FIX_FIRST, principle: bounds stop amplification and never refuse big legitimate print files. Limits: per stream, refuse above 2 GiB, or above 256 MiB at a ratio over 1024; images up to 150 Mpx; a 4 GiB per-call budget instead of a whole-document cap; 50M operators per stream; a bad Flate tail keeps base behaviour. Encryption out of scope (restore base). CIDToGIDMap, CIDSet, halftone and ICC streams are data, not syntax. hayro gets Press-checked bytes, or refuse when Press needed a repair.",
-    "SMB-TYPE-INDENT-SPACING-1": "stop rule: the widest-word gate, otherwise the line is overfull (typed). Path approved: layout_export.rs:771. Review a300982c FIX_FIRST: F1 insertion at a paragraph start stays in that paragraph (P = 0 and P > 0); F2 space-before after balancing; F3 fit gate uses compressed width; F4 gate measured, split paragraphs pinned; F5 xref, find_change and data_merge stale keys fixed; F6 EditStyle merges only patched fields; F7 export loss line plus host test."
+    "SMB-TYPE-INDENT-SPACING-1": "stop rule: the widest-word gate, otherwise the line is overfull (typed). Path approved: layout_export.rs:771. Review a300982c FIX_FIRST: F1 insertion at a paragraph start stays in that paragraph (P = 0 and P > 0); F2 space-before after balancing; F3 fit gate uses compressed width; F4 gate measured, split paragraphs pinned; F5 xref, find_change and data_merge stale keys fixed; F6 EditStyle merges only patched fields; F7 export loss line plus host test.",
+    "SMB-PARSER-HOSTILE-1_F2_F8": "F2: mint-free walks stay on the caller (about 250 B/level measured; within-cap rows from a 1 MiB caller). F8: option B, hayro keeps the original bytes; residual named; next-lane candidate: press-read xref-repair signal, refuse when repair was needed."
    },
    "width_lanes": {
     "at": "2026-11-08T06:00:13Z",
@@ -23018,7 +23019,23 @@
     "cause_lead_read": "SMB-ARTBOARD-EXPORT-1 2b884024 puts 'svg_export: the document has no artboard' at harness-view view/vector/interop.rs:425 ahead of Folio validation; the drive-typed fixture has no artboard, so the pinned DuplicateIdentity defect is no longer reached",
     "why_missed": "ARTBOARD's bundled run named harness --test artboard_export only, and its per-sha HEAD~1 (22 units) did not run harness_drive_typed with viewer,media. Lesson for briefs: a lane that changes a Viewer refusal order runs every harness process test that drives that command (harness_drive_typed, and harness_drive* in general).",
     "fix": "the ARTBOARD builder lands a fixture fix in harness_drive_typed.rs (a board, so the pin still reaches DuplicateIdentity, plus one no-artboard assert); released ahead of the others",
-    "r60": "the attempt-2 validator was told, as a claim to verify, that 35c50d3b carries these 2 failures; the fix is after its freeze"
+    "r60": "the attempt-2 validator was told, as a claim to verify, that 35c50d3b carries these 2 failures; the fix is after its freeze",
+    "fixed": {
+     "at": "2026-11-08T07:49:34Z",
+     "sha": "89e9a2ac",
+     "what": "harness_drive_typed.rs only: add_board (artboard.add) before both svg_export calls so the DuplicateIdentity pin is reached; the known-defect test also asserts the no-artboard refusal writes no file",
+     "proof": "fresh example build, harness viewer,media nextest 60 passed exit 0 (incl. harness_drive, audio_out_mix, diag_sink_process, layout_pdf_host, project_bin, web_host by name); per-sha 35c50d3b..89e9a2ac 19 units OK"
+    }
+   },
+   "landing_queue": {
+    "at": "2026-11-08T07:49:34Z",
+    "order": [
+     "SMB-DRIVE-TYPED-2 (released 75926dfc)",
+     "SMB-PLACE-ASSET-1 (rebase after DRIVE, rerun step 3)",
+     "C: lanes after R60 attempt 2 releases C: AI-LIVE-EFFECTS-1 (bundled green f962ff49, item 5 unbuilt), TYPE-INDENT-SPACING-1, SCORE-EFFECTS-6 (after DRIVE), PARSER-HOSTILE-1 (yields)",
+     "GUI-FRAME-1 after its code and design reviews",
+     "VK-UI-PASS-1 after review"
+    ]
    }
   }
  },
