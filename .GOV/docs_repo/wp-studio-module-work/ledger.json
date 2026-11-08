@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T09:25:46Z",
+ "updated_at": "2026-11-08T09:49:21Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20019,6 +20019,22 @@
     "MT-34027",
     "MT-34028"
    ]
+  },
+  {
+   "lane_id": "SMB-R60-FOLLOWUPS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (doc_export, export_set, audio_session admissions), hsk-studio-harness-core (containers, document_new, harness layout entry), hsk-studio-reel (export.rs sidecar check), kumihimo-ui (checks.rs, layout.rs)",
+   "lane_file": "builders/lanes/hsk-studio-r60-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r60-followups-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "base": "88b5500c",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T09:49:21Z",
+   "closes": [
+    "validation/round-R60.json attempt_2_probes: SMB-DOC-EXPORT-1 j1, SMB-ARTBOARD-EXPORT-1 j2, SMB-AUDIO-OUT-MIX-1 a1 a2, SMB-DOC-NEW-1 g2, SMB-PR-EXPORT-RECIPE-1 vtt trailing name, SMB-LAYOUT-PERSIST-1 parented page delete and the layout.open row, SMB-UI-TREE-1 u1 u2"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22696,7 +22712,8 @@
     "lane/smb-ds-components-author-1",
     "lane/smb-develop-commands-1",
     "lane/smb-motion-commands-2",
-    "lane/smb-delivery-queue-1"
+    "lane/smb-delivery-queue-1",
+    "lane/smb-r60-followups-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22902,6 +22919,12 @@
      "tree": "smb-r53-followups-1",
      "branch": "lane/smb-delivery-queue-1",
      "previous_branch": "lane/smb-pr-export-recipe-1",
+     "disk": "D"
+    },
+    "SMB-R60-FOLLOWUPS-1": {
+     "tree": "smb-pr-edit-footprint-1",
+     "branch": "lane/smb-r60-followups-1",
+     "previous_branch": "lane/smb-drive-typed-2",
      "disk": "D"
     }
    },
@@ -23226,6 +23249,19 @@
      "SMB-VK-UI-PASS-1 hook": "42e9e5a4",
      "steward F-R60-1": "5d020939",
      "SMB-ARTBOARD-EXPORT-1": "35c50d3b"
+    },
+    "result": {
+     "at": "2026-11-08T09:49:21Z",
+     "outcome": "not opened: the canary was stopped by the lead's decision at 09:22:39Z (exit 130 at 09:39:17Z) on the C: cap projection; 11 of 164 units plus the fixture done, all exit 0; no union, no verdict, all 21 claims READY (kernel 18a9f3e0)",
+     "c_tree": "244.5 GiB at the freeze, then 307.9 GiB after the stop (studio-round 32.8 to 96.2 GiB; studio-team-dev 211.8 GiB)",
+     "why_stopped": "The canary plus the union projected to about 390 GiB against the Operator's grant of 400 GB (about 372.5 GiB, CX-984-014; guard 360). Only the Operator can approve a removal, so running on to the guard would only have kept C: from four reviewed lanes. The warm round target is kept for attempt 3.",
+     "probe_fixes": {
+      "SMB-R60-FOLLOWUPS-1": "doc export, artboard export.run, mixdown and stems admission; page.add mint; .vtt Windows name; layout persist; kumihimo edge_gaps and Hug",
+      "SMB-WEB-SITE-1": "web.export and web.publish admission",
+      "SMB-DEVELOP-COMMANDS-1": "photo.info.* rows mutating flag",
+      "SMB-MOTION-COMMANDS-2": "add_at_current on an anchor without a stream"
+     },
+     "operator_needed": "an approved C: removal list (inspection running: research/cargo-cleanup-plan-20261108-T.json) before attempt 3 can fit under the cap"
     }
    },
    "trunk_break_35c50d3b": {

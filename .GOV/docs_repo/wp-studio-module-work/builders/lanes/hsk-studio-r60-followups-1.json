@@ -1,0 +1,43 @@
+{
+  "crate": "hsk-studio-harness-view (doc_export, export_set, audio_session admissions), hsk-studio-harness-core (containers, document_new, harness layout entry), hsk-studio-reel (export.rs sidecar check), kumihimo-ui (checks.rs, layout.rs)",
+  "lane": "SMB-R60-FOLLOWUPS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+  "base": "88b5500c",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T09:49:21Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: admissions settle through the JobPort with typed outcomes; new refusal codes reach the existing observe frames; no new sink",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: each command keeps its caller's CommandContext; admissions add no actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T09:49:21Z",
+    "disk": "D",
+    "closes": [
+      "validation/round-R60.json attempt_2_probes: SMB-DOC-EXPORT-1 j1, SMB-ARTBOARD-EXPORT-1 j2, SMB-AUDIO-OUT-MIX-1 a1 a2, SMB-DOC-NEW-1 g2, SMB-PR-EXPORT-RECIPE-1 vtt trailing name, SMB-LAYOUT-PERSIST-1 parented page delete and the layout.open row, SMB-UI-TREE-1 u1 u2"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+  }
+}
