@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T08:50:53Z",
+ "updated_at": "2026-11-08T08:51:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19915,6 +19915,60 @@
     "MT-34349",
     "MT-34348"
    ]
+  },
+  {
+   "lane_id": "SMB-DS-COMPONENTS-AUTHOR-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (component, variant set, property and instance authoring commands over Folio StudioDesignRecords and the hsk-studio-components redraw)",
+   "lane_file": "builders/lanes/hsk-studio-ds-components-author-1.json",
+   "brief": "builders/briefs/lane-smb-ds-components-author-1.md",
+   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "base": "eb17fad6",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T08:51:44Z",
+   "closes": [
+    "scenario product-design gap rank 3 (component authoring commands) for create, combine, properties, instance, detach",
+    "scenario vector-brand gap: component and symbol authoring (steps 25, 26, 82)",
+    "backlog-20261107 G-DS-AUTHORING (19 steps listed there; 14 re-measured here)",
+    "MT-33062",
+    "MT-33063",
+    "MT-33068",
+    "MT-33069",
+    "MT-33056",
+    "MT-122",
+    "MT-30591",
+    "MT-30592",
+    "MT-30593"
+   ]
+  },
+  {
+   "lane_id": "SMB-DEVELOP-COMMANDS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (develop typed rows for every DevelopOp and FamilyOp, and the develop must-haves: group enables, point curves, snapshots, preset save, crop and straighten, over hsk-studio-develop)",
+   "lane_file": "builders/lanes/hsk-studio-develop-commands-1.json",
+   "brief": "builders/briefs/lane-smb-develop-commands-1.md",
+   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+   "base": "eb17fad6",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T08:51:44Z",
+   "closes": [
+    "scenario photo-retouch gap rank 5 (photo commands on the model surface), develop part",
+    "scenario photo-retouch gap rank 8 (develop must-haves): crop and straighten, point curves, group toggles, snapshots, save preset",
+    "ledger next_lane_candidates 2026-11-07T12:31:03Z: develop ops needing mask-source or tone-family records stay Rust-only",
+    "MT-33500",
+    "MT-414",
+    "MT-415",
+    "MT-34665",
+    "MT-429",
+    "MT-30364",
+    "MT-30369",
+    "MT-413",
+    "MT-30319"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22588,7 +22642,9 @@
     "lane/smb-parser-hostile-1",
     "lane/smb-score-effects-6",
     "lane/smb-layout-place-1",
-    "lane/smb-web-site-1"
+    "lane/smb-web-site-1",
+    "lane/smb-ds-components-author-1",
+    "lane/smb-develop-commands-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22770,6 +22826,18 @@
      "tree": "smb-sentinels-native-1",
      "branch": "lane/smb-web-site-1",
      "previous_branch": "lane/smb-web-host-1",
+     "disk": "D"
+    },
+    "SMB-DS-COMPONENTS-AUTHOR-1": {
+     "tree": "smb-ai-distort-effects-1",
+     "branch": "lane/smb-ds-components-author-1",
+     "previous_branch": "lane/smb-artboard-export-1",
+     "disk": "D"
+    },
+    "SMB-DEVELOP-COMMANDS-1": {
+     "tree": "smb-folio-angle-unbounded-1",
+     "branch": "lane/smb-develop-commands-1",
+     "previous_branch": "lane/smb-project-bin-1-d",
      "disk": "D"
     }
    },

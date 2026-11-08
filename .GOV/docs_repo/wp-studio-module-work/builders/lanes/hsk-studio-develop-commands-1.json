@@ -1,0 +1,55 @@
+{
+  "crate": "hsk-studio-harness-view (develop typed rows for every DevelopOp and FamilyOp, and the develop must-haves: group enables, point curves, snapshots, preset save, crop and straighten, over hsk-studio-develop)",
+  "lane": "SMB-DEVELOP-COMMANDS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+  "base": "eb17fad6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T08:51:44Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: develop Refusal {code, detail} through CommandRefusal (view/commands/photo.rs maps it today); no new observe API",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: develop_op commits one chronicle tiles step with the develop entry through the viewer run context; no default_actor() or literal actor in new code",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T08:51:44Z",
+    "disk": "D",
+    "closes": [
+      "scenario photo-retouch gap rank 5 (photo commands on the model surface), develop part",
+      "scenario photo-retouch gap rank 8 (develop must-haves): crop and straighten, point curves, group toggles, snapshots, save preset",
+      "ledger next_lane_candidates 2026-11-07T12:31:03Z: develop ops needing mask-source or tone-family records stay Rust-only"
+    ],
+    "closes_candidates": [
+      "MT-33500",
+      "MT-414",
+      "MT-415",
+      "MT-34665",
+      "MT-429",
+      "MT-30364",
+      "MT-30369",
+      "MT-413",
+      "MT-30319"
+    ],
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1"
+  }
+}

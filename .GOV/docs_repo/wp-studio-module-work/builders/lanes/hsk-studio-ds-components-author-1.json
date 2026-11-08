@@ -1,0 +1,55 @@
+{
+  "crate": "hsk-studio-harness-view (component, variant set, property and instance authoring commands over Folio StudioDesignRecords and the hsk-studio-components redraw)",
+  "lane": "SMB-DS-COMPONENTS-AUTHOR-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+  "base": "eb17fad6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T08:51:44Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: every refusal is a CommandRefusal code (view/commands.rs:129 run_command); Folio diagnostics pass through as their codes, as place.rs folio_refusal does; the components crate report() already emits one Observe outcome per evaluation",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: Viewer methods commit through commit_entry and Run::restructure_and_entry, which carry the viewer run context; no default_actor() or literal actor in new code",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T08:51:44Z",
+    "disk": "D",
+    "closes": [
+      "scenario product-design gap rank 3 (component authoring commands) for create, combine, properties, instance, detach",
+      "scenario vector-brand gap: component and symbol authoring (steps 25, 26, 82)",
+      "backlog-20261107 G-DS-AUTHORING (19 steps listed there; 14 re-measured here)"
+    ],
+    "closes_candidates": [
+      "MT-33062",
+      "MT-33063",
+      "MT-33068",
+      "MT-33069",
+      "MT-33056",
+      "MT-122",
+      "MT-30591",
+      "MT-30592",
+      "MT-30593"
+    ],
+    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+  }
+}

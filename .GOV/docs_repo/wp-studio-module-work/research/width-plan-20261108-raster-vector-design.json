@@ -1,0 +1,3544 @@
+{
+ "at": "2026-11-08",
+ "origin": "0a733db8",
+ "origin_note": "origin tip read in wt-studio-lanes/smb-pr-sequence-session-1 (branch lane/smb-place-asset-1, contained in origin/codex/handshake-studio-assets) with git show and git grep only; spec v02.229 module 14",
+ "planner": "width planner, raster, vector and product design (read-only)",
+ "scenarios": {
+  "photo-retouch": {
+   "source": "S/workflows/scenario-photo-retouch.json",
+   "steps_total": 121,
+   "steps_working": [
+    {
+     "n": 3,
+     "scene": "s1-ingest-catalog",
+     "intent": "Convert each raw to a native package so the import receipt and original bytes are kept",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.import (harness-core/src/action/commands/document.rs:59, runs open_import / open_import_detailed)",
+      "CLI verb import (harness-core/src/manual.rs:26)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 4,
+     "scene": "s1-ingest-catalog",
+     "intent": "Rename the shoot to CAMPAIGN_YYYYMMDD_####",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb batch (harness-core/src/manual.rs:31)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 5,
+     "scene": "s1-ingest-catalog",
+     "intent": "Write a DNG archive of every frame with a medium preview",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb develop (harness-core/src/manual.rs:28)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 15,
+     "scene": "s1-ingest-catalog",
+     "intent": "Open the hero frame and the plate from the picks",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.open (harness-core/src/action/commands/document.rs:58, runs open_path / open_bytes / expect_on_disk)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 18,
+     "scene": "s2-develop",
+     "intent": "Show the Develop panel",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "studio.workspace.panel (menu leaf, harness/src/cli/drive.rs:333-346 through Viewer::shell_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 20,
+     "scene": "s2-develop",
+     "intent": "Read the histogram and clipping numbers before touching anything",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb state (harness-core/src/manual.rs:32)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "state prints Viewer::state_json (harness/src/lib.rs DESCRIPTOR key drive)"
+    },
+    {
+     "n": 22,
+     "scene": "s2-develop",
+     "intent": "Sample the grey card to read its true RGB",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.info_eyedropper (harness/src/cli/drive_viewer.rs:306)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 24,
+     "scene": "s2-develop",
+     "intent": "Set white balance numerically to the shoot value",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.develop.kelvin (harness-core/src/action/commands/photo.rs:27, runs Viewer::develop_op)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 32,
+     "scene": "s2-develop",
+     "intent": "Set tone: exposure, contrast, highlights, shadows, whites, blacks",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)",
+      "CLI verb develop (harness-core/src/manual.rs:28)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "one control per call; Viewer::set_develop_many (develop.rs:982) is reached only by CLI --adjust (cli.rs:803)"
+    },
+    {
+     "n": 33,
+     "scene": "s2-develop",
+     "intent": "Add presence: texture, clarity, dehaze, vibrance, saturation",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "one control per call"
+    },
+    {
+     "n": 34,
+     "scene": "s2-develop",
+     "intent": "Shape the parametric curve",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "one control per call"
+    },
+    {
+     "n": 36,
+     "scene": "s2-develop",
+     "intent": "Tune skin in the colour mixer",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 37,
+     "scene": "s2-develop",
+     "intent": "Refine one skin colour with point colour",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.develop.add_point_colour (harness-core/src/action/commands/photo.rs:29, runs Viewer::develop_op)",
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 38,
+     "scene": "s2-develop",
+     "intent": "Grade shadows, midtones, highlights",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 39,
+     "scene": "s2-develop",
+     "intent": "Sharpen for capture and reduce noise",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 43,
+     "scene": "s2-develop",
+     "intent": "Remove sensor dust and four blemishes with spot heal",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.develop.add_spot (harness-core/src/action/commands/photo.rs:37, runs Viewer::develop_op)",
+      "photo.develop.move_spot_source (harness-core/src/action/commands/photo.rs:38, runs Viewer::develop_op)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 44,
+     "scene": "s2-develop",
+     "intent": "Remove a light stand from the plate with distraction removal",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.develop.add_distraction (harness-core/src/action/commands/photo.rs:41, runs Viewer::develop_op)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 54,
+     "scene": "s2-develop",
+     "intent": "Develop the plate to match the subject's light",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.open (harness-core/src/action/commands/document.rs:58, runs open_path / open_bytes / expect_on_disk)",
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 55,
+     "scene": "s2-develop",
+     "intent": "Save, then reopen and confirm the develop edit survives",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.save (harness-core/src/action/commands/document.rs:61, runs save_to / save_new / save_replacing)",
+      "document.reopen (harness-core/src/action/commands/document.rs:60, runs reopen_bytes / reopen_path)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 58,
+     "scene": "s3-retouch-composite",
+     "intent": "Confirm the document's working space, depth and size",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.summary (harness-core/src/action/commands/document.rs:64, runs summary)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 60,
+     "scene": "s3-retouch-composite",
+     "intent": "Duplicate the base layer and name it retouch",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.duplicate_layer (harness/src/cli/drive_viewer.rs:244)",
+      "layer.rename (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 66,
+     "scene": "s3-retouch-composite",
+     "intent": "Create a dodge and burn layer: new layer filled 50 percent grey, Soft Light",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.new_raster_layer (harness/src/cli/drive_viewer.rs:243)",
+      "viewer.select_rect (harness/src/cli/drive_viewer.rs:285)",
+      "photo.fill_selection (harness-core/src/action/commands/photo.rs:18, runs Viewer::fill_selection)",
+      "layer.set_blend_mode (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 67,
+     "scene": "s3-retouch-composite",
+     "intent": "Paint dodge and burn at 5 percent with white and black",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_brush (harness/src/cli/drive_viewer.rs:267)",
+      "viewer.paint (harness/src/cli/drive_viewer.rs:303)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 70,
+     "scene": "s3-retouch-composite",
+     "intent": "Reshape a shoulder with the liquify forward warp",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.liquify (harness-core/src/action/commands/photo.rs:13, runs Viewer::liquify)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "destructive (select_liquify.rs:523), not the re-editable Liquify smart filter"
+    },
+    {
+     "n": 73,
+     "scene": "s3-retouch-composite",
+     "intent": "Build the selection with Quick Selection, sampled from the layer",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.select_quick (harness-core/src/action/commands/photo.rs:14, runs Viewer::select_quick_merged)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 74,
+     "scene": "s3-retouch-composite",
+     "intent": "Use the magic wand on the seamless for a second region",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.select_wand (harness/src/cli/drive_viewer.rs:293)",
+      "viewer.set_combine (harness/src/cli/drive_viewer.rs:261)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 75,
+     "scene": "s3-retouch-composite",
+     "intent": "Trace a hard edge with the magnetic lasso",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.select_magnetic (harness-core/src/action/commands/photo.rs:15, runs Viewer::select_magnetic)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 76,
+     "scene": "s3-retouch-composite",
+     "intent": "Enter the select_and_refine Task Scope and refine the hair",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.refine_stroke (harness-core/src/action/commands/photo.rs:16, runs Viewer::refine_stroke)",
+      "viewer.refine_end (harness/src/cli/drive_viewer.rs:299)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 83,
+     "scene": "s3-retouch-composite",
+     "intent": "Place the developed plate as a linked object below the subject",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "asset.place (harness-core/src/action/commands/asset.rs:11, runs Viewer::place_asset)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "lane SMB-PLACE-ASSET-1 (READY_FOR_VALIDATION): harness-view/src/view/place.rs:676 place_asset, linked or embedded"
+    },
+    {
+     "n": 85,
+     "scene": "s3-retouch-composite",
+     "intent": "Set the layer order",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.move_layer (harness/src/cli/drive_viewer.rs:249)",
+      "layer.restructure (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 86,
+     "scene": "s3-retouch-composite",
+     "intent": "Scale and position the plate",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "transform.free_transform (harness-core/src/action/commands/transform.rs:12, runs Viewer::free_transform)",
+      "transform.move (harness-core/src/action/commands/transform.rs:16, runs Viewer::move_content)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "lane SMB-PLACE-ASSET-1: place.rs:773 free_transform, :778 move_content"
+    },
+    {
+     "n": 90,
+     "scene": "s3-retouch-composite",
+     "intent": "Sample skin and sky with colour samplers while grading",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.info.add_sampler (harness-core/src/action/commands/photo.rs:20, runs Viewer::info_command)",
+      "photo.info.move_sampler (harness-core/src/action/commands/photo.rs:21, runs Viewer::info_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 91,
+     "scene": "s3-retouch-composite",
+     "intent": "Paint the contact shadow on a Multiply layer",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.new_raster_layer (harness/src/cli/drive_viewer.rs:243)",
+      "viewer.paint (harness/src/cli/drive_viewer.rs:303)",
+      "layer.set_blend_mode (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 93,
+     "scene": "s3-retouch-composite",
+     "intent": "Add a gradient to darken the top of the plate",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "photo.fill_gradient (harness-core/src/action/commands/photo.rs:19, runs Viewer::fill_gradient)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 95,
+     "scene": "s3-retouch-composite",
+     "intent": "Group the subject layers and name the group",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.group_layers (harness/src/cli/drive_viewer.rs:248)",
+      "layer.rename (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 96,
+     "scene": "s3-retouch-composite",
+     "intent": "Toggle and fade layers to judge the composite",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layer.set_opacity (NOT_INSPECTED)",
+      "layer.set_visible (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 97,
+     "scene": "s3-retouch-composite",
+     "intent": "Record a finishing action and replay it",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "action.play (harness-core/src/action/commands/automation.rs:6, runs play_action)",
+      "CLI verb action (harness-core/src/manual.rs:36)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 100,
+     "scene": "s3-retouch-composite",
+     "intent": "Walk back through history to compare states",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "history.undo (harness-core/src/action/commands/history.rs:6, runs undo)",
+      "history.redo (harness-core/src/action/commands/history.rs:7, runs redo)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 101,
+     "scene": "s3-retouch-composite",
+     "intent": "Save the versioned layered master",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.save (harness-core/src/action/commands/document.rs:61, runs save_to / save_new / save_replacing)",
+      "document.verify (harness-core/src/action/commands/document.rs:63, runs verify_live / verify_reopened)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 103,
+     "scene": "s4-proof-deliver",
+     "intent": "Soft proof against the print condition with paper simulation",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "proof.custom (harness-core/src/action/commands/proof.rs:9, runs Viewer::proof_command)",
+      "proof.set_proof_colours (harness-core/src/action/commands/proof.rs:10, runs Viewer::proof_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 104,
+     "scene": "s4-proof-deliver",
+     "intent": "Turn on the gamut warning and fix the out-of-gamut dress colour",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "proof.set_gamut_warning (harness-core/src/action/commands/proof.rs:11, runs Viewer::proof_command)",
+      "proof.set_gamut_style (harness-core/src/action/commands/proof.rs:12, runs Viewer::proof_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "warning only; fixing the colour needs a Hue/Saturation adjustment layer, which no command creates (StudioAdjustment is read at info.rs:311 and render.rs:582 only)"
+    },
+    {
+     "n": 105,
+     "scene": "s4-proof-deliver",
+     "intent": "Resize the print file to 30 by 40 cm at 300 ppi",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)",
+      "CLI verb export (harness-core/src/manual.rs:27)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "export-stage sizing on the export (doc_export.rs:1-8, pipeline step 3); the document is not resampled"
+    },
+    {
+     "n": 106,
+     "scene": "s4-proof-deliver",
+     "intent": "Crop the composite to the final format",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "crop applies to the export only (doc_export.rs pipeline step 2)"
+    },
+    {
+     "n": 107,
+     "scene": "s4-proof-deliver",
+     "intent": "Apply output sharpening for glossy print to the composite",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "develop export stage output sharpening (doc_export.rs:3-4)"
+    },
+    {
+     "n": 108,
+     "scene": "s4-proof-deliver",
+     "intent": "Export the layered master as PSD for the agency",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "layered PSD, typed losses for masks, text, vector and adjustment layers (doc_export.rs:28-33)"
+    },
+    {
+     "n": 109,
+     "scene": "s4-proof-deliver",
+     "intent": "Export the flat 16-bit print TIFF with embedded profile",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "16-bit TIFF tagged sRGB-v4"
+    },
+    {
+     "n": 110,
+     "scene": "s4-proof-deliver",
+     "intent": "Convert a copy to CMYK with the printer's profile and export",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "CMYK TIFF through Prism WideEngine (doc_export.rs:20-25), TIFF only"
+    },
+    {
+     "n": 111,
+     "scene": "s4-proof-deliver",
+     "intent": "Export the composite as a 2048 px web JPEG",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb export (harness-core/src/manual.rs:27)",
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 112,
+     "scene": "s4-proof-deliver",
+     "intent": "Add a web sized composite with watermark and screen sharpening",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "viewer.export_document (harness/src/cli/drive_viewer.rs:337)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "watermark and screen sharpening through the export stage"
+    },
+    {
+     "n": 113,
+     "scene": "s4-proof-deliver",
+     "intent": "Export six selects as watermarked web JPEGs",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb develop (harness-core/src/manual.rs:28)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 114,
+     "scene": "s4-proof-deliver",
+     "intent": "Export six selects as 16-bit sRGB TIFF for retouch agencies",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb develop (harness-core/src/manual.rs:28)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 116,
+     "scene": "s4-proof-deliver",
+     "intent": "Run the export as a batch job with a saved recipe",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "CLI verb batch (harness-core/src/manual.rs:31)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "a batch target of another format or with an export recipe goes through the exporter port (harness-core/src/batch.rs:12-13, :224), lane SMB-DOC-EXPORT-1"
+    },
+    {
+     "n": 120,
+     "scene": "s4-proof-deliver",
+     "intent": "Update the DNG archive with final settings in XMP",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb develop (harness-core/src/manual.rs:28)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 121,
+     "scene": "s4-proof-deliver",
+     "intent": "Verify each delivered file against its specification",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.verify (harness-core/src/action/commands/document.rs:63, runs verify_live / verify_reopened)",
+      "CLI verb verify (harness-core/src/manual.rs:30)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    }
+   ],
+   "steps_failing": [
+    {
+     "n": 11,
+     "scene": "s1-ingest-catalog",
+     "intent": "Write ratings and labels to XMP sidecars for other tools",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-interop-lrcat/src/xmp_sidecar.rs:1281 write_sidecar and :1598 write_sidecar_via_port; no caller in the harness crates. hsk-studio-kernel-bindings/src/ckc.rs:874 CkcCatalogPort; its lib.rs:1 says concrete adapters live in the product target and are excluded from this wo",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 12,
+     "scene": "s1-ingest-catalog",
+     "intent": "Read ratings from existing sidecars or in-camera marks",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-interop-lrcat/src/xmp_sidecar.rs:1085 read_sidecar; no caller in the harness crates.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 13,
+     "scene": "s1-ingest-catalog",
+     "intent": "Migrate last year's Lightroom catalog so past shoots stay searchable",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-interop-lrcat/src/extract.rs:966, library.rs:497, ckc_import.rs:159 and :347; hsk-studio-harness-core/src/import.rs:144 sniff has no lrcat route. hsk-studio-kernel-bindings/src/ckc.rs:874 CkcCatalogPort; its lib.rs:1 says concrete adapters live in the product target an",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 26,
+     "scene": "s2-develop",
+     "intent": "Choose a camera profile before any slider",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "no develop op for a camera profile (DevelopOp variants, develop.rs:408, read); develop/src/camera_colour.rs holds the matrices; a profile browser model per STU-RAW-125 is NOT_INSPECTED",
+     "label": "UNVERIFIED in part"
+    },
+    {
+     "n": 27,
+     "scene": "s2-develop",
+     "intent": "Apply the creative look from a .cube file with an amount",
+     "status_at_c4d06841": "callable",
+     "evidence": "DevelopOp::Family(FamilyOp::Look) has no typed row: the photo rows (harness-core/src/action/commands/photo.rs:27-42) stop at Kelvin..RemoveDistraction; FamilyOp is harness-view/src/view/develop_more.rs:166",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 28,
+     "scene": "s2-develop",
+     "intent": "Correct the lens from a profile",
+     "status_at_c4d06841": "callable",
+     "evidence": "FamilyOp::LensProfile (develop_more.rs:166) has no typed row",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 29,
+     "scene": "s2-develop",
+     "intent": "Remove chromatic aberration and defringe at the jawline",
+     "status_at_c4d06841": "callable",
+     "evidence": "defringe sliders reach one control at a time; FamilyOp::LensToggles has no typed row",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ]
+    },
+    {
+     "n": 30,
+     "scene": "s2-develop",
+     "intent": "Fix perspective on the plate with Upright",
+     "status_at_c4d06841": "callable",
+     "evidence": "FamilyOp::Upright and UprightGuides (develop_more.rs:166) have no typed row",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 31,
+     "scene": "s2-develop",
+     "intent": "Straighten and crop to 4:5 with a rule-of-thirds overlay",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "NormalizedCrop develop/src/recipe.rs:91, field :192; no DevelopOp variant (develop.rs:408) and the develop entry persists Adjustments only (develop_entry.rs:5)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 35,
+     "scene": "s2-develop",
+     "intent": "Add a filmic toe with per-channel point curves",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "ResolvedCurves develop/src/recipe.rs:68, field :189; Curve::new develop/src/curves.rs:23; no DevelopOp variant",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 40,
+     "scene": "s2-develop",
+     "intent": "Dodge the face with a radial local correction",
+     "status_at_c4d06841": "callable",
+     "evidence": "DevelopOp::AddCorrection(MaskSource) (develop.rs:408 enum) has no typed row; default_radial (develop.rs:635) is Rust-only",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ]
+    },
+    {
+     "n": 41,
+     "scene": "s2-develop",
+     "intent": "Paint a brush mask on the eyes and intersect with a luminance range",
+     "status_at_c4d06841": "callable",
+     "evidence": "AddCorrection(default_brush, develop.rs:640) and AddMask have no typed row, so the correction cannot be created by a command",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "photo.develop.add_brush_dabs (harness-core/src/action/commands/photo.rs:35, runs Viewer::develop_op)",
+      "photo.develop.mask_flags (harness-core/src/action/commands/photo.rs:34, runs Viewer::develop_op)"
+     ]
+    },
+    {
+     "n": 46,
+     "scene": "s2-develop",
+     "intent": "Add post-crop vignette and matched grain",
+     "status_at_c4d06841": "callable",
+     "evidence": "sliders reach; FamilyOp::GrainSeed and VignetteStyle have no typed row",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "viewer.set_develop (harness/src/cli/drive_viewer.rs:308)"
+     ]
+    },
+    {
+     "n": 48,
+     "scene": "s2-develop",
+     "intent": "Toggle a develop group on and off to judge it",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "Enables develop/src/recipe.rs:23 (12 flags); harness-view develop_more.rs:144 family_enables derives them, comment :179",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 49,
+     "scene": "s2-develop",
+     "intent": "Take a named snapshot of this edit",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "Snapshot develop/src/preset.rs:76; no host caller",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 50,
+     "scene": "s2-develop",
+     "intent": "Save this look as a preset",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "DevelopPreset::capture develop/src/preset.rs:348, to_text :406; no host caller",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 51,
+     "scene": "s2-develop",
+     "intent": "Apply a preset to another frame at 80 percent",
+     "status_at_c4d06841": "callable",
+     "evidence": "FamilyOp::Preset (develop_more.rs:166) has no typed row",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 53,
+     "scene": "s2-develop",
+     "intent": "Merge the plate bracket to a raw HDR",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-develop/src/hdr_merge.rs:176 merge_raw_brackets, dng_write.rs dng_from_hdr; git grep merge_raw_brackets|hdr_merge in the harness crates: 0 hits.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 59,
+     "scene": "s3-retouch-composite",
+     "intent": "Set the document to 16 bits per channel",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-prism/src/mode.rs:493 plan_mode_change; git grep convert_mode|ConvertMode|image_mode|mode:: in the harness crates: 0 hits. hsk-studio-harness-view/src/view/render.rs Frame output is rgba8 (hsk-studio-harness-view/src/view/export.rs:68).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 61,
+     "scene": "s3-retouch-composite",
+     "intent": "Clone along the jawline with aligned sampling on a blank layer, sampling all layers",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/retouch.rs:459 clone_stamp, :291 CloneSource, :252 SampleScope. git grep clone_stamp|healing_brush|spot_heal|patch_tool in the harness crates: only hsk-studio-harness-view/src/view/develop.rs (the develop spot stage). Tool enum at hsk-studio-harness-view/sr",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 62,
+     "scene": "s3-retouch-composite",
+     "intent": "Heal blemishes with the healing brush",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/retouch.rs:597 heal, :781 spot_heal, :506 HealReceipt. git grep clone_stamp|healing_brush|spot_heal|patch_tool in the harness crates: only hsk-studio-harness-view/src/view/develop.rs (the develop spot stage). Tool enum at hsk-studio-harness-view/src/view/ed",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 63,
+     "scene": "s3-retouch-composite",
+     "intent": "Patch a larger skin area by dragging a selection to clean skin",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/content_aware.rs:1664 patch, :1635 PatchMode. git grep clone_stamp|healing_brush|spot_heal|patch_tool in the harness crates: only hsk-studio-harness-view/src/view/develop.rs (the develop spot stage). Tool enum at hsk-studio-harness-view/src/view/edit.rs:37 ",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 64,
+     "scene": "s3-retouch-composite",
+     "intent": "Fill the seamless edge and floor mark with content-aware fill",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/content_aware.rs:1571 fill, :232 ContentAwareOptions; hsk-studio-render-cpu/src/plan_sink/content_aware.rs. git grep content_aware|inpaint in the harness crates: 0 hits.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 69,
+     "scene": "s3-retouch-composite",
+     "intent": "Brighten eyes with a Curves adjustment layer",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "StudioAdjustment folio/src/raster.rs:150; adjustment layers render (harness-view render.rs:582 binding) but no command creates one",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 71,
+     "scene": "s3-retouch-composite",
+     "intent": "Enter the liquify Task Scope with freeze mask and face-aware sliders",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/liquify.rs:138 face_aware_liquify, :276 set_freeze; hsk-studio-folio/src/smart_filter.rs:48 StudioLiquifyMesh. git grep face_aware|set_freeze in hsk-studio-harness-view/src/view/: 0. git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset in the ha",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 77,
+     "scene": "s3-retouch-composite",
+     "intent": "Set refine output: smart radius, smooth, contrast, shift edge, decontaminate colours",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/select_tools/refine.rs:41 RefineOptions, :482 refine_edge. Host passes only radius and method (hsk-studio-harness-view/src/view/select_liquify.rs:492).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 78,
+     "scene": "s3-retouch-composite",
+     "intent": "Feather and invert the selection",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "pigment selection ops exist; git grep selection::(invert|feather|grow|shrink) over harness-view/src: 0 hits",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 79,
+     "scene": "s3-retouch-composite",
+     "intent": "Save the selection to a channel for later",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/selection_channel_roundtrip.rs; hsk-studio-harness-view/src/view/selection_store.rs:21 stores one selection only. No Channels panel in hsk-studio-harness-view/src/view/shell.rs:111 list.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 80,
+     "scene": "s3-retouch-composite",
+     "intent": "Add a layer mask from the selection",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "StudioRasterLayerRecord.mask (folio/src/raster.rs:755) requires appearance.mask (raster.rs:1775-1777), which no chronicle property writes (chronicle/src/lib.rs:79-114); place.rs:794 refuses layer_has_mask",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 81,
+     "scene": "s3-retouch-composite",
+     "intent": "Paint on the mask to fix the shoulder edge",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "as 80; painting into a mask not looked for at 0a733db8 beyond 80 (scenario evidence)",
+     "label": "UNVERIFIED in part"
+    },
+    {
+     "n": 88,
+     "scene": "s3-retouch-composite",
+     "intent": "Clip a Colour Balance adjustment to the subject to match plate warmth",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "adjustment layer creation is missing (as 69), and clipping has no chronicle property: chronicle/src/lib.rs:79-114 Property is Name, Visible, Opacity, BlendMode, Tiles, Placement, VectorPaths; harness-core/src/panel.rs:1-5",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 89,
+     "scene": "s3-retouch-composite",
+     "intent": "Match colour between the subject and the plate",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "StudioAdjustment::MatchColour (folio/src/raster.rs second set, :255-300); no creating command",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 92,
+     "scene": "s3-retouch-composite",
+     "intent": "Build a cast shadow from a blurred copy",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "25 smart filter kinds (folio/src/smart_filter.rs:88-115) render through the viewer (render.rs:14-21), but no command writes a stack: smart_filter in harness-view/src appears only at export_set.rs:416 and fill_tools.rs:780",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 94,
+     "scene": "s3-retouch-composite",
+     "intent": "Match grain over the composite",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "AddNoise kind folio/src/smart_filter.rs:94; no command (as 92)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 99,
+     "scene": "s3-retouch-composite",
+     "intent": "Check the render agrees on CPU and GPU",
+     "status_at_c4d06841": "callable",
+     "evidence": "studio.view.render_gpu is declared not driveable: harness-core/src/manual.rs:357 (the process holds no GPU device)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 115,
+     "scene": "s4-proof-deliver",
+     "intent": "Export the same selects in a wide-gamut space",
+     "status_at_c4d06841": "missing",
+     "evidence": "UNVERIFIED: --colour-space adobe-rgb|prophoto is parsed (harness/src/cli.rs:281, :763-764); whether the develop TIFF writer accepts them was not read",
+     "label": "UNVERIFIED in part",
+     "partial_via": [
+      "CLI verb develop (harness-core/src/manual.rs:28)"
+     ]
+    }
+   ],
+   "steps_missing": [
+    {
+     "n": 1,
+     "scene": "s1-ingest-catalog",
+     "intent": "Apply the Catalog Layout Preset so browsing panels lead",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset|develop_raw in hsk-studio-harness, harness-core and harness-view/src: 0 hits. hsk-studio-harness-view/src/view/shell.rs:111 lists panel toggles only.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 2,
+     "scene": "s1-ingest-catalog",
+     "intent": "Import the card by copy into a dated shoot folder with content-hash duplicate detection",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: CkcCatalogPort methods are get, search, metadata, keyword, collection and XMP sidecar calls; no import method. hsk-studio-kernel-bindings/src/ckc.rs:874 CkcCatalogPort; its lib.rs:1 says concrete adapters live in the product target and are excluded from this workspace; only a tes",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 6,
+     "scene": "s1-ingest-catalog",
+     "intent": "Read capture metadata to check the set: camera, lens, ISO, capture time",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: EXIF is parsed inside hsk-studio-develop/src/dng.rs and raw_cr/mod.rs for decode and rewritten by dng_write.rs. No metadata panel or browse command found: git grep -i exif in the harness crates has 12 hits, in import/raster.rs, view/develop.rs and lib.rs; their content was not re",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 7,
+     "scene": "s1-ingest-catalog",
+     "intent": "Apply a rights template: creator, copyright, usage terms",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep -i 'iptc|dublin' across crates/*/src: 0 hits. hsk-studio-kernel-bindings/src/ckc.rs:874 CkcCatalogPort; its lib.rs:1 says concrete adapters live in the product target and are excluded from this workspace; only a test double exists here (lib.rs:18).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 8,
+     "scene": "s1-ingest-catalog",
+     "intent": "Review the shoot in a grid with thumbnails",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep -i for rating as a word, filmstrip and contact.?sheet across crates/*/src: hits only in hsk-studio-interop-lrcat/src/ckc_import.rs and library.rs. git grep -i ckc in the three harness crates: 0 hits. hsk-studio-harness-core/src/batch.rs:57 catalog_query refuses.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 9,
+     "scene": "s1-ingest-catalog",
+     "intent": "Compare two frames side by side at 100 percent with linked zoom",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-harness-view/src/view/mod.rs:200 Viewer holds one Run and so one document; document tabs: no hit for tabs in hsk-studio-harness-view/src/view/shell.rs. Compare not found.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 10,
+     "scene": "s1-ingest-catalog",
+     "intent": "Flag rejects and set star ratings while culling",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: CKC types exist at hsk-studio-kernel-bindings/src/ckc.rs:205 Rating and :220 Flag, reached only by hsk-studio-interop-lrcat/src/ckc_import.rs:299; no host command. git grep -i for rating as a word, filmstrip and contact.?sheet across crates/*/src: hits only in hsk-studio-interop-",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 14,
+     "scene": "s1-ingest-catalog",
+     "intent": "Build a smart collection of picks rated 4 and up",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: CkcCatalogPort.collection exists (ckc.rs:874) with no host; hsk-studio-interop-lrcat/src/lua_rules.rs:652 parses Lightroom rules only for import. hsk-studio-harness-core/src/batch.rs:57 refuses catalog_query.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 16,
+     "scene": "s1-ingest-catalog",
+     "intent": "Set a preview cache size and location for this large shoot",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep preview_cache|purge_cache|cache_size in the harness crates and hsk-studio-develop/src: 0 hits. Every re-develop renders fresh (hsk-studio-harness-view/src/view/develop.rs:1029).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 17,
+     "scene": "s2-develop",
+     "intent": "Switch to the Photo Layout Preset",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset|develop_raw in the harness crates: 0 hits.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 19,
+     "scene": "s2-develop",
+     "intent": "Enter the develop_raw Task Scope",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset|develop_raw in the harness crates: 0 hits. Spec list at STU-SHL-153.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 21,
+     "scene": "s2-develop",
+     "intent": "Show shadow and highlight clipping as an overlay on the image",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep clipping|clip_warning in the harness crates: hits are harness.rs/panel.rs layer clipping and vector clipping only; no develop overlay. Numbers only via info.rs:330.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 23,
+     "scene": "s2-develop",
+     "intent": "Set white balance from the grey card with a click",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: DevelopOp at hsk-studio-harness-view/src/view/develop.rs:408 has Kelvin and AsShotWhite and no picker; AddPointColour is a different stage. git grep wb_pick|neutral_pick|white_pick: 0 hits. STU-RAW-005 requires the picker.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 25,
+     "scene": "s2-develop",
+     "intent": "Run Auto Tone as a starting point, then adjust",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep auto_tone across crates/*/src: only hsk-studio-folio sequence_preset (an unrelated video field). WbMode::Auto exists at hsk-studio-develop/src/recipe.rs:15; no host reaches it. Menu leaf at STU-SHL-026.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 42,
+     "scene": "s2-develop",
+     "intent": "Select the subject with a model-assisted mask",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-develop/src/local.rs:117 ModelMaskKind and :170 Model say evaluation is model_unavailable in this build; hsk-studio-harness-view/src/view/develop.rs:1347 draws the button. STU-RAW-130 makes this an optional adapter with a manual fallback, so absence is allowed if the r",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 45,
+     "scene": "s2-develop",
+     "intent": "Correct red-eye on a flash frame",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-develop/src/recipe.rs:61 first_unsupported refuses red_eye; its comment says STU-RAW-124 lists no red-eye record fields (spec gap, lane SMB-LR-HEALING-1).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 47,
+     "scene": "s2-develop",
+     "intent": "Toggle before and after",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep before_after|BeforeAfter in crates/*/src: only unrelated hits in layout and lrcat extract. STU-RAW-004 requires it.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 52,
+     "scene": "s2-develop",
+     "intent": "Copy develop settings to the five other selects",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep paste_settings|sync_settings|previous_settings in crates/*/src: 0 hits. No multi-image selection exists; STU-RAW-017 requires the canonical selection set, not the visible subset. Viewer holds one document (hsk-studio-harness-view/src/view/mod.rs:200).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 56,
+     "scene": "s2-develop",
+     "intent": "Open the developed raw as a re-editable placed object for retouching",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: Workflow options not found; In hsk-studio-harness-view/src/view/ the only placed-asset code found is the refusal at fill_tools.rs:401. hsk-studio-harness-core/src/import.rs:533 comment: developed into linear light with sRGB primaries, one 32-bit layer. hsk-studio-harness-view/src",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 57,
+     "scene": "s3-retouch-composite",
+     "intent": "Switch to the Retouch Layout Preset",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset in the harness crates: 0 hits.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 65,
+     "scene": "s3-retouch-composite",
+     "intent": "Set up frequency separation layers",
+     "status_at_c4d06841": "missing",
+     "evidence": "GaussianBlur and HighPass smart filter kinds exist (folio/src/smart_filter.rs:91, :93) and no command applies them (as 92); frequency separation also needs Apply Image",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 68,
+     "scene": "s3-retouch-composite",
+     "intent": "Use the Dodge and Burn tools directly with a tonal range",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep -i dodge|sponge across crates/*/src: all hits are the Colour Dodge blend mode family, e.g. hsk-studio-pigment/src/blend_math.rs, hsk-studio-harness-view/src/view/fill_tools.rs:83. Nothing paints a tonal dodge. Tool enum has no such tool (hsk-studio-harness-view/src/view/",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 72,
+     "scene": "s3-retouch-composite",
+     "intent": "Cut the subject: Select Subject as a first pass",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: hsk-studio-pigment/src/select_tools/quick.rs:456 subject_select returns ModelUnavailable always (same for :461 sky_select). No host. STU-RAS-019 requires on-device by default.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 82,
+     "scene": "s3-retouch-composite",
+     "intent": "Switch to the Composite Layout Preset",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset in the harness crates: 0 hits.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 84,
+     "scene": "s3-retouch-composite",
+     "intent": "Bring in the subject from another open document",
+     "status_at_c4d06841": "missing",
+     "evidence": "no second open document: the Viewer holds one document; copy between documents not looked for beyond the scenario reading (UNVERIFIED)",
+     "label": "UNVERIFIED in part"
+    },
+    {
+     "n": 87,
+     "scene": "s3-retouch-composite",
+     "intent": "Warp the plate floor to meet the subject's feet",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep warp_mesh|LayerWarp across crates/*/src: 0 hits; perspective_warp|vanishing hits are hsk-studio-develop/src/upright.rs and vector live effects. Envelope Distort panel is vector only (hsk-studio-harness-view/src/view/hosted.rs:80).",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 98,
+     "scene": "s3-retouch-composite",
+     "intent": "Stamp visible layers to a new top layer",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep merge_down|merge_visible|stamp_visible|flatten in the harness crates: only import comments and iterator flatten. hsk-studio-harness-view/src/view/layers.rs lists no merge.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 102,
+     "scene": "s4-proof-deliver",
+     "intent": "Switch to the Colour Layout Preset",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep for Task.?Scope|task_scope|layout_preset|Layout.?Preset in the harness crates: 0 hits.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 117,
+     "scene": "s4-proof-deliver",
+     "intent": "Embed copyright and contact in every delivered file",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep -i iptc|dublin across crates/*/src: 0 hits. Develop keeps an EXIF subset in DNG only (hsk-studio-harness-view/src/view/develop.rs:669). JPEG path writes no rights fields found.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 118,
+     "scene": "s4-proof-deliver",
+     "intent": "Make a client contact sheet PDF of the selects",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep -i contact.?sheet across crates/*/src: 0 hits. STU-AUT-134 lists it as a runner configuration. Page layout exists in hsk-studio-layout but no image-set route was found.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 119,
+     "scene": "s4-proof-deliver",
+     "intent": "Publish exports back into the catalog with their lineage",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep -i ckc in the harness crates: 0 hits. STU-ASSET-012 requires every deliverable to publish back. CkcCatalogPort at hsk-studio-kernel-bindings/src/ckc.rs:874 has no import of a new file.",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    }
+   ],
+   "counts": {
+    "working": 54,
+    "failing": 36,
+    "missing": 31
+   },
+   "counts_at_c4d06841": {
+    "missing": 34,
+    "callable": 53,
+    "engine_only": 34
+   }
+  },
+  "vector-brand": {
+   "source": "S/workflows/scenario-vector-brand.json",
+   "steps_total": 110,
+   "steps_working": [
+    {
+     "n": 1,
+     "scene": "logo-construction",
+     "intent": "Create the master brand document as a blank vector document, RGB working space, px units.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "document.new (harness-core/src/action/commands/document.rs:44, runs new_document)",
+      "CLI verb new (harness-core/src/manual.rs:23)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "lane SMB-DOC-NEW-1 (READY_FOR_VALIDATION)"
+    },
+    {
+     "n": 3,
+     "scene": "logo-construction",
+     "intent": "Add four named artboards: mark, lockup-horizontal, lockup-stacked, mono-proof.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "artboard.add (harness-core/src/action/commands/document.rs:45, runs add_artboard)",
+      "artboard.rename (harness-core/src/action/commands/document.rs:46, runs rename_artboard)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "lane SMB-DOC-NEW-1"
+    },
+    {
+     "n": 4,
+     "scene": "logo-construction",
+     "intent": "Set the artboard options: transparent background, centre mark, ruler origin at the board corner.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "artboard.set_options (harness-core/src/action/commands/document.rs:50, runs set_artboard_options)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "background_fill is stored but not rendered (ledger next_lane_candidates 2026-11-07T15:24:26Z; not re-read in code)"
+    },
+    {
+     "n": 6,
+     "scene": "logo-construction",
+     "intent": "Draw the outer construction circle exactly 768 px in diameter, centred on the board.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.draw_shape (harness/src/cli/drive_viewer.rs:390)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 7,
+     "scene": "logo-construction",
+     "intent": "Correct the live shape parameters numerically.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.set_live_shape (harness-core/src/action/commands/vector.rs:24, runs Viewer::set_live_shape)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 8,
+     "scene": "logo-construction",
+     "intent": "Duplicate the circle and scale the copy to 62 percent about its centre for the inner ring edge.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.transform.transform (harness-core/src/action/commands/panel.rs:32, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 9,
+     "scene": "logo-construction",
+     "intent": "Align both circles to the artboard centre.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.align_distribute.align (harness-core/src/action/commands/panel.rs:30, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 10,
+     "scene": "logo-construction",
+     "intent": "Punch the ring: subtract the inner circle from the outer.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.pathfinder_layers (harness/src/cli/drive_viewer.rs:423)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 12,
+     "scene": "logo-construction",
+     "intent": "Add the peak: a three-sided polygon snapped to the ring's lower chord.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.draw_shape (harness/src/cli/drive_viewer.rs:390)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 13,
+     "scene": "logo-construction",
+     "intent": "Reflect a copy of the peak for the smaller second peak, then scale it.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.transform.transform (harness-core/src/action/commands/panel.rs:32, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 14,
+     "scene": "logo-construction",
+     "intent": "Fuse the peaks and clip them to the ring with the Shape Builder.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.shape_builder_layers (harness/src/cli/drive_viewer.rs:431)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 15,
+     "scene": "logo-construction",
+     "intent": "Refine the peak junction with Pen: add an anchor and pull handles for optical correction.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.edit_path (harness-core/src/action/commands/vector.rs:21, runs Viewer::edit_path)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 16,
+     "scene": "logo-construction",
+     "intent": "Round the two outer peak corners with a live corner radius.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.path_operations.edit_path (harness-core/src/action/commands/panel.rs:38, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 19,
+     "scene": "logo-construction",
+     "intent": "Load the brand typeface files (generated OFL-style test font, regular and bold).",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.add_font (harness-core/src/action/commands/vector.rs:35, runs Viewer::add_font)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 20,
+     "scene": "logo-construction",
+     "intent": "Set the wordmark as point text at display size.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.place_text_with_font (harness-core/src/action/commands/vector.rs:34, runs Viewer::place_text_with_font)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 22,
+     "scene": "logo-construction",
+     "intent": "Convert the wordmark to outlines.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "studio.type.convert.create_outlines (menu leaf, harness/src/cli/drive.rs:333-346 through Viewer::shell_command)",
+      "panel.path_operations.create_outlines (harness-core/src/action/commands/panel.rs:41, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 23,
+     "scene": "logo-construction",
+     "intent": "Position mark and wordmark: align centres vertically, set the gap to 0.5x mark height.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.align_distribute.align (harness-core/src/action/commands/panel.rs:30, runs Viewer::hosted_action)",
+      "panel.align_distribute.distribute (harness-core/src/action/commands/panel.rs:31, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 24,
+     "scene": "logo-construction",
+     "intent": "Group the lockup and name layers to the kit naming scheme.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.group_layers (harness/src/cli/drive_viewer.rs:248)",
+      "layer.rename (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 27,
+     "scene": "logo-construction",
+     "intent": "Draw the clear-space frame at 1x peak height around the lockup on a locked template layer.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.draw_shape (harness/src/cli/drive_viewer.rs:390)",
+      "layer.set_visible (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 28,
+     "scene": "logo-construction",
+     "intent": "Produce mono and reversed versions by setting black and white fills.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.appearance.set_fill (harness-core/src/action/commands/panel.rs:16, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 29,
+     "scene": "logo-construction",
+     "intent": "Test legibility at favicon size by zooming to 16 px apparent size.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "studio.view.zoom_out (menu leaf, harness/src/cli/drive.rs:333-346 through Viewer::shell_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 30,
+     "scene": "logo-construction",
+     "intent": "Undo three steps, redo three steps to confirm history is whole.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "history.undo (harness-core/src/action/commands/history.rs:6, runs undo)",
+      "history.redo (harness-core/src/action/commands/history.rs:7, runs redo)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 31,
+     "scene": "logo-construction",
+     "intent": "Save the master and verify it reopens with names and visibility intact.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.save (harness-core/src/action/commands/document.rs:61, runs save_to / save_new / save_replacing)",
+      "document.verify (harness-core/src/action/commands/document.rs:63, runs verify_live / verify_reopened)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 33,
+     "scene": "colour-type-system",
+     "intent": "Assign the print condition: load the CMYK output profile for the document.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.set_document_cmyk_profile (harness-core/src/action/commands/vector.rs:36, runs Viewer::set_document_cmyk_profile)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 34,
+     "scene": "colour-type-system",
+     "intent": "Create the primary brand colour as a global swatch: Orrin Pine.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.add_folio_swatch (harness-core/src/action/commands/vector.rs:19, runs Viewer::add_folio_swatch)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 36,
+     "scene": "colour-type-system",
+     "intent": "Create the spot version with a measured Lab and a CMYK alternate.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.add_folio_swatch (harness-core/src/action/commands/vector.rs:19, runs Viewer::add_folio_swatch)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 38,
+     "scene": "colour-type-system",
+     "intent": "Add tints at 80, 60, 40 and 20 percent of Pine.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.add_folio_swatch (harness-core/src/action/commands/vector.rs:19, runs Viewer::add_folio_swatch)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 42,
+     "scene": "colour-type-system",
+     "intent": "Soft-proof the palette against the print condition and turn on gamut warning.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "proof.custom (harness-core/src/action/commands/proof.rs:9, runs Viewer::proof_command)",
+      "proof.save_preset (harness-core/src/action/commands/proof.rs:14, runs Viewer::proof_command)",
+      "proof.select (harness-core/src/action/commands/proof.rs:8, runs Viewer::proof_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 43,
+     "scene": "colour-type-system",
+     "intent": "Run colour-vision proofs on the palette.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "proof.custom (harness-core/src/action/commands/proof.rs:9, runs Viewer::proof_command)",
+      "proof.save_preset (harness-core/src/action/commands/proof.rs:14, runs Viewer::proof_command)",
+      "proof.select (harness-core/src/action/commands/proof.rs:8, runs Viewer::proof_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 47,
+     "scene": "colour-type-system",
+     "intent": "Define paragraph and character styles: display, heading, body, caption, numeric.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layout.style.new_style (harness-core/src/action/commands/layout.rs:29, runs LayoutEditor::apply)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 53,
+     "scene": "colour-type-system",
+     "intent": "Change Pine by one step and watch every use follow; then replace a stray literal colour.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.edit_folio_swatch (harness-core/src/action/commands/vector.rs:20, runs Viewer::edit_folio_swatch)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 54,
+     "scene": "illustration-set",
+     "intent": "Place the hand-sketch PNG as a dimmed template under a locked layer.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "asset.place (harness-core/src/action/commands/asset.rs:11, runs Viewer::place_asset)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "opacity_pct dims the template; layer lock has no command"
+    },
+    {
+     "n": 56,
+     "scene": "illustration-set",
+     "intent": "Draw the 48 px icon keyline grid once and lock it as the template.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.draw_shape (harness/src/cli/drive_viewer.rs:390)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 57,
+     "scene": "illustration-set",
+     "intent": "Draw icon 1 (tent) with Pen on the grid: straight segments with Shift constraints.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.pen_point (harness/src/cli/drive_viewer.rs:384)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 58,
+     "scene": "illustration-set",
+     "intent": "Draw icon 2 (leaf) with Curvature: smooth, then one corner point.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.curvature_point (harness/src/cli/drive_viewer.rs:389)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 59,
+     "scene": "illustration-set",
+     "intent": "Sketch icon 3 (flame) with Pencil at set fidelity, then clean it with Reshape.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.pencil_stroke (harness/src/cli/drive_viewer.rs:395)",
+      "viewer.reshape_drag (harness/src/cli/drive_viewer.rs:402)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 60,
+     "scene": "illustration-set",
+     "intent": "Apply the kit stroke: 24 px, round cap, round join, centred; bound to the Pine swatch.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.stroke.set_stroke (harness-core/src/action/commands/panel.rs:19, runs Viewer::hosted_action)",
+      "panel.swatches.apply_swatch (harness-core/src/action/commands/panel.rs:23, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 61,
+     "scene": "illustration-set",
+     "intent": "Vary line weight along the river with Width points; save the profile.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.set_width_point (harness/src/cli/drive_viewer.rs:404)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 62,
+     "scene": "illustration-set",
+     "intent": "Create a calligraphic brush from the kit's nib and stroke the contour line.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.brushes.add_brush (harness-core/src/action/commands/panel.rs:48, runs Viewer::hosted_action)",
+      "panel.brushes.apply_brush (harness-core/src/action/commands/panel.rs:49, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 63,
+     "scene": "illustration-set",
+     "intent": "Paint the shadow mass with Blob Brush; same-attribute strokes merge.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.blob_brush_stroke (harness/src/cli/drive_viewer.rs:396)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 64,
+     "scene": "illustration-set",
+     "intent": "Cut a path and slice a shape: Scissors on the ridge, Knife through the tent door.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.edit_path (harness-core/src/action/commands/vector.rs:21, runs Viewer::edit_path)",
+      "viewer.knife_cut (harness/src/cli/drive_viewer.rs:397)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 67,
+     "scene": "illustration-set",
+     "intent": "Colour a junction drawing by regions: promote to a vector network, paint-bucket the faces.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.network_region_swatch (harness/src/cli/drive_viewer.rs:421)",
+      "viewer.promote_network (harness/src/cli/drive_viewer.rs:407)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 68,
+     "scene": "illustration-set",
+     "intent": "Fill the sky with a three-stop linear gradient bound to palette colours.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.set_fill (harness-core/src/action/commands/vector.rs:14, runs Viewer::set_fill)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 69,
+     "scene": "illustration-set",
+     "intent": "Build a soft boulder with a gradient mesh and colour its nodes.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.create_gradient_mesh (harness/src/cli/drive_viewer.rs:437)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 72,
+     "scene": "illustration-set",
+     "intent": "Save the badge look as a graphic style, apply to two more, then redefine and see all update.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.graphic_styles.add_graphic_style (harness-core/src/action/commands/panel.rs:25, runs Viewer::hosted_action)",
+      "panel.graphic_styles.apply_graphic_style (harness-core/src/action/commands/panel.rs:26, runs Viewer::hosted_action)",
+      "panel.graphic_styles.redefine_graphic_style (harness-core/src/action/commands/panel.rs:28, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 76,
+     "scene": "illustration-set",
+     "intent": "Warp the banner with an arc envelope and keep it editable.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.envelope_distort.make_envelope (harness-core/src/action/commands/panel.rs:45, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 77,
+     "scene": "illustration-set",
+     "intent": "Set the seal text around the badge circle with type on a path.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.path_operations.bind_live_text (harness-core/src/action/commands/panel.rs:39, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 78,
+     "scene": "illustration-set",
+     "intent": "Clip the scene to the arch shape.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.masks.make_clip (harness-core/src/action/commands/panel.rs:42, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 79,
+     "scene": "illustration-set",
+     "intent": "Multiply the ground shadow over the scene and drop it to 40 percent.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layer.set_blend_mode (NOT_INSPECTED)",
+      "viewer.move_layer (harness/src/cli/drive_viewer.rs:249)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 81,
+     "scene": "illustration-set",
+     "intent": "Recolour the whole set for the dark mode palette in one step.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.recolor_artwork (harness-core/src/action/commands/vector.rs:31, runs Viewer::recolor_artwork)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 83,
+     "scene": "illustration-set",
+     "intent": "Lay icons out in a 4 x 2 sheet: distribute and align to a shared key object, read back bounds for the QA table.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.align_distribute.distribute (harness-core/src/action/commands/panel.rs:31, runs Viewer::hosted_action)",
+      "vector.layer_bounds (harness-core/src/action/commands/vector.rs:37, runs Viewer::layer_bounds)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 85,
+     "scene": "export-kit",
+     "intent": "Enter export_slices Task Scope and mark each lockup and icon for export.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "export.set_settings (harness-core/src/action/commands/export.rs:19, runs Viewer::set_export_settings)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "per-node settings mark each lockup (lane SMB-ARTBOARD-EXPORT-1); the export_slices Task Scope itself is missing"
+    },
+    {
+     "n": 86,
+     "scene": "export-kit",
+     "intent": "Define a still export recipe set: PNG @1x @2x @3x, SVG, PDF.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "export.set_settings (harness-core/src/action/commands/export.rs:19, runs Viewer::set_export_settings)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "PNG/JPG scale or size constraints, SVG and PDF per node (export.rs:8 SETTINGS)"
+    },
+    {
+     "n": 87,
+     "scene": "export-kit",
+     "intent": "Export the mark artboard as optimised SVG for the web.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.export_vector_svg (harness/src/cli/drive_viewer.rs:348)",
+      "panel.vector_export.export_svg (harness-core/src/action/commands/panel.rs:51, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "known engine defect: export_svg refuses DuplicateIdentity on a group layer (ledger 2026-11-07T12:31:03Z)"
+    },
+    {
+     "n": 88,
+     "scene": "export-kit",
+     "intent": "Export each lockup and icon as its own SVG cropped to its board.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "export.run (harness-core/src/action/commands/export.rs:22, runs Viewer::export_run)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "every node with its own settings, framed to its board (commit 2b884024)"
+    },
+    {
+     "n": 89,
+     "scene": "export-kit",
+     "intent": "Export the mark to PNG with alpha at document size.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb export (harness-core/src/manual.rs:27)",
+      "export.run (harness-core/src/action/commands/export.rs:22, runs Viewer::export_run)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 90,
+     "scene": "export-kit",
+     "intent": "Export @2x and @3x plus sized exports (16, 32, 180, 512 px) from the same art.",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "export.run (harness-core/src/action/commands/export.rs:22, runs Viewer::export_run)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "SCALE, WIDTH and HEIGHT constraints"
+    },
+    {
+     "n": 92,
+     "scene": "export-kit",
+     "intent": "Export a screen PDF of the logo sheet.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.export_vector_pdf (harness/src/cli/drive_viewer.rs:349)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 97,
+     "scene": "export-kit",
+     "intent": "Round-trip check: reopen the SVG and an AI-compatible PDF and compare with the master.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.vector_import.import_vector (harness-core/src/action/commands/panel.rs:53, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "hosted.rs:1416 PanelAction::ImportVector"
+    },
+    {
+     "n": 99,
+     "scene": "export-kit",
+     "intent": "Switch to the Layout preset and start the guidelines document.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layout.open (harness-core/src/action/commands/layout.rs:52, runs Viewer::layout_open)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 100,
+     "scene": "export-kit",
+     "intent": "Flow the guideline copy into threaded frames with the brand styles.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layout.draw_frame (harness-core/src/action/commands/layout.rs:13, runs LayoutEditor::apply)",
+      "layout.thread (harness-core/src/action/commands/layout.rs:14, runs LayoutEditor::apply)",
+      "layout.replace_text (harness-core/src/action/commands/layout.rs:17, runs LayoutEditor::apply)",
+      "layout.apply_paragraph_style (harness-core/src/action/commands/layout.rs:18, runs LayoutEditor::apply)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 102,
+     "scene": "export-kit",
+     "intent": "Build the colour-values table on the swatch page: name, HEX, RGB, CMYK, spot.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layout.table.insert_table (harness-core/src/action/commands/layout.rs:35, runs LayoutEditor::apply)",
+      "layout.table.set_cell_text (harness-core/src/action/commands/layout.rs:40, runs LayoutEditor::apply)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 103,
+     "scene": "export-kit",
+     "intent": "Run preflight on the guidelines.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "layout.preflight (harness-core/src/action/commands/layout.rs:47, runs LayoutEditor::preflight)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 104,
+     "scene": "export-kit",
+     "intent": "Export the guidelines as a tagged screen PDF.",
+     "status_at_c4d06841": "engine_only",
+     "via": [
+      "layout.export_pdf (harness-core/src/action/commands/layout.rs:53, runs Viewer::export_layout_pdf)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "tagged PDF is a listed loss (ledger 2026-11-07T16:35:52Z)"
+    },
+    {
+     "n": 108,
+     "scene": "export-kit",
+     "intent": "Replay the naming and visibility pass on the master through an action.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb action (harness-core/src/manual.rs:36)",
+      "CLI verb batch (harness-core/src/manual.rs:31)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 109,
+     "scene": "export-kit",
+     "intent": "Final verification: reopen the master, read state, compare outputs with goldens.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb verify (harness-core/src/manual.rs:30)",
+      "CLI verb state (harness-core/src/manual.rs:32)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 110,
+     "scene": "export-kit",
+     "intent": "Read the built-in manual as a no-context operator to confirm the workflow is documented.",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb help (harness-core/src/manual.rs:19)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    }
+   ],
+   "steps_failing": [
+    {
+     "n": 17,
+     "scene": "logo-construction",
+     "intent": "Simplify the merged outline to the fewest anchors within tolerance.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-nib/src/simplify.rs:734 `pub fn simplify`', \"looked: git grep -iE 'simplify' over hsk-studio-harness-view/src/view/hosted.rs, hsk-studio-harness-view/src/view/vector.rs at c4d06841: 0 hits (engine not hosted)\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 18,
+     "scene": "logo-construction",
+     "intent": "Read the mark's exact bounds and path length to record construction measurements.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "bounds reach; path length (nib shape_ops::path_length) has no command",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "vector.layer_bounds (harness-core/src/action/commands/vector.rs:37, runs Viewer::layer_bounds)"
+     ]
+    },
+    {
+     "n": 21,
+     "scene": "logo-construction",
+     "intent": "Track the wordmark +40 and fix one kern pair (R-I) by hand.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-folio/src/typestyle.rs:122 `pub letter_spacing: Option<StudioLetterSpacing>`', 'crates/hsk-studio-layout/src/typeset.rs:38 `letter_spacing` (tracking is honoured in Layout composition)', \"looked: git grep -iE 'tracking|kerning|letter_spacing' over hsk-studio-h",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 25,
+     "scene": "logo-construction",
+     "intent": "Make the mark a reusable master so every lockup updates from one source.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "StudioComponent folio/src/components.rs:164; no create command (git grep create_from_selection|create_instance|combine_as_variants|add_property over harness-view/src and harness-core/src: 0 hits); the vector entry refuses components in its design member (harness-view/src/view/vector/style.rs:297-300)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 37,
+     "scene": "colour-type-system",
+     "intent": "Load a synthetic spot book and pick the ink from it.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-folio/src/colour_book.rs:4 `StudioColourBook`', \"looked: git grep -iE 'StudioColourBook|colour_book' over hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 39,
+     "scene": "colour-type-system",
+     "intent": "Organise swatches into groups: core, tints, neutrals, accents, ink.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-folio/src/swatch_library.rs:4 `StudioSwatchGroup`', \"looked: git grep -iE 'StudioSwatchGroup|swatch_groups' over hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 40,
+     "scene": "colour-type-system",
+     "intent": "Generate supporting accents with a split-complementary harmony.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-prism/src/recolor.rs:227 `pub fn harmony`', \"looked: git grep -iE 'harmony\\\\(|HarmonyRule' over hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 44,
+     "scene": "colour-type-system",
+     "intent": "Preview separations to confirm Pine runs on its own plate.",
+     "status_at_c4d06841": "callable",
+     "evidence": "Viewer::vector_separations has no typed row and no drive arm (absent from action/commands/*.rs and drive_viewer.rs)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 48,
+     "scene": "colour-type-system",
+     "intent": "Turn on stylistic set 1 and tabular figures for the numeric style.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: [\"crates/hsk-studio-type/src/contract.rs:99 `pub features: &'a [Feature]`\", 'crates/hsk-studio-type/src/features.rs:646 `KerningMarks`', \"looked: git grep -iE 'stylistic|ss01|feature_tag' over hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 49,
+     "scene": "colour-type-system",
+     "intent": "Set the variable font's weight and width axes for the heading style.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: [\"crates/hsk-studio-type/src/contract.rs:100 `pub axes: &'a [Axis]`\", 'crates/hsk-studio-type/src/fonts.rs:137 `face.set_variations(`', \"looked: git grep -iE 'design_axes|font_axis|variation_axis|fvar' over hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 51,
+     "scene": "colour-type-system",
+     "intent": "Create token collections: colour with light and dark modes, number for type scale and spacing.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "StudioVariableCollection folio/src/components.rs:246; no writer (git grep variable_collection|create_variable|set_code_syntax over harness crates: 0 hits); vector/style.rs:297-300 refuses variables in the entry",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 70,
+     "scene": "illustration-set",
+     "intent": "Create a topographic-line pattern swatch and fill the backdrop with it.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-folio/src/vector.rs:203 `pub struct StudioPattern {`', 'crates/hsk-studio-folio/src/vector.rs:262 `pub struct StudioPatternPaint`', \"looked: git grep -iE 'StudioPatternPaint|add_pattern|make_pattern' over hsk-studio-harness-view/src/view/hosted.rs, hsk-studio-",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 71,
+     "scene": "illustration-set",
+     "intent": "Stack a second fill and an offset stroke on the badge via Appearance.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-folio/src/paint.rs:204 `pub enum StudioAppearanceRow`', \"looked: git grep -iE 'add_new_fill|add_fill_row|AddFillRow|AddNewFill' over hsk-studio-harness-view/src/view/hosted.rs, hsk-studio-harness-view/src/view/vector/style.rs at c4d06841: 0 hits\", 'crates/hsk-",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 73,
+     "scene": "illustration-set",
+     "intent": "Add a roughen live effect to the hand-drawn set for ink texture.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "in flight: SMB-AI-LIVE-EFFECTS-1; nib::live_effect has no document home at 0a733db8",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 82,
+     "scene": "illustration-set",
+     "intent": "Make each icon a component so the sheet and the guidelines stay in sync.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "as 25",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 93,
+     "scene": "export-kit",
+     "intent": "Export the print PDF/X-4 with output intent, CMYK values preserved, trim and 3 mm bleed.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: [\"crates/hsk-studio-press-write/src/export.rs:268 `pub pdfx4: Option<PdfX4<'a>>`\", 'crates/hsk-studio-press-write/src/export.rs:353 `DeviceCmyk([f64; 4])`', 'crates/hsk-studio-press-write/src/export.rs:319 `pub struct PageSpec`', 'crates/hsk-studio-harness-view/src/view/vector/pd",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 95,
+     "scene": "export-kit",
+     "intent": "Check plates and total ink before release against the spec limit.",
+     "status_at_c4d06841": "callable",
+     "evidence": "as 44: vector_separations is Rust-only",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 96,
+     "scene": "export-kit",
+     "intent": "Export EPS for legacy sign makers.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-interop-vector-core/src/eps_export.rs:336 `pub fn export_eps_proposal`', \"looked: git grep -iE 'export_eps' over hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 101,
+     "scene": "export-kit",
+     "intent": "Place the logo, swatch sheet and icons as linked graphics into the guideline pages.",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: ['crates/hsk-studio-layout/src/fitting.rs:198 `pub fn place_graphic`', \"looked: git grep -iE 'place_graphic|graphic_frame|GraphicFrame' over hsk-studio-harness-view/src/layout_ui.rs, hsk-studio-harness-view/src/layout_ui at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    }
+   ],
+   "steps_missing": [
+    {
+     "n": 2,
+     "scene": "logo-construction",
+     "intent": "Select the Illustrate Layout Preset so the vector panels are docked before drawing.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'layout_preset|LayoutPreset|Illustrate' over hsk-studio-controls/src, hsk-studio-harness-view/src at c4d06841: 0 hits\", 'crates/hsk-studio-harness-view/src/view/hosted.rs:25 `Panels are egui windows inside the one viewport`']",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 5,
+     "scene": "logo-construction",
+     "intent": "Turn on rulers, a 64 px construction grid, smart guides and snap, and drop the centre guides.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'snap_to|smart_guide|show_grid|StudioGuide' over hsk-studio-harness-view/src/view/vector.rs, hsk-studio-harness-view/src/view/vector, hsk-studio-harness-view/src/view/edit.rs, hsk-studio-harness-view/src/view/mod.rs, hsk-studio-harness-view/src/view/shell.r",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 11,
+     "scene": "logo-construction",
+     "intent": "Keep the boolean live so the ring weight can still be tuned.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'compound_shape|live_boolean|LiveBoolean|BooleanNode' over hsk-studio-nib/src, hsk-studio-folio/src, hsk-studio-harness-view/src at c4d06841: 0 hits\", 'crates/hsk-studio-harness-view/src/view/vector.rs:20 `creates its result layers above the topmost operand",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 26,
+     "scene": "logo-construction",
+     "intent": "Build the stacked and mono lockups from instances on their own artboards.",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 25",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 32,
+     "scene": "colour-type-system",
+     "intent": "Switch to the Colour Layout Preset; docks change, nothing is gated.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'layout_preset|LayoutPreset' over hsk-studio-controls/src, hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 35,
+     "scene": "colour-type-system",
+     "intent": "Enter the same colour by HEX and HSB to check the picker round trip.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'color_picker|colour_picker|hex_entry|parse_hex' over hsk-studio-harness-view/src at c4d06841: 0 hits\", 'crates/hsk-studio-harness-view/src/view/vector/swatch.rs:37 `Lab([f64; 3])` (typed colour models exist, no unified entry surface)']",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 41,
+     "scene": "colour-type-system",
+     "intent": "Check text-on-colour contrast for every approved pair and record the ratio.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'wcag|contrast_ratio|apca' over hsk-studio-prism/src, hsk-studio-folio/src, hsk-studio-harness-view/src, hsk-studio-components/src, hsk-studio-nib/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 45,
+     "scene": "colour-type-system",
+     "intent": "Export the palette as a portable swatch file for other tools and suppliers.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'swatch_exchange|ASEF|import_swatches|export_swatches' over hsk-studio-folio/src, hsk-studio-prism/src, hsk-studio-harness-view/src, hsk-studio-interop-vector-core/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 46,
+     "scene": "colour-type-system",
+     "intent": "Switch to the Type Layout Preset and open a type specimen board.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'layout_preset|LayoutPreset' over hsk-studio-controls/src, hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 50,
+     "scene": "colour-type-system",
+     "intent": "Browse the glyph set and insert the kit's arrow alternate.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'glyph_browser|GlyphBrowser|glyph_panel' over hsk-studio-harness-view/src, hsk-studio-type/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 52,
+     "scene": "colour-type-system",
+     "intent": "Bind artwork fills and text sizes to the tokens, switch mode, confirm the art follows.",
+     "status_at_c4d06841": "missing",
+     "evidence": "variable bindings have no Folio home (components/src/lib.rs:10-12)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 55,
+     "scene": "illustration-set",
+     "intent": "Enter the trace_to_vector Task Scope and trace the sketch to starter paths.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'image_trace|trace_to_vector|ImageTrace' over hsk-studio-nib/src, hsk-studio-harness-view/src, hsk-studio-pigment/src, hsk-studio-folio/src, hsk-studio-harness-core/src at c4d06841: 0 hits\", \"looked: git grep -iE 'task_scope|TaskScope' over hsk-studio-contr",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 65,
+     "scene": "illustration-set",
+     "intent": "Erase a highlight notch from the blob and push the outline with Sculpt.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'vector_eraser|fn eraser|sculpt|push_pull' over hsk-studio-nib/src, hsk-studio-harness-view/src/view/vector.rs, hsk-studio-harness-view/src/view/vector at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 66,
+     "scene": "illustration-set",
+     "intent": "Draw new shapes inside the ring with the inside drawing mode.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'draw_inside|draw_behind|draw_normal' over hsk-studio-nib/src, hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 74,
+     "scene": "illustration-set",
+     "intent": "Make a sunburst with the live radial repeat construct.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'radial_repeat|RepeatConstruct|StudioRepeat|repeat_radial' over hsk-studio-nib/src, hsk-studio-folio/src, hsk-studio-harness-view/src at c4d06841: 0 hits\", 'crates/hsk-studio-nib/src/live_effect.rs:517 `StepRepeat,` (step-and-repeat distort law only, unhost",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 75,
+     "scene": "illustration-set",
+     "intent": "Blend two contour lines across 6 steps for the ridge shading.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'blend_spine|BlendOptions|make_blend|specified_steps|smooth_color' over hsk-studio-nib/src, hsk-studio-folio/src, hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 80,
+     "scene": "illustration-set",
+     "intent": "Select everything using the old stroke weight to normalise the set.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'select_same|select_by_attribute|same_fill' over hsk-studio-nib/src, hsk-studio-harness-view/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 84,
+     "scene": "illustration-set",
+     "intent": "Clean up stray points, empty paths and empty text.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'cleanup|clean_up' over hsk-studio-nib/src, hsk-studio-harness-view/src/view/vector, hsk-studio-harness-view/src/view/vector.rs at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 91,
+     "scene": "export-kit",
+     "intent": "Write the favicon set and WebP web assets.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'favicon|\\\\bICO\\\\b|encode_ico' over hsk-studio-interop-raster/src, hsk-studio-web/src, hsk-studio-web-core/src, hsk-studio-harness-view/src/view/export.rs at c4d06841: 0 hits\", \"looked: git grep -iE 'encode_webp|webp_encoder|fn write_webp' over hsk-studio-i",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 94,
+     "scene": "export-kit",
+     "intent": "Keep Pine as a named spot plate in the print PDF, with overprint where set.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'Separation|DeviceN' over hsk-studio-press-write/src/export.rs at c4d06841: 0 hits\", 'crates/hsk-studio-press-write/src/export.rs:20 `spot colours, overprint, marks` (writer states not in this slice)', 'crates/hsk-studio-press-write/src/inks.rs:323 `pub str",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 98,
+     "scene": "export-kit",
+     "intent": "Export design tokens as JSON and CSS custom properties from the variable collections.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'tokens?_json|css_variable|custom_propert' over hsk-studio-web/src, hsk-studio-web-core/src, hsk-studio-components/src, hsk-studio-harness-view/src at c4d06841: 0 hits\", \"looked: git grep -iE 'export_tokens|design_tokens' over hsk-studio-components/src, hsk",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 105,
+     "scene": "export-kit",
+     "intent": "Preflight the vector master: RGB in print, missing fonts, hairlines, spot name clashes, hidden art.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'preflight' over hsk-studio-harness-view/src/view/vector.rs, hsk-studio-harness-view/src/view/vector, hsk-studio-harness-view/src/view/hosted.rs at c4d06841: 0 hits\", 'hsk_studio_layout::run_preflight takes layout compositions and records, not vector record",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 106,
+     "scene": "export-kit",
+     "intent": "Make the sanitised delivery copy: strip hidden templates, construction layers and history.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'sanitis|sanitiz' over hsk-studio-harness-view/src/view/vector.rs, hsk-studio-harness-view/src/view/vector, hsk-studio-harness-view/src/view/hosted.rs, hsk-studio-harness-view/src/view/mod.rs, hsk-studio-harness-core/src at c4d06841: 0 hits\"]",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 107,
+     "scene": "export-kit",
+     "intent": "Assemble the kit folder and zip with fonts and report.",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: [\"looked: git grep -iE 'package_document|PackageOptions|copy_fonts' over hsk-studio-layout/src, hsk-studio-interop-layout/src, hsk-studio-harness-view/src, hsk-studio-package/src at c4d06841: 0 hits\", 'crates/hsk-studio-package/src/lib.rs:1 `Native document container serializatio",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    }
+   ],
+   "counts": {
+    "working": 67,
+    "failing": 19,
+    "missing": 24
+   },
+   "counts_at_c4d06841": {
+    "callable": 60,
+    "engine_only": 18,
+    "missing": 32,
+    "NOT_INSPECTED": 0
+   }
+  },
+  "product-design": {
+   "source": "S/workflows/scenario-product-design.json",
+   "steps_total": 90,
+   "steps_working": [
+    {
+     "n": 1,
+     "scene": "design-system",
+     "intent": "Create an empty document for the Larkspur design file",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "document.new (harness-core/src/action/commands/document.rs:44, runs new_document)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "profile design (harness-core/src/document_new.rs:51-68)"
+    },
+    {
+     "n": 3,
+     "scene": "design-system",
+     "intent": "Create pages Foundations, Components, Screens, Handoff",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "artboard.add (harness-core/src/action/commands/document.rs:45, runs add_artboard)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "UNVERIFIED: artboards stand in for design pages; page.add is the layout page"
+    },
+    {
+     "n": 15,
+     "scene": "design-system",
+     "intent": "Create a brand gradient as a reusable paint style",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "panel.graphic_styles.add_graphic_style (harness-core/src/action/commands/panel.rs:25, runs Viewer::hosted_action)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 17,
+     "scene": "design-system",
+     "intent": "Draw the icon set: check, plus, chevron, close, calendar, on a 24 grid",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.pen_point (harness/src/cli/drive_viewer.rs:384)",
+      "viewer.draw_shape (harness/src/cli/drive_viewer.rs:390)",
+      "viewer.pathfinder_layers (harness/src/cli/drive_viewer.rs:423)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 19,
+     "scene": "design-system",
+     "intent": "Build the button base: rounded rectangle, label text, icon slot",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.draw_shape (harness/src/cli/drive_viewer.rs:390)",
+      "vector.place_text_with_font (harness-core/src/action/commands/vector.rs:34, runs Viewer::place_text_with_font)",
+      "viewer.group_layers (harness/src/cli/drive_viewer.rs:248)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 21,
+     "scene": "design-system",
+     "intent": "Set literal gap 8 and padding 12/24 on an auto-layout frame",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.set_auto_layout_spacing (harness-core/src/action/commands/design.rs:11, runs Viewer::set_auto_layout_spacing)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "text-free frames only"
+    },
+    {
+     "n": 33,
+     "scene": "screens",
+     "intent": "Create screen frames: Sign-in, Home, Task detail at 390x844, Home-tablet at 768x1024",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "artboard.add (harness-core/src/action/commands/document.rs:45, runs add_artboard)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 37,
+     "scene": "screens",
+     "intent": "Set a child rectangle width to Fill inside its stack (a real Input instance would be refused)",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.set_child_sizing (harness-core/src/action/commands/design.rs:12, runs Viewer::set_child_sizing)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 41,
+     "scene": "screens",
+     "intent": "Build a placeholder stats row on Home-tablet with GRID layout: 3 FLEX columns, 2 rows, gap 16",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.set_auto_layout_mode (harness-core/src/action/commands/design.rs:10, runs Viewer::set_auto_layout_mode)",
+      "design.set_grid_tracks (harness-core/src/action/commands/design.rs:15, runs Viewer::set_grid_tracks)",
+      "viewer.set_grid_gaps (harness/src/cli/drive_viewer.rs:454)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 42,
+     "scene": "screens",
+     "intent": "Span the summary card across 2 columns and reorder a row",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.set_grid_child (harness-core/src/action/commands/design.rs:13, runs Viewer::set_grid_child)",
+      "design.grid_reorder_rows (harness-core/src/action/commands/design.rs:16, runs Viewer::grid_reorder_rows)",
+      "viewer.grid_append_child_at (harness/src/cli/drive_viewer.rs:453)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 43,
+     "scene": "screens",
+     "intent": "Compose TaskRow instances on Home and override label text",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.instance.set_override (harness-core/src/action/commands/design.rs:24, runs Viewer::design_command)",
+      "design.instance.set_property (harness-core/src/action/commands/design.rs:23, runs Viewer::design_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "imported .fig instances only: definitions come from the import receipt (harness-view/src/view/design/instance.rs:8-13, :153)"
+    },
+    {
+     "n": 44,
+     "scene": "screens",
+     "intent": "Switch instance variant and swap its icon",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.instance.switch_variant (harness-core/src/action/commands/design.rs:22, runs Viewer::design_command)",
+      "design.instance.swap_component (harness-core/src/action/commands/design.rs:27, runs Viewer::design_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "as 43"
+    },
+    {
+     "n": 45,
+     "scene": "screens",
+     "intent": "Reset one override, then reset all",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "design.instance.reset_override (harness-core/src/action/commands/design.rs:25, runs Viewer::design_command)",
+      "design.instance.reset_all (harness-core/src/action/commands/design.rs:26, runs Viewer::design_command)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "as 43"
+    },
+    {
+     "n": 47,
+     "scene": "screens",
+     "intent": "Arrange: align and distribute icons in the tab bar, nudge, rename layers",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.align_layers (harness-core/src/action/commands/vector.rs:27, runs Viewer::align_layers)",
+      "vector.distribute_layers (harness-core/src/action/commands/vector.rs:28, runs Viewer::distribute_layers)",
+      "layer.rename (NOT_INSPECTED)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 52,
+     "scene": "screens",
+     "intent": "Save, reopen and verify the file",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "document.save (harness-core/src/action/commands/document.rs:61, runs save_to / save_new / save_replacing)",
+      "CLI verb verify (harness-core/src/manual.rs:30)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 53,
+     "scene": "screens",
+     "intent": "Render the composite to PNG for self-review of contrast, spacing and hierarchy (one image, not per frame)",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.export (harness/src/cli/drive_viewer.rs:328)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 63,
+     "scene": "prototype",
+     "intent": "Open the prototype in the in-editor player",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "prototype.start_session (harness-core/src/action/commands/prototype.rs:10, runs Viewer::open_prototype)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": ".fig documents only (harness-view/src/view/prototype.rs:1-6)"
+    },
+    {
+     "n": 65,
+     "scene": "prototype",
+     "intent": "Click through: Sign-in, Home, Task detail, Back",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "prototype.click (harness-core/src/action/commands/prototype.rs:14, runs PrototypePlay::click)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": ".fig only"
+    },
+    {
+     "n": 66,
+     "scene": "prototype",
+     "intent": "Hover the button and see the hover variant while hovered",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "prototype.hover (harness-core/src/action/commands/prototype.rs:15, runs PrototypePlay::hover)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": ".fig only"
+    },
+    {
+     "n": 67,
+     "scene": "prototype",
+     "intent": "Advance a virtual clock through the 300ms smart animate and capture mid-frame",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "prototype.advance (harness-core/src/action/commands/prototype.rs:16, runs PrototypePlay::advance)",
+      "prototype.capture_frame (harness-core/src/action/commands/prototype.rs:19, runs PrototypePlay::render)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": ".fig only"
+    },
+    {
+     "n": 68,
+     "scene": "prototype",
+     "intent": "Open and dismiss the New-task overlay; read runtime variables",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "prototype.click (harness-core/src/action/commands/prototype.rs:14, runs PrototypePlay::click)",
+      "prototype.read_runtime_variables (harness-core/src/action/commands/prototype.rs:18, runs PlayerSession::state)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": ".fig only"
+    },
+    {
+     "n": 77,
+     "scene": "handoff",
+     "intent": "Hover-measure between two objects",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "vector.layer_bounds (harness-core/src/action/commands/vector.rs:37, runs Viewer::layer_bounds)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 79,
+     "scene": "handoff",
+     "intent": "Inspect a selected button: size, spacing, typography, fills with token names",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb state (harness-core/src/manual.rs:32)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 82,
+     "scene": "handoff",
+     "intent": "Mark icons and hero as exportable: SVG, and PNG at 1x, 2x, 3x",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "export.set_settings (harness-core/src/action/commands/export.rs:19, runs Viewer::set_export_settings)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "lane SMB-ARTBOARD-EXPORT-1"
+    },
+    {
+     "n": 83,
+     "scene": "handoff",
+     "intent": "Export the whole document as PNG",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.export (harness/src/cli/drive_viewer.rs:328)",
+      "export.run (harness-core/src/action/commands/export.rs:22, runs Viewer::export_run)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 84,
+     "scene": "handoff",
+     "intent": "Export the document as SVG and PDF, read the loss list",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "viewer.export_vector_svg (harness/src/cli/drive_viewer.rs:348)",
+      "viewer.export_vector_pdf (harness/src/cli/drive_viewer.rs:349)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    },
+    {
+     "n": 85,
+     "scene": "handoff",
+     "intent": "Batch export each icon by its name with a scale suffix",
+     "status_at_c4d06841": "missing",
+     "via": [
+      "export.run (harness-core/src/action/commands/export.rs:22, runs Viewer::export_run)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)",
+     "note": "nodes by name, suffix and scale constraint"
+    },
+    {
+     "n": 90,
+     "scene": "handoff",
+     "intent": "Write the handoff manifest: file hash, exports, tokens, flows, status",
+     "status_at_c4d06841": "callable",
+     "via": [
+      "CLI verb verify (harness-core/src/manual.rs:30)",
+      "CLI verb descriptors (harness-core/src/manual.rs:20)"
+     ],
+     "label": "READ (row present at 0a733db8; not run)"
+    }
+   ],
+   "steps_failing": [
+    {
+     "n": 11,
+     "scene": "design-system",
+     "intent": "Read a resolved value as a consumer in Dark",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "resolve_variable exported (components/src/lib.rs:36) with no host caller found",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 12,
+     "scene": "design-system",
+     "intent": "Prove the alias-cycle refusal: alias A to B and B to A",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "validate_design_records (folio/src/records.rs:616) is not reachable from a command",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 20,
+     "scene": "design-system",
+     "intent": "Apply horizontal auto layout to the button with its text inside",
+     "status_at_c4d06841": "missing",
+     "evidence": "refuses auto_layout_text_layer_unsupported (harness-view/src/view/design/auto_layout.rs:19, :275)",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "design.set_auto_layout_mode (harness-core/src/action/commands/design.rs:10, runs Viewer::set_auto_layout_mode)"
+     ]
+    },
+    {
+     "n": 26,
+     "scene": "design-system",
+     "intent": "Prove the duplicate-variant refusal",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-components/src/lib.rs:80-82,:152-153; raised on validation (lib.rs:133 maps Folio codes; exact call path past Design::new at design.rs:91 UNVERIFIED), no host authoring path",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 35,
+     "scene": "screens",
+     "intent": "Build the Sign-in layout as a vertical stack: logo, title, two inputs, primary button, link",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 20",
+     "label": "READ at 0a733db8",
+     "partial_via": [
+      "design.set_auto_layout_mode (harness-core/src/action/commands/design.rs:10, runs Viewer::set_auto_layout_mode)"
+     ]
+    },
+    {
+     "n": 38,
+     "scene": "screens",
+     "intent": "Set frame-level Hug on the stack and clamp input min-width 200, max-width 480",
+     "status_at_c4d06841": "missing",
+     "evidence": "StudioSizeClamps (folio/src/records.rs:69) has no setter row in harness-core/src/action/commands/design.rs:10-27",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 48,
+     "scene": "screens",
+     "intent": "Preview a frame in Dark and mark Home-tablet as Comfortable density",
+     "status_at_c4d06841": "missing",
+     "evidence": "explicit_variable_modes (folio/src/records.rs:83) has no writer and nothing renders by mode",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 49,
+     "scene": "screens",
+     "intent": "Set constraints on the tablet header: left and right stretch, bottom pin",
+     "status_at_c4d06841": "missing",
+     "evidence": "StudioConstraint (folio/src/records.rs:73) has no setter row",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 50,
+     "scene": "screens",
+     "intent": "Resize the frame from 390 to 768 and check reflow",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-components/src/constraints.rs:88 and :62; only solver-internal callers (crates/hsk-studio-components/src/auto_layout.rs:721); no host resize of a frame through constraints",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 51,
+     "scene": "screens",
+     "intent": "Set the scroll container on Home and fix the tab bar",
+     "status_at_c4d06841": "missing",
+     "evidence": "frame_overflow (folio/src/records.rs:115) has no setter row",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 61,
+     "scene": "prototype",
+     "intent": "Set theme switch in Settings: Set variable mode to Dark",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-components/src/player.rs:370 emits an event only; no repaint because crates/hsk-studio-harness-view/src/view/prototype.rs renders .fig frames with no mode input",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 62,
+     "scene": "prototype",
+     "intent": "Validate the flow: unreachable frames, dead links",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-components/src/prototype.rs:59; git grep 'validate_flow(' finds only the definition, so no host calls it. Named validators action_destination_unresolvable, flow_starting_point_duplicate absent by git grep",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 64,
+     "scene": "prototype",
+     "intent": "Start a headless session on the native document",
+     "status_at_c4d06841": "engine_only",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-components/src/player.rs:181 takes a Folio document and design records; host reaches it only through the .fig route in crates/hsk-studio-harness-view/src/view/prototype.rs; no session id",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    }
+   ],
+   "steps_missing": [
+    {
+     "n": 2,
+     "scene": "design-system",
+     "intent": "Set the workspace for design-system work",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'LayoutPreset|layout_preset'. Spec note: STU-SHL-084..090 ship no design-system preset; vector is the closest profile",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 4,
+     "scene": "design-system",
+     "intent": "Create the Primitives variable collection with one mode",
+     "status_at_c4d06841": "missing",
+     "evidence": "no variable command (git grep variable_collection|create_variable|set_code_syntax over harness crates: 0 hits); the vector entry refuses variables (vector/style.rs:297-300)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 5,
+     "scene": "design-system",
+     "intent": "Add colour primitives: neutral and iris ramps, 11 steps each",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 4",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 6,
+     "scene": "design-system",
+     "intent": "Add number primitives: space/1..12 on a 4 grid and radius/sm, md, lg, full",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 4",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 7,
+     "scene": "design-system",
+     "intent": "Create the Semantic collection with Light and Dark modes",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 4",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 8,
+     "scene": "design-system",
+     "intent": "Alias semantic tokens to primitives (surface/primary to neutral/50 in Light, neutral/950 in Dark)",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 4",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 9,
+     "scene": "design-system",
+     "intent": "Restrict scopes: surface tokens to fills, text tokens to text fill, space tokens to gap and padding",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 4",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 10,
+     "scene": "design-system",
+     "intent": "Set code syntax for WEB, ANDROID and iOS on every semantic token",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 4",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 13,
+     "scene": "design-system",
+     "intent": "Define text styles: display/32, title/22, body/16, label/13, each bound to Inter",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: No text-style or font-size setter on the Viewer for vector-document text: crates/hsk-studio-harness-view/src/view/text.rs:689 place_text has no size or style input, text.rs:346 only reads font_size. crates/hsk-studio-harness-view/src/layout_ui/styles.rs has a style surface for th",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 14,
+     "scene": "design-system",
+     "intent": "Define effect styles: elevation/sheet and elevation/card",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep 'DropShadow|drop_shadow|StudioEffect\\b' in crates/hsk-studio-harness-view/src/view/ returned nothing; effects reach the window only from import records (crates/hsk-studio-harness-view/src/view/design/fig_import.rs header)",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 16,
+     "scene": "design-system",
+     "intent": "Define a mobile column grid style: 4 columns, 16 margin, 16 gutter",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-folio/src/layout_grids.rs is the InDesign-class STU-LAY record, not STU-DS-153; git grep 'layout_grids|StudioLayoutGrid' in harness crates returned nothing",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 18,
+     "scene": "design-system",
+     "intent": "Make each icon a component named icon/<name>",
+     "status_at_c4d06841": "missing",
+     "evidence": "no component create command: git grep create_from_selection|create_instance|combine_as_variants|add_property over harness-view/src and harness-core/src at 0a733db8: 0 hits; definitions only from the .fig receipt (design/instance.rs:8-13)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 22,
+     "scene": "design-system",
+     "intent": "Bind gap, padding and radius to number variables",
+     "status_at_c4d06841": "missing",
+     "evidence": "bindings have no Folio home (components/src/lib.rs:10-12)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 23,
+     "scene": "design-system",
+     "intent": "Bind fill and text colours to semantic tokens",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 22",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 24,
+     "scene": "design-system",
+     "intent": "Create the Button component",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 25,
+     "scene": "design-system",
+     "intent": "Add variants: Type primary, secondary, ghost; Size sm, md; State default, hover, pressed, disabled",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18; StudioComponentSet folio/src/components.rs:181",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 27,
+     "scene": "design-system",
+     "intent": "Add component properties: label TEXT, showIcon BOOLEAN, icon INSTANCE_SWAP with preferred values",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18; StudioComponentProperty folio/src/components.rs:151",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 28,
+     "scene": "design-system",
+     "intent": "Link child layers to the properties",
+     "status_at_c4d06841": "missing",
+     "evidence": "component_property_references (folio/src/records.rs:80) has no writer",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 29,
+     "scene": "design-system",
+     "intent": "Build Input, Checkbox, TaskRow and TabBar components; expose nested instances",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 30,
+     "scene": "design-system",
+     "intent": "Add description and documentation link to each component",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 31,
+     "scene": "design-system",
+     "intent": "Publish as a local library and review the change list",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'library\\.publish|publish_status|UNPUBLISHED'",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 32,
+     "scene": "design-system",
+     "intent": "Prove instance inheritance: change Button radius, every instance follows",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 34,
+     "scene": "screens",
+     "intent": "Apply the 4-column grid style to the phone frames",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: See step in scene design-system; no grid in the harness: git grep 'layout_grids|StudioLayoutGrid' empty in harness crates",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 36,
+     "scene": "screens",
+     "intent": "Insert Input and Button instances from the library",
+     "status_at_c4d06841": "missing",
+     "evidence": "as 18",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 39,
+     "scene": "screens",
+     "intent": "Align children: counter axis stretch, text baseline alignment in rows",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: Widget list crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:60-:90 has mode, spacing, padding, grid and child fields, no alignment; StudioAutoLayout record carries it (crates/hsk-studio-folio/src/autolayout.rs:113, fields not all read)",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 40,
+     "scene": "screens",
+     "intent": "Home: wrap the filter chips, pin the Add button absolute in the corner",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: No wrap or positioning control among the widgets at crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:60-:90; ChildPositioning::Absolute only appears as solver input for backgrounds at :666; solver handles wrap per crates/hsk-studio-components/src/auto_layout.rs (head",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 46,
+     "scene": "screens",
+     "intent": "Detach one instance for a one-off empty state",
+     "status_at_c4d06841": "missing",
+     "evidence": "no instance.detach (git grep detach over harness-view/src/view/design: 0 hits)",
+     "label": "READ at 0a733db8"
+    },
+    {
+     "n": 54,
+     "scene": "prototype",
+     "intent": "Add flow starting point Onboarding at Sign-in",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-folio/src/prototype.rs:28 StudioFlowStart stored; only writer is the import path (interop-fig-native/src/native.rs:3617); no command",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 55,
+     "scene": "prototype",
+     "intent": "Connect Button primary on Sign-in to Home: On click, Navigate, Smart animate 300ms ease-out",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-folio/src/reactions.rs:215 record; StudioNodeDesign.reactions stored; git grep over crates at c4d06841 returned no non-test hit for 'reaction\\.set'; truth check: reactions only imported from .fig, no reaction editor",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 56,
+     "scene": "prototype",
+     "intent": "Connect TaskRow to Task detail with Slide in from right; Back on the header chevron",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: As reaction.set above; transition records exist crates/hsk-studio-folio/src/reactions.rs",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 57,
+     "scene": "prototype",
+     "intent": "Configure New-task sheet as a bottom overlay with dim background, close on outside click",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-folio/src/prototype.rs:10 frame_overlay stored; engine reads it (crates/hsk-studio-components/src/player.rs:515 overlay_placement); no command",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 58,
+     "scene": "prototype",
+     "intent": "Make Checkbox interactive: On click, Change to checked, inside the component set",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: Engine records CHANGE_TO in runtime state (crates/hsk-studio-components/src/player.rs:97 variants); authoring absent; variant target validator variant_target_not_sibling absent by git grep",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 59,
+     "scene": "prototype",
+     "intent": "Add a runtime variable: taskCount, incremented on save with Set variable",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: Literal SET_VARIABLE plays (crates/hsk-studio-components/src/player.rs:366); folio components.rs header: EXPRESSION values not modelled; truth check MT-33326 no expression evaluator",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 60,
+     "scene": "prototype",
+     "intent": "Add a conditional: empty list shows Empty state, else Home",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-folio/src/reactions.rs header lines 6-7: CONDITIONAL not modelled; absent even as a record",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 69,
+     "scene": "prototype",
+     "intent": "Drag the sheet down to dismiss; type in the input with a key trigger",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: crates/hsk-studio-components/src/player.rs:46-:53 PlayerInput has click, hover, mouse down and up and press only; truth check MT-33285, MT-33288",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 70,
+     "scene": "prototype",
+     "intent": "Scroll the task list with the tab bar fixed",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: Truth check MT-33299: SCROLL_TO recorded in state, no scrolling; PlayerInput has no scroll; overflow not rendered in crates/hsk-studio-harness-view/src/view/prototype.rs (state_json scroll_target only)",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 71,
+     "scene": "prototype",
+     "intent": "Present full-screen in a phone device frame",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep 'device_frame' empty in harness-view, components and controls; crates/hsk-studio-harness-view/src/view/prototype.rs:899 panel draws Restart and the screen image",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 72,
+     "scene": "prototype",
+     "intent": "Export the prototype as a shareable local HTML",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'to_html|STU-WEB-120' in export code; web crates have no dependent crate per truth check",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 73,
+     "scene": "handoff",
+     "intent": "Group the final screens in a section named Release 1",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: Truth check: whiteboard absent (0 of 65 MTs), no section node kind; dev status clause STU-DS-159 needs section-kind nodes",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 74,
+     "scene": "handoff",
+     "intent": "Mark the section and each component Ready for dev",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'dev_status|READY_FOR_DEV|DevStatus'",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 75,
+     "scene": "handoff",
+     "intent": "Annotate the primary button: pin fills, padding, cornerRadius, with a behaviour note",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'annotation' other than PDF import text (harness-core/src/import/pdf.rs:63)",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 76,
+     "scene": "handoff",
+     "intent": "Add measurements between header and first row, and side padding",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'measurement_id'",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 78,
+     "scene": "handoff",
+     "intent": "Link the ticket and repo to the frame as dev resources",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'dev_resource'",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 80,
+     "scene": "handoff",
+     "intent": "Generate CSS and SwiftUI snippets for the selection in PIXEL and SCALED units",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'codegen|render_selection'",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 81,
+     "scene": "handoff",
+     "intent": "Check instance-versus-main drift across the file",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'drift' in Studio design code; per-instance state only at crates/hsk-studio-harness-view/src/view/design/instance.rs:802 design_json",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 86,
+     "scene": "handoff",
+     "intent": "Export tokens as CSS custom properties and JSON",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'css_tokens|tokens_json'; no token source exists because variables cannot be authored",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 87,
+     "scene": "handoff",
+     "intent": "Export .fig local copy for a partner on the vendor tool",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'write_fig|export_fig|to_fig'; interop-fig-native export.rs:753,:839 exports frames to PDF and raster only",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 88,
+     "scene": "handoff",
+     "intent": "Compare with the previous version before handing off",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep over crates at c4d06841 returned no non-test hit for 'compare_versions|named_version|restore_version'",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    },
+    {
+     "n": 89,
+     "scene": "handoff",
+     "intent": "Read usage analytics: component and token adoption, detach rate",
+     "status_at_c4d06841": "missing",
+     "evidence": "scenario evidence at c4d06841: git grep 'analytics' empty in harness-view, components and controls",
+     "label": "UNVERIFIED at 0a733db8 (carried; no lane landed since c4d06841 names it)"
+    }
+   ],
+   "counts": {
+    "working": 28,
+    "failing": 13,
+    "missing": 49
+   },
+   "counts_at_c4d06841": {
+    "missing": 60,
+    "engine_only": 7,
+    "callable": 23
+   }
+  }
+ },
+ "ranked_lanes": [
+  {
+   "rank": 1,
+   "id": "SMB-DS-COMPONENTS-AUTHOR-1",
+   "domain": "product design (Figma), vector symbols (Illustrator, Affinity Designer)",
+   "summary": "Create components, variant sets, properties and instances by typed commands in a native document; detach, list, sync; the existing design.instance.* rows then work without a .fig.",
+   "steps_unblocked": {
+    "product-design": [
+     18,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30,
+     32,
+     36,
+     46
+    ],
+    "vector-brand": [
+     25,
+     26,
+     82
+    ]
+   },
+   "steps_unblocked_count": 14,
+   "also": "product-design 43, 44, 45 move from .fig-only to native",
+   "size": "medium-large, about 7 commits",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness"
+   ],
+   "why_this_rank": "Largest reach in the domain (14 steps across two scenarios) on records and a redraw that already exist; the Assets and Properties panels will bind these command ids.",
+   "tree": "smb-sentinels-native-1",
+   "label": "READ (counts from the re-measure in scenarios; not run)"
+  },
+  {
+   "rank": 2,
+   "id": "SMB-DEVELOP-COMMANDS-1",
+   "domain": "raster (Photoshop Camera Raw, Lightroom develop, Affinity Photo Develop persona)",
+   "summary": "Typed rows for every DevelopOp and FamilyOp the Viewer has, and new ops for group enables, point curves, snapshots, preset save and crop.",
+   "steps_unblocked": {
+    "photo-retouch": [
+     27,
+     28,
+     29,
+     30,
+     31,
+     35,
+     40,
+     41,
+     46,
+     48,
+     49,
+     50,
+     51
+    ]
+   },
+   "steps_unblocked_count": 13,
+   "size": "medium, about 6 commits",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness"
+   ],
+   "why_this_rank": "Second largest reach; eight steps need decoders only, the rest are engine state with no op; no file overlap with any lane in flight or with rank 1.",
+   "tree": "smb-folio-angle-unbounded-1",
+   "label": "READ"
+  },
+  {
+   "rank": 3,
+   "id": "SMB-DS-VARIABLES-AUTHOR-1",
+   "domain": "product design (Figma variables), design tokens for vector brand kits",
+   "summary": "Variable collections, modes, variables, aliases, scopes and code syntax as typed commands, resolve and validate as reads, explicit modes on containers; bindings and render by mode are the next slice.",
+   "steps_unblocked": {
+    "product-design": [
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ],
+    "vector-brand": [
+     51
+    ]
+   },
+   "steps_partial": {
+    "product-design": [
+     48
+    ]
+   },
+   "steps_unblocked_count": 10,
+   "size": "medium, about 6 commits",
+   "depends_on": [
+    "SMB-DS-COMPONENTS-AUTHOR-1 (same entry member and style.rs:291-300 check)"
+   ],
+   "paragraph": "Reach is 10 steps plus a partial one, all on records Folio already holds and validates: StudioVariableCollection (folio/src/components.rs:246), StudioVariable (:265), modes, aliases with cycle and type checks (components DESCRIPTOR variables), scopes and code syntax (STU-DS-125..129, spec :20047-20055), and explicit_variable_modes on nodes (folio/src/records.rs:83, STU-DS-132 :20066). Nothing writes them today (git grep variable_collection|create_variable|set_code_syntax over the harness crates: 0 hits) and the vector entry refuses them (harness-view/src/view/vector/style.rs:297-300), so it reuses rank 1's widened home and must start after rank 1 lands. Commands use STU-DS-133's names (:20068: variable.create, variable.remove, variable.set_value_for_mode, collection.create, collection.add_mode and the rest), each one undo step through commit_entry; variable.resolve_for_consumer reads components::resolve_variable (components/src/lib.rs:36), which no host calls now. Bindings to paints and node fields are out: they have no Folio home (components/src/lib.rs:10-12, scenario steps 22, 23, 52), and render by mode needs them, so step 48 writes the mode but nothing repaints until the binding slice adds a Folio member and composite reads it. Tokens export (vector 98, product-design 86) follows the binding slice. Overlaps: none with lanes in flight; shares view/commands.rs dispatch and action/commands.rs with ranks 1 and 2.",
+   "label": "READ for the record facts; step counts from the re-measure"
+  },
+  {
+   "rank": 4,
+   "id": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
+   "domain": "raster (Photoshop Filter menu and Adjustments, Affinity Photo live filters and adjustments)",
+   "summary": "The filter-commands slice (AC-005 of SMB-PIGMENT-FILTER-KERNELS-1) with adjustment layers: STU-FX-007 effect.apply, update, reorder, toggle, remove over the 25 smart filter kinds, and adjustment-layer create and edit for the STU-RAS-151 kinds, written into the raster_records entry.",
+   "steps_unblocked": {
+    "photo-retouch": [
+     69,
+     89,
+     92,
+     94
+    ]
+   },
+   "steps_partial": {
+    "photo-retouch": [
+     65,
+     88,
+     104
+    ]
+   },
+   "steps_unblocked_count": 4,
+   "size": "medium, about 6 commits",
+   "paragraph": "The record and render path is whole and, since SMB-PLACE-ASSET-1 (READY at 0a733db8), so is a writable home: the session entry raster_records (harness-view/src/view/place.rs:92, schema :96, session token session/src/source.rs:176) holds the whole Folio StudioRasterRecords, the viewer renders from it (place.rs:445 effective_records, :461 place_sync; render.rs:14-21), and embed_inner already commits an entry-only named step with set_tiles_and_entry(op, layer, None, ENTRY, body) (place.rs:1044). No command writes a smart filter stack or an adjustment record (smart_filter in harness-view/src appears only at export_set.rs:416 and fill_tools.rs:780; StudioAdjustment is read at info.rs:311 and render.rs:582 only). The lane adds an entry-edit helper beside editable_entry (place.rs:434), effect.* rows for StudioSmartFilterKind (folio/src/smart_filter.rs:88-115, 25 kinds, stack cap MAX_SMART_FILTERS 16 at :22) validated before commit through pigment SmartFilterOp::from_record (pigment/src/smart_filter.rs:313) and FilterKernel::validate (pigment/src/filter_kernels.rs:177) so EFFECT_PARAM_OUT_OF_RANGE (STU-FX-104, spec :12785) refuses at the command, and adjustment.create / adjustment.edit / adjustment.apply_in_place over StudioAdjustment (folio/src/raster.rs:150; layer kind adjustment with a PrimitiveReference payload, raster.rs:1762-1772, :1812-1828) through Run::restructure_and_entry (harness-core/src/harness.rs:1488). Spec: STU-FX-001..003 :19393-19397, STU-FX-007 :19413, STU-FX-012 :19427, STU-FX-012c :19433, STU-RAS-035 :1348, STU-RAS-037 :1357, STU-RAS-151 :1364. Reach is 4 full and 3 partial steps (88 also needs clipping, which has no chronicle property; 104 is a Hue/Saturation layer; 65 also needs Apply Image), below the auto-layout depth lane by count, but that lane edits design/auto_layout.rs which SMB-AI-LIVE-EFFECTS-1 has in flight, so it cannot start now; this one has no file overlap with any lane in flight, needs no schema change and closes AC-005 for the kernels lane's 17 MTs (S/research/scope-20261107-filters.json mts). Per-filter masks, selection-scoped apply (STU-FX-012a), bake and the destructive filter forms (STU-RAS-037) are the next slice.",
+   "label": "READ"
+  }
+ ],
+ "scopes": [
+  {
+   "id": "SMB-DS-COMPONENTS-AUTHOR-1",
+   "file": "hsk-studio-ds-components-author-1",
+   "brief": "lane-smb-ds-components-author-1",
+   "crate": "hsk-studio-harness-view (component, variant set, property and instance authoring commands over Folio StudioDesignRecords and the hsk-studio-components redraw)",
+   "crates_head": "0a733db8",
+   "summary": "A designer or model creates components, variant sets, properties and instances in a native document by typed commands, one undo step each, saved and reopened, and the existing instance commands work on them without a .fig",
+   "target": "## Target\n\nWidth plan 20261108 rank 1. A designer can only edit components that arrive in a `.fig`: the inspector reads definitions, sets and instances from the import receipt (`harness-view/src/view/design/instance.rs:8-13`, `Receipt` :141, `receipt_design` :153), and no command creates a component, a variant set, a property or an instance (git grep `create_from_selection|create_instance|combine_as_variants|add_property` over harness-view/src and harness-core/src: 0 hits). Folio already holds every record: `StudioComponent` (`folio/src/components.rs:164`), `StudioComponentSet` (:181), `StudioComponentProperty` (:151), `StudioComponentInstance` (:218), `StudioNodeDesign.component_property_references` (`folio/src/records.rs:80`), all in `StudioDesignRecords` (:92) validated by `validate_design_records` (:616); the instance binding record `StudioInstanceState {layer_id, instance_id, component_id, ..., content_signature}` exists (`folio/src/design_state.rs:92-112`) and is written to the session entry `design` (`harness-view/src/view/design/persist.rs:34`). The redraw that turns a definition into instance children exists (`instance.rs:556` `redraw`, `definition_layers` :185). So this lane is host authoring over existing records and engines: scenario product-design steps 18, 24, 25, 26, 27, 28, 29, 30, 32, 36, 46 and vector-brand 25, 26, 82, and steps 43-45 then run on native instances without a `.fig` bridge. All file:line below are at 0a733db8 (origin tip, read with git show / git grep in wt-studio-lanes/smb-pr-sequence-session-1); paths are under `handshake-studio-assets/crates/hsk-studio-`. Spec lines are module `14-studio-creative-suite.md` of v02.229.\n\nClauses: STU-DS-002 :20320, STU-DS-003 :20324, STU-DS-003a :20326, STU-DS-004 :20328, STU-DS-006 :20338, STU-DS-016 :20366, STU-DS-102 :19912, STU-DS-103 :19923, STU-DS-104 :19936, STU-DS-105 :19938, STU-DS-107 :19964-19966 (command names), STU-DS-108 :19974, STU-DS-109 :19976, STU-DS-110 :19985, STU-DS-111 :19995, STU-DS-112 :19997, STU-DS-113 :19999, STU-DS-115 :20007, STU-DS-120 :20019, STU-DS-162 :20222, STU-DS-163 :20224, STU-VEC-058 :4670, STU-AUT-147 :21905, STU-CON-007 :22896.\n\n1. **Red first, compiling.** New `harness/tests/viewer_design_components.rs` (feature viewer) and a process test through `command --stdin` (`harness/src/cli/drive.rs:275-293`, typed rows run `Viewer::run_command`, `harness-view/src/view/commands.rs:129`). The document is `document.new` profile `design` (`harness-core/src/document_new.rs:51-68`) with shapes from `viewer.draw_shape` and text from `vector.place_text_with_font`. Every new id refuses `unknown_command` at red; prove red by running.\n2. **One home for authored design records (decide before code, open question 1).** The vector entry's `design` member (`harness-view/src/view/vector.rs:309`, field :316) already carries authored `StudioDesignRecords` for auto layout (`design/auto_layout.rs:421` `al_records`, :649 `al_commit`), but its decoder refuses components, sets, instances and variables (`view/vector/style.rs:291-300` `validate_entry_styles`, error `vector_entry_design: members`). Default: widen that check to accept components, component sets, instances and `component_property_references` nodes, with named caps, and keep Folio `validate_design_records` as the authority. Commit through the existing paths so each command is ONE undo step: entry-only through `commit_entry` (`view/vector/style.rs:618`); structure plus entry through `Run::restructure_and_entry` (`harness-core/src/harness.rs:1488`).\n3. **Merged records.** The inspector reads receipt records plus entry records as one `StudioDesignRecords` (an id in both is refused `design_record_duplicate`, Folio `check_identity_uniqueness` per the components DESCRIPTOR). `instance_record` (`instance.rs:289`) and `instance_view` (:310) find a native instance by its `StudioInstanceState` binding in the `design` entry; origins of native definitions and instances come from their layers' bounds at command time (Studio reading, declared). Rotated or scaled definitions and instances stay refused as today (`instance.rs:20-28`).\n4. **Commands** (ids are the spec's, STU-DS-107 :19966 and STU-DS-112 :19997; new domain files so no row file is shared):\n   - `component.create_from_selection {layers, name}`: one layer that is a group becomes the definition; several layers are grouped first in the same step (`Run::restructure_and_entry`, new group via `layers.rs:77` `new_layer`, :65 `operation_for`, ids `layers.rs:51` `mint_layer_id`). Record `StudioComponent {SCMP id, layer_id, publishing, variant_properties: null, component_property_definitions: []}`; slash-path names.\n   - `component.create_one_per_top_level_node {layers}`: one component per listed top-level layer, one step (STU-DS-002).\n   - `component.create_instance {component, x, y, parent?}`: a new group layer, children copied from the definition through the existing `redraw` (`instance.rs:556`), a `StudioComponentInstance` (scale_factor 1, no overrides) and its `StudioInstanceState` (persist.rs `write_design_state` :215), one step. A set id instantiates `default_variant_id`.\n   - `component_set.combine_as_variants {components, properties: {name: [values...]}, assignments: {component: {name: value}}}`: a container group holding the members, `StudioComponentSet` with ordered `variant_group_properties` (STU-DS-108), members get `variant_properties`; completeness and duplicates are Folio's refusals (`variant_assignment_incomplete`, `variant_assignment_duplicate`, components DESCRIPTOR), which is step 26. `component_set.set_default_variant {set, component}`.\n   - `component.add_property`, `component.edit_property` (rename, default, options in one call; a rename rewrites every instance's `component_properties` key in the same step, STU-DS-112), `component.delete_property`; types exactly STU-DS-110's five, `SLOT` refused as the components crate does.\n   - `component.set_property_reference {layer, field, property}`: writes `StudioNodeDesign.component_property_references` (records.rs:80; STU-DS-113). The reference spelling is not parsed by Folio (components.rs:21-22): use the plain property name and record the reading.\n   - `component.set_description {component, description, documentation_links}` (STU-DS-004, `StudioPublishing`).\n   - `instance.detach {layer}`: the group stays, its instance record and states go, children stay as plain layers; returns the frame id (STU-DS-107). `component.list_instances {component}` (immediate form only, STU-DS-107 :19968) and `instance.get_main_component {layer}`.\n   - `component.sync_instances {component}`: redraws every instance of a definition after the definition's layers changed, keeping overrides (one step). Automatic propagation on every definition edit is not this slice (open question 2), so step 32 is reached through this command.\n5. **Rows and dispatch.** New `harness-core/src/action/commands/component.rs` (domains `component`, `component_set`, `instance`; one `mod` and one `DOMAINS` line in `action/commands.rs:164-191`); decoders in a new `harness-view/src/view/commands/component.rs`, dispatch arms beside `\"design\" if design::owns(id)` (`view/commands.rs:157`); Viewer methods in a new egui-free `harness-view/src/view/design/component.rs`. The catalog seeds itself from RUN_COMMANDS (`harness-core/src/action/ui_seed.rs:18-23`). Do not touch `view/commands/vector.rs` (it hosts `run_design` :236 for auto layout, and SMB-AI-LIVE-EFFECTS-1 adds vector commands).\n6. **Failure-class sweep (V4-06): every reader that sees design records or instance layers.** List each, fixed or not applicable with a reason: `duplicate_layer` (`view/layers.rs`, copies layers without records: an instance copy becomes a plain group, report it, or create an instance; read it), deleting a definition layer (STU-DS-003a :20326: instances keep rendering with `main_component_id` null), the `.fig` export of native components (`interop-fig-native/src/export.rs`: a typed loss line, NOT_INSPECTED here), SVG and PDF export (draw layers, not applicable), `doc_export.rs` PSD (`psd_layer_kind_not_exported` path, read it), `prune` on open of records naming deleted layers (as `auto_layout.rs:354` and `place.rs:333` do), `state_json` design projection (`instance.rs:802` `design_json`).\n7. **Hostile input (V4-01/02).** Typed refusal, bounded: counts of components, members, properties and instances under named caps charged before allocation; names through Folio's label and slash-path rules; a 4096-layer selection; a property rename colliding with an existing name; a combine whose assignments repeat; an instance placed at a non-finite or huge coordinate (`COORDINATE_LIMIT`); a cycle (a definition containing an instance of itself) refused `component_cycle` before the redraw.\n\nOut of scope: variables and bindings (rank 3 lane), library publish and update review, slots (`component.create_slot`), `component.clone`, `component_set.extract_member`, `component.restore_main_from_instance`, exposed nested instances authoring, deferred `list_instances`, any panel, Assets browser or GUI line, `.fig` export of native components beyond a loss line, automatic propagation, scale_factor other than 1, any Folio schema change, any Cargo.toml change, any MT or Master Spec edit. Vendor parity UNVERIFIED (D5).",
+   "diag": "report_for_host: every refusal is a CommandRefusal code (view/commands.rs:129 run_command); Folio diagnostics pass through as their codes, as place.rs folio_refusal does; the components crate report() already emits one Observe outcome per evaluation",
+   "attr": "unchanged: Viewer methods commit through commit_entry and Run::restructure_and_entry, which carry the viewer run context; no default_actor() or literal actor in new code",
+   "exposure": "medium",
+   "paths": "- harness-core: new `src/action/commands/component.rs`; `src/action/commands.rs` (one `mod` line, one `DOMAINS` line).\n- harness-view: new `src/view/design/component.rs` (Viewer methods, egui-free), new `src/view/commands/component.rs` (decoders), `src/view/commands.rs` (dispatch arms near :157), `src/view/design.rs` (`mod` line), `src/view/design/instance.rs` (merged records, native bindings), `src/view/design/persist.rs` (native states), `src/view/vector/style.rs:291-300` (widened member check, caps).\n- harness: new `tests/viewer_design_components.rs`; one process test file or a case in an existing drive test file.\n- Not touched: `src/view/vector.rs`, `src/view/design/auto_layout.rs`, `src/view/commands/vector.rs` (SMB-AI-LIVE-EFFECTS-1 edits the first two), folio, components, chronicle, session.",
+   "suites": "clippy over harness-core, harness-view, harness; nextest WHOLE suites of hsk-studio-harness-core and hsk-studio-harness-view with [viewer]; hsk-studio-harness viewer_design*, viewer_fig*, design and drive tests (confirm the units in .config/round-features.toml, rule 4e); no folio or components suite unless a test proves an engine defect",
+   "closes": [
+    "scenario product-design gap rank 3 (component authoring commands) for create, combine, properties, instance, detach",
+    "scenario vector-brand gap: component and symbol authoring (steps 25, 26, 82)",
+    "backlog-20261107 G-DS-AUTHORING (19 steps listed there; 14 re-measured here)"
+   ],
+   "mts": [
+    "MT-33062",
+    "MT-33063",
+    "MT-33068",
+    "MT-33069",
+    "MT-33056",
+    "MT-122",
+    "MT-30591",
+    "MT-30592",
+    "MT-30593"
+   ],
+   "mts_note": "MT ids are the scenario gaps' lists; MT files NOT_INSPECTED in this pass: the builder reads each and claims a row only if this lane proves it",
+   "tree": "smb-sentinels-native-1",
+   "tree_reason": "READY lane SMB-WEB-HOST-1 (READY_FOR_VALIDATION), worktree clean, tip aa68164c is an ancestor of 0a733db8 (git merge-base --is-ancestor). Its target holds 38 hsk_studio crates including components, folio, harness, harness_core, harness_view, interop_layout, nib, composite, type and the web trio that harness-core now depends on (harness-core/Cargo.toml:28-29), so every crate of this lane's build closure is already compiled once; it lacks only reel and motion, which only the media feature needs. Newest rlib 2026-11-07T17:00Z (12806 files in deps), so workspace crates rebuild and third-party ones are reused. Not in a review or builder dispatch of resume_20261108. Fallback: smb-id-toc-persist-1 (35 crates, lacks the web trio).",
+   "tree_scan": {
+    "crates_built": 38,
+    "files_in_deps": 12806,
+    "newest_rlib": "2026-11-07T17:00Z"
+   },
+   "disk": "d",
+   "overlaps": {
+    "SMB-AI-LIVE-EFFECTS-1": "Same crate harness-view, different files: it edits view/vector.rs (:622, :678-696), view/vector/arrange.rs, view/design/auto_layout.rs:1061-1067 and a new vector live_filters file. This lane edits view/vector/style.rs:291-300 only in the vector folder. Textual conflict none; a rebase rebuilds harness-view.",
+    "SMB-TYPE-INDENT-SPACING-1": "No shared file (layout, folio typestyle, interop-layout, harness-view layout files).",
+    "SMB-SCORE-EFFECTS-6": "No shared file.",
+    "SMB-PARSER-HOSTILE-1": "No shared file; interop-fig-native export is only read here for a loss line, which is cut if that lane touches it.",
+    "SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1": "No shared file (native-host, kumihimo-ui, hsk-studio-vulkan).",
+    "SMB-DEVELOP-COMMANDS-1 (rank 2)": "Shares only action/commands.rs (one mod and one DOMAINS line) and view/commands.rs (dispatch arms): land one at a time.",
+    "SMB-DS-VARIABLES-AUTHOR-1 (rank 3)": "Same entry member and style.rs check: rank 3 starts after this lane lands.",
+    "all": "Build on D:. One landing at a time under the lead (workflow item 16); about 7 commits."
+   },
+   "needs": {
+    "cargo_toml": "none: harness-view already has components and folio (harness-view/Cargo.toml:16, :36)",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "no Folio change; the vector entry design member accepts members it refused before (readers built earlier refuse such an entry with vector_entry_design: members, as deny-unknown entries do); the design entry gains states for native instances, a Folio type already",
+    "spec": "no Master Spec edit. SD items to propose on READY: native instance origin from layer bounds; component_property_references spelling; sync_instances as the propagation step of this slice; artboards as design pages",
+    "root_inputs": "none; confirm .config/round-features.toml needs no change (rule 4e)"
+   },
+   "red_team": {
+    "risks": [
+     "Two sources of truth: receipt records and entry records disagree about an id.",
+     "Silent drift: a definition is edited and instances still show the old copy, while STU-DS-003 says an instance is not a copy.",
+     "Undo split: a structure step and an entry write that are not one history step.",
+     "Wire format: entry members stored now become format; a wrong key needs a migration.",
+     "Rework: the GUI Assets and Properties panels will bind these ids, so names must be the spec ids now."
+    ],
+    "failure_scenarios": [
+     "A component created, saved, reopened: the inspector reads the receipt only and the native instance reads unknown.",
+     "combine_as_variants with two members carrying the same assignment writes the set, and only render refuses it.",
+     "A property rename leaves an instance with the old key (STU-DS-112 forbids the partial write).",
+     "duplicate_layer of an instance makes a group that the inspector binds to the first instance's record.",
+     "Deleting the definition layer makes Folio refuse the whole entry, so every edit after it is refused.",
+     "A definition that contains an instance of itself loops in redraw.",
+     "The vector entry check is widened without caps, and a hostile entry holds 10^6 components."
+    ],
+    "minimum_controls": [
+     "Save-reopen test for each command; inspector state edited, not unknown, after reopen.",
+     "Duplicate-assignment test proves the refusal at the command, before commit (step 26).",
+     "Rename test reads every instance key after the step.",
+     "Undo after each command restores the exact prior document and entries (byte compare).",
+     "Cycle test refuses before allocation; caps named and tested.",
+     "V4-06 list in the lane notes with every site fixed or not applicable."
+    ]
+   },
+   "research_basis": {
+    "sources_checked": [
+     "Project: folio components.rs, records.rs, design_state.rs; components lib.rs DESCRIPTOR and folio_bridge.rs:10-30; harness-view design/instance.rs, persist.rs, auto_layout.rs, vector.rs, vector/style.rs; harness-core action/commands.rs, design.rs rows; harness drive.rs; Master Spec clauses listed in target",
+     "S/workflows/scenario-product-design.json and scenario-vector-brand.json steps and gaps; S/workflows/backlog-20261107.json G-DS-AUTHORING"
+    ],
+    "patterns_found": [
+     "In this repo an authored design record is entry data committed in the same history step as the layers it annotates (auto layout al_commit, place.rs raster_records).",
+     "The fig import already proves the redraw: definition layers copied and translated per instance, overrides applied, state keyed by content signature."
+    ],
+    "reuse_opportunities": [
+     "instance.rs redraw and definition_layers",
+     "persist.rs write_design_state",
+     "commit_entry and Run::restructure_and_entry",
+     "layers.rs new_layer, mint_layer_id, operation_for",
+     "components switch_variant, swap_component, resolve_instance",
+     "Folio validate_design_records and check_identity_uniqueness"
+    ],
+    "rejected_options": [
+     "A new session entry for components: splits StudioDesignRecords across two entries while auto layout nodes already live in the vector entry; Folio validates one record set.",
+     "A Folio field for instance origin: a schema change for a value that layer bounds give; kept as an open question.",
+     "PrimitiveReference instance layers (folio_bridge.rs:10-30): the host draws instances as groups of copied layers; changing that is a renderer change."
+    ],
+    "selected_approach": "Spec-named typed commands over the existing records, one home (vector entry design member), merged inspector records, native bindings as design states, redraw reused, sync_instances as the explicit propagation.",
+    "limits": "No web research in this pass: it is a read-only width plan over existing engines; Figma behaviour for create, combine and detach is UNVERIFIED (D5) and the builder brief should require reading Figma's help pages for those three verbs before red. No cargo, build or test was run; every behaviour claim about untested paths is from reading code."
+   },
+   "next_slices": [
+    "SMB-DS-VARIABLES-AUTHOR-1 (rank 3): collections, modes, variables, aliases, scopes, code syntax, resolve, explicit modes, in the same entry member.",
+    "SMB-DS-COMPONENTS-AUTHOR-2: automatic propagation on definition edits, slots, clone, extract_member, restore_main_from_instance, exposed nested instances, deferred list_instances.",
+    "Variable bindings to paints and fields (needs a Folio home, components/src/lib.rs:10-12) and render by mode.",
+    "Text inside auto layout and the auto-layout control rows (product-design 20, 35, 38-40, 49, 51) after SMB-AI-LIVE-EFFECTS-1 lands, since it edits design/auto_layout.rs.",
+    ".fig export of native components (interop-fig-native) and library publish."
+   ],
+   "open_questions": [
+    {
+     "for": "lead",
+     "question": "Where do authored components live: the vector entry design member (widen style.rs:291-300) or a new session entry token?",
+     "default": "The vector entry design member: one StudioDesignRecords per document, already holding auto-layout nodes and validated whole by Folio; a second entry would split one record set. Caps named in style.rs."
+    },
+    {
+     "for": "lead",
+     "question": "STU-DS-003 says an instance renders the current definition, not a copy. This slice redraws on component.sync_instances, not on every definition edit.",
+     "default": "Accept for this slice: the redraw is the existing copy mechanism, an explicit step keeps one undo step per command, and the inspector reports stale instances by content signature; automatic propagation is slice 2. Record as an SD item that STU-DS-003 is partly met."
+    },
+    {
+     "for": "lead",
+     "question": "Native instance origins: derived from layer bounds at command time, or stored?",
+     "default": "Derived: the fig receipt stores origin_px because the source gave it; for a native instance the definition bounds and the instance group's position are the same fact, and storing them would need a Folio field. Declared Studio reading."
+    },
+    {
+     "for": "lead",
+     "question": "Command ids: spec names (component.*, component_set.*, instance.*) beside the existing design.instance.* rows?",
+     "default": "Spec names for every new row (STU-DS-107, STU-DS-162); the existing design.instance.* rows stay as they are; aliases are the catalog's job later (ui_seed.rs)."
+    },
+    {
+     "for": "lead",
+     "question": "Design pages: product-design step 3 asks for pages; this lane and SMB-DOC-NEW-1 use artboards.",
+     "default": "Artboards stand in, recorded UNVERIFIED; a page model for design documents is a separate spec question for the spec owner."
+    }
+   ]
+  },
+  {
+   "id": "SMB-DEVELOP-COMMANDS-1",
+   "file": "hsk-studio-develop-commands-1",
+   "brief": "lane-smb-develop-commands-1",
+   "crate": "hsk-studio-harness-view (develop typed rows for every DevelopOp and FamilyOp, and the develop must-haves: group enables, point curves, snapshots, preset save, crop and straighten, over hsk-studio-develop)",
+   "crates_head": "0a733db8",
+   "summary": "Every develop operation the Viewer has is a typed command, and group enables, point curves, snapshots, preset save and crop are new ops, each one undo step, saved in the develop entry",
+   "target": "## Target\n\nWidth plan 20261108 rank 2. Eight photo-retouch develop steps (27, 28, 29, 30, 40, 41, 46, 51) work in a Rust test and not from a command: `Viewer::develop_op` (`harness-view/src/view/develop.rs:1001`) takes every `DevelopOp` (:408), but the typed rows (`harness-core/src/action/commands/photo.rs:27-42`, decoders `harness-view/src/view/commands/photo.rs:77-99`) cover Kelvin through RemoveDistraction only. Missing rows: `AddColourRange`, `AddCorrection(MaskSource)`, `AddMask`, and every `Family(FamilyOp)` member (`develop_more.rs:166`: LensProfile, ClearLensProfile, LensToggles, Upright, UprightGuides, GrainSeed, VignetteStyle, Look, ClearLook, Preset). Five more steps (31, 35, 48, 49, 50) have engine code and no op at all: crop and straighten (`develop/src/recipe.rs:91` `NormalizedCrop`, field :192), point curves (`ResolvedCurves` :68, field :189, `Curve::new` `develop/src/curves.rs:23`), group enables (`Enables` `recipe.rs:23`, derived today by `develop_more.rs:144` `family_enables`, comment :179), snapshots (`develop/src/preset.rs:76` `Snapshot`) and preset save (`DevelopPreset::capture` :348, `to_text` :406). All file:line below are at 0a733db8 (origin tip, read with git show / git grep in wt-studio-lanes/smb-pr-sequence-session-1); paths are under `handshake-studio-assets/crates/hsk-studio-`. Spec lines are module `14-studio-creative-suite.md` of v02.229.\n\nClauses: STU-RAW-004 :2126, STU-RAW-005 :2139, STU-RAW-009 :2166, STU-RAW-010 :2172, STU-RAW-011 :2177, STU-RAW-014a :2535, STU-RAW-014b :2543, STU-RAW-015 :2616, STU-RAW-018 :2710 (every develop group, mask source and profile is a command), STU-RAW-105 :2086, STU-RAW-113 :2267, STU-RAW-121 :2549, STU-RAW-126 :2481, STU-RAW-127 :2493, STU-RAW-128 :2522, STU-RAW-131 :2679, STU-AUT-147 :21905, STU-CON-007 :22896.\n\n1. **Red first.** New `harness/tests/viewer_develop_commands.rs` (feature viewer), shaped like `viewer_develop_lens.rs` and `viewer_develop_3.rs` (corpus DNG). For each new row: refused `unknown_command` at red; at green, the row's tiles digest and `develop_json` (`develop.rs:941`) equal a direct `develop_op` call with the same op (differential, so the decoder cannot drift from the op). One process test through `command --stdin` running steps 27-30, 40, 41, 46 and 51 in order. Prove red by running.\n2. **Typed rows for the existing ops** (ids under `photo.develop.`, no new domain): `add_colour_range {samples, breadth}`, `add_correction {source: linear|radial|brush, ...fields}` from `default_linear` / `default_radial` / `default_brush` (`develop.rs:630`, :635, :640) with optional field values, `add_mask {correction, source, subtract}`, `lens_profile {path, focal_mm, aperture_value?, distance_m?}`, `clear_lens_profile`, `lens_toggles {profile_enable, auto_ca}`, `upright {mode}` (`develop/src/geometry.rs:36` `UprightMode` keys), `upright_guides {guides}`, `grain_seed {seed}`, `vignette_style {style}` (`develop/src/effects.rs:53`), `look {path, name, domain}` (`develop/src/look.rs:18` `LookDomain`), `clear_look`, `apply_preset {path, amount}`, plus `set {control, value}` and `set_many {changes}` over `set_develop` / `set_develop_many` (`develop.rs:973`, :982) so step 32 is one undo step and the GUI binds one id. File parameters use the `path` shape and are read by the decoder under a named byte cap before parsing (Look `.cube`, preset, lens profile); a missing or oversized file is a typed refusal. Each mutating row is ONE chronicle tiles step, as `develop_op` is today (harness DESCRIPTOR develop.persistence).\n3. **New ops for the must-haves** (each a `DevelopOp` variant, a typed row and one undo step):\n   - `set_enable {group, on}` (STU-RAW-105): an explicit operator override per `Enables` flag (12, `recipe.rs:23-36`); absent override = today's derived value, so existing documents render byte-identically. `enable_red_eye` stays refused (`recipe.rs:60-62` `first_unsupported`).\n   - `set_point_curve {channel: composite|red|green|blue, points}` (STU-RAW-113): through `Curve::new` validation, stored in `DevelopRecipe.curves`; `enable_tone_curve` follows unless overridden.\n   - `save_preset {path, name, keys}` (STU-RAW-128): `DevelopPreset::capture` + `to_text`, written no-clobber through the export writer (`view/export.rs` `write_new`), `overwrite` flag as other output rows; `snapshot.save {name}`, `snapshot.apply {name}`, `snapshot.delete {name}` with the list in the develop entry (`Snapshot` fields NOT_INSPECTED: read preset.rs:76-110 first).\n   - `set_crop {left, top, right, bottom, angle, flip_horizontal, flip_vertical}` (STU-RAW-015, STU-RAW-131): into `NormalizedCrop`. Risk read in code: `recipe.rs:86-89` says angle and flips run only in the whole-frame stage and the tile API refuses them (`unsupported_contribution:transform_whole_frame`), while the viewer re-develops through tiles. See open question 3; this item is cut first if the lane passes 7 commits.\n4. **Persistence.** `develop_entry.rs` (`hsk.studio.harness.develop@1`, :32; header :5 says every `Adjustments` field is written, exact keys) gains optional members `enables_override`, `point_curves`, `crop`, `snapshots`, absent when default, so every existing entry and package stays byte-identical. The hostile decoder bounds each: points per curve, snapshots per document, name length, finite numbers, the 8 MiB entry cap it already has.\n5. **Failure-class sweep (V4-06): every reader of the develop recipe that would ignore a new member.** List each, fixed or not applicable: develop export (`export_develop`), CLI `develop --adjust` (`harness/src/cli.rs:803`), the document export recipe's develop stage (`view/doc_export.rs:3-4`), DNG XMP write (`set_develop_dng_xmp`, scenario evidence develop.rs:913, re-read it), `develop_json` and `state_json` projections, the develop panel draw code (read only: no egui line in this lane), batch through `cli batch`. A member a reader cannot honour is a typed refusal or a named note, never silently dropped.\n6. **Hostile input (V4-01/02).** Non-finite numbers, 10^6 guides, a 2 GiB `.cube` path, a preset naming unknown keys, a crop with left > right, a curve with unsorted or duplicate x, 10^5 snapshots: typed refusal, no abort, no allocation before the count check.\n\nOut of scope: catalog, ratings and sync of settings (needs multi-image selection, STU-RAW-017), before/after view, clipping overlay, white balance picker by click, Auto Tone (no engine function found: git grep auto_tone over crates/*/src finds only an unrelated folio field, scenario step 25), camera profile browser (step 26: the profile model of STU-RAW-125 NOT_INSPECTED), red-eye, HDR merge, AI masks, any panel or egui line, any Cargo.toml change, any Folio change, any MT or Master Spec edit. Lightroom and Camera Raw parity UNVERIFIED (D5).",
+   "diag": "report_for_host: develop Refusal {code, detail} through CommandRefusal (view/commands/photo.rs maps it today); no new observe API",
+   "attr": "unchanged: develop_op commits one chronicle tiles step with the develop entry through the viewer run context; no default_actor() or literal actor in new code",
+   "exposure": "medium",
+   "paths": "- harness-core: `src/action/commands/photo.rs` (rows only).\n- harness-view: `src/view/commands/photo.rs` (decoders), `src/view/develop.rs` (DevelopOp variants, develop_op arms), `src/view/develop_more.rs` (FamilyOp only if a variant is missing a decode form), `src/view/develop_entry.rs` (optional members, hostile decoder).\n- harness: new `tests/viewer_develop_commands.rs`.\n- develop: only if a test proves an engine defect.\n- Not touched: view/place.rs, view/vector*, view/design*, any panel draw code.",
+   "suites": "clippy over harness-core, harness-view, harness; nextest WHOLE suites of hsk-studio-harness-core and hsk-studio-harness-view with [viewer]; hsk-studio-harness viewer_develop* (all eight files), viewer_doc_export* if present, the new file, and the drive tests; rule 4e for units",
+   "closes": [
+    "scenario photo-retouch gap rank 5 (photo commands on the model surface), develop part",
+    "scenario photo-retouch gap rank 8 (develop must-haves): crop and straighten, point curves, group toggles, snapshots, save preset",
+    "ledger next_lane_candidates 2026-11-07T12:31:03Z: develop ops needing mask-source or tone-family records stay Rust-only"
+   ],
+   "mts": [
+    "MT-33500",
+    "MT-414",
+    "MT-415",
+    "MT-34665",
+    "MT-429",
+    "MT-30364",
+    "MT-30369",
+    "MT-413",
+    "MT-30319"
+   ],
+   "mts_note": "MT ids are the scenario gaps' lists; MT files NOT_INSPECTED in this pass",
+   "tree": "smb-folio-angle-unbounded-1",
+   "tree_reason": "Lanes SMB-MOTION-COMMANDS-1 and SMB-PROJECT-BIN-1 are READY_FOR_VALIDATION on it, worktree clean, tip 9ab80edd is an ancestor of 0a733db8 (checked). Its target holds 37 hsk_studio crates including develop, harness, harness_core, harness_view, interop_layout, interop_tiff, interop_raster, interop_psd, prism, pigment, composite and render_cpu, every crate of this lane's closure except the web trio that harness-core now needs (harness-core/Cargo.toml:28-29), which builds once. Newest rlib 2026-11-07T16:39Z (20137 files in deps). Not in a review or builder dispatch of resume_20261108. Fallback: smb-ps-mode-convert-1 (35 crates; lacks interop_layout and the web trio).",
+   "tree_scan": {
+    "crates_built": 37,
+    "files_in_deps": 20137,
+    "newest_rlib": "2026-11-07T16:39Z"
+   },
+   "disk": "d",
+   "overlaps": {
+    "SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1, SMB-SCORE-EFFECTS-6, SMB-PARSER-HOSTILE-1, SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1": "No shared file: none of them edits photo rows, develop files or develop_entry.rs.",
+    "SMB-DOC-EXPORT-1 (READY)": "Reads the develop export stage (doc_export.rs:3-4); this lane changes no export-stage code. If a new member must reach the document export, report it, do not edit doc_export.rs.",
+    "SMB-DS-COMPONENTS-AUTHOR-1 (rank 1)": "Shares view/commands.rs only if a dispatch arm changes (photo already routes, :163): expected none.",
+    "all": "Build on D:; about 6 commits; one landing at a time."
+   },
+   "needs": {
+    "cargo_toml": "none",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "develop entry hsk.studio.harness.develop@1 gains optional members absent when default; existing entries byte-identical; an entry that uses them is refused by an older reader (exact keys), as earlier develop families were",
+    "spec": "no Master Spec edit. SD items on READY: operator enable override beside derived enables; crop preview reading (open question 3)",
+    "root_inputs": "none"
+   },
+   "red_team": {
+    "risks": [
+     "Decoder drift: a typed row builds a different op than the panel does.",
+     "Silent drop: a new recipe member is honoured in the viewer and ignored by CLI develop, DNG XMP or the document export.",
+     "Wire format: develop entry members stored now become format.",
+     "File parameters read unbounded.",
+     "Crop through the tile path is refused or wrong."
+    ],
+    "failure_scenarios": [
+     "add_correction radial without fields builds a mask the panel would not, and the result differs from the panel.",
+     "set_enable false on detail is lost at reopen because develop_entry does not write it.",
+     "A preset saved over an existing file, or over the opened source.",
+     "A snapshot applied after a lens profile change restores sliders but not the profile, and the user sees a different image.",
+     "A crop angle commits, the tile API refuses it at the next re-develop, and every later slider edit fails.",
+     "A 2 GiB .cube path is read into memory before its size is checked."
+    ],
+    "minimum_controls": [
+     "Differential tests: typed row against direct develop_op for every new row.",
+     "Save, reopen, render equal for every new member; byte identity for entries without them.",
+     "V4-06 list of recipe readers in the lane notes, each fixed or not applicable.",
+     "Byte caps checked before reading; tests at cap plus one.",
+     "Crop item behind open question 3; refused typed rather than half-applied."
+    ]
+   },
+   "research_basis": {
+    "sources_checked": [
+     "Project: harness-view develop.rs, develop_more.rs, develop_entry.rs, commands/photo.rs; harness-core commands/photo.rs; develop recipe.rs, curves.rs, preset.rs, geometry.rs, effects.rs, look.rs, local.rs; harness lib.rs DESCRIPTOR develop section; Master Spec STU-RAW clauses listed",
+     "S/workflows/scenario-photo-retouch.json steps 21-52 and gaps rank 5 and 8"
+    ],
+    "patterns_found": [
+     "The existing photo.develop.* rows map one id to one DevelopOp member through a small decoder (commands/photo.rs:77-99); new rows follow it.",
+     "Each develop change is one chronicle tiles step carrying the develop entry, so undo restores pixels and edit together (harness DESCRIPTOR develop.persistence)."
+    ],
+    "reuse_opportunities": [
+     "develop_op and set_develop_many",
+     "FamilyOp as it is",
+     "DevelopPreset::capture, to_text, parse",
+     "Curve::new validation",
+     "export.rs write_new no-clobber",
+     "develop_entry hostile decoder"
+    ],
+    "rejected_options": [
+     "A generic photo.develop.op taking a serialized DevelopOp: no typed parameters for the catalog or the GUI, and the op has no serde form.",
+     "Folding crop into the document canvas (a document resample): a document edit (STU-RAS-142), not develop state."
+    ],
+    "selected_approach": "One typed row per op, new ops only where the engine has the state, persisted as optional develop entry members.",
+    "limits": "No web research in this pass; Lightroom and Camera Raw behaviour of group toggles, snapshots and crop is UNVERIFIED (D5). No cargo, build or test was run."
+   },
+   "next_slices": [
+    "White balance picker by click and Auto (STU-RAW-005; WbMode::Auto recipe.rs:17 exists, Auto Tone does not).",
+    "Camera profile choice (STU-RAW-125) once the profile model is read.",
+    "Copy and sync develop settings across a canonical selection (STU-RAW-017) after a catalog or multi-document surface exists.",
+    "Before/after and clipping overlay as viewer display modes for the GUI lanes."
+   ],
+   "open_questions": [
+    {
+     "for": "lead",
+     "question": "Group enables: STU-RAW-105 makes them state, the panel derives them (develop_more.rs:144, :179). Override, or replace the derivation?",
+     "default": "An optional override per flag, derived when absent: existing documents render unchanged and the panel keeps working."
+    },
+    {
+     "for": "lead",
+     "question": "Row ids: photo.develop.<op> for the new rows, or a develop.* domain?",
+     "default": "photo.develop.<op>, the existing pattern (photo.rs:27-42); no new domain file."
+    },
+    {
+     "for": "lead",
+     "question": "Crop and straighten: the tile API refuses angle and flips (recipe.rs:86-89) while the viewer re-develops by tiles. Apply crop in the viewer, or store it and apply at develop export only?",
+     "default": "Store crop edges, angle and flips, apply them at develop export and in the DNG XMP, and show the uncropped preview with a note crop_preview_not_applied; a cropped preview is a GUI-lane item. If the lead rejects a stored-but-not-previewed crop, cut item 3d."
+    },
+    {
+     "for": "lead",
+     "question": "save_preset writes a file: is it an output row (output_path shape, no-clobber) like export rows?",
+     "default": "Yes: output_path shape (harness-core commands.rs output_path), refused over the opened package and without overwrite."
+    }
+   ]
+  }
+ ],
+ "notes": {
+  "method": "Each step of the three scenarios was re-classified at 0a733db8. working: a typed command id reaches the step through the process loop (a RUN_COMMANDS row of harness-core/src/action/commands/*.rs with Surface::Viewer run by Viewer::run_command, a Run row, a viewer.<method> arm of harness/src/cli/drive_viewer.rs, a menu leaf studio.* through drive.rs:333-346, or a CLI verb of manual.rs:19-36); the row was read, nothing was run. failing: the behaviour exists (Rust-only Viewer method, engine-only code, or a row that refuses the case). missing: no engine path found. 363 typed and Run rows and 111 viewer arms were extracted from 0a733db8 by a scratch script (regex over the row tables); steps were matched by command id and Viewer method name, then corrected by hand per step with the file:line given. Labels per step: READ, UNVERIFIED in part, or UNVERIFIED (carried) where no lane since c4d06841 touched the area and the scenario evidence was not re-read.",
+  "deltas_since_c4d06841": "photo-retouch callable 53 -> working 54 (develop rows now typed, place and transform, document export recipe, batch exporter; 8 develop steps that were callable from Rust are now counted failing because they still lack a typed row); vector-brand callable 60 -> working 67 (document.new, artboards, place, per-node export, panel.* typed rows); product-design callable 23 -> working 28 (document.new, artboards, per-node export). Lanes behind the change: SMB-COMMAND-SURFACE-1 (the DRIVE-TYPED-1 backlog row, renamed), SMB-DRIVE-TYPED-2, SMB-DOC-NEW-1, SMB-DOC-EXPORT-1, SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1, SMB-LAYOUT-PDF-HOST-1, SMB-LAYOUT-PERSIST-1; all READY_FOR_VALIDATION, none PASS yet, so every working step here rests on code not yet independently validated.",
+  "key_findings": [
+   "READ: SMB-PLACE-ASSET-1 added a writable raster_records session entry (place.rs:92-96, session source.rs:176) that the viewer renders from (place.rs:445-470). It is the home the filter, adjustment and mask commands lacked; the filters scope of 2026-11-07 named that gap (raster records read once at open).",
+   "READ: the vector entry refuses components, sets, instances and variables in its design member (harness-view/src/view/vector/style.rs:297-300), so every design-system authoring lane needs one ruling on where authored records live (rank 1 open question 1).",
+   "READ: component instance definitions come only from the .fig import receipt (instance.rs:8-13, :153); native authoring has no binding home except StudioInstanceState in the design entry (folio design_state.rs:92-112).",
+   "READ: chronicle addresses only Name, Visible, Opacity, BlendMode, Tiles, Placement, VectorPaths (chronicle/src/lib.rs:79-114), so raster layer masks and clipping (photo 80, 81, 88) need a chronicle property first; that mask lane ranks 5th.",
+   "UNVERIFIED conflict: render.rs:14-21 says layer masks are served as stitched coverage planes, render.rs:552-555 adds the note layer_masks_not_resolved: masked layers are refused by the composite lowering. A mask lane must run one masked render first.",
+   "READ: text in auto layout is still refused (design/auto_layout.rs:19, :275), and SMB-AI-LIVE-EFFECTS-1 edits design/auto_layout.rs:1061-1067, so the auto-layout depth lane (product-design 20, 35, 38-40, 49, 51; about 7 steps) waits for it.",
+   "READ: develop has 13 DevelopOp/FamilyOp members with no typed row (develop.rs:408, develop_more.rs:166 against commands/photo.rs:27-42)."
+  ],
+  "next_after_rank_4": [
+   "SMB-PS-LAYER-MASK-1: chronicle Property for appearance.mask and clipped, mask from selection, mask parameters (StudioMaskParameters raster.rs:755, :1775-1784), selection invert, feather, grow and shrink, refine output options (pigment refine.rs RefineOptions), save selection to channel: photo 77, 78, 79, 80, 81 and the clip half of 88.",
+   "SMB-DS-AUTOLAYOUT-DEPTH-1: text children measured through type, and setter rows for size clamps, constraints, alignment, wrap, absolute, overflow and fixed children: product-design 20, 35, 38, 39, 40, 49, 51 (layout grids 16, 34 UNVERIFIED for a record).",
+   "SMB-VEC-COLOUR-HOSTS-1: swatch groups command (folio apply_swatch_group_command, lane SMB-COL-SWATCH-GROUPS-1), colour book load, harmony, contrast check, swatch exchange, vector_separations typed row: vector 37, 39, 40, 41, 44, 45, 95.",
+   "SMB-PS-RETOUCH-TOOLS-1: clone, heal, patch, content-aware fill on blank layers (pigment retouch.rs, content_aware.rs; scenario evidence): photo 61-64."
+  ],
+  "not_done": "No cargo, build, test or target_report.py run. MT files were not read. No web research. Tree sizes were not measured (only the deps listing). Scenario steps marked UNVERIFIED (carried) keep the c4d06841 evidence.",
+  "scratch": "Extraction scripts and intermediate JSON live in the session scratchpad (wprvd_scen.py, wprvd_out.py, cat.json, trees.json); they are not repo artifacts.",
+  "tree_scan": {
+   "smb-ai-distort-effects-1": {
+    "crates_built": 40,
+    "newest_rlib": "2026-11-08T07:41Z",
+    "files_in_deps": 18670
+   },
+   "smb-pr-sequence-session-1": {
+    "crates_built": 41,
+    "newest_rlib": "2026-11-08T08:10Z",
+    "files_in_deps": 19772
+   },
+   "smb-ps-mode-convert-1": {
+    "crates_built": 35,
+    "newest_rlib": "2026-11-07T12:46Z",
+    "files_in_deps": 16095
+   },
+   "smb-pr-edit-footprint-1": {
+    "crates_built": 40,
+    "newest_rlib": "2026-11-08T07:56Z",
+    "files_in_deps": 23225
+   },
+   "smb-r53-followups-1": {
+    "crates_built": 41,
+    "newest_rlib": "2026-11-08T06:01Z",
+    "files_in_deps": 20492
+   },
+   "smb-folio-angle-unbounded-1": {
+    "crates_built": 37,
+    "newest_rlib": "2026-11-07T16:39Z",
+    "files_in_deps": 20137
+   },
+   "smb-id-toc-persist-1": {
+    "crates_built": 35,
+    "newest_rlib": "2026-11-07T17:11Z",
+    "files_in_deps": 17116
+   },
+   "smb-sentinels-native-1": {
+    "crates_built": 38,
+    "newest_rlib": "2026-11-07T17:00Z",
+    "files_in_deps": 12806
+   }
+  },
+  "tree_scan_note": "Built hsk_studio crates per candidate tree from Handshake_Artifacts/WP-KERNEL-STUDIO/<tree>/target/debug/deps (libhsk_studio_*.rlib names). Every candidate holds harness, harness_core, harness_view, folio, components, develop, pigment and composite; they differ in interop_layout, reel, motion, score_device, kernel_bindings and the web trio (web, web_core, web_assets), which harness-core now needs. smb-r53-followups-1 has an active builder (SMB-PR-EXPORT-RECIPE-1 bundled run, resume_20261108) and smb-ai-distort-effects-1, smb-pr-sequence-session-1, smb-pr-edit-footprint-1 host lanes under pre-build review, so they were not chosen."
+ }
+}
