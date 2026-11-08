@@ -22976,6 +22976,20 @@
     "follow_up_F_R60_2": "lane-check.sh never runs the registry-sync check, so builders did not see F-R60-1. Fix it in the kernel tool only when no lane run is in flight (HANDOFF lessons: never edit a tool script a running builder may be reading), or ship it as a new file and switch over. Until then the lead checks dep-requests against registry pins before each round.",
     "leads_for_attempt_2": "validator-R60/review-R60-A..H.json (17 of 19 claims read; LAYOUT-PDF-HOST-1 and WEB-HOST-1 not inspected). HIGH lead: DOC-EXPORT-1 export_document outside the session JobPort (doc_export.rs:844).",
     "lead_note": "The lead learned of the step-0 failure only at the validator's end of turn, about 35 minutes after it happened (C: idle meanwhile). Next round prompts tell the validator to message the lead at once when the canary fails."
+   },
+   "steward_sync_F_R60_1": {
+    "at": "2026-11-08T07:08:05Z",
+    "sync_sha": "5d020939",
+    "parent": "42e9e5a4",
+    "paths": "root Cargo.toml (native-host registry pins png =0.18.1, sha2 =0.10.9 force-soft; allowed edges harness-core -> hsk-studio-web and harness-view -> hsk-studio-interop-layout) and tools/workspace-probe.rs (APPROVED); Cargo.lock unchanged",
+    "checks": "license gate OK; probe 109/109 (60 packages, 49 feature sets); registry-sync check mode exit 0 on the export",
+    "lead_rulings": {
+     "shared_tree": "wt-studio-assets was 214 commits behind with a stale 2026-10-15 Cargo.lock WIP: SAFETY stash stash@{0} 7b8e5e78 (blob dd0082ca), kept, then ff-only to origin (precedent stash@{2} 2026-10-20). Its fate is for the Operator.",
+     "edge_harness_core_web": "approved: harness-core already hosts 13 Studio engine runners; hsk-studio-web is a light leaf (accord, observe, sha2, web-core, web-assets) with no path back to harness; SMB-WEB-HOST-1 notes.edge gives the reason (action_records needs web_command on impl Run). The lane had not asked before moving the edge from harness-view: a process gap, now closed by this approval.",
+     "edge_harness_view_interop_layout": "approved in SMB-LAYOUT-PDF-HOST-1's brief."
+    },
+    "record": "research/steward-sync-20261108-F-R60-1.json",
+    "process_gap": "Builders can land root drift (registry pins, undeclared path edges) because lane-check runs neither registry-sync nor the workspace probe (F-R60-2). Until lane-check gains that check (edit only with no lane run in flight), the lead runs steward-sync --dry-run before each round freeze."
    }
   }
  },

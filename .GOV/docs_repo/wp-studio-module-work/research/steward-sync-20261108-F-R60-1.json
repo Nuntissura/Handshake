@@ -1,0 +1,47 @@
+{
+  "schema": "steward-sync-record-v1",
+  "finding": "F-R60-1",
+  "by": "workspace steward (agent) 2026-11-08",
+  "status": "PUBLISHED",
+  "sync_sha": "5d020939f930fa7497daa87551d79c456028b713",
+  "parent": "42e9e5a4e7d8148c16ac695eeafbf8d5321188c2",
+  "tree": "e4b46c525d3cbacdf789e275b9aa85c8f50cae13",
+  "paths_changed": ["handshake-studio-assets/Cargo.toml", "handshake-studio-assets/tools/workspace-probe.rs"],
+  "cargo_lock_changed": false,
+  "requests": ["builders/dep-requests.jsonl line 205: hsk-studio-native-host png 0.18.1, no features, default-features false, MIT OR Apache-2.0", "line 206: hsk-studio-native-host sha2 0.10.9, features force-soft, default-features false, MIT OR Apache-2.0"],
+  "change": {
+    "registry_pins": "[workspace.metadata.studio.registry.hsk-studio-native-host] direct gains png =0.18.1 (features [], default-features false) and sha2 =0.10.9 (features [force-soft], default-features false); its locked set re-derived",
+    "probe_approved": "tools/workspace-probe.rs APPROVED: (\"hsk-studio-native-host\", &[\"png\", \"sha2\", \"windows-sys\", \"winit\"])",
+    "edges": ["hsk-studio-harness-core allowed += hsk-studio-web", "hsk-studio-harness-view allowed += hsk-studio-interop-layout"]
+  },
+  "edge_approvals": {
+    "ruling": "LEAD RULING 2026-11-08 (received about 06:40Z, after the 06:3xZ check-only dry run): approve both edges for this sync",
+    "hsk-studio-harness-core -> hsk-studio-web": "approved by the lead: harness-core already hosts the engine command runners of 13 Studio crates (accord, controls, develop, folio, interop-affinity, interop-psd, interop-raster, interop-tiff, observe, package, press, prism, session); hsk-studio-web is a light leaf (accord, observe, sha2 =0.10.9, web-core, web-assets) with no path back to any harness crate; builder reason in lane file SMB-WEB-HOST-1 notes.edge: action_records needs web_command as a pub fn of impl Run (commit 6fc3a7d6). The lane brief had named harness-view -> web",
+    "hsk-studio-harness-view -> hsk-studio-interop-layout": "approved in its lane brief (builders/briefs/lane-smb-layout-pdf-host-1.md, SMB-LAYOUT-PDF-HOST-1, commit 92227383); optional dep behind feature viewer"
+  },
+  "history": [
+    {"step": "dry run 1", "base": "96ace3ca (shared tree)", "exit": 3, "output": "HEAD != origin/codex/handshake-studio-assets (unpushed or stale); retry", "cause": "shared tree 214 commits behind origin cede5958; stale 2026-10-15 local Cargo.lock blocked the fast-forward"},
+    {"step": "lead ruling 1 applied", "facts": "branch codex/handshake-studio-assets; HEAD 96ace3ca ancestor of origin 8712fa23; no process command line names wt-studio-assets (read-only check, nothing stopped)", "stash": {"ref": "stash@{0}", "commit": "7b8e5e7874154e00128444261e93f91b1a5565f6", "message": "SAFETY: steward 2026-11-08 stale 2026-10-15 Cargo.lock WIP before ff to 8712fa23 (F-R60-1)", "path": "handshake-studio-assets/Cargo.lock", "blob": "dd0082caa78e63b0348a57d46596ffe400c9ea1e", "kept": "not dropped, not popped; its fate is the Operator's"}, "ff": "96ace3ca -> 8712fa23, exit 0"},
+    {"step": "dry run 2", "base": "8712fa23", "exit": 7, "probe": "84/109; 25 rejects dependency_outside_declared_dag (harness 19, harness-core 2, harness-view 3, native-host[document]) from the two undeclared edges, both already in R60 candidate cede5958"},
+    {"step": "check-only dry run with both --add-edge", "base": "8712fa23", "exit": 0, "probe": "109/109"},
+    {"step": "lead ruling 2 applied: ff", "ff": "8712fa23 -> 42e9e5a4 at 2026-11-08T06:41:17Z (native-host src/gui/mod.rs, tests/gui_compose.rs), exit 0"},
+    {"step": "dry run 3", "argv": "bash tools/steward-sync.sh --dry-run --add-edge hsk-studio-harness-core=hsk-studio-web --add-edge hsk-studio-harness-view=hsk-studio-interop-layout", "base": "42e9e5a4", "exit": 0, "would_commit": ["handshake-studio-assets/Cargo.toml", "handshake-studio-assets/tools/workspace-probe.rs"], "disk_lock_wait_s": 566},
+    {"step": "real run", "argv": "bash tools/steward-sync.sh --add-edge hsk-studio-harness-core=hsk-studio-web --add-edge hsk-studio-harness-view=hsk-studio-interop-layout", "base": "42e9e5a4", "exit": 0, "disk_lock_wait_s": 804, "push": "42e9e5a4..5d020939 codex/handshake-studio-assets", "reparent": "none (origin unchanged during the run)"}
+  ],
+  "dry_run_summary": {
+    "lock_diff": "added=[] removed=[] dependency_lists_changed=[]",
+    "registry": "approved_added=[native-host png, native-host sha2] approved_removed=[] unrequested=[] spec_defects=[] fuzzing_only_skipped=5 (hsk-studio-reel arbitrary, interpolate_name, libfuzzer-sys, rand, rand_chacha via rav1e@0.8.1, cfg(fuzzing) only)",
+    "edges": "edges ok (acyclic)"
+  },
+  "license_gate": "OK (dry run 3 and real run)",
+  "probe": "real run: self-test ok; 109/109 accepted (packages 60, round-features sets 49), rejects []",
+  "unrequested": "none",
+  "verification": {
+    "ls_remote": "5d020939f930fa7497daa87551d79c456028b713 refs/heads/codex/handshake-studio-assets (equals SYNC_SHA)",
+    "show_stat": "Cargo.toml 8 (4+/4-), tools/workspace-probe.rs 2 (1+/1-); only those two root paths",
+    "registry_sync_check": "python -X utf8 -I tools/registry-sync.py . (run-round.sh step-0 form, line 590) in the sync-export at 5d020939: exit 0; approved_added [] approved_removed [] unrequested [] spec_defects [] manifest_changed false probe_changed false",
+    "export_identity": "sync-export ROUND_IDENTITY.json sha 5d020939, tree e4b46c52, 2660 files, git_blob_equal true"
+  },
+  "shared_tree_after": "wt-studio-assets HEAD 5d020939; left as is: harness tests/common/mod.rs WIP, pigment tests/transform.rs stat-only, press_desc_1da2453.json, press_desc_2dde832.json; working Cargo.lock = committed (unchanged by this sync)",
+  "steward_canary": "not run (not in this brief; R60 attempt 2 runs its own canary)"
+}

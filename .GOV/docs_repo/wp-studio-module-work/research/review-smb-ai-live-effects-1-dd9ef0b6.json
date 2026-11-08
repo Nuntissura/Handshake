@@ -1,0 +1,103 @@
+{
+ "lane": "SMB-AI-LIVE-EFFECTS-1",
+ "tip": "dd9ef0b6",
+ "base": "cede5958",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "Nothing found that breaks the build or a named test at dd9ef0b6 under the round units (nib, folio, composite default and [motion], harness-view [viewer], harness [viewer]); every referenced symbol, helper and Viewer method was found in the tree, the three DESCRIPTOR strings parse as JSON, the package externals VOCAB matches none of the new property names, and origin 42e9e5a4 (reel, native-host) touches none of the lane's files. FIX_FIRST for F1: the aggregate budget charges only the sources of each evaluation, so step repeat amplifies a small hostile document past it (about 2^18 retained elements per layer, uncharged), which is the exact V4-02 case the budget exists for. The fix is one line plus new test numbers, and should land before the one bundled run. F2 (a moved or scaled layer can store a non-finite free distort corner that serialises to null and bricks the vector entry) is a cheap guard. F3 adds two suites to the bundled run, because the ruling-Q4 command rows reach harness-core and the harness typed-row sweep. F4 is the builder's envelope finding: a correct finding, with a small fix that fits the lane (see envelope_order_ruling). F5 and F6 are low and the lead may waive them. Item 5's exporter wait is honestly named.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "unsafe: unbounded aggregate allocation (V4-02); a hostile document of about 1 MiB can exhaust memory in render and export",
+   "where": "crates/hsk-studio-composite/src/vector_live_filters.rs:116-128 (evaluate_stack charges `elements` of `current` before evaluate at :121-123, never the output); module doc :20-22 and the composite DESCRIPTOR limits row ('source elements ... charged before each evaluation'); nib live_effect/laws.rs:496-500 (step repeat admits (copies+1) x per_copy <= MAX_OP_ELEMENTS 2^18 per evaluation); composite src/vector.rs:2099 and :2136 (prepare_vectors keeps every layer's VectorLayerSpec in `specs` until prepare_vector_layers); expand_vectors :2528-2541 (each fill row clones `base`)",
+   "what": "A layer's last evaluation output is never charged, and step repeat turns a tiny source into up to 2^18 elements. The aggregate budget therefore bounds what the stacks read, not what they allocate and retain. One layer with a 5-element rectangle and one step repeat of 43689 copies is charged 5 elements and keeps about 218k elements. Every layer of the call does the same, and prepare_vectors holds all specs at once (stroke outlines of them too). The lane notes and the DESCRIPTOR claim that many layers 'cannot multiply nib's per-evaluation limit', and that does not hold for outputs. Both budget tests use twists (output = input) or copies 0, so they cannot see it.",
+   "scenario": "A document with 1000 vector layers (well inside folio's default Budget.nodes 4096 and the 1 MiB input budget), each a 5-element rectangle with one stack entry {filter_kind step_repeat, copies 43689, move_horizontal 0}: (43689+1) x 6 = 262140 <= 2^18, so nib admits every evaluation. composite charges 1000 x 5 = 5000 of the 4194304 budget. prepare_vectors then holds about 1000 x 218450 = 2.2e8 path elements (GBs at tens of bytes per element, plus their stroke outlines) before prepare_vector_layers runs, and expand clones them per fill row. The result is an allocation abort, not a vector_effect_work_limit refusal. The element size is UNVERIFIED; the counts are READ.",
+   "fix": "In evaluate_stack, after `current = evaluate(..)?`, also charge the output: `let out_elements = current.iter().map(|p| p.elements.len() as u64).fold(0, u64::saturating_add); *budget = budget.checked_sub(out_elements).ok_or(REFUSE_EFFECT_WORK)?;` (per evaluation the over-allocation before the refusal stays under nib's 2^18). Alternatively, charge the initial sources once and then every output. Update both budget tests (with in+out charging the copies-0 chain fits 8, not 16; the 4096-twist case fits 1638 layers) and add one red test: many layers each with a large-copy step repeat over a small rect, expecting vector_effect_work_limit past the budget. Fix the doc line, the DESCRIPTOR limits row and the lane notes."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ (code path); serde_json writing null for a non-finite f64 is library behaviour, not run",
+   "severity": "lost write: one transform can leave the document's vector entry undecodable (every later vector command fails; save writes it)",
+   "where": "crates/hsk-studio-harness-view/src/view/vector/live_filters.rs:121-145 (transform_live_filters writes m[0]*x + m[2]*y + m[4] etc. with no finite check), called at view/vector/arrange.rs:208 and view/design/auto_layout.rs:1069; arrange.rs:215-224 commit_paths runs entry.validate (paths, styles) and not validate_records; view/vector.rs:754 to_bytes serialises records through serde_json::to_value (non-finite f64 -> null); view/vector.rs:673 decode -> validate_records and serde on every vector_entry(); folio accepts any finite Real (tests/vector_live_filters.rs asserts -1.0e308 Ok); nib admit checks only finiteness when the free distort bounds are unknown",
+   "what": "Free distort corners are stored as any finite f64. A disabled entry never meets the trial evaluation, because commit_live_filters runs the trial only when an entry is enabled. A layer transform multiplies the corners, and a large stored corner times a scale goes to infinity. It is committed unchecked, written as null, and the next decode of the entry refuses it.",
+   "scenario": "A loaded document (or update_live_filter on a stack whose only entry is disabled) has a disabled free_distort with src0_h = 1e308. vector.transform_layers {op: scale 200 percent}: src0_h becomes inf, commit_paths commits it, and the entry bytes hold \"value\": null. The next vector command (vector_entry() -> decode) fails with vector_entry_vector_records, and save writes the broken entry. Undo is the only way back.",
+   "fix": "Make transform_live_filters return Result<(), String> and refuse the transform typed (for example `{op}: vector_effect_beyond_engine_range`) when a transformed corner is not finite, or exceeds nib's coordinate limit (1e9, which nib refuses at evaluation anyway). Propagate it with `?` at both call sites, before commit. Add one test with a large disabled corner and a scale, expecting a refusal and unchanged entry bytes."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "proof gap: the bundled run skips suites that pin the API this diff changes (rules 4a and 4b), so the round can FAIL on a test the lane never ran",
+   "where": "brief proof topic (bundled run lists nib, folio, composite, package, interop-vector*, interop-fig-native, harness-view [viewer], harness viewer_vector*/viewer_illustrator*/viewer_vector_live_filters); diff changes crates/hsk-studio-harness-core/src/action/commands/vector.rs (seven typed rows, ruling Q4); pins: harness-core tests/action_records.rs:340-356 (corpus ids unique, corpus_json length), harness tests/harness_drive_typed.rs:363-385 (every typed row of help --json: parameter_unknown and parameter_missing through the real process) and :388 onward (catalog registry), harness tests/document_new.rs:143",
+   "what": "The brief was written before ruling Q4 added command rows. harness-core is now a changed crate, so rule 4a needs its whole suite. The harness typed-row sweep exercises every new row through the built binary, so rule 4b needs it. Neither is in the planned run.",
+   "scenario": "One new row whose decoder reads a parameter before the generic missing-key check, or whose id breaks a catalog rule, passes every test the lane runs and fails harness_drive_typed or the catalog test in the round.",
+   "fix": "Add `-p hsk-studio-harness-core` (whole suite, default plus the [import-tiff] unit) and the hsk-studio-harness tests harness_drive_typed and document_new (feature viewer) to the one bundled run. No code change."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ",
+   "severity": "wrong answer: expand_envelope silently changes the drawn result of a layer that also holds a live filter (STU-VEC-054 requires expansion to reproduce the rendered result)",
+   "where": "crates/hsk-studio-harness-view/src/view/vector/envelope.rs:140-177 (raw path records :151, raw OwnedPaths :155, envelope_paths over the raw paths :164, only the envelope removed :172, live_filters left in place); composite src/vector.rs:1489 (stack evaluated first) and :1521-1544 (envelope wraps the effected paths)",
+   "what": "Render is wrap(filters(raw)). After expand_envelope the layer's paths are wrap(raw) and the stack stays, so render becomes filters(wrap(raw)). This is the builder's own finding outside its paths. It is correct.",
+   "scenario": "Rectangle, roughen (absolute 3, detail 20), then a warp arc envelope; vector.expand_envelope; the frame differs from the frame before it, and no refusal or note is given.",
+   "fix": "See envelope_order_ruling: refuse expand_envelope while the layer holds a live filter stack, plus one test in tests/viewer_vector_live_filters.rs."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ (red proof log counts); flake risk UNVERIFIED",
+   "severity": "low: test honesty, not a failure today",
+   "where": "crates/hsk-studio-composite/tests/vector_live_filters.rs a_canceled_token_returns_nothing (token canceled before the call; prepare_vectors and expand_vectors already return Canceled at their loop-top check, vector.rs:2104, :2514); a_token_canceled_during_a_long_stack_returns_promptly_with_nothing (a 1 ms canceller thread racing 64 twists over 2^18-8 elements); lane file red_proof '21 passed' includes this test green at red",
+   "what": "The pre-canceled test passes without the lane's cancel plumbing, so it proves nothing new. Only the mid-stack test reaches evaluate_stack's check. That test also depends on the canceller firing before the aggregate budget refuses the 17th twist. If the canceller is scheduled late on a loaded round machine (release profile, short runtime), the result is Ok with vector_effect_work_limit and the assert fails.",
+   "scenario": "A release-profile round under full nextest parallelism: the 16 admitted twists finish before the canceller thread runs, and got is Ok(..), not Err(Canceled).",
+   "fix": "Drop or rename the pre-canceled case as a regression pin, not a cancel proof. In the mid-stack test, use a stack the budget admits fully (for example 16 twists over 2^18-8 elements, or set a deterministic cancel point such as cancelling from inside a custom VectorAssets::path call after the first fetch) so the result cannot be a budget refusal."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ (code); reachability UNVERIFIED (which writers fill fill_geometry_path_ids not traced)",
+   "severity": "low: a silent drop of an operand's live filter on one boolean path",
+   "where": "crates/hsk-studio-composite/src/vector.rs:1272-1293 (geometry(): a boolean group with non-empty fill_geometry_path_ids returns the cached paths at :1281-1285, before the new filtered() check on operands at :1293)",
+   "what": "The V4-06 fix refuses vector_effect_source for a filtered operand only when the group has no cached outline. A group with a cached fill geometry (an imported boolean) keeps drawing the cache, built from the raw operands, after one operand gains an enabled filter.",
+   "scenario": "An imported boolean group with cached fill_geometry_path_ids; vector.live_filter_apply roughen on one operand layer; the group draws unchanged, with no refusal.",
+   "fix": "Check `group.operands.iter().any(|o| self.filtered(o))` before the cache branch and refuse REFUSE_EFFECT_SOURCE, plus one assert in a_filtered_layer_used_as_raw_geometry_refuses_rather_than_using_its_raw_shape with a cached group."
+  }
+ ],
+ "lead_questions": {
+  "Q1_envelope_guard": "F4: approve one guard in crates/hsk-studio-harness-view/src/view/vector/envelope.rs (expand_envelope, outside the owned paths but in a crate the lane already builds, no Cargo.toml change, no in-flight lane edits the file: READ for ARTBOARD-EXPORT-1 192b52a2, PLACE-ASSET-1 4c2aec2f, DRIVE-TYPED-2 75926dfc, origin 42e9e5a4) and one test in this lane?",
+  "Q2_duplicate_gap": "duplicate_layer (view/layers.rs:123, copy_subtree :135-182) copies the layer record only; the copy draws without its live filters and envelope (pinned by a_duplicated_layer_does_not_carry_the_stack_pinned). Fixing it needs an entry write in the same undo step as the structure write, so it is not a one-line change. Accept it as a declared gap with an SD or backlog item, or scope it into a later slice?",
+  "Q3_budget_numbers": "F1 changes the charge, so 2^22 becomes a bound on read plus allocated elements. Keep 2^22 and re-measure (debug and release) in the bundled run, or set it from a release measurement before READY?",
+  "Q4_run_units": "F3: add the harness-core whole suite and harness harness_drive_typed / document_new to the bundled run?",
+  "Q5_steward_root_input": "The steward root-input commit is not on origin yet (ls-remote 42e9e5a4). If it touches Cargo.toml, Cargo.lock or .config/round-features.toml, the rebase needs the rule's crate-suite re-check; otherwise rebase only."
+ },
+ "envelope_order_ruling": {
+  "judgement": "The builder's finding is right, and so is its fix. Refusing expand_envelope while the layer holds a live filter is the correct minimal fix. Extend the refusal to any stack on the layer, enabled or disabled.",
+  "spec_basis": "The spec fixes no order between an envelope and other live effects. STU-TYP-033 (module 14) calls warp and envelope a StudioEffectStack operation of 14.5 and 14.9. The lane's 'filters, then envelope' is a declared Studio reading (D5, composite DESCRIPTOR and module doc). Two clauses do bind expand. STU-VEC-054 (:4424): expand-appearance MUST 'reproduce the rendered result'. STU-FX-003 (:19397): entries stay enable/disable-able with no quality loss, because each is re-evaluated from the preserved source. expand_envelope as written breaks the first clause whenever an entry is enabled. A disabled entry has no effect at expand time, but re-enabling it later evaluates it over wrapped geometry, which the declared order never produces, so the second clause argues for refusing then as well.",
+  "where": "crate hsk-studio-harness-view, crates/hsk-studio-harness-view/src/view/vector/envelope.rs:140-177; insert after :147 (the distort_appearance refusal): `if entry.records.live_filter_stack(layer_id).is_some() { return Err(\"expand_envelope: vector_effect_stack_present (bake or remove the live filters first)\".into()); }`. Order evidence: composite src/vector.rs:1489 (stack) before :1521-1544 (envelope).",
+  "fits_lane": "Yes. Same crate as live_filters.rs, which the lane already builds; no new crate in the closure (envelope.rs already has every import it needs; live_filter_stack is a folio method already re-exported); no Cargo.toml change. It is the same V4-06 class the lane sweeps (a reader of raw geometry that silently drops or reorders a live filter). It needs the lead's path approval (Q1) and one test: roughen plus warp, then expand_envelope is refused, and the frame and entry bytes are unchanged.",
+  "alternative_rejected": "Baking the stack first and then the envelope inside expand_envelope would be expand-appearance over the whole stack (the five expand selectors, STU-VEC-054), which is out of this slice."
+ },
+ "checked": [
+  "git log/diff cede5958..dd9ef0b6 (8 commits), every changed source file read in full at dd9ef0b6: nib live_effect.rs, laws.rs, descriptor.rs; folio vector_live_filter.rs, vector.rs, vector_tools.rs, lib.rs; composite vector_live_filters.rs, vector.rs (own_geometry, geometry, wrap, prepare_vectors, expand_vectors, mask_geometry), lib.rs; harness-view vector/live_filters.rs, vector.rs (decode, validate_records, to_bytes, folio_records), arrange.rs, auto_layout.rs, commands/vector.rs; harness-core commands/vector.rs",
+  "all four test files read: nib vector_live_effects.rs diff, folio tests/vector_live_filters.rs, composite tests/vector_live_filters.rs, harness tests/viewer_vector_live_filters.rs; expected counts recomputed (aggregate chain fits 16, 4096-twist case fits 3276, step repeat copies over budget)",
+  "red commits compile by inspection: dd0a3075 uses no new NumericSpec field (default_is_studio_decision only on EnumSpec, existing), aabf0855 and 44a5f9f9 use JSON and existing API only, c6fbf7d3 uses run_command and existing Viewer methods; red log counts (28 run, 7 failed) match the 9 composite tests with 2 green-at-red",
+  "every symbol the new code uses exists and is public at dd9ef0b6 (REFUSE_GEOMETRY_UNIT, FREE_DISTORT_KEYS, RECORD_VERSION, Captured, EffectKind::from_effect_id/param/params/effect_id, EffectRecord::kind/entries/from_parts, CancellationToken::check, Fields::has/index/flag, folio_field!, commit_entry, commit_paths, Viewer.cancel as &CancellationToken, bounded_case, Lines/Assets helpers)",
+  "no StudioVectorRecords or FolioCx struct literal outside the two constructors; no NumericSpec literal outside nib",
+  "feature gating: harness-view view module is cfg(viewer), and composite and nib are optional deps enabled by viewer; round-features.toml units for harness [viewer] (:34), harness-view [viewer] (:44), composite [motion] (:48)",
+  "clippy arithmetic_side_effects: new modules do only float arithmetic or checked/saturating integer ops (nib laws.rs already denies the lint with float math)",
+  "folio, composite and nib DESCRIPTOR strings parse as JSON; nib descriptor needles of live_effect_descriptor_entry present and 'random false' absent",
+  "package externals VOCAB (tests/externals.rs:422-425) matches none of live_filters, layer_id, filters, instance_id, filter_kind, version, enabled, params, type, key, value",
+  "serde shape: internally tagged StudioLiveFilterParam with deny_unknown_fields, serde_json float_roundtrip (Cargo.toml), absent member skipped; old documents without the member load (serde default)",
+  "render and export agreement: prepare_vectors and expand_vectors share own_geometry, evaluate the same layers in the same order with one budget each; Viewer SVG (interop.rs:433), PDF (pdf_export.rs:335) and separations (separations.rs:301) go through expand_vectors",
+  "stack order, disabled-only stack, reorder, toggle, remove, bake (cycled styles and widths, envelope kept), undo through commit_entry / commit_paths, free distort corner transform convention equal to arrange.rs point()",
+  "item 5 wait: lane blockers and v4_06_sweep.waiting name fig-native export.rs, svg_export.rs, eps_export.rs (live filter and envelope loss lines) and the interop.rs / pdf_export.rs re-read; no claim of them in capabilities_done",
+  "origin codex/handshake-studio-assets 42e9e5a4 (ls-remote, no fetch): 10 commits over reel and native-host, no lane file; ARTBOARD-EXPORT-1 local tip 192b52a2 edits folio lib.rs at :121 (mod line) and package externals rows, not the lane's hunks (:83 mod line, :1620 DESCRIPTOR); PLACE-ASSET-1 and DRIVE-TYPED-2 tips touch none of the lane's files"
+ ],
+ "not_checked": [
+  "no cargo, no build, no test run (method); compile and test outcomes are by inspection",
+  "the builder's focused runs were on pre-commit trees for ae3da69e and dd9ef0b6; committed content equal to the tested tree NOT_INSPECTED",
+  "whether the plain Stroke route and the StrokeGeometry route render byte-identically for a stroked layer without an envelope, which affects bake-then-render equality for stroked layers (the Viewer bake test is fill-only with an envelope)",
+  "package save/open validating vector records of deleted layers (same retention pattern as envelopes; not traced)",
+  "which importers write StudioBooleanGroup.fill_geometry_path_ids (F6 reachability)",
+  "release-profile timing of the 2^22 budget and of the cancel test",
+  "MT files (item 8) and the SD items; spec clauses beyond those quoted in envelope_order_ruling",
+  "the steward root-input commit (not on origin yet)"
+ ]
+}
