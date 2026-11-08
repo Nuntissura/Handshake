@@ -1,0 +1,62 @@
+{
+  "crate": "hsk-studio-composite (Illustrator live effects on a vector object: folio record, composite evaluation, Viewer typed commands, over nib::live_effect)",
+  "lane": "SMB-AI-LIVE-EFFECTS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-nudge-1",
+  "base": "cede5958",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-08T06:00:13Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: composite returns per-layer typed refusals, codes only; the Viewer reports through its existing report path; nib::live_effect::outcome and report (live_effect.rs:804, :817) already map codes to observe for a host that emits",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: composite and folio commit nothing; Viewer commands commit through the existing commit_entry and commit_paths path, which carries the Run context; no default_actor() or literal actor in new code",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T06:00:13Z",
+    "disk": "C",
+    "closes": [
+      "truth-check 20261105 top_missing rank 2, object scope only: nib::live_effect unreachable from a document",
+      "truth-check 20261105 pass_status_findings V07 for MT-30545..30550: effects gain reach; MT-30559 stays a typed refusal by design"
+    ],
+    "closes_candidates": [
+      "MT-30526",
+      "MT-30535",
+      "MT-30525",
+      "MT-30540",
+      "MT-30557",
+      "MT-30558",
+      "MT-30564",
+      "MT-32970",
+      "MT-32980",
+      "MT-32981",
+      "MT-32982",
+      "MT-32983",
+      "MT-32984",
+      "MT-32985",
+      "MT-32986",
+      "MT-289",
+      "MT-291"
+    ],
+    "reuses_tree_and_target": "smb-pr-nudge-1"
+  }
+}

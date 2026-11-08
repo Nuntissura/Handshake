@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T05:40:01Z",
+ "updated_at": "2026-11-08T06:00:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19745,6 +19745,113 @@
     "MT-34640 (read; STU-SHL-109 gate tests belong to a later slice; no claim)",
     "Scan of all 6220 rows in K/.GOV/task_packets/WP-KERNEL-STUDIO/ (python): no row names a glyph atlas, SPIR-V, a display list, a primitive pass or a Vulkan UI pass; shader-named rows MT-31216, MT-31268, MT-31291, MT-31292, MT-31479, MT-31480, MT-32923, MT-32962 are user-content shaders, not this pass"
    ]
+  },
+  {
+   "lane_id": "SMB-AI-LIVE-EFFECTS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-composite (Illustrator live effects on a vector object: folio record, composite evaluation, Viewer typed commands, over nib::live_effect)",
+   "lane_file": "builders/lanes/hsk-studio-ai-live-effects-1.json",
+   "brief": "builders/briefs/lane-smb-ai-live-effects-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-nudge-1",
+   "base": "cede5958",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T06:00:13Z",
+   "closes": [
+    "truth-check 20261105 top_missing rank 2, object scope only: nib::live_effect unreachable from a document",
+    "truth-check 20261105 pass_status_findings V07 for MT-30545..30550: effects gain reach; MT-30559 stays a typed refusal by design",
+    "MT-30526",
+    "MT-30535",
+    "MT-30525",
+    "MT-30540",
+    "MT-30557",
+    "MT-30558",
+    "MT-30564",
+    "MT-32970",
+    "MT-32980",
+    "MT-32981",
+    "MT-32982",
+    "MT-32983",
+    "MT-32984",
+    "MT-32985",
+    "MT-32986",
+    "MT-289",
+    "MT-291"
+   ]
+  },
+  {
+   "lane_id": "SMB-TYPE-INDENT-SPACING-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (stored fields), hsk-studio-layout (composition), hsk-studio-interop-layout (IDML import), hsk-studio-harness-view (one edit field and two shift calls)",
+   "lane_file": "builders/lanes/hsk-studio-type-indent-spacing-1.json",
+   "brief": "builders/briefs/lane-smb-type-indent-spacing-1.md",
+   "worktree": "wt-studio-lanes/smb-r54-followups-1",
+   "base": "cede5958",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T06:00:13Z",
+   "closes": [
+    "truth-check top_missing rank 1, the indent and spacing part only",
+    "the declared convention at threaded_reflow.rs:11, paragraphs have no space before or after",
+    "the declared gap at typestyle.rs:30-32 for indents and spacing",
+    "the stale paragraph_composition key after a text edit (found in this scoping; no finding id yet)",
+    "MT-30971 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
+    "MT-30972 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
+    "MT-30999 (read; STU-TYP-201 steps 3 and 4 only, no claim on the whole order)",
+    "MT-30898 (read only; no claim; token rule)"
+   ]
+  },
+  {
+   "lane_id": "SMB-PARSER-HOSTILE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-press-read",
+   "lane_file": "builders/lanes/hsk-studio-parser-hostile-1.json",
+   "brief": "builders/briefs/lane-smb-parser-hostile-1.md",
+   "worktree": "wt-studio-lanes/smb-layout-composer-depth-1",
+   "base": "cede5958",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T06:00:13Z",
+   "closes": [
+    "HANDOFF next-work item 9, parser part: PSD, PDF, TIFF, RAW, .fig, IDML, SVG hostile-input proof (first pass; deeper seeds in next_slices)",
+    "truth-check code-health q2 reachable_aborts candidate: interop-fig-native export.rs:384 (verdict and pin)",
+    "truth-check code-health q2 reachable_aborts candidate: interop-layout idml_longdoc.rs:291",
+    "truth-check code-health q1 build_scope: 0 fuzz or property-test files (partly)",
+    "MT-33450",
+    "MT-35819",
+    "MT-35820",
+    "MT-35821",
+    "MT-445"
+   ]
+  },
+  {
+   "lane_id": "SMB-SCORE-EFFECTS-6",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-score",
+   "lane_file": "builders/lanes/hsk-studio-score-effects-6.json",
+   "brief": "builders/briefs/lane-smb-score-effects-6.md",
+   "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
+   "base": "cede5958",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T06:00:13Z",
+   "closes": [
+    "truth-check 20261105 mt-video-audio-design-web top_missing rank 5: graphic EQ (engine and headless document path); de-esser and distortion raised as an SD item, not built",
+    "Score processors with no document path: reverb, feedback_delay, flanger, chorus, phaser, hard_limiter, hum_remover, click_repair, multiband_compressor (bus, master, batch, preset, waveform); noise reduction on a waveform selection with a persisted print",
+    "backlog G-AUDIO-EFFECT-HOST (rank 17): audio-post steps 36 and 37 (waveform form), 39, 40, 53, 61, 62 move from engine_only to callable; 43 (de-ess) and 63 (sidechain) stay open",
+    "MT-32706",
+    "MT-32707",
+    "MT-32708",
+    "MT-32629",
+    "MT-32630",
+    "MT-32631",
+    "MT-32731 (read, no claim)",
+    "MT-32663 (read, no claim)"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22412,7 +22519,11 @@
     "lane/smb-pr-export-recipe-1",
     "lane/smb-drive-typed-2",
     "lane/smb-gui-frame-1",
-    "lane/smb-vk-ui-pass-1"
+    "lane/smb-vk-ui-pass-1",
+    "lane/smb-ai-live-effects-1",
+    "lane/smb-type-indent-spacing-1",
+    "lane/smb-parser-hostile-1",
+    "lane/smb-score-effects-6"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22559,6 +22670,30 @@
      "tree": "smb-pr-retime-hold-1",
      "branch": "lane/smb-vk-ui-pass-1",
      "previous_branch": "lane/smb-ui-tree-1-d"
+    },
+    "SMB-AI-LIVE-EFFECTS-1": {
+     "tree": "smb-pr-nudge-1",
+     "branch": "lane/smb-ai-live-effects-1",
+     "previous_branch": "lane/smb-doc-export-1",
+     "disk": "C"
+    },
+    "SMB-TYPE-INDENT-SPACING-1": {
+     "tree": "smb-r54-followups-1",
+     "branch": "lane/smb-type-indent-spacing-1",
+     "previous_branch": "lane/smb-project-bin-1",
+     "disk": "C"
+    },
+    "SMB-PARSER-HOSTILE-1": {
+     "tree": "smb-layout-composer-depth-1",
+     "branch": "lane/smb-parser-hostile-1",
+     "previous_branch": "lane/smb-layout-pdf-host-1",
+     "disk": "C"
+    },
+    "SMB-SCORE-EFFECTS-6": {
+     "tree": "smb-pr-retime-output-1",
+     "branch": "lane/smb-score-effects-6",
+     "previous_branch": "lane/smb-audio-out-mix-1",
+     "disk": "C"
     }
    },
    "why": {
@@ -22814,6 +22949,22 @@
     "SMB-PLACE-ASSET-1": "research/review-smb-place-asset-1-9d83222c.json FIX_FIRST: F1 own id block plus orphan-record handling, F2 alpha bounds, F3 link folder from the document path, F4 no clamp above 1.0 for float targets: fixed in lane. duplicate_layer stays a named cut (reviewer's ruling adopted). Builder dispatched.",
     "token_merge": "The two reviewers named different merged token orders. Ruling: the second of ARTBOARD-EXPORT-1 and PLACE-ASSET-1 to land keeps origin's DOCUMENT_ENTRY_TOKENS order and appends its own token; NOT_APPLICABLE holds both rows (18); DOMAINS keeps export, asset and transform; state_json keeps export_settings and placed.",
     "stray_file": "The DRIVE-TYPED-2 reviewer reports a temp file mt.txt written to a scratchpad root; left in place (no deletion without the Operator)."
+   },
+   "width_lanes": {
+    "at": "2026-11-08T06:00:13Z",
+    "rulings": "research/rulings-20261108-width-lanes.json (position and red-team agent, read-only)",
+    "lead_on_red_team": "- The red team's strict reading (delete the multiband, hum and delay rows, because they put Score's own parameter lists into documents) is not adopted. These parameters already exist in Score; they are not invented here. Keep the three rows, each labelled `parameter_source: engine_authored` with its own SD item that raises the gap under STU-FX-128, as the MultibandCompressor precedent did. A later spec row replaces the label.",
+    "backups_before_switch": {
+     "why": "root CLAUDE.md: before a git switch, push the current committed branch state to its matching GitHub backup branch; none of the four C: tips was on any GitHub branch (the agent and the lead both checked).",
+     "pushed": {
+      "lane/smb-doc-export-1": "6cf52d85 (tree smb-pr-nudge-1)",
+      "lane/smb-project-bin-1": "3f2c64a5 (tree smb-r54-followups-1)",
+      "lane/smb-layout-pdf-host-1": "a26b4d11 (tree smb-layout-composer-depth-1)",
+      "lane/smb-audio-out-mix-1": "40e5b658 (tree smb-pr-retime-output-1)"
+     },
+     "how": "new GitHub branches, plain push of each pre-rebase tip, no force, each verified with ls-remote; their content landed on the product branch in rebased form, so these are durability copies only. Deleting them later needs the Operator."
+    },
+    "p3": "C: live lane targets go from 0 to 4 (cap 6). D: unchanged at 11."
    }
   }
  },

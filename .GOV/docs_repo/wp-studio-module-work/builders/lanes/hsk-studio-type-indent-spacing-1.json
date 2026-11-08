@@ -1,0 +1,51 @@
+{
+  "crate": "hsk-studio-folio (stored fields), hsk-studio-layout (composition), hsk-studio-interop-layout (IDML import), hsk-studio-harness-view (one edit field and two shift calls)",
+  "lane": "SMB-TYPE-INDENT-SPACING-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-r54-followups-1",
+  "base": "cede5958",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-08T06:00:13Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: layout returns typed refusals, overset and counters; no new Observe code; emission stays with the host",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: composition commits nothing; the LayoutEditor style edit stays in its caller-held undo history; no default_actor() or literal actor added",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T06:00:13Z",
+    "disk": "C",
+    "closes": [
+      "truth-check top_missing rank 1, the indent and spacing part only",
+      "the declared convention at threaded_reflow.rs:11, paragraphs have no space before or after",
+      "the declared gap at typestyle.rs:30-32 for indents and spacing",
+      "the stale paragraph_composition key after a text edit (found in this scoping; no finding id yet)"
+    ],
+    "closes_candidates": [
+      "MT-30971 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
+      "MT-30972 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
+      "MT-30999 (read; STU-TYP-201 steps 3 and 4 only, no claim on the whole order)",
+      "MT-30898 (read only; no claim; token rule)"
+    ],
+    "reuses_tree_and_target": "smb-r54-followups-1"
+  }
+}

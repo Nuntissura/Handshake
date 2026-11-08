@@ -1,0 +1,52 @@
+{
+  "crate": "hsk-studio-press-read",
+  "lane": "SMB-PARSER-HOSTILE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-layout-composer-depth-1",
+  "base": "cede5958",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-08T06:00:13Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: parsers return typed refusals, emission stays with the host",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: parsers commit nothing",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T06:00:13Z",
+    "disk": "C",
+    "closes": [
+      "HANDOFF next-work item 9, parser part: PSD, PDF, TIFF, RAW, .fig, IDML, SVG hostile-input proof (first pass; deeper seeds in next_slices)",
+      "truth-check code-health q2 reachable_aborts candidate: interop-fig-native export.rs:384 (verdict and pin)",
+      "truth-check code-health q2 reachable_aborts candidate: interop-layout idml_longdoc.rs:291",
+      "truth-check code-health q1 build_scope: 0 fuzz or property-test files (partly)"
+    ],
+    "closes_candidates": [
+      "MT-33450",
+      "MT-35819",
+      "MT-35820",
+      "MT-35821",
+      "MT-445"
+    ],
+    "reuses_tree_and_target": "smb-layout-composer-depth-1"
+  }
+}

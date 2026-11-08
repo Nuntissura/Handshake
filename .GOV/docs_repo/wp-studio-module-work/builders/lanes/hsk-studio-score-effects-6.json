@@ -1,0 +1,54 @@
+{
+  "crate": "hsk-studio-score",
+  "lane": "SMB-SCORE-EFFECTS-6",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
+  "base": "cede5958",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-08T06:00:13Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: score returns typed ScoreError and AudioFilterError codes; the waveform op returns its waveform_* code; emission stays with the host; real-time paths never call observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: processors commit nothing; mixer and waveform edits are the existing attributed Viewer steps (one entry-only history step each)",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T06:00:13Z",
+    "disk": "C",
+    "closes": [
+      "truth-check 20261105 mt-video-audio-design-web top_missing rank 5: graphic EQ (engine and headless document path); de-esser and distortion raised as an SD item, not built",
+      "Score processors with no document path: reverb, feedback_delay, flanger, chorus, phaser, hard_limiter, hum_remover, click_repair, multiband_compressor (bus, master, batch, preset, waveform); noise reduction on a waveform selection with a persisted print",
+      "backlog G-AUDIO-EFFECT-HOST (rank 17): audio-post steps 36 and 37 (waveform form), 39, 40, 53, 61, 62 move from engine_only to callable; 43 (de-ess) and 63 (sidechain) stay open"
+    ],
+    "closes_candidates": [
+      "MT-32706",
+      "MT-32707",
+      "MT-32708",
+      "MT-32629",
+      "MT-32630",
+      "MT-32631",
+      "MT-32731 (read, no claim)",
+      "MT-32663 (read, no claim)"
+    ],
+    "reuses_tree_and_target": "smb-pr-retime-output-1"
+  }
+}

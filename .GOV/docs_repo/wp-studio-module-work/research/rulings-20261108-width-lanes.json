@@ -1,0 +1,649 @@
+{
+ "schema": "hsk.studio.lead_rulings@1",
+ "id": "rulings-20261108-width-lanes",
+ "at": "2026-11-08",
+ "role": "position agent and red team for the lead (Operator asleep; lead told to resolve with an agent team)",
+ "base": "cede5958",
+ "base_check": "READ: git ls-remote origin refs/heads/codex/handshake-studio-assets = cede5958; git rev-list --count c4d06841..cede5958 = 102.",
+ "method": "Read-only. git show / git grep / git diff at c4d06841 and cede5958 in wt-studio-lanes/smb-pr-entry-references-1; a line checker (cited line text at c4d06841 looked up in cede5958); python over ledger.json, backlog and scenario JSON; spec module 14 v02.229 read with sed. No cargo, no build, no switch, no push, no fetch. Every claim below carries READ (file:line or spec line) or UNVERIFIED.",
+ "unchanged_since_scoping": "READ: git diff --stat c4d06841 cede5958 is empty for crates nib, composite/src, layout, interop-layout, press, press-read, press-write, package/src, interop-vector-svg, interop-vector-core, interop-tiff, interop-fig, interop-fig-native, develop, score, and folio typestyle.rs, vector.rs, vector_tools.rs. So every scope fact inside those files still holds; stale facts below are in harness-view, harness-core, folio lib.rs, package tests, pulse, ledger and tree state.",
+ "binding_inputs_read": [
+  "ledger.json direction.blocker_decisions_20261107 (scoped_lanes, landing, capacity, order)",
+  "ledger.json direction.operator_direction_20261107 (replaces 'GUI lanes stay paused'; width first)",
+  "ledger.json direction.lead_rulings_20261108.p3 (literal count; take over only live trees on a disk over 6)",
+  "ledger.json direction.workflow_20261107.target_reuse (old_tree_idle on C:) and cargo_proposal_executed",
+  "HANDOFF.md topic workflow items 9, 10, 11, 13, 16 (HANDOFF.md:267-274)",
+  "workflows/backlog-20261107.json running_lane_overlap.scoped and merged_gaps 16, 39, 42"
+ ],
+ "tree_plan": {
+  "rule": "lead_rulings_20261108.p3: C: has 0 live lane targets (lead's count), so up to 6 C: trees may be taken; D: has 11 and only a live READY or paused tree could be taken there. All four width lanes go to C: (4 of 6). No D: tree is used.",
+  "c_trees_inspected": {
+   "smb-pr-nudge-1": "READ: branch lane/smb-doc-export-1, tip 6cf52d85, clean; target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-nudge-1 bound to this tree (.studio-workspace-root); built 34 studio crates incl. nib, folio, composite, package, harness_view, harness, interop_vector, interop_vector_core, interop_vector_svg, interop_fig_native, render_cpu; no interop_layout, no score_device; newest file 2026-11-07 13:08.",
+   "smb-r54-followups-1": "READ: branch lane/smb-project-bin-1, tip 3f2c64a5, clean; target bound to this tree; built incl. folio, layout, interop_layout, package, type, harness_view, harness; newest 2026-11-07 13:22.",
+   "smb-layout-composer-depth-1": "READ: branch lane/smb-layout-pdf-host-1, tip a26b4d11, clean; target bound; built incl. develop, press, press_read, press_write, package, interop_psd, interop_tiff, interop_fig, interop_fig_base, interop_fig_native, interop_vector, interop_vector_core, interop_vector_svg, interop_layout, render_cpu (every crate SMB-PARSER-HOSTILE-1 builds); also a release dir; newest 2026-11-07 13:06.",
+   "smb-pr-retime-output-1": "READ: branch lane/smb-audio-out-mix-1, tip 40e5b658, clean; target bound; built incl. score, score_device, pulse, session, folio, harness_view, harness; newest 2026-11-07 13:31.",
+   "smb-type-sentinels-registry-1": "READ: branch lane/smb-ui-tree-1, tip 5873c04e, one untracked dir handshake-studio-assets/crates/kumihimo-ui/tools/__pycache__/; target holds only 6 studio crates (accord, interop_raster, observe, prism, type, ui_text). Not assigned: the thinnest target, and its tree is not clean."
+  },
+  "github_check": "READ: git branch -r --contains <tip> is empty for all five tips; git ls-remote origin 'refs/heads/lane/*' lists 8 lane branches, none at these tips (old lane/smb-pr-nudge-1 31de741d, lane/smb-pr-retime-output-1 cff47aef, lane/smb-layout-composer-depth-1 286d9241). The content landed by rebase from the D: trees: git cherry cede5958 <tip> shows sentinels-registry 5/5, retime-output 4/4, nudge 4/5, composer-depth 2/3, r54 3/6 patch-equivalent; every non-equivalent commit has a same-subject commit in cede5958 (b27818c1 ~ 4e66b91b; 25d344a0 ~ 633881c1, 8e21e806 ~ af872f3d, c6cf031e ~ 57949d29) except f19c8c09, whose subject differs ('layout output rows' vs 92227383 'typed layout output rows'; equivalence UNVERIFIED).",
+  "before_switch": "The root rule (CLAUDE.md branching: push the committed branch state to its GitHub backup branch before git switch) is not met for any of the four. The lead pushes, non-force, each tip to a backup branch named after its current branch (lane/smb-doc-export-1, lane/smb-project-bin-1, lane/smb-layout-pdf-host-1, lane/smb-audio-out-mix-1), re-reads git branch -r --contains, then switch -c lane/<new> cede5958. Not done here.",
+  "cargo": "R-C01 (retime-output-1, 22.74 GiB), R-C02 (nudge-1, 9.27 GiB), R-C03 (r54, 1.19 GiB), R-C06 (composer-depth, 0.48 GiB) are REMOVED already (research/cargo-cleanup-result-20261107-R.json), so no pending removal touches these trees. All four targets were built at bases 95ee2774/98e4099c/912cb86f: workspace crates rebuild, third-party libraries are reused. C: free 499G (df). C: tree cap 360 GiB (HANDOFF workflow item 4) with the round target growing during R60: bundled runs go one at a time on the C: lock after R60, and the studio-env cap guard (exit 77) is the backstop; if it refuses, inspect with target_report.py and propose, do not remove."
+ },
+ "landing_order": "HANDOFF item 16: lead releases one push at a time. Proposed order of these four after the in-flight lanes they depend on: SMB-TYPE-INDENT-SPACING-1 (no in-flight overlap) first; SMB-PARSER-HOSTILE-1 (no in-flight overlap; safety track per blocker_decisions scoped_lanes, so it yields its slot to any feature lane ready at the same time); SMB-AI-LIVE-EFFECTS-1 after SMB-ARTBOARD-EXPORT-1; SMB-SCORE-EFFECTS-6 after SMB-DRIVE-TYPED-2.",
+ "lanes": [
+  {
+   "lane_id": "SMB-AI-LIVE-EFFECTS-1",
+   "dispatch": "now",
+   "dispatch_note": "Code now on C:; bundled run after R60 releases C:; push after SMB-ARTBOARD-EXPORT-1 lands. Items 1-4 and 6 (nib, folio vector records, composite, Viewer live_filters.rs) touch no in-flight file except folio/src/lib.rs (module line, DESCRIPTOR); item 5's exporter loss lines and the vector/interop.rs, pdf_export.rs sites wait for ARTBOARD-EXPORT-1 to land, then re-read their lines.",
+   "tree": "wt-studio-lanes/smb-pr-nudge-1",
+   "disk": "c (target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-nudge-1; worktree on D:)",
+   "base": "cede5958",
+   "tree_check": {
+    "tip": "6cf52d85",
+    "branch": "lane/smb-doc-export-1",
+    "on_remote": "none (READ: branch -r --contains empty; not in ls-remote lane/*)",
+    "content": "4 of 5 commits patch-equivalent in cede5958; b27818c1 has same-subject 4e66b91b",
+    "clean": true,
+    "action_before_switch": "push backup lane/smb-doc-export-1 at 6cf52d85, re-check, then switch -c lane/smb-ai-live-effects-1 cede5958"
+   },
+   "tree_reason": "The scope's tree smb-ai-distort-effects-1 is TAKEN by SMB-ARTBOARD-EXPORT-1 (READ: branch lane/smb-artboard-export-1, tip 9db105fc). Its fallback smb-ps-mode-convert-1 is a live D: tree (SMB-PIGMENT-FILTER-KERNELS-1 READY), allowed by P3 but it queues on the D: lock. smb-pr-nudge-1 on C: has every crate this lane builds (nib, folio, composite, package, harness_view, harness, interop_vector*, interop_fig_native, render_cpu).",
+   "rulings": [
+    {
+     "question": "Q1 STU-VEC-023 says effects are carried in the shared StudioEffectStack and STU-VEC-022 forbids a vector-only reimplementation; the slice adds a separate stack in vector records.",
+     "ruling": "Accept the object-scope stack in StudioVectorRecords as the first step, AND make each entry the spec's StudioLiveFilter shape (STU-FX-002 field names, see Q3), so that unification later moves records rather than reshaping them. Record an SD item: STU-VEC-023 object scope partly met; holder placement open.",
+     "reason": "READ: the folio StudioEffectStack (folio/src/raster.rs:740-746) is {effect_stack_id, enabled, scale, effects: Vec<StudioEffect>} and StudioEffect (raster.rs:714-733) is a layer-style instance with blend, opacity, noise, angle and a StudioEffectKind enum, not a StudioLiveFilter with filter_kind; prepare_vectors takes no raster records (scope, composite/src/vector.rs:2025, composite unchanged). Putting path effects there would mean a second shape inside the 'shared' type. Two partial stacks already sit outside it (smart filters, envelope).",
+     "clauses": [
+      "STU-VEC-022 spec :4084-4089",
+      "STU-VEC-023 :4091-4095",
+      "STU-FX-001 :19393",
+      "STU-FX-002 :19395",
+      "STU-FX-027 :19720"
+     ],
+     "red_team": "Strongest objection: STU-VEC-023 is a MUST, and accord already declares the shared schema hsk.studio.effect_stack@1 (accord/src/lib.rs:19); a third stack makes the eventual merge a migration of stored documents. Stands because the merge is a migration either way (the existing raster stack's shape is not the spec's StudioLiveFilter either), the new member is additive and absent when empty, and using the spec's entry fields keeps the later move a container change. Ruling unchanged."
+    },
+    {
+     "question": "Q2 STU-VEC-157 gives default 1.0 for scale (percent) and move; copied literally a fresh transform makes 1 percent copies 1 unit away; nib's identity defaults are 100 and 0; MT-30558 AC-001 demands the table values.",
+     "ruling": "Default stands: nib's 100 percent and 0, labelled a Studio reading in the descriptor with the spec cell quoted verbatim beside it; commands store resolved entries; SD item; MT-30558 stays open.",
+     "reason": "READ spec :4355-4360: scale default 1.0 with unit percent and soft range 0..200, move default 1.0 document_unit. A 1 percent default scale is not an identity, and STU-VEC-157 says transform-each and the live effect share one parameter set; an identity default is what transform-each needs. Storing resolved entries (EffectRecord::entries, nib live_effect.rs:642, unchanged) means a later spec fix cannot silently change stored documents.",
+     "clauses": [
+      "STU-VEC-157 :4345-4372",
+      "STU-VEC-100 :2993",
+      "STU-FX-107 :12839"
+     ],
+     "red_team": "Strongest objection: STU-FX-107 and STU-VEC-100 forbid substituting a value the source did not give, and MT-30558's AC is literal. Stands: the alternative ships a broken default into every stored record; the divergence is visible (verbatim cell in the descriptor, SD item) rather than silent, and no MT row is claimed. Ruling unchanged."
+    },
+    {
+     "question": "Q3 Type and member names: StudioLiveFilter from the spec; StudioLiveFilterStack and live_filters composed. Allowed?",
+     "ruling": "CHANGED: the entry is StudioLiveFilter with the effect key stored as `filter_kind` (not `effect_id`), plus `instance_id`, `enabled`, `version`, typed `params`. Holder StudioLiveFilterStack and member live_filters are allowed, listed as Studio-minted. Values of filter_kind are nib's effect ids; the converter maps filter_kind to EffectRecord::from_parts(effect_id, ..).",
+     "reason": "READ spec :19395 (STU-FX-002): each StudioLiveFilter entry carries `filter_kind` (catalog key); :13038-13039 the registration record's filter_kind is 'used by StudioLiveFilter.filter_kind'; STU-FX-134 :18665 uses filter_kind for audio; folio already stores audio entries as filter_kind (folio/src/audio_preset.rs:58-62). A stored key is wire format; a rename later is a migration. The holder cannot be named StudioEffectStack: that name is taken in folio (raster.rs:740) and folio re-exports modules by glob.",
+     "clauses": [
+      "STU-FX-002 :19395",
+      "STU-FX register record :13038-13039",
+      "STU-VEC-154 :4176, :4196-4199"
+     ],
+     "red_team": "Objection: nib's API says effect_id (live_effect.rs:617 from_parts(effect_id, ..)), so two names for one thing. Stands: nib is engine API, the document follows the spec; one converter (scope item 4) is the only place both names meet."
+    },
+    {
+     "question": "Q4 HOST rule 3 asks a Registry id for every new command; SMB-HARNESS-DRIVE-1 was settling naming, O5 open.",
+     "ruling": "CHANGED: the command corpus has landed; add typed rows vector.live_filter_apply, _update, _reorder, _toggle, _remove, _bake, _read to harness-core/src/action/commands/vector.rs and their decoders to harness-view/src/view/commands/vector.rs, calling the new Viewer methods; one test through the drive path. control_descriptors stays none (no panel).",
+     "reason": "READ: harness-core/src/action/commands.rs:1-4 'one file per domain so that lanes add rows without touching each other's tables'; commands/vector.rs:14-23 already holds typed vector.* rows naming Viewer methods; harness-view/src/view/commands/vector.rs exists at cede5958. Neither vector.rs file is in SMB-DRIVE-TYPED-2's or SMB-ARTBOARD-EXPORT-1's diff (READ: git diff merge-base..HEAD in their trees). A feature no model can drive closes no scenario step (vector-brand step 73 is an agent call).",
+     "clauses": [
+      "HOST rule 3 (lane template)",
+      "STU-FX-007 verbs :19413"
+     ],
+     "red_team": "Objection: scope growth into the command corpus while two corpus lanes are in flight, and row ids must fit STU-MDL-103's id charset (SMB-GUI-FRAME-1 is renaming one id for that). Stands: own-domain files only, no commands.rs edit; use the existing row naming form (`vector.set_fill`), which the corpus test already accepts. If the corpus test pins a row count, update that pin and name it in the notes."
+    },
+    {
+     "question": "Q5 direction.dispatch pauses harness-view surfaces; item 6 adds window-free Viewer logic only.",
+     "ruling": "Allowed. Keep item 6 and the Viewer half of item 5; no egui line.",
+     "reason": "READ ledger direction.operator_direction_20261107.replaces: 'The takeover prompt's GUI lanes stay paused and the HANDOFF work order's priority' are replaced; width and a working GUI come first (HANDOFF.md:267).",
+     "clauses": [],
+     "red_team": "Objection: RF-01 later moves Viewer files (blocker_decisions rf_01). Stands: rf_01 is one short lane after the R60 freeze; a new file shaped like envelope.rs moves with its siblings."
+    },
+    {
+     "question": "Q6 In a px document nib's pt reads as px and per_in as per 72 px; non-px documents refuse.",
+     "ruling": "Accept as stated; same gate as strokes and envelopes (REFUSE_GEOMETRY_UNIT).",
+     "reason": "READ (scope, composite/src/vector.rs:1611 unchanged since c4d06841): wrap already refuses unit_px false. Same reading keeps one rule.",
+     "clauses": [
+      "STU-CON-007 :22896"
+     ],
+     "red_team": "Objection: per_in per 72 px is a hidden DPI assumption. Stands: it is declared in the descriptor and SD item, and a non-px document refuses rather than draws wrong."
+    },
+    {
+     "question": "Q7 Is the silent envelope drop on direct fig, SVG and EPS export a finding?",
+     "ruling": "Fix the loss line here (envelope and live filter) and report it as found, but only after SMB-ARTBOARD-EXPORT-1 lands, re-reading the line numbers.",
+     "reason": "READ: git grep -i envelope in interop-fig-native/src, interop-vector-svg/src, interop-vector-core/src at cede5958: 0 hits, so the drop still exists. STU-IO-012 :21649 second bullet: an unsupported-feature drop MUST emit a receipt. ARTBOARD-EXPORT-1 edits svg_export.rs and eps_export.rs (READ: its diff changes eps header() and svg artboard origin), so the cited lines :1137, :372, :213 will move.",
+     "clauses": [
+      "STU-IO-012 :21649-21653"
+     ],
+     "red_team": "Objection: fixing an existing defect is edge-case work while features wait (HANDOFF item 9). Stands: one loss line per exporter beside the new filter line, same files, same test; leaving it would ship the new filter's loss beside an unreported envelope loss."
+    },
+    {
+     "question": "Dispatch: blocker_decisions_20261107.scoped_lanes says this lane 'closes few steps and waits'; backlog defers it (rank 43, step 73 only).",
+     "ruling": "Dispatch now on C:, push after ARTBOARD-EXPORT-1.",
+     "reason": "READ: the wait came from the D: lock and tree shortage (c_cap_20261107.p3_note.decision: 'The D: lock, not coding, is the bottleneck now'); C: now has free trees and P3 room. Operator: width and depth across every tool first (HANDOFF.md:267). It makes 7 PASS_V1 nib MTs reachable from a document.",
+     "clauses": [],
+     "red_team": "Objection: a C: slot could go to a higher-ranked gap. Stands only for tonight's slots: no other scoped lane is waiting for a C: tree (UNVERIFIED that no unscoped backlog lane could be scoped faster). If the lead scopes a higher-ranked lane before this one starts, this lane is the one to yield."
+    }
+   ],
+   "stale_facts": [
+    {
+     "fact": "Tree smb-ai-distort-effects-1 is free (tree_reason).",
+     "corrected": "TAKEN by SMB-ARTBOARD-EXPORT-1, branch lane/smb-artboard-export-1, tip 9db105fc, in build (ledger lanes; git -C tree branch --show-current).",
+     "where": "ledger.json lanes SMB-ARTBOARD-EXPORT-1; direction.workflow_20261107.target_reuse.SMB-ARTBOARD-EXPORT-1"
+    },
+    {
+     "fact": "Folio DESCRIPTOR at folio/src/lib.rs:1618.",
+     "corrected": "folio/src/lib.rs:1620 (cede5958).",
+     "where": "READ git show cede5958:.../hsk-studio-folio/src/lib.rs | grep -n 'pub const DESCRIPTOR'"
+    },
+    {
+     "fact": "package/tests/externals.rs classification table entry at :528 onward.",
+     "corrected": "Shifted by one: StudioEnvelopeShape.source_layer_id is at :529 (a project_bin row was inserted at :420 and two classified rows at :556, :582).",
+     "where": "READ git diff -U0 c4d06841 cede5958 -- package/tests/externals.rs"
+    },
+    {
+     "fact": "state_json at harness-view/src/view/mod.rs:837.",
+     "corrected": "harness-view/src/view/mod.rs:876.",
+     "where": "READ line checker"
+    },
+    {
+     "fact": "SMB-HARNESS-DRIVE-1 is settling command naming (overlaps, open question 4).",
+     "corrected": "Landed (1374cc25 in cede5958); the corpus is per-domain files with typed rows (harness-core/src/action/commands.rs:1-4, commands/vector.rs:14+).",
+     "where": "READ git log --grep; git show cede5958:.../commands.rs"
+    },
+    {
+     "fact": "overlaps names SMB-PR-ROUTING-REPAIR-1, SMB-SESSION-WRITE-SAFETY-1, SMB-HARNESS-DRIVE-1, SMB-OBSERVE-DIAG-SINK-1, SMB-CONTROLS-EGUI-GATE-1 as running.",
+     "corrected": "All five are READY_FOR_VALIDATION and in cede5958 (routing repair as e76bfe0f, 7b0e41be; write safety 61568011; drive 1374cc25; diag sink b3e2659b; egui gate 9e73d34c). In-flight now: ARTBOARD-EXPORT-1, PLACE-ASSET-1, DRIVE-TYPED-2, PR-EXPORT-RECIPE-1, GUI-FRAME-1, VK-UI-PASS-1.",
+     "where": "READ ledger lanes statuses; git log c4d06841..cede5958"
+    },
+    {
+     "fact": "direction.dispatch pauses harness-view surfaces (open question 5).",
+     "corrected": "Replaced by direction.operator_direction_20261107.replaces.",
+     "where": "READ ledger.json"
+    },
+    {
+     "fact": "harness-view/Cargo.toml:16 viewer feature line as read at c4d06841.",
+     "corrected": "Same line number, content changed (viewer feature list edited); also new optional edge hsk-studio-interop-layout at :64-65 and controls with features=[\"egui\"] at :38. :48 composite and :53 nib edges unchanged, so the 'no Cargo.toml change' claim stands.",
+     "where": "READ git diff -U0 c4d06841 cede5958 -- harness-view/Cargo.toml"
+    },
+    {
+     "fact": "Viewer render paths read the live snapshot.",
+     "corrected": "render_folio_vectors now renders framed_snapshot() when one exists (harness-view/src/view/vector.rs:1260-1262), and svg_export / pdf_export / align use active_artboard (interop.rs:587, pdf_export.rs:339, arrange.rs:159). The cited lines interop.rs:433, pdf_export.rs:335, separations.rs:301 are unchanged; the filter test 'save, reopen, same render' must run on a document with an active artboard too.",
+     "where": "READ git diff -U0 of those files"
+    }
+   ],
+   "overlap_controls": [
+    {
+     "lane": "SMB-ARTBOARD-EXPORT-1",
+     "shared": "folio/src/lib.rs (mod line, DESCRIPTOR), package/tests/externals.rs, interop-vector-svg/src/svg_export.rs, interop-vector-core/src/eps_export.rs, harness-view/src/view/vector/interop.rs and pdf_export.rs (READ its diff)",
+     "control": "Wait for it to land before any edit to the exporters, interop.rs or pdf_export.rs; folio lib.rs and externals.rs edits are one-line hunks, rebase only. Its folio record and this lane's both rebuild every folio dependent: folio commit early, as the scope says."
+    },
+    {
+     "lane": "SMB-PLACE-ASSET-1",
+     "shared": "harness-view crate (view/mod.rs, edit.rs, place.rs, shell.rs); no shared file with this lane's paths",
+     "control": "Rebase only; this lane does not touch view/mod.rs."
+    },
+    {
+     "lane": "SMB-DRIVE-TYPED-2",
+     "shared": "harness-core and harness-view commands crates; it edits commands.rs and other domain files, not commands/vector.rs",
+     "control": "Rows only in commands/vector.rs (both crates); no commands.rs edit; if both land a corpus-count pin, the second rebases and updates it."
+    },
+    {
+     "lane": "SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1",
+     "shared": "none (native-host, kumihimo-ui, hsk-studio-vulkan)",
+     "control": "none"
+    },
+    {
+     "lane": "SMB-PR-EXPORT-RECIPE-1",
+     "shared": "none (reel)",
+     "control": "none"
+    },
+    {
+     "lane": "view/layers.rs duplicate_layer",
+     "shared": "no in-flight lane edits it now (routing repair landed)",
+     "control": "The scope's 'ask first' is lifted; still pin copy_subtree behaviour with a test before changing it."
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-TYPE-INDENT-SPACING-1",
+   "dispatch": "now",
+   "dispatch_note": "No in-flight lane shares a file (READ: in-flight diffs list no layout, interop-layout, folio typestyle or harness-view layout_ui path). Code now, bundled run after R60, first of the four to push.",
+   "tree": "wt-studio-lanes/smb-r54-followups-1",
+   "disk": "c (target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r54-followups-1)",
+   "base": "cede5958",
+   "tree_check": {
+    "tip": "3f2c64a5",
+    "branch": "lane/smb-project-bin-1",
+    "on_remote": "none (READ)",
+    "content": "3 of 6 patch-equivalent; 25d344a0, 8e21e806, c6cf031e have same-subject 633881c1, af872f3d, 57949d29 in cede5958",
+    "clean": true,
+    "action_before_switch": "push backup lane/smb-project-bin-1 at 3f2c64a5, re-check, switch -c lane/smb-type-indent-spacing-1 cede5958"
+   },
+   "tree_reason": "Scope's own choice, now free again: SMB-PROJECT-BIN-1 moved to D: (c_cap_20261107.moves) and is READY. Its target holds folio, layout, interop_layout, package, type, harness_view, harness.",
+   "rulings": [
+    {
+     "question": "Q1 Fields on StudioCompositionSettings, or a new record named after the spec's paragraph-attribute record?",
+     "ruling": "On StudioCompositionSettings (default).",
+     "reason": "READ (folio typestyle.rs unchanged since c4d06841): StudioCompositionSettings already travels per style and per paragraph with overlaid, validate and deny_unknown_fields (scope citations typestyle.rs:205-262, :356, :359). The field names are the spec's (STU-TYP-185 :8823-8836); only the container is Studio's.",
+     "clauses": [
+      "STU-TYP-185 :8823-8837",
+      "STU-TYP-201 :9064"
+     ],
+     "red_team": "Objection: a second home later (a separate paragraph-attribute record) would be a migration. Stands: the wire is additive and absent when unset; one resolver chain is cheaper than two that must agree."
+    },
+    {
+     "question": "Q2 No composition token, since these are new inputs and every existing output is proven unchanged?",
+     "ruling": "No token (default), with the stop rule kept: any changed existing row stops the lane.",
+     "reason": "READ spec :8096-8100: a token bump is required when shaping, breaking, justification or fallback semantics change. No stored document can hold these fields today (deny_unknown_fields refuses them), so no stored document recomposes differently; IDML imports that now store zeros are covered by the bit-identity test of zero-only settings.",
+     "clauses": [
+      "STU-TYP-130 :8096-8100"
+     ],
+     "red_team": "Objection: indents do change breaking for a document that sets them, which reads as changed semantics. Stands: the token marks how one document was composed; a document that sets them was authored under this build. The reading goes to the spec owner as a proposal; the lead can overrule by adding a token later without a data migration."
+    },
+    {
+     "question": "Q3 Should the paragraph_flows repair (threaded_reflow.rs:666-670 after a merge) ride in this lane if proven red?",
+     "ruling": "Yes (default): same helper, same class, one test.",
+     "reason": "READ: callers of replace_story_text and shift_flow_records are identical at c4d06841 and cede5958 apart from line moves (layout_ui.rs:1133/:1135, find.rs:97/:101, xref.rs:465-466, find_change.rs:401, data_merge.rs:344).",
+     "clauses": [],
+     "red_team": "Objection: HANDOFF item 9 says open no new edge-case lanes. Stands: it is not a new lane; it is the same failure class this lane must sweep (V4-06)."
+    },
+    {
+     "question": "Q4 Layout placement carries no composition_version; separate lane?",
+     "ruling": "Separate later lane (default); note it against MT-30898 AC-001.",
+     "reason": "READ :8096: every composed result MUST carry composition_version; layout src unchanged since the scope found no COMPOSITION_VERSION there.",
+     "clauses": [
+      "STU-TYP-130 :8096"
+     ],
+     "red_team": "Objection: now that layout PDF and IDML export run from the host (layout_export.rs), unversioned output leaves the app. Stands for this lane: adding a token to layout output is its own contract change across every composer; record it as the next type lane."
+    },
+    {
+     "question": "Q5 Add indents, space at column top, last-line rule and same-style gap to the vendor oracle list?",
+     "ruling": "Yes, as D5 rows for InDesign; they do not block.",
+     "reason": "All vendor behaviour here is UNVERIFIED (D5).",
+     "clauses": [],
+     "red_team": "Objection: none material."
+    },
+    {
+     "question": "New: the existing typed edit now has a drive row and a decoder that lists every StylePatch field.",
+     "ruling": "Extend both in this lane: the patch shape text of `layout.style.edit_style` (harness-core/src/action/commands/layout.rs:30) and `style_patch` (harness-view/src/view/commands/layout.rs:32-42), with a `composition` key decoded as Folio StudioCompositionSettings (null clears, absent keeps). One drive test edits a style's indent and reads the composed lines.",
+     "reason": "READ: style_patch builds StylePatch by a full struct literal, so a new StylePatch field does not compile until it is listed; the panel's literal at layout_ui/styles.rs:344 uses ..StylePatch::default() and compiles. The scope's paths omit both files.",
+     "clauses": [],
+     "red_team": "Objection: a new decoder key widens the command contract. Stands: it is the existing command (layout_ui.rs:194 maps EditStyle to layout.style.edit_style); no new row."
+    },
+    {
+     "question": "New: IDML export now runs from the host (export_folio_longdoc), and the scope left 'does IDML export note a loss for composition records' NOT_INSPECTED.",
+     "ruling": "Read folio_export.rs first. If it writes no StudioCompositionSettings field and notes no loss, add one typed loss when any paragraph style or paragraph carries settings (all fields, not only the new ones), with one test. Writing the fields to IDML stays a next slice.",
+     "reason": "READ: harness-view/src/view/layout_export.rs:74 imports export_folio_longdoc and :771 calls it (SMB-LAYOUT-PDF-HOST-1, landed). git grep -i 'hyphen|composer|style_composition|paragraph_composition' in interop-layout folio_export.rs and idml_encode.rs at cede5958: 0 hits, so composition settings are not written. Whether a loss is noted: still NOT_INSPECTED beyond that grep. STU-IO-012 :21649 requires a receipt for an unsupported-feature drop.",
+     "clauses": [
+      "STU-IO-012 :21649-21653"
+     ],
+     "red_team": "Objection: the hyphenation and composer fields have the same drop today, so this fixes an old defect inside a feature lane. Stands: one loss line covers the whole record; without it the lane's own new fields vanish silently on a host export path that did not exist when the scope was written."
+    },
+    {
+     "question": "Dispatch: blocker_decisions scoped_lanes says this lane waits; backlog ranks it inside G-TYPE-ATTRIBUTES rank 40, step 24 only, 'after SMB-LAYOUT-PERSIST-1'.",
+     "ruling": "Dispatch now.",
+     "reason": "READ: SMB-LAYOUT-PERSIST-1 landed (a3215161, READY) so the stated order is met; lists, tabs and drop caps stand on this slice (scope next_slices); no in-flight file overlap.",
+     "clauses": [],
+     "red_team": "Objection: the backlog says vector type (font picker, kerning, 6 steps) is the higher-value slice and is unscoped. Stands: that slice is not scoped tonight; this one is and shares nothing in flight."
+    }
+   ],
+   "stale_facts": [
+    {
+     "fact": "Calls at harness-view layout_ui.rs:1065 and :1067 (replace_story_text, shift_flow_records).",
+     "corrected": "layout_ui.rs:1133 and :1135.",
+     "where": "READ git grep at cede5958"
+    },
+    {
+     "fact": "layout_ui.rs:702 reads line.x_start_pt (class A known list).",
+     "corrected": "layout_ui.rs:770 and :777.",
+     "where": "READ git grep -n x_start_pt"
+    },
+    {
+     "fact": "Typed edit has no drive surface; 'no new controls Registry or RUN_COMMANDS row' is the whole command story.",
+     "corrected": "A typed row layout.style.edit_style exists (harness-core/src/action/commands/layout.rs:30) with decoder style_patch at harness-view/src/view/commands/layout.rs:32-42 that must gain the field.",
+     "where": "READ git show cede5958"
+    },
+    {
+     "fact": "IDML export of these fields is out of scope with no host path.",
+     "corrected": "Host IDML and PDF export exist: Viewer layout export in harness-view/src/view/layout_export.rs (:74 import, :771 export_folio_longdoc), and harness-view now depends on interop-layout (Cargo.toml:64-65).",
+     "where": "READ"
+    },
+    {
+     "fact": "Owned path list: harness-view only layout_ui.rs, layout_ui/find.rs, layout_ui/styles.rs.",
+     "corrected": "Add harness-view/src/view/commands/layout.rs, harness-core/src/action/commands/layout.rs (patch text), and interop-layout/src/folio_export.rs (one loss line).",
+     "where": "follows from the two rulings above"
+    },
+    {
+     "fact": "Lane worktree branch lane/smb-type-indent-spacing-1 in smb-r54-followups-1 at base c4d06841.",
+     "corrected": "Base cede5958; tree currently on lane/smb-project-bin-1 at 3f2c64a5, not on GitHub; push a backup first.",
+     "where": "READ git -C tree"
+    },
+    {
+     "fact": "overlaps keyed to five lanes running on 2026-11-07.",
+     "corrected": "All five landed; current in-flight lanes share no file with this lane.",
+     "where": "READ ledger lanes; in-flight diffs"
+    }
+   ],
+   "overlap_controls": [
+    {
+     "lane": "SMB-DRIVE-TYPED-2",
+     "shared": "harness-core and harness-view commands crates, different files (it edits commands.rs, manual.rs, design, document, mixer, monitor, multitrack, prototype, spectral, waveform; not layout.rs)",
+     "control": "Rebase only."
+    },
+    {
+     "lane": "SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1",
+     "shared": "folio crate (export_settings.rs, lib.rs) and harness-view crate, no shared file; this lane needs no folio lib.rs edit (typestyle exported by glob, folio lib.rs:85, unchanged)",
+     "control": "Rebase; a folio change by either rebuilds folio dependents."
+    },
+    {
+     "lane": "others in flight",
+     "shared": "none",
+     "control": "none"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-PARSER-HOSTILE-1",
+   "dispatch": "now",
+   "dispatch_note": "Safety track (blocker_decisions scoped_lanes): code now on a free C: tree, bundled run after R60, and yield the push slot to any feature lane ready at the same moment. Priority is higher than when scoped: a damaged PDF on disk now reaches the unguarded render route from the Viewer.",
+   "tree": "wt-studio-lanes/smb-layout-composer-depth-1",
+   "disk": "c (target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-composer-depth-1)",
+   "base": "cede5958",
+   "tree_check": {
+    "tip": "a26b4d11",
+    "branch": "lane/smb-layout-pdf-host-1",
+    "on_remote": "none (READ; GitHub lane/smb-layout-composer-depth-1 is at 286d9241, an older tip)",
+    "content": "2 of 3 patch-equivalent; f19c8c09 has a similar-subject 92227383 (equivalence UNVERIFIED)",
+    "clean": true,
+    "action_before_switch": "push backup lane/smb-layout-pdf-host-1 at a26b4d11, re-check, switch -c lane/smb-parser-hostile-1 cede5958"
+   },
+   "tree_reason": "The scope's smb-pr-nudge-1 goes to SMB-AI-LIVE-EFFECTS-1, which needs nib/composite. smb-layout-composer-depth-1 built every crate this lane builds, including interop_layout, which smb-pr-nudge-1 lacked.",
+   "rulings": [
+    {
+     "question": "OQ1 A PDF that PdfDoc::open refuses but hayro's repair could read reaches hayro with no bound. Refuse, or keep reading and accept the abort?",
+     "ruling": "Refuse with Press's own error (default), with the stop rule: list every Illustrator oracle file before and after; if any file that read before now refuses, stop and send the list.",
+     "reason": "READ spec :21649-21651: malformed or truncated input MUST produce a deterministic diagnostic and leave authority unchanged; a process abort is neither. READ press-read/src/render_bounds.rs:487 check() takes Objs built from a PdfDoc, so the pre-pass cannot run on a file PdfDoc::open refuses; there is no bounded middle path. New since scoping: Viewer::render_pdf_page (harness-view/src/view/layout_export.rs:779-783) passes any file on disk to press render_page, the second unguarded route (press-write/src/export/render.rs:127, :147).",
+     "clauses": [
+      "STU-IO-012 :21649",
+      "STU-IO-004(e) :21525, :21531",
+      "STU-CON-026 :22725"
+     ],
+     "red_team": "Objection: real .ai files written by old Illustrator versions with broken xref tables may only open through hayro's repair, so users lose imports that work today. Stands: the oracle list measures that loss before READY and stops the lane if it is nonzero; a lost import is a typed refusal the user sees, an abort loses the session."
+    },
+    {
+     "question": "OQ2 XML_MAX_NESTING 256 is chosen, not measured.",
+     "ruling": "256 (default), reporting the deepest nesting met in the corpus files the suites read.",
+     "reason": "Same number as Press HARD_MAX_DEPTH (press-read/src/error.rs:49, unchanged); SVG's own max_depth is 32 after parse (interop-vector-core model.rs:31, unchanged), so 256 refuses nothing SVG would accept.",
+     "clauses": [
+      "STU-IO-187 :231 (by analogy, lead reading)"
+     ],
+     "red_team": "Objection: an IDML story with deep table-in-table nesting could pass 256. Stands until measured; within_cap rows plus the corpus report make the number checkable, and a refusal is typed."
+    },
+    {
+     "question": "OQ3 R-C02 (older binary copies of the chosen tree) needs fresh approval if the lane starts first.",
+     "ruling": "Moot.",
+     "reason": "READ research/cargo-cleanup-result-20261107-R.json: R-C02 (owner smb-pr-nudge-1, 9.27 GiB) REMOVED on 2026-11-07; and this lane no longer uses smb-pr-nudge-1.",
+     "clauses": [],
+     "red_team": "none"
+    },
+    {
+     "question": "OQ4 Sibling scopes name smb-pr-retime-output-1 twice.",
+     "ruling": "Resolved: four distinct C: trees are assigned (see tree_plan).",
+     "reason": "READ backlog running_lane_overlap.tree_conflict; SMB-AUDIO-OUT-MIX-1 later moved off that tree to D: (c_cap_20261107.moves).",
+     "clauses": [],
+     "red_team": "none"
+    },
+    {
+     "question": "OQ5 cargo-fuzz off to the side?",
+     "ruling": "No (default) until the in-tree sweep stops finding defects; Operator decision later.",
+     "reason": "READ rust-toolchain.toml at cede5958: channel 1.97.1 stable; cargo-fuzz needs nightly (scope research).",
+     "clauses": [],
+     "red_team": "Objection: a fixed sweep finds less than coverage feedback. Stands: rounds need one answer per sha; found inputs from a later fuzz session can join as item 7 regressions."
+    },
+    {
+     "question": "New: the item 9 recount at cede5958.",
+     "ruling": "Classify press-write/src/export/tests.rs:58 (Pdf::new) and :75 (interpret_page) as test-only before the recount, so the count matches: product routes are flatten.rs:523/:540 (guarded at :461), vector_read.rs:621/:655, render.rs:127/:147; roxmltree 4 (svg_adapter.rs:649, idml_decode.rs:80, epub.rs:411, :420).",
+     "reason": "READ git grep 'Pdf::new\\(|interpret_page\\(' over */src finds tests.rs too; press-write/src/export.rs:48-49 '#[cfg(test)] mod tests;'. The scope's 'a mismatch blocks READY' would trip on it.",
+     "clauses": [],
+     "red_team": "none"
+    },
+    {
+     "question": "New: PSD seeds.",
+     "ruling": "Add compose_psd (interop-psd/src/compose.rs:170, landed with SMB-DOC-EXPORT-1) as one more seed builder for the PSD target: layered files with groups, luni names, iOpa and PSB above 30000 px.",
+     "reason": "READ compose.rs:1-11: it writes through write_psd with groups and Unicode names, structures the test builders may not reach. No new dependency (same crate).",
+     "clauses": [],
+     "red_team": "Objection: seeds from our own writer test our reader on our own shapes. Stands as an addition next to the tests/common builders, not a replacement."
+    }
+   ],
+   "stale_facts": [
+    {
+     "fact": "render_page's only product caller feeds it Studio's own export (interop-fig-native/src/export.rs:815).",
+     "corrected": "A second product caller renders any PDF file from disk: Viewer::render_pdf_page, harness-view/src/view/layout_export.rs:779-783 (read_bounded at :781, render_page at :783); it is a typed drive row (commit 3972c165 'render_pdf_page is a typed row only').",
+     "where": "READ git grep render_page at cede5958"
+    },
+    {
+     "fact": "Tree smb-pr-nudge-1, tip b9a87c7b on origin/codex/handshake-studio-assets.",
+     "corrected": "smb-pr-nudge-1 is on lane/smb-doc-export-1 at 6cf52d85, on no GitHub branch; and it is reassigned to SMB-AI-LIVE-EFFECTS-1. This lane takes smb-layout-composer-depth-1.",
+     "where": "READ git -C tree; ls-remote"
+    },
+    {
+     "fact": "R-C02 waits for approval after R59 (tree_reason, open question 3).",
+     "corrected": "R-C02 REMOVED 2026-11-07 (9.27 GiB).",
+     "where": "READ research/cargo-cleanup-result-20261107-R.json"
+    },
+    {
+     "fact": "Pdf::new count 3 in src (item 9).",
+     "corrected": "4 hits in src; the fourth is cfg(test) press-write/src/export/tests.rs:58 (interpret_page also at :75).",
+     "where": "READ git grep; export.rs:48-49"
+    },
+    {
+     "fact": "overlaps keyed to five lanes running on 2026-11-07.",
+     "corrected": "All five landed; no in-flight lane edits press*, package/src, interop-vector-svg/src/svg_adapter.rs, interop-layout or interop-tiff/psd/fig/develop tests. SMB-ARTBOARD-EXPORT-1 edits interop-vector-core/src/model.rs, whose constants this lane only reads (model.rs:30, :31, :50).",
+     "where": "READ in-flight diffs"
+    }
+   ],
+   "overlap_controls": [
+    {
+     "lane": "SMB-ARTBOARD-EXPORT-1",
+     "shared": "interop-vector-core/src/model.rs (read here, edited there); package crate (it edits tests/externals.rs, this lane adds src/bounded_xml.rs and lib.rs)",
+     "control": "Re-read the model.rs constants after it lands; package lib.rs is a one-line hunk; --per-sha covers package's dependents."
+    },
+    {
+     "lane": "SMB-LAYOUT-PDF-HOST-1 (landed, READY)",
+     "shared": "the new Viewer render route",
+     "control": "No harness-view edit here; the guard in press-write render.rs covers the route. Name the route in the lane notes."
+    },
+    {
+     "lane": "feature lanes at landing time",
+     "shared": "push slot",
+     "control": "Yields its turn (safety track)."
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-SCORE-EFFECTS-6",
+   "dispatch": "rescope",
+   "dispatch_note": "Replacement scope below (choice: re-scoped slice, no new authored parameter list). Once the lead accepts it: dispatch now on C:; Score items (2-4) and the harness-view reach (5, 6) code now; drive rows and both template lists after SMB-DRIVE-TYPED-2 lands; push after it.",
+   "tree": "wt-studio-lanes/smb-pr-retime-output-1",
+   "disk": "c (target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-retime-output-1)",
+   "base": "cede5958",
+   "tree_check": {
+    "tip": "40e5b658",
+    "branch": "lane/smb-audio-out-mix-1",
+    "on_remote": "none (READ; GitHub lane/smb-pr-retime-output-1 is at cff47aef, an older tip)",
+    "content": "4 of 4 patch-equivalent in cede5958",
+    "clean": true,
+    "action_before_switch": "push backup lane/smb-audio-out-mix-1 at 40e5b658, re-check, switch -c lane/smb-score-effects-6 cede5958"
+   },
+   "tree_reason": "The scope's own choice, free again (SMB-AUDIO-OUT-MIX-1 moved to D:). Only C: target with score_device; also score, pulse, session, folio, harness_view, harness.",
+   "rulings": [
+    {
+     "question": "OQ1 STU-FX-128: an implementer MUST raise the gap rather than invent a parameter list; DeEsser and Distortion have none. Follow the MultibandCompressor precedent, or drop items 4 and 5?",
+     "ruling": "CHANGED: drop the new DeEsser and Distortion (old items 4 and 5) and raise one SD item (replacement item 7). Pick: re-scoped slice. The lane writes no new parameter list; it hosts the graphic EQ (spec tables) and processors Score already has under their existing sets, with a binding class on every row and no catalogue row claimed where no table binds.",
+     "reason": "READ spec :13147-13150 (MUST raise the gap; declared gap STU-FX-146 at :19220); STU-FX-134a :19024-19026 repeats it for audio. A filter_kind stored with an authored list becomes document wire format, so authoring now turns the spec owner's later table into a migration. The precedent (score/src/multiband.rs:19-20, authored for a 0-parameter row) is a validator PASS on a Score module, not a spec change; repeating it twice more compounds the deviation.",
+     "clauses": [
+      "STU-FX-128 :13141-13150",
+      "STU-FX-146 :19220",
+      "STU-FX-134a :19024",
+      "STU-FX-136a :18727",
+      "STU-FX-136b :18732"
+     ],
+     "red_team": "Strongest objection: the replacement still hosts multiband_compressor, hum_remover and feedback_delay, whose rows (:19126, :19058, :19038) have no table, so their Score-authored lists reach documents anyway; that is the precedent by another door. Why it stands: those lists already exist and passed validation; the binding decision re-scopes this lane toward noise and multiband hosts; the rows claim no import key and say 'authored_existing', and the same SD item hands each list to the spec owner. Strict alternative, if the lead reads 'spec-backed' literally: delete those three rows from the table; steps 39 and 61 then stay engine_only. De-ess (step 43) stays missing either way."
+    },
+    {
+     "question": "OQ2 direction.dispatch pauses harness-view surfaces; item 7 changes audio_batch.rs and effect_templates with no panel code.",
+     "ruling": "Allowed.",
+     "reason": "READ ledger operator_direction_20261107.replaces lifts the GUI pause; no egui line is added (effect_templates at mixer.rs:106-120 holds none).",
+     "clauses": [],
+     "red_team": "Objection: RF-01 later moves Viewer files. Stands: adapter code moves with its file."
+    },
+    {
+     "question": "OQ3 `accuracy` and `range` of the graphic EQ have no declared meaning.",
+     "ruling": "Stored, range checked, no effect on sound, Err(NO_MEANING) in SPEC_ROWS (default).",
+     "reason": "READ score/src/spec_rows.rs:35 NO_MEANING and the existing Undeclared rows (Dynamics, Flanger) follow this exact rule.",
+     "clauses": [
+      "STU-FX-136a :18824-18842"
+     ],
+     "red_team": "Objection: a stored value with no effect misleads a user who moves it. Stands: the descriptor and the row say so; giving it a meaning is spec or D5 work."
+    },
+    {
+     "question": "OQ4 filter_kind spellings graphic_eq_10_bands, ..., de_esser, distortion.",
+     "ruling": "graphic_eq_10_bands, graphic_eq_20_bands, graphic_eq_30_bands, plus the existing Score identity tags for the hosted kinds and multiband_compressor; de_esser and distortion are not minted. Catalogue name and import key held in the table only for spec_table rows.",
+     "reason": "READ audio_batch.rs:663-666 (filter_kind keys are Score identity tags); STU-FX-127 dedup at :13075-13077 (one filter_kind per Studio effect).",
+     "clauses": [
+      "STU-FX-127 :13075"
+     ],
+     "red_team": "Objection: the spec's filter_kind is 'the stable catalogue key' (:13038), and snake_case keys are not the catalogue's names. Stands: the four kinds already stored use Score tags; changing that convention is a migration this lane should not start."
+    },
+    {
+     "question": "OQ5 Tree smb-pr-retime-output-1 is R-C01 in the approved cargo list.",
+     "ruling": "Moot: R-C01 REMOVED 2026-11-07 (22.74 GiB older copies); take the tree.",
+     "reason": "READ research/cargo-cleanup-result-20261107-R.json.",
+     "clauses": [],
+     "red_team": "none"
+    },
+    {
+     "question": "New: noise host without a Folio schema change.",
+     "ruling": "Noise reduction ships as a waveform-editor operation with a print range and digest (replacement item 6); a live bus or clip noise effect waits for a Folio decision on a stored print.",
+     "reason": "READ folio/src/audio_preset.rs:39-66: an instance holds (key, f64) params and keyframes only, so it cannot carry a NoiseProfile (denoise.rs:101); the waveform entry is harness-view's own schema replayed from source (waveform.rs:7-16), already holding ranges and a digest check for paste. NoiseReducer has latency N-1 and the bounce compensates it (waveform.rs:492-523).",
+     "clauses": [
+      "STU-FX-135 :18673 (non-destructive stack, not met by this form)",
+      "STU-FX-134 :18665"
+     ],
+     "red_team": "Objection: STU-FX-135 wants a re-editable stack entry, and an editor operation is a list entry replayed from source, not a clip effect. Stands as the closest no-schema form: the source is never rewritten, the op is undoable and re-editable by replacing it; the stack form is named as the next slice."
+    },
+    {
+     "question": "New: sidechain ducking (step 63) in this lane?",
+     "ruling": "No; next slice.",
+     "reason": "READ pulse/src/bus_mix.rs:15 (pulse builds effects through a caller factory with no key-source input); SidechainDynamics (score/src/sidechain.rs:66) needs a key signal routed from another bus; STU-FX-138 ducking is a UI-layer model.",
+     "clauses": [
+      "STU-FX-138 :18699",
+      "STU-FX-138a :18716"
+     ],
+     "red_team": "Objection: the backlog verdict asked for it. Stands: it needs a pulse graph change, the kind of cross-crate edit that held D: before; scoped separately it does not hold this lane."
+    }
+   ],
+   "stale_facts": [
+    {
+     "fact": "bus and master effects at harness-view audio_session.rs:86-111.",
+     "corrected": "bus_effect is at audio_session.rs:601-631 (doc :601-604); audio_session.rs grew 527 lines (SMB-AUDIO-OUT-MIX-1: stems export :409-440 with a sum check that exposes non-linear master effects).",
+     "where": "READ line checker; git show"
+    },
+    {
+     "fact": "Panel draws effect_templates at mixer.rs:866-871.",
+     "corrected": "mixer.rs:877 (for (name, spec) in effect_templates()); doc at :824. effect_templates itself still :106-120.",
+     "where": "READ git grep -n effect_templates"
+    },
+    {
+     "fact": "pulse bus_mix.rs:62 EffectFactory.",
+     "corrected": "bus_mix.rs:64 (pulse bus_mix.rs changed by F-R57-2, inert routes play to the master); :15 unchanged.",
+     "where": "READ line checker"
+    },
+    {
+     "fact": "folio/src/audio_routing.rs:95-102 holds no effect stack.",
+     "corrected": "Still none; StudioTrackRoute now at :101-108; inert routing kinds RouteOutput, RouteSend added at :485-488.",
+     "where": "READ git diff"
+    },
+    {
+     "fact": "No document drive path for effects; only MixerEdit.",
+     "corrected": "SMB-DRIVE-TYPED-2 (in flight, tip 2bbe2207) adds mixer.add_effect with template names pinned in two constants, harness-core/src/action/commands/mixer.rs:10 and harness-view/src/view/commands/mixer.rs:33, and waveform.effect at view/commands/waveform.rs:87.",
+     "where": "READ git grep in smb-pr-edit-footprint-1 HEAD"
+    },
+    {
+     "fact": "Tree smb-pr-retime-output-1 clean at d54293da; R-C01 pending.",
+     "corrected": "Tree on lane/smb-audio-out-mix-1 at 40e5b658, not on GitHub; R-C01 REMOVED 2026-11-07.",
+     "where": "READ git -C tree; cargo-cleanup-result-20261107-R.json"
+    },
+    {
+     "fact": "Item 5 claims MT-32662 as the de-esser row.",
+     "corrected": "MT-32662 = AudioFilter:DeEsser and MT-32667 = AudioFilter:Distortion (READ MT JSON acceptance criteria); both leave the lane. MT-32639 is Adaptive Noise Reduction, not Score's profile NoiseReducer: no claim.",
+     "where": "READ .GOV/task_packets/WP-KERNEL-STUDIO/**/MT-32662.json, MT-32667.json, MT-32639.json"
+    },
+    {
+     "fact": "overlaps keyed to five lanes running on 2026-11-07.",
+     "corrected": "All landed; the in-flight overlap is SMB-DRIVE-TYPED-2.",
+     "where": "READ ledger, in-flight diffs"
+    }
+   ],
+   "overlap_controls": [
+    {
+     "lane": "SMB-DRIVE-TYPED-2",
+     "shared": "template names (two constants), waveform rows, harness tests harness_drive_audio.rs:393 using template lookahead_limiter",
+     "control": "Land after it. Score and harness-view reach code now; after it lands, update both constants, add the equality test, add waveform.noise_reduce rows; until then no edit in view/commands or harness-core."
+    },
+    {
+     "lane": "SMB-PLACE-ASSET-1, SMB-ARTBOARD-EXPORT-1",
+     "shared": "harness-view crate only (view/mod.rs, edit.rs, place.rs, export files); no shared file",
+     "control": "Rebase only."
+    },
+    {
+     "lane": "SMB-PR-EXPORT-RECIPE-1",
+     "shared": "none (reel)",
+     "control": "none"
+    },
+    {
+     "lane": "SMB-AUDIO-OUT-MIX-1 (landed, READY, in R60)",
+     "shared": "audio_session.rs stems and playback read EffectSpec",
+     "control": "No edit to audio_session.rs; the new variant goes through bus_effect unchanged. If R60 FAILs AUDIO-OUT-MIX-1 and its remediation edits bus_effect, this lane rebases after it."
+    }
+   ],
+   "replacement_scope": {
+    "id": "SMB-SCORE-EFFECTS-6",
+    "file": "hsk-studio-score-effects-6",
+    "brief": "lane-smb-score-effects-6",
+    "crate": "hsk-studio-score",
+    "crates_head": [
+     "hsk-studio-score",
+     "hsk-studio-harness-view (audio_batch adapter, effect_templates, waveform noise op; drive template lists after SMB-DRIVE-TYPED-2)",
+     "hsk-studio-harness-core (two drive rows after SMB-DRIVE-TYPED-2)",
+     "hsk-studio-harness (tests only)"
+    ],
+    "summary": "Graphic EQ 10, 20 and 30 bands (spec tables) in Score, one filter-kind table that brings 14 existing and new processors into documents with their binding class stated, and noise reduction on a waveform selection with a stored print range; no new authored parameter list, DeEsser and Distortion raised as an SD item",
+    "target": "All code facts below were re-read at cede5958. Paths are under `crates/`. Spec lines are module 14 v02.229. This replaces the 2026-11-07 scope: lead re-scope against STU-FX-128 and direction.blocker_decisions_20261107.scoped_lanes ('re-scoped against noise and multiband hosts').\n\n**What changed and why.** STU-FX-128 (spec :13141-13150): a catalogue row with no parameter table is specified in identity and behaviour but not in parameters, and an implementer MUST raise the gap rather than invent a parameter list. DeEsser (:19057) and Distortion (:19062) have 0 parameters, so this lane authors no processor for them: both leave the lane and go to the spec owner as one SD item (below). The lane adds no new parameter list anywhere. It ships (a) the graphic EQ family, which has full parameter tables (STU-FX-136a :18727; GraphicEQ10Bands :18824, 20 :18844, 30 :18874); (b) document reach for processors Score already has, under their existing, already-validated parameter sets; (c) noise reduction on a waveform selection with a noise print, which needs no Folio schema change.\n\n**The gap.** `harness-view/src/view/audio_batch.rs:43-55` `EffectSpec` has four kinds and `from_preset_instance` refuses every other `filter_kind` (`:819`, unknown filter_kind). Every document path goes through it: bus and master (`audio_session.rs:601-631` `bus_effect`), waveform effects (`waveform.rs:476-486`), batch and presets (`audio_batch.rs:509-529`), keyframe lookup (`timeline/audio.rs:383-392`). Pulse knows no processor kinds (`pulse/src/bus_mix.rs:15`). So Reverb, FeedbackDelay, Flanger, Chorus, Phaser, HardLimiter, HumRemover, ClickRepair, MultibandCompressor and NoiseReducer are tested in Score and reach no document (`git grep` of those names in harness-view, harness-core, harness, pulse, reel src at cede5958: 0 hits). Scenario audio-post steps 36, 37, 39, 40, 53, 61, 62 are engine_only for that reason (`workflows/scenario-audio-post.json`).\n\n1. **Red first.** New `score/tests/graphic_eq.rs`, `score/tests/filter_kinds.rs`; `harness/tests/audio_filter_kinds.rs` starting `#![cfg(feature = \"audio-batch\")]` (round unit `[\"audio-batch\"]`, `.config/round-features.toml:34`). Prove red by running. A pushed red commit must compile: give the new API refusing stubs first. Use `tests/common_dsp.rs` helpers.\n\n2. **Graphic EQ kernel, new `score/src/graphic_eq.rs`.** Unchanged from the 2026-11-07 scope item 2 (Liski and Valimaki, DAFx-17; second-order peak sections in f64, transposed direct form II with the flush of `filters.rs:67-79`; `g_p` 17 dB; `c` 0.3 at 10 bands, 0.4 at 30, 20 bands swept 0.3..0.4 and pinned; bandwidth by bisection at construction, at most 60 steps; M = 2N - 1 design points, least squares, one iteration; band centres authored, dropped at or above 0.95 Nyquist as `restore.rs:601`; `active_bands()`). Do not change `Equalizer` (`eq.rs:17` MAX_EQ_SECTIONS 16). Proof as before: identity bit-exact at all-zero; worst band-centre error at most 1.0 dB at 44100 and 48000 Hz over all 1024 +-12 dB settings at 10 bands and all +12, all -12, zigzag and 200 seeded settings at 20 and 30 bands, with a stop rule (send the numbers, never loosen); stability at +-70 dB at 8000, 32000, 44100, 48000, 96000, 768000 Hz; block-partition and save_state/restore_state bit identity. Design at most once per `DESIGN_HOP` (default 256 frames, `layout.rs:18`), declared in docs and DESCRIPTOR; no allocation in process or design; design count test; measured design time debug and release.\n\n3. **Parameter records, `score/src/spec_rows.rs`.** As scope item 3: a typed record with Option fields for hard_min, hard_max, soft_min, soft_max, default, normalised default, unit, precision, slot and mapping (STU-FX-136b :18732, STU-FX-107 :12839, STU-FX-121 :12998); const tables for the three sheets row for row; `from_normalised` on the pattern of `HardLimiterParams::from_normalised` (`dsp.rs:337`); add rows to `SPEC_ROWS` (`spec_rows.rs:40`): `gain` and `amp*` bound, `accuracy` and `range` `Err(NO_MEANING)`, accepted, range checked, stored, no effect on sound. `tests/multiband.rs:221` walks every row.\n\n4. **Filter-kind table in Score, new `score/src/filter_kinds.rs`.** No Folio edge. Rows: `filter_kind`, binding class, catalogue identity and import key only where the row has a parameter table, parameters (key, default, score automation index or none). `build_audio_filter(filter_kind, params: &[(&str, f64)], rate, channels) -> Result<Box<dyn Automatable + Send>, AudioFilterError>`, a typed error with `code()` like `SpecRowError` (`spec_rows.rs:18-33`); no new `ScoreError` variants.\n\n| filter_kind | Builds | Binding class | Catalogue row claimed |\n|---|---|---|---|\n| `graphic_eq_10_bands`, `_20_`, `_30_` | item 2 | `spec_table` | GraphicEQ10/20/30Bands, import keys `AudioFilter:GraphicEQ10Bands` etc. |\n| `hard_limiter` | `dsp.rs:316` | `spec_table` (sheet mapped by `from_normalised`) | Hard Limiter |\n| `flanger`, `phaser` | `modulation.rs:166`, `:414` | `spec_table_partial` (bound rows in SPEC_ROWS, rest Undeclared) | Flanger, Phaser |\n| `chorus`, `click_repair` | `modulation.rs:289`, `restore.rs:81` | `authored_on_tabled_row` (every sheet row Undeclared in SPEC_ROWS) | none claimed |\n| `reverb`, `feedback_delay`, `hum_remover`, `multiband_compressor` | `reverb.rs:39`, `delay.rs:48`, `restore.rs:555`, `multiband.rs:186` | `authored_existing` (Score's own validated set; no table or no binding) | none claimed |\n\nEvery row's parameter list is the existing Score params struct, field for field; the lane writes none. `multiband_compressor` stores `bands` (whole number 2..=4), `crossover_<i>_hz` for i < bands-1, and per band the `DynamicsParams` fields as `band_<i>_<field>` (the equalizer's `section_<i>_*` form, `audio_batch.rs:694-697` for enumerations and booleans). Whole-number fields (`bands`, `voices`, `stages`, `harmonics`, `ar_order`, enumerations) are checked before any cast (`pick`, `audio_batch.rs:689`): 1e308, -1, 2.5 and NaN refuse. Tests: every row builds at its defaults mono and stereo where the kind allows; the table's automation keys equal `automation_parameters()` names in order; each kind joins `tests/automation.rs:48` `kinds()` (update the pin at `:226`, 59 today; READ count not re-run); identity prefix equals `filter_kind`; defaults inside range; a test asserts that no row claims an import key unless its binding class is `spec_table` or `spec_table_partial`. Mention the table and the binding classes in `DESCRIPTOR` (`lib.rs:156`).\n\n5. **Document reach, harness-view.** `view/audio_batch.rs`: one `EffectSpec` variant holding `filter_kind` and params, delegating to item 4 in `build` (`:58`), `build_automatable` (`:71`), `automation_index` (`:87`), `to_preset_instance` (`:698`) and `from_preset_instance` (`:751`). Keep the four existing kinds and their stored records byte for byte; refusals stay `preset_effect`. `view/mixer.rs:106-120` `effect_templates` gains the 14 kinds (the panel draws what it returns, `mixer.rs:877`). After SMB-DRIVE-TYPED-2 lands: update both template lists it adds, `harness-core/src/action/commands/mixer.rs:10` and `harness-view/src/view/commands/mixer.rs:33` (READ at its tip 2bbe2207: `\"gain|equalizer|dynamics|lookahead_limiter\"`), and add a test that the harness-core string equals the `effect_templates()` names joined by `|`. No egui line, no panel change, no Cargo.toml change. Proof in `harness/tests/audio_filter_kinds.rs` through production paths: for each kind `MixerEdit::AddEffect` on a bus and on the master, a mix that differs from bypass, one undo step, undo restores; a stored preset round trip; a keyframed `amp3` on a bus moves the response; a batch job (mono and stereo) and a waveform effect for one graphic EQ and the multiband compressor; save and reopen keeps the instance; an out-of-range `MixerEdit::EffectParam` refuses with no step; `flux_capacitor` (`audio_waveform_effects.rs:67`) stays refused; a stem export (`audio_session.rs:409-429`) with a graphic EQ on the master reports its residual honestly (non-linear master effects show there by design).\n\n6. **Noise reduction on a waveform selection (no Folio change).** New `WaveformEdit::NoiseReduce { selection, print: WaveSelection, params }` in `view/waveform.rs` (enum `:100`, op JSON `:313` and `:410`), params = `NoiseReductionParams` fields (`score/src/denoise.rs:233-245`: `reduction_db`, `over_subtraction`, `smoothing_up_ms`, `smoothing_down_ms`, `freq_smoothing_bins`) plus `fft_size`. Replay: build the profile with `NoiseProfiler` (`denoise.rs:142`, `:156`, `:175`, `:214`) over `print` of the buffer as it stands after the earlier operations, then run `NoiseReducer::new` (`:295`) over `selection` through the existing latency-compensated bounce (`waveform.rs:492-523`). The op stores the print range and the profile digest (`NoiseProfile::digest`, `:127`); a replay whose digest differs refuses `waveform_noise_print_stale` (the pattern of `waveform_clipboard_stale`, module docs `waveform.rs:14-16`). A print shorter than `DENOISE_MIN_PROFILE_FRAMES` (`:31`) refuses before any edit. One operation, one undo step, saved in the existing waveform entry (`waveform.rs:7-12`), so the print persists across a reopen as a range plus digest. After SMB-DRIVE-TYPED-2 lands, add `waveform.noise_reduce` beside its `waveform.effect` row (`view/commands/waveform.rs:87` at its tip) and in harness-core `commands/waveform.rs`. Tests: noise floor on a tone-plus-noise fixture drops by at least `reduction_db` minus a stated tolerance on noise-only spans (measure, record); the tone band moves under a stated bound; undo restores bytes; reopen replays to the same digest; stale print refuses; hostile params refuse typed.\n\n7. **SD item to raise (lane notes and lead record), no spec edit.** STU-FX-146 gap for the audio rows this lane meets: DeEsser (:19057) and Distortion (:19062), not implemented here for lack of a parameter table; Multiband Compressor (:19126), DeHummer (:19058), Analog Delay (:19038) hosted under Score's existing authored sets with no row claimed; for each, the parameter set Score uses or a builder would propose, so the spec owner can adopt or replace it before documents depend on it.\n\n8. **Failure-class sweep (V4-06), read only unless named.** (a) Processors still with no document path after this lane: `SidechainDynamics` (needs a key-source route through pulse's graph, `pulse/src/bus_mix.rs:15`; STU-FX-138 ducking model), `Pan`, `ChannelMix`, `RampedGain`, `LoudnessMeter`, `NoiseReducer` as a live bus effect (needs a stored print, a Folio decision): state why each stays out. (b) `save_state`: only Unity, Gain, Dynamics, LookaheadLimiter, Equalizer and Reverb implement it (`dsp.rs:59`, `:108`, `dynamics.rs:307`, `:543`, `eq.rs:217`, `reverb.rs:234`; default `engine.rs:47`); `Stack::checkpointable` (`bus.rs:457-459`) needs every stage, so hosting the others on buses loses checkpoints on that bus: read what `MixGraph::seek` then does, measure one backward seek, record it. The graphic EQ implements it. (c) Bands or crossovers at or above Nyquist at low rates: list each site. (d) Every cast from a document f64 to an integer on a path this lane opens. (e) A stored parameter that sizes memory (delay line, FFT size, bands): bound and refusal per kind before allocation.\n\n9. **MTs.** Read MT-32706, 32707, 32708 (graphic EQ rows), MT-32629..32631 (their tables), MT-32731 (MultiBandCompressor) and MT-32663 (DeHummer). Do not edit MT files; their proof commands name `--test score_contract`, which does not exist (F-R55-3 class). Claim graphic EQ rows partly met only for what this proves; AC-007's operator surface stays open on the Vulkan shell. MT-32731 and MT-32663: no claim (their rows declare 0 parameters; this lane proves identity reach only). MT-32662 (DeEsser) and MT-32667 (Distortion) are not touched.\n\n**Hostile input (V4-01/02).** Stored params arrive from wire JSON, at most 256 per instance (`folio/src/audio_preset.rs:28`), finite by Folio, checked again by Score. Waveform op JSON is untrusted bytes bounded by `MAX_WAVEFORM_ENTRY_BYTES` and `MAX_WAVEFORM_OPS` (module docs `waveform.rs:18-22`). Test: NaN and infinity per parameter, past-range per parameter, unknown and missing parameter, duplicate key through the Folio path, rate 0 and 44101 (`layout.rs:79`), `fft_size` not a power of two or outside `DENOISE_MIN_FFT..=DENOISE_MAX_FFT` (`denoise.rs:24-25`), a print outside the buffer, a refused set changes nothing (`tests/automation.rs:253-269`), cancellation polled every `CANCEL_CHECK_FRAMES` including across a design and a profile, overflow never published (`tests/guards.rs:110`).\n\n**Out of scope.** DeEsser and Distortion (SD item 7); Convolution Reverb MT-32661; GuitarSuite MT-32709; Adaptive Noise Reduction (MT-32639: its sheet names six rows with ranges and no semantics, a new kernel); SidechainDynamics hosting; a track or clip effect stack (STU-FX-135 :18673); storing a normalised input per instance (STU-FX-136 :18679); STU-FX-138 guided layer; the operator surface, tooltips and manual entries; any egui, eframe, winit, wgpu, naga or WGSL line; GPU kernels; any Cargo.toml or Cargo.lock change; a new dependency; a Folio schema change; Master Spec edits; vendor parity claims (D5).",
+    "diag": "report_for_host: score returns typed ScoreError and AudioFilterError codes; the waveform op returns its waveform_* code; emission stays with the host; real-time paths never call observe",
+    "attr": "unchanged: processors commit nothing; mixer and waveform edits are the existing attributed Viewer steps (one entry-only history step each)",
+    "exposure": "medium",
+    "paths": "- score: `src/graphic_eq.rs`, `src/filter_kinds.rs` (new); `src/spec_rows.rs`; `src/lib.rs` (mods, exports, DESCRIPTOR); `src/filters.rs` only if a raw-coefficient constructor is needed; `tests/graphic_eq.rs`, `tests/filter_kinds.rs` (new), `tests/automation.rs` (kinds and count).\n- harness-view: `src/view/audio_batch.rs`; `src/view/mixer.rs` (`effect_templates` only); `src/view/waveform.rs` (the NoiseReduce op); after SMB-DRIVE-TYPED-2 lands: `src/view/commands/mixer.rs` (template list), `src/view/commands/waveform.rs` (one row decoder). No other harness-view path, no Cargo.toml.\n- harness-core: after SMB-DRIVE-TYPED-2 lands: `src/action/commands/mixer.rs` (template list), `src/action/commands/waveform.rs` (one row).\n- harness: `tests/audio_filter_kinds.rs` (new); `tests/audio_waveform_effects.rs` (noise op cases).\nCommit plan, 8 at most: red; graphic EQ kernel; spec rows; filter-kind table; harness-view reach; waveform noise op; drive rows and template lists (after DRIVE-TYPED-2); fixes.",
+    "suites": "clippy over score and its direct dependents (pulse, score-device, score-plugin, harness-view, harness-core, harness); nextest WHOLE suites of score and harness-view with the round units [viewer] and [desktop, audio-batch] (round-features.toml:44); harness tests audio_filter_kinds, audio_mixer, audio_batch, audio_waveform_effects, audio_out_mix and harness_drive_audio with feature audio-batch (round-features.toml:34); doctests if added",
+    "closes": [
+     "truth-check 20261105 mt-video-audio-design-web top_missing rank 5: graphic EQ (engine and headless document path); de-esser and distortion raised as an SD item, not built",
+     "Score processors with no document path: reverb, feedback_delay, flanger, chorus, phaser, hard_limiter, hum_remover, click_repair, multiband_compressor (bus, master, batch, preset, waveform); noise reduction on a waveform selection with a persisted print",
+     "backlog G-AUDIO-EFFECT-HOST (rank 17): audio-post steps 36 and 37 (waveform form), 39, 40, 53, 61, 62 move from engine_only to callable; 43 (de-ess) and 63 (sidechain) stay open"
+    ],
+    "mts": [
+     "MT-32706",
+     "MT-32707",
+     "MT-32708",
+     "MT-32629",
+     "MT-32630",
+     "MT-32631",
+     "MT-32731 (read, no claim)",
+     "MT-32663 (read, no claim)"
+    ],
+    "tree": "smb-pr-retime-output-1",
+    "disk": "c"
+   }
+  }
+ ]
+}
