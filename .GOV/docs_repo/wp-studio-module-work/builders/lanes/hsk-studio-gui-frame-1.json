@@ -1,0 +1,66 @@
+{
+  "crate": "hsk-studio-native-host (feature document: frame layout, views, command table, receipts), kumihimo-ui (additive: roles, node seams, ruler paint, frame widgets, fit helpers, partition check, designer icon source)",
+  "lane": "SMB-GUI-FRAME-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+  "base": "cede5958",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T05:38:24Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: Viewer commands keep the spine's path (each reaches a Run operation that emits its own observe frame; the host keeps its terminal frame, native-host src/diag.rs:24); frame-local outcomes (frame.tool_pick, frame.tab_select, frame.static with not_implemented_yet) and the summed PaintStats go to the receipt's gui.frame member as codes and counters, never document text beyond the file name the receipt already carries",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "the Viewer's run context as in the spine: Viewer::new (harness-view src/view/mod.rs:310), carried by every undo step (Run::history undo_steps, harness-core src/harness.rs:2157-2163); rail picks and tab switches are view state with no actor and no undo step; the host mints no actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "high: the native-host gui module goes from three regions to the whole frame (regions, panels, routing, tree, receipts), and kumihimo-ui's public API grows (Role variants, Node seams, Paint::Ruler, frame widgets, fit and icon modules) that the GPU UI pass lane and later panel lanes build on"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T05:38:24Z",
+    "disk": "D",
+    "closes": [
+      "build-order B5 for the raster preset in the asset-local Vulkan host: the static frame at 1920x1080 matching mock-raster.html frame bands within 2 px with empty panels, and 1280x720 per fit_table (recorded deviations STU-SHL-110 SHL-P-01, SHL-P-08, SHL-P-10 and STU-SHL-004 shell menu stand-in)",
+      "Operator 2026-11-07 a working coherent GUI: every band of the raster workspace present and every control answering, by behaviour (tool pick, group tab) or by not_implemented_yet in the status bar and receipt",
+      "build-order B3 icon half: the designer's tool and panel icons as CPU two-tint masks behind the existing Resources port (only if item 4 lands within the commit budget)",
+      "asset-local evidence for STU-MDL-106 studio.dock.state and STU-MDL-116 studio.tool.active on the gui.tree model path (no MT claim)",
+      "build-order engineer note (fit is computed, not seen): fit_table checked on a real frame; the two 1 px rounding rows and the toolgroup id charset reported to the designer"
+    ],
+    "closes_candidates": [
+      "MT-34423, MT-34424 (read; STU-SHL-003 regions; no claim)",
+      "MT-34425 (read; STU-SHL-004 shell owns the menu bar; host stand-in recorded; no claim)",
+      "MT-34431, MT-34432, MT-34433 (read; STU-SHL-010, -011, -012 menu bar composition and order; titles only; no claim)",
+      "MT-34439 (read; STU-SHL-018 menu never hides; all 19 title nodes stay; no claim)",
+      "MT-34486, MT-34487 (read; STU-SHL-051 reason codes, STU-SHL-052 per-surface rendering; NOT_IMPLEMENTED_YET used as an outcome code; no claim)",
+      "MT-34498, MT-34499, MT-34504 (read; STU-SHL-063, -064, -069 regions, register, dock constraints; no claim)",
+      "MT-34501 (read; STU-SHL-066 viewer kinds; the canvas id; no claim)",
+      "MT-34514 (read; STU-SHL-078 spine; no claim)",
+      "MT-34615, MT-34616 (read; STU-SHL-084 shared default rules, STU-SHL-085 raster layout; no claim)",
+      "MT-34628 (read; STU-SHL-097 document tabs; one tab, no claim)",
+      "MT-34641 (read; STU-MDL-100 author_id grammar; no claim)",
+      "MT-34647, MT-34648 (read; STU-MDL-106 observability, studio.dock.state; asset-local evidence only; no claim)",
+      "MT-34651 (read; STU-MDL-107 availability on the node; B6; no claim)",
+      "MT-34654 (read; STU-SHL-110 chain; the lane is a recorded deviation; no claim)",
+      "MT-34674, MT-34676, MT-34680 (read; STU-SHL-145, -147, -151 Tool Rail; static faces; no claim)",
+      "MT-35048, MT-35050, MT-35051, MT-35052 (read; STU-SHL-160, -162, -163 Context Bar; identity chip and zones only; no claim)",
+      "MT-35095 (read; STU-MDL-116 tool state inspectable; studio.tool.active; no claim)",
+      "MT-35105 (read; STU-SHL-234 L-status hintline; no gesture map yet; no claim)"
+    ],
+    "reuses_tree_and_target": "smb-pr-entry-references-1"
+  }
+}

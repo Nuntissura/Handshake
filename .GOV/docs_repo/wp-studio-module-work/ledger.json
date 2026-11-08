@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T17:49:57Z",
+ "updated_at": "2026-11-08T05:38:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19682,6 +19682,69 @@
    "closes": [
     "workflows/backlog-20261107.json SMB-DRIVE-TYPED-2"
    ]
+  },
+  {
+   "lane_id": "SMB-GUI-FRAME-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-native-host (feature document: frame layout, views, command table, receipts), kumihimo-ui (additive: roles, node seams, ruler paint, frame widgets, fit helpers, partition check, designer icon source)",
+   "lane_file": "builders/lanes/hsk-studio-gui-frame-1.json",
+   "brief": "builders/briefs/lane-smb-gui-frame-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+   "base": "cede5958",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T05:38:24Z",
+   "closes": [
+    "build-order B5 for the raster preset in the asset-local Vulkan host: the static frame at 1920x1080 matching mock-raster.html frame bands within 2 px with empty panels, and 1280x720 per fit_table (recorded deviations STU-SHL-110 SHL-P-01, SHL-P-08, SHL-P-10 and STU-SHL-004 shell menu stand-in)",
+    "Operator 2026-11-07 a working coherent GUI: every band of the raster workspace present and every control answering, by behaviour (tool pick, group tab) or by not_implemented_yet in the status bar and receipt",
+    "build-order B3 icon half: the designer's tool and panel icons as CPU two-tint masks behind the existing Resources port (only if item 4 lands within the commit budget)",
+    "asset-local evidence for STU-MDL-106 studio.dock.state and STU-MDL-116 studio.tool.active on the gui.tree model path (no MT claim)",
+    "build-order engineer note (fit is computed, not seen): fit_table checked on a real frame; the two 1 px rounding rows and the toolgroup id charset reported to the designer",
+    "MT-34423, MT-34424 (read; STU-SHL-003 regions; no claim)",
+    "MT-34425 (read; STU-SHL-004 shell owns the menu bar; host stand-in recorded; no claim)",
+    "MT-34431, MT-34432, MT-34433 (read; STU-SHL-010, -011, -012 menu bar composition and order; titles only; no claim)",
+    "MT-34439 (read; STU-SHL-018 menu never hides; all 19 title nodes stay; no claim)",
+    "MT-34486, MT-34487 (read; STU-SHL-051 reason codes, STU-SHL-052 per-surface rendering; NOT_IMPLEMENTED_YET used as an outcome code; no claim)",
+    "MT-34498, MT-34499, MT-34504 (read; STU-SHL-063, -064, -069 regions, register, dock constraints; no claim)",
+    "MT-34501 (read; STU-SHL-066 viewer kinds; the canvas id; no claim)",
+    "MT-34514 (read; STU-SHL-078 spine; no claim)",
+    "MT-34615, MT-34616 (read; STU-SHL-084 shared default rules, STU-SHL-085 raster layout; no claim)",
+    "MT-34628 (read; STU-SHL-097 document tabs; one tab, no claim)",
+    "MT-34641 (read; STU-MDL-100 author_id grammar; no claim)",
+    "MT-34647, MT-34648 (read; STU-MDL-106 observability, studio.dock.state; asset-local evidence only; no claim)",
+    "MT-34651 (read; STU-MDL-107 availability on the node; B6; no claim)",
+    "MT-34654 (read; STU-SHL-110 chain; the lane is a recorded deviation; no claim)",
+    "MT-34674, MT-34676, MT-34680 (read; STU-SHL-145, -147, -151 Tool Rail; static faces; no claim)",
+    "MT-35048, MT-35050, MT-35051, MT-35052 (read; STU-SHL-160, -162, -163 Context Bar; identity chip and zones only; no claim)",
+    "MT-35095 (read; STU-MDL-116 tool state inspectable; studio.tool.active; no claim)",
+    "MT-35105 (read; STU-SHL-234 L-status hintline; no gesture map yet; no claim)"
+   ]
+  },
+  {
+   "lane_id": "SMB-VK-UI-PASS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-vulkan (UI pass, atlases, checked-in SPIR-V, offline spv-build tool with its own workspace), hsk-studio-native-host (feature document: compose hook, --chrome switch, receipts)",
+   "lane_file": "builders/lanes/hsk-studio-vk-ui-pass-1.json",
+   "brief": "builders/briefs/lane-smb-vk-ui-pass-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
+   "base": "cede5958",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T05:38:24Z",
+   "closes": [
+    "direction.blocker_decisions_20261107 order step 'the Vulkan UI pass' (after SMB-GUI-SPINE-1, before panel fan-out): the chrome drawn on Vulkan, offscreen and in the quiet window, behind a switch",
+    "scope-20261107-gui-spine-1 next_slices[0]: offline WGSL to SPIR-V with naga 27.0.3 under crates/hsk-studio-vulkan (O3), the 11-prim list on the host device, shelf-packed glyph alpha atlas and two-tint icon atlas, offscreen first, pixel compare against the CPU painter",
+    "build-order B2 on the Vulkan path (the spine did B2 on the CPU only) and the B3 coverage atlas per physical size; not B3's fallback chain or the icon set",
+    "ledger next_lane_candidates 2026-11-07T17:49:57Z, its first part: the Vulkan UI pass (glyph atlas, primitive pass on the GPU); the icon set, B5, menus and docking stay open",
+    "red team attack 7 control: WGSL source through the naga library to committed SPIR-V, the tool under crates/hsk-studio-vulkan with its own workspace, one named shader file on the gate's allow list",
+    "MT-36250 (read; HOST_ADOPTION pane workbench proof: AC-HOST-005 device-loss rebind and AC-HOST-006 screenshots with renderer, an asset-local half at most; no claim)",
+    "MT-34514 (read; STU-SHL-078 spine; no claim)",
+    "MT-34654 (read; STU-SHL-110 chain: the spine's recorded deviation continues; no claim)",
+    "MT-34640 (read; STU-SHL-109 gate tests belong to a later slice; no claim)",
+    "Scan of all 6220 rows in K/.GOV/task_packets/WP-KERNEL-STUDIO/ (python): no row names a glyph atlas, SPIR-V, a display list, a primitive pass or a Vulkan UI pass; shader-named rows MT-31216, MT-31268, MT-31291, MT-31292, MT-31479, MT-31480, MT-32923, MT-32962 are user-content shaders, not this pass"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22347,7 +22410,9 @@
     "lane/smb-artboard-export-1",
     "lane/smb-place-asset-1",
     "lane/smb-pr-export-recipe-1",
-    "lane/smb-drive-typed-2"
+    "lane/smb-drive-typed-2",
+    "lane/smb-gui-frame-1",
+    "lane/smb-vk-ui-pass-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22484,6 +22549,16 @@
      "tree": "smb-pr-edit-footprint-1",
      "branch": "lane/smb-drive-typed-2",
      "previous_branch": "lane/smb-layout-pdf-host-1-d"
+    },
+    "SMB-GUI-FRAME-1": {
+     "tree": "smb-pr-entry-references-1",
+     "branch": "lane/smb-gui-frame-1",
+     "previous_branch": "lane/smb-gui-spine-1"
+    },
+    "SMB-VK-UI-PASS-1": {
+     "tree": "smb-pr-retime-hold-1",
+     "branch": "lane/smb-vk-ui-pass-1",
+     "previous_branch": "lane/smb-ui-tree-1-d"
     }
    },
    "why": {
