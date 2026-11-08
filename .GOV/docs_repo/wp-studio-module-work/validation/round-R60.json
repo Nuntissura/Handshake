@@ -2,8 +2,8 @@
  "round": 60,
  "round_id": "STUDIO-R60",
  "round_opened": false,
- "attempt": 1,
- "status": "NOT_OPENED (canary infrastructure failure: step 0 registry drift, exit 75)",
+ "attempt": 2,
+ "status": "NOT_OPENED (attempt 2: canary stopped by the lead's decision, C: cap projection, infrastructure; attempt 1: canary step 0 registry drift)",
  "decision_basis": "CX-VAL-005 + CX-VAL-010: the canary runs first through the checked-in entrypoint and a canary failure is infrastructure: no round opens, no union build or test run, no lane or MT verdict; CX-VAL-006: an infrastructure failure changes no status (R23 and R53 attempt 1 precedent: statuses unchanged, re-open list recorded); CX-VAL-007: no environment, flag or wrapper added to get past step 0; CX-VAL-001: the candidate stays frozen at cede5958",
  "rule_refs": [
   "CX-VAL-001",
@@ -856,5 +856,1489 @@
  ],
  "lanes": [],
  "by": "wp_validator STUDIO-R60",
- "recorded_at": "2026-11-08T06:17:25Z"
+ "recorded_at": "2026-11-08T06:17:25Z",
+ "attempts": [
+  {
+   "attempt": 1,
+   "candidate": "cede59587eed0189edce18ed93f60486bc6af520",
+   "frozen_at": "2026-11-08T05:37:11Z",
+   "completed_at": "2026-11-08T06:17:25Z",
+   "opened": false,
+   "status": "NOT_OPENED (canary infrastructure failure: step 0 registry drift, exit 75)",
+   "result": "canary R60-canary exit 75 at step 0 (F-R60-1)"
+  },
+  {
+   "attempt": 2,
+   "candidate": "35c50d3ba928be27a980443230cbe351f7644982",
+   "frozen_at": "2026-11-08T07:24:29Z",
+   "completed_at": "2026-11-08T09:46:53Z",
+   "opened": false,
+   "status": "NOT_OPENED (canary stopped by the lead's decision: C: cap projection, infrastructure)",
+   "result": "canary R60-canary-2: step 0 green; 11 of 164 test units and the fixture done, all exit 0; stopped at the lead's decision 09:22Z (SIGTERM 09:22:39Z), run exit 130; C: tree 307.915 GiB after the stop (studio-round 96.155 + studio-team-dev 211.76); no union, no verdict"
+  }
+ ],
+ "record_form": "round-R60.json extended in place (no new round id, lead dispatch): attempt 1's keys unchanged except attempt and status (attempt 1's status kept in attempts[0]); attempt 2 under attempt_2, its probe results under attempt_2_probes",
+ "attempt_2": {
+  "attempt": 2,
+  "round_opened": false,
+  "status": "NOT_OPENED (canary stopped by the lead's decision: C: cap projection, infrastructure)",
+  "decision_basis": "CX-VAL-005 / CX-VAL-010: the canary runs first and a canary failure or stop is infrastructure, opens no round and gives no verdict; CX-VAL-006: an infrastructure failure changes no status; CX-VAL-007: nothing added to the entrypoint; CX-VAL-001: the candidate stayed frozen at 35c50d3b; CX-SAFE-001: only this session's run-round stopped, by PID, through its own TERM trap",
+  "candidate": "35c50d3ba928be27a980443230cbe351f7644982",
+  "tree": "c9ec052784f999751fffb3cb486adae49baedf6e",
+  "frozen_at": "2026-11-08T07:24:29Z",
+  "candidate_note": "lead dispatch (attempt 2): freeze exactly 35c50d3b, the origin tip at dispatch; fetch 2026-11-08T07:24:09Z: origin ref, FETCH_HEAD and ls-remote agree on 35c50d3ba928be27; c4d06841 (R59) ancestor; 120 commits since c4d06841, 18 since attempt 1's cede5958 (8712fa23 range of SMB-PR-EXPORT-RECIPE-1, 42e9e5a4 the SMB-VK-UI-PASS-1 compose hook with no claim, 5d020939 the steward sync for F-R60-1, 5d020939..35c50d3b SMB-ARTBOARD-EXPORT-1); 118 commits owned by the 21 READY claims, 2 trunk commits without a claim, none unowned (validator-R60-a2/claims.json); root inputs re-derived (setup.out): attempt 1's list plus 5d020939's Cargo.toml metadata (native-host pins, two lead-approved edges) and tools/workspace-probe.rs APPROVED row; Cargo.lock unchanged since cede5958; no root file changed between 5d020939 and 35c50d3b (the lead's finding holds)",
+  "export": {
+   "refresh": "export-refresh: 35c50d3ba928be27a980443230cbe351f7644982 files=2668 added=16 changed=22 unchanged=2630 deleted=0 blob_mismatch=0",
+   "file_count": 2668,
+   "manifest_sha256": "18db7185c5bc0f5a51f8eae25417a6b656c0eaf27edec138be78aaa4c9301167",
+   "git_blob_equal": true
+  },
+  "oracle_corpus": {
+   "at_freeze": {
+    "at": "2026-11-08T07:38:18Z",
+    "file_count": 1503,
+    "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+   },
+   "before_canary-2": {
+    "at": "2026-11-08T07:53:30Z",
+    "file_count": 1503,
+    "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+   },
+   "end": {
+    "at": "2026-11-08T09:43:40Z",
+    "file_count": 1503,
+    "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+   }
+  },
+  "selection": {
+   "tool": "gov tools/round-select.py (self-test 27 checks OK)",
+   "args": [
+    "--all"
+   ],
+   "full": true,
+   "full_reasons": [
+    "every third round: 2 rounds since the last full union",
+    "round entry script or its configuration changed: ['.config/nextest.toml', '.config/round-features.toml', 'tools/registry-sync.py', 'tools/run-round.sh']"
+   ],
+   "changed_crates": [
+    "composite",
+    "controls",
+    "folio",
+    "harness",
+    "harness-core",
+    "harness-view",
+    "interop-psd",
+    "interop-vector-core",
+    "interop-vector-svg",
+    "native-host",
+    "observe",
+    "package",
+    "pigment",
+    "pulse",
+    "reel",
+    "render-cpu",
+    "render-gpu",
+    "session",
+    "ui-text",
+    "vulkan",
+    "kumihimo-ui"
+   ],
+   "selected": 60,
+   "non_entry_tools_changed": [
+    "tools/workspace-probe.rs"
+   ],
+   "plan": "run-round --print-plan --all: default 1 + features 49 + ignored 5 + doctest 109 = 164 units, 3 prebuilds, 1 fixture (validator-R60-a2/plan-union.txt)"
+  },
+  "reopen_list": {
+   "counts": {
+    "ready": 21,
+    "reopened": 407,
+    "other": 53,
+    "closure": 60
+   },
+   "ref": "validator-R60-a2/reopen.json",
+   "written": "no: no round opened (R23 / R53 / R60 attempt 1 precedent)"
+  },
+  "canary": {
+   "argv": "bash tools/run-round.sh --canary --all --results <studio-round>/results/R60-canary-2 --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (cwd export; no caller env, flags or wrappers; console studio-round/R60-canary-2.console.txt; launcher validator-R60-a2/a2_launch.sh)",
+   "identity": {
+    "msys_pid": 1162142,
+    "win_pid": 172316,
+    "win_start_time_utc": "2026-11-08T07:54:01.260Z",
+    "win_command_line": "\"C:\\Program Files\\Git\\usr\\bin\\bash.exe\" tools/run-round.sh --canary --all --results \"/d/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R60-canary-2\" --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target"
+   },
+   "started_at": "2026-11-08T07:54:08Z",
+   "ended_at": "2026-11-08T09:39:17Z",
+   "exit": 130,
+   "complete": false,
+   "reason": "interrupted",
+   "console_tail": [
+    "run-round: incomplete (exit 130: interrupted) -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R60-canary-2/round.json",
+    "R60C2_EXIT=130"
+   ],
+   "step0": "passed 2026-11-08T07:55Z: Cargo.lock in sync (step0.lock.txt empty); registry check no drift (approved_added, approved_removed, unrequested and spec_defects empty, manifest_changed false, probe_changed false, fuzzing_only_skipped 5 reel/rav1e records as before); policy 0 machine-path violations, 0 new duplicate sites (D16, D18, TIMECODE sites unchanged)",
+   "units_planned": 164,
+   "units_planned_detail": "164 test units (default 1, features 49, ignored 5, doctest 109) + 3 prebuilds + 1 fixture (units.plan.tsv, plan-union.txt)",
+   "units_done": 11,
+   "units_done_note": "11 test units (default and 10 feature units) and the fixture: 12 result lines in units.tsv, every build and run exit 0",
+   "units_done_detail": [
+    {
+     "unit": "default",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "fixture:score-plugin/clap-gain",
+     "kind": "fixture",
+     "build_exit": "0",
+     "run_exit": "-"
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-controls+egui",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "kind": "nextest",
+     "build_exit": "0",
+     "run_exit": "0"
+    }
+   ],
+   "units_nonzero": [],
+   "unit_stopped": "features:hsk-studio-harness+media (unit 13): its build was compiling at the SIGTERM; bash defers the TERM trap to the end of the running foreground cargo, so that build finished, its test run did not start, and run-round's finish trap released the C: lock and wrote round.json complete=false; no process was killed",
+   "default_unit": "build 0 (Finished `test` profile in 33m 01s), canary run 0",
+   "hashes": {
+    "round.json": "d2251471cb8625cb85f5808ec1b88ba6f9adba9bbd68471592c5f72db133b5e5",
+    "units.tsv": "7302d4ead61918a2d3eadf257d54aacdf93739d799380676ffdc06d5d45c1d0e",
+    "step0.registry.txt": "35747768c9f5e0012df988d53c8bd77217fdfb424de4bcd1d0f750ec7a841390",
+    "step0.policy.json": "59ebffd4956816f0c1ac4560f2e871d6e1da79b75257f6f400eeec5f1b5e061a"
+   }
+  },
+  "stop": {
+   "decision": "LEAD DECISION 2026-11-08 ~09:22Z (message to this validator): stop R60 attempt 2 cleanly now, as infrastructure (C: cap); let the unit compiling finish, start no new unit, kill no job holding the build lock, stop only own processes by PID; the round target stays as warm state for attempt 3",
+   "lead_reason": "the Operator's grant is 400 GB (about 372.5 GiB, CX-984-014); the measured growth projects about 390 GiB for the canary plus the union; only the Operator can approve a removal; running on to 355 would hold C: from four reviewed lanes for another hour",
+   "action": "SIGTERM to this session's run-round bash msys 1162142 / win 172316 (identity re-checked through /proc winpid) at 2026-11-08T09:22:39Z (capstop.log LEAD_STOP); run exit 130 at 2026-11-08T09:46:53Z",
+   "failure_kind": "infrastructure",
+   "failure_class": "c-cap-projection-canary-identity-rebuild",
+   "measurements": {
+    "tree_at_freeze": {
+     "at": "2026-11-08T07:27:39Z",
+     "gib": 244.522,
+     "studio_round_kib": 34354479,
+     "studio_team_dev_kib": 222045938
+    },
+    "full_tree_samples": [
+     {
+      "label": "at_freeze",
+      "started": "2026-11-08T07:27:39Z",
+      "ended": "2026-11-08T07:38:17Z",
+      "gib": 244.522
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T07:56:23Z",
+      "ended": "2026-11-08T07:57:16Z",
+      "gib": 244.253
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T07:59:18Z",
+      "ended": "2026-11-08T07:59:29Z",
+      "gib": 244.831
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:01:32Z",
+      "ended": "2026-11-08T08:01:42Z",
+      "gib": 245.049
+     },
+     {
+      "label": "during_r60c2",
+      "started": "2026-11-08T08:09:09Z",
+      "ended": "2026-11-08T08:28:30Z",
+      "gib": 245.933
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:03:44Z",
+      "ended": "2026-11-08T08:28:30Z",
+      "gib": 245.389
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:30:33Z",
+      "ended": "2026-11-08T08:32:15Z",
+      "gib": 247.977
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:34:17Z",
+      "ended": "2026-11-08T08:34:29Z",
+      "gib": 249.169
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:36:30Z",
+      "ended": "2026-11-08T08:36:45Z",
+      "gib": 249.547
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:38:48Z",
+      "ended": "2026-11-08T08:38:59Z",
+      "gib": 250.709
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:40:01Z",
+      "ended": "2026-11-08T08:43:11Z",
+      "gib": 251.686
+     },
+     {
+      "label": "during_r60c2",
+      "started": "2026-11-08T08:43:31Z",
+      "ended": "2026-11-08T09:01:01Z",
+      "gib": 253.707
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T08:44:12Z",
+      "ended": "2026-11-08T09:01:01Z",
+      "gib": 253.707
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T09:02:04Z",
+      "ended": "2026-11-08T09:06:41Z",
+      "gib": 270.284
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T09:07:54Z",
+      "ended": "2026-11-08T09:21:35Z",
+      "gib": 274.93
+     },
+     {
+      "label": "during_r60c2",
+      "started": "2026-11-08T09:16:27Z",
+      "ended": "2026-11-08T09:21:43Z",
+      "gib": 286.227
+     },
+     {
+      "label": "cap_guard",
+      "started": "2026-11-08T09:22:39Z",
+      "ended": "2026-11-08T09:42:20Z",
+      "gib": 293.513
+     },
+     {
+      "label": "during_r60c2",
+      "started": "2026-11-08T09:36:44Z",
+      "ended": "2026-11-08T09:43:29Z",
+      "gib": 307.914
+     },
+     {
+      "label": "end",
+      "started": "2026-11-08T09:40:47Z",
+      "ended": "2026-11-08T09:43:29Z",
+      "gib": 307.914
+     }
+    ],
+    "fast_guard_samples": [
+     {
+      "at": "2026-11-08T09:04:33Z",
+      "tree_gib": 272.289,
+      "studio_round_gib": 60.529,
+      "team_dev_gib": 211.76,
+      "c_free_gib": 417.4
+     },
+     {
+      "at": "2026-11-08T09:08:12Z",
+      "tree_gib": 274.93,
+      "studio_round_gib": 63.171,
+      "team_dev_gib": 211.76,
+      "c_free_gib": 414.8
+     },
+     {
+      "at": "2026-11-08T09:13:53Z",
+      "tree_gib": 281.071,
+      "studio_round_gib": 69.312,
+      "team_dev_gib": 211.76,
+      "c_free_gib": 407.9
+     },
+     {
+      "at": "2026-11-08T09:18:46Z",
+      "tree_gib": 286.227,
+      "studio_round_gib": 74.468,
+      "team_dev_gib": 211.76,
+      "c_free_gib": 402.4
+     },
+     {
+      "at": "2026-11-08T09:21:47Z",
+      "tree_gib": 289.329,
+      "studio_round_gib": 77.569,
+      "team_dev_gib": 211.76,
+      "c_free_gib": 398.9
+     },
+     {
+      "at": "2026-11-08T09:41:23Z",
+      "tree_gib": 307.914,
+      "studio_round_gib": 96.155,
+      "team_dev_gib": 211.76,
+      "c_free_gib": 378.8
+     }
+    ],
+    "studio_round_alone": [
+     "09:01:03..09:02:32 studio-round 58.524 GiB; C free 419.5 GiB",
+     "09:39:57..09:40:26 studio-round 96.155 GiB (after the stop); tree with team-dev 211.760: 307.915 GiB; C free 378.8 GiB"
+    ],
+    "last_fast_sample_before_stop": {
+     "at": "2026-11-08T09:41:23Z",
+     "tree_gib": 307.914,
+     "studio_round_gib": 96.155,
+     "team_dev_gib": 211.76,
+     "c_free_gib": 378.8
+    },
+    "after_stop": {
+     "at": "09:39:57..09:40:26",
+     "studio_round_gib": 96.155,
+     "tree_gib": 307.915,
+     "c_free_gib": 378.8,
+     "team_dev_gib": 211.76
+    },
+    "full_tree_end": {
+     "started": "2026-11-08T09:40:47Z",
+     "ended": "2026-11-08T09:43:29Z",
+     "gib": 307.914,
+     "children_kib": {
+      "studio-round": 100825368,
+      "studio-team-dev": 222045938
+     }
+    }
+   },
+   "growth": "studio-team-dev constant at 211.76 GiB (no C: builder after 07:55Z); all growth in studio-round: 32.76 GiB at the freeze, 58.5 at 09:02Z, 77.6 at 09:21Z; about 1.1 GiB/min through the harness [viewer] and [desktop, viewer] units, 2 to 4 GiB per lighter harness unit",
+   "projection": "UNVERIFIED projection (validator to the lead 09:20Z): 11 harness feature units, both harness-view units, render-gpu, reel and 109 doctest units still ahead at the stop; at the measured rates the tree reaches 330 GiB around 09:55Z and 355 GiB around 10:20Z, with the union adding little on top (same identities rebuilt in place, R57 warm union growth 5.9 GiB); the lead's projection about 390 GiB for canary plus union",
+   "cause_reading": "plan S (2026-11-07, Operator-approved) removed 169.15 GiB of older test-binary copies and kept the newest copy of each binary; a round builds one identity of each test binary per feature unit (different features, different metadata hash; R46 lesson F-R46-8), so this canary is re-creating the identities of every unit but the newest: R57's warm studio-round was about 180 GiB against 32.8 GiB at this freeze. Reading, not measured per identity",
+   "not_a_product_failure": "CX-VAL-005 / CX-VAL-006: a canary stop is infrastructure, starts no round, yields no MT or lane verdict and changes no status"
+  },
+  "union": "not run (no round)",
+  "verdicts": "none: no round opened; all 21 READY claims stay READY_FOR_VALIDATION, PASS lanes keep their status, no MT written",
+  "ready_claims": {
+   "SMB-PR-ROUTING-REPAIR-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-SESSION-WRITE-SAFETY-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-HARNESS-DRIVE-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-OBSERVE-DIAG-SINK-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-CONTROLS-EGUI-GATE-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-PIGMENT-FILTER-KERNELS-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-DOC-NEW-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-MOTION-COMMANDS-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-GUI-STEWARD-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-COMMAND-SURFACE-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-VK-HOST-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-UI-TREE-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-AUDIO-OUT-MIX-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-DOC-EXPORT-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-LAYOUT-PDF-HOST-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-PROJECT-BIN-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-LAYOUT-PERSIST-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-WEB-HOST-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-GUI-SPINE-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-PR-EXPORT-RECIPE-1": "READY_FOR_VALIDATION (not judged)",
+   "SMB-ARTBOARD-EXPORT-1": "READY_FOR_VALIDATION (not judged)"
+  },
+  "claim_commits": {
+   "SMB-PR-ROUTING-REPAIR-1": [
+    "04a9b1193fdd1220e1a273c41112596a652649f7 folio, session, pulse and harness-view tests, red: F-R57-2 bus, F-R57-3 takeover, id mints, option A",
+    "099923bf71652802b2c1f79f2db7f5f2c1883a32 folio and harness-view tests, red: the viewer fixture's layer, and a cheaper budget search",
+    "7b0e41beabc6b367f74fef86bd1cad14660b806d folio, pulse, F-R57-2: an output or send target naming an absent bus is inert",
+    "82ce2eb1fec25339c512b3001f5ce118143ed70b session, F-R57-3: the commit reports a new sequence that takes a stored routing",
+    "c33adc6f1f2e217d338e2a4087c2b11b6ce09bda session, F-R57-2 option A: no commit that changes sequences may invalidate valid multicam records",
+    "1dc981f122a5ff621419a973e0ff6a6aa0a3b839 session: indent",
+    "e76bfe0f216e9df97813e14b631c5a5cc8fda90f harness-view, F-R57-3, V4-06: every Viewer mint of a clip, track or sequence id skips what entries name",
+    "e296bdd93300a3a2e37d397b2630be06af72a26b session, review F1, F2: a cancel in the multicam guard is a cancel; DESCRIPTOR on angle_order",
+    "2ae24210b89a166465ad11879a6a61448103c892 harness-view, review F3, lead ruling: a mixer edit cannot author a target the sequence does not hold"
+   ],
+   "SMB-SESSION-WRITE-SAFETY-1": [
+    "d9d2e2afcdba92897c3625e783aecde0bcaad974 session write safety, SMB-SESSION-WRITE-SAFETY-1: red, saves from separate OS processes and shared temp names",
+    "96d7e6dca82b120aa78f2044ada5bea3ece55a33 session write safety, SMB-SESSION-WRITE-SAFETY-1: wip compare, lock, unique temps, CLI",
+    "ae716b3b49016bbbe61c51bcb7c53627346807b5 session write safety, SMB-SESSION-WRITE-SAFETY-1: wip compare, lock, unique temps, CLI",
+    "ab8a8e92e80668f63b2294596bba84d400bc4e1b session write safety, SMB-SESSION-WRITE-SAFETY-1: a save compares its destination under an OS lock; unique temp names",
+    "ba5867c2810b544bd2a56fde12892123f597de4d session write safety, SMB-SESSION-WRITE-SAFETY-1: review findings on 6127d99b",
+    "570173aff9198ff95ee9f41d6b96912e6d93a7e1 session write safety, SMB-SESSION-WRITE-SAFETY-1: first bundled run's two failures"
+   ],
+   "SMB-HARNESS-DRIVE-1": [
+    "13d830b535103a7cea5d4a0f3b2d2003f7421aba harness, DRIVE-1 red: state, command, undo and the stdin session through the real process; the window classifier",
+    "4fdc95fb37b1a267844f9dca8a658f6a5c0d6ad0 harness, DRIVE-1: a model drives Studio as a process, no window",
+    "b954d4c51d9256573b5a35cf234bf6de26475e7d harness, DRIVE-1: review fixes: no file replaced unasked, the viewer owns the timeline, a panic is one refusal"
+   ],
+   "SMB-OBSERVE-DIAG-SINK-1": [
+    "5e24e678f40fd71ab5bf562a2259780543efbcc8 observe, red DIAG-SINK-1: Observe::emit* reaches the thread's RingProducerPort; ring_wired tests, emit cost measure, stub bind",
+    "6eba836f4d4b474a42e4d4358bc7dd4fc0609d49 observe, DIAG-SINK-1: Observe::emit* offers its record to the thread's RingProducerPort",
+    "e81c09d63b205c3c415b8d63e7b4c9229793b9bf harness, red DIAG-SINK-1: what ran survives the process; sink, panic record, health and default-dir tests over a stub",
+    "b3e2659bd4c9c76c39674b0ce51b486aaf9357a7 harness, DIAG-SINK-1: what ran survives the process; JSONL sink, FrameSink forwards, panic record, studio-harness health",
+    "8ceef11163305f91cc5cceacf4270448a80e8681 harness, DIAG-SINK-1: review of 3c4811ed, F1-F3: an unlistable dir gets no file, health survives a non-UTF-8 dir, no leading zeros",
+    "aa1da6f0644cc1589c1761d36b33d33a528210d6 harness, DIAG-SINK-1: the test helper's leading-zero check took segment \"0.jsonl\" for a foreign name",
+    "dfac350784cda5ca15205cf700c644b790a82a49 harness, DIAG-SINK-1: seq is the order of the lines across a rotation",
+    "1374cc256f205c8f68c8afb2e6c578e6167dee11 harness, DIAG-SINK-1: state, command and undo leave what they ran; test children get no console"
+   ],
+   "SMB-CONTROLS-EGUI-GATE-1": [
+    "474eb2a791dd9dd3fa2a39eebe916d639f3ca8c1 SMB-CONTROLS-EGUI-GATE-1 RED: workspace-probe toolkit gate fixtures, gate stubbed",
+    "c7698b62d78bc6f1c4904ca754e72a618f0e0319 SMB-CONTROLS-EGUI-GATE-1: workspace-probe toolkit quarantine gate (D1, D7)",
+    "2fa227ae97821b37bb8edc5716eb0e6bf2973c44 SMB-CONTROLS-EGUI-GATE-1: gate allow list holds one consumer forward (harness-view)",
+    "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee SMB-CONTROLS-EGUI-GATE-1: hsk-studio-controls builds without egui (feature egui, default off)"
+   ],
+   "SMB-PIGMENT-FILTER-KERNELS-1": [
+    "3ca4467f2e5ce21eb1538c6b856bab3c82cff45f pigment filter kernels, red: the kernel kinds of the smart filter record are refused on the wire",
+    "10a3536e0cbbfa9fced3d2c8682d851ef9ed5f40 pigment filter kernels, red: Folio kernel kinds, StackFilter::Kernel plumbing and the render-gpu refusal arm; every kernel refused at render (stub), kernel tests fail",
+    "2637ebf7725b8bba1d23b4ea21dc6dc3f7658cf0 pigment filter kernels: nineteen raster kernel kinds (box, motion, radial, find edges reuse; 5x5 convolution with sharpen, sharpen more, basic blur, blur more; Sobel-gated sharpen edges and despeckle; emboss, solarize, mosaic; maximum and minimum; dust and scratches, surface and bilateral blur), Sobel magnitude extracted from find_edges_window, filter_kernels DESCRIPTOR, stale smart_filter docs corrected",
+    "0ee78ea0d9a8a5e7c6df2bc5fa63e0b1126a6dad pigment filter kernels: maximum and minimum unpremultiply in place, so the roundness peak matches its 32 bytes a pixel charge (review F1)",
+    "5341e561e00352209dfc37b4c960fab7b6df6629 pigment filter kernels: morph_square loops over the four channels by array, clippy needless_range_loop"
+   ],
+   "SMB-DOC-NEW-1": [
+    "b721f142026c42d5f09ea30ebc9905d5b20d57d3 harness, DOC-NEW-1 red: a blank document through `new`, its refusals and the catalog rows",
+    "220ce7e3706fbd430eb4894b7c737259db8e5246 session, DOC-NEW-1: a new document is a written package; one artboard or page edit is one step",
+    "6830f7500f78598d101941f0c688ac9d0384ca76 harness-core, DOC-NEW-1: document.new and the artboard and page commands of Run",
+    "ccbd44c6a75241884785295f458235fa23be4f7b harness-view, DOC-NEW-1: the viewer creates documents, edits artboards and pages, frames the one chosen",
+    "047afaefe8fd3ffb2f2292aa63173dea2a7600c8 harness, DOC-NEW-1: the new verb and the drive routes; the scenarios' first steps",
+    "6156801174f83232b1d67128f96e9636710c9b6a harness, DOC-NEW-1: new writes through save_new, or save_replacing with --overwrite",
+    "7200761275eeab81415ad31682efcbfabddb5c31 harness, DOC-NEW-1, review F1-F3 of 368e1080: no reused ids, every read-back framed, catalog keys equal drive keys",
+    "6b06379fdfaf07387247fe98781442c6cb3982a0 harness, DOC-NEW-1: the key-equality test skips the menu id, which has no catalog row",
+    "cf6788d68cb5cea826386d211cb575c5a3c9c6b0 harness-view, DOC-NEW-1: a new document closes the audio out device too (integration with AUDIO-OUT-MIX-1)"
+   ],
+   "SMB-MOTION-COMMANDS-1": [
+    "e26ba0958f56cf40215742fabc71087a425056ac harness-core, MOTION-COMMANDS-1 red: the typed motion rows and their tests, every command refuses",
+    "2b54bbc8982b91834b185d00a2f54ed37549a691 harness-core, MOTION-COMMANDS-1: typed composition, layer, property, keyframe and expression commands",
+    "ac2ca33556b24f20a2d46f2cad87e5cabfbd9895 harness, MOTION-COMMANDS-1: the drive session test reads the open and end lines and the refusal exit",
+    "912cb86f099b2ac96eb9efb4f944d85bb11cef22 harness-core, MOTION-COMMANDS-1: review fixes F1 to F4"
+   ],
+   "SMB-GUI-STEWARD-1": [
+    "7ab918bf7b02333ed87ce012a2c4770b71b5c89a SMB-GUI-STEWARD-1: red: probe self-test fixtures for the new crates, kumihimo rule, winit entry",
+    "7879e7e974121079e5ac1708a6a1835d064d7465 SMB-GUI-STEWARD-1: skeleton crates, locked pins, gate rules, GPU predicates, round config"
+   ],
+   "SMB-COMMAND-SURFACE-1": [
+    "95ee277458b18fc333ba3fb8bc6231291ec10172 harness-core, COMMAND-SURFACE-1: RUN_COMMANDS split per domain",
+    "243c588f55706c18fb8ad5c6a1010a2ecb7484c3 harness, COMMAND-SURFACE-1 red: typed commands through the real process",
+    "1a39dc7ae4d2e5103ad677ec99569d02516a03bf harness, COMMAND-SURFACE-1: one catalog and typed rows for layout, panel, proof, vector, design, photo",
+    "fdd1710e1120777f44e00244daf716110348cf23 harness, COMMAND-SURFACE-1: review fixes F1-F5, engine defects pinned by name",
+    "150db07160018b3fa9aaa29918e20bcf54abfdd3 harness, COMMAND-SURFACE-1: the defect test's text is an escaped newline",
+    "98e4099c742721e7635f576c5cc88ef6654d23f4 harness, COMMAND-SURFACE-1: typed tests reselect before the last swap and let Folio judge a spot value"
+   ],
+   "SMB-VK-HOST-1": [
+    "177f618334875d9b00f67cf7b6b954b3badc4b59 SMB-VK-HOST-1: hsk-studio-vulkan transient owner, panes, Win32 presenter, swapchain state machine",
+    "045bb059fbd3492f4ece8942827faef42c364eef SMB-VK-HOST-1: hsk-studio-native-host offscreen capture, quiet window, CPU buffer present, document feature",
+    "0ab6596ae1bf8656abc2888c59c96931c35c1f18 SMB-VK-HOST-1: review fixes F1-F4 (quiet style after show, surface-loss bound, retired oldSwapchain, poisoned submits)",
+    "672a18040ecb343eb4c98a1cc1f453a3f04ea389 SMB-VK-HOST-1: window deadline counts from a ready presenter; startup timings and failure counters"
+   ],
+   "SMB-UI-TREE-1": [
+    "85b675126a2c80ac751197376283f3503b192c29 SMB-UI-TREE-1: red: kumihimo-ui core and text adapter tests against stubs",
+    "ac4e57349aedd58050d7d4f4d71a33c9d5be2de0 SMB-UI-TREE-1: kumihimo-ui toolkit core and the hsk-studio-ui-text adapter",
+    "50b5cdacd78f2086f34f1b69f38d2b5e56d4ecac SMB-UI-TREE-1: clippy: allow the 8-argument label helper, two test lints",
+    "c62469a35f2c62e0e40d278e4d73aba645873a91 SMB-UI-TREE-1: review fixes F1-F9 (review-smb-ui-tree-1-44ab8e16)",
+    "12133fdfcf9ce0627d2c5915b3b0157b4a4f8452 SMB-UI-TREE-1: untrack a Python bytecode cache committed by mistake"
+   ],
+   "SMB-AUDIO-OUT-MIX-1": [
+    "4c649dbb1ac7155afc2fdcea7930a440ef8825af harness-view, AUDIO-OUT-MIX-1: audio out hosted, routed mixdown with WAV, stems with a sum check, repaired audio in the mix",
+    "87c71f80c272356425b57f68b4cdc55624e2c92e harness-view, AUDIO-OUT-MIX-1: a type alias for the repaired source list (clippy type_complexity)",
+    "bae43a73f10a4e6587f5b733c97ac604e22c9a96 harness-view, AUDIO-OUT-MIX-1: review fixes on 812b8ebb (close frees the device, open order, stem names, quantized sum check, unmatched repairs, stem replace)",
+    "b799193005bd5cc318d9770822d0638cfd7db1c5 harness tests, AUDIO-OUT-MIX-1: the audio_import oracle covers the WAV mix formats",
+    "28de83ac0b236ac09b6dab2731355a8b05314ab2 harness, AUDIO-OUT-MIX-1: audio.* typed rows through Viewer::run_command and the process"
+   ],
+   "SMB-DOC-EXPORT-1": [
+    "4e66b91b5a438ee2b2f694225998fc775703cd23 doc export, SMB-DOC-EXPORT-1: layered PSD writer, linear render, no-clobber export write, batch exporter port",
+    "381330edfa9218d58843468dce5cc269822e8244 doc export, SMB-DOC-EXPORT-1: red: document export recipe, CLI, drive row, batch targets, tests",
+    "c9a3410632430e07f7e33f02aef49b73ff1eac8a doc export, SMB-DOC-EXPORT-1: green: the recipe pipeline runs; batch test input is a native package",
+    "73107f5a6e81106f3253c07305dcd8a8b1c1e68d doc export, SMB-DOC-EXPORT-1: review F1-F3 on 82950f9c",
+    "bbe5626300aa98b740355e1d781afb1662b7d152 doc export, SMB-DOC-EXPORT-1: review F4: export_document is a photo command",
+    "e85e1440e240161bab08edeb9c36431fc24ad35e doc export, SMB-DOC-EXPORT-1: Run::record_host_outcome gets its RUN_COMMANDS row"
+   ],
+   "SMB-LAYOUT-PDF-HOST-1": [
+    "92227383c404fa994d997f67833e86b377685539 harness, LAYOUT-PDF-HOST-1 red: typed layout output rows, drive rows and tests; every method refuses",
+    "cde132727d54f9f5140340582271c9459f974cc5 harness-view, LAYOUT-PDF-HOST-1: the live layout reaches PDF and IDML; preflight before export; sized pages",
+    "14522e343b3abe1fb42424eb2b740dc5adcd3504 harness-view, LAYOUT-PDF-HOST-1: review F2-F4 of eee4ff70",
+    "3972c165ae14b3aa18559282916a048a4b6fca34 harness, LAYOUT-PDF-HOST-1: render_pdf_page is a typed row only (duplicate author id)"
+   ],
+   "SMB-PROJECT-BIN-1": [
+    "64214f585684d088f2355bf9f112cd79ef2ac79c folio, SMB-PROJECT-BIN-1: project bin record, bin commands, sequence from preset, add tracks, place clip",
+    "633881c1eeb6acfbb103e91ad6b6a17fef3ff7a6 session, SMB-PROJECT-BIN-1: the project_bin document entry",
+    "af872f3d217533eb8f730cc976fe64ea7035eaf7 harness-core, SMB-PROJECT-BIN-1: Run project_bin_command, new_sequence, add_tracks, place_clip",
+    "57949d29dcd99ef294cc537b4d2ff71ed697a560 harness-view, harness, SMB-PROJECT-BIN-1 red: project methods, drive rows, tests; New Sequence refuses not_built",
+    "caef41a7950e59f1bf33d192e3ddee06edfaa2d7 harness-view, SMB-PROJECT-BIN-1: New Sequence from preset (green)",
+    "43a6eb2eed39f9d53273c61dc2f19e3a274ba451 SMB-PROJECT-BIN-1: review F1, F5, F6, F7 of f3200e74",
+    "9ab80eddf2cad339b4333273a15d041514fcce10 harness-core, SMB-PROJECT-BIN-1: project_place_item tick parameters are integer rows"
+   ],
+   "SMB-LAYOUT-PERSIST-1": [
+    "d119ff754944698fae71f8a6cb9677006ef98c2d session, harness, red LAYOUT-PERSIST-1: layout edits as document steps; layout_records entry, LayoutStep, Run::submit_layout",
+    "ab2e0ebd2d56d94f767890e94a924d617315608b harness-view, LAYOUT-PERSIST-1: Viewer::layout_apply commits each layout edit to the document",
+    "89709cdb44eb3d4c4cf9f27bc1ccf42995046642 harness-view, LAYOUT-PERSIST-1: layout.* commands commit to the document; spreads in the document unit",
+    "906df1eb879ee65b1620b8b418ae4b007c0e54bc session, harness, LAYOUT-PERSIST-1: review fixes F1-F4 and Q2 of b21616b7",
+    "a32151614e46913c8f6e5cb77aca956a02b5b530 harness-view, LAYOUT-PERSIST-1: a sized layout.open commits to the open document; exports read the document's layout"
+   ],
+   "SMB-WEB-HOST-1": [
+    "2731d49baef249b22815adc6eabde9779f0abb2f harness, WEB-HOST-1: red web host tests, the web rows and a refusing host",
+    "6fc3a7d66c098b8bb392ac7e7353a124a10c86f6 harness-core, WEB-HOST-1: the web crates' first host",
+    "aa68164c5731e20bc77e7794cc5be2bc69cc6e56 harness-core, WEB-HOST-1: review fixes F1 to F7"
+   ],
+   "SMB-GUI-SPINE-1": [
+    "3ce0915ecb2a61957bc649990a2cb9e28bd225a3 gui spine, SMB-GUI-SPINE-1: red: GUI frame API skeleton, typed input, layered .handshake fixture, tests",
+    "788465ff88a3f5d3f338890fd32faed6df06455d gui spine, SMB-GUI-SPINE-1: typed input: the scripted step queue",
+    "2ef46468e3ee9d20d76077ac47c96511a068c656 gui spine, SMB-GUI-SPINE-1: an open refusal keeps the viewer's code",
+    "4a06b937c80754f6f4d2acc09ef82ea9f7f3c8c1 gui spine, SMB-GUI-SPINE-1: kumihimo-ui passive scrollbar",
+    "2fc402066757f67688a4fc29dc427f8b7feda3c9 gui spine, SMB-GUI-SPINE-1: the GUI frame and the Layers panel",
+    "4e2f9591bc95f00e69989f056cf12c01053f6c77 gui spine, SMB-GUI-SPINE-1: window and offscreen GUI mode, README",
+    "cede59587eed0189edce18ed93f60486bc6af520 gui spine, SMB-GUI-SPINE-1: review F1-F6 on 5e882c1d"
+   ],
+   "SMB-PR-EXPORT-RECIPE-1": [
+    "9e0cd70d674fc199fc413b358ec89e802278f918 reel, SMB-PR-EXPORT-RECIPE-1: red export publish-safety tests",
+    "a2bcf6799fb5ca6dce1f6f502e617d77f3ecd9da reel, SMB-PR-EXPORT-RECIPE-1: export publish safety",
+    "a6a1adaa0ac9fd38cd22af5d381279e44e542760 reel, SMB-PR-EXPORT-RECIPE-1: pin the six preset recipes before the change",
+    "54ca1b949a335f2690e4b1f4b646a9d2d35fdc0b reel, SMB-PR-EXPORT-RECIPE-1: export parameter dictionary, StudioExportRecipe, container declaration",
+    "6146bbd96f9d033c96464af11680d36563252861 reel, SMB-PR-EXPORT-RECIPE-1: red tests for review F1 and F2",
+    "ce22ae45f48eceae4dcd537ff1b78eb24ab589bf reel, SMB-PR-EXPORT-RECIPE-1: review F1, refuse a .vtt output with a sidecar",
+    "3f275bd0aabbbcbfc04173894088bbf0a40bc79d reel, SMB-PR-EXPORT-RECIPE-1: review F2, caption receipt when only the media is published",
+    "270b12d6cdc6d979951dc591b121c28ef104dfc5 reel, SMB-PR-EXPORT-RECIPE-1: review F3, no-clobber publish by hard link",
+    "8712fa2366e8117f430a2160ced3afd0d9a77e64 reel, SMB-PR-EXPORT-RECIPE-1: collapse the sidecar publish if (clippy collapsible_if)"
+   ],
+   "SMB-ARTBOARD-EXPORT-1": [
+    "bd96542012e90cd2c06c3cb288a82deb3814f567 harness-view, SMB-ARTBOARD-EXPORT-1 red: the SVG of a board off the origin frames that board",
+    "2b884024d9b31896ea3af04392a7904f2f579be9 vector-core, vector-svg, harness-view, SMB-ARTBOARD-EXPORT-1: the vector exports frame a named board",
+    "605964fc5f21b458bde16dfba0d4336b06a4bb64 folio, session, harness-core, harness-view, SMB-ARTBOARD-EXPORT-1 red: node export settings and export.run",
+    "c91fc814a1f692d27c2e651ae77fa4d31384e0d3 harness-view, SMB-ARTBOARD-EXPORT-1: export.run writes every node's named files at its constraints",
+    "5e3a77a114367cc6a8000568f81f29a70f035c86 folio, harness-core, harness-view, SMB-ARTBOARD-EXPORT-1 red: review F2 to F6 on 9db105fc",
+    "fd247ec83e65d0c5fcaef86fdc97c5b1c2ae5185 folio, harness-core, harness-view, SMB-ARTBOARD-EXPORT-1: review F2 to F6 on 9db105fc",
+    "35c50d3ba928be27a980443230cbe351f7644982 harness-view, SMB-ARTBOARD-EXPORT-1: drop the export slot with take (unused_assignments warning)"
+   ]
+  },
+  "trunk_commits_no_claim": {
+   "42e9e5a4": "SMB-VK-UI-PASS-1 compose hook (no READY claim; trunk union only: judged to break nothing)",
+   "5d020939": "steward sync F-R60-1 (registry pins, probe APPROVED, two lead-approved edges)"
+  },
+  "matrix_cut": "not in the candidate: .config/round-features.toml is unchanged since 7879e7e9 (git log) and keeps all 18 hsk-studio-harness feature sets in [crates] (validator read at 35c50d3b); the steward's cut of the 5 strict-subset units was not landed, so the matrix ran as it stands (R59's matrix_cut_no_objection stands for a later landing)",
+  "gpu": {
+   "at_freeze": "2 %, 210 MHz, P8, 2431 MiB",
+   "end": "0 %, 210 MHz, P8, 2395 MiB",
+   "backends": "none recorded: no GPU unit ran before the stop (render-gpu, vulkan and native-host units were still ahead)"
+  },
+  "vulkan_loader": "vulkaninfoSDK --summary (C:/Program Files/VulkanSDK/1.4.363.1/Bin, not on this shell's PATH): Vulkan Instance Version 1.4.363; VK_LAYER_KHRONOS_validation 1.4.363 listed; NVIDIA GeForce RTX 3090, discrete, driver 621.1.0.0, apiVersion 1.4.357 (validator-R60-a2/vulkaninfo-summary.txt); no VK_* or VULKAN* name in the caller env; no layer enabled",
+  "memory": "commit free 115.1 GB at the freeze (limit 191.0), min 110.8, 121.4 at the end; Chrome private 13.9 to 14.3 GB; 14 samples (validator-R60-a2/mem-log.txt); no build failed on memory",
+  "chrome_vox_vulgi": "left running (not stopped). I/O over 60 s windows (a2_io.ps1, all disks): 2026-11-08T08:41:56Z: C: write 11.06 MB/s read 10.63 MB/s; chrome {'read_mb_s': 0.22, 'processes': 60, 'write_mb_s': 0.21}; desktop.exe {'read_mb_s': 4.87, 'processes': 1, 'write_mb_s': 0}; 2026-11-08T09:42:02Z: C: write 2.18 MB/s read 3.49 MB/s; chrome {'read_mb_s': 0.21, 'processes': 58, 'write_mb_s': 0.2}; desktop.exe {'read_mb_s': 42.11, 'processes': 1, 'write_mb_s': 0}; neither measurably held C:",
+  "other_holders": "C: lock at the freeze: smb-pr-nudge-1 (SMB-AI-LIVE-EFFECTS-1) held it from 07:08:00Z (OVER_MAX_HOLD 07:23:06Z) and smb-pr-retime-output-1 had queued at 07:15:26Z, both before the lead's 07:20Z HOLD; the canary took the lock at 07:55:06Z (round priority) and held it per unit; no builder held C: after that. D: builders ran throughout (lane-check per-sha and bundled runs); the validator's D: probes took the D: lock as owner validator-r54-probe 08:13Z..08:38Z",
+  "time": "freeze 07:24:29Z, setup 07:25-07:40Z (memory sample 2 min, full-tree robocopy 10.6 min), canary 2026-11-08T07:54:08Z..2026-11-08T09:39:17Z: default build 33 min, 11 test units and the fixture done, then the 13th build (harness+media) finished after the stop; no union, so no comparison with R57 (FULL, 160 units, 3 h 48) or R59 (50 units, 3 h 02)",
+  "origin_during_attempt": "35c50d3b at the freeze; origin at 88b5500c at 09:45Z, 38 first-parent commits later (SMB-ARTBOARD-EXPORT-1 follow-up 89e9a2ac, SMB-DRIVE-TYPED-2, SMB-PLACE-ASSET-1, SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1); the candidate stayed frozen (CX-VAL-001)",
+  "oracle_corpus_unchanged": "1503 files, manifest 0646370efee7882b at the freeze, before the canary and at the end",
+  "inventory": "worktrees 108 at the freeze and at the end; branches 203 -> 209: the six new local branches lane/smb-delivery-queue-1, lane/smb-develop-commands-1, lane/smb-ds-components-author-1, lane/smb-layout-place-1, lane/smb-motion-commands-2, lane/smb-web-site-1 are the lead's width-wave lanes (START_LOG 08:50Z-08:53Z), all listed in direction.workflow_20261107.lane_branches (CX-GIT-001A), none created by this validator (validator-R60-a2/worktrees-*.txt, branches-*.txt)",
+  "validator_checks": [
+   "tools/workspace-probe.rs at 35c50d3b compiled with rustc 1.97.1 --edition=2024 -O and run --self-test: status ok, 80 cases (validator-r60-probe/gate/selftest-1971.json, sha256 96ef3e10f9acf9c6e7346048ff56a5fb5627c6614e270d7e5c4e0d2810869a19)",
+   "licence gate: kernel tools/license_gate.py on the 35c50d3b export: LICENSE_GATE OK (5 cfg(fuzzing)-only reel/rav1e records skipped as before; validator-R60-a2/license-gate.out sha256 2010eb60d76b8a9adff624995a10b63a91793ae49a651c3edf8c6b63a6f1504a)",
+   "toolkit placements at 35c50d3b (git grep of member manifests): winit only crates/hsk-studio-native-host/Cargo.toml:21 (=0.30.13); ash only crates/hsk-studio-vulkan/Cargo.toml:8 (=0.38.0); wgpu only render-gpu; egui/eframe optional in controls, harness-view, harness; kumihimo-ui [dependencies] empty",
+   "host-integration wave scan of every added line of c4d06841..35c50d3b by claim (validator-R60-a2/wave-scan.json sha256 79767e9e021fde64a5f9ecb96fc28ed5f73695d513a8d4ba0231e73ffd322fff)"
+  ],
+  "adversarial_review": {
+   "method": "Read by the validator itself through git objects and the refreshed export at 35c50d3b: every claim's lane file, brief and the code of each decisive lead; 11 read-only reviewer agents' files used as leads only: attempt 1's R60-A..H (17 claims, code at cede5958, re-checked where a later commit touched their files) and attempt 2's R60-I (SMB-LAYOUT-PDF-HOST-1, SMB-WEB-HOST-1), R60-J (SMB-ARTBOARD-EXPORT-1, trunk 42e9e5a4), R60-K (SMB-PR-EXPORT-RECIPE-1), brief validator-R60-a2/review-brief.txt, no cargo; a host-integration wave scan of every added line of c4d06841..35c50d3b by claim (validator-R60-a2/wave-scan.json); the decisive leads turned into 13 validator probes and 2 controls on a scratch tree at 35c50d3b (validator-r60-probe), plus the workspace-probe gate self-test and the licence gate run by the validator",
+   "reviewer_files_sha256": {
+    "validator-R60/review-R60-A.json": "172ede0bad2456fbbaf9fe476247c6aaa81e1e0afabb5388c85b5d2e7eca907f",
+    "validator-R60/review-R60-B.json": "2351a8533248cdf9050ea2a7b94db916d1d4e6f18aae8d6003106ef5b01c2831",
+    "validator-R60/review-R60-C.json": "84238fe21b448623d2f454ba1975ad25a9c02cdc36e03cce6b814ee7c3bbdf9d",
+    "validator-R60/review-R60-D.json": "5a77ddc9caf5f874e27542739f42f16390cdfca993c9dc1a76d69f2b3484f308",
+    "validator-R60/review-R60-E.json": "ed74edb5d61330b9fe48f4de1c7d863b8e00fc0a0e1566d2c720c41baa0a8b87",
+    "validator-R60/review-R60-F.json": "bc3af3905dd370d4c5c238c71f6e855866303555c2ed06b9d36f34b23b9381ad",
+    "validator-R60/review-R60-G.json": "80cf277b16afec4e4e5094b88fe11baab7bb22af02e87eca6c4362d68bb9c77f",
+    "validator-R60/review-R60-H.json": "aa3405939e31e1e539e4680715a91017093d7e87290d4f19b62f455b46c2a2ed",
+    "validator-R60-a2/review-R60-I.json": "17ea40b8fb2055d49401b65a4d6251862877a5880918e4fe6341e3669f692623",
+    "validator-R60-a2/review-R60-J.json": "00255e9d724862404a38148b95865186fe31160d7751168dbb97750987192339",
+    "validator-R60-a2/review-R60-K.json": "bd05c8f2e33720ee5ad4e46ab6c748652a99d05491fa48d3f5261d81f5c29a5b"
+   },
+   "per_claim": {
+    "SMB-PR-ROUTING-REPAIR-1": {
+     "rederived": "F-R57-2 (an output or send target naming an absent bus is inert, sample for sample; option A: no sequence-changing commit invalidates valid multicam records) and F-R57-3 (the commit reports a sequence that takes a stored routing; every Viewer mint of a clip, track or sequence id skips what entries name); review F1-F3 (cancel in the multicam guard; DESCRIPTOR on angle_order; a mixer edit cannot author an absent target)",
+     "host_integration": {
+      "1": "holds: new pub items are folio/session/pulse records; no toolkit type",
+      "2": "holds: no GPU code",
+      "3": "holds: no new command; mixer edits are existing rows",
+      "4": "holds: guard and takeover run inside submit paths that take CommandContext",
+      "5": "holds: no new terminal outcome",
+      "6": "holds: no queue, worker or job",
+      "7": "present",
+      "D1_D6_D7_D8": "hold: engine lane, no egui/wgpu line, no controls surface"
+     },
+     "cuts": "none named; reviewer R60-A open items (angle_order file cell, host surfacing of takeovers) are LOW named limits",
+     "findings": [
+      "R60-A LOW x5 (reviewer leads, re-checked against unchanged commits at 35c50d3b: no claim file changed since cede5958)"
+     ],
+     "mts": {}
+    },
+    "SMB-SESSION-WRITE-SAFETY-1": {
+     "rederived": "save compares its destination under an OS lock (holder proof, typed refusals with a way out), unique temp names in write_atomic / write_atomically, edit in place needs --expect-revision, --save over another file needs --overwrite, batch save_new unless Overwrite, Viewer in-place save compares",
+     "host_integration": {
+      "1": "holds: no toolkit type in Session::save_new / save_replacing / expect_on_disk",
+      "2": "holds",
+      "3": "holds: existing document.open/save rows updated, no new id",
+      "4": "holds: saves are not commit steps; no literal actor",
+      "5": "holds: SessionError codes map to outcomes; one report frame per save",
+      "6": "holds: no queue; bounded lock wait inside the synchronous save, cancel checked per loop",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "none named",
+     "findings": [
+      "R60-B LOW x8 leads: no fsync in export writers; check-then-rename in write_atomically and fig/ai imports; no Viewer/drive save_replacing; lock keyed by spelling; doc overclaim (reviewer, not re-run)"
+     ],
+     "mts": {}
+    },
+    "SMB-HARNESS-DRIVE-1": {
+     "rederived": "a model drives Studio as a process with no window: state, command, undo and the stdin JSONL session through studio-harness with the caller's --actor/--session; hostile lines refused typed and bounded; no file replaced unasked; the viewer owns the timeline; a panic is one refusal",
+     "host_integration": {
+      "1": "holds: WindowArgs/window_args/run_streams, DriveParam/DriveViewer carry no toolkit type",
+      "2": "holds: Viewer::with_context(Prefer::Cpu); render_gpu toggle refused",
+      "3": "GAP (recorded, not a FAIL; R52-R59 precedent and the lead's 2026-11-07T08:09:58Z ruling 'viewer.<method> prefix accepted as transitional, gap named'): 86 viewer.* and 39 timeline.* ids reach Viewer methods with no RUN_COMMANDS row (R60-C-1, manual.rs:376)",
+      "4": "holds: ActorContext::new(actor, actor, owner, owner, space, session) from the required --actor/--session (cli/drive.rs:79)",
+      "5": "GAP (recorded): drive pre-dispatch refusals and frameless rows reach no observe outcome (R60-C-2, cli/drive.rs:146); Run ops emit one frame",
+      "6": "holds: no queue, worker or job",
+      "7": "present",
+      "D1_D6_D7_D8": "hold: the desktop bin's changed lines move an existing eframe call (no new egui code)"
+     },
+     "cuts": "layer.restructure; Viewer methods taking a whole typed record; default-features feature_unavailable test; deep-layer-tree package case; RUN-UI.md update: honest named limits (no claimed item depends on them)",
+     "findings": [
+      "R60-C-3 MEDIUM (test quality, confirmed by the lane's own tests): process tests spawn whatever <target>/debug/examples/studio-harness.exe exists, with no freshness or feature check; in the round each unit's own build places it (see the union check of the example's time), a filtered rerun can use a stale one"
+     ],
+     "mts": {
+      "MT-33500..33507, MT-33547..33557, MT-33634..33639, MT-35107..35133": "not claimed (lane notes); not judged"
+     }
+    },
+    "SMB-OBSERVE-DIAG-SINK-1": {
+     "rederived": "Observe::emit* offers its record to the thread's RingProducerPort (lock-free, refusals counted, no text in records); a durable bounded JSONL sink for the standalone host (line 8192 B, file 4 MiB, 16 files, write failures counted, 8 in a row stop the sink); FrameSink forwards; panic record chained; studio-harness health with typed exits 0/3/4/5; state, command and undo leave what they ran",
+     "host_integration": {
+      "1": "holds: diag_sink API std/serde_json; one changed eframe::run_native line binds the existing call's result to record run_end (not new egui code)",
+      "2": "holds",
+      "3": "holds: health is a CLI verb, non-mutating",
+      "4": "holds: sink records reuse the Run's CommandContext",
+      "5": "holds for the ring (codes, counters, opaque u64 ids); MEDIUM R60-D-1: sink frame lines copy the caller's --actor/--session strings verbatim, while the manual and module doc say 'never command-line arguments' (V4-07 doc claim; ids are caller-chosen text)",
+      "6": "holds: no queue; offer() lock-free; no audio callback calls observe",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "MT-36190 adapter stays Handshake's (named, honest)",
+     "findings": [
+      "R60-D-1 MEDIUM (confirmed in code by the reviewer, diag_sink.rs:603): actor/session text in diag lines vs the doc's 'never command-line arguments'"
+     ],
+     "mts": {
+      "MT-36190": "not claimed (adapter is Handshake's)"
+     }
+    },
+    "SMB-CONTROLS-EGUI-GATE-1": {
+     "rederived": "hsk-studio-controls builds without egui (feature egui, default off); a mechanical toolkit quarantine gate in tools/workspace-probe.rs rejects any new egui/eframe/winit/wgpu/naga dependency, forward or .wgsl beyond the c4d06841 lists, kumihimo-* naming hsk-studio-*, winit outside native-host",
+     "host_integration": {
+      "1": "holds: 9e73d34c adds only cfg(feature = \"egui\") lines and import moves; no new public signature",
+      "2": "n/a",
+      "3": "n/a",
+      "4": "n/a",
+      "5": "n/a (CLI tool, bounded codes)",
+      "6": "n/a",
+      "7": "present",
+      "D1_D6_D7_D8": "hold: the gate enforces D1/D7 placements"
+     },
+     "cuts": "none named",
+     "findings": [
+      "validator check: tools/workspace-probe.rs at 35c50d3b compiled with rustc 1.97.1 --edition=2024 -O and run --self-test: status ok, 80 cases (validator-r60-probe/gate/selftest-1971.json) - the gate's first proof not from a builder log (R60-E-2 answered for this round, still no round unit)",
+      "R60-E-1 MEDIUM lead (reviewer, code-read): the gate reads direct manifests only; toolkit crates reached through Studio crates (native-host[document] -> harness-view -> egui/wgpu, the allow list's one consumer forward) are not seen",
+      "R60-E-3 LOW lead: subtable rename bypass"
+     ],
+     "mts": {}
+    },
+    "SMB-PIGMENT-FILTER-KERNELS-1": {
+     "rederived": "nineteen raster kernel kinds of the smart filter record (box, motion, radial, find-edges reuse; 5x5 convolution: sharpen, sharpen more, basic blur, blur more, custom; Sobel-gated sharpen edges and despeckle; emboss, solarize, mosaic; maximum, minimum; dust and scratches, surface and bilateral blur) with typed bounds, admitted before allocating; Folio kernel kinds; render-gpu refuses them in one arm",
+     "host_integration": {
+      "1": "holds: render-gpu gains one refusal arm (plan_sink.rs:282), no wgpu code",
+      "2": "holds: kernels charge the FilterLimits the stack passes",
+      "3": "n/a: record path only",
+      "4": "n/a",
+      "5": "holds as report_for_host: typed FilterError codes",
+      "6": "holds: no queue; SmartFilterStack::render has no cancel token (named gap)",
+      "7": "present",
+      "D1_D6_D7_D8": "hold (D7: no new wgpu code)"
+     },
+     "cuts": "AC-005 operator surface not addressed, so no MT row closes (named, honest)",
+     "findings": [
+      "R60-F-1 MEDIUM, a brief-level item for the lead (confirmed in code, filter_kernels.rs:437-439): the convolution family divides the premultiplied neighbourhood sum by the centre alpha and keeps source alpha, so transparent edges ring; this is the brief's own stated formula (lane-smb-pigment-filter-kernels-1.md:50 'un-premultiplied by the source alpha ... alpha is the source's'), so not a defect against the claim; Photoshop parity UNVERIFIED (D5 oracle)"
+     ],
+     "mts": {
+      "MT-32810, 32811, 32814, 32817, 32818, 32822, 32850, 32851, 32863, 32879, 32880, 32887, 32889, 32892, 32941, 32942, 32943": "partly met: engine half per row; AC-005 (operator surface with tooltip) open; not written"
+     }
+    },
+    "SMB-DOC-NEW-1": {
+     "rederived": "a blank document through document.new / `new` (profile, size, unit, colour mode) written as a package; artboard and page commands (add, rename, resize, move, delete, page add/rename/delete) as one-revision undo steps under the caller's context; STU-VEC-165 fields as typed state; catalog and drive rows",
+     "host_integration": {
+      "1": "holds: view logic in egui-free view/document_new.rs",
+      "2": "holds",
+      "3": "holds: 11 RUN_COMMANDS rows and drive rows (viewer rows fall into domain vector, R60-G-4 LOW)",
+      "4": "holds: Run::new_document takes the run's actor; container edits submit_containers_as(&ctx)",
+      "5": "mostly: one frame per command; gaps for refusals with no session (R60-G-5)",
+      "6": "n/a",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "board profile refused; not recordable; background_fill state only; ruler_origin scope; orientation, constrain proportions, presets library; delete of non-empty containers refused: honest named limits",
+     "findings": [
+      "probe r60_g2 FAILED (product): page.add never returns once any document entry names page-18446744073709551615 (a story text suffices): next_page_number saturates and mint_page_id loops (containers.rs:115-128, document_new.rs:245-254)",
+      "R60-G-1 MEDIUM lead (code-read): STU-RAS-145 creatable mode set and initial fill: indexed and multichannel creatable, background_fill not rendered (the fill half is a named cut)"
+     ],
+     "mts": {
+      "MT-34444": "not met (FILE New partial)",
+      "MT-34447": "not met (partial)",
+      "MT-119": "partly met",
+      "MT-30584": "partly met",
+      "MT-30585": "partly met",
+      "MT-30586": "partly met (ruler_origin scope cut)"
+     }
+    },
+    "SMB-MOTION-COMMANDS-1": {
+     "rederived": "54 typed RUN_COMMANDS rows (composition.*, property.*, keyframe.*, expression.*) through Run::motion_command, the drive and Viewer::motion_command: Folio-validated copies committed as one named step with the caller's context; null/shape/camera/light/precomp create their document layer in that step; typed bounded refusals; save, reopen and export reach output",
+     "host_integration": {
+      "1": "holds: &str / Value API",
+      "2": "holds",
+      "3": "holds: 54 rows, mutates true except two reads; catalog ids via ui_seed",
+      "4": "holds: run.begin(op) on the caller's RunContext",
+      "5": "holds: one terminal frame per command, code only",
+      "6": "holds",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "property expressions on composition properties; text, solid and adjustment layer kinds; keyframe selection/copy/paste/reverse paste; graph-editor ops; set_parent without compensation; not recordable; no controls Registry descriptors. Reading: the set_parent cut names the missing compensation but not that STU-MOT-008 rule 2 forbids the silent choice (R60-D-9: hides a spec breach, MEDIUM)",
+     "findings": [
+      "probe r60_m1 FAILED (product), R60-D-10 confirmed by run: keyframe.add_at_current on a shape layer's anchor with no stream and a value [37, 11] is accepted and the real evaluator's scene changes (42 matrix entries over 21 samples, translation 0 -> -37), against STU-MOT-038 'adding captures the current evaluated value, so adding a keyframe never changes the render' (motion_commands.rs:1738 current_slot falls back to the caller's value on property_default_unknown; the lane's own step_26 test pins anchor [1,2])",
+      "R60-D-9 MEDIUM: set_parent silent jump (STU-MOT-008 rule 2)",
+      "R60-D-11 MEDIUM: MT-33884/33885/34030 listed as proved; partly met",
+      "R60-D-12 MEDIUM test quality: add-at-current preservation for hold/ends/non-transform streams rests on the mirror"
+     ],
+     "mts": {
+      "MT-33884": "not met (ASSET-AC-001 is the whole 15-row STU-MOT-038 set; selection, go to, add and reveal, copy/paste absent)",
+      "MT-33885": "partly met (AC-002 'never changes the render' contradicted for unknown-default properties, R60-D-10; AC-003 operator surface open)",
+      "MT-34030": "partly met (54 of the command corpus)",
+      "MT-34217": "not met (Argus and manual obligations)"
+     }
+    },
+    "SMB-GUI-STEWARD-1": {
+     "rederived": "skeleton crates hsk-studio-vulkan (ash =0.38.0), hsk-studio-native-host (winit =0.30.13, windows-sys) and kumihimo-ui (no deps); locked pins; probe rules (winit only native-host, kumihimo_gate_dependency, kumihimo member paths); GPU lock and nextest GPU group extended to vulkan and native-host; run-round refuses CARGO_TARGET_*_LINKER; round-features controls [egui]",
+     "host_integration": {
+      "1": "holds at 35c50d3b: winit named only by crates/hsk-studio-native-host/Cargo.toml:21; ash only by hsk-studio-vulkan/Cargo.toml:8; kumihimo-ui [dependencies] empty (no hsk-studio-* in its closure)",
+      "2": "holds: no device in the skeleton",
+      "3": "n/a",
+      "4": "n/a",
+      "5": "n/a",
+      "6": "n/a",
+      "7": "present",
+      "D1_D6_D7_D8": "hold (window_layer decision: winit in native-host only)"
+     },
+     "cuts": "matrix cut of 5 strict-subset harness units not delivered (not in the candidate)",
+     "findings": [
+      "F-R60-1 (attempt 1, R60-E-5): native-host png/sha2 pins and probe approvals were missing at cede5958; repaired by the steward sync 5d020939 (two dep requests applied, two lead-approved edges); this round's canary step 0 is green (registry no drift, probe_changed false)",
+      "license gate (kernel tools/license_gate.py on the 35c50d3b export): OK (validator-R60-a2/license-gate.out)"
+     ],
+     "mts": {}
+    },
+    "SMB-COMMAND-SURFACE-1": {
+     "rederived": "RUN_COMMANDS split per domain; one UiCatalog seed with aliases and catalog.list/resolve; typed rows (37 layout, 41 panel, 7 proof, 25 vector, 8 design, 30 photo, 2 catalog) through Viewer::run_command and the process; viewer rows answer <domain>.<method> with viewer.<method> aliases",
+     "host_integration": {
+      "1": "holds: Viewer::run_command, UiCatalog/UiDescriptor carry no toolkit type",
+      "2": "holds",
+      "3": "FAILS its row on the round's probe: photo.info.* rows declare mutates_authority false while each writes the info entry as one undo step (probe r60_c9); UiCatalog is not the controls Registry (R60-C-10 lead)",
+      "4": "holds: run_command under the viewer's RunContext",
+      "5": "partly: every refusal is command_refused (R60-C-14 lead)",
+      "6": "holds: no new job; panel.audio_batch.batch_run exposes the existing admitted audio batch",
+      "7": "present (control_descriptors 'none' understates)",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "widget ids not seeded; tools in group 'unfiled'; typed rows not recordable; develop MaskSource/FamilyOp, VectorNetwork whole-record, path-text options; red commit not proven red; harness-view whole suite not run (only ~layout binaries): the last is a named breach of brief rule 4a, not a limit of the product",
+     "findings": [
+      "probe r60_c9 FAILED (product): photo.info.add_sampler adds undo step 'info_add_sampler info' while its row says non-mutating (photo.rs:20-26; the drive reports undo_name null for it)",
+      "R60-C-11 MEDIUM lead: through the process every parameter arrives as a string, so wrong-type refusals for text are unreachable",
+      "R60-C-12 MEDIUM lead: typed width mostly proven by refusals; the one typed-undo check cannot fail"
+     ],
+     "mts": {}
+    },
+    "SMB-VK-HOST-1": {
+     "rederived": "hsk-studio-vulkan transient owner (one per process), panes, Win32 presenter, swapchain state machine with injected faults; hsk-studio-native-host offscreen clear and CPU readback to PNG, a quiet window (shown off-screen, never activated, focus_changes 0) whose swapchain hash equals the offscreen hash, CPU buffer present, document feature (Viewer on render-cpu)",
+     "host_integration": {
+      "1": "holds: no egui/wgpu/naga in either crate; winit only in native-host (from_winit pub(crate)); no winit or ash type in a public signature",
+      "2": "holds: ash only in hsk-studio-vulkan; one owner per process (OWNER_LIVE); presenter shares the owner's core",
+      "3": "n/a",
+      "4": "n/a (document path on the asset-local test context)",
+      "5": "GAP (recorded): emit_terminal (diag.rs:24) has no host caller, only tests/cli_and_observe.rs:90 (R60-H-3)",
+      "6": "host-diagnostic foreground watcher thread, bounded and joined; not a document job",
+      "7": "present",
+      "D1_D6_D7_D8": "hold (O8 typed refusal without Vulkan)"
+     },
+     "cuts": "validation layer: receipts say 'absent' (judged as written: the layer was not installed when built; no code requests it)",
+     "findings": [
+      "R60-H-2 MEDIUM (confirmed by the wave scan): 8 unsafe blocks in crates/hsk-studio-native-host/src/win32.rs (Win32 window style, foreground, IsIconic, IsProcessDPIAware) against the brief's 'All unsafe in hsk-studio-vulkan' (O2: one leaf crate); for the lead to rule (move into the leaf or amend the brief)",
+      "F-R60-4 LOW (R60-H-1): Owner::validation() is the literal 'absent' with a stale comment; since 04:41Z the layer is installed, so 'absent' means 'not enabled' (SMB-VK-UI-PASS-1 turns it on)"
+     ],
+     "mts": {}
+    },
+    "SMB-UI-TREE-1": {
+     "rederived": "kumihimo-ui toolkit core (zero dependencies): tokens from design-system.json, edge snapping, retained node arena and builder, stack layout behind LayoutPort, display list and CPU painter, hit test and focus, semantic tree with stable ids, text port and caches, widgets, and the tree-method acceptance checks AC-GEOM-02/03, AC-TEXT-01/03; the hsk-studio-ui-text adapter over hsk-studio-type",
+     "host_integration": {
+      "1": "holds: kumihimo-ui has no dependencies (Cargo.toml [dependencies] empty), so no hsk-studio-* in its closure (O5)",
+      "2": "n/a",
+      "3": "STU-MDL-100 author ids, builder refuses duplicates; no controls Registry entries (toolkit lane)",
+      "4": "holds: TypeText::new(actor) carries the caller's ActorContext",
+      "5": "n/a (port; host supplies observe)",
+      "6": "n/a",
+      "7": "present",
+      "D1_D6_D7_D8": "hold (D8: non-egui Kumihimo toolkit)"
+     },
+     "cuts": "none named",
+     "findings": [
+      "probe r60_u1 FAILED (product): checks::edge_gaps reports nothing for adjacent docked panes 1 px apart; it only examines pairs with equal logical edges, which snap() always maps to one physical edge, so the AC-GEOM-03 check can never report (checks.rs:88-99)",
+      "probe r60_u2 FAILED (product): a Hug label of 243.8 px in a 40 px column gets bounds 0..244 and clipped_labels reports nothing; the Hug cross clamp `cm.min(avail_cross.max(cm))` is a no-op (layout.rs:137)"
+     ],
+     "mts": {}
+    },
+    "SMB-AUDIO-OUT-MIX-1": {
+     "rederived": "AudioOut hosted in the viewer (device list/open on score-device's software device, transport on the audio clock, dropouts, meters, close on document change); routed WAV/FLAC/AIFF mixdown; stems per bus with a sum check against the print; repaired audio in the mix; 10 typed audio.* rows through Viewer::run_command and the process",
+     "host_integration": {
+      "1": "holds",
+      "2": "holds: no GPU; score-device admission for the stream",
+      "3": "partly: 10 typed audio.* rows (non-mutating), no controls Registry entries",
+      "4": "holds: DeviceGrant from the run's actor",
+      "5": "partly: run_command emits one frame; direct Viewer calls emit none",
+      "6": "FAILS its row (probes r60_a1, r60_a2): export_sequence_mix and export_sequence_stems never ask the bound JobPort (asks 0 with a saturated port; files written); the RT callback part holds (no observe or allocation in render_callback)",
+      "7": "present ('jobs: none' misstates the exports)",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "real device output NOT_PROVEN (honest)",
+     "findings": [
+      "probes r60_a1/r60_a2 FAILED (product): mixdown and stem exports are not admitted through the session JobPort (audio_session.rs:370, :429)",
+      "R60-F-7 MEDIUM lead: the -90 dBFS stem sum gate sits below the 16-bit quantisation floor for 3+ stems"
+     ],
+     "mts": {}
+    },
+    "SMB-DOC-EXPORT-1": {
+     "rederived": "document export recipe: linear render, develop stage, sRGB/CMYK through Prism, TIFF (ICC tag 34675, 1 GiB limit), layered PSD writer, no-clobber write (destination_exists), batch exporter port (RecipeTargets), CLI and drive row photo.export_document, Run::record_host_outcome row",
+     "host_integration": {
+      "1": "holds",
+      "2": "holds: CPU render",
+      "3": "holds: photo.export_document row and document.record_host_outcome RUN_COMMANDS row",
+      "4": "holds on product paths (self.run.actor())",
+      "5": "mostly: one op and one own_op frame",
+      "6": "FAILS its row (probe r60_j1): export_document writes the file with a saturated port bound and never asks it (asks 0); the batch path is admitted per input at the batch level only",
+      "7": "present ('jobs: none' misstates the export)",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "16-bit PSD layer-info placement vs Photoshop UNVERIFIED (named)",
+     "findings": [
+      "probe r60_j1 FAILED (product): F-R60-3 / R60-G-8 confirmed by run (doc_export.rs:844-883)",
+      "R60-G-9 closed at 35c50d3b by SMB-ARTBOARD-EXPORT-1 (export_document renders framed_snapshot, doc_export.rs:869-870)",
+      "R60-G-10/11/12 MEDIUM leads: 16-bit/PSB/merged-alpha PSD paths untested; compose_psd refusals untested; CMYK TIFF values accept any non-zero ink"
+     ],
+     "mts": {}
+    },
+    "SMB-LAYOUT-PDF-HOST-1": {
+     "rederived": "the live layout reaches PDF (Type glyphs, page labels, PDF/X-4 with an ICC output intent and check_pdfx4 self-check, preflight gate) and IDML (export_folio_longdoc); layout.open sized blank layout; layout.preflight; layout.render_pdf_page (press render_page to PNG); catalog id to viewer row route",
+     "host_integration": {
+      "1": "holds: Path/LayoutPdfSettings/Value signatures",
+      "2": "holds: CPU",
+      "3": "holds at the lane tip (typed rows, drive rows, catalog ids; 3972c165 removed the duplicate author id); at 35c50d3b layout.open's row is wrong because SMB-LAYOUT-PERSIST-1's a3215161 made the sized open commit (probe r60_i3, charged there)",
+      "4": "holds: no default_actor; admission takes self.run.actor()",
+      "5": "GAP (recorded): export frames settle through JobLifecycle with codes but are Unaddressed/Undelivered with no sink (R60-I-1); layout.open and layout.preflight emit no frame (a named cut, R60-I-2)",
+      "6": "holds: export_layout_pdf / export_layout_idml / render_pdf_page run inside as_export_job (layout_export.rs:543); the round's control probe shows a saturated port refuses it (overloaded, asks 1, no file)",
+      "7": "present ('jobs: none' understates)",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "placed graphics, vector paths, raster tiles; tables; design records, outlines, tagged PDF, CMYK conversion; script detection; layout.open/preflight no observe frame; PDF/X conformance not claimed: honest named limits",
+     "findings": [
+      "R60-I-4 MEDIUM lead: page labels proven only by the host's own count, /PageLabels never read from the PDF",
+      "R60-I-5 MEDIUM lead: IDML test checks zip magic and mimetype only",
+      "R60-I-6 MEDIUM lead: STU-LAY-054 cited as basis but not met and not in the cut list",
+      "R60-I-3 (layout.open row) charged to SMB-LAYOUT-PERSIST-1, which changed the subject"
+     ],
+     "mts": {}
+    },
+    "SMB-PROJECT-BIN-1": {
+     "rederived": "project bin record and bin commands; import with typed refusals; New Sequence from preset; add tracks incl. submix; place clip; the project_bin document entry; save/reopen bind",
+     "host_integration": {
+      "1": "holds",
+      "2": "holds",
+      "3": "holds: 7 RUN_COMMANDS rows and 8 drive rows with catalog ids",
+      "4": "holds: Run::begin(command) context; ActorContext::new only in folio cfg(test) (project_bin.rs:671)",
+      "5": "holds: codes and counters",
+      "6": "holds by letter: no queue or worker; import and bind run inline under the cancel token (an import is not an export job)",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "stills, video's audio track, conform/resample, background peaks; folder/item rename and removal; composition fields; no panel; not recordable: honest",
+     "findings": [
+      "R60-A-6 MEDIUM lead (reviewer confirmed in code, project.rs:413/:441, session.rs:543): an unnamed 1 GiB per-session / 512 MiB per-file import ceiling; staged media never released, a refused batch keeps its bytes"
+     ],
+     "mts": {
+      "MT-33685": "partly met",
+      "MT-33695": "partly met",
+      "MT-33706": "partly met",
+      "MT-33761": "not met (importer namespace table)",
+      "MT-33762": "not met"
+     }
+    },
+    "SMB-LAYOUT-PERSIST-1": {
+     "rederived": "each layout edit through Viewer::layout_apply / layout.* commits one named document step (layout_records entry, Run::submit_layout) under the caller's context, with a working inverse; records save and reopen byte for byte; refusals change nothing; a sized layout.open commits to the open document; exports and preflight read the document's layout",
+     "host_integration": {
+      "1": "holds",
+      "2": "holds",
+      "3": "FAILS its row on the round's probe: a3215161 made the sized layout.open commit a document step while its RUN_COMMANDS row stays mutates_authority false (probe r60_i3); one new mutating row document.submit_layout",
+      "4": "holds: Run::submit_layout from self.begin(command); actor_mismatch/command_mismatch refused",
+      "5": "holds: one frame per command",
+      "6": "holds: keeps PDF-HOST's as_export_job",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "egui panel buttons edit the editor only; editor state after EDIT > Undo stale until the next layout command; an undecodable layout_records entry blocks commits until removed; duplicate keys keep the last value; Q5 ruling. Reading: the stale-entry limit ('until that step is undone') hides a permanent lock-out once the undo history is gone (probe r60_b9)",
+     "findings": [
+      "probe r60_b9 FAILED (product): page.delete of a page with a parent page applied, then save and reopen: every layout edit refuses layout_records_stale and undo has nothing to undo (harness.rs:2055)",
+      "probe r60_i3 FAILED (product): layout.open adds undo step 'layout.open' while its row declares non-mutating",
+      "R60-B-10 MEDIUM lead: the first layout commit copies the text entry's stories into layout_records; the copies then diverge"
+     ],
+     "mts": {}
+    },
+    "SMB-WEB-HOST-1": {
+     "rederived": "the web crates' first host: web.open/read/edits/undo/redo/save through source patches; site, remote target and export recipe in a sidecar; web.export of a static tree with a manifest; web.publish local_or_network with a receipt; web.verify; preview/media/assets; the drive's JSONL dispatch",
+     "host_integration": {
+      "1": "holds",
+      "2": "holds",
+      "3": "holds: 20 web.* RUN_COMMANDS rows (edits/site/recipe/undo mutating), catalog ids studio.command.web.* via ui_seed (the cut 'no controls registry ids' is wrong in the lane's favour)",
+      "4": "holds: run.begin_at on the caller's RunContext",
+      "5": "holds: one frame per command",
+      "6": "FAILS its row (probe r60_j3): web.export writes the tree with a saturated port bound to the viewer host and never asks it; the module doc says 'not admitted through a JobPort' (web_commands.rs:48), declared as a cut; a builder cut cannot waive a binding rule and no Operator or lead waiver is recorded",
+      "7": "present ('jobs: none' matches the code, conflicts with rule 6)",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "web history the host's own; sidecar not Folio; one document per export; no source maps/preprocessors/rewriting; local publish only; no JobPort (hides a binding-rule breach); no business events; missing linked page fails closed",
+     "findings": [
+      "probe r60_j3 FAILED (product): web export not admitted (web_commands.rs:549)",
+      "R60-I-15 MEDIUM: the harness-core -> hsk-studio-web edge landed without steward approval (the brief named harness-view -> web); approved by the lead in the steward sync 5d020939 (2026-11-08)",
+      "R60-I-16 MEDIUM lead: through the drive a string value that parses as a JSON object is refused parameter_invalid",
+      "R60-I-17 MEDIUM lead: web.open with unsaved edits drops them silently"
+     ],
+     "mts": {
+      "MT-34220, MT-34341, MT-34343, MT-34348, MT-34356, MT-34360": "named by the backlog row, not read or claimed by the lane; not judged"
+     }
+    },
+    "SMB-GUI-SPINE-1": {
+     "rederived": "a real layered .handshake renders beside a kumihimo-ui Layers panel in the Vulkan window (and offscreen); an eye click is one named undo step (layer.panel_set); the canvas re-renders, undo restores pixels; typed input (scripted step queue); the tree file carries the revision; offscreen and quiet-window hashes match after a pointer session with focus 0",
+     "host_integration": {
+      "1": "holds: GuiFrame takes HostEvent, winit only inside native-host; kumihimo-ui scrollbar additive (still zero deps)",
+      "2": "holds: the existing Owner and Presenter; Viewer Prefer::Cpu",
+      "3": "holds: existing layer.set_visible and history rows",
+      "4": "holds as briefed (asset-local test context)",
+      "5": "partly: viewer.select emits nothing; the host terminal frame is never emitted (GAP, R60-H-3)",
+      "6": "n/a",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "Vulkan UI pass, glyph atlas, icons, scrollbar radius/drag, keyboard focus on rows, thumbnails, AccessKit, menus and other B5 regions, zoom/pan, missing kumihimo roles: honest",
+     "findings": [
+      "R60-H-19 MEDIUM (test quality, confirmed in code): the viewport|dock AC-GEOM-03 assertion goes through edge_gaps, which cannot report (see SMB-UI-TREE-1 r60_u1); the property itself holds by construction here (regions(): viewport x1 = dock x0 = dock_x, crates/hsk-studio-native-host/src/gui/mod.rs:80-81), so no failure is charged to this lane",
+      "spine_gate (blocker_decisions): the fresh-agent GATE_CHECK of the 8 named tests is a separate record; this round's verdict is not that gate"
+     ],
+     "mts": {
+      "MT-34496, 34514, 34562, 34640, 34646, 34654, 36250": "not claimed"
+     }
+    },
+    "SMB-PR-EXPORT-RECIPE-1": {
+     "rederived": "reel export publish safety (unique create_new temps, an item removes only its own temps, no temp left on failure, a Failed receipt never hides published media, no-clobber publish by hard link with a rename fallback), the 453-row export parameter dictionary (STU-VID-061b), StudioExportRecipe and job_from_recipe, Container::capability, presets through the record; review F1 (refuse a .vtt output with a sidecar), F2 (caption receipt when only the media is published), F3 (hard-link publish)",
+     "host_integration": {
+      "1": "holds: reel only",
+      "2": "holds",
+      "3": "n/a: no command",
+      "4": "n/a: no document mutation",
+      "5": "holds for reel (typed codes; ExportQueue emits nothing, the host does)",
+      "6": "holds: no new queue; job_from_recipe returns an ExportJob the admitted host queue takes unchanged",
+      "7": "present",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "new writers / Container variants; group_path, soft bounds, defaults, labels/units; colour values; JSON parser/import; harness-view render_queue through the recipe: honest (the dictionary has no non-test caller yet)",
+     "findings": [
+      "probe r60_k1 FAILED (product): on Windows an output 'x.vtt ' (or 'x.VTT ') with a captions sidecar passes the F1 check; with overwrite the sidecar replaces the media under a Complete receipt, without it the media is published as x.vtt and the receipt fails (export.rs:926-929)",
+      "R60-K-2 MEDIUM lead: MT-33768..33781 read as full by the lane; AC-003/AC-004 open",
+      "R60-K-3 LOW: the hard-link fallback runs on every link error, not only 'no hard links'"
+     ],
+     "mts": {
+      "MT-33768..33781": "partly met (AC-003/AC-004 open)",
+      "others": "not written: the lane is FAIL this round"
+     }
+    },
+    "SMB-ARTBOARD-EXPORT-1": {
+     "rederived": "SVG/EPS/PDF framed on a named board incl. its origin; export_document frames the chosen board; StudioExportSettings record (STU-IO-111..114, 117) as session entry export_settings; export.set_settings as one attributed entry-only undo step that survives save and reopen; export.run per board and per layer (PNG/JPG at SCALE/WIDTH/HEIGHT, SVG, PDF) with whole-run preflight of sizes and names",
+     "host_integration": {
+      "1": "holds",
+      "2": "holds: CPU render",
+      "3": "holds: export.set_settings (mutating), export.run, document.set_export_settings rows with catalog ids",
+      "4": "holds: Run::set_export_settings from self.begin",
+      "5": "holds: one own_op frame",
+      "6": "FAILS its row (probe r60_j2): export.run writes its files with a saturated port bound and never asks it (export_set.rs:468-480)",
+      "7": "present ('jobs: none' misstates export.run; the brief's block says the same)",
+      "D1_D6_D7_D8": "hold"
+     },
+     "cuts": "SCALE above 1 resamples the 1x render; outline_text/include_id/simplify_stroke recorded not applied; DISPLAY_P3_V4 refused; DOCUMENT writes sRGB; JSON_TREE, GIF, video not admitted; hidden layers kept display=none; layer targets need an artboard: honest except DISPLAY_P3_V4 (one stored setting refuses the whole stored run: unclear, LOW)",
+     "findings": [
+      "probe r60_j2 FAILED (product): export.run not admitted",
+      "R60-J-3 MEDIUM lead: peak_retained_renders is 0 or 1 by construction, so the review-F2 assertion cannot fail"
+     ],
+     "mts": {
+      "MT-33378..33381, MT-33384, MT-477, MT-119": "not written: the lane is FAIL this round (reviewer: MT-33384 met, the rest partly)"
+     }
+    }
+   },
+   "note": "readings and HOST INTEGRATION rows per claim are the validator's at 35c50d3b; they are leads for attempt 3 and the builders, not verdicts (no round opened)"
+  },
+  "findings_leads": [
+   {
+    "id": "F-R60-5",
+    "lane": "SMB-DOC-EXPORT-1, SMB-ARTBOARD-EXPORT-1, SMB-WEB-HOST-1, SMB-AUDIO-OUT-MIX-1",
+    "severity": "HIGH",
+    "kind": "product (probes r60_j1, r60_j2, r60_j3, r60_a1, r60_a2)",
+    "finding": "Four new export jobs never ask the bound session JobPort (asks 0 with a saturated port; files written): export_document, export.run, web.export, sequence mixdown and stems; every lane file says jobs none (SMB-ARTBOARD-EXPORT-1's brief block, lead-authored, says the same); the layout export of the same wave admits (control probe refused overloaded)",
+    "repair_direction": "admit each export through Viewer::job_admission (as_export_job pattern); the lead checks rule (6) in every export brief before dispatch"
+   },
+   {
+    "id": "F-R60-6",
+    "lane": "SMB-DOC-NEW-1",
+    "severity": "HIGH",
+    "kind": "product (probe r60_g2)",
+    "finding": "page.add never returns once any document entry names page-18446744073709551615 (a story's text suffices): next_page_number scans entry bodies and saturates, mint_page_id's saturating loop never advances",
+    "repair_direction": "checked page-number mint with a typed refusal; scan page keys, not free text"
+   },
+   {
+    "id": "F-R60-7",
+    "lane": "SMB-PR-EXPORT-RECIPE-1",
+    "severity": "HIGH",
+    "kind": "product (probe r60_k1)",
+    "finding": "Review F1 fix bypassed on Windows: an output 'x.vtt ' with a captions sidecar passes the extension check; with overwrite the sidecar replaces the rendered media under a Complete receipt",
+    "repair_direction": "refuse when the sidecar and the output name one file after Windows name normalisation, any case"
+   },
+   {
+    "id": "F-R60-8",
+    "lane": "SMB-LAYOUT-PERSIST-1",
+    "severity": "HIGH",
+    "kind": "product (probe r60_b9)",
+    "finding": "Deleting a page that has a parent page applied, then saving and reopening, locks every layout edit of that document for good (layout_records_stale, nothing to undo); the named limit 'until that step is undone' hides it",
+    "repair_direction": "page.delete refuses or repairs bound pages, or a driveable repair of a stale layout entry"
+   },
+   {
+    "id": "F-R60-9",
+    "lane": "SMB-MOTION-COMMANDS-1",
+    "severity": "MEDIUM",
+    "kind": "product (probe r60_m1)",
+    "finding": "keyframe.add_at_current with a value on a property whose current value is unknown (anchor with no stream) takes the caller's value and the real evaluator's scene changes (42 matrix entries), against STU-MOT-038 / MT-33885 AC-002; set_parent makes the silent choice STU-MOT-008 rule 2 forbids (named cut: R60-D-9)",
+    "repair_direction": "refuse property_default_unknown for add/toggle at current; typed keep_local|compensate variant on set_parent"
+   },
+   {
+    "id": "F-R60-10",
+    "lane": "SMB-UI-TREE-1 (and SMB-GUI-SPINE-1's assertion)",
+    "severity": "MEDIUM",
+    "kind": "product (probes r60_u1, r60_u2)",
+    "finding": "checks::edge_gaps (AC-GEOM-03) can never report: it skips every pair whose logical edges differ, and snap() makes equal edges equal; the Hug cross clamp is a no-op, so AC-TEXT-01 misses a Hug label wider than its column; SMB-GUI-SPINE-1's viewport|dock assertion uses edge_gaps, but its regions share the edge by construction (gui/mod.rs:80-81), so no failure is charged there",
+    "repair_direction": "edge_gaps compares snapped x1p with the next x0p for every adjacent pair; clamp Hug to the available cross size"
+   },
+   {
+    "id": "F-R60-11",
+    "lane": "SMB-COMMAND-SURFACE-1, SMB-LAYOUT-PERSIST-1",
+    "severity": "MEDIUM",
+    "kind": "product (probes r60_c9, r60_i3)",
+    "finding": "RUN_COMMANDS rows declare mutates_authority false for commands that leave an undo step: photo.info.* (COMMAND-SURFACE-1's rows) and layout.open after SMB-LAYOUT-PERSIST-1's a3215161; the drive then reports undo_name null and the manual and catalog say non-mutating",
+    "repair_direction": "correct the rows; a corpus test that every row whose command adds a history step declares mutates true"
+   },
+   {
+    "id": "F-R60-12",
+    "lane": "SMB-VK-HOST-1",
+    "severity": "MEDIUM",
+    "kind": "lead ruling needed (brief / O2)",
+    "finding": "8 unsafe blocks in crates/hsk-studio-native-host/src/win32.rs (Win32 window style, foreground, IsIconic, DPI) against the brief's 'All unsafe in hsk-studio-vulkan' (O2: all unsafe in one leaf crate)",
+    "repair_direction": "move the Win32 calls into the leaf or amend the brief and O2 on the record"
+   },
+   {
+    "id": "F-R60-13",
+    "lane": "SMB-CONTROLS-EGUI-GATE-1",
+    "severity": "MEDIUM",
+    "kind": "gap (reviewer R60-E-1, R60-E-2)",
+    "finding": "the toolkit quarantine gate reads direct manifests only (toolkit crates reached through Studio crates are not seen) and no round unit compiles or runs it; this round the validator compiled tools/workspace-probe.rs with rustc 1.97.1 and its self-test passed 80 cases",
+    "repair_direction": "a round step 0 or canary unit runs workspace-probe --self-test; extend the gate to the closure if the lead wants it"
+   },
+   {
+    "id": "F-R60-14",
+    "lane": "SMB-PIGMENT-FILTER-KERNELS-1 (brief)",
+    "severity": "MEDIUM",
+    "kind": "brief item for the lead (not a defect against the claim)",
+    "finding": "the convolution family divides the premultiplied neighbourhood sum by the centre alpha and keeps source alpha, as the brief states (lane brief line 50), so transparent edges ring; Photoshop parity UNVERIFIED",
+    "repair_direction": "lead: decide the alpha model (blur alpha too, or unpremultiply by the convolved alpha) and amend the brief"
+   },
+   {
+    "id": "F-R60-15",
+    "lane": "SMB-WEB-HOST-1, SMB-LAYOUT-PDF-HOST-1 (process)",
+    "severity": "MEDIUM",
+    "kind": "process",
+    "finding": "two module edges (harness-core -> hsk-studio-web, harness-view -> hsk-studio-interop-layout) landed before any steward approval and made attempt 1's probe reject 25 selections; approved by the lead in 5d020939; same root as F-R60-2 (lane-check runs neither registry-sync nor the probe DAG check)",
+    "repair_direction": "lane-check also runs the probe DAG check (or registry-sync check mode) before a push"
+   },
+   {
+    "id": "F-R60-16",
+    "lane": "SMB-OBSERVE-DIAG-SINK-1",
+    "severity": "MEDIUM",
+    "kind": "doc claim (V4-07), reviewer R60-D-1 confirmed in code",
+    "finding": "diag sink lines carry the caller's --actor/--session strings verbatim, while the manual and module doc say 'never command-line arguments'",
+    "repair_direction": "weaken the doc to 'caller-chosen ids only' or hash the ids in the sink"
+   },
+   {
+    "id": "F-R60-17",
+    "lane": "SMB-PROJECT-BIN-1",
+    "severity": "MEDIUM",
+    "kind": "unnamed limit (reviewer R60-A-6, confirmed in code by the reviewer)",
+    "finding": "an unnamed 1 GiB per-session / 512 MiB per-file import ceiling; staged media is never released and a refused batch keeps its bytes",
+    "repair_direction": "name the ceiling in the cut list and release staged bytes on refusal and on close"
+   },
+   {
+    "id": "F-R60-18",
+    "lane": "SMB-LAYOUT-PDF-HOST-1",
+    "severity": "MEDIUM",
+    "kind": "weak proof (reviewer R60-I-4..6)",
+    "finding": "page labels proven only by the host's own count (/PageLabels never read back); the IDML test checks zip magic and the mimetype; STU-LAY-054 cited as basis but not met and not cut",
+    "repair_direction": "read /PageLabels and IDML stories back in tests; drop or cut the STU-LAY-054 citation"
+   },
+   {
+    "id": "F-R60-19",
+    "lane": "SMB-HARNESS-DRIVE-1, SMB-VK-HOST-1, SMB-LAYOUT-PDF-HOST-1, SMB-GUI-SPINE-1",
+    "severity": "LOW",
+    "kind": "HOST INTEGRATION GAPs (recorded, not FAILs; R51-R59 precedent)",
+    "finding": "rule (3): 86 viewer.* and 39 timeline.* drive ids without RUN_COMMANDS rows (lead-accepted transitional, 2026-11-07T08:09:58Z); rule (5): drive refusals and frameless rows, the native host's emit_terminal (no host caller), layout export frames undelivered and layout.open/preflight frameless, viewer.select",
+    "repair_direction": "host adapter items for the lead's next host lane"
+   },
+   {
+    "id": "F-R60-20",
+    "lane": "SMB-HARNESS-DRIVE-1",
+    "severity": "LOW",
+    "kind": "test quality",
+    "finding": "process tests spawn whatever <target>/debug/examples/studio-harness.exe exists, with no freshness or feature check (a filtered rerun can use a stale binary); in the union each unit's own build placed it",
+    "repair_direction": "the tests check the binary's build stamp or features before spawning"
+   },
+   {
+    "id": "F-R60-21",
+    "lane": "SMB-VK-HOST-1 (for SMB-VK-UI-PASS-1)",
+    "severity": "LOW",
+    "kind": "carried F-R60-4",
+    "finding": "Owner::validation() is the literal 'absent'; with the SDK installed since 04:41Z the receipts mean 'not enabled'; judged as written",
+    "repair_direction": "report the enabled-layer state from instance creation"
+   }
+  ],
+  "infrastructure": [
+   "No process stopped or touched except this session's own: the canary run-round (SIGTERM through its TERM trap), its pollers (ended on the exit line) and the probe cargo runs; Chrome and Vox Vulgi (desktop.exe pid 141544) left alone",
+   "two C: guards ran: a2_capguard.sh (full-tree robocopy, up to 25 min per sample under the canary's writes) and a2_fastguard.sh (studio-round each sample, studio-team-dev every 6th); neither alerted (330) or stopped (355) before the lead's decision"
+  ],
+  "next": "attempt 3 needs C: room: the tree at the stop is the warm round target plus studio-team-dev; the cap decision or an inspected removal list (HSK-ART-005) is the Operator's; then a fresh freeze, the canary (root inputs changed) and the full union. The 10 probe failures below are leads for the builders' fixes",
+  "by": "wp_validator STUDIO-R60 (attempt 2)",
+  "recorded_at": "2026-11-08T09:46:53Z"
+ },
+ "attempt_2_probes": {
+  "rule": "validator probes on a scratch tree at 35c50d3b (not round runs, CX-VAL-007 untouched): product failures confirmed by run, for attempt 3 and the builders; no verdict was given because no round opened (CX-VAL-005). Each record: the test, file:line, what fails, how it was proved (probe log and sha256), the repair direction, severity",
+  "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r54-probe/src moved in place from c4d06841 to 35c50d3b (validator-r60-probe/refresh.sh: 237 changed paths from git archive with fresh mtimes, V4-11; 2668 tracked blobs checked; the two R57 probe-only eprintln files in layout breaker.rs and adobe_composer.rs put back to the 35c50d3b blobs by install.sh, the old copies kept in validator-r60-probe/kept-r57-counters; every crate blob equals 35c50d3b); probe test files never committed; built and run on D: through builders/studio-env.sh with STUDIO_OWNER=validator-r54-probe (own target and TMP, D: lock): cargo nextest run --locked --offline --no-fail-fast --no-capture -p <crate> [--features ...] --test <probe>",
+  "claims": {
+   "SMB-DOC-EXPORT-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-harness-view::r60_probe_jobs r60_j1_export_document_is_admitted_through_the_bound_job_port",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness-view --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "export-job-not-admitted-jobport",
+      "file_line": "crates/hsk-studio-harness-view/src/view/doc_export.rs:844-883",
+      "evidence": "set_job_port(saturated port that refuses every admit): export_document -> Ok, 516 bytes, port asks 0, doc.png written; control: export_layout_pdf through the same binding is refused overloaded, asks 1, no file (cand2-controls.log)",
+      "repair_direction": "admit export_document through the viewer JobPort as layout_export.rs:543 as_export_job does; settle completed/failed/canceled",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-jobs.log (sha256 68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507)"
+     }
+    ]
+   },
+   "SMB-ARTBOARD-EXPORT-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-harness-view::r60_probe_jobs r60_j2_export_run_is_admitted_through_the_bound_job_port",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness-view --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "export-job-not-admitted-jobport",
+      "file_line": "crates/hsk-studio-harness-view/src/view/export_set.rs:468-480",
+      "evidence": "set_job_port(saturated): run_command export.run -> Ok count 2, port asks 0, 'Artboard 1.png' and 'Artboard 1.svg' written (control as for j1)",
+      "repair_direction": "admit export.run through the viewer JobPort (as_export_job pattern) before the first file; typed overload/cancel/stale outcomes",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-jobs.log (sha256 68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507)"
+     }
+    ]
+   },
+   "SMB-WEB-HOST-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-harness-view::r60_probe_jobs r60_j3_web_export_is_admitted_through_the_bound_job_port",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness-view --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "export-job-not-admitted-jobport",
+      "file_line": "crates/hsk-studio-harness-core/src/web_commands.rs:549 (module doc :48 'not admitted through a JobPort'); harness-view view/web.rs:10",
+      "evidence": "Viewer with set_job_port(saturated): web.open, web.export_recipe, web.export -> Ok (1 file in the manifest), port asks 0, index.html and studio-export-manifest.json written",
+      "repair_direction": "admit web.export and web.publish through the host's JobPort (Run gains a port or the Viewer host admits) with typed outcomes",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-jobs.log (sha256 68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507)"
+     }
+    ]
+   },
+   "SMB-AUDIO-OUT-MIX-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-harness::r60_probe_audio_jobs r60_a1_mixdown_export_is_admitted_through_the_bound_job_port",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p hsk-studio-harness --features audio-batch,audio-device",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "export-job-not-admitted-jobport",
+      "file_line": "crates/hsk-studio-harness-view/src/view/audio_session.rs:370",
+      "evidence": "set_job_port(saturated): export_sequence_mix -> Ok, port asks 0, probe-mix.wav written (fixture copied from tests/audio_out_mix.rs)",
+      "repair_direction": "admit the mixdown and stem exports through the viewer JobPort before rendering; typed overload/cancel/stale outcomes",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-audio.log (sha256 77385880480834adc134bb60571d1c30c9393fab0ae52305629a3332ff0ffa65)"
+     },
+     {
+      "test": "hsk-studio-harness::r60_probe_audio_jobs r60_a2_stem_export_is_admitted_through_the_bound_job_port",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p hsk-studio-harness --features audio-batch,audio-device",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "export-job-not-admitted-jobport",
+      "file_line": "crates/hsk-studio-harness-view/src/view/audio_session.rs:429",
+      "evidence": "set_job_port(saturated): export_sequence_stems -> Ok, port asks 0, T3.wav and rest.wav written",
+      "repair_direction": "admit the stem export through the viewer JobPort",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-audio.log (sha256 77385880480834adc134bb60571d1c30c9393fab0ae52305629a3332ff0ffa65)"
+     }
+    ]
+   },
+   "SMB-UI-TREE-1": {
+    "severity": "MEDIUM",
+    "failures": [
+     {
+      "test": "kumihimo-ui::r60_probe_ui r60_u1_edge_gaps_reports_adjacent_docked_panes_that_do_not_share_an_edge",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p kumihimo-ui",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "acceptance-check-vacuous-ac-geom-03",
+      "file_line": "crates/kumihimo-ui/src/checks.rs:88-99",
+      "evidence": "edge_gaps([0..100], [101..200]) at scales 1, 1.25, 2: physical gap 1 px (scale 1), result []; the check examines only pairs whose logical edges are equal (x1 == x0), which snap() always maps to one physical edge, so it can never report (AC-GEOM-03: 'leading pane's x1p equals trailing pane's x0p')",
+      "repair_direction": "compare every adjacent pair's snapped x1p with the next x0p, not only pairs with equal logical edges",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-ui.log (sha256 ade3002bda71c68ebd4ccb792622ebd94013c1a2b79150ebf72da11cd2355592)"
+     },
+     {
+      "test": "kumihimo-ui::r60_probe_ui r60_u2_hug_label_wider_than_its_column_is_kept_inside_or_reported_clipped",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p kumihimo-ui",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "hug-cross-clamp-no-op",
+      "file_line": "crates/kumihimo-ui/src/layout.rs:137",
+      "evidence": "column 0..40 with a Hug label of 243.8 px: label bounds 0..244 (outside the column), clipped_labels [] (AC-TEXT-01 sees nothing); `Size::Hug => cm.min(avail_cross.max(cm))` is always cm",
+      "repair_direction": "clamp a Hug child's cross size to the available cross size so AC-TEXT-01 sees the overflow",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-ui.log (sha256 ade3002bda71c68ebd4ccb792622ebd94013c1a2b79150ebf72da11cd2355592)"
+     }
+    ]
+   },
+   "SMB-DOC-NEW-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-harness-view::r60_probe_jobs r60_g2_page_add_returns_after_a_story_names_the_last_page_number",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness-view --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "page-add-mint-never-returns",
+      "file_line": "crates/hsk-studio-harness-core/src/harness/containers.rs:115-128; crates/hsk-studio-harness-core/src/document_new.rs:245-254",
+      "evidence": "a story with the text 'page-18446744073709551615' (place_text): first page.add -> Ok(page-18446744073709551615); second page.add never returned (watchdog 20 s, process exit 101); next_page_number saturates at u64::MAX and mint_page_id's saturating_add loop never advances; control: two page.add without that text return page-1, page-2 (cand2-controls.log)",
+      "repair_direction": "bound the mint (checked_add, typed too_many_pages or page_number_exhausted) and scan only page keys, not free text",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-jobs.log (sha256 68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507)"
+     }
+    ]
+   },
+   "SMB-PR-EXPORT-RECIPE-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-reel::r60_probe_reel r60_k1_an_output_named_vtt_with_a_trailing_space_and_a_sidecar_is_refused",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p hsk-studio-reel",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "vtt-output-alias-sidecar-replaces-media",
+      "file_line": "crates/hsk-studio-reel/src/export.rs:926-929",
+      "evidence": "Windows: output 'x.vtt ' with a captions sidecar, overwrite true -> receipt Complete, 2 frames rendered, the only file x.vtt holds 'WEBVTT' (the media replaced by the sidecar); overwrite false -> Failed export-sidecar-exists after the media was published under x.vtt; 'x.VTT ' the same. The F1 check tests the extension text only",
+      "repair_direction": "refuse when the sidecar path and the output name one file (normalise trailing dots and spaces, or compare file identity), any case",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-reel.log (sha256 725d64360bf147b23ffc0727ba9fc6e4d4a7bec4b2a6082c2269e7d57d502b23)"
+     }
+    ]
+   },
+   "SMB-COMMAND-SURFACE-1": {
+    "severity": "MEDIUM",
+    "failures": [
+     {
+      "test": "hsk-studio-harness-view::r60_probe_jobs r60_c9_photo_info_rows_that_add_an_undo_step_declare_they_mutate",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness-view --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "mutating-row-declared-non-mutating",
+      "file_line": "crates/hsk-studio-harness-core/src/action/commands/photo.rs:20-26",
+      "evidence": "photo.info.add_sampler through Viewer::run_command on a raster document: Ok, undo 0 -> 1 ('info_add_sampler info'), RUN_COMMANDS row mutates_authority false (the drive then reports undo_name null, the manual and catalog say non-mutating)",
+      "repair_direction": "declare the photo.info.* rows that write the info entry mutates_authority true",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-jobs.log (sha256 68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507)"
+     }
+    ]
+   },
+   "SMB-MOTION-COMMANDS-1": {
+    "severity": "MEDIUM",
+    "failures": [
+     {
+      "test": "hsk-studio-harness::r60_probe_motion r60_m1_add_at_current_on_an_anchor_without_a_stream_never_changes_the_render",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p hsk-studio-harness --features media",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "add-at-current-takes-the-callers-value",
+      "file_line": "crates/hsk-studio-harness-core/src/motion_commands.rs:1738 (current_slot falls back to the caller's value on property_default_unknown)",
+      "evidence": "shape layer with two position keys and no anchor stream; keyframe.add_at_current anchor time 1F value [37, 11] -> accepted ('Add Keyframe at Current Time'); the real evaluator (CompositionTemporalSource, as the lane's own media test) changes 42 scene matrix entries over 21 samples (first: translation 0 -> -37); STU-MOT-038 / MT-33885 AC-002: adding captures the current evaluated value and never changes the render",
+      "repair_direction": "refuse add/toggle at current where the current evaluated value is unknown (property_default_unknown); never seed it from the caller's value",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand3-motion.log (sha256 8960dfe3fa60d0c2247d49350c184ee437a02914498b34e5895600614a0e0ceb)"
+     }
+    ]
+   },
+   "SMB-LAYOUT-PERSIST-1": {
+    "severity": "HIGH",
+    "failures": [
+     {
+      "test": "hsk-studio-harness::r60_probe_layout r60_b9_a_deleted_page_with_a_parent_page_never_locks_the_layout_after_reopen",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "stale-layout-entry-permanent-lockout",
+      "file_line": "crates/hsk-studio-harness-core/src/harness.rs:2055",
+      "evidence": "parent page applied to page-2, delete_page page-2 -> Ok; layout edit -> layout_records_stale; save, reopen: layout edit -> layout_records_stale, undo -> nothing_to_undo, layout edit again -> layout_records_stale: no surface can edit the layout of that document again (the named cut's way out, undo, is gone after reopen)",
+      "repair_direction": "page.delete refuses or repairs pages the layout records bind, or a driveable repair of a stale entry",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand2-layout.log (sha256 09708ece503e6c2c5d49f87f1a120b88636bea9203f5def8e8cf157767d6584f)"
+     },
+     {
+      "test": "hsk-studio-harness-view::r60_probe_jobs r60_i3_layout_open_that_adds_an_undo_step_declares_it_mutates",
+      "unit": "validator probe (scratch tree at 35c50d3b + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness-view --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "mutating-row-declared-non-mutating",
+      "file_line": "crates/hsk-studio-harness-core/src/action/commands/layout.rs:52 (row by SMB-LAYOUT-PDF-HOST-1); behaviour changed by a3215161 (SMB-LAYOUT-PERSIST-1)",
+      "evidence": "sized layout.open through Viewer::run_command on an open document: Ok, undo 1 -> 2 ('layout.open'), row mutates_authority false (its comment: 'None changes the document')",
+      "repair_direction": "declare layout.open mutating (or keep a sized open off the document) and update the pinning test layout_pdf_host.rs:234",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r60-probe/cand-jobs.log (sha256 68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507)"
+     }
+    ]
+   }
+  },
+  "controls": [
+   {
+    "test": "hsk-studio-harness-view::r60_probe_controls r60_control_layout_pdf_export_is_refused_by_the_saturated_port_and_written_with_the_default_one",
+    "status": "passed",
+    "evidence": "default port: PDF written; saturated port bound the same way: Err(overloaded), asks 1, no file",
+    "artifact_ref": "validator-r60-probe/cand2-controls.log (sha256 1dcab31455a03a322e1eeb57cf4840079fb4b61ad0739666f8cd76059c32681e)"
+   },
+   {
+    "test": "hsk-studio-harness-view::r60_probe_controls r60_control_two_page_adds_return_without_a_hostile_story",
+    "status": "passed",
+    "evidence": "page.add twice: page-1, page-2",
+    "artifact_ref": "validator-r60-probe/cand2-controls.log (sha256 1dcab31455a03a322e1eeb57cf4840079fb4b61ad0739666f8cd76059c32681e)"
+   },
+   {
+    "test": "workspace-probe --self-test (tools/workspace-probe.rs at 35c50d3b, sha256 0a75c78f..., rustc 1.97.1 --edition=2024 -O)",
+    "status": "passed",
+    "evidence": "status ok, 80 cases (toolkit quarantine gate, kumihimo rule, winit owner, registry pins) exit 0; the gate's first validator-run proof (no round unit compiles it)",
+    "artifact_ref": "validator-r60-probe/gate/selftest-1971.json (sha256 96ef3e10f9acf9c6e7346048ff56a5fb5627c6614e270d7e5c4e0d2810869a19)"
+   }
+  ],
+  "files_sha256": {
+   "kumihimo-ui/tests/r60_probe_ui.rs": "c44735187354eaaf488042db12d9ce2c4241aefa4ac1cbb967a1565cfd9d1448",
+   "hsk-studio-reel/tests/r60_probe_reel.rs": "3b49173b3264a6ef6196e12bf547e8bdf4663b5460bbacd8b08564f63fbd2121",
+   "hsk-studio-harness-view/tests/r60_probe_jobs.rs": "4b1cf5549521d60c47051d9ede7dc0fd0a8ff07aa61ba7cefc3055489277a8c8",
+   "hsk-studio-harness-view/tests/r60_probe_controls.rs": "00c8466ff34df4ef9fbeb1fa6bdfbdf43f8ab0a8aaa2c5992b93a307a70a4269",
+   "hsk-studio-harness/tests/r60_probe_audio_jobs.rs": "c6880f01ed701da815204a3c7a808ceda6e3e6a472700ed25d808b9f2328ed47",
+   "hsk-studio-harness/tests/r60_probe_layout.rs": "e7cdf3c1349ebbcc7fa75b9e0c308efc6cd9174bd670b0b90546ee22cb96f58b",
+   "hsk-studio-harness/tests/r60_probe_motion.rs": "6b74e317fc478a33c735bfccde3fe7aa1c3ba901f3a2b2cf8109f1673692827c",
+   "refresh.sh": "9abdf94705fcb4a7f288700c219baef50faf0a9cd621558d695c7d9f34d1f7f6",
+   "install.sh": "a87c00492299cd6bac8f5c580c008625d8e981f8aecc7e0ef47164ae8192f831",
+   "run_p.sh": "768b378c0e303a49e4100cfee8cce743c35e267cef45fedbbb225d9b6cc0794c",
+   "run_p2.sh": "de378aea317d880a6b1a2ecf6c48de7a2ccff490e126483d4b2d3b2da9318223",
+   "run_p3.sh": "5b580493b648a1917dca3e989b44c95d173d58c6a19be64ba467ab369a7ca7a8",
+   "run_p4.sh": "b9b10f38da35d5a5294ceea2609b20721ed068b462284c6100c375f31d93ef4e"
+  },
+  "logs_sha256": {
+   "cand-ui.log": "ade3002bda71c68ebd4ccb792622ebd94013c1a2b79150ebf72da11cd2355592",
+   "cand-reel.log": "725d64360bf147b23ffc0727ba9fc6e4d4a7bec4b2a6082c2269e7d57d502b23",
+   "cand-jobs.log": "68e580c20a96153d3f8be96e1cb0065c5a6497b75b3e98e986a5ad775dcce507",
+   "cand-audio.log": "77385880480834adc134bb60571d1c30c9393fab0ae52305629a3332ff0ffa65",
+   "cand2-controls.log": "1dcab31455a03a322e1eeb57cf4840079fb4b61ad0739666f8cd76059c32681e",
+   "cand2-layout.log": "09708ece503e6c2c5d49f87f1a120b88636bea9203f5def8e8cf157767d6584f",
+   "cand3-motion.log": "8960dfe3fa60d0c2247d49350c184ee437a02914498b34e5895600614a0e0ceb",
+   "refresh-35c50d3b.out": "7c050287fe5a9b0b84e4e70b590365d52b876433788190b490fe9c4164df32f5",
+   "install.out": "1d89a85e851685cb0252c09da1221e11a8818e2da3a4b1f0746b622d17e4946e"
+  },
+  "lead_flagged_union_failures": {
+   "tests": [
+    "hsk-studio-harness::harness_drive_typed known_defect_export_svg_group_duplicate_identity",
+    "hsk-studio-harness::harness_drive_typed every_panel_family_runs_through_the_process_with_the_callers_attribution"
+   ],
+   "unit": "features:hsk-studio-harness+viewer (lead's builder run on 35c50d3b; features viewer,media)",
+   "source": "lead note to this validator 2026-11-08 and a builder's bundled run; NOT run by this validator (no union)",
+   "validator_reading": "cause confirmed in code: 2b884024 (SMB-ARTBOARD-EXPORT-1) moved the artboard check to the front of Viewer::vector_svg (crates/hsk-studio-harness-view/src/view/vector/interop.rs:425) ahead of Folio validation, so on the fixture without an artboard the refusal reads 'svg_export: the document has no artboard' where assert_duplicate_identity (tests/harness_drive_typed.rs:418) expects 'svg_export: folio DuplicateIdentity'; the tests are SMB-COMMAND-SURFACE-1's, the subject change is SMB-ARTBOARD-EXPORT-1's (it would be charged there; SMB-ARTBOARD-EXPORT-1's bundled run ran only harness --test artboard_export of the harness suite, brief rule 4a)",
+   "fixed_on_origin": "89e9a2ac 'harness, SMB-ARTBOARD-EXPORT-1 follow-up: the drive tests give the SVG export an artboard' (after the freeze; not in 35c50d3b)",
+   "severity": "MEDIUM"
+  },
+  "not_probed_leads": "the MEDIUM/LOW leads of the PASS-candidate claims (findings_leads in attempt_2) were read in code, not run"
+ }
 }
