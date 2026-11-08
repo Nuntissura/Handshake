@@ -22655,6 +22655,32 @@
     "next": "Measure the C: tree (running). Under the 360 GiB cap, R60 FULL with canary can freeze and build on C: when work resumes; the Operator asked to pause first.",
     "c_tree_after": "208 GiB (du -s, 2026-11-07T18:03Z to 18:27Z), under the 360 GiB cap; R60 can build on C:."
    }
+  },
+  "lead_rulings_20261108": {
+   "at": "2026-11-08T01:32:03Z",
+   "why": "The Operator asked why the lead needs them for these items (2026-11-08). Two were the lead's own calls and are ruled here; the Operator questions are withdrawn. Only the hard rules stay with the Operator: downloads, deletions (an inspected list), stopping processes the lead did not start.",
+   "p3": {
+    "ruling": "Literal reading: per disk, count the cargo target directories of lanes whose lane is not PASS or abandoned. A new lane may only take over a tree that is already live (a READY or paused lane's tree), which adds nothing to the count; no new target and no take-over of a PASS tree on a disk until that disk is at 6 or fewer.",
+    "count_now": "D: 11 lane trees in use by lanes that are not PASS (ai-distort-effects-1, fig-grid-3, folio-angle-unbounded-1, id-toc-persist-1, pr-edit-footprint-1, pr-entry-references-1, pr-retime-hold-1, pr-sequence-session-1, ps-mode-convert-1, r53-followups-1, sentinels-native-1); C: 0 (plus one -red tree). Read with the scratch counter over ledger statuses and target_reuse at 2026-11-08T01:32:03Z.",
+    "how_it_comes_down": "R60 runs first on resume; each READY lane it passes frees its tree for reuse, so D: drops without deleting anything.",
+    "not_lane_targets": "D: studio-round (fixed round slot, HSK-ART-003), validator-r53-probe, validator-r54-probe, smb-sentinels-native-1-red, smb-type-sentinels-registry-1-red; C: smb-pr-sequence-presets-1-red. Reuse or removal candidates for a later target_report.py inspection; nothing is removed without an Operator-approved list (HSK-ART-005).",
+    "supersedes": "c_cap_20261107.p3_note.question_for_operator (withdrawn); the amended decision stands and is now the ruling."
+   },
+   "vendor_tooltips": {
+    "ruling": "Ship as the Master Spec has them. The three sentences (ADBEVideoMaxBitrate, ADBEVideoMinBitrate, ADBEVideoTargetBitrate) are among the 44 recovered labels the spec rows carry (STU-VID-061, module 14 lines 24952..25501), and STU-IO-106 forbids inventing a label: a rewrite in our words would break the spec, and dropping them would misstate label coverage (44 of 453). They keep label_source recovered.",
+    "if_changed": "If the Operator wants vendor prose out, the spec rows change first and the code and fixture follow; the lane does not deviate from the spec on its own.",
+    "legal_status": "UNVERIFIED (the lead gives no legal opinion); the call rests on spec authority.",
+    "supersedes": "review-smb-pr-export-recipe-1-c79c858d lead_questions.Q1_provenance (answered)."
+   },
+   "gui_frame_1": "Decided (were leanings): the Viewport id becomes studio.viewer.canvas (STU-SHL-066 wins over the spine's studio.viewer.raster); unbuilt controls are disabled with a reason (B6); icons stay in the lane and are cut first if it passes 10 commits; the lane also fixes the two fit_table rows 1 px short and renames studio.toolgroup.smart_select to pass the STU-MDL-103 id charset.",
+   "vk_ui_pass_1": "Decided (were leanings): approve the nested spv-build Cargo.lock (34 packages, all already in the root lock and the registry cache, no new package) and the one exact workspace-probe WGSL allow entry under O3. With the validation layer installed, the lane runs its GPU tests with VK_LAYER_KHRONOS_validation and goes READY only validation-clean (O7).",
+   "vulkan_sdk": {
+    "at": "2026-11-08T01:33:36Z",
+    "operator": "'can you not download the sdk? place it in programs on c' (2026-11-08)",
+    "download": "vulkansdk-windows-X64-1.4.363.1.exe from sdk.lunarg.com, 303,066,832 bytes, sha256 c02932bd9a968b22d404536108adaacac908c081cd6b0113f5bfefc523dd0a6a (equals LunarG's published sha), Authenticode Valid, signer LunarG, Inc. (DigiCert G4). Kept in the lead's session scratch folder vulkan-sdk-download; re-download and re-check the sha if that folder is gone.",
+    "install": "Planned: core package only (com.lunarg.vulkan.core: validation layer, spirv-val, vulkaninfo), headless, --root C:\\Program Files\\VulkanSDK\\1.4.363.1, licences accepted (LunarG notice: open-source components, mostly MIT or Apache 2.0). The installer always needs admin (gainAdminRights; writes HKLM Khronos ExplicitLayers, HKLM LunarG and the machine environment), so a per-user folder would raise the same prompt. First attempt: the Windows admin prompt returned 'canceled by the user'; nothing installed. Waiting on the Operator to retry and click Yes.",
+    "no_admin_alternative": "Khronos publishes a Windows layer build only as a nightly: Validation_Layers_Windows_64.zip, 6,361,873 bytes, github.com/KhronosGroup/Vulkan-ValidationLayers releases/nightly (2026-11-07). No spirv-val. Needs its own download approval; loaded per process with VK_ADD_LAYER_PATH, no install."
+   }
   }
  },
  "round_R45": {
