@@ -1,27 +1,35 @@
 {
   "crate": "hsk-studio-harness, hsk-studio-harness-core",
   "lane": "SMB-DRIVE-TYPED-2",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
-  "base": "aa68164c",
+  "base": "89e9a2ac",
   "commits": [
     {
-      "sha": "a1a68f93",
-      "what": "red: typed rows (mixer, multitrack, waveform, spectral, monitor, prototype, design.instance) in harness-core per-domain files, ALL_ROWS a static, tests/harness_drive_audio.rs; proven red on the test target",
-      "base": "aa68164c"
+      "sha": "fbb0297f",
+      "what": "red: typed rows (mixer, multitrack, waveform, spectral, monitor, prototype, design.instance) in harness-core per-domain files, ALL_ROWS a static, tests/harness_drive_audio.rs; proven red on the test target (was a1a68f93 before the rebase) (rebased from bec2df34)",
+      "base": "89e9a2ac"
     },
     {
-      "sha": "b7fea846",
-      "what": "lead additions 1 and 2: SMB-DOC-NEW-1 rows .opt() as their drive rows, viewer_domain document arm; manual limits"
+      "sha": "1b7f80b2",
+      "what": "lead additions 1 and 2: SMB-DOC-NEW-1 rows .opt() as their drive rows, viewer_domain document arm; manual limits (was b7fea846) (rebased from 53d71112)"
     },
     {
-      "sha": "1ba6389a",
-      "what": "harness-view view/commands mixer.rs, waveform.rs, monitor.rs, prototype.rs, design.rs, dispatch arms, engine_refusal; PrototypePlay::dispatch_trigger; drive tracks design.import_fig dest; prototype rows take the spec ids"
+      "sha": "576c4d5e",
+      "what": "harness-view view/commands mixer.rs, waveform.rs, monitor.rs, prototype.rs, design.rs, dispatch arms, engine_refusal; PrototypePlay::dispatch_trigger; drive tracks design.import_fig dest; prototype rows take the spec ids (was 1ba6389a) (rebased from 89636a88)"
     },
     {
-      "sha": "2bbe2207",
-      "what": "test fixes after the first focused run: undo labels are '<op> <target>', design steps are design_instance, program sequence holds a clip"
+      "sha": "09fca718",
+      "what": "test fixes after the first focused run: undo labels are '<op> <target>', design steps are design_instance, program sequence holds a clip (was 2bbe2207; src changes are doc comments only) (rebased from 5a4e4497)"
+    },
+    {
+      "sha": "6264725c",
+      "what": "red: review F1-F4, F6, F7 (research/review-smb-drive-typed-2-2bbe2207.json): three new process tests, F4 oracle asserts the edits and fails on the unedited fixture (rebased from 4e3ddd49)"
+    },
+    {
+      "sha": "08b372af",
+      "what": "fixes F1 (leading_code), F2 (mixer.open/spectral.open restore), F3 (source_mark pair), F6 (media_files_empty), F7 (five parameter_conflict refusals) (rebased from 75926dfc)"
     }
   ],
   "capabilities_done": [],
@@ -29,14 +37,19 @@
     "red_a1a68f93": "nextest --test harness_drive_audio (audio-batch) on the red tree: 6 run, 1 pass (catalog rows), 5 fail as intended (lead 1 and 2 asserts; process rows unknown_command, example binary not rebuilt for red); log check-smb-drive-typed-2-red-tests-aa68164c-dirty.log",
     "clippy_1ba6389a_dirty": "clippy harness-core --tests, harness-view [viewer] and [viewer,media], harness [audio-batch] lib + harness_drive_audio, harness default harness_drive_audio: all exit 0, no warning in a changed file; log clippy-smb-drive-typed-2-b7fea846-dirty-2.log",
     "focused_1ba6389a": "example rebuilt (mtime checked), nextest --test harness_drive_audio [audio-batch]: 6 run, 3 pass, 3 fail on test expectations (undo label form, empty program sequence), fixed in 2bbe2207; log focused-smb-drive-typed-2-1ba6389a-clean-audio-batch.log",
-    "focused_2bbe2207": "example rebuilt (mtime checked), nextest -p hsk-studio-harness --features audio-batch --test harness_drive_audio: 6 run, 6 pass, exit 0; log focused-smb-drive-typed-2-2bbe2207-clean-audio-batch.log"
+    "focused_2bbe2207": "example rebuilt (mtime checked), nextest -p hsk-studio-harness --features audio-batch --test harness_drive_audio: 6 run, 6 pass, exit 0; log focused-smb-drive-typed-2-2bbe2207-clean-audio-batch.log",
+    "red_4e3ddd49": "example rebuilt, nextest --test harness_drive_audio [audio-batch] on 5a4e4497 + the red test file: 9 run, 6 pass, 3 fail as intended (fig_import for not_fig, in_after_out, mixer_master_volume for command_refused); log focused-smb-drive-typed-2-5a4e4497-dirty-red-audio-batch.log",
+    "focused_75926dfc": "example rebuilt, nextest --test harness_drive_audio [audio-batch] on the fixed tree: 9 run, 9 pass, exit 0, no warning in a harness crate; log focused-smb-drive-typed-2-4e3ddd49-dirty-fixes-audio-batch.log (tree = 75926dfc)",
+    "bundled_75926dfc": "D:, owner smb-pr-edit-footprint-1, 06:33-07:37Z: (1) lane-check clippy core+view+harness [hsk-studio-harness/audio-batch] --tests + dependent native-host, then nextest all targets no target flags: 638 run, 638 pass, 22 skipped, exit 0 (harness_drive_audio 9/9, harness_drive_typed sweep included); (2) harness-view [viewer]: 139 run, 139 pass, 1 skipped, exit 0; (3) harness_drive_audio [media], example built [media]: 7 run, 7 pass, exit 0; (4) harness_drive_audio [viewer], example built [viewer]: 5 run, 5 pass, exit 0. No clippy warning in a lane-changed file (one too_complex in view/commands/audio.rs, not this lane's). Logs bundled-smb-drive-typed-2-75926dfc.log and -summary.txt",
+    "land_08b372af": "after rebase on 89e9a2ac (conflicts in harness-core action/commands.rs DOMAINS and harness-view view/commands.rs mod list; both kept origin's export entries plus the lane's): cargo check --tests core+view+harness [audio-batch] exit 0; harness-core suite 62/62 exit 0; harness-view [viewer] 151 pass, 1 skipped, exit 0; harness [viewer,media] --test harness_drive_typed --test harness_drive_audio with the example rebuilt: 15/15 exit 0; log land-smb-drive-typed-2-08b372af.log",
+    "per_sha_08b372af": "lane-check --owner smb-pr-edit-footprint-1 --disk d --per-sha HEAD~1: PER_SHA_RESULT OK shas=1 range=6264725c..08b372af, exit 0; log per-sha-smb-drive-typed-2-08b372af.log"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "PAUSED by the Operator (coordinator 2026-11-07) at tip 2bbe2207 (local, not pushed; base aa68164c). Left: (1) message the lead with tip 2bbe2207 for the read-only code-check and red-team review; (2) on release, one bundled lane-check (--owner smb-pr-edit-footprint-1 --disk d): harness-core suite, harness-view [viewer], harness [audio-batch] targets incl. harness_drive_audio, process tests with no target flags (-E filter); (3) land: fetch, rebase on origin/codex/handshake-studio-assets, lane-check --per-sha HEAD~1, guarded push, READY_FOR_VALIDATION. Not run yet: bundled run, per-sha, media-only and viewer-only units of harness_drive_audio.",
-  "updated_at": "2026-11-07T18:06:45Z",
+  "next": "READY_FOR_VALIDATION at 08b372af (pushed; origin 89e9a2ac..08b372af). Awaiting a validator verdict; never claim PASS. The tree and target of smb-pr-edit-footprint-1 can be handed over once the lead records the landing.",
+  "updated_at": "2026-11-08T08:05:01Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -105,6 +118,18 @@
       "MT-33673 (typed commands, partial)",
       "MT-33255 AC-001 (dispatch_trigger + capture_frame without a window; AC-002 session id NOT proven)",
       "MT-33507, MT-33462 NOT proven (typed rows not recordable)"
-    ]
+    ],
+    "rebase_20261108": "fetched, rebased aa68164c -> cede5958 (origin/codex/handshake-studio-assets): no conflict, as the review said",
+    "review_2bbe2207": {
+      "ref": "research/review-smb-drive-typed-2-2bbe2207.json (FIX_FIRST), lead rulings 2026-11-08",
+      "F1": "fixed 75926dfc: leading_code returns None for '<token> refused'; fig_import is an engine prefix and '<words> refused <code>' yields the code. Test: refused_audio_rows_keep_the_open_state_and_answer_typed (mixer.master_volume linear 10 -> command_refused), refused_design_and_prototype_rows_answer_typed (import_fig of a text file -> not_fig)",
+      "F2": "fixed 75926dfc: mixer.open and spectral.open take the open state first and put it back on Err. Test: refused_audio_rows_keep_the_open_state_and_answer_typed",
+      "F3": "fixed 75926dfc: set_marks refuses in > out (out_before_in) first, sets both over cleared marks, restores the previous pair on any refusal. Test: monitor_marks_are_one_pair_and_refusals_change_nothing ((3,10) then (12,20) ok; (5,2) and (5,30) refused, marks stay (12,20))",
+      "F4": "fixed 4e3ddd49: holds_the_edits asserts clips > 1, a clip at source_in 3 frames, program end past 4 frames; asserted false on the unedited fixture package and true on the saved one",
+      "F5": "no squash (lead ruling 6). 5a4e4497 (was 2bbe2207) changes only doc comments in src and the test file, so any existing test 89636a88 fails would also fail at the tip; a green bundled run at the tip proves 89636a88 fails only harness_drive_audio tests this lane added (3 of them, per focused_1ba6389a)",
+      "F6": "fixed 75926dfc: files [] or '' -> media_files_empty {key: files, expected: 1..=64 files}; media_too_many only over 64",
+      "F7": "fixed 75926dfc, parameter_conflict naming the keys: (1) monitor.key frames on a key other than step_back/step_forward; (2) spectral.open min_hz with scale linear; (3) spectral.apply gain_db with op identity/remove/heal; (4) waveform.select channels with no start/end; (5) prototype.capture_frame overwrite with no path"
+    },
+    "pushed": "08b372af pushed 2026-11-08T08:05:01Z as a fast-forward 89e9a2ac..08b372af to origin/codex/handshake-studio-assets (guarded sha form); ls-remote confirms 08b372af2f91cc78e9efcceae1658b84e38ae1c7"
   }
 }
