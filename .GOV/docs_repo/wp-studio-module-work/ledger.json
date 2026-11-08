@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T08:32:45Z",
+ "updated_at": "2026-11-08T08:50:53Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19857,6 +19857,64 @@
     "MT-32731 (read, no claim)",
     "MT-32663 (read, no claim)"
    ]
+  },
+  {
+   "lane_id": "SMB-LAYOUT-PLACE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (layout graphic frames: place, fit, link states and the layout PDF's asset resolver), hsk-studio-harness-core (asset rows, one Run step for layout records plus the raster records entry), hsk-studio-harness (tests)",
+   "lane_file": "builders/lanes/hsk-studio-layout-place-1.json",
+   "brief": "builders/briefs/lane-smb-layout-place-1.md",
+   "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
+   "base": "eb17fad6",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T08:50:53Z",
+   "closes": [
+    "print scenario G5 at 0a733db8: steps 48 and 51 typed end to end; 49, 50 and 54 stay declared",
+    "ledger next_lane_candidates 2026-11-07T16:35:52Z: placed graphics and raster tiles in the layout PDF (vector paths, tables, outlines stay listed)",
+    "board-slides-web scenario rank 3, step 42: place the mood image in a full-bleed frame and fit it",
+    "place.rs:9-10 declared gap: layout graphic frames",
+    "MT-30721",
+    "MT-30722",
+    "MT-30723",
+    "MT-30730",
+    "MT-30731",
+    "MT-30732",
+    "MT-30733",
+    "MT-30734",
+    "MT-30735",
+    "MT-30736",
+    "MT-157",
+    "MT-162",
+    "MT-163",
+    "MT-170"
+   ]
+  },
+  {
+   "lane_id": "SMB-WEB-SITE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (web site document set, link graph, site reports, update links on move, export of the set, site lock, job admission), hsk-studio-harness (tests)",
+   "lane_file": "builders/lanes/hsk-studio-web-site-1.json",
+   "brief": "builders/briefs/lane-smb-web-site-1.md",
+   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
+   "base": "eb17fad6",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T08:50:53Z",
+   "closes": [
+    "board-slides-web gap rank 14 at 0a733db8: broken links, orphans, external links, missing alt and untitled documents (validator and linter stay open)",
+    "board-slides-web steps 105 and 111; the document set part of 113",
+    "ledger next_lane_candidates 2026-11-07T17:20:57Z: one document per export, missing page link fails closed, no JobPort (sidecar, transports, source maps stay listed)",
+    "MT-34270",
+    "MT-34271",
+    "MT-34274",
+    "MT-34275",
+    "MT-34346",
+    "MT-34349",
+    "MT-34348"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22528,7 +22586,9 @@
     "lane/smb-ai-live-effects-1",
     "lane/smb-type-indent-spacing-1",
     "lane/smb-parser-hostile-1",
-    "lane/smb-score-effects-6"
+    "lane/smb-score-effects-6",
+    "lane/smb-layout-place-1",
+    "lane/smb-web-site-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22699,6 +22759,18 @@
      "branch": "lane/smb-score-effects-6",
      "previous_branch": "lane/smb-audio-out-mix-1",
      "disk": "C"
+    },
+    "SMB-LAYOUT-PLACE-1": {
+     "tree": "smb-id-toc-persist-1",
+     "branch": "lane/smb-layout-place-1",
+     "previous_branch": "lane/smb-layout-persist-1",
+     "disk": "D"
+    },
+    "SMB-WEB-SITE-1": {
+     "tree": "smb-sentinels-native-1",
+     "branch": "lane/smb-web-site-1",
+     "previous_branch": "lane/smb-web-host-1",
+     "disk": "D"
     }
    },
    "why": {

@@ -1,0 +1,61 @@
+{
+  "crate": "hsk-studio-harness-view (layout graphic frames: place, fit, link states and the layout PDF's asset resolver), hsk-studio-harness-core (asset rows, one Run step for layout records plus the raster records entry), hsk-studio-harness (tests)",
+  "lane": "SMB-LAYOUT-PLACE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
+  "base": "eb17fad6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T08:50:53Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: typed codes through CommandRefusal (view/commands/place.rs:15-17) and LayoutExportRefusal (layout_export.rs:104-114); the export keeps its one admitted job and terminal Observe frame (layout_export.rs:543-561); no new sink",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: every commit goes through Run (submit_layout and the new submit_layout_and_entry) under the run's command context, as layout_commit (shell.rs:792) and restructure_and_entry (harness.rs:1488) do; no default_actor() or literal actor in new code",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T08:50:53Z",
+    "disk": "D",
+    "closes": [
+      "print scenario G5 at 0a733db8: steps 48 and 51 typed end to end; 49, 50 and 54 stay declared",
+      "ledger next_lane_candidates 2026-11-07T16:35:52Z: placed graphics and raster tiles in the layout PDF (vector paths, tables, outlines stay listed)",
+      "board-slides-web scenario rank 3, step 42: place the mood image in a full-bleed frame and fit it",
+      "place.rs:9-10 declared gap: layout graphic frames"
+    ],
+    "closes_candidates": [
+      "MT-30721",
+      "MT-30722",
+      "MT-30723",
+      "MT-30730",
+      "MT-30731",
+      "MT-30732",
+      "MT-30733",
+      "MT-30734",
+      "MT-30735",
+      "MT-30736",
+      "MT-157",
+      "MT-162",
+      "MT-163",
+      "MT-170"
+    ],
+    "reuses_tree_and_target": "smb-id-toc-persist-1"
+  }
+}

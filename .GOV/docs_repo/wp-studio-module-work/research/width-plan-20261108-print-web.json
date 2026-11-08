@@ -1,0 +1,1392 @@
+{
+ "at": "2026-11-08",
+ "origin": "0a733db8",
+ "scenarios": {
+  "label_rule": "Label rule for this file: every code, spec, ledger and filesystem fact is READ at the pin (product 0a733db8, Master Spec v02.229 module 14, ledger and lane files as of 2026-11-08) unless it carries UNVERIFIED or NOT_INSPECTED. Product paths are under handshake-studio-assets/crates/hsk-studio-; spec lines are module 14-studio-creative-suite.md lines.",
+  "print_publication": {
+   "file": "workflows/scenario-print-publication.json",
+   "measured_at_before": "c4d06841",
+   "measured_at_now": "0a733db8",
+   "landed_since": [
+    "SMB-LAYOUT-PDF-HOST-1 (cde13272, 14522e34, 3972c165)",
+    "SMB-LAYOUT-PERSIST-1 (ab2e0ebd, 89709cdb, a3215161)",
+    "SMB-COMMAND-SURFACE-1 (1a39dc7a)",
+    "SMB-DOC-NEW-1 (6830f750, ccbd44c6)",
+    "SMB-PLACE-ASSET-1 (65b84031, 0a733db8): artboard documents only"
+   ],
+   "summary": "Of 107 steps, about 36 now run end to end through a typed command (was 0 typed layout rows); text-only PDF/X-4 export, IDML export, page render-back and persistence work. Pictures, long-document hosting, colour and PDF content beyond text remain the blockers.",
+   "gaps": [
+    {
+     "gap_id": "G1",
+     "was": "engine_only",
+     "now": "works_typed (text only)",
+     "steps_typed_now": [
+      92,
+      94,
+      95,
+      97,
+      99,
+      105
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [],
+     "remaining": "The PDF carries text only: placed graphics, raster tiles and vector paths are engine losses because the host resolves no asset; tables are host_loss table_not_exported; every span shapes as Latn/en.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:52-58 layout.open, layout.export_pdf, layout.export_idml, layout.render_pdf_page rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:564 layout_pdf_bytes, :738 export_layout_pdf, :749 export_layout_idml, :779 render_pdf_page"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:193-205 NoAssets returns None for path, raster and profile; :698 assets: &NoAssets"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:717-720 table_not_exported host loss; :302-303 script Latn, language en"
+      },
+      {
+       "label": "READ",
+       "at": "harness/tests/layout_pdf_host.rs:52, :135, :166, :292 tests (in-process and through the process)"
+      }
+     ]
+    },
+    {
+     "gap_id": "G2",
+     "was": "missing",
+     "now": "works_typed",
+     "steps_typed_now": [
+      12,
+      13,
+      14,
+      15,
+      16,
+      21,
+      22,
+      23,
+      25,
+      26,
+      32,
+      34,
+      35,
+      36,
+      37,
+      38,
+      40,
+      44,
+      61,
+      63,
+      64,
+      66,
+      67,
+      78,
+      80,
+      85,
+      86
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      47,
+      79,
+      107
+     ],
+     "remaining": "No layout row for story_lines, story_rows, state_json or jump-to-finding: steps 47, 79 and 107 stay Rust-only (rows list commands/layout.rs:13-58 has none; UNVERIFIED whether another domain row reaches them).",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:13-49 LayoutEdit, find, preflight and thread rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/commands/layout.rs:166-207 run(): each edit is one committed step"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/vector.rs:19 vector.add_folio_swatch; proof.rs:8-14 proof rows (steps 12, 13, 85, 86)"
+      }
+     ]
+    },
+    {
+     "gap_id": "G3",
+     "was": "missing",
+     "now": "works_typed",
+     "steps_typed_now": [
+      30
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [],
+     "remaining": "Undo history does not survive reopen; the egui panel buttons still edit the editor only (ledger next_lane_candidates 2026-11-07T17:33:46Z).",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "session/src/layout_records.rs:1-20 module docs, :46-56 LayoutRecords with longdoc"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/shell.rs:771 layout_apply, :792 layout_commit, :821 layout_sync"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/harness.rs:2053 Run::submit_layout"
+      },
+      {
+       "label": "READ",
+       "at": "harness/tests/layout_persist.rs exists"
+      }
+     ]
+    },
+    {
+     "gap_id": "G5",
+     "was": "engine_only",
+     "now": "engine_only (host refuses)",
+     "steps_typed_now": [],
+     "steps_still_failing": [
+      48,
+      51
+     ],
+     "steps_still_missing": [
+      31,
+      49,
+      50,
+      54
+     ],
+     "remaining": "asset.place exists for artboard documents and refuses a pages-only document; layout PDF has no asset resolver. Ranked lane 1 below.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/place.rs:9-10 docs: pages-only document refuses canvas_unavailable, layout graphic frames are lane SMB-LAYOUT-PLACE-1; :683 the refusal"
+      },
+      {
+       "label": "READ",
+       "at": "folio/src/longdoc.rs:380 StudioGraphicFrame, :1470 graphic_frames; layout/src/fitting.rs:81 fit_content, :198 place_graphic; interop-layout/src/pdf_export/longdoc.rs:320 graphic_layer"
+      }
+     ]
+    },
+    {
+     "gap_id": "G6",
+     "was": "missing",
+     "now": "missing (indents in flight)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      24,
+      27,
+      39,
+      41,
+      43
+     ],
+     "remaining": "Paragraph indents and spacing are SMB-TYPE-INDENT-SPACING-1 (lane branch, unmerged). Character attributes: the style patch carries family, size, leading and align only; Type requests carry no features.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:30 edit_style patch keys"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:305 features: &[], :306 axes: &[]"
+      },
+      {
+       "label": "READ",
+       "at": "git diff 0a733db8...lane/smb-type-indent-spacing-1: 26 files, folio typestyle.rs, layout threaded_reflow.rs, textflow.rs"
+      }
+     ]
+    },
+    {
+     "gap_id": "G8",
+     "was": "missing",
+     "now": "missing",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      10,
+      11,
+      56,
+      89
+     ],
+     "remaining": "Folio paints have no spot, process CMYK or gray kind; PDF paint lowering is ICCBased RGB or DeviceRGB. Unstyled text is black in the output intent's space (partial).",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "folio/src/paint.rs:20-21 declared gaps: process_cmyk, gray, spot, lab not stored; :115-118 StudioPaint Solid | Gradient"
+      },
+      {
+       "label": "READ",
+       "at": "interop-layout/src/pdf_export.rs:1155-1180 colour_of: ICCBased or DeviceRGB"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:650-657 default fill in the intent's colour space"
+      }
+     ]
+    },
+    {
+     "gap_id": "G4",
+     "was": "engine_only",
+     "now": "engine_only (records persist)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      18,
+      19,
+      20,
+      59,
+      60,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75
+     ],
+     "remaining": "Long-document records are saved with the layout entry, but no LayoutEdit member creates a TOC, index, section, footnote, cross-reference or text variable; the PDF takes page labels only.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/layout_ui.rs:147-167 LayoutEdit members: none long-document"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:670-671 page labels from sections, :691 PdfLongDoc page_labels only"
+      }
+     ]
+    },
+    {
+     "gap_id": "G7",
+     "was": "missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      1
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      2,
+      4,
+      6,
+      9
+     ],
+     "remaining": "document.new layout gives one single-sided page of a stated size; page.add adds pages. Facing pages, binding, bleed and margin edits, slug, grids, guides and document layers have no command (3, 5, 7, 8, 10 stay engine_only).",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/document_new.rs:8-10 layout profile, :298-300 one page spread"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/document.rs:44 document.new, :54-57 page rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:169 PageSide::SingleSided for layout.open pages"
+      }
+     ]
+    },
+    {
+     "gap_id": "G12",
+     "was": "missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      92
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      91,
+      93,
+      96
+     ],
+     "remaining": "PDF/X is none or x4_2010 by parameters; no preset row, no printer marks, no X-1a or X-3.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:54 pdfx pdfx.none|pdfx.x4_2010"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/commands/layout.rs:140-144 any other token refuses"
+      }
+     ]
+    },
+    {
+     "gap_id": "G13",
+     "was": "missing",
+     "now": "missing (unchanged)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      98
+     ],
+     "remaining": "Self-check only; conformance stays not_proven.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:36-38 check_pdfx4 self-check, conformance not_proven (STU-PDF-002 spec line 243)"
+      }
+     ]
+    },
+    {
+     "gap_id": "G9",
+     "was": "missing",
+     "now": "missing (unchanged)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      17,
+      33
+     ],
+     "remaining": "No autoflow or primary text frame row.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:13-58: no autoflow row"
+      }
+     ]
+    },
+    {
+     "gap_id": "G10",
+     "was": "engine_only",
+     "now": "engine_only (unchanged)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      53,
+      55
+     ],
+     "remaining": "Every host reflow passes no obstacles.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:640, layout_ui.rs:512, layout_ui/tables.rs:441 obstacles: &[]"
+      }
+     ]
+    },
+    {
+     "gap_id": "G11",
+     "was": "missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      78,
+      80
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      81,
+      82
+     ],
+     "remaining": "Nine rules; preflight runs before every PDF export; no link, colour, resolution, font or ink rules; no profile authoring or export.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "layout/src/preflight.rs:52-62 PREFLIGHT_RULES, 9 rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:566-569 preflight_errors refusal before export"
+      }
+     ]
+    },
+    {
+     "gap_id": "G14",
+     "was": "missing",
+     "now": "missing (GUI lanes in flight)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      42,
+      52,
+      94
+     ],
+     "remaining": "Step 94 (whole-document shaping for export) now runs through Type in the export path; the editor preview is still a fixed-advance placeholder; no frame move or resize command.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:56-57 preview shaping is a fixed-advance placeholder"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:262-361 shape_paragraph through hsk-studio-type"
+      }
+     ]
+    },
+    {
+     "gap_id": "G15",
+     "was": "missing",
+     "now": "missing (unchanged)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      101,
+      103,
+      104
+     ],
+     "remaining": "No collect-for-output; step 102 stays engine_only.",
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "no package or collect row found in harness-core commands/*.rs rows read in this pass (document.rs, layout.rs, export.rs, asset.rs)"
+      }
+     ]
+    },
+    {
+     "gap_id": "G16",
+     "was": "missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      61,
+      63,
+      64
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      29,
+      62,
+      65
+     ],
+     "remaining": "Table structure is typed; a table does not reach the PDF (host loss), and no table or cell style, rule or fill command exists.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:35-42 table rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:717-720 table_not_exported"
+      },
+      {
+       "label": "READ",
+       "at": "interop-layout/src/pdf_export/longdoc.rs:42-48 PdfTable, :50-63 PdfLongDoc.tables: the engine draws tables"
+      }
+     ]
+    },
+    {
+     "gap_id": "G17",
+     "was": "missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      44
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      45,
+      46,
+      84
+     ],
+     "remaining": "GREP find/change is typed; find by formatting, spelling and language records are missing.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layout.rs:9-10 FIND and CHANGE params: no formatting criteria"
+      },
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:302-303 Latn/en"
+      }
+     ]
+    },
+    {
+     "gap_id": "G18",
+     "was": "engine_only",
+     "now": "engine_only (unchanged)",
+     "steps_typed_now": [
+      58
+     ],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      28,
+      57
+     ],
+     "remaining": "Object styles and frame effects have no host.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/layer.rs:8 layer.set_opacity (step 58)"
+      }
+     ]
+    },
+    {
+     "gap_id": "G19",
+     "was": "engine_only",
+     "now": "engine_only (unchanged)",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      87,
+      88,
+      89,
+      90
+     ],
+     "remaining": "Separations and coverage are fed by the vector artboard route only.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/vector/separations.rs:3, :35 Separator over the vector document only"
+      }
+     ]
+    },
+    {
+     "gap_id": "G20",
+     "was": "missing",
+     "now": "missing",
+     "steps_typed_now": [],
+     "steps_still_failing": [],
+     "steps_still_missing": [
+      76,
+      77
+     ],
+     "remaining": "outline_from_toc is never called by a host; press writes no tags, links or alt text.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "git grep outline_from_toc over harness-view src at 0a733db8: 0 hits"
+      },
+      {
+       "label": "READ",
+       "at": "press-write/src/export.rs:18-20 not in this slice: tagged structure, links"
+      }
+     ]
+    }
+   ]
+  },
+  "board_slides_web": {
+   "file": "workflows/scenario-board-slides-web.json",
+   "measured_at_before": "c4d06841",
+   "measured_at_now": "0a733db8",
+   "landed_since": [
+    "SMB-WEB-HOST-1 (6fc3a7d6, aa68164c)",
+    "SMB-DOC-NEW-1",
+    "SMB-ARTBOARD-EXPORT-1 (c91fc814)",
+    "SMB-COMMAND-SURFACE-1",
+    "SMB-DRIVE-TYPED-2 (576c4d5e)",
+    "SMB-LAYOUT-PDF-HOST-1",
+    "SMB-PLACE-ASSET-1"
+   ],
+   "summary": "Web authoring of one page is typed end to end to a folder publish with receipts; the deck is typed to PDF and render-back except images and slide roles; the board scene is still blocked from step 1 (board profile refused).",
+   "gaps": [
+    {
+     "rank": 1,
+     "was": "engine_only and missing",
+     "now": "works_typed (one document, folder publish)",
+     "steps_typed_now": [
+      85,
+      89,
+      92,
+      93,
+      94,
+      96,
+      97,
+      99,
+      101,
+      102,
+      106,
+      114,
+      116,
+      117
+     ],
+     "steps_partly": [
+      113
+     ],
+     "steps_still_missing": [
+      115,
+      118
+     ],
+     "remaining": "One document per export; a link to another page is copied as a raw asset and a link to a missing page refuses asset_missing; site record in a sidecar; local_or_network only; no JobPort. Ranked lane 2 below.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/web.rs:18-60 web.* rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/web_commands.rs:1-48 module docs and declared limits, :188 WebHost, :549-625 export, :564-567 asset and asset_missing arms"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/web_commands.rs:1203-1213 source maps, preprocessors and asset rewriting refused"
+      },
+      {
+       "label": "READ",
+       "at": "harness/tests/web_host.rs:113, :174, :239, :382 tests"
+      }
+     ]
+    },
+    {
+     "rank": 2,
+     "was": "missing",
+     "now": "works_typed for vector and design documents",
+     "steps_typed_now": [
+      28,
+      60
+     ],
+     "steps_partly": [
+      79
+     ],
+     "steps_still_missing": [
+      1
+     ],
+     "remaining": "board profile refused; export.run writes each node's named files, but not one per data record.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/document.rs:44-57 document.new, artboard.*, page.*"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/document_new.rs:13-14 and :68 board -> profile_not_available"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/export.rs:22 export.run"
+      }
+     ]
+    },
+    {
+     "rank": 3,
+     "was": "engine_only and missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      28,
+      33,
+      34,
+      35,
+      36,
+      37,
+      39,
+      40,
+      43,
+      45,
+      54,
+      55,
+      57
+     ],
+     "steps_partly": [],
+     "steps_still_missing": [
+      29,
+      42,
+      46,
+      47,
+      48,
+      49,
+      50
+     ],
+     "remaining": "A 1920 x 1080 deck can be opened, edited, exported to PDF and rendered back by command; no slide role, skip, timing or transition binding; no image in a frame (lane 1).",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/layout_export.rs:489-526 layout_open with page size and count"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/document_new.rs:9-10 a px size takes one point per pixel"
+      },
+      {
+       "label": "READ",
+       "at": "git grep -i 'slide_role|skip_slide|StudioSlide|is_slide' over folio and harness-view src: 0 hits"
+      }
+     ]
+    },
+    {
+     "rank": 4,
+     "was": "missing",
+     "now": "missing",
+     "steps_typed_now": [],
+     "steps_partly": [],
+     "steps_still_missing": [
+      1,
+      3,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      19,
+      21,
+      22,
+      24,
+      25,
+      26,
+      27,
+      38
+     ],
+     "remaining": "Board rows are an empty list.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/board.rs:5 ROWS = &[]"
+      },
+      {
+       "label": "READ",
+       "at": "folio/src/lib.rs:173 NodeKind"
+      }
+     ]
+    },
+    {
+     "rank": 5,
+     "was": "missing",
+     "now": "missing",
+     "steps_typed_now": [],
+     "steps_partly": [],
+     "steps_still_missing": [
+      90,
+      98,
+      100
+     ],
+     "remaining": "web.preview is the structure tree only.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/web.rs:57 web.preview viewport_width_px"
+      }
+     ]
+    },
+    {
+     "rank": 6,
+     "was": "callable but Rust-only",
+     "now": "mostly typed",
+     "steps_typed_now": [
+      15,
+      30,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      39,
+      40,
+      43,
+      45,
+      54,
+      67,
+      68,
+      77
+     ],
+     "steps_partly": [],
+     "steps_still_missing": [
+      58,
+      61,
+      62,
+      63,
+      65,
+      82,
+      83
+     ],
+     "remaining": "UNVERIFIED for 58, 61-63, 65, 82, 83: vector rows exist (commands/vector.rs) but this pass did not map each step to a row.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/panel.rs:30-31 panel.align_distribute rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/design.rs:10-17 design rows"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/proof.rs:13 proof.select_colour_vision"
+      }
+     ]
+    },
+    {
+     "rank": 7,
+     "was": "missing",
+     "now": "missing",
+     "steps_typed_now": [],
+     "steps_partly": [],
+     "steps_still_missing": [
+      7,
+      23,
+      36,
+      76,
+      87
+     ],
+     "remaining": "Step 36 is now typed one page at a time (layout.page.insert_page); no StudioCommandBatch at the host.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "git grep StudioCommandBatch over harness, harness-core, harness-view src: 0 hits"
+      },
+      {
+       "label": "READ",
+       "at": "harness-core/src/batch.rs:1-8 the batch runner is over documents, not a proposal batch"
+      }
+     ]
+    },
+    {
+     "rank": 8,
+     "was": "engine_only and missing",
+     "now": "partly typed",
+     "steps_typed_now": [
+      64
+     ],
+     "steps_partly": [],
+     "steps_still_missing": [
+      72,
+      73,
+      74,
+      75,
+      76
+     ],
+     "remaining": "asset.place reaches a design document; data merge has no host.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/asset.rs:11-13 asset.place"
+      },
+      {
+       "label": "READ",
+       "at": "git grep 'merge_story|parse_delimited' over harness, harness-core, harness-view src: 0 hits"
+      }
+     ]
+    },
+    {
+     "rank": 9,
+     "was": "engine_only",
+     "now": "engine_only",
+     "steps_typed_now": [],
+     "steps_partly": [],
+     "steps_still_missing": [
+      66,
+      69,
+      70,
+      71
+     ],
+     "remaining": "No component creation command.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "git grep -i 'create_component|CreateComponent|make_component' over harness-view and harness-core src: 0 hits"
+      }
+     ]
+    },
+    {
+     "rank": 10,
+     "was": "missing",
+     "now": "missing",
+     "steps_typed_now": [],
+     "steps_partly": [],
+     "steps_still_missing": [
+      41,
+      51,
+      52,
+      53
+     ],
+     "remaining": "prototype.start_session opens .fig bytes only.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-view/src/view/mod.rs:417 open_prototype(fig: &[u8]); harness-core/src/action/commands/prototype.rs:10"
+      }
+     ]
+    },
+    {
+     "rank": 11,
+     "now": "missing (unchanged)",
+     "steps_still_missing": [
+      88
+     ],
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "not re-measured beyond the scenario's own evidence"
+      }
+     ]
+    },
+    {
+     "rank": 12,
+     "now": "missing (unchanged)",
+     "steps_still_missing": [
+      16,
+      17,
+      18,
+      19,
+      20,
+      78
+     ],
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "not re-measured"
+      }
+     ]
+    },
+    {
+     "rank": 13,
+     "now": "missing (unchanged)",
+     "steps_still_missing": [
+      86,
+      90,
+      91,
+      95,
+      107
+     ],
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "no web.format_source or code-view row in commands/web.rs:18-60 (READ)"
+      }
+     ]
+    },
+    {
+     "rank": 14,
+     "now": "missing",
+     "steps_still_missing": [
+      105,
+      108,
+      109,
+      110,
+      111
+     ],
+     "remaining": "Ranked lane 2 closes 105 and 111 and the alt-text and untitled parts of 110; validator and linter stay open.",
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/action/commands/web.rs:18-60: no report, move or validate row"
+      }
+     ]
+    },
+    {
+     "rank": 15,
+     "now": "missing (unchanged)",
+     "steps_still_missing": [
+      103,
+      104
+     ],
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "commands/web.rs:18-60: no insert.object or library row"
+      }
+     ]
+    },
+    {
+     "rank": 16,
+     "now": "missing (folder publish only)",
+     "steps_still_missing": [
+      115,
+      118
+     ],
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "harness-core/src/web_commands.rs:33-34 local_or_network only"
+      }
+     ]
+    },
+    {
+     "rank": 17,
+     "now": "missing (unchanged)",
+     "steps_still_missing": [
+      38,
+      112
+     ],
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "not re-measured"
+      }
+     ]
+    },
+    {
+     "rank": 18,
+     "now": "missing (spec gap, unchanged)",
+     "steps_still_missing": [
+      2,
+      86,
+      87
+     ],
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "spec clauses not re-read in this pass"
+      }
+     ]
+    },
+    {
+     "rank": 19,
+     "now": "missing",
+     "steps_still_missing": [
+      4,
+      56,
+      81
+     ],
+     "evidence": [
+      {
+       "label": "READ",
+       "at": "interop-raster/src/lib.rs:52 WebP decode refuses webp_decoder_unavailable; no encoder"
+      }
+     ]
+    },
+    {
+     "rank": 20,
+     "now": "missing (unchanged)",
+     "steps_still_missing": [
+      5,
+      44
+     ],
+     "evidence": [
+      {
+       "label": "UNVERIFIED",
+       "at": "not re-measured"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "ranked_lanes": [
+  {
+   "rank": 1,
+   "id": "SMB-LAYOUT-PLACE-1",
+   "startable_now": true,
+   "one_line": "Pictures in layout: asset.place into a graphic frame on a page, fit, link states, one undo step, saved, and drawn in the layout PDF through a host asset resolver.",
+   "reach": "Print steps 48, 51 typed, 49 and 83 nearer; deck step 42; removes the raster_unresolved losses for every layout PDF; base for wrap, anchoring, preflight link rules, package and data-merge images.",
+   "engine_and_command_depth": "Links panel, Place and Fitting commands need exactly these rows and records; the engine (folio StudioGraphicFrame, layout fit_content and place_graphic, interop-layout graphic_layer) exists and has no caller.",
+   "why_rank": "Largest professional reach in the domain (a magazine or a deck without pictures is not deliverable) at medium size, because every engine piece is already built and tested."
+  },
+  {
+   "rank": 2,
+   "id": "SMB-WEB-SITE-1",
+   "startable_now": true,
+   "one_line": "A site, not a page: the local root's document set, a site-wide link graph, typed broken-link, orphan, external, missing-alt and untitled reports, update-links-on-move as one receipted transaction, export of the whole set, site lock and job admission.",
+   "reach": "Web steps 105, 111, part of 110 and 113; turns the 2-page site of scene S4 into one export and publish; the base for library items, templates, change-link-site-wide and the Files panel.",
+   "engine_and_command_depth": "Site panel, Files panel and site reports read the link graph and report rows this lane defines; the URL carrier engine (web-assets collect_assets with spans) exists.",
+   "why_rank": "Highest-reach lane in the domain that shares no file with any in-flight lane; medium size; closes the ledger's own wrong reading (a missing page link fails the export closed where STU-WEB-163 says warning)."
+  },
+  {
+   "rank": 3,
+   "id": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
+   "startable_now": false,
+   "start_gate": "after SMB-TYPE-INDENT-SPACING-1 merges (shares folio typestyle.rs, layout textflow.rs, harness-view layout_ui.rs and both layout command files)",
+   "one_line": "Character attribute model and paragraph structure: per-range size, tracking, kerning, baseline shift and OpenType feature tags passed into Type; script and language itemization instead of Latn/en; a newline in layout.replace_text ends a paragraph and an empty story is no paragraph.",
+   "reach": "Print steps 27, 39, 43 and the typographic quality of every PDF; every type surface across Illustrator, Photoshop and After Effects text reads the same model.",
+   "engine_and_command_depth": "The Character and OpenType panels need the record and the edit_style or override commands; Type already accepts features and script per style (layout_export.rs:302-306 passes them empty).",
+   "why_rank": "Reach equal to or above lane 2, but it cannot start without overlapping the in-flight indent lane."
+  },
+  {
+   "rank": 4,
+   "id": "SMB-BOARD-1",
+   "startable_now": false,
+   "start_gate": "after SMB-AI-LIVE-EFFECTS-1 merges (board payloads are StudioLayer kinds: folio lib.rs Payload and composite drawing, both in that lane's files)",
+   "one_line": "Board mode first slice: document.new board profile, board container, sticky, shape_with_text, section and connector (STRAIGHT, ELBOWED; node and magnet endpoints) as StudioLayer kinds with factory, read and mutate commands and PNG export.",
+   "reach": "About 10 of 27 workshop steps (1, 3, 6, 8-13, 26) and the first step of a whole missing product mode.",
+   "engine_and_command_depth": "New engine: Folio board payloads (STU-WB-102..108, 115, 120), composite drawing over existing vector and text paths, connector routing; STU-WB-134 demands commands per node kind.",
+   "why_rank": "Large and the spec calls whiteboarding a lower-priority parity domain (STU-WB-101, spec line 22275), and it overlaps an in-flight lane today."
+  }
+ ],
+ "scopes": [
+  {
+   "id": "SMB-LAYOUT-PLACE-1",
+   "file": "hsk-studio-layout-place-1",
+   "brief": "lane-smb-layout-place-1",
+   "crate": "hsk-studio-harness-view (layout graphic frames: place, fit, link states and the layout PDF's asset resolver), hsk-studio-harness-core (asset rows, one Run step for layout records plus the raster records entry), hsk-studio-harness (tests)",
+   "crates_head": "0a733db8",
+   "summary": "A picture placed into a graphic frame on a layout page is stored, fitted, link-checked, one undo step, saved and drawn in the layout PDF, through asset.place and one fit command",
+   "target": "## Target\n\nEvidence: print scenario gap G5 (rank 4; steps 48, 49, 50, 51, 54, 83), deck step 42 of scenario-board-slides-web, ledger `direction.next_lane_candidates` 2026-11-07T16:35:52Z \"Placed graphics, vector paths and raster tiles in the layout PDF (listed as losses)\". The lane name is the code's own: `harness-view/src/view/place.rs:9-10` says a document with pages only refuses `canvas_unavailable` and \"layout graphic frames are lane SMB-LAYOUT-PLACE-1\". All file:line below are READ at 0a733db8 unless marked; paths are under `handshake-studio-assets/crates/hsk-studio-`.\n\nWhat exists and has no caller (reuse it, build nothing beside it):\n- Folio record: `StudioGraphicFrame` `folio/src/longdoc.rs:380-405` (layer_id of a raster layer, page_id, bounds in pt page coordinates, `shape` Rectangle | Ellipse | Path `:361-368`, content size at 100 %, `fit`, `frame_fitting`, anchor, crop), held in `StudioLongDocRecords.graphic_frames` `:1470`, validated `:1688-1768`, budget `MAX_GRAPHIC_FRAMES` 65536 `:101`; fit tokens `StudioFit` `:311`, anchor `StudioFitAnchor` `:326`.\n- Layout geometry: `fit_content` `layout/src/fitting.rs:81` (all STU-LAY-131 members; `content_aware` is a typed `content_aware_unavailable`, docs `:18-19`), `place_graphic` `:198` returning `PlacedGraphic` `:182`.\n- PDF lowering: `draw_layer` `interop-layout/src/pdf_export.rs:665-680` (raster arm `:675-678`) sends a raster layer that has a graphic frame to `graphic_layer` `pdf_export/longdoc.rs:320-372` (tiles validated, content mapped by the fitting transform, clipped to rectangle or ellipse, 16-bit ICCBased with the tile's own profile, SMask from alpha); `PdfAssets` `pdf_export.rs:127-140`, `PlacedRaster` `:118-124`, `PdfLongDoc.graphics` `longdoc.rs:56`.\n- Persistence: `LayoutRecords` carries `longdoc` (`session/src/layout_records.rs:46-56`); `Run::submit_layout` `harness-core/src/harness.rs:2053`; `Viewer::layout_commit` `harness-view/src/view/shell.rs:792`.\n- Place pipeline (artboards): `decode_source` `place.rs:545`, source sharing `:700-712` (STU-RAS-013), `stage_tile` use `:627` (tiles) and `:723` (source), entry `raster_records` `:92` schema `:96`, commit `restructure_and_entry` `:757` (`harness.rs:1488`), `list_placements` `:922`, `update_all_modified` `:936`, `embed_link` `:1019`, codes `:53-65`.\n- Command route: `asset.place` row `harness-core/src/action/commands/asset.rs:11-13`; dispatch `harness-view/src/view/commands.rs:149` to `view/commands/place.rs:22-37`.\n\nWhat fails today: `place_inner` takes `self.canvas()` and refuses `canvas_unavailable` for a pages-only document (`place.rs:681-683`, also `placement_tiles` `:639`). The layout PDF resolves nothing: `NoAssets` `layout_export.rs:193-205`, `PdfLongDoc { page_labels, ..default }` `:691`, `design: None` `:694`, `assets: &NoAssets` `:698`, declared at `:52-57`.\n\nClauses (module 14, v02.229): STU-LAY-028 :6093, STU-LAY-029 :6132, STU-LAY-131 :6137, STU-LAY-030 :6162, STU-LAY-132 :6168, STU-LAY-031 :6202, STU-LAY-133 :6206, STU-LAY-054 :6959, STU-LAY-158 :7117, STU-RAS-012 :664, STU-RAS-013 :669, STU-ASSET-005 :31320, STU-ASSET-006 :31336, STU-ASSET-007 :31338, STU-ASSET-009 :31352, STU-ASSET-010 :31354, STU-AUT-147 :21905, STU-CON-007 :22896, STU-PDF-002 :243.\n\n### Items, red first\n\n1. **Red, compiling.** New `harness/tests/layout_place.rs`. Through `Viewer::run_command` and once through the process (the method of `harness/tests/layout_pdf_host.rs:292`): `document.new` profile `layout` 595 x 842 pt (`harness-core/src/document_new.rs:298-300`); `asset.place` of an embedded 64 x 48 PNG written by the test into a frame on `page-1`; `layout.export_pdf`; assert `tiles_drawn` > 0 (summary field `layout_export.rs:727`) and no `raster_unresolved` loss; `layout.render_pdf_page` of page 0 and assert pixels inside the frame are not white and pixels just outside it are white (clip). Commands are strings, so the red commit compiles. Prove red by running: today `asset.place` refuses `canvas_unavailable`.\n\n2. **Place into a frame.** New egui-free `harness-view/src/view/layout_place.rs`; `place.rs` gains only a branch at `:681` (and `:639`) that hands a pages-only document to it.\n   - `asset.place` gains optional `page`, `frame_x`, `frame_y`, `frame_width`, `frame_height` (pt, page coordinates: the record's `bounds`), `shape` (`rectangle` | `ellipse`; a `Path` frame needs a vector path id and refuses `frame_shape_unsupported` in this slice), `fit` (the `StudioFit` tokens legal for a frame: not `honour_existing_style`, fitting.rs docs), `frame_fitting`, `anchor`. On a pages-only document `page` and the four frame numbers are required (`frame_required`; see open question).\n   - Pixels: the layer's tiles hold the SOURCE at its own pixel size (no resample, no canvas clip), so the PDF carries the full resolution; `content_width`/`content_height` = pixels x 72 / source ppi (open question for the ppi source). Bound `MAX_PLACE_PIXELS` (`place.rs:100`), refused before decode where the header gives the size.\n   - Records: one raster layer whose parent chain reaches the page's spread (otherwise PDF reports `layer_not_on_page_spread`, `pdf_export.rs:668-671`); its `StudioRasterLayerRecord.placed_asset` and `Instance` in the `raster_records` entry as on artboards; one `StudioGraphicFrame` in `longdoc.graphic_frames`. Follow how `LayoutEdit::DrawFrame` adds a layer to the layout document (NOT_INSPECTED: its layer-graph handling; read `layout_ui.rs` `transform` DrawFrame arm before writing).\n   - ONE undo step: new `Run::submit_layout_and_entry(op, command, document, records, token, bytes)` beside `submit_layout` (`harness.rs:2053`), committing the `LayoutStep` and the entry into one `HistoryStep` (both fields `layout` and `entry` exist, `harness.rs:358-380`), modelled on `restructure_and_entry_step` (`:1492-1532`): a refused entry write undoes the layout half, no split step. NOT_INSPECTED: whether the undo and redo dispatch applies both fields of one step; read it first and extend it there if not. Test: undo removes layer, frame and entry bytes together; redo restores them byte-identically.\n\n3. **Fit.** New row `asset.fit` (name: open question) in `commands/asset.rs`, arm in `view/commands/place.rs:22`: `{layer, fit, anchor?, crop_top?, crop_left?, crop_bottom?, crop_right?, frame_fitting?}` re-fits a graphic frame through `fit_content`; `frame_to_content` resizes the frame record; `apply_frame_fitting_options` uses the stored rule and refuses without one; one layout step; a layer without a frame refuses `layer_not_graphic_frame`.\n\n4. **Links on layout frames.** `list_placements` (`place.rs:922`) lists layout placements with `page_id`, frame bounds, fit and the derived `effective_ppi` and `actual_ppi` (STU-LAY-132 last paragraph, spec :6168 block). `update_all_modified` (`:936`) re-decodes a layout placement at source resolution, not through `placement_tiles`' canvas clip, and keeps its frame. `transform.move`, `transform.free_transform`, `transform.reset` (`place.rs:773-785`) on a graphic-frame layer refuse `graphic_frame_transform_unsupported`: moving the pixels while the frame record stays would draw wrong; frame move is a later slice.\n\n5. **The layout PDF draws it.** `layout_export.rs`, hunks `:52-57` (docs), `:193-205`, `:665-698` only; never `:740-776` (SMB-TYPE-INDENT-SPACING-1 edits `:768-775`).\n   - `NoAssets` replaced by a resolver in new `view/layout_assets.rs`: `raster(layer_id)` builds `PlacedRaster` from the layer's `TileRef`s and their bodies (the `ResolvedTile` shape as `view/brush_mix.rs:75-76` `tile_view` builds it; NOT_INSPECTED: where a reopened package's tile bodies are read from, read how `render` gets them before writing); `profile(id)` gives the working profile's bytes; `path` stays `None` (rectangle and ellipse only).\n   - `PdfLongDoc.graphics` filled from `place_graphic` for every record in `rec.longdoc.graphic_frames`.\n   - STU-ASSET-009 gate before any shaping: a linked layout placement whose state is `missing`, `unauthorized` or `unsupported` refuses `placed_link_missing`, `placed_link_unauthorized`, `placed_link_unsupported` (codes of `place.rs:53-65`) and writes nothing; `modified` refuses `placed_link_modified` (open question). The summary gains `placements`: per placement `layer_id`, `source_id`, `placement_kind`, `uri`, content digest and link state at resolution time.\n   - Module docs `:52-57`: placed graphics drawn; vector paths, tables, outlines, CMYK image numbers stay declared gaps.\n\n6. **Docs and MTs.** `place.rs` module manual (`:1-75`) gains the layout section and the new codes; `commands/asset.rs` row docs. Read MT-30721, MT-30722, MT-30723, MT-30730..MT-30736, MT-157, MT-162, MT-163, MT-170 (print G5 list, NOT_INSPECTED in this plan) and claim a row only if it is read and proven here. Do not edit MT files.\n\nHostile input (V4-01/02), each a typed refusal that changes nothing (package bytes identical): frame numbers non-finite, zero, negative size, a side over 14400 pt (`PAGE_SIDE_PT`, `layout_export.rs:91`); unknown page; source over `MAX_SOURCE_BYTES`; pixels over `MAX_PLACE_PIXELS`; the 65537th frame (`MAX_GRAPHIC_FRAMES`); a crop that empties the content box; `fit` on a layer without a frame; `content_aware`; a link outside the document folder (`link_outside_document_folder`); a canceled token during decode and during export.\n\nDeterminism: two exports of the same document are byte-identical (press export is deterministic, `press-write/src/export.rs:15-16`); save, reopen, export gives the same sha256.\n\nVendor parity stays UNVERIFIED (D5): 100 % at source ppi, frame-required placement and the modified-link refusal are Studio readings.\n\nOut of scope: frame move and resize; anchored graphics and text wrap; clipping paths, alpha and detect-edges (STU-LAY-133); placing PDF, AI, INDD or a layout document (STU-LAY-130 crop members); multi-file load and place cursor; IDML export of graphic frames; vector paths, tables, outlines and tags in the PDF; CMYK image numbers (step 50: place decodes into the working space); preflight link rules; any panel, menu item, egui line, `Cargo.toml` change, Master Spec edit or MT edit.",
+   "diag": "report_for_host: typed codes through CommandRefusal (view/commands/place.rs:15-17) and LayoutExportRefusal (layout_export.rs:104-114); the export keeps its one admitted job and terminal Observe frame (layout_export.rs:543-561); no new sink",
+   "attr": "unchanged: every commit goes through Run (submit_layout and the new submit_layout_and_entry) under the run's command context, as layout_commit (shell.rs:792) and restructure_and_entry (harness.rs:1488) do; no default_actor() or literal actor in new code",
+   "exposure": "medium",
+   "paths": "- harness-view: new `src/view/layout_place.rs`; new `src/view/layout_assets.rs`; `src/view/place.rs` (branch at :639 and :681, list_placements :922, update_all_modified :936, transform refusals :773-785, module docs :1-75); `src/view/layout_export.rs` (only :52-57, :193-205, :665-698); `src/view/commands/place.rs` (asset.place parameters, asset.fit arm); `src/view/mod.rs` (two mod lines beside :94 and :116).\n- harness-core: `src/action/commands/asset.rs` (parameters, one row); `src/harness.rs` (submit_layout_and_entry beside :2053; undo and redo arm only if a step with both layout and entry is not applied today).\n- harness: new `tests/layout_place.rs`.\n- package: `tests/externals.rs` only if rule 4b requires it (no new entry kind is expected: layout_records and raster_records exist).",
+   "suites": "clippy over hsk-studio-harness-core, hsk-studio-harness-view (viewer) and hsk-studio-harness; nextest WHOLE suite of hsk-studio-harness-core; hsk-studio-harness-view with [viewer]; hsk-studio-harness tests layout_place, layout_pdf_host, layout_persist, place_asset, harness_drive_typed, document_new (rule 4e: confirm the units in .config/round-features.toml); session, layout, interop-layout and folio suites only if the lane edits them, which this scope does not",
+   "closes": [
+    "print scenario G5 at 0a733db8: steps 48 and 51 typed end to end; 49, 50 and 54 stay declared",
+    "ledger next_lane_candidates 2026-11-07T16:35:52Z: placed graphics and raster tiles in the layout PDF (vector paths, tables, outlines stay listed)",
+    "board-slides-web scenario rank 3, step 42: place the mood image in a full-bleed frame and fit it",
+    "place.rs:9-10 declared gap: layout graphic frames"
+   ],
+   "mts": [
+    "MT-30721",
+    "MT-30722",
+    "MT-30723",
+    "MT-30730",
+    "MT-30731",
+    "MT-30732",
+    "MT-30733",
+    "MT-30734",
+    "MT-30735",
+    "MT-30736",
+    "MT-157",
+    "MT-162",
+    "MT-163",
+    "MT-170"
+   ],
+   "tree": "smb-id-toc-persist-1",
+   "tree_reason": "READ: worktree wt-studio-lanes/smb-id-toc-persist-1 on branch lane/smb-layout-persist-1 at a3215161, git status clean, a3215161 is an ancestor of 0a733db8 (git merge-base --is-ancestor). Its lane SMB-LAYOUT-PERSIST-1 is READY_FOR_VALIDATION (ledger), so the tree is live and taking it over adds nothing to the D: count (lead ruling p3, 2026-11-08). Its target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-persist-1/target holds deps of every workspace crate this lane builds (harness-view, harness-core, harness, session, layout, interop-layout, folio, pigment, package, press, type); a per-sha-a3215161 run is on file. It is the tree that built the layout commit path (layout_commit, submit_layout) this lane extends, so workspace crates rebuild only from a3215161 to 0a733db8. Size NOT_MEASURED. Fallback: smb-pr-sequence-session-1 (holds SMB-PLACE-ASSET-1 READY, which built place.rs; crates UNVERIFIED by listing).",
+   "disk": "d",
+   "overlaps": {
+    "SMB-TYPE-INDENT-SPACING-1": "One shared file, disjoint hunks (READ: git diff 0a733db8...lane/smb-type-indent-spacing-1). It edits layout_export.rs only at :768-775 (export_layout_idml); this lane edits :52-57, :193-205 and :665-698. Its real file list is wider than the in-flight list given to the planners: it also edits harness-core commands/layout.rs:30, harness-view view/commands/layout.rs:41 and :87, layout_ui.rs imports and :1131, layout_ui/find.rs, layout_ui/styles.rs, interop-layout folio_export.rs, data_merge.rs, lib.rs and layout xref.rs, find_change.rs. This lane edits none of those. If the lead wants no shared file at all, item 5's layout_export.rs commit waits for that lane to merge (open question).",
+    "SMB-AI-LIVE-EFFECTS-1": "No shared file: it owns harness-view src/view/vector/*, folio vector, composite and nib; this lane touches none. Rebuild on rebase only.",
+    "SMB-PARSER-HOSTILE-1": "No shared file: this lane decodes through the existing import route read-only. If that lane changes a decoder refusal code, this lane's tests pin only their own codes.",
+    "SMB-GUI-FRAME-1 / SMB-VK-UI-PASS-1 / SMB-SCORE-EFFECTS-6": "None (native-host, kumihimo-ui, vulkan, score).",
+    "SMB-PLACE-ASSET-1 (READY, under validation)": "Same file place.rs; if R60 review fixes edit it, rebase; this lane's place.rs edits are two branches and doc rows.",
+    "SMB-WEB-SITE-1": "None.",
+    "all": "Build on D:; one lane pushes at a time under the current push hold."
+   },
+   "needs": {
+    "cargo_toml": "none: harness-view already imports interop-layout, layout, press and type (layout_export.rs:72-78) and pigment and package (place.rs:79-86)",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "no new member: StudioLongDocRecords.graphic_frames exists (folio longdoc.rs:1470) and the raster_records entry exists (place.rs:92-96). If a layout instance needs a marker in hsk.harness.raster_records@1, it is one optional field absent when empty, so existing entries stay byte-identical",
+    "spec": "no Master Spec edit. SD items to propose on READY: content size from source ppi with the 72 ppi default; frame required on a page; modified-link refusal at export versus STU-ASSET-007's render-current-bytes",
+    "root_inputs": "none; confirm no .config/round-features.toml change (rule 4e)"
+   },
+   "red_team": {
+    "risks": [
+     "Silent wrong output: the PDF draws pixels the screen and the record do not agree on (tiles at one resolution, content size at another).",
+     "Split step: layer and entry committed, frame record refused, or the reverse, leaving a raster layer with no frame that the PDF draws at its raw origin.",
+     "Shipping a placeholder: a linked picture whose file is gone still produces a PDF (STU-ASSET-009 forbids it).",
+     "Memory: full-resolution source tiles for many frames, quantised to 16 bits per sample in the PDF path.",
+     "Shared file with the in-flight indent lane."
+    ],
+    "failure_scenarios": [
+     "A frame is placed on a left page of a two-page spread and drawn on the right page, because page_x in place_graphic sums page widths (fitting.rs:205-214) while the layer parent is the spread.",
+     "Undo removes the layer but leaves the graphic frame, so the next layout step is refused layout_records_stale (harness.rs:2066-2073).",
+     "A layout document from document.new has no layer graph, the new layer is drawn in layer order and the PDF reports composition_graph_absent for every export (pdf_export.rs:383).",
+     "update_all_modified re-renders a layout placement through placement_tiles, clips it to a canvas a pages-only document does not have, and refuses or crops.",
+     "A 20000 x 20000 px source passes the byte bound and allocates before the pixel bound is checked.",
+     "transform.move on a graphic-frame layer shifts tiles the PDF ignores (graphic_layer uses the frame transform), so the screen and the PDF disagree.",
+     "The second export after a reopen cannot find tile bodies that were only in the viewer's in-memory asset map."
+    ],
+    "minimum_controls": [
+     "Item 1 red test reads pixels inside and outside the frame from the rendered PDF page, on a single page and on the right page of a facing spread built by the test.",
+     "One HistoryStep for the whole place; a test undoes and redoes and compares package bytes.",
+     "Export refuses before shaping for missing, unauthorized and unsupported links; a test removes the linked file and asserts nothing is written.",
+     "Pixel bound checked from the header before decode; a test with a large declared size.",
+     "Save, reopen, export: same sha256.",
+     "transform.* on a frame layer refuses typed, tested.",
+     "layout_export.rs hunks limited to the listed lines; the lane notes list them."
+    ]
+   },
+   "research_basis": {
+    "sources_checked": [
+     "Project: folio longdoc.rs, layout fitting.rs, interop-layout pdf_export.rs and pdf_export/longdoc.rs, harness-view place.rs, layout_export.rs, shell.rs, commands/place.rs, harness-core harness.rs, commands/asset.rs, session layout_records.rs, all at 0a733db8",
+     "Master Spec module 14: STU-LAY-028..031, STU-LAY-130..133, STU-ASSET-005..010, STU-RAS-012..014 (lines in target)",
+     "No external web research was run in this planning pass (read-only role, project-internal wiring)."
+    ],
+    "patterns_found": [
+     "In this repo a placed picture is a raster layer plus a shared source in the raster_records entry (place.rs), and the layout frame is a separate Folio record keyed by the layer (longdoc.rs:380): the PDF engine already joins them (pdf_export.rs:675-678).",
+     "Every multi-record edit of this kind is one HistoryStep (restructure_and_entry, submit_layout)."
+    ],
+    "reuse_opportunities": [
+     "place.rs decode, sharing, staging and link checks",
+     "layout fit_content and place_graphic",
+     "interop-layout graphic_layer and PdfAssets",
+     "LayoutStep and the HistoryStep entry field",
+     "brush_mix tile_view for ResolvedTile"
+    ],
+    "rejected_options": [
+     "A new LayoutEdit::Place member: LayoutEditor holds no tile staging, and layout_ui.rs plus both layout command files are edited by the in-flight indent lane.",
+     "Tiles at document resolution clipped to a canvas (the artboard path): a pages-only document has no canvas and print needs source resolution.",
+     "Two undo steps (place layer, then add frame): breaks one command = one step and leaves a frameless layer on undo.",
+     "Storing frame data in raster_records: a second source of truth beside StudioGraphicFrame."
+    ],
+    "unverified": [
+     "Undo and redo of a HistoryStep that sets both layout and entry.",
+     "Where tile bodies come from after reopen.",
+     "How DrawFrame places a new layer in the layer graph of a layout document.",
+     "Vendor behaviour of placement size, fit defaults and modified-link export (D5)."
+    ],
+    "selected_approach": "asset.place extended to pages-only documents through a new egui-free layout_place.rs, one new Run step joining the layout step and the raster records entry, a fit row, and a host PdfAssets resolver plus PdfLongDoc.graphics in the layout PDF.",
+    "limits": "No cargo, build or test was run; behaviour claims about untested paths are from reading code. MT files were not read."
+   },
+   "next_slices": [
+    "Frame move and resize for text and graphic frames (print step 52), with the frame and content moving together.",
+    "SMB-LAYOUT-PDF-CONTENT-1: tables (PdfLongDoc.tables), bookmarks from the TOC (outline_from_toc), vector frames and paint styles (PdfAssets::path, design records) in the layout PDF; same file as this lane, so after it.",
+    "Preflight link and resolution rules (missing, modified, effective ppi below a threshold; STU-LAY-132 last paragraph, STU-LAY-154).",
+    "Text wrap records and anchored graphics (STU-LAY-024..026, STU-LAY-126).",
+    "Clipping paths, alpha channel and detect edges (STU-LAY-031, STU-LAY-133).",
+    "Placing PDF and vector files with the crop enumeration (STU-LAY-130) and multi-file load.",
+    "IDML export and import of graphic frames; CMYK image numbers kept to the PDF (print step 50)."
+   ],
+   "open_questions": [
+    {
+     "for": "lead",
+     "question": "Is a frame required when placing on a page, or does asset.place without a frame make one at the content's 100 % size?",
+     "default": "Required on a pages-only document (frame_required): deterministic for a model and no hidden page-origin rule; a later slice can add the content-size frame."
+    },
+    {
+     "for": "lead or spec owner",
+     "question": "Content size at 100 %: from the source file's ppi, or always 72 ppi?",
+     "default": "The decoder's ppi when the format states one, else 72, recorded in the result so a model sees which; raise an SD item."
+    },
+    {
+     "for": "lead",
+     "question": "Export with a modified linked placement: refuse (place.rs convention) or render the current bytes (STU-ASSET-007 row modified)?",
+     "default": "Refuse placed_link_modified and name asset.update_all_modified, because the cached tiles are the old bytes and rendering the new ones at export needs a decode the export path does not do; raise an SD item."
+    },
+    {
+     "for": "lead",
+     "question": "Name of the fit command: asset.fit, or a layout.* id?",
+     "default": "asset.fit in commands/asset.rs: no spec id is verified for fitting, asset rows already route to place.rs, and commands/layout.rs is edited by the in-flight indent lane."
+    },
+    {
+     "for": "lead",
+     "question": "Zero shared files with SMB-TYPE-INDENT-SPACING-1, or disjoint hunks allowed in layout_export.rs?",
+     "default": "Disjoint hunks allowed (the in-flight list names layout_export.rs:771); the layout_export.rs commit is the lane's last and rebases on whichever lands first."
+    },
+    {
+     "for": "lead",
+     "question": "Does a layout instance in raster_records keep the identity transform in source pixels, with the frame owning placement?",
+     "default": "Yes: the frame record is the one placement authority; the instance keeps source and resample only, so there is no second transform to disagree."
+    }
+   ]
+  },
+  {
+   "id": "SMB-WEB-SITE-1",
+   "file": "hsk-studio-web-site-1",
+   "brief": "lane-smb-web-site-1",
+   "crate": "hsk-studio-harness-core (web site document set, link graph, site reports, update links on move, export of the set, site lock, job admission), hsk-studio-harness (tests)",
+   "crates_head": "0a733db8",
+   "summary": "A local site of several pages is one link graph: typed site reports, update-links-on-move as one receipted transaction, export of the whole document set, a site lock and job admission, all as web.* commands",
+   "target": "## Target\n\nEvidence: board-slides-web scenario gap rank 14 (site quality checks; steps 105, 108-111), step 113 (document set part of the export recipe), ledger `direction.next_lane_candidates` 2026-11-07T17:20:57Z: \"one document per export ... no JobPort ... a link to a missing page fails the export closed instead of warning link_broken\". All file:line below are READ at 0a733db8 unless marked; paths are under `handshake-studio-assets/crates/hsk-studio-`.\n\nToday:\n- The host holds one document: `WebHost` `harness-core/src/web_commands.rs:188` (doc, path, site, recipe, undo, redo); declared limits `:42-48`; dispatch `:299-350`; `Run` field `harness-core/src/harness.rs:459`, route `:1608`.\n- Export `:549-625`: the open document plus every granted local reference. A link to another page (`<a href=\"thanks.html\">`) is granted and copied as a raw `asset` (`:564-566`), so it is not exported as a document (not minified, not in a document set); a missing reference of any load kind, page links included, refuses `asset_missing` (`:567`). STU-WEB-163 says a link that resolves to no file is a `warning`.\n- `Port::resolve` `:797-821` sees each reference's `Loads`; folder links are granted as `link:` (`:791`, `:799-801`); names checked portable (`:845`), joins never leave the root (`:810-819`).\n- Engine: `parse` `web-core/src/dom.rs:384`, `collect_assets` `web-assets/src/assets.rs:1233` returning `AssetRef {node, source, reference, span, outcome, data_depth}` (`:156-167`; the span is the whole value when decoding changed offsets), `SourcePatch` `web-core/src/source_dom_patch.rs:24`, `apply` `:71`, `set_attribute` `:218`; the URL carrier table names `href` rows with `Load::Document` for navigation (`web-assets/src/carriers.rs` Load enum, `Document` documented as \"navigated to (a, area, form, refresh)\").\n- No JobPort in harness-core's Run (git grep JobPort over harness-core src/harness.rs: 0 hits); the session JobPort is used by `batch.rs:29`, and harness-view's `job_admission.rs:47-62` holds an `AdmissionJobPort`.\n- Rows: `harness-core/src/action/commands/web.rs:18-60`; tests `harness/tests/web_host.rs` (`:239` export, publish and verify; `:486` a linked folder does not reach outside the root).\n\nClauses (module 14, v02.229): STU-WEB-007 :30437, STU-WEB-113 :31101, STU-WEB-118 :31111, STU-WEB-120 :31115, STU-WEB-121 :31117, STU-WEB-127 :31140, STU-WEB-131 :31152 with :31153-31157 (parallel-safe, site-level advisory lock reporting the holder, deterministic), STU-WEB-139 :31179, STU-WEB-163 :31273, STU-WEB-164 :31275, STU-ASSET-009 :31352, STU-AUT-147 :21905, STU-CON-007 :22896.\n\n### Items, red first\n\n1. **Red, compiling.** New `harness/tests/web_site.rs`, commands by id string (the method of `web_host.rs:62` `cmd`). Fixture written by the test in a temp folder: `index.html` (links `thanks.html`, `styles/site.css`, `img/hero.png`, `missing.html`, `https://example.org`; one `img` without `alt`), `thanks.html` (no `title`), `orphan.png`, the site defined with `web.site`. Expect: `web.site_report` lists broken `missing.html` from `index.html` with its line, orphan `orphan.png`, external `https://example.org`, missing alt in `index.html`, untitled `thanks.html`; `web.export` with `documents: site` writes both pages and the manifest lists both as documents; `web.move_file` of `thanks.html` to `pages/thanks.html` rewrites the `href` in `index.html`. Prove red by running (`unknown_command` today).\n\n2. **Document set and link graph.** New module `harness-core/src/web_site.rs`, declared from `web_commands.rs` (`mod web_site;`) so `harness.rs` is untouched. Walk `local_root` in sorted order (never enumeration order, STU-WEB-131), bounded by file count (reuse `MAX_EXPORT_FILES` `:75`), depth (`MAX_SEGMENTS` `:81`) and the existing portable-name and no-escape rules; every `.html`/`.htm` is parsed under `Limits`; the open document contributes its live source, not its file. Per document, `collect_assets` through a recording port that keeps each reference's `Loads`. Graph row: `{from, reference, span, line, load, target_id, outcome}`; line = 1 + newlines before `span.start`. A fragment `page.html#id` to a site document resolves against that document's `id` attributes (the `#id` key form exists, `web_commands.rs:984`).\n\n3. **`web.site_report`** (new row, `web_command`; a read, no history step, one op record with counts). Rows sorted by (document, line, reference): `broken_links` severity `warning` with referring document, target and line (STU-WEB-163); `orphaned_files` severity `info` (STU-WEB-164; the site sidecar, manifest, receipt and lock file excluded; the recipe's entry document is never an orphan); `external_links` (STU-WEB-118); `missing_alt` (`img` without `alt`) and `untitled_documents` (no `title` or an empty one) from STU-WEB-121. Declared not done: redundant nested tags, removable empty tags, lint threshold, checked-out files. Bounded by `MAX_ROWS` (`:71`) with a `truncated` count.\n\n4. **Export of the document set** (STU-WEB-120 \"which document set\"). `web.export_recipe` gains `documents`: `open` (default; today's output byte-identical except item 4's page-link rule) or `site`. With `site`: every document of the set is exported from its source (minified per recipe); a link to a document of the set is that document, not an asset; assets are the union; the manifest lists every document with role `document`. In both modes a page link (`Load::Document`) with no target becomes a `link_broken` warning row in the manifest and the result instead of a refusal (STU-WEB-163); any other missing local reference still refuses `asset_missing` before anything is written (STU-ASSET-009 fail closed). `web.publish` (`:627`) publishes what the manifest lists, so it follows unchanged (read `:627-690` to confirm).\n\n5. **`web.move_file`** `{from, to}` (STU-WEB-118 update-links-on-move). Under the site lock (item 6): refuse while the open document has unsaved edits (`document_unsaved`); compute every referring document's new source by span edits of the references (attribute values through `escape_attr`; CSS `url()` spans as text edits), honouring `site_relative_link_base` (`document` relative or `site_root` absolute), and re-base the moved document's own relative references; re-parse every result before the first write; then write each through the existing atomic writer (`:909`) and rename last; on a failed write, restore already-written files from the in-memory originals and say so in the receipt. Receipt: the move plus `{document, before, after}` byte ranges per changed reference. Not a `web.undo` step: the open document, if rewritten, is reopened from disk with a fresh history (open question). Refusals: `to` outside the root, an existing `to` (case-folded, as export's collision check `:576-591`), a sidecar, manifest, receipt or lock file.\n\n6. **Site lock** (STU-WEB-131). `web.site_report`, export with `documents: site`, `web.move_file` and `web.publish` create `<local_root>/.studio-site.lock` exclusively with `{actor, client_session, command_id}`; contention refuses `site_locked` naming the holder, never blocks; released on every exit path (a guard). No stale-lock breaking in this slice.\n\n7. **Job admission.** `web.export`, `web.publish`, `web.site_report` and `web.move_file` are admitted through a session `JobPort` the `WebHost` holds (an `AdmissionJobPort`, as `harness-view/src/view/job_admission.rs:62` builds it): `overloaded` and `canceled` refuse before work; cancellation is checked between documents. The declared gap at `web_commands.rs:47-48` goes.\n\n8. **Docs.** Module docs `web_commands.rs:1-48` (limits updated), new rows in `commands/web.rs` with parameters, `web_site.rs` manual section. Read MT-34270, MT-34271, MT-34274, MT-34275, MT-34346, MT-34349, MT-34348 (NOT_INSPECTED in this plan) before claiming; do not edit MT files.\n\nHostile input (V4-01/02), typed and changing nothing: 4097 files; a junction or symlink inside the root pointing outside; a document over `Limits`; a document with a very large number of references (bounded by collect_assets limits, NOT_INSPECTED: read them and state the number); a move onto an existing file, a case-only rename on a case-folding file system, a move out of the root; references with entities (span is the whole value); a held lock; a canceled token mid-walk and mid-move.\n\nDeterminism: report and export outputs are pure functions of the files and the recipe (STU-WEB-131): same tree, same bytes, whatever the enumeration order; no time in any output except the publish receipt's elapsed time, as today.\n\nOut of scope: rendering and `web.capture_view`; validator and linters (STU-WEB-052..058); templates, library items, behaviours; change-link-site-wide (next slice); synchronise (STU-WEB-119); transports other than `local_or_network`; version control; source maps, preprocessors, asset rewriting other than `keep`; site records in SurrealDB tables (STU-WEB-007; the sidecar stays); any panel, egui line, `Cargo.toml` change, Master Spec edit or MT edit.",
+   "diag": "report_for_host: one op record per command with a typed error and bounded target (web_commands.rs:1289-1320 run and target); report rows and receipts in the record's detail; the terminal Observe frame stays the run's own",
+   "attr": "unchanged: every command runs under Run::begin_at with the caller's command context (web_commands.rs:1299); the lock file records that context's actor and client session; no default_actor() or literal actor",
+   "exposure": "medium",
+   "paths": "- harness-core: new `src/web_site.rs` (declared from web_commands.rs); `src/web_commands.rs` (module docs :1-48, WebHost :188, execute arms near :299-350, export :549-625, recipe_from :1202-1235, a recording Port beside :783-821, the job port field); `src/action/commands/web.rs` (rows web.site_report, web.move_file; documents parameter on web.export_recipe).\n- harness: new `tests/web_site.rs`; `tests/web_host.rs` only if the page-link rule flips an existing assertion, reported in the notes.\n- web, web-core, web-assets: none expected; if a carrier gap is proven by a test, ask first.",
+   "suites": "clippy over hsk-studio-harness-core and hsk-studio-harness; nextest WHOLE suite of hsk-studio-harness-core; hsk-studio-harness tests web_site, web_host, harness_drive and the catalog key tests (rule 4e: confirm the units in .config/round-features.toml); web crate suites only if edited",
+   "closes": [
+    "board-slides-web gap rank 14 at 0a733db8: broken links, orphans, external links, missing alt and untitled documents (validator and linter stay open)",
+    "board-slides-web steps 105 and 111; the document set part of 113",
+    "ledger next_lane_candidates 2026-11-07T17:20:57Z: one document per export, missing page link fails closed, no JobPort (sidecar, transports, source maps stay listed)"
+   ],
+   "mts": [
+    "MT-34270",
+    "MT-34271",
+    "MT-34274",
+    "MT-34275",
+    "MT-34346",
+    "MT-34349",
+    "MT-34348"
+   ],
+   "tree": "smb-sentinels-native-1",
+   "tree_reason": "READ: worktree wt-studio-lanes/smb-sentinels-native-1 on branch lane/smb-web-host-1 at aa68164c, git status clean, aa68164c is an ancestor of 0a733db8. Its lane SMB-WEB-HOST-1 is READY_FOR_VALIDATION (ledger), so the tree is live (lead ruling p3). Its target holds deps of hsk_studio_web, web_core, web_assets, harness_core, harness and session (ls of target/debug/deps); the newest harness-core fingerprint is 2026-11-07 18:19; per-sha-aa68164c is on file. It is the tree that built web_commands.rs, the file this lane extends. Size NOT_MEASURED. Fallback: smb-r53-followups-1 (READY lanes OBSERVE-DIAG-SINK-1 and PR-EXPORT-RECIPE-1; whether its target holds the web crates is UNVERIFIED).",
+   "disk": "d",
+   "overlaps": {
+    "SMB-TYPE-INDENT-SPACING-1": "None: it edits harness-core commands/layout.rs only (READ from its diff); this lane edits commands/web.rs and web_commands.rs.",
+    "SMB-AI-LIVE-EFFECTS-1 / SMB-PARSER-HOSTILE-1 / SMB-GUI-FRAME-1 / SMB-VK-UI-PASS-1 / SMB-SCORE-EFFECTS-6": "None by file. PARSER-HOSTILE-1 hardens interop parsers, not web-core's HTML parser (UNVERIFIED against its final file list).",
+    "SMB-LAYOUT-PLACE-1": "None by file: it edits harness-core commands/asset.rs and harness.rs; both lanes add rows through their own domain files, and commands.rs needs no edit (ALL_ROWS is already a static, commands.rs:203-205).",
+    "SMB-WEB-HOST-1 (READY, under validation)": "Same file web_commands.rs; if R60 review fixes edit it, rebase.",
+    "all": "Build on D:; one lane pushes at a time under the current push hold."
+   },
+   "needs": {
+    "cargo_toml": "none: harness-core already depends on hsk-studio-web (web_commands.rs:52-56 imports) and hsk-studio-session (batch.rs:29)",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "manifest hsk.studio.web.export_manifest@1 gains a documents list and link_broken rows (additive; an `open` export without broken links stays byte-identical); sidecar unchanged",
+    "spec": "no Master Spec edit. SD items to propose on READY: the lock file as the site-level advisory lock; a page link with no target as a warning in both export modes; site records stay a sidecar beside STU-WEB-007's tables",
+    "root_inputs": "none"
+   },
+   "red_team": {
+    "risks": [
+     "Data loss: a move rewrites many files; a crash or refusal midway leaves links pointing nowhere.",
+     "Silent wrong rewrite: an entity-decoded span or a site-root link rewritten with the wrong base.",
+     "Escape from the root through a junction, symlink or `..` while walking or moving.",
+     "Non-determinism from file-system order or case folding.",
+     "Behaviour change: today's refusal of a missing page link becomes a warning, which an existing test may pin."
+    ],
+    "failure_scenarios": [
+     "A move succeeds on disk but the open document still holds the old source and a later web.save writes the old link back.",
+     "Two lanes run web.move_file on one site and both rewrite index.html.",
+     "A reference inside a data: payload (data_depth > 0) is rewritten inside the payload bytes and corrupts it.",
+     "Windows case-only rename (Thanks.html to thanks.html) is reported as a collision or overwrites.",
+     "The orphan report lists the export's own manifest or the lock file.",
+     "A broken link in a style body url() is missed because only attribute carriers were walked.",
+     "A lock left by a crashed process blocks every site-wide command with no recovery path."
+    ],
+    "minimum_controls": [
+     "Every new byte computed and re-parsed before the first write; rollback test that fails the second write and checks every file is back byte-identical.",
+     "Refuse move while the open document has unsaved edits; reopen it afterwards; test.",
+     "Lock with holder reported; a test holds the lock and asserts site_locked names it; the stale-lock recovery path is an open question with a documented manual step.",
+     "References with data_depth > 0 are reported, never rewritten.",
+     "Sorted walk and case-folded names; a test builds the tree in two creation orders and compares output bytes.",
+     "The page-link rule change is listed in the lane notes with every test it touches."
+    ]
+   },
+   "research_basis": {
+    "sources_checked": [
+     "Project: harness-core web_commands.rs and commands/web.rs, web-assets assets.rs and carriers.rs, web-core dom.rs and source_dom_patch.rs, harness tests web_host.rs, harness-view job_admission.rs, at 0a733db8",
+     "Master Spec module 14: STU-WEB-007, 113, 118, 120, 121, 127, 131, 139, 163, 164; STU-ASSET-009",
+     "No external web research was run in this planning pass; site link management is specified closely by STU-WEB-118 and STU-WEB-121."
+    ],
+    "patterns_found": [
+     "The carrier table already classifies every URL by load context, so a link graph is collect_assets plus a recording port, not a new scanner.",
+     "Text is authority (STU-WEB-003, STU-WEB-004): rewriting by span keeps every other byte, as the existing source patches do."
+    ],
+    "reuse_opportunities": [
+     "collect_assets and the carrier table",
+     "Port::resolve rules (portable names, no escape)",
+     "write_atomic and the export collision check",
+     "AdmissionJobPort from session",
+     "web_host.rs test helpers"
+    ],
+    "rejected_options": [
+     "A second HTML scanner for links: duplicates the carrier inventory.",
+     "Rewriting by re-serialising the DOM: breaks STU-WEB-004.",
+     "Site records moved into Folio now: no web token exists among session entries and STU-WEB-007 names SurrealDB tables; a third home would be churn.",
+     "Blocking wait on the site lock: STU-WEB-131 says report the holder."
+    ],
+    "unverified": [
+     "collect_assets limits on references per document.",
+     "Whether web.publish needs no change for a multi-document manifest.",
+     "Whether web_host.rs pins today's missing-page refusal."
+    ],
+    "selected_approach": "One new harness-core module over the existing web engine: sorted bounded walk, link graph from collect_assets, report and move rows, document-set export, a lock file and a session JobPort in the WebHost.",
+    "limits": "No cargo, build or test was run; MT files were not read."
+   },
+   "next_slices": [
+    "change-link-site-wide and the external-link report filters (STU-WEB-118).",
+    "Markup validator rule sets and linter defaults (STU-WEB-052..058) feeding the site report's lint threshold.",
+    "Library items and templates with update propagation (STU-WEB-090..096).",
+    "Synchronise with a reviewed action list (STU-WEB-119) and the SFTP transport by credential reference.",
+    "Site records in the kernel's tables (STU-WEB-007) once a web token exists.",
+    "Asset rewriting and source maps in the export recipe (STU-WEB-120)."
+   ],
+   "open_questions": [
+    {
+     "for": "lead",
+     "question": "Should a missing page link become a warning in the default open-document export too, or only with documents: site?",
+     "default": "Both: STU-WEB-163 gives severity warning for any link in the site graph, and the ledger already records the refusal as wrong; list every test that changes."
+    },
+    {
+     "for": "lead",
+     "question": "Is web.move_file a web.undo step?",
+     "default": "No: it changes files, not the open document's history; refuse while unsaved, reopen afterwards, and the receipt is the record; a reverse move restores (tested)."
+    },
+    {
+     "for": "lead",
+     "question": "Lock file name and stale-lock handling.",
+     "default": ".studio-site.lock in local_root, excluded from reports and export; no automatic breaking; the refusal names the holder and the manual step (delete the file after checking the holder is gone) goes in the manual."
+    },
+    {
+     "for": "lead",
+     "question": "Which document is never an orphan: the recipe's file, index.html, or every document?",
+     "default": "Documents are never orphans in this slice (only non-document files are); orphan pages need an entry-point rule the spec does not state."
+    },
+    {
+     "for": "lead",
+     "question": "Command ids web.site_report and web.move_file: no spec id is verified for them.",
+     "default": "Use them, following the web.* row naming of commands/web.rs, and record them for the command contract."
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "Label rule for this file: every code, spec, ledger and filesystem fact is READ at the pin (product 0a733db8, Master Spec v02.229 module 14, ledger and lane files as of 2026-11-08) unless it carries UNVERIFIED or NOT_INSPECTED. Product paths are under handshake-studio-assets/crates/hsk-studio-; spec lines are module 14-studio-creative-suite.md lines.",
+  "Ranking rule used: professional-workflow reach first, then engine and command depth GUI panels need, filtered by the hard rule that a lane proposed to start now shares no file hunk with an in-flight lane. Lanes 3 and 4 have reach equal to or above lane 2, but each shares files with an in-flight lane, so they carry a start gate and only one paragraph.",
+  "The in-flight lane SMB-TYPE-INDENT-SPACING-1 edits more files than the planners' list states (READ: git diff 0a733db8...lane/smb-type-indent-spacing-1, 26 files): also harness-core commands/layout.rs:30, harness-view view/commands/layout.rs:41 and :87, layout_ui.rs (imports and the ReplaceText arm :1131), layout_ui/find.rs, layout_ui/styles.rs, interop-layout folio_export.rs, data_merge.rs, lib.rs and layout xref.rs, find_change.rs. Its textflow commit 74c0f61b ('text inserted at byte 0 of a non-empty story joins the first paragraph') is the same class as the empty-story and replace_text-newline candidates.",
+  "The empty-story and layout.replace_text-newline candidates (ledger 2026-11-07T17:33:46Z and 12:31:03Z; test known_defect_replace_text_newline_keeps_one_paragraph at harness/tests/harness_drive_typed.rs:460; host loss paragraph_break_inside_paragraph_set_as_line_break at layout_export.rs:714-716) are folded into lane 3 as its first item: they live in layout textflow.rs and layout_ui.rs, both in the indent lane's files, and they decide paragraph boundaries that per-paragraph attributes rely on.",
+  "Lane 3 paragraph, SMB-TYPE-CHARACTER-ATTRIBUTES-1 (start after SMB-TYPE-INDENT-SPACING-1 merges): first, a newline in layout.replace_text ends a paragraph and an empty story stores no paragraph, removing the host loss at layout_export.rs:714-716 and the pinned defect test. Then the character record of the indent lane's next_slices (scope-20261107-text-attributes.json): per-range size, tracking, kerning, baseline shift, case and position, and an OpenType feature tag map on the story range, passed into every Type request where today features and axes are empty (layout_export.rs:305-306) and script and language are fixed to Latn and en (:302-303), with script itemization so a non-Latin paragraph shapes with its own script; edit_style and a local override command carry them; IDML import maps them. It reaches print steps 27, 39 and 43 and the quality of every exported page, and it is the record the Character, Paragraph and OpenType panels will bind to across layout, vector and raster text. Tabs, lists, drop caps, keep options and ruby follow as their own slices on top of it.",
+  "Lane 4 paragraph, SMB-BOARD-1 (start after SMB-AI-LIVE-EFFECTS-1 merges): board mode does not exist (commands/board.rs:5 is an empty list; document_new.rs:68 refuses the board profile). A first slice makes the board a page-kind container (STU-WB-120, spec line 22334) and adds sticky, shape_with_text, section and connector as StudioLayer kinds (STU-WB-102..108 and 115, spec lines 22281-22315) whose text is an ordinary text sublayer (STU-WB-104), drawn by lowering to the existing vector and text paths, with node-factory, read and mutate commands for each kind (STU-WB-134, spec line 22375), STRAIGHT and ELBOWED connectors attached to nodes and magnets that reroute on move and break visibly on delete, the validation codes of STU-WB-135, and PNG export of one board. It turns about 10 of the 27 workshop steps typed and opens a whole missing product mode, but it touches folio lib.rs (Payload) and composite, which the in-flight live-effects lane edits, and the spec ranks whiteboarding below layout and web (STU-WB-101, spec line 22275).",
+  "Next candidates after these four, in order: SMB-LAYOUT-PDF-CONTENT-1 (tables, TOC bookmarks, vector frames and paint styles in the layout PDF; after lane 1, same file); slide records and presentation of a native deck (STU-PRO-167..174, spec lines 20871-20885; touches folio, components and pulse); print colour depth (spot, process CMYK and gray paints, separation and overprint in press-write; folio paint.rs declares the gap at :20-21 and every exhaustive StudioPaint match in composite would change, so after SMB-AI-LIVE-EFFECTS-1); tagged PDF with links and alt text (press-write, after colour); layer and document setup commands (facing pages, bleed, margins, grids, document layers: print G7 steps 2-9).",
+  "Trees: lane 1 takes smb-id-toc-persist-1 and lane 2 takes smb-sentinels-native-1, the two the planners were asked to prefer; no other tree is needed. Both are live READY trees, so the D: count does not rise (lead ruling p3, 2026-11-08). Target sizes were not measured (du over 20 GiB trees was not run).",
+  "Resolved since the ledger entry of 2026-11-07T17:20:57Z: the clippy large_const_arrays note on ALL_ROWS no longer applies; ALL_ROWS is a static (harness-core/src/action/commands.rs:203-205).",
+  "Not done in this pass: no cargo, build or test; no MT file read; no external web research; no vendor app run. Scenario step mappings marked UNVERIFIED were not re-read row by row."
+ ]
+}
