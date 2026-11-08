@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T06:22:19Z",
+ "updated_at": "2026-11-08T07:20:10Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19566,8 +19566,8 @@
   },
   {
    "lane_id": "SMB-ARTBOARD-EXPORT-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view, hsk-studio-folio, hsk-studio-interop-vector-svg, hsk-studio-interop-vector-core, hsk-studio-interop-raster",
    "lane_file": "builders/lanes/hsk-studio-artboard-export-1.json",
    "brief": "builders/briefs/lane-smb-artboard-export-1.md",
@@ -19575,10 +19575,11 @@
    "base": "aa68164c",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T17:22:06Z",
+   "updated_at": "2026-11-08T07:20:10Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-ARTBOARD-EXPORT-1"
-   ]
+   ],
+   "claim": "5d020939..35c50d3b"
   },
   {
    "lane_id": "SMB-PLACE-ASSET-1",

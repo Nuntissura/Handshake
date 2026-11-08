@@ -1,43 +1,49 @@
 {
   "crate": "hsk-studio-harness-view, hsk-studio-folio, hsk-studio-interop-vector-svg, hsk-studio-interop-vector-core, hsk-studio-interop-raster",
   "lane": "SMB-ARTBOARD-EXPORT-1",
-  "status": null,
-  "phase": "paused",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
-  "base": "aa68164c",
+  "base": "5d020939",
   "commits": [
-    "1bd864ef red: SVG of a board off the origin frames that board",
-    "20d7b0b2 vector exports frame a named board (origin), export_document frames the chosen board",
-    "006190e5 red: export settings record, session token, Run::set_export_settings, export rows, export.run refuses not_built",
-    "9db105fc export.run writes every node named files at its constraints"
+    "bd965420 red: the SVG of a board off the origin frames that board",
+    "2b884024 the vector exports frame a named board",
+    "605964fc red: node export settings and export.run (F1 layout: None folded in)",
+    "c91fc814 export.run writes every node's named files at its constraints",
+    "5e3a77a1 red: review F2 to F6 on 9db105fc",
+    "fd247ec8 review F2 to F6 on 9db105fc",
+    "35c50d3b drop the export slot with take (unused_assignments warning)"
   ],
   "capabilities_done": [
     "SVG/EPS/PDF framed on a named board incl. origin",
     "export_document frames the chosen board",
     "StudioExportSettings record (STU-IO-111..114, 117) saved as session entry export_settings",
     "export.set_settings: one attributed entry-only undo step, survives save and reopen",
-    "export.run: per board and per layer, PNG/JPG at SCALE/WIDTH/HEIGHT, SVG, PDF, many named files in one run"
+    "export.run: per board and per layer, PNG/JPG at SCALE/WIDTH/HEIGHT, SVG, PDF, many named files in one run",
+    "review F1-F6 closed on the rebased tip (cede5958, then 8712fa23): layer frames on visual bounds incl. stroke and effect reach, one render held per run, whole-run preflight of render sizes and names, NTFS case folding, Surface::Run row"
   ],
   "tests": {
     "focused_local": {
       "harness-view viewer_artboard_export": "6/6 pass (smb-artboard-export-1-green5-view.log)",
       "folio export_settings_records": "4/4 pass (green6-folio)",
       "harness artboard_export": "1/1 pass (green6-harness)",
-      "interop-vector-core eps_export::tests": "1/1 pass (green2-core)"
+      "interop-vector-core eps_export::tests": "1/1 pass (green2-core)",
+      "review fixes": "13/13 pass at f90ea936 (smb-artboard-export-1-green-f90ea936.log)"
     },
     "red_proofs": {
       "svg_frames_the_chosen_board_at_its_origin": "red at aa68164c (red1b)",
-      "export_run tests": "red at 006190e5 not_built (red4-view)"
+      "export_run tests": "red at 006190e5 not_built (red4-view)",
+      "review F2-F6 (7 tests)": "red at 29ea565c (pre-rebase-to-8712fa23 sha; smb-artboard-export-1-red-29ea565c.log): 7 failed for the expected reasons, 4 rebased existing passed"
     },
-    "bundled": "NOT RUN",
-    "per_sha": "NOT RUN"
+    "bundled": "GREEN at 192b52a2: suites folio, session, harness-core, interop-vector-core, interop-vector-svg, interop-vector, package, harness-view [viewer]: 740 passed, 3 skipped, exit 0 (smb-artboard-export-1-bundled-suites-192b52a2.log); harness --test artboard_export [viewer]: 1 passed, exit 0 (smb-artboard-export-1-bundled-harness-192b52a2.log); rebased 192b52a2 -> 35c50d3b onto 5d020939 (native-host gui, root Cargo.toml registry pins, tools/workspace-probe.rs: no lane file touched, no rerun per the lead)",
+    "per_sha": "PER_SHA_RESULT OK shas=1 range=fd247ec8..35c50d3b, 22 units ok, exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-artboard-export-1/smb-artboard-export-1-per-sha-35c50d3b.log)"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "PAUSED by the Operator at tip 9db105fc (not pushed). Left: (1) message the lead with tip 9db105fc so code-check and red-team agents review the diff aa68164c..9db105fc; (2) on release one bundled run: lane-check.sh --owner smb-ai-distort-effects-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-harness-core -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector-svg -p hsk-studio-interop-vector -p hsk-studio-package -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer, then a second lane-check for harness with the named target --test artboard_export (in-process, no example binary) --features viewer; (3) land: fetch, rebase on origin/codex/handshake-studio-assets, lane-check --per-sha HEAD~1, guarded sha push, READY_FOR_VALIDATION. Never claim PASS.",
-  "updated_at": "2026-11-07T18:06:09Z",
+  "next": "READY_FOR_VALIDATION at 35c50d3b (pushed to origin/codex/handshake-studio-assets, confirmed by ls-remote 2026-11-08). Unjudged: a validator round judges it; never claim PASS. Tree and target smb-ai-distort-effects-1 can be handed over once the lead records it.",
+  "updated_at": "2026-11-08T07:18:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -85,19 +91,25 @@
       "hsk-studio-harness-core/src/harness/export_settings.rs (new), harness.rs (mod line), action/commands/export.rs (new rows file), action/commands.rs (mod + DOMAINS line)",
       "hsk-studio-harness-view view/commands/export.rs (new), commands.rs (arm), mod.rs (module + state.export_settings), doc_export.rs (V4-06 sibling fix)",
       "hsk-studio-harness/tests/artboard_export.rs (new in-process drive test)",
-      "not touched: hsk-studio-interop-raster (resampler lives in harness-view export_set.rs)"
+      "not touched: hsk-studio-interop-raster (resampler lives in harness-view export_set.rs)",
+      "hsk-studio-harness-core/tests/action_records.rs (SOURCE scan line, lead ruling 7)",
+      "hsk-studio-folio/tests/export_settings_records.rs (fold rows)"
     ],
     "cut": [
       "SCALE above 1 resamples the 1x render (no vector re-render at scale; note resampled_from_1x)",
       "outline_text, include_id_attribute, simplify_stroke recorded, not applied (note svg_options_not_applied)",
       "DISPLAY_P3_V4 refused at export; DOCUMENT writes sRGB",
       "JSON_TREE, GIF, video settings not admitted",
-      "use_absolute_bounds reads the same path bounds",
       "SVG keeps hidden layers of a contents-only layer target as display=none",
       "layer targets need an artboard; text/adjustment/fill layers have no bounds (export_node_bounds_unknown)",
       "separations not an export.run format",
       "inspect.render_selection (STU-AUT-166) not added; export.run on a node covers the file case",
-      "no partial-write rollback: a failure after the pre-checks names the files already written"
+      "no partial-write rollback: a failure after the pre-checks names the files already written",
+      "use_absolute_bounds reads the same visual bounds",
+      "effect reach is pigment's symmetric support: a drop shadow's frame grows on every side, never a crop",
+      "smart filter extent not computed: noted frame_excludes_smart_filter_extent in the file receipt",
+      "text, adjustment and fill layers inside a group add no bounds: noted frame_excludes_layers_without_bounds",
+      "an effect stack composite cannot convert refuses the target export_effect_extent_unknown"
     ],
     "mts_proved_candidates": [
       "MT-33378 STU-IO-111",
@@ -108,6 +120,18 @@
       "MT-477 STU-IO-010 per-layer and per-artboard single-target export (partial)",
       "MT-119 STU-VEC-028 per-artboard export (partial)"
     ],
-    "round_feature_units": "harness-view tests/viewer_artboard_export.rs and harness tests/artboard_export.rs are #![cfg(feature = \"viewer\")]; both crates have a [\"viewer\"] round unit (rule 4e ok)"
-  }
+    "round_feature_units": "harness-view tests/viewer_artboard_export.rs and harness tests/artboard_export.rs are #![cfg(feature = \"viewer\")]; both crates have a [\"viewer\"] round unit (rule 4e ok)",
+    "review_20261108": {
+      "source": "research/review-smb-artboard-export-1-9db105fc.json, lead rulings 2026-11-08",
+      "F1": "layout: None in the export_settings.rs HistoryStep literal, folded into the red commit 8f18a5d8 during the rebase so every commit compiles",
+      "merge": "source.rs tokens [..., project_bin, layout_records, export_settings]; entry_references NOT_APPLICABLE 17 with both rows; DOMAINS and state_json merged without conflict (SMB-PLACE-ASSET-1 not on origin)",
+      "F2": "one slot (key, view, render); outputs sorted per job, contents-only first; result renders, peak_retained_renders; test a_multi_node_run_holds_one_render_at_a_time",
+      "F3": "vector frame = composite PreparedVectors plane placement (fill, stroke outlines, joins, caps, markers, image copies); every layer grown by stack_support_px of composite effect_ops and a layer blur's support; unconvertible stack refuses export_effect_extent_unknown; notes frame_excludes_layers_without_bounds, frame_excludes_smart_filter_extent, frame_is_path_bounds; tests a_stroked_layer_exports_at_its_visual_bounds, effect_reach_is_the_engine_support",
+      "F4": "plan refuses export_too_large for a 1x render past MAX_VIEW_PIXELS, export_name_invalid for Windows device names and names over 255 UTF-16 units; tests a_run_checks_every_render_size_and_name_before_writing, device_names_and_long_names_are_invalid",
+      "F5": "folio::file_name_fold (per-char simple upper case) keys the run collision map and check_node_settings; a file absent at plan time is written with write_new even with overwrite; tests names_that_fold_to_one_file_collide, collisions_suffixes_shapes_and_bounds_are_refused, hostile_export_settings_are_typed_and_change_nothing",
+      "F6": "action_records scans harness/export_settings.rs; Surface::Run row document.set_export_settings (not recordable, mutates authority)",
+      "not_proven": "effect reach is unit-tested on synthetic stacks only (no package with raster records driven through export.run); NTFS $UpCase entries and Windows 11 device-name behaviour UNVERIFIED; drop-shadow reach is symmetric (margin also on the side away from the offset)"
+    }
+  },
+  "pushed": "35c50d3ba928be27a980443230cbe351f7644982"
 }
