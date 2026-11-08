@@ -246,7 +246,7 @@ def toolrail(slots, active, fg="#D8A25E", bg="#1B2A3A", extra_top=""):
             c += " on"
         if not isinstance(s, str) and s.get("state"):
             c += " " + s["state"]
-        h += '<div class="%s" data-a="studio.toolgroup.%s">%s</div>' % (c, gid, ti(icon))
+        h += '<div class="%s" data-a="studio.toolgroup.%s">%s</div>' % (c, gid.replace("_", "-"), ti(icon))
     return (
         '<div class="abs tr">%s<div style="display:flex;flex-direction:column;padding-top:2px">%s</div><div class="grow"></div>'
         '<div class="sl" title="All tools by family" data-a="studio.tool.family-browse">%s</div>'

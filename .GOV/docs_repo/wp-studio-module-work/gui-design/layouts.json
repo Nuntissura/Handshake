@@ -1556,7 +1556,7 @@
      "selection_brush",
      "selection_removal_brush"
     ],
-    "author_id": "studio.toolgroup.smart_select"
+    "author_id": "studio.toolgroup.smart-select"
    },
    {
     "group_id": "marquee",
@@ -2762,7 +2762,7 @@
   }
  },
  "fit_table": {
-  "note": "Computed by tools/gen_layouts.py from the presets above with the ladder as written; applied lists the rules that fired. Sizes are logical px. rail foot is 72px.",
+  "note": "Computed by tools/gen_layouts.py from the presets above with the ladder as written; applied lists the rules that fired. Sizes are logical px. rail foot is 80px (2 pad-top + 32 family browse + 4 + 36 colour proxy + 6, as mock_lib.toolrail draws it). right_group_heights partition the centre height minus the 28px right foot exactly: every group but the last is rounded from its share (halves up) and the last takes the remainder; under FIT-H2 a collapsed group is 26 and the open groups split the freed height the same way.",
   "results": {
    "raster": [
     {
@@ -2894,7 +2894,7 @@
      "right_group_heights": [
       244,
       195,
-      374
+      375
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -2927,7 +2927,7 @@
      "right_group_heights": [
       604,
       483,
-      926
+      927
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3032,7 +3032,7 @@
      "right_group_heights": [
       460,
       164,
-      197
+      198
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3098,7 +3098,7 @@
      "right_group_heights": [
       393,
       140,
-      168
+      169
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3131,7 +3131,7 @@
      "right_group_heights": [
       1065,
       380,
-      456
+      457
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3164,7 +3164,7 @@
      "right_group_heights": [
       460,
       164,
-      197
+      198
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3199,7 +3199,7 @@
      "right_group_heights": [
       184,
       138,
-      253
+      252
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3300,7 +3300,7 @@
      "right_group_heights": [
       260,
       195,
-      358
+      359
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3333,7 +3333,7 @@
      "right_group_heights": [
       644,
       483,
-      886
+      887
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -3673,7 +3673,7 @@
      "right_group_heights": [
       139,
       417,
-      437
+      438
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -4583,7 +4583,7 @@
      ],
      "viewers_as_tabs": false,
      "right_group_heights": [
-      191,
+      192,
       26,
       176
      ],
@@ -4622,7 +4622,7 @@
      "right_group_heights": [
       317,
       151,
-      287
+      286
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,
@@ -4754,7 +4754,7 @@
      "right_group_heights": [
       317,
       151,
-      287
+      286
      ],
      "rail_pitch": 32,
      "rail_overflow_slots": 0,

@@ -1,0 +1,176 @@
+{
+ "lane": "SMB-GUI-FRAME-1",
+ "reviewed_commit": "ba592e46 (captures); lane head 4c0103f0",
+ "reviewer": "GUI designer, WP-KERNEL-STUDIO",
+ "reviewed_at": "2026-11-08",
+ "captures_inspected": [
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1920x1080-offscreen.png",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1280x720-offscreen.png",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1024x640-edge-offscreen.png",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1920x1080-bands.json",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1920x1080-offscreen-tree.json",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1280x720-offscreen-tree.json",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1024x640-edge-offscreen-tree.json",
+  "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-ba592e46/frame-1920x1080-offscreen.json"
+ ],
+ "design_compared": [
+  "gui-design/mock-raster.html, rendered at 1920x1080 by tools/shoot.py (0 clipped, 0 overflow, 0 off-grid, 0 small text, 0 region overlap)",
+  "gui-design/tools/mock_raster.py and tools/mock_lib.py (exact numbers)",
+  "layouts.json frame.rows, presets.raster, tool_rail, docking, fit_rules, fit_table.results.raster",
+  "components.json",
+  "design-system.json",
+  "acceptance-checks.json"
+ ],
+ "verdict": "FIX_FIRST",
+ "matches": [
+  "AC-GEOM-01/03, AC-LOOK-02 bands at 1920x1080: every band in frame-1920x1080-bands.json equals the mock with 0 px difference: menu 0-28, tab strip 28-60, Context Bar 60-94, Tool Rail 0-44 x 94-1056, Browse rail 44-76, centre 76-1620 x 94-1028, right groups 94-374 / 374-598 / 598-1028 (280/224/430 = fit_table), bottom rail 44-1920 x 1028-1056, status 1056-1080.",
+  "Seams: 1px edge.seam #0A0A0A at y=27, 93, 113 (ruler), 1028, 1056 and x=43, 75, 95 (ruler), 1620; group seams at y=374 and 598; group header bottom seams present.",
+  "Surface tokens exact: menu and status surface.frame #131313; tab strip, rulers, group headers and bottom rail surface.strip #191919; Context Bar and panel bodies surface.panel #222222; canvas surround #303030; checker #3A3A3A/#4A4A4A. The status bar colour is surface.frame as designed, readouts are text.secondary #C4C4C4, and separators are 1px edge.subtle #303030 as in the mock.",
+  "Tool Rail: pad-top 2, pitch 32 at 1920 and 28 at 1280 and 1024 (FIT-R1), chevron slot plus navigate kept (FIT-R2). The active slot is surface.slot_active #383838 with a 2px accent edge and an accent hot point; rest icons match the mock's grey levels. The designer icon set is used, two-tint, with corner markers.",
+  "Group headers: 26px. The focused group's active tab is text.primary with a 2px accent top edge; unfocused groups use the quiet edge.control edge. +2 and +1 overflow match the mock. Empty-state padding is 16.",
+  "Hidden layer: eye_off glyph and the name in text.disabled #767676; visible rows text.primary; row pitch 32 as in components.json layer_row.",
+  "Fit: 1280x720 matches the fit_table raster row (centre 904x574, groups 172/138/264, pitch 28, 2 slots overflowed). 1024x640 matches the fit ladder computed for that window (centre 648x494, groups 148/119/227) and FIT-M1 abbreviations with all 19 titles kept.",
+  "AC-BEHAV-07: device and backend are named in the status bar."
+ ],
+ "findings": [
+  {
+   "id": "F1",
+   "check_id": "AC-COL-03, AC-COL-05, AC-LOOK-01, AC-REACH-04",
+   "severity": "major",
+   "where": "all captures; frame-1920x1080: menu titles x32-1158 y0-28, document tab x0-220 y28-60, Context Bar identity chip x4-77 and preset x85-154 y65-89, search x1522-1762 and Layout Preset x1820-1882 y32-56, bottom rail labels x48-499 y1030-1054",
+   "expected": "Controls whose function is not built yet render in the AVAILABLE rest state and answer a click with not_implemented_yet in the status bar and receipt. design-system state.availability has only AVAILABLE, INAPPLICABLE_HERE and NOT_IN_THIS_DOCUMENT; text.disabled belongs to the last two and needs reason_text plus an L1. Menu titles are text.primary 11/600 (contrast pair 'menu titles, status bar', 16.2:1). The identity chip is text.primary 600. Dropdown and search use surface.field with a 1px edge.control bottom edge. Bottom rail labels are text.secondary.",
+   "observed": "51 nodes carry disabled=true with value not_implemented_yet and are painted text.disabled #767676: all 19 menu titles, the module switch, the document tab, the identity chip 'Select', the preset 'Default' (fill #222222 with a #303030 edge, the disabled field style), search, Layout Preset, and the left and bottom rail buttons. #767676 on #131313 is about 4.1:1, under the 4.5 that menu titles require. The top of the frame reads as switched off. At 1280 the secondary window title is brighter than the titles beside it, so it reads as a 20th menu title.",
+   "fix": "Paint not_implemented_yet controls with their normal rest tokens and keep disabled=false. Keep not_implemented_yet as the activation outcome in studio.status.command and the receipt, and in the node value if wanted. Reserve text.disabled for real INAPPLICABLE_HERE or NOT_IN_THIS_DOCUMENT states that carry reason_text and an L1 (AC-REACH-05)."
+  },
+  {
+   "id": "F2",
+   "check_id": "AC-LOOK-02, AC-COL-05",
+   "severity": "major",
+   "where": "frame-1920x1080 x0-220 y28-60 (same at 1280 and 1024)",
+   "expected": "The open document's tab is active: fill surface.panel #222222, 2px accent.base top edge, label text.primary weight 600, close always visible (components document_tab, mock .dt.on).",
+   "observed": "Tab fill is surface.strip #191919, with no accent edge and the label #767676 at weight 400. The tree node has selected=false and disabled=true.",
+   "fix": "Mark the open document's tab selected and draw the .dt.on style. It is the single active tab, not a disabled control."
+  },
+  {
+   "id": "F3",
+   "check_id": "AC-LOOK-02 (Tool Rail band), layouts tool_rail anchors and foot",
+   "severity": "major",
+   "where": "frame-1920x1080 x4-40: family browse [4,704,36,32], colour proxy [4,740,36,36]; frame-1024x640 proxy ends at y588 with 28px empty below",
+   "expected": "Flexible space after navigate. Family browse and the 36x36 fill and stroke proxy are pinned to the rail bottom: proxy bottom = rail bottom - 6, browse 4px above it. At 1920 that is browse y978-1010 and proxy y1014-1050.",
+   "observed": "Both follow navigate directly, 274px higher than the mock at 1920, leaving the bottom 280px of the rail empty.",
+   "fix": "Insert a flexible spacer between the navigate slot and the family browse slot so the foot is bottom-anchored, with margins 4 above and 6 below the proxy as in mock_lib.toolrail."
+  },
+  {
+   "id": "F4",
+   "check_id": "AC-REACH-03",
+   "severity": "major",
+   "where": "frame-1920x1080 group header +2 [1805,94,33,26] and +1 [1865,374,32,26]",
+   "expected": "A +N opens the list of hidden tabs (here effect-controls and masks; navigator), and choosing one makes it active (layouts docking, components group_header).",
+   "observed": "The +N buttons are disabled with not_implemented_yet, so Effect Controls, Masks and Navigator have no pointer path, although frame.tab_select exists.",
+   "fix": "Enable +N and have it open a flyout of the hidden tabs whose rows dispatch frame.tab_select for that tab."
+  },
+  {
+   "id": "F5",
+   "check_id": "AC-TEXT-01, FIT-S1",
+   "severity": "major",
+   "where": "frame-1024x640 status bar: studio.status.command [224,620,136,16] reads 'frame.static not_imple...'; studio.status.device [606,620,410,16] is shown in full",
+   "expected": "FIT-S1: when the status bar is short, readouts drop into the status overflow menu in the order device, document size, colour mode, zoom, and the hintline keeps at least 320px. The click outcome must stay readable: it is the only answer a not-yet-built control gives.",
+   "observed": "The command outcome is ellipsized while the 410px device readout, the first to drop, stays.",
+   "fix": "Apply FIT-S1: move the device readout (then size, then zoom) into a status overflow before ellipsizing the outcome. Show the outcome in words (the control name plus 'not built in this host yet') and keep the code in the receipt."
+  },
+  {
+   "id": "F6",
+   "check_id": "ruler component (STU-SHL-025), AC-LOOK-02",
+   "severity": "major",
+   "where": "all captures, vertical ruler x76-96 from y114; frame-1920x1080 shows only #767676 tick pixels at x86-94",
+   "expected": "Numbers at every major tick on both rulers: caption 11px tnum, text.tertiary on surface.strip. Vertical labels are rotated to read bottom to top, 2px from the outer edge, with the top at tick+1, and are dropped within 40px of the end (mock_raster.ruler_ticks vertical branch).",
+   "observed": "The vertical ruler draws ticks only; the horizontal ruler has numbers.",
+   "fix": "Draw the vertical ruler labels as the mock does: the same values and drop-near-end rule as the horizontal ruler, with glyphs rotated 90 degrees counter-clockwise."
+  },
+  {
+   "id": "F7",
+   "check_id": "AC-LOOK-02, status_bar component",
+   "severity": "minor",
+   "where": "frame-1920x1080 status bar y1056-1080",
+   "expected": "Left: the hintline (gesture name, then key chip plus action). Right: readouts in the mock's order, document size, colour mode, zoom, jobs, device. Device state lives in the device readout.",
+   "observed": "The hintline slot holds renderer state 'cpu painter, Vulkan UI pass pending'. Readouts run zoom, size, 'revision 1', device, with no colour mode.",
+   "fix": "Move the painter and UI-pass state into the device readout. Put the active tool name in the hintline until a gesture map exists. Order readouts as size, zoom, device. Drop 'revision' or move it to the overflow."
+  },
+  {
+   "id": "F9",
+   "check_id": "layer_row component, GUI-DESKTOP-012",
+   "severity": "minor",
+   "where": "frame-1920x1080 thumbnails x1653-1677 at y628, 660, 692, 724",
+   "expected": "Each 24px thumbnail shows that layer's pixels over the checker.",
+   "observed": "All four are plain checker, although Red, Green and Blue have visible content on the canvas.",
+   "fix": "Downsample each layer into its 24x24 thumbnail over the checker, from the same CPU read-back the viewer uses."
+  },
+  {
+   "id": "F10",
+   "check_id": "layer_row component, mock .ey",
+   "severity": "minor",
+   "where": "frame-1920x1080 eye icons x1630-1646 for all rows",
+   "expected": "Visibility icons in text.tertiary #A0A0A0 in both states. The hidden row shows eye_off with its name in text.disabled.",
+   "observed": "eye_off and the disabled name are correct, but every eye is drawn in text.secondary #C4C4C4.",
+   "fix": "Tint the visibility icon text.tertiary."
+  },
+  {
+   "id": "F11",
+   "check_id": "AC-GEOM-04, group_header",
+   "severity": "minor",
+   "where": "frame-1920x1080 Colour tab y374-376 and Layers tab y598-600",
+   "expected": "The active tab of an unfocused group has a 2px edge.control top edge below the 1px group seam (mock rows 375-376), with the header bottom seams at 400 and 624.",
+   "observed": "The seam overdraws the edge's first row, leaving 1px (#7C7C7C at 375 only). The header bottom seams sit at 399 and 623.",
+   "fix": "Start the headers of groups 2 to 4 1px below the group seam, as the mock's border-top does, so each header is a full 26px and the 2px edge stays whole."
+  },
+  {
+   "id": "F12",
+   "check_id": "empty_state component",
+   "severity": "minor",
+   "where": "frame-1920x1080 Properties body x1636-1905 y157-170; Colour body y437-450",
+   "expected": "One line naming what is missing and one line on how to get it, in words. Codes stay on the node.",
+   "observed": "'Not built in this host yet (not_implemented_yet)' shows the raw code in the visible text.",
+   "fix": "Render 'Not built in this host yet' and keep not_implemented_yet in the node value and receipt."
+  }
+ ],
+ "not_judged": "Light theme, 2560x1440 and 3840x2160 were not captured. Behaviour checks (AC-BEHAV, AC-FOCUS, AC-REACH-01/02) need the drive method, not screenshots.",
+ "ruler_numbers_ruling": "Yes, the design asks for numbers on the vertical ruler. mock_raster.ruler_ticks(vertical=True) draws a label at every major tick: rotated (writing-mode vertical-rl plus 180 degrees, so it reads bottom to top), 2px from the left, top at tick+1, and dropped within 40px of the end. components.json ruler gives the text style 'caption tnum' with no axis exception, and the design-system contrast pairs list 'ruler numbers' as text.tertiary on surface.strip. The rendered mock shows them at 500, 1000 and so on down the left edge. The tick-only vertical ruler is finding F6.",
+ "generator_fix": {
+  "rule": "Every right group but the last is rounded from its share (halves round up, floor(x+0.5)), and the last group takes the remainder. The groups therefore sum exactly to the centre height minus the 28px dock foot. Under FIT-H2 a collapsed group is 26 and the open groups split the freed height by the same rule.",
+  "why": "The mocks already use this rule (mock_raster, mock_vector and mock_design: gs[-1] = h - sum(others)), so the table and the mocks cannot disagree. The leftover pixel goes to the last group, which opens with Layers, a list panel, and FIT-L2 gives extra height to list panels. Explicit half-up rounding matches Rust f64::round for positive values, so a host computing the split gets the same pixels; Python round() rounds halves to even. Largest-remainder rounding would also partition exactly, but it can move the spare pixel between groups and would then differ from the mocks.",
+  "files": [
+   "gui-design/tools/gen_layouts.py (partition() helper; fit() uses it for the share split and the FIT-H2 regrow; avail uses round(centre_h); the fit_table note states the rule); rail_foot 80",
+   "gui-design/layouts.json (regenerated)",
+   "gui-design/mock-raster.html, mock-raster-light.html, mock-vector.html, mock-video.html, mock-design.html (regenerated by tools/gen_mocks.py; only the builder's kebab-case change differs from HEAD, the others are byte-identical)"
+  ],
+  "kept": "The builder's edits are kept, and the generator reproduces them: studio.toolgroup.smart-select in layouts.json, gen_layouts.py (gid.replace('_','-')), the mock_lib.py toolrail data-a, and both raster mocks; raster 2560x1440@1.5 = [244,195,375] and 3840x2160@1 = [604,483,927].",
+  "rows_changed": "raster 2560x1440@1.5 last 374->375 and 3840x2160@1 926->927; develop 1920 and 3840@2 197->198, 2560@1.5 168->169, 3840@1 456->457; vector 1280 253->252, 2560@1.5 358->359, 3840@1 886->887; motion 2560@1 437->438; web 1280 [191,26,176]->[192,26,176], 1920 and 3840@2 287->286.",
+  "foot_note": "The develop, motion, web, video, audio and design rows are meant to sum to the centre height minus 28. That 28px is the dock foot for registered panels (components dock_foot, size dock.foot_h). Only the 1px rounding was a defect.",
+  "check_output": "python check over layouts.json fit_table: 'fit_table rows checked 54 mismatches 0', meaning sum(right_group_heights) == centre[1] - foot for every row of every preset whose right dock is expanded. The 6 board rows have the right dock as a rail with no groups. author_id check: studio.toolgroup.smart-select is present, and no tool group author_id contains '_'.",
+  "self_tests": "tools/check_all.py: 'cited clauses 179 components 88 checks 45 steps 17 / components with no build step: [] / fit problems: [] / ok'. tools/shoot.py mock-raster.html mock-raster-light.html: both have 0 clipped, 0 overflow_x, 0 row_overflow, 0 off_grid, 0 small_text, 0 region_overlap.",
+  "open_design_note": "Resolved by the lead's ruling of 2026-11-08: the rail foot is 80 px.",
+  "rail_foot_fix": {
+   "change": "gen_layouts.py fit(): rail_foot = 2 + 32 + 4 + 36 + 6 = 80 (pad-top, family browse, gap, colour proxy, bottom margin, as mock_lib.toolrail draws it); the fit_table note now says 80px. Regenerated with gen_layouts.py and gen_mocks.py.",
+   "fit_table_effect": "No fit_table row changed: none of the six tabled windows crosses a slot boundary between 72 and 80. Only the note text changed.",
+   "prediction_1024x640": "raster at 1024x640: pitch 28 (FIT-R1), 5 hidden tool slots (FIT-R2), was 4 with 72. This equals the capture, which hides pen, shape, type, warp and measure. raster at 1280x720 stays at 2 hidden.",
+   "checks": "Partition check: 54 rows, 0 mismatches. check_all.py: ok, fit problems []. shoot.py on mock-raster, mock-raster-light, mock-vector, mock-video and mock-design: all 0 clipped, 0 overflow_x, 0 row_overflow, 0 off_grid, 0 small_text, 0 region_overlap. Kept: raster 2560x1440@1.5 [244,195,375] and 3840x2160@1 [604,483,927]; studio.toolgroup.smart-select, with no underscore ids."
+  }
+ },
+ "lead_rulings": [
+  {
+   "date": "2026-11-08",
+   "on": "F1",
+   "ruling": "F1 stands. The lead withdraws its earlier B6 reading: B6 'Descriptors and menu' covers greyed items inside opened menus, not frame controls. Frame controls that are not built render in the normal rest state and answer with not_implemented_yet."
+  },
+  {
+   "date": "2026-11-08",
+   "on": "F8",
+   "ruling": "F8 (window buttons) is withdrawn. The recorded default is that in the asset-local host the OS frame provides the window buttons, so the frame does not draw them. F8 is removed from findings; F9 to F12 keep their ids."
+  },
+  {
+   "date": "2026-11-08",
+   "on": "generator_fix.open_design_note",
+   "ruling": "The tool-rail foot is 80 px, matching the mock and the capture. The rendered design wins over the generator's 72 px assumption."
+  }
+ ]
+}

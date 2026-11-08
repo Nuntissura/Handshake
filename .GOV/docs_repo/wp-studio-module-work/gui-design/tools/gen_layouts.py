@@ -1,5 +1,6 @@
 """Writes ../layouts.json. Validates panel and tool ids against spec section 14 and computes fit_table."""
 import json
+import math
 import os
 import re
 import sys
@@ -53,6 +54,15 @@ def preset_panels(p):
 
 def has_time(p):
     return p["bottom"]["state"] == "expanded" and any(t in ("timeline", "keyframe-timeline") for g in p["bottom"]["groups"] for t in g["tabs"])
+
+
+def partition(total, parts):
+    """Rounds every part but the last, and the last takes the remainder, so the parts sum to total exactly.
+    Same rule as the mocks (mock_raster, mock_vector, mock_design): the remainder pixel lands in the last group,
+    which opens with layers, a list panel, and list panels take extra height (FIT-L2). Halves round up, as Rust f64::round
+    does for positive values, so a host computing the same split gets the same pixels (Python round() rounds halves to even)."""
+    out = [math.floor(x + 0.5) for x in parts[:-1]]
+    return out + [total - sum(out)]
 
 
 def fit(p, W, H, s):
@@ -117,19 +127,19 @@ def fit(p, W, H, s):
     group_h = []
     if right_state == "expanded":
         foot = 28 if p["right"].get("registered") else 0
-        avail = centre_h - foot
-        for g in p["right"]["groups"]:
-            group_h.append(round(avail * g["share"]))
+        avail = round(centre_h) - foot
+        group_h = partition(avail, [avail * g["share"] for g in p["right"]["groups"]])
         collapsed = [i for i, gh in enumerate(group_h) if gh - 26 < p["right"]["groups"][i].get("min_body", TH["group_min_h"])]
         if collapsed:
             applied.append("FIT-H2")
             free = sum(group_h[i] - 26 for i in collapsed)
-            group_h = [26 if i in collapsed else gh for i, gh in enumerate(group_h)]
             open_i = [i for i in range(len(group_h)) if i not in collapsed]
-            for i in open_i:
-                group_h[i] += round(free / len(open_i))
+            grown = partition(sum(group_h[i] for i in open_i) + free, [group_h[i] + free / len(open_i) for i in open_i])
+            group_h = [26 if i in collapsed else gh for i, gh in enumerate(group_h)]
+            for i, gh in zip(open_i, grown):
+                group_h[i] = gh
     slots = len(p["rail"]) + len(p.get("command_slots", []))
-    rail_foot = 32 + 40
+    rail_foot = 2 + 32 + 4 + 36 + 6  # pad-top, family browse, gap, colour proxy, bottom margin (mock_lib.toolrail; lead ruling 2026-11-08)
     pitch = 32
     if slots * 32 + rail_foot > main_h:
         pitch = 28
@@ -193,7 +203,7 @@ def main():
             if (fam, t) not in tools:
                 errs.append("group %s: tool %s not in family %s" % (gid, t, fam))
         count += len(ids)
-        groups_out.append({"group_id": gid, "family_id": fam, "face_icon": icon, "tools": ids, "author_id": "studio.toolgroup.%s" % gid})
+        groups_out.append({"group_id": gid, "family_id": fam, "face_icon": icon, "tools": ids, "author_id": "studio.toolgroup.%s" % gid.replace("_", "-")})
     if errs:
         sys.exit("\n".join(errs))
     panel_min = {}
@@ -232,7 +242,7 @@ def main():
         "tool_rail": {"rules": L.RAIL_RULES, "groups": groups_out, "tools_in_groups": count},
         "panel_minimums": {"note": "Generated from the 90 rows of STU-SHL-113. min_w applies when docked or floating. Field-dense panels switch to compact form under 260. A panel preferring over 320 presents as an overlay in a side edge (STU-SHL-073).", "panels": panel_min},
         "fit_rules": L.FIT_RULES,
-        "fit_table": {"note": "Computed by tools/gen_layouts.py from the presets above with the ladder as written; applied lists the rules that fired. Sizes are logical px. rail foot is 72px.", "results": fit_table},
+        "fit_table": {"note": "Computed by tools/gen_layouts.py from the presets above with the ladder as written; applied lists the rules that fired. Sizes are logical px. rail foot is 80px (2 pad-top + 32 family browse + 4 + 36 colour proxy + 6, as mock_lib.toolrail draws it). right_group_heights partition the centre height minus the 28px right foot exactly: every group but the last is rounded from its share (halves up) and the last takes the remainder; under FIT-H2 a collapsed group is 26 and the open groups split the freed height the same way.", "results": fit_table},
         "global_states": L.GLOBAL_STATES,
         "catalogue_gaps": gaps,
     }
