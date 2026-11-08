@@ -548,6 +548,8 @@ fn main() -> eframe::Result<()> {
         arm_crash_client_late(handle.crash_socket());
     }
 
+    let mcp_startup = handshake_native::mcp::startup::NativeMcpStartup::start();
+
     let controlled_quiet_launch =
         std::env::var("HANDSHAKE_NATIVE_TEST").ok().as_deref() == Some("1");
     let mut root_viewport = egui::ViewportBuilder::default()
@@ -598,7 +600,9 @@ fn main() -> eframe::Result<()> {
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = pending;
             renderer_binding?;
-            let mut app = HandshakeApp::new_with_diagnostic_provenance(cc, diagnostic_provenance);
+            let mut app = HandshakeApp::new_with_prestarted_mcp(
+                cc, diagnostic_provenance, mcp_startup,
+            );
             // Hand the running shell the Palmistry handle so a clean exit (`HandshakeApp::on_exit`) sends
             // the explicit Shutdown control message (§6.13.3). `None` when the watcher was not launched
             // (graceful degradation) — the app simply runs without it.

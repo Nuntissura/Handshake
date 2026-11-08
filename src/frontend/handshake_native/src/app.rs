@@ -26,6 +26,9 @@ use crate::layout_persistence::{
     LayoutTransport, PopOutSnapshot,
 };
 use crate::left_rail::{LeftRail, LeftRailColors, LeftRailEvent};
+use crate::mcp::startup::{
+    empty_snapshot, McpStartupState, NativeMcpStartup, BACKGROUND_RUNTIME_SHUTDOWN_TIMEOUT,
+};
 use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
 use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
 use crate::pane_registry::{
@@ -4583,7 +4586,6 @@ pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_
 // bounded at five seconds, so 25 seconds covers the complete production retry budget with margin.
 const BACKGROUND_WORKER_SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 const BACKGROUND_WORKER_SHUTDOWN_POLL: std::time::Duration = std::time::Duration::from_millis(10);
-const BACKGROUND_RUNTIME_SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Process-wide count used only to prove that app teardown does not leave detached layout workers.
 static ACTIVE_LAYOUT_WORKERS: std::sync::atomic::AtomicUsize =
@@ -8076,31 +8078,6 @@ fn is_egui_unsized_viewport(rect: egui::Rect) -> bool {
         && (rect.height() - EGUI_UNSIZED_VIEWPORT_SIDE).abs() < f32::EPSILON
 }
 
-/// The placeholder UI-tree snapshot the MCP slot (MT-027) holds before the first frame publishes the
-/// real live tree. A single `Window` root with `widget_count` 1, so `list_widgets` over the wire before
-/// the first frame returns a well-formed (if empty) snapshot rather than a lock on uninitialized state.
-fn empty_snapshot() -> crate::accessibility::UiTreeSnapshot {
-    crate::accessibility::UiTreeSnapshot {
-        root: crate::accessibility::UiTreeNode {
-            id: "node:root".to_owned(),
-            author_id: None,
-            node_id: 0,
-            role: "Window".to_owned(),
-            label: None,
-            value: None,
-            disabled: false,
-            actions: Vec::new(),
-            bounds: None,
-            children: Vec::new(),
-        },
-        captured_at_utc: "0.000000000Z".to_owned(),
-        widget_count: 1,
-        // Nothing has been laid out yet, so there is no coordinate space to declare. A reader must not
-        // treat the placeholder as window-relative geometry.
-        viewport: None,
-    }
-}
-
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
 /// (ON by default from MT-004). When the feature is OFF, font loading is skipped and eframe's
 /// default fonts are used — never a panic (RISK-6 / CONTROL-6). build.rs fails fast with a clear
@@ -8293,17 +8270,29 @@ impl HandshakeApp {
         Self::new_with_diagnostics(cc, provenance, true)
     }
 
+    pub fn new_with_prestarted_mcp(
+        cc: &eframe::CreationContext<'_>,
+        provenance: Option<crate::internal_diagnostics::AdoptedDiagnosticProvenance>,
+        startup: NativeMcpStartup,
+    ) -> Self {
+        Self::new_with_startup(cc, provenance, true, startup)
+    }
+
     fn new_with_diagnostics(
         cc: &eframe::CreationContext<'_>,
         provenance: Option<crate::internal_diagnostics::AdoptedDiagnosticProvenance>,
         preinstalled_only: bool,
     ) -> Self {
+        Self::new_with_startup(cc, provenance, preinstalled_only, NativeMcpStartup::start())
+    }
+
+    fn new_with_startup(
+        cc: &eframe::CreationContext<'_>,
+        provenance: Option<crate::internal_diagnostics::AdoptedDiagnosticProvenance>,
+        preinstalled_only: bool,
+        mut startup: NativeMcpStartup,
+    ) -> Self {
         Self::install_fonts(&cc.egui_ctx);
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(1)
-            .enable_all()
-            .build()
-            .expect("build tokio runtime");
         let diag_session = if preinstalled_only {
             crate::diagnostics::take_preinstalled_diag_session()
         } else {
@@ -8311,14 +8300,16 @@ impl HandshakeApp {
         };
         crate::diagnostics::start_global_operation_watchdog();
         let gpu_info = crate::diagnostics::GpuInfo::capture(cc);
-        let mut app = Self::fresh_production_shell(
-            rt,
+        let mut app = Self::fresh_production_shell_with_mcp(
+            startup.take_runtime(),
             diag_session,
             gpu_info,
             backend_client::BACKEND_BASE_URL,
+            startup.state(),
         );
+        app.mcp_server = startup.take_server();
         app.diagnostic_provenance = provenance;
-        app.spawn_mcp_server();
+        app.bind_mcp_diagnostic_owner();
         app.attach_lsp_for_mounted_code_pane();
         Self::record_startup_marker();
         app
@@ -8329,6 +8320,18 @@ impl HandshakeApp {
         diag_session: Option<crate::diagnostics::DiagSession>,
         gpu_info: Option<crate::diagnostics::GpuInfo>,
         backend_base: &str,
+    ) -> Self {
+        Self::fresh_production_shell_with_mcp(
+            rt, diag_session, gpu_info, backend_base, McpStartupState::new(),
+        )
+    }
+
+    fn fresh_production_shell_with_mcp(
+        rt: tokio::runtime::Runtime,
+        diag_session: Option<crate::diagnostics::DiagSession>,
+        gpu_info: Option<crate::diagnostics::GpuInfo>,
+        backend_base: &str,
+        mcp: McpStartupState,
     ) -> Self {
         // Fire-once, non-blocking health poll: window opens immediately, label shows Loading...
         let backend_health_url = format!("{}/health", backend_base.trim_end_matches('/'));
@@ -8383,12 +8386,6 @@ impl HandshakeApp {
         // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
         let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
         let atelier_side_panel_shared = Arc::clone(&editor_mounts.secondary.atelier_side_panel);
-        let mcp_snapshot = Arc::new(Mutex::new(empty_snapshot()));
-        let mcp_action_channel = Arc::new(Mutex::new(crate::mcp::ActionChannel::new()));
-        let mcp_windows = Arc::new(Mutex::new(crate::mcp::WindowSnapshotRegistry::new(
-            mcp_snapshot.clone(),
-            mcp_action_channel.clone(),
-        )));
         Self {
             health_status: HealthDisplayState::Loading,
             backend_health_url,
@@ -8670,16 +8667,12 @@ impl HandshakeApp {
             confirm_discard: None,
             drawer_action_success: None,
             drawer_action_in_flight: None,
-            // MT-027: bind the out-of-process MCP transport on the app runtime. The token + shared
-            // channel/snapshot are created here; `bind` is async (TcpListener) so it runs via the
-            // runtime. A bind failure is logged + degrades to "no MCP server" rather than blocking the
-            // window from opening (the shell must always start).
             mcp_server: None,
-            mcp_durability: Arc::new(Mutex::new(None)),
+            mcp_durability: mcp.durability,
             mcp_durability_generation: 0,
-            mcp_action_channel,
-            mcp_snapshot,
-            mcp_windows,
+            mcp_action_channel: mcp.channel,
+            mcp_snapshot: mcp.snapshot,
+            mcp_windows: mcp.windows,
             mcp_open_top_menu: None,
             mcp_open_top_menu_state: None,
             mt033_argus_action_completion: Mt033ArgusActionCompletion::default(),
@@ -8706,7 +8699,7 @@ impl HandshakeApp {
             mt117_save_readback_cell: Arc::new(Mutex::new(None)),
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
-            mcp_token: crate::mcp::SessionToken::generate(),
+            mcp_token: mcp.token,
             capturing_snapshot: false,
             ime_allowed_sent: false,
             // The docked panel and right-edge drag source share one account-bound state.
@@ -9018,34 +9011,6 @@ impl HandshakeApp {
         self.extra_frame_work_micros = micros;
     }
 
-    /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
-    /// on failure so the shell always opens. Only the production shell (with a multi-thread runtime) binds;
-    /// the headless/test shell drives the server's `dispatch_request` directly instead.
-    fn spawn_mcp_server(&mut self) {
-        let token = self.mcp_token.clone();
-        let snapshot = self.mcp_snapshot.clone();
-        let channel = self.mcp_action_channel.clone();
-        let capture = crate::mcp::SwarmMcpServer::os_window_capture();
-        let windows = self.mcp_windows.clone();
-        let durability = self.mcp_durability.clone();
-        let result = self.runtime().block_on(async move {
-            crate::mcp::SwarmMcpServer::bind_with_windows_and_durability(
-                token, snapshot, channel, capture, windows, durability,
-            )
-            .await
-        });
-        match result {
-            Ok(server) => {
-                tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
-                self.mcp_server = Some(server);
-                self.bind_mcp_diagnostic_owner();
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "MCP swarm server bind failed; model-steering transport disabled this session");
-            }
-        }
-    }
-
     fn shutdown_mcp_server(&mut self) {
         self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
             &crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY));
@@ -9054,13 +9019,7 @@ impl HandshakeApp {
         let Some(mut server) = self.mcp_server.take() else {
             return;
         };
-        for _ in 0..3 {
-            server.shutdown();
-            if server.binding_removed() {
-                break;
-            }
-            std::thread::yield_now();
-        }
+        crate::mcp::startup::shutdown_server(&mut server);
     }
 
     fn mt033_content_hash(content: &serde_json::Value) -> String {

@@ -6,6 +6,9 @@
 #[path = "native_gui_support/source_provenance.rs"]
 mod source_provenance;
 
+#[path = "native_gui_support/mcp_startup_lifecycle.rs"]
+mod mcp_startup_lifecycle;
+
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -22,6 +25,12 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+static HOST_STARTUP_TEST_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn host_startup_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    HOST_STARTUP_TEST_GUARD.lock().unwrap_or_else(|error| error.into_inner())
+}
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     let root = PathBuf::from(
@@ -142,6 +151,7 @@ impl Drop for DirGuard {
             `cargo test --test test_no_silent_hang_end_to_end -- --include-ignored --nocapture` after \
             building palmistry or setting HANDSHAKE_PALMISTRY_EXE."]
 fn in_app_stall_and_real_child_stall_are_both_reported_in_bounded_time() {
+    let _host_guard = host_startup_test_guard();
     let exe = find_palmistry_binary().unwrap_or_else(|| {
         panic!(
             "MT-106 capstone needs a built palmistry binary. Build palmistry or set \

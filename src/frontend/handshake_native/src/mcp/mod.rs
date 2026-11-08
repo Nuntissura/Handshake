@@ -52,6 +52,7 @@ pub mod leases;
 pub mod screenshot;
 pub mod server;
 pub mod session;
+pub mod startup;
 pub mod tools;
 
 pub use argus::{ArgusWindowDescriptor, WindowSnapshotRegistry, MAIN_WINDOW_ID};
