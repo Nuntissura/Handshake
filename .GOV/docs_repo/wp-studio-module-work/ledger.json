@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T08:20:58Z",
+ "updated_at": "2026-11-08T08:32:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19689,8 +19689,8 @@
   },
   {
    "lane_id": "SMB-GUI-FRAME-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-native-host (feature document: frame layout, views, command table, receipts), kumihimo-ui (additive: roles, node seams, ruler paint, frame widgets, fit helpers, partition check, designer icon source)",
    "lane_file": "builders/lanes/hsk-studio-gui-frame-1.json",
    "brief": "builders/briefs/lane-smb-gui-frame-1.md",
@@ -19698,7 +19698,7 @@
    "base": "cede5958",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T05:38:24Z",
+   "updated_at": "2026-11-08T08:32:45Z",
    "closes": [
     "build-order B5 for the raster preset in the asset-local Vulkan host: the static frame at 1920x1080 matching mock-raster.html frame bands within 2 px with empty panels, and 1280x720 per fit_table (recorded deviations STU-SHL-110 SHL-P-01, SHL-P-08, SHL-P-10 and STU-SHL-004 shell menu stand-in)",
     "Operator 2026-11-07 a working coherent GUI: every band of the raster workspace present and every control answering, by behaviour (tool pick, group tab) or by not_implemented_yet in the status bar and receipt",
@@ -19723,7 +19723,8 @@
     "MT-35048, MT-35050, MT-35051, MT-35052 (read; STU-SHL-160, -162, -163 Context Bar; identity chip and zones only; no claim)",
     "MT-35095 (read; STU-MDL-116 tool state inspectable; studio.tool.active; no claim)",
     "MT-35105 (read; STU-SHL-234 L-status hintline; no gesture map yet; no claim)"
-   ]
+   ],
+   "claim": "0a733db8..eb17fad6"
   },
   {
    "lane_id": "SMB-VK-UI-PASS-1",

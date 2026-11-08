@@ -1,19 +1,57 @@
 {
   "crate": "hsk-studio-native-host (feature document: frame layout, views, command table, receipts), kumihimo-ui (additive: roles, node seams, ruler paint, frame widgets, fit helpers, partition check, designer icon source)",
   "lane": "SMB-GUI-FRAME-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
-  "base": "cede5958",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
-  "verdicts": [],
+  "base": "0a733db8",
+  "commits": [
+    "5eba6890 gui frame, SMB-GUI-FRAME-1: red tests for the static raster frame (item 1)",
+    "54d7aca5 gui frame, SMB-GUI-FRAME-1: kumihimo-ui core for the frame (item 2)",
+    "03879f78 gui frame, SMB-GUI-FRAME-1: frame widgets and the contact sheet (item 3)",
+    "d088da74 gui frame, SMB-GUI-FRAME-1: the designer's icons as CPU two-tint masks (item 4)",
+    "49521401 gui frame, SMB-GUI-FRAME-1: frame layout and fit ladder (item 5)",
+    "708caba6 gui frame, SMB-GUI-FRAME-1: the raster frame, command table, observability, receipts (items 6 to 8)",
+    "a58b1177 gui frame, SMB-GUI-FRAME-1: capture matrix test and README (item 9)",
+    "ef7287bf gui frame, SMB-GUI-FRAME-1: focused-run fixes (dropdown reason, one window per test, fit memo)",
+    "7079908c gui frame, SMB-GUI-FRAME-1: cache ellipsis results; bound the step-cap storm",
+    "d5909aab gui frame, SMB-GUI-FRAME-1: storm bound counts the five panels a batch touches",
+    "0f137c5b gui frame, SMB-GUI-FRAME-1: red tests for the review findings of 4c0103f0",
+    "9b782f0e gui frame, SMB-GUI-FRAME-1: kumihimo-ui review fixes (availability as data, rotated ruler labels, tinted eye)",
+    "31040078 gui frame, SMB-GUI-FRAME-1: native-host review fixes (findings of 4c0103f0 and ba592e46)",
+    "ff428b11 gui frame, SMB-GUI-FRAME-1: capture matrix adds 2560x1440 (FIT-L1) and 1024x640 window captures",
+    "eb17fad6 gui frame, SMB-GUI-FRAME-1: clear the lane's clippy warnings"
+  ],
+  "capabilities_done": [
+    "kumihimo-ui: frame roles, node seams, Paint::Ruler/Round/TintedIcon, Flags.unfocused_group, checks::partition, clipped_labels by ancestor, Text::ellipsize_middle with an ellipsis result cache, fit_labels, fit_tabs",
+    "kumihimo-ui: frame widgets and contact sheet; designer icon set as CPU two-tint masks (icons.rs, design/icons.json, tools/gen_icons.py, src/icon_data.rs)",
+    "native-host: frame::layout fit ladder; raster preset data; ten panels inside GuiFrame::compose (SMB-VK-UI-PASS-1 hook); command table frame.tool_pick, frame.tab_select, frame.static not_implemented_yet (B6); studio.dock.state, studio.tool.active; receipt gui.frame with summed PaintStats; GUI_MIN_LOGICAL from tokens; Viewport id studio.viewer.canvas",
+    "review round (4c0103f0 code FIX_FIRST, ba592e46 design FIX_FIRST): lead correction D-F1 availability as data in normal styling; D-F2..D-F7, D-F10..D-F12, C-F1..C-F3 fixed; D-F8 window buttons omitted (recorded default); D-F9 thumbnails a named cut (no cheap per-layer pixels in harness-view)"
+  ],
+  "tests": {
+    "red": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/smb-gui-frame-1-red-on-cede5958-2.log: 56 run, 30 passed, 26 failed (new behaviour tests), EXIT 100",
+    "focused_ba592e46": "smb-gui-frame-1-focused-ba592e46.log: kumihimo-ui all + native-host gui_frame gui_chrome gui_layout gui_compose gui_window: 73 run, 72 passed, 1 failed (storm bound 4 per frame, fixed in 4c0103f0), EXIT 100",
+    "focused_4c0103f0": "smb-gui-frame-1-focused-4c0103f0.log: native-host gui_chrome: 9 run, 9 passed, EXIT 0",
+    "captures": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/ frame-{1920x1080,1280x720,1024x640,2560x1440}-{offscreen,swapchain}.png (equal frame_sha256 asserted), frame-1024x640-edge-offscreen.png, frame-1920x1080-bands.json",
+    "not_run": "doctests (none added), --per-sha (at release)",
+    "red_round2": "smb-gui-frame-1-red2-16c61410.log: 39 run, 30 passed, 9 failed (the changed tests), EXIT 100",
+    "bundled_28ff3a10": "smb-gui-frame-1-bundled-28ff3a10.log: lane-check --owner smb-pr-entry-references-1 --disk d: step 0 clean, clippy over kumihimo-ui, hsk-studio-ui-text, hsk-studio-native-host and dependents, nextest -p kumihimo-ui -p hsk-studio-ui-text -p hsk-studio-native-host --features document: 91 run, 91 passed, EXIT 0",
+    "clippy_7a95bb09": "smb-gui-frame-1-clippy-7a95bb09.log: lane-check clippy over kumihimo-ui, hsk-studio-native-host --features document and dependents plus the test build (nextest --no-run), EXIT 0; the lane's four warnings are gone; window.rs:248, :750 and scene.rs:135 predate the lane",
+    "per_sha_eb17fad6": "smb-gui-frame-1-persha-eb17fad6.log: lane-check --per-sha HEAD~1: shas=1 (eb17fad6), changed [hsk-studio-native-host kumihimo-ui], dependents [hsk-studio-ui-text], units default ok and hsk-studio-native-host+document ok, PER_SHA_RESULT OK, EXIT 0"
+  },
+  "verdicts": [
+    {
+      "by": "designer recheck",
+      "at_sha": "28ff3a10",
+      "verdict": "MATCHES_DESIGN",
+      "note": "D-F1 to F6 and F10 to F12 closed; F8 and F9 accepted; D-F7, N1, N2 moved to the next GUI lane"
+    }
+  ],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T05:38:24Z",
+  "next": "validator: judge SMB-GUI-FRAME-1 at eb17fad6 (commits 0a733db8..eb17fad6); the builder claims READY only, never PASS",
+  "updated_at": "2026-11-08T08:32:04Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -61,6 +99,27 @@
       "MT-35095 (read; STU-MDL-116 tool state inspectable; studio.tool.active; no claim)",
       "MT-35105 (read; STU-SHL-234 L-status hintline; no gesture map yet; no claim)"
     ],
-    "reuses_tree_and_target": "smb-pr-entry-references-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1",
+    "design_data_edits": [
+      "S/gui-design/layouts.json: tool_rail author_id studio.toolgroup.smart_select -> studio.toolgroup.smart-select; fit_table.results.raster 2560x1440@1.5 right_group_heights [244,195,374] -> [244,195,375]; 3840x2160@1 [604,483,926] -> [604,483,927]",
+      "S/gui-design/tools/gen_layouts.py:196 author_id kebab case; tools/mock_lib.py:249 data-a kebab case; mock-raster.html and mock-raster-light.html studio.toolgroup.smart-select",
+      "Not changed (named for the designer): gen_layouts.py fit() still rounds each share on its own, so a regeneration reverts the two raster rows; the same 1 px rounding also hits vector 1280x720 (575 vs 574), 2560x1440@1.5 and 3840x2160@1; develop, motion and web rows sum short by the 28 px foot plus rounding"
+    ],
+    "paths_beyond_brief": [
+      "crates/hsk-studio-native-host/tests/gui_compose.rs (SMB-VK-UI-PASS-1 test: paint-order assertion generalised to the frame's 11 lists, as the lead asked to put the bands inside compose)",
+      "crates/hsk-studio-native-host/src/gui/chrome.rs (new band view module, equivalent module file)"
+    ],
+    "clippy_warnings_open": "none in lane code since 7a95bb09; window.rs:248, :750 and scene.rs:135 predate the lane",
+    "cuts": [
+      "D-F8 window buttons omitted (recorded default: the OS frame provides them)",
+      "D-F9 layer thumbnails are the checker only: harness-view exposes no per-layer pixels cheaply",
+      "ruler numbers without tabular figures: no caption tnum token exists (a designer token gap)"
+    ],
+    "cuts_next_gui_lane": [
+      "D-F7: the painter state as part of the device readout; revision hidden",
+      "N1: ruler labels shaped with caption plus the tnum font feature, on both axes",
+      "N2: a focused menu title takes no hover fill; only the pointer does"
+    ],
+    "pushed": "eb17fad6 pushed to origin/codex/handshake-studio-assets (0a733db8..eb17fad6, guarded sha form), confirmed by ls-remote"
   }
 }
