@@ -9788,6 +9788,7 @@ struct MemberRecipientPhysical {
     prepared: RecipientArc<MemberRecipientPrepared>,
     identity: MemberRecipientIdentity,
 }
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
 tokio::task_local! { static MEMBER_RECIPIENT_PHYSICAL: MemberRecipientPhysical; }
 
 #[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
