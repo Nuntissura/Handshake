@@ -1,0 +1,93 @@
+{
+ "lane": "SMB-ARTBOARD-EXPORT-1",
+ "tip": "9db105fc",
+ "base": "aa68164c",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "Nothing found that breaks the build or a test at the current tip 9db105fc with the round feature units (harness-view [viewer], harness [viewer]). But the lane cannot land as it stands: origin cede5958 adds HistoryStep.layout, so after the rebase harness-core/src/harness/export_settings.rs no longer compiles (F1), and origin touched two of the lane's crates (harness-core, session). Rebase first, apply F1 and the merge in merge_note, then do the one bundled run on the rebased tip. That saves a second run. F2 is a cheap fix for an unbounded allocation. F3 gives a wrong answer for any stroked layer target: fix it, or declare it as a cut. F4 to F6 are low and the lead may waive them.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "build break after the required rebase",
+   "where": "crates/hsk-studio-harness-core/src/harness/export_settings.rs:106 (HistoryStep literal); origin d119ff75 adds the field at harness.rs:375 (struct HistoryStep { ... layout: Option<hsk_studio_session::LayoutStep> ... })",
+   "what": "origin/codex/handshake-studio-assets (LAYOUT-PERSIST-1, d119ff75 to a3215161) adds the field `layout` to HistoryStep and updates every literal in harness.rs, containers.rs and motion_commands.rs. The lane's new file builds `HistoryStep { label, inverse, entry, timeline, group, sequences, containers, ctx, revision }` without it. git rebase reports no conflict there because the file is new, but the rebased tip fails with E0063 (missing field `layout`) in harness-core and in every crate that depends on it.",
+   "scenario": "fetch, rebase onto cede5958, then lane-check --per-sha HEAD~1: the compile fails in hsk-studio-harness-core.",
+   "fix": "Add `layout: None` to the literal at export_settings.rs:106 during the rebase. The textual conflicts of the same rebase are in merge_note."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "unsafe: unbounded aggregate allocation (V4-02), out of memory on a realistic document",
+   "where": "crates/hsk-studio-harness-view/src/view/export_set.rs:456-499 (views and renders BTreeMaps); LinearFrame.pixels is Vec<[f32; 4]> (render.rs:281)",
+   "what": "export.run keeps every view copy and every 1x linear render in `views` and `renders` until the run ends. Each render is 16 bytes per pixel, and up to 1 GiB at MAX_VIEW_PIXELS (64 Mi pixels). Only the per-render size and the file count (1024) are bounded. Nothing bounds the running total. `planned` is grouped by job (one job's settings are pushed together, :421-452), so a finished job's render is never read again.",
+   "scenario": "A brand document with 60 artboards of 2048 by 2048 (4 Mi pixels, 64 MiB per render), each marked PNG: export.run holds about 3.75 GiB of renders before it returns. With 4096 by 4096 boards it holds 15 GiB, and the process aborts on allocation failure instead of refusing typed.",
+   "fix": "Keep only the current job: before the `views.entry`, when p.job differs from the previous job, call views.clear() and renders.clear(). Optionally refuse `export_too_large` when the sum of 1x frame pixels in one job exceeds a budget. No test change is needed: the 8-file test still passes."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ (mechanism); the cropped pixels are UNVERIFIED (not rendered)",
+   "severity": "wrong answer: a stroked (or shadowed) layer target exports cropped",
+   "where": "crates/hsk-studio-harness-view/src/view/export_set.rs:292 (vector frame = Viewer::layer_bounds), vector/arrange.rs:226-240 (bounds_of = nib path_bounds, geometry only); export_set.rs:321-325 (the board becomes that frame); render.rs:440-442 (the render frames the first board)",
+   "what": "A layer target's frame is its path geometry bounds, with no stroke width and no effect extent. The view copy's first board is set to that frame and the render clips to it. A centred or outside stroke loses its outer part on every edge, and a drop shadow is lost. Each PNG, JPG, SVG viewBox and PDF page of the layer is cut at the path. With use_absolute_bounds false, STU-IO-112's default is the rendered extent, not the geometry. The lane's cut list says only 'use_absolute_bounds reads the same path bounds', which does not cover this. The tests use stroke_on: false (viewer_artboard_export.rs:24), so nothing catches it.",
+   "scenario": "Draw a 60 by 48 rectangle with stroke_on true and stroke_width 8, centre-aligned. export.set_settings on it with [{format: PNG, suffix: @2x, SCALE 2}] gives 120 by 96 instead of 136 by 112, and the outer 4 px of the stroke are cut on each side.",
+   "fix": "Inflate the vector frame by the layer's stroke extent: half the width for a centre stroke, the full width for an outside stroke, times the miter limit for miter joins, using the layer's appearance or design records, plus any effect offset and blur the renderer applies. Add one stroked-icon assert. If the lead defers this, at least declare it in the lane cut list and the module doc, and push a `frame_is_path_bounds` note into the file receipt when the layer has a stroke."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ (missing checks); UNVERIFIED (Windows device-name behaviour per Windows version)",
+   "severity": "low: a partial run that the module doc says cannot happen, and a possible silent drop",
+   "where": "crates/hsk-studio-harness-view/src/view/export_set.rs:23-27 (module claim), :431-437 (raster size check), :94-98 (file_stem), :490-491 (write)",
+   "what": "(a) The plan checks the output size (ow*oh) and the horizontal pass (ow*h), but not the 1x render (w*h). render.rs:462 refuses canvas_too_large only once the job is reached, after earlier files are written. (b) file_stem replaces reserved characters but checks neither the component length (NTFS: 255 UTF-16 units) nor Windows device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9, before the first dot, any case). A long name fails export_write in mid-run. `NUL.png` or `CON.png` may open the device instead of a file. On versions that map these names to devices, the bytes are discarded or printed, and the receipt lists a file that does not exist.",
+   "scenario": "(a) Two artboards: 'a' 64 by 64 first, then 'b' 12000 by 12000, both with [{format: PNG, constraint: WIDTH 16}]. a.png is written, then b refuses canvas_too_large. (b) A layer named 'nul' with [{format: PNG}].",
+   "fix": "In the plan, for a raster setting, also refuse export_too_large when u64(w)*u64(h) > MAX_VIEW_PIXELS. Refuse a new code export_name_invalid when the file name is over 255 UTF-16 units or its stem, case-folded and trimmed before the first '.', is a reserved device name. Add both to the hostile test, whose 'nothing written' assert already covers it."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ (code); UNVERIFIED (NTFS upcase table details)",
+   "severity": "low: a lost write with overwrite, and an accepted record that can never export",
+   "where": "crates/hsk-studio-harness-view/src/view/export_set.rs:439 (names keyed by file.to_lowercase()), :490 (write_atomic when overwrite); crates/hsk-studio-folio/src/export_settings.rs:331 (check_node_settings keys on the exact suffix)",
+   "what": "(a) The in-run collision check folds case with Rust's full to_lowercase. NTFS compares through its simple-uppercase table, so some names are one file on NTFS but two keys here: σ and ς both map to Σ, and 'aΣ.png' lowercases to 'aς.png' while 'aσ.png' stays as it is. With overwrite true, the second write_atomic replaces the first file and the receipt lists both. (b) Authoring (STU-IO-117 'refused at authoring time') compares suffixes case-sensitively. One node with [{PNG, suffix '@2x'}, {PNG, suffix '@2X'}] is accepted and stored, and every export.run of that node then refuses export_name_collision.",
+   "scenario": "(a) Layers named 'aσ' and 'aς', both PNG, export.run with overwrite true into an empty folder: two receipts, one file. (b) export.set_settings with the two suffixes above succeeds, then export.run refuses for good.",
+   "fix": "(a) In overwrite mode, use write_new for every path that did not exist at plan time (keep that set from the symlink_metadata probe). Then any fold mismatch refuses destination_exists instead of replacing a file. (b) In check_node_settings, key on (suffix.to_lowercase(), extension) or a per-char simple uppercase, so the authoring rule and the run rule agree."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ",
+   "severity": "low: the corpus coverage test cannot see the new mutating Run method",
+   "where": "crates/hsk-studio-harness-core/tests/action_records.rs:274 (run_pub_fns scans only src/harness.rs and src/harness/containers.rs); crates/hsk-studio-harness-core/src/harness/export_settings.rs:56 (pub fn set_export_settings(&mut self, ...) in impl Run); action/commands/export.rs:19 (the only row is Surface::Viewer, run_method 'Viewer::set_export_settings')",
+   "what": "The test states that every mutating pub fn of impl Run has a Surface::Run row (F-R42-3 class). Run::set_export_settings is a new mutating Run method in a file the scan does not read, and it has no Surface::Run row. The test stays green only because it does not look at the file. The sibling Run::set_artboard_options has a Surface::Run row (document.rs:47), and its file is in the scan.",
+   "scenario": "The round's harness-core suite is green while the claim 'every mutating Run method is a corpus row' is false for set_export_settings.",
+   "fix": "Add include_str!(\"../src/harness/export_settings.rs\") to SOURCE. Then either add a Surface::Run row for set_export_settings, or give the test an explicit allow-list of Run methods reached only through a typed row, with export.set_settings in it. Lead's call (lead_questions Q2)."
+  }
+ ],
+ "merge_note": "Rebase onto origin cede5958 (12 commits; LAYOUT-PERSIST-1 adds the session token layout_records): (1) crates/hsk-studio-session/src/source.rs: textual conflict on DOCUMENT_ENTRY_TOKENS. Keep both doc comments and use [..., \"artboard_options\", \"project_bin\", \"layout_records\", \"export_settings\"]. (2) crates/hsk-studio-session/tests/entry_references.rs: conflict on the count line. Use NOT_APPLICABLE: [(&str, &str); 17] and keep both rows (origin's layout_records row and the lane's export_settings row). (3) F1: add `layout: None` at harness-core/src/harness/export_settings.rs:106 (the rebase shows no conflict there). harness.rs merges cleanly: the lane's `pub mod export_settings;` at :36 is far from origin's hunks at :370 and after. Against SMB-PLACE-ASSET-1 (local branch lane/smb-place-asset-1 at 9d83222c, based on a3215161, which already holds layout_records and adds raster_records): whichever lane lands second takes DOCUMENT_ENTRY_TOKENS [..., \"project_bin\", \"layout_records\", \"raster_records\", \"export_settings\"] (append in landing order; do not reorder existing tokens) and NOT_APPLICABLE: [(&str, &str); 18] with both rows. The same pair also conflicts in harness-core/src/action/commands.rs DOMAINS, where both append after web::ROWS: keep `asset::ROWS, transform::ROWS, export::ROWS`. It also conflicts in harness-view/src/view/mod.rs state_json, where both add a row after \"project_bin\": keep \"placed\" and \"export_settings\". view/commands.rs merges cleanly (different lines). PLACE-ASSET's HistoryStep literals already carry `layout`.",
+ "lead_questions": {
+  "Q1_rebase_before_run": "Origin touched harness-core and session, which are lane crates, so the brief's rule needs a crate-suite rerun after the rebase anyway. Approve rebasing before the one bundled run, with F1 and the merge applied, instead of running at 9db105fc and again after the rebase?",
+  "Q2_run_row": "F6: should Run::set_export_settings get a Surface::Run row, as artboard.set_options has, or should the coverage test allow-list Run methods reached only through typed rows? Either way the scan must include the new file.",
+  "Q3_stroke_bounds": "F3: fix now (stroke and effect extent) or declare it as a cut with a receipt note? It affects the brand-icon scenarios this lane closes (vector-brand 88 and 90, product-design 85) whenever the icon is stroked.",
+  "Q4_place_asset_interplay": "UNVERIFIED: a raster layer target's frame comes from tile column/row x 256 (export_set.rs:296), as doc_export.rs:779 does, while render.rs:155 and select_liquify.rs:176 place tiles on the layer's largest tile side. Is a placed asset from SMB-PLACE-ASSET-1 always on the 256 grid after Move and Free Transform? If not, a placed layer target is framed wrong."
+ },
+ "checked": [
+  "Full diff aa68164c..9db105fc, all 22 files; per-commit stats. 9db105fc only removes the not_built gate from 006190e5.",
+  "Origin aa68164c..cede5958 on the lane's files: overlapping files are harness-core/src/harness.rs (adds HistoryStep.layout, a clean merge, F1 compile break), session/src/source.rs and session/tests/entry_references.rs (textual conflicts, layout_records). The other 34 origin files (native-host, kumihimo-ui, shell.rs, layout_*) touch no lane path.",
+  "lane/smb-place-asset-1 (9d83222c) diff against a3215161 on the shared files: source.rs, entry_references.rs, action/commands.rs, view/commands.rs, view/mod.rs.",
+  "Round features: harness-view [viewer] and harness [viewer] units exist, so both #![cfg(feature = \"viewer\")] test files run in rounds (rule 4e ok). view is cfg(viewer), and viewer implies vector-interop, so vector_svg_framed is always present where export_set compiles.",
+  "API break check: iv::ExportOptions gains a pub field. The only struct literal without ..Default is interop.rs:608 (updated); eps_worker.rs:137 uses ..Default. The other ExportOptions literals are different types (psd, press).",
+  "Behaviour change of viewBox and EPS translate for a default-options export: every importer puts the first artboard at 0,0 (svg_adapter.rs:818-819, ai_import.rs dx=0 for the first page), and no test pins viewBox \"0 0\" on an exported first board off the origin. The num() helpers print 0 for -0.0, so 'gsave 0 H' is unchanged.",
+  "Tests against the code: entry_references NOT_APPLICABLE length 16 at the tip matches 16 rows (compile-checked), and every_document_entry_token_is_classified holds. The package externals walk is the same traversal as the folio test, and the CLASSIFIED rows are inserted in sorted position (StudioMulticamClip < StudioNodeRenderSetting < StudioObjectStyle). action_records coverage passes (F6 explains why). The harness_drive_typed sweep: both rows refuse parameter_unknown and parameter_missing through check_declared. ui_seed catalog: no id or author_id collision for export.run or export.set_settings.",
+  "Red-first: 1bd864ef is a real red (test only, existing API at base). The export.run tests are red at 006190e5 through a not_built gate. The folio record tests, the set_settings tests, export_document_frames_the_chosen_board and the EPS unit test were added together with their code and have no red run; the lane file claims red only for the first two, so that claim is honest.",
+  "Folio record: bounded parse (4 MiB, budget, depth via parse_wire), node and setting counts checked before walking, closed shapes (internally tagged, deny_unknown_fields), constraint bounds, NaN and inf refused, output_size saturates into u32 safely.",
+  "Undo, redo, save and reopen of export.set_settings: an entry-only step with EntryRestore, the same pattern as set_artboard_options. Equal settings make no step, an empty list removes the node, and a stored entry that does not parse is never overwritten.",
+  "export.run guards: folder check, opened source (canonicalize), destination_exists before any write and write_new (hard link, atomic no-replace) without overwrite, in-run case-folded name collision, node repeat, file cap, colour profile refusal. Read-only on the document; one op and frame through command_outcome.",
+  "Clippy at the default lint set (no workspace lints): integer arithmetic in the new deny(arithmetic_side_effects) modules is checked or saturating, float arithmetic is not linted, is_multiple_of is within MSRV 1.97.1, and the immediately-invoked closure has a precedent at containers.rs:492. Not run."
+ ],
+ "not_checked": [
+  "No cargo, clippy or test run (read-only). The tip's compile rests on the builder's green logs (green5-view, green6-folio, green6-harness, green2-core); the session, package, interop-vector-svg, interop-vector and harness-core suites were not run by the builder and not by me.",
+  "Rendered pixels of the stroked-layer case in F3, and the effect extents the renderer applies.",
+  "Windows 11 behaviour for device names with an extension (F4b) and the exact NTFS $UpCase entries (F5a).",
+  "Clipping and mask semantics when contents_only hides a clipped layer's base or a mask outside the target subtree (target_view keeps only the subtree and its ancestors); whether the exported layer comes out empty was not traced.",
+  "Units: artboard bounds are used as pixels whatever their GeometryUnit (as render.rs:453 already does at base). A document.new board in mm or in was not traced through export.run.",
+  "MT contract rows (MT-33378..33384, MT-477, MT-119) and spec clause text of STU-IO-111..117 were not re-read against the code; vendor parity (D5) was not checked.",
+  "Whether export.run, a synchronous file export, needs JobPort admission under HOST INTEGRATION (6): the lane declares jobs none, and the existing export_document is also synchronous."
+ ]
+}

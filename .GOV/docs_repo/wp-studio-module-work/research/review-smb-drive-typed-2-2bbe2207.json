@@ -1,0 +1,100 @@
+{
+ "lane": "SMB-DRIVE-TYPED-2",
+ "tip": "2bbe2207",
+ "base": "aa68164c",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "Nothing found that breaks the build at any commit or fails a named test in a round unit (read only, not compiled). Four cheap fixes in files this lane created (F1 to F4), each worth doing before the one bundled run so it is not repeated. F1 to F3 give wrong refusal codes or change state on a refused row; F4 is a test oracle that can no longer fail. F5 is a push-shape point. If the lead takes F1 to F4 to the next lane, BUILD is defensible: no build break and no test failure was found. Origin cede5958 merges cleanly into the tip (legacy git merge-tree: 0 conflict blocks). The only shared file is harness-core action/commands/document.rs, where origin adds document.submit_layout two lines above the lane's hunk. Origin adds HistoryStep.layout, and the lane builds no HistoryStep literal.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "wrong answer (refusal code)",
+   "where": "crates/hsk-studio-harness-view/src/view/commands.rs:75-94 (engine_refusal, leading_code); crates/hsk-studio-harness-view/src/view/mixer.rs:362, :433-434 (authored), :455, :491, :546; hsk-studio-folio/src/audio_routing.rs:324-326, :379-380",
+   "what": "leading_code takes the first snake_case token after a lowercase engine prefix. Mixer refusals that never reach the run look like 'mixer: <op> refused: <diagnostic>', so the code becomes the op name (mixer_master_volume, mixer_send, mixer_add_send, mixer_output, mixer_add_effect). That name is also the undo step a successful row returns, so the reply claims a 'reason' that is only the step name. Same class, coarser: the prefix fig_import contains '_' and fails the all-lowercase prefix test, so every design.import_fig engine refusal (decode refused, version unsupported, too large, text over window) answers code 'fig_import'. No test covers this. The one mixer refusal the test checks (volume 99) goes through a different message and correctly gets command_refused.",
+   "scenario": "mixer.master_volume {\"linear\": 10}: the non-automated branch sets routing.master.volume unchecked (mixer.rs:491), and folio refuses it as master/volume. The reply is error 'mixer_master_volume'. The same happens for mixer.send {pan: 5}, mixer.add_send with a target track the sequence does not hold, and mixer.add_effect on a bus that is an audio track.",
+   "fix": "In leading_code, return None when the text after the token starts with ' refused' (the slice is safe: the token ends at an ASCII delimiter). Those refusals then answer command_refused, with the text kept in detail.message. Optionally map the mixer '<op> refused: InvalidField' text to routing_invalid. Add one refused assert, e.g. mixer.master_volume linear 10 -> command_refused (or routing_invalid). Leave fig_import as it is, or name it in DRIVE_LIMITS as one coarse code."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "wrong answer / lost state after a refusal",
+   "where": "crates/hsk-studio-harness-view/src/view/commands/mixer.rs:99-106 -> crates/hsk-studio-harness-view/src/view/mixer.rs:196-209 (open_mixer stores the new MixerState, then mixer_rebuild returns Err on 'mixer: unknown sequence'); crates/hsk-studio-harness-view/src/view/commands/waveform.rs:129-156 -> crates/hsk-studio-harness-view/src/view/spectral_display.rs:84-89, :109-133 (open_spectral_display stores the state, then spectral_sync fails)",
+   "what": "A refused mixer.open or spectral.open still replaces the open engine state. After mixer.open with a sequence id that does not exist, v.mixer is a mixer with no stream bound to that id. If multitrack.open had bound the timeline's mixer, that mixer is gone. Every later mixer.* row refuses 'unknown sequence', and mixer.state shows the broken mixer instead of mixer_closed. After spectral.open with params score refuses (fft_size 3, hop 0, scale log with min_hz 0), the display stays open with those params and the error set. The previous display and its region are lost, and spectral.state reports it open.",
+   "scenario": "multitrack.open, then mixer.open {\"sequence_id\": \"seq-typo\"}: the row refuses command_refused, then mixer.volume on a valid track also refuses. Or spectral.open (good), set_region, then spectral.open {fft_size: 3}: refused, and spectral.apply now answers spectral_no_selection.",
+   "fix": "In the rows (lane files; the fields are visible to this child module): let old = v.mixer.take(); on Err from open_mixer set v.mixer = old. Do the same with v.spectral around open_spectral_display. Or check that the sequence exists before calling, and refuse unknown_sequence. One refused-then-state assert for each."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "wrong answer (valid input refused; partial apply on refusal)",
+   "where": "crates/hsk-studio-harness-view/src/view/commands/monitor.rs:117-131; crates/hsk-studio-harness-view/src/view/source_monitor.rs:215-230",
+   "what": "monitor.source_mark with both marks applies mark_in, then mark_out, each checked against the other mark already stored. Moving the window to the right is refused: in (3,10), then {mark_in:12, mark_out:20} gets in_after_out although the result (12,20) is valid. When the second call fails, the first one is already applied: in (3,10), then {mark_in:5, mark_out:2} answers out_before_in, but mark_in is now 5.",
+   "scenario": "The video-edit step that re-marks a later take window in one row.",
+   "fix": "When both marks are given, refuse in > out first (out_before_in). Then save prev = s.marks(), call clear_marks, then mark_in and mark_out. On any Err, restore prev (clear_marks plus re-mark) and return the refusal."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ",
+   "severity": "test oracle cannot fail (proof)",
+   "where": "crates/hsk-studio-harness/tests/harness_drive_audio.rs:518-531 (fixture clip added in 2bbe2207), :587-588",
+   "what": "2bbe2207 gave the program sequence a clip of the same take, because a monitor refuses an empty sequence. The reopen oracle still asserts only that clips is not empty and that every clip's source is the take. The fixture clip satisfies both before any edit, so the assertion 'the edits reached the package' passes even if source_insert and source_overwrite never reach the saved package.",
+   "scenario": "A regression that drops the source edit steps on save stays green.",
+   "fix": "Assert that the edits are present: clips.len() > 1 and the sequence duration > 4 * TPF_24 after insert. Better: compare the reopened sequence with the live session's sequence read from a state reply just before document.save."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ",
+   "severity": "process (a pushed commit fails its own tests)",
+   "where": "commit 1ba6389a (lane file tests.focused_1ba6389a: 3 of 6 fail on test expectations); wave-parity-2-common.md common topic, the 'Never push a test with a placeholder expectation ... a pushed commit must pass its own tests' rule",
+   "what": "1ba6389a is not a red-first commit, but its own tests fail (undo label form, empty program sequence). The fixes are in 2bbe2207. Pushed as four commits, a round that froze 1ba6389a would fail harness_drive_audio.",
+   "scenario": "R32 class: a round freezes an intermediate pushed commit.",
+   "fix": "Before the push, squash 2bbe2207 into 1ba6389a (local only, not pushed yet); the red commit a1a68f93 stays separate."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ",
+   "severity": "minor wrong answer (refusal code)",
+   "where": "crates/hsk-studio-harness-view/src/view/commands/monitor.rs:80-82",
+   "what": "monitor.bind_program_media with an empty files list answers media_too_many {files: 0}. The engine itself accepts an empty list.",
+   "scenario": "files: [] or files: \"\" (comma text that splits to nothing).",
+   "fix": "Refuse the empty list as parameter_invalid {key: files, expected: '1..=64 files'}. Keep media_too_many for more than 64."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ",
+   "severity": "minor silent drops (declared parameter accepted and ignored)",
+   "where": "crates/hsk-studio-harness-view/src/view/commands/monitor.rs:43-49 (frames), crates/hsk-studio-harness-view/src/view/commands/waveform.rs:140-148 (min_hz), :184-190 (gain_db), :98-104 (channels); crates/hsk-studio-harness-view/src/view/commands/prototype.rs:121-125 (overwrite)",
+   "what": "These declared parameters are accepted and then dropped with no refusal and no note in the reply: monitor.key frames on keys other than step_back/step_forward; spectral.open min_hz with scale linear; spectral.apply gain_db with ops other than attenuate; waveform.select channels with no start/end (it clears the selection); prototype.capture_frame overwrite with no path.",
+   "scenario": "A model passes spectral.open {scale: linear, min_hz: 50} and believes the floor frequency was applied.",
+   "fix": "Refuse with parameter_conflict naming the key, or state the rule in the row docs and DRIVE_LIMITS. Non-blocking."
+  }
+ ],
+ "lead_questions": {
+  "Q1_red_proof": "The lane file says the red run's process tests failed with unknown_command because the example binary was not rebuilt. So those 3 tests went red on a stale artifact, not on the red tree, where the mixer.*, waveform.*, monitor.* and prototype.* rows would answer command_not_driveable from Viewer::run_row's default arm (commands.rs:107 at a1a68f93; design.import_fig there falls into vector::run_design, code UNVERIFIED). The 3 harness-core table tests are honestly red-first. Accept as is, or ask for the bundled run to be the first proof of the process tests? It runs with no target flags, so cargo builds the example.",
+  "Q2_units_not_run": "The [viewer] and [media] units of harness_drive_audio were reasoned, not run. In [viewer] the 3 table tests and product_design compile and run (process gated on viewer; interop-raster, components and interop-fig are under viewer; fixtures fig-components-autolayout.fig and fig-prototype-pages.fig exist). In [media], monitors is added, and bind_program_media, source_edit and open_source_media have no audio-batch dependency. audio_post and support_audio are gated on audio-batch. [desktop, viewer] uses CARGO_BIN_EXE_studio-harness. Expect them green. Not proven.",
+  "Q3_row_count": "The dispatch says about 80 rows; the tip adds 71 new typed ids (mixer 17, multitrack 9, waveform 17, spectral 4, monitor 6, prototype 10, design.import_fig + 7 design.instance.*). 351 ids in the corpus at the tip, no duplicate (Python scan of every typed(/entry( id in action/commands/*.rs; action_records.rs:342-346 also asserts uniqueness).",
+  "Q4_existing_sweep": "harness_drive_typed.rs:366-385 (every_typed_row_of_the_manual_declares_its_parameters_and_refuses_by_type) sends every drive.typed row through the process. It expects parameter_unknown for an undeclared key and parameter_missing for an empty call on rows with a required key. check_declared (commands.rs:97-105) runs before any new decoder, so the 71 new rows pass this sweep. It is outside the focused run and is covered by the bundled harness suite."
+ },
+ "checked": [
+  "Full diff aa68164c..2bbe2207, per commit (a1a68f93 harness-core rows + red test; b7fea846 document .opt() + viewer_domain document arm; 1ba6389a harness-view decoders, PrototypePlay::dispatch_trigger, drive import_fig dest; 2bbe2207 test expectations, design docs)",
+  "Compile by reading at the tip for harness-view [viewer], [viewer,media] and [audio-batch] cfg paths: every called Viewer method exists with the used signature and visibility (timeline_audio_follow and timeline_audio_json are pub(in crate::view) and reached from a descendant module; Viewer fields mixer/waveform/spectral are audio-batch gated exactly as the enabled modules are; source_monitor, monitor, prototype and design modules are ungated under viewer; open_source_media and bind_program_media media-gated as monitor.rs gates them). Decode helpers (Fields::text/opt_text/number/opt_number/number_or/flag/flag_or/unsigned/count/index/path/json/list/points/token/raw) exist. Token tables use Copy types (MonitorTarget, AssemblyMode, FourPointFit, PasteMode, FadeDirection, FadeCurve, SpectralWindow). SpectralViewParams and FrequencyScale are Copy, so the spectral.open match does not move p. score re-exports every imported name. PngEncodeRequest fields match. CommandRefusal::new takes &str, and MonitorFail.code, PlayFail.code, RasterError::code and write_atomic all give &'static str",
+  "Under each feature set, nothing a cfg branch uses is gated out, and nothing it leaves unused should warn (mixer/waveform stubs bind (v, f, before); monitor MAX_MEDIA_* and source_id gated with their use)",
+  "harness-core: static ALL_ROWS referenced by pub const RUN_COMMANDS is valid on toolchain 1.97.1 (const refs to immutable statics, stable since 1.83); CommandEntry has no interior mutability",
+  "Every new row's declared parameters against the keys its decoder reads (all 71): no key read that is undeclared, no declared key never read except the F7 drops",
+  "Hostile input on the new decoders: NaN/inf refused by Fields::number (string 'NaN' too); negative and fractional integers refused by unsigned; u8/u32/usize conversions checked; envelope and lasso counts are checked against score's 4096 caps before mapping; mixer.render, block_frames, waveform.peaks columns, prototype.advance ms and monitor sizes are bounded; media reads are bounded per file (1 GiB) and in aggregate (2 GiB, saturating); prototype .fig read is bounded by import::MAX_SOURCE_BYTES; no byte-index slicing of user text, so unicode cannot panic; arithmetic is checked or saturating under deny(arithmetic_side_effects)",
+  "Drive dispatch order (drive.rs:146-171): no new id is shadowed by DRIVE_CATALOG_ROUTES, timeline./viewer./studio. prefixes, motion_commands, viewer canonical ids (viewer_domain gives none of the new namespaces) or web_commands. design.import_fig dest becomes the session source only on success (drive.rs:294-300). OUTPUT_PATH guard covers design.import_fig dest and prototype.capture_frame path",
+  "Lead additions: document.rs .opt() flags equal DRIVE_VIEWER may/need for every DRIVE_CATALOG_ROUTES row (manual.rs:282-294); viewer_domain document arm. No test or fixture pins vector.<doc-new method> ids (git grep). ui_seed builds canonical ids through viewer_command_id, so the document.* ids are new author ids with no collision",
+  "Spec: STU-PRO-138 names prototype.start_session, dispatch_trigger, read_runtime_variables, capture_frame and end_session (SM:20746); STU-PRO-139 session-id requirement is cut and declared (SM:20748)",
+  "Brief fact moves re-verified at the tip: source_edit 563, open_source_media 752, bind_program_media 473, MixerEdit 145, mixer_edit 297, WaveformEdit 100, waveform_edit 743, open_multitrack 399, multitrack_command 422, design_command 400, apply_spectral 194, SpectralMaskOp score spectral_mask.rs:57, open_prototype mod.rs:410",
+  "Origin aa68164c..cede5958: 12 commits (SMB-GUI-SPINE-1 in native-host and kumihimo-ui; LAYOUT-PERSIST-1 in session, harness-core harness.rs/containers.rs/motion_commands.rs, harness-view shell.rs/layout_ui.rs/commands/layout.rs/layout_export.rs). The only overlap is action/commands/document.rs (non-adjacent hunks). Legacy git merge-tree aa68164c 2bbe2207 origin: no conflict block. No new RUN_COMMANDS id collides (origin adds document.submit_layout). The HistoryStep.layout field does not affect the lane (it builds no HistoryStep). manual.rs, view/commands.rs and view/mod.rs are untouched by origin",
+  "Existing tests that see the new rows: action_records.rs:342-355 (unique ids, corpus_json length), harness_drive.rs sweeps (drive.commands and drive.viewer only, not typed), harness_drive_typed.rs typed sweep (Q4), document_new.rs:120-146 (keys only, not required flags), layout_pdf_host.rs:234-241 (layout rows only)"
+ ],
+ "not_checked": [
+  "No cargo, clippy or test run (read only). The lane's clippy and focused logs are trusted for the units they name; [viewer]-only and [media]-only test runs of harness_drive_audio are reasoned only (Q2)",
+  "Whether Run::set_tiles_and_entry and submit_sequence record an op with an 'error' field on refusal (method_refusal depends on it for the 'waveform: <label> refused' and 'mixer: <op> refused: <op_error>' paths); not read in harness-core",
+  "score insert_silence and paste growth up to MAX_WAVE_FRAMES (1<<30 frames per channel, try_reserve) through waveform.insert_silence: an engine bound older than this lane; whether a multi-GiB reservation on this machine fails typed or commits was not checked",
+  "Drive Params conversion of JSON arrays and objects to text (the decoders' JSON-text paths), read only through the test's use",
+  "MT files (MT-33500, MT-33673, MT-33255, MT-33507, MT-33462) and the workflows/ scenario step mapping",
+  "Every engine refusal message for leading_code false codes beyond mixer.rs, waveform.rs, spectral_display.rs, timeline/audio.rs, design/instance.rs and design/fig_import.rs"
+ ]
+}

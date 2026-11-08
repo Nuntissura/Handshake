@@ -1,0 +1,76 @@
+{
+ "lane": "SMB-PLACE-ASSET-1",
+ "tip": "9d83222c",
+ "base": "a3215161",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "Two cheap fixes, both in the owned file view/place.rs (F1 and F2). Each gives a wrong answer on an ordinary command sequence, and F1 can also lose pixels and leave a document where asset.place keeps refusing. I found nothing that breaks the build or fails a named test at either commit, in any round unit (harness [viewer] and [desktop, viewer]; harness-view [viewer] and [desktop, audio-batch]; harness-core default and [import-tiff]; session). F3 and F4 are minor and can be deferred. The 7 origin commits do not touch the lane's files.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "wrong answer and lost write (a stale placed record attaches to a new layer); stuck document",
+   "where": "view/place.rs:727 (place mints its id with layers::mint_layer_id(doc, doc.layers.len())); view/layers.rs:51-62 (the minter takes the first id from salt that the document lacks, and never looks at the raster records); other minters with the same block and salt: layers.rs:113 new_raster_layer, :141 duplicate_layer, :252 group_layers, text.rs:719, vector.rs:1895; layers.rs:185-201 delete_layer goes through Run::restructure, which leaves the raster_records entry as it is; place.rs:321-326 and :443-445 prune absent layers at read time only; place.rs:463-467 the paint and liquify guard reads self.records, which delete and new-layer do not resync.",
+   "what": "A record in the raster_records entry for a deleted placed layer is pruned only while the layer id is absent. Deleting a placed layer frees its id. The next layer any minter creates takes that same id, because all the minters use the same block and the salt is doc.layers.len(). The stale placed_asset record then names the new layer. Raster layer: paint and liquify refuse layer_not_pixel; list_placements and state_json()['placed'] list the new layer as a placement; transform.move, free_transform and reset render the deleted source into it and replace its pixels. Asset.update_all_modified rewrites the layer too. Text, vector or group layer: Folio placed_asset() refuses payload_mismatch (folio raster.rs:942-944). The next place_sync (undo, redo or open) then sets self.records = None, which drops every import record from the render (PSD layer styles, fill and adjustment layers), and every asset.place refuses folio_payload_mismatch. The entry bytes still hold the stale record, so all of this survives save and reopen.",
+   "scenario": "Plate document with 1 layer: asset.place hero.png (id ...-7ede-9000-000000000001), delete that layer, new_raster_layer, paint on it: refused 'is a placed asset layer'. Or: after the delete, duplicate the plate layer, then transform.move the copy: the plate pixels are replaced by the hero source. Or: after the delete, add a text layer, then undo anything: the PSD effects stop rendering and asset.place refuses.",
+   "fix": "In place.rs, mint placed-layer ids from a block that no other minter uses. For example, a local minter formatting SLYR-{high}-{low}-7ede-9200-{n:012x} (9100 is the SDOC block of mint_document_id), skipping ids the document holds and ids the entry's records name. The 9000 minters can then never take a placed id. A later place may reuse a pruned placed id: the prune runs before the push, and the history is linear. This needs no edit to layers.rs (the SMB-PR-ROUTING-REPAIR-1 collision). Red test in tests/place_asset.rs: place, delete_layer, new_raster_layer, then paint succeeds and list_placements is empty; then group_layers or a text layer, undo, and asset.place succeeds."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "wrong answer (pixel-layer Free Transform pivots about the 256-px tile grid, not the layer's content)",
+   "where": "view/place.rs:805-807 (bounds = layer_rgba -> layer_pixels(region None)); view/select_liquify.rs:183-193 (region None = the union of the tile rects); tiles are always full cells: place.rs:585 (new tiles CELL x CELL); importers write full TILE_EDGE = 256 edge tiles (interop-psd proposal.rs:68, harness-core import/tiff.rs:443); weak test: tests/place_asset.rs:223-224 asserts only tiles >= 1",
+   "what": "On a pixel layer, the reference point comes from the bounds of the tile grid, transparent padding included, not from the layer's pixels. For any layer whose content does not fill whole 256-px cells, every anchor except one that coincides with the grid origin pivots about the wrong point. The module docs promise 'about reference_point of the layer's bounds'. The existing pixel shrink test passes only because it does not look at where the pixels went.",
+   "scenario": "The 48 x 32 plate of the lane's own test, transform.free_transform scale 50 % with the default middle_centre: the pivot is (128,128), so the content lands at about x 64..88, y 64..80, wholly off the 48 x 32 canvas. Expected: x 12..36, y 8..24, centred on (24,16).",
+   "fix": "In transform_inner, compute the tight bounds of the texels with alpha > 0 in the pixels layer_rgba returns. Use them both for delta_matrix's anchor and as the src rect, which also cuts the work. If no texel has alpha, refuse layer_empty. Strengthen place_asset.rs:223: after the middle_centre 50 % scale, px(24,16) is PLATE and px(2,2) is transparent."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "minor wrong answer (links resolve against the wrong folder)",
+   "where": "view/place.rs:480-484 (link_base = self.source parent); view/audio_import.rs:915 (open_audio_bytes sets self.source to the audio file while 'the open document, if any, stays open')",
+   "what": "The link base is read from self.source each time, and self.source is not owned by the open document. After an audio file is opened beside the document, list_placements reports the links missing, or modified when the audio folder holds a file of the same relative name. Transforms then refuse. Asset.update_all_modified would read that unrelated file, if it decodes, and render every instance from it in one step. Undo reverts it, but the receipt says updated.",
+   "scenario": "With the media feature: open plate.handshake from folder A with a linked stall.png, open an audio file from folder B that has a different stall.png, then run asset.update_all_modified.",
+   "fix": "Capture the canonical base once in place_opened (PlaceState.base: Option<PathBuf>, None after document.new) and use it in link_base. Non-blocking."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ for the clamp; UNVERIFIED that extended-range tiles reach these paths in practice",
+   "severity": "minor wrong answer (highlights clipped)",
+   "where": "view/place.rs:592 prepared.sample_rgba(...) -> pigment transform_math.rs:628 (SampleRange::Unit) and :641-647 (filtered colour clamped to 0..1)",
+   "what": "Bilinear and bicubic Free Transform of a pixel layer, and every placement and placed re-render (the default is bicubic), clamp linear colour above 1.0. The exact path, an integer Move with nearest neighbour, does not clamp. Float TIFF or other extended-range layers and sources therefore lose their highlights silently.",
+   "scenario": "A 32-bit float TIFF layer with values above 1.0, transform.free_transform angle 10: the highlights come back clipped at 1.0.",
+   "fix": "Use sample_rgba_in(SampleRange::Extended, ...) when the source holds a texel above 1.0 (keep Unit otherwise, to avoid the Catmull-Rom overshoot pigment documents). Lead's call; fine to defer and name."
+  }
+ ],
+ "lead_questions": {
+  "Q1_merge_with_SMB_ARTBOARD_EXPORT_1": "I read the local branch lane/smb-artboard-export-1 (9db105fc, based on aa68164c) through git. Whichever lane lands second resolves these. (a) session/src/source.rs: one line conflicts. DOCUMENT_ENTRY_TOKENS must end '..., \"project_bin\", \"layout_records\", \"export_settings\", \"raster_records\"' (22 tokens), with both doc paragraphs kept above it. (b) session/tests/entry_references.rs: NOT_APPLICABLE becomes [(&str, &str); 18] and holds both the export_settings row and the raster_records row. The layout_records row stays. ARTBOARD's diff sets 16 because its base predates layout_records: rebased on a3215161 alone it would be 17, and with this lane it is 18. every_document_entry_token_is_classified sorts both lists, so row order is free. (c) harness-core action/commands.rs: both lanes append to DOMAINS after web::ROWS, an adjacent-line conflict. Keep export::ROWS, asset::ROWS and transform::ROWS. The mod lines (export between document and history; asset first, transform after text) merge cleanly. (d) harness-view view/mod.rs state_json(): both lanes add a key after \"project_bin\". Keep \"export_settings\" and \"placed\". The pub mod lines are in separate hunks. (e) harness-view view/commands.rs: mod export / mod place and the dispatch arms are in separate hunks; expected clean. (f) harness-core harness.rs: ARTBOARD adds 'pub mod export_settings;' near the top, and this lane edits lines 1306-1380 and 2668: no overlap. Neither lane uses the other's helpers, and ARTBOARD's export_set.rs only reads self.records. No id or author-id collisions: export.* against asset.*, transform.* and layer.set_layers_tiles_and_entry.",
+  "Q2_duplicate_layer": "Ruling: not a wrong answer this lane must fix. layers.rs:123-176 copies the cached display tiles under a new id with no record. The copy is an honest pixel layer: list_placements excludes it, paint and liquify allow it, and transform resamples its pixels. No write is lost and no receipt lies. It differs from a shared smart-object instance (Photoshop behaviour UNVERIFIED, D5). That cut is declared in the module docs (place.rs:62) and in the lane cuts. The real hazard next to it is F1: a copy that takes a freed placed id becomes 'placed'. Fixing F1 inside place.rs removes that hazard without touching layers.rs.",
+  "Q3_bundled_run_scope": "The planned set covers the edits: harness-core suite (action_records corpus scan; business_events_run.rs:319/333 and run_and_entry_redo.rs:126 exercise the refactored set_vector_paths_and_entry), full harness-view [viewer] (src edited), session suite (entry_references), harness place_asset and harness_drive_typed (the sweep at :366 drives every typed row, the new ones included). native-host [document] depends on harness-view. The lane's API change is additive (new pub mod place, new Viewer pub fns, a new 'placed' key in state_json). native-host reads state_json and layers() only, so rule 4b does not require its suite. Clippy was run --lib only; its one harness-core warning (large_const_arrays on ALL_ROWS) was already there at base, which has 287 rows.",
+  "Q4_origin_move": "The 7 origin commits a3215161..cede5958 touch only hsk-studio-native-host, kumihimo-ui, Cargo.toml (native-host allowed deps) and Cargo.lock. None of them is in the lane's 14 paths or crates. Rebase is clean, and under the proof rule this is the 'touch none of your crates' case: --per-sha HEAD~1 and the lane's new tests only.",
+  "Q5_v4_02": "Entry::parse (place.rs:284-319) decodes package-supplied entry bytes. It is bounded by MAX_PLACED_SOURCES and MAX_INSTANCES and by the session entry limit, but no hostile-entry test exists (oversized instance list, non-finite transform, wrong schema). Not a build or test failure; named for the V4-02 count."
+ },
+ "checked": [
+  "git diff a3215161..9d83222c in full (14 files), and git diff 0811638b..9d83222c (red to green)",
+  "red commit 0811638b: full engine gated by BUILT = false; red-proof log shows 5 run, 5 failed on not_built (honest red); green3 log 5 of 5 passed at working tree 9d83222c",
+  "compile surfaces: view::place is viewer-gated, and pigment, composite and package are enabled by harness-view viewer; harness-core rows and harness.rs (TileRef, Prop Copy) are ungated; clippy log exit 0 with harness-core, harness-view[viewer] and session libs",
+  "round-features.toml: harness [viewer] and [desktop, viewer] units compile place_asset.rs (#![cfg(feature = \"viewer\")]); the example-binary lookup is the pattern of 7 other harness tests",
+  "corpus: action_records scan (set_layers_tiles_and_entry has a row), unique ids, ui_seed author ids and aliases (no collision with DRIVE_VIEWER domains), typed sweep parameter_unknown and parameter_missing",
+  "harness.rs layers_and_entry_step: vector behaviour unchanged (same command id, label 'vector_paths', VectorPathEdited event); tiles path emits LayerMutated",
+  "session token and entry_references classification; package references.rs keeps the embedded bytes (studio/* entries walked, package_asset image source); externals.rs reports placed sources from studio/ entries",
+  "Folio validate_raster_records (raster.rs:1723-1835) and placed_asset (:941-955), checked against prune and id reuse",
+  "composite placed.rs: placed_scene_layer is not on the harness render path (placed layers render by tiles); placed_matrix inverse matches folio_matrix",
+  "pigment PreparedTransform: texel indices are source-local (tap_index), Unit clamp on the filtered path",
+  "V4-06 sibling sites of tile writes (edit, fill_tools, select_liquify, develop, entry-only writers): the lane's list matches; fill_layer guard removal is safe (fill and adjustment payloads are not Raster)",
+  "hostile inputs in tests: absent and junk file, scale, opacity and NaN, angle, skew, singular and huge scale, unknown layer, link outside the folder, no link base",
+  "undo and redo paths: Viewer::undo and redo resync; mixer_undo and waveform_undo do not (stale self.records only, harmless today)",
+  "origin a3215161..cede5958 file list against the lane's files; lane/smb-artboard-export-1 diff in the shared files"
+ ],
+ "not_checked": [
+  "nothing built or run (no cargo); compile and test claims rest on the lane's logs plus reading",
+  "Photoshop and Illustrator behaviour for reference points, duplicate of smart objects and Save As link handling (UNVERIFIED, D5)",
+  "colour-profile tagging of placed tiles (decode renders linear sRGB; tiles take the document's first tile profile, edit.rs:345) for documents whose tile profile is not linear sRGB",
+  "LinkedFileResolver containment rules and TOCTOU between check and read_link beyond the lane's re-hash",
+  "package save behaviour (loss notes) for linked placements whose state is missing at save time",
+  "hsk-studio-native-host [document] suite against the lane"
+ ]
+}

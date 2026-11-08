@@ -22806,7 +22806,15 @@
     "width_lanes": "position and red-team agent rules the open questions of SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1, SMB-PARSER-HOSTILE-1 and re-scopes SMB-SCORE-EFFECTS-6: research/rulings-20261108-width-lanes.json"
    },
    "gates": "Builders stop at HOOK GREEN, REVIEW READY and BUNDLED GREEN; the lead resumes them with findings or RELEASED, one landing at a time (workflow item 16).",
-   "targets_inspected": "target_report.py --disk d smb-pr-entry-references-1 smb-pr-retime-hold-1: 66.08 and 61.25 GiB, older binaries 30.59 and 42.75 GiB (later partial-removal candidates, no removal proposed now)."
+   "targets_inspected": "target_report.py --disk d smb-pr-entry-references-1 smb-pr-retime-hold-1: 66.08 and 61.25 GiB, older binaries 30.59 and 42.75 GiB (later partial-removal candidates, no removal proposed now).",
+   "review_rulings": {
+    "at": "2026-11-08T05:54:01Z",
+    "SMB-ARTBOARD-EXPORT-1": "research/review-smb-artboard-export-1-9db105fc.json FIX_FIRST: rebase first; F1 (HistoryStep.layout, lead-verified at cede5958 harness.rs:356/:375), F2 bounded renders, F3 visual bounds or typed refusal (never a silent crop), F4 preflight before the first write, F5 NTFS case-fold collisions and case-insensitive density suffixes, F6 action_records scan: all fixed in lane. Builder dispatched.",
+    "SMB-DRIVE-TYPED-2": "research/review-smb-drive-typed-2-2bbe2207.json FIX_FIRST: F1, F2, F3, F4, F6, F7 fixed in lane. F5 (squash) overruled: red commits stay (HANDOFF lessons); the builder checks that 1ba6389a fails only its own new tests and reports otherwise. Builder dispatched.",
+    "SMB-PLACE-ASSET-1": "research/review-smb-place-asset-1-9d83222c.json FIX_FIRST: F1 own id block plus orphan-record handling, F2 alpha bounds, F3 link folder from the document path, F4 no clamp above 1.0 for float targets: fixed in lane. duplicate_layer stays a named cut (reviewer's ruling adopted). Builder dispatched.",
+    "token_merge": "The two reviewers named different merged token orders. Ruling: the second of ARTBOARD-EXPORT-1 and PLACE-ASSET-1 to land keeps origin's DOCUMENT_ENTRY_TOKENS order and appends its own token; NOT_APPLICABLE holds both rows (18); DOMAINS keeps export, asset and transform; state_json keeps export_settings and placed.",
+    "stray_file": "The DRIVE-TYPED-2 reviewer reports a temp file mt.txt written to a scratchpad root; left in place (no deletion without the Operator)."
+   }
   }
  },
  "round_R45": {
