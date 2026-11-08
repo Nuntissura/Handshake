@@ -358,7 +358,8 @@
     "argus_required": true,
     "trace_projection_required_when_non_ui": true,
     "surfaces": [
-      "Existing Dev Command Center runtime projection and controls"
+      "Existing Dev Command Center runtime projection and controls",
+      "Direct Vulkan assessment: Backend-only current claimant, attempt and generation fences and backend-authorized actions feed the MT-209 Dev Command Center projection. MT-212.json#/picotask_plan item GUI-WP012-runtime-fences binds that consumer to MT-199.json#/scope/acceptance_criteria and current Master Spec module 15 GUI-DESKTOP-003/004/020/024/025. This MT retains its backend proof and does not own renderer work."
     ],
     "argus_targets": [
       "MT-209.json#/gui_obligation"

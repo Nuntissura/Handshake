@@ -75,7 +75,7 @@
     "operator_surface_required": false,
     "gui_creation_required": false,
     "argus_required": false,
-    "not_applicable_reason": "Pure declaration inventory and caller adaptation add no UI surface. Existing affected GUI startup and original native acceptance remain with their owners."
+    "not_applicable_reason": "Pure declaration inventory and caller adaptation add no UI surface. Existing affected GUI startup and original native acceptance remain with their owners. MT-210 supplies standalone schema declaration inventory through MT-211. The affected Engine Profiles consumer remains in MT-212.json#/picotask_plan item GUI-WP012-settings-profiles. The host still owes the proof required by MT-199.json#/scope/acceptance_criteria and current Master Spec module 15 GUI-DESKTOP-003/004/020/024/025."
   },
   "user_manual_obligation": {
     "required": true,

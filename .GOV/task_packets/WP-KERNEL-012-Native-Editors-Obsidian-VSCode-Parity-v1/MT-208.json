@@ -301,7 +301,8 @@
     "argus_required": true,
     "trace_projection_required_when_non_ui": true,
     "surfaces": [
-      "Dev Command Center recovery and runtime reliability projections; Operator Consoles drilldown"
+      "Dev Command Center recovery and runtime reliability projections; Operator Consoles drilldown",
+      "Direct Vulkan assessment: Backend-only replay disposition, attempt and output provenance, and backend-authorized recovery actions feed the MT-209 Dev Command Center projection. MT-212.json#/picotask_plan item GUI-WP012-runtime-recovery binds that consumer to MT-199.json#/scope/acceptance_criteria and current Master Spec module 15 GUI-DESKTOP-003/004/020/024/025. This MT retains its backend proof and does not own renderer work."
     ],
     "argus_targets": [
       "MT-209 recovery row keyed by original workflow/job/attempt identity",
