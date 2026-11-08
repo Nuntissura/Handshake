@@ -13280,5 +13280,69 @@
       "model_invoked": false
     },
     "scope": "Records supplied model/provider input and local setup only. Actual production-loader validation, model compatibility, authenticated routing, process admission, Flight Recorder readback and independent runtime acceptance remain required. Historical NOT_SUPPLIED observations are retained as history."
+  },
+  "shared_core_compile_selection_20261108": {
+    "id": "WP012-MT172-REGISTRY-CORE-CHECK-20261108-01",
+    "state": "SUCCESSOR_NATIVE_BUILD_FAILED_COMPILER_RETURNED",
+    "candidate_commit": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+    "candidate_tree": "7f217d383e5262ac65f2b0c00ae03b35522a6ce9",
+    "owning_checks": ["MT-172.json#/proof/checks/0", "MT-174.json#/proof/checks/0"],
+    "argv": ["cargo", "check", "--locked", "--manifest-path", "src/backend/handshake_core/Cargo.toml", "--lib", "--tests", "--features", "app-runtime,surreal-test-support,test-utils,llama-cpp-runtime-engine", "-j", "1", "--keep-going", "--message-format=json"],
+    "feature_reason": "Compile the changed llama.cpp adapter and context in the same Core check as the shared registry extraction and routing test inputs.",
+    "binding": {
+      "artifacts_root_relative_path": "WP-KERNEL-012/MT-172/shared-compile-preparation-20261025-01/shared-check-config-llama-02.json",
+      "sha256": "35cef9f279fa8faf49faddc07089f871efa04159c3a832e89d4ccaa98d550bca",
+      "source_map_sha256": "c79aceff0a0062e4f453433071759a97883648f162a8af6dc755515cf84a07e7",
+      "profile_sha256": "61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e"
+    },
+    "review": {
+      "author": "/root/coding_cycle22",
+      "reviewer": "/root/codecheck_cycle22",
+      "verdict": "SOURCE_CONFIG_READY",
+      "producer_sha256": "6b68384aa9f8af90f48915380e6d9111b24d60e8357dad8d5a957d58cce8421a",
+      "custody_patch_sha256": "84a57217a333636e451043b4ec5ac4a65bae0fd091305e61f3ecd58c3d5b19d2"
+    },
+    "target_artifacts_root_relative_path": "WP-KERNEL-012/MT-174/kb-phase02/target",
+    "output_artifacts_root_relative_path": "WP-KERNEL-012/MT-172/shared-compile-preparation-20261025-01/shared-check-capture-20261108-01",
+    "limits": "One launch per explicit selection on the existing target and profile. Current resource admission before launch and original process and job settlement before handback. Test execution and runtime verdicts are separate. Preserve all earlier attempts and proof obligations.",
+    "first_attempt": {
+      "state": "CONSUMED_FAILED_BEFORE_CHILD_CREATION",
+      "exit_code": 1,
+      "failure": "Missing configured output directory for launcher-preflight.json exclusive create.",
+      "launcher_exit_utc": "2026-11-08T16:44:07Z",
+      "tool_chunk": "af260d",
+      "cargo_started": false,
+      "owner": "/root/coding_cycle22",
+      "handback_utc": "2026-11-08T16:44:44.632Z"
+    },
+    "successor": {
+      "id": "WP012-MT172-REGISTRY-CORE-CHECK-20261108-02",
+      "changed_preparation": "Root created the exact configured fresh ordinary output directory and independently verified it empty before launch.",
+      "partner_agreement": "/root/codecheck_cycle22 agreed to one same-command successor after explicit compiler handback and verified the directory was empty.",
+      "selected_launches": 1,
+      "start_observation": {
+        "owner": "/root/coding_cycle22",
+        "cargo_pid": 4540,
+        "cargo_birth_filetime": 134386299882240986,
+        "producer_pid": 11532,
+        "producer_birth_filetime": 134386299845849982,
+        "cargo_started_utc": "2026-11-08T16:46:28Z",
+        "capture_file": "cargo-started.json",
+        "capture_file_sha256": "a57a0dea4308bed9cf4baa3212a35a83ee0c73f6a9e6d962dfee82fe2fd07118"
+      },
+      "terminal_observation": {
+        "cargo_exit_code": 101,
+        "cargo_exit_sha256": "5d46d4c890af5b2fbfe7c4ab75b0cf7601b431afaa5add1a490683b6243813ef",
+        "failure": "llama-cpp-sys-2 CMake Visual Studio TryCompile failed with MSB3491: fully qualified lastbuildstate path exceeds the Windows limit.",
+        "normalizer_exit_code": 1,
+        "normalizer_exit_sha256": "079421cdb64843664bca20612b0beda2aa8752330ae782cd11eafcd1fa234cce",
+        "capture_failure": "Post-exit original-normalizer image query returned WinError 31 and retained custody. Original normalizer signal and empty original job were verified through duplicate native handles.",
+        "owner_recovery_observation_sha256": "5e823bea2282a2151837d945f48885443d5b60fc92d9cf044d31ddd349e6ff10",
+        "owner_recovery_teardown_sha256": "0e383eaa8865d2cbb376d36c2d8705b659331c2947fbf35a4a1c318b36ff347e",
+        "compiler_handed_back_utc": "2026-11-08T17:16:17.459Z",
+        "qualified_compile": false,
+        "runtime_verdict": "NOT_ISSUED"
+      }
+    }
   }
 }
