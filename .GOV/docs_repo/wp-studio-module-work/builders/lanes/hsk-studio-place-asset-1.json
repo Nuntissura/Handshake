@@ -1,20 +1,35 @@
 {
   "crate": "hsk-studio-harness-view, hsk-studio-harness-core, hsk-studio-folio, hsk-studio-composite",
   "lane": "SMB-PLACE-ASSET-1",
-  "status": null,
-  "phase": "paused",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
-  "base": "a3215161",
+  "base": "08b372af",
   "commits": [
     {
-      "sha": "0811638b",
+      "sha": "d026e892",
       "kind": "red",
-      "summary": "rows asset.* and transform.*, session token raster_records, Run::set_layers_tiles_and_entry, view::place gated not_built; tests/place_asset.rs 5 run 5 failed (red-proof-smb-place-asset-1-a3215161.log)"
+      "summary": "0811638b rebased onto 08b372af; token merge with SMB-ARTBOARD-EXPORT-1 (DOCUMENT_ENTRY_TOKENS ends export_settings, raster_records; NOT_APPLICABLE 18; state_json export_settings and placed); DOMAINS keeps export, the six DRIVE-TYPED-2 rows, asset, transform; view/commands mod place beside DRIVE's mods"
     },
     {
-      "sha": "9d83222c",
+      "sha": "65b84031",
       "kind": "green",
-      "summary": "view::place engine: place embedded/linked, list_placements, update_all_modified, embed_link, free_transform, move, reset; open prunes dangling records; paint and liquify refuse placed layers"
+      "summary": "9d83222c rebased: view::place engine"
+    },
+    {
+      "sha": "0b4a2c49",
+      "kind": "red",
+      "summary": "review F1-F4 red tests; red-proof-smb-place-asset-1-60330fd0.log 4 run, 4 failed on their findings"
+    },
+    {
+      "sha": "86cf9cfa",
+      "kind": "green",
+      "summary": "F1 own SLYR block 7ede-9200; F2 alpha>0 bounds; F3 PlaceState.base at open; F4 SampleRange::Extended for out-of-unit sources"
+    },
+    {
+      "sha": "0a733db8",
+      "kind": "green",
+      "summary": "F4 float sources: render.rs render_scene_linear_with_records (additive, lead-approved), place decode uses it; red at 4c2aec2f (placed value 1.0)"
     }
   ],
   "capabilities_done": [
@@ -30,25 +45,49 @@
   ],
   "tests": {
     "place_asset": {
-      "run": 5,
-      "passed": 5,
+      "run": 8,
+      "passed": 8,
       "exit": 0,
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/green3-smb-place-asset-1-0811638b.log",
-      "note": "focused run with --test place_asset after an explicit `cargo build --example studio-harness` (TRAP); working tree at that run = 9d83222c"
+      "features": "viewer,media",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/bundled2-smb-place-asset-1-0a733db8.log",
+      "note": "example studio-harness built fresh in the same hold"
     },
     "clippy_libs": {
-      "crates": "harness-core, harness-view[viewer], session",
+      "crates": "lane-check clippy --tests: harness-core, harness-view[viewer] + dependents harness, native-host (0a733db8); harness-core, harness-view[viewer], session + harness, kernel-bindings, native-host (3d97a953)",
       "exit": 0,
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/clippy1-smb-place-asset-1-0811638b.log"
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/bundled2-smb-place-asset-1-0a733db8.log"
     },
-    "bundled": "NOT RUN"
+    "bundled": {
+      "sha": "0a733db8",
+      "result": "GREEN",
+      "runs": [
+        {
+          "sha": "3d97a953",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/bundled1-smb-place-asset-1-3d97a953.log",
+          "steps": "example 0; lane-check harness-core, harness-view [viewer], session 405 run 405 passed 3 skipped exit 0; harness place_asset + harness_drive_typed 16 run 14 passed exit 100 (trunk break from SMB-ARTBOARD-EXPORT-1, lead ruling: not this lane's failed run; fixed at 89e9a2ac)"
+        },
+        {
+          "sha": "0a733db8",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/bundled2-smb-place-asset-1-0a733db8.log",
+          "steps": "rebased on 08b372af (DRIVE-TYPED-2 touches action/commands.rs and view/commands.rs): example 0; lane-check harness-core, harness-view [viewer] 223 run 223 passed 1 skipped exit 0; harness place_asset 8/8 + harness_drive_typed 8/8, 16 run 16 passed exit 0; BUNDLED exit 0"
+        }
+      ],
+      "carried_over": "session suite (entry_references with the 18-row NOT_APPLICABLE) green at 3d97a953; the landed commits 35c50d3b..08b372af do not touch hsk-studio-session"
+    },
+    "per_sha": {
+      "range": "86cf9cfa..0a733db8",
+      "result": "PER_SHA_RESULT OK shas=1",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-place-asset-1/per-sha-smb-place-asset-1-0a733db8.log",
+      "unit_logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/per-sha-0a733db8/"
+    }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "PAUSED by Operator at tip 9d83222c (local only, not pushed). Left: 1) lead review of the diff a3215161..9d83222c (code-check + red-team); 2) apply review fixes; 3) ONE bundled lane-check on D: (--owner smb-pr-sequence-session-1 --disk d): suites of harness-core, harness-view (src edited: full [viewer] unit), session (src edited: entry_references needs the raster_records row, added), harness named targets place_asset, harness_drive_typed (typed-row sweep covers the new rows), action_records is in harness-core; no target flags for harness process tests; 4) land: fetch, rebase on origin/codex/handshake-studio-assets, --per-sha HEAD~1, guarded push on the lead's release; 5) set READY_FOR_VALIDATION.",
-  "updated_at": "2026-11-07T18:04:58Z",
+  "next": "READY_FOR_VALIDATION at 0a733db8 (pushed to origin/codex/handshake-studio-assets; per-sha OK). Validator judges the claim: place, link and transform rows (asset.*, transform.*), review F1-F4 of 9d83222c, render.rs scene-linear variant; scenario steps photo-retouch 83 and 86, vector-brand 54, board-slides-web 64. Never PASS by the builder. Tree and target hand-over follows the lead (lane_close.sh after a PASS verdict).",
+  "updated_at": "2026-11-08T08:20:48Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -81,7 +120,8 @@
       "hsk-studio-session/tests/entry_references.rs: NOT_APPLICABLE row for raster_records (count 16 -> 17)",
       "hsk-studio-harness-core/src/harness.rs: Run::set_layers_tiles_and_entry; vector_paths_and_entry_step generalised to layers_and_entry_step (patch_json_vector_paths -> patch_json_layers), behaviour of set_vector_paths_and_entry unchanged",
       "hsk-studio-harness-core/src/action/commands.rs + new commands/asset.rs, commands/transform.rs (own domain files)",
-      "hsk-studio-harness-view: view/place.rs, view/commands/place.rs (new); view/mod.rs (field, open hook, state_json placed), edit.rs (undo/redo sync, paint guard), shell.rs (reset), commands.rs (arms, read_bounded pub(super)), select_liquify.rs (layer_pixels/LayerPixels pub(super), liquify guard)"
+      "hsk-studio-harness-view: view/place.rs, view/commands/place.rs (new); view/mod.rs (field, open hook, state_json placed), edit.rs (undo/redo sync, paint guard), shell.rs (reset), commands.rs (arms, read_bounded pub(super)), select_liquify.rs (layer_pixels/LayerPixels pub(super), liquify guard)",
+      "hsk-studio-harness-view/src/view/render.rs: render_scene_linear_with_records + render_rendered_in (scene flag), additive; approved by the lead 2026-11-08 (F4 float sources); only caller view::place decode_source"
     ],
     "reused": "import route crate::import::import_as + render::render_linear_with_records (source composite), select_liquify layer_pixels (pixel layer reader), layers mint_layer_id/new_layer/operation_for/insertion_point, edit new_tile/new_tile_profile, Run stage_tile/asset_bytes (project-bin's staging), package LinkedFileResolver (link state), restructure_and_entry / set_tiles_and_entry (one step each)",
     "v4_06": {
@@ -106,7 +146,8 @@
       "export fail-closed for missing links (STU-ASSET-009)",
       "duplicate of a placed layer as a shared instance",
       "layout graphic frames (SMB-LAYOUT-PLACE-1)",
-      "document tabs / layer copy between documents (photo-retouch step 84)"
+      "document tabs / layer copy between documents (photo-retouch step 84)",
+      "duplicate_layer of a placed layer copies pixels only, no record (lead ruling 7 adopting review Q2; layers.rs not owned)"
     ],
     "studio_readings_unverified": "100 % unless larger than the canvas (then fit); reference point on axis-aligned bounds; skew before rotation; placed cached pixels clipped to the canvas; links resolve against the opened document's folder (inside it only); default resample bicubic, recorded",
     "mts_proven_partially": [
@@ -118,6 +159,21 @@
       "MT-34444"
     ],
     "scenario_steps": "photo-retouch 83 (embedded+linked), 86; vector-brand 54 (opacity at place; template lock not built); board-slides-web 64 (raster document only, not a layout frame)",
-    "line_endings": "working tree of the edited files is CRLF from a python edit; commits are LF (eol=lf), diffs clean"
+    "line_endings": "working tree of the edited files is CRLF from a python edit; commits are LF (eol=lf), diffs clean",
+    "rebased_20261108": "rebased onto 35c50d3b (SMB-ARTBOARD-EXPORT-1 landed, steward 5d020939 below it); conflicts in source.rs, action/commands.rs, view/mod.rs resolved per the lead's ruling; entry_references NOT_APPLICABLE 17 -> 18 (both rows); render.rs unmoved by origin. Earlier rebase onto cede5958 (808702dc..7e9650f3) superseded; a bundled run started at 7e9650f3 was stopped by this lane before any test ran, to run once on the merged tree",
+    "review_fixes_20261108": {
+      "F1": "place.rs mint_placed_layer_id: block 7ede-9200, skips document, record and instance ids; no layers.rs edit. Orphan records after a delete stay in the entry (undo restores the layer) and are ignored at render (effective_records prune) and in validation (editable_entry prune); the delete path (layers.rs) is not owned, so it was not changed. Test a_deleted_placement_leaves_no_record_on_the_next_new_layer (raster, duplicate, group, text, vector; PSD Invert keeps rendering; asset.place after save and reopen)",
+      "F2": "place.rs opaque_crop: reference point and source rect from texels with alpha > 0, layer_empty otherwise; place_asset.rs asserts the 50 % middle_centre shrink lands on x 22..46, y 8..24",
+      "F3": "PlaceState.base captured canonical at place_opened, None after document.new and close; test an_audio_file_opened_beside_the_document_does_not_move_its_link_folder (#[cfg(feature = media)])",
+      "F4": "place.rs sample_range: Extended when the source holds a colour outside 0..=1, else Unit (tiles are always rgb_f32le). Pixel layers proven (bilinear and bicubic keep 1.5); placed float sources blocked upstream (blockers)"
+    },
+    "orphan_records_on_delete": "accepted by the lead 2026-11-08: a deleted placed layer's record stays in the raster_records entry for undo; it is dropped at render (effective_records prune) and in validation (editable_entry prune); the delete path (layers.rs) is not changed",
+    "pushed": {
+      "sha": "0a733db83766263c23ea1978a7f1c53a1974c7b5",
+      "at": "2026-11-08T08:20:48Z",
+      "from": "08b372af",
+      "ls_remote": "refs/heads/codex/handshake-studio-assets = 0a733db8",
+      "released_by": "lead 2026-11-08 (RELEASED)"
+    }
   }
 }
