@@ -172,5 +172,125 @@
    "on": "generator_fix.open_design_note",
    "ruling": "The tool-rail foot is 80 px, matching the mock and the capture. The rendered design wins over the generator's 72 px assumption."
   }
- ]
+ ],
+ "recheck_28ff3a10": {
+  "date": "2026-11-08",
+  "captures_inspected": [
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1920x1080-offscreen.png",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1280x720-offscreen.png",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1024x640-offscreen.png",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1024x640-edge-offscreen.png",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-2560x1440-offscreen.png",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1920x1080-bands.json",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1920x1080-offscreen-tree.json",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1280x720-offscreen-tree.json",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1024x640-offscreen-tree.json",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-1024x640-edge-offscreen-tree.json",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-frame-1/captures-28ff3a10/frame-2560x1440-offscreen-tree.json"
+  ],
+  "verdict": "MATCHES_DESIGN",
+  "verdict_note": "No block or major item is open. D-F7, N1 and N2 are minor: record them and fix in passing (acceptance-checks severity.minor). The bands at 1920x1080 are unchanged and still equal the mock at 0 px.",
+  "findings": [
+   {
+    "id": "D-F1",
+    "status": "CLOSED",
+    "evidence": "frame-1920x1080: 0 disabled nodes in the tree. Menu FILE glyph peak #EFEFEF; chip 'Select' #EFEFEF; preset 'Default' text #ECECEC on surface.field #171717 with edge.control #7C7C7C; search on #171717 with placeholder #A0A0A0; Photo #E4E4E4; bottom rail labels #C4C4C4."
+   },
+   {
+    "id": "D-F2",
+    "status": "CLOSED",
+    "evidence": "frame-1920x1080 x0-220 y28-60: fill #222222, accent #22C55E at y28-29, label #EFEFEF weight 600; the node has selected=true."
+   },
+   {
+    "id": "D-F3",
+    "status": "CLOSED",
+    "evidence": "Family browse [4,978,36,32] and proxy [4,1014,36,36] at 1920, equal to the mock. At 1280: 618 and 654 (proxy ends at 690 = 696-6). At 1024: 538 and 574 (ends at 610). At 2560: 1338 and 1374 (ends at 1410 = 1416-6)."
+   },
+   {
+    "id": "D-F4",
+    "status": "CLOSED",
+    "evidence": "studio.group.properties.more and studio.group.colour.more are enabled with click and focus actions, and their values list the hidden tabs. frame-1024x640-edge shows Masks active in group 1 with +1. Not seen: an open flyout in any capture."
+   },
+   {
+    "id": "D-F5",
+    "status": "CLOSED",
+    "evidence": "frame-1024x640-edge status: hint 'Paint Brush', command 'FILE: not built in this host yet' [85,620,469,16] in full and in words; the device readout dropped first per FIT-S1 (bounds [1016,628,0,0])."
+   },
+   {
+    "id": "D-F6",
+    "status": "CLOSED",
+    "evidence": "Vertical ruler numbers are present at 1920 (-300 to 400), 1280, 1024 and 2560. They are rotated to read bottom to top and sit below their major tick, as in the mock. The tnum point is N1."
+   },
+   {
+    "id": "D-F7",
+    "status": "OPEN",
+    "severity": "minor",
+    "evidence": "frame-1920x1080 status: hint 'Select' [8,1060] is fixed. Readouts are still size [1041], zoom [1139], 'revision 1' [1195], 'cpu painter, Vulkan UI pass pending' as a separate readout [1273,1060,204,16], then device [1502]. Same at 1280 and 2560. At 1024 the painter readout stays while device drops.",
+    "fix": "Merge the painter and UI-pass state into the device readout (one device readout, dropped first by FIT-S1). Drop 'revision', or move it to the status overflow."
+   },
+   {
+    "id": "D-F8",
+    "status": "ACCEPTED_BY_LEAD",
+    "evidence": "Lead ruling 2026-11-08: the OS frame provides the window buttons in the asset-local host."
+   },
+   {
+    "id": "D-F9",
+    "status": "ACCEPTED_BY_LEAD",
+    "evidence": "A named cut. The thumbnails are still checker only at x1653-1677 (1920)."
+   },
+   {
+    "id": "D-F10",
+    "status": "CLOSED",
+    "evidence": "Eye icons peak at #A0A0A0 (Sun, eye_off) and #929292 antialiased (Red); the hidden name stays text.disabled."
+   },
+   {
+    "id": "D-F11",
+    "status": "CLOSED",
+    "evidence": "Colour and Layers tabs: seam at y374/598, 2px #7C7C7C at y375-376/599-600; header bottom seams at y400 and 624, equal to the mock."
+   },
+   {
+    "id": "D-F12",
+    "status": "CLOSED",
+    "evidence": "Empty states read 'Not built in this host yet' with no code (1920 y157-170 and y437-450; same at 1280, 1024 and 2560)."
+   }
+  ],
+  "builder_notes_judged": [
+   {
+    "note": "Rotated ruler labels use no tabular figures because there is no caption tnum token",
+    "ruling": "Deviation, minor (N1). tnum is a font feature, not a token. components.json ruler says text 'caption tnum', meaning the caption style (11/14/400) shaped with the tnum feature; design-system type.rules says numbers always use tnum, and the value style shows the same feature list. Fix: shape the ruler labels of both axes with caption plus features ['tnum']. No new token is needed."
+   },
+   {
+    "note": "The Layers body is 99 px in the 800x324 test",
+    "ruling": "No deviation. 800x324 is below window.min 1024x640 (design-system size), where the fit ladder sets no sizes. 99 is not under group_min_h 90, so FIT-H2 correctly keeps the group open."
+   },
+   {
+    "note": "A click on an unbuilt control moves keyboard focus, with no visible ring",
+    "ruling": "Matches the design. components.json universal_rules[2] shows the ring on keyboard focus only. Conditions: once focus then moves by keyboard the 2px focus.ring must show (AC-FOCUS-01), and Escape returns focus (AC-FOCUS-02). One check is N2."
+   }
+  ],
+  "new_deviations": [
+   {
+    "id": "N1",
+    "severity": "minor",
+    "check_id": "ruler component, type.rules",
+    "where": "vertical ruler labels, all captures",
+    "observed": "The builder states the rotated labels are shaped without tnum.",
+    "fix": "Shape ruler labels with caption plus tnum on both axes."
+   },
+   {
+    "id": "N2",
+    "severity": "minor",
+    "check_id": "components universal_rules[2], state.interaction.ghost",
+    "where": "frame-1024x640-edge menu.file x32-67 y0-28",
+    "observed": "A #2C2C2C fill (surface.row_hover, the ghost hover fill) on the focused FILE title after the scripted click. It is correct only if the pointer rests on FILE.",
+    "fix": "Draw the ghost hover fill from pointer hover only, and draw nothing for pointer focus. Verify with a capture that has the pointer off the title."
+   }
+  ],
+  "fit_checks": {
+   "1920x1080": "Bands are unchanged and equal the mock at 0 px; groups 280/224/430.",
+   "1280x720": "Dock state matches fit_table: centre 904x574, groups 172/138/264, pitch 28, 2 hidden slots.",
+   "1024x640": "Centre 648x494, groups 148/119/227, pitch 28, 5 hidden slots, equal to the generator with the ruled 80 px foot. FIT-M1 abbreviations are in use, and FIT-S1 drops the device readout.",
+   "2560x1440": "FIT-L1 holds. The left edge opens at 260 (dock 44-303, seam at x303). The viewer is 304-2260 = 1956x1294 and the right dock stays 300. Right groups 94-482 / 482-793 / 793-1388 = 388/311/595, equal to the fit_table row with applied ['FIT-L1']. The Browse Dock group (Brushes, Preset Library, +4) uses the quiet unfocused edge #7C7C7C; only Properties carries the accent. Pitch 32 with all 19 slots shown, and the rail foot is pinned. Rulers show numbers on both axes."
+  }
+ }
 }
