@@ -13343,6 +13343,37 @@
         "qualified_compile": false,
         "runtime_verdict": "NOT_ISSUED"
       }
+    },
+    "post_diagnosis_probe": {
+      "id": "WP012-MT172-REGISTRY-CORE-CHECK-20261108-03",
+      "state": "CONSUMED_NATIVE_ARCHITECTURE_FAILURE_COMPILER_RETURNED",
+      "diagnosis": "MSBuild writes a TryCompile tlog beyond 260 characters, and the pinned llama.cpp build skips configuration with an existing cache. Capture also used a post-exit image query that failed despite a signaled original process.",
+      "changed_preparation": "Use pinned Ninja with the original MSVC tools and unchanged Cargo target/profile. Preserve the one failed CMake build directory by same-parent rename. Wait on the original native process before deciding whether its image can be read.",
+      "binding_artifacts_root_relative_path": "WP-KERNEL-012/MT-172/shared-compile-preparation-20261025-01/shared-check-config-llama-03.json",
+      "binding_sha256": "dd8a315d1adb1f723a4f83b0d74deb879392e67a8c4460f7bd43ece2751c04ed",
+      "producer_sha256": "0dd05edd10c11e63f893c4f3e82777b8630e91d4ed4af79320bc3d89e0fe5bd7",
+      "control_patch_sha256": "41ce889674b1be653edb0e708117e61ac0a97b582727494da7b02f2d6c281041",
+      "archived_failed_leaf_relative_to_target": "debug/build/llama-cpp-sys-2-afa08cfe14b8195d/out/build-msb3491-20261108-01",
+      "archived_cache_sha256": "4b6a3221168f66a3ceaa088391d7669d6adefba58a9fa49d1a030d124d93f065",
+      "archive_and_empty_output_verified_utc": "2026-11-08T17:26:55.9605472Z",
+      "output_artifacts_root_relative_path": "WP-KERNEL-012/MT-172/shared-compile-preparation-20261025-01/shared-check-capture-20261108-02",
+      "review": {"author": "/root/coding_cycle23", "reviewer": "/root/codecheck_cycle23", "verdict": "SOURCE_CONFIG_READY", "partner_agreement": "One changed-preparation probe after exact archive, fresh output and resource checks."},
+      "limits": "One launch, compile only. No automatic retry. Verify actual Ninja configuration, Cargo outcome, cache reuse and original job/process settlement. Prior failed attempts and runtime acceptance remain separate.",
+      "observed": {
+        "cargo_started_sha256": "f140c5763fb677033b365ae285a10a494ce42e048e0cb380fd61935a73b99b80",
+        "cargo_pid": 32132,
+        "cargo_birth_filetime": 134386325517491100,
+        "cargo_exit_code": 101,
+        "failure": "Ninja used the intended Hostx64/x64 MSVC compiler, but generated CMakeSystem.cmake selected ARM64 as both host and target system processor. ggml rejected MSVC in the ARM CPU branch before build.ninja was generated.",
+        "cache_reuse": "RocksDB and DuckDB build-script and library compiler artifacts were fresh.",
+        "result_sha256": "93a1bbcd4040bbe1dc50a41c0ee7cd4806d9885f5340051a9eb79e7390eb6d42",
+        "terminal_handoff_sha256": "2117de7876901bd4c0b3713597536c5fae0c73c4f07ff16fc34bb0e69763eb64",
+        "private_job_final_sha256": "f09d0f9f8ba911da314993831d2ec958b7fceb71dc2905cf794cb8029d5fb6e3",
+        "settlement": "Natural drain timed out. Existing private-job-only teardown then observed the original process signaled and complete empty job membership, bracketed by zero active counts. The post-exit image query failure did not recur.",
+        "compiler_handed_back_utc": "2026-11-08T17:30:56.293619Z",
+        "qualified_compile": false,
+        "runtime_verdict": "NOT_ISSUED"
+      }
     }
   }
 }
