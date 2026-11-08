@@ -278,16 +278,17 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 <topic id="state" status="active" updated_at="2026-11-08T05:40:01Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
 
-## RUNNING (2026-11-08, from about 05:30Z)
+## RUNNING (2026-11-08, from about 05:30Z; updated 2026-11-08T08:55:13Z)
 
-**Operator:** "ok lets continue, i will go to bed, i expect you to resolve blockers and deliberate with your team on questions so you dont have to ask me." Vox Vulgi may be closed only if it blocks work (its old bugs read or wrote nonstop); Chrome stays open. Record: `direction.resume_20261108`.
+**Operator:** "ok lets continue, i will go to bed, i expect you to resolve blockers and deliberate with your team on questions so you dont have to ask me." Vox Vulgi may be closed only if it blocks work; Chrome stays open. Record: `direction.resume_20261108` (with r60 attempts, steward sync, trunk break, review rulings, landing queue).
 
-- **R60:** attempt 1 at cede5958 did not open (canary step 0, F-R60-1: native-host png/sha2 without registry pins). The steward sync 5d020939 fixed it, with two lead-approved edges. **Attempt 2 FULL with canary at 35c50d3b** (120 commits since c4d06841, 21 READY claims) runs on C: from about 07:22Z. Prompt: `validation/dispatch-prompt-R60.txt`.
-- **Landed today:** SMB-PR-EXPORT-RECIPE-1 8712fa23; the SMB-VK-UI-PASS-1 compose hook 42e9e5a4 (no claim); steward 5d020939; SMB-ARTBOARD-EXPORT-1 35c50d3b.
-- **Builders on D: (gated):** SMB-PR-EXPORT-RECIPE-1 applies review F1..F3, then runs bundled. SMB-GUI-FRAME-1 is new on smb-pr-entry-references-1. SMB-VK-UI-PASS-1 is new on smb-pr-retime-hold-1: compose hook first, then item V (validation layer on in debug builds, zero errors), then the pass. Builders stop at HOOK GREEN, REVIEW READY and BUNDLED GREEN; the lead resumes them with findings or RELEASED, one landing at a time.
-- **Pre-build reviews running:** SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1, SMB-DRIVE-TYPED-2 (`research/review-<lane>-<tip>.json`). Their builders are dispatched with the findings.
-- **Width lanes:** a position and red-team agent rules the open questions of SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1 and SMB-PARSER-HOSTILE-1, picks their trees (C: has 0 live lane targets, D: has 11), and re-scopes SMB-SCORE-EFFECTS-6 (`research/rulings-20261108-width-lanes.json`).
-- **Vox Vulgi** (desktop.exe 141544) reads its data in cache-served bursts, about 18 MB/s, at low physical disk load; it does not block work and is left running.
+- **R60:** attempt 1 at cede5958 did not open (F-R60-1, fixed by steward 5d020939 with two lead-approved edges). **Attempt 2 FULL with canary at 35c50d3b** (120 commits, 21 claims) runs on C: from about 07:22Z. Its candidate carries the harness_drive_typed pin break fixed later in 89e9a2ac (validator told).
+- **Landed today, READY, unjudged:** SMB-PR-EXPORT-RECIPE-1 8712fa23; VK-UI-PASS-1 compose hook 42e9e5a4 (no claim); steward 5d020939; SMB-ARTBOARD-EXPORT-1 35c50d3b plus fixture fix 89e9a2ac; SMB-DRIVE-TYPED-2 08b372af; SMB-PLACE-ASSET-1 0a733db8; SMB-GUI-FRAME-1 eb17fad6 (designer MATCHES_DESIGN; D-F7, N1, N2 to the next GUI lane).
+- **C: lanes held for R60 (HOLD C: 07:20Z), each reviewed and fixed:** SMB-AI-LIVE-EFFECTS-1 (bundled green f962ff49, item 5 unbuilt), SMB-TYPE-INDENT-SPACING-1, SMB-SCORE-EFFECTS-6, SMB-PARSER-HOSTILE-1. On R60's union end: send C: RELEASED; they check, prove red, run bundled, land one at a time (PARSER yields).
+- **D: lanes:** SMB-VK-UI-PASS-1 (validation on, 0 errors; fixing review F1-F6, then rebase on GUI-FRAME-1 and fill StatusFacts.chrome); new width wave on base eb17fad6 from `research/width-plan-20261108-*.json`: SMB-LAYOUT-PLACE-1 (smb-id-toc-persist-1), SMB-WEB-SITE-1 (smb-sentinels-native-1), SMB-DS-COMPONENTS-AUTHOR-1 (smb-ai-distort-effects-1), SMB-DEVELOP-COMMANDS-1 (smb-folio-angle-unbounded-1), SMB-MOTION-COMMANDS-2 (smb-pr-sequence-session-1), SMB-DELIVERY-QUEUE-1 (smb-r53-followups-1). Each stops at REVIEW READY for code-check and red-team, then BUNDLED GREEN, then lands on RELEASED.
+- **Next width candidates (planned, gated):** SMB-DS-VARIABLES-AUTHOR-1 (after DS-COMPONENTS), SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1 (after the indent lane), SMB-BOARD-1 (after AI-LIVE-EFFECTS), SMB-PR-MULTICAM-PLAY-1 (after SCORE-EFFECTS-6), SMB-PR-CONFORM-PEAKS-1. The next GUI lane starts with D-F7, N1, N2.
+- **Process lessons today:** lane-check runs neither registry-sync nor the probe (F-R60-2): the lead runs the registry check before each freeze. A lane that changes a Viewer refusal order runs every harness process test driving that command. Shared files between parallel lanes are ruled per hunk with a landing order.
+- **Vox Vulgi** (desktop.exe 141544) reads its data in cache-served bursts; not blocking; left running.
 
 ## PAUSED (2026-11-07, about 18:20Z)
 
