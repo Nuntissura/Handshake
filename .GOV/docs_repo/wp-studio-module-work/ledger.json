@@ -24124,5 +24124,63 @@
   ],
   "by": "wp_validator STUDIO-R59",
   "completed_at": "2026-11-07T09:07:37Z"
+ },
+ "round_R60": {
+  "candidate": "cede5958",
+  "candidate_full": "cede59587eed0189edce18ed93f60486bc6af520",
+  "origin_at_fetch": "cede5958 (fetch 2026-11-08T05:35:57Z)",
+  "attempt": 1,
+  "scope": "FULL (CX-VAL-011 third round; root inputs changed): 60 crates; round not opened",
+  "frozen_at": "2026-11-08T05:37:11Z",
+  "opened_at": null,
+  "canary": "validator canary R60-canary @cede5958 --canary --all: exit 75 at step 0 (registry metadata/probe approvals drift: native-host png, sha2), complete false, 0 units, 2026-11-08T05:43:39Z..05:45:01Z",
+  "status": "NOT_OPENED (canary infrastructure, CX-VAL-005/010)",
+  "round_ref": "validation/round-R60.json",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R60-canary",
+  "failure_class": "step0-registry-drift-native-host-png-sha2",
+  "ready_claims_not_judged": [
+   "SMB-PR-ROUTING-REPAIR-1",
+   "SMB-SESSION-WRITE-SAFETY-1",
+   "SMB-HARNESS-DRIVE-1",
+   "SMB-OBSERVE-DIAG-SINK-1",
+   "SMB-CONTROLS-EGUI-GATE-1",
+   "SMB-PIGMENT-FILTER-KERNELS-1",
+   "SMB-DOC-NEW-1",
+   "SMB-MOTION-COMMANDS-1",
+   "SMB-GUI-STEWARD-1",
+   "SMB-COMMAND-SURFACE-1",
+   "SMB-VK-HOST-1",
+   "SMB-UI-TREE-1",
+   "SMB-AUDIO-OUT-MIX-1",
+   "SMB-DOC-EXPORT-1",
+   "SMB-LAYOUT-PDF-HOST-1",
+   "SMB-PROJECT-BIN-1",
+   "SMB-LAYOUT-PERSIST-1",
+   "SMB-WEB-HOST-1",
+   "SMB-GUI-SPINE-1"
+  ],
+  "verdict_counts": {},
+  "reopened_list_recorded": 407,
+  "statuses_written": 0,
+  "mts_passed": [],
+  "mts_passed_count": 0,
+  "c_tree_gib": {
+   "start": 208.514,
+   "peak": 208.514,
+   "end": 208.514,
+   "cap": 360
+  },
+  "memory": "commit free 128.6 GB at the freeze (limit 191.0), 124.9 before the canary, 126.1 during it, 122.8 at the end; Chrome private 7.9 to 13.0 GB, 42 to 61 processes (validator-R60/mem-log.txt). No build ran",
+  "matrix_cut": "not in the candidate: .config/round-features.toml at cede5958 keeps all 18 hsk-studio-harness feature sets (validator read and reviewer R60-E); the next attempt runs the matrix as it stands",
+  "findings": [
+   "F-R60-1 HIGH (blocks rounds): step 0 drift, native-host png/sha2 pins and probe approvals missing (SMB-VK-HOST-1 045bb059, SMB-GUI-STEWARD-1)",
+   "F-R60-2 MEDIUM process: lane-check does not run the registry-sync check",
+   "F-R60-3 HIGH lead: DOC-EXPORT-1 export_document outside the JobPort (validator-confirmed in code)",
+   "F-R60-4 LOW: Owner::validation() literal 'absent'"
+  ],
+  "reviewer_leads": "validator-R60/review-R60-A..H.json: 17 claims, 1 HIGH / 33 MEDIUM / 95 LOW, not verdicts",
+  "next": "steward sync commit for F-R60-1, then re-dispatch R60 (attempt 2) at the new tip: canary, full union",
+  "by": "wp_validator STUDIO-R60",
+  "completed_at": "2026-11-08T06:17:25Z"
  }
 }
