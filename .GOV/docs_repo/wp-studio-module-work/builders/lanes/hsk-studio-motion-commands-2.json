@@ -1,0 +1,53 @@
+{
+  "crate": "hsk-studio-harness-core (typed motion commands: solid and adjustment layers, keyframe selection, clipboard and ease) over hsk-studio-folio motion records and hsk-studio-composite composition evaluation (adjustment-layer effects, STU-CMP-015)",
+  "lane": "SMB-MOTION-COMMANDS-2",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+  "base": "eb17fad6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T08:53:46Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: composite returns per-layer typed refusals (codes only) through TemporalError::Unsupported; motion commands keep their typed error and bounded target in the op record (motion_commands.rs:7-12); keyframe.selection reports the dropped-key count",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: composite and folio commit nothing; every mutating row commits through motion_commands::commit (:405-460) with the caller's CommandContext; selection and clipboard rows make no history step and no business event; no default_actor() or literal actor in new code",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T08:53:46Z",
+    "disk": "D",
+    "closes": [
+      "workflows/scenario-motion-comp.json gap 9 part: solid layer and adjustment-layer effect stacks (steps 16, 17, 44)",
+      "workflows/scenario-motion-comp.json gap 1 remainder part: layer kinds solid and adjustment, keyframe selection, copy and paste",
+      "workflows/scenario-motion-comp.json gap 8 part: Ease, Ease In, Ease Out, toggle hold over a selection (step 28)",
+      "harness-core motion_commands.rs:28-31 declared limit 'keyframe selection, copy and paste are not commands here'"
+    ],
+    "closes_candidates": [
+      "MT-33852",
+      "MT-33853",
+      "MT-34075",
+      "MT-33884",
+      "MT-33885",
+      "MT-33883"
+    ],
+    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "crate": "hsk-studio-harness-view (one admitted delivery queue over reel's ExportQueue for sequence recipes and composition render queue items; user StudioExportRecipe records; PNG image sequence with alpha) with rows in hsk-studio-harness-core and a CLI verb in hsk-studio-harness",
+  "lane": "SMB-DELIVERY-QUEUE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-r53-followups-1",
+  "base": "eb17fad6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-08T08:53:46Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: each item settles through the existing job admission (completed, completed_stale, canceled, failed) with one Observe terminal frame per outcome (job_admission.rs:31-33); receipts name recipe, span, artifacts, outcome and partial output; refusals are typed codes before any frame",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "the queue's jobs carry the Run's actor and a correlation minted per job by JobAdmission::next_correlation (job_admission.rs:21-27); recipe save and delete are entry-only steps with the caller's CommandContext; no default_actor() or literal actor in new code",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-08T08:53:46Z",
+    "disk": "D",
+    "closes": [
+      "workflows/scenario-video-edit.json gap 5 part: user recipes (step 95) and one batch queue with per-item receipts and cancel (step 96)",
+      "workflows/scenario-motion-comp.json gap 7 part: product run path for the render queue (step 87), PNG sequence (step 84), alpha through PNG (step 83 part), reorder, duplicate and templates (step 86 part)",
+      "harness-view job_admission.rs:38-40 'the AE render queue builds reel jobs but no product source runs them'",
+      "reel StudioExportRecipe has no host caller"
+    ],
+    "closes_candidates": [
+      "MT-33766",
+      "MT-33831",
+      "MT-34024",
+      "MT-34027",
+      "MT-34028"
+    ],
+    "reuses_tree_and_target": "smb-r53-followups-1"
+  }
+}

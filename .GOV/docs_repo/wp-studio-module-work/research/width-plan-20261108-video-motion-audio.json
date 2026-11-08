@@ -1,0 +1,1022 @@
+{
+ "at": "2026-11-08T08:46:20Z",
+ "origin": {
+  "commit": "0a733db8",
+  "subject": "harness-view, PLACE-ASSET-1: F4 float sources decode unclipped (lead ruling 2026-11-08)",
+  "baseline_of_scenarios": "c4d06841",
+  "commits_since_baseline": 132,
+  "read_from": "wt-studio-lanes/smb-pr-edit-footprint-1/handshake-studio-assets via git grep and git show 0a733db8:./crates/... (working tree at 08b372af, not checked out)",
+  "spec": "v02.229, .GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md",
+  "label": "READ"
+ },
+ "scenarios": {
+  "method": "Each gap of the three scenario files (measured at c4d06841, 2026-11-07) was re-read at 0a733db8 through `git grep -n` and `git show 0a733db8:./crates/...` in wt-studio-lanes/smb-pr-edit-footprint-1/handshake-studio-assets. Nothing was built or run. callable = a RUN_COMMANDS row, a harness drive row or a Viewer method reaches it and its effect reaches the document or the output; it does not mean a test passed. reader=planner: the planner re-read the cited lines; reader=subreader: a delegated read-only reader in this pass read them through git and the planner did not re-read them. Lanes that landed between c4d06841 and 0a733db8 (READ, git log --first-parent): SMB-PR-ROUTING-REPAIR-1, SMB-HARNESS-DRIVE-1, SMB-SESSION-WRITE-SAFETY-1, SMB-CONTROLS-EGUI-GATE-1, SMB-GUI-STEWARD-1, SMB-COMMAND-SURFACE-1, SMB-OBSERVE-DIAG-SINK-1, SMB-MOTION-COMMANDS-1, SMB-PIGMENT-FILTER-KERNELS-1, SMB-UI-TREE-1, SMB-AUDIO-OUT-MIX-1, SMB-DOC-NEW-1, SMB-VK-HOST-1, SMB-DOC-EXPORT-1, SMB-LAYOUT-PDF-HOST-1, SMB-PROJECT-BIN-1, SMB-WEB-HOST-1, SMB-LAYOUT-PERSIST-1, SMB-GUI-SPINE-1, SMB-PR-EXPORT-RECIPE-1, SMB-VK-UI-PASS-1 (compose hook only), SMB-ARTBOARD-EXPORT-1, SMB-DRIVE-TYPED-2, SMB-PLACE-ASSET-1.",
+  "feature_caveat": "READ (subreader): the project, audio and media rows need harness features media, audio-batch or audio-device; hsk-studio-harness/Cargo.toml:8 default features are empty, so a default binary refuses them feature_unavailable. Counts below treat a feature build as the product build.",
+  "video-edit": {
+   "file": "S/workflows/scenario-video-edit.json",
+   "coverage_c4d06841": {
+    "callable": 34,
+    "engine_only": 39,
+    "missing": 26,
+    "of": 99
+   },
+   "coverage_0a733db8": {
+    "callable": 40,
+    "engine_only": 37,
+    "missing": 22,
+    "of": 99,
+    "label": "READ arithmetic over moved steps; steps 74 and 80 partly helped and still counted engine_only"
+   },
+   "gaps": [
+    {
+     "gap": 1,
+     "what": "Project and media foundation",
+     "old": "missing",
+     "new": "callable (step 1 partly)",
+     "moved_steps": "2,5 engine_only->callable; 4,6 missing->callable; 1 missing->partly (document.new has no video profile; then sequence.new)",
+     "lane": "SMB-PROJECT-BIN-1, SMB-DOC-NEW-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/video.rs:9-15 project_bin.*, sequence.new, add_tracks, place_clip rows",
+      "hsk-studio-harness-core/src/harness.rs:1818,1857,1887,1912 Run methods",
+      "hsk-studio-harness/src/cli/drive_viewer.rs:483-502 drive rows",
+      "hsk-studio-harness-core/src/document_new.rs:51-56 profiles vector, raster, design, layout only"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 2,
+     "what": "Clip finishing never reaches a picture",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none (63-68, 90)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-composite/src/clip_finishing.rs:664 and hsk-studio-folio/src/clip_finishing.rs:404 engine; no grade or finishing caller in harness-view, harness-core, harness, session, pulse src (git grep)"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 3,
+     "what": "Multicam does not play its active angle",
+     "old": "engine_only",
+     "new": "engine_only (silent wrong output stays)",
+     "moved_steps": "none (28-35, 37)",
+     "lane": "SMB-PR-ROUTING-REPAIR-1 kept multicam records valid only",
+     "evidence": [
+      "hsk-studio-pulse/src/multicam.rs:932 resolve_active_angle: callers only in pulse/tests/multicam.rs and multicam_flatten.rs",
+      "hsk-studio-pulse/src/multicam.rs:929-931 doc: program-monitor playback of the active angle is not wired",
+      "hsk-studio-harness-view/src/view/monitor.rs:574 renders through frame_layers_nested_on_grids (pulse/src/nest.rs:720), which takes sequences and no multicam records",
+      "hsk-studio-harness-view/src/view/audio_session.rs:97 plays NestedAudioSources (pulse/src/nest.rs:815)"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 4,
+     "what": "Scopes and legal range",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (60, 61, 69)",
+     "lane": null,
+     "evidence": [
+      "git grep -il vectorscope|rgb_parade|legal_range over crates: no file"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 5,
+     "what": "Delivery gaps",
+     "old": "missing",
+     "new": "partly_callable",
+     "moved_steps": "94 engine_only->callable (WAV/FLAC/AIFF mixdown and stems); 95 missing->engine_only (StudioExportRecipe, no host); 88, 90, 93 missing; 96 engine_only",
+     "lane": "SMB-AUDIO-OUT-MIX-1, SMB-PR-EXPORT-RECIPE-1 (engine only)",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/audio.rs:20-21 audio.export_mix, audio.export_stems",
+      "hsk-studio-reel/src/export.rs:124 ExportRecipe.audio is Option<PcmChoice> (no compressed audio)",
+      "hsk-studio-reel/src/export_recipe.rs:83-100 REEL_WRITER_BINDING: width, height, FPS, rate and channels must equal the source (no scale, no rate conversion)",
+      "hsk-studio-harness-view/src/view/timeline_export.rs:616 preset_recipe: sequence export takes one of reel's preset ids, not a StudioExportRecipe"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 6,
+     "what": "Captions",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none; 74 partly (sequence.add_tracks accepts kind caption)",
+     "lane": "SMB-PROJECT-BIN-1 (track kind only)",
+     "evidence": [
+      "hsk-studio-harness-view/src/view/project.rs:66",
+      "export_captions called only from hsk-studio-harness/tests/timeline_captions.rs:143,193",
+      "hsk-studio-interop-media/src/captions.rs:340 parse_srt has no dependent crate"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 7,
+     "what": "Linked picture and sound editing",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (16, 17, 21)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/source_monitor.rs:359,365 video tracks only, :416 link_group None"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 8,
+     "what": "Transitions",
+     "old": "engine_only",
+     "new": "engine_only (every kind still plays as a dissolve)",
+     "moved_steps": "none (53-56)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/timeline.rs:682 TimelineCommand has no transition variant",
+      "hsk-studio-pulse/src/transition.rs:137 `_ => true`"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 9,
+     "what": "Proxies and offline, peak and index jobs",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (7-10)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/project.rs:41-43 module docs: cuts include conform and peak jobs",
+      "hsk-studio-reel/src/registry.rs:32 ProxySource read only"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 10,
+     "what": "Retime options",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none (50-52)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/timeline/rate.rs:89-90 interpolation and pitch 'not wired'",
+      "hsk-studio-pulse/src/retime.rs:691,831,845 no host caller"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 11,
+     "what": "Sync by waveform",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (11, 12 engine_only, 27)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-pulse/src/merge_sync.rs:31,724 sync_waveform_unavailable",
+      "hsk-studio-pulse/src/multicam.rs:647 audio sync refused"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 12,
+     "what": "Edit commands an editor expects",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none (14, 22, 39, 46, 84, 99)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/timeline.rs:682 no range lift/extract, ripple to playhead, match frame, work area",
+      "hsk-studio-pulse/src/timeline_edit.rs:97,103 LiftRange, ExtractRange unused by harness-view"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 13,
+     "what": "Timeline preview rendering",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (58)",
+     "lane": null,
+     "evidence": [
+      "no render-file or preview-render code in pulse or harness-view (git grep)"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 14,
+     "what": "Audio finishing on sequences",
+     "old": "engine_only",
+     "new": "engine_only; 80 partly",
+     "moved_steps": "80 partly: audio.waveform_open_clip then a waveform or spectral repair reaches the mix (a source repair, not a clip stack)",
+     "lane": "SMB-AUDIO-OUT-MIX-1, SMB-DRIVE-TYPED-2",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/audio.rs:22",
+      "hsk-studio-harness-core/src/action/commands/mixer.rs:9-10 templates gain|equalizer|dynamics|lookahead_limiter, no sidechain or duck"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 15,
+     "what": "Layout Presets and docking",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (59)",
+     "lane": "SMB-GUI-SPINE-1 added the frame and a Layers panel only",
+     "evidence": [
+      "hsk-studio-native-host/src/gui/mod.rs:410"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    }
+   ]
+  },
+  "motion-comp": {
+   "file": "S/workflows/scenario-motion-comp.json",
+   "coverage_c4d06841": {
+    "callable": 48,
+    "engine_only": 22,
+    "missing": 21,
+    "NOT_INSPECTED": 1,
+    "of": 92,
+    "script_alone": 4
+   },
+   "coverage_0a733db8": {
+    "callable": "about 49-51 with 3 partly",
+    "engine_only": "about 20",
+    "missing": "about 20",
+    "script_alone": "about 38",
+    "of": 92,
+    "label": "UNVERIFIED arithmetic: 33 record_rewrite steps became typed rows; whether each succeeds end to end is UNVERIFIED"
+   },
+   "gaps": [
+    {
+     "gap": 1,
+     "what": "Typed composition, property, keyframe and expression commands",
+     "old": "missing",
+     "new": "partly_callable",
+     "moved_steps": "33 steps (8,10,11,13,18,21,22,24,25,26,33,38-41,43,45,46,48,49,52,55,61,66,67,71-73,75,79-82) record_rewrite -> run_command; remainder: text, solid, adjustment, footage kinds, keyframe selection and clipboard, expression fields on property streams",
+     "lane": "SMB-MOTION-COMMANDS-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/motion.rs:37-90 rows (54)",
+      "hsk-studio-harness-core/src/motion_commands.rs:993-994 kinds null|shape|camera|light|precomp, else layer_kind_unsupported",
+      "hsk-studio-harness-core/src/motion_commands.rs:28-31 declared limits: no expression store, set_parent does not compensate, no keyframe selection, copy or paste",
+      "hsk-studio-harness-core/src/harness.rs:1599 Run::motion_command; hsk-studio-harness-view/src/view/edit.rs:665 Viewer::motion_command"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 2,
+     "what": "Composition viewer, keyframe timeline, graph, effect controls on the Vulkan GUI",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (2,29,32,47,53,54,56)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-native-host/src/gui/mod.rs:410 frame and Layers panel only",
+      "no Viewer method evaluates a composition frame: CompositionTemporalSource::new is called in harness-view only at timeline_export/render_queue.rs:402"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 3,
+     "what": "Footage layer kind",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (6, 7, 55)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-folio/src/composition.rs:273-330 StudioCompositionLayer has no footage source",
+      "hsk-studio-composite/src/composition.rs:114-168 SceneContent has no footage variant",
+      "hsk-studio-harness-core/src/motion_commands.rs:994 footage refused",
+      "hsk-studio-folio/src/project_bin.rs:81-100 bin items are not layer sources"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 4,
+     "what": "Host the tracking engines",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none (57-60, 62, 63, 70)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-composite/src/track_apply.rs:272, camera_solve.rs:425; no tracker caller in harness, harness-core, harness-view src"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 5,
+     "what": "Keying in the composition stack; roto propagation",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none (64, 65, 68, 69)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-pigment/src/render_plan/extensions.rs:828 KeyCombination refusal",
+      "hsk-studio-folio/src/composition/effects.rs:118-163 no key kind among 20"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 6,
+     "what": "Expressions end to end",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none (34-37, 51)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-folio/src/composition.rs:235-240 StudioPropertyStream has no expression field",
+      "hsk-studio-harness-core/src/motion_commands.rs:795-806 expression.set_source edits a text selector only",
+      "hsk-studio-composite/src/temporal/motion_records.rs:12-15 and :432 text_expression_selector refused without an engine",
+      "hsk-studio-motion-js has no dependent crate"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 7,
+     "what": "Render queue reach and formats",
+     "old": "missing",
+     "new": "missing (queue records now typed, still no product run path)",
+     "moved_steps": "none (83, 84, 86, 87, 88, 91)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-folio/src/motion_records.rs:542 StudioOutputFormat { MovVc3, MovAv1, Mp4Av1 }: no image sequence, no H.264",
+      "hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:203 rgb_alpha refused output_alpha_codec; :206 post-render refused",
+      "hsk-studio-harness-view/src/view/job_admission.rs:38-40 the AE render queue builds reel jobs but no product source runs them",
+      "session_render_queue_jobs callers: hsk-studio-harness/tests/motion_commands.rs:700, motion_records_session.rs:193 only"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 8,
+     "what": "Keyframe assistants, spatial tangents",
+     "old": "engine_only",
+     "new": "partly_callable",
+     "moved_steps": "28, 30 partly (raw interpolation and tangents through keyframe.set_interpolation; no assistant); 23, 31, 32, 50 unchanged",
+     "lane": "SMB-MOTION-COMMANDS-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/motion.rs:89 keyframe.set_interpolation",
+      "hsk-studio-motion/src/assistants.rs:64 ease, :83 toggle_hold, :272 sequence_layers have no host (harness-core has no motion edge, motion_commands.rs:23-25)",
+      "hsk-studio-folio/src/composition.rs:27 spatial tangents not stored"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 9,
+     "what": "Missing layer kinds and effect catalogue",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (16, 17, 44, 74, 76)",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-folio/src/composition/effects.rs:118-163 20 StudioCompositionEffectKind members, including GradientRamp, Levels, Tint",
+      "hsk-studio-composite/src/temporal/composition/effects.rs:8-11 and :251-252 a stack on a null, adjustment or collapsed layer is refused COMPOSITION_EFFECT_CONTENT",
+      "hsk-studio-harness-core/src/motion_commands.rs:994 solid and adjustment refused",
+      "hsk-studio-composite/src/composition.rs:126-128 SceneContent::Adjustment is one pigment AdjustmentOp, not an effect stack"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 10,
+     "what": "Composition record completeness and project bin",
+     "old": "missing",
+     "new": "partly_callable",
+     "moved_steps": "9 partly (bin folders typed, compositions are not bin items); 1 via document.new; 3 partly",
+     "lane": "SMB-PROJECT-BIN-1, SMB-DOC-NEW-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/video.rs:9-12",
+      "hsk-studio-folio/src/composition.rs:767-790 no start timecode, markers, renderer"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 11,
+     "what": "Layout Presets, Flowchart, render-graph report",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none (2, 77, 78)",
+     "lane": null,
+     "evidence": [
+      "no flowchart, render_graph or layout_preset hit in harness*, composite, harness-core src"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    }
+   ]
+  },
+  "audio-post": {
+   "file": "S/workflows/scenario-audio-post.json",
+   "coverage_c4d06841": {
+    "callable": 49,
+    "engine_only": 17,
+    "missing": 30,
+    "of": 96
+   },
+   "coverage_0a733db8": {
+    "callable": 55,
+    "partly_callable": 2,
+    "engine_only": 15,
+    "missing": 24,
+    "of": 96,
+    "label": "READ arithmetic over moved steps (subreader); step 3 partly is UNVERIFIED"
+   },
+   "gaps": [
+    {
+     "gap": 1,
+     "what": "Audible playback in the host",
+     "old": "engine_only",
+     "new": "partly_callable (software clock only)",
+     "moved_steps": "24 -> partly; 68-70 unchanged",
+     "lane": "SMB-AUDIO-OUT-MIX-1",
+     "evidence": [
+      "hsk-studio-harness-view/src/view/audio_session/playback.rs:187 AudioOut::with_buses; :12-15 real device output NOT_PROVEN",
+      "hsk-studio-harness-core/src/action/commands/audio.rs:14-19 out_open..out_close",
+      "hsk-studio-harness-view/src/view/commands/audio.rs:136-138,146 the drive row opens score-device's SoftwareProvider only"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 2,
+     "what": "Multitrack source binding in the product",
+     "old": "missing",
+     "new": "partly_callable",
+     "moved_steps": "1, 6 -> callable; 3 partly (UNVERIFIED); 7, 8 not moved (conform)",
+     "lane": "SMB-PROJECT-BIN-1, SMB-DOC-NEW-1",
+     "evidence": [
+      "hsk-studio-harness/src/cli/drive_viewer.rs:484-502",
+      "hsk-studio-harness-view/src/view/project.rs:30-35 and :476-477 an audio item at another rate is not_bound audio_rate_mismatch: conform STU-VID-053 is not built"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 3,
+     "what": "Repaired audio must reach the mix",
+     "old": "missing",
+     "new": "callable (one source file at a time)",
+     "moved_steps": "32, 52 -> callable",
+     "lane": "SMB-AUDIO-OUT-MIX-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/audio.rs:22 audio.waveform_open_clip",
+      "hsk-studio-harness-view/src/view/audio_session.rs:302-321 one stored edit list replayed over the matching clip source; repair_unmatched reported :319-321"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 4,
+     "what": "Host the existing restoration and dynamics engines",
+     "old": "engine_only",
+     "new": "engine_only (SMB-SCORE-EFFECTS-6 in flight, not in 0a733db8)",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/audio_batch.rs:43-55 EffectSpec Gain, Equalizer, Dynamics, Limiter",
+      "hsk-studio-harness-core/src/action/commands/mixer.rs:9"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 5,
+     "what": "Audio-only routed mixdown, WAV and BWF",
+     "old": "engine_only",
+     "new": "partly_callable",
+     "moved_steps": "82 -> callable (FLAC 24); 84 missing (no BWF); 90 under gap 8",
+     "lane": "SMB-AUDIO-OUT-MIX-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/audio.rs:10 formats wav16|wav24|wav_float|flac16|flac24|aiff16|aiff24|aiff_float",
+      "hsk-studio-harness-view/src/view/audio_session.rs:370 export_sequence_mix",
+      "no bext, iXML or timecode chunk in reel or harness-view (git grep); hsk-studio-reel/src/wav.rs:81-82 RF64/BW64 refused on read",
+      "hsk-studio-harness-view/src/view/audio_import.rs:522-523,557-558 WAV data chunk under 4 GiB, no RF64"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 6,
+     "what": "Typed, recordable audio command surface",
+     "old": "missing",
+     "new": "partly_callable (typed, not recordable)",
+     "moved_steps": "96 still missing",
+     "lane": "SMB-DRIVE-TYPED-2, SMB-AUDIO-OUT-MIX-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/{mixer.rs:13-31, waveform.rs:15-33, spectral.rs:8-16, multitrack.rs:12-22, audio.rs:12-23}",
+      "hsk-studio-harness-core/src/action/commands.rs:158-160 typed rows are recordable false"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 7,
+     "what": "Loudness tooling",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-score/src/normalize.rs:77,152 measure_loudness, loudness_normalize have no host",
+      "hsk-studio-harness-view/src/view/mixer.rs:652-654 LUFS M/S/I, no LRA or true peak"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 8,
+     "what": "Stem printing and M&E",
+     "old": "missing",
+     "new": "callable",
+     "moved_steps": "90 -> callable; 91 built-in sum check",
+     "lane": "SMB-AUDIO-OUT-MIX-1",
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/audio.rs:21",
+      "hsk-studio-harness-view/src/view/audio_session.rs:429 export_sequence_stems; :459-461 a listed bus whose output is another submix is refused stem_not_top_level; :243-256 reaches() follows nested submixes so a parent stem includes its children; :547-597 sum check on written samples"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 9,
+     "what": "Timeline audio editing precision",
+     "old": "engine_only",
+     "new": "engine_only",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "no crossfade, fade_handle, breakout, channel_map or correlator in the timeline view or harness-core (git grep)"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 10,
+     "what": "Missing restoration processors",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "no de-ess, dereverb, declip or silence detection in score (git grep)"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 11,
+     "what": "Effects on tracks and clips",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-core/src/action/commands/mixer.rs:24 mixer.add_effect target is a bus (absent = master)"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 12,
+     "what": "Distribution outputs MP3, AAC, dither, SRC",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-reel/src/audio/mp3.rs:1 and aac_lc.rs:1 decoders; hsk-studio-reel/Cargo.toml:15 feature studio-aac is the decoder",
+      "hsk-studio-score/src/resample.rs:29 ClipResampler, src_bounce.rs:22, no host",
+      "hsk-studio-reel/src/export_recipe.rs:83-89 rate and channels equal the source"
+     ],
+     "label": "READ",
+     "reader": "planner"
+    },
+    {
+     "gap": 13,
+     "what": "Guided audio adjustment",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "no duck or content_type in folio or the mixer"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 14,
+     "what": "Automation modes",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "no latch or AutomationMode in harness-view, pulse, folio"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 15,
+     "what": "Surround",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-harness-view/src/view/audio_session.rs:183-185 BusSource channels 2"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 16,
+     "what": "Interchange AAF, OMF, .sesx",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "none",
+     "lane": null,
+     "evidence": [
+      "hsk-studio-interop-media/src/native.rs:1,17 SESX detection only"
+     ],
+     "label": "READ",
+     "reader": "subreader"
+    },
+    {
+     "gap": 17,
+     "what": "Spec and governance names",
+     "old": "missing",
+     "new": "missing",
+     "moved_steps": "spec and MT index only; not measured in code",
+     "lane": null,
+     "evidence": [],
+     "label": "UNVERIFIED",
+     "reader": "subreader"
+    }
+   ]
+  }
+ },
+ "ranked_lanes": [
+  {
+   "rank": 1,
+   "id": "SMB-MOTION-COMMANDS-2",
+   "title": "Solid and adjustment layers with adjustment-layer effects, keyframe selection, copy, paste and reverse paste, ease assistants",
+   "reach": "motion-comp steps 16, 17, 28, 44 to callable, 19 proven through two typed rows; STU-MOT-038 selection and clipboard rows (6 catalogue rows) that no scenario step names; every keyframe-timeline and effect-controls panel dispatches through these",
+   "why_here": "Highest command and engine depth per unit: the 54 typed motion rows landed (motion.rs:37-90) but every title sequence still needs a solid and an adjustment layer, and every keyframe panel needs selection and clipboard. Composite already has the 20 effect kinds including Gradient Ramp, Levels and Tint (folio composition/effects.rs:118-163) and the effected-surface path (composite composition/effect_stack.rs:846); only the adjustment case is refused (temporal/composition/effects.rs:251-252).",
+   "size": "medium",
+   "commits_estimate": 7,
+   "tree": "smb-folio-angle-unbounded-1",
+   "label": "READ",
+   "scope": "full scope object in scopes[0]"
+  },
+  {
+   "rank": 2,
+   "id": "SMB-DELIVERY-QUEUE-1",
+   "title": "One headless delivery queue for sequence recipes and composition render queue items, user recipes, PNG sequence with alpha",
+   "reach": "video 95, 96 to callable; motion 84 to callable, 83 partly (alpha through PNG sequence, MOV alpha stays a typed refusal), 86 (reorder, duplicate, templates), 87 product run path instead of rust_api, 88 through the typed surface; audio-post masters ride the same queue as items (no audio_session edit)",
+   "why_here": "Delivery reaches all three scenarios and turns two engine-only parts into product paths: StudioExportRecipe has no host caller (reel export_recipe.rs:273; harness-view sequence export reads a preset id, timeline_export.rs:616) and the composition render queue builds reel jobs no product source runs (job_admission.rs:38-40). STU-MOT-124 (spec :28302-28308) says a render queue item and a sequence recipe are two entry points to one export pipeline.",
+   "size": "medium",
+   "commits_estimate": 7,
+   "tree": "smb-r53-followups-1",
+   "label": "READ",
+   "scope": "full scope object in scopes[1]"
+  },
+  {
+   "rank": 3,
+   "id": "SMB-PR-MULTICAM-PLAY-1",
+   "title": "Multicam plays and exports its active angle; create, enable, switch, flatten as typed commands",
+   "reach": "video-edit steps 28-35, 37 (9 steps) from engine_only; removes a silent wrong output",
+   "why_here": "Ranked under the two width lanes because it deepens one scenario and its audio half shares harness-view audio_session.rs with SMB-SCORE-EFFECTS-6.",
+   "size": "medium",
+   "commits_estimate": 6,
+   "tree": "smb-pr-edit-footprint-1 (or smb-pr-sequence-session-1)",
+   "label": "READ",
+   "paragraph": "SMB-PR-MULTICAM-PLAY-1 (rank 3, READ unless marked). Multicam records are stored and kept valid (session multicam guard, SMB-PR-ROUTING-REPAIR-1) but nothing plays them: `pulse/src/multicam.rs:932` resolve_active_angle has callers only in pulse tests, and its own doc (`:929-931`) says program-monitor playback of the active angle is not wired. The monitor renders a multicam clip as a plain nest through `pulse/src/nest.rs:720` frame_layers_nested_on_grids (`harness-view/src/view/monitor.rs:574`), and audio plays through `NestedAudioSources` (`pulse/src/nest.rs:815`, used at `harness-view/src/view/audio_session.rs:97`), so the top angle shows and every angle's audio sums: a silent wrong output in video-edit steps 31 and 32. The lane adds a multicam-aware variant of both nest resolvers in pulse that takes `StudioMulticamRecords` and resolves the active angle (video and, with audio-follows-video, audio) per tick, makes the monitor, the export path and the mixdown pass the session's multicam entry, and exposes plan_multicam_create, toggle, switch with and without cut, audio follows video and flatten (`pulse/src/multicam.rs:470`, `:560`, `:697`, `:782`, `:1086`, subreader) as typed rows beside the monitor rows (`harness-core/src/action/commands/monitor.rs`). It moves video-edit steps 28-35 and 37. The audio half edits audio_session.rs, which SMB-SCORE-EFFECTS-6 owns now: land the video half first, then the one audio call site after that lane, or ask. The multicam grid view (step 30) is a GUI panel and stays out. Research: Premiere's 'Multi-Camera Audio Follows Video' monitor setting is documented only by forum reports in this pass (UNVERIFIED, D5). Tree: smb-pr-edit-footprint-1 (clean, 08b372af ancestor of 0a733db8, every crate built), fallback smb-pr-sequence-session-1."
+  },
+  {
+   "rank": 4,
+   "id": "SMB-PR-CONFORM-PEAKS-1",
+   "title": "Audio conform (sample-rate conversion) at bind and import, with background peak jobs stored on project bin items",
+   "reach": "audio-post 7, 8 and every mixed-rate project (today refused audio_rate_mismatch); video-edit step 10 (peak and index jobs) and the bind path of 4, 5, 25",
+   "why_here": "A refusal, not silent, so it ranks below a wrong output; but most real material mixes 44.1 and 48 kHz, so it gates real projects across video and audio.",
+   "size": "medium",
+   "commits_estimate": 6,
+   "tree": "smb-pr-sequence-session-1 (or smb-sentinels-native-1)",
+   "label": "READ",
+   "paragraph": "SMB-PR-CONFORM-PEAKS-1 (rank 4, READ unless marked). Every mixed-rate project is refused today: `audio.bind_sound` refuses a file at another rate `audio_rate_mismatch` ('no resampler', `harness-view/src/view/commands/audio.rs:59`, `:90`), and `project_bind` lists such items in not_bound because conform (STU-VID-053, spec :24879) is not built (`harness-view/src/view/project.rs:30-35`, `:476-477`), though score holds a resampler with receipts (`score/src/resample.rs:29` ClipResampler, `:65` ResampleReceipt; `score/src/src_bounce.rs:22`) that no host calls. The waveform overview is an in-memory cache (`harness-view/src/view/timeline/audio.rs:230-343`, subreader) and project bin items have no peak or conform field (`folio/src/project_bin.rs:81-100`). The lane adds a conform job per audio item (resample to the sequence rate once, content-addressed, cached as a derived artifact named by the item's digest and the target rate), and a peak file job, both admitted through the existing job port with progress and cancel, records on the bin item for conform state and peak digest, and makes bind and bind_sound use the conformed source instead of refusing. It moves audio-post steps 7 and 8 and video-edit step 10, and unblocks every real project mixing 44.1 and 48 kHz. Open questions: where derived artifacts live (Handshake_Artifacts or the package; default: content-addressed in the package's derived area, UNVERIFIED that one exists), and the resampler quality setting (default: the score resampler's tested default). It must not edit audio_session.rs while SMB-SCORE-EFFECTS-6 is in flight; bind_sound's file is commands/audio.rs. Tree: smb-pr-sequence-session-1 (clean at 0a733db8, every crate built), fallback smb-sentinels-native-1."
+  }
+ ],
+ "scopes": [
+  {
+   "id": "SMB-MOTION-COMMANDS-2",
+   "file": "hsk-studio-motion-commands-2",
+   "brief": "lane-smb-motion-commands-2",
+   "crate": "hsk-studio-harness-core (typed motion commands: solid and adjustment layers, keyframe selection, clipboard and ease) over hsk-studio-folio motion records and hsk-studio-composite composition evaluation (adjustment-layer effects, STU-CMP-015)",
+   "crates_head": "0a733db8",
+   "summary": "Solid and adjustment layers are created by typed commands, an adjustment layer's effect stack applies to the composite beneath it, and keyframes can be selected, copied, pasted, reverse-pasted, shifted and eased as named undo steps",
+   "target": "## Target\n\nBacklog row SMB-MOTION-COMMANDS-1 landed (0a733db8: 2b54bbc8, 912cb86f) and left its declared limits (`harness-core/src/motion_commands.rs:28-31`): no solid, adjustment, text or footage kind (`:993-994`, `layer_kind_unsupported`), no keyframe selection, copy or paste, no expression store. This lane closes the layer-kind and keyframe part that panels and scripts need first. Motion-comp scenario steps 16 (solid), 17 (Gradient Ramp on the solid), 28 (Easy Ease), 44 (adjustment layer with Levels and Tint) become callable; step 19 (text) is proven through rows that exist. All file:line at 0a733db8, paths under `handshake-studio-assets/crates/hsk-studio-`.\n\nClauses (spec module `14-studio-creative-suite.md`, v02.229): STU-MOT-005 :25959 (ten layer kinds: `solid` :25969, `adjustment` :25975), STU-MOT-006 :25980, STU-CMP-015 :29538 (adjustment effects apply to the composite beneath; masks scope where, opacity scales how much, in/out scope when; adjustment layers nest), STU-MOT-034 :27635, STU-MOT-037 :27680, STU-MOT-038 :27695 (select-all three scopes :27706, deselect :27708, shift selected 1 or 10 frames :27710, copy, paste and REVERSE paste :27712, set interpolation per selection :27713), STU-MOT-039 :27718, STU-MOT-130 :28326, STU-FX-130 :13163.\n\n1. **Red first, compiling.** New `harness/tests/motion_commands_2.rs` (feature `media`, like `harness/tests/motion_commands.rs:617`), parameters as JSON values through `Run::motion_command` (`harness-core/src/harness.rs:1599`), so the red commit compiles and every new row refuses (`row` lookup `motion_commands.rs:62-67` returns none until the rows exist). New `composite/tests/composition_adjustment_effects.rs` with records written as JSON. Prove red by running.\n\n2. **Folio.**\n   - `StudioMotionRecords` (`folio/src/motion_records.rs:656-676`) gains `solid_layers: Vec<StudioSolidLayer>`, `#[serde(default, skip_serializing_if = \"Vec::is_empty\")]` as its siblings (`:659-675`), added to `new` (`:678-689`), so existing record sets stay byte-identical. `StudioSolidLayer {layer_id, width, height, colour}`: no such type exists (`git grep 'StudioSolidLayer'` empty, READ). Validation beside the shape-layer checks: the layer is in a composition and its document layer is an empty raster layer (the shape precedent, `harness-core/src/motion_commands.rs:1023-1027`), one record per layer, not also a shape or text-animator layer (`procedural_layer_twice`, composite `temporal/motion_records.rs:388-390`), width and height 1..=30000 (the STU-MOT-122 resize bound, :28283-28284; the solid size bound is not stated by STU-MOT-005, so this is a Studio reading), finite colour components 0..=1. Colour type: the one shape fills use (NOT_INSPECTED name; read `StudioShapeItem` fill before choosing).\n   - Adjustment kind: Folio's document validator accepts `kind = \"adjustment\"` only with a `PrimitiveReference` to `ADJUSTMENT_SCHEMA` (`folio/src/lib.rs:931-942`), and the raster records then require a pigment adjustment record for it (`folio/src/raster.rs:1812-1828`). An After Effects adjustment layer has no pigment adjustment of its own. Accept `kind = \"adjustment\"` with `Payload::Group` as the composition adjustment layer of STU-CMP-015 (ValueType::Image like the pigment one). The raster checks test the `PrimitiveReference` payload (`raster.rs:1762-1764`, `:1819-1820`), so they do not demand a record for it; prove that with a test. See open question 1 for the alternative.\n\n3. **Composite.**\n   - Solid: `procedural_layers` (`composite/src/temporal/motion_records.rs:372-399`) gains `ProceduralLayer::Solid`, lowered by building a one-rectangle shape group with a solid fill and calling the same `shape_layer_content` (`:420`), so a solid draws through the shape path, not a second rasteriser. Test: a solid equals byte for byte the equivalent rectangle shape layer.\n   - Adjustment effects (STU-CMP-015): `CompositionTemporalSource` maps document layers at `temporal/composition.rs:930-1001`; add an arm for kind `adjustment` with `Payload::Group` BEFORE the `(None, Payload::Group) => Content::None` arm (`:975`) and before the static arm (`:952-954`, whose pattern includes `Payload::Group`). Without effects it is `Content::None` (renders nothing, as STU-CMP-015 'no content of its own'). `read_effects` (`temporal/composition/effects.rs:240-252`) refuses the stack for `Content::None | Content::Adjustment(_)`; keep that refusal for nulls and pigment adjustment layers, lift it for this kind. New `SceneContent` variant (`composite/src/composition.rs:114-168`, `#[non_exhaustive]`), handled in the root loop beside `SceneContent::Adjustment` (`composition.rs:959-997`): render everything beneath the layer into one straight RGBA f32 surface B with the backend the scene already uses (the nested-content render `content_surface` used by `effected_surface`, `composition/effect_stack.rs:846-875`), run the entries over B in stack order with the existing CPU kernels to E, and write L = B + k * (E - B) with k = layer opacity * mask coverage (masks fold as layer-space coverage, `effects.rs:16-21`). L replaces the layers beneath in the root plan as one tile, as `SceneContent::Effected` places its surface (`composition.rs:1134-1146`). Nested adjustment layers then compose by construction (the lower result is part of B). Charge B and E with `charges.surface` as `effect_stack.rs:873-878` does.\n   - Typed refusals, each with a test: blend mode other than normal `composition_adjustment_blend` (open question 2); 3D adjustment layer (`COMPOSITION_3D_CONTENT`, as `temporal/composition.rs:1080-1081`); a track matte on it (`ADJUSTMENT_MATTE`, as `composition.rs:960-964`); the document-graph path (already refuses any stack, `temporal/composition.rs:1255`); inside a collapsed precomposition; a pigment adjustment layer (PrimitiveReference) with a stack stays `COMPOSITION_EFFECT_CONTENT`.\n   - Reader sweep (V4-06) for a group-payload adjustment layer: every reader that tests kind `adjustment` - `composite/src/lower_extensions.rs:146-150`, `folio/src/raster.rs:1677`, `:1700`, `:1762`, `:1819`, `harness-core/src/harness.rs:124`, `harness-view/src/view/info.rs:311`, `harness-view/src/view/render.rs:582` - and the static document render of a raster document holding one (outside a composition it must refuse typed, never draw as an empty group without a word). List each site fixed or not applicable with a reason.\n\n4. **Commands (harness-core `motion_commands.rs`, rows in `action/commands/motion.rs:37-90`).**\n   - `composition.add_layer` (`layer_add`, `:980-1061`): kind `solid` (empty raster document layer through `create_layer` `:276-297`, plus the `StudioSolidLayer`; width and height default to the composition's, `colour` required) and kind `adjustment` (document layer kind `adjustment`, payload group: `create_layer` builds only `group` or `raster` today, `:281-288`, so give it the kind). New row `composition.set_solid` (colour, width, height; one named step). `layer_duplicate` (`:1085-1105`) copies a solid's record with the layer, and an adjustment layer duplicates like a group. `remove_layer_records` (`:1063`) drops the solid record.\n   - `footage` and `guide` stay `layer_kind_unsupported` (footage is the next motion lane). Text: no `text` kind; the typed path is `vector.place_text_with_font` (`harness-core/src/action/commands/vector.rs:34`, `Viewer::place_text_with_font` `harness-view/src/view/text.rs:698`) then `composition.add_layer kind=existing` (`motion_commands.rs:989-992`). Add a `media` test that renders the composition through `session_render_queue_jobs` and finds the text: today no test does (UNVERIFIED that it renders). If it refuses, report the code and stop there for text.\n   - Keyframe selection and clipboard: transient state in `Run`, beside `web: web_commands::WebHost` (`harness-core/src/harness.rs:459`, built at `:256`; struct `:426`): selected keys as `(layer_id, property address, tick)` and one clipboard. Not a document edit, no history step, not saved. A selected key that no longer exists after an edit, undo or redo is dropped when read and counted. Rows: `keyframe.select` (scope `property|layer|composition`, mode `replace|add|remove`, optional `times`), `keyframe.deselect_all`, `keyframe.selection` (read), `keyframe.copy` (selection, or explicit `layer_id`, `property`, `times`), `keyframe.paste` (target `layer_id`, optional `property`, `time`, `reverse`), `keyframe.shift_selected` (`frames`, any non-zero integer in composition frames; the 1 and 10 steps are the GUI's), `keyframe.ease` (`side both|in|out`) and `keyframe.toggle_hold` over the selection. Paste places the earliest copied key at `time` and keeps relative order (Adobe help, see research basis), copies value, interpolation and tangents, is one named step, refuses `clipboard_empty`, `paste_property_mismatch` (value dimension differs), and replaces a key at an identical tick (open question 3). Reverse paste maps t to (t_first + t_last - t) relative to the anchor and swaps each key's in and out interpolation and tangents (Studio reading, D5).\n   - Ease and toggle hold mirror `hsk_studio_motion::assistants::ease` and `toggle_hold` (`motion/src/assistants.rs:64-100`: bezier, speed 0, influence 0.16666666666 per STU-MOT-034) because harness-core has no motion edge (`motion_commands.rs:23-25` states this and pins its own mirror with a `media` test); pin these the same way against motion.\n   - Every new row `recordable: false, mutating: true` like its siblings (`motion.rs:83-89`); `keyframe.select*`, `keyframe.selection`, `keyframe.copy` are non-mutating. The drive loop reaches motion rows without a new dispatch arm (`harness/src/cli/drive.rs:159`); confirm and add the catalog rows the drive key-equality test reads.\n\n5. **Descriptors and manual.** Module docs `motion_commands.rs:1-31` (declared limits updated), folio and composite DESCRIPTOR (`composite/src/lib.rs:198`), the new refusal codes. No Master Spec edit.\n\n6. **MTs.** Read MT-33852 and MT-33853 (STU-MOT-005), MT-34075 (STU-CMP-015), MT-33884 and MT-33885 (STU-MOT-038), MT-33883 (STU-MOT-037). Their acceptance lists are empty or per-row; claim a row only if read and proven here. Do not edit MT files.\n\nHostile input (V4-01/02): solid size 0, above the bound or non-finite colour; a selection over a declared key cap (proposed 65536 keys) refused before allocation; a clipboard over the same cap; paste whose last key passes `i64` ticks refused `tick_overflow` (the existing code); an adjustment layer over a 30000 x 30000 composition refused by the surface charge, not by allocation; 64 nested adjustment layers each with a full stack charged against the scene's budget; cancel during B or E returns promptly.\n\nVendor parity UNVERIFIED (D5): the lerp reading, paste collision, reverse tangent swap and the 0.1667 ease influence (After Effects F9 uses 33.33 percent, `motion/src/assistants.rs:6-9`). Do not bless a parity row.\n\nOut of scope: footage, guide and text kinds as new kinds; expressions on property streams (G6); Sequence Layers and presets; spatial tangents; any panel, egui, Vulkan or GUI line; render queue run path (SMB-DELIVERY-QUEUE-1); any `Cargo.toml` change; Master Spec and MT edits.",
+   "diag": "report_for_host: composite returns per-layer typed refusals (codes only) through TemporalError::Unsupported; motion commands keep their typed error and bounded target in the op record (motion_commands.rs:7-12); keyframe.selection reports the dropped-key count",
+   "attr": "unchanged: composite and folio commit nothing; every mutating row commits through motion_commands::commit (:405-460) with the caller's CommandContext; selection and clipboard rows make no history step and no business event; no default_actor() or literal actor in new code",
+   "exposure": "medium",
+   "paths": "- folio: `src/motion_records.rs` (member, type, validation), `src/lib.rs:931-942` (adjustment with group payload), `src/raster.rs` only if the sweep proves a defect, DESCRIPTOR, new test file.\n- composite: `src/temporal/motion_records.rs` (Solid), `src/temporal/composition.rs:930-1001` (adjustment arm), `src/temporal/composition/effects.rs:240-252`, `src/composition.rs` (variant and root-loop case), `src/composition/effect_stack.rs` (shared surface helper only if needed), `src/lower_extensions.rs:146-150` if the sweep needs it, `src/lib.rs:198`, new `tests/composition_adjustment_effects.rs`.\n- harness-core: `src/motion_commands.rs`, `src/action/commands/motion.rs`, `src/harness.rs` (one `Run` field and its constructor), `src/harness.rs:124` sweep site.\n- harness-view: `src/view/info.rs:311`, `src/view/render.rs:582` sweep sites only.\n- harness: new `tests/motion_commands_2.rs`; catalog test rows if the drive key-equality test requires them.\n- package: `tests/externals.rs` classification row for `solid_layers[].layer_id` if the externals test asks for it (rule 4b).",
+   "suites": "clippy over folio, composite, harness-core and their direct dependents; nextest WHOLE suites of hsk-studio-folio, hsk-studio-composite (with feature motion), hsk-studio-harness-core, hsk-studio-session, hsk-studio-package (rule 4b, folio record change); hsk-studio-harness tests motion_commands*, motion_records*, render_queue*, composition_export, harness_drive with features media (rule 4e: confirm the unit in .config/round-features.toml); doctests if added",
+   "closes": [
+    "workflows/scenario-motion-comp.json gap 9 part: solid layer and adjustment-layer effect stacks (steps 16, 17, 44)",
+    "workflows/scenario-motion-comp.json gap 1 remainder part: layer kinds solid and adjustment, keyframe selection, copy and paste",
+    "workflows/scenario-motion-comp.json gap 8 part: Ease, Ease In, Ease Out, toggle hold over a selection (step 28)",
+    "harness-core motion_commands.rs:28-31 declared limit 'keyframe selection, copy and paste are not commands here'"
+   ],
+   "mts": [
+    "MT-33852",
+    "MT-33853",
+    "MT-34075",
+    "MT-33884",
+    "MT-33885",
+    "MT-33883"
+   ],
+   "tree": "smb-folio-angle-unbounded-1",
+   "tree_reason": "READ: ledger lanes[].worktree names it for SMB-MOTION-COMMANDS-1, whose code this lane extends; it now sits on lane/smb-project-bin-1-d at 9ab80edd, clean (git status empty), ancestor of 0a733db8 (git merge-base --is-ancestor). Its target/debug/deps holds every hsk crate this lane names (folio, composite, motion, harness_core, harness_view, harness, session, package, reel) plus native_host, vulkan and ui_text. Target size and newest file NOT_INSPECTED. Not chosen by the other planner's domains (raster, vector, design) as far as this planner knows (UNVERIFIED). Fallback: smb-pr-edit-footprint-1 (clean, tip 08b372af an ancestor of 0a733db8, same crate set).",
+   "disk": "d",
+   "overlaps": {
+    "SMB-AI-LIVE-EFFECTS-1": "Same crates folio and composite, different files except folio/src/lib.rs (it adds a module line and edits DESCRIPTOR near :1618; this lane edits the validator at :931-942) and composite/src/lib.rs:198 DESCRIPTOR (both edit it): a textual conflict is likely there only, resolve by rebase. A folio change by either rebuilds the other's dependents.",
+    "SMB-SCORE-EFFECTS-6": "Both edit harness-core: it the mixer and waveform commands, this lane motion_commands.rs, action/commands/motion.rs and one Run field in harness.rs. Ask whether it edits harness.rs before adding the field.",
+    "SMB-TYPE-INDENT-SPACING-1": "No shared file (layout, folio typestyle, interop-layout). Folio rebuild only.",
+    "SMB-PARSER-HOSTILE-1": "Shares hsk-studio-package only if this lane adds a tests/externals.rs row; it edits package parsers. Ask before touching package.",
+    "SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1": "No shared crate.",
+    "SMB-DELIVERY-QUEUE-1 (this plan, rank 2)": "Both edit folio/src/motion_records.rs (this lane a StudioMotionRecords member, that lane StudioOutputFormat). Land this lane first or rebase.",
+    "all": "Build on D:. One lane pushes at a time; folio feeds many crates, so keep folio commits early and the total near 7."
+   },
+   "needs": {
+    "cargo_toml": "none: harness-core has no motion edge by design; ease is mirrored and pinned by a media test as add_preserving is (motion_commands.rs:23-25)",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "additive member solid_layers on hsk.studio.motion_records@1, absent when empty (byte-identical existing sets); a document with a solid or a group-payload adjustment layer is refused by a reader built before this lane (deny_unknown_fields; UnsupportedDescriptor at folio lib.rs:941)",
+    "spec": "no Master Spec edit. SD items to propose on READY: adjustment-layer effect result as L = B + k(E - B); group payload for kind adjustment; paste collision replaces; reverse paste swaps tangents; solid lowered as a rectangle shape; solid size bound borrowed from STU-MOT-122 resize",
+    "root_inputs": "none; confirm no .config/round-features.toml change (rule 4e)"
+   },
+   "red_team": {
+    "risks": [
+     "A group-payload adjustment layer reaches a reader that only knows the pigment form and draws nothing with no word (silent wrong output).",
+     "Adjustment effects double-count the layers beneath if they are both kept in the plan and folded into B.",
+     "Selection state survives an undo that removed its keys and a later paste or shift addresses keys that do not exist.",
+     "The mirrored ease drifts from motion's ease and the panel and the engine disagree.",
+     "A stored record shape becomes wire format: a wrong member name needs a migration."
+    ],
+    "failure_scenarios": [
+     "Adjustment layer at 50 percent over a semi-transparent title: an alpha-over placement gives E + B(1 - a) instead of the mix, visible in the alpha pass of step 83.",
+     "Adjustment layer inside a precomposition that is collapsed: B is taken from the wrong stack.",
+     "Solid duplicated: the copy has no solid record and renders empty.",
+     "Paste onto a 2D property from a 1D property's clipboard is accepted and Folio refuses later with a less specific code.",
+     "keyframe.shift_selected by -10 frames moves a key before tick 0 and the composition refuses at render instead of at the command.",
+     "Removing a solid leaves its record, and Folio refuses the next save as dangling."
+    ],
+    "minimum_controls": [
+     "Composite test with a semi-transparent B at k = 0, 0.5, 1 against a hand-computed expected surface; nested two-adjustment test.",
+     "Reader-sweep list in the lane notes, each site fixed or not applicable with a test for each refusal.",
+     "Solid equals the rectangle shape byte for byte; duplicate and remove tests for solid records.",
+     "Selection tests across undo and redo with the dropped count; paste dimension and collision tests.",
+     "media-feature test pinning the mirrored ease and hold to hsk_studio_motion::assistants.",
+     "Byte-identity test of a motion record set without solid_layers."
+    ]
+   },
+   "research_basis": {
+    "sources_checked": [
+     "Adobe After Effects help, Editing, moving, and copying keyframes: https://helpx.adobe.com/after-effects/desktop/animate-in-after-effects/animation-keyframes/editing-moving-copying-keyframes.html (through search summary, page not fetched)",
+     "Creative COW forum thread on adjustment layer opacity: https://creativecow.net/?p=189258 (through search summary)",
+     "Lynda, After Effects Apprentice, Working with adjustment layers and alpha channels: https://www.lynda.com/After-Effects-tutorials/Working-adjustment-layers-alpha-channels/79655/80688-4.html (through search summary)",
+     "Project: harness-core motion_commands.rs and action/commands/motion.rs, folio motion_records.rs, lib.rs, raster.rs, composition/effects.rs, composite temporal/composition.rs, temporal/composition/effects.rs, temporal/motion_records.rs, composition.rs, composition/effect_stack.rs, motion assistants.rs; spec clauses listed in target"
+    ],
+    "patterns_found": [
+     "Adobe help (search summary): pasted keyframes start with the earliest at the current time and keep relative order; reverse paste is its own shortcut. Collision with an existing key at the same time is not documented there.",
+     "Forum and course summaries: an adjustment layer's effects run once on the composite of everything beneath; its opacity is a mix with the original. This matches STU-CMP-015's 'opacity scales HOW MUCH' and supports L = B + k(E - B). Not official documentation.",
+     "In this repo a procedural layer is a Folio motion record plus an empty document layer (shape layers), and the effected-surface path already renders inner content to a surface and places it as one tile."
+    ],
+    "reuse_opportunities": [
+     "shape_layer_content for the solid",
+     "effected_surface, content_surface and the CPU kernels for adjustment effects",
+     "motion_commands Edit, commit, create_layer, layer_duplicate, remove_layer_records",
+     "motion assistants as the reference the mirror is pinned to",
+     "Run's WebHost field as the precedent for transient per-run state"
+    ],
+    "rejected_options": [
+     "Solid as a Photoshop fill layer (folio fill_layer.rs:118, kind fill): the composition adapter refuses PrimitiveReference fill layers (temporal/composition.rs:1001 COMPOSITION_LAYER_CONTENT arm) and the render queue passes RenderInputs::default() with no raster records (harness-view timeline_export/render_queue.rs:402-413), so it would need raster records threaded through every render path.",
+     "Adjustment layer with an identity pigment adjustment record so Folio's existing rule passes: a fake record that every raster reader would apply, and the render queue has no raster records to find it.",
+     "A per-layer adjustment switch on StudioCompositionLayer: STU-MOT-006 lists no such switch and STU-CMP-015 says the layer is kind adjustment, not a special object. Kept as the fallback in open question 1.",
+     "Placing E over the beneath layers with alpha-over: wrong on semi-transparent areas (see failure scenarios).",
+     "A harness-core to motion edge for ease: a Cargo change for two small functions; the mirror-and-pin pattern already exists."
+    ],
+    "unverified": [
+     "Composition text through vector.place_text_with_font plus kind existing renders in the render queue path.",
+     "The colour type shape fills use; the folio composition size bound constant.",
+     "Whether the drive key-equality test needs catalog rows for new motion rows.",
+     "After Effects numeric parity of every reading (D5). No test was run for this scope."
+    ],
+    "selected_approach": "Solid as a motion record lowered through the shape path; adjustment as kind adjustment with a group payload whose stack runs on a host-rendered surface of everything beneath, mixed by opacity and mask coverage and replacing those layers in the plan; selection and clipboard as transient Run state with typed rows; ease mirrored and pinned to motion.",
+    "limits": "Web research was three standard searches through summaries; no Adobe page was fetched, no vendor app was run, and no field implementation source was read. No cargo, build or test was run."
+   },
+   "next_slices": [
+    "SMB-MOTION-FOOTAGE-1: footage layer kind from a project-bin item (folio composition source, composite SceneContent from reel frames), interpretation, then tracker host (motion-comp gaps 3, 4).",
+    "SMB-MOTION-EXPRESSIONS-1: expression field on StudioPropertyStream, motion-js wired as an ExpressionSelectorEngine and property evaluator, slider control effect, after the G1 decision on wiggle, ease, random and noise (gap 6; spec STU-MOT-070 :27799, STU-MOT-071 :27806).",
+    "Guide layer kind and the render settings guide switch (STU-MOT-005 :25976); Sequence Layers and keyframe presets (motion assistants.rs:272, STU-MOT-110); spatial tangents (STU-MOT-036 :27648, declared gap STU-MOT-036b).",
+    "Composition effect catalogue width beyond 20 kinds: grain, particles reachable from records (gap 9 remainder, MT-31502, MT-31503, MT-34175)."
+   ],
+   "open_questions": [
+    {
+     "for": "lead",
+     "question": "Kind adjustment with a Payload::Group (Folio validator change at lib.rs:931) or a composition-layer adjustment flag?",
+     "default": "Group payload: it keeps STU-CMP-015's 'a StudioLayer with kind = adjustment, not a special object'; the reader sweep is the cost and is listed. Fall back to the flag only if the sweep finds a reader that cannot refuse typed."
+    },
+    {
+     "for": "lead",
+     "question": "Blend modes on an adjustment layer: STU-CMP-015 is silent.",
+     "default": "Normal only in this slice, other modes refused composition_adjustment_blend, because the lerp reading is only established for normal."
+    },
+    {
+     "for": "lead or spec owner",
+     "question": "Paste onto a tick that already holds a key: replace or refuse?",
+     "default": "Replace, labelled a Studio reading (D5), because a refusal blocks the common paste-over-a-pose workflow; the step is undoable."
+    },
+    {
+     "for": "lead",
+     "question": "Selection state lives in Run (harness-core) and is lost on process end. Should it persist with the document?",
+     "default": "No: selection is view state; STU-MOT-038 lists it as commands, not records; the GUI owns its own copy later through the same rows."
+    },
+    {
+     "for": "lead",
+     "question": "Text kind: add a composition.add_layer kind text that creates the story itself?",
+     "default": "No in this slice: harness-core cannot shape text or reach the Viewer's fonts; the two-row path exists and gets a render test."
+    },
+    {
+     "for": "lead",
+     "question": "Solid size bound: STU-MOT-005 states none.",
+     "default": "1..=30000 from STU-MOT-122's resize bound, declared in the descriptor as a Studio reading."
+    }
+   ]
+  },
+  {
+   "id": "SMB-DELIVERY-QUEUE-1",
+   "file": "hsk-studio-delivery-queue-1",
+   "brief": "lane-smb-delivery-queue-1",
+   "crate": "hsk-studio-harness-view (one admitted delivery queue over reel's ExportQueue for sequence recipes and composition render queue items; user StudioExportRecipe records; PNG image sequence with alpha) with rows in hsk-studio-harness-core and a CLI verb in hsk-studio-harness",
+   "crates_head": "0a733db8",
+   "summary": "Sequences and compositions deliver through one headless queue of typed items with per-item receipts and cancel, user recipes are stored and reused, and a composition writes a PNG sequence with alpha",
+   "target": "## Target\n\nDelivery has two engine halves and no product path joining them. Sequence export takes one of six reel preset ids (`harness-view/src/view/timeline_export.rs:616` `preset_recipe`, `timeline/export_media.rs:505` `export_sequence`), while `StudioExportRecipe` (`reel/src/export_recipe.rs:273`, `resolve` `:547`, `job_from_recipe` `:739`, shipped presets as the same record `reel/src/presets.rs:110`) has no caller in harness-view, harness-core or harness (git grep, READ). The composition render queue builds reel jobs (`harness-view/src/view/timeline_export/render_queue.rs:361` `session_render_queue_jobs`) that only harness tests run (`harness/tests/motion_commands.rs:700`, `motion_records_session.rs:193`; `harness-view/src/view/job_admission.rs:38-40` says so). Output formats are MOV VC-3 and MOV/MP4 AV1 only (`folio/src/motion_records.rs:542`); `rgb_alpha` is refused (`render_queue.rs:203`) and post-render actions too (`:206`). This lane gives both one typed, headless, admitted queue (STU-VID-064 :25560, STU-MOT-124 :28302-28308, STU-MOT-125 :28310), user recipes, and a PNG image sequence with alpha. All file:line at 0a733db8, paths under `handshake-studio-assets/crates/hsk-studio-`.\n\nClauses: STU-IO-101 :21135, STU-IO-110 :21191, STU-IO-142 :21337, STU-IO-163 :21420, STU-IO-164 :21422, STU-IO-166 :21426, STU-VID-060 :24889, STU-VID-061 :24894, STU-VID-063 :25554, STU-VID-064 :25560, STU-MOT-120 :28245, STU-MOT-121 :28251, STU-MOT-122 :28279 (channels RGB, alpha, RGB+alpha; color premultiplied or straight; starting_number and use_comp_frame_number), STU-MOT-122a :28292, STU-MOT-124 :28302, STU-MOT-125 :28310.\n\n1. **Red first, compiling.** New `harness/tests/delivery_queue.rs` (feature `media`) through the drive rows and `Viewer` methods, with records as JSON, every row refusing until built. Prove red by running.\n\n2. **One queue (harness-view, new egui-free `src/view/delivery.rs`).** Items are either `sequence` (sequence id, recipe id, span, output path) or `composition` (render queue item id from the motion records, `StudioMotionRecords.render_queue`). One `Viewer::delivery_run` builds every item's jobs, admits them through `AdmittedExportQueue` (`job_admission.rs:226`, built by `admitted_export_queue` `timeline_export.rs:608`), runs them on one worker like `export_sequence_inner` (`export_media.rs:514-537`) and returns one receipt per item and module: recipe identity, source span, output artifact or artifacts, outcome, partial output named when canceled (STU-MOT-125 :28313-28314). Cancel one item without cancelling the rest (STU-VID-064 'one queue with per-item receipts'); test it. Settlement keeps `completed_stale` (`job_admission.rs:17-20`).\n   - Sequence items resolve a `StudioExportRecipe` (shipped preset through `ExportPreset::studio_recipe`, or a user recipe) through `job_from_recipe`; the six-identifier writer binding (`export_recipe.rs:24-28`, `:83-100`) stays: any other parameter refuses `export_parameter_not_consumed` before the first frame. `export_sequence` (`export_media.rs:505`) keeps working with `preset_id` and becomes a thin call into the same path (one implementation, a pinned byte test against today's output).\n   - Composition items need a product `ScenePixels` over the open document's tiles. Only test impls and the monitor's media `Frames` exist (`harness-view/src/view/monitor.rs:259`); wrap the static renderer's tile source (`harness-view/src/view/render.rs:622` `TileInfoSource for TileTable`, `:648` tile planes by `SourceKey`) keyed by the composition adapter's tile id `\"{layer_id}/{object_key}\"` (`composite/src/temporal/composition.rs:984`). Glyphs from `view::text::animated_glyphs` (`harness-view/src/view/text.rs:487`), audio layers from the bound sound port (`export_media.rs:447-468`). NOT_INSPECTED: whether TileTable can be borrowed for the worker's lifetime; if not, copy the planes the items name, charged.\n\n3. **User recipes (STU-VID-063 'a user recipe is the same record as a shipped one').** A document entry `export_recipes` holding `StudioExportRecipe::to_json` texts (`export_recipe.rs:594`) keyed by `recipe_id`; reel has no JSON parser by design (`export_recipe.rs:36`), so the host parses into `set_parameter` calls (`:468`), which check every value (unknown ids, credentials, bounds). Add the token to `session/src/source.rs:176` `DOCUMENT_ENTRY_TOKENS`, validated by its producer on set and read like `raster_records`. Rows: `export.recipe_save` (from a preset or recipe id plus parameter edits, new id), `export.recipe_delete`, `export.recipes` (read: shipped and user, with does_video, does_audio). STU-IO-166 puts recipes in SurrealDB tables; this asset has none (open question 1).\n\n4. **PNG image sequence with alpha (STU-MOT-122, motion step 84).** `StudioOutputFormat` (`folio/src/motion_records.rs:542`) gains `PngSequence` (a `settings_enum!` member; documents that do not use it stay byte-identical, an older reader refuses one that does). In `module_output` (`render_queue.rs:194-252`) a PNG module is not a reel job: frames from the shared render (`SharedFrames`, `timeline_export/composition.rs:345`) through `OutputPost::apply_rgba` (`:521`, written for exactly this) and `hsk_studio_interop_raster::png::encode_png` (`interop-raster/src/png.rs:240`; harness-view already depends on interop-raster under `viewer`, `harness-view/Cargo.toml:14`, `:15`, `:45`). `channels` rgb, alpha or rgb_alpha, `color` straight or premultiplied, depth 8 or 16, file names from `starting_number` and `use_comp_frame_number` (`motion_records.rs:598-599`, bound checked at `:1054`) with a declared zero-padded width. Each file written no-clobber like the export publish path (`reel/src/export.rs`, SMB-PR-EXPORT-RECIPE-1 hard-link publish) and named in the receipt; a cancel names the frames written. `rgb_alpha` on MOV stays refused `output_alpha_codec`: no reel encoder carries alpha (ProRes is decode-only, `reel/src/prores/SOURCE_PROVENANCE.json`).\n\n5. **Render queue commands (STU-MOT-125).** The queue records are typed (`harness-core/src/action/commands/motion.rs:45-50`: queue_add, queue_remove, queue_set_settings, queue_add_module, queue_set_module, queue_remove_module). Add `composition.queue_reorder` and `composition.queue_duplicate` beside them in `harness-core/src/motion_commands.rs` (render_queue edits `:945-978`), and `composition.queue_apply_template` taking a stored user recipe or a named render-settings and output-module template (open question 3). Post-render actions stay refused (`render_queue.rs:206`).\n\n6. **Typed surface and process.** RUN_COMMANDS or typed Viewer rows in `harness-core/src/action/commands/export.rs` (today `export.set_settings`, `export.run` for documents, `:16-26`): `delivery.add`, `delivery.remove`, `delivery.list`, `delivery.run`, `delivery.cancel`, `delivery.receipts`, plus the recipe rows. A CLI verb `deliver PACKAGE --item ...` beside `export-sequence` (`harness/src/cli.rs:577-612`, `execute_export_sequence` `:1282`), headless (STU-IO-164). The queue itself is per-Viewer state, not saved (open question 2).\n\nHostile input: a recipe JSON over the bounds of `export_recipe.rs:56-64` refused before parse completes; 4096 queue items; a PNG sequence of 4,000,000 frames refused by `ExportLimits.max_frames` (`reel/src/export.rs:162-178`) before the first frame; an output path with `..` or absolute refused (`render_queue.rs` relative-path rule, module docs `:28`); disk full mid-sequence names the last frame written; two items naming the same output path refused before any frame.\n\nOut of scope: AAC, MP3 or any compressed audio encoder (licence question, Operator call); frame-rate conversion, scaling and reframe in sequence recipes (REEL_WRITER_BINDING equality rules); MOV alpha codec; post-render actions; Collect Files (STU-MOT-126); any audio_session.rs edit (audio mixdown and stems stay Viewer rows and may be queued later); any panel, egui or Vulkan line; any Cargo.toml change; Master Spec and MT edits.",
+   "diag": "report_for_host: each item settles through the existing job admission (completed, completed_stale, canceled, failed) with one Observe terminal frame per outcome (job_admission.rs:31-33); receipts name recipe, span, artifacts, outcome and partial output; refusals are typed codes before any frame",
+   "attr": "the queue's jobs carry the Run's actor and a correlation minted per job by JobAdmission::next_correlation (job_admission.rs:21-27); recipe save and delete are entry-only steps with the caller's CommandContext; no default_actor() or literal actor in new code",
+   "exposure": "medium",
+   "paths": "- harness-view: new `src/view/delivery.rs` (queue, items, receipts, document ScenePixels), `src/view/timeline_export/render_queue.rs` (`module_output` PNG branch), `src/view/timeline_export/composition.rs` only for a PNG sink over SharedFrames, `src/view/timeline/export_media.rs` (export_sequence routed through the queue), `src/view/timeline_export.rs` (recipe resolution beside `preset_recipe`), `src/view/mod.rs` (one `mod` line and the Viewer field).\n- folio: `src/motion_records.rs:542` (PngSequence) and its validation.\n- session: `src/source.rs:176` token, new entry module shaped like `project_bin.rs`.\n- harness-core: `src/action/commands/export.rs` (rows), `src/motion_commands.rs` and `src/action/commands/motion.rs` (queue_reorder, queue_duplicate, queue_apply_template).\n- harness: `src/cli.rs` (verb), `src/cli/drive_viewer.rs` (dispatch arms), new `tests/delivery_queue.rs`.\n- reel: none expected; `src/export_recipe.rs` only if a test proves a defect.",
+   "suites": "clippy over harness-view, harness-core, harness, folio, session and their dependents; nextest WHOLE suites of hsk-studio-folio, hsk-studio-session, hsk-studio-reel, hsk-studio-package (rule 4b, new document entry), hsk-studio-harness-core; hsk-studio-harness tests delivery_queue, export_sequence*, render_queue*, composition_export, motion_records_session, harness_drive with features media (and os-encode only where the host has it; H.264 rows refuse typed without it); rule 4e: confirm units in .config/round-features.toml",
+   "closes": [
+    "workflows/scenario-video-edit.json gap 5 part: user recipes (step 95) and one batch queue with per-item receipts and cancel (step 96)",
+    "workflows/scenario-motion-comp.json gap 7 part: product run path for the render queue (step 87), PNG sequence (step 84), alpha through PNG (step 83 part), reorder, duplicate and templates (step 86 part)",
+    "harness-view job_admission.rs:38-40 'the AE render queue builds reel jobs but no product source runs them'",
+    "reel StudioExportRecipe has no host caller"
+   ],
+   "mts": [
+    "MT-33766",
+    "MT-33831",
+    "MT-34024",
+    "MT-34027",
+    "MT-34028"
+   ],
+   "tree": "smb-r53-followups-1",
+   "tree_reason": "READ: it built SMB-PR-EXPORT-RECIPE-1 (ledger worktree; branch lane/smb-pr-export-recipe-1 at 8712fa23, clean, ancestor of 0a733db8), the reel code this lane hosts. Its target/debug/deps holds every hsk crate the lane names (reel, reel_native, harness_view, harness_core, harness, folio, session, composite, interop_raster, package) and its newest deps file is 2026-11-08 07:20, the freshest seen, so little rebuilds. Size NOT_INSPECTED. Fallback: smb-pr-sequence-session-1 (clean at 0a733db8 itself, same crate set without lrcat and motion_js).",
+   "disk": "d",
+   "overlaps": {
+    "SMB-SCORE-EFFECTS-6": "No shared file: this lane does not edit harness-view audio_session.rs, mixer or waveform, nor harness-core mixer and waveform rows. Both edit harness-core: different files.",
+    "SMB-PARSER-HOSTILE-1": "Both may touch hsk-studio-package (it its parsers; this lane only a classification or externals row for the new entry, if the package suite asks). Ask before editing package.",
+    "SMB-AI-LIVE-EFFECTS-1": "harness-view: it edits view/vector/*; this lane view/delivery.rs, timeline_export and export_media. No shared file; harness-view rebuilds on rebase.",
+    "SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1": "No shared crate.",
+    "SMB-MOTION-COMMANDS-2 (this plan, rank 1)": "Both edit folio/src/motion_records.rs and harness-core motion_commands.rs and action/commands/motion.rs (different members and rows). Land rank 1 first or rebase; a merge conflict is likely only in the rows list.",
+    "all": "Build on D:. One lane pushes at a time; about 7 commits, folio and session commits early."
+   },
+   "needs": {
+    "cargo_toml": "none: harness-view already depends on reel, interop-raster, composite under media and viewer (harness-view/Cargo.toml:14-15, :45)",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "StudioOutputFormat gains PngSequence (older readers refuse a module that uses it); new document entry export_recipes (absent when no user recipe, so existing packages are byte-identical)",
+    "spec": "no Master Spec edit. SD items to propose on READY: user recipes in a document entry instead of SurrealDB tables (STU-IO-166, asset-local); PNG sequence naming and padding; queue state not saved",
+    "root_inputs": "none; confirm no .config/round-features.toml change (rule 4e)"
+   },
+   "red_team": {
+    "risks": [
+     "Two export implementations drift: export_sequence by preset id and the queue by recipe.",
+     "A user recipe parameter the writer does not consume is silently ignored.",
+     "A PNG sequence over a disk-full or cancel leaves frames the receipt does not name.",
+     "The document ScenePixels serves stale tiles after an edit while a job runs.",
+     "Recipe storage in the package becomes a second source of truth against the spec's SurrealDB tables."
+    ],
+    "failure_scenarios": [
+     "Cancel of item 2 cancels item 3 because both share the viewer's cancel token.",
+     "A recipe saved from a preset loses the bitrate and an H.264 item renders at the encoder default; STU-IO-179 requires export_preset_incomplete.",
+     "Two items write the same PNG names in one folder and the second overwrites the first.",
+     "A composition item with a pigment adjustment layer refuses REFUSE_ADJUSTMENT_RECORD because the render queue passes RenderInputs::default() (render_queue.rs:402-413); the receipt must name it.",
+     "A straight-alpha PNG is written from premultiplied frames and edges darken.",
+     "Recipe JSON with a credential parameter is stored in the package."
+    ],
+    "minimum_controls": [
+     "export_sequence output byte-identical before and after routing through the queue (pinned test).",
+     "Per-item cancel test with three items; receipts list partial outputs.",
+     "PNG straight versus premultiplied pixel test against OutputPost::apply_rgba; naming and padding test; no-clobber test.",
+     "Recipe round trip through the entry; credential and unknown-id refusal tests reuse set_parameter's codes.",
+     "Jobs bind the document revision at submit; a later edit settles completed_stale, never mixed frames."
+    ]
+   },
+   "research_basis": {
+    "sources_checked": [
+     "Project: reel export.rs, export_recipe.rs, presets.rs, mux.rs, prores SOURCE_PROVENANCE.json; harness-view timeline_export.rs, timeline_export/render_queue.rs, timeline_export/composition.rs, timeline/export_media.rs, job_admission.rs, monitor.rs, render.rs; folio motion_records.rs; interop-raster png.rs; harness-core action/commands/export.rs and motion.rs; harness cli.rs; spec clauses listed in target"
+    ],
+    "patterns_found": [
+     "STU-MOT-124 states one export pipeline with two entry points; STU-VID-064 states one queue with per-item receipts. The repo already has one admitted queue path (AdmittedExportQueue) and per-item receipts in reel's ExportQueue.",
+     "OutputPost::apply_rgba (timeline_export/composition.rs:517-521) is documented as the frame an alpha encoder or a still writer would take; PNG encode exists and is deterministic (png.rs:218-219)."
+    ],
+    "reuse_opportunities": [
+     "AdmittedExportQueue and JobAdmission settlement",
+     "StudioExportRecipe, job_from_recipe, ExportPreset::studio_recipe",
+     "SharedFrames one-evaluation-many-outputs and OutputPost",
+     "interop-raster encode_png",
+     "export_sequence_inner's worker loop and frame serving"
+    ],
+    "rejected_options": [
+     "A ProRes 4444 or other alpha MOV encoder: ProRes in reel is a decoder with an open licensing enquiry (D22 in SOURCE_PROVENANCE.json).",
+     "AAC or MP3 encode in this lane: encoder licensing is an Operator call (backlog spec_questions).",
+     "Frame-rate conversion and scaling now: the writer binding pins both to the source and needs its own decision on the conversion method (STU-IO-142 ticks).",
+     "A second export queue for compositions: STU-MOT-124 forbids a second export system."
+    ],
+    "unverified": [
+     "TileTable lifetime for a worker thread; animated_glyphs reachability for a queued item.",
+     "Whether an existing package test classifies document entries and needs a row.",
+     "No web research was run for this scope; no test was run."
+    ],
+    "selected_approach": "One egui-free delivery module in harness-view owning a queue of sequence and composition items, admitted through the existing job port, resolving recipes through reel's StudioExportRecipe and composition modules through the existing render queue build, with PNG modules written by interop-raster from the shared frames.",
+    "limits": "No external research in this pass for delivery: the slice hosts existing engines and adds no field technique. No build or run."
+   },
+   "next_slices": [
+    "Frame-rate override and resize in recipes (video step 93, 89; consume ADBEVideoFPS, width and height with a declared conversion), after a lead decision on the conversion method.",
+    "Compressed audio in deliverables (AAC, MP3; video step 88, audio-post gap 12) after the Operator's licence call.",
+    "Collect Files (STU-MOT-126 :28316, MT-34029) and post-render actions.",
+    "Audio-only masters and stems as queue items (needs audio_session.rs, after SMB-SCORE-EFFECTS-6 lands); BWF bext with timecode after a spec clause exists.",
+    "Render queue templates as SurrealDB records when the host binds a store (STU-IO-166)."
+   ],
+   "open_questions": [
+    {
+     "for": "lead or spec owner",
+     "question": "STU-IO-166 stores recipes in SurrealDB tables; the asset has no store. Where do user recipes live?",
+     "default": "A document entry export_recipes in the package, recorded as an SD item, because a recipe must travel with the project in the asset-local build and STU-IO-110 makes recipes portable artifacts; a host store can import them later."
+    },
+    {
+     "for": "lead",
+     "question": "Is the delivery queue saved with the document (like the AE render queue records) or per session?",
+     "default": "Per Viewer, not saved: composition items already persist as StudioRenderQueueItem; sequence items are cheap to re-add; saving needs a new record."
+    },
+    {
+     "for": "lead",
+     "question": "What is a render-settings or output-module template (STU-MOT-125) in records?",
+     "default": "An output-module template is a user StudioExportRecipe with does_video and the module's fields mapped; render-settings templates are next slice. Refuse queue_apply_template for render settings with a typed code."
+    },
+    {
+     "for": "lead",
+     "question": "PNG sequence frame-number padding width is not stated by STU-MOT-122.",
+     "default": "Seven digits, because starting_number's hard_max is 9999999 (:28282), so every number fits and names sort."
+    },
+    {
+     "for": "lead",
+     "question": "Does export_sequence keep its preset_id parameter?",
+     "default": "Yes, as a recipe id alias resolved through ExportPreset::studio_recipe, so the CLI and existing tests keep working."
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "Trees: rank 1 smb-folio-angle-unbounded-1, rank 2 smb-r53-followups-1, rank 3 smb-pr-edit-footprint-1, rank 4 smb-pr-sequence-session-1. All four READ clean with tips that are ancestors of 0a733db8, and their targets hold every hsk crate these lanes name. If the raster, vector or design planner takes one, the fallbacks are named in each entry. Target sizes were not measured (du over these targets did not finish within the tool timeout).",
+  "Not ranked, with reasons (READ): BWF with timecode has no spec clause (backlog spec_questions) and no bext writer exists; stems for a bus feeding a bus are refused typed stem_not_top_level (audio_session.rs:459-461) while a parent stem already includes its nested submixes (:243-256), so it is a refusal, not wrong output, and audio_session.rs is SMB-SCORE-EFFECTS-6's file now. Expressions need a Folio store, an evaluator wire and the G1 catalogue decision; they are next_slices of rank 1. The composition effect catalogue (20 kinds) is wide but ranks below layer kinds that every title needs.",
+  "Finding (READ, subreader): audio stems are replaced on disk before the sum check runs (audio_session.rs:536-546 before :547); a failed check leaves new stems and only flags sums_to_print false.",
+  "Finding (READ, subreader): every typed audio, mixer, waveform and spectral row is recordable false (harness-core action/commands.rs:158-160), so action replay (audio-post step 96) stays blocked.",
+  "Finding (READ): the composition render queue passes RenderInputs::default() (harness-view timeline_export/render_queue.rs:402-413), so any composition holding a pigment adjustment or fill layer refuses at render (temporal/composition.rs:966-970 REFUSE_ADJUSTMENT_RECORD). This shaped rank 1's choice not to use fill layers for solids.",
+  "Finding (READ, subreader): every transition kind still plays as a weighted dissolve (pulse transition.rs:137, playback.rs:774). This is silent wrong output outside these four lanes; it is video-edit gap 8.",
+  "Method limits: nothing was built, run or tested. Every line marked reader=subreader was read through git at 0a733db8 by a delegated read-only reader in this pass and not re-read by the planner. The spec line numbers are from 14-studio-creative-suite.md of v02.229, read by the planner. Web research was three standard searches through summaries, no page fetched; vendor parity is UNVERIFIED (D5) throughout.",
+  "In-flight lanes: none of the four lanes edits nib, folio vector, composite vector files, harness-view vector (SMB-AI-LIVE-EFFECTS-1), layout or folio typestyle (SMB-TYPE-INDENT-SPACING-1), press-read or interop parsers (SMB-PARSER-HOSTILE-1), native-host, kumihimo-ui or vulkan (GUI lanes), or score, harness-view mixer, waveform and audio_session (SMB-SCORE-EFFECTS-6); shared crates and the files where a textual conflict is possible are named in each scope's overlaps."
+ ]
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T08:51:44Z",
+ "updated_at": "2026-11-08T08:53:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19969,6 +19969,55 @@
     "MT-413",
     "MT-30319"
    ]
+  },
+  {
+   "lane_id": "SMB-MOTION-COMMANDS-2",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (typed motion commands: solid and adjustment layers, keyframe selection, clipboard and ease) over hsk-studio-folio motion records and hsk-studio-composite composition evaluation (adjustment-layer effects, STU-CMP-015)",
+   "lane_file": "builders/lanes/hsk-studio-motion-commands-2.json",
+   "brief": "builders/briefs/lane-smb-motion-commands-2.md",
+   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+   "base": "eb17fad6",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T08:53:46Z",
+   "closes": [
+    "workflows/scenario-motion-comp.json gap 9 part: solid layer and adjustment-layer effect stacks (steps 16, 17, 44)",
+    "workflows/scenario-motion-comp.json gap 1 remainder part: layer kinds solid and adjustment, keyframe selection, copy and paste",
+    "workflows/scenario-motion-comp.json gap 8 part: Ease, Ease In, Ease Out, toggle hold over a selection (step 28)",
+    "harness-core motion_commands.rs:28-31 declared limit 'keyframe selection, copy and paste are not commands here'",
+    "MT-33852",
+    "MT-33853",
+    "MT-34075",
+    "MT-33884",
+    "MT-33885",
+    "MT-33883"
+   ]
+  },
+  {
+   "lane_id": "SMB-DELIVERY-QUEUE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (one admitted delivery queue over reel's ExportQueue for sequence recipes and composition render queue items; user StudioExportRecipe records; PNG image sequence with alpha) with rows in hsk-studio-harness-core and a CLI verb in hsk-studio-harness",
+   "lane_file": "builders/lanes/hsk-studio-delivery-queue-1.json",
+   "brief": "builders/briefs/lane-smb-delivery-queue-1.md",
+   "worktree": "wt-studio-lanes/smb-r53-followups-1",
+   "base": "eb17fad6",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-08T08:53:46Z",
+   "closes": [
+    "workflows/scenario-video-edit.json gap 5 part: user recipes (step 95) and one batch queue with per-item receipts and cancel (step 96)",
+    "workflows/scenario-motion-comp.json gap 7 part: product run path for the render queue (step 87), PNG sequence (step 84), alpha through PNG (step 83 part), reorder, duplicate and templates (step 86 part)",
+    "harness-view job_admission.rs:38-40 'the AE render queue builds reel jobs but no product source runs them'",
+    "reel StudioExportRecipe has no host caller",
+    "MT-33766",
+    "MT-33831",
+    "MT-34024",
+    "MT-34027",
+    "MT-34028"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22644,7 +22693,9 @@
     "lane/smb-layout-place-1",
     "lane/smb-web-site-1",
     "lane/smb-ds-components-author-1",
-    "lane/smb-develop-commands-1"
+    "lane/smb-develop-commands-1",
+    "lane/smb-motion-commands-2",
+    "lane/smb-delivery-queue-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22838,6 +22889,18 @@
      "tree": "smb-folio-angle-unbounded-1",
      "branch": "lane/smb-develop-commands-1",
      "previous_branch": "lane/smb-project-bin-1-d",
+     "disk": "D"
+    },
+    "SMB-MOTION-COMMANDS-2": {
+     "tree": "smb-pr-sequence-session-1",
+     "branch": "lane/smb-motion-commands-2",
+     "previous_branch": "lane/smb-place-asset-1",
+     "disk": "D"
+    },
+    "SMB-DELIVERY-QUEUE-1": {
+     "tree": "smb-r53-followups-1",
+     "branch": "lane/smb-delivery-queue-1",
+     "previous_branch": "lane/smb-pr-export-recipe-1",
      "disk": "D"
     }
    },
