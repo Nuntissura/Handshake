@@ -1,0 +1,105 @@
+{
+ "lane": "SMB-PARSER-HOSTILE-1",
+ "tip": "ed1a8ab5",
+ "base": "cede5958",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "Nothing found that breaks compilation at ed1a8ab5. The bundled debug run is red: 6 within-cap XML tests abort (F1), and the 8 MiB ruling must also cover F1's direct roxmltree test and the Send constraint in F2. F3 (encrypted refusal) and F5 (render_image and decode caps on print images) change answers on the Viewer route and need lead rulings. F4 (allocation through the content tokenizer) and F6 (binary data scanned as syntax) are fixes in render_bounds that are cheap now. F7 and F8 are scope and residual decisions for the lead. The mutation harness is deterministic (fixed xorshift seeds, an FNV-pinned self-test, a rerun of the first 200 mutants), bounded in mutant size, makes no wall-clock assertion (slowest_ms is only printed), and counts allocation across threads.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "test failure (bundled run red)",
+   "where": "interop-vector-svg/tests/hostile_xml_depth.rs the_cap_parses_on_1_mib (direct roxmltree parse on a 1 MiB thread) and svg_within_cap_keeps_the_walk_answer; interop-layout/tests/hostile_xml_depth.rs idml_within_cap_decodes, idml_at_the_cap_parses_on_1_mib, idml_note_at_the_cap_walks_on_2_mib, epub_within_cap_reads",
+   "what": "At ed1a8ab5 six within-cap tests abort in debug (builder probe: about 14 KiB per level in debug, so 148 levels on 2 MiB and 73 on 1 MiB). The 8 MiB-thread ruling fixes the five that go through product entry points only if the worker thread wraps both the parse and the recursive walks. the_cap_parses_on_1_mib calls roxmltree::Document::parse_with_options itself on 1 MiB, so no product change can make it pass.",
+   "scenario": "Bundled nextest run at the tip in debug: six ABORTs.",
+   "fix": "Rewrite the_cap_parses_on_1_mib to assert that 256 levels parse on the product worker (8 MiB) and that import_svg called from a 1 MiB caller thread returns a typed answer. Keep the other five unchanged as the proof of the ruling."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "build break if the ruling is implemented by wrapping whole entry functions",
+   "where": "svg_adapter.rs:598 import_svg(mint: &mut dyn IdMint); idml_longdoc.rs:941 import_longdoc(mint: &mut dyn IdMint); interop-vector-core/src/ids.rs:5 and interop-layout/src/ids.rs:5 declare pub trait IdMint with no Send supertrait",
+   "what": "&mut dyn IdMint is not Send, so a scoped thread whose closure captures it does not compile (E0277). Changing the parameter to dyn IdMint + Send is a public API change that reaches out-of-scope host crates.",
+   "scenario": "The builder wraps import_svg or import_longdoc in std::thread::scope with the mint captured.",
+   "fix": "Put only the mint-free parts on the worker: the parse plus read_model (idml_decode.rs:209) for decode_idml; parse_xml plus fragment_paragraphs (idml_longdoc.rs:291, call sites :549, :997, :1026) for longdoc; the parse alone for SVG, whose walk stops at max_depth 32. On std targets roxmltree 0.21.1 stores owned strings in Arc, so the Document can be returned from a scoped thread. Spawn one worker per entry call, not one per parse_xml call."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "refusal of legitimate files (out-of-scope behaviour change)",
+   "where": "render_bounds.rs reader_input_within, its first check (doc.encrypted gives PressError::Encrypted); reached from vector_read.rs:627 and press-write render.rs:121",
+   "what": "Every encrypted PDF is now refused on read_vector_pages, read_vector_document and render_page, including owner-password-only files with an empty user password, which hayro decrypted and read before. The Viewer render_pdf_page route (layout_export.rs:779-783) passes any file from disk, so ordinary restricted PDFs stop rendering. The brief lists encrypted-PDF behaviour as out of scope; the builder raised it as B2.",
+   "scenario": "A user renders a print-restricted PDF from disk: before, the page rendered; now the answer is Press(Encrypted).",
+   "fix": "Needs a lead ruling. Refusing is the only bounded option while Press cannot decrypt (on encrypted files the object streams are not expanded: reader.rs, the if !encrypted block). If the refusal stays, record it in DESCRIPTOR and the lane notes as a deliberate cut with its own regression test; do not leave it as a side effect."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ (mechanism); UNVERIFIED (not run)",
+   "severity": "memory amplification on the newly guarded routes",
+   "where": "render_bounds.rs content_bounds -> content.rs:73 tokenize -> syntax.rs:159 Lexer::new sets nodes_left to usize::MAX; the array branch of parse_object pushes one 32-byte Object per element with no element cap",
+   "what": "The reader pass tokenizes every page and form content stream into retained Op/Object vectors. Inside an array operand the element count is bounded only by max_decoded_bytes (64 MiB per stream), so one highly compressible content stream can make the pass allocate on the order of 1 GiB, far above the sweep's 256 MiB cap. read_vector_document already had this exposure through the walk (vector_source.rs:328). read_vector_pages and render_page, and so the Viewer route, gain it with this lane, and read_vector_document now pays it twice.",
+   "scenario": "A small PDF whose single Flate content stream expands to a very long numeric array reaches render_pdf_page; peak heap far exceeds the stated caps before any refusal.",
+   "fix": "On the reader pass, give the tokenizer a node budget (Lexer::with_nodes, for example from Limits::max_objects or a dedicated content-node cap), or use a non-allocating nesting scan for content streams that skips inline-image data. Add a red test with an allocation cap through CountingAlloc."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ (thresholds and decode path)",
+   "severity": "refusal of legitimate print-resolution images on render_page",
+   "where": "render_bounds.rs image_bounds (px > max_decoded_bytes; px * (comps * 6 + 15) > max_render_image_bytes); reader_input_within decodes every image on the page with flatten::renderer_stream under max_decoded_bytes per stream and max_decoded_total per page; error.rs:68-78 defaults 64 MiB, 256 MiB and 1 GiB",
+   "what": "Limits: a pixel cap of 67,108,864 px; the byte formula caps 51.1 Mpx gray, 32.5 Mpx RGB and 27.5 Mpx CMYK; the decode cap on Flate, LZW and RunLength images is 64 MiB decoded, which is 22.4 Mpx RGB 8-bit, 16.8 Mpx CMYK 8-bit and 11.2 Mpx RGB 16-bit; and 256 MiB decoded across all images on one page. A 300 dpi A3 photo (3508 x 4961 = 17.4 Mpx) passes as JPEG in any colour space and as Flate RGB 8-bit (52.2 MB). It is refused as Flate CMYK 8-bit (69.6 MB, InputLimit(decoded_bytes), not render_image) and as 16-bit. A 300 dpi A2 RGB image (34.8 Mpx) is refused render_image even as JPEG. A page holding several Flate A3 photos goes past 256 MiB and is refused decoded_total.",
+   "scenario": "Viewer render_pdf_page on an InDesign or Illustrator print PDF with ZIP-compressed CMYK photos: before, it rendered; now the whole page is refused.",
+   "fix": "Lead decision. The lowest-risk change: on the render route, check the decoded length without keeping the bytes, under a per-image cap derived from the image budget (max_render_image_bytes / per_px) instead of max_decoded_bytes, and do not charge images to decoded_total. The pixel bounds alone already cap what hayro allocates per image at 1 GiB, and big_image (60000 x 60000) is still refused by the pixel cap."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ (code); UNVERIFIED (frequency, measured with a Python port of syntax_nesting_within)",
+   "severity": "false InputLimit(depth) on legitimate files",
+   "where": "render_bounds.rs binary_streams and the syntax-scan branch of bounds(); reader_input_within seeds the closure from the resolved Resources dict and the page /Group value, which are not entries of objs themselves",
+   "what": "With depth_cap 32 (the max_depth default), binary data is scanned as PDF syntax wherever its binary role is not recognised: (a) /CIDToGIDMap, /CIDSet and halftone (HalftoneType 6, 10, 16) streams are not in the binary list; (b) an [/ICCBased N 0 R] array that sits directly in an indirect Resources dict or in the page /Group is never visited by binary_streams, so the ICC profile itself is scanned. With the Python port: Windows RSWOP.icm (218 KB, CMYK) reached depth 22; a full identity CIDToGIDMap reached 27; random 1 MiB data went past 32 in 6 of 40 trials. The flatten route has the same blind spot; this lane extends it to import_ai and the Viewer.",
+   "scenario": "A PDF with a large CMYK output profile referenced directly from the page resources is refused InputLimit(depth) on import or render.",
+   "fix": "Add CIDToGIDMap, CIDSet and HT streams to binary_streams, and run the binary-role scan over the resolved page Resources, the page Group and the catalog OCProperties as extra roots (or insert those dicts into objs). Add one test per shape."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ (code); UNVERIFIED (frequency)",
+   "severity": "hard refusal of large or lightly damaged vector files that read before",
+   "where": "render_bounds.rs syntax_data (an undecodable syntax stream gives Malformed(reader_input)); filters.rs inflate_zlib (an Adler-32 mismatch or a truncated deflate stream gives Malformed(flate_data)); content.rs tokenize (max_content_ops 2,000,000 per stream; content_token); decoded caps of 64 MiB per stream and 256 MiB across all pages",
+   "what": "OQ1 ruled on files that PdfDoc::open refuses. These are new refusals of files Press does open: one damaged Flate tail anywhere in a page closure (even in an unused resource), one content stream with more than 2M operators, or more than 256 MiB of decoded syntax across a multi-artboard file now refuses the whole document. Before, hayro read these files and the walk degraded softly (StructureNotRead or Budget notes).",
+   "scenario": "A large multi-artboard .ai, or a PDF containing a stream with a wrong Adler-32, is imported: before, it read with notes; now the answer is Malformed(reader_input) or an InputLimit.",
+   "fix": "On the reader pass, decode leniently (ignore Adler-32, and keep the partial output of a truncated deflate stream as a prefix bound), and charge the decode budget per page rather than across the whole document. The OQ1 stop rule covered 4 corpus PDFs and no real .ai file, so measure on a real Illustrator set before READY."
+  },
+  {
+   "id": "F8",
+   "certainty": "READ (hayro-syntax 0.7.2 xref.rs and pdf.rs); UNVERIFIED (no red test)",
+   "severity": "residual abort route on the newly guarded routes",
+   "where": "vector_read.rs:627-633 and render.rs:121-138 hand the ORIGINAL bytes to hayro after Press bounds its own reading of them; press-read reader.rs does no xref repair and honours a header base offset; hayro-syntax falls back to rebuilding the xref from the whole file (xref.rs fallback, lazy repair at :576-586), and that rebuild skips objects recursively",
+   "what": "The guard holds only while hayro reads the same objects Press bounded. Where hayro's xref handling diverges from Press's (header offset, lazy repair, page-tree inheritance), hayro can read bytes the pass never bounded, and its repair rebuild recurses before any page is drawn. The module docs already name this as a residual; it is the remaining unbounded route on the Viewer path.",
+   "scenario": "A file that Press opens and bounds, but that hayro rebuilds or resolves differently, reaches recursive hayro code through render_pdf_page.",
+   "fix": "For the Viewer and import routes, give hayro the bytes Press writes from the bounded objects (as the flatten's isolated document and vector_source all_visible already do), so the xref is fresh and every object hayro can reach has been bounded. Keep the original bytes only for render_page's export self-check caller (interop-fig-native export.rs:815), which reads Studio's own output. At minimum, slice the input at Press's header base. See lead question Q3."
+  }
+ ],
+ "lead_questions": {
+  "Q1_encrypted": "F3: keep Encrypted on every reader route, including the Viewer render of restricted PDFs, or carve out render_page? The brief listed encrypted behaviour as out of scope.",
+  "Q2_render_image": "F5: accept refusing Flate CMYK A3 at 300 dpi and A2 RGB, or switch the render route to a length-only image check with a per-image cap?",
+  "Q3_rewrite_bytes": "F8: hand hayro Press-written bytes on the Viewer and import routes (closes the residual; hayro then reads Press's serialization), or keep the original bytes and record the residual?",
+  "Q4_oq1_evidence": "The OQ1 stop rule measured 4 PDFs and no real .ai file (adobe-session/illustrator holds TIFF exports only). Is that enough, given the new refusal classes in F7?",
+  "Q5_fig_margin": "fig_depth: the smallest passing stack is 1 MiB in debug (512 KiB fails). Where the Viewer runs to_native and export is NOT_INSPECTED; on the Windows main thread (1 MiB) that leaves no margin."
+ },
+ "checked": [
+  "Full diff cede5958..ed1a8ab5, src: package bounded_xml.rs and lib.rs; svg_adapter.rs; idml_decode.rs; epub.rs; press-read render_bounds.rs, vector_read.rs, flatten.rs and lib.rs; press-write render.rs",
+  "xml_nesting_within against roxmltree's grammar (comments, CDATA, processing instructions, declarations, quoted values, empty elements, end tags): no undercount found that roxmltree would recurse past",
+  "construction_chains_within: shared resources and repeated children are memoised; no false cycle on a DAG",
+  "hostile_mutator.rs: operations, mutant size growth, seeds, the determinism rerun, CountingAlloc, the panic hook",
+  "hostile_vector_read.rs and hostile_mutation_pdf.rs; the include_bytes fixture path exists; the heads of the fig, IDML and SVG targets",
+  "Limits defaults (error.rs:65-78); decode caps (filters.rs:119); renderer_stream (flatten.rs:363)",
+  "Viewer route layout_export.rs:779-783 is guarded by reader_input_within(Some(page))",
+  "hayro-syntax 0.7.2 xref fallback and page inheritance (licence Apache-2.0 OR MIT); roxmltree 0.21.1 owned-string type (MIT/Apache)"
+ ],
+ "not_checked": [
+  "No cargo build or test run: every abort and allocation claim comes from reading the code",
+  "The bodies of the PSD, RAW, TIFF and fig targets beyond their sweep calls and floors",
+  "hayro font parsing (Type 1 and CFF), a residual the module docs already name",
+  "Which harness-view threads run imports and exports",
+  "fmt and clippy (lane-check has no fmt step)"
+ ]
+}

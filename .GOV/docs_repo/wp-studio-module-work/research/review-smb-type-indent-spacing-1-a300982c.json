@@ -1,0 +1,102 @@
+{
+ "lane": "SMB-TYPE-INDENT-SPACING-1",
+ "tip": "a300982c",
+ "base": "cede5958",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "I found nothing that breaks the build or an existing test at a300982c. Compile evidence is the builder's clippy3-focus6 log (b8d51d15 plus the clippy wip, 40/40 focused tests, EXIT 0). The red4 log at a300982c is still waiting on the disk lock. FIX_FIRST because of F1: typing or pasting at the start of a paragraph (an insertion at a paragraph start P > 0) silently deletes that paragraph's local composition override and its span/split record. Before the lane these keys went stale and failed loudly; now they are dropped without a trace. The lead's rulings also leave open work at this tip: the last-line gate (ruling 1, F4), the export loss line that the descriptor already claims (ruling 2, F7), the stale keys in xref.rs, find_change.rs and data_merge.rs, which all sit in crates this lane edits (ruling 3, F5), and the byte-0 red test (ruling 4, which F1 widens). F2, F3 and F6 give wrong output or lose a write in normal use.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "high (silent lost write on the most common edit)",
+   "where": "crates/hsk-studio-layout/src/textflow.rs:38-49 (map_pos: pos >= end goes after the insertion), :81-118 (replace_story_text re-splits the touched region so the paragraph still starts at P), :208-238 (shift_paragraph_records maps the record to P+n, then first_per_start drops it because P+n is no paragraph start); callers harness-view layout_ui.rs:1133-1134, layout_ui/find.rs:97-98",
+   "what": "Take a pure insertion (start == end == P) at the first byte of paragraph k > 0. The paragraph keeps starting at P in the edited story: the previous paragraph is touched because its end equals P, and the re-split cuts at its terminator. But map_pos moves every key at P to P+n. shift_paragraph_records then finds no paragraph at P+n and drops both the paragraph_composition entry and the paragraph_flows entry of that paragraph. The lane's tests insert at byte 1, inside paragraph 0 (indent_spacing.rs:568, viewer_layout_styles.rs ReplaceText start 1), so this path is never covered. At byte 0 (ruling 4) the outcome differs: replace_story_text maps paragraph 0 to start n, so bytes [0, n) belong to no paragraph, and the record survives at n.",
+   "scenario": "Story \"aa\\nbb\", paragraphs [0,3) and [3,5), with a paragraph_composition entry {left_indent 30 pt} and a split-column paragraph_flows entry, both at 3. Run LayoutEdit::ReplaceText{start:3,end:3,text:\"x\"}. The edited paragraphs are [0,3) and [3,6), both entries map to 4, and both are dropped. The second paragraph loses its indent and its split columns, with no error. The same holds for any paste at a paragraph start and for find/change with an empty hit at a paragraph start.",
+   "fix": "Write the red tests first (ruling 4): insertion at byte 0, at P > 0 with \"x\", and at P > 0 with \"x\\n\". Then map paragraph-keyed records to the start of the edited paragraph that contains the mapped position of the old paragraph's first byte (snap to the containing paragraph). With that rule \"x\" at P keeps the key at P, \"x\\n\" at P moves it to P+2, and merges and whole-paragraph deletes keep today's first-touched result. In replace_story_text, start the first touched region at min(p.start, start) so an insertion at byte 0 is covered by paragraph 0. Use the same rule in both functions so paragraph starts and keys cannot diverge."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "medium (wrong answer: missing paragraph space in balanced columns)",
+   "where": "crates/hsk-studio-layout/src/threaded_reflow.rs:1116-1119 (gap_at set to the column where the gap was added), :1560-1563 (Meta.gap = gap only if the first line landed in that same pos/col), :822-866 (balance_band re-adds m.gap only at rows > 0)",
+   "what": "Take a paragraph whose gap pushed its first line into the next column, or whose first line opened a column. It records Meta.gap = 0. Balancing then moves lines between columns (k = ceil(L/n) per column), so that first line can end up mid-column with no space above it. The rule is \"no space at a column top\", but after balancing the line is no longer at a column top.",
+   "scenario": "Two columns, 3 lines deep, vertical_balance_columns on. Paragraph A has 3 lines and fills column 0. Paragraph B has 1 line and space_before 6 pt, so it lands at the top of column 1 and the gap is dropped (Meta.gap 0). Balancing gives column 0 = A1, A2 and column 1 = A3, B. B sits at row 1 with extra 0, so its baseline is 12 pt below A3 instead of 18 pt. balancing_keeps_paragraph_space (indent_spacing.rs:446) only covers gaps that were already mid-column.",
+   "fix": "Store the paragraph's resolved gap on its first line's Meta whatever column it landed in (k == 0 gives gap), and drop the gap_at match. balance_band already drops the gap at row 0 and keeps its `return false` when the result no longer fits. Add a red test with the case above."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "medium (wrong answer on both Adobe composers)",
+   "where": "crates/hsk-studio-layout/src/threaded_reflow.rs:1300-1311 (re-break when natural_width > narrowed), :1317-1325 (last_overfull = natural_width > w), :1462 and :1471 (overfull turns off alignment, justification and compress_line), :1520-1521 with adobe_composer.rs:353-364 (Adobe composers set a line wider than its slot by compressing its spaces)",
+   "what": "The last-line fit test uses the natural width only. The Adobe single-line and paragraph composers may choose a last line that is tighter than its slot, and the set stage then closes it with compress_line. With a positive last_line_indent, a last line the composer would compress into the narrowed width triggers a needless re-break. If the re-broken last line is still a little over by natural width, it is flagged overfull, and overfull suppresses the compression that would have made it fit. The line then overhangs the indent and reports Line.overfull = true. The test at indent_spacing.rs:345 accepts `width <= 24 || overfull`, so it cannot catch this.",
+   "scenario": "AdobeSingleLine or AdobeParagraph, Left aligned, last_line_indent set so the narrowed last line is 1-2 % narrower than its natural width while its spaces can absorb the difference. Expected: the line is compressed and fits. At a300982c: it is re-broken or marked overfull, and it is set uncompressed past the indent.",
+   "fix": "For the Adobe composers, judge fit the way the set stage does: natural width minus the compressible space, from the paragraph's word_spacing minimum through compress_line's model, must not exceed w. Alternatively take the fit from the breaker's own overfull flag on a break run at the narrowed width. Add one test per Adobe composer with a compressible last line."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ (code and log); the cost under the gate is UNVERIFIED",
+   "severity": "medium (refusal point and hang risk; the stop rule is still open)",
+   "where": "crates/hsk-studio-layout/src/threaded_reflow.rs:1300-1311; adobe_composer.rs:779-783 (flat_from is the first index after which the width stays constant); log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-measure-last-line-b8d51d15.log",
+   "what": "Ruling 1 (re-break only when the narrowed width holds the widest word) is not in a300982c. The measurement also does not show what the re-break costs once that gate passes. In the 30 pt case the re-break never fired on FirstFit, AdobeSingleLine or AdobeParagraph: line counts stayed at 120, 360 and 1000, and FirstFit would gain one line if it re-broke. It fired only on Knuth-Plass (96 to 97 lines). So the lane note \"a normal 30 pt indent costs at most one extra pass ... others unchanged\" does not cover AdobeParagraph. Narrowing index l moves AdobeParagraph's flat_from to l+1, which makes every line index up to l a distinct state. The 5000-word budget_exceeded at 170 pt may come from that state count and not only from infeasibility. Split paragraphs get no re-break at all (breaks are taken at :1271), so their narrowed last line goes straight to overfull. The declared reading and the DESCRIPTOR say \"one bounded re-break (positive, Latin)\" without stating this exception.",
+   "scenario": "A 5000-word paragraph, AdobeParagraph, 180 pt measure, last_line_indent 100 pt (the narrowed 80 pt holds every word of the toy font). The re-break passes the gate, flat_from moves to about line 1000, and the cost or refusal is unmeasured. With the gate added, this is the case that decides the brief's stop rule.",
+   "fix": "Implement the gate on the boxes of the first result's last line: the widest unbreakable box run between glue, hyphen included when the break is flagged. Re-run the measurement with an indent that passes the gate and forces the re-break, on all four composers, in debug and release, at 600, 1800 and 5000 words. If the AdobeParagraph or Knuth-Plass refusal point still moves, stop and send the numbers (brief item 3). State the Split exception in notes.declared_readings and in the DESCRIPTOR, or apply the same re-break there."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ",
+   "severity": "medium (stale keys the ruling assigns to this lane are left in place; the V4-06 sweep blocks READY)",
+   "where": "crates/hsk-studio-layout/src/xref.rs:452-470 (write_cross_reference calls only shift_flow_records), crates/hsk-studio-layout/src/find_change.rs:391-406 (apply_text_changes shifts no record), crates/hsk-studio-interop-layout/src/data_merge.rs:343-347 (merged stories keep the template story_id; records are not shifted); lane notes v4_06_sweep.class_C",
+   "what": "Ruling 3 says the stale keys in xref.rs, find_change.rs and data_merge.rs are fixed when they are in crates the lane edits. All three are: hsk-studio-layout and hsk-studio-interop-layout both carry lane commits. The lane file marks all three \"NOT FIXED (path outside this lane)\". write_cross_reference still leaves paragraph_composition behind and paragraph_flows unpruned after a reference write that changes length before, or merges into, an overridden paragraph.",
+   "scenario": "Write a cross-reference whose new text changes length before an overridden paragraph. The next composition either refuses invalid_input (styles.rs override naming no paragraph start) or applies the override to the wrong paragraph.",
+   "fix": "write_cross_reference: take `&mut StudioTypeStyleRecords` and call shift_paragraph_records(records, styles, &edited, start, end, len). Its only callers are tests: layout_anchors_xrefs.rs:218 and interop-layout layout_flow_pdf.rs:278. apply_text_changes and data_merge take no records today: add the records parameter and shift per hit, back to front, or get a lead ruling to record the caller's duty in their docs. Update the class C sweep and count either way."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ",
+   "severity": "medium (silent lost write through the drive row)",
+   "where": "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:164-176 (the patch replaces the style's whole style_composition record); crates/hsk-studio-harness-core/src/action/commands/layout.rs:30 (patch text: \"composition: Folio StudioCompositionSettings (indents and spacing in pt)\")",
+   "what": "The drive text reads as an indent setter. The command replaces the whole record. A model or caller that sends {\"composition\":{\"left_indent\":...}} to a style that already holds composer, H&J or hyphenation settings (an IDML-imported style always does) erases all of them with no notice. The replace behaviour appears only in the lane's notes.declared_readings, which no caller reads.",
+   "scenario": "A paragraph style imported from IDML carries composition_scope every_line, hyphenation true and word spacing 80/100/133. layout.style.edit_style with patch {composition:{left_indent:{value:12,unit:\"pt\"}}} indents the paragraph, but it also switches back to the request composer, turns hyphenation off and resets the spacing.",
+   "fix": "Either overlay the patch on the stored record (existing.overlaid(&patch); an explicit null still clears the whole record) and say so in the patch text, or keep replace and write \"replaces the style's whole composition settings record\" into the patch text at layout.rs:30 and the StylePatch doc. Add one test that pins whichever behaviour is chosen, starting from a record with hyphenation set."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ",
+   "severity": "low (a claim the code does not back; it hides an export drop, STU-IO-012)",
+   "where": "crates/hsk-studio-interop-layout/src/descriptor.rs:3, indent_spacing.loss (\"the host appends it to its export loss\"); crates/hsk-studio-harness-view/src/view/layout_export.rs:771-774 (calls export_folio_longdoc and reports out.loss, never type_style_composition_loss)",
+   "what": "At a300982c no caller calls type_style_composition_loss. The host's IDML export drops every composition settings record without a loss entry, while the DESCRIPTOR tells a no-context model that it reports one.",
+   "scenario": "Viewer::export_layout_idml on a document whose style carries a left indent: the result's \"loss\" has no paragraph_composition_not_exported entry.",
+   "fix": "The approved line (ruling 2) needs two edits: `let mut out = ...` at :771, then `out.loss.extend(il::type_style_composition_loss(&doc.styles));` (the `il` alias is already imported at :72, so no `use` change). Add a harness test, for example beside layout_pdf_host.rs idml_export_writes_the_live_layout_as_a_package, that sets a style composition and asserts the loss code in r[\"loss\"]. layout_export.rs is in no in-flight lane's file list (checked against lane/smb-artboard-export-1)."
+  }
+ ],
+ "merge_note": "No file-level overlap. origin cede5958..5d020939 touches Cargo.toml, native-host gui, reel and tools/workspace-probe.rs: none of these are lane files. lane/smb-artboard-export-1 (35c50d3b) shares the crates folio, harness-core, harness-view, harness and package, but no file. Its folio files are export_settings.rs and lib.rs, its harness-core files are action/commands.rs, commands/export.rs, harness.rs and harness/export_settings.rs, and its harness-view files are view/commands.rs, commands/export.rs, doc_export.rs, export_set.rs, mod.rs and vector/*. It also edits package/tests/externals.rs, which this lane does not touch. None of the lane's new field names contains a word from the externals VOCAB, so that classifier is unaffected. A folio change rebuilds both lanes' dependents (overlap_controls: rebase).",
+ "lead_questions": {
+  "Q1_edit_style_semantics": "F6: should the composition key overlay the stored record or replace it? Either way the drive text must say which.",
+  "Q2_first_touched_on_insert": "replace_story_text (textflow.rs:94-115, pre-existing) uses the first touched paragraph as the template. An insertion at a paragraph start therefore also gives that paragraph the previous paragraph's style_ref. Deleting a whole paragraph together with its terminator gives the following paragraph the deleted paragraph's style and override; this is pinned in indent_spacing.rs:573-578. Should F1's fix also make the paragraph that owns the surviving text keep its own style and record (InDesign behaviour UNVERIFIED, D5), or does first-touched stay as the brief states?",
+  "Q3_ruling3_api": "F5: for apply_text_changes and data_merge, which take no records, do you want a records parameter (an API change; only tests call them), or a documented caller duty?",
+  "Q4_measure_after_gate": "F4: re-run the measurement with the widest-word gate in place, using an indent that passes the gate and forces the re-break, before the bundled run?"
+ },
+ "checked": [
+  "Full diff cede5958..a300982c, all 21 files: folio typestyle.rs (fields, overlaid, is_empty by Default equality, validate points and finite), layout threaded_reflow.rs (Single, Span and Split slot narrowing, re-break, set stage, gap and pending_after, break sentinel, balance_band, Composition.indent), typeset.rs (paragraph_params early return for geometry-only settings), styles.rs (same_style_no_space), textflow.rs (shift_paragraph_records, first_per_start), autosize.rs, interop idml_composition.rs, folio_export.rs and the descriptor, harness-view styles.rs, layout_ui.rs and find.rs, commands/layout.rs and harness-core commands/layout.rs.",
+  "Every struct literal of StudioCompositionSettings, ParagraphStyling, ParagraphParams, StylePatch, Composition and Meta across all crates (git grep): every one is updated or uses ..Default; no build break found.",
+  "Zero identity: indented() and the Split narrow() skip all float work for zero indents; the Single gap is skipped when it is 0; larger(before, 0) returns before because flow spaces are pt_nonneg (layoutflow.rs:878-879); Span and Split sums keep the old order of operations; paragraph_params returns the request's parameters for geometry-only settings.",
+  "Hostile input: every new sum goes through sum() and is checked finite; the balance extra is checked; a slot with no width is skipped and bounded by scan_cap (BudgetExceeded) or ends in overset; Split refuses invalid_geometry.",
+  "natural_width matches the set stage's width_pt formula (advance up to content_end, plus a flagged hyphen, plus the head delta).",
+  "Column top, frame breaks and threaded frames: next_slot resets extra on a column or frame move; the break sentinel resets pending_after; the anchored pre push to a new column drops the gap.",
+  "Package schema tests: externals.rs VOCAB (:422-425) and mask_tiles.rs ContentDigest scan: the new properties match neither.",
+  "IDML: the attribute names LeftIndent, RightIndent, FirstLineIndent, LastLineIndent, SpaceBefore and SpaceAfter are read as points, the IDML measurement unit; the paragraph_style_attributes_not_mapped condition is unchanged apart from the six names; d5_id_oracle id03_imported_styles_compose_as_the_explicit_setup is the only other import_type_styles caller; the host does not import IDML type styles.",
+  "EditStyle: scope refusal, Folio validation, DeleteStyle drops the style's entry, undo and redo through the LayoutEditor snapshot; save and reopen go through session layout_records.rs StylesOnly (whole-record serde), so the new fields persist.",
+  "Drive row: style_patch decodes composition via folio_field! with deny_unknown_fields; the nested key list includes composition; harness_drive_typed passed in clippy3-focus6.",
+  "Measurement log line counts per composer (F4); the builder's logs red4 (a300982c, unfinished, waiting on the lock) and clippy3-focus6 (EXIT 0, 40 passed).",
+  "Overlap: file lists of origin cede5958..5d020939 and of lane/smb-artboard-export-1 compared with the lane's 21 files."
+ ],
+ "not_checked": [
+  "No cargo, clippy or test run (read-only review). Compile evidence at exactly a300982c is the builder's unfinished red4 log; clippy3-focus6 ran on b8d51d15 plus the clippy wip.",
+  "F1 and F2 are traced by reading and not run; F3's magnitude depends on the composers' compression limits; F4's AdobeParagraph and Knuth-Plass cost under the gate is unmeasured.",
+  "Whether Folio validate_text_story refuses the byte-0 story whose bytes [0, n) belong to no paragraph (ruling 4's red test decides).",
+  "PDF export of lines placed at extreme finite coordinates (left_indent -1e308 or space_before -1e308 imported from IDML): pdf_export number formatting and the page clip were not read.",
+  "Every InDesign behaviour (D5): space at the top of a frame, LastLineIndent semantics, the same-style spacing attribute, negative first-line limits.",
+  "Local ParagraphStyleRange indent values in the ID-03 corpus (only the root styles' zeros are cited); the d5 oracle rows need the corpus font and are NOT_PROVEN without it.",
+  "Span paragraphs directly after another span paragraph drop the second one's space_before. This is the same as the pre-existing handling of the flow `before`; reported here, not judged."
+ ]
+}
