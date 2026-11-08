@@ -22991,6 +22991,22 @@
     },
     "record": "research/steward-sync-20261108-F-R60-1.json",
     "process_gap": "Builders can land root drift (registry pins, undeclared path edges) because lane-check runs neither registry-sync nor the workspace probe (F-R60-2). Until lane-check gains that check (edit only with no lane run in flight), the lead runs steward-sync --dry-run before each round freeze."
+   },
+   "r60_attempt_2": {
+    "dispatched_at": "2026-11-08T07:22:17Z",
+    "candidate": "35c50d3b",
+    "commits_since_r59": 120,
+    "claims": 21,
+    "pre_freeze_checks": "registry-sync check mode exit 0 at 35c50d3b (lead); no root file changed 5d020939..35c50d3b; steward probe 109/109 at 5d020939",
+    "unclaimed_in_union": "42e9e5a4 (SMB-VK-UI-PASS-1 compose hook, landed early on lead release; judged only as trunk)",
+    "commit_free_gb": 105.4,
+    "c_disk": "HOLD C: sent 07:20Z to the four C: builders",
+    "landed_today": {
+     "SMB-PR-EXPORT-RECIPE-1": "8712fa23",
+     "SMB-VK-UI-PASS-1 hook": "42e9e5a4",
+     "steward F-R60-1": "5d020939",
+     "SMB-ARTBOARD-EXPORT-1": "35c50d3b"
+    }
    }
   }
  },
