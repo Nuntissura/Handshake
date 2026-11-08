@@ -3108,6 +3108,86 @@
       "compiler_or_writer_grant": false,
       "original_acceptance": "OPEN",
       "limit": "Minimum scope metadata for a bugfix in the existing diagnostics module. One path is appended to each existing path list and one Source record is added. No new module, asset, backend feature, maintenance unit, MT, public command or approval gate. No lease or grant to write, compile or run. All prior owners, picos, statuses, acceptance, HBR and external-module source-first gates remain unchanged."
+    },
+    {
+      "candidate": "handpick-native-library-runtime-20261108-01",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "QUALIFIED_EIGHT_HEADLESS_COMPONENT_CASES_PASSED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "acquisition": {
+        "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-codegen-20261108-01/result.json",
+        "result_sha256": "3f8ac76ae10e895712ad020ff0b7320d2bf270c553458d6504ba0a446444fa48",
+        "executable_sha256": "05d72616a519cd1ea8445ffb232252aef73ec768dabc3c5498c2bbcbbf6db966",
+        "qualified": true
+      },
+      "execution": {
+        "admitted_binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-runtime-admission-20261108-01/handpick-native-library-runtime-binding-admitted-01.json",
+        "admitted_binding_sha256": "b684dff186515c6e97f0b4161f9bde881adee610301781782d46e81d5720084b",
+        "family_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-runtime-20261108-01-case08/handpick05-family.json",
+        "family_sha256": "fa45588b2289116772d60f303b51d2f38c2686fd737232b5fc29e95bc2685efb",
+        "completed_case_count": 8,
+        "passed_case_count": 8,
+        "independent_reviewer": "/root/codecheck_cycle27",
+        "independent_verdict": "PASS_8_OF_8_COMPONENT_ONLY"
+      },
+      "original_acceptance": "OPEN",
+      "scope_limit": "Eight exact headless Handpick05 cases. Full application, authenticated persistence, diagnostics, Palmistry and direct Vulkan acceptance require their original independent proof."
+    },
+    {
+      "candidate": "cabinet-native-library-runtime-20261108-01",
+      "state": "QUALIFIED_EIGHT_HEADLESS_CABINET_NATIVE_CASES_PASSED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "owning_selection_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-compile-preparation-20261026-01/gui22-owning-targets-binding-03.json",
+      "owning_selection_sha256": "b34c8c63f42d9999699419c8b8976e3498b7cf145efaf6af5fd4371b2608b8ed",
+      "acquisition": {
+        "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-codegen-20261108-01/result.json",
+        "result_sha256": "3f8ac76ae10e895712ad020ff0b7320d2bf270c553458d6504ba0a446444fa48",
+        "executable_sha256": "05d72616a519cd1ea8445ffb232252aef73ec768dabc3c5498c2bbcbbf6db966",
+        "qualified": true,
+        "reused": true
+      },
+      "execution": {
+        "admitted_binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-library-runtime-admission-20261108-01/cabinet-native-library-runtime-binding-admitted-01.json",
+        "admitted_binding_sha256": "648b668a056b608a48cc2be8892da452cd43391793f97dadeb9e476103448e54",
+        "family_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-library-runtime-20261108-01-case08/cabinet-native-family.json",
+        "family_sha256": "c772a258bbe92116b836814a8365a4c1b1182da75775409c2c34a75492ef7c46",
+        "completed_case_count": 8,
+        "passed_case_count": 8,
+        "independent_reviewer": "/root/codecheck_cycle27",
+        "independent_verdict": "PASS_8_OF_8_COMPONENT_ONLY"
+      },
+      "original_acceptance": "OPEN",
+      "scope_limit": "In-memory ProjectTree and Loom FolderTree, CPU input and typed rename delivery. Actual file I/O, standalone cabinet_host, full GUI, Palmistry and direct Vulkan acceptance require their original independent proof."
+    },
+    {
+      "candidate": "gui22-refresh-integration-codegen-01",
+      "pico_refs": ["GUI-WP012-172-DIAGNOSTICS"],
+      "state": "ACQUISITION_FAILED_RELEASED_REPAIR_PUBLISHED",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui22-refresh-integration-codegen-01/result.json",
+      "result_sha256": "08a74d1ea44763ef9dade113f2e1fc8ed75f6ab6f069d185ccaf32ad8c773780",
+      "release_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui22-refresh-integration-codegen-01/released.json",
+      "release_sha256": "52db08cc4ff803bfa24552bab991f7c1c24f96c39b079f872bf906b5e64dfd30",
+      "failure": "Cargo 101, E0425 at resource_authority.rs:9791. Refresh enables runtime-full without os-keychain. The task-local declaration referenced a type gated on both features.",
+      "repair_commit": "a442a43d5f5e59919f1db9406be752a1ccc0fd93",
+      "source_reviewer": "/root/codecheck_cycle28",
+      "scope_limit": "Static source clearance only. Private job drained naturally and all held handles closed. Cabinet Host and Motion acquisitions did not launch. The two original Refresh runtime cases remain unrun. Any new capture requires scoped admission and current target capacity.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "handpick-bookmark-rim-host-fix-20261108-01",
+      "pico_refs": ["GUI-WP012-search-handpick"],
+      "state": "EXACT_COMPONENT_CASE_FAILED_REPAIR_PUBLISHED",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-handpick-native-library-runtime-20261108-01-case19/result.json",
+      "result_sha256": "5dc7da4c12812c7f4683a78283b074d20d151b9bdde08b786abeedcb2d8269f8",
+      "failure": "bookmark_rim_preserves_header_height_and_accessible_actions exited 101 at the assertion that bookmark hitboxes stay on the rim above the editable text.",
+      "repair_commit": "ee61267e4ce4b7bc3c1bfb91cdd646a3567a530e",
+      "source_reviewer": "/root/codecheck_cycle27",
+      "scope_limit": "The source repair is published and runtime proof of the failed case is pending. The original test and 18 independently verified sibling results remain intact.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
