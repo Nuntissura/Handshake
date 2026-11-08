@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T05:38:24Z",
+ "updated_at": "2026-11-08T05:40:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -22766,6 +22766,47 @@
     "use": "The loader finds the layer machine-wide through the HKLM ExplicitLayers key, so no VK_ADD_LAYER_PATH is needed. A process turns it on with VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation or by naming it at instance creation. VULKAN_SDK and the PATH entry reach only processes started after the install. Lane receipts now say validation: on (VK_LAYER_KHRONOS_validation 1.4.363) instead of validation: absent; O7 (port split, RF-12) and vk_ui_pass_1 go READY only validation-clean. render-gpu (wgpu) keeps validation off by design.",
     "supersedes": "blocker_decisions_20261107.validation_layer ('Absent here ... One question to the Operator: the Vulkan SDK download')"
    }
+  },
+  "resume_20261108": {
+   "at": "2026-11-08T05:40:01Z",
+   "operator_words": [
+    "ok lets continue, i will go to bed, i expect you to resolve blockers and deliberate with your team on questions so you dont have to ask me.",
+    "i am running vox vulgi in the background doing downloads, you are allowed to close it. but only if it is blocking work. in the past there were bugs that made it read and write non stop or hammering the disk trying to access its db. so close it if you see simial behaviour. i am also running chrome but this can not be closed."
+   ],
+   "r60": {
+    "dispatched_at": "2026-11-08T05:45Z",
+    "candidate": "cede5958",
+    "commits_since_r59": 102,
+    "scope": "FULL with canary",
+    "prompt": "validation/dispatch-prompt-R60.txt",
+    "disk": "C:"
+   },
+   "machine_at_dispatch": {
+    "commit_free_gb": 127.0,
+    "commit_limit_gb": 177.9,
+    "df_c_free": "500G",
+    "df_d_free": "1.3T",
+    "builds_running": 0,
+    "d_lock_queue": "empty"
+   },
+   "vox_vulgi": {
+    "processes": "desktop.exe 141544 (started 05:27:43Z), engine.exe 178752 and 129192",
+    "measured_at": "about 05:40Z",
+    "finding": "desktop.exe reads in bursts of 5,000 to 9,000 read operations per second at about 18 MB/s, 6.2 GB read in its first 18 minutes, 0.03 GB written, 0.1 GB private memory; physical C: reads stayed near 15 to 41 per second, so the reads are served from cache; both download engines were idle; later 10 s sample: 0 CPU seconds, C: queue 0.",
+    "decision": "Not blocking work: left running. The R60 validator and the lead re-measure if a C: build slows; it is closed only on measured disk or memory pressure that blocks a build, under the Operator's words of 2026-11-08."
+   },
+   "chrome": "stays open (Operator).",
+   "dispatched": {
+    "SMB-PR-EXPORT-RECIPE-1": "builder: apply review F1..F3, one bundled run on D:, stop at BUNDLED GREEN",
+    "SMB-ARTBOARD-EXPORT-1": "read-only pre-build review of aa68164c..9db105fc",
+    "SMB-PLACE-ASSET-1": "read-only pre-build review of a3215161..9d83222c",
+    "SMB-DRIVE-TYPED-2": "read-only pre-build review of aa68164c..2bbe2207",
+    "SMB-GUI-FRAME-1": "builder: new lane on tree smb-pr-entry-references-1, stop at REVIEW READY",
+    "SMB-VK-UI-PASS-1": "builder: new lane on tree smb-pr-retime-hold-1, compose hook first (HOOK GREEN), item V validation layer, stop at REVIEW READY",
+    "width_lanes": "position and red-team agent rules the open questions of SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1, SMB-PARSER-HOSTILE-1 and re-scopes SMB-SCORE-EFFECTS-6: research/rulings-20261108-width-lanes.json"
+   },
+   "gates": "Builders stop at HOOK GREEN, REVIEW READY and BUNDLED GREEN; the lead resumes them with findings or RELEASED, one landing at a time (workflow item 16).",
+   "targets_inspected": "target_report.py --disk d smb-pr-entry-references-1 smb-pr-retime-hold-1: 66.08 and 61.25 GiB, older binaries 30.59 and 42.75 GiB (later partial-removal candidates, no removal proposed now)."
   }
  },
  "round_R45": {
