@@ -21929,7 +21929,7 @@
    },
    {
     "added_at": "2026-11-07T15:27:13Z",
-    "item": "Real surface and device loss, owner rebind, IME, pen, per-monitor-v2 DPI, validation layer (needs the Vulkan SDK download, pending the Operator)",
+    "item": "Real surface and device loss, owner rebind, IME, pen, per-monitor-v2 DPI, validation layer (Vulkan SDK 1.4.363.1 installed 2026-11-08: direction.lead_rulings_20261108.vulkan_sdk)",
     "owner": "later Vulkan host lanes"
    },
    {
@@ -22678,8 +22678,18 @@
     "at": "2026-11-08T01:33:36Z",
     "operator": "'can you not download the sdk? place it in programs on c' (2026-11-08)",
     "download": "vulkansdk-windows-X64-1.4.363.1.exe from sdk.lunarg.com, 303,066,832 bytes, sha256 c02932bd9a968b22d404536108adaacac908c081cd6b0113f5bfefc523dd0a6a (equals LunarG's published sha), Authenticode Valid, signer LunarG, Inc. (DigiCert G4). Kept in the lead's session scratch folder vulkan-sdk-download; re-download and re-check the sha if that folder is gone.",
-    "install": "Planned: core package only (com.lunarg.vulkan.core: validation layer, spirv-val, vulkaninfo), headless, --root C:\\Program Files\\VulkanSDK\\1.4.363.1, licences accepted (LunarG notice: open-source components, mostly MIT or Apache 2.0). The installer always needs admin (gainAdminRights; writes HKLM Khronos ExplicitLayers, HKLM LunarG and the machine environment), so a per-user folder would raise the same prompt. First attempt: the Windows admin prompt returned 'canceled by the user'; nothing installed. Waiting on the Operator to retry and click Yes.",
-    "no_admin_alternative": "Khronos publishes a Windows layer build only as a nightly: Validation_Layers_Windows_64.zip, 6,361,873 bytes, github.com/KhronosGroup/Vulkan-ValidationLayers releases/nightly (2026-11-07). No spirv-val. Needs its own download approval; loaded per process with VK_ADD_LAYER_PATH, no install."
+    "install": "Done 2026-11-08T04:41:38Z on the Operator's retry ('Retry, I'll click Yes', 2026-11-08): core package only (com.lunarg.vulkan.core: validation layer, spirv-val, vulkaninfo), headless, --root C:\\Program Files\\VulkanSDK\\1.4.363.1, licences accepted (LunarG notice: open-source components, mostly MIT or Apache 2.0). Installer log: 'Components installed successfully', exit 0; it also ran the bundled Vulkan runtime installer (loader). The installer always needs admin (gainAdminRights; writes HKLM Khronos ExplicitLayers, HKLM LunarG and the machine environment). The first attempt (about 01:33Z) returned 'canceled by the user' at the admin prompt and installed nothing.",
+    "no_admin_alternative": "Not needed now that the SDK is installed. Was: Khronos publishes a Windows layer build only as a nightly: Validation_Layers_Windows_64.zip, 6,361,873 bytes, github.com/KhronosGroup/Vulkan-ValidationLayers releases/nightly (2026-11-07). No spirv-val. Needs its own download approval; loaded per process with VK_ADD_LAYER_PATH, no install.",
+    "proof": {
+     "at": "2026-11-08T04:43:11Z",
+     "registry": "HKLM\\SOFTWARE\\Khronos\\Vulkan\\ExplicitLayers lists C:\\Program Files\\VulkanSDK\\1.4.363.1\\Bin\\VkLayer_khronos_validation.json = 0 (enabled), with api_dump, gfxreconstruct, synchronization2, monitor, screenshot, profiles, shader_object and crash_diagnostic.",
+     "environment": "Machine VULKAN_SDK and VK_SDK_PATH = C:\\Program Files\\VulkanSDK\\1.4.363.1; machine PATH starts with its Bin.",
+     "loader": "vulkaninfoSDK --summary: Vulkan Instance Version 1.4.363; layer VK_LAYER_KHRONOS_validation 1.4.363 listed; device NVIDIA GeForce RTX 3090, discrete, driver 621.1.0.0, apiVersion 1.4.357.",
+     "layer_on": "VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation vulkaninfoSDK --summary: exit 0, device listed, no error lines.",
+     "spirv_val": "spirv-val --version: SPIRV-Tools v2026.4 v2026.4-0-gef96ed76."
+    },
+    "use": "The loader finds the layer machine-wide through the HKLM ExplicitLayers key, so no VK_ADD_LAYER_PATH is needed. A process turns it on with VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation or by naming it at instance creation. VULKAN_SDK and the PATH entry reach only processes started after the install. Lane receipts now say validation: on (VK_LAYER_KHRONOS_validation 1.4.363) instead of validation: absent; O7 (port split, RF-12) and vk_ui_pass_1 go READY only validation-clean. render-gpu (wgpu) keeps validation off by design.",
+    "supersedes": "blocker_decisions_20261107.validation_layer ('Absent here ... One question to the Operator: the Vulkan SDK download')"
    }
   }
  },
