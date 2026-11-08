@@ -23011,6 +23011,14 @@
      "steward F-R60-1": "5d020939",
      "SMB-ARTBOARD-EXPORT-1": "35c50d3b"
     }
+   },
+   "trunk_break_35c50d3b": {
+    "at": "2026-11-08T07:38:00Z",
+    "found_by": "SMB-PLACE-ASSET-1 bundled run at 3d97a953 (rebased on 35c50d3b): harness_drive_typed 14/16, the 2 failures in assert_duplicate_identity (harness_drive_typed.rs:418)",
+    "cause_lead_read": "SMB-ARTBOARD-EXPORT-1 2b884024 puts 'svg_export: the document has no artboard' at harness-view view/vector/interop.rs:425 ahead of Folio validation; the drive-typed fixture has no artboard, so the pinned DuplicateIdentity defect is no longer reached",
+    "why_missed": "ARTBOARD's bundled run named harness --test artboard_export only, and its per-sha HEAD~1 (22 units) did not run harness_drive_typed with viewer,media. Lesson for briefs: a lane that changes a Viewer refusal order runs every harness process test that drives that command (harness_drive_typed, and harness_drive* in general).",
+    "fix": "the ARTBOARD builder lands a fixture fix in harness_drive_typed.rs (a board, so the pin still reaches DuplicateIdentity, plus one no-artboard assert); released ahead of the others",
+    "r60": "the attempt-2 validator was told, as a claim to verify, that 35c50d3b carries these 2 failures; the fix is after its freeze"
    }
   }
  },
