@@ -379,7 +379,6 @@ impl MountedNotes {
         tabs.set_clip_rect(rim.intersect(ui.clip_rect()));
         tabs.spacing_mut().button_padding = egui::vec2(3.0, 0.0);
         tabs.spacing_mut().item_spacing.x = 2.0;
-        tabs.spacing_mut().interact_size.y = 0.0;
         tabs.style_mut().text_styles.insert(egui::TextStyle::Button,
             egui::FontId::proportional((rim.height() * 0.65).min(11.0)));
         egui::ScrollArea::horizontal()
@@ -388,7 +387,7 @@ impl MountedNotes {
             .max_height(rim.height())
             .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
             .show(&mut tabs, |ui| {
-                ui.horizontal(|ui| self.bookmarks(ui, workspace, base, account));
+                ui.horizontal_centered(|ui| self.bookmarks(ui, workspace, base, account));
             });
     }
 
