@@ -4157,6 +4157,173 @@
       "runtime_run": false,
       "formal_acquisition": "OPEN",
       "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-host-seven-components-and-core-classifier-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "EIGHT_COMPONENT_CASES_INDEPENDENTLY_QUALIFIED",
+      "published_live_source_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "cabinet_acquisition_source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "cabinet_source_equivalence": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-current-source-equivalence-dx-review-20261110-01/cabinet-host-source-equivalence-dx-01.json",
+        "sha256": "a3d2e7278997c8a981fa1d118d21774c9fa023a750f79f8bdbcb7c1e64e718c0"
+      },
+      "core_diagnostic_warm_acquisition": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-20261110-01/result.json",
+          "sha256": "0946171271923c9130dff43431a66ff045118ef7e88318be96ae8aa4095bd55c"
+        },
+        "independent_acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+            "sha256": "c714467d11a738e47a08d2d9345e48ac4a41011a12d43b2c103e7255619e91fd"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-codecheck-20261110-01/core-session-query-diagnostic-acquisition-review-cc-01.json",
+            "sha256": "e5cba4d9fc4acb94e33b3e6bd3d9a3a236ab094d2219ad48dcae5aee346b7e23"
+          }
+        ]
+      },
+      "component_cases": [
+        {
+          "case_id": "GUI22-CASE-11",
+          "selector": "tests::stale_epoch_and_sequence_cannot_settle_the_bound_read",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case11/result.json",
+            "sha256": "6defc8de1af4ecd78177dd265dde14d860dad7c66fda34dc8944b4b1b8b2b2ab"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case11/released.json",
+            "sha256": "ec2aee28c52921629b3c1907f9f079732d5ccfdb22df5a9d0738fb7624e4c9c6"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case11/case-completion.json",
+            "sha256": "e0efd682cc71396570d0dfa70ce6484a6c861443f5bb290c268b029b414cf1bb"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-12",
+          "selector": "tests::write_terminal_requires_a_later_canonical_marker_to_release_custody",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case12/result.json",
+            "sha256": "17281550d0bb04edf58fa9590bbfc48846c5e511c67d6a177693c864e5a607a1"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case12/released.json",
+            "sha256": "29947e2feb62481a3fb8b92ead17ee6a80214ce5daeb9daef909101b5db59920"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case12/case-completion.json",
+            "sha256": "2221785a4f6da0104767b43c32e5411231d6d80dd2cb21924af531033558c1cd"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-13",
+          "selector": "tests::failed_read_replacement_and_expansion_retain_the_original_host_read",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case13/result.json",
+            "sha256": "272ad7132089bf683fa917692546f6fde50920a2b86cc31a252cd054df1d6ae6"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case13/released.json",
+            "sha256": "e135fb0b991eaa0ae23018ff98300232f0d26f81a70025d863e4440a454b58f6"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case13/case-completion.json",
+            "sha256": "50ad6785ce2f2a1a102c708fe0ab54b743e81626f50fd5a6dbe0db4f0a1c3a47"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-14",
+          "selector": "tests::successful_read_replacement_retires_only_the_local_old_binding",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case14/result.json",
+            "sha256": "479afc6350aa61102b6cefd45021854f0f94e71757212740951d5f0306ae8c11"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case14/released.json",
+            "sha256": "cd0df761c1d4b26c0691fcdb2aa396bb4ec0b8a09af9f13a86808812b7bf3ccd"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case14/case-completion.json",
+            "sha256": "f564e34011e12439ceb34ae2644e2dca4690e537f9fa06983c8f56d81441d8fc"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-15",
+          "selector": "tests::cloning_a_host_never_duplicates_projection_or_dispatched_ownership",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case15/result.json",
+            "sha256": "64e2ed6cfdd98ed0145fec49ab88524f22fce7780043865148b94afbc30e4c52"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case15/released.json",
+            "sha256": "757bcf100c10ab2bbca3b570d0b297cd806f999e5a99c87a2e660ec9906b1e1b"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case15/case-completion.json",
+            "sha256": "afde85396ea8125ed5b91113948d546e54795f159f9cdb2d5a3f6f1a31b5bc37"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-16",
+          "selector": "tests::projection_restore_arrow_expansion_and_label_read_remain_distinct",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case16/result.json",
+            "sha256": "e980dae5e9290535fe8589ce6e741ad15227f050d03c3839f794ca9f24bce027"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case16/released.json",
+            "sha256": "b65114425a70b8e1a50baf6b1c897a86453b79a51b3003170bcd7649ab1db2c0"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case16/case-completion.json",
+            "sha256": "e757c6f5569e043699685aafae0ea47f221b1d7248525ac62993eb7573e1f76e"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-17",
+          "selector": "tests::controlled_drafts_keep_kind_text_and_error_visibility",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case17/result.json",
+            "sha256": "220f725082f230b32acb9513ca764f9b4b65acbec35dfcbe857d5030cf68b40b"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case17/released.json",
+            "sha256": "fa2de2c3352f4b75377a415790f9c7e1e8376c0191f0a26c8a898d661fb15d59"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case17/case-completion.json",
+            "sha256": "15ccad41892e984fe8197ad00353bfdda4ace8fcbdfd87d17bb1078e82f77bf5"
+          }
+        },
+        {
+          "case_id": "CORE-SESSION-QUERY-CLASSIFIER-001",
+          "selector": "storage::surreal::local_accounts::tests::session_query_check_error_details_use_fixed_labels",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-classifier-runtime-20261110-01/result.json",
+            "sha256": "efa1a0ed2d2a7edd1a1468cf8d3e63e142e747684bfefd74d47632ee5f8a8158"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-classifier-runtime-20261110-01/released.json",
+            "sha256": "b39b31b867c3cd8041afa109843956c0226efb1d8bcd7bac630022ce27ae6a37"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-classifier-runtime-20261110-01/case-completion.json",
+            "sha256": "d9a91a5b4ec1d37e991b9e7678ffcaaa0eb01788b204df4d9c6e3c97de063c98"
+          }
+        }
+      ],
+      "independent_component_review": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-and-session-classifier-component-codecheck-20261110-01/eight-component-results-review-cc-01.json",
+        "sha256": "4b3a3affc84c6a7569623dfa85f47a82c9a857fed79d70f7046de759ded15760"
+      },
+      "result_scope": "Seven standalone Cabinet Host State cases and one fixed-label classifier only. Each exact body passed once, complete resource observation and clean checked custody. Original MT022 live authenticated exchange and original GUI/Vulkan/Palmistry remain open.",
+      "follow_on": "The currently published embedded storage test can isolate the same query beneath HTTP with synthetic Owner data. Historical MT109 earlier failures and storage pass do not prove current source; previous MT022 and MT174 executions remain spent. Any distinct current diagnostic requires exact short private fixture/resource scope, fresh reviewed admission and retention of credential-safe evidence. No runtime grant here.",
+      "original_acceptance": "UNCHANGED",
+      "final_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
