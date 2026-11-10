@@ -985,6 +985,7 @@ pub struct HandpickHost {
     due: Option<std::time::Instant>,
     error: Option<String>,
     open: bool,
+    results_presentation: Option<(egui::Context, egui::ViewportId, u64)>,
     exhausted: bool,
     skip_focus_open: bool,
     lookup_from_notes: bool,
@@ -1363,6 +1364,9 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     notes_mount: &crate::editor_pane_factories::RichEditorPaneMount) -> (RailFrame, Option<Hit>) {
     host.observations = observations;
     host.bind(ctx, workspace, account, base);
+    let results_were_presented = host.results_presentation.take().is_some_and(|(context, viewport, frame)|
+        &context == ctx && viewport == ctx.viewport_id()
+            && frame.checked_add(1) == Some(ctx.cumulative_frame_nr()));
     host.observations = observations;
     host.drain();
     host.notes.prepare(ctx, workspace, host.account.as_ref(), base, current_note,
@@ -1379,10 +1383,11 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
             if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, key)) { host.picker.move_selection(delta); }
         }
     }
-    if let Some(text) = host.notes.take_selected_query(ctx, composing) {
+    let selected_query = host.notes.take_selected_query(ctx, composing);
+    if let Some(text) = &selected_query {
         ctx.data_mut(|data| {
             let mut state = data.get_temp::<RailUiState>(state_id()).unwrap_or_default();
-            state.query = text;
+            state.query = text.clone();
             state.project_shortcut = false;
             data.insert_temp(state_id(), state);
         });
@@ -1393,6 +1398,7 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     }
     host.notes.prepare_search_button(ctx, composing);
     let mut expand_id = None;
+    let mut notes_close_rect = None;
     let header = egui::TopBottomPanel::top("handshake_handpick_header")
         .resizable(false).show(ctx, |ui| {
             let field = egui::Frame::new().fill(view.colors.inactive_pill_bg)
@@ -1412,8 +1418,27 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                                 ctx.accesskit_node_builder(attach.id, |node| node.set_author_id("handpick.notes.attach-current"));
                                 if attach.clicked() { host.notes.request_attach_current(); ui.close(); }
                             });
-                        host.notes.controls(ui, workspace, host.account.as_ref(), base, composing);
-                        show_with_composition(ui, view, composing)
+                        let (closed, close_rect) = host.notes.controls(ui, workspace, host.account.as_ref(), base, composing);
+                        notes_close_rect = close_rect;
+                        let mut frame = show_with_composition(ui, view, composing);
+                        if closed {
+                            let scope = ctx.data_mut(|data| {
+                                let mut state = data.get_temp::<RailUiState>(state_id()).unwrap_or_default();
+                                state.query.clear();
+                                state.project_shortcut = false;
+                                let scope = state.active_scope;
+                                data.insert_temp(state_id(), state);
+                                scope
+                            });
+                            frame.literal.clear();
+                            frame.query = parse_rail_query(&frame.literal, scope);
+                            frame.input_changed = true;
+                            frame.select_current = false;
+                            frame.outcome = RailOutcome::Clear;
+                            host.lookup_from_notes = false;
+                            ctx.request_repaint();
+                        }
+                        frame
                     }).inner;
                     host.notes.body(ui, notes_mount);
                     frame
@@ -1465,7 +1490,19 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
             if let Some(response) = ctx.read_response(id) { response.on_hover_text(message); }
         }
     }
+    let input_replaced = frame.input_changed || !host.input_seen;
     host.replace_input(&frame);
+    let source_form = host.session.as_ref()
+        .filter(|session| session.draft() == frame.literal.as_str())
+        .and_then(|session| match session.input_state(&session.fence(), frame.composing) {
+            Ok(handpick::InputState::Source { form, .. }) => Some(form),
+            _ => None,
+        });
+    let source_activate = source_form.is_some() && frame.select_current;
+    if source_form.is_some() && input_replaced
+        && selected_query.as_deref() != Some(frame.literal.as_str()) {
+        host.due = None;
+    }
     if let Some(error) = writing_search_error {
         host.due = None;
         host.error = Some(error);
@@ -1478,6 +1515,7 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     let skip_focus_open = std::mem::take(&mut host.skip_focus_open);
     if frame.focused && !skip_focus_open && !frame.literal.trim().is_empty() { host.open = true; }
     let mut picked = None;
+    let mut escape_dismissed = false;
     if host.open && !frame.composing && !native_popup_open && !notes_completion_open && !egui::Popup::is_any_open(ctx) {
         if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             host.open = false;
@@ -1486,6 +1524,7 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                 host.notes.focus_editor();
                 ctx.request_repaint();
             } else { ctx.memory_mut(|memory| memory.request_focus(input_id)); }
+            escape_dismissed = true;
         }
     }
     if matches!(&frame.outcome, RailOutcome::Clear) {
@@ -1500,7 +1539,10 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                     && crate::quick_switcher::resolve_open_target(hit).enabled()).cloned();
             }
         }
-        if picked.is_none() && host.command_action.is_none() { host.restart(ctx, runtime, &frame.literal); host.open = true; }
+        if picked.is_none() && host.command_action.is_none() && !source_activate {
+            host.restart(ctx, runtime, &frame.literal);
+            host.open = true;
+        }
     }
     if !frame.composing && host.due.is_some_and(|due| std::time::Instant::now() >= due) {
         host.request(ctx, runtime, &frame.literal);
@@ -1514,6 +1556,7 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
         ctx.accesskit_node_builder(input_id, |node| node.set_description(message));
         if let Some(response) = ctx.read_response(input_id) { response.on_hover_text(message); }
     }
+    let mut results_presented = false;
     if let (true, Some(popup_height)) = (show_popup, popup_height) {
         let popup = egui::Area::new(egui::Id::new("handpick.results"))
             .order(egui::Order::Foreground).fixed_pos(popup_anchor).constrain(false)
@@ -1526,13 +1569,16 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                 });
                 egui::ScrollArea::vertical().min_scrolled_height(0.0).max_height(popup_height)
                     .show(ui, |ui| {
-                        if let Some(session) = &host.session {
-                            if let Ok(handpick::InputState::Source { form, .. }) = session.input_state(&session.fence(), frame.composing) {
-                                ui.label(match form { handpick::SourceForm::Prefix => "Source address prefix", handpick::SourceForm::Url => "Source address" });
-                                let source = ui.add_enabled(false, egui::Button::new("Add source"));
-                                ctx.accesskit_node_builder(source.id, |node| node.set_author_id("handpick.source.add"));
-                                source.on_hover_text("The native source-management owner is not bound to this header");
-                            }
+                        if let Some(form) = source_form {
+                            ui.label(match form { handpick::SourceForm::Prefix => "Source address prefix", handpick::SourceForm::Url => "Source address" });
+                            let source = ui.add_enabled(false, egui::Button::new("Add source"));
+                            let unavailable = "Adding sources is unavailable here. Your text is retained.";
+                            ctx.accesskit_node_builder(source.id, |node| {
+                                node.set_author_id("handpick.source.add");
+                                node.set_description(unavailable);
+                            });
+                            source.on_disabled_hover_text(unavailable);
+                            ui.label(unavailable);
                         }
                         if host.task.is_some() || host.due.is_some() { ui.label("Searchingâ€¦"); }
                         if let Some(error) = &host.error {
@@ -1608,16 +1654,33 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                             ui.small("Offset pages have no snapshot revision. Concurrent changes can require a new search.");
                         }
                     });
+                results_presented = ui.is_rect_visible(ui.min_rect());
             })).response;
         if ctx.input(|input| input.pointer.any_pressed()) && !popup.contains_pointer()
-            && !frame.anchor.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO))) {
+            && !frame.anchor.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO)))
+            && !notes_close_rect.is_some_and(|rect|
+                rect.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO)))) {
             host.open = false;
             host.lookup_from_notes = false;
         }
     }
-    if !host.account.as_ref().is_some_and(|account| account.is_active()) { picked = None; }
+    if !host.account.as_ref().is_some_and(|account| account.is_active()) {
+        if picked.is_some() && host.observations {
+            record_gui_observation(GuiOp::HandpickNavigation, GuiPhase::Rejected);
+        }
+        picked = None;
+    }
     if picked.is_some() || host.command_action.is_some() { host.open = false; }
+    if escape_dismissed && !host.open && host.observations && results_were_presented {
+        record_gui_observation(GuiOp::HandpickNavigation, GuiPhase::Dismissed);
+    }
+    if host.open && results_presented {
+        host.results_presentation = Some((ctx.clone(), ctx.viewport_id(), ctx.cumulative_frame_nr()));
+    }
     ctx.accesskit_node_builder(input_id, |node| node.set_expanded(host.open));
+    if source_activate && matches!(&frame.outcome, RailOutcome::Fire(_)) {
+        frame.outcome = RailOutcome::None;
+    }
     host.fence_legacy_intent(&mut frame);
     (frame, picked)
 }
@@ -1858,6 +1921,86 @@ mod handpick_boundary_tests {
             assert!(input.width() >= 64.0 && input.left() >= 0.0);
             assert!(input.right() <= clear.left() && clear.right() <= loom.left());
             assert!(loom.right() <= search.left() && search.right() <= width);
+        }
+    }
+
+    #[test]
+    fn mounted_source_input_requires_explicit_lookup_and_preserves_search_and_loom() {
+        use crate::editor_pane_factories::{EditorSessionContext, RichEditorPaneMount, RichPaneEvents};
+        use crate::rich_editor::{document_model::node::BlockNode, renderer::rich_editor_widget::RichEditorState};
+        // Observe real dispatch handles without polling HTTP or starting a backend.
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        for (literal, source) in [("https://example.com", true), ("mod.rs", true), ("www.", true),
+            ("\"https://example.com\"", false)] {
+            let ctx = egui::Context::default();
+            let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(Vec::new()))));
+            let mount = RichEditorPaneMount::new(state, Arc::new(Mutex::new(EditorSessionContext::default())),
+                RichPaneEvents::default(), "unbound-component-note");
+            let store = mount.document_store();
+            let base = "http://127.0.0.1:9911";
+            let account = crate::local_account::mock_account_context(base);
+            let mut host = HandpickHost::default();
+            host.bind(&ctx, "workspace", Some(account.clone()), base);
+            ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+                query: literal.into(), ..Default::default()
+            }));
+            let render = |host: &mut HandpickHost, events: Vec<egui::Event>| {
+                let mut output = None;
+                let _ = ctx.run(egui::RawInput { focused: true, events, screen_rect: Some(
+                    egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 480.0))),
+                    ..Default::default() }, |ctx| {
+                    output = Some(show_header(ctx, RailView { has_workspace: true, colors: RailVisuals {
+                        active_pill_bg: egui::Color32::BLUE, inactive_pill_bg: egui::Color32::GRAY,
+                        text: egui::Color32::WHITE, accent: egui::Color32::LIGHT_BLUE,
+                    } }, host, "workspace", Some(account.clone()), Some(runtime.handle()), base, false,
+                        None, &store, &mount));
+                });
+                output.unwrap()
+            };
+            let (initial, _) = render(&mut host, Vec::new());
+            assert_eq!(initial.literal, literal);
+            assert!(host.admitted_query(literal).is_some());
+            if source {
+                assert!(host.due.is_none() && host.task.is_none());
+            } else {
+                assert!(host.due.is_some() || host.task.is_some(), "quoted URL keeps ordinary lookup");
+            }
+            let input_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
+            ctx.memory_mut(|memory| memory.request_focus(input_id));
+            let (entered, _) = render(&mut host, vec![egui::Event::Key {
+                key: egui::Key::Enter, physical_key: None, pressed: true,
+                repeat: false, modifiers: egui::Modifiers::NONE,
+            }]);
+            assert!(entered.select_current, "the actual input must receive Activate");
+            if source {
+                assert!(matches!(entered.outcome, RailOutcome::None));
+                assert!(host.due.is_none() && host.task.is_none());
+            } else {
+                assert!(matches!(entered.outcome, RailOutcome::Fire(_)));
+                assert!(host.task.is_some());
+            }
+            render(&mut host, vec![egui::Event::Key {
+                key: egui::Key::Enter, physical_key: None, pressed: false,
+                repeat: false, modifiers: egui::Modifiers::NONE,
+            }]);
+            for id in [egui::Id::new("handpick.search"),
+                unsafe { egui::Id::from_high_entropy_bits(RAIL_LOOM_NODE_ID) }] {
+                let prior = host.task.as_ref().map(tokio::task::JoinHandle::id);
+                let pos = ctx.read_response(id).unwrap().rect.center();
+                for pressed in [true, false] {
+                    let (submitted, _) = render(&mut host, vec![egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton { pos, button: egui::PointerButton::Primary,
+                            pressed, modifiers: egui::Modifiers::NONE }]);
+                    if !pressed {
+                        assert!(!submitted.select_current);
+                        assert!(matches!(submitted.outcome, RailOutcome::Fire(_)));
+                        let next = host.task.as_ref().map(tokio::task::JoinHandle::id);
+                        assert!(next.is_some() && next != prior,
+                            "each explicit Search/Loom click starts its own dispatch");
+                        assert_eq!(submitted.literal, literal);
+                    }
+                }
+            }
         }
     }
 

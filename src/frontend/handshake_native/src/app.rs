@@ -6348,6 +6348,7 @@ pub struct HandshakeApp {
     settings_open: bool,
     engine_profiles: crate::settings_dialog::EngineProfilesSettingsState,
     engine_profiles_response: Option<PendingEngineProfileResponse>,
+    operator_chat_inventory_refresh: Option<crate::operator_chat_pane::EngineProfileInventoryRefresh>,
     swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState,
     swarm_concurrency_epoch: u64,
     swarm_concurrency_pending: Option<(u64, String, Arc<crate::local_account::AuthenticatedContext>, crate::backend_client::SwarmConcurrencyCell)>,
@@ -8530,6 +8531,7 @@ impl HandshakeApp {
             settings_open: false,
             engine_profiles: crate::settings_dialog::EngineProfilesSettingsState::default(),
             engine_profiles_response: None,
+            operator_chat_inventory_refresh: None,
             swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(),
             swarm_concurrency_epoch: 0,
             swarm_concurrency_pending: None,
@@ -13577,6 +13579,7 @@ impl HandshakeApp {
             settings_open: false,
             engine_profiles: crate::settings_dialog::EngineProfilesSettingsState::default(),
             engine_profiles_response: None,
+            operator_chat_inventory_refresh: None,
             cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
             swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(),
             swarm_concurrency_epoch: 0,
@@ -20479,15 +20482,15 @@ impl HandshakeApp {
                 ),
             )),
         );
-        self.factories.insert(
-            PaneType::OperatorChatLaunch,
-            Box::new(crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(
-                Arc::new(
-                    crate::backend_client::OperatorChatClient::new(base_url, handle.clone())
-                        .with_authenticated_context(self.local_account.context.clone()),
-                ),
-            )),
+        let operator_chat = crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(
+            Arc::new(
+                crate::backend_client::OperatorChatClient::new(base_url, handle.clone())
+                    .with_authenticated_context(self.local_account.context.clone()),
+            ),
         );
+        self.operator_chat_inventory_refresh = self.local_account.context.as_ref()
+            .and_then(|account| operator_chat.inventory_refresh_handle(account.clone()));
+        self.factories.insert(PaneType::OperatorChatLaunch, Box::new(operator_chat));
         self.workspace_activation.invalidate();
         self.refresh_mcp_durability_binding(base_url);
         self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);
@@ -21300,10 +21303,17 @@ impl HandshakeApp {
             }
         }
         if let Some(hit) = picked.filter(|_| {
-            self.local_account
+            let active = self.local_account
                 .context
                 .as_ref()
-                .is_some_and(|account| account.is_active())
+                .is_some_and(|account| account.is_active());
+            if !active && !self.capturing_snapshot {
+                crate::diagnostics::gui_events::record_gui_observation(
+                    crate::diagnostics::gui_events::GuiDiagnosticOperation::HandpickNavigation,
+                    crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected,
+                );
+            }
+            active
         }) {
             let target = crate::quick_switcher::resolve_open_target(&hit);
             self.nav_pending_label = Some(hit.title);
@@ -23952,7 +23962,8 @@ impl HandshakeApp {
         request: Option<crate::backend_client::EngineProfileMutationRequestV1>,
     ) {
         use crate::diagnostics::gui_events::{record_gui_observation, GuiDiagnosticOperation as GuiOp, GuiDiagnosticPhase as GuiPhase};
-        let operation = if request.is_some() { GuiOp::EngineProfileMutation } else { GuiOp::EngineProfileRefresh };
+        let mutation = request.is_some();
+        let operation = if mutation { GuiOp::EngineProfileMutation } else { GuiOp::EngineProfileRefresh };
         let Some(account) = self.local_account.context.clone()
             .filter(|account| account.is_active())
         else {
@@ -23987,7 +23998,7 @@ impl HandshakeApp {
             client.fetch_engine_profiles(&self.active_project_id, cell.clone());
         }
         self.engine_profiles_response = Some(PendingEngineProfileResponse {
-            token, workspace_id: self.active_project_id.clone(), account, cell,
+            token, workspace_id: self.active_project_id.clone(), account, cell, mutation,
         });
         if !self.capturing_snapshot { record_gui_observation(operation, GuiPhase::Pending); }
     }
@@ -24019,7 +24030,12 @@ impl HandshakeApp {
         let delivered = pending.cell.try_lock().ok().and_then(|mut cell| cell.take());
         if let Some(result) = delivered {
             if let Some(pending) = self.engine_profiles_response.take() {
-                self.engine_profiles.complete(&pending.token, result);
+                let applied = self.engine_profiles.complete(&pending.token, result);
+                if applied && pending.mutation && !self.capturing_snapshot {
+                    if let Some(refresh) = &self.operator_chat_inventory_refresh {
+                        refresh.refresh(&pending.workspace_id, &pending.account);
+                    }
+                }
             }
             ctx.request_repaint();
         } else {
@@ -43687,6 +43703,7 @@ mod local_account_workspace_tests {
 }
 
 struct PendingEngineProfileResponse {
+    mutation: bool,
     token: crate::settings_dialog::EngineProfileUiToken,
     workspace_id: String,
     account: Arc<crate::local_account::AuthenticatedContext>,

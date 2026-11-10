@@ -687,7 +687,9 @@ impl MountedNotes {
     pub(super) fn controls(
         &mut self, ui: &mut egui::Ui, workspace: &str,
         account: Option<&Arc<crate::local_account::AuthenticatedContext>>, base: &str, frame_composing: bool,
-    ) {
+    ) -> (bool, Option<egui::Rect>) {
+        let mut closed = false;
+        let mut close_rect = None;
         let active = self.active();
         let composing = frame_composing || active.as_ref().is_some_and(|handle|
             handle.editor.lock().is_ok_and(|state| state.preedit.is_active()));
@@ -712,22 +714,31 @@ impl MountedNotes {
         }
         if active.is_some() {
             let close = ui.add_enabled(!composing, egui::Button::new("Close"));
+            close_rect = Some(close.rect);
             ui.ctx().accesskit_node_builder(close.id, |node| node.set_author_id("handpick.notes.close"));
             if close.clicked() {
-                let result = self.core.as_mut().ok_or_else(|| "Notes session unavailable".to_owned())
-                    .and_then(|core| core.close_quicknote(&core.fence().map_err(|error| error.to_string())?)
-                        .map_err(|error| error.to_string()));
+                let result = active.as_ref().ok_or_else(|| "Notes editor unavailable".to_owned())
+                    .and_then(|handle| {
+                        let authority = handle.authority.lock().map_err(|_| "Notes editor unavailable".to_owned())?;
+                        if authority.save.as_ref().is_some_and(|save| save.is_saving() || save.requires_recovery()) {
+                            return Err("Wait for the pending save or recover it before closing".to_owned());
+                        }
+                        self.core.as_mut().ok_or_else(|| "Notes session unavailable".to_owned())
+                            .and_then(|core| core.close_quicknote(&core.fence().map_err(|error| error.to_string())?)
+                                .map_err(|error| error.to_string()))
+                    });
                 self.observe(if matches!(result, Ok(handpick::QuicknoteClose::Closed)) {
                     crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted
                 } else { crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected });
                 match result {
-                    Ok(handpick::QuicknoteClose::Closed) => {}
+                    Ok(handpick::QuicknoteClose::Closed) => closed = true,
                     Ok(handpick::QuicknoteClose::NeedsSaveOrPin) =>
                         self.error = Some("Save or bookmark the current edit before closing".into()),
                     Err(error) => self.error = Some(error),
                 }
             }
         }
+        (closed, close_rect)
     }
 
     fn request_save(&mut self, workspace: &str,
@@ -901,6 +912,119 @@ mod tests {
         notes.surface = Some(MountedSurface { editor: editor_id, view_id: "view".into(), document_id: "note".into(),
             response: surface.unwrap() });
         notes
+    }
+
+    #[test]
+    fn header_close_clears_only_after_acceptance_and_retires_old_delivery() {
+        use super::super::{HandpickHost, RailOutcome, RailUiState, RailView, RailVisuals,
+            SearchScope, show_header, state_id};
+        use crate::editor_pane_factories::{EditorSessionContext, RichEditorPaneMount, RichPaneEvents};
+        for (bookmarked, ime, saving, literal) in [(true, false, false, "needle"),
+            (true, false, false, ""), (false, false, false, "needle"),
+            (true, true, false, "needle"), (true, false, true, "needle")] {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let base = "http://127.0.0.1:9911";
+            let account = crate::local_account::mock_account_context(base);
+            let mut host = HandpickHost::default();
+            host.bind(&ctx, "workspace", Some(account.clone()), base);
+            let state = Arc::new(Mutex::new(RichEditorState::new(
+                crate::rich_editor::document_model::node::BlockNode::doc(Vec::new()))));
+            let mount = RichEditorPaneMount::new(state,
+                Arc::new(Mutex::new(EditorSessionContext::default())), RichPaneEvents::default(), "note");
+            let store = mount.document_store();
+            let editor = store.state_for_view(Some("note"), "view");
+            editor.lock().unwrap().document_owner()
+                .bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+            let editor_id = handpick::EditorId::new("editor").unwrap();
+            let mut core = session();
+            core.bind(editor_id.clone(), 0).unwrap();
+            core.expand().unwrap();
+            host.notes.core = Some(core);
+            host.notes.editors.insert(editor_id, NoteHandle { document_id: "note".into(),
+                view_id: "view".into(), editor: editor.clone(), authority: editor.clone() });
+            ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+                query: literal.into(), active_scope: SearchScope::Trace, ..Default::default()
+            }));
+            let draw = |host: &mut HandpickHost, events| {
+                let mut frame = None;
+                let output = ctx.run(egui::RawInput { focused: true, events,
+                    screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO,
+                        egui::vec2(1280.0, 800.0))), ..Default::default() }, |ctx| {
+                    frame = Some(show_header(ctx, RailView { has_workspace: true, colors: RailVisuals {
+                        active_pill_bg: egui::Color32::BLUE, inactive_pill_bg: egui::Color32::GRAY,
+                        text: egui::Color32::WHITE, accent: egui::Color32::LIGHT_BLUE,
+                    } }, host, "workspace", Some(account.clone()), None, base, false,
+                        None, &store, &mount).0);
+                });
+                (frame.unwrap(), output)
+            };
+            let (_, output) = draw(&mut host, Vec::new());
+            let close_id = output.platform_output.accesskit_update.unwrap().nodes.iter()
+                .find(|(_, node)| node.author_id() == Some("handpick.notes.close")).unwrap().0;
+            let close = ctx.read_response(unsafe { egui::Id::from_high_entropy_bits(close_id.0) }).unwrap().rect.center();
+            if bookmarked {
+                let core = host.notes.core.as_mut().unwrap();
+                core.bookmark(&core.fence().unwrap(), handpick::PinId::new("retained").unwrap()).unwrap();
+            }
+            assert!(host.notes.core.as_ref().unwrap().committed_note().is_none());
+            if saving {
+                use crate::rich_editor::save::save_manager::{ReqwestSaveBackend, SaveManager, SaveState};
+                let mut save = SaveManager::new(Arc::new(ReqwestSaveBackend::new(base)), None, "note", 0);
+                save.state = SaveState::Saving { expected_version: 0 };
+                editor.lock().unwrap().save = Some(save);
+                assert!(host.notes.core.as_ref().unwrap().pending_save().is_none());
+            }
+            host.rows.push(super::super::Hit { result_kind: "loom_block".into(),
+                source_kind: "loom_block".into(), ref_id: "prior".into(), title: "Prior result".into(),
+                excerpt: String::new(), block: serde_json::Value::Null, score: 1.0,
+                metadata: serde_json::Value::Null });
+            host.open = true;
+            host.lookup_from_notes = true;
+            host.due = Some(std::time::Instant::now() + std::time::Duration::from_secs(60));
+            let due = host.due;
+            let delivery = host.delivery.clone();
+            for pressed in [true, false] {
+                let mut events = vec![egui::Event::PointerMoved(close), egui::Event::PointerButton {
+                    pos: close, button: egui::PointerButton::Primary, pressed,
+                    modifiers: egui::Modifiers::NONE,
+                }];
+                if ime { events.push(egui::Event::Ime(egui::ImeEvent::Preedit("preedit".into()))); }
+                let (frame, _) = draw(&mut host, events);
+                let state = ctx.data_mut(|data| data.get_temp::<RailUiState>(state_id())).unwrap();
+                assert_eq!(state.active_scope, SearchScope::Trace);
+                assert_eq!(frame.query.scope, SearchScope::Trace);
+                if !pressed && bookmarked && !ime && !saving {
+                    assert!(matches!(frame.outcome, RailOutcome::Clear));
+                    assert!(frame.literal.is_empty() && state.query.is_empty());
+                    assert!(frame.input_changed && !frame.select_current);
+                    assert!(!host.open && !host.lookup_from_notes && host.due.is_none());
+                    assert!(host.rows.is_empty() && !Arc::ptr_eq(&delivery, &host.delivery));
+                    assert!(host.notes.core.as_ref().unwrap().editor().is_none());
+                } else {
+                    assert!(!matches!(frame.outcome, RailOutcome::Clear));
+                    assert_eq!(frame.literal, literal);
+                    assert_eq!(state.query, literal);
+                    assert!(host.open && host.lookup_from_notes);
+                    assert_eq!(host.rows.len(), 1);
+                    assert_eq!(host.due, due);
+                    assert!(Arc::ptr_eq(&delivery, &host.delivery));
+                    assert!(host.notes.core.as_ref().unwrap().editor().is_some());
+                }
+            }
+            if !bookmarked {
+                assert_eq!(host.notes.error.as_deref(), Some("Save or bookmark the current edit before closing"));
+            } else if saving {
+                assert_eq!(host.notes.error.as_deref(), Some("Wait for the pending save or recover it before closing"));
+                assert!(editor.lock().unwrap().save.as_ref().unwrap().is_saving());
+            } else if ime {
+                assert!(host.notes.error.is_none());
+            }
+            if bookmarked {
+                assert_eq!(host.notes.core.as_ref().unwrap().bookmarks().len(), 1);
+                assert!(host.notes.editors.values().any(|handle| Arc::ptr_eq(&handle.editor, &editor)));
+            }
+        }
     }
 
     #[test]

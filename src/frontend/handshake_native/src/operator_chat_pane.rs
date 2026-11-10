@@ -423,6 +423,7 @@ struct OperatorChatUiState {
     transcript: Vec<TranscriptRow>,
     error: Option<String>,
     pending_models: bool,
+    profile_inventory_stale: bool,
     pending_selection: Option<PendingSelection>,
     pending_launch: bool,
     pending_launch_request: Option<PendingLaunch>,
@@ -491,7 +492,13 @@ impl OperatorChatUiState {
         }
     }
 
+    fn selection_is_ready_to_launch(&self, selected: &OperatorChatLaunchSelection) -> bool {
+        (selected.lane_kind != "local" || !self.profile_inventory_stale)
+            && self.selection_is_canonical_and_available(selected)
+    }
+
     fn reconcile_with_refreshed_inventory(&mut self, inventory: OperatorChatModelInventory) {
+        self.profile_inventory_stale = false;
         self.inventory = inventory;
         let mut invalidated = Vec::new();
         if self.selected_owner_session_id.is_some()
@@ -590,6 +597,27 @@ struct LaunchRecoveryEntry {
     returned: Option<OperatorChatLaunched>,
 }
 
+pub(crate) struct EngineProfileInventoryRefresh {
+    state: Arc<Mutex<OperatorChatUiState>>,
+    client: Arc<dyn OperatorChatBackend>,
+    account: Arc<crate::local_account::AuthenticatedContext>,
+}
+
+impl EngineProfileInventoryRefresh {
+    pub(crate) fn refresh(&self, workspace_id: &str, account: &Arc<crate::local_account::AuthenticatedContext>) {
+        if !Arc::ptr_eq(account, &self.account) || !account.is_active() { return; }
+        let cell = {
+            let Ok(mut state) = self.state.lock() else { return; };
+            if state.workspace_id != workspace_id { return; }
+            state.profile_inventory_stale = true;
+            state.pending_models = true;
+            state.models_cell = Arc::new(Mutex::new(None));
+            state.models_cell.clone()
+        };
+        self.client.fetch_models(cell);
+    }
+}
+
 /// The Operator Chat / Launch pane factory.
 pub struct OperatorChatLaunchPaneFactory {
     state: Arc<Mutex<OperatorChatUiState>>,
@@ -625,6 +653,14 @@ impl OperatorChatLaunchPaneFactory {
             launch_recovery: Mutex::new(Vec::new()),
             launch_recovery_ui_sequence: Mutex::new(0),
         }
+    }
+
+    pub(crate) fn inventory_refresh_handle(
+        &self, account: Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Option<EngineProfileInventoryRefresh> {
+        Some(EngineProfileInventoryRefresh {
+            state: self.state.clone(), client: self.client.clone()?, account,
+        })
     }
 
     fn recovery_scope_is_active(&self) -> bool {
@@ -682,10 +718,19 @@ impl OperatorChatLaunchPaneFactory {
         if let Ok(mut slot) = models_cell.lock() {
             if let Some(result) = slot.take() {
                 if let Ok(mut state) = self.state.lock() {
-                    state.pending_models = false;
-                    match result {
-                        Ok(inventory) => state.reconcile_with_refreshed_inventory(inventory),
-                        Err(_) => state.fail_inventory_refresh(),
+                    if Arc::ptr_eq(&state.models_cell, &models_cell) {
+                        if state.profile_inventory_stale && state.pending_launch {
+                            *slot = Some(result);
+                        } else {
+                            state.pending_models = false;
+                            match result {
+                                Ok(inventory) => state.reconcile_with_refreshed_inventory(inventory),
+                                Err(_) if state.profile_inventory_stale => {
+                                    state.error = Some("Engine profiles changed, but the model inventory could not be refreshed. Refresh models before another local launch.".to_owned());
+                                }
+                                Err(_) => state.fail_inventory_refresh(),
+                            }
+                        }
                     }
                 }
             }
@@ -905,7 +950,7 @@ impl OperatorChatLaunchPaneFactory {
                 state.selected.clone().map(|selection| (selection, state.selected_model.clone())));
             let Some((selection, display)) = choice else { return; };
             if !state.owner_session_is_canonical_and_available()
-                || !state.selection_is_canonical_and_available(&selection)
+                || !state.selection_is_ready_to_launch(&selection)
                 || state.folder.trim().is_empty() || state.prompt.trim().is_empty()
             {
                 state.error = Some("Choose an available profile and owner, folder and prompt.".to_owned());
@@ -1099,7 +1144,11 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 }
             }
 
-            if let Some(active) = state.inventory.active_engine_profile.as_ref() {
+            if state.profile_inventory_stale {
+                if !state.pending_models {
+                    ui.label("Engine profiles changed. Refresh models before another local launch.");
+                }
+            } else if let Some(active) = state.inventory.active_engine_profile.as_ref() {
                 ui.label(format!(
                     "Workspace active profile: {} / revision {}",
                     active.profile_id, active.revision,
@@ -1131,8 +1180,10 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
             for row in &state.inventory.local {
                 let author = row.engine_profile.as_ref().map(profile_selection_author_id)
                     .unwrap_or_else(|| model_selection_author_id("local", None, &row.model_id));
-                let row_ready = row.ready && row.engine_profile.is_some();
-                let status = if row_ready {
+                let row_ready = !state.profile_inventory_stale && row.ready && row.engine_profile.is_some();
+                let status = if state.profile_inventory_stale {
+                    if state.pending_models { "refreshing" } else { "refresh required" }
+                } else if row_ready {
                     "ready"
                 } else {
                     "runtime not ready"
@@ -1143,7 +1194,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                     snapshot.profile.engine, snapshot.profile.device,
                     snapshot.profile.preset.name,
                 )).unwrap_or_else(|| row.runtime_binding.clone());
-                let active = row.engine_profile.as_ref().is_some_and(|snapshot|
+                let active = !state.profile_inventory_stale && row.engine_profile.as_ref().is_some_and(|snapshot|
                     state.inventory.active_engine_profile.as_ref().is_some_and(|active|
                         active.profile_id == snapshot.profile.id
                         && active.revision == snapshot.profile.revision
@@ -1253,9 +1304,9 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
             });
             // Launch.
             let launch_ready = state.owner_session_is_canonical_and_available()
-                && (state.local_candidate.as_ref().is_some_and(|(selection, _)|
-                        state.selection_is_canonical_and_available(selection))
-                    || state.selected_model_is_canonical_and_available())
+                && state.local_candidate.as_ref().map(|(selection, _)| selection)
+                    .or(state.selected.as_ref())
+                    .is_some_and(|selection| state.selection_is_ready_to_launch(selection))
                 && state.pending_selection.is_none()
                 && !state.folder.trim().is_empty()
                 && !state.prompt.trim().is_empty()
@@ -1266,7 +1317,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                     do_launch = true;
                 }
             });
-            if state.local_candidate.is_some() && !state.pending_launch {
+            if state.local_candidate.is_some() && !state.pending_launch && !state.profile_inventory_stale {
                 ui.label("Pending profile. Complete owner, folder and prompt, then launch.");
             }
             if state.pending_launch {
@@ -1433,6 +1484,142 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
 #[cfg(test)]
 mod client_safety_tests {
     use super::*;
+
+    #[test]
+    fn settings_refresh_fences_old_inventory_and_preserves_started_launch() {
+        #[derive(Default)]
+        struct Backend {
+            models: Mutex<Vec<ModelsCell>>,
+            launches: Mutex<Vec<LaunchCell>>,
+        }
+        impl OperatorChatBackend for Backend {
+            fn fetch_models(&self, cell: ModelsCell) { self.models.lock().unwrap().push(cell); }
+            fn record_selection(&self, _: OperatorChatLaunchSelection, _: Option<String>, _: SelectionCell) {
+                panic!("local selection belongs to launch");
+            }
+            fn launch(&self, _: OperatorChatLaunchSelection, _: &str, _: &str, _: &str, cell: LaunchCell) {
+                self.launches.lock().unwrap().push(cell);
+            }
+            fn fetch_transcript(&self, _: &str, cell: TranscriptCell) {
+                *cell.lock().unwrap() = Some(Ok(Vec::new()));
+            }
+            fn routing_action(&self, _: OperatorChatRoutingAction, _: String, _: RoutingCell) {
+                panic!("no routing action expected");
+            }
+        }
+        let profile = handshake_dexterity::EngineProfile {
+            id: "component-profile".to_owned(), revision: 1,
+            model: handshake_dexterity::Model {
+                id: "component-model".to_owned(), format: handshake_dexterity::ModelFormat::GgufQ4_0,
+                content_sha256: "1".repeat(64), compiled_context: None,
+            },
+            engine: handshake_dexterity::Engine::GenieXLlamaCpp,
+            device: handshake_dexterity::Device::Cpu,
+            preset: handshake_dexterity::Preset {
+                name: "component-fixture".to_owned(), context_limit: 2048, max_tokens: 128,
+                sampling: handshake_dexterity::Sampling::LlamaCpp {
+                    temperature: 0.7, top_k: 40, top_p: 0.95, min_p: 0.05,
+                },
+            },
+        };
+        let resolved = handshake_dexterity::Registry::new(vec![profile.clone()])
+            .and_then(|registry| registry.resolve(&profile.id)).unwrap();
+        let snapshot = EngineProfileSnapshotV1 { profile, fingerprint: resolved.fingerprint().to_owned() };
+        let selection = OperatorChatLaunchSelection::local(snapshot.clone());
+        let backend = Arc::new(Backend::default());
+        let factory = OperatorChatLaunchPaneFactory::with_backend(backend.clone());
+        let account: Arc<crate::local_account::AuthenticatedContext> = Arc::new(serde_json::from_value(
+            serde_json::json!({"account_id":"account", "principal_id":"principal", "session_id":"session",
+                "access_space_id":"space", "session_token":"component-only"})
+        ).unwrap());
+        let refresh = factory.inventory_refresh_handle(account.clone()).unwrap();
+        let inventory = OperatorChatModelInventory {
+            active_engine_profile: Some(EngineProfileIdentityV1 {
+                profile_id: snapshot.profile.id.clone(), revision: 1, fingerprint: snapshot.fingerprint.clone(),
+            }),
+            sessions: vec![OperatorChatSessionRow { session_id: "owner".to_owned(),
+                parent_session_id: Some("root".to_owned()), label: "Owner".to_owned(), status: "available".to_owned() }],
+            local: vec![OperatorChatModelRow { model_id: snapshot.profile.model.id.clone(),
+                engine_profile: Some(snapshot.clone()), display_name: "Profile".to_owned(),
+                runtime_binding: "genie_x".to_owned(), ready: true }],
+            ..Default::default()
+        };
+        let old_cell = {
+            let mut state = factory.state.lock().unwrap();
+            state.workspace_id = "workspace".to_owned();
+            state.inventory = inventory.clone();
+            state.local_candidate = Some((selection.clone(), "Profile".to_owned()));
+            state.selected_owner_session_id = Some("owner".to_owned());
+            state.folder = "component-worktree".to_owned(); state.prompt = "component prompt".to_owned();
+            state.models_cell.clone()
+        };
+        factory.launch();
+        let launch_cell = backend.launches.lock().unwrap()[0].clone();
+        refresh.refresh("other-workspace", &account);
+        refresh.refresh("workspace", &Arc::new((*account).clone()));
+        assert!(backend.models.lock().unwrap().is_empty());
+        refresh.refresh("workspace", &account);
+        let fresh_cell = backend.models.lock().unwrap()[0].clone();
+        assert!(!Arc::ptr_eq(&old_cell, &fresh_cell));
+        *old_cell.lock().unwrap() = Some(Ok(inventory.clone()));
+        factory.drain_cells();
+        {
+            let state = factory.state.lock().unwrap();
+            assert!(state.profile_inventory_stale && state.pending_launch);
+            assert!(state.selection_is_canonical_and_available(&selection));
+            assert!(!state.selection_is_ready_to_launch(&selection));
+        }
+        let mut changed = inventory.clone();
+        changed.active_engine_profile = None; changed.local.clear();
+        *fresh_cell.lock().unwrap() = Some(Ok(changed));
+        factory.drain_cells();
+        assert!(fresh_cell.lock().unwrap().is_some());
+        assert_eq!(factory.state.lock().unwrap().local_candidate.as_ref().map(|row| &row.0), Some(&selection));
+        *launch_cell.lock().unwrap() = Some(Ok(OperatorChatLaunched {
+            engine_profile: Some(snapshot), instance_id: "instance".to_owned(),
+            run_id: "run".to_owned(), lane_id: "lane".to_owned(),
+        }));
+        factory.drain_cells();
+        {
+            let state = factory.state.lock().unwrap();
+            assert!(!state.pending_launch);
+            assert_eq!(state.selected.as_ref(), Some(&selection));
+            assert!(state.profile_inventory_stale);
+        }
+        let launched_status = factory.state.lock().unwrap().launch_status.clone();
+        assert!(launched_status.is_some());
+        factory.drain_cells();
+        {
+            let state = factory.state.lock().unwrap();
+            assert!(!state.profile_inventory_stale);
+            assert!(state.selected.is_none());
+            assert_eq!(state.launch_status, launched_status);
+        }
+        {
+            let mut state = factory.state.lock().unwrap();
+            state.inventory = inventory;
+            state.local_candidate = Some((selection.clone(), "Profile".to_owned()));
+        }
+        refresh.refresh("workspace", &account);
+        let failed_cell = backend.models.lock().unwrap()[1].clone();
+        *failed_cell.lock().unwrap() = Some(Err("component failure".to_owned()));
+        factory.drain_cells();
+        factory.launch();
+        {
+            let state = factory.state.lock().unwrap();
+            assert!(state.profile_inventory_stale && !state.pending_models);
+            assert_eq!(state.local_candidate.as_ref().map(|row| &row.0), Some(&selection));
+            assert_eq!(state.selected_owner_session_id.as_deref(), Some("owner"));
+            assert_eq!(state.folder, "component-worktree"); assert_eq!(state.prompt, "component prompt");
+            assert_eq!(state.launch_status, launched_status);
+        }
+        assert_eq!(backend.launches.lock().unwrap().len(), 1);
+        factory.refresh_models();
+        assert_eq!(backend.models.lock().unwrap().len(), 3);
+        account.invalidate();
+        refresh.refresh("workspace", &account);
+        assert_eq!(backend.models.lock().unwrap().len(), 3);
+    }
 
     #[test]
     fn inventory_refresh_failure_clears_stale_launch_identity() {

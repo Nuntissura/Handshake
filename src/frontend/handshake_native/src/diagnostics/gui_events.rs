@@ -34,6 +34,7 @@ pub enum GuiDiagnosticPhase {
     Stale = 5,
     Unavailable = 6,
     Failed = 7,
+    Dismissed = 8,
 }
 
 static OBSERVATION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -58,7 +59,7 @@ pub fn record_gui_observation(
         .as_nanos()
         .min(u64::MAX as u128) as u64;
     let (phase, severity) = match observation {
-        GuiDiagnosticPhase::Accepted | GuiDiagnosticPhase::Completed => (DiagPhase::End, DiagSeverity::Info),
+        GuiDiagnosticPhase::Accepted | GuiDiagnosticPhase::Completed | GuiDiagnosticPhase::Dismissed => (DiagPhase::End, DiagSeverity::Info),
         GuiDiagnosticPhase::Pending => (DiagPhase::Start, DiagSeverity::Info),
         GuiDiagnosticPhase::Rejected | GuiDiagnosticPhase::Stale | GuiDiagnosticPhase::Unavailable | GuiDiagnosticPhase::Failed => (DiagPhase::Degraded, DiagSeverity::Warn),
     };

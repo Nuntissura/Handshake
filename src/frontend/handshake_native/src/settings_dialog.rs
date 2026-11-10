@@ -3002,11 +3002,11 @@ impl EngineProfilesSettingsState {
         &mut self,
         token: &EngineProfileUiToken,
         result: Result<EngineProfileRegistryV1, String>,
-    ) {
+    ) -> bool {
         use crate::diagnostics::gui_events::{record_gui_observation, GuiDiagnosticOperation as GuiOp, GuiDiagnosticPhase as GuiPhase};
         let Some((expected, clear_editor)) = self.pending.as_ref() else {
             record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Stale);
-            return;
+            return false;
         };
         if expected != token
             || self.scope.as_ref() != Some(&token.scope)
@@ -3014,7 +3014,7 @@ impl EngineProfilesSettingsState {
             || self.editor_generation != token.editor_generation
         {
             record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Stale);
-            return;
+            return false;
         }
         let clear_editor = *clear_editor;
         self.pending = None;
@@ -3025,6 +3025,7 @@ impl EngineProfilesSettingsState {
                 self.delete_candidate = None;
                 self.error = None;
                 record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Completed);
+                true
             }
             Err(_) => {
                 self.error = Some(
@@ -3032,6 +3033,7 @@ impl EngineProfilesSettingsState {
                         .to_owned(),
                 );
                 record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Failed);
+                false
             }
         }
     }
