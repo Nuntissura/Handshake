@@ -3836,6 +3836,83 @@
       "runtime_run": true,
       "final_acceptance": "OPEN",
       "original_acceptance": "UNCHANGED"
+    },
+    {
+      "candidate": "cabinet-mt022-short-fixture-probe-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "ORDINAL_2_PROBE_FAILED_AT_SESSION_EXCHANGE_CUSTODY_RETURNED",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "case_id": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+      "selector": "folder_tree_live_surrealdb_self_seeded_round_trip",
+      "ordinal": 2,
+      "probe_of_diagnosis": "MT212-MT022-SURREAL-VERBATIM-FIXTURE-PATH-20261110",
+      "changed_input": "Short isolated ft022-02 fixture, with unchanged Core/Native executables, selector, Owner auth and fixed receipt.",
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-06/mt022-roundtrip-controller-binding-admitted-08.json",
+        "sha256": "a64290347088496616d0cd1935525a8e6a5553cc51a5688e1575d0d9e91af874"
+      },
+      "admission": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-06/mt022-roundtrip-case-admission-08.json",
+        "sha256": "981f3ff627b2ce6c715dfff02647dee940e4b920a68b2e5220625e6f26ed61e2"
+      },
+      "entry_utc": "2026-11-10T19:13:35.222522Z",
+      "producer_exit": 1,
+      "test_exit": 101,
+      "independent_owner": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "owner_verdict": "FAIL",
+      "results": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/result.json",
+          "sha256": "83edaf9e65c139932a76db04f471989d537fdd77484a974eb4ac65f5580c0c80"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/released.json",
+          "sha256": "8641f4ac9def8f667008ceb42230d627240aa40f0f448cff275929cc57a680dd"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/postguards.json",
+          "sha256": "4cf6df702640d489e9ed58da60fdf3e4cf47a7d91469e0c1ce07cf2af269b3f4"
+        },
+        "private_job_final": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/private-job-final.json",
+          "sha256": "8b815ce0d2b7ce11c35d8c909d8b4755e5f8eac2803e9465318e4c24e2e6fad0"
+        },
+        "libtest_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/test.stdout.txt",
+          "sha256": "3ba4dd7f0cc5dabd34d6a9af9f2d4dd9ccc4a6adbee752ef559ab2e08322cf9c"
+        },
+        "core_stdout": {
+          "ref": "WP-KERNEL-012/MT-212/ft022-02/wp-kernel-012/backend-runtime/r-444a42255ff91960/s-1fb0461669c4190a/c8edd74e-cb9f-4ad9-b0db-431082b2d1b2/backend.stdout.log",
+          "sha256": "e22cc9fa39f4c49b673e69d183673e7e40639ba13964c9c6f9252f9f58dfa5fa"
+        },
+        "shorter_fixture_passed_core_listen": true,
+        "success_receipt_written": false,
+        "all_handles_closed": true,
+        "private_job_empty": true,
+        "actual_input_drift": false,
+        "live_resource_qualification": true
+      },
+      "changed_failure": {
+        "failing_assertion": "Product session exchange returned HTTP403 after Owner setup instead of completing the authenticated exchange; Native panicked at backend_proof_support/mod.rs:906.",
+        "observed_backend_boundary": "The local Surreal authenticated session SELECT failed in response.check(), after record signin and query transport, before row decode and login-event write. The logged SDK class is Internal, outer storage phase login_event_identity.",
+        "source_refs": [
+          "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:906",
+          "src/backend/handshake_core/src/storage/surreal/local_accounts.rs:369",
+          "src/backend/handshake_core/src/storage/surreal/local_accounts.rs:372",
+          "src/backend/handshake_core/src/api/authority.rs:2331"
+        ],
+        "related_contract_ref": "MT-174.json#session_reauthentication_diagnostic_probe_20261023",
+        "underlying_engine_cause": "UNRESOLVED",
+        "next_step": "Use exact source and existing engine evidence to isolate the first statement error; keep fail-closed authentication, public denial, cleanup and prior runtime limits.",
+        "automatic_retry_authorized": false
+      },
+      "tests_run": true,
+      "runtime_run": true,
+      "final_acceptance": "OPEN",
+      "original_acceptance": "UNCHANGED"
     }
   ],
   "picotask_plan": {
