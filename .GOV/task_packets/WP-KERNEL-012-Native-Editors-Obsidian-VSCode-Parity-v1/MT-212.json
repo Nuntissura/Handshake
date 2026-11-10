@@ -3215,6 +3215,82 @@
       "runtime_run": false,
       "final_acceptance": false,
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-child-folder-retry-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "SOURCE_PUBLISHED_QUALIFIED_CHECK_OPEN",
+      "recorded_at_utc": "2026-11-10T15:08:03.586590+00:00",
+      "published_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "published_tree": "08403187ae02aa51137a4d8b37020ab4333988f5",
+      "source_reviewer": "/root/adversarial_refresh",
+      "attempts": [
+        {
+          "id": "cabinet-native-check-20261110-01",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 1,
+          "qualified": false,
+          "failure_class": "LIVE_TARGET_SCAN_ENTRY_BUDGET",
+          "failing_assertion": "A complete live target sample must stay within the configured scan budget",
+          "changed_input": "First exact metadata check of the reviewed Cabinet source and three inline selectors",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-01/result.json",
+            "sha256": "6a69a7b8d48ba854948c28bc6471b85446258bdbecb4c95a876a106f6f3bf2b0"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-01/released.json",
+            "sha256": "7d4cc2323bad97bb91ce24191f03ff13f51e4f0bf72a0372d37a3e9c6d452ca8"
+          }
+        },
+        {
+          "id": "cabinet-native-check-20261110-02",
+          "consumed": true,
+          "cargo_started": false,
+          "producer_exit": 1,
+          "qualified": false,
+          "failure_class": "NATIVE_CAPTURE_ENVIRONMENT_DIGEST",
+          "failing_assertion": "The declared 42-key child environment digest must match the exact selected output",
+          "changed_input": "Published source pin, 400000 scan visits and fresh output path, with stale overlay digest",
+          "producer_log": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-capture-custody-20261110-02/producer.log",
+            "sha256": "79f1901e96b45d12514a24283fa11fc6bbbe4737c41f81acf36f6aed878eb6b3"
+          },
+          "terminal_handoff": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-capture-custody-20261110-02/producer-terminal-handoff.json",
+            "sha256": "9836fccc4235c98151dbbbc84c0cc1c44bef7199516185be54529162ea59a20c"
+          },
+          "terminal_observation": {
+            "pid": 47940,
+            "birth_filetime": 134387966420252134,
+            "observed_utc": "2026-11-10T15:04:02.383389Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "b13ec3",
+            "custody_returned_by": "/root/coding"
+          }
+        }
+      ],
+      "diagnosis": {
+        "id": "MT212-CABINET-NATIVE-ENV-OUTPUT-PIN-20261110",
+        "cause": "A new output root changes HANDSHAKE_CAPTURE_RUN_ROOT, so its prior environment digest is invalid.",
+        "code_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-postpush-preparation-20261110-02/cabinet-native-metadata-private-job-capture-03.py:225",
+        "prior_distinct_hypothesis": "Cumulative target directory reconciliation visits can exhaust the 300000-entry scan budget.",
+        "prior_hypothesis_evidence": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-scan-budget-replay-20261110-01/result-02.json",
+          "sha256": "3fe2c3f699b3cd1935f1aa1a7cb8167b49031183e2c26a1002a3132195cc9179"
+        },
+        "intended_fix": "Derive the exact new output digest and verify the producer environment offline before admission.",
+        "next_proof": "Exact published-input Native metadata check, if separately admitted after fresh scoped agreement.",
+        "retry_or_admission_granted": false
+      },
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
