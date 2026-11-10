@@ -4633,7 +4633,7 @@
     },
     {
       "candidate": "embedded-session-production-schema-test-source-published-20261110-01",
-      "state": "EXACT_PUBLISHED_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_RUNTIME_PENDING",
+      "state": "INDEPENDENT_SYNTHETIC_PRODUCTION_SCHEMA_STORAGE_DIAGNOSTIC_PASS_ORIGINAL_HTTP_OPEN",
       "pico_refs": [
         "GUI-WP012-graph-folders"
       ],
@@ -4701,7 +4701,7 @@
         "read_handle_retained_until_checked_release": true
       },
       "scope": "Qualified implementer compile feedback only on the reviewed raw candidate. Cargo and producer numeric zero, empty Job and checked release, no test bodies or formal proof. Published child independently reread and all 7623 raw files match prepublication witness.",
-      "next_proof": "One exact independent KB-CAD-001 production-schema embedded-only diagnostic after fresh Primary admission/custody. No base replay, app/HTTP/vault/watcher, or original verdict change.",
+      "next_proof": "The existing base and production schema synthetic storage cases remain qualified. The actual HTTP 403 requires a discriminating app or authority route scope before further execution; do not rerun either existing case or the spent original HTTP proof.",
       "original_acceptance": "OPEN",
       "warm_acquisition": {
         "binding": {
@@ -4756,7 +4756,167 @@
           "tests_run": false
         },
         "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      },
+      "runtime": {
+        "integration_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c7a3-344b-7bd0-b3b0-aef47f30b141",
+        "case_id": "CORE-SESSION-QUERY-EMBEDDED-PRODUCTION-SCHEMA-001",
+        "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded_production_schema",
+        "unstarted_01": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-runtime-preparation-20261110-01/production-schema-runtime-binding-admitted-01.json",
+          "bytes": 35247,
+          "sha256": "7f528df92ed89b2f9d684b9b9eca713a9acff74a260a8823744a13cfe493a857"
+        },
+        "unstarted_reason": "Validator required recorded distinct warm acquisition qualification before launch and explicitly returned custody unstarted.",
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-runtime-preparation-20261110-01/production-schema-runtime-binding-admitted-02.json",
+          "bytes": 35247,
+          "sha256": "543b07972abb8e625e2b527f871508ec4b07c0efda926da7ba124af60c079644"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/result.json",
+          "bytes": 6891,
+          "sha256": "db932e2c6a713e7cc5fd6feb3b105aea4041dc74192f733311c7cd7bca946634"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/released.json",
+          "bytes": 506,
+          "sha256": "b5f9eae0a03841c1ad635fec6338bc1c76d887689ef400b124c3c4969fa9203e"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/postguards.json",
+          "bytes": 2336,
+          "sha256": "8bf407788bc39cc7ad3fd7f0dc78f42d8bb103c6bd49d2ab3e5079be3b91722c"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/test-exit.json",
+          "bytes": 918,
+          "sha256": "799036e762b614fa3bc8796a2014b8b1dd5a8a5f9d221e579b5b2960ed9c2e31"
+        },
+        "job": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/private-job-final.json",
+          "bytes": 233,
+          "sha256": "4da18085f3e0c9d70ebbe00eaa76c6bd14786dd69bcb7fba936ae4218acbe86d"
+        },
+        "completion": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/case-completion.json",
+          "bytes": 20154,
+          "sha256": "318eda8837318dce24375304d9b81137150727376e15849505fdde9b1d169a68"
+        },
+        "observed": {
+          "producer_exit": 0,
+          "test_exit": 0,
+          "terminal_outputs_expected": 2,
+          "terminal_outputs_closed": 2,
+          "job_active": 0,
+          "job_assigned": 0,
+          "fixture_entries": 0,
+          "test_bodies": 1
+        },
+        "scope": "Production schema alone did not reproduce the 403 symptom in this private synthetic storage flow. No HTTP, OS vault, watcher, or MT022 acceptance. Both original attempts remain spent."
       }
+    },
+    {
+      "candidate": "refresh-integration-standalone-needed-retry-20261110-01",
+      "state": "ONE_CHANGED_CONTROL_NEEDED_RETRY_SELECTED_COMPILE_ONLY",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "primary_owner": "/root",
+      "technical_scope_partner": "/root/gui_refresh_readiness",
+      "independent_scope_partner": "/root/motion_cycle_codecheck",
+      "source_head": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "source_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-preparation-20261110-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "700cc6f1cfc60ced81af9fb0ab734cbb6c5ef2a4b93986ff970d1d21aeb11e8f"
+      },
+      "prior_attempts": {
+        "initial_compile_failure": {
+          "result": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\gui22-refresh-integration-codegen-01\\result.json",
+            "bytes": 1896,
+            "sha256": "08a74d1ea44763ef9dade113f2e1fc8ed75f6ab6f069d185ccaf32ad8c773780"
+          },
+          "release": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\gui22-refresh-integration-codegen-01\\released.json",
+            "bytes": 364,
+            "sha256": "52db08cc4ff803bfa24552bab991f7c1c24f96c39b079f872bf906b5e64dfd30"
+          },
+          "cargo_exit": 101,
+          "failure": "E0425 MemberRecipientPhysical gated out in Refresh runtime-full without os-keychain.",
+          "published_repair": "a442a43d5f5e59919f1db9406be752a1ccc0fd93"
+        },
+        "consumed_postfix": {
+          "binding": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\remaining-gui-postfix-compile-preparation-20261108-01\\gui22-remaining-postfix-codegen-binding-admitted-20261110-01.json",
+            "bytes": 28727,
+            "sha256": "9f5c205c77ce1dcafeccd65b952123cc4a0c69909174deb4ede25bf243ef37e3"
+          },
+          "interrupted_disposition": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\refresh-capture-custody-preparation-20261110-01\\primary-interrupted-capture-disposition-20261110-01.json",
+            "bytes": 1877,
+            "sha256": "542b43161d68616ea6dcef38484dbc5c73ebbf9261442622f43f43c7fa6c979a"
+          },
+          "producer": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\remaining-gui-postfix-compile-preparation-20261108-01\\gui22-remaining-postfix-codegen-private-job-capture-10.py",
+            "bytes": 45151,
+            "sha256": "e01c4493959fda53c3d41128ba22f7902e18c015669330321b786cb4ae240769"
+          },
+          "guard": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\refresh-resource-guard-preparation-20261108-01\\refresh_resource_guard_v3.py",
+            "bytes": 19492,
+            "sha256": "4a4f56911e67143f17be9b17dd5fd7c964ed31e9d566d9053cfc49f42982ebb1"
+          },
+          "observed_failure": "Two incomplete live target samples from unstable directories. No measured tripwire or stop call, no selected artifact, no numeric terminal or checked Job release.",
+          "numeric_exit": "UNKNOWN",
+          "historical_owned_job_release": "UNVERIFIED",
+          "attempt_pool_reset": false
+        },
+        "changed_control_hypothesis": "The qualified Motion producer and launcher retain same-token startup, producer acknowledgment, the original private Job, and numeric terminal evidence. v11 verifies bounded reconciliation and full live and final target measurements. These changes address the observed unstable sampling and missing terminal records. The published E0425 repair predates the spent postfix and supplies no new retry authority.",
+        "retry_authority": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261025/team_workflow/retry_limits and packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy."
+      },
+      "controller": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/refresh-integration-codegen-private-job-capture-01.py",
+        "bytes": 44312,
+        "sha256": "786a1f96371533dc8c87fa52fe47203ab4b89e6268dfecb6ad63e68af34b81f2"
+      },
+      "launcher": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/mt212-refresh-integration-capture-custody-launcher-01.py",
+        "bytes": 24827,
+        "sha256": "084309585ce4e6c0407efba5f456e134384c053df00f50d0b6ea216705a09105"
+      },
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/refresh-integration-codegen-binding-dormant-01.json",
+        "bytes": 19727,
+        "sha256": "da7b35435adf16faf9eb8093a884882bc948f5019bcba8e2b350d4118a713b9e"
+      },
+      "changed_only_patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/refresh-integration-capture-changed-only.patch",
+        "bytes": 36137,
+        "sha256": "eeb55b8a94bdc90deae132de779900f4e107ea25511566d1ce134efcbce23873"
+      },
+      "exact_command": [
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "src/frontend/handshake_native_composition_tests/Cargo.toml",
+        "--package",
+        "handshake_native_composition_tests",
+        "--test",
+        "test_swarm_lane_diagnostics_argus",
+        "--no-run",
+        "-j",
+        "1",
+        "--message-format=json"
+      ],
+      "eventual_body_selectors": [
+        "diagnostics_refresh_queues_once_then_disables_until_delivery",
+        "diagnostics_refresh_rejects_initial_busy_and_offline_controls"
+      ],
+      "limits": "One focused compile-only acquisition after actual current Core custody handback, final pinned source/resource/runner admission. No Refresh bodies, sibling replays, old custody reinterpretation, force, short bracket, cleanup or automatic retry.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
