@@ -3913,6 +3913,72 @@
       "runtime_run": true,
       "final_acceptance": "OPEN",
       "original_acceptance": "UNCHANGED"
+    },
+    {
+      "candidate": "cabinet-host-library-cold-acquisition-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "CARGO_LINKED_CAPTURE_UNQUALIFIED_NATURAL_RELEASE",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "operation_id": "cabinet_host_library",
+      "consumed": true,
+      "codegen_only": true,
+      "cargo_exit": 0,
+      "producer_exit": 1,
+      "tests_run": false,
+      "runtime_run": false,
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/result.json",
+        "sha256": "b548866e3b7c7e5dcd2414b616b1e6717cd7efbd80440e15882855e3e624383e"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/released.json",
+        "sha256": "90040cf41a2ce4020b7e6bf351f6b6720ac430cc4354a24ccfdc0d8a5240935c"
+      },
+      "terminal_observer": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-custody-20261110-01/producer-native-terminal-observer-01.json",
+        "sha256": "e763657f59e843ceb7affbc4881b4eb0de11f504fd1a2a6fca0ecf8a26ac7aea"
+      },
+      "raw_cargo": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/cargo.stdout.jsonl",
+        "sha256": "d4b919a25599ed2d50bbf7bd9a80a5975897c36b13ceb69122a008f2f48f42dc"
+      },
+      "postguards": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/postguards.json",
+        "sha256": "fa358b2d5b78720cf74ee1737d3b09d92d0666983877f6167cf05481e0c93d05"
+      },
+      "owned_drain": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/owned-drain.json",
+        "sha256": "8b5d21eff6be65ebcbd248853e021e80a05da3cb35f11429a2cc5be9c91b9e97"
+      },
+      "resource_guard": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/resource-guard.jsonl",
+        "sha256": "7fda28fe2c270864943e77e5aa2b92709ed49c1d64ebff9fd6af9b44f5725ab8"
+      },
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-independent-acquisition-preparation-20261110-01/cabinet-host-library-codegen-binding-admitted-01.json",
+        "sha256": "f4fc4f480ebe678682754ac74c1d33925963a9a32581362ddf68ad7d3f6036e4"
+      },
+      "linked_pe": {
+        "target_ref": "WP-KERNEL-012/MT-174/kb-phase02/target/debug/deps/cabinet_host-0e54da7507675558.exe",
+        "sha256": "fd048c7bdc58f938323fe0ec509cf0af90808a6e8b8f6e00eef869fe94153289",
+        "bytes": 1378816,
+        "volume_serial": 705387220,
+        "file_index": 844424933282425,
+        "qualification": "NONE; observed after checked release"
+      },
+      "diagnosis": {
+        "id": "MT212-CABINET-HOST-COLD-LIVE-ENTRY-LIMIT-20261110",
+        "failing_assertion": "Full live TargetProbe closing observation exceeded 450000 visits during the cold build.",
+        "cause": "v11 reached ENTRY_LIMIT at 450001 after 10 directory reconciliations; actual wall-time was 7.812s, not the 25s deadline. No measured tripwire and no force.",
+        "source_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-preparation-20261110-01/refresh_resource_guard_v11.py#TargetProbe.target_bytes",
+        "prior_attempt_input": "First distinct Cabinet Host compile-only capture with cold Cargo work and no preheld executable.",
+        "next_candidate": "One separately admitted warm-only acquisition with same source/argv, exact held postrelease PE and every Cargo row fresh. Preserve full v11 live guard; no cold repeat, short bracket, force, cleanup, or test body.",
+        "automatic_retry_authorized": false
+      },
+      "scope_limit": "No qualified codegen manifest, no Cabinet Host test verdict, no Refresh or Motion launch or historical custody upgrade.",
+      "final_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
