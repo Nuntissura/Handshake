@@ -653,15 +653,30 @@ mod tests {
 
     #[tokio::test]
     async fn local_owner_setup_login_replay_and_revocation_embedded() {
+        assert_embedded_owner_session_lifecycle(false).await;
+    }
+
+    #[tokio::test]
+    async fn local_owner_setup_login_replay_and_revocation_embedded_production_schema() {
+        assert_embedded_owner_session_lifecycle(true).await;
+    }
+
+    async fn assert_embedded_owner_session_lifecycle(production_schema: bool) {
         let temp = tempfile::tempdir().expect("isolated runtime directory");
         let storage = SurrealStorage::open(
             super::super::SurrealStorageConfig::for_data_dir(temp.path()).unwrap(),
         )
         .await
         .expect("embedded storage");
-        super::super::schema::bootstrap_schema(&storage)
-            .await
-            .expect("canonical schema");
+        if production_schema {
+            super::super::bootstrap_production_schemas(&storage)
+                .await
+                .expect("production schema");
+        } else {
+            super::super::schema::bootstrap_schema(&storage)
+                .await
+                .expect("canonical schema");
+        }
         assert!(storage.local_owner_setup_required().await.unwrap());
         let verifier = password_verifier("correct horse battery staple").unwrap();
         let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
