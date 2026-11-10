@@ -3392,7 +3392,7 @@
         "GUI-WP012-graph-folders",
         "GUI-WP012-search-handpick"
       ],
-      "state": "CARGO_EXIT_ZERO_ACQUISITION_UNQUALIFIED",
+      "state": "CURRENT_NATIVE_ACQUISITION_AND_CABINET_COMPONENTS_QUALIFIED",
       "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
       "attempts": [
         {
@@ -3428,6 +3428,49 @@
             "observer_chunk": "64381f",
             "custody_returned_by": "/root/coding"
           }
+        },
+        {
+          "id": "cabinet-handpick-native-library-codegen-20261110-02",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "qualified": true,
+          "selected_native_artifact_fresh": true,
+          "fresh_compiler_artifact_count": 458,
+          "changed_inputs": [],
+          "tests_run": false,
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-02/result.json",
+            "sha256": "36d6019834df610c4fc4a798a5238c461837a190e297f619175fbf033c46f9a7"
+          },
+          "artifact": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-02/codegen-artifact.json",
+            "sha256": "4180b1e879b4877fa64e6ab985856a13470a8fd4e1e94dd8822d349506bf395c"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-02/released.json",
+            "sha256": "e696574679ef9e4dd9fc9a35feebd34fe260ff4be0a6345b0416cec6905cf05f"
+          },
+          "terminal_observation": {
+            "pid": 22896,
+            "birth_filetime": 134388017897601911,
+            "observed_utc": "2026-11-10T16:30:06.036646Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "a6f466",
+            "custody_returned_by": "/root/coding"
+          },
+          "acquisition_reviews": [
+            {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-current-native-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+              "sha256": "cb1bc5ab6f0395050ee2c0c4d30cb85413190fdd22cb13ba89cdaec240701b16"
+            },
+            {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-acquisition-codecheck-20261110-01/current-native-warm-acquisition-review-cc-01.json",
+              "sha256": "e5c980fc48a342f03b25653a041f80a6b06c8d8eebcc079189bceb51342259d9"
+            }
+          ]
         }
       ],
       "diagnosis": {
@@ -3439,10 +3482,100 @@
         "retry_or_admission_granted": false
       },
       "independent_reviewer": "/root/adversarial_refresh",
-      "tests_run": false,
-      "runtime_run": false,
+      "tests_run": true,
+      "runtime_run": true,
       "final_acceptance": false,
-      "original_acceptance": "OPEN"
+      "original_acceptance": "OPEN",
+      "component_proof": {
+        "pico_ref": "GUI-WP012-graph-folders",
+        "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+        "executable_sha256": "850038a80b4681031efc35cd5be668923095ab733694b32fe5c7a43ba33d79b9",
+        "independent_reviewer": "/root/adversarial_refresh",
+        "cases": [
+          {
+            "case_id": "CABINET-CHILD-RETRY-COMP-001",
+            "selector": "graph::folder_tree::tests::child_retry_uses_exact_request_and_preserves_cached_children_and_sibling_read",
+            "consumed": true,
+            "qualified": true,
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case01/result.json",
+              "sha256": "f1de29f1bf7b5145521b8c48af486b2fb5518d32a4e2d3caffd36978ec826e14"
+            },
+            "release": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case01/released.json",
+              "sha256": "03255d8faf124ad6dcdbf4a06ceb7985190c189a9ee97603218b83d6e3daacb7"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case01/case-completion.json",
+              "sha256": "b831254d45c64681b3d7eda14fb98c176981e0194f707e9bebdbcedbe3c3550d"
+            },
+            "terminal_observation": {
+              "pid": 23908,
+              "birth_filetime": 134388022751625108,
+              "observed_utc": "2026-11-10T16:38:12.374605Z",
+              "producer_exit": 0,
+              "same_retained_handle": true,
+              "observer_closed": true,
+              "observer_chunk": "538f58"
+            }
+          },
+          {
+            "case_id": "CABINET-CHILD-RETRY-COMP-002",
+            "selector": "graph::folder_tree::tests::child_retry_preserves_an_active_cabinet_write",
+            "consumed": true,
+            "qualified": true,
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case02/result.json",
+              "sha256": "0e60422d49aaac7d900fb46763e233171f4104f0d0bf6240f5b58e297dcbc525"
+            },
+            "release": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case02/released.json",
+              "sha256": "a89dad55c1c670e14aaa7ac72d558c922714449d87a5f9aa861d15a69701a629"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case02/case-completion.json",
+              "sha256": "5c7a160dee271c62dee2a626c6cd23dbe224005f3cd1518f8f720139a7a28b5e"
+            },
+            "terminal_observation": {
+              "pid": 44212,
+              "birth_filetime": 134388023404051091,
+              "observed_utc": "2026-11-10T16:39:17.804499Z",
+              "producer_exit": 0,
+              "same_retained_handle": true,
+              "observer_closed": true,
+              "observer_chunk": "d35f3f"
+            }
+          },
+          {
+            "case_id": "CABINET-CHILD-RETRY-COMP-003",
+            "selector": "app::mt022_child_retry_tests::child_retry_reaches_host_terminal_without_reloading_roots_or_retiring_sibling",
+            "consumed": true,
+            "qualified": true,
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case03/result.json",
+              "sha256": "0fbaf03d59e1d4134bf54383fb2297666896c6b3469e93e28f78a32e5a1509c6"
+            },
+            "release": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case03/released.json",
+              "sha256": "cb87cf74c7ba6e982f176e46445a7097da420a58937c427321e9768a9939728a"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case03/case-completion.json",
+              "sha256": "a04db0cfdd297061a2d91bb1ab21e962d0820c26773bc5f217441d5c3b033a13"
+            },
+            "terminal_observation": {
+              "pid": 26332,
+              "birth_filetime": 134388023995636425,
+              "observed_utc": "2026-11-10T16:40:16.695120Z",
+              "producer_exit": 0,
+              "same_retained_handle": true,
+              "observer_closed": true,
+              "observer_chunk": "9856f2"
+            }
+          }
+        ],
+        "scope_limit": "Three exact Cabinet child Retry component cases qualified with observed live resource checks and serial custody release. Real backend delivery, full GUI, Vulkan and Palmistry acceptance remain open."
+      }
     }
   ],
   "picotask_plan": {
