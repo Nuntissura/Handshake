@@ -17,12 +17,32 @@ const PASSWORD_ITERATIONS: u32 = 2;
 const MAX_PASSWORD_BYTES: usize = 1024;
 static PASSWORD_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+// SurrealDB 3.2 maps these engine failures to Internal. Emit only fixed labels.
+fn session_query_check_error_detail(phase: &str, error: &surrealdb::Error) -> Option<&'static str> {
+    if phase != "session_query_check" || error.kind_str() != "Internal" {
+        return None;
+    }
+
+    let message = error.message().trim_start_matches("Internal database error: ");
+    Some(match message {
+        "Reached excessive computation depth due to functions, subqueries, or computed values" => {
+            "computation_depth_exceeded"
+        }
+        "Options not available for legacy compute fallback" => "legacy_compute_context_unavailable",
+        message if message.starts_with("There was a problem with a transaction: ") => {
+            "kvs_transaction_error"
+        }
+        _ => "unclassified_internal",
+    })
+}
+
 fn session_authentication_error(
     phase: &'static str,
     error: surrealdb::Error,
 ) -> surrealdb::Error {
     tracing::error!(target: "handshake_core::resource_authority",
         phase = phase, cause = error.kind_str(),
+        query_error_detail = session_query_check_error_detail(phase, &error),
         "local_session_authentication_failed");
     error
 }
@@ -541,6 +561,32 @@ impl SurrealStorage {
 mod tests {
     use super::*;
     use crate::kernel::KernelEventType;
+
+    #[test]
+    fn session_query_check_error_details_use_fixed_labels() {
+        let phase = "session_query_check";
+        for (message, label) in [
+            (
+                "Internal database error: Reached excessive computation depth due to functions, subqueries, or computed values",
+                "computation_depth_exceeded",
+            ),
+            (
+                "Options not available for legacy compute fallback",
+                "legacy_compute_context_unavailable",
+            ),
+            (
+                "Internal database error: There was a problem with a transaction: private sentinel",
+                "kvs_transaction_error",
+            ),
+            ("unknown message with private sentinel", "unclassified_internal"),
+        ] {
+            let error = surrealdb::Error::internal(message.into());
+            assert_eq!(session_query_check_error_detail(phase, &error), Some(label));
+            assert_eq!(session_query_check_error_detail("signin", &error), None);
+        }
+        let error = surrealdb::Error::thrown("private sentinel".into());
+        assert_eq!(session_query_check_error_detail(phase, &error), None);
+    }
 
     #[test]
     fn local_account_event_types_round_trip_and_unknown_types_remain_rejected() {
