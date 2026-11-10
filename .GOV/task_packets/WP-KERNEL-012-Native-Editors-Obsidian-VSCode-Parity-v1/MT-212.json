@@ -4073,6 +4073,90 @@
       "tests_run": false,
       "runtime_run": false,
       "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-diagnostic-compile-and-publication-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "CORE_DIAGNOSTIC_SOURCE_PUBLISHED_COLD_CAPTURE_UNQUALIFIED",
+      "original_contract_ref": "MT-022.json",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "published_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "published_tree": "8afd2a54b88a497637a933b104837ce2dfdeee5a",
+      "published_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "published_git_blob": "573b0d224ad2a3ebddc5ee68c7a9d9d08924dedd",
+      "live_raw_source_sha256": "766bb0189312eb7a4e9f51ae68db2ed13bbbaab15f03f7b06f2448c14ae7753c",
+      "pinned_published_source_map": {
+        "sha256": "70a3779b326e6b4297babcd636fe770bf2ca961b75778d6c865f582ed4092447",
+        "bytes": 1075443,
+        "head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+        "tree": "8afd2a54b88a497637a933b104837ce2dfdeee5a",
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-preparation-20261110-01/published-source-map-01.json"
+      },
+      "source_only_publication": "CX-EXEC-007 / KB-OUT-001; exact sole file, independently reviewed compile feedback. Two e2e files retain their raw hashes and are unstaged.",
+      "cold_attempt": {
+        "codegen_only": true,
+        "consumed": true,
+        "cargo_exit": 0,
+        "producer_exit": 1,
+        "guard_qualified": false,
+        "observed_job_empty": true,
+        "result": {
+          "bytes": 5642,
+          "sha256": "c7891526f2466e6a6d1d8b7de44adc560536653fa4ab7db32ef41ffd6847113d",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/result.json"
+        },
+        "release": {
+          "bytes": 2240,
+          "sha256": "a43d7d184b5ff8a96a1c439cd9d05e59c5697b6010db0617f784da414cad25e9",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/released.json"
+        },
+        "same_handle_terminal": {
+          "bytes": 649,
+          "sha256": "659a0cc22130df29f104d804de46c70eca51caaeca209d02179a36a65cc817ab",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-custody-20261110-01/producer-native-terminal-observer-02.json"
+        },
+        "raw_cargo": {
+          "bytes": 2034599,
+          "sha256": "9fbf6a07413d4292743d497ddd513f9bda111d6e3b8064ad6978be795ae4e697",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/cargo.stdout.jsonl"
+        },
+        "resource": {
+          "bytes": 8065,
+          "sha256": "f47ab0fa5a198edf5e6a93405da58b756ced7702ad041d93a13fe97522fc0fa3",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/resource-guard.jsonl"
+        },
+        "postguards": {
+          "bytes": 1869,
+          "sha256": "3d071d07f71a70ba8b3be261e93166750b5a8e6f8f97cce91f6752f0893c1321",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/postguards.json"
+        },
+        "body_ran": false
+      },
+      "linked_pe": {
+        "bytes": 446554624,
+        "sha256": "32d6736dcba7a3ab34e3b8164fa2f898cf6c4f0ed0cd6b7f3948fb1706e1f961",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "observation": "Observed after verified custody release. Cold capture grants no artifact or execution credit.",
+        "ref": "WP-KERNEL-012/MT-174/kb-phase02/target/debug/deps/handshake_core-ed05041c61d5ee60.exe"
+      },
+      "diagnosis": {
+        "id": "MT212-CORE-DIAG-COLD-ENTRY-LIMIT-20261110",
+        "failing_assertion": "Complete live resource sample required for qualification. The v11 closing scan exceeded the 450000 entry budget during cold codegen.",
+        "observed": "450001 entries after three directory reconciliations at 19.985s. The 25s deadline and measured tripwires did not trigger. No forced process stop.",
+        "source_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-preparation-20261110-01/refresh_resource_guard_v11.py#TargetProbe.target_bytes",
+        "first_input": "Cold compile-only of exact reviewed raw local_accounts.rs on the prepublication base.",
+        "changed_input": "One separately admitted warm-only acquisition on the actual one-file published child, preserving the prior full raw map and exact preheld libtest PE. Require all compiler artifacts fresh and full unchanged live v11 qualification.",
+        "automatic_retry_authorized": false
+      },
+      "tests_run": false,
+      "runtime_run": false,
+      "formal_acquisition": "OPEN",
+      "final_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
