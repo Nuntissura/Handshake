@@ -4633,7 +4633,7 @@
     },
     {
       "candidate": "embedded-session-production-schema-test-source-published-20261110-01",
-      "state": "EXACT_ONE_FILE_COMPILE_FEEDBACK_QUALIFIED_PUBLISHED_WARM_PROOF_PENDING",
+      "state": "EXACT_PUBLISHED_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_RUNTIME_PENDING",
       "pico_refs": [
         "GUI-WP012-graph-folders"
       ],
@@ -4701,8 +4701,62 @@
         "read_handle_retained_until_checked_release": true
       },
       "scope": "Qualified implementer compile feedback only on the reviewed raw candidate. Cargo and producer numeric zero, empty Job and checked release, no test bodies or formal proof. Published child independently reread and all 7623 raw files match prepublication witness.",
-      "next_proof": "One exact warm-only published Core library --no-run with same preheld PE and every Cargo artifact fresh. Separate qualified acquisition and independent one-case runtime are required. Prior base-schema pass is valid. Old HTTP attempts remain spent.",
-      "original_acceptance": "OPEN"
+      "next_proof": "One exact independent KB-CAD-001 production-schema embedded-only diagnostic after fresh Primary admission/custody. No base replay, app/HTTP/vault/watcher, or original verdict change.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-preparation-20261110-01/production-schema-warm-binding-admitted-01.json",
+          "bytes": 22347,
+          "sha256": "31fa986724b44b94cdf79fd17b49d2fd099e0163d43533d6c9a8680b6c9af91d"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/result.json",
+          "bytes": 3361,
+          "sha256": "ced379f943bbfe4ee28bfd50e1426a27f64182af31cc3e43fbbdb312744b644d"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/codegen-artifact.json",
+          "bytes": 9730,
+          "sha256": "6dfa74efb1a64fd65bc7e79ff024d4279de0a3c276225dc10c6a1e127776508c"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/released.json",
+          "bytes": 481,
+          "sha256": "b9b915f0b5efa3d40694c31af2bdd532397f22adef8f6c745f39e0ed81491920"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/postguards.json",
+          "bytes": 110,
+          "sha256": "43886da782cf347886ae2aadcdeb70ddcb4b83b9ca2fe78f2b1411721b72f0f4"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "04692ee6aecb5609a3dc1efc2024e8e0bfd4960494f061f2aa2c6ced5403f3d4"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-dx-review-20261110-01/production-schema-warm-acquisition-review-dx-01.json",
+            "bytes": 787,
+            "sha256": "b2b4830217e72ae36215caf07eaf34803333b90c2dbe1dc9463142c0fca6d0c7"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-codecheck-20261110-01/production-schema-warm-acquisition-review-cc-01.json",
+            "bytes": 791,
+            "sha256": "50c4da0ea198695dea72a0d79500b74b1353e2a1937d6bd97822649b98b3d4c3"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 819,
+          "selected_pe_sha256": "713d0aa3a55ab032f8fb43ea7bec1a961eb0e180d482718158d241ba740ce932",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      }
     }
   ],
   "picotask_plan": {
