@@ -186,6 +186,11 @@ pub enum FolderTreeEvent {
     ExpandFolder {
         folder_id: String,
     },
+    /// Retry the displayed child-read failure through its exact current Cabinet request.
+    RetryChildren {
+        folder_id: String,
+        request: cabinet::Request,
+    },
     /// A folder row was collapsed (no fetch; purely a UI toggle the host may persist).
     CollapseFolder {
         folder_id: String,
@@ -306,11 +311,8 @@ impl LoomFolderTree {
 
     /// Recompute the visible global child-error banner from current node-owned truth.
     pub fn refresh_child_error_banner(&mut self) {
-        self.child_error_banner = self
-            .root_nodes
-            .iter()
-            .find_map(FolderNode::first_child_error)
-            .map(str::to_owned);
+        self.child_error_banner = child_error_node(&self.root_nodes, None)
+            .and_then(|node| node.child_error.clone());
     }
 
     /// Total folder nodes across the whole forest (for tests + the empty-state check).
@@ -423,6 +425,30 @@ impl LoomFolderTree {
         }
     }
 
+    fn child_retry_available(&self, folder_id: &str) -> bool {
+        self.cabinet.host_operation().is_none()
+            && self.cabinet.model().is_some_and(|model| model.pending().is_none())
+            && child_error_node(&self.root_nodes, Some(folder_id)).is_some_and(|node| !node.loading)
+    }
+
+    fn retry_children(&mut self, folder_id: String) -> Option<FolderTreeEvent> {
+        if !self.child_retry_available(&folder_id) { return None; }
+        if let Err(error) = self.cabinet.load_children_and_expand(&folder_entry_id(&folder_id)) {
+            self.operation_error = Some(error);
+            return None;
+        }
+        let request = self.cabinet.model()?.pending()?.clone();
+        Some(FolderTreeEvent::RetryChildren { folder_id, request })
+    }
+
+    pub(crate) fn cabinet_accepts_child_retry(&self, folder_id: &str, request: &cabinet::Request) -> bool {
+        matches!(&request.operation, cabinet::Operation::LoadChildren { id } if id == &folder_entry_id(folder_id))
+            && self.cabinet.host_operation() == Some(&request.operation)
+            && self.cabinet.model().is_some_and(|model|
+                model.snapshot().context == request.context && model.pending() == Some(request))
+            && child_error_node(&self.root_nodes, Some(folder_id)).is_some_and(|node| !node.loading)
+    }
+
     pub(crate) fn cabinet_terminal(&mut self, epoch: u64, sequence: u64, result: Result<(), String>) -> bool {
         if self.cabinet.terminal(epoch, sequence, result) {
             self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
@@ -458,6 +484,7 @@ impl LoomFolderTree {
     /// child-load spinner is active (idle-repaint discipline).
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<FolderTreeEvent> {
         let mut event: Option<FolderTreeEvent> = None;
+        let mut child_retry = None;
         self.refresh_child_error_banner();
         if let Err(error) = self.sync_cabinet() { self.operation_error = Some(format!("Folder tree unavailable: {error}")); }
         if let Some(error) = self.cabinet.last_error() { self.operation_error = Some(error.to_owned()); }
@@ -489,6 +516,14 @@ impl LoomFolderTree {
                 emit_button_accesskit(ui, retry.id, RETRY_AUTHOR_ID, "Retry");
                 if retry.clicked() {
                     event = Some(FolderTreeEvent::Retry);
+                }
+                if let Some(node) = child_error_node(&self.root_nodes, None) {
+                    let folder_id = node.folder_id.clone();
+                    let label = format!("Retry children for {}", node.title);
+                    let retry = ui.add_enabled(self.child_retry_available(&folder_id), egui::Button::new("Retry children"));
+                    emit_button_accesskit(ui, retry.id,
+                        &format!("folder-tree.retry-children.{}", collision_safe_folder_part(&folder_id)), &label);
+                    if retry.clicked() { child_retry = Some(folder_id); }
                 }
             });
             ui.separator();
@@ -629,6 +664,9 @@ impl LoomFolderTree {
                 self.delete_draft = None;
             }
         }
+        if event.is_none() {
+            if let Some(folder_id) = child_retry { event = self.retry_children(folder_id); }
+        }
         if let Some(FolderTreeEvent::OpenFolder { folder_id, .. }) = &event {
             self.selected_folder_id = Some(folder_id.clone());
         }
@@ -646,6 +684,16 @@ fn folder_entry_id(id: &str) -> String { format!("folder:{id}") }
 
 fn member_entry_id(folder: &str, block: &str) -> String {
     format!("member:{}:{folder}{block}", folder.len())
+}
+
+fn child_error_node<'a>(nodes: &'a [FolderNode], folder_id: Option<&str>) -> Option<&'a FolderNode> {
+    for node in nodes {
+        if node.child_error.is_some() && folder_id.is_none_or(|id| id == node.folder_id) {
+            return Some(node);
+        }
+        if let Some(failed) = child_error_node(&node.child_folders, folder_id) { return Some(failed); }
+    }
+    None
 }
 
 fn render_cabinet_edit(ui: &egui::Ui, state: &mut cabinet_host::State) -> Option<cabinet::Request> {
@@ -1280,6 +1328,92 @@ mod tests {
         assert!(tree.cabinet.host_operation().is_none());
         assert!(tree.cabinet.model().unwrap().pending().is_none());
         assert_eq!(tree.cabinet.model().unwrap().entry(&member_entry_id("folder-001", "B-1")).unwrap().label, "Canonical member");
+    }
+
+    #[test]
+    fn child_retry_uses_exact_request_and_preserves_cached_children_and_sibling_read() {
+        use egui_kittest::{kittest::Queryable, Harness};
+        use std::sync::{Arc, Mutex};
+        for cached in [false, true] {
+            let account = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+            let mut tree = LoomFolderTree::new("workspace-one");
+            tree.cabinet_bind_scope(3, Some(&account));
+            tree.set_folders(&rows_fixture());
+            let node = tree.find_folder_mut("folder-001").unwrap();
+            node.expanded = true;
+            node.child_error = Some("Child read failed".to_owned());
+            node.child_blocks = cached.then(|| vec![LeafBlock::new("B-1", "Retained member", "note")]);
+            tree.find_folder_mut("folder-002").unwrap().bind_disclosure_request(52);
+            tree.error = Some("Root read failed".to_owned());
+            tree.operation_error = Some("Earlier mutation failed".to_owned());
+            let tree = Arc::new(Mutex::new(tree));
+            let events = Arc::new(Mutex::new(Vec::new()));
+            let ui_tree = tree.clone();
+            let ui_events = events.clone();
+            let mut harness = Harness::builder().with_size(egui::vec2(800.0, 600.0)).build_ui(move |ui| {
+                if let Some(event) = ui_tree.lock().unwrap().show(ui, &crate::theme::HsTheme::Dark.palette()) {
+                    ui_events.lock().unwrap().push(event);
+                }
+            });
+            harness.step();
+            harness.get_by_label("Retry children for Projects").click();
+            harness.step();
+            let retry = events.lock().unwrap().pop().expect("actual child Retry click emits an event");
+            let FolderTreeEvent::RetryChildren { folder_id, request } = retry else {
+                panic!("child Retry must not emit the root reload");
+            };
+            assert_eq!(folder_id, "folder-001");
+            assert!(matches!(&request.operation, cabinet::Operation::LoadChildren { id } if id == &folder_entry_id("folder-001")));
+            {
+                let mut tree = tree.lock().unwrap();
+                assert!(tree.cabinet_accepts_child_retry(&folder_id, &request));
+                assert!(!tree.cabinet_accepts_child_retry("folder-002", &request));
+                let mut old_request = request.clone();
+                old_request.id += 1;
+                assert!(!tree.cabinet_accepts_child_retry(&folder_id, &old_request));
+                assert!(!tree.child_retry_available(&folder_id), "a current request cannot be replaced by Retry");
+                assert!(tree.cabinet.model().unwrap().expanded(&folder_entry_id(&folder_id)));
+                let node = tree.find_folder_mut(&folder_id).unwrap();
+                assert!(node.expanded);
+                assert_eq!(node.child_blocks.is_some(), cached);
+                assert_eq!(node.child_error.as_deref(), Some("Child read failed"));
+                let sibling = tree.find_folder_mut("folder-002").unwrap();
+                assert!(sibling.loading);
+                assert!(sibling.complete_child_request(52), "the sibling keeps its exact pending sequence");
+                assert_eq!(tree.error.as_deref(), Some("Root read failed"));
+                assert_eq!(tree.operation_error.as_deref(), Some("Earlier mutation failed"));
+                assert!(tree.cabinet_bind_request(3, 91), "bind the failed-state request before changing its node");
+                tree.find_folder_mut(&folder_id).unwrap().bind_disclosure_request(91);
+                tree.sync_cabinet().unwrap();
+                assert_eq!(tree.cabinet.bound_operation(3, 91), Some(&request.operation),
+                    "Failed-to-Unloaded projection keeps the already bound real request");
+                assert_eq!(tree.find_folder_mut(&folder_id).unwrap().child_blocks.is_some(), cached);
+                let mut other_account = (*account).clone();
+                other_account.account_id = "other-account".to_owned();
+                tree.cabinet_bind_scope(3, Some(&other_account));
+                assert!(!tree.cabinet_accepts_child_retry(&folder_id, &request));
+            }
+            harness.get_by_label("Retry").click();
+            harness.step();
+            assert!(events.lock().unwrap().iter().any(|event| matches!(event, FolderTreeEvent::Retry)),
+                "the original root Retry remains available alongside child recovery");
+        }
+    }
+
+    #[test]
+    fn child_retry_preserves_an_active_cabinet_write() {
+        let mut tree = LoomFolderTree::new("workspace-one");
+        tree.cabinet_bind_scope(3, None);
+        tree.set_folders(&rows_fixture());
+        tree.find_folder_mut("folder-001").unwrap().child_error = Some("Child read failed".to_owned());
+        tree.sync_cabinet().unwrap();
+        tree.cabinet.prepare_rename(&folder_entry_id("folder-002"), "Renamed").unwrap();
+        assert!(tree.cabinet_bind_request(3, 70));
+        let request = tree.cabinet.model().unwrap().pending().unwrap().clone();
+        assert!(!tree.child_retry_available("folder-001"));
+        assert!(tree.retry_children("folder-001".to_owned()).is_none());
+        assert_eq!(tree.cabinet.model().unwrap().pending(), Some(&request));
+        assert_eq!(tree.cabinet.bound_operation(3, 70), Some(&request.operation));
     }
 
     /// A flat folder-row fixture: 2 roots, one with a nested child, colors mixed.

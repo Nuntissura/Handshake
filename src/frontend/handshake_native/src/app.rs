@@ -31158,12 +31158,18 @@ impl HandshakeApp {
             .unwrap_or_default();
         let mut pending_open: Option<(PaneType, String)> = None;
         for event in events {
+            let child_retry = if let FolderTreeEvent::RetryChildren { folder_id, request } = &event {
+                if folder_account.as_ref().is_some_and(|account| !account.is_active())
+                    || !sec.folder_tree.lock().map(|tree| tree.cabinet_accepts_child_retry(folder_id, request)).unwrap_or(false)
+                { continue; }
+                true
+            } else { false };
             if self.runtime_handle.is_none() && matches!(&event, FolderTreeEvent::CreateFolder { .. } | FolderTreeEvent::RenameFolder { .. } | FolderTreeEvent::MoveFolder { .. } | FolderTreeEvent::DeleteFolder { .. } | FolderTreeEvent::ChangeColor { .. }) {
                 if let Ok(mut tree) = sec.folder_tree.lock() { tree.cabinet_fail_unstarted("Folder operation unavailable: runtime unavailable".to_owned()); }
                 continue;
             }
             match event {
-                FolderTreeEvent::ExpandFolder { folder_id } => {
+                FolderTreeEvent::ExpandFolder { folder_id } | FolderTreeEvent::RetryChildren { folder_id, .. } => {
                     let sec = &self.editor_mounts.secondary;
                     let epoch = sec
                         .folder_workspace_epoch
@@ -31175,20 +31181,27 @@ impl HandshakeApp {
                         .folder_tree
                         .lock()
                         .ok()
-                        .and_then(|mut t| {
-                            t.find_folder_mut(&folder_id).map(|node| {
+                        .map(|mut t| {
+                            let Some(node) = t.find_folder_mut(&folder_id) else { return Ok(false); };
+                            if !child_retry { node.expanded = true; }
+                            if !(child_retry || node.child_blocks.is_none()) || node.loading { return Ok(false); }
+                            if child_retry && !t.cabinet_bind_request(epoch, sequence) {
+                                t.operation_error = Some("Folder retry did not start: current tree changed".to_owned());
+                                return Err(());
+                            }
+                            if let Some(node) = t.find_folder_mut(&folder_id) {
                                 node.expanded = true;
-                                if node.child_blocks.is_none() && !node.loading {
-                                    node.bind_disclosure_request(sequence);
-                                    true
-                                } else {
-                                    false
-                                }
-                            })
+                                node.bind_disclosure_request(sequence);
+                                Ok(true)
+                            } else { Ok(false) }
                         })
-                        .unwrap_or(false);
+                        .unwrap_or(Ok(false));
+                    let needs_fetch = match needs_fetch {
+                        Ok(value) => value,
+                        Err(()) => { ctx.request_repaint(); continue; }
+                    };
                     if needs_fetch {
-                        let admitted = sec.folder_tree.lock().map(|mut tree| tree.cabinet_bind_request(epoch, sequence)).unwrap_or(false);
+                        let admitted = child_retry || sec.folder_tree.lock().map(|mut tree| tree.cabinet_bind_request(epoch, sequence)).unwrap_or(false);
                         if !admitted {
                             if let Ok(mut tree) = sec.folder_tree.lock() {
                                 if let Some(node) = tree.find_folder_mut(&folder_id) {
@@ -39832,6 +39845,86 @@ impl HandshakeApp {
             }
         }
         dispatched
+    }
+}
+
+#[cfg(test)]
+mod mt022_child_retry_tests {
+    use super::{HandshakeApp, HealthDisplayState};
+    use crate::graph::folder_tree::{FolderRow, FolderTreeEvent, LeafBlock, LoomFolderTree};
+    use egui_kittest::{kittest::Queryable, Harness};
+    use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn child_retry_reaches_host_terminal_without_reloading_roots_or_retiring_sibling() {
+        for cached in [false, true] {
+            let mut app = HandshakeApp::with_health(HealthDisplayState::Error(
+                "folder-child-retry-host-test".to_owned(),
+            ));
+            assert!(app.runtime_handle.is_none());
+            let workspace = "workspace-one";
+            let identity = app.folder_request_identity_for_test();
+            let tree = app.mounted_folder_tree_for_test();
+            let events = app.mounted_folder_events_for_test();
+            {
+                let mut tree = tree.lock().unwrap();
+                *tree = LoomFolderTree::new(workspace);
+                tree.cabinet_bind_scope(identity.0, None);
+                tree.set_folders(&[
+                    FolderRow::new("folder-001", None, "Projects", None),
+                    FolderRow::new("folder-002", None, "Archive", None),
+                ]);
+                let node = tree.find_folder_mut("folder-001").unwrap();
+                node.expanded = true;
+                node.child_error = Some("Child read failed".to_owned());
+                node.child_blocks = cached.then(|| vec![LeafBlock::new("B-1", "Retained member", "note")]);
+                tree.find_folder_mut("folder-002").unwrap().bind_disclosure_request(52);
+                tree.error = Some("Root read failed".to_owned());
+                tree.operation_error = Some("Earlier mutation failed".to_owned());
+            }
+            let sibling_cell: crate::backend_client::FolderChildrenCell = Arc::new(Mutex::new(None));
+            app.editor_mounts.secondary.folder_children_cells.lock().unwrap()
+                .push(("folder-002".to_owned(), sibling_cell.clone()));
+            app.set_folder_child_latest_sequence_for_test("folder-002", 52);
+            let ui_tree = tree.clone();
+            let mut harness = Harness::builder().with_size(egui::vec2(800.0, 600.0)).build_state(
+                move |ctx, app: &mut HandshakeApp| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        if let Some(event) = ui_tree.lock().unwrap().show(ui, &crate::theme::HsTheme::Dark.palette()) {
+                            assert!(matches!(&event, FolderTreeEvent::RetryChildren { folder_id, .. } if folder_id == "folder-001"));
+                            events.lock().unwrap().push(event);
+                        }
+                    });
+                    app.drive_folder_pane(ctx, workspace);
+                },
+                app,
+            );
+            harness.step();
+            harness.get_by_label("Retry children for Projects").click();
+            harness.step();
+
+            let app = harness.state();
+            assert_eq!(app.folder_request_identity_for_test(), identity, "child Retry must not reload roots");
+            assert_eq!(app.folder_child_latest_sequence_for_test("folder-002"), Some(52));
+            let cells = app.editor_mounts.secondary.folder_children_cells.lock().unwrap();
+            assert_eq!(cells.len(), 1);
+            assert_eq!(cells[0].0, "folder-002");
+            assert!(Arc::ptr_eq(&cells[0].1, &sibling_cell));
+            drop(cells);
+            let mut tree = tree.lock().unwrap();
+            let node = tree.find_folder_mut("folder-001").unwrap();
+            assert!(node.expanded);
+            assert!(!node.loading);
+            assert_eq!(node.child_blocks.is_some(), cached);
+            if cached { assert_eq!(node.child_blocks.as_ref().unwrap()[0].block_id, "B-1"); }
+            assert_eq!(node.child_error.as_deref(), Some("Folder children unavailable: runtime unavailable"),
+                "actual host must bind before the failed-node transition, then reach its no-runtime terminal");
+            let sibling = tree.find_folder_mut("folder-002").unwrap();
+            assert!(sibling.loading);
+            assert!(sibling.complete_child_request(52), "the sibling retains its original pending request");
+            assert_eq!(tree.error.as_deref(), Some("Root read failed"));
+            assert_eq!(tree.operation_error.as_deref(), Some("Earlier mutation failed"));
+        }
     }
 }
 

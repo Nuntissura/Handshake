@@ -1628,7 +1628,10 @@ fails. Empty workspaces show No folders. Missing-parent, \
 self-parent, and descendant-cycle move conflicts stay visible as Folder move failed and do not mutate the \
 persisted hierarchy. Backend failures stay visible \
 with folder-tree.retry as a Retry button; clicking it emits FolderTreeEvent::Retry and re-runs the folder \
-list fetch. Failed mutations remain visible across authoritative reconciliation and clear only when a new \
+list fetch. A child-read failure also exposes Retry children for the displayed folder at \
+folder-tree.retry-children.{encoded-folder-id}. This retries that folder through its current Cabinet request, \
+keeps cached children until delivery, and preserves other child reads. It is disabled while another Cabinet \
+request or mutation owns the tree. Failed mutations remain visible across authoritative reconciliation and clear only when a new \
 mutation begins or Retry is chosen. Dialog controls are addressable as folder-tree.create.name, \
 folder-tree.create.submit, folder-tree.create.cancel, folder-tree.rename.name, \
 folder-tree.rename.submit, folder-tree.rename.cancel, folder-tree.delete.confirm, and \
