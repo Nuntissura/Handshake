@@ -3337,6 +3337,54 @@
         },
         "coverage": "One complete live target sample and complete final sample. The three affected Native paths and inline tests were type-checked. No test bodies, runtime, visual, or whole-GUI verdict."
       }
+    },
+    {
+      "candidate": "handpick-bookmark-historical-selector024-20261110",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "HISTORICAL_COMPONENT_PROOF_QUALIFIED",
+      "case_id": "HANDPICK-NATIVE-PARITY-08-SELECTOR-024",
+      "source_head": "e826f17d0224f9a7a6a77d689ee4d4f93893dab9",
+      "live_source_control_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "executable_sha256": "8e27eb7134b69ff1c1f3422e0164c28023004b900efa5b949241eca5f48230a3",
+      "source_witness": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-source-witness-20261110-01/historical-source-witness-01.json",
+        "sha256": "1bdaf1a07c51d7f79491fdc5b6afa357361b03e8ed27e557e4bc87f8c2c796d8"
+      },
+      "retry_of_failed_result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-handpick-native-library-runtime-20261108-01-case19/result.json",
+        "sha256": "5dc7da4c12812c7f4683a78283b074d20d151b9bdde08b786abeedcb2d8269f8"
+      },
+      "retry_consumed": true,
+      "test_exit": 0,
+      "producer_exit": 0,
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-retry-runtime-20261110-01/result.json",
+        "sha256": "8f041d17b5211c7afbbe16e495ae746e2dd78dcfec5d8c048199acb7660b8d0c"
+      },
+      "completion": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-retry-runtime-20261110-01/case-completion.json",
+        "sha256": "990545a9a4f3345d91cccffa65026080528c859bef3c98b55ce3c7e2cb8c6b76"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-retry-runtime-20261110-01/released.json",
+        "sha256": "eff553fa6cf8c578857448013eab0ce5c3cafa4b060393a022d12e46116bc5be"
+      },
+      "terminal_observation": {
+        "pid": 26656,
+        "birth_filetime": 134387988315640029,
+        "observed_utc": "2026-11-10T15:40:54.101434Z",
+        "same_retained_handle": true,
+        "observer_closed": true,
+        "command_ref": "exec-431bcb92-da5d-450e-b262-7705f6697da4",
+        "custody_returned_by": "/root/coding"
+      },
+      "independent_reviewer": "/root/adversarial_refresh",
+      "scope_limit": "One bookmark component test passed with actual live resource sampling. Current workspace was separately guarded. No current-host, full GUI, persistence, Vulkan or Palmistry verdict.",
+      "current_source_acceptance": "NOT_ISSUED",
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
