@@ -3221,7 +3221,7 @@
       "pico_refs": [
         "GUI-WP012-graph-folders"
       ],
-      "state": "SOURCE_PUBLISHED_QUALIFIED_CHECK_OPEN",
+      "state": "SOURCE_PUBLISHED_AFFECTED_METADATA_CHECK_QUALIFIED",
       "recorded_at_utc": "2026-11-10T15:08:03.586590+00:00",
       "published_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
       "published_tree": "08403187ae02aa51137a4d8b37020ab4333988f5",
@@ -3272,6 +3272,36 @@
             "observer_chunk": "b13ec3",
             "custody_returned_by": "/root/coding"
           }
+        },
+        {
+          "id": "cabinet-native-check-20261110-03",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "qualified": true,
+          "changed_inputs": [],
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/result.json",
+            "sha256": "4555ab1135197e9e97a23e35ab920ea34f68fa21ad044e67b552884ba38d2626"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/released.json",
+            "sha256": "760d77a32ba99cf5efb0f093d99a805253358b452ea0c34ad92ab04c9ba0313f"
+          },
+          "terminal_handoff": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-capture-custody-20261110-03/producer-terminal-handoff.json",
+            "sha256": "41128ad375caf3addba837d4c5c57df7f3dcfd8e6e32432f67384df3f27bbe52"
+          },
+          "terminal_observation": {
+            "pid": 40608,
+            "birth_filetime": 134387971236274811,
+            "observed_utc": "2026-11-10T15:12:18.613008Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "02faeb",
+            "custody_returned_by": "/root/coding"
+          }
         }
       ],
       "diagnosis": {
@@ -3290,7 +3320,23 @@
       "tests_run": false,
       "runtime_run": false,
       "final_acceptance": false,
-      "original_acceptance": "OPEN"
+      "original_acceptance": "OPEN",
+      "affected_static_proof": {
+        "check_id": "GUI212-COMBINED-STATIC",
+        "scope": "GUI-WP012-graph-folders child-folder Retry only",
+        "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+        "independent_qualification": "QUALIFIED",
+        "independent_reviewer": "/root/adversarial_refresh",
+        "check_artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/check-artifact.json",
+          "sha256": "49b219603a5482a54e873c466a9cd236114f487fa7dbb5f65b8145c914080811"
+        },
+        "preserved_handpick_executable": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/preserved-executable.json",
+          "sha256": "774f5a08277b12a812d5ebded37067903bc228f5deaae30271122858d2187de3"
+        },
+        "coverage": "One complete live target sample and complete final sample. The three affected Native paths and inline tests were type-checked. No test bodies, runtime, visual, or whole-GUI verdict."
+      }
     }
   ],
   "picotask_plan": {
