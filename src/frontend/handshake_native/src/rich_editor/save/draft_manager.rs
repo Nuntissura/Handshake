@@ -59,7 +59,7 @@ pub struct RichDocumentDraft {
     #[serde(default)]
     pub draft_content_sha256: String,
     /// The draft's unsaved ProseMirror content (restored on "Restore draft").
-    #[serde(default)]
+    #[serde(default, rename = "draft_content_json", alias = "content_json")]
     pub content_json: Option<JsonValue>,
 }
 
@@ -627,17 +627,13 @@ impl DraftManager {
         Some(self.cleanup_action())
     }
 
-    /// "Restore draft": adopt the available draft's content. Returns the draft `content_json` (the
-    /// caller rebuilds the doc from it) and transitions the state to `None` (the banner is gone; the
-    /// restored content is now the live doc, dirty). Clears the server draft.
-    pub fn restore_draft(&mut self) -> Option<JsonValue> {
+    /// Return the recovery content without clearing the durable draft. The host dismisses the
+    /// banner only after applying the content; successful save or explicit Discard clears it.
+    pub fn restore_draft(&self) -> Option<JsonValue> {
         let DraftState::Available { draft, .. } = &self.state else {
             return None;
         };
-        let content = draft.content_json.clone();
-        self.state = DraftState::None;
-        self.spawn_clear();
-        content
+        draft.content_json.clone()
     }
 
     /// "Discard": clear the server draft and transition to `Discarded` (the banner is gone, the
@@ -796,6 +792,34 @@ mod tests {
     }
 
     #[test]
+    fn canonical_draft_payload_and_legacy_alias_reach_recovery_and_restore() {
+        let content = json!({"type":"doc","content":[{"type":"paragraph",
+            "content":[{"type":"text","text":"recovered draft"}]}]});
+        for content_field in ["draft_content_json", "content_json"] {
+            let mut row = json!({"rich_document_id":"DOC-1","workspace_id":"workspace-test",
+                "base_doc_version":3,"base_content_sha256":canonical_content_sha256(&base_content()),
+                "draft_content_sha256":canonical_content_sha256(&content)});
+            row[content_field] = content.clone();
+            let draft: RichDocumentDraft = serde_json::from_value(row).unwrap();
+            let mut manager = mgr();
+            let owner = owner(&base_content());
+            assert!(owner.with_save_gate(|gate| manager.bind_owner(gate)));
+            owner.with_save_gate(|gate| manager.deliver_load_for_test(gate, Ok(RichDocumentDraftLoad {
+                current_doc_version: 3, draft: Some(draft),
+            })));
+            assert!(owner.with_save_gate(|gate| manager.drain_load(gate)));
+            assert!(manager.banner_visible());
+            assert_eq!(manager.restore_draft(), Some(content.clone()));
+            assert!(manager.banner_visible(), "reading content does not confirm restore");
+            manager.dismiss_banner();
+            assert!(matches!(manager.state, DraftState::Available { shown: false, .. }));
+        }
+        assert!(serde_json::from_value::<RichDocumentDraft>(json!({
+            "draft_content_json":content, "content_json":{"different":true},
+        })).is_err());
+    }
+
+    #[test]
     fn draft_load_with_stale_base_version_is_ignored() {
         // A draft based on an older version than the loaded current_doc_version is NOT offered.
         let mut m = mgr();
@@ -816,7 +840,7 @@ mod tests {
     }
 
     #[test]
-    fn restore_draft_returns_content_and_clears_banner() {
+    fn restore_draft_keeps_recovery_and_does_not_admit_clear() {
         // AC: Restore draft loads the draft content into the DocModel.
         let mut m = mgr();
         let draft_content = json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"restored"}]}]});
@@ -833,7 +857,33 @@ mod tests {
             .restore_draft()
             .expect("restore returns the draft content");
         assert_eq!(restored, draft_content);
-        assert_eq!(m.state, DraftState::None, "banner gone after restore");
+        assert!(m.banner_visible(), "content extraction is not successful application");
+        assert!(m.writes.lock().unwrap().pending.is_empty(), "restore must not admit DELETE");
+        m.dismiss_banner();
+        assert!(!m.banner_visible());
+        assert_eq!(m.restore_draft(), Some(draft_content), "the recovery copy is retained");
+        assert!(!m.release_ready(), "dismissing recovery is not durable draft clearance");
+        let writes = m.writes.lock().unwrap();
+        assert!(writes.pending.is_empty());
+        assert!(!writes.confirmed_clear);
+        assert!(!writes.unresolved);
+    }
+
+    #[test]
+    fn restore_without_content_keeps_the_recovery_banner() {
+        let mut m = mgr();
+        m.state = DraftState::Available {
+            draft: Box::new(RichDocumentDraft {
+                base_doc_version: 3,
+                base_content_sha256: "a".into(),
+                draft_content_sha256: "b".into(),
+                content_json: None,
+            }),
+            shown: true,
+        };
+        assert_eq!(m.restore_draft(), None);
+        assert!(m.banner_visible());
+        assert!(m.writes.lock().unwrap().pending.is_empty());
     }
 
     #[test]

@@ -779,7 +779,8 @@ impl KnowledgeDocumentsClient {
             .client
             .put(self.url(&format!("/knowledge/documents/{document_id}/draft")))
             .json(body);
-        self.send_json(headers.apply(builder)).await
+        let response: Value = self.send_json(headers.apply(builder)).await?;
+        checked_draft_upsert_response(response, document_id, body)
     }
 
     // ── Route 6: DELETE /knowledge/documents/:id/draft — discard a persisted draft. ─────────────
@@ -1120,6 +1121,35 @@ fn map_error_status(status: u16, body: &str) -> KnowledgeDocumentsError {
     }
 }
 
+fn checked_draft_upsert_response(
+    response: Value,
+    document_id: &str,
+    request: &UpsertDraftRequest,
+) -> DocResult<DraftWriteResponse> {
+    let invalid = || KnowledgeDocumentsError::Parse("Draft acknowledgment does not match the submitted draft".into());
+    let envelope = response.as_object().ok_or_else(invalid)?;
+    if envelope.get("rich_document_id").and_then(Value::as_str) != Some(document_id) {
+        return Err(invalid());
+    }
+    let cleared = envelope.get("cleared").and_then(Value::as_bool).ok_or_else(invalid)?;
+    let draft = envelope.get("draft").ok_or_else(invalid)?;
+    if !draft.is_null() {
+        let row = draft.as_object().ok_or_else(invalid)?;
+        let content_hash = crate::rich_editor::save::canonical_hash::canonical_content_sha256(&request.content_json);
+        if cleared
+            || row.get("rich_document_id").and_then(Value::as_str) != Some(document_id)
+            || row.get("base_doc_version").and_then(Value::as_i64) != Some(request.base_doc_version)
+            || row.get("base_content_sha256").and_then(Value::as_str) != Some(request.base_content_sha256.as_str())
+            || row.get("draft_content_json") != Some(&request.content_json)
+            || row.get("draft_content_sha256").and_then(Value::as_str) != Some(content_hash.as_str())
+        {
+            return Err(invalid());
+        }
+    }
+    // Explicit null is Core's canonical-identical no-op, not persisted draft evidence.
+    serde_json::from_value(response).map_err(|_| invalid())
+}
+
 #[cfg(test)]
 mod tests {
     //! Pure unit proofs for the serialization + status-mapping contracts that DO NOT need a socket.
@@ -1127,6 +1157,77 @@ mod tests {
     //! history clamp) live in `tests/test_knowledge_documents.rs` against real backend payload shapes.
 
     use super::*;
+
+    fn draft_request_and_response() -> (UpsertDraftRequest, Value) {
+        let content = serde_json::json!({"type":"doc","content":[{"type":"paragraph",
+            "content":[{"type":"text","text":"unsaved"}]}]});
+        let request = UpsertDraftRequest { base_doc_version: 3,
+            base_content_sha256: "a".repeat(64), content_json: content.clone() };
+        let response = serde_json::json!({"rich_document_id":"DOC-1","cleared":false,
+            "draft":{"rich_document_id":"DOC-1","base_doc_version":3,
+                "base_content_sha256":request.base_content_sha256,
+                "draft_content_json":content,
+                "draft_content_sha256":crate::rich_editor::save::canonical_hash::canonical_content_sha256(&request.content_json)}});
+        (request, response)
+    }
+
+    #[test]
+    fn draft_upsert_accepts_only_the_exact_returned_row() {
+        let (request, response) = draft_request_and_response();
+        let accepted = checked_draft_upsert_response(response.clone(), "DOC-1", &request).unwrap();
+        assert!(accepted.draft.is_some());
+        assert!(!accepted.cleared);
+        for (path, replacement) in [
+            ("/rich_document_id", serde_json::json!("OTHER")),
+            ("/cleared", serde_json::json!(true)),
+            ("/draft/rich_document_id", serde_json::json!("OTHER")),
+            ("/draft/base_doc_version", serde_json::json!(4)),
+            ("/draft/base_content_sha256", serde_json::json!("b".repeat(64))),
+            ("/draft/draft_content_sha256", serde_json::json!("c".repeat(64))),
+            ("/draft/draft_content_json", serde_json::json!({"private":"different payload"})),
+        ] {
+            let mut changed = response.clone();
+            *changed.pointer_mut(path).unwrap() = replacement;
+            match checked_draft_upsert_response(changed, "DOC-1", &request) {
+                Err(KnowledgeDocumentsError::Parse(message)) => assert_eq!(message,
+                    "Draft acknowledgment does not match the submitted draft"),
+                other => panic!("mismatched acknowledgment was not rejected: {path}: {other:?}"),
+            }
+        }
+        for path in ["rich_document_id", "base_doc_version", "base_content_sha256",
+            "draft_content_sha256", "draft_content_json"] {
+            let mut changed = response.clone();
+            changed["draft"].as_object_mut().unwrap().remove(path);
+            assert!(checked_draft_upsert_response(changed, "DOC-1", &request).is_err());
+        }
+    }
+
+    #[test]
+    fn draft_upsert_distinguishes_explicit_noop_from_missing_or_malformed_acknowledgment() {
+        let (request, _) = draft_request_and_response();
+        assert_ne!(request.base_content_sha256,
+            crate::rich_editor::save::canonical_hash::canonical_content_sha256(&request.content_json));
+        for cleared in [false, true] {
+            let response = checked_draft_upsert_response(serde_json::json!({
+                "rich_document_id":"DOC-1", "draft":null, "cleared":cleared,
+            }), "DOC-1", &request).unwrap();
+            assert!(response.draft.is_none());
+            assert_eq!(response.cleared, cleared);
+        }
+        for response in [
+            serde_json::json!({"rich_document_id":"DOC-1","cleared":false}),
+            serde_json::json!({"rich_document_id":"DOC-1","draft":null}),
+            serde_json::json!({"rich_document_id":"DOC-1","draft":null,"cleared":"false"}),
+            serde_json::json!({"rich_document_id":"DOC-1","draft":[],"cleared":false}),
+            serde_json::json!({"rich_document_id":"OTHER","draft":null,"cleared":false}),
+        ] {
+            assert!(checked_draft_upsert_response(response, "DOC-1", &request).is_err());
+        }
+        let delete: DraftWriteResponse = serde_json::from_value(serde_json::json!({
+            "rich_document_id":"DOC-1", "cleared":true,
+        })).unwrap();
+        assert!(delete.draft.is_none() && delete.cleared);
+    }
     use serde_json::json;
 
     #[test]

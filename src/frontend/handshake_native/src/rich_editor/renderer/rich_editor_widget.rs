@@ -3532,7 +3532,7 @@ impl RichEditorWidget {
         match outcome {
             DraftBannerOutcome::None => {}
             DraftBannerOutcome::Restore => {
-                let restored = state.draft.as_mut().and_then(|d| d.restore_draft());
+                let restored = state.draft.as_ref().and_then(|d| d.restore_draft());
                 if let Some(content) = restored {
                     if let Ok(doc) = from_json_value(&content) {
                         if state.edit_document(|candidate, history| {
@@ -3541,8 +3541,10 @@ impl RichEditorWidget {
                             Ok::<_, std::convert::Infallible>(())
                         }).is_err() { return; }
                         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
-                        // A restored draft is unsaved -> mark dirty so a later Ctrl+S persists it.
-                        state.mark_document_dirty();
+                        // Keep recovery available until the document edit succeeds.
+                        if let Some(draft) = state.draft.as_mut() {
+                            draft.dismiss_banner();
+                        }
                     }
                 }
             }
