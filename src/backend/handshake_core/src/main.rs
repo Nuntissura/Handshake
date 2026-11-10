@@ -19,6 +19,7 @@ fn main() {
                 result = runtime.wait() => {
                     if let Err(error) = result {
                         tracing::error!(error = %error, "handshake_core runtime failed");
+                        let _ = runtime.join_retained_owner().await;
                         std::process::exit(1);
                     }
                     return;
@@ -27,6 +28,7 @@ fn main() {
             }
             if let Err(error) = runtime.wait().await {
                 tracing::error!(error = %error, "handshake_core runtime failed");
+                let _ = runtime.join_retained_owner().await;
                 std::process::exit(1);
             }
         }));

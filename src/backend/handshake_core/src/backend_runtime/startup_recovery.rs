@@ -3,7 +3,7 @@ use super::*;
 pub(super) async fn perform_startup_recovery(
     surreal: &crate::storage::surreal::SurrealStorage,
     reclaim_resource_scope: ReclaimResourceScope,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<crate::session_checkpoint::ResumeReport, Box<dyn std::error::Error>> {
     let sandbox_registry = Arc::new(build_startup_recovery_registry_async().await);
     let process_store = Arc::new(SurrealProcessLedgerStore::new(
         surreal.clone(),
@@ -34,7 +34,13 @@ pub(super) async fn perform_startup_recovery(
             report
         }
     };
-    write_startup_recovery_report(&restart_report)?;
+    Ok(restart_report)
+}
+
+pub(super) fn record_startup_recovery_report(
+    restart_report: &crate::session_checkpoint::ResumeReport,
+) -> Result<(), Box<dyn std::error::Error>> {
+    write_startup_recovery_report(restart_report)?;
     tracing::info!(
         target: "handshake_core::restart_resume",
         sessions_examined = restart_report.sessions_examined,

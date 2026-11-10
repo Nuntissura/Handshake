@@ -180,7 +180,11 @@ async fn run(
     }
     logging::init_logging();
     let recovery_only_scope = if startup_recovery_only_requested() {
-        Some(api::account_scope::ProductLocalResourceScope::from_env()?)
+        let scope = api::account_scope::ProductLocalResourceScope::from_env()?;
+        Some((
+            ReclaimResourceScope::from_exact(scope.exact())?,
+            crate::process_ledger::resolve_embedded_runtime_host_scope()?,
+        ))
     } else { None };
     std::env::remove_var(api::account_scope::PRODUCT_LOCAL_RESOURCE_SCOPE_ENV);
 
@@ -202,14 +206,6 @@ async fn run(
         "control-plane storage mode resolved"
     );
     let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
-    if let Some(scope) = recovery_only_scope {
-        perform_startup_recovery(&control_plane.surreal, ReclaimResourceScope::from_exact(scope.exact())?).await?;
-        control_plane.surreal.shutdown().await?;
-        settled.store(true, std::sync::atomic::Ordering::Release);
-        return Ok(());
-    }
-    let recorder = init_flight_recorder().await?;
-    let capability_registry = Arc::new(CapabilityRegistry::new());
     macro_rules! retain_on_error {
         ($result:expr) => {
             match $result {
@@ -218,6 +214,39 @@ async fn run(
             }
         };
     }
+    if let Some((reclaim_resource_scope, runtime_host_scope_id)) = recovery_only_scope {
+        let restart_report = retain_on_error!(perform_startup_recovery(
+            &control_plane.surreal, reclaim_resource_scope.clone(),
+        ).await);
+        let process_runtime = retain_on_error!(ProcessReclaimRuntime::production(
+            control_plane.surreal.clone(),
+            reclaim_resource_scope,
+            None,
+            retain_on_error!(crate::process_ledger::production_process_sandbox_registry_async().await),
+            runtime_host_scope_id.clone(),
+            Duration::from_secs(30),
+        ).await);
+        let report = process_runtime.boot_reconcile_report();
+        tracing::info!(
+            target: "handshake_core::process_ledger",
+            sessions_reconciled = report.sessions_reconciled,
+            processes_reclaimed = report.processes_reclaimed,
+            processes_kill_failed = report.processes_kill_failed,
+            sweep_reclaim_errors = ?report.sweep_reclaim_errors,
+            session_errors = ?report.session_errors,
+            cancelled = report.cancelled,
+            runtime_host_scope_id,
+            "startup recovery-only restart-orphan reconcile complete"
+        );
+        drain_unpublished_runtime(&process_runtime, None, &terminal).await;
+        let report_result = record_startup_recovery_report(&restart_report);
+        drop(process_runtime);
+        retain_on_error!(control_plane.surreal.shutdown().await);
+        settled.store(true, std::sync::atomic::Ordering::Release);
+        return report_result;
+    }
+    let recorder = init_flight_recorder().await?;
+    let capability_registry = Arc::new(CapabilityRegistry::new());
     #[cfg(feature = "os-keychain")]
     let mut recipient_startup = member_recipient_startup::member_recipient_startup(control_plane.surreal.clone());
     #[cfg(feature = "os-keychain")]
@@ -358,7 +387,10 @@ async fn run(
         }
         let product_local_scope = activation.scope().clone();
         let reclaim_resource_scope = retain_on_error!(ReclaimResourceScope::from_exact(product_local_scope.exact()));
-        retain_on_error!(perform_startup_recovery(&control_plane.surreal, reclaim_resource_scope.clone()).await);
+        let restart_report = retain_on_error!(perform_startup_recovery(
+            &control_plane.surreal, reclaim_resource_scope.clone(),
+        ).await);
+        retain_on_error!(record_startup_recovery_report(&restart_report));
         let storage = control_plane.database.clone();
         let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
         let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
@@ -863,6 +895,15 @@ async fn drain_unpublished_runtime(runtime: &ProcessReclaimRuntime, client: Opti
         None => true,
     };
     let report = runtime.shutdown_and_drain(Duration::from_secs(35)).await;
+    tracing::info!(
+        target: "handshake_core::process_ledger",
+        runtime_quiesced,
+        reclaim_task_quiesced = report.reclaim_task_quiesced,
+        ledger = ?report.ledger,
+        lease_released = report.lease_released,
+        lease_retained_reason = ?report.lease_retained_reason,
+        "unpublished process runtime drain observed"
+    );
     let ledger_flushed = matches!(report.ledger,
         crate::process_ledger::LedgerDrainJoinOutcome::Flushed
         | crate::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained);
