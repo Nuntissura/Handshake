@@ -4818,7 +4818,7 @@
     },
     {
       "candidate": "refresh-integration-standalone-needed-retry-20261110-01",
-      "state": "ONE_CHANGED_CONTROL_NEEDED_RETRY_SELECTED_COMPILE_ONLY",
+      "state": "EXACT_REFRESH_COLD_ACQUISITION_UNQUALIFIED_CARGO0_PRODUCER1_CHECKED_RELEASE",
       "pico_refs": [
         "GUI-WP012-172-DIAGNOSTICS"
       ],
@@ -4916,6 +4916,97 @@
         "diagnostics_refresh_rejects_initial_busy_and_offline_controls"
       ],
       "limits": "One focused compile-only acquisition after actual current Core custody handback, final pinned source/resource/runner admission. No Refresh bodies, sibling replays, old custody reinterpretation, force, short bracket, cleanup or automatic retry.",
+      "original_acceptance": "OPEN",
+      "actual_cold_attempt": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/result.json",
+          "bytes": 5699,
+          "sha256": "ad033d09669d0d81fddeabca11828e0b7a1511e91b7863f87102291b7b95cfd9"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/released.json",
+          "bytes": 2241,
+          "sha256": "ccb0f75ffe95dfb673dbd89f9748741bbd645cbc3f6cfe7b5e70d91a66d61376"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/postguards.json",
+          "bytes": 1870,
+          "sha256": "352a46a9ffc122993244a28c41f30f27f9e8bea75f262c1c1625d2c694be6627"
+        },
+        "final_job": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/private-job-final.json",
+          "bytes": 234,
+          "sha256": "7067a084c03935fa71a9b40ef9ab4dbe8ddef3d6b0787e75a4b86404a21eb2f7"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "c5fead5ce14c6e2036506d432b7de77c7815ffead499b9c761b21cf981fd5fce"
+        },
+        "raw_cargo": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/cargo.stdout.jsonl",
+          "bytes": 2398298,
+          "sha256": "52c31593b2b5d77239779cfd2ba7148b4f08577405a9952d012f9483c89d1245"
+        },
+        "cargo_exit": 0,
+        "producer_exit": 1,
+        "consumed": true,
+        "codegen_artifact": null,
+        "tests_run": false,
+        "live_failure": {
+          "deadline_exceeded": false,
+          "elapsed_seconds": 12.671999999962281,
+          "entries": 450001,
+          "entries_exceeded": true,
+          "reason": "ENTRY_LIMIT",
+          "reconciled_directories": 3,
+          "scan_max_entries": 450000,
+          "scan_timeout_ms": 25000,
+          "stage": "live",
+          "vanished_entries": 0
+        },
+        "final_target_apparent_bytes": 191959588530,
+        "minimum_sampled_free_bytes": 121690787840,
+        "actual_scope": "Cold link emitted one exact Refresh test PE in raw Cargo; capture failed proof, not executable acquisition. Retain both earlier attempts including the historical unknown unchanged."
+      },
+      "next_proof": "A separately reviewed and admitted one-time warm-only acquisition can reuse the settled exact native candidate if actual technical and Codecheck agree on the changed cache input and all-fresh policy. No execution authority here and no body run before qualification."
+    },
+    {
+      "candidate": "embedded-session-route-issued-identity-test-only-20261111-01",
+      "state": "EXACT_ONE_TEST_FILE_SOURCE_CLEAR_INTEGRATION_ALLOCATED_NO_EXECUTION_ADMISSION",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; KB-CAD-001; CX-EXEC-004",
+      "original_contract_ref": "MT-022.json",
+      "prior_proof": "Both base and production schema embedded synthetic account tests passed. Actual HTTP still failed during query after record signin. No old HTTP replay.",
+      "hypothesis": "The actual setup/default-login routes provision the configured Operator profile and reconciliation principal that the synthetic storage baseline omits. Reuse those routes in a private production-schema test, then exchange with the validated channel and route TTL and invoke the exact first reauthentication step before any vault or session login audit. Distinguish exact identity success, reproduced session_query_check category, and unrelated earlier setup/cleanup failures.",
+      "required_path": "src/backend/handshake_core/src/api/authority.rs",
+      "preimage_product_head": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "preimage_raw_sha256": "f9a50b7d81983072e8d3a5d14759909368b3d8f4dbc5ac01716c2441aef3b63c",
+      "author": "/root/route_identity_coding",
+      "independent_source_reviewer": "/root/schema_warm_codecheck",
+      "physical_product_owner": "/root",
+      "candidate_source": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-candidate-20261110-02/authority-candidate.rs",
+        "bytes": 128848,
+        "sha256": "521607b84f51f538b47c712491d386c20e6344ebbc2708b4b691a72ace311ad3"
+      },
+      "normalized_diff": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-candidate-20261110-02/route-identity-only.diff",
+        "bytes": 7391,
+        "sha256": "dc5175fe8787efd0a4945ff23cba6f7e4379978887841265f9f56a4dc3a2844d"
+      },
+      "candidate_pins": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-candidate-20261110-02/candidate-pins.json",
+        "bytes": 3028,
+        "sha256": "c17948685131ed424a0831e507296ef201fd4f9df0954808a020263eb663e22e"
+      },
+      "required_proof": {
+        "new_selector": "api::authority::local_account_http_tests::route_issued_owner_session_resolves_before_vault",
+        "scope": "Exact independent private synthetic test only. Protected short output and fixture, strip watcher/sync keys, private raw stderr, fixed phase labels, checked revocation/shutdown or preserve fixture on unknown closure, no real vault/HTTP session or original replay.",
+        "current_admission": "NONE"
+      },
       "original_acceptance": "OPEN"
     }
   ],
