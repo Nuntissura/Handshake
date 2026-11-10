@@ -4406,6 +4406,230 @@
       },
       "controls": "Fresh short private directory and TempDir with no-follow ancestry and protected current SID/SYSTEM ACL readback, exact fresh source and guard pins, private raw output, existing v11 full resource measurements, actual owned Job settlement, exact producer exit and independent two-terminal-handle close witness. No Cargo, app, HTTP, account data, cleanup, process stop or retry. Abort on mismatch.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-query-and-motion-components-20261110-01",
+      "state": "INDEPENDENT_EMBEDDED_DIAGNOSTIC_AND_MOTION_COMPONENTS_PASS_ORIGINAL_ACCEPTANCE_OPEN",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "motion_owning_unit_ref": "MT-212.json#/context_capsule/host_build_units/motion_preference",
+      "product_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "embedded": {
+        "case_id": "CORE-SESSION-QUERY-EMBEDDED-001",
+        "integration_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c758-c01f-7f83-9730-a7a910127c64",
+        "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/result.json",
+          "bytes": 6812,
+          "sha256": "9e3544f1bda3c743d5940644f1a8357c8931abf988beb2438671cc39eb2097dd"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/released.json",
+          "bytes": 497,
+          "sha256": "6230d9e95eaab6b2a4afc9e03868d1a9861b508182d90920c98960b9dce87c29"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/postguards.json",
+          "bytes": 2299,
+          "sha256": "e9ac504553ac4a03983367d0a179108feb5e7b652f18e93086a0971c4f1d8568"
+        },
+        "completion": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/case-completion.json",
+          "bytes": 19900,
+          "sha256": "f91c92f1019be61345eced2b5c72c50a79192ba28b3b5fd8b809fafe0c09b1b3"
+        },
+        "numeric_exit": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/test-exit.json",
+          "bytes": 899,
+          "sha256": "1bec3480754d3cd76ae19980f9f387ffb076f6c1263b42d667adc8328b3c7645"
+        },
+        "rejected_unstarted_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-binding-admitted-02.json",
+          "bytes": 34025,
+          "sha256": "bd655cf306bf1004e36e7eecf139dbc6463122d0943ed6cb2df5942a9cc37df4"
+        },
+        "used_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-binding-admitted-03.json",
+          "bytes": 34025,
+          "sha256": "f2e5d9204f45300a3f8fa0a46ebf25e43444436f9422a6c21d8a846f77c5aba7"
+        },
+        "unstarted_reason": "Independent preflight decoded UTF-8 JSON with Windows cp1252 and reported a different basis. It never invoked the controller. Raw UTF-8 decoder reproduced the correct digest; fresh admission03 was the sole launch.",
+        "observed": {
+          "test_exit": 0,
+          "producer_exit": 0,
+          "test_bodies": 1,
+          "terminal_output_handles_expected": 2,
+          "terminal_output_handles_closed": 2,
+          "private_job_active": 0,
+          "private_job_assigned": 0,
+          "temp_dir_entries": 0,
+          "cargo": false
+        },
+        "scope": "Real synthetic embedded RocksDB base-schema account path only. Both original HTTP attempts remain failed and spent; no MT022 acceptance or test replay."
+      },
+      "motion": {
+        "operation_id": "motion_library",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/result.json",
+          "bytes": 3340,
+          "sha256": "96fbe293df63bc75d624db10eb434558638caec2a823d1570528a5d141057706"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/released.json",
+          "bytes": 481,
+          "sha256": "c50c152a975c8fdbfd4222d4f7aea9266de486a87d6dfe4521928bca7e2f5a32"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/postguards.json",
+          "bytes": 110,
+          "sha256": "18267b6edae79c8d1af8ef3e40c44be97c5d7766a86adf476e94ee9f8cce8b29"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/codegen-artifact.json",
+          "bytes": 7130,
+          "sha256": "45cfaa52b048a9abd232448243b4a93e1b719395fc75a7e3140fbf63fb8331ef"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "8e39b817ab7a35e33f2a360038c1b67b7ca6425bc6756ec88e49678ccd575f82"
+        },
+        "independent_acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-acquisition-dx-review-20261110-01/motion-library-acquisition-review-dx-01.json",
+            "bytes": 790,
+            "sha256": "0e49c34299bb3f6970de5289db59d236e668a328bde141f05f64d1460283724a"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-acquisition-codecheck-20261110-01/motion-library-independent-acquisition-review-cc-01.json",
+            "bytes": 792,
+            "sha256": "a532716e2fe54073c45b4308e22327e49f94819b111a669d76f0cde265186041"
+          }
+        ],
+        "independent_runtime_review": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-codecheck-20261110-01/three-motion-component-results-review-cc-01.json",
+          "bytes": 8641,
+          "sha256": "fa493275230c212329621e91db6f5f5ad6b08104b14680c1fb6d2040433d9963"
+        },
+        "cases": [
+          {
+            "case_id": "GUI22-CASE-18",
+            "selector": "motion_tests::reduce_motion_updates_both_themes_and_restores_each_duration",
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/result.json",
+              "bytes": 6906,
+              "sha256": "6b18661e45062e6c87929800b2b01654390bf62d050a43787583c0d375bcbad5"
+            },
+            "released": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/released.json",
+              "bytes": 480,
+              "sha256": "38b058f6e21837643328701f8218fe7bce9eedc4b180dab29f38b9b7fb7a11c6"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/case-completion.json",
+              "bytes": 19454,
+              "sha256": "9ffc7a01ddbabc6d30fc2c4330f9a103cf0014e80800e6dcc5412e9352ff9984"
+            },
+            "terminal": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/primary-terminal-observation-01.json",
+              "bytes": 1081,
+              "sha256": "986a3ac9dd4988b464e74e38e06c0c07b9a7d726ea3bdc332ca8f12ebb04645d"
+            },
+            "test_exit": 0,
+            "producer_exit": 0
+          },
+          {
+            "case_id": "GUI22-CASE-19",
+            "selector": "motion_tests::reduce_motion_is_applied_independently_to_each_context",
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/result.json",
+              "bytes": 6897,
+              "sha256": "a8ef5fe2abcf5722808c3f41a811e7b0c8face3576f65b7eacbbcabdc58c51de"
+            },
+            "released": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/released.json",
+              "bytes": 480,
+              "sha256": "eef284296c2cc055a47c38ada0bba2abeaf4eabd2a730c1bb8848aa42890bf94"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/case-completion.json",
+              "bytes": 19439,
+              "sha256": "017972fee8489e9bb58c811a49af6c3fa8cfe71478db8ac3f0781a8b02aad119"
+            },
+            "terminal": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/primary-terminal-observation-01.json",
+              "bytes": 1081,
+              "sha256": "ab9e9214a9f1159f63cebfae36619b7240a1ab9dfb73d80d20e6cce0894dae1b"
+            },
+            "test_exit": 0,
+            "producer_exit": 0
+          },
+          {
+            "case_id": "GUI22-CASE-20",
+            "selector": "motion_tests::account_reset_can_restore_timing_before_context_data_is_discarded",
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/result.json",
+              "bytes": 6918,
+              "sha256": "197069c24078ecda91e550026a3d3a3270d02af26bf6c54a5b057ccfbff701f1"
+            },
+            "released": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/released.json",
+              "bytes": 480,
+              "sha256": "95fe8f5e8b143d6a1bf62a154081cd88cf799149c75f1b0172faa9100a218153"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/case-completion.json",
+              "bytes": 19465,
+              "sha256": "970563dfb4e8cb90e34e1a52001f6871d1ae1e4ce8497abbd2c13c4d9080b4ff"
+            },
+            "terminal": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/primary-terminal-observation-01.json",
+              "bytes": 1081,
+              "sha256": "94e36a15544e4af3f98b6273a0d0d4b62f8ab5a75b5c8c7cc34c720492fee3ee"
+            },
+            "test_exit": 0,
+            "producer_exit": 0
+          }
+        ],
+        "scope": "Retains both Native settings siblings and older Handpick proof; original host/Vulkan/Palmistry acceptance remains open. Refresh stop remains separate."
+      },
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-production-schema-test-only-20261110-01",
+      "state": "EXACT_ONE_TEST_FILE_SOURCE_CLEAR_INTEGRATION_ALLOCATED_NO_EXECUTION_ADMISSION",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; KB-CAD-001; CX-EXEC-004",
+      "original_contract_ref": "MT-022.json",
+      "recorded_failure": "Original MT022 ordinal2 failed at session_query_check/Internal after HTTP route with production configuration. Same authenticating statement passed under the qualified base-schema synthetic test.",
+      "hypothesis": "Run the same synthetic flow on production schema composition, changing bootstrap only. Scope excludes the real route and OS vault. Bootstrap failure is a prerequisite failure; a post-bootstrap failure can distinguish production-composed behavior. A pass leaves the remaining app/route/credentials state unresolved.",
+      "author": "/root/coding_session_query",
+      "independent_source_reviewer": "/root/adversarial_refresh",
+      "physical_product_owner": "/root",
+      "preimage_product_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "required_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "preimage_raw_sha256": "766bb0189312eb7a4e9f51ae68db2ed13bbbaab15f03f7b06f2448c14ae7753c",
+      "candidate_source": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-candidate-20261110-01/local-accounts-candidate.rs",
+        "bytes": 160396,
+        "sha256": "ba5e366abda65629788c71c95738e4933e8f3618d49a3c0090b3ddb59832987b"
+      },
+      "changed_only_patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-candidate-20261110-01/production-schema-only.diff",
+        "bytes": 1638,
+        "sha256": "78d596d4b37d6c083fb0afd3d36ab6ba7cd9cfff79602263f8e50d2601977aed"
+      },
+      "required_proof": {
+        "new_selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded_production_schema",
+        "prior_same_base_fixture": "CORE-SESSION-QUERY-EMBEDDED-001 passed and stays reused",
+        "current_admission": "NONE",
+        "limit": "Separate exact Core libtest acquisition and independent execution. Real synthetic RocksDB and production bootstrap only, short protected temp fixture, no watcher credentials or sync overrides. No HTTP, OS vault, old attempts, or acceptance substitution."
+      },
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
