@@ -3188,6 +3188,33 @@
       "source_reviewer": "/root/codecheck_cycle27",
       "scope_limit": "The source repair is published and runtime proof of the failed case is pending. The original test and 18 independently verified sibling results remain intact.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "handpick-native-prepush-capture-custody-20261110-01",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "IMPLEMENTER_COMPILE_QUALIFIED_PUBLISHED",
+      "source_head": "ee61267e4ce4b7bc3c1bfb91cdd646a3567a530e",
+      "source_dirty": true,
+      "source_map_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-capture-custody-preparation-20261110-01/handpick-native-prepush-source-map-01.json",
+      "source_map_sha256": "dc00a2418ef634d493e88523718498b122bc5066e2fc1d81ba743bc45526446f",
+      "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-postfix-native-library-codegen-20261108-01/result.json",
+      "result_sha256": "430746516547e26b62523b6dfc3902323dd2fb805c18b39b66507be89a1638b5",
+      "release_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-postfix-native-library-codegen-20261108-01/released.json",
+      "release_sha256": "8ca5efeb59f9a8e4fa2c2c3b813e88654a305c9d7a7708ffe7465f05be64de4b",
+      "published_head": "e826f17d0224f9a7a6a77d689ee4d4f93893dab9",
+      "published_commits": {
+        "MT020_MT037": "4982ff5293cbaa7c8775e3faa97efe583295f754",
+        "MT212": "a1ae7f8c2063a0be8e6b3722620a4e7e949098e6",
+        "MT196_MT201": "e826f17d0224f9a7a6a77d689ee4d4f93893dab9"
+      },
+      "source_reviewer": "/root/adversarial_refresh",
+      "scope_limit": "Independent implementer-compile qualification only. All ten compiled Native paths match the published tree through path-filtered Git blobs; raw working bytes were unchanged. Cargo and producer exited 0; the private Job drained naturally and checked handles released.",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
