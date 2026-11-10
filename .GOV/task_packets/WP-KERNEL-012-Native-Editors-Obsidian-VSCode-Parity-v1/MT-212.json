@@ -4324,6 +4324,88 @@
       "follow_on": "The currently published embedded storage test can isolate the same query beneath HTTP with synthetic Owner data. Historical MT109 earlier failures and storage pass do not prove current source; previous MT022 and MT174 executions remain spent. Any distinct current diagnostic requires exact short private fixture/resource scope, fresh reviewed admission and retention of credential-safe evidence. No runtime grant here.",
       "original_acceptance": "UNCHANGED",
       "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-embedded-diagnostic-20261110-01",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "DISTINCT_EMBEDDED_DIAGNOSTIC_SCOPE_SELECTED_SOURCE_CLEAR_NOT_ADMITTED",
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; CX-EXEC-004; KB-CAD-001",
+      "original_contract_ref": "MT-022.json",
+      "original_proof_case": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+      "original_disposition": "Both consumed authenticated HTTP attempts remain closed with existing failure/release verdicts. This diagnostic supplies no original verdict or new HTTP attempt.",
+      "recorded_failure": "MT022 ordinal2 reached the live authority session endpoint on real embedded RocksDB, then returned constant HTTP 403 after session_query_check/Internal and login_event_identity/Storage. The pure fixed-label component passed and did not disclose the engine cause.",
+      "hypothesis": "The exact current library test exercises the same positive statement after record sign-in on a fresh real embedded RocksDB base schema, before the app/router/vault differences. The private error and test stage can distinguish that lower-level path. A pass leaves app state, schema and authority route unresolved.",
+      "required_source_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "product_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "test_harness_sha256": "32d6736dcba7a3ab34e3b8164fa2f898cf6c4f0ed0cd6b7f3948fb1706e1f961",
+      "acquisition": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-20261110-01/result.json",
+        "bytes": 3336,
+        "sha256": "0946171271923c9130dff43431a66ff045118ef7e88318be96ae8aa4095bd55c"
+      },
+      "controller": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-capture-02.py",
+        "bytes": 80612,
+        "sha256": "28fd5414510d0193749da34f129539c0afc5832a99ee5bd0a8ba0819659df938"
+      },
+      "dormant_binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-binding-dormant-02.json",
+        "bytes": 17120,
+        "sha256": "1f25fc49ed846c9c5bedf38733d65a05b08eda14a464746ac64d43ff518c1429"
+      },
+      "private_acl_and_environment_preflight": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/acl-env-offline-proof-01.json",
+        "bytes": 1315,
+        "sha256": "432aed24532846a74c74529886b49b4919f7cb917d0a033023be482a4678b8e0"
+      },
+      "changed_only_diff": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/controller-v1-to-v2.diff",
+        "bytes": 19881,
+        "sha256": "29fd1950a1aede0ff88c7a5adeea9f662271581dc4f5c918383de3f5f73a9773"
+      },
+      "owners": {
+        "primary": "01a17815-783f-71b0-a740-3c48849c43f9",
+        "technical": "/root/coding_session_query",
+        "independent_codecheck": "/root/adversarial_refresh",
+        "runtime_executor_integration_validator": "01a16b9e-0d1e-7b81-b116-05291184319b"
+      },
+      "authority_state": "Technical source handback, independent changed-only scope clear and independent validator readiness in principle. No runtime until an exact final pinned binding and fresh Primary one-shot custody, reviewed by the named runtime executor.",
+      "one_case": {
+        "case_id": "CORE-SESSION-QUERY-EMBEDDED-001",
+        "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+        "argv": [
+          "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+          "--exact",
+          "--test-threads=1",
+          "--format=pretty",
+          "--color=never"
+        ],
+        "target": "core_session_query_diagnostic_lib",
+        "output": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01",
+        "child_environment_binding": {
+          "recipe": "Existing ordered 42-key overlay bound to private child TEMP/TMP/TMPDIR; no unbound product keys in child",
+          "declared_overlay_key_count": 42,
+          "declared_overlay_sha256": "5eb3b0553ff92b9075774fe5abd7047783f1e27ee7396abefdd29491b05d2a3a"
+        },
+        "temp_keys": [
+          "TEMP",
+          "TMP",
+          "TMPDIR"
+        ],
+        "temp_root": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/t",
+        "strip_unbound_prefixes": [
+          "HANDSHAKE_",
+          "HSK_"
+        ],
+        "deny_effective": [
+          "HANDSHAKE_TEST_SURREAL_SYNC",
+          "unbound watcher credentials and libtest overrides"
+        ]
+      },
+      "controls": "Fresh short private directory and TempDir with no-follow ancestry and protected current SID/SYSTEM ACL readback, exact fresh source and guard pins, private raw output, existing v11 full resource measurements, actual owned Job settlement, exact producer exit and independent two-terminal-handle close witness. No Cargo, app, HTTP, account data, cleanup, process stop or retry. Abort on mismatch.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
