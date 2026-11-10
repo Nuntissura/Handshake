@@ -3818,6 +3818,16 @@
         },
         "ordinary_path_utf16": 258,
         "verbatim_path_utf16": 262,
+        "failing_assertion": "Owned Core exited 1 before the listen report; the one Native integration case returned 101 at backend_proof_support/mod.rs:1372.",
+        "attempt_1_input": "Admission07 ran the published app-runtime Core and qualified Native PE, the bound Windows User host scope and the 46-character isolated fixture leaf.",
+        "root_cause_source_refs": [
+          "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:1372",
+          "src/backend/handshake_core/src/storage/surreal.rs:2494",
+          "src/backend/handshake_core/src/storage/surreal.rs:4895",
+          "src/backend/handshake_core/Cargo.lock#dunce@1.0.5:src/lib.rs:178"
+        ],
+        "intended_setup_fix": "Use fresh canonical MT212 child ft022-02. Same suffix projects 220 ordinary and 224 verbatim UTF-16 units. Preserve both PEs, exact selector, authentication, receipt and fixture cleanup.",
+        "retry_scope": "CX-EXEC-003A; same case and failing assertion, ordinal 2 probe only after technical, independent and fresh Primary admission. No reset or replay of ordinal 1.",
         "changed_input_candidate": "Fresh shorter isolated fixture root inside canonical MT212 artifacts; preserve test, PEs, authentication and fixed receipt contract.",
         "automatic_retry_authorized": false
       },
