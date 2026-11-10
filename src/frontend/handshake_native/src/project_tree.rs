@@ -583,6 +583,9 @@ impl ProjectTree {
                 return; // stale result from a superseded workspace load
             }
             self.loading = false;
+            if self.authenticated_context.as_ref().is_some_and(|account| !account.is_active()) {
+                return;
+            }
             match result.payload {
                 Ok((documents, canvases, bookmarks)) => {
                     self.cabinet.canonical_refetch();
@@ -614,6 +617,10 @@ impl ProjectTree {
         ui: &mut egui::Ui,
         colors: ProjectTreeColors,
     ) -> Option<ProjectTreeEvent> {
+        if self.authenticated_context.as_ref().is_some_and(|account| !account.is_active()) {
+            ui.colored_label(colors.muted_text, "Session unavailable.");
+            return None;
+        }
         let mut event: Option<ProjectTreeEvent> = None;
         if let Err(error) = self.sync_cabinet() {
             self.error = Some(format!("Project tree unavailable: {error}"));
@@ -725,6 +732,8 @@ impl ProjectTree {
                 if let Some(menu_event) = row_context_menu(ui, &row_resp, &target, self.cabinet.navigation_available()) {
                     event = Some(menu_event);
                 }
+                let selected = self.cabinet.model().is_some_and(|model| model.is_selected(&entry_id));
+                paint_tree_state(ui, &row_resp, selected, colors);
             }
         }
 
@@ -766,6 +775,8 @@ impl ProjectTree {
                 if let Some(menu_event) = row_context_menu(ui, &row_resp, &target, self.cabinet.navigation_available()) {
                     event = Some(menu_event);
                 }
+                let selected = self.cabinet.model().is_some_and(|model| model.is_selected(&entry_id));
+                paint_tree_state(ui, &row_resp, selected, colors);
             }
         }
 
@@ -819,6 +830,8 @@ impl ProjectTree {
                 if let Some(menu_event) = row_context_menu(ui, &row_resp, &target, self.cabinet.navigation_available()) {
                     event = Some(menu_event);
                 }
+                let selected = self.cabinet.model().is_some_and(|model| model.is_selected(&entry_id));
+                paint_tree_state(ui, &row_resp, selected, colors);
             }
         }
         // Enrich the bookmarks container node (Role::Tree) so the bookmarks region is addressable.
@@ -904,6 +917,8 @@ impl ProjectTree {
             *open = !*open;
             changed = true;
         }
+        let selected = cabinet.model().is_some_and(|model| model.is_selected(&author_id));
+        paint_tree_state(ui, &resp, selected, colors);
         changed
     }
 }
@@ -935,6 +950,28 @@ fn measure_label(ui: &egui::Ui, label: &str) -> f32 {
         egui::Color32::PLACEHOLDER,
     );
     galley.size().x
+}
+
+fn paint_tree_state(
+    ui: &egui::Ui,
+    response: &egui::Response,
+    selected: bool,
+    colors: ProjectTreeColors,
+) {
+    if response.clicked() { ui.ctx().request_repaint(); }
+    let rect = response.rect;
+    if !ui.is_rect_visible(rect) { return; }
+    let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+    if selected && rect.width() >= 4.0 && rect.height() >= 4.0 {
+        painter.rect_filled(
+            egui::Rect::from_min_max(egui::pos2(rect.right() - 3.0, rect.top() + 2.0),
+                egui::pos2(rect.right() - 1.0, rect.bottom() - 2.0)),
+            0.0, colors.row_text,
+        );
+    }
+    if response.has_focus() {
+        painter.rect_stroke(rect, 3.0, egui::Stroke::new(1.0, colors.group_text), egui::StrokeKind::Inside);
+    }
 }
 
 /// Render ONE paper-strip leaf row: an off-white label background ONLY as wide as the label text
@@ -1743,6 +1780,82 @@ mod tests {
         // Above the quick-links container (90), below the pane id base (100).
         const { assert!(BOOKMARKS_NODE_ID > PROJECT_TREE_NODE_ID) };
         const { assert!(BOOKMARKS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE) };
+    }
+
+    #[test]
+    fn revoked_account_rejects_queued_content_and_hides_tree_without_releasing_custody() {
+        let account = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        let mut tree = ProjectTree::new();
+        tree.bind_authenticated_context(Some(account.clone()));
+        tree.workspace_id = Some("workspace-one".to_owned());
+        tree.set_content_with_bookmarks(
+            vec![DocumentSummary::new("D-1", "Before")],
+            vec![CanvasSummary::new("C-1", "Canvas")],
+            vec![BookmarkSummary::new("B-1", "Bookmark", "document", Some("D-1".to_owned()))],
+        );
+        tree.cabinet_prepare_rename("rich-document:D-1", "After", 41).unwrap();
+        let retained = (tree.documents.clone(), tree.canvases.clone(), tree.bookmarks.clone());
+        let revision = tree.cabinet_source_revision;
+        let generation = tree.cabinet_generation;
+        let load_id = tree.load_id;
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let render = |tree: &mut ProjectTree| {
+            let output = ctx.run(egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 600.0))),
+                ..Default::default()
+            }, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    assert!(tree.show(ui, ProjectTreeColors {
+                        row_bg: egui::Color32::from_gray(40),
+                        row_hover_bg: egui::Color32::from_gray(60),
+                        row_text: egui::Color32::WHITE,
+                        group_text: egui::Color32::LIGHT_GRAY,
+                        muted_text: egui::Color32::GRAY,
+                        error: egui::Color32::RED,
+                    }).is_none());
+                });
+            });
+            output.platform_output.accesskit_update.expect("actual Project Tree frame")
+        };
+        let active = render(&mut tree);
+        assert!(active.nodes.iter().any(|(_, node)|
+            node.role() == accesskit::Role::TreeItem && node.label() == Some("Before")));
+        let widths = tree.width_cache.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        tree.rx = Some(rx);
+        tree.loading = true;
+        tx.send(LoadResult {
+            load_id,
+            payload: Ok((vec![DocumentSummary::new("D-1", "After")], Vec::new(), Vec::new())),
+        }).unwrap();
+        assert!(account.is_active());
+        account.invalidate();
+        tree.poll();
+        assert!(!tree.is_loading());
+        assert_eq!((&tree.documents, &tree.canvases, &tree.bookmarks), (&retained.0, &retained.1, &retained.2));
+        assert_eq!(tree.cabinet_source_revision, revision);
+        assert_eq!(tree.cabinet_generation, generation);
+        assert_eq!(tree.load_id, load_id);
+        assert_eq!(tree.width_cache, widths);
+        assert!(tree.error.is_none());
+        assert!(tree.cabinet_accepts_rename_delivery(41, "rich-document:D-1"));
+        assert!(tree.cabinet.model().unwrap().pending().is_some());
+
+        let revoked = render(&mut tree);
+        assert!(revoked.nodes.iter().any(|(_, node)| node.label() == Some("Session unavailable.")));
+        assert!(!revoked.nodes.iter().any(|(_, node)|
+            matches!(node.role(), accesskit::Role::Tree | accesskit::Role::TreeItem | accesskit::Role::Button)));
+        assert_eq!(tree.cabinet_source_revision, revision);
+        assert_eq!(tree.width_cache, widths);
+        assert!(tree.cabinet_accepts_rename_delivery(41, "rich-document:D-1"));
+        assert!(tree.cabinet.model().unwrap().pending().is_some());
+        assert!(!tree.take_retry_request());
+
+        tx.send(LoadResult { load_id, payload: Err("retired account response".to_owned()) }).unwrap();
+        tree.poll();
+        assert!(tree.error.is_none());
+        assert!(tree.cabinet_accepts_rename_delivery(41, "rich-document:D-1"));
     }
 
     #[test]
