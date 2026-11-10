@@ -3385,6 +3385,64 @@
       "current_source_acceptance": "NOT_ISSUED",
       "final_acceptance": false,
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-handpick-current-native-codegen-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders",
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "CARGO_EXIT_ZERO_ACQUISITION_UNQUALIFIED",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "attempts": [
+        {
+          "id": "cabinet-handpick-native-library-codegen-20261110-01",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 1,
+          "qualified": false,
+          "selected_native_artifact_fresh": false,
+          "changed_inputs": [],
+          "failure_class": "LIVE_TARGET_SCAN_BUDGET",
+          "failing_assertion": "A complete live target sample must stay within the configured scan budget",
+          "changed_input": "First exact current Native codegen for four selectors, with 400000 scan visits and the 25-second deadline",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-01/result.json",
+            "sha256": "3785b023071d40e1586b6a33d3d4e73b85528ddc24b753ad7405e1c4710ede32"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-01/released.json",
+            "sha256": "a252382a7359dac427d605e80037a11d33730182746f99c23f46524154f02964"
+          },
+          "cargo_stdout": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-01/cargo.stdout.jsonl",
+            "sha256": "f71980c02b279778c48298a631a79f2a08813263de2c8e0f9c72aa434c8005e1"
+          },
+          "terminal_observation": {
+            "pid": 41592,
+            "birth_filetime": 134388001044986744,
+            "observed_utc": "2026-11-10T16:18:55.367431Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "64381f",
+            "custody_returned_by": "/root/coding"
+          }
+        }
+      ],
+      "diagnosis": {
+        "id": "MT212-CURRENT-NATIVE-WARM-ACQUISITION-20261110",
+        "cause": "A live target scan during Native code generation exhausted its combined visit/time budget. The exact failed counter was not recorded.",
+        "code_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-capture-custody-preparation-20261110-01/refresh_resource_guard_v10.py:138",
+        "related_prior_attempt_ref": "MT-212.json#/source_candidates/29",
+        "intended_fix": "Verify completed PE/cache inputs and qualify one warm acquisition requiring fresh:true and unchanged held PE bytes.",
+        "retry_or_admission_granted": false
+      },
+      "independent_reviewer": "/root/adversarial_refresh",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
