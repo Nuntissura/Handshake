@@ -3706,6 +3706,126 @@
       "runtime_run": false,
       "final_acceptance": false,
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-mt022-authenticated-roundtrip-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "EXACT_AUTHENTICATED_BACKEND_CASE_FAILED_CUSTODY_RETURNED",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "formal_core_prerequisite": {
+        "scope": "ORDINARY_CORE_APP_RUNTIME_ACQUISITION_ONLY",
+        "executable_sha256": "cbae5ca0c4e0e15bbc71fd2a664e2a9ccf54223b2ad651c2848307a9dd0cd999",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-02/result.json",
+          "sha256": "631044eef876a12142289548eaff59b5bfd692d58511156f6132c426b223a9d9"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-02/codegen-artifact.json",
+          "sha256": "353deb25f7dee16d2ed3884040c9284cb013cf0d0c32c81729e1c7c2e40c3899"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-02/released.json",
+          "sha256": "7d03f92a43f467a2a6b023df6bfa3ad197ebe8480270199617501bf1e9469f35"
+        },
+        "acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-acquisition-dx-review-20261110-02/native-acquisition-review-dx-01.json",
+            "sha256": "c72d1c0a1b681c267104505aec08ce2b9d62c6bec5b6665da3b287fde00bca98"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-acquisition-codecheck-20261110-01/core-production-acquisition-review-cc-01.json",
+            "sha256": "5b1125875c6f32fbdb10feba04565dea165c9f8af03c7bdba17cb5060f71b640"
+          }
+        ]
+      },
+      "case_id": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+      "selector": "folder_tree_live_surrealdb_self_seeded_round_trip",
+      "admission_history": [
+        {
+          "admission": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-case-admission-05.json",
+            "sha256": "051499682e90709a54e3962f74244a208c2155d9176fbf64bdc39ea14745531d"
+          },
+          "case_entered": false,
+          "reason": "Legacy broad WP preparation selection corrected; admission expired before entry."
+        },
+        {
+          "admission": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-case-admission-06.json",
+            "sha256": "a55cf732d174a4bd870f66ab9e596a767021e9186a0e6e22ac7d9705a1dd88b0"
+          },
+          "case_entered": false,
+          "reason": "IV returned unstarted; its historical Native acquisition MT212 hash was verified against the exact original Git bytes, while live guards match current bytes."
+        },
+        {
+          "admission": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-case-admission-07.json",
+            "sha256": "fe3cde3d398938b54c22edf6c825820607867399702ebce5b7d86afa71f6a5ab"
+          },
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-controller-binding-admitted-07.json",
+            "sha256": "7ec332f2973fd2290414bfe83f59e1b5236e60a1caef0e87eaf2f11bcbf743bd"
+          },
+          "case_entered": true,
+          "entered_at_utc": "2026-11-10T19:01:50.097456Z",
+          "producer_exit": 1,
+          "test_exit": 101,
+          "case_passed": false
+        }
+      ],
+      "original_independent_owner": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "owner_verdict": "FAIL",
+      "results": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/result.json",
+          "sha256": "69f003f285f7e7303ad84d68d659800491427938807b532ea07bbfb52075eb24"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/released.json",
+          "sha256": "b309a962aba86d18904ec18d374198cda4d28b3dcce2d2d6b399c25a86f5db92"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/postguards.json",
+          "sha256": "23931d33a65872bbbaba11964d6d4e19f2f6db8b2207ae0feafd0d74e201cffd"
+        },
+        "private_job_final": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/private-job-final.json",
+          "sha256": "4bce073022b962568ba95073cb03a19cd96742e99a35e0b07caae1fe17452392"
+        },
+        "libtest_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/test.stdout.txt",
+          "sha256": "8d5e5f45585ed1f0d78f1e69b4343b95cfd376c147dd44bdd95bb2c4571c61e9"
+        },
+        "core_startup_stdout": {
+          "ref": "WP-KERNEL-012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/wp-kernel-012/backend-runtime/r-737fe689eaf924b3/s-1fb0461669c4190a/ddca3527-3813-461a-a7ec-c919a7518a6e/backend.stdout.log",
+          "sha256": "a88f2779b64b875b9d3650b5563922254785c8997f6e10be39ae4fee8ae163d2"
+        },
+        "success_receipt_written": false,
+        "all_handles_closed": true,
+        "private_job_empty": true,
+        "actual_input_drift": false,
+        "live_resource_qualification": true
+      },
+      "diagnosis": {
+        "id": "MT212-MT022-SURREAL-VERBATIM-FIXTURE-PATH-20261110",
+        "cause": "Core rejected the canonical verbatim drive path before SurrealDB listen; its 262 UTF-16 units exceed dunce 1.0.5 stripping limit.",
+        "evidence": {
+          "ref": "WP-KERNEL-012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/wp-kernel-012/backend-runtime/r-737fe689eaf924b3/s-1fb0461669c4190a/ddca3527-3813-461a-a7ec-c919a7518a6e/backend.stdout.log",
+          "sha256": "a88f2779b64b875b9d3650b5563922254785c8997f6e10be39ae4fee8ae163d2"
+        },
+        "ordinary_path_utf16": 258,
+        "verbatim_path_utf16": 262,
+        "changed_input_candidate": "Fresh shorter isolated fixture root inside canonical MT212 artifacts; preserve test, PEs, authentication and fixed receipt contract.",
+        "automatic_retry_authorized": false
+      },
+      "scope_limit": "One consumed backend case. Checked IV custody return. No new runtime grant, Vulkan/Palmistry verdict, or original MT lifecycle change.",
+      "tests_run": true,
+      "runtime_run": true,
+      "final_acceptance": "OPEN",
+      "original_acceptance": "UNCHANGED"
     }
   ],
   "picotask_plan": {
