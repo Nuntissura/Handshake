@@ -4818,7 +4818,7 @@
     },
     {
       "candidate": "refresh-integration-standalone-needed-retry-20261110-01",
-      "state": "EXACT_REFRESH_COLD_ACQUISITION_UNQUALIFIED_CARGO0_PRODUCER1_CHECKED_RELEASE",
+      "state": "REFRESH_WARM_ACQUISITION_QUALIFIED_FIRST_COMPONENT_FAILED_CASE22_UNSTARTED",
       "pico_refs": [
         "GUI-WP012-172-DIAGNOSTICS"
       ],
@@ -4969,7 +4969,101 @@
         "minimum_sampled_free_bytes": 121690787840,
         "actual_scope": "Cold link emitted one exact Refresh test PE in raw Cargo; capture failed proof, not executable acquisition. Retain both earlier attempts including the historical unknown unchanged."
       },
-      "next_proof": "A separately reviewed and admitted one-time warm-only acquisition can reuse the settled exact native candidate if actual technical and Codecheck agree on the changed cache input and all-fresh policy. No execution authority here and no body run before qualification."
+      "next_proof": "Correct the existing headless fixture to open Diagnostics through the current shell route and preserve both original Refresh assertions. Verify changed exact inputs and scoped retry agreement before a future rerun. Do not execute case22 against the same failing fixture.",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-preparation-20261111-01/refresh-integration-warm-codegen-binding-admitted-01.json",
+          "bytes": 26727,
+          "sha256": "319030c0c4a3d1812f3fe8dac61574f682462f5713ba5452b08941093a30d878"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/result.json",
+          "bytes": 3401,
+          "sha256": "7eb71011568446da4b210b2a8360cf353f271d388d458a41613267b77bff57e3"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9327,
+          "sha256": "4b36369d73e580a4113b69070cf7091310086bf809c211332b04c2d5b3550df5"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "b941b1b02a439d62141fac4c68733c55d015269f322964505550e7ee60011fa9"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "db7ca3c2aacc7fd7e554f4e75d39fe55fa89a6be70698d6ea85df9eeb5dfba0c"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "b6a316670b5680e96375caae0ec32ba212125316370a2441eb5922e14ad1f11e"
+        },
+        "independent_acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-dx-review-20261111-01/refresh-integration-warm-acquisition-review-dx-01.json",
+            "bytes": 791,
+            "sha256": "3c73ed2e2d478de0775cecae29a4dfe585c3b76275f88713bd22e3f4aecf7911"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-codecheck-20261111-01/refresh-integration-warm-acquisition-review-cc-01.json",
+            "bytes": 792,
+            "sha256": "b6d3f76b625dfa709772302dc26aff016b64d92716b50a46aa4792d52151c01d"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "cargo_fresh_artifact_rows": 915,
+          "pe_sha256": "e86db9b1afb85f4e972e1839a24c1c8bc761909e16bcb3a356ad6d18b9d74e23",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "scope": "Separate current qualified warm-only acquisition. Earlier cold and other consumed history remain unqualified or failed as recorded."
+      },
+      "component_attempt": {
+        "case_id": "GUI22-CASE-21",
+        "selector": "diagnostics_refresh_queues_once_then_disables_until_delivery",
+        "consumed": true,
+        "test_exit": 101,
+        "producer_exit": 1,
+        "case22_status": "UNSTARTED_AFTER_FIRST_FAILURE",
+        "failure": "Headless harness helper test_swarm_lane_diagnostics_argus.rs:419 queried the retired MODELS menu. The full actual AccessKit tree includes the normal shell menus alongside the Owner setup pane, but has no MODELS node. Refresh assertions never ran. Pass-only parser rejected the failed output afterward; no completion manifest.",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/result.json",
+          "bytes": 7971,
+          "sha256": "41a817d407ee66ea02acd4d0787e356786b78581f351c622feef51756bf7c537"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/released.json",
+          "bytes": 1522,
+          "sha256": "a437c7306037a52e6d53fd6ccc34d3608c263613cb71aa596f898c965888fe33"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/postguards.json",
+          "bytes": 3366,
+          "sha256": "4aa7348155e8877ef4a585613e4c3d2ed4cb8b486678c0bf261b1b9e145c5254"
+        },
+        "raw_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/test.stdout.txt",
+          "bytes": 175919,
+          "sha256": "509d8c50207f312b65a2e93fad4c782742247b810f11faa3f36202482d0398a3"
+        },
+        "parent_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/primary-terminal-observation-01.json",
+          "bytes": 1102,
+          "sha256": "694e97273e45ffd89ccf874b5c6218895fc92a63364fad49b491d4387e6397b7"
+        },
+        "independent_result_review": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-codecheck-20261111-01/refresh-case21-failure-and-case22-unstarted-review-cc-01.json",
+          "bytes": 5165,
+          "sha256": "b9c403dabe5b7f1ae609fdc98e39007e90f655b69dbb6529d0702295fe5a3a3b"
+        },
+        "checked_release": true
+      }
     },
     {
       "candidate": "embedded-session-route-issued-identity-test-only-20261111-01",
