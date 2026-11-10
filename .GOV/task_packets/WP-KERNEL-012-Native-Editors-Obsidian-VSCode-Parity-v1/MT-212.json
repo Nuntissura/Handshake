@@ -3576,6 +3576,136 @@
         ],
         "scope_limit": "Three exact Cabinet child Retry component cases qualified with observed live resource checks and serial custody release. Real backend delivery, full GUI, Vulkan and Palmistry acceptance remain open."
       }
+    },
+    {
+      "candidate": "cabinet-folder-tree-integration-acquisition-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "FOLDER_TREE_INTEGRATION_EXECUTABLE_QUALIFIED",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "selected_target": "test_folder_tree",
+      "features": [
+        "bundled-fonts",
+        "default",
+        "integration"
+      ],
+      "executable_sha256": "3e4d54ed1be7bca9ed135455e5827d55066a5cf78177ba296d95568d206eca99",
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-codegen-20261110-01/result.json",
+        "sha256": "51aa7205b6db4a960fdcfe141161e6f7856adb81eff034963b9b892cbf54440d"
+      },
+      "artifact": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-codegen-20261110-01/codegen-artifact.json",
+        "sha256": "7bfb8e1ccf1e534d5a61ee574a0fb46974bb2b22dc2fc8ff9ca52ff20696df79"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-codegen-20261110-01/released.json",
+        "sha256": "f61ad5a3d2ecb9a9da5ced0be53828657e1bce4db9eed0e29f1bb351d1690708"
+      },
+      "acquisition_reviews": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+          "sha256": "80a6acdac02f7af982de131d9ff6dbfc16882652ab50e6368a1ea3af85b0f628"
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-acquisition-codecheck-20261110-01/folder-tree-integration-acquisition-review-cc-01.json",
+          "sha256": "fbb258a57066c2962ebdcd1959f86fe39c1340a4c2a327924f58b75ba98e50fa"
+        }
+      ],
+      "terminal_observation": {
+        "pid": 29804,
+        "birth_filetime": 134388040061362345,
+        "observed_utc": "2026-11-10T17:23:43.386447Z",
+        "producer_exit": 0,
+        "same_retained_handle": true,
+        "observer_closed": true,
+        "observer_chunk": "f427f4"
+      },
+      "scope_limit": "Native integration no-run acquisition only. Authenticated Folder Tree body, Core launch and direct Vulkan acceptance remain open. Reuse across a later revision requires current relevant-input equivalence.",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-core-production-prerequisite-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "CORE_SOURCE_PUBLISHED_FORMAL_ACQUISITION_OPEN",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "published_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "published_tree": "e5f94710ca0676e0148add226a98cefd06b754ad",
+      "published_paths": [
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/src/backend_runtime/mod.rs",
+        "src/backend/handshake_core/src/backend_runtime/startup_recovery.rs"
+      ],
+      "preserved_uncompiled_paths": [
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs"
+      ],
+      "attempts": [
+        {
+          "id": "cabinet-core-production-prerequisite-20261110-01",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 1,
+          "qualified": false,
+          "formal_proof": false,
+          "failure_class": "LIVE_TARGET_SCAN_ENTRY_BUDGET",
+          "failing_assertion": "A complete live target sample must stay within the configured scan budget",
+          "observed_bound": {
+            "reason": "ENTRY_LIMIT",
+            "entries": 450001,
+            "maximum_entries": 450000,
+            "elapsed_seconds": 14.422,
+            "deadline_seconds": 25,
+            "reconciled_directories": 3,
+            "measured_stop_invoked": false
+          },
+          "changed_input": "First ordinary Core app-runtime implementer compile solely for the MT022 prerequisite, using v11 cold calibration",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/result.json",
+            "sha256": "1b90ffe07f8299882dbf6999815130f45429f8e1690e8020422ccfd9e2a8ede9"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/released.json",
+            "sha256": "6975a463d3e794c78fc36ef03ec4845b7d605d7008e7a14886491ff05d6a192b"
+          },
+          "cargo_stdout": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/cargo.stdout.jsonl",
+            "sha256": "e01ed923ff002f6b069563c7f5943863feed134a80a4584fec7904fd028226b5"
+          },
+          "resource_evidence": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/resource-guard.jsonl",
+            "sha256": "aeef186b46fc0cb437f9295ff539dbc73f3bc728262ff15da0a7229cfd31087f"
+          },
+          "terminal_observation": {
+            "pid": 32600,
+            "birth_filetime": 134388052598371287,
+            "observed_utc": "2026-11-10T18:00:58.320601Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "072117"
+          }
+        }
+      ],
+      "diagnosis": {
+        "id": "MT212-MT022-CORE-PUBLISHED-ACQUISITION-20261110",
+        "cause": "The dirty-source feedback capture hit the exact visit bound; the linked binary is not formal proof.",
+        "intended_fix": "Bind published Core and the two held e2e exclusions in a separate ordinary app-runtime acquisition that can reuse the existing target.",
+        "retry_or_admission_granted": false
+      },
+      "scope_limit": "Only three reviewed production paths checkpointed after actual compile and clean custody. Formal Core executable acquisition, MT022 runtime and PT007 F4/e2e acceptance remain open.",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
