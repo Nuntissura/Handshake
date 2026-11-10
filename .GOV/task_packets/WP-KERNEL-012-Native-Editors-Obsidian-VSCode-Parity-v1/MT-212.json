@@ -3979,6 +3979,100 @@
       },
       "scope_limit": "No qualified codegen manifest, no Cabinet Host test verdict, no Refresh or Motion launch or historical custody upgrade.",
       "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-host-library-warm-acquisition-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "INDEPENDENTLY_QUALIFIED_WARM_ACQUISITION_ONLY",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "operation_id": "cabinet_host_library",
+      "predecessor": "MT212-CABINET-HOST-COLD-LIVE-ENTRY-LIMIT-20261110",
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-warm-acquisition-preparation-20261110-01/cabinet-host-library-codegen-binding-admitted-02.json",
+        "sha256": "a4d95003bfd199bf8ec911c3ce854ae281b1c0b424c98d219aba833e217df57b"
+      },
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-02/result.json",
+        "sha256": "92f7c37a7503592e693de982688f8e956c03c2f964c910ba357d43d8eadadfc7"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-02/released.json",
+        "sha256": "e4be07de6a265eb5df61731e30377735ae2a25532a9d1b0ee2f932066fdd5075"
+      },
+      "artifact": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-02/codegen-artifact.json",
+        "sha256": "bbe15b6f4633ebc417628537e58a1240cd4ff8932f77a2c82d3e82c4ee4e5163"
+      },
+      "terminal_observer": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-custody-20261110-02/producer-native-terminal-observer-01.json",
+        "sha256": "87291cebb00404c235d22bca56c20c83f9ccd4389746ce5907b719472afb2d91"
+      },
+      "independent_reviews": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-warm-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+          "sha256": "b492c15f3943f5094a57b29921363872b59d11c043645bdb94f469b22d52488f"
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-acquisition-codecheck-20261110-01/cabinet-host-library-acquisition-review-cc-01.json",
+          "sha256": "dfa7744fefc4bc893837e4675ddc4e81a0ef206bea13b04ca3c6ca5dc5aaba9d"
+        }
+      ],
+      "executable_sha256": "fd048c7bdc58f938323fe0ec509cf0af90808a6e8b8f6e00eef869fe94153289",
+      "all_31_artifacts_fresh": true,
+      "cargo_exit": 0,
+      "producer_exit": 0,
+      "live_target_samples": 1,
+      "live_disk_samples": 2,
+      "checked_job_and_handle_release": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "scope_limit": "Acquisition only; no Cabinet Host body verdict, mounted/authenticated workflow, Vulkan, Palmistry or other task acceptance. Cold attempt remains unqualified.",
+      "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-diagnostic-source-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+      "state": "EXACT_ONE_FILE_REVIEWED_SOURCE_INTEGRATION_ALLOCATED",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "failure_ref": "MT-212.json#/source_candidates/35/changed_failure",
+      "blocker": "The scoped ordinal2 test received HTTP403 after successful record sign-in. SurrealDB statement check logged a generic Internal category, before row decode or login-event write.",
+      "necessary_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "expected_live_preimage": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-20261110-01/local-accounts-preimage.rs",
+        "sha256": "b5b22e5d033ea5e8963a06faa9c111a0facf5927b7ac1820d4fc6d458fc39c26"
+      },
+      "approved_exact_candidate": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-20261110-01/local-accounts-candidate.rs",
+        "sha256": "766bb0189312eb7a4e9f51ae68db2ed13bbbaab15f03f7b06f2448c14ae7753c"
+      },
+      "review_delta": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-20261110-01/local-accounts.patch",
+        "sha256": "fb14f0a2494dd1a4ae5cd41d4aef57280e751b59f7f2630d13f6c6ba19d34bc0"
+      },
+      "author": "/root/coding_session_query",
+      "independent_source_reviewer": "/root/adversarial_refresh",
+      "physical_source_owner": "/root",
+      "approved_change": "Only fixed payload-free labels for Internal statement errors at session_query_check, including an unclassified fallback, plus its one pure classifier regression. Exact preserved mixed-EOL preimage for all untouched bytes.",
+      "controls": "No raw error text, SQL, token, account or binding exposure. Preserve the original error, query/authorization and public 403, revocation and cleanup. No manifest, schema, lock or unrelated file change.",
+      "original_proof": "MT022 actual authentication and Cabinet round trip remain open. Original MT174 Runtime05/06 remain spent and stopped. Pure classifier coverage gives no authentication verdict.",
+      "next_proof": {
+        "selector": "storage::surreal::local_accounts::tests::session_query_check_error_details_use_fixed_labels",
+        "dormant_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-preparation-20261110-01/cabinet-session-query-diagnostic-codegen-binding-dormant-01.json",
+          "sha256": "e877e8caffd48a637e0803bf48c32c1ff9a93f5525710f38d75d9246d244b4e1"
+        },
+        "scope": "Separate compile-only Core libtest acquisition, exact current live custody and independent admission required before launch; pure selector body separate."
+      },
+      "compiler_or_runtime_admission_granted": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
