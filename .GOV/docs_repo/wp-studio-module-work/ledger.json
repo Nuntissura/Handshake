@@ -23302,7 +23302,17 @@
      "at": "2026-11-11T06:40:43Z",
      "words": "Approve plan T (Operator in chat, 2026-11-11, sent twice with 'Try again' after the usage limit).",
      "scope": "T-C01 smb-r54-followups-1, T-C02 smb-pr-retime-output-1, T-C03 smb-pr-nudge-1, T-C04 smb-layout-composer-depth-1: partial older_copies only, as the lead's question put it: removed after each C: lane lands, with a fresh inspection; a candidate whose size moved past the tool's 5% check is presented again for fresh approval."
-    }
+    },
+    "executions": [
+     {
+      "at": "2026-11-11T06:46:58Z",
+      "id": "T-C03",
+      "owner": "smb-pr-nudge-1",
+      "removed_gib": 7.76,
+      "files": 176,
+      "reinspection": "7.76 GiB now against 7.78 approved (within 5%); newest file moved to 06:45Z by the landing per-sha only"
+     }
+    ]
    },
    "usage_limit_stop": {
     "at": "2026-11-08 about 10:10Z",

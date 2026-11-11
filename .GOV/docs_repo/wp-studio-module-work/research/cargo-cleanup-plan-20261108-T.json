@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261108-T",
  "generated_at": "2026-11-08T09:58:44Z",
- "status": "PROPOSED (not approved)",
+ "status": "APPROVED (Operator in chat 2026-11-11: 'Approve plan T'; executed per candidate after its lane lands, with a fresh inspection; a candidate past the tool's 5% check is presented again)",
  "authority": "root HSK-ART-005 (Operator 2026-11-07: 'reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal'); CX-107: the Operator approves this exact list",
  "why": "R60 attempt 2 was stopped on the C: cap projection (ledger round_R60, validation/round-R60.json attempt_2). Attempt 3 needs studio-round to grow about 95 GiB more while the four C: width lanes finish, all under the 360 GiB cap with margin.",
  "inspection": [
@@ -128,11 +128,19 @@
     "other:tmp": 0.0
    },
    "lane_status": "owner smb-pr-nudge-1 PASS_V3; tree in use by SMB-AI-LIVE-EFFECTS-1 (building on C: now, branch lane/smb-ai-live-effects-1 at 1e652818)",
-   "newest_file_utc": "2026-11-08T07:34Z",
+   "newest_file_utc": "2026-11-11T06:45Z",
    "when": "after SMB-AI-LIVE-EFFECTS-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
    "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
    "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
-   "why_safe": "7.78 of 34.62 GiB of test binaries are older identities (SMB-DOC-EXPORT-1 and before)"
+   "why_safe": "7.78 of 34.62 GiB of test binaries are older identities (SMB-DOC-EXPORT-1 and before)",
+   "newest_file_utc_inspected_20261108": "2026-11-08T07:34Z",
+   "reinspected": {
+    "at": "2026-11-11T06:46:40Z",
+    "gib_now": 7.76,
+    "files": 176,
+    "within_5pct_of_approved": true,
+    "why_newest_moved": "SMB-AI-LIVE-EFFECTS-1's landing per-sha built at 06:45Z; the lane is READY at 1e652818 and no builder uses the tree"
+   }
   },
   {
    "id": "T-C04",
@@ -344,5 +352,17 @@
   }
  },
  "before_execution": "After each lane lands: re-run target_report.py --disk c, refresh that candidate's gib and newest_file_utc, mark the plan APPROVED only on the Operator's word for the refreshed list, dry-run, then execute. Not during a round. Without N1 every candidate is skipped as in use.",
- "default_without_answer": "Nothing is removed. Attempt 3 does not start on C: while the projection is over the cap."
+ "default_without_answer": "Nothing is removed. Attempt 3 does not start on C: while the projection is over the cap.",
+ "executions": [
+  {
+   "at": "2026-11-11T06:46:58Z",
+   "ids": [
+    "T-C03"
+   ],
+   "removed_gib": 7.76,
+   "files": 176,
+   "result": "research/cargo-cleanup-result-20261108-T-C03.json",
+   "after": "SMB-AI-LIVE-EFFECTS-1 READY at 1e652818"
+  }
+ ]
 }

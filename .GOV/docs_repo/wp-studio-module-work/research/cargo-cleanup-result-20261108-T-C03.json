@@ -1,0 +1,18 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261108-T",
+ "execute": true,
+ "at": "2026-11-11T06:46:58Z",
+ "total_gib": 7.76,
+ "results": [
+  {
+   "id": "T-C03",
+   "owner": "smb-pr-nudge-1",
+   "planned_gib": 7.78,
+   "files": 176,
+   "dirs": [],
+   "gib": 7.76,
+   "status": "REMOVED"
+  }
+ ]
+}
