@@ -1,0 +1,104 @@
+{
+ "lane": "SMB-MOTION-COMMANDS-2",
+ "tip": "e6788dcd",
+ "base": "1e652818",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "No build or parse breaker found by reading (no cargo run): both DESCRIPTOR merges parse as JSON at the tip, keep every base key unchanged and only add motion_layer_kinds, with no duplicate keys. Three findings give wrong answers that the bundled run cannot catch: F1 reverse paste mirrors the times but not the tangent speeds, so a bezier key with speed != 0 overshoots, and the test asserts the wrong stored value. F2 an adjustment layer's mask of mode none, or an open mask, makes the stack apply nowhere instead of everywhere. F3 the keyframe selection survives Run::open_bytes, so ease, hold or shift can write to a newly opened document at the same deterministic layer ids. F4 (export at reduced resolution refused with a code that blames the layer transform) and F5-F7 (LOW receipt and catalog issues) should be fixed in the same pass or ruled on by the lead.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "HIGH",
+   "where": "handshake-studio-assets/crates/hsk-studio-harness-core/src/motion_commands.rs:2224-2228 (key_paste reverse swap), evaluator convention :2354; test handshake-studio-assets/crates/hsk-studio-harness/tests/motion_commands_2.rs:286-291",
+   "what": "Reverse paste maps t to t_first + t_last - t and swaps in/out interpolation and tangents, but keeps each tangent's speed sign. Curve() uses a signed dv/dt on both sides: y = [v0, v0 + s0*io*dts, v1 - s1*ii*dts, v1]. Mirroring time negates dv/dt, so a swapped tangent with speed != 0 produces a curve that is not the time mirror and overshoots. The test pins the wrong stored value: the in_tangent speed stays 3.0 at 9S.",
+   "scenario": "Opacity keys S=70 (out bezier, speed +3) and 2S=100 (in linear). Reverse paste at 8S gives 8S=100 and 9S=70 with in bezier speed +3. The segment falls 100 to 70, but the arrival handle is 70 - 3*0.25*dts. The curve dips below 70 and rises back into the key. The true mirror arrives falling (speed -3). Ease keys (speed 0) and linear keys are unaffected, so only non-zero-speed bezier keys render wrong.",
+   "fix": "On reverse, negate every component's speed in both swapped tangent vectors (influence unchanged). Change the test to expect speed -3.0. Add a value_at check that samples the reversed segment and compares it with the original sampled at mirrored times. Keep the D5 label for vendor parity."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "MEDIUM",
+   "where": "handshake-studio-assets/crates/hsk-studio-composite/src/temporal/composition/effects.rs:736-742 (adjustment_effects: coverage None -> vec![0.0; n]); mask_paths.rs:296 (None = no mask contributes); compare temporal/composition.rs:2439-2440 and effects.rs:718-723 (None = unmasked)",
+   "what": "mask_coverage_shaped returns None when no mask contributes: every mask is open or has mode none. The layer-level mask paths (frame matte, layer effect stack) read None as unmasked. adjustment_effects copied the per-entry-mask reading 'an open path covers nothing' and sets coverage to all zeros, so the adjustment applies nowhere.",
+   "scenario": "Two cases make the adjustment silently do nothing in every frame, and nothing is refused. Case 1: the user disables an adjustment layer's mask by setting its mode to none (the After Effects 'None' mask mode). Case 2: the user draws an open path on the adjustment layer. In both cases the adjustment should apply to the whole frame.",
+   "fix": "Map None to coverage None (applies everywhere), matching the frame path. Add a test case: an adjustment layer with one mode-none mask, and one with an open mask, both equal the unmasked result."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "MEDIUM",
+   "where": "handshake-studio-assets/crates/hsk-studio-harness-core/src/harness.rs:1058-1068 (finish_open clears undo/redo, never keyframes); motion_commands.rs:379-387 (mint: deterministic SLYR-0195f000-...-n ids); harness-view/src/view/mod.rs:569 (Viewer open reuses the Run)",
+   "what": "KeyframeState lives in Run and is never reset when another document is opened on the same Run. The Viewer opens files through self.run.open_bytes. Layer ids minted by motion commands are deterministic per document (counter n), and composition ids such as 'main' repeat across documents. A selection made in document A therefore stays live in document B wherever (layer id, address, tick) exist there.",
+   "scenario": "The user selects opacity keys of the first minted layer in A, opens B in the Viewer and presses Easy Ease, Toggle Hold or Shift. B's keys at the same layer id, address and tick are rewritten, though the user selected nothing in B. keyframe.selection in B also lists A's keys as selected with dropped 0. The edit can be undone, but the write goes to a document the user did not select in.",
+   "fix": "Clear the selection in Run::finish_open on the non-reopen branch, beside undo_stack.clear(). Keep the clipboard: pasting into another document is a normal workflow. Add a test: select, open other bytes, then keyframe.selection reports 0 and keyframe.ease is refused with selection_empty."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ",
+   "severity": "MEDIUM",
+   "where": "handshake-studio-assets/crates/hsk-studio-composite/src/composition.rs:1786 (scale_scene: out.matrix = l.matrix.then(scale) for every layer) and :931 (adjustment_runs refuses a non-identity matrix); caller handshake-studio-assets/crates/hsk-studio-harness-view/src/view/timeline_export/composition.rs:247",
+   "what": "Exporting at a resolution below the composition size goes through scale_scene. It post-multiplies every layer matrix, including an AdjustmentEffects layer's, by the scale. adjustment_runs then refuses composition_adjustment_transform. The entries and the coverage are still in full-size composition pixels (coverage length is checked against the scaled rect), so they do not fit the scaled frame either.",
+   "scenario": "A render-queue item at half resolution of a composition with a running adjustment layer (scenario step 44) fails as export-render-failed. Its typed cause says the adjustment layer has a transform, but the user set none. The same item at full resolution renders.",
+   "fix": "In scale_scene, keep AdjustmentEffects layers at the identity and scale their entries' pixel parameters and the coverage plane. Until that exists, refuse with a distinct code before rendering, such as composition_adjustment_scaled, declared in the DESCRIPTOR, and add a test."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ",
+   "severity": "LOW",
+   "where": "handshake-studio-assets/crates/hsk-studio-harness-core/src/action/commands/motion.rs:35, :87-88 (KEY_AT includes VALUE_LIST for keyframe.add_at_current and keyframe.toggle_at_current); motion_commands.rs:1883-1888",
+   "what": "After the R60 fix, both rows always refuse a 'value' parameter with parameter_invalid, but their catalog rows still declare value (KEY_AT). The command corpus tells callers (drive, GUI forms, agents reading the catalog) that a parameter is accepted when it never is.",
+   "scenario": "An agent builds the call from the row's declared params, passes value and is refused on every call.",
+   "fix": "Give the two rows a parameter list without value, for example &[LAYER_ID, PROPERTY, TIME]. Keep the explicit parameter_invalid refusal if undeclared params are not refused generically."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ",
+   "severity": "LOW",
+   "where": "handshake-studio-assets/crates/hsk-studio-harness-core/src/motion_commands.rs:2301, :2320 (key_ease, key_toggle_hold) and the keyframe.shift arm in key_shift (next_keys = live(e).0)",
+   "what": "These rows store live(e).0 as the new selection, which discards keys an earlier edit removed without counting them. keyframe.selection then reports dropped 0. The module docs promise 'the count of keys dropped because an edit, undo or redo removed them'.",
+   "scenario": "Select three keys, delete one with keyframe.delete, run keyframe.ease, then keyframe.selection: selected 2, dropped 0. The documented receipt would be dropped 1.",
+   "fix": "Carry a pending dropped count in KeyframeState: add live's count whenever a row prunes, report it from keyframe.selection and reset it there. Alternatively, store the unpruned selection in these rows."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ",
+   "severity": "LOW",
+   "where": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/doc_export.rs:740-744 (PSD emit: Payload::Group -> group records, no kind check); reader sweep in builders/lanes/hsk-studio-motion-commands-2.json notes.reader_sweep",
+   "what": "The sweep covered readers that test kind 'adjustment'. It missed readers that branch on Payload::Group alone. PSD export writes a group-payload adjustment layer as an empty PSD group with no loss entry. A pigment adjustment layer gets psd_layer_kind_not_exported, and the static render refuses the same layer (unsupported_payload).",
+   "scenario": "PSD export of a document holding a composition adjustment layer reports full fidelity but contains an empty group named 'Adjustment Layer'.",
+   "fix": "In payload-only Group readers, branch on kind adjustment first and record a loss entry or refuse. Check at least doc_export.rs emit, export_set.rs:399, vector/pdf_export.rs:287, vector/separations.rs:256, interop-vector-svg svg_export/records.rs:259/338 and interop-layout pdf_export.rs:396/666, and list each in the sweep."
+  }
+ ],
+ "lead_questions": [
+  "F1: does the reverse-paste ruling ('swap in and out interpolation and tangents', D5) intend the time-mirrored curve? Under this evaluator the mirror also needs the speed sign flipped. Swap-only is not a vendor-parity question, because it does not reproduce the copied motion in reverse.",
+  "F3: should the clipboard also be cleared on document open, or only the selection (recommended: only the selection)?",
+  "F4: should reduced-resolution export of adjustment layers be implemented in this lane (scale entries and coverage) or refused with a distinct code and left to SMB-DELIVERY-QUEUE-1?",
+  "MT claims: MT-33853 AC-009 rests on composite tests composition_adjustment_effects.rs (applies beneath, mixed by opacity, layers above untouched, nests, in/out window, mask scopes where) plus harness step_44 and the media render-queue test. I read it as proven for the normal case, with F2 and F4 as exceptions to 'the exact meaning'. MT-33885 AC-002 is proven headlessly for adding: refusal of a caller value and of an unknown current value (motion_commands_2.rs r60 test), plus the SMB-MOTION-COMMANDS-1 real-evaluator media test add_at_current_leaves_the_real_evaluator_unchanged (position stream only). The new test checks only the harness mirror (property.read value_at). Default-seeded streams (scale, rotation, opacity created from defaults) are not compared against composite's evaluator in either lane."
+ ],
+ "checked": [
+  "DESCRIPTOR merges: composite and folio lib.rs DESCRIPTOR parse at base and tip (python json, duplicate-key hook); every base key is present and unchanged and only motion_layer_kinds is added (scratch review-motion-commands-2/desc.py, dup.py)",
+  "Folio: ('adjustment', Payload::Group) accepted at lib.rs:761 and the graph value type at :939. It is not a container (nodes flag group=false), so children cannot parent to it. StudioSolidLayer validation (motion_records.rs:994-1012): comp layer, one procedural record (shape/text/solid sets), empty raster host, 1..=30000, unit colour; serde default + skip_serializing_if keeps old record sets byte-identical",
+  "Reader sweep sample: raster.rs:1677/1700 (AdjustmentClipBase applies to any kind adjustment), :1762/:1819 (PrimitiveReference only), lower_extensions.rs:146-150 (PrimitiveReference only), harness.rs:124 / info.rs:311 / render.rs:582 (schema binding only), evaluate_static.rs:645 (Group payload source step -> Unavailable unsupported_payload)",
+  "Composite split (composition.rs:880-912): per running adjustment, charge E (charge_adjustment) then B (segment_surface charges before execute) before any allocation. Each split renders once; background only in the first segment; the result is placed as one straight tile with content hashes in the plan (no layer-level frame cache found in composite composition.rs or temporal by grep). Nested adjustments compose through 'under'. An adjustment at the bottom has a transparent B. Opacity 0 or an empty stack does not split",
+  "Premultiply/mix loops (effect_stack.rs adjusted_surface): byte/f32 indexing consistent with f32_at and effected_surface; cancel every 4096 pixels in both loops plus per row in apply_effects; L = lerp premultiplied, written straight",
+  "Refusals: blend (also at source construction), matte, 3D, clipped, transform, collapsed precomposition, corner pin (content check rejects None/AdjustmentStack), document-graph layer_state, pigment adjustment with a stack, and the 3D run break on AdjustmentStack",
+  "Solid: lowered as a one-rectangle shape group through shape_layer_content (no second rasteriser); effect rect = static content rect; with effects but no records attached, refused at with_motion_records or at the frame; duplicate, remove and composition.delete carry or drop the record; save and reopen covered by survives_reopen",
+  "Keyframe rows: selection, copy and clipboard capped at MAX_SELECTED_KEYS (count before collect; add mode bounded at 2x cap before refusal); empty selection -> selection_empty; clipboard_empty; paste replace on an identical tick; tick_overflow via checked_add and MAX_COMPOSITION_TICK; shift collision -> keyframe_exists; each mutating row is one history step through commit with an optional label (Easy Ease In/Out); non-mutating rows make no step and keep the document entries",
+  "Ease/hold mirror equals motion assistants.rs ease/toggle_hold (bezier, one EASE tangent; hold, then linear with out_tangent cleared); ease at the first/last key writes the unused side as motion does",
+  "layer_keys addresses round-trip through slot (StudioLayerProperty snake_case names, shape.{path}.{field}, text.{a}[.{s}].{param}, effect/mask/camera/light/three_d forms)",
+  "R60: current_slot refuses any 'value' with parameter_invalid; without one, slot(None) seeds from the known default or refuses property_default_unknown (absent anchor/position/point of interest). set_parent never compensates, so transform_compensated false is truthful for parent and unparent",
+  "harness-view edit.rs after_edit: dirty is the re-render flag (mod.rs:790 render_if_dirty), so non-mutating keyframe.select rows only cause one redundant re-render of an unchanged document. Harmless: the reported revision is true and there is no save-prompt state. The same applies to SMB-MOTION-COMMANDS-1 read rows",
+  "Package externals: no StudioSolidLayer field matches the externals VOCAB, so no CLASSIFIED row is needed",
+  "Run struct literal has one construction site (harness.rs:255-257), and the Edit/Planned literals are all updated"
+ ],
+ "not_checked": [
+  "No cargo, build, clippy or test run (method); compile and clippy cleanliness taken from the builder's notes",
+  "Every Payload::Group-only reader beyond the PSD sample (F7 lists them)",
+  "A track matte whose SOURCE is a group-payload adjustment layer (an empty matte, not refused)",
+  "A Viewer or GPU preview frame cache outside composite and timeline_export",
+  "Double application of a non-default OutputStage to B, which follows the existing precomposition precedent",
+  "Ease or paste of bezier keys onto non-interpolable effect parameters",
+  "Text kind media test step_19 content",
+  "Vendor parity (lerp mix, paste collision, ease influence): D5, not judged"
+ ]
+}

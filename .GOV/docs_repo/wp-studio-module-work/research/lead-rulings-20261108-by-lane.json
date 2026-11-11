@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T09:27:27Z",
+ "updated_at": "2026-11-11T09:35:17Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -11,7 +11,8 @@
   "Lanes land one at a time on the lead's RELEASED; a READY claim cites the lane's own bundled and per-sha logs.",
   "A deleted object's records are removed in the same undo step as the object, and undo restores both (rule set for parented pages, frame layers and component definitions).",
   "harness-view layers.rs delete_layer is edited by SMB-LAYOUT-PLACE-1 (frame records, early return) and SMB-DS-COMPONENTS-AUTHOR-1 (component and instance records): the lane that lands second keeps BOTH lanes' record drops in the same undo step, with both lanes' tests green.",
-  "Record every file changed outside the brief's owned paths under notes.beyond_brief_paths, including files changed under a lead ruling (waiver audit 2026-11-11)."
+  "Record every file changed outside the brief's owned paths under notes.beyond_brief_paths, including files changed under a lead ruling (waiver audit 2026-11-11).",
+  "harness-view doc_export.rs carries separate hunks from three lanes (SMB-R60-FOLLOWUPS-1 admission at :844 and :984; SMB-DEVELOP-COMMANDS-1 a crop receipt note; SMB-MOTION-COMMANDS-2 a PSD loss entry at about :740): each keeps to its hunk, and the later lanes rebase."
  ],
  "lanes": {
   "SMB-AI-LIVE-EFFECTS-1": [
@@ -90,13 +91,15 @@
    "F1 form (2026-11-11, builder's question): no harness-core HistoryStep change (adding fields broke other lanes' struct literals before). Binding states are keyed by (layer, content) and never pruned by later writes in a session, so every undo and redo position finds its binding; states whose layer is absent are pruned when a document is opened (open clears history); total states are bounded at the instance cap 4096, with a typed refusal before writing."
   ],
   "SMB-MOTION-COMMANDS-2": [
-   "ADDED ITEM (R60 attempt-2 probe, SMB-MOTION-COMMANDS-1): add_at_current with a value on an anchor without a stream changes the rendered scene (harness-core motion_commands.rs:1738) against STU-MOT-038: refuse typed or apply as the clause says; set_parent's choice made explicit. Red tests first."
+   "ADDED ITEM (R60 attempt-2 probe, SMB-MOTION-COMMANDS-1): add_at_current with a value on an anchor without a stream changes the rendered scene (harness-core motion_commands.rs:1738) against STU-MOT-038: refuse typed or apply as the clause says; set_parent's choice made explicit. Red tests first.",
+   "Review e6788dcd (research/review-smb-motion-commands-2-e6788dcd.json) FIX_FIRST: F1 HIGH reverse paste negates the tangent speed sign; F2 adjustment masks all none/open count as unmasked; F3 the keyframe selection clears on open; F4 reduced-resolution export scales the adjustment layer with the scene, with no false composition_adjustment_transform; F5 drop `value` from the KEY_AT rows; F6 count dropped keys; F7 PATH APPROVED doc_export.rs one hunk at about :740-744 for a typed PSD loss entry on adjustment layers. after_edit dirty flag accepted."
   ],
   "SMB-R60-FOLLOWUPS-1": [
    "Item 6a CHANGED: page.delete of a parent-bound page succeeds and, in the same undo step, drops the deleted page's parent binding and any record keyed to it, so the entry validates after save and reopen; undo restores both; refuse typed page_bound_by_layout_records only where a record cannot be updated consistently, each case named.",
    "PATH APPROVED crates/hsk-studio-harness/tests/layout_persist.rs:191-216: keep the claim (a stale entry is refused, not replaced) with the stale entry built directly as a quarantined package entry naming a missing page.",
    "PATH APPROVED crates/hsk-studio-harness/tests/layout_pdf_host.rs:232-234: split layout.open out of the mutates check and assert mutates_authority true (STU-AUT-147).",
-   "Items 3a and 3b (audio_session.rs admissions) wait for SMB-SCORE-EFFECTS-6 to land."
+   "Items 3a and 3b (audio_session.rs admissions) wait for SMB-SCORE-EFFECTS-6 to land.",
+   "REVIEW READY at c43f2d90 (2026-11-11). Builder-named defects fixed in-lane: the page id scan reads id fields only, never free story text; the batch per-target export (doc_export.rs:984) admits through the host's port. Item 6's typed page_not_empty is accepted (base already refused, untyped); next-lane candidate: page.delete with content, removing frames and re-linking threads in one undo step."
   ],
   "SMB-LAYOUT-PLACE-1": [
    "Review fbf7f0cd F1: the export link gate caches the link state per source_id, hashes each source once per export, checks the cancel token per frame.",
