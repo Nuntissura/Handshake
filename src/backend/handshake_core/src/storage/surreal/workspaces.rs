@@ -803,6 +803,23 @@ pub(super) struct WorkspaceCreationSuccess {
     workspace: Workspace,
     witness: Option<Arc<FirstOwnerWorkspaceCreationWitness>>,
 }
+#[cfg(test)]
+fn first_owner_workspace_claim_error_kind(error: &surrealdb::Error) -> &'static str {
+    use surrealdb::types::QueryError;
+
+    match error.query_details() {
+        Some(QueryError::NotExecuted) => "not_executed",
+        Some(QueryError::Cancelled) => "cancelled",
+        Some(QueryError::TimedOut { .. }) => "timed_out",
+        Some(QueryError::TransactionConflict) => "transaction_conflict",
+        _ if error.is_thrown() => "thrown",
+        _ if error.is_internal() => "internal",
+        _ if error.is_validation() => "validation",
+        _ if error.is_not_allowed() => "not_allowed",
+        _ => "database_error",
+    }
+}
+
 pub(super) struct FirstOwnerWorkspaceFailure {
     phase: &'static str,
     error: ResourceAuthorityError,
@@ -1053,8 +1070,35 @@ impl SurrealStorage {
                 let claim_write_error = |error| FirstOwnerWorkspaceFailure::at("claim_write")(SurrealStorageError::from(error));
                 let response = tx.transaction.query(FIRST_OWNER_WORKSPACE_CREATE)
                     .bind(super::original_operation_bindings(write.clone().into_value()))
-                    .bind(("first_claim", first_claim)).await.map_err(claim_write_error)?;
+                    .bind(("first_claim", first_claim)).await.map_err(|error| {
+                        #[cfg(test)]
+                        eprintln!(
+                            "HSK_FIRST_OWNER_WORKSPACE_CLAIM_QUERY stage=await statement=none kind={}",
+                            first_owner_workspace_claim_error_kind(&error),
+                        );
+                        claim_write_error(error)
+                    })?;
+                #[cfg(not(test))]
                 response.check().map_err(claim_write_error)?;
+                #[cfg(test)]
+                {
+                    let mut response = response;
+                    let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+                    // The SDK inserts responses by statement index. Keep the same first error as check().
+                    errors.sort_unstable_by_key(|(index, _)| *index);
+                    if let Some(first) = errors.first() {
+                        let (index, error) = errors.iter().find(|(_, error)| {
+                            !matches!(error.query_details(), Some(
+                                surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled
+                            ))
+                        }).unwrap_or(first);
+                        eprintln!(
+                            "HSK_FIRST_OWNER_WORKSPACE_CLAIM_QUERY stage=response statement={index} kind={}",
+                            first_owner_workspace_claim_error_kind(error),
+                        );
+                        return Err(claim_write_error(errors.into_iter().next().expect("first query error").1));
+                    }
+                }
                 let expected = if first_claim {
                     let receipts: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
                         FIRST_OWNER_WORKSPACE_READ, write.receipt_read(), 0,

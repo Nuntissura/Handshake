@@ -79,7 +79,7 @@ pub(super) fn upgrade_statements(production: bool) -> String {
             result.push('\n');
         }
     }
-    result
+    revision168::append_upgrade_statements(result)
 }
 
 pub(super) fn cloud_upgrade_statements(production: bool) -> String {
@@ -210,6 +210,7 @@ const CLOUD_HEADERS: &[&str] = &[
 ];
 
 const BASE_ADDITIONS: &[&str] = &[
+    revision168::EVENT_IDENTITY,
     "event:model_sessions:engine_profile_session_origin_guard",
     "field:model_sessions:engine_profile_binding",
     "function:fn::wp012_engine_profile_current_owner",

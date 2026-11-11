@@ -62,7 +62,7 @@ DEFINE INDEX OVERWRITE idx_handshake_schema_state_version ON TABLE handshake_sch
 -- 0001_init
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create WHERE fn::mt120_workspace_create(created_in_session_id) FOR update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(id));
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create WHERE fn::mt120_workspace_create(created_in_session_id, $wp012_original_workspace, $wp012_original_resource) FOR update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(id));
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE name ON TABLE workspaces TYPE string;
 DEFINE FIELD OVERWRITE last_job_id ON TABLE workspaces TYPE option<string>;
@@ -79,7 +79,7 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE workspaces
 DEFINE EVENT OVERWRITE mt109_workspace_reconciliation_queue ON TABLE workspaces
     WHEN $event = 'CREATE' AND $auth != NONE
     THEN {
-        IF !fn::mt120_workspace_create($after.created_in_session_id) { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+        IF !fn::mt120_workspace_create($after.created_in_session_id, $wp012_original_workspace, $wp012_original_resource) { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_principal = (SELECT * FROM ONLY principals WHERE principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled' LIMIT 1);
         IF $service_principal = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_space = (SELECT * FROM ONLY access_spaces WHERE account_id = $service_principal.account_id AND space_key = 'mt109-reconciliation-space' AND status = 'active' LIMIT 1);
@@ -6048,11 +6048,11 @@ DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
     AND created_by_principal_id.status = 'enabled'
     AND access_space_id.status = 'active'
     AND fn::mt166_resource_select_grant(id)) OR fn::wp012_artifact_resource_create($this) OR fn::wp012_member_admin_metadata($this) OR fn::wp012_member_parent_metadata($this)) OR fn::wp012_member_recipient_metadata('resource', id),
-  FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) FOR delete NONE;
+  FOR create WHERE fn::mt120_resource_create($this, $wp012_original_workspace, $wp012_original_resource) OR fn::wp012_artifact_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) FOR delete NONE;
 
 DEFINE FIELD OVERWRITE resource_kind ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
 
-DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) OR fn::wp012_member_admin_metadata($this) OR fn::wp012_member_parent_metadata($this) FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
+DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) OR fn::wp012_member_admin_metadata($this) OR fn::wp012_member_parent_metadata($this) FOR create WHERE fn::mt120_resource_create($this, $wp012_original_workspace, $wp012_original_resource) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE protected_resources TYPE record<local_accounts>;
 
@@ -6072,7 +6072,7 @@ DEFINE FIELD OVERWRITE policy_version ON TABLE protected_resources TYPE int ASSE
 
 DEFINE FIELD OVERWRITE classification ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
 
-DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
+DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) FOR create WHERE fn::mt120_resource_create($this, $wp012_original_workspace, $wp012_original_resource) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE created_at ON TABLE protected_resources TYPE datetime;
 
@@ -7918,6 +7918,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_without($row: object, $fiel
     RETURN object::from_entries(array::filter(object::entries($row), |$entry| $entry[0] NOT IN $fields));
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_metadata($kind: string, $id: record) {
+    IF $access NOT IN ['member_enrollment_recipient_inspection', 'member_enrollment_recipient_installer', 'member_enrollment_recipient'] { RETURN false; };
     IF !fn::wp012_member_recipient_actor(fn::wp012_member_recipient_auth_row()) { RETURN false; };
     LET $i = $auth.issue;
     IF $kind = 'account' { RETURN $id IN [$auth.account_id, $i.issuer_account]; };
@@ -8376,19 +8377,15 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_actor($row: object) {
         AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write')
         AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write');
 };
-DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_claim($before: object, $after: object) {
+DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_claim(
+    $before: object, $after: object, $original: option<object>,
+    $original_workspace: option<string>, $original_resource: option<string>
+) {
+    IF $original = NONE OR $original_workspace = NONE OR $original_resource = NONE { RETURN false; };
     RETURN fn::wp012_first_owner_workspace_actor($before)
         AND $before.first_workspace_state = 'unclaimed' AND $before.first_workspace_receipt_nonce = 0
         AND $before.first_workspace_original = NONE
-        AND $after.first_workspace_original != NONE
-        AND $after.first_workspace_original = {
-            account_session: $account_session, account: $account, principal: $principal, space: $space,
-            workspace: $workspace, external: $external, name: $name, actor: $actor, edit: $edit,
-            resource: $resource, fr: $fr, workspace_grant: $workspace_grant, fr_grant: $fr_grant,
-            capabilities: $capabilities, memory_surfaces: $memory_surfaces,
-            operation_id: $operation_id, channel_hash: $channel_hash, deadline: $deadline,
-            first_owner_workspace_receipt_read: false
-        }
+        AND $after.first_workspace_original = $original
         AND $after.first_workspace_original.account_session = $after.first_workspace_session
         AND $after.first_workspace_original.account = $after.account
         AND $after.first_workspace_original.principal = $after.operator_principal
@@ -8409,9 +8406,9 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_claim($before: object,
         AND $before.setup_receipt = $after.setup_receipt AND $before.setup_policy_version = $after.setup_policy_version
         AND $before.confirmation_state = $after.confirmation_state
         AND $before.created_at = $after.created_at
-        AND $after.first_workspace_operation_id = $wp012_original_workspace
-        AND $after.first_workspace = type::record('workspaces', $wp012_original_workspace)
-        AND $after.first_workspace_resource = type::record('protected_resources', $wp012_original_resource)
+        AND $after.first_workspace_operation_id = $original_workspace
+        AND $after.first_workspace = type::record('workspaces', $original_workspace)
+        AND $after.first_workspace_resource = type::record('protected_resources', $original_resource)
         AND record::tb($after.first_workspace_grant) = 'resource_grants'
         AND $after.first_workspace_session = $auth.id
         AND $after.first_workspace_channel_hash = $auth.channel_binding_hash
@@ -8430,7 +8427,21 @@ DEFINE TABLE OVERWRITE first_owner_administration_origins TYPE NORMAL SCHEMAFULL
                 first_workspace_session, first_workspace_channel_hash, first_workspace_name,
                 first_workspace_deadline))
     FOR create, delete NONE
-    FOR update WHERE fn::wp012_first_owner_workspace_claim($before, $after);
+    FOR update WHERE id = first_owner_administration_origins:primary AND fn::wp012_first_owner_workspace_actor($this);
+DEFINE EVENT OVERWRITE wp012_first_owner_workspace_claim_guard ON TABLE first_owner_administration_origins
+    WHEN $event = 'UPDATE' AND $auth != NONE
+    THEN {
+        IF !fn::wp012_first_owner_workspace_claim(
+            $before, $after, {
+                account_session: $account_session, account: $account, principal: $principal, space: $space,
+                workspace: $workspace, external: $external, name: $name, actor: $actor, edit: $edit,
+                resource: $resource, fr: $fr, workspace_grant: $workspace_grant, fr_grant: $fr_grant,
+                capabilities: $capabilities, memory_surfaces: $memory_surfaces,
+                operation_id: $operation_id, channel_hash: $channel_hash, deadline: $deadline,
+                first_owner_workspace_receipt_read: false
+            }, $wp012_original_workspace, $wp012_original_resource
+        ) { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+    };
 DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_receipt(
     $row: object, $operation: string, $workspace: record<workspaces>, $resource: record<protected_resources>,
     $grant: record<resource_grants>, $session: record<authenticated_sessions>, $channel: string,
@@ -8957,7 +8968,10 @@ DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE principals TYPE int DE
 DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE access_spaces TYPE int DEFAULT 0 ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE protected_resources TYPE int DEFAULT 0 ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE resource_grants TYPE int DEFAULT 0 ASSERT $value >= 0;
-DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create($session: option<record<authenticated_sessions>>) {
+DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create(
+    $session: option<record<authenticated_sessions>>,
+    $original_workspace: option<string>, $original_resource: option<string>
+) {
     IF !fn::mt109_live_session() OR $session != $auth.id
         OR $auth.account_id.account_role != 'Owner'
         OR $auth.principal_id.principal_kind != 'human_account'
@@ -8970,16 +8984,19 @@ DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create($session: option<record<aut
     IF !fn::wp012_first_owner_workspace_actor($origin) OR $origin.first_workspace_state != 'created' { RETURN false; };
     IF record::exists($origin.first_workspace) AND record::exists($origin.first_workspace_resource)
         AND record::exists($origin.first_workspace_grant) { RETURN true; };
-    RETURN $origin.first_workspace_operation_id = $wp012_original_workspace
-        AND $origin.first_workspace = type::record('workspaces', $wp012_original_workspace)
-        AND $origin.first_workspace_resource = type::record('protected_resources', $wp012_original_resource)
+    IF $original_workspace = NONE OR $original_resource = NONE { RETURN false; };
+    RETURN $origin.first_workspace_operation_id = $original_workspace
+        AND $origin.first_workspace = type::record('workspaces', $original_workspace)
+        AND $origin.first_workspace_resource = type::record('protected_resources', $original_resource)
         AND $origin.first_workspace_session = $auth.id
         AND $origin.first_workspace_channel_hash = $auth.channel_binding_hash
         AND $origin.first_workspace_policy_version = $auth.policy_version
         AND $origin.first_workspace_deadline > time::now()
         AND $origin.first_workspace_receipt_nonce = 1;
 };
-DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
+DEFINE FUNCTION OVERWRITE fn::mt120_resource_create(
+    $row: object, $original_workspace: option<string>, $original_resource: option<string>
+) {
     IF !fn::mt109_live_session() OR $row.created_in_session_id != $auth.id
         OR $row.owner_account_id != $auth.account_id OR $row.created_by_principal_id != $auth.principal_id
         OR $row.access_space_id != $auth.access_space_id OR $row.lifecycle_state != 'active'
@@ -8987,7 +9004,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
         OR $row.policy_version != $auth.policy_version OR $row.creator_grant_id = NONE
         OR record::exists($row.creator_grant_id) { RETURN false; };
     IF $row.resource_kind = 'workspace' {
-        RETURN fn::mt120_workspace_create($row.created_in_session_id)
+        RETURN fn::mt120_workspace_create($row.created_in_session_id, $original_workspace, $original_resource)
             AND $row.parent_resource_id = NONE
             AND type::record('workspaces', $row.external_resource_id).created_in_session_id = $auth.id;
     };
