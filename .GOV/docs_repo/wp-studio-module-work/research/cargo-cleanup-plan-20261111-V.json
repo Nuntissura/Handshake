@@ -270,5 +270,10 @@
  "needs_tool_change": "N3: (a) allow the steward canary target D_ROOT/studio-team-dev/steward-export/target for partial older_copies; (b) for partial older_copies only, accept a target whose using lane is unsettled when ledger direction.pause_20261111 lists that lane and no process names the tree or target. Whole removal and C: rules unchanged.",
  "before_execution": "Operator approves this exact list in chat; N3 in the tool; dry run all WOULD_REMOVE; no process naming the trees; lanes still paused; then --execute",
  "operator_question": "Approve plan V: remove older copies from 11 Studio build caches on D:, about 1,396 GiB, keeping the newest copy of every binary and all libraries.",
- "executions": []
+ "executions": [],
+ "tool": {
+  "commit": "234bc442",
+  "change": "N3: steward canary target allowed for partial older_copies; paused-lane trees accepted (accepted_paused) when every unsettled user is in ledger direction.pause_20261111; process checks kept; D: plans without newest_file_utc compare size only",
+  "dry_run": "not run: stopped 2026-11-11 for the Operator's own delete in Handshake_Artifacts (non-Studio folders); run after that ends"
+ }
 }

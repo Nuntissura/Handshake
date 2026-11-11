@@ -313,7 +313,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 Operator: "lets pause all agents so we can do the cargo clean up faster ... we will resume work after the cargo clean up". Every Studio build process tree was stopped; each lane's tree, branch, head and resume step are in `ledger.json` direction.pause_20261111. All trees are clean except SMB-DS-COMPONENTS-AUTHOR-1 (8 uncommitted files, left as is). Origin is 87f331f9. Landed today: PARSER-HOSTILE-1 27365b81, LAYOUT-PLACE-1 87f331f9. SMB-DEVELOP-COMMANDS-1 was RELEASED and rebased (4506a6cf) but not pushed. To resume: SendMessage each lane agent (ids in the pause record) or dispatch takeover builders with the rulings file; INDENT and SCORE land first, then plan T T-C01/T-C02 run, then R60 attempt 3.
 
-Disk state: C: Studio tree about 344 GiB after plan T T-C04 (19.47) and plan U (25.97). D: Studio uses 1,912 GiB (WizTree 2026-11-11 14:55Z): steward-export 540, active lane targets 66 to 205 each. A Studio D: removal list (older copies first) is being prepared for the Operator.
+Disk state: C: Studio tree about 344 GiB after plan T T-C04 (19.47) and plan U (25.97). D: Studio uses 1,912 GiB (WizTree 2026-11-11 14:55Z): steward-export 540, active lane targets 66 to 205 each. Plan V (`research/cargo-cleanup-plan-20261111-V.json`, PROPOSED): older copies from 11 Studio D: caches, about 1,395 GiB, keeping the newest copy of every binary and all libraries; tool support N3 at kernel 234bc442; its dry run waits until the Operator's own delete of the non-Studio Handshake_Artifacts folders ends; needs "Approve plan V".
 
 ## RUNNING (2026-11-08, from about 05:30Z; updated 2026-11-08T08:55:13Z)
 
