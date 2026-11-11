@@ -5326,6 +5326,81 @@
       },
       "next_proof": "One exact Core-independent Refresh compile-feedback --no-run on reviewed fixture then sole-file push and fresh published acquisition. Actual technical and Codecheck independently agree to one changed-input case21 retry and case22 first actual after independent executable qualification and fresh per-case admission. No other retries, old scope replay, cleanup or force.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "refresh-navigation-fixture-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_COLD_CAPTURE_UNQUALIFIED_WARM_PROOF_PENDING",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/refresh_fixture_coding",
+      "source_reviewer": "/root/refresh_warm_codecheck",
+      "published_head": "17667de23a791d652faeaf0f461ab45a206f1534",
+      "published_tree": "07fa749e9a3c61dcc8c1b44d64cd25beb3eadade",
+      "parent": "e018430e7c096531bcb8894ca613079afbaf5c8c",
+      "published_git_blob": "b74c2156943a3401b4e664a392f8f3b2a39e799c",
+      "published_only_path": "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+      "live_candidate_raw_sha256": "82be3d0584ae9aa97179d2cc53a773ac4de7984f6dfe8cf785427ec2bee003c8",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "3c1cd7bcf5df676b694f6fd684ab76d447d12bb368d9109a267355ef50b6af59"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/result.json",
+          "bytes": 5675,
+          "sha256": "69667d250a28ce089afa86f8c0fe6cf8d81fcfbb37dfe5117f1a3272530d83d2"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/released.json",
+          "bytes": 2229,
+          "sha256": "f0ebd12044ee7ee41cf4b0fe3189e747e9f683b82cbc31910c8f089dff708308"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/postguards.json",
+          "bytes": 1858,
+          "sha256": "23697efa95f2608659026168cf87efe592bd6a9b9bc1cdf48db792428402626c"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2398296,
+          "sha256": "b03468ec9168c82d281895e7f5d70026df7bf9edc3189ed94175a28116295291"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "42beaaae6b17ee9931dd4f9838462cf36b01304d27b347c2ef4a2c712ec16e31"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-custody-20261111-01/producer-terminal-handoff.json",
+          "bytes": 3242,
+          "sha256": "4236f6012c8abfd3cfd2e8c9ef7fe545f1e92464c49f6d758c860c64ef16d661"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\test_swarm_lane_diagnostics_argus-493950bbb096065e.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\test_swarm_lane_diagnostics_argus-493950bbb096065e.exe",
+        "bytes": 301284352,
+        "sha256": "71bb42424275b8fb4d5aab6a869bd6de1d8305a1050741f0c84e19a58de2f822",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 5910974514114876
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
+      "cold_capture_qualified": false,
+      "producer_exit": 1,
+      "next_proof": "One exact warm-only published Refresh target --no-run with same preheld PE and every Cargo artifact fresh. After independent acquisition qualification, run one changed-input GUI21 retry and first GUI22 under separate bindings. Earlier GUI failure and unstarted case preserved. Backend diagnostic attempts unchanged.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
