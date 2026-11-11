@@ -1497,6 +1497,137 @@ mod local_account_http_tests {
     use super::local_account_http_test_support::{request, BindingFile};
 
     #[tokio::test]
+    async fn route_issued_owner_session_resolves_before_vault() {
+        use crate::storage::surreal::resource_authority::IssuedSessionCredential;
+        use crate::storage::{
+            init_control_plane_storage_with_config, ControlPlaneStorageConfig,
+            ControlPlaneStorageMode,
+        };
+        use futures::FutureExt;
+        use std::panic::AssertUnwindSafe;
+        use tracing::instrument::WithSubscriber;
+        use tracing_subscriber::{filter::filter_fn, layer::SubscriberExt, Layer};
+
+        let binding = BindingFile::new();
+        let directory = tempfile::tempdir().expect("private production store directory");
+        let config = ControlPlaneStorageConfig {
+            mode: ControlPlaneStorageMode::SurrealEmbedded,
+            data_dir: Some(directory.path().to_path_buf()),
+        };
+        let initialization = AssertUnwindSafe(init_control_plane_storage_with_config(&config))
+            .catch_unwind()
+            .await;
+        let control_plane = match initialization {
+            Ok(Ok(storage)) => storage,
+            failure => {
+                let _ = directory.keep();
+                let outcome = if failure.is_err() { "panicked" } else { "failed" };
+                panic!("LOCAL_ACCOUNT_ROUTE_DIAGNOSTIC phase=storage_initialization outcome={outcome}");
+            }
+        };
+        let surreal = control_plane.surreal;
+        let state = AccountBootstrapState::new(
+            control_plane.database,
+            surreal.clone(),
+            Arc::new(crate::capabilities::CapabilityRegistry::new()),
+        );
+
+        let probe = AssertUnwindSafe(async move {
+            let (activation, _activation_requests) = tokio::sync::mpsc::channel(16);
+            let router = bootstrap_routes(state.clone(), activation);
+            let password = json!({
+                "account_name": format!("proof-{}", uuid::Uuid::new_v4()),
+                "password": "correct horse battery staple",
+            });
+            let (status, _) = request(
+                &router, "POST", "/authority/setup", Some(&binding.channel), None, password.clone(),
+            ).await;
+            if status != StatusCode::OK {
+                return Err(("setup", status.as_str().to_owned()));
+            }
+            let (status, response) = request(
+                &router, "POST", "/authority/login", Some(&binding.channel), None, password,
+            ).await;
+            if status != StatusCode::OK {
+                return Err(("default_login", status.as_str().to_owned()));
+            }
+            let credential: IssuedSessionCredential = serde_json::from_value(response)
+                .map_err(|_| ("default_login", "unexpected_credential_shape".into()))?;
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                crate::api::stage::HSK_HEADER_CHANNEL_BINDING_TOKEN,
+                binding.channel.parse()
+                    .map_err(|_| ("channel_binding", "invalid_header".into()))?,
+            );
+            let channel = crate::api::stage::capture_channel_binding(&headers)
+                .map_err(|_| ("channel_binding", "validation_failed".into()))?;
+
+            tokio::spawn(async move {
+                // Capture only the existing authenticator's fixed failure labels.
+                let subscriber = tracing_subscriber::registry().with(
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(std::io::stderr)
+                        .without_time()
+                        .with_ansi(false)
+                        .with_filter(filter_fn(|metadata| {
+                            metadata.is_event()
+                                && metadata.target() == "handshake_core::resource_authority"
+                                && metadata.module_path() == Some("handshake_core::storage::surreal::local_accounts")
+                                && metadata.fields().field("phase").is_some()
+                                && metadata.fields().iter().all(|field| {
+                                    matches!(field.name(), "message" | "phase" | "cause" | "query_error_detail")
+                                })
+                        })),
+                );
+                // Use the same owned task, duration and validated binding as exchange_local_session.
+                let session = state
+                    .surreal
+                    .exchange_session_credential(
+                        &credential.account_id,
+                        &credential.principal_id,
+                        &credential.access_space_id,
+                        &credential.token,
+                        &channel.binding_hash,
+                        std::time::Duration::from_secs(LOCAL_SESSION_TTL_HOURS as u64 * 60 * 60),
+                    )
+                    .await
+                    .map_err(|error| ("credential_exchange", session_authority_error_kind(&error).into()))?;
+                let observed = AssertUnwindSafe(
+                    state.surreal.authenticate_local_session(&session.token, &channel.binding_hash)
+                        .with_subscriber(subscriber),
+                ).catch_unwind().await;
+                let revocation = state.surreal.revoke_session(&session.session_id).await;
+                if revocation.is_err() {
+                    eprintln!("LOCAL_ACCOUNT_ROUTE_DIAGNOSTIC phase=session_revocation outcome=failed");
+                }
+                let context = observed
+                    .map_err(|_| ("pre_vault_reauthentication", "panicked".into()))?
+                    .map_err(|error| ("pre_vault_reauthentication", session_authority_error_kind(&error).into()))?;
+                if context.identity.account_id != credential.account_id
+                    || context.identity.principal_id != credential.principal_id
+                    || context.identity.access_space_id != credential.access_space_id
+                    || context.session_id != session.session_id
+                {
+                    return Err(("pre_vault_reauthentication", "identity_mismatch".into()));
+                }
+                revocation.map_err(|error| ("session_revocation", session_authority_error_kind(&error).into()))
+            }).await.map_err(|_| ("session_worker", "join_failed".into()))?
+        }).catch_unwind().await;
+
+        if surreal.shutdown().await.is_err() {
+            let _ = directory.keep();
+            panic!("private production store shutdown failed");
+        }
+        let removed = directory.close().is_ok();
+        if !removed {
+            eprintln!("LOCAL_ACCOUNT_ROUTE_DIAGNOSTIC phase=temp_directory_close outcome=failed");
+        }
+        probe.unwrap_or_else(|_| Err(("route_fixture", "panicked".into())))
+            .expect("route-issued Owner session must resolve before vault storage");
+        assert!(removed, "private production store removal failed");
+    }
+
+    #[tokio::test]
     async fn cancelled_vault_request_retains_serialization_until_blocking_exit() {
         let (entered, started) = tokio::sync::oneshot::channel();
         let (release, blocked) = std::sync::mpsc::channel();
