@@ -557,9 +557,11 @@ FINAL MESSAGE, 12 lines or fewer: shas, exact test counts and exit codes, what i
 
 ## Waiting on the Operator
 
-None of these block paused-lane completion or R57.
+**Operator 2026-11-11:** "i have no idea what you open questions are about, just deliberate with specialised agents and use that result as decision for it." So the lead does not put open questions to the Operator: a specialised agent deliberates and its result is the decision (`direction.operator_direction_20261111`). What remains below is held by a hard rule (deletions of worktrees, branches and new removal lists; legal; Windows settings; work at the vendor apps), not asked.
 
-**Vulkan pivot:** O1..O10 in the `vulkan-gui-pivot` topic. O1 (WP-012 and eframe) is the largest open decision in the WP and, by the records, has never been raised with its owner.
+**Vulkan pivot:** O1..O10 were decided by the lead on 2026-11-07 after an agent team and a red team (`direction.blocker_decisions_20261107`); nothing open.
+
+**Waivers (GLOBAL-SCOPE-005):** decided by a scope-audit agent on 2026-11-11 (`research/waivers-20261111-global-scope-005.json`); the list below is kept for history.
 
 **Durability:** done 2026-11-05 on the Operator's approval: the 23 commits are on 5 GitHub backup branches, and media markers' 3 uncommitted files are on a sixth (`state` topic).
 
