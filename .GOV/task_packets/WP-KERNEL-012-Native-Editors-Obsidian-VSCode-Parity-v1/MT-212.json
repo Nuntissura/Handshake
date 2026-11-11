@@ -5559,7 +5559,7 @@
     },
     {
       "candidate": "cabinet-session-query-auth-record-lookup-source-published-20261111-01",
-      "state": "EXACT_PUBLISHED_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_RUNTIME_PENDING",
+      "state": "EXACT_PUBLISHED_LOOKUP_FIX_INDEPENDENT_PRIVATE_ROUTE_AND_BOTH_LIFECYCLE_CASES_PASS",
       "pico_refs": [
         "GUI-WP012-graph-folders"
       ],
@@ -5629,7 +5629,7 @@
       "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
       "cold_capture_qualified": false,
       "producer_exit": 1,
-      "next_proof": "Independent KB-CAD-001 route-issued identity before-vault retry first, under exact changed input. Once it passes, prove the two affected existing embedded lifecycle cases once each under their own admission. Prior attempts and their verdicts remain; no actual server, OS vault or watcher and no original HTTP retry.",
+      "next_proof": "Original MT022 actual HTTP/activation/Cabinet proof still needs its own explicitly authorized changed-input admission; historic HTTP failures remain spent. In parallel proceed with accepted MT212 GUI navigation and mirror candidates under exact sequential compile-feedback windows. Full GUI/Vulkan/Palmistry acceptance remains open.",
       "original_acceptance": "OPEN",
       "warm_acquisition": {
         "binding": {
@@ -5689,7 +5689,144 @@
           "tests_run": false
         },
         "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
-      }
+      },
+      "runtime_cases": [
+        {
+          "case_id": "CORE-SESSION-QUERY-ROUTE-IDENTITY-002",
+          "selector": "api::authority::local_account_http_tests::route_issued_owner_session_resolves_before_vault",
+          "source_head": "84817886a8c650625832b68917b3c33a8038f273",
+          "independent_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "verdict_turn": "01a1c868-b690-7cb3-af74-bdf401983fae",
+          "verdict": "PASS_PRIVATE_COMPONENT_ONLY",
+          "controller_exit": 0,
+          "test_exit": 0,
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-runtime-preparation-20261111-01/auth-record-lookup-runtime-binding-admitted-01-owner-bound.json",
+            "bytes": 36493,
+            "sha256": "dfeaad62ca80ea1c94aa9d873aabd11e5cbaec9582cfdc6e902d3218ea52f6e2"
+          },
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/result.json",
+            "bytes": 6856,
+            "sha256": "37980fcbdfeef97b01279c170e5549cf2e83c097e41dc1944777c3f079bdf9bb"
+          },
+          "case_completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/case-completion.json",
+            "bytes": 20979,
+            "sha256": "c904edba05281951ec833981fff9d7b190f2488b8f21c9f61efb5f0375295eb5"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/released.json",
+            "bytes": 507,
+            "sha256": "bbce8cd25dfd27d555f4d1dc2c3cc6094fc9b79b5c13d76307617ccd26359a7f"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/postguards.json",
+            "bytes": 2339,
+            "sha256": "3d58e80984c06ca276939352c28e4630e78073bd8e89a9d645b21ee034b59067"
+          },
+          "fixture_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/fixture-final.json",
+            "bytes": 255,
+            "sha256": "85fa87068c0cd085ded8dc8405b9fca84ee3df0e95994e1e22baf77ba06f83f3"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "049a859e9434b73b8b2b0fd09da09cabc2c0abf9b2e3bfd1f649266c4b567ac7"
+          }
+        },
+        {
+          "case_id": "CORE-SESSION-QUERY-EMBEDDED-002",
+          "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+          "source_head": "84817886a8c650625832b68917b3c33a8038f273",
+          "independent_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "verdict_turn": "01a1c86b-fd89-7f30-9a96-fa7e0afd88f8",
+          "verdict": "PASS_PRIVATE_COMPONENT_ONLY",
+          "controller_exit": 0,
+          "test_exit": 0,
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-runtime-preparation-20261111-01/auth-record-lookup-runtime-binding-admitted-02.json",
+            "bytes": 36810,
+            "sha256": "874300f513d74dee54148a4b3c6f99d46e34129a9eecfb0ef7645c7f2c2eb05d"
+          },
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/result.json",
+            "bytes": 6861,
+            "sha256": "aee215b6361a8a64860a42da41f248c23bc7bb68831841b5ffe2e5f8f752a836"
+          },
+          "case_completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/case-completion.json",
+            "bytes": 20972,
+            "sha256": "ef4e72011b79a4ef4af5f32e7c84675f33f074e654b2e52a2205ba28beb250ac"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/released.json",
+            "bytes": 507,
+            "sha256": "b75cd55f7dcc256bfdddaad22c87a8ab104351295030a5dc0e7f8ed5b21862ea"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/postguards.json",
+            "bytes": 2339,
+            "sha256": "3c0f8c341b583e8a48c1c8043b3e32cb201dade53fd75a418fac69a71b7710cd"
+          },
+          "fixture_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/fixture-final.json",
+            "bytes": 255,
+            "sha256": "e3f634028850603e6a5f4ac9a23c0ae144c1abd5f205cb3db4b8ad3b39aa3c49"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "0d28210d9709198c8df0f9dc152b55e57e8c4c0c0c6d24362e47342bcbe09cea"
+          }
+        },
+        {
+          "case_id": "CORE-SESSION-QUERY-EMBEDDED-PRODUCTION-SCHEMA-002",
+          "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded_production_schema",
+          "source_head": "84817886a8c650625832b68917b3c33a8038f273",
+          "independent_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "verdict_turn": "01a1c86f-0378-7c43-906c-83a3f085703d",
+          "verdict": "PASS_PRIVATE_COMPONENT_ONLY",
+          "controller_exit": 0,
+          "test_exit": 0,
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-runtime-preparation-20261111-01/auth-record-lookup-runtime-binding-admitted-03.json",
+            "bytes": 36956,
+            "sha256": "5d46b361273c8f8b5277514a426aca56dacb15cdd780c9c80934ef2f3ceac292"
+          },
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/result.json",
+            "bytes": 6914,
+            "sha256": "eb13d1b374eab6ec1628316448ff3c903e5c26dc5c80010ac7c2333fe74bebfc"
+          },
+          "case_completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/case-completion.json",
+            "bytes": 21054,
+            "sha256": "d537b3efdf6b670c071edb8a645ae660bdf1465b1c779f410df1be01c9574d6a"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/released.json",
+            "bytes": 507,
+            "sha256": "6ca59aedaca0df00e9a7757b6928d2e9068f479c14193e5e43c452b5e6e68b9b"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/postguards.json",
+            "bytes": 2339,
+            "sha256": "356908388e49996f2146798255da4b13165354d6cddeda47f0c573f54dbfc1a4"
+          },
+          "fixture_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/fixture-final.json",
+            "bytes": 255,
+            "sha256": "8a8a44e4afb35bfa72800af2910fa88b0c337a6c0f0a5e25da6b79322328623e"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "f2c355245bede6c2cc10c2d87d183033ff7e0786baf977ce894753e91cb7452a"
+          }
+        }
+      ]
     }
   ],
   "picotask_plan": {
