@@ -5997,6 +5997,157 @@
         },
         "guard_verdict": "UNQUALIFIED_LIVE_SCAN_ENTRY_LIMIT"
       }
+    },
+    {
+      "candidate": "mt022-ordinary-repaired-core-acquisition-20261111-01",
+      "state": "PUBLISHED_CORE_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_ORIGINAL_HTTP_PENDING",
+      "original_contract_ref": "MT-022.json",
+      "source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "source_tree": "b98329c3466ea6c43e24b4bf7956fc490717c89f",
+      "cold_unqualified": {
+        "binding": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-preparation-20261111-02/mt022-repaired-ordinary-core-binding-admitted-01.json",
+          "bytes": 23014,
+          "sha256": "84da258486427c2f7468287302f67a2ac7f8b7382bea0fc779a925cfe00ecc90"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-20261111-01/result.json",
+          "bytes": 5580,
+          "sha256": "337da050e379a3b159641c54f77be3f3474fbe26f1a1f1e47081bc2a9c497cb1"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-20261111-01/released.json",
+          "bytes": 2224,
+          "sha256": "4440e5f6c627f774b0aa51dce02690975f2b02671d8dcbe557398877d4036fde"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "08ec0c453629e76102f8ed9d058056ff53081a64c46cd686260d34a618f1bbde"
+        },
+        "raw_cargo": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2004916,
+          "sha256": "85e7f3fd5877e3254badaddcf5366a4c07b3aba1f0f0fe80e952df36d24302bc"
+        },
+        "failure": {
+          "deadline_exceeded": true,
+          "elapsed_seconds": 25.0,
+          "entries": 553227,
+          "entries_exceeded": false,
+          "reason": "DEADLINE",
+          "reconciled_directories": 4,
+          "scan_max_entries": 900000,
+          "scan_timeout_ms": 25000,
+          "stage": "live",
+          "vanished_entries": 0
+        },
+        "cargo_exit": 0,
+        "producer_exit": 1,
+        "acquisition": "UNQUALIFIED"
+      },
+      "warm": {
+        "binding": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-preparation-20261111-01/mt022-ordinary-core-warm-binding-admitted-01.json",
+          "bytes": 27086,
+          "sha256": "d0432feec3dc8d9bc8ff5f7e2f6b1505fda7f51606bb7ca3b59273e1e2419c7a"
+        },
+        "records": {
+          "result": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/result.json",
+            "bytes": 3329,
+            "sha256": "1e5b4663befdf0458e034cb064fee2e38380707e6972e822c9731c2e2e1b6727"
+          },
+          "artifact": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/codegen-artifact.json",
+            "bytes": 11322,
+            "sha256": "7489ee1c875c4246898dc4b71f8a5baf9f2ca67ddc6e128c68e6267904b61709"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/released.json",
+            "bytes": 481,
+            "sha256": "e10c6a15deee01d9710e9e9061047c1399cb45b166657226af8b169833c5ece0"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/postguards.json",
+            "bytes": 110,
+            "sha256": "1771fa42c4fd9ea7e0f6b21a5bf5e227b69d877670b4c89caeddacd715855650"
+          },
+          "cargo_exit": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/cargo-exit.json",
+            "bytes": 768,
+            "sha256": "c332db9a63c37cf73da6078c49e47ce3579409d406d5fb553cdddc72095a90a5"
+          },
+          "raw_cargo": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/cargo.stdout.jsonl",
+            "bytes": 2004914,
+            "sha256": "adcf4d5871066840e1f339a25a204447a4b9d4529f35774a92efe45de968c9c3"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "07451eaf68815b68babfe7bf0c473ef190c59e774dad346cbc23e39a6b15cdb2"
+          },
+          "capture_started": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-custody-20261111-01/capture-started.json",
+            "bytes": 1525,
+            "sha256": "8fa9b2646ee5058b222fd6a0f8b40a9052d67dd9d239ce79c76182703d3179da"
+          },
+          "producer_terminal": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-custody-20261111-01/producer-terminal-native-01.json",
+            "bytes": 416,
+            "sha256": "f195bc158ce8144c7c41ee31af881ad88efef34babf84b9020338c1cfe8aae9b"
+          },
+          "producer_handoff": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-custody-20261111-01/producer-terminal-handoff.json",
+            "bytes": 3004,
+            "sha256": "545bb60cbc7c97f000b3ce2f2c1258f0060591a05804276cdcc2a59d4b9f4ee7"
+          }
+        },
+        "all_fresh_cargo_artifacts": 808,
+        "selected_executable": {
+          "PE": {
+            "characteristics": 34,
+            "machine": "AMD64",
+            "machine_hex": "0x8664",
+            "optional_magic": "0x020b"
+          },
+          "bytes": 386772480,
+          "file_id": {
+            "file_index": 10696049117015181,
+            "volume_serial": 705387220
+          },
+          "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\handshake_core.exe",
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\handshake_core.exe",
+          "read_handle_retained_until_checked_release": true,
+          "sha256": "27e4f04dc7a24ac7b3395b2cc99cfcaf174103d1b67b8f2de18aba738f33f272"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-named-dx-20261111-01/ordinary-core-warm-acquisition-review-dx-01.json",
+            "bytes": 1707,
+            "sha256": "515afabdaa92972066d32b2f09204e224ffb4434c34fbde43e391f75915c48f8"
+          },
+          {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-same-cc-20261111-01/ordinary-core-warm-acquisition-same-cc-01.json",
+            "bytes": 1076,
+            "sha256": "eb4e7bf1720e0f8597c8fd357536c132a3be9d17753d5bba6a4a4e1088360ca0"
+          }
+        ],
+        "independent_fixture_freshness": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-named-dx-20261111-01/ordinary-core-fixture-freshness-dx-01.json",
+          "bytes": 2173,
+          "sha256": "c50b484338d0ff0370eca1f120a61cf8b38eb8e87cd8410e42c72467ec2f8fe5"
+        },
+        "scope": "Published ordinary Core acquisition only. No runtime executable launch or proof credit."
+      },
+      "native_input_equivalence": {
+        "ref": "WP-KERNEL-012/MT-212/mt022-final-native-source-equivalence-dx-20261111-01/native-integration-source-equivalence-dx-01.json",
+        "bytes": 5618,
+        "sha256": "5ee3ded2795225f63b7a53d3b526e85e834cf53135ee42f7bd6a07bb59f76595"
+      },
+      "next_proof": "One separate original MT022 HTTP case, fresh Primary/IV admission, exact unchanged Native Folder Tree executable and qualified ordinary Core, private short SurrealDB and fixed receipt. Prior ordinal 1 and 2 failures remain spent, no retry or GUI credit.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
