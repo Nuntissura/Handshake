@@ -1,31 +1,35 @@
-//! WP-1 MT-012 — native Operator Chat / Launch pane live UI proof (Argus).
+//! WP-1 MT-012 — native Operator Chat offline component proof (Argus).
 //!
-//! Drives the pane headlessly through the RUN menu, targets every control by its
-//! stable AccessKit author_id, types into the folder + prompt inputs (in-app
-//! AccessKit focus only; no OS-window foreground call — HBR-QUIET), and drives the
-//! launch button. The `with_health` app registers the OFFLINE pane factory, so a
-//! launch honestly reports "backend not wired" instead of fabricating a session.
+//! Opens the pane from RUN, checks its stable AccessKit controls, and enters a
+//! worktree and prompt through in-app focus. With the offline factory mounted,
+//! Launch stays disabled and Refresh Models exposes the unavailable backend.
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::operator_chat_pane::{
-    ERROR_AUTHOR_ID, FOLDER_PICKER_AUTHOR_ID, LAUNCH_AUTHOR_ID, MODEL_PICKER_AUTHOR_ID,
-    PROMPT_INPUT_AUTHOR_ID, REFRESH_MODELS_AUTHOR_ID, SURFACE_AUTHOR_ID, TRANSCRIPT_AUTHOR_ID,
+    OperatorChatLaunchPaneFactory, ERROR_AUTHOR_ID, FOLDER_PICKER_AUTHOR_ID, LAUNCH_AUTHOR_ID,
+    LAUNCH_STATUS_AUTHOR_ID, MODEL_PICKER_AUTHOR_ID, PROMPT_INPUT_AUTHOR_ID,
+    REFRESH_MODELS_AUTHOR_ID, SURFACE_AUTHOR_ID, TRANSCRIPT_AUTHOR_ID,
 };
 use handshake_native::pane_registry::PaneType;
 
-fn ok_app() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+fn offline_app() -> HandshakeApp {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
         db_status: "ok".to_string(),
         migration_version: Some(1),
-    }))
+    }));
+    app.set_pane_factory(
+        PaneType::OperatorChatLaunch,
+        Box::new(OperatorChatLaunchPaneFactory::offline()),
+    );
+    app
 }
 
 fn shell_harness() -> Harness<'static, HandshakeApp> {
-    Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app())
+    Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), offline_app())
 }
 
 fn live_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
@@ -70,8 +74,20 @@ fn assert_unique_operator_chat_author_ids(harness: &Harness<'_, HandshakeApp>) {
     );
 }
 
+fn assert_no_launch_output(harness: &Harness<'_, HandshakeApp>) {
+    let ids = live_author_ids(harness);
+    assert!(
+        !ids.iter().any(|id| id == LAUNCH_STATUS_AUTHOR_ID),
+        "offline pane has no launched session status"
+    );
+    assert!(
+        !ids.iter().any(|id| id.starts_with("operator-chat.transcript.")),
+        "offline transcript has no returned rows"
+    );
+}
+
 #[test]
-fn operator_chat_launch_argus_opens_picks_types_and_launches() {
+fn operator_chat_offline_argus_opens_and_reports_unavailable_inventory() {
     let mut harness = shell_harness();
     harness.run();
 
@@ -107,11 +123,7 @@ fn operator_chat_launch_argus_opens_picks_types_and_launches() {
     }
     assert_unique_operator_chat_author_ids(&harness);
 
-    // Type a model, folder, and prompt (in-app AccessKit focus only).
-    node_by_author(&harness, MODEL_PICKER_AUTHOR_ID).focus();
-    harness.run();
-    node_by_author(&harness, MODEL_PICKER_AUTHOR_ID).type_text("claude-sonnet-4");
-    harness.run();
+    // Enter the worktree and prompt through the focused AccessKit fields.
     node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).focus();
     harness.run();
     node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).type_text("D:/work/repo");
@@ -121,17 +133,54 @@ fn operator_chat_launch_argus_opens_picks_types_and_launches() {
     node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).type_text("audit the repo");
     harness.run();
 
-    // Drive launch. The with_health app registers the OFFLINE pane, so an honest
-    // "backend not wired" error appears (never a fabricated session).
-    node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit();
-    harness.run();
-    harness.run();
-
-    assert!(
-        live_author_ids(&harness)
-            .iter()
-            .any(|id| id == ERROR_AUTHOR_ID),
-        "an offline launch surfaces the operator-chat error control"
+    assert_eq!(
+        node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).value().as_deref(),
+        Some("D:/work/repo")
     );
+    let prompt = node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).accesskit_node();
+    assert!(prompt.supports_text_ranges(), "prompt exposes its entered text");
+    assert_eq!(prompt.document_range().text(), "audit the repo");
+
+    let launch = node_by_author(&harness, LAUNCH_AUTHOR_ID);
+    assert!(
+        launch.accesskit_node().is_disabled(),
+        "Launch requires a governed model and owner"
+    );
+    launch.click_accesskit();
+    harness.run();
+    harness.run();
+    assert_no_launch_output(&harness);
+    assert!(
+        !live_author_ids(&harness).iter().any(|id| id == ERROR_AUTHOR_ID),
+        "a disabled Launch request does not reach the offline backend"
+    );
+
+    node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit();
+    harness.run();
+    harness.run();
+    assert_eq!(
+        node_by_author(&harness, ERROR_AUTHOR_ID).accesskit_node().label().as_deref(),
+        Some("backend not wired (offline pane)")
+    );
+    assert!(
+        node_by_author(&harness, MODEL_PICKER_AUTHOR_ID)
+            .value()
+            .unwrap_or_default()
+            .is_empty(),
+        "offline refresh leaves the selected model empty"
+    );
+    assert!(
+        !live_author_ids(&harness).iter().any(|id| {
+            id.starts_with("operator-chat.model.")
+                || id.starts_with("operator-chat.profile.")
+                || id.starts_with("operator-chat.session.")
+        }),
+        "offline refresh exposes no governed model or owner choices"
+    );
+    assert!(
+        node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled(),
+        "Launch stays disabled after the offline refresh"
+    );
+    assert_no_launch_output(&harness);
     assert_unique_operator_chat_author_ids(&harness);
 }
