@@ -5556,6 +5556,81 @@
       },
       "next_proof": "One scoped Core compile-feedback and sole-file publication, then separate warm published executable qualification. Actual technical and independent Codecheck agree one changed-input private route retry followed by each affected storage lifecycle selector once on same qualified PE, distinct Primary/IV case admissions, stop on first failure. No new original HTTP attempts, force, cleanup or acceptance substitution.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-auth-record-lookup-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_COLD_CAPTURE_UNQUALIFIED_WARM_PROOF_PENDING",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/session_query_lookup_coding",
+      "source_reviewer": "/root/route_warm_codecheck",
+      "published_head": "84817886a8c650625832b68917b3c33a8038f273",
+      "published_tree": "2f6ca792231f7380b214b137cc37699b7c138fc4",
+      "parent": "17667de23a791d652faeaf0f461ab45a206f1534",
+      "published_git_blob": "797be185ad20fd6948ea138049dc4a0ea8dafa21",
+      "published_only_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "live_candidate_raw_sha256": "b81dbc5fb2303a03e1c224736e0302bb99ccbdf6e2e0d4fb7ad70d031d58ba95",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "ac605859b3cf21e860bfe4f3158de0d5669dd2024e1d32ab7f45b9e1cf9a039d"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/result.json",
+          "bytes": 5644,
+          "sha256": "5892dcd63b15f253a7f3c7b602d7911bacb8a7c5a95a95c1dea975bc70815ca7"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/released.json",
+          "bytes": 2240,
+          "sha256": "c06a3df9377f67b1fb56574c5b9edc03fc845b0a2ef12bc432990e281cea52df"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/postguards.json",
+          "bytes": 1869,
+          "sha256": "7badaf04fdd0d4a0998def1d5f420ad5aa54e098bc77d01cd7ea313bb13a2104"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2034599,
+          "sha256": "ce108977d4e16a1045af7f808c8bab5e17c2a3984959fa304ae1a7d023942a21"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "f8c1cf8e1b5f075ad8df34fb495fb737661711e878bd03c4d3125187867ca396"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-custody-20261111-01/producer-terminal-handoff.json",
+          "bytes": 3211,
+          "sha256": "3314d1982395c8c454db4b54d898d725b233e4a218a2da0a4c8dc303d45a35bc"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "bytes": 445665792,
+        "sha256": "e03f27a40a3a5df8a64c4b0ea65bc51687f3b0cff392f704eba856ec42f0a483",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
+      "cold_capture_qualified": false,
+      "producer_exit": 1,
+      "next_proof": "One exact warm-only published Core library --no-run with same preheld PE and every Cargo artifact fresh. Separate qualified acquisition before one changed-input independent route retry and affected embedded lifecycle checks. Preserve prior route failure and both embedded passes as historical proof. Old HTTP attempts remain spent.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
