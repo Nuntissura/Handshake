@@ -22,6 +22,7 @@ pub enum GuiDiagnosticOperation {
     KumihimoInteraction = 0x4755_4900_0000_000b,
     KumihimoCleanup = 0x4755_4900_0000_000c,
     KumihimoWindowRetired = 0x4755_4900_0000_000d,
+    CabinetChildRead = 0x4755_4900_0000_000f,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

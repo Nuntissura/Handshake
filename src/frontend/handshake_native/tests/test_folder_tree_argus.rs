@@ -24,6 +24,7 @@
 #![cfg(feature = "integration")]
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 #[path = "native_gui_support/screenshot_harness.rs"]
@@ -37,8 +38,12 @@ use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, Canonic
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
 
+use handshake_diag_ring::ring::{DiagRingReaderV2, DiagRingWriterV2};
+use handshake_diag_ring::{DiagEvent, DiagEventCode, DiagPhase, DiagSeverity, DEFAULT_CAPACITY};
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::diagnostics::gui_events::GuiDiagnosticPhase;
+use handshake_native::diagnostics::recorder::install_v2;
 use handshake_native::editor_pane_factories::{placeholder_pane_type, FOLDER_TREE_PANE_LABEL};
 use handshake_native::graph::folder_tree::{node_author_id, status_author_id};
 use handshake_native::pane_registry::{
@@ -47,6 +52,33 @@ use handshake_native::pane_registry::{
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+}
+
+fn install_mounted_diagnostics_ring() -> &'static (PathBuf, [u8; 16]) {
+    static RING: OnceLock<(PathBuf, [u8; 16])> = OnceLock::new();
+    RING.get_or_init(|| {
+        let dir = external_artifact_dir("wp-kernel-012-mt-022/canonical-argus");
+        std::fs::create_dir_all(&dir).expect("create external MT-022 diagnostics directory");
+        let path = dir.join(format!("cabinet-child-read-{}.ring", uuid::Uuid::now_v7()));
+        let nonce = *uuid::Uuid::new_v4().as_bytes();
+        let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, nonce)
+            .expect("create mounted MT-022 V2 diagnostic ring");
+        assert!(
+            install_v2(writer),
+            "install the ring before either shell records"
+        );
+        (path, nonce)
+    })
+}
+
+fn cabinet_child_read_events(ring: &DiagRingReaderV2) -> Vec<DiagEvent> {
+    const CABINET_CHILD_READ: u64 = 0x4755_4900_0000_000f;
+    ring.read_last_n(ring.capacity())
+        .into_iter()
+        .rev()
+        .map(|record| record.event)
+        .filter(|event| event.counter_a == CABINET_CHILD_READ)
+        .collect()
 }
 
 fn assert_no_local_artifact_dir() {
@@ -136,15 +168,20 @@ impl Drop for LiveWorkspaceCleanup<'_> {
     }
 }
 
-fn remove_owned_prior_artifact(path: &Path) {
-    match std::fs::remove_file(path) {
-        Ok(()) => {}
+fn require_absent_proof_artifact(path: &Path) {
+    match std::fs::symlink_metadata(path) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => panic!(
-            "remove stale owned proof artifact {}: {error}",
-            path.display()
-        ),
+        Err(error) => panic!("inspect proof artifact {}: {error}", path.display()),
+        Ok(_) => panic!("preserve existing proof artifact {}", path.display()),
     }
+}
+
+fn create_proof_artifact(path: &Path) -> std::fs::File {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .unwrap_or_else(|error| panic!("create new proof artifact {}: {error}", path.display()))
 }
 
 fn drive_until(
@@ -195,13 +232,138 @@ fn retype_pane_a_to_folders(app: &mut HandshakeApp) {
     }
 }
 
+fn assert_unavailable_child_read(
+    live: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+    folder_id: &str,
+    ring: &DiagRingReaderV2,
+    prior_events: &[DiagEvent],
+) -> serde_json::Value {
+    use egui_kittest::kittest::{NodeT, Queryable};
+    use handshake_native::graph::folder_tree::FolderRow;
+
+    // Reuse the owned fixture's authenticated list GET. Only its selected root row crosses the
+    // mounted delivery seam, so the runtime-absent shell needs no account or transport binding.
+    let (status, body) =
+        live.get_json_response(&format!("/workspaces/{workspace_id}/loom/folders"));
+    assert_eq!(status, 200, "authenticated folder list");
+    let row = body
+        .as_array()
+        .expect("folder list array")
+        .iter()
+        .find(|row| row["folder_id"].as_str() == Some(folder_id))
+        .expect("owned Projects folder in the authenticated list");
+    assert_eq!(row["workspace_id"], workspace_id);
+    assert!(
+        row["parent_folder_id"].is_null(),
+        "Projects is a root folder"
+    );
+    let name = row["name"].as_str().expect("folder name");
+    let color = row["color"].as_str().expect("fixture folder color");
+    let row = FolderRow::new(folder_id, None, name, Some(color.to_owned()));
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.bind_active_project_for_integration_test(workspace_id);
+    retype_pane_a_to_folders(&mut app);
+    let mounted_tree = app.mounted_folder_tree_for_test();
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let (epoch, sequence) = harness.state().folder_request_identity_for_test();
+    assert_eq!(
+        mounted_tree
+            .lock()
+            .expect("mounted folder tree")
+            .workspace_id,
+        workspace_id
+    );
+    harness
+        .state()
+        .deliver_folder_list_for_test(workspace_id, epoch, sequence, Ok(vec![row]));
+    harness.run_steps(2);
+
+    assert_eq!(harness.state().folder_child_cells_in_flight_for_test(), 0);
+    assert_eq!(cabinet_child_read_events(ring).as_slice(), prior_events);
+    let author = node_author_id(folder_id);
+    let target = harness
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            let node = node.accesskit_node();
+            (node.author_id() == Some(author.as_str())).then(|| node.id())
+        })
+        .expect("authenticated Projects row is mounted and actionable");
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target,
+            data: None,
+        },
+    ));
+    harness.run_steps(2);
+
+    let in_flight = harness.state().folder_child_cells_in_flight_for_test();
+    assert_eq!(in_flight, 0);
+    let mut tree = mounted_tree.lock().expect("mounted folder tree");
+    assert_eq!(tree.selected_folder_id.as_deref(), Some(folder_id));
+    let node = tree
+        .find_folder_mut(folder_id)
+        .expect("opened Projects folder");
+    assert!(node.expanded);
+    assert!(!node.loading);
+    assert!(node.child_blocks.is_none());
+    let request_sequence = node
+        .expansion_request_sequence()
+        .expect("Cabinet action sequence");
+    assert_eq!(node.expansion_terminal_sequence(), Some(request_sequence));
+    let error = "Folder children unavailable: runtime unavailable";
+    assert_eq!(node.child_error.as_deref(), Some(error));
+
+    let events = cabinet_child_read_events(ring);
+    let suffix = events
+        .strip_prefix(prior_events)
+        .expect("earlier Cabinet events retained");
+    let [unavailable] = suffix else {
+        panic!("runtime-absent Cabinet action must add exactly one ring event: {suffix:?}");
+    };
+    assert_eq!(
+        unavailable.counter_b,
+        GuiDiagnosticPhase::Unavailable as u64
+    );
+    assert_eq!(unavailable.phase_marker, DiagPhase::Degraded.as_u8());
+    assert_eq!(unavailable.severity, DiagSeverity::Warn.as_u8());
+    assert_eq!(unavailable.event_code, DiagEventCode::Other.as_u16());
+    assert_eq!(unavailable.thread_id, 0);
+    assert_eq!(unavailable.metric_micros, 0);
+    assert!(unavailable.sequence_id > prior_events.last().expect("prior Failed event").sequence_id);
+
+    serde_json::json!({
+        "fixture_list_http_status": status,
+        "folder_id": folder_id,
+        "request_sequence": request_sequence,
+        "in_flight": in_flight,
+        "error": error,
+        "events": suffix,
+    })
+}
+
 #[test]
 fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-022/canonical-argus");
     let tree_path = artifact_dir.join("mt022-mounted-folder-tree-argus.json");
     let screenshot_path = artifact_dir.join("mt022-mounted-folder-tree.png");
-    remove_owned_prior_artifact(&tree_path);
-    remove_owned_prior_artifact(&screenshot_path);
+    require_absent_proof_artifact(&tree_path);
+    require_absent_proof_artifact(&screenshot_path);
+
+    let (ring_path, nonce) = install_mounted_diagnostics_ring();
+    let ring = DiagRingReaderV2::open(ring_path, *nonce)
+        .expect("open the mounted app's V2 ring through the independent reader");
 
     let mut live = interconnect_support::require_reachable_backend();
     let nonce = uuid::Uuid::now_v7().simple().to_string();
@@ -287,6 +449,10 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
         .expect("pre-action folder generation");
     assert_eq!(before_status["expanded"], false);
     assert_eq!(before_status["child_state"], "not_requested");
+    assert!(
+        cabinet_child_read_events(&ring).is_empty(),
+        "the mounted fixture must have no Cabinet child-read events before the click"
+    );
 
     // (2) Click the real folder row. ActionChannel holds the receipt Pending while the production host
     // performs the authoritative child-list request and applies only the current workspace/sequence.
@@ -330,6 +496,55 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
         },
     );
     let terminal_status = folder_status(&terminal, &status_author);
+    let child_read_events = cabinet_child_read_events(&ring);
+    let [pending, completed] = child_read_events.as_slice() else {
+        panic!("the one mounted read must produce exactly two ring events: {child_read_events:?}");
+    };
+    assert_eq!(pending.counter_b, GuiDiagnosticPhase::Pending as u64);
+    assert_eq!(pending.phase_marker, DiagPhase::Start.as_u8());
+    assert_eq!(completed.counter_b, GuiDiagnosticPhase::Completed as u64);
+    assert_eq!(completed.phase_marker, DiagPhase::End.as_u8());
+    assert!(pending.sequence_id < completed.sequence_id);
+    for event in &child_read_events {
+        assert_eq!(event.event_code, DiagEventCode::Other.as_u16());
+        assert_eq!(event.severity, DiagSeverity::Info.as_u8());
+        assert_eq!(event.thread_id, 0);
+        assert_eq!(event.metric_micros, 0);
+    }
+
+    let (epoch, _) = harness.state().folder_request_identity_for_test();
+    let settled_sequence = terminal_status["terminal_request_sequence"]
+        .as_u64()
+        .expect("the genuine mounted child-read sequence settled");
+    // Replay an empty delivery for the retired request through the existing mounted FIFO seam.
+    assert_eq!(harness.state().folder_child_cells_in_flight_for_test(), 0);
+    harness.state().deliver_folder_children_for_test(
+        &workspace_id,
+        &projects_id,
+        epoch,
+        settled_sequence,
+        Ok(Vec::new()),
+    );
+    assert_eq!(harness.state().folder_child_cells_in_flight_for_test(), 1);
+    harness.run_steps(1);
+    assert_eq!(harness.state().folder_child_cells_in_flight_for_test(), 0);
+    assert_eq!(
+        cabinet_child_read_events(&ring),
+        child_read_events,
+        "a late delivery for the settled request must not produce another terminal event"
+    );
+    {
+        let mut tree = mounted_tree
+            .lock()
+            .expect("mounted folder tree after late delivery");
+        let children = tree
+            .find_folder_mut(&projects_id)
+            .and_then(|node| node.child_blocks.as_ref())
+            .expect("the genuine mounted child result remains loaded");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].block_id, child_id);
+    }
+
     let parent_node = json_node_by_author_id(&terminal, &projects_author)
         .expect("terminal parent folder node remains addressable");
     assert!(json_has_author_id(&terminal, &archive_author));
@@ -365,6 +580,77 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
     let agent_id = observation.agent_id.clone();
     let immediate_after = observation.after.clone();
 
+    let archive_status_author = status_author_id(&archive_id);
+    let archive_before = folder_status(&terminal, &archive_status_author);
+    assert_eq!(archive_before["child_state"], "not_requested");
+    let archive_generation = archive_before["generation"]
+        .as_u64()
+        .expect("pre-action Archive generation");
+    // Remove only the unused fixture folder while its cached row is still mounted.
+    let archive_route = format!("/workspaces/{workspace_id}/loom/folders/{archive_id}");
+    assert_eq!(live.delete(&archive_route), 200, "delete the owned Archive fixture");
+    let missing_status = live.get_status(&format!("{archive_route}/blocks"));
+    assert_eq!(missing_status, 404, "the authenticated child route reports the missing folder");
+
+    let failure_observation =
+        argus.click_expect_applied_and_reinspect(&mut harness, &archive_author);
+    let failed_after = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "folder-open-expand.current-child-read-failure-v1",
+        serde_json::json!({
+            "workspace_id": &workspace_id,
+            "folder_id": &archive_id,
+            "expected_generation": archive_generation + 1,
+            "http_status": missing_status,
+        }),
+        |tree| {
+            let state = folder_status(tree, &archive_status_author);
+            let request_sequence = state["request_sequence"].as_u64();
+            state["workspace_id"].as_str() == Some(workspace_id.as_str())
+                && state["folder_id"].as_str() == Some(archive_id.as_str())
+                && state["generation"].as_u64() == Some(archive_generation + 1)
+                && state["selected"] == true
+                && state["expanded"] == true
+                && state["loading"] == false
+                && request_sequence.is_some()
+                && state["terminal_request_sequence"].as_u64() == request_sequence
+                && state["child_state"] == "failed"
+                && state["child_count"].is_null()
+                && state["error"]
+                    .as_str()
+                    .is_some_and(|error| error.contains("GET non-success status 404"))
+        },
+    );
+    let failure_status = folder_status(&failed_after, &archive_status_author);
+    let all_child_read_events = cabinet_child_read_events(&ring);
+    let failure_events = all_child_read_events
+        .strip_prefix(child_read_events.as_slice())
+        .expect("the existing successful read remains in the ring");
+    let [failed_pending, failed] = failure_events else {
+        panic!("the failing mounted read must add exactly two ring events: {failure_events:?}");
+    };
+    assert_eq!(failed_pending.counter_b, GuiDiagnosticPhase::Pending as u64);
+    assert_eq!(failed_pending.phase_marker, DiagPhase::Start.as_u8());
+    assert_eq!(failed_pending.severity, DiagSeverity::Info.as_u8());
+    assert_eq!(failed.counter_b, GuiDiagnosticPhase::Failed as u64);
+    assert_eq!(failed.phase_marker, DiagPhase::Degraded.as_u8());
+    assert_eq!(failed.severity, DiagSeverity::Warn.as_u8());
+    assert!(completed.sequence_id < failed_pending.sequence_id);
+    assert!(failed_pending.sequence_id < failed.sequence_id);
+    for event in failure_events {
+        assert_eq!(event.event_code, DiagEventCode::Other.as_u16());
+        assert_eq!(event.thread_id, 0);
+        assert_eq!(event.metric_micros, 0);
+    }
+
+    let unavailable = assert_unavailable_child_read(
+        &live,
+        &workspace_id,
+        &projects_id,
+        &ring,
+        &all_child_read_events,
+    );
+
     // A proof is publishable only after the exact live fixture is reclaimed and the canonical driver
     // has accepted every action's terminal predicate. Drop the workspace cleanup borrow, then prove
     // teardown of the fixture-owned workspace and backend process before canonical finish/publication.
@@ -373,9 +659,9 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
     live.assert_cleanup();
     argus.finish();
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-022 Argus artifact dir");
-    std::fs::write(
-        &tree_path,
-        serde_json::to_vec_pretty(&serde_json::json!({
+    serde_json::to_writer_pretty(
+        create_proof_artifact(&tree_path),
+        &serde_json::json!({
             "workspace_id": &workspace_id,
             "folder_id": &projects_id,
             "child_block_id": &child_id,
@@ -383,19 +669,34 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
             "immediate_after": immediate_after,
             "terminal_after": terminal,
             "terminal_status": terminal_status,
+            "cabinet_child_read_ring": ring_path,
+            "cabinet_child_read_events": child_read_events,
+            "cabinet_child_read_failure": {
+                "receipt_id": failure_observation.receipt_id,
+                "http_status": missing_status,
+                "terminal_status": failure_status,
+                "events": failure_events,
+            },
+            "cabinet_child_read_unavailable": unavailable,
             "receipt_id": receipt_id,
             "receipt_status": &receipt_status,
             "agent_id": &agent_id,
-        }))
-        .expect("serialize canonical MT-022 folder-tree tree evidence"),
+        }),
     )
     .expect("write canonical MT-022 folder-tree tree evidence externally");
     assert!(tree_path.is_file());
 
     let screenshot_marker = match rendered {
         Ok(image) => {
-            image
-                .save(&screenshot_path)
+            use image::ImageEncoder;
+
+            image::codecs::png::PngEncoder::new(create_proof_artifact(&screenshot_path))
+                .write_image(
+                    image.as_raw(),
+                    image.width(),
+                    image.height(),
+                    image::ExtendedColorType::Rgba8,
+                )
                 .expect("save mounted folder-tree screenshot");
             format!("CAPTURED {}", screenshot_path.display())
         }
@@ -414,6 +715,7 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
 
 #[test]
 fn mt022_mounted_folder_tree_empty_state_canonical_argus() {
+    install_mounted_diagnostics_ring();
     // AC7: with no folders, the mounted panel renders + inspects through canonical Argus with no folder
     // nodes and no panic.
     let (app, _rt) = folders_shell("http://127.0.0.1:1", "mt022-empty", None);

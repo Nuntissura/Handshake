@@ -30764,7 +30764,14 @@ impl HandshakeApp {
     /// MT-022 REMEDIATION: initial folder fetch on first visibility, lazy child-block fetches on
     /// expand, the recolor PATCH, and open routing.
     fn drive_folder_pane(&mut self, ctx: &egui::Context, workspace: &str) {
+        use crate::diagnostics::gui_events::{
+            record_gui_observation, GuiDiagnosticOperation, GuiDiagnosticPhase as GuiPhase,
+        };
         use crate::graph::folder_tree::FolderTreeEvent;
+
+        let record_child_read = |phase| {
+            record_gui_observation(GuiDiagnosticOperation::CabinetChildRead, phase);
+        };
         let sec = &self.editor_mounts.secondary;
         let folders_type = crate::editor_pane_factories::placeholder_pane_type(
             crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
@@ -31035,7 +31042,7 @@ impl HandshakeApp {
                         latest.remove(&folder_id);
                     }
                 }
-                if let Ok(mut t) = sec.folder_tree.lock() {
+                let observation = if let Ok(mut t) = sec.folder_tree.lock() {
                     match result {
                         Ok(blocks) => {
                             let accepted = t.find_folder_mut(&folder_id).is_some_and(|node| {
@@ -31051,6 +31058,7 @@ impl HandshakeApp {
                                 t.cabinet_child_terminal(delivered_epoch, delivered_sequence, Ok(()));
                                 t.refresh_child_error_banner();
                             }
+                            accepted.then_some(GuiPhase::Completed)
                         }
                         Err(e) => {
                             let accepted = t.find_folder_mut(&folder_id).is_some_and(|node| {
@@ -31064,8 +31072,14 @@ impl HandshakeApp {
                                 t.cabinet_child_terminal(delivered_epoch, delivered_sequence, Err(e.clone()));
                                 t.refresh_child_error_banner();
                             }
+                            accepted.then_some(GuiPhase::Failed)
                         }
                     }
+                } else {
+                    None
+                };
+                if let Some(phase) = observation {
+                    record_child_read(phase);
                 }
                 ctx.request_repaint();
             }
@@ -31215,9 +31229,11 @@ impl HandshakeApp {
                         if let Some(rt) = self.runtime_handle.clone() {
                             let cell: crate::backend_client::FolderChildrenCell =
                                 Arc::new(Mutex::new(None));
-                            if let Ok(mut latest) = sec.folder_child_latest_seq.lock() {
-                                latest.insert(folder_id.clone(), sequence);
-                            }
+                            let sequence_registered = sec
+                                .folder_child_latest_seq
+                                .lock()
+                                .map(|mut latest| latest.insert(folder_id.clone(), sequence))
+                                .is_ok();
                             folder_client(rt).fetch_folder_blocks(
                                 workspace,
                                 &folder_id,
@@ -31225,21 +31241,29 @@ impl HandshakeApp {
                                 sequence,
                                 Arc::clone(&cell),
                             );
-                            if let Ok(mut cells) = sec.folder_children_cells.lock() {
-                                cells.push((folder_id, cell));
+                            let cell_registered = sec
+                                .folder_children_cells
+                                .lock()
+                                .map(|mut cells| cells.push((folder_id, cell)))
+                                .is_ok();
+                            if sequence_registered && cell_registered {
+                                record_child_read(GuiPhase::Pending);
                             }
-                        } else if let Ok(mut t) = sec.folder_tree.lock() {
-                            // Headless: never a perpetual spinner.
-                            if let Some(node) = t.find_folder_mut(&folder_id) {
-                                if node.complete_child_request(sequence) {
-                                    node.child_error = Some(
-                                        "Folder children unavailable: runtime unavailable"
-                                            .to_owned(),
-                                    );
+                        } else {
+                            record_child_read(GuiPhase::Unavailable);
+                            if let Ok(mut t) = sec.folder_tree.lock() {
+                                // Headless: never a perpetual spinner.
+                                if let Some(node) = t.find_folder_mut(&folder_id) {
+                                    if node.complete_child_request(sequence) {
+                                        node.child_error = Some(
+                                            "Folder children unavailable: runtime unavailable"
+                                                .to_owned(),
+                                        );
+                                    }
                                 }
+                                t.refresh_child_error_banner();
+                                t.cabinet_child_terminal(epoch, sequence, Err("Folder children unavailable: runtime unavailable".to_owned()));
                             }
-                            t.refresh_child_error_banner();
-                            t.cabinet_child_terminal(epoch, sequence, Err("Folder children unavailable: runtime unavailable".to_owned()));
                         }
                     }
                     if !needs_fetch {
@@ -31293,9 +31317,11 @@ impl HandshakeApp {
                             }
                             continue;
                         }
-                        if let Ok(mut latest) = sec.folder_child_latest_seq.lock() {
-                            latest.insert(folder_id.clone(), sequence);
-                        }
+                        let sequence_registered = sec
+                            .folder_child_latest_seq
+                            .lock()
+                            .map(|mut latest| latest.insert(folder_id.clone(), sequence))
+                            .is_ok();
                         if let Some(rt) = self.runtime_handle.clone() {
                             let cell: crate::backend_client::FolderChildrenCell =
                                 Arc::new(Mutex::new(None));
@@ -31306,20 +31332,28 @@ impl HandshakeApp {
                                 sequence,
                                 Arc::clone(&cell),
                             );
-                            if let Ok(mut cells) = sec.folder_children_cells.lock() {
-                                cells.push((folder_id, cell));
+                            let cell_registered = sec
+                                .folder_children_cells
+                                .lock()
+                                .map(|mut cells| cells.push((folder_id, cell)))
+                                .is_ok();
+                            if sequence_registered && cell_registered {
+                                record_child_read(GuiPhase::Pending);
                             }
-                        } else if let Ok(mut tree) = sec.folder_tree.lock() {
-                            if let Some(node) = tree.find_folder_mut(&folder_id) {
-                                if node.complete_child_request(sequence) {
-                                    node.child_error = Some(
-                                        "Folder children unavailable: runtime unavailable"
-                                            .to_owned(),
-                                    );
+                        } else {
+                            record_child_read(GuiPhase::Unavailable);
+                            if let Ok(mut tree) = sec.folder_tree.lock() {
+                                if let Some(node) = tree.find_folder_mut(&folder_id) {
+                                    if node.complete_child_request(sequence) {
+                                        node.child_error = Some(
+                                            "Folder children unavailable: runtime unavailable"
+                                                .to_owned(),
+                                        );
+                                    }
                                 }
+                                tree.refresh_child_error_banner();
+                                tree.cabinet_child_terminal(epoch, sequence, Err("Folder children unavailable: runtime unavailable".to_owned()));
                             }
-                            tree.refresh_child_error_banner();
-                            tree.cabinet_child_terminal(epoch, sequence, Err("Folder children unavailable: runtime unavailable".to_owned()));
                         }
                     }
                     if !accepted {

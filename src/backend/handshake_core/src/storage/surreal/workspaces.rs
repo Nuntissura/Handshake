@@ -820,6 +820,45 @@ fn first_owner_workspace_claim_error_kind(error: &surrealdb::Error) -> &'static 
     }
 }
 
+async fn read_first_owner_workspace_transaction_receipt(
+    tx: &super::SurrealTransactionContext<'_>,
+    bindings: WorkspaceCreationBindings,
+    #[cfg(test)] branch: &'static str,
+) -> Result<Vec<FirstOwnerWorkspaceReceipt>, SurrealStorageError> {
+    #[cfg(not(test))]
+    {
+        tx.query_values_at(FIRST_OWNER_WORKSPACE_READ, bindings, 0).await
+    }
+    #[cfg(test)]
+    {
+        let report = |stage, statement, error: &surrealdb::Error| {
+            let kind = first_owner_workspace_claim_error_kind(error);
+            eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind}");
+        };
+        let bindings = super::original_operation_bindings(bindings.into_value());
+        let query = tx.transaction.query(FIRST_OWNER_WORKSPACE_READ);
+        let response = if matches!(bindings, surrealdb::types::Value::None) {
+            query.await
+        } else {
+            query.bind(bindings).await
+        }.map_err(|error| {
+            report("await", "none", &error);
+            SurrealStorageError::from(error)
+        })?;
+        let mut response = super::ObservedQueryResults::from(response);
+        super::check_query_response(&mut response).map_err(|error| {
+            if let SurrealStorageError::Database(database_error) = &error {
+                report("response", "0", database_error);
+            }
+            error
+        })?;
+        response.take(0).map_err(|error| {
+            report("decode", "0", &error);
+            SurrealStorageError::from(error)
+        })
+    }
+}
+
 pub(super) struct FirstOwnerWorkspaceFailure {
     phase: &'static str,
     error: ResourceAuthorityError,
@@ -1057,8 +1096,9 @@ impl SurrealStorage {
                             let stored = decode_workspace_original(origin.first_workspace_original.as_ref()
                                 .ok_or_else(|| FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt))?)
                                 .map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
-                            let prior: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
-                                FIRST_OWNER_WORKSPACE_READ, stored.receipt_read(), 0,
+                            let prior = read_first_owner_workspace_transaction_receipt(
+                                &tx, stored.receipt_read(),
+                                #[cfg(test)] "prior_created",
                             ).await.map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
                             if prior.len() != 1 {
                                 return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
@@ -1100,8 +1140,9 @@ impl SurrealStorage {
                     }
                 }
                 let expected = if first_claim {
-                    let receipts: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
-                        FIRST_OWNER_WORKSPACE_READ, write.receipt_read(), 0,
+                    let receipts = read_first_owner_workspace_transaction_receipt(
+                        &tx, write.receipt_read(),
+                        #[cfg(test)] "first_claim",
                     ).await.map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
                     let [receipt] = receipts.as_slice() else {
                         return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
