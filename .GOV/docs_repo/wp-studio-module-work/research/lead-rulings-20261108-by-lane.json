@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T10:39:51Z",
+ "updated_at": "2026-11-11T11:09:18Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -129,7 +129,22 @@
   "SMB-WEB-SITE-1": [
    "ADDED ITEM (R60 attempt-2 probe j3, SMB-WEB-HOST-1): web.export and web.publish, and the site export, ask the host's bound JobPort before the first file (resource-less admission is NOT accepted); red test with a saturated port: no file, asked once.",
    "Accepted: .css scanning (url() rewritten on a move), case_mismatch, the refusals output_inside_site, entry_document_missing, move_site_record, move_kind_changes and move_case_only (named in the lane file and manual rows), folder links without a trailing slash listed.",
-   "web.move_file refuses typed move_open_package when the source or destination is the opened document's package or inside it (fix in web_site.rs; no cli/drive.rs edit)."
+   "web.move_file refuses typed move_open_package when the source or destination is the opened document's package or inside it (fix in web_site.rs; no cli/drive.rs edit).",
+   "Review e3fc0e89 rulings (2026-11-11T11:09Z, research/review-smb-web-site-1-e3fc0e89.json, FIX_FIRST): F1 to F9 are fixed in this lane as the review proposes, with the choices below. Red tests first, one combined red commit and run, then fixes, then ONE bundled run.",
+   "F1: fold case for every prefix of `to` as Files.folded does. A prefix that folds to a link or junction refuses move_outside_site. A prefix that folds to an existing folder spelled differently ADOPTS the on-disk spelling, both for the target path and for every rewritten reference, so the next report shows no case_mismatch. Second guard before the rename: the resolved parent of `to` must start with the resolved root, as Port::resolve already checks. Red tests use a junction, which needs no privilege on Windows.",
+   "F2: a relative, non-rooted reference in the moved document is re-based by path arithmetic on its unchanged bytes, whatever its reach; percent-encoding and query are kept. A reference where that arithmetic is impossible refuses reference_not_rewritable, naming the document and line. Reach::place keys a Denied reference by its folder-resolved raw path, so verification catches a change of location. Red test: the gallery scenario (photos/Summer%202024.jpg).",
+   "F3: a rewritten Unquoted value is written quoted with escape_attr. Verification requires each rewritten reference to equal its planned reference_after and every other reference to keep its text. Red test: the review's scenario.",
+   "F4: cap link_broken at MAX_ROWS, with a link_broken_truncated count in the manifest and the result. Before the first write, refuse export_manifest_too_large if the serialized manifest still exceeds MAX_RECORD_BYTES. Add a test at the bound.",
+   "F5: cheap parameter checks (no I/O) come before admission and refuse with a typed parameter error, never overloaded. The site id is derived lexically (std::path::absolute plus case folding, no file-system call), because nothing is read before the port is asked. Attach the job settlement to the result in the settlement_json shape. publish checks the cancel token per file and settles canceled with the partial receipt. Add a test that binds a lifecycle, cancels, and asserts refused_canceled 1 and asks 0.",
+   "F6: use a junction on Windows instead of skipping silently. Add rows for an absolute, UNC, ADS and device-name `to`, built at runtime from the scratch folder (no literal, so step 0 stays clean), and the case-variant link move. Assert the admitted resource id.",
+   "F7: write a nonce at acquisition and remove the lock on drop only if it still holds that nonce. On contention, report only actor.account_id, client_session and command_id, each through row_text.",
+   "F8: scan a wrapped sheet with each </style replaced by a same-length substitute, so a CSS file containing it no longer blocks the site. Declare the 1024-edit bound in the manual and the commands/web.rs row docs.",
+   "F9: set host_integration.jobs to the four job classes with port, resource rule and outcomes, and add the manual line 'Deadline: none by nature; ended by cancel'.",
+   "Q1 RESOURCE RULE: the resource is what the job reads or writes. web.export and web.publish of the open document admit on the open package's document id. Site-wide work (the site export, web.site_report, web.move_file) always admits on the site-derived SDOC id, package open or not, with Action Export, Read and Edit respectively. BridgeJobs (kernel-bindings adapter.rs:346-371) forwards any resource id. Whether the host accepts an id unknown to Folio is host-side and NOT_INSPECTED here; a host refusal returns overloaded with the long retry, which fails closed. It is recorded as a spec-owner item at READY.",
+   "Q2: web.save of a document inside local_root takes the same site lock and refuses typed site_locked on contention, so a move's restore-from-originals can never overwrite a concurrent save. Red test.",
+   "Q3: a move whose `from` is recipe.file updates recipe.file in the same operation, so the next site export finds its entry. Red test. Case-mismatched spellings of `from` belong to the change-link-site-wide slice (next-lane candidate), not this lane.",
+   "Q4: ACCEPTED as fail-closed. The refusal names the unparsed file and its reason (encoding or size), and the manual declares the limit.",
+   "Rebase note: origin 27365b81 touched harness-core, harness-view and harness tests (vector), so after the rebase run each of those crates' suites once, in one hold with --per-sha."
   ],
   "SMB-DEVELOP-COMMANDS-1": [
    "ADDED ITEM (R60 attempt-2 probe, SMB-COMMAND-SURFACE-1): photo.info.* rows (harness-core commands/photo.rs about :20) are declared non-mutating but add an undo step: from the spec, either they add no step (queries) or the rows say mutating; red test; name it in the lane file.",
