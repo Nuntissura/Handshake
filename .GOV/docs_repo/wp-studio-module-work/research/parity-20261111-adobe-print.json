@@ -1,0 +1,700 @@
+{
+  "schema": "hsk.studio.research.parity_update@1",
+  "file_id": "WP-KERNEL-STUDIO-PARITY-20261111-ADOBE-PRINT",
+  "updated_at": "2026-11-11",
+  "by": "read-only parity auditor (Claude Opus 5.5) for photoshop, lightroom_classic, illustrator, indesign; no build, test or cargo command run; no product file edited; lane worktrees not inspected",
+  "wp": "WP-KERNEL-STUDIO",
+  "basis": {
+    "baseline": "research/feature-completeness-20261021.json + research/audit-20261021/parity-{photoshop,lightroom_classic,illustrator,indesign}.json (row sets, notes) + research/audit-20261021/gui-surfaces.json (108 workflows, matrix_ui_flag_verification)",
+    "predecessor": "research/parity-20261023-adobe-print.json (tip 5ab33c9; R36/R37) and research/parity-20261023-rollup.json",
+    "product_tip": "origin/codex/handshake-studio-assets @ 87f331f9 (fetched 2026-11-11 in the clean tree wt-studio-lanes/smb-layout-composer-depth-1; git log/grep/show only); 692 commits 5ab33c9..87f331f9, 197 after the R59 candidate c4d06841",
+    "rounds": [
+      "latest finished: STUDIO-R59 @c4d06841 (COMPLETE 2026-11-07T09:07:37Z, scoped: 133 PASS / 0 FAIL, reused_pass 274 under CX-VAL-002); R57 @4ffe1b06 full (406 PASS / 1 FAIL), R58 @89bbf702 scoped (325 PASS / 1 FAIL)",
+      "STUDIO-R60: NOT_OPENED twice (attempt 1 registry exit 75; attempt 2 canary stopped for the C: cap projection, 2026-11-08); 21 READY claims unjudged; 10 probe failures recorded (ledger round_R60.probe_failures)"
+    ],
+    "tier_mapping": "ledger lane status PASS_Vn = VALIDATED (PASS in R59 or carried into it by CX-VAL-002 reuse); READY_FOR_VALIDATION = UNVALIDATED (on origin 87f331f9, unjudged); null/other = LOCAL (lane-file commits not on origin, read from lane files only)",
+    "local_lanes_counted": "SMB-DEVELOP-COMMANDS-1 (tip 6363bd19, bundled green, not pushed), SMB-TYPE-INDENT-SPACING-1 (STOPPED at the C: cap, red 5f3112a4), SMB-DS-COMPONENTS-AUTHOR-1 (fa15c84d review_ready), SMB-WEB-SITE-1 (030168fb), SMB-R60-FOLLOWUPS-1 (7988d47c); git merge-base confirms none of these tips is on origin",
+    "post_r59_staleness": "c4d06841..87f331f9 changed 30 crates (harness-view 57 files, harness-core 42, native-host 32, kumihimo-ui 30, harness 27, vulkan 22, session 16, folio 15, reel 11, controls 9, pigment 6, press-read 5, interop-vector-svg 5, interop-layout 5, composite 5, ...) plus Cargo.lock, Cargo.toml, .config/nextest.toml, .config/round-features.toml and tools/run-round.sh: every PASS on those crates is stale under CX-VAL-009 and the next round is full scope",
+    "gui_direction": "ledger direction.d1 (2026-10-30): egui dropped; existing egui code is asset-local test host only, no new egui code; d7 pure Vulkan. Lanes after that point (place, layout export, doc export, document new, artboard export, web) are egui-free typed commands. The fixed GUI method below still measures the studio-harness desktop window; the Vulkan native host (SMB-VK-HOST-1, SMB-GUI-SPINE-1, SMB-GUI-FRAME-1, all READY) is reported in notes, not scored"
+  },
+  "method": {
+    "engine_formula": "pct = 100 * (VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL) / rows; rows PS 36, LR 35, AI 32, ID 31 (the 2026-10-21 row sets); a row stays PARTIAL while a vendor-defined sub-capability it names is absent or typed-refused in its default form; non-default variants refused (e.g. noise gradients) are listed, not lowered (consistent with the audit's lowering of PS-04/PS-07, whose refusals hit Photoshop defaults)",
+    "gui_pooled_formula": "per app (DOABLE judged + 0.5*DOABLE unjudged/local) / core workflows of gui-surfaces.json per_app (PS 18, LR 13, AI 17, ID 10); reach = a widget or gesture in the studio-harness window; typed command rows (CLI/drive) do not count",
+    "gui_strict_formula": "per app AGREE ui rows / app rows under gui-surfaces.json matrix_ui_flag_verification; 'with additions' adds RAISE rows (ui:false rows reachable in the window)",
+    "delivery_classes": {
+      "DELIVERED_VALIDATED": "on origin and ledger status PASS_Vn (latest verdicts R57-R59)",
+      "DELIVERED_UNVALIDATED": "on origin 87f331f9, lane READY_FOR_VALIDATION (R60 never opened)",
+      "LOCAL_UNVALIDATED": "only in a lane worktree, never pushed; counted 0.5 like unjudged"
+    },
+    "changed_row_rule": "a row is listed when its level, a covering lane's status (READY -> PASS, new lane) or its GUI reach changed since 2026-10-23; rows sharing lane evidence are grouped",
+    "order_of_values": "[2026-10-23 VALIDATED, VALIDATED, UNVALIDATED, LOCAL] in summary arrays"
+  },
+  "apps": {
+    "photoshop": {
+      "before_20261023": {
+        "rows": 36,
+        "counts": {"VALIDATED": 12, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 20, "MISSING": 4},
+        "engine_pct": [47.2, 47.2, 47.2],
+        "gui_pooled_pct": [61.1, 61.1, 61.1],
+        "gui_strict_pct": [30.6, 30.6, 30.6],
+        "gui_strict_with_additions_pct": 38.9,
+        "order": "[VALIDATED, UNVALIDATED, LOCAL] of research/parity-20261023-adobe-print.json"
+      },
+      "changed_rows": [
+        {
+          "row": "PS-28",
+          "name": "Soft proofing and gamut warning",
+          "change": "MISSING -> VALIDATED: Prism proof conditions (two-intent chain, BPC, paper/black simulation), colour-vision proofs, gamut warning mask; document-scoped proof records; VIEW > Proof and COLOR > Proof menus, proof setup window and canvas gamut overlay in the window",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "limits": "proof preview is CPU read-back; frames above 2,097,152 px per call refused proof_pixel_limit; no picker to add a new ICC profile (lane gaps)",
+          "evidence": [
+            {"lane": "SMB-PS-SOFT-PROOF-1", "commits_on_origin": "5b16a413..7a16f66d", "round_verdict": "PASS_V1 R39 .. PASS_V11 R57", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-PS-SOFT-PROOF-2", "commits_on_origin": "10e4ab94..7d62c5da", "round_verdict": "PASS_V1 R40 .. PASS_V20 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "tip files crates/hsk-studio-prism/src/proof.rs, src/proof/chain.rs, src/proof/gamut.rs; crates/hsk-studio-folio/src/proof_state.rs; crates/hsk-studio-harness-view/src/view/proof.rs (VIEW/COLOR Proof submenus, shell.rs:1009, :1028)",
+          "oracle": "NO_ORACLE_CASE (Photoshop proof defaults UNVERIFIED, D5)"
+        },
+        {
+          "row": "PS-30",
+          "name": "Histogram, info and colour sampler diagnostics",
+          "change": "MISSING -> VALIDATED: pigment diagnostics (256-bin histograms per channel and luminosity, clip counts, mean/median/std dev), pixel readout RGB/HSB/Lab/CMYK, up to 10 colour samplers, eyedropper with sample size and scope; Info panel (WORKSPACE > Panels > Info, Ctrl+Shift+F1)",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "evidence": [
+            {"lane": "SMB-PS-INFO-HISTOGRAM-1", "commits_on_origin": "675e7367..ce5df74c", "round_verdict": "PASS_V1 R41 .. PASS_V19 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-pigment/src/diagnostics.rs; crates/hsk-studio-harness-view/src/view/info.rs (Info panel); shell.rs:158 Panel 'Info'",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-31",
+          "name": "Actions / macro recording and batch",
+          "change": "MISSING -> VALIDATED: action records and strict action-set artifact, Run::start_recording/stop_recording/play_action (replay = one undo step), batch runner with receipts, CLI 'batch JOB.json' and 'action check SET.json'",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "limits": "no actions panel in the window; no conditional or event-bound steps, no dry run, concurrency 1, no Folio persistence of action sets (lane gaps_not_proven)",
+          "evidence": [
+            {"lane": "SMB-PS-ACTIONS-1", "commits_on_origin": "4356b72d..179dc3d6", "round_verdict": "PASS_V1 R42 .. PASS_V18 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-harness-core/src/batch.rs and src/harness.rs (fn start_recording / play_action / run_batch by git grep)",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-19",
+          "name": "Fill and gradient tools, gradients and patterns on raster",
+          "change": "PARTIAL -> VALIDATED: raster Gradient tool (linear, reflected, radial, diamond, angle; stops, midpoints, transparency, dither), Paint Bucket (wand flood, tolerance) and Edit > Fill with colour or pattern on pixel layers, one undo step each; Tool::Gradient and Tool::FloodFill in the window",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "declared_refusals": "noise gradients, smoothness other than 100 % (interpolation 4096) and shape_burst geometry refused typed (non-default variants; fill_tools.rs header)",
+          "evidence": [
+            {"lane": "SMB-PS-GRADIENT-BUCKET-1", "commits_on_origin": "f1371325..e1e06156", "round_verdict": "PASS_V1 R44 .. PASS_V16 R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-R44-FOLLOWUPS-1", "commits_on_origin": "2bb77d89..78f027c9", "round_verdict": "PASS_V1 R46 .. PASS_V14 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-pigment/src/fill_tools.rs:294 gradient_fill, :337 flood_fill, :370 fill_selection, :42-43 pattern tiling; crates/hsk-studio-harness-view/src/view/edit.rs:77-78 Tool::Gradient, Tool::FloodFill",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-02",
+          "name": "Full layer-kind set",
+          "change": "SMB-PS-FILL-LAYERS READY -> PASS (fill layers solid/gradient/pattern import and render); level stays PARTIAL: PSD shape layers (fill + vector mask) stay preserved, not applied",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "lenient_alternative": "VALIDATED if shape layers are read as a separate kind: Photoshop engine 59.7 %",
+          "evidence": [
+            {"lane": "SMB-PS-FILL-LAYERS", "commits_on_origin": "c7daeb6 a4cd70b 9204fdf 7d69cc2 3b88879 (already on 5ab33c9)", "round_verdict": "PASS_V1 R39 .. PASS_V20 R58", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-folio/src/fill_layer.rs present at tip; lane notes.gaps (shape layers preserved)",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-25, PS-14",
+          "name": "Channels panel / save selection to channel",
+          "change": "alpha (masked/selected area) and spot channel records in Folio, save/load selection to channel with combine modes, channel list ops (rename, reorder, visibility, duplicate, delete, kind conversion), PSD extra channels and TIFF extra samples round-trip; levels stay PARTIAL: Split/Merge, Apply Image and Calculations absent and no Channels panel (PS-25); no quick mask (PS-14, git grep quick_?mask: 0 hits)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-FOLIO-CHANNEL-RECORD", "commits_on_origin": "9960813c..ed28834c", "round_verdict": "PASS_V1 R50 .. PASS_V9 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-TIFF-CHANNELS-1", "commits_on_origin": "1eed1b6f..d7127bf1", "round_verdict": "PASS_V1 R53 .. PASS_V7 R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-R52-FOLLOWUPS-1", "commits_on_origin": "see lane file", "round_verdict": "PASS_V1 R53 .. PASS_V6 R58", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "lane file hsk-studio-folio-channel-record.json notes.carried_forward ('Split/Merge, Apply-Image, Calculations'); shell.rs panel list (no Channels panel)",
+          "oracle": "NO_ORACLE_CASE (channel polarity UNVERIFIED, D5)"
+        },
+        {
+          "row": "PS-26",
+          "name": "Colour modes and bit depth",
+          "change": "Image > Mode contract (8 modes, 7 operations, depth matrix, discard report), grayscale -> bitmap (thresholds, dithers, halftone screens) and RGB -> indexed with colour-table codec; level stays PARTIAL: duotone refused typed (to_duotone_not_a_conversion), RGB/CMYK/Lab/Gray changes are plans only (prism mode.rs: the host commits the change; no host commit found)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-PS-MODE-CONVERT-1", "commits_on_origin": "aadbf42e..0ce2bc48", "round_verdict": "PASS_V1 R51 .. PASS_V4 R57", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-prism/src/mode.rs:1-30 (header), :280 ChangeMode, :493 plan_mode_change",
+          "oracle": "NO_ORACLE_CASE (dither and palette laws are Studio readings, D5)"
+        },
+        {
+          "row": "PS-22",
+          "name": "Filters and smart/live filters",
+          "change": "19 more raster kernel kinds as smart filters (Maximum, Minimum, Custom Convolution, Dust & Scratches, Despeckle, Surface Blur, Bilateral, Emboss, Mosaic, Solarize, Find Edges, Box/Motion/Radial blur, ...) on origin, unjudged; level stays PARTIAL: no distort family (twirl, spherize, ripple on raster) and no Camera Raw filter",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-PIGMENT-FILTER-KERNELS-1", "commits_on_origin": "2637ebf7..5341e561", "round_verdict": "READY_FOR_VALIDATION (R60 not opened)", "delivery_class": "DELIVERED_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-folio/src/smart_filter.rs:88 StudioSmartFilterKind (25 members, no distort or camera-raw kind); Spherize exists only in composite composition effect_stack.rs:228 (motion compositions)",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-24, PS-20, PS-21, PS-36",
+          "name": "placed assets / transforms / crop and image size / export",
+          "change": "typed commands on origin, unjudged: asset.place embedded and linked, asset.list_placements, asset.update_all_modified, asset.embed_link, transform.free_transform/move/reset (SMB-PLACE-ASSET-1); export recipe PNG/JPEG/TIFF 8|16, CMYK TIFF, layered PSD with crop and develop export stage (SMB-DOC-EXPORT-1). Levels unchanged: PS-24 PARTIAL (no edit contents, convert to smart object or relink), PS-20 PARTIAL (no warp/puppet warp), PS-21 PARTIAL (crop at export only; no Image Size or Canvas Size command), PS-36 VALIDATED",
+          "evidence_level_before": "PS-20/21/24 PARTIAL; PS-36 VALIDATED",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {"lane": "SMB-PLACE-ASSET-1", "commits_on_origin": "d026e892..65b84031 (pushed 0a733db8)", "round_verdict": "READY_FOR_VALIDATION", "delivery_class": "DELIVERED_UNVALIDATED"},
+            {"lane": "SMB-DOC-EXPORT-1", "commits_on_origin": "4e66b91b..e85e1440", "round_verdict": "READY_FOR_VALIDATION; R60 probe HIGH export-job-not-admitted-jobport", "delivery_class": "DELIVERED_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-harness-core/src/action/commands/asset.rs:31-32; crates/hsk-studio-harness-view/src/view/place.rs header ('Engine and commands only'); git grep edit_contents|convert_to_smart|puppet|image_size over harness-view/harness-core/pigment: none",
+          "oracle": "NO_ORACLE_CASE"
+        }
+      ],
+      "gui_changes": [
+        {
+          "surface": "Gradient and Paint Bucket tools, Info panel, View/Color > Proof menus",
+          "effect": "new window reach (PASS) for PS-19, PS-30, PS-28 (ui:false rows -> RAISE); none of the 18 baseline workflows changes state",
+          "evidence": "SMB-PS-GRADIENT-BUCKET-1, SMB-PS-INFO-HISTOGRAM-1, SMB-PS-SOFT-PROOF-2 (all PASS); edit.rs:77-78, view/info.rs, view/proof.rs"
+        },
+        {
+          "surface": "workflows still ENGINE_ONLY in the window",
+          "effect": "erase/retouch, adjustment layers, layer styles, layer/vector masks on raster, filters, add and edit text (window still places the literal 'Text', mod.rs:1367), crop/canvas/free transform (no tool in Tool::ALL, edit.rs:82; place and transform are typed rows only)",
+          "evidence": "crates/hsk-studio-harness-view/src/view/edit.rs:37-79 Tool enum (33 members, no eraser/crop/move/clone/heal); shell.rs:605-625 menu leaves (no Filter/Image/Layer menus)"
+        }
+      ],
+      "unlisted_capabilities_changed": [
+        {"capability": "New Document with profiles, artboards and pages (document.new, artboard.*, page.*)", "lane": "SMB-DOC-NEW-1", "commits_on_origin": "b721f142.. (pushed cf6788d6)", "delivery_class": "DELIVERED_UNVALIDATED", "note": "R60 probe HIGH page-add-mint-never-returns"},
+        {"capability": "typed command surface: RUN_COMMANDS per domain, 30 photo rows, catalog.list/resolve", "lane": "SMB-COMMAND-SURFACE-1", "delivery_class": "DELIVERED_UNVALIDATED", "note": "R60 probe MEDIUM mutating-row-declared-non-mutating"}
+      ],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {"engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 19, "MISSING": 1}, "engine_pct": 57.6, "gui_pooled_pct": 61.1, "gui_pooled_inputs": "(11 judged + 0.5*0)/18", "gui_strict_pct": 30.6, "gui_strict_with_additions_pct": 47.2, "gui_strict_inputs": "11 agree (+6 raise: PS-04, PS-27, PS-32 from the baseline, PS-19, PS-28, PS-30 new) / 36"},
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 87f331f9)": {"engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 19, "MISSING": 1}, "engine_pct": 57.6, "gui_pooled_pct": 61.1, "gui_strict_pct": 30.6, "gui_strict_with_additions_pct": 47.2},
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {"engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 19, "MISSING": 1}, "engine_pct": 57.6, "gui_pooled_pct": 61.1, "gui_strict_pct": 30.6, "gui_strict_with_additions_pct": 47.2},
+        "lenient_alternative": {"assumption": "PS-02 VALIDATED (shape layers read as a separate kind)", "engine_pct": 59.7}
+      },
+      "oracle": {
+        "d5_oracle": "PRESENT (Photoshop 27.11.0, 588 variants: 489 MATCH / 9 MISMATCH / 83 NOT_SUPPORTED / 6 ORACLE_INVALID / 1 ORACLE_ABSENT)",
+        "changed_since_20261023": "none: crates/hsk-studio-harness/tests/d5_ps_compare/expectations.json byte-unchanged 5ab33c9..87f331f9 (git diff --stat empty); no case for soft proof, histogram, actions, raster gradient/bucket, mode conversion or channels",
+        "open": "SMB-PS-ORACLE-RESCRIPT queued; SMB-D5-PS-GAMMA-OPERATOR decided, Operator-attended"
+      },
+      "top_gaps_remaining": "see top_gaps.photoshop"
+    },
+    "lightroom_classic": {
+      "before_20261023": {
+        "rows": 35,
+        "counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 17, "MISSING": 2},
+        "engine_pct": [57.9, 57.9, 57.9],
+        "gui_pooled_pct": [69.2, 69.2, 69.2],
+        "gui_strict_pct": [31.4, 31.4, 31.4],
+        "gui_strict_with_additions_pct": 42.9
+      },
+      "changed_rows": [
+        {
+          "row": "LR-21",
+          "name": "Healing / spot removal / distraction removal",
+          "change": "MISSING -> PARTIAL: heal, clone and engine-chosen spot heal on the developed frame, core distraction removal through on-device content-aware fill, retouch records with every STU-RAW-124 field, Develop panel spot section (click = spot, drag = radius, source handle), XMP crs:RetouchAreas read and write; still refused: generative distraction fill (model_unavailable:distraction_adapter_fill), AI detection of people/reflections, XMP encode of distraction areas",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "lenient_alternative": "VALIDATED (the generative part read as a separate AI feature like PS-33)",
+          "evidence": [
+            {"lane": "SMB-LR-HEALING-1", "commits_on_origin": "125e7d6c..c9a32dd6", "round_verdict": "PASS_V1 R40 .. PASS_V20 R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-LR-HEALING-2", "commits_on_origin": "5860934e..09b4f637", "round_verdict": "PASS_V1 R40 .. PASS_V20 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-develop/src/retouch.rs:2-33 (distraction areas via pigment content_aware::fill; adapter fill refused model_unavailable); crates/hsk-studio-harness-view/src/view/develop/spot.rs",
+          "oracle": "NO_ORACLE_CASE (Lightroom spot behaviour UNVERIFIED, D5)"
+        },
+        {
+          "row": "LR-23",
+          "name": "HDR / panorama merge, Enhance, lens blur",
+          "change": "MISSING -> PARTIAL: HDR merge of bracketed raws (Debevec-Malik merge, MTB alignment, deghost 0..3, tone map 32 -> 16/8) and float LinearRaw HDR DNG; panorama merge, Enhance (AI denoise, super resolution) and lens blur absent (git grep panorama|super_resolution|lens_blur|ai_denoise: 0 hits in develop/pigment)",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-HDR-MERGE-1", "commits_on_origin": "ec43c82c..b64650e8", "round_verdict": "PASS_V1 R42 .. PASS_V17 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-HDR-MERGE-2", "commits_on_origin": "558969d3", "round_verdict": "PASS_V1 R43 .. PASS_V16 R58", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-pigment/src/hdr_merge.rs:456 merge_brackets",
+          "oracle": "NO_ORACLE_CASE (Lightroom HDR DNG layout UNVERIFIED, D5)"
+        },
+        {
+          "row": "LR-33",
+          "name": "Export: JPEG/TIFF/DNG with resize, output sharpening, watermark",
+          "change": "DNG 1.4 writer READY -> PASS (plus BlackLevelDelta read-back); export resize (six types, do not enlarge, resolution), output sharpening Screen/Glossy/Matte x Low/Standard/High, graphic watermark; window export dialog with TIFF and DNG buttons. Level stays PARTIAL: text watermarks refused (Lightroom's default copyright watermark), no export presets, no file-size limit",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "lenient_alternative": "VALIDATED (with LR-21 also VALIDATED: Lightroom engine 63.6 %)",
+          "evidence": [
+            {"lane": "SMB-DEVELOP-DNG-WRITER", "commits_on_origin": "64804d9..71253a3 (already on 5ab33c9)", "round_verdict": "PASS_V1 R39 .. PASS_V21 R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-DNG-READBACK-VALUES", "commits_on_origin": "4793616b", "round_verdict": "PASS_V1 R40 .. PASS_V19 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-LR-EXPORT-SIZING-1", "commits_on_origin": "2924b816..61bb4d58", "round_verdict": "PASS_V1 R43 .. PASS_V16 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-LR-EXPORT-GUI-1", "commits_on_origin": "c02da59d..c7b8d78e", "round_verdict": "PASS_V1 R44 .. PASS_V16 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-develop/src/dng_write.rs; crates/hsk-studio-harness-view/src/view/develop/export_dialog.rs (header: dialog + TIFF/DNG buttons); lane hsk-studio-lr-export-sizing-1.json notes.gaps (text watermarks, presets, file-size limit)",
+          "oracle": "UNVERIFIED vs Lightroom (sharpening and watermark fields are Studio readings)"
+        },
+        {
+          "row": "LR-19, LR-22, LR-08",
+          "name": "presets/snapshots, crop, point curves (typed commands)",
+          "change": "LOCAL only: photo.develop.* typed rows for every DevelopOp/FamilyOp, point curves, crop and straighten stored and applied at export, snapshots save/apply/delete, save preset; no level change (LR-08/LR-22 already VALIDATED; LR-19 keeps no camera/ISO-specific defaults) and no window reach (typed rows)",
+          "evidence_level_before": "LR-08/LR-22 VALIDATED; LR-19 PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {"lane": "SMB-DEVELOP-COMMANDS-1", "commits_on_origin": "LOCAL ONLY 252f07aa..6363bd19 (lane file; git merge-base: 6363bd19 not on origin)", "round_verdict": "none (phase bundled_green, RELEASED for push)", "delivery_class": "LOCAL_UNVALIDATED"}
+          ],
+          "verified_at": "lane file hsk-studio-develop-commands-1.json capabilities_done",
+          "oracle": "NO_ORACLE_CASE"
+        }
+      ],
+      "gui_changes": [
+        {"surface": "Develop panel spot section; develop export dialog with TIFF/DNG", "effect": "LR-21 (ui:false) -> RAISE; LR-33 AGREE no longer 'PNG/JPEG only'; no baseline workflow changes state (healing is not one of the 13)", "evidence": "SMB-LR-HEALING-2, SMB-LR-EXPORT-GUI-1 PASS; view/develop/spot.rs, view/develop/export_dialog.rs"},
+        {"surface": "still ENGINE_ONLY", "effect": "library, crop and straighten (no crop control), presets/looks (bytes API only, develop_more.rs:14-18), sync/batch across photos", "evidence": "crates/hsk-studio-harness-view/src/view/develop_more.rs:1-24"}
+      ],
+      "unlisted_capabilities_changed": [],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {"engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 19, "MISSING": 0}, "engine_pct": 59.3, "gui_pooled_pct": 69.2, "gui_pooled_inputs": "(9 judged)/13", "gui_strict_pct": 31.4, "gui_strict_with_additions_pct": 45.7, "gui_strict_inputs": "11 agree (+5 raise: LR-01, LR-02, LR-24, LR-26, LR-21) / 35"},
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 87f331f9)": {"engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 19, "MISSING": 0}, "engine_pct": 59.3, "gui_pooled_pct": 69.2, "gui_strict_pct": 31.4, "gui_strict_with_additions_pct": 45.7},
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {"engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 19, "MISSING": 0}, "engine_pct": 59.3, "gui_pooled_pct": 69.2, "gui_strict_pct": 31.4, "gui_strict_with_additions_pct": 45.7},
+        "lenient_alternative": {"assumption": "LR-21 and LR-33 VALIDATED", "engine_pct": 63.6}
+      },
+      "oracle": {
+        "d5_oracle": "ABSENT for Lightroom Classic; decode-only Adobe DNG Converter 18.7 oracle PRESENT (RW2 8/8, NEF 10/10)",
+        "changed_since_20261023": "no new oracle; healing, HDR, export sizing and DNG writer compared with Studio readings and self read-back only"
+      },
+      "top_gaps_remaining": "see top_gaps.lightroom_classic"
+    },
+    "illustrator": {
+      "before_20261023": {
+        "rows": 32,
+        "counts": {"VALIDATED": 17, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 15, "MISSING": 0},
+        "engine_pct": [64.8, 64.8, 64.8],
+        "gui_pooled_pct": [47.1, 47.1, 64.7],
+        "gui_strict_pct": [18.8, 18.8, 34.4],
+        "gui_strict_with_additions_pct": [31.2, 31.2, 46.9]
+      },
+      "changed_rows": [
+        {
+          "row": "AI-28, AI-29",
+          "name": "Type: point/area type, type on a path; Create Outlines",
+          "change": "PARTIAL -> VALIDATED: area type in any closed container (Bezier, holes, inset, first baseline, auto-size), live path and area text from records drawn by composite and in the window, general Create Outlines for point/area/path text (Type > Convert > Create Outlines, Ctrl+Shift+O; Path Operations panel), Text tool click on an open path = path text, inside a closed path = area text",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "limits": "point text content still the literal 'Text' (mod.rs:1367); live text content one line in the Path Operations panel (hosted.rs:1017)",
+          "evidence": [
+            {"lane": "SMB-AI-AREA-TYPE-1..4", "commits_on_origin": "26ade258..ae6452c4 (16 commits)", "round_verdict": "PASS_V1 R41/R42/R43 .. PASS_V17-V19 R58/R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-VIEW-POLISH-1", "commits_on_origin": "2bc94db3..d208bc0e", "round_verdict": "PASS_V1 R43 .. PASS_V17 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-type/src/area_text.rs, src/create_outlines.rs; crates/hsk-studio-composite/src/vector_text.rs; harness-view shell.rs:622 'Create Outlines', mod.rs:1448 Text tool help, hosted.rs:1017, :1030",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "AI-09",
+          "name": "Offset path, simplify, outline stroke, expand, expand appearance",
+          "change": "PARTIAL -> VALIDATED: Simplify (STU-VEC-114 table, exact mode, angle-threshold corners, straight lines) and Smooth in nib (the only absence the audit named)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "limits": "engine only: not hosted in a panel or command row (width plan vector-brand step 17 engine_only)",
+          "evidence": [
+            {"lane": "SMB-AI-SIMPLIFY-1", "commits_on_origin": "11a832ce..c6b3733f", "round_verdict": "PASS_V1 R42 .. PASS_V11 R57", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-nib/src/simplify.rs",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "AI-32",
+          "name": "Placed / embedded images",
+          "change": "PARTIAL -> BUILT_NOT_VALIDATED on origin: asset.place embedded and linked into a raster or vector document, link states, Update All Links, Embed Link (the audit's absence was 'no Place/Link command'); .ai writer still absent (no spec clause found 2026-10-23)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "BUILT_NOT_VALIDATED", "LOCAL": "BUILT_NOT_VALIDATED"},
+          "evidence": [
+            {"lane": "SMB-PLACE-ASSET-1", "commits_on_origin": "d026e892..65b84031 (pushed 0a733db8)", "round_verdict": "READY_FOR_VALIDATION (pushed after the R60 freeze; no probe)", "delivery_class": "DELIVERED_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-harness-view/src/view/place.rs:1-4 ('into a raster or vector document'); harness-core action/commands/asset.rs:31-32",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "AI-22",
+          "name": "Artboards",
+          "change": "PARTIAL -> BUILT_NOT_VALIDATED on origin: artboard.add/rename/resize/move/delete typed rows, SVG/EPS/PDF framed on a named board, per-board and per-layer export (PNG/JPG at scale/width/height, SVG, PDF), export settings saved",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "BUILT_NOT_VALIDATED", "LOCAL": "BUILT_NOT_VALIDATED"},
+          "risk": "R60 probes recorded HIGH export-job-not-admitted-jobport (SMB-ARTBOARD-EXPORT-1) and HIGH page-add-mint-never-returns (SMB-DOC-NEW-1); fixes only in LOCAL SMB-R60-FOLLOWUPS-1. Conservative alternative: PARTIAL on origin -> Illustrator engine 72.7 % UNVALIDATED",
+          "evidence": [
+            {"lane": "SMB-DOC-NEW-1", "commits_on_origin": "b721f142..1b7f80b2 (pushed cf6788d6)", "round_verdict": "READY_FOR_VALIDATION", "delivery_class": "DELIVERED_UNVALIDATED"},
+            {"lane": "SMB-ARTBOARD-EXPORT-1", "commits_on_origin": "bd965420..26d577b7 (pushed 89e9a2ac)", "round_verdict": "READY_FOR_VALIDATION", "delivery_class": "DELIVERED_UNVALIDATED"},
+            {"lane": "SMB-R60-FOLLOWUPS-1", "commits_on_origin": "LOCAL ONLY dfd19635..7988d47c", "round_verdict": "none (phase build)", "delivery_class": "LOCAL_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-harness-core/src/action/commands/document.rs:45-49; harness-view view/export_set.rs header",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "AI-13",
+          "name": "Stroke attributes",
+          "change": "arrowheads added (26-token catalogue, 18 shapes, scale 1-1000 %, inside/outside), in the Stroke panel, SVG and Figma import/export and PDF; level stays PARTIAL: dash alignment to corners absent (gap_colour exists only on layout strokes, folio layoutflow.rs:721)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-AI-ARROWHEADS-1", "commits_on_origin": "see lane file (pushed c7b8d78e..2a60acf3)", "round_verdict": "PASS_V1 R44 .. PASS_V15 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-AI-ARROWHEADS-2", "commits_on_origin": "835c6d6c..8780b3e9", "round_verdict": "PASS_V1 R44 .. PASS_V16 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-nib/src/markers.rs; git grep dash_corner|align_dashes|corner_adjust over folio/nib: 0 hits",
+          "oracle": "NO_ORACLE_CASE (18 Studio shapes UNVERIFIED)"
+        },
+        {
+          "row": "AI-19",
+          "name": "Live effects",
+          "change": "Distort & Transform effect records and operators (roughen, zig zag, pucker/bloat, twist, tweak, free distort, step-repeat) validated; on origin unjudged: live filter stack on vector objects evaluated by composite, apply/update/reorder/toggle/remove/bake commands; level stays PARTIAL: no 3D effects, feather only as a mask feather",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-AI-DISTORT-EFFECTS-1", "commits_on_origin": "4b5ba2da", "round_verdict": "PASS_V1 R51 .. PASS_V4 R57", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-AI-LIVE-EFFECTS-1", "commits_on_origin": "06f5fa57..1e652818", "round_verdict": "READY_FOR_VALIDATION", "delivery_class": "DELIVERED_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-nib/src/live_effect.rs; crates/hsk-studio-composite/src/vector_live_filters.rs; git grep extrude|revolve|effect_3d: 0 hits; view/vector/live_filters.rs has no egui code",
+          "oracle": "NO_ORACLE_CASE (declared Studio laws)"
+        },
+        {
+          "row": "AI-30, AI-31",
+          "name": "Swatches/recolour; CMYK, separations, overprint",
+          "change": "swatch groups, palette scopes (document/application/system), colour books from named-colour profiles; ink manager and total ink coverage; levels stay PARTIAL: no ASE swatch exchange (git grep: 0 hits), no per-object vector overprint",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {"lane": "SMB-COL-SWATCH-GROUPS-1", "commits_on_origin": "a888bf3e..174ebc56", "round_verdict": "PASS_V1 R53 .. PASS_V6 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-PRESS-INK-MANAGER-1", "commits_on_origin": "838036f2..c420f273", "round_verdict": "PASS_V1 R53 .. PASS_V6 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-PRESS-INK-COVERAGE-1", "commits_on_origin": "3b7a6976", "round_verdict": "PASS_V1 R51 .. PASS_V4 R57", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-folio/src/swatch_library.rs, src/colour_book.rs; crates/hsk-studio-press-write/src/inks.rs",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "AI-07, AI-16, AI-20, AI-23, AI-24",
+          "name": "ui rows reached by hosted panels",
+          "change": "GUI strict LOWER -> AGREE: Live Corner, masks (make clip / vector mask), graphic styles, align/distribute, transform hosted in WORKSPACE > Panels (13 panels) and judged",
+          "evidence_level_before": "LOWER (LOCAL only on 2026-10-23)",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "AGREE"},
+          "evidence": [
+            {"lane": "SMB-HARNESS-PANELS-1", "commits_on_origin": "7d227c22..347026e9", "round_verdict": "PASS_V1 R39 .. PASS_V21 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-harness-view/src/view/hosted.rs:105-117 (panel keys), :998 Live Corner, :1399 MakeClip, :1414 ExportSvg, :1416 ImportVector (import_ai)"
+        }
+      ],
+      "gui_changes": [
+        {
+          "workflows": ["Open .ai as editable vectors (vector_import)", "Live corners on existing paths", "Stroke panel (caps, joins, dashes, arrowheads)", "Align, distribute, transform", "Clipping and opacity masks", "Export SVG / PDF (vector_export)", "Type: point/area/on a path, outlines"],
+          "state_before": "LOCAL_UNVALIDATED (first six) / ENGINE_ONLY (type)",
+          "state_after": "DOABLE_IN_STUDIO_GUI judged",
+          "not_counted": "'Swatches, graphic styles, recolour artwork' (recolour still not hosted: git grep recolor over hosted.rs/shell.rs 0 hits), 'Gradients' (PANELS-1 gaps_left: gradient fills API only)",
+          "evidence": "SMB-HARNESS-PANELS-1, SMB-AI-AREA-TYPE-2/3, SMB-VIEW-POLISH-1, SMB-AI-ARROWHEADS-2 (all PASS)"
+        }
+      ],
+      "unlisted_capabilities_changed": [
+        {"capability": "EPS vector conversion on a vendored free-font PostScript fork (hsk-studio-ps*, Apache-2.0 OR MIT; TeX Gyre / STIX Two / DejaVu)", "change": "LOCAL -> PASS", "lane": "SMB-EPS-FREE-FONTS", "commits_on_origin": "d195ef76..b7ef882e", "round_verdict": "PASS_V1 R39 .. PASS_V21 R59", "delivery_class": "DELIVERED_VALIDATED", "limits": "no harness .eps/.ps import route; Symbol/ZapfDingbats substitutes not metric-compatible (lane gaps)"},
+        {"capability": "component/variant/instance authoring by typed commands (symbol-like reuse)", "lane": "SMB-DS-COMPONENTS-AUTHOR-1", "commits_on_origin": "LOCAL ONLY e9933f32 fa15c84d", "delivery_class": "LOCAL_UNVALIDATED", "note": "no AI-26 level change (no symbol library/sprayer, no symbol import)"}
+      ],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {"engine_counts": {"VALIDATED": 20, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 12, "MISSING": 0}, "engine_pct": 71.9, "gui_pooled_pct": 88.2, "gui_pooled_inputs": "(15 judged)/17", "gui_strict_pct": 34.4, "gui_strict_with_additions_pct": 53.1, "gui_strict_inputs": "11 agree (+6 raise: AI-01, AI-08, AI-11, AI-12 from the baseline, AI-28, AI-29 new) / 32"},
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 87f331f9)": {"engine_counts": {"VALIDATED": 20, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 10, "MISSING": 0}, "engine_pct": 73.4, "gui_pooled_pct": 88.2, "gui_strict_pct": 34.4, "gui_strict_with_additions_pct": 53.1},
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {"engine_counts": {"VALIDATED": 20, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 10, "MISSING": 0}, "engine_pct": 73.4, "gui_pooled_pct": 88.2, "gui_strict_pct": 34.4, "gui_strict_with_additions_pct": 53.1},
+        "conservative_alternatives": {"AI-22 PARTIAL on origin (R60 HIGH probes)": "engine 72.7 % UNVALIDATED/LOCAL", "type workflow not counted (point text literal)": "gui_pooled 82.4 %"}
+      },
+      "oracle": {
+        "d5_oracle": "PRESENT (Illustrator 30.8.2, 75 entries: 68 MATCH / 6 MISMATCH / 1 NOT_SUPPORTED)",
+        "changed_since_20261023": "none: crates/hsk-studio-render-cpu/tests/d5_ai_expected_mismatch.txt byte-unchanged 5ab33c9..87f331f9; no case for area type, simplify, arrowheads, distort effects or swatch groups"
+      },
+      "top_gaps_remaining": "see top_gaps.illustrator"
+    },
+    "indesign": {
+      "before_20261023": {
+        "rows": 31,
+        "counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 15, "MISSING": 3},
+        "engine_pct": [54.0, 54.0, 54.0],
+        "gui_pooled_pct": [70.0, 70.0, 70.0],
+        "gui_strict_pct": [25.8, 25.8, 25.8]
+      },
+      "changed_rows": [
+        {
+          "row": "ID-23",
+          "name": "Liquid / adjust / alternate layouts",
+          "change": "MISSING -> VALIDATED: liquid page rules (off, scale, recenter, object-based, guide-based, use parent) with object pins and resize constraints, Adjust Layout (ten keys, scopes, font-size bounds, undo), alternate layouts as sections, linked stories and linked page items with up_to_date/out_of_date state",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "VALIDATED", "DELIVERED_UNVALIDATED": "VALIDATED", "LOCAL": "VALIDATED"},
+          "evidence": [
+            {"lane": "SMB-ID-LIQUID-LAYOUT-1", "commits_on_origin": "24918171..c3c7201b", "round_verdict": "PASS_V1 R40 .. PASS_V19 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-R40-FOLLOWUPS-1", "commits_on_origin": "61abf23b..c2422d23 (sha256 link fingerprints)", "round_verdict": "PASS_V1 R41 .. PASS_V19 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-folio/src/layout_rules.rs:1-30; crates/hsk-studio-layout/src/liquid.rs, adjust_layout.rs, alternate.rs",
+          "oracle": "NO_ORACLE_CASE (InDesign parity UNVERIFIED, D5)"
+        },
+        {
+          "row": "ID-11",
+          "name": "Vertical / CJK typography (tate-chu-yoko, mojikumi)",
+          "change": "MISSING -> PARTIAL: kinsoku (push-in/out, hanging, bunri kinshi, rensuuji) and mojikumi (JLREQ classes, all 17 base sets, aki overrides) in the Knuth-Plass composer with Folio CJK composition records; vertical stories, tate-chu-yoko and story orientation absent (folio layout.rs:29 lists story_orientation as not stored)",
+          "evidence_level_before": "MISSING",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-ID-CJK-KINSOKU-1", "commits_on_origin": "88c7eb6f..c4a1ecff", "round_verdict": "PASS_V1 R41 .. PASS_V18 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-R41-FOLLOWUPS-1", "commits_on_origin": "6ab51188..cf2e46da (W3C licence texts)", "round_verdict": "PASS_V1 R42 .. PASS_V18 R59", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-layout/src/cjk.rs; crates/hsk-studio-folio/src/layout.rs:20-30 (declared not-stored fields); git grep tate_chu_yoko|vertical_text: 0 hits",
+          "oracle": "NO_ORACLE_CASE (JLREQ/CLREQ readings declared)"
+        },
+        {
+          "row": "ID-04",
+          "name": "Text frames",
+          "change": "frame auto-size (five kinds) and first baseline (six kinds incl. cap/x height from OS/2), IDML auto-size mapping: the audit's first two absences closed; level stays PARTIAL: fixed/flexible column width and column rules not stored (folio layout.rs:28)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-ID-FRAME-AUTOSIZE-1", "commits_on_origin": "591009d3..2f8e13d5", "round_verdict": "PASS_V1 R44 .. PASS_V16 R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-ID-FRAME-AUTOSIZE-2", "commits_on_origin": "fd4eb215..b425b54a", "round_verdict": "PASS_V1 R45 .. PASS_V14 R58", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-layout/src/autosize.rs; folio layout.rs:20-30",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "ID-27",
+          "name": "PDF export (print, PDF/X) and printing / booklet",
+          "change": "print preferences (83 fields), printer presets, booklet options and imposition plans (saddle stitch, perfect bound, n-up), PDF export preference record, PDF preset contract and stock preset catalogue (three writable, PDF/X stock presets refuse stock_output_intent_not_captured); on origin unjudged: layout PDF/X-4 export with ICC output intent and check_pdfx4 self-check, IDML export and page render-back as typed rows. Level stays PARTIAL: PDF/X-4 conformance not proven (no Acrobat oracle), imposed sheets not rendered, printer marks are preference fields only",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {"DELIVERED_VALIDATED": "PARTIAL", "DELIVERED_UNVALIDATED": "PARTIAL", "LOCAL": "PARTIAL"},
+          "evidence": [
+            {"lane": "SMB-ID-BOOKLET-1", "commits_on_origin": "fe0be68c..2d044a85", "round_verdict": "PASS_V1 R49 .. PASS_V10 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-ID-PDF-EXPORT-PREFS-1", "commits_on_origin": "45e3be82", "round_verdict": "PASS_V1 R50 .. PASS_V9 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-PDF-PRESETS-1", "commits_on_origin": "1c44f0ac", "round_verdict": "PASS_V1 R49 .. PASS_V6 R57", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-PDF-STOCK-PRESETS-1", "commits_on_origin": "a593c29e", "round_verdict": "PASS_V1 R50 .. PASS_V5 R57", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-LAYOUT-PDF-HOST-1", "commits_on_origin": "14522e34..3972c165", "round_verdict": "READY_FOR_VALIDATION", "delivery_class": "DELIVERED_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-layout/src/print.rs, booklet.rs, pdf_export_prefs.rs:968-990 (crop_marks etc. as PrintValue fields); crates/hsk-studio-press/src/preset/stock.rs; harness-view view/layout_export.rs header; harness-core action/commands/layout.rs:57",
+          "oracle": "none: SMB-PDFX-ORACLE (Acrobat Preflight, Operator-attended) still queued"
+        },
+        {
+          "row": "ID-19, ID-25",
+          "name": "Placed graphics and links; live preflight",
+          "change": "on origin unjudged: asset.place into a layout graphic frame (rectangle/ellipse), fit, frame-to-content, list_placements with actual/effective ppi, graphic frames drawn clipped in the layout PDF, fail-closed link gate after preflight; levels stay PARTIAL: no links panel surface, content-aware fit, embedded placed PDF in export or IDML linked pixels (ID-19); no colour/ink/font/image/spelling rules (ID-25)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {"lane": "SMB-LAYOUT-PLACE-1", "commits_on_origin": "e2e28244..87f331f9 (the tip)", "round_verdict": "READY_FOR_VALIDATION", "delivery_class": "DELIVERED_UNVALIDATED"}
+          ],
+          "verified_at": "crates/hsk-studio-harness-view/src/view/layout_place.rs, layout_assets.rs (egui-free headers)",
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "ID-06, ID-07, ID-08, ID-10, ID-16, ID-17",
+          "name": "composers, OpenType features, TOC/index, cross-references",
+          "change": "deepened, levels VALIDATED unchanged: Adobe paragraph composer budgets and cancellation (F-R56-1 crash closed), OpenType feature-tag registry (209 tags) with per-font availability, TOC/index generation options and persistence, trap presets, marker/anchor/blank-line lookups, derived TOC/xref text, stream sentinels",
+          "evidence_level_before": "VALIDATED",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {"lane": "SMB-LAYOUT-COMPOSER-DEPTH-1", "commits_on_origin": "7c8c5312..ca23add1", "round_verdict": "PASS_V1 R57, PASS_V2 R58", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-TYPE-OT-FEATURES-1", "commits_on_origin": "0b9615b5..17f03d1c", "round_verdict": "PASS_V1 R51 .. PASS_V7 R57", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-ID-TOC-INDEX-1 / SMB-ID-TOC-PERSIST-1", "commits_on_origin": "c28de1bd..b67da6e5; b24a42a3..99836457", "round_verdict": "PASS_V8 R58 / PASS_V8 R59", "delivery_class": "DELIVERED_VALIDATED"},
+            {"lane": "SMB-LAYOUT-SENTINELS-1, SMB-LAYOUT-MARKER-LOOKUPS-1, SMB-LAYOUT-ENTRY-TEXT-1, SMB-LAYOUT-BLANK-LINE-LOOKUPS-1", "commits_on_origin": "see lane files", "round_verdict": "PASS (R58)", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "oracle": "InDesign 21.6: 93 MATCH / 6 MISMATCH of 99 (d5_id_expected_mismatch.txt byte-unchanged 5ab33c9..87f331f9); overfitting risk F-R36-4 still open"
+        },
+        {
+          "row": "ID-12, ID-24",
+          "name": "styles; swatches, inks, overprint",
+          "change": "ID-12: indents, space before/after and space-between-same-style only in LOCAL SMB-TYPE-INDENT-SPACING-1 (stopped at the C: cap, not pushed); nested/line styles still absent -> PARTIAL at every tier. ID-24: ink manager and ink coverage PASS; PDF overprint flags still unread (press-write coverage.rs:408 PdfOverprintNotRead) -> PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {"lane": "SMB-TYPE-INDENT-SPACING-1", "commits_on_origin": "LOCAL ONLY 01cd8cd1..5f3112a4 (lane file; 5f3112a4 not on origin)", "round_verdict": "none (STOPPED exit 77)", "delivery_class": "LOCAL_UNVALIDATED"},
+            {"lane": "SMB-PRESS-INK-MANAGER-1, SMB-PRESS-INK-COVERAGE-1", "commits_on_origin": "838036f2..c420f273; 3b7a6976", "round_verdict": "PASS_V6 R58; PASS_V4 R57", "delivery_class": "DELIVERED_VALIDATED"}
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        }
+      ],
+      "gui_changes": [
+        {"surface": "Layout Editor edits persisted to the document", "effect": "closes the 2026-10-23 caveat 'edits not persisted' on origin (unjudged); no workflow changes state", "evidence": "SMB-LAYOUT-PERSIST-1 READY ab2e0ebd..a3215161; R60 probe HIGH stale-layout-entry-permanent-lockout"},
+        {"surface": "still ENGINE_ONLY in the window", "effect": "Open IDML into the editor (no import route: 'idml' appears only in layout.export_idml rows), Place images (layout_place.rs egui-free), Export PDF/EPUB (layout_export.rs egui-free, typed rows only)", "evidence": "git grep idml over harness-core/src and harness-view mod.rs/file_dialog.rs; shell.rs:605-611 File menu (Open, Save, Export PNG/JPEG only)"}
+      ],
+      "unlisted_capabilities_changed": [
+        {"capability": "hostile-input hardening of the PDF reader (decompression-bomb ratio cap, per-stream ceilings) plus PSD/TIFF/RAW/.fig/IDML/SVG seeds", "lane": "SMB-PARSER-HOSTILE-1", "commits_on_origin": "497a4320..27365b81", "delivery_class": "DELIVERED_UNVALIDATED"}
+      ],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {"engine_counts": {"VALIDATED": 14, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 16, "MISSING": 1}, "engine_pct": 58.1, "gui_pooled_pct": 70.0, "gui_pooled_inputs": "(7 judged)/10", "gui_strict_pct": 25.8, "gui_strict_with_additions_pct": 25.8, "gui_strict_inputs": "8 agree / 31"},
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 87f331f9)": {"engine_counts": {"VALIDATED": 14, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 16, "MISSING": 1}, "engine_pct": 58.1, "gui_pooled_pct": 70.0, "gui_strict_pct": 25.8, "gui_strict_with_additions_pct": 25.8},
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {"engine_counts": {"VALIDATED": 14, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 16, "MISSING": 1}, "engine_pct": 58.1, "gui_pooled_pct": 70.0, "gui_strict_pct": 25.8, "gui_strict_with_additions_pct": 25.8}
+      },
+      "oracle": {
+        "d5_oracle": "PRESENT (InDesign 21.6, 99 entries: 93 MATCH / 6 MISMATCH)",
+        "changed_since_20261023": "none (expectation file unchanged); liquid layout, CJK, auto-size, booklet and PDF presets have no oracle case",
+        "open": "F-R36-4 held-out InDesign case set (Operator item); SMB-PDFX-ORACLE queued"
+      },
+      "top_gaps_remaining": "see top_gaps.indesign"
+    }
+  },
+  "summary": {
+    "photoshop": {"engine": "47.2 -> 57.6 / 57.6 / 57.6 (validated / +origin / +local)", "gui_pooled": "61.1 -> 61.1 / 61.1 / 61.1", "gui_strict": "30.6 -> 30.6 / 30.6 / 30.6 (with additions 38.9 -> 47.2)", "changed_rows_distinct": 14, "rows_level_changed": "PS-19, PS-28, PS-30, PS-31"},
+    "lightroom_classic": {"engine": "57.9 -> 59.3 / 59.3 / 59.3", "gui_pooled": "69.2 -> 69.2 / 69.2 / 69.2", "gui_strict": "31.4 -> 31.4 / 31.4 / 31.4 (with additions 42.9 -> 45.7)", "changed_rows_distinct": 6, "rows_level_changed": "LR-21, LR-23"},
+    "illustrator": {"engine": "64.8 -> 71.9 / 73.4 / 73.4", "gui_pooled": "47.1 (local 64.7) -> 88.2 / 88.2 / 88.2", "gui_strict": "18.8 (local 34.4) -> 34.4 / 34.4 / 34.4 (with additions 31.2 -> 53.1)", "changed_rows_distinct": 16, "rows_level_changed": "AI-09, AI-28, AI-29 (validated); AI-22, AI-32 (built, unjudged)"},
+    "indesign": {"engine": "54.0 -> 58.1 / 58.1 / 58.1", "gui_pooled": "70.0 -> 70.0 / 70.0 / 70.0", "gui_strict": "25.8 -> 25.8 / 25.8 / 25.8", "changed_rows_distinct": 19, "rows_level_changed": "ID-23, ID-11"},
+    "arrays_for_rollup": {
+      "order": "[2026-10-23 VALIDATED, VALIDATED, UNVALIDATED, LOCAL]",
+      "photoshop": {"engine": [47.2, 57.6, 57.6, 57.6], "gui_pooled": [61.1, 61.1, 61.1, 61.1], "gui_strict": [30.6, 30.6, 30.6, 30.6]},
+      "lightroom_classic": {"engine": [57.9, 59.3, 59.3, 59.3], "gui_pooled": [69.2, 69.2, 69.2, 69.2], "gui_strict": [31.4, 31.4, 31.4, 31.4]},
+      "illustrator": {"engine": [64.8, 71.9, 73.4, 73.4], "gui_pooled": [47.1, 88.2, 88.2, 88.2], "gui_strict": [18.8, 34.4, 34.4, 34.4]},
+      "indesign": {"engine": [54.0, 58.1, 58.1, 58.1], "gui_pooled": [70.0, 70.0, 70.0, 70.0], "gui_strict": [25.8, 25.8, 25.8, 25.8]}
+    },
+    "rollup_inputs": {
+      "engine_points_of_134_rows": {"20261023_validated": 74.75, "VALIDATED": 82.5, "UNVALIDATED": 83.0, "LOCAL": 83.0, "effect_on_9_app_engine_pp": "+2.5 validated, +2.7 origin/local (of 308 rows)", "effect_on_8_app_engine_pp": "+3.4 validated, +3.6 origin/local (of 228 rows)"},
+      "gui_pooled_points_of_108": {"20261023": "PS 11, LR 9, AI 8 (local 11), ID 7 = 35 (local 38)", "now_all_tiers": "PS 11, LR 9, AI 15, ID 7 = 42", "delta": "+7.0 validated, +7.0 origin, +4.0 local"},
+      "gui_strict_agree_rows_of_308": {"20261023": "36 (local 41)", "now_all_tiers": 41, "delta": "+5 validated/origin, 0 local"}
+    },
+    "reading": "Engine movement this time is real at row level: eleven rows of the four apps changed level (Photoshop soft proof, Info/histogram, actions/batch and raster gradient/bucket; Lightroom healing and HDR merge; Illustrator area type, Create Outlines and Simplify; InDesign liquid/alternate layouts and CJK kinsoku/mojikumi), all judged PASS by R57-R59. GUI moved only for Illustrator (13 hosted panels and the type tools judged). Photoshop, Lightroom and InDesign window figures are flat because the egui window was frozen on 2026-10-30 (D1): place, transform, document export, New Document, layout PDF/IDML export and layout placing landed as typed commands with no window route, and the Vulkan native host is a READY static raster frame. Every figure here is 'validated as of R57-R59': 30 crates and the root inputs changed since R59 and R60 never opened."
+  },
+  "gained_since_20261023": {
+    "photoshop": [
+      {"feature": "Soft proofing with gamut warning and colour-blindness proofs, from the View and Color menus with a canvas overlay", "rows": "PS-28", "tier": "VALIDATED"},
+      {"feature": "Info panel: live histogram, pixel readout in RGB/HSB/Lab/CMYK, up to 10 colour samplers, eyedropper", "rows": "PS-30", "tier": "VALIDATED"},
+      {"feature": "Actions: record a command stream, replay it as one undo step, batch it over files with receipts (CLI)", "rows": "PS-31", "tier": "VALIDATED"},
+      {"feature": "Raster Gradient tool, Paint Bucket and Edit > Fill with colours or patterns, in the window", "rows": "PS-19", "tier": "VALIDATED"},
+      {"feature": "PSD fill layers (solid, gradient, pattern) import and render", "rows": "PS-02", "tier": "VALIDATED"},
+      {"feature": "Alpha and spot channels stored in the document, save/load selection to channel, channel list ops, PSD and TIFF extra-channel round trip", "rows": "PS-25, PS-14", "tier": "VALIDATED"},
+      {"feature": "Image > Mode: grayscale to bitmap (thresholds, dithers, halftones) and RGB to indexed colour with colour tables", "rows": "PS-26", "tier": "VALIDATED"},
+      {"feature": "19 more filters as smart filters (Maximum, Minimum, Custom, Dust & Scratches, Despeckle, Surface Blur, Emboss, Mosaic, ...)", "rows": "PS-22", "tier": "UNVALIDATED"},
+      {"feature": "Place embedded or linked images, Update All Links, Embed Link, Free Transform and Move as commands; New Document; export recipe to PNG/JPEG/TIFF/CMYK TIFF/layered PSD with crop, resize, sharpening and watermark", "rows": "PS-24, PS-20, PS-21, PS-36", "tier": "UNVALIDATED (typed commands, no window route)"}
+    ],
+    "lightroom_classic": [
+      {"feature": "Spot removal: heal, clone, automatic source, content-aware distraction removal, with a spot section in the Develop panel and XMP read/write", "rows": "LR-21", "tier": "VALIDATED"},
+      {"feature": "HDR merge of bracketed raws with alignment, deghosting and tone mapping; floating-point HDR DNG", "rows": "LR-23", "tier": "VALIDATED"},
+      {"feature": "Export resize (six modes), output sharpening, graphic watermark, and an export dialog with TIFF and DNG buttons", "rows": "LR-33", "tier": "VALIDATED"},
+      {"feature": "Lossless DNG 1.4 writer with preview and XMP, verified by read-back", "rows": "LR-33", "tier": "VALIDATED"},
+      {"feature": "Every develop operation as a typed command, point curves, crop, snapshots, save preset", "rows": "LR-08, LR-19, LR-22", "tier": "LOCAL"}
+    ],
+    "illustrator": [
+      {"feature": "13 Illustrator panels in the window: appearance, stroke, swatches, graphic styles, align/distribute, transform, path operations (live corners), masks, envelope, brushes, SVG/PDF export, .ai import", "rows": "AI-07, AI-16, AI-20, AI-23, AI-24 (GUI)", "tier": "VALIDATED"},
+      {"feature": "Area type in any closed shape, live path and area text, Create Outlines from the Type menu; the Text tool makes path or area text by where you click", "rows": "AI-28, AI-29", "tier": "VALIDATED"},
+      {"feature": "Simplify and Smooth for paths (engine)", "rows": "AI-09", "tier": "VALIDATED"},
+      {"feature": "Arrowheads in the Stroke panel, SVG and Figma import/export, PDF", "rows": "AI-13", "tier": "VALIDATED"},
+      {"feature": "Distort & Transform effects (roughen, zig zag, pucker/bloat, twist, tweak, free distort)", "rows": "AI-19", "tier": "VALIDATED (engine); live on objects UNVALIDATED"},
+      {"feature": "Swatch groups, palette scopes and colour books", "rows": "AI-30", "tier": "VALIDATED"},
+      {"feature": "EPS import restored on a free-font PostScript interpreter", "rows": "unlisted", "tier": "VALIDATED"},
+      {"feature": "Artboard add/rename/resize/move/delete and per-artboard or per-layer export (PNG, JPG, SVG, PDF); place linked or embedded images", "rows": "AI-22, AI-32", "tier": "UNVALIDATED"}
+    ],
+    "indesign": [
+      {"feature": "Liquid layout rules, Adjust Layout, alternate layouts and linked stories", "rows": "ID-23", "tier": "VALIDATED"},
+      {"feature": "Japanese/Chinese line breaking (kinsoku) and spacing (mojikumi), horizontal", "rows": "ID-11", "tier": "VALIDATED"},
+      {"feature": "Text frame auto-size and every first-baseline option", "rows": "ID-04", "tier": "VALIDATED"},
+      {"feature": "Print settings, printer presets, booklet options and imposition plans", "rows": "ID-27", "tier": "VALIDATED (sheets not rendered)"},
+      {"feature": "PDF export preferences, PDF presets and the stock preset catalogue", "rows": "ID-27", "tier": "VALIDATED"},
+      {"feature": "Deeper TOC/index generation and persistence, trap presets, OpenType feature registry, ink manager and ink-coverage checks, composer robustness", "rows": "ID-16, ID-10, ID-24, ID-06", "tier": "VALIDATED"},
+      {"feature": "Layout edits saved to the document; PDF/X-4 and IDML export and page render as commands; pictures placed and fitted in graphic frames and drawn in the layout PDF", "rows": "ID-19, ID-25, ID-27", "tier": "UNVALIDATED (typed commands)"},
+      {"feature": "Paragraph indents and space before/after", "rows": "ID-12", "tier": "LOCAL (stopped at the C: cap)"}
+    ]
+  },
+  "top_gaps": {
+    "rank_rule": "weight deficit (MISSING 1.0, PARTIAL 0.75), ties broken by the 2026-10-21 audit's own top_gaps order, then by audit row order (same rule as 2026-10-23)",
+    "photoshop": [
+      {"rank": 1, "row": "PS-33", "level": "MISSING", "gap": "Generative fill / AI features", "lane_or_candidate": "none; spec treats it as an optional model-adapter lane (STU-RAS-045)"},
+      {"rank": 2, "row": "PS-04 (with PS-06, PS-11)", "level": "PARTIAL", "gap": "masks, Blend If and clipping on pass-through groups (Photoshop's default group mode) typed-refused; no raster mask creation in the window", "lane_or_candidate": "width-plan candidate SMB-PS-LAYER-MASK-1 (mask commands, mask from selection, refine output); the pass-through refusals: none"},
+      {"rank": 3, "row": "PS-07 (with PS-08..PS-10)", "level": "PARTIAL", "gap": "modern Brightness/Contrast and Hue/Saturation colour bands refused; adjustment layers and layer styles cannot be created or edited", "lane_or_candidate": "width plan rank 4 SMB-PS-FILTER-ADJUST-COMMANDS-1 (adjustment-layer create/edit, filter commands); the refused maths: none"},
+      {"rank": 4, "row": "PS-24", "level": "PARTIAL", "gap": "no edit contents, convert to smart object or relink (place/update/embed exist, unjudged)", "lane_or_candidate": "none (SMB-PLACE-ASSET-1 READY covers place only)"},
+      {"rank": 5, "row": "PS-16 (and PS-17, PS-20, PS-21)", "level": "PARTIAL", "gap": "thin tool surface: no clone/heal/patch/red-eye/eraser/crop/transform tools in the window; no red-eye anywhere; no warp/puppet warp; no Image Size command", "lane_or_candidate": "width-plan candidate SMB-PS-RETOUCH-TOOLS-1 (clone, heal, patch, content-aware fill); others none"}
+    ],
+    "lightroom_classic": [
+      {"rank": 1, "row": "LR-27 (LR-27..LR-31)", "level": "PARTIAL", "gap": "library is a read-only .lrcat port: no native catalog, no CKC adapter (only the test double impl at kernel-bindings ckc_double.rs:284), no import, ratings or keywords on a real library, XMP sidecar write has no host caller", "lane_or_candidate": "none (width plan photo steps 1, 2, 11, 12 still missing/engine_only)"},
+      {"rank": 2, "row": "LR-21", "level": "PARTIAL", "gap": "AI distraction removal (people/reflection detection, generative fill) model_unavailable; distraction areas not written to XMP", "lane_or_candidate": "none (model features optional by spec)"},
+      {"rank": 3, "row": "LR-20", "level": "PARTIAL", "gap": "subject/sky/object masks evaluate to model_unavailable; brush mask is API dabs, not painted", "lane_or_candidate": "SMB-HARNESS-DEVELOP-4 queued (painted brush dabs only); AI masks none"},
+      {"rank": 4, "row": "LR-33", "level": "PARTIAL", "gap": "text watermark refused, no export presets, no file-size limit", "lane_or_candidate": "none"},
+      {"rank": 5, "row": "LR-13", "level": "PARTIAL", "gap": "no lens-profile database, Adobe .lcp not read (lens_profile.rs:5)", "lane_or_candidate": "none"},
+      {"next": "LR-23 panorama merge, Enhance and lens blur (none); LR-02 RAF/CR3/SR2 decode (SMB-RAW-CLEANROOM-3 queued); LR-17/18 DCP/XMP camera and creative profiles (none)"}
+    ],
+    "illustrator": [
+      {"rank": 1, "row": "AI-27", "level": "PARTIAL", "gap": "no Blend tool, Image Trace, Intertwine or Repeat; gradient mesh not drawn by composite/PDF/SVG", "lane_or_candidate": "SMB-AI-MESH-2 queued (mesh drawing); Blend tool none"},
+      {"rank": 2, "row": "AI-04", "level": "PARTIAL", "gap": "no Shaper tool (gesture recognition)", "lane_or_candidate": "none"},
+      {"rank": 3, "row": "AI-15", "level": "PARTIAL", "gap": "pattern-bound vector fills and strokes refused by composite (paint_pattern_not_resolved, composite vector.rs:1057)", "lane_or_candidate": "none"},
+      {"rank": 4, "row": "AI-14", "level": "PARTIAL", "gap": "no freeform gradients; mesh not rendered; no gradient control in the window", "lane_or_candidate": "SMB-AI-MESH-2 queued"},
+      {"rank": 5, "row": "AI-31", "level": "PARTIAL", "gap": "no per-object vector overprint", "lane_or_candidate": "SMB-AI-MESH-2 queued (per-object overprint attribute)"},
+      {"next": "AI-32 no .ai writer and no window route for EPS/DXF; AI-30 no ASE exchange and recolour not hosted (width-plan candidate SMB-VEC-COLOUR-HOSTS-1); AI-19 no 3D effects; AI-13 dash corner alignment; AI-26 symbol library/sprayer (SMB-DS-COMPONENTS-AUTHOR-1 LOCAL covers components only)"}
+    ],
+    "indesign": [
+      {"rank": 1, "row": "ID-31", "level": "MISSING", "gap": "open a PDF as a layout document", "lane_or_candidate": "SMB-ID-PREPRESS-2 queued"},
+      {"rank": 2, "row": "ID-11", "level": "PARTIAL", "gap": "no vertical stories, tate-chu-yoko or story orientation; RTL stories refused", "lane_or_candidate": "none"},
+      {"rank": 3, "row": "ID-27", "level": "PARTIAL", "gap": "PDF/X-4 conformance not proven; imposed booklet sheets not rendered; printer marks stored as preferences only", "lane_or_candidate": "SMB-PDFX-ORACLE queued (Acrobat Preflight, Operator-attended); print-web next candidate SMB-LAYOUT-PDF-CONTENT-1"},
+      {"rank": 4, "row": "ID-20", "level": "PARTIAL", "gap": "no stored text-wrap mode, offsets or contour wrap", "lane_or_candidate": "SMB-LAYOUT-PLACE-1 next_slices (text wrap records), not a lane yet"},
+      {"rank": 5, "row": "ID-04", "level": "PARTIAL", "gap": "fixed/flexible column width and column rules not stored", "lane_or_candidate": "none"},
+      {"next": "ID-12 nested/line styles (SMB-TYPE-INDENT-SPACING-1 LOCAL covers indents only; print-web rank 3 SMB-TYPE-CHARACTER-ATTRIBUTES-1); ID-29 spell check; ID-30 image/QR data merge (SMB-ID-PREPRESS-2); IDML/INDD import fidelity and no IDML route into the editor (no row)"}
+    ]
+  },
+  "untracked_adobe_products": [
+    {
+      "product": "Acrobat Pro",
+      "outside_row_pool": true,
+      "studio_today": "PDF engine without a PDF application surface: bounded PDF object view and writer (press-read pdf_edit.rs), redaction save that flattens redacted pages and strips the structure tree (press-read flatten.rs, flatten_purge.rs), PDF/A-2b and PDF/X-4 export with self-check (press-write export/pdfx.rs), PDF presets and stock catalogue (PASS), ink coverage and separations (PASS), hostile-PDF hardening and layout.render_pdf_page (READY)",
+      "lanes": "SMB-PDF-PRESETS-1, SMB-PDF-STOCK-PRESETS-1, SMB-PRESS-INK-COVERAGE-1 (PASS); SMB-PARSER-HOSTILE-1, SMB-LAYOUT-PDF-HOST-1 (READY); SMB-PDFX-ORACLE (queued)",
+      "missing": "no PDF viewer/editor window, no tagged-PDF writer (StructTreeRoot: 0 hits in press-write), no OCR, no form filling or signing found (AcroForm/ByteRange hits are in read, flatten and edit paths, NOT_INSPECTED further), no PDF-as-document editing (ID-31)"
+    },
+    {
+      "product": "Bridge",
+      "outside_row_pool": true,
+      "studio_today": "no browser surface; pieces only: document.import keeps original bytes and receipts, CLI batch renames (width plan photo step 4 callable), interop-lrcat XMP sidecar read/write (xmp_sidecar.rs, no harness caller), project bin for video work (SMB-PROJECT-BIN-1 READY)",
+      "lanes": "SMB-INTEROP-LRCAT, SMB-LIGHTROOM-CATALOG (PASS, read-only); SMB-PROJECT-BIN-1 (READY)",
+      "missing": "thumbnail grid, metadata panel, folders/collections browsing, ratings on files"
+    },
+    {
+      "product": "Camera Raw (Photoshop plug-in and filter)",
+      "outside_row_pool": true,
+      "studio_today": "the Lightroom develop engine opens raws into the Develop panel (open raw -> develop -> layered document, LR-34); typed develop commands LOCAL (SMB-DEVELOP-COMMANDS-1)",
+      "missing": "Camera Raw Filter on a layer (no such kind in folio StudioSmartFilterKind, smart_filter.rs:88)"
+    },
+    {
+      "product": "InCopy",
+      "outside_row_pool": true,
+      "studio_today": "story editor and find/change inside the hosted Layout Editor (ID-29 PARTIAL)",
+      "missing": "assignments, ICML/ICMA, check-in/check-out (git grep incopy|icml: one test-name hit only)"
+    },
+    {
+      "product": "Dreamweaver",
+      "outside_row_pool": true,
+      "studio_today": "web document host as typed commands: web.open/read/insert/set_text/attributes/undo/save, export static tree + manifest, publish to a local or network target with receipt, verify (SMB-WEB-HOST-1 READY, R60 probe HIGH export-job-not-admitted-jobport); site report, link graph, move-with-link-update and site lock LOCAL (SMB-WEB-SITE-1)",
+      "missing": "no window surface (view/web.rs: 'No drawing and no egui'); markup validator/linter, templates, library items, SFTP sync (SMB-WEB-SITE-1 next_slices)"
+    },
+    {
+      "product": "Adobe Color",
+      "outside_row_pool": true,
+      "studio_today": "swatch groups, palette scopes, colour books from named-colour (ncl2) profiles (SMB-COL-SWATCH-GROUPS-1 PASS); colour harmony appears only inside recolour artwork (prism recolor.rs)",
+      "missing": "theme extraction, harmony rules and contrast check as tools, ASE exchange (width-plan candidate SMB-VEC-COLOUR-HOSTS-1)"
+    }
+  ],
+  "process_findings": [
+    {"finding": "R60 never opened (registry exit 75, then the C: cap projection stopped the canary); 21 READY claims unjudged, 9 of them touch these apps (PLACE-ASSET-1 pushed later, LAYOUT-PLACE-1 at the tip)", "evidence": "ledger.json round_R60 (status NOT_OPENED, ready_claims_not_judged)"},
+    {"finding": "R60 probes found HIGH defects in four READY lanes these apps rely on: DOC-EXPORT-1 and ARTBOARD-EXPORT-1 (export job not admitted through the job port), DOC-NEW-1 (page.add mint never returns), LAYOUT-PERSIST-1 (stale layout entry permanent lockout); fixes exist only in LOCAL SMB-R60-FOLLOWUPS-1", "evidence": "ledger.json round_R60.probe_failures; builders/lanes/hsk-studio-r60-followups-1.json notes.closes"},
+    {"finding": "After D1 (egui dropped) new raster/print work lands as typed commands with no window route; under the fixed method Photoshop, Lightroom and InDesign GUI figures cannot move until the Vulkan native host hosts these surfaces (SMB-GUI-FRAME-1 READY: raster preset frame with ten panels, controls answer not_implemented_yet)", "evidence": "ledger.json direction.d1/d7; view/place.rs, layout_place.rs, layout_export.rs, doc_export.rs, document_new.rs, web.rs headers (egui-free); hsk-studio-gui-frame-1.json notes.closes"},
+    {"finding": "Lane-file drift: lane files of PASS lanes still say READY_FOR_VALIDATION (e.g. hsk-studio-ps-fill-layers.json, hsk-studio-harness-panels-1.json, hsk-studio-ai-area-type-1.json); the ledger is the authority used here", "evidence": "builders/lanes/*.json status fields vs ledger.json lanes[].status"},
+    {"finding": "Some lanes' commits do not carry the lane id (e.g. SMB-PIGMENT-FILTER-KERNELS-1 commits read 'pigment filter kernels: ...'), so git-log attribution needs the lane files' pushed fields", "evidence": "git log --grep SMB-PIGMENT-FILTER-KERNELS-1 5ab33c9..87f331f9: 0 hits; lane file pushed 5341e561"},
+    {"finding": "The C: cap stopped an InDesign typography lane mid-proof (SMB-TYPE-INDENT-SPACING-1 STOPPED exit 77, red tests 5f3112a4 not run)", "evidence": "builders/lanes/hsk-studio-type-indent-spacing-1.json phase"}
+  ],
+  "evidence": [
+    "research/parity-20261023-rollup.json, research/parity-20261023-adobe-print.json (schema, 2026-10-23 values)",
+    "research/feature-completeness-20261021.json; research/audit-20261021/parity-{photoshop,lightroom_classic,illustrator,indesign}.json rows[].notes; research/audit-20261021/gui-surfaces.json per_app[0..3].workflows and matrix_ui_flag_verification",
+    "ledger.json lanes[] (status, verdicts, commits) for 75 lanes; round_R57..round_R60; direction (d1, d7, operator directions)",
+    "builders/lanes/hsk-studio-*.json for 60 lanes (capabilities_done, gaps, pushed)",
+    "research/width-plan-20261108-raster-vector-design.json (ranked_lanes, scenarios, notes.next_after_rank_4, key_findings); research/width-plan-20261108-print-web.json (ranked_lanes, notes)",
+    "git in wt-studio-lanes/smb-layout-composer-depth-1/handshake-studio-assets: fetch origin codex/handshake-studio-assets -> 87f331f9; merge-base --is-ancestor for 23 lane tips; git log --grep per lane 5ab33c9..87f331f9; git diff --name-only c4d06841..87f331f9; git diff --stat 5ab33c9..87f331f9 on the three D5 expectation files (empty)",
+    "git show/grep at 87f331f9: harness-view view/edit.rs (Tool enum), shell.rs (panels, menus), hosted.rs (panel keys and actions), mod.rs (Text tool), place.rs, layout_place.rs, layout_export.rs, doc_export.rs, document_new.rs, export_set.rs, web.rs, proof.rs, info.rs, fill_tools.rs, develop.rs, develop_more.rs, develop/export_dialog.rs, develop/spot.rs, vector/live_filters.rs; pigment fill_tools.rs, diagnostics.rs, hdr_merge.rs; prism mode.rs, proof*; folio smart_filter.rs, layout.rs, layout_rules.rs, typestyle.rs, layoutflow.rs; layout cjk.rs, autosize.rs, liquid.rs, adjust_layout.rs, alternate.rs, pdf_export_prefs.rs; develop retouch.rs, lens_profile.rs; composite vector.rs; press-write coverage.rs; press-read pdf_edit.rs, flatten.rs, flatten_purge.rs; harness-core action/commands/{asset,document,layout}.rs"
+  ],
+  "unverified": [
+    "No build, test or oracle run; PASS statements come from ledger.json lane statuses and round_R57..R59 summaries; validation/round-R5x.json files were not opened",
+    "R59 was scoped: lanes whose last verdict is R57 or R58 count as VALIDATED through the recorded CX-VAL-002 reuse (round_R59.reused_pass 274), not a fresh R59 run",
+    "All PASS proofs on the 30 crates changed c4d06841..87f331f9 are stale under CX-VAL-009 until the next (full-scope) round",
+    "LOCAL lanes (SMB-DEVELOP-COMMANDS-1, SMB-TYPE-INDENT-SPACING-1, SMB-DS-COMPONENTS-AUTHOR-1, SMB-WEB-SITE-1, SMB-R60-FOLLOWUPS-1) read from lane files only; worktrees NOT_INSPECTED",
+    "Whether the D5 suites ran green in the R57-R59 unions: NOT_INSPECTED (expectation files unchanged is verified)",
+    "Desktop launch of the studio-harness egui window at the tip: NOT_PROVEN / NOT_INSPECTED; Vulkan host window claims (quiet window, swapchain hash) are lane-file statements of READY lanes",
+    "Vendor parity of every new capability (soft proof, histogram, actions, gradient/bucket, mode conversion, channels, healing, HDR, export sizing, area type, simplify, arrowheads, distort effects, liquid layout, CJK, auto-size, booklet, PDF presets): no oracle case; lane files declare Studio readings UNVERIFIED (D5)",
+    "Level calls where strict and lenient readings differ: PS-02, LR-21, LR-33 kept PARTIAL (lenient VALIDATED); PS-19, PS-28, PS-31 VALIDATED with non-default variants refused; AI-22 and AI-32 BUILT_NOT_VALIDATED on origin despite R60 HIGH probes on AI-22's lanes; AI type workflow counted DOABLE although point text content is the literal 'Text'",
+    "Acrobat-equivalent form filling and signing: AcroForm/ByteRange hits in press-read not opened (NOT_INSPECTED)",
+    "Spec clause line numbers not re-grepped at v02.229; STU ids are quoted from lane files"
+  ]
+}

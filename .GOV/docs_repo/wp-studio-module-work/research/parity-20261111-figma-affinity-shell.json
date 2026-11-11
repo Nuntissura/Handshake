@@ -1,0 +1,296 @@
+{
+  "schema": "hsk.studio.research.parity_update@1",
+  "file_id": "WP-KERNEL-STUDIO-PARITY-20261111-FIGMA-AFFINITY-SHELL",
+  "updated_at": "2026-11-11T16:30:00Z",
+  "by": "read-only parity auditor (Claude Opus 5.5) for Figma, Affinity, the cross-app GUI shell and the overall roll-up; no cargo, build or test was run; no product file edited; only git write: `git fetch -q origin codex/handshake-studio-assets` in wt-studio-lanes/smb-layout-composer-depth-1/handshake-studio-assets (remote-tracking ref only); targeted file reads only",
+  "wp": "WP-KERNEL-STUDIO",
+  "basis": {
+    "baseline": "research/feature-completeness-20261021.json (formulas, 308-row pool, 108 GUI workflows) with research/audit-20261021/parity-figma.json, parity-affinity.json, gui-surfaces.json (row levels, workflow lists, ui flags)",
+    "predecessor": "research/parity-20261023-figma-affinity-shell.json and research/parity-20261023-rollup.json (10-23 values below are the rollup's VALIDATED column unless named)",
+    "origin_tip": "origin/codex/handshake-studio-assets @ 87f331f9 (fetched 2026-11-11; 692 commits after the 10-23 tip 5ab33c9, 197 after the R59 candidate c4d06841; 60 entries under crates/)",
+    "last_finished_round": "STUDIO-R59 @ c4d06841 (scoped, COMPLETE 2026-11-07T09:07:37Z: 133 PASS re-judged + 274 PASS reused under CX-VAL-002 = the 407 PASS_V* lanes of ledger.json; 0 FAIL)",
+    "rounds_after": "STUDIO-R60 NOT_OPENED (attempt 2 @35c50d3b, canary stopped on the C: cap projection; 0 verdicts written; 10 probe failures recorded as leads, ledger.json round_R60)",
+    "tiers": {
+      "VALIDATED": "lane status PASS_V* in ledger.json (PASS at R59 or reused PASS in R59); code in c4d06841",
+      "UNVALIDATED": "adds lanes READY_FOR_VALIDATION whose tips are ancestors of origin 87f331f9 (git merge-base --is-ancestor checked for every tip cited) and no PASS; cumulative over VALIDATED",
+      "LOCAL": "adds lane commits not on origin (ledger status null, phase build/review_ready; lane files only, worktrees not inspected); cumulative"
+    },
+    "unvalidated_lanes_relevant": ["SMB-DOC-NEW-1 cf6788d6", "SMB-ARTBOARD-EXPORT-1 89e9a2ac", "SMB-DOC-EXPORT-1 e85e1440", "SMB-PLACE-ASSET-1 0a733db8", "SMB-LAYOUT-PERSIST-1 a3215161", "SMB-LAYOUT-PDF-HOST-1 3972c165", "SMB-LAYOUT-PLACE-1 87f331f9", "SMB-PIGMENT-FILTER-KERNELS-1 5341e561", "SMB-AI-LIVE-EFFECTS-1 1e652818", "SMB-COMMAND-SURFACE-1 98e4099c", "SMB-HARNESS-DRIVE-1 b954d4c5", "SMB-DRIVE-TYPED-2 08b372af", "SMB-GUI-STEWARD-1 7879e7e9", "SMB-VK-HOST-1 672a1804", "SMB-UI-TREE-1 12133fdf", "SMB-GUI-SPINE-1 cede5958", "SMB-GUI-FRAME-1 eb17fad6", "SMB-VK-UI-PASS-1 88b5500c", "SMB-CONTROLS-EGUI-GATE-1 9e73d34c"],
+    "local_lanes_relevant": ["SMB-DS-COMPONENTS-AUTHOR-1 e9933f32, fa15c84d (fa15c84d not on origin, merge-base checked)", "SMB-R60-FOLLOWUPS-1 dfd19635..7988d47c (7988d47c not on origin)", "SMB-FIG-GRID-3 90243907 red only, PAUSED", "SMB-DEVELOP-COMMANDS-1, SMB-MOTION-COMMANDS-2, SMB-WEB-SITE-1, SMB-DELIVERY-QUEUE-1, SMB-TYPE-INDENT-SPACING-1 (no Figma/Affinity row effect found in their lane files)"],
+    "spec": "SPEC_CURRENT v02.229 (.GOV/spec/SPEC_CURRENT.md current_spec.version)",
+    "method": "Same as the predecessor. Rows: the 2026-10-21 levels (Affinity as resolved in parity-affinity.json, AF-43 VALIDATED since R36/R37) re-checked where a lane touched them after 2026-10-23; every changed row checked at 87f331f9 with git grep / git show. Formulas unchanged: engine = 100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows; GUI per app = (DOABLE judged + 0.5*DOABLE unjudged)/workflows, DOABLE meaning reachable in the studio-harness desktop window (egui) as the baseline defines it; strict = matrix ui rows AGREE / rows. Workflow credit rule kept from the predecessor (its Designer decision): a workflow is credited only when every element it names is doable in the window; a lenient reading (core elements doable, one named element missing) is reported beside it.",
+    "split_definitions": {
+      "VALIDATED": "as tiers.VALIDATED",
+      "UNVALIDATED": "as tiers.UNVALIDATED (counted 0.5 as BUILT_NOT_VALIDATED / DOABLE unjudged)",
+      "LOCAL": "as tiers.LOCAL (counted like UNVALIDATED; never delivered)"
+    }
+  },
+  "per_app": [
+    {
+      "app": "figma",
+      "rows": 23,
+      "baseline_20261021": {"engine_counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "engine_pct": 60.9, "gui_pct": 14.3, "gui_workflows": 7, "gui_doable_judged": 1, "strict_ui_rows_agree": 0},
+      "at_20261023_validated": {"engine_pct": 60.9, "gui_pct": 28.6, "gui_points": 2.0, "strict_ui_rows_agree": 2},
+      "changed_rows": [
+        {"row": "FG-07 Auto layout", "level_before": "VALIDATED (weak AGREE: GRID refused)", "level_after": "VALIDATED (GRID gap closed)", "lanes": ["SMB-FIG-GRID-1 b38ae2e7..91cb8889 PASS_V15 (R58 @89bbf702)", "SMB-FIG-GRID-2 7b15c7a6..825598c6 PASS_V15 (R59 @c4d06841)"], "tier": "VALIDATED", "code_at_tip": "hsk-studio-components DESCRIPTOR lib.rs:219 'grid' section (STU-DS-146..150 solver, grid_append_child_at, grid_reorder_rows/columns); interop-fig-native GRID mapping; harness-view view/design/auto_layout.rs:1-46 window panel, :465 set_auto_layout_mode .. :731 auto_layout_control", "caveat": "Figma GRID algorithm UNVERIFIED (D5), no GRID fixture: GRID parity NOT_PROVEN (fig-grid-2 lane note); text children refused auto_layout_text_layer_unsupported (auto_layout.rs:19); SMB-FIG-GRID-3 that lifts it is PAUSED"},
+        {"row": "FG-23 .fig import into an editable native document", "level_before": "VALIDATED (engine; .fig opened only in the prototype player)", "level_after": "VALIDATED (engine); now reachable from File > Open", "lanes": ["SMB-FIG-EDIT-1 ecba5768, fda07339, 868be362 PASS_V20 (R59)", "SMB-FIG-EDIT-2 e592bc5f, df71ba64, 42b304c7 PASS_V20 (R59)"], "tier": "VALIDATED", "code_at_tip": "harness-view view/shell.rs:1354-1356 (Open routes a design file to import_fig); view/design/fig_import.rs:533 import_fig; view/design/instance.rs:400 design_command; view/design/persist.rs (state entry)", "caveat": "no .fig writer (git grep write_fig|export_fig|encode_fig: 0 hits)"},
+        {"row": "FG-02 / FG-03 / FG-04 components, instances, properties", "level_before": "VALIDATED (engine)", "level_after": "VALIDATED (engine); instance editing reachable in Properties for imported .fig; SLOT still refused (components lib.rs:219 'SLOT refused')", "lanes": ["SMB-FIG-EDIT-1/2 PASS_V20 (VALIDATED)", "SMB-DS-COMPONENTS-AUTHOR-1 fa15c84d (LOCAL): create/combine/property/instance/detach/sync typed commands, brief line 55 'any panel ... GUI line' out of scope"], "tier": "VALIDATED (instance use) / LOCAL (authoring commands, no window)"},
+        {"row": "FG-20 Export frames as PNG/SVG/PDF", "level_before": "PARTIAL (no SVG frame export; P3/CMYK typed losses)", "level_after": "PARTIAL (unchanged level). UNVALIDATED adds per-board / per-layer export settings and one export run writing PNG/JPG at scale/width/height, SVG and PDF", "lanes": ["SMB-ARTBOARD-EXPORT-1 bd965420..89e9a2ac READY_FOR_VALIDATION (R60 probe HIGH export-job-not-admitted-jobport; fix in LOCAL SMB-R60-FOLLOWUPS-1 f231f3eb)"], "tier": "UNVALIDATED", "code_at_tip": "harness-view view/export_set.rs:1-5 ('No draw code: a panel lane calls these'), :335 set_export_settings, :468 export_run", "why_not_raised": "P3/CMYK export profiles remain typed losses (baseline named sub-capability); exportSettings carry-over from .fig into StudioExportSettings NOT_INSPECTED"},
+        {"row": "FG-14 Canvas rendering", "level_before": "VALIDATED", "level_after": "VALIDATED; Figma line-end markers now import as stroke markers and draw in frame export", "lanes": ["SMB-AI-ARROWHEADS-2 835c6d6c..8780b3e9 PASS_V16 (R59)"], "tier": "VALIDATED", "caveat": "angular and diamond gradients still have no Folio geometry (interop-fig-native native.rs:3853)"},
+        {"row": "rows checked unchanged", "rows": "FG-06 PARTIAL (folio paint.rs:376 refuses non-Paint style kinds), FG-12 PARTIAL, FG-15 PARTIAL (native.rs:1134-1135 'native.text.auto_resize' loss), FG-16..FG-19, FG-21 MISSING (SMB-FIG-COLLAB queued, status null; git grep design_token|tokens_export|dev_mode: 0 files), FG-22 MISSING (folio autolayout.rs:26 'layout grids (STU-DS-153..156) are not stored')"}
+      ],
+      "recomputed": {
+        "engine": {
+          "VALIDATED": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "points": 14.0, "pct": 60.9},
+          "UNVALIDATED": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "points": 14.0, "pct": 60.9},
+          "LOCAL": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "points": 14.0, "pct": 60.9},
+          "delta_vs_20261023": "0.0 at every tier: the new Figma work is host and window work over engine rows that were already VALIDATED"
+        },
+        "gui": {
+          "workflows": 7,
+          "VALIDATED": {"doable_judged": 3, "doable_unjudged": 0, "points": 3.0, "pct": 42.9, "lenient_points": 5.0, "lenient_pct": 71.4},
+          "UNVALIDATED": {"points": 3.0, "pct": 42.9, "lenient_pct": 71.4, "note": "no READY lane adds window UI (PF-1)"},
+          "LOCAL": {"points": 3.0, "pct": 42.9, "lenient_pct": 71.4, "note": "SMB-DS-COMPONENTS-AUTHOR-1 is typed commands only"},
+          "delta_vs_20261023": "+1.0 point strict (+14.3 pp), +3.0 lenient"
+        },
+        "strict_ui_rows_agree": {"VALIDATED": 2, "UNVALIDATED": 2, "LOCAL": 2, "pct": 8.7, "rows": ["FG-10", "FG-11"], "raise_candidates_ui_false_now_reachable": ["FG-23 (File > Open .fig)", "FG-03 (instance overrides in Properties)", "FG-07 (auto layout panel)"], "note": "only FG-10/FG-11 carry the matrix ui flag; raises are not counted in strict (baseline rule)"}
+      },
+      "top_gaps": "see top_gaps.figma",
+      "oracle_status": "No Figma vendor oracle. Three Operator .fig fixtures only; GRID parity NOT_PROVEN (no GRID fixture, fig-grid-2 lane note); create/combine/detach behaviour UNVERIFIED (D5, DS-COMPONENTS-AUTHOR-1 declared_readings)."
+    },
+    {
+      "app": "affinity",
+      "rows": 80,
+      "studio_split_rows": {"shared": 20, "pixel (Photo)": 23, "develop (Photo)": 3, "vector (Designer)": 18, "layout (Publisher)": 16},
+      "baseline_20261021": {"engine_counts": {"VALIDATED": 24, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 40, "MISSING": 15}, "engine_pct": 43.1, "gui_pct": 60.0, "gui_workflows": 15, "gui_doable_judged": 9, "strict_ui_rows_agree": 15},
+      "at_20261023_validated": {"engine_counts": {"VALIDATED": 25, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 40, "MISSING": 15}, "engine_pct": 43.8, "gui_pct": 66.7, "gui_points": 10.0, "strict_ui_rows_agree": 20, "strict_local": 22},
+      "changed_rows": [
+        {"row": "AF-12 Macros and batch jobs (shared)", "level_before": "MISSING", "level_after": "PARTIAL", "lanes": ["SMB-PS-ACTIONS-1 4356b72d..179dc3d6 PASS_V18 (R59)"], "tier": "VALIDATED", "code_at_tip": "harness-core harness.rs:761 start_recording, :797 play_action (one undo step); batch.rs:1-14 and :806 run_batch (job record, sources, applied automation, filename template, receipts)", "why_partial": "only the Run command stream is recordable (SMB-COMMAND-SURFACE-1 cut 'typed rows not recordable'); batch writes native packages, other formats only through the TargetExporter port of READY SMB-DOC-EXPORT-1 (batch.rs:11-13); concurrency 1, date tokens refused", "baseline_reason_closed": "'no macro recorder' (PS-31 MISSING)"},
+        {"row": "AF-35 HDR merge and tone mapping persona (pixel)", "level_before": "MISSING", "level_after": "PARTIAL", "lanes": ["SMB-HDR-MERGE-1 ec43c82c..b64650e8 PASS_V17 (R58)", "SMB-HDR-MERGE-2 558969d3 PASS_V16 (R58)"], "tier": "VALIDATED", "code_at_tip": "pigment hdr_merge.rs:456 merge_brackets (MTB alignment, deghost 0..3), hdr_merge/tone.rs:61 tone_map; develop hdr_merge.rs:176 merge_raw_brackets; dng_from_hdr float LinearRaw", "why_partial": "tone mapping is one global Reinhard operator with explicit exposure (tone.rs:1-11); no local tone-mapping controls or presets, no persona UI"},
+        {"row": "AF-55 Stroke panel: width profiles, dashes, arrowheads, pressure (vector)", "level_before": "PARTIAL (arrowheads not stored)", "level_after": "VALIDATED", "lanes": ["SMB-AI-ARROWHEADS-1 bb721a39..2a60acf3 PASS_V15 (R58)", "SMB-AI-ARROWHEADS-2 835c6d6c..8780b3e9 PASS_V16 (R59)"], "tier": "VALIDATED", "code_at_tip": "folio vector.rs:515 stroke_markers; nib markers.rs:575 marker_outlines; harness-view hosted.rs:19, :225-227 Stroke panel panel.stroke.marker.*", "caveat": "markers on vector networks refused (vector_marker_network pinned); AI-13's corner adjustment / gap colour are not in AF-55's scope; Affinity behaviour UNVERIFIED (no oracle)"},
+        {"row": "AF-63 Text frames, linking and columns (layout)", "level_before": "PARTIAL (ID-04 auto-size / first-baseline refusals)", "level_after": "VALIDATED", "lanes": ["SMB-ID-FRAME-AUTOSIZE-1 591009d3..b066a307 PASS_V16 (R59)", "SMB-ID-FRAME-AUTOSIZE-2 fd4eb215..b425b54a PASS_V14 (R58)"], "tier": "VALIDATED", "code_at_tip": "layout autosize.rs:82 autosized_document; threaded_reflow.rs:446 reflow_autosize; STU-LAY-120 first baselines on every reflow entry (lane capability list)", "caveat": "ID-04's other absences (fixed/flexible column width, column rules) were not part of AF-63's stated reason; whether Affinity Publisher has them is UNVERIFIED"},
+        {"row": "AF-60 Artboards (vector)", "level_before": "PARTIAL (artboard node kind only)", "level_after": "PARTIAL at VALIDATED; BUILT_NOT_VALIDATED at UNVALIDATED", "lanes": ["SMB-DOC-NEW-1 b721f142..cf6788d6 READY (R60 probe HIGH page-add-mint-never-returns)", "SMB-ARTBOARD-EXPORT-1 bd965420..89e9a2ac READY (R60 probe HIGH export-job-not-admitted-jobport)"], "tier": "UNVALIDATED", "code_at_tip": "harness-core action/commands/document.rs:45 artboard.add, :50 artboard.set_options (also artboard.delete/move/rename/resize), harness/containers.rs:266; harness-view export_set.rs:468 export_run (per artboard)", "risk": "both lanes carry open HIGH probe findings; fixes only in LOCAL SMB-R60-FOLLOWUPS-1 (ce511004, f231f3eb, not on origin)"},
+        {"row": "AF-07 SVG and EPS import/export (vector)", "level_before": "PARTIAL (EPS import regressed to refusal on 5ab33c9)", "level_after": "PARTIAL (EPS vector import restored and PASS-judged, still opt-in)", "lanes": ["SMB-EPS-FREE-FONTS d195ef7..b7ef882e PASS_V21 (R59)"], "tier": "VALIDATED", "code_at_tip": "interop-vector-core eps.rs:12-14 (import_eps refuses, import_eps_with hands PostScript to the isolated worker), :40-47 EPS_ROUTE per feature 'eps'; vendored hsk-studio-ps* crates", "why_partial": "worker behind feature eps (opt-in); no EPS preflight (baseline reason kept)"},
+        {"row": "rows improved without a level change", "items": [
+          "AF-16 swatch groups, palette scope document/application/system, colour books, ICC named-colour profiles (SMB-COL-SWATCH-GROUPS-1 PASS_V6; folio colour_book.rs:125); PARTIAL kept: .afpalette/ASE exchange absent (git grep afpalette|.ase: 0 files)",
+          "AF-41 spare channels: folio channel.rs:105 StudioChannelRecord, save/load selection to channel, list ops, PSD/TIFF round trip (SMB-FOLIO-CHANNEL-RECORD PASS_V9, SMB-TIFF-CHANNELS-1 PASS_V7); PARTIAL kept: no painting into a channel, no Split/Merge/Apply Image (lane next)",
+          "AF-15 Image > Mode grayscale->bitmap and RGB->indexed (SMB-PS-MODE-CONVERT-1 PASS_V4); PARTIAL kept: no OCIO, no CMYK/Lab conversion command found",
+          "AF-42 live point/area/path text shaped by the viewer and editable through the Path Operations Type section (SMB-AI-AREA-TYPE-1..4 PASS_V18/V19/V18/V17); PARTIAL kept in line with PS-23 (no character/paragraph panels, warp)",
+          "AF-24 soft proof as a view, not an adjustment layer (SMB-PS-SOFT-PROOF-1/2 PASS_V11/V20); PARTIAL kept",
+          "AF-25 19 raster kernel kinds as smart filters (SMB-PIGMENT-FILTER-KERNELS-1 READY); PARTIAL kept (filter stack still a member of the raster record)",
+          "AF-26 live effects on vector objects (SMB-AI-LIVE-EFFECTS-1 READY); PARTIAL kept (no 3D effect)",
+          "AF-03 layered PSD export of raster layers and groups (SMB-DOC-EXPORT-1 READY, doc_export.rs:1-6); PARTIAL kept (other layer kinds refused psd_layer_kind_not_exported)",
+          "AF-13 per-node export settings and one multi-file run (SMB-ARTBOARD-EXPORT-1 READY), document export recipes (SMB-DOC-EXPORT-1 READY), PDF export presets (SMB-PDF-PRESETS-1 PASS_V6); PARTIAL kept (no free slices, no persona)",
+          "AF-75 printer marks as preference/print records (layout pdf_export_prefs.rs:968, print.rs:455), PDF/X-4 export with self-check from commands (SMB-LAYOUT-PDF-HOST-1 READY); PARTIAL kept: marks not drawn (git grep crop_mark|trim_mark|draw_marks in press-write: no drawing site), PDF/X-4 not_proven",
+          "AF-30 develop spot heal/clone/distraction (SMB-LR-HEALING-1/2 PASS_V20); PARTIAL kept (no red-eye, no pixel-layer retouch tools)",
+          "AF-44 CJK kinsoku composition (SMB-ID-CJK-KINSOKU-1 PASS_V18); already VALIDATED",
+          "AF-58 component authoring typed commands (SMB-DS-COMPONENTS-AUTHOR-1 LOCAL); PARTIAL kept (no symbol panel, no automatic propagation)",
+          "AF-64/AF-74 place into layout graphic frames with fit and a fail-closed link gate (SMB-LAYOUT-PLACE-1 READY @87f331f9); levels kept"
+        ]},
+        {"row": "rows checked unchanged", "rows": "AF-02 (git log 5ab33c9..87f331f9 -- crates/hsk-studio-interop-affinity: empty; window still refuses, RUN-UI.md:25-26), AF-05 (interop-layout DESCRIPTOR 'next' still lists style definitions and master spreads), AF-17, AF-22, AF-23, AF-28, AF-31, AF-36, AF-37, AF-57 (SMB-AI-MESH-2 queued), AF-72 (no place-gun code: the only 'autoflow' hits are the components grid ROW_AUTO_FLOW), AF-73, AF-76, AF-77, AF-78, AF-79, AF-80"}
+      ],
+      "gui_changes": [
+        {"workflow": "Artistic / frame text with content", "before": "ENGINE_ONLY (literal 'Text')", "after": "DOABLE judged", "path": "Workspace > Path Operations (Shift+F8) Type section: text field type.text, Type on Path, Area Type, Convert Point / Area Type (hosted.rs:1017-1028); frame text in the layout editor story editor (layout_ui.rs:890); Type > Convert > Create Outlines", "proof": "SMB-AI-AREA-TYPE-3 PASS_V18, SMB-HARNESS-PANELS-1 PASS_V21, SMB-VIEW-POLISH-1 PASS_V17 (R59)", "caveat": "one line per bound text; a Text-tool click still places the literal 'Text' (mod.rs:1367)", "tier": "VALIDATED"},
+        {"workflow": "Designer: align/transform, swatches, gradients, appearance, styles", "before": "LOCAL partial (PANELS-1)", "after": "strict: not credited (no vector gradient control: hosted Appearance sets solid colour, the Gradient tool is raster only, fill_tools.rs:1-3, :29); lenient: DOABLE judged", "proof": "SMB-HARNESS-PANELS-1 7d227c22, e2e8c10c, 347026e9 PASS_V21 (R59)", "tier": "VALIDATED"},
+        {"workflow": "Export PSD / PDF / SVG", "before": "LOCAL partial", "after": "strict: not credited (no PSD export in the window; doc_export.rs:6 'No egui', no window caller of export_document); lenient: DOABLE judged (Workspace > Vector Export SVG/PDF, Shift+F12)", "proof": "SMB-HARNESS-PANELS-1 PASS_V21", "tier": "VALIDATED"},
+        {"workflow": "Photo: adjustments, live filters, effects, masks (create/edit)", "after": "unchanged ENGINE_ONLY: the Masks panel makes clipping / alpha / luminance / vector masks but there is no adjustment, filter or effect creation and no pixel-mask edit target (fill_tools.rs:29)"},
+        {"workflow": "Publisher: pages, text frames, tables, styles, preflight", "after": "DOABLE judged (unchanged); edits persisted with the document only in READY SMB-LAYOUT-PERSIST-1 (R60 probe HIGH stale-layout-entry-permanent-lockout)"},
+        {"workflow": "Open native .af*", "after": "unchanged ENGINE_ONLY (window Open refuses, RUN-UI.md:25-26)"}
+      ],
+      "recomputed": {
+        "engine": {
+          "VALIDATED": {"counts": {"VALIDATED": 27, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 40, "MISSING": 13}, "points": 37.0, "pct": 46.3, "pct_by_studio": {"shared": 52.5, "pixel": 21.7, "develop": 25.0, "Photo (pixel+develop)": 22.1, "vector": 66.7, "layout": 54.7}},
+          "UNVALIDATED": {"counts": {"VALIDATED": 27, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 39, "MISSING": 13}, "points": 37.25, "pct": 46.6, "pct_by_studio": {"shared": 52.5, "pixel": 21.7, "develop": 25.0, "Photo (pixel+develop)": 22.1, "vector": 68.1, "layout": 54.7}},
+          "LOCAL": {"counts": {"VALIDATED": 27, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 39, "MISSING": 13}, "points": 37.25, "pct": 46.6},
+          "delta_vs_20261023": "+2.5 pp VALIDATED (43.8 -> 46.3), +2.8 pp UNVALIDATED and LOCAL (43.8 -> 46.6)"
+        },
+        "gui": {
+          "workflows": 15,
+          "VALIDATED": {"doable_judged": 11, "doable_unjudged": 0, "points": 11.0, "pct": 73.3, "lenient_points": 13.0, "lenient_pct": 86.7},
+          "UNVALIDATED": {"points": 11.0, "pct": 73.3, "lenient_pct": 86.7},
+          "LOCAL": {"points": 11.0, "pct": 73.3, "lenient_pct": 86.7},
+          "delta_vs_20261023": "+1.0 point strict (+6.6 pp), +3.0 lenient"
+        },
+        "strict_ui_rows_agree": {
+          "VALIDATED": 22, "UNVALIDATED": 22, "LOCAL": 22, "pct": 27.5,
+          "added_validated_since_20261023": ["AF-48 (Path Operations Live Corner)", "AF-61 (Align & Distribute, Transform)"],
+          "still_lower": ["AF-17 (no vector gradient control)", "AF-21 (no pixel-mask edit target)", "AF-24, AF-26 (view-only)"],
+          "raise_candidates_ui_false_now_reachable": ["AF-43 (Type on Path)", "AF-51 (Offset Path)", "AF-54 (Envelope Distort)", "AF-07 (Vector Export SVG)"]
+        }
+      },
+      "top_gaps": "see top_gaps.affinity",
+      "oracle_status": "No Affinity vendor oracle (SMB-AFFINITY-ORACLE-OPERATOR 'decided', no claim). Every Affinity behaviour row is UNVERIFIED against Affinity."
+    }
+  ],
+  "shell": {
+    "what_changed_since_20261023": [
+      {"change": "Hosted panels judged", "detail": "13 floating panels behind Workspace > Panels (appearance, stroke, swatches, graphic styles, align & distribute, transform, path operations, masks, envelope distort, brushes, vector export, vector import, audio batch); Panel::ALL is 25 (shell.rs:110), HostedPanel::ALL 13 (hosted.rs:88)", "lane": "SMB-HARNESS-PANELS-1 7d227c22..347026e9 PASS_V21", "moves": "illustrator, affinity, audition workflows; strict rows AI-07/16/20/23/24, AF-48, AF-61 now PASS-judged (they were LOCAL on 10-23)"},
+      {"change": "Menus from controls descriptors; HELP menu", "detail": "File / Edit / View / Type / Color / Workspace / Help built from hsk-studio-controls MenuBar descriptors with one availability record; Help: Studio Manual, Search, Full Command Index, Keyboard Shortcut Reference, System Report, About (others greyed NOT_IMPLEMENTED_YET); F-R37-3 dialog label fixed (RUN-UI.md:67 'Design file (.fig)')", "lane": "SMB-HARNESS-SHELL-2 fdb4f81c..1709b748 PASS_V21", "moves": "discoverability only; no workflow by itself"},
+      {"change": ".fig opens as an editable document; instance inspector; auto-layout panel", "lane": "SMB-FIG-EDIT-1/2 PASS_V20, SMB-FIG-GRID-2 PASS_V15", "moves": "figma"},
+      {"change": "Type tool and Type section", "detail": "Text-tool click makes path / area / point text; Path Operations Type section with a text field; Type > Convert > Create Outlines (Ctrl+Shift+O)", "lane": "SMB-VIEW-POLISH-1 PASS_V17, SMB-AI-AREA-TYPE-3 PASS_V18", "moves": "affinity, illustrator, photoshop (text)"},
+      {"change": "Stroke panel arrowheads", "lane": "SMB-AI-ARROWHEADS-2 PASS_V16", "moves": "illustrator, affinity"},
+      {"change": "Raster Gradient tool, Paint Bucket, Edit > Fill; Info panel; View/Color > Proof", "lane": "SMB-PS-GRADIENT-BUCKET-1 PASS_V16, SMB-PS-INFO-HISTOGRAM-1 PASS_V19, SMB-PS-SOFT-PROOF-2 PASS_V20", "moves": "photoshop (new surfaces outside its 18 listed workflows)"},
+      {"change": "Develop spot healing section; develop export dialog", "lane": "SMB-LR-HEALING-2 PASS_V20, SMB-LR-EXPORT-GUI-1 PASS_V16", "moves": "lightroom_classic"},
+      {"change": "Timeline F10 judged; trims, rate stretch, nest, sequence export UI; multitrack", "lane": "SMB-TIMELINE-UI-1 PASS_V20, SMB-TIMELINE-TRIM-1 PASS_V20, SMB-PR-RATE-STRETCH-1 PASS_V20, SMB-PR-NEST-1/2 PASS_V16, SMB-PR-SEQ-EXPORT-UI-1 PASS_V16, SMB-AU-MULTITRACK-1..3 PASS_V18/V18/V16", "moves": "premiere_pro, audition (owned by the video-audio audit)"},
+      {"change": "Row wrapping at small window sizes", "lane": "SMB-SHELL-ROW-WRAP-1 PASS_V19", "moves": "fit only"},
+      {"change": "Direction D1 / D7 (ledger.json direction d1, d7): egui dropped, pure Vulkan, no new egui code", "detail": "git diff c4d06841..87f331f9 over harness-view/src: 53 files, +9842 lines, 0 added egui:: or ui.button/add/label/horizontal/checkbox/collapsing/menu_button lines; every new module says it has no draw code (export_set.rs:5, doc_export.rs:6, place.rs, document_new.rs, layout_place.rs, layout_export.rs, project.rs, web.rs)", "moves": "freezes the window GUI metric at R59 for every app: UNVALIDATED and LOCAL add no window workflow (LOCAL by lane files only)"},
+      {"change": "Asset-local Vulkan host (new crates hsk-studio-vulkan, hsk-studio-native-host, kumihimo-ui, hsk-studio-ui-text)", "detail": "studio-vk: offscreen and quiet-window capture with receipts; scene gui shows a real document in the raster frame of mock-raster.html (menu bar, tab strip, Context Bar, Tool Rail, docks, rulers, status bar); working: Layers row select, eye toggle (one undo step), Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, tool-slot pick, tab select; every other control 'frame.static not_implemented_yet'; chrome CPU-painted or drawn by the Vulkan UI pass (--chrome vulkan, exact parity claimed at four scales); README: 'a proof host, never host acceptance (HBR-HOST-001)'", "lanes": "SMB-GUI-STEWARD-1, SMB-VK-HOST-1, SMB-UI-TREE-1, SMB-GUI-SPINE-1, SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1, SMB-CONTROLS-EGUI-GATE-1: all READY_FOR_VALIDATION, tips on origin", "moves": "0 vendor workflows in any app (UNVALIDATED); the document opens only by CLI path, no file dialog, no zoom/pan (B11), Properties/Colour bodies empty"},
+      {"change": "Model drive surface (not GUI)", "detail": "studio-harness command / command --stdin drives Viewer and Run without a window: 150 typed rows (37 layout, 41 panel, 7 proof, 25 vector, 8 design, 30 photo, 2 catalog), 86 viewer.<method>, 39 timeline.<key>, mixer/waveform/monitor/prototype/design.instance rows", "lanes": "SMB-HARNESS-DRIVE-1, SMB-COMMAND-SURFACE-1, SMB-DRIVE-TYPED-2: READY", "moves": "no GUI metric; it is the STU-CMP-110 'typed-steerable' half and the path every post-D1 capability uses"}
+    ],
+    "reachability_note": "All 7 surfaces that were LOCAL on 10-23 (gui-surfaces #25-#30, #41) are now PASS-judged in the window; the 3 still unreachable on 10-23 stay so in the window: render-queue panel (no RenderQueue in shell.rs / timeline_ui.rs), CLI (#4, by nature), model navigation (#48, by nature; the drive surface above is its READY successor).",
+    "menus_dialogs_help": "origin: menu bar File/Edit/View/Type/Color/Workspace/Help from controls descriptors; own file dialog; Open Recent; HELP 16 leaves (RUN-UI.md:47-72). Still absent in the window: docking, multi-document, drag-and-drop, Layout Presets, settings path (recents persist only with --recent).",
+    "headless_proof": {
+      "egui_window": "unchanged: no screenshot capture, git grep egui_kittest: 0 files, Argus only as a word in harness-core action/commands.rs:68; RUN-UI.md:3 'The window is never opened by tests or agents' -> desktop launch NOT_PROVEN",
+      "vulkan_host": "offscreen PNG, quiet-window capture (focus_changes 0, swapchain hash = offscreen hash), semantic tree file and receipt: STU-CMP-110 screenshot-capturable half met for that host only, UNVALIDATED (SMB-VK-HOST-1, SMB-GUI-SPINE-1, SMB-GUI-FRAME-1 READY)"
+    }
+  },
+  "gui_workflows_now_doable_by_app": {
+    "rule": "DOABLE = reachable in the studio-harness window through PASS-judged surfaces (baseline definition); strict credit needs every named element; 'candidate' = shell-driven change seen by this audit, the owning audit (adobe-print or video-audio) decides the credit. Because of D1 (shell.what_changed_since_20261023), UNVALIDATED and LOCAL add nothing in the window for any app.",
+    "figma": {"workflows": 7, "points_20261023": 2.0, "points_now": {"VALIDATED": 3.0, "UNVALIDATED": 3.0, "LOCAL": 3.0}, "lenient_points_now": 5.0,
+      "became_doable": [{"workflow": "Open a .fig file", "tier": "VALIDATED", "lane": "SMB-FIG-EDIT-1 PASS_V20", "anchor": "shell.rs:1354-1356, RUN-UI.md:182-191"}],
+      "partly_doable_not_credited": [
+        {"workflow": "Components, variants, instances, overrides", "doable": "switch variants, set component properties, override text, reset, swap, saved across reopen (instance.rs:400; SMB-FIG-EDIT-1/2 PASS_V20)", "missing": "creating components or variant sets in the window (typed commands only in LOCAL SMB-DS-COMPONENTS-AUTHOR-1)"},
+        {"workflow": "Auto layout and constraints", "doable": "flow and GRID auto layout with re-solve, one undo step (auto_layout.rs; SMB-FIG-GRID-2 PASS_V15)", "missing": "no constraints editor (only a default STRETCH constraint written for a frame background, auto_layout.rs:667); text children refused"}],
+      "still_not_doable": ["Variables and modes (no window or typed authoring; width-plan rank 3 lane not in ledger)", "Export frames PNG/SVG/PDF (export_set.rs typed only, READY)"],
+      "vulkan_host": "none"},
+    "affinity": {"workflows": 15, "points_20261023": 10.0, "points_now": {"VALIDATED": 11.0, "UNVALIDATED": 11.0, "LOCAL": 11.0}, "lenient_points_now": 13.0,
+      "became_doable": [{"workflow": "Artistic / frame text with content", "tier": "VALIDATED", "lane": "SMB-AI-AREA-TYPE-3 PASS_V18 + SMB-HARNESS-PANELS-1 PASS_V21", "anchor": "hosted.rs:1017-1028"}],
+      "partly_doable_not_credited": [
+        {"workflow": "Designer: align/transform, swatches, gradients, appearance, styles", "missing": "vector gradients"},
+        {"workflow": "Export PSD / PDF / SVG", "missing": "PSD (typed export recipe only, READY SMB-DOC-EXPORT-1)"}],
+      "still_not_doable": ["Open native .af*", "Photo: adjustments, live filters, effects, masks (create/edit)"],
+      "vulkan_host": "open a PSD/PNG/.handshake by CLI path and view it; Layers select / eye / undo only; 0 workflows"},
+    "photoshop": {"workflows": 18, "points_20261023": 11.0, "candidates": [
+      {"workflow": "Create and edit layer/vector masks", "evidence": "Masks panel (clip / alpha / luminance / vector, PANELS-1 PASS_V21)", "missing": "no raster layer-mask edit target (fill_tools.rs:29)", "verdict_here": "partial, owner decides"},
+      {"workflow": "Add and edit text", "evidence": "Path Operations Type section text field (AREA-TYPE-3 PASS_V18)", "missing": "Text-tool click still places the literal 'Text' (mod.rs:1367); no character panel", "verdict_here": "partial, owner decides"}],
+      "new_surfaces_outside_the_list": ["Gradient tool, Paint Bucket, Edit > Fill (SMB-PS-GRADIENT-BUCKET-1 PASS_V16; Tool::Gradient edit.rs:114)", "Info panel histogram / samplers (SMB-PS-INFO-HISTOGRAM-1 PASS_V19)", "View / Color > Proof (SMB-PS-SOFT-PROOF-2 PASS_V20)"],
+      "unchanged": "erase/retouch, adjustment layers, layer styles, filters, crop/transform tools (Tool::ALL edit.rs:82 has no eraser, clone, heal, crop or move)",
+      "vulkan_host": "open by CLI path, Layers select / eye, undo / redo; 0 workflows credited"},
+    "lightroom_classic": {"workflows": 13, "points_20261023": 9.0, "candidates": [], "new_surfaces_outside_the_list": ["Develop spot heal / clone / distraction section (SMB-LR-HEALING-2 PASS_V20)", "develop export dialog with sizing, sharpening, watermark (SMB-LR-EXPORT-GUI-1 PASS_V16; extends an already doable workflow)"], "unchanged": "library, crop and straighten (no crop control in develop.rs / develop_more.rs), presets, sync"},
+    "illustrator": {"workflows": 17, "points_20261023": 8.0, "candidates": [
+      {"workflow": "Live corners on existing paths", "evidence": "Path Operations Live Corner (PANELS-1 PASS_V21)"},
+      {"workflow": "Stroke panel: caps, joins, dashes, arrowheads", "evidence": "Stroke panel + panel.stroke.marker.* (PANELS-1 PASS_V21, ARROWHEADS-2 PASS_V16)"},
+      {"workflow": "Align, distribute, transform", "evidence": "Align & Distribute, Transform panels (PANELS-1 PASS_V21)"},
+      {"workflow": "Clipping and opacity masks", "evidence": "Masks panel (PANELS-1 PASS_V21)"},
+      {"workflow": "Type: point/area/on a path, outlines", "evidence": "Text-tool click on path / closed path / elsewhere, Type section, Create Outlines (VIEW-POLISH-1 PASS_V17, AREA-TYPE-3 PASS_V18)"},
+      {"workflow": "Export SVG / PDF", "evidence": "Vector Export panel (PANELS-1 PASS_V21)"},
+      {"workflow": "Swatches, graphic styles, recolour artwork", "evidence": "Swatches, Graphic Styles panels", "missing": "recolour artwork (no recolor in hosted.rs)", "verdict_here": "partial"},
+      {"workflow": "Open .ai / .svg / .pdf as editable vectors", "evidence": "Vector Import (.ai)", "missing": ".svg / .pdf as editable vectors not seen in the panel (RUN-UI.md:104)", "verdict_here": "partial"}],
+      "unchanged": "Gradients (no vector gradient control)"},
+    "indesign": {"workflows": 10, "points_20261023": 7.0, "candidates": [], "unchanged": "Open IDML (no idml route in shell.rs), Place images and Export PDF/EPUB exist only as typed commands (layout_place.rs, layout_export.rs 'egui-free' / 'No draw code'; SMB-LAYOUT-PLACE-1, SMB-LAYOUT-PDF-HOST-1 READY); layout edits persisted only in READY SMB-LAYOUT-PERSIST-1"},
+    "premiere_pro": {"workflows": 10, "points_20261023": 4.0, "candidates": [
+      {"workflow": "Timeline assembly and editing", "evidence": "Timeline F10 (SMB-TIMELINE-UI-1 PASS_V20; READY on 10-23)"},
+      {"workflow": "Trimming (ripple/roll/slip/slide)", "evidence": "SMB-TIMELINE-TRIM-1 PASS_V20, SMB-PR-RATE-STRETCH-1 PASS_V20"},
+      {"workflow": "Export (render queue / presets)", "evidence": "sequence export UI in the timeline toolbar (SMB-PR-SEQ-EXPORT-UI-1 PASS_V16)"}], "note": "owned by the video-audio audit"},
+    "after_effects": {"workflows": 8, "points_20261023": 0.0, "candidates": [], "unchanged": "no composition, keyframe or render-queue panel in the window (SMB-AE-KEYFRAME-TIMELINE-1 BLOCKED on D7/D8)"},
+    "audition": {"workflows": 10, "points_20261023": 6.0, "candidates": [
+      {"workflow": "Multitrack session, mixer, routing", "evidence": "SMB-AU-MULTITRACK-1..3 PASS_V18/V18/V16 (timeline multitrack + mix)"},
+      {"workflow": "Batch processing and effect presets", "evidence": "Audio Batch panel (PANELS-1 PASS_V21; was LOCAL, counted +0.5 on 10-23)", "missing": "effect presets not seen in the panel (RUN-UI.md:105: gain, FLAC/AIFF)"}], "note": "owned by the video-audio audit"}
+  },
+  "overall": {
+    "status": "PARTIAL",
+    "why": "research/parity-20261111-adobe-print.json and parity-20261111-video-audio.json were absent when this file was written; only the Figma and Affinity deltas are applied below, on the 2026-10-23 rollup counts of the other seven apps",
+    "engine_9_apps": {
+      "rows": 308,
+      "at_20261023": {"VALIDATED": 55.8, "UNVALIDATED": 56.0, "LOCAL": 56.0},
+      "VALIDATED": {"counts": {"VALIDATED": 139, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 139, "MISSING": 30}, "pct": 56.4, "formula": "173.75/308"},
+      "UNVALIDATED": {"counts": {"VALIDATED": 139, "BUILT_NOT_VALIDATED": 4, "PARTIAL": 135, "MISSING": 30}, "pct": 56.7, "formula": "174.75/308"},
+      "LOCAL": {"pct": 56.7},
+      "lead_inputs": {"figma_points": {"VALIDATED": 14.0, "UNVALIDATED": 14.0, "LOCAL": 14.0}, "affinity_points": {"VALIDATED": 37.0, "UNVALIDATED": 37.25, "LOCAL": 37.25}, "affinity_counts_delta_vs_20261023": {"VALIDATED": "+2 V, -2 M", "UNVALIDATED": "+2 V, +1 BNV, -1 P, -2 M"}}
+    },
+    "engine_8_apps": {"note": "excludes Affinity; Figma unchanged, so 8-app movement comes only from the sibling audits (10-23: 60.0 / 60.3 / 60.3)"},
+    "gui_pooled_108_workflows": {
+      "at_20261023_points": {"VALIDATED": 57.0, "UNVALIDATED": 57.5, "LOCAL": 61.0},
+      "figma_affinity_delta_points": {"VALIDATED": 2.0, "UNVALIDATED": 2.0, "LOCAL": 2.0},
+      "partial_points": {"VALIDATED": 59.0, "UNVALIDATED": 59.5, "LOCAL": 63.0},
+      "partial_pct": {"VALIDATED": 54.6, "UNVALIDATED": 55.1, "LOCAL": 58.3},
+      "lenient_figma_affinity_delta_points": 6.0,
+      "carry_forward_for_the_lead": "every 10-23 LOCAL / UNVALIDATED window credit is now PASS-judged (Illustrator PANELS-1 panels, Premiere Timeline F10, Audition audio batch), so the 10-23 LOCAL credits belong in VALIDATED before the sibling audits add theirs; the candidates in gui_workflows_now_doable_by_app are not counted here"
+    },
+    "gui_strict_ui_rows": {
+      "at_20261023": {"VALIDATED": 64, "UNVALIDATED": 69, "LOCAL": 76},
+      "composition_now_before_sibling_additions": {"VALIDATED": 76, "UNVALIDATED": 76, "LOCAL": 76, "pct": 24.7},
+      "how": "10-23 VALIDATED 64 + AF-48, AF-61 + AI-07, AI-16, AI-20, AI-23, AI-24 (all via SMB-HARNESS-PANELS-1 PASS_V21) + PR-03, PR-04, PR-05, PR-11, PR-12 (SMB-TIMELINE-UI-1 PASS_V20) = 76; Figma adds 0 (only FG-10/FG-11 carry the ui flag); Affinity adds no row beyond AF-48/AF-61; the AI and PR rows are listed as the 10-23 rollup composed them and remain the sibling audits' to confirm"
+    },
+    "proof_freshness": "VALIDATED = R59 @c4d06841. 197 commits sit on origin after it, none judged: R60 never opened (C: cap projection), so every UNVALIDATED gain above is unjudged and two of them (SMB-DOC-NEW-1, SMB-ARTBOARD-EXPORT-1) carry open HIGH probe findings"
+  },
+  "gained_since_20261023": {
+    "figma": [
+      {"what": "A .fig file opens from File > Open as an editable native document (layers, artboards, vector paths, text, paint styles) saved beside the source", "tier": "VALIDATED", "lane": "SMB-FIG-EDIT-1"},
+      {"what": "Instance inspector in Properties: switch variants, set component properties, override text, reset overrides, swap component; every change is one undo step and survives save and reopen", "tier": "VALIDATED", "lane": "SMB-FIG-EDIT-1, SMB-FIG-EDIT-2"},
+      {"what": "GRID auto layout: grid tracks (fixed / hug / flex), spans, anchors, gaps, row and column reorder; .fig GRID frames import; an auto-layout panel in the window re-solves frames on edit", "tier": "VALIDATED", "lane": "SMB-FIG-GRID-1, SMB-FIG-GRID-2"},
+      {"what": "Figma arrow and line-end caps import as stroke arrowheads and draw in frame export", "tier": "VALIDATED", "lane": "SMB-AI-ARROWHEADS-2"},
+      {"what": "Per-frame and per-layer export settings with one run writing PNG/JPG at a scale, width or height, plus SVG and PDF framed on the board (SVG frame export was missing)", "tier": "UNVALIDATED (typed command, no window)", "lane": "SMB-ARTBOARD-EXPORT-1"},
+      {"what": "New blank design documents with artboards; artboard add, move, resize, rename, options", "tier": "UNVALIDATED (typed command)", "lane": "SMB-DOC-NEW-1"},
+      {"what": "A model can drive instance edits and the prototype player (dispatch a trigger, capture a frame) through the process without a window", "tier": "UNVALIDATED", "lane": "SMB-DRIVE-TYPED-2, SMB-COMMAND-SURFACE-1"},
+      {"what": "Create components, combine them into variant sets, add properties, place, detach and sync instances in a native document, by typed command", "tier": "LOCAL (not pushed)", "lane": "SMB-DS-COMPONENTS-AUTHOR-1"}
+    ],
+    "affinity": [
+      {"what": "Macros: record a command sequence and replay it as one undo step; batch jobs apply an action to many documents with naming, overwrite and error policies", "tier": "VALIDATED", "lane": "SMB-PS-ACTIONS-1"},
+      {"what": "HDR merge of bracketed photos (alignment, ghost removal) into a 32-bit image, global tone mapping to 16/8-bit, floating-point DNG of the merge", "tier": "VALIDATED", "lane": "SMB-HDR-MERGE-1, SMB-HDR-MERGE-2"},
+      {"what": "Arrowheads on strokes (catalogue of 26, scale, inside/outside), set in the Stroke panel, kept through SVG import/export", "tier": "VALIDATED", "lane": "SMB-AI-ARROWHEADS-1, SMB-AI-ARROWHEADS-2"},
+      {"what": "Text frames auto-size (height, width, both, proportional) and every first-baseline kind", "tier": "VALIDATED", "lane": "SMB-ID-FRAME-AUTOSIZE-1, SMB-ID-FRAME-AUTOSIZE-2"},
+      {"what": "Typed text on a path, in a shape and as point text, editable from the window, with Create Outlines", "tier": "VALIDATED", "lane": "SMB-AI-AREA-TYPE-1..4, SMB-VIEW-POLISH-1"},
+      {"what": "Designer panels in the window: appearance, stroke, swatches, graphic styles, align & distribute, transform, path operations, masks, envelope distort, brushes, SVG/PDF export, .ai import", "tier": "VALIDATED", "lane": "SMB-HARNESS-PANELS-1"},
+      {"what": "EPS vector import works again through a vendored PostScript interpreter with free fonts (opt-in feature)", "tier": "VALIDATED", "lane": "SMB-EPS-FREE-FONTS"},
+      {"what": "Swatch groups, document/application/system palettes, colour books and ICC named-colour profiles", "tier": "VALIDATED", "lane": "SMB-COL-SWATCH-GROUPS-1"},
+      {"what": "Spare channels: save a selection to a channel and load it back, rename/reorder/duplicate/delete channels, PSD and TIFF keep them", "tier": "VALIDATED", "lane": "SMB-FOLIO-CHANNEL-RECORD, SMB-TIFF-CHANNELS-1"},
+      {"what": "Image mode conversions grayscale to bitmap (dithers, halftone) and RGB to indexed colour", "tier": "VALIDATED", "lane": "SMB-PS-MODE-CONVERT-1"},
+      {"what": "Soft proofing with proof conditions, gamut warning and colour-vision proofs; raster gradient tool, paint bucket and Edit > Fill; Info panel with histogram and samplers; develop spot healing", "tier": "VALIDATED", "lane": "SMB-PS-SOFT-PROOF-1/2, SMB-PS-GRADIENT-BUCKET-1, SMB-PS-INFO-HISTOGRAM-1, SMB-LR-HEALING-1/2"},
+      {"what": "Publisher engine depth: CJK line-breaking rules, liquid layout rules, TOC and index persistence, PDF export presets and preferences, booklet imposition, ink manager, deeper paragraph composer", "tier": "VALIDATED", "lane": "SMB-ID-CJK-KINSOKU-1, SMB-ID-LIQUID-LAYOUT-1, SMB-ID-TOC-INDEX-1, SMB-ID-TOC-PERSIST-1, SMB-PDF-PRESETS-1, SMB-ID-PDF-EXPORT-PREFS-1, SMB-ID-BOOKLET-1, SMB-PRESS-INK-MANAGER-1, SMB-LAYOUT-COMPOSER-DEPTH-1"},
+      {"what": "Artboard create/edit commands and per-artboard export; layered PSD, CMYK TIFF, PNG and JPEG export recipes with crop, sizing, sharpening and watermark; place images embedded or linked with update and free transform", "tier": "UNVALIDATED (typed commands)", "lane": "SMB-DOC-NEW-1, SMB-ARTBOARD-EXPORT-1, SMB-DOC-EXPORT-1, SMB-PLACE-ASSET-1"},
+      {"what": "Publisher: layout edits saved with the document, PDF/X-4 and IDML export and preflight from commands, images placed into graphic frames with fitting and a link check before export", "tier": "UNVALIDATED (typed commands)", "lane": "SMB-LAYOUT-PERSIST-1, SMB-LAYOUT-PDF-HOST-1, SMB-LAYOUT-PLACE-1"},
+      {"what": "19 more raster filter kinds as smart filters; live effects on vector objects", "tier": "UNVALIDATED", "lane": "SMB-PIGMENT-FILTER-KERNELS-1, SMB-AI-LIVE-EFFECTS-1"}
+    ],
+    "shell": [
+      {"what": "Menus built from shared descriptors with a Help menu (manual, command index, shortcut list, system report)", "tier": "VALIDATED", "lane": "SMB-HARNESS-SHELL-2"},
+      {"what": "A pure-Vulkan window shows a real document in the designed raster frame; only Layers select/visibility and undo work there", "tier": "UNVALIDATED", "lane": "SMB-GUI-SPINE-1, SMB-GUI-FRAME-1, SMB-VK-UI-PASS-1, SMB-VK-HOST-1, SMB-UI-TREE-1"},
+      {"what": "Models drive Studio as a process (state, command, undo, JSONL session) without a window", "tier": "UNVALIDATED", "lane": "SMB-HARNESS-DRIVE-1, SMB-COMMAND-SURFACE-1, SMB-DRIVE-TYPED-2"}
+    ]
+  },
+  "top_gaps": {
+    "figma": [
+      {"rank": 1, "gap": "No collaboration: multiplayer and comments, version history, team libraries (FG-16, FG-17, FG-18 MISSING)", "evidence": "SMB-FIG-COLLAB status null, phase queued (ledger.json)"},
+      {"rank": 2, "gap": "Design-system authoring is not in the window: no component or variant-set creation (typed commands LOCAL only), no variables/modes editor, no constraints editor, text children refused in auto layout", "evidence": "DS-COMPONENTS-AUTHOR-1 brief line 55 (no panel); width-plan rank 3 SMB-DS-VARIABLES-AUTHOR-1 and SMB-DS-AUTOLAYOUT-DEPTH-1 not in ledger lanes; auto_layout.rs:19; SMB-FIG-GRID-3 PAUSED", "spec": "STU-DS-160 (contextual panel binding, cited by auto_layout.rs:1-3)"},
+      {"rank": 3, "gap": "Handoff and output: frame export only by typed command and unjudged; no .fig writer; no Dev Mode or design-token export (FG-19); no plugin/REST API (FG-21)", "evidence": "export_set.rs:5; git grep write_fig|export_fig|encode_fig and design_token|tokens_export|dev_mode: 0 hits"},
+      {"rank": 4, "gap": "Text and styles fidelity: no general font resolver, text auto-resize a typed loss (FG-15); text, effect and grid styles not stored (FG-06); layout grids not stored (FG-22); SLOT properties refused (FG-04); angular/diamond gradients no Folio home", "evidence": "native.rs:1134-1135, :3853; folio paint.rs:376; folio autolayout.rs:26; components lib.rs:219", "spec": "STU-DS-153..156 (layout grids)"},
+      {"rank": 5, "gap": "GUI host: the egui window is frozen by D1 and the Vulkan host has no design panel (0 Figma workflows there); no Figma oracle beyond 3 fixtures, GRID parity NOT_PROVEN", "evidence": "ledger.json direction d1/d7; native-host README (frame.static not_implemented_yet); fig-grid-2 lane note"}
+    ],
+    "affinity": [
+      {"rank": 1, "gap": "Native .af / .afphoto / .afdesign / .afpub: container reader and lossy preview only, no layer decode, no writer, window Open refuses (AF-02)", "evidence": "git log 5ab33c9..87f331f9 -- crates/hsk-studio-interop-affinity: empty; RUN-UI.md:25-26; SMB-AFFINITY-ORACLE-OPERATOR 'decided', no claim"},
+      {"rank": 2, "gap": "Photo persona: compound and live masks, frequency separation, panorama, focus merge, saved layer states, 3.1 tone tools, ML selection and generative tools MISSING; no adjustment, filter, effect or pixel-mask creation in the window", "evidence": "AF-22, 23, 28, 31, 36, 37, 77, 79, 80 (git grep panorama|focus_merge|frequency_separation|compound_mask: no product hit); fill_tools.rs:29; width-plan rank 4 SMB-PS-FILTER-ADJUST-COMMANDS-1 and SMB-PS-LAYER-MASK-1 not in ledger lanes"},
+      {"rank": 3, "gap": "No studio/persona switching or workspace presets (AF-78), no style picker (AF-76); the Vulkan frame has one fixed raster preset and its layout-preset dropdown is not_implemented_yet", "evidence": "native-host README command table (studio.layout-preset.dropdown -> frame.static); git grep style_picker: 0 hits"},
+      {"rank": 4, "gap": "Publisher fidelity: IDML import without master spreads and style definitions (AF-05), no image auto-flow (AF-72), no linked-file layer override (AF-73), data merge without image/QR placement (AF-71), printer marks stored but not drawn and PDF/X-4 self-check only (AF-75); layout persistence, PDF host and place are unjudged with HIGH probe findings", "evidence": "interop-layout DESCRIPTOR 'next'; layout pdf_export_prefs.rs:968, print.rs:455; ledger round_R60 probe_failures (SMB-LAYOUT-PERSIST-1 HIGH)"},
+      {"rank": 5, "gap": "Vector and colour: no vector gradient control in the window and no elliptical/conical gradients (AF-17), mesh gradients not drawn (AF-57, SMB-AI-MESH-2 queued), no .afpalette/ASE exchange (AF-16), symbols without a panel or automatic propagation (AF-58), no PSD export in the window", "evidence": "fill_tools.rs:1-3 (raster gradient only); git grep afpalette|.ase: 0 files; DS-COMPONENTS-AUTHOR-1 declared_readings ('instances follow a definition edit on component.sync_instances, not automatically')"}
+    ]
+  },
+  "process_findings": [
+    {"id": "PF-1", "finding": "D1 froze the window GUI metric: since R59 no harness-view change draws anything, so new capability reaches users only as typed commands until the Vulkan host hosts real panels; GUI percentages cannot move in UNVALIDATED or LOCAL for any app", "evidence": "git diff c4d06841..87f331f9 -- crates/hsk-studio-harness-view/src: 0 added egui draw lines; module headers export_set.rs:5, doc_export.rs:6, place.rs, document_new.rs, layout_place.rs, layout_export.rs, project.rs, web.rs; ledger.json direction.d1"},
+    {"id": "PF-2", "finding": "R60 never opened, so 21 READY claims named in round_R60 plus later ones stay unjudged; the only UNVALIDATED Figma/Affinity gains (SMB-DOC-NEW-1, SMB-ARTBOARD-EXPORT-1) carry HIGH probe findings whose fixes are in LOCAL SMB-R60-FOLLOWUPS-1 (7988d47c not on origin)", "evidence": "ledger.json round_R60 status NOT_OPENED, probe_failures; builders/lanes/hsk-studio-r60-followups-1.json commits"},
+    {"id": "PF-3", "finding": "The largest Figma/Affinity gaps have no dispatched lane: width-plan ranks 3-4 and the named next lanes are absent from ledger lanes; SMB-FIG-COLLAB and SMB-AI-MESH-2 have been queued since before 2026-10-21", "evidence": "ledger.json lanes: SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-PS-LAYER-MASK-1, SMB-DS-AUTOLAYOUT-DEPTH-1 not present; research/width-plan-20261108-raster-vector-design.json ranked_lanes, notes.next_after_rank_4"},
+    {"id": "PF-4", "finding": "Record drift persists: lane files keep READY_FOR_VALIDATION after PASS (fig-edit-1, fig-edit-2, harness-shell-2, harness-panels-1, ai-arrowheads-1/2, ps-actions-1, hdr-merge-1/2 ...); harness-panels-1.json lists pre-rebase shas bfe8f85/a7838c8/587886c (587886c is not in c4d06841) while ledger.json names the pushed 7d227c22/e2e8c10c/347026e9", "evidence": "lane file 'status' vs ledger.json; git merge-base --is-ancestor 587886c c4d06841 false; git log --grep PANELS-1"},
+    {"id": "PF-5", "finding": "ledger.json and several lane files read by this audit are uncommitted working-copy edits in the kernel at the time of reading", "evidence": "session git status: M ledger.json, M builders/lanes/hsk-studio-ds-components-author-1.json, hsk-studio-r60-followups-1.json and four other lane files"}
+  ],
+  "evidence": [
+    "git fetch -q origin codex/handshake-studio-assets -> 87f331f9 'layout place, SMB-LAYOUT-PLACE-1: the link gate runs right after preflight'; git rev-list --count c4d06841..origin = 197, 5ab33c9..origin = 692",
+    "git merge-base --is-ancestor: c4d06841, cede5958, eb17fad6, 88b5500c, 672a1804, 98e4099c, 08b372af, b954d4c5, cf6788d6, 89e9a2ac, 0a733db8, 3972c165, a3215161, 5341e561, 9e73d34c, 7879e7e9, 12133fdf on origin; fa15c84d, 7988d47c not on origin; 868be362, 42b304c7, 825598c6, 91cb8889, 1709b748, 9e626e74, 2a60acf3, 179dc3d6, 558969d3, b066a307, b425b54a, b7ef882e, 815e8571, d208bc0e in c4d06841",
+    "ledger.json: 407 lanes PASS_V*, 28 READY_FOR_VALIDATION; round_R59 COMPLETE (PASS 133, reused 274); round_R60 NOT_OPENED with probe_failures",
+    "harness-view at 87f331f9: view/shell.rs:110 Panel::ALL 25, :1354-1356 .fig -> import_fig; view/hosted.rs:88 13 panels, :1017-1028 Type section, :19/:225-227 stroke markers; view/design/auto_layout.rs:1-46, :465-:731; view/design/instance.rs:400; view/design/fig_import.rs:533; view/export_set.rs:5, :335, :468; view/doc_export.rs:1-6; view/fill_tools.rs:1-3, :29; view/mod.rs:1367; view/edit.rs:82, :114; layout_ui.rs:890",
+    "RUN-UI.md at 87f331f9: :3 (window never opened by tests), :25-26 (Affinity refusal), :47-72 (menus), :82-105 (hosted panels), :182-215 (design files)",
+    "engine anchors at 87f331f9: harness-core harness.rs:761, :797, batch.rs:1-14, :806, action/commands/document.rs:45, :50; pigment hdr_merge.rs:456, hdr_merge/tone.rs:1-11, :61; develop hdr_merge.rs:176; folio vector.rs:515, channel.rs:105, colour_book.rs:125, paint.rs:376, autolayout.rs:26; nib markers.rs:575; layout autosize.rs:82, threaded_reflow.rs:446, pdf_export_prefs.rs:968, print.rs:455; interop-vector-core eps.rs:12-14, :40-47, :386-392; interop-fig-native native.rs:1134-1135, :3853; components lib.rs:219",
+    "native-host README.md at 87f331f9 (scene gui command table, HBR-HOST-001 proof host, recorded STU-SHL-110 deviations)",
+    "git diff c4d06841 origin -- crates/hsk-studio-harness-view/src: 53 files, +9842/-147, no added egui draw call",
+    "lane files: hsk-studio-fig-edit-1/2, fig-grid-1/2/3, ds-components-author-1, artboard-export-1, doc-new-1, doc-export-1, place-asset-1, harness-shell-2, harness-panels-1, shell-row-wrap-1, view-polish-1, run-ui-merge-1, gui-steward-1, vk-host-1, ui-tree-1, gui-spine-1, gui-frame-1, vk-ui-pass-1, controls-egui-gate-1, command-surface-1, harness-drive-1, drive-typed-2, ps-actions-1, hdr-merge-1/2, ai-arrowheads-1/2, eps-free-fonts, ai-area-type-1..4, col-swatch-groups-1, folio-channel-record, tiff-channels-1, layout-place-1, layout-persist-1, layout-pdf-host-1, id-frame-autosize-1/2, ps-mode-convert-1, lr-healing-1/2, ps-gradient-bucket-1, pigment-filter-kernels-1, ai-live-effects-1, ps-soft-proof-2, r60-followups-1; brief lane-smb-ds-components-author-1.md",
+    "research/width-plan-20261108-raster-vector-design.json (ranked_lanes, notes.key_findings, notes.next_after_rank_4); .GOV/spec/SPEC_CURRENT.md v02.229"
+  ],
+  "unverified": [
+    "No test, build or oracle comparison was run; every PASS is read from ledger.json (R59) and lane files; every UNVALIDATED claim is unjudged code read with git grep / git show",
+    "LOCAL lanes were judged only from lane files and briefs (worktrees not inspected); the statement that LOCAL adds no window workflow rests on those files and on D1",
+    "Workflow credit (strict vs lenient) is this audit's reading of the baseline rule; the predecessor's Designer decision was followed for strict",
+    "AF-63 flip assumes Affinity Publisher text frames need no column rules or fixed/flexible column widths (UNVERIFIED); AF-55 flip treats 'pressure' as covered by width profiles, as AI-13 did",
+    "Cross-app candidates for Photoshop, Lightroom, Illustrator, InDesign, Premiere Pro, After Effects and Audition are shell observations, not credits; the sibling audits own those rows",
+    "Overall numbers are PARTIAL: the two sibling files were absent; the strict-row composition assumes the 10-23 rollup's AI and PR row picks still hold",
+    "Vulkan host behaviour is taken from its README and lane files at READY; no window was opened",
+    "Whether .fig exportSettings carry into StudioExportSettings after import (FG-20) NOT_INSPECTED"
+  ]
+}

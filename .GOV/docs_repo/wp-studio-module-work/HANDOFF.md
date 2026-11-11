@@ -179,6 +179,37 @@ Build rules: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`, 61 rules. P
 
 </topic>
 
+<topic id="parity" status="active" updated_at="2026-11-11T15:30:00Z" summary="Feature parity per app vs Adobe, Figma and Affinity, 2026-11-11 (research/parity-20261111-rollup.json)">
+
+## Parity on 2026-11-11
+
+Method as on 2026-10-23: 308 feature rows over 9 apps, 108 GUI workflows (`research/feature-completeness-20261021.json`). Engine counts a validated row 1, built-not-validated 0.5, partial 0.25. Tiers: VALIDATED = PASS in R59 @ c4d06841, the latest finished round; UNVALIDATED = on origin 87f331f9 (197 commits since R59, R60 never opened); LOCAL = lane worktrees only.
+
+| App | Rows | Engine % (V/U/L) | GUI pooled % | GUI strict % | Engine % on 10-23 |
+|---|---|---|---|---|---|
+| Photoshop | 36 | 57.6 | 61.1 | 30.6 | 47.2 |
+| Lightroom Classic | 35 | 59.3 | 69.2 | 31.4 | 57.9 |
+| Illustrator | 32 | 71.9 / 73.4 / 73.4 | 88.2 | 34.4 | 64.8 |
+| InDesign | 31 | 58.1 | 70.0 | 25.8 | 54.0 |
+| Premiere Pro | 25 | 63.0 | 70.0 | 48.0 | 56.0 |
+| After Effects | 24 | 75.0 | 0 | 0 | 62.5 |
+| Audition | 22 | 86.4 | 70.0 | 31.8 | 86.4 |
+| Figma | 23 | 60.9 | 42.9 | 8.7 | 60.9 |
+| Affinity (Photo, Designer, Publisher) | 80 | 46.3 / 46.6 / 46.6 | 73.3 | 27.5 | 43.8 |
+| **All 9 apps** | 308 | **60.5 / 60.7 / 60.7** | **64.8** (70 of 108) | **27.3** (84 of 308) | 55.8 |
+
+Without Affinity (8 apps, 228 rows): engine 65.5 / 65.7 / 65.7 (60.0 on 10-23).
+
+Adobe products outside the row pool (not scored): Acrobat Pro (PDF engine, redaction, no app surface), Bridge (pieces only), Camera Raw (via the Lightroom develop engine), InCopy (story editor inside the layout editor), Dreamweaver (web host and site commands, SMB-WEB-*), Adobe Color (swatch groups), Media Encoder (export presets, partly), Character Animator, Animate, Premiere Rush, Adobe Podcast (nothing).
+
+Biggest gains since 10-23: Illustrator window workflows 8 to 15 of 17 (13 hosted panels, area and path type, Create Outlines); Photoshop soft proofing, Info/histogram, actions and batch, gradient and paint bucket; InDesign liquid and alternate layouts; Premiere timeline with five trim modes, Nest, Rate Stretch and the first Export Media form; After Effects time remap, frame blending, roto and a 20-effect layer stack; Audition multitrack and automation lanes; Figma .fig opens editable; Affinity macros, batch and HDR merge.
+
+Biggest gaps: After Effects has no window surface; new work since 2026-10-30 lands as typed commands without a window route, and the Vulkan host has no app workflow yet; Photoshop window lacks masks, adjustments, filters, retouch and crop; Lightroom has no real catalog and the AI features are absent; Premiere program monitor shows no media frames, multicam plays no angle, transitions all dissolve; Figma has no collaboration and no component, variable or constraint authoring in the window; Affinity native files only give a lossy preview; InDesign cannot open a PDF as a layout or set vertical text.
+
+Readings: GUI numbers measure the frozen egui test host. 30 crates changed since R59, so their PASS verdicts need R60 attempt 3. Details and evidence: `research/parity-20261111-adobe-print.json`, `parity-20261111-video-audio.json`, `parity-20261111-figma-affinity-shell.json`.
+
+</topic>
+
 <topic id="vulkan-gui-pivot" status="active" summary="The Vulkan GUI pivot: decisions, code state, blockers, what can be done now">
 
 ## The Vulkan GUI pivot
@@ -277,6 +308,12 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 </topic>
 
 <topic id="state" status="active" updated_at="2026-11-08T05:40:01Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
+
+## PAUSED 2026-11-11 ~15:20Z for the Operator's cargo cleanup
+
+Operator: "lets pause all agents so we can do the cargo clean up faster ... we will resume work after the cargo clean up". Every Studio build process tree was stopped; each lane's tree, branch, head and resume step are in `ledger.json` direction.pause_20261111. All trees are clean except SMB-DS-COMPONENTS-AUTHOR-1 (8 uncommitted files, left as is). Origin is 87f331f9. Landed today: PARSER-HOSTILE-1 27365b81, LAYOUT-PLACE-1 87f331f9. SMB-DEVELOP-COMMANDS-1 was RELEASED and rebased (4506a6cf) but not pushed. To resume: SendMessage each lane agent (ids in the pause record) or dispatch takeover builders with the rulings file; INDENT and SCORE land first, then plan T T-C01/T-C02 run, then R60 attempt 3.
+
+Disk state: C: Studio tree about 344 GiB after plan T T-C04 (19.47) and plan U (25.97). D: Studio uses 1,912 GiB (WizTree 2026-11-11 14:55Z): steward-export 540, active lane targets 66 to 205 each. A Studio D: removal list (older copies first) is being prepared for the Operator.
 
 ## RUNNING (2026-11-08, from about 05:30Z; updated 2026-11-08T08:55:13Z)
 
@@ -578,7 +615,7 @@ FINAL MESSAGE, 12 lines or fewer: shas, exact test counts and exit codes, what i
 - SMB-TYPE-AUTHORED-TOKEN-1: harness-core `harness.rs`, `import.rs`; harness-view `fig_import.rs`, `vector/interop.rs`, `vector.rs`, `vector/path_text.rs`; harness tests `import_psd.rs`, `viewer_mask_package.rs`; type `descriptor.rs`; session `sequence_records.rs`.
 - Not on the product branch yet: SMB-PR-ENTRY-REFERENCES-1: harness-view `tests/viewer_inert_routing.rs`, pulse `tests/inert_routing_mix.rs`, a doc line in session `src/source.rs`. SMB-PR-NUDGE-1: a comment in pulse `src/timeline_edit.rs`.
 
-**Plan U (new removal list, held by the hard rule, PROPOSED 2026-11-11):** whole removal of 5 old C: build caches of lanes that already passed validation, 25.97 GiB (`research/cargo-cleanup-plan-20261111-U.json`). It gives R60 attempt 3 room on the SSD: without it the round's projected C: peak is 353.6 GiB against the 355 stop. The Operator approves it with "Approve plan U". Nothing runs before that, The tool's whole-target mode exists (kernel 18974120) and its dry run shows all five removable.
+**Plan U: DONE 2026-11-11 13:08Z** on the Operator's "Approve plan U": 5 old C: build caches of validated lanes removed whole, 25.97 GiB, 83,650 files (`research/cargo-cleanup-result-20261111-U.json`). Next for the Operator: a Studio D: removal list (D: Studio 1,912 GiB), prepared after the WizTree file export.
 
 **C: cap 2026-11-11:** the C: tree reached 389 GiB, over the 400 GB grant, while three C: lanes rebuilt. T-C04 (plan T) freed 19.47 GiB, leaving 369.9 GiB. A cargo-specialist deliberation (`research/decision-20261111-c-cap-placement.json`) moved SMB-TYPE-INDENT-SPACING-1 and SMB-SCORE-EFFECTS-6 onto READY D: trees with warm targets. T-C01 and T-C02 run after those two lanes land.
 

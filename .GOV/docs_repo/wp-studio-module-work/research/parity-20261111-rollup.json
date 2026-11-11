@@ -1,0 +1,240 @@
+{
+ "schema": "hsk.studio.research.parity_rollup@1",
+ "file_id": "PARITY-20261111-ROLLUP",
+ "updated_at": "2026-11-11T15:03:05Z",
+ "by": "lead, pooled from the three 2026-11-11 auditor files with the 2026-10-21 baseline formulas (rows per app from feature-completeness-20261021.json; workflows per app from the 2026-10-23 points)",
+ "inputs": [
+  "research/parity-20261111-adobe-print.json",
+  "research/parity-20261111-video-audio.json",
+  "research/parity-20261111-figma-affinity-shell.json",
+  "research/feature-completeness-20261021.json",
+  "research/parity-20261023-rollup.json"
+ ],
+ "tiers": {
+  "VALIDATED": "PASS in the latest finished round R59 @ c4d06841 (R60 never opened)",
+  "UNVALIDATED": "on origin 87f331f9, not judged (197 commits since R59)",
+  "LOCAL": "lane worktrees only"
+ },
+ "apps": {
+  "adobe_tracked": [
+   "Photoshop",
+   "Lightroom Classic",
+   "Illustrator",
+   "InDesign",
+   "Premiere Pro",
+   "After Effects",
+   "Audition"
+  ],
+  "other_tracked": [
+   "Figma",
+   "Affinity (Photo, Designer, Publisher)"
+  ],
+  "adobe_untracked_outside_row_pool": [
+   "Acrobat Pro",
+   "Bridge",
+   "Camera Raw",
+   "InCopy",
+   "Dreamweaver",
+   "Adobe Color",
+   "Media Encoder",
+   "Character Animator",
+   "Animate",
+   "Premiere Rush",
+   "Adobe Podcast"
+  ]
+ },
+ "per_app": {
+  "photoshop": {
+   "rows": 36,
+   "workflows": 18,
+   "engine": [
+    57.6,
+    57.6,
+    57.6
+   ],
+   "gui_pooled": 61.1,
+   "gui_strict": 30.6,
+   "gui_points": 11.0,
+   "strict_agree_rows": 11,
+   "20261023_validated": {
+    "engine": 47.2,
+    "gui_pooled": 61.1,
+    "gui_strict": 30.6
+   }
+  },
+  "lightroom_classic": {
+   "rows": 35,
+   "workflows": 13,
+   "engine": [
+    59.3,
+    59.3,
+    59.3
+   ],
+   "gui_pooled": 69.2,
+   "gui_strict": 31.4,
+   "gui_points": 9.0,
+   "strict_agree_rows": 11,
+   "20261023_validated": {
+    "engine": 57.9,
+    "gui_pooled": 69.2,
+    "gui_strict": 31.4
+   }
+  },
+  "illustrator": {
+   "rows": 32,
+   "workflows": 17,
+   "engine": [
+    71.9,
+    73.4,
+    73.4
+   ],
+   "gui_pooled": 88.2,
+   "gui_strict": 34.4,
+   "gui_points": 15.0,
+   "strict_agree_rows": 11,
+   "20261023_validated": {
+    "engine": 64.8,
+    "gui_pooled": 47.1,
+    "gui_strict": 18.8
+   }
+  },
+  "indesign": {
+   "rows": 31,
+   "workflows": 10,
+   "engine": [
+    58.1,
+    58.1,
+    58.1
+   ],
+   "gui_pooled": 70.0,
+   "gui_strict": 25.8,
+   "gui_points": 7.0,
+   "strict_agree_rows": 8,
+   "20261023_validated": {
+    "engine": 54.0,
+    "gui_pooled": 70.0,
+    "gui_strict": 25.8
+   }
+  },
+  "figma": {
+   "rows": 23,
+   "workflows": 7,
+   "engine": [
+    60.9,
+    60.9,
+    60.9
+   ],
+   "gui_pooled": 42.9,
+   "gui_strict": 8.7,
+   "gui_points": 3.0,
+   "strict_agree_rows": 2,
+   "20261023_validated": {
+    "engine": 60.9,
+    "gui_pooled": 28.6,
+    "gui_strict": 8.7
+   }
+  },
+  "premiere_pro": {
+   "rows": 25,
+   "workflows": 10,
+   "engine": [
+    63.0,
+    63.0,
+    63.0
+   ],
+   "gui_pooled": 70.0,
+   "gui_strict": 48.0,
+   "gui_points": 7.0,
+   "strict_agree_rows": 12,
+   "20261023_validated": {
+    "engine": 56.0,
+    "gui_pooled": 40.0,
+    "gui_strict": 16.0
+   }
+  },
+  "after_effects": {
+   "rows": 24,
+   "workflows": 8,
+   "engine": [
+    75.0,
+    75.0,
+    75.0
+   ],
+   "gui_pooled": 0.0,
+   "gui_strict": 0.0,
+   "gui_points": 0.0,
+   "strict_agree_rows": 0,
+   "20261023_validated": {
+    "engine": 62.5,
+    "gui_pooled": 0.0,
+    "gui_strict": 0.0
+   }
+  },
+  "audition": {
+   "rows": 22,
+   "workflows": 10,
+   "engine": [
+    86.4,
+    86.4,
+    86.4
+   ],
+   "gui_pooled": 70.0,
+   "gui_strict": 31.8,
+   "gui_points": 7.0,
+   "strict_agree_rows": 7,
+   "20261023_validated": {
+    "engine": 86.4,
+    "gui_pooled": 60.0,
+    "gui_strict": 22.7
+   }
+  },
+  "affinity": {
+   "rows": 80,
+   "workflows": 15,
+   "engine": [
+    46.3,
+    46.6,
+    46.6
+   ],
+   "gui_pooled": 73.3,
+   "gui_strict": 27.5,
+   "gui_points": 11.0,
+   "strict_agree_rows": 22,
+   "20261023_validated": {
+    "engine": 43.8,
+    "gui_pooled": 66.7,
+    "gui_strict": 25.0
+   }
+  }
+ },
+ "overall": {
+  "engine_9_apps_pct": {
+   "VALIDATED": 60.5,
+   "UNVALIDATED": 60.7,
+   "LOCAL": 60.7,
+   "20261023_VALIDATED": 55.8
+  },
+  "engine_8_apps_pct": {
+   "VALIDATED": 65.5,
+   "UNVALIDATED": 65.7,
+   "LOCAL": 65.7,
+   "20261023_VALIDATED": 60.0
+  },
+  "gui_pooled_pct": {
+   "all_tiers": 64.8,
+   "points_of_108": 70.0,
+   "20261023_VALIDATED": 52.8
+  },
+  "gui_strict_pct": {
+   "all_tiers": 27.3,
+   "agree_rows_of_308": 84,
+   "20261023_VALIDATED": 20.8
+  }
+ },
+ "readings": [
+  "GUI numbers measure the egui test host, frozen since the 2026-10-30 decision to drop egui; the Vulkan host has no app workflow yet, so UNVALIDATED and LOCAL add no window workflow.",
+  "Proof staleness: 30 crates changed since R59, so every PASS on those crates needs a full round (R60 attempt 3) to stay current.",
+  "Calls the auditors flagged: PS-02, LR-21, LR-33 kept PARTIAL; AI-22 counted BUILT_NOT_VALIDATED though R60 probes found HIGH failures behind it (PARTIAL would make Illustrator 72.7).",
+  "Video-audio auditor: no READY or LOCAL work moves a video or audio baseline row (lead did not re-check, UNVERIFIED)."
+ ]
+}
