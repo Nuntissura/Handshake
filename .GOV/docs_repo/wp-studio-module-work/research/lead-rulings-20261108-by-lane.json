@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T06:58:47Z",
+ "updated_at": "2026-11-11T06:59:24Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -54,7 +54,18 @@
   ],
   "SMB-DELIVERY-QUEUE-1": [
    "PATHS APPROVED: (1) one \"delivery\" arm in harness-view view/commands.rs run_row plus delivery.* and export.recipe_* decoders in view/commands/export.rs; (2) one CommandSpec row `deliver` in harness-core manual.rs; (3) session tests/entry_references.rs one NOT_APPLICABLE row export_recipes, count = origin's count + 1, token appended at the end; (4) session src/lib.rs mod export_recipes and pub use EXPORT_RECIPES_ENTRY; (5) new harness-core src/harness/export_recipes.rs plus its one pub mod line (an entry-only named undo step with the caller's CommandContext, one op record, one observe frame, removal supported), scanned by action_records.",
-   "Review of 44da1364 was cut off by the limit; it is redone before the bundled run."
+   "Review of 44da1364 was cut off by the limit; it is redone before the bundled run.",
+   "Review 44da1364 (research/review-smb-delivery-queue-1-44da1364.json) FIX_FIRST, lead rulings 2026-11-11:",
+   "F1: resolve shipped studio.* presets before parsing the user recipe entry (export_media.rs:564, delivery.rs:325/:485); an unreadable entry never blocks a shipped-preset export; it reports export_recipes_invalid only when a user recipe is asked for, plus a status note.",
+   "F2: one size limit for save and read (8 MiB): a save over it refuses typed; recipe_delete and recipe listing still work on an oversized or unreadable entry, so the user can repair it.",
+   "F3 (a wrong answer, not a cut): PNG frames apply the recipe's transfer (the OETF for its colour space) and write a matching colour chunk (sRGB, or cICP/iCCP as the space needs), consistent with doc_export's sRGB PNG; embed_color_space is honoured; rec709 has its own OETF. Red test comparing a mid-grey pixel against the expected encoded value.",
+   "F4: queue_apply_template keeps the AV1 speed, bitrate and keyframe interval, and the output extension follows the template's container.",
+   "F5: the collision key normalises Windows equivalents (trailing dots and spaces stripped, case-insensitive, 8.3 short names resolved for existing paths, the PNG frame names expanded); with overwrite, two items resolving to one file refuse typed before any write.",
+   "F6: a PNG receipt stores the frame naming pattern and the range, not one String per frame.",
+   "F7: a sequence item that fails after admission gets a failed receipt carrying its job id.",
+   "Exactly 4,000,000 frames is allowed (the bound is inclusive); refuse typed only above it, and document the bound.",
+   "Proof filter: name cli_export_sequence and the harness-view export tests explicitly in the bundled run.",
+   "Rebase: if SMB-SCORE-EFFECTS-6 lands first, move record_print_recomputes into export_sequence_with and add `recomputed` to Prepared after the job_from_recipe lines (export_media.rs)."
   ],
   "SMB-DS-COMPONENTS-AUTHOR-1": [
    "PATH APPROVED: view/vector/style.rs about 310-313, in the same function as 291-300 (design nodes carrying only component_property_references).",
