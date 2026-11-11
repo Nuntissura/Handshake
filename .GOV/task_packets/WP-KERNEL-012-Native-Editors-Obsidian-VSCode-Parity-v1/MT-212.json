@@ -5105,7 +5105,7 @@
     },
     {
       "candidate": "embedded-session-route-identity-test-source-published-20261111-01",
-      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_COLD_CAPTURE_UNQUALIFIED_WARM_PROOF_PENDING",
+      "state": "EXACT_PUBLISHED_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_RUNTIME_PENDING",
       "pico_refs": [
         "GUI-WP012-graph-folders"
       ],
@@ -5175,8 +5175,62 @@
       "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
       "cold_capture_qualified": false,
       "producer_exit": 1,
-      "next_proof": "One exact warm-only published Core library --no-run with same preheld PE and every Cargo artifact fresh. Separate qualified acquisition and independent one-case runtime are required. Prior base and production-schema diagnostic passes stay valid. Old HTTP attempts remain spent.",
-      "original_acceptance": "OPEN"
+      "next_proof": "One exact independent KB-CAD-001 route-issued identity before-vault diagnostic after fresh Primary admission/custody. No existing cases replay, actual server or vault/watcher, or original verdict change.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-preparation-20261111-01/route-identity-warm-binding-admitted-01.json",
+          "bytes": 22168,
+          "sha256": "143d819430b08a313a115517e714c28150da0906906ba676e1aa48ab0413912b"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/result.json",
+          "bytes": 3348,
+          "sha256": "097e4de76f41aac4dad2dc79032780569dad2d3161d483c479ea0f00fd5e0e4a"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9718,
+          "sha256": "d9e6c7be3c9a3da3ba1602583967564b8c88f698a8a5961952fefce5a11179f1"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "a4322b2d639c5ec2b756b86acd69d8969c3869b42a1700ad1eacc1e45b69addb"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "5a3d397a9de050f27841abbd06a1979cb262c87e88c19e7ed4f897e38479e70c"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "c9b15c5f934c154efb3e0c1c56826cd6e7667ee36384345a00968154812bd0e0"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-dx-review-20261111-01/route-identity-warm-acquisition-review-dx-01.json",
+            "bytes": 786,
+            "sha256": "5a4e768ca520fe8f4554d8f5d3a2f2371cdc084867f891b310386b2e11d0ef0b"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-codecheck-20261111-01/route-identity-warm-acquisition-review-cc-01.json",
+            "bytes": 790,
+            "sha256": "18b327966b9b7534cd30d6599cc4a34256418c164c5ca9fa0d1b74063c706e34"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 819,
+          "selected_pe_sha256": "0e1ea0ca0c7f4649fc015972ace1182e0bf30e667cce4bde753e9ebc4452a6b3",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      }
     }
   ],
   "picotask_plan": {
