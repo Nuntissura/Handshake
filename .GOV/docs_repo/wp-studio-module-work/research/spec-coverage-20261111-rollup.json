@@ -1,0 +1,791 @@
+{
+ "schema": "hsk.studio.spec_coverage_rollup@1",
+ "generated_at": "2026-11-11T16:29:46Z",
+ "inputs": [
+  "research/spec-coverage-20261111-g1-colour-raw-compositing.json",
+  "research/spec-coverage-20261111-g2-raster-effects-controls.json",
+  "research/spec-coverage-20261111-g3-vector-type.json",
+  "research/spec-coverage-20261111-g4-layout-io-docs.json",
+  "research/spec-coverage-20261111-g5-web-whiteboard.json",
+  "research/spec-coverage-20261111-g6-motion-video-pro.json",
+  "research/spec-coverage-20261111-g7-shell-manual-misc.json",
+  "research/spec-coverage-20261111-g8-designsystems-automation-assets.json",
+  "research/parity-20261111-rollup.json"
+ ],
+ "totals": {
+  "ids": 2303,
+  "VALIDATED": 579,
+  "BUILT_NOT_VALIDATED": 52,
+  "PARTIAL": 781,
+  "MISSING": 640,
+  "LOCAL": 9,
+  "NOT_PRODUCT": 242,
+  "product_rows": 2061,
+  "matches_expected": true
+ },
+ "overall": {
+  "rows": 2303,
+  "product_rows": 2061,
+  "VALIDATED": 579,
+  "BUILT_NOT_VALIDATED": 52,
+  "PARTIAL": 781,
+  "MISSING": 640,
+  "LOCAL": 9,
+  "NOT_PRODUCT": 242,
+  "validated_pct": 28.1,
+  "score_pct": 38.8,
+  "missing_pct": 31.1
+ },
+ "per_prefix": {
+  "STU-ARC": {
+   "rows": 33,
+   "product_rows": 24,
+   "VALIDATED": 12,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 8,
+   "MISSING": 4,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 9,
+   "validated_pct": 50.0,
+   "score_pct": 58.3,
+   "missing_pct": 16.7
+  },
+  "STU-ASSET": {
+   "rows": 33,
+   "product_rows": 24,
+   "VALIDATED": 2,
+   "BUILT_NOT_VALIDATED": 1,
+   "PARTIAL": 13,
+   "MISSING": 8,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 9,
+   "validated_pct": 8.3,
+   "score_pct": 24.0,
+   "missing_pct": 33.3
+  },
+  "STU-AUT": {
+   "rows": 128,
+   "product_rows": 119,
+   "VALIDATED": 21,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 50,
+   "MISSING": 48,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 9,
+   "validated_pct": 17.6,
+   "score_pct": 28.2,
+   "missing_pct": 40.3
+  },
+  "STU-CMP": {
+   "rows": 49,
+   "product_rows": 31,
+   "VALIDATED": 21,
+   "BUILT_NOT_VALIDATED": 1,
+   "PARTIAL": 9,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 18,
+   "validated_pct": 67.7,
+   "score_pct": 76.6,
+   "missing_pct": 0.0
+  },
+  "STU-COL": {
+   "rows": 220,
+   "product_rows": 191,
+   "VALIDATED": 68,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 83,
+   "MISSING": 40,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 29,
+   "validated_pct": 35.6,
+   "score_pct": 46.5,
+   "missing_pct": 20.9
+  },
+  "STU-CON": {
+   "rows": 46,
+   "product_rows": 44,
+   "VALIDATED": 36,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 6,
+   "MISSING": 2,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 2,
+   "validated_pct": 81.8,
+   "score_pct": 85.2,
+   "missing_pct": 4.5
+  },
+  "STU-DOC": {
+   "rows": 4,
+   "product_rows": 4,
+   "VALIDATED": 1,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 3,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 25.0,
+   "score_pct": 43.8,
+   "missing_pct": 0.0
+  },
+  "STU-DS": {
+   "rows": 139,
+   "product_rows": 132,
+   "VALIDATED": 55,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 47,
+   "MISSING": 28,
+   "LOCAL": 2,
+   "NOT_PRODUCT": 7,
+   "validated_pct": 41.7,
+   "score_pct": 50.6,
+   "missing_pct": 21.2
+  },
+  "STU-FX": {
+   "rows": 91,
+   "product_rows": 81,
+   "VALIDATED": 25,
+   "BUILT_NOT_VALIDATED": 2,
+   "PARTIAL": 38,
+   "MISSING": 16,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 10,
+   "validated_pct": 30.9,
+   "score_pct": 43.8,
+   "missing_pct": 19.8
+  },
+  "STU-HIS": {
+   "rows": 4,
+   "product_rows": 4,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 4,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 0.0,
+   "score_pct": 25.0,
+   "missing_pct": 0.0
+  },
+  "STU-IO": {
+   "rows": 92,
+   "product_rows": 83,
+   "VALIDATED": 16,
+   "BUILT_NOT_VALIDATED": 19,
+   "PARTIAL": 32,
+   "MISSING": 15,
+   "LOCAL": 1,
+   "NOT_PRODUCT": 9,
+   "validated_pct": 19.3,
+   "score_pct": 40.4,
+   "missing_pct": 18.1
+  },
+  "STU-LAY": {
+   "rows": 142,
+   "product_rows": 137,
+   "VALIDATED": 49,
+   "BUILT_NOT_VALIDATED": 1,
+   "PARTIAL": 64,
+   "MISSING": 23,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 5,
+   "validated_pct": 35.8,
+   "score_pct": 47.8,
+   "missing_pct": 16.8
+  },
+  "STU-MAN": {
+   "rows": 27,
+   "product_rows": 23,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 10,
+   "MISSING": 13,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 4,
+   "validated_pct": 0.0,
+   "score_pct": 10.9,
+   "missing_pct": 56.5
+  },
+  "STU-MDL": {
+   "rows": 24,
+   "product_rows": 23,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 6,
+   "PARTIAL": 14,
+   "MISSING": 3,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 1,
+   "validated_pct": 0.0,
+   "score_pct": 28.3,
+   "missing_pct": 13.0
+  },
+  "STU-MOT": {
+   "rows": 89,
+   "product_rows": 75,
+   "VALIDATED": 40,
+   "BUILT_NOT_VALIDATED": 4,
+   "PARTIAL": 24,
+   "MISSING": 7,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 14,
+   "validated_pct": 53.3,
+   "score_pct": 64.0,
+   "missing_pct": 9.3
+  },
+  "STU-OVR": {
+   "rows": 4,
+   "product_rows": 3,
+   "VALIDATED": 3,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 0,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 1,
+   "validated_pct": 100.0,
+   "score_pct": 100.0,
+   "missing_pct": 0.0
+  },
+  "STU-PAR": {
+   "rows": 5,
+   "product_rows": 5,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 5,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 0.0,
+   "score_pct": 25.0,
+   "missing_pct": 0.0
+  },
+  "STU-PDF": {
+   "rows": 2,
+   "product_rows": 2,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 2,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 0.0,
+   "score_pct": 25.0,
+   "missing_pct": 0.0
+  },
+  "STU-PRO": {
+   "rows": 120,
+   "product_rows": 112,
+   "VALIDATED": 23,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 50,
+   "MISSING": 39,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 8,
+   "validated_pct": 20.5,
+   "score_pct": 31.7,
+   "missing_pct": 34.8
+  },
+  "STU-PW": {
+   "rows": 4,
+   "product_rows": 4,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 1,
+   "MISSING": 3,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 0.0,
+   "score_pct": 6.2,
+   "missing_pct": 75.0
+  },
+  "STU-QUIET": {
+   "rows": 5,
+   "product_rows": 5,
+   "VALIDATED": 2,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 3,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 40.0,
+   "score_pct": 55.0,
+   "missing_pct": 0.0
+  },
+  "STU-RAS": {
+   "rows": 131,
+   "product_rows": 116,
+   "VALIDATED": 43,
+   "BUILT_NOT_VALIDATED": 2,
+   "PARTIAL": 50,
+   "MISSING": 21,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 15,
+   "validated_pct": 37.1,
+   "score_pct": 48.7,
+   "missing_pct": 18.1
+  },
+  "STU-RAW": {
+   "rows": 48,
+   "product_rows": 48,
+   "VALIDATED": 27,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 20,
+   "MISSING": 1,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 56.2,
+   "score_pct": 66.7,
+   "missing_pct": 2.1
+  },
+  "STU-SDB": {
+   "rows": 9,
+   "product_rows": 7,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 3,
+   "MISSING": 4,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 2,
+   "validated_pct": 0.0,
+   "score_pct": 10.7,
+   "missing_pct": 57.1
+  },
+  "STU-SECTION": {
+   "rows": 3,
+   "product_rows": 1,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 1,
+   "MISSING": 0,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 2,
+   "validated_pct": 0.0,
+   "score_pct": 25.0,
+   "missing_pct": 0.0
+  },
+  "STU-SHL": {
+   "rows": 213,
+   "product_rows": 181,
+   "VALIDATED": 11,
+   "BUILT_NOT_VALIDATED": 6,
+   "PARTIAL": 87,
+   "MISSING": 77,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 32,
+   "validated_pct": 6.1,
+   "score_pct": 19.8,
+   "missing_pct": 42.5
+  },
+  "STU-TYP": {
+   "rows": 181,
+   "product_rows": 162,
+   "VALIDATED": 41,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 56,
+   "MISSING": 63,
+   "LOCAL": 2,
+   "NOT_PRODUCT": 19,
+   "validated_pct": 25.3,
+   "score_pct": 34.0,
+   "missing_pct": 38.9
+  },
+  "STU-UNI": {
+   "rows": 5,
+   "product_rows": 5,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 4,
+   "MISSING": 1,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 0.0,
+   "score_pct": 20.0,
+   "missing_pct": 20.0
+  },
+  "STU-VAL": {
+   "rows": 6,
+   "product_rows": 5,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 4,
+   "MISSING": 1,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 1,
+   "validated_pct": 0.0,
+   "score_pct": 20.0,
+   "missing_pct": 20.0
+  },
+  "STU-VEC": {
+   "rows": 156,
+   "product_rows": 146,
+   "VALIDATED": 53,
+   "BUILT_NOT_VALIDATED": 3,
+   "PARTIAL": 45,
+   "MISSING": 45,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 10,
+   "validated_pct": 36.3,
+   "score_pct": 45.0,
+   "missing_pct": 30.8
+  },
+  "STU-VID": {
+   "rows": 58,
+   "product_rows": 48,
+   "VALIDATED": 28,
+   "BUILT_NOT_VALIDATED": 4,
+   "PARTIAL": 12,
+   "MISSING": 4,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 10,
+   "validated_pct": 58.3,
+   "score_pct": 68.8,
+   "missing_pct": 8.3
+  },
+  "STU-WB": {
+   "rows": 65,
+   "product_rows": 57,
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 2,
+   "MISSING": 55,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 8,
+   "validated_pct": 0.0,
+   "score_pct": 0.9,
+   "missing_pct": 96.5
+  },
+  "STU-WEB": {
+   "rows": 167,
+   "product_rows": 159,
+   "VALIDATED": 2,
+   "BUILT_NOT_VALIDATED": 3,
+   "PARTIAL": 31,
+   "MISSING": 119,
+   "LOCAL": 4,
+   "NOT_PRODUCT": 8,
+   "validated_pct": 1.3,
+   "score_pct": 7.1,
+   "missing_pct": 74.8
+  }
+ },
+ "per_app": {
+  "photoshop": {
+   "rows": 285,
+   "product_rows": 265,
+   "VALIDATED": 99,
+   "BUILT_NOT_VALIDATED": 4,
+   "PARTIAL": 108,
+   "MISSING": 54,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 20,
+   "validated_pct": 37.4,
+   "score_pct": 48.3,
+   "missing_pct": 20.4
+  },
+  "lightroom_classic": {
+   "rows": 94,
+   "product_rows": 93,
+   "VALIDATED": 44,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 41,
+   "MISSING": 8,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 1,
+   "validated_pct": 47.3,
+   "score_pct": 58.3,
+   "missing_pct": 8.6
+  },
+  "illustrator": {
+   "rows": 267,
+   "product_rows": 264,
+   "VALIDATED": 91,
+   "BUILT_NOT_VALIDATED": 5,
+   "PARTIAL": 92,
+   "MISSING": 75,
+   "LOCAL": 1,
+   "NOT_PRODUCT": 3,
+   "validated_pct": 34.5,
+   "score_pct": 44.1,
+   "missing_pct": 28.4
+  },
+  "indesign": {
+   "rows": 347,
+   "product_rows": 340,
+   "VALIDATED": 106,
+   "BUILT_NOT_VALIDATED": 2,
+   "PARTIAL": 137,
+   "MISSING": 94,
+   "LOCAL": 1,
+   "NOT_PRODUCT": 7,
+   "validated_pct": 31.2,
+   "score_pct": 41.5,
+   "missing_pct": 27.6
+  },
+  "premiere_pro": {
+   "rows": 121,
+   "product_rows": 111,
+   "VALIDATED": 47,
+   "BUILT_NOT_VALIDATED": 13,
+   "PARTIAL": 31,
+   "MISSING": 19,
+   "LOCAL": 1,
+   "NOT_PRODUCT": 10,
+   "validated_pct": 42.3,
+   "score_pct": 55.2,
+   "missing_pct": 17.1
+  },
+  "after_effects": {
+   "rows": 219,
+   "product_rows": 179,
+   "VALIDATED": 72,
+   "BUILT_NOT_VALIDATED": 5,
+   "PARTIAL": 76,
+   "MISSING": 26,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 40,
+   "validated_pct": 40.2,
+   "score_pct": 52.2,
+   "missing_pct": 14.5
+  },
+  "audition": {
+   "rows": 16,
+   "product_rows": 16,
+   "VALIDATED": 6,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 7,
+   "MISSING": 3,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 37.5,
+   "score_pct": 48.4,
+   "missing_pct": 18.8
+  },
+  "figma": {
+   "rows": 398,
+   "product_rows": 382,
+   "VALIDATED": 108,
+   "BUILT_NOT_VALIDATED": 5,
+   "PARTIAL": 121,
+   "MISSING": 146,
+   "LOCAL": 2,
+   "NOT_PRODUCT": 16,
+   "validated_pct": 28.3,
+   "score_pct": 36.8,
+   "missing_pct": 38.2
+  },
+  "affinity": {
+   "rows": 163,
+   "product_rows": 163,
+   "VALIDATED": 64,
+   "BUILT_NOT_VALIDATED": 3,
+   "PARTIAL": 64,
+   "MISSING": 30,
+   "LOCAL": 2,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 39.3,
+   "score_pct": 50.0,
+   "missing_pct": 18.4
+  },
+  "acrobat": {
+   "rows": 28,
+   "product_rows": 28,
+   "VALIDATED": 16,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 10,
+   "MISSING": 2,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 57.1,
+   "score_pct": 66.1,
+   "missing_pct": 7.1
+  },
+  "dreamweaver": {
+   "rows": 169,
+   "product_rows": 161,
+   "VALIDATED": 2,
+   "BUILT_NOT_VALIDATED": 3,
+   "PARTIAL": 32,
+   "MISSING": 120,
+   "LOCAL": 4,
+   "NOT_PRODUCT": 8,
+   "validated_pct": 1.2,
+   "score_pct": 7.1,
+   "missing_pct": 74.5
+  },
+  "media_encoder": {
+   "rows": 37,
+   "product_rows": 37,
+   "VALIDATED": 7,
+   "BUILT_NOT_VALIDATED": 16,
+   "PARTIAL": 10,
+   "MISSING": 3,
+   "LOCAL": 1,
+   "NOT_PRODUCT": 0,
+   "validated_pct": 18.9,
+   "score_pct": 47.3,
+   "missing_pct": 8.1
+  },
+  "bridge": {
+   "rows": 33,
+   "product_rows": 31,
+   "VALIDATED": 7,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 16,
+   "MISSING": 8,
+   "LOCAL": 0,
+   "NOT_PRODUCT": 2,
+   "validated_pct": 22.6,
+   "score_pct": 35.5,
+   "missing_pct": 25.8
+  },
+  "cross_app": {
+   "rows": 755,
+   "product_rows": 614,
+   "VALIDATED": 115,
+   "BUILT_NOT_VALIDATED": 16,
+   "PARTIAL": 286,
+   "MISSING": 196,
+   "LOCAL": 1,
+   "NOT_PRODUCT": 141,
+   "validated_pct": 18.7,
+   "score_pct": 31.7,
+   "missing_pct": 31.9
+  }
+ },
+ "ui_split": {
+  "window": 211,
+  "command": 416,
+  "unknown": 4,
+  "basis": "VALIDATED + BUILT_NOT_VALIDATED rows"
+ },
+ "top_missing_areas": [
+  {
+   "area": "Web authoring (Dreamweaver): code intelligence, CSS and responsive authoring, templates, library items, snippets, behaviours, views and remote transports",
+   "missing_rows_covered": 119,
+   "prefixes": [
+    "STU-WEB"
+   ],
+   "rank": 1
+  },
+  {
+   "area": "Shell, tools and generated manual: dock engine, 362-tool registry, tooltips, value-field time, generated descriptors, shortcuts, storage and parallel-work host surfaces",
+   "missing_rows_covered": 95,
+   "prefixes": [
+    "STU-SHL",
+    "STU-SDB",
+    "STU-VAL",
+    "STU-MAN",
+    "STU-QUIET",
+    "STU-PAR"
+   ],
+   "rank": 2
+  },
+  {
+   "area": "Typography depth: paragraph controls, CJK and complex scripts, font management and proofing, character attribute model",
+   "missing_rows_covered": 63,
+   "prefixes": [
+    "STU-TYP"
+   ],
+   "rank": 3
+  },
+  {
+   "area": "Whiteboard mode: board node kinds, connectors, facilitation, templates, diagram generation",
+   "missing_rows_covered": 55,
+   "prefixes": [
+    "STU-WB"
+   ],
+   "rank": 4
+  },
+  {
+   "area": "Interactive documents, prototyping, After Effects authoring and Premiere pipeline: buttons, forms, prototype logic, Figma Slides, expression and timeline editors, preview rendering",
+   "missing_rows_covered": 50,
+   "prefixes": [
+    "STU-PRO",
+    "STU-MOT",
+    "STU-VID"
+   ],
+   "rank": 5
+  },
+  {
+   "area": "Automation and plugins: scripting object model, command contracts, plugin platform for design and graphics",
+   "missing_rows_covered": 48,
+   "prefixes": [
+    "STU-AUT"
+   ],
+   "rank": 6
+  },
+  {
+   "area": "Vector procedural constructs: repeat, blend, live paint, image trace, intertwine, global edit, symmetry",
+   "missing_rows_covered": 45,
+   "prefixes": [
+    "STU-VEC"
+   ],
+   "rank": 7
+  },
+  {
+   "area": "Colour management and measurement: video scopes, display characterisation, CIEDE2000 accuracy, OCIO and document colour policy, ASE swatches",
+   "missing_rows_covered": 41,
+   "prefixes": [
+    "STU-COL",
+    "STU-RAW",
+    "STU-CMP"
+   ],
+   "rank": 8
+  },
+  {
+   "area": "Raster tools, brush engine and effects: brush depth, dodge/burn and other pixel tools, filter gallery, effect registration contract",
+   "missing_rows_covered": 39,
+   "prefixes": [
+    "STU-RAS",
+    "STU-FX",
+    "STU-CON"
+   ],
+   "rank": 9
+  },
+  {
+   "area": "Design-system libraries, variables, handoff and CKC write-back: publish/subscribe, variable commands, layout grids, inspect/codegen, asset provenance",
+   "missing_rows_covered": 36,
+   "prefixes": [
+    "STU-DS",
+    "STU-ASSET"
+   ],
+   "rank": 10
+  },
+  {
+   "area": "Interop, history and model path: preset and library import, validation descriptors, StudioEditProposal, event-ledger undo/redo, kernel integration",
+   "missing_rows_covered": 26,
+   "prefixes": [
+    "STU-IO",
+    "STU-PW",
+    "STU-MDL",
+    "STU-UNI",
+    "STU-ARC",
+    "STU-HIS",
+    "STU-OVR",
+    "STU-PDF",
+    "STU-DOC",
+    "STU-SECTION"
+   ],
+   "rank": 11
+  },
+  {
+   "area": "InDesign layout production: document-wide layers, spreads, autoflow, bullets and numbering, multi-state objects, QR codes, snippets, real package",
+   "missing_rows_covered": 23,
+   "prefixes": [
+    "STU-LAY"
+   ],
+   "rank": 12
+  }
+ ],
+ "unknown_app_tags": {},
+ "comparison_with_308_sample": {
+  "sample_engine_pct": 60.5,
+  "spec_coverage_score_pct": 38.8,
+  "why_differ": "The 308-row sample scores engine capability of the 9 tracked Adobe apps on a hand-picked row pool, while this rollup scores all 2,303 spec requirements, including large areas (web, shell, whiteboard, scripting) that the sample did not cover, so its score is lower."
+ },
+ "notes": [
+  "NOT_PRODUCT rows are excluded from every denominator; weights are VALIDATED 1, BUILT_NOT_VALIDATED 0.5, PARTIAL 0.25, MISSING 0, LOCAL 0 (LOCAL stays in the denominator).",
+  "A row tagged with several apps counts once per app, so app rows overlap and do not sum to the total; other_adobe has no rows.",
+  "top_missing_areas: the eight files hold 40 area sentences; they were merged into 12 by prefix, and missing_rows_covered counts MISSING rows in the listed prefixes, so the 12 sum to 640 exactly.",
+  "ui_split counts VALIDATED plus BUILT_NOT_VALIDATED rows; a null ui is counted as unknown."
+ ]
+}

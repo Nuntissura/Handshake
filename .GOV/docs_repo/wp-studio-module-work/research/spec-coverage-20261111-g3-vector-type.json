@@ -1,0 +1,3941 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G3",
+"prefixes": [
+"STU-VEC",
+"STU-TYP"
+],
+"generated_at": "2026-11-11T16:22:22Z",
+"origin_tip": "87f331f9 (origin/codex/handshake-studio-assets)",
+"rows": [
+{
+"id": "STU-TYP-001",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "`StudioTextStory` (schema id `hsk.studio.text_story@1`) is the single Studio text primitive, carried",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio/src/story.rs:1-20 single text primitive; character/paragraph attribute records declared not stored"
+},
+{
+"id": "STU-TYP-002",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "`text_kind` MUST support at minimum:",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-AREA-TYPE-1..4 PASS; type/src/area_text.rs:1; folio/src/vector_path_text.rs:160"
+},
+{
+"id": "STU-TYP-003",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Auto-size behavior for `area`/`point` stories MUST support `auto_width` (grow horizontally), `auto_h",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "SUPERSEDED by STU-TYP-116..119 (STU-TYP-102)"
+},
+{
+"id": "STU-TYP-004",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Text-on-path: a `StudioTextStory` with `text_kind = path` binds to a `StudioVectorPath` and flows gl",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-AREA-TYPE-2 PASS_V19, SMB-AI-TYPE-PATH-RECOLOR PASS_V23; folio/src/vector_path_text.rs:1; harness-view/src/view/vector/path_text.rs:1"
+},
+{
+"id": "STU-TYP-005",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Threaded / linked text: multiple `area` stories MAY be threaded so a single logical story flows acro",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "threading folio/src/layout.rs:13 (SMB-LAYOUT-UI PASS_V25); linked stories folio/src/layout_rules.rs:146; grep flow_mode|semi_auto|smart_reflow: 0"
+},
+{
+"id": "STU-TYP-006",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Story-editor view: Studio MUST provide a text-only editing projection of a `StudioTextStory` (linear",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI PASS_V25 (STU-LAY-026); harness-view/src/layout_ui.rs:855 story_editor with style margin and overset row"
+},
+{
+"id": "STU-TYP-007",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Placeholder + import: Studio MUST support inserting placeholder filler text into a story (provenance",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "text placement commands harness-core/src/action/commands/layout.rs:17; grep lorem|placeholder_text: 0"
+},
+{
+"id": "STU-TYP-008",
+"section": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
+"title": "Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layou",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE PASS_V26, SMB-TYPE-ENG-1 PASS_V22; type/src/descriptor.rs private pinned Rustybuzz 0.20.1 + ttf-parser native Rust"
+},
+{
+"id": "STU-TYP-009",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Unified complex-script shaping. ONE engine MUST handle Latin, Cyrillic, Greek, Arabic, Hebrew, Indic",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "type/src/descriptor.rs selected_profile scripts [Latn, Arab, Hani]; grep kashida in type/layout: 0; CJK kinsoku layout/src/cjk.rs"
+},
+{
+"id": "STU-TYP-010",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Composer (line-break engine) selection is per-paragraph. Studio MUST expose, under Studio-native nam",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "SUPERSEDED by STU-TYP-135..140 (STU-TYP-102)"
+},
+{
+"id": "STU-TYP-011",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Balance-ragged-lines: for non-justified (left/center/right) paragraphs, an optional balance mode MUS",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "SUPERSEDED by STU-TYP-141 (STU-TYP-102)"
+},
+{
+"id": "STU-TYP-012",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Character attributes are stored per contiguous character range on the `StudioTextStory`; mixed value",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/typestyle.rs:111-125 font, size, fill, line height, letter spacing, align only; header declares OpenType/decoration/baseline-shift gaps"
+},
+{
+"id": "STU-TYP-013",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Change-across-selection: any character attribute (notably font family/style) MUST be applicable to e",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep across_selection|selected_stories: 0"
+},
+{
+"id": "STU-TYP-014",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Text-color law: text fill/stroke color is not an ad-hoc RGB value; it references the color pipeline ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "text fill StudioRgba folio/src/typestyle.rs:118; no StudioSwatch/StudioColorProfile reference"
+},
+{
+"id": "STU-TYP-015",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Paragraph attributes are stored per paragraph. The normative paragraph control set is:",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "paragraph overview: H&J/hyphenation/GREP stored (folio/src/typestyle.rs); keep, drop caps, rules, tabs, lists absent"
+},
+{
+"id": "STU-TYP-016",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Justification and single-word-justification values are stored on the paragraph and consumed determin",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21; folio/src/typestyle.rs:234-254 consumed by layout composer"
+},
+{
+"id": "STU-TYP-017",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Studio MUST expose the font-declared OpenType feature set per character range; a feature is offered ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/features.rs:1"
+},
+{
+"id": "STU-TYP-018",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Color-glyph fonts: Studio MUST render multi-color / gradient OpenType-SVG and `COLR`/`CPAL` color fo",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed refusal: colour/bitmap/SVG faces refused UnsupportedProfile (type/src/descriptor.rs outline)"
+},
+{
+"id": "STU-TYP-019",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Studio MUST support OpenType variable fonts: expose each font's registered and custom design axes (w",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "type/src/fonts.rs:137 set_variations; variable-instance outlines pending (type/src/descriptor.rs); named instances grep: 0"
+},
+{
+"id": "STU-TYP-020",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Glyph browser / insert-glyph: Studio MUST provide a glyph panel that browses every glyph in the acti",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep glyph_browser|GlyphPanel|insert_glyph: 0"
+},
+{
+"id": "STU-TYP-021",
+"section": "7. Glyphs, Special Characters, and White-space Catalogs",
+"title": "User glyph sets: the operator/model MAY define named glyph sets that store chosen glyphs (optionally",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep GlyphSet in type/layout/folio: 0"
+},
+{
+"id": "STU-TYP-022",
+"section": "4. Paragraph Controls",
+"title": "Special-character and break/white-space catalogs: Studio MUST expose an insertable, deduped catalog ",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-SENTINELS-REGISTRY-1 PASS_V6 via STU-TYP-207; interop-layout/src/idml_decode.rs:887; type/tests/stream_sentinels.rs"
+},
+{
+"id": "STU-TYP-023",
+"section": "7. Glyphs, Special Characters, and White-space Catalogs",
+"title": "Text variables / auto-inserted fields: Studio MUST support live text variables whose value is comput",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC-2 PASS_V25; folio/src/longdoc.rs:1230 StudioTextVariable"
+},
+{
+"id": "STU-TYP-024",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Convert-to-outline: a `StudioTextStory` MAY be converted to editable vector geometry — a `StudioVect",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-TYPE-GLYPH-RENDER PASS_V21; type/src/create_outlines.rs:1"
+},
+{
+"id": "STU-TYP-025",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "`StudioTypeStyle` (character-scope and paragraph-scope) is the canonical reusable named-text-style p",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V27 folio/src/typestyle.rs:1; local character overrides declared not stored (folio/src/story.rs:14)"
+},
+{
+"id": "STU-TYP-026",
+"section": "8. Type-Style Binding (`StudioTypeStyle` / `StudioStyleRegistry`)",
+"title": "Style features that Studio MUST support through that binding (definitions owned upstream, engine sup",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "based_on/next_style/GREP styles folio/src/typestyle.rs:97-141; nested styles grep: 0; override reporting declared gap typestyle.rs:32"
+},
+{
+"id": "STU-TYP-027",
+"section": "8. Type-Style Binding (`StudioTypeStyle` / `StudioStyleRegistry`)",
+"title": "Token-driven typography: number `StudioVariable`s MAY bind to size, leading, tracking, and paragraph",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "variable-bound typography fields declared not stored folio/src/typestyle.rs:32"
+},
+{
+"id": "STU-TYP-028",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Font sources: Studio resolves fonts from OS-installed fonts and from a Studio-managed local font lib",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "fonts via caller FontResolver type/src/contract.rs:152, harness-view/src/view/text.rs:258; Studio-managed CAS font library not found"
+},
+{
+"id": "STU-TYP-029",
+"section": "9. Font Management",
+"title": "Font picker: the picker MUST preview each family in its own glyphs, search by name, filter by source",
+"apps": [
+"photoshop",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep font_picker|FontPicker: 0"
+},
+{
+"id": "STU-TYP-030",
+"section": "3. Character Controls",
+"title": "Missing-font handling: on open, Studio MUST flag layers/stories using unavailable fonts and offer a ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "font_substituted loss reports harness-view/src/view/layout_export.rs:714; bulk replace mapping not found"
+},
+{
+"id": "STU-TYP-031",
+"section": "4. Paragraph Controls",
+"title": "Language + proofing: per-range language tags drive hyphenation and spelling dictionaries; Studio MUS",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "applied_language folio/src/story.rs:99; en-US hyphenation patterns only layout/src/hyphenate.rs:12; grep spell_check|misspell: 0"
+},
+{
+"id": "STU-TYP-032",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Find/change over text: Studio MUST support text, regex (GREP), and glyph find/change modes with form",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ID-PREPRESS PASS_V23 layout/src/find_change.rs:1 text/grep/glyph/transliterate/object + saved queries; format-attribute criteria not found"
+},
+{
+"id": "STU-TYP-033",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Warping or enveloping a `StudioTextStory` (arc, arch, bulge, wave, flag, fish, rise, and free-form e",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep warp_text|TextWarp: 0"
+},
+{
+"id": "STU-TYP-034",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Alignment MUST cover left/center/right for horizontal text, top/center/bottom for vertical/CJK text,",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/layout.rs:268 VerticalJustification; layout/src/styles.rs:28 five horizontal alignments; vertical-text alignment not found"
+},
+{
+"id": "STU-TYP-035",
+"section": "4. Paragraph Controls",
+"title": "Full H&J: the justification record MUST store minimum / desired / maximum percentages for word spaci",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21; folio/src/typestyle.rs:234-254"
+},
+{
+"id": "STU-TYP-036",
+"section": "4. Paragraph Controls",
+"title": "Hyphenation is a per-paragraph record resolved against the per-range language dictionary ([STU-TYP-0",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hyphenation record folio/src/typestyle.rs:213-232; en-US patterns only layout/src/hyphenate.rs:12"
+},
+{
+"id": "STU-TYP-037",
+"section": "4. Paragraph Controls",
+"title": "Keep / flow options MUST cover keep-with-previous, keep-with-next N lines, keep-lines-together (all ",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep keep_with_next|keep_lines_together|start_paragraph for paragraphs: 0 (table rows only)"
+},
+{
+"id": "STU-TYP-038",
+"section": "4. Paragraph Controls",
+"title": "Optical margin alignment is ONE control: it MAY hang punctuation (quotes, commas, periods, hyphens, ",
+"apps": [
+"photoshop",
+"indesign",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep optical_margin: 0"
+},
+{
+"id": "STU-TYP-039",
+"section": "4. Paragraph Controls",
+"title": "Drop caps MUST store drop line count, drop character count, an optional bound character style ([STU-",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep drop_cap|DropCap: 0"
+},
+{
+"id": "STU-TYP-040",
+"section": "4. Paragraph Controls",
+"title": "Paragraph decoration MUST provide three independent, composable records — paragraph shading (area fi",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep rule_above|paragraph_shading|paragraph_border: 0"
+},
+{
+"id": "STU-TYP-041",
+"section": "4. Paragraph Controls",
+"title": "Baseline-grid alignment MUST snap a paragraph's lines (all lines, or first line only) to a document-",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio/src/layout_grids.rs:153 StudioAlignToGrid; layout/src/threaded_reflow.rs:573"
+},
+{
+"id": "STU-TYP-042",
+"section": "4. Paragraph Controls",
+"title": "Span / split columns MUST let a paragraph span all or N columns of its `area` container, or split in",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio/src/layoutflow.rs:17 span/split paragraph flows"
+},
+{
+"id": "STU-TYP-043",
+"section": "4. Paragraph Controls",
+"title": "Tabs MUST provide left / center / right / decimal (align-on-character) tab stops with leader charact",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep TabStop|tab_list|align_character: 0"
+},
+{
+"id": "STU-TYP-044",
+"section": "4. Paragraph Controls",
+"title": "Lists MUST provide bulleted and numbered/ordered lists with nesting levels, per-level bullet/number ",
+"apps": [
+"photoshop",
+"indesign",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep bullet_list|numbered_list|list_type: 0"
+},
+{
+"id": "STU-TYP-045",
+"section": "4. Paragraph Controls",
+"title": "Auto-styling inside paragraphs MUST support nested styles (apply a character style through or up to ",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "GREP styles folio/src/typestyle.rs:131 (SMB-LAYOUT-UI PASS_V25); nested and nested-line styles grep: 0"
+},
+{
+"id": "STU-TYP-046",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Kerning modes are per-range and MUST include `metrics` (from the font's pair-kerning table), `optica",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "kern feature via feature map type/src/features.rs; KerningMode/optical kerning grep: 0"
+},
+{
+"id": "STU-TYP-047",
+"section": "3. Character Controls",
+"title": "Case and synthesized styles are non-destructive render transforms that MUST NOT alter the stored cha",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "faux bold/italic on captions only composite/src/clip_finishing.rs:861; story all_caps/small_caps grep: 0"
+},
+{
+"id": "STU-TYP-048",
+"section": "3. Character Controls",
+"title": "Text decoration is per-range: underline (solid / dotted / wavy) with configurable thickness, offset,",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "story underline/strikethrough/skip_ink grep: 0 (folio/src/layoutflow.rs:540 is a conditional-text indicator)"
+},
+{
+"id": "STU-TYP-049",
+"section": "5. OpenType Feature Exposure",
+"title": "Feature-application semantics: OpenType features are stored on the character range as feature-tag to",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/features.rs:13 (STU-TYP-172)"
+},
+{
+"id": "STU-TYP-050",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "History binding: every editing operation on a `StudioTextStory` (character/paragraph attribute chang",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "one undo record per text change layout/src/find_change.rs (apply_text_changes); studio.typography event defined accord/src/business_event.rs:113, emission not found"
+},
+{
+"id": "STU-TYP-051",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Type measurement law: type sizes, leading, baseline shift, and tab positions are carried in points p",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "lengths carried as Length with unit folio/src/typestyle.rs:116; decode-boundary conversion and em/1000 token not found"
+},
+{
+"id": "STU-TYP-100",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Derivation basis. The clauses in this module were derived by parsing the installed",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-101",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Anchor continuity. Anchors STU-TYP-001 through STU-TYP-051 were assigned in",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-102",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Disposition of the pre-existing 14.7 anchors.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-103",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Capture-versus-spec contradictions of record. Three captured behaviours",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-104",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Non-derivation rule. Nothing in this module may be implemented by calling a",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-105",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Seven-field parameter record (NORMATIVE, applies to every numeric typography",
+"apps": [
+"cross_app"
+],
+"status": "LOCAL",
+"ui": "unknown",
+"evidence": "SMB-TYPE-INDENT-SPACING-1 (status null, stopped at C: cap): TypographyParamRow seven-field rows for STU-TYP-185 only; not on origin"
+},
+{
+"id": "STU-TYP-106",
+"section": "14.7.1 The Typography Parameter Contract",
+"title": "Unknown-bound rule. Where a bound, default, unit or precision was not declared by",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "unstated bounds checked for finiteness only, no invented clamp (folio/src/typestyle.rs header); UNKNOWN token not carried in schema/API"
+},
+{
+"id": "STU-TYP-107",
+"section": "14.7.1 The Typography Parameter Contract",
+"title": "Observed-value rule. A value recovered by surveying shipped presets is an OBSERVED",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep observed_min|observed_max in type/layout/folio typestyle: 0"
+},
+{
+"id": "STU-TYP-108",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Typographic unit table (NORMATIVE). Extends [STU-TYP-051].",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "points canonical via Length (folio/src/layout.rs:6); em/1000 and em unit tokens grep: 0"
+},
+{
+"id": "STU-TYP-109",
+"section": "14.7.1 The Typography Parameter Contract",
+"title": "Scrubbable numeric control contract. Every numeric typography parameter MUST be",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "generic scrub steps controls/src/descriptor.rs:62 (harness-view only); typography key increments grep key_increment: 0"
+},
+{
+"id": "STU-TYP-110",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Story structure. `StudioTextStory` (schema id `hsk.studio.text_story@1`) stores:",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33 folio/src/story.rs:16; attribute records and overrides declared not stored (story.rs:14)"
+},
+{
+"id": "STU-TYP-111",
+"section": "14.7.2 Text Model - `StudioTextStory`",
+"title": "Range addressing. The story MUST expose the addressable text units",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "folio/src/story.rs:15-16 declares other addressable units not stored"
+},
+{
+"id": "STU-TYP-112",
+"section": "14.7.2 Text Model - `StudioTextStory`",
+"title": "Segment read/write API. The story MUST expose a styled-segment projection that",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep styled_segment|StyledSegment: 0"
+},
+{
+"id": "STU-TYP-113",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Story direction. `story_direction` is one of `left_to_right`, `right_to_left`,",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/story.rs:43,52 story/paragraph direction; character_direction_override declared not stored"
+},
+{
+"id": "STU-TYP-114",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "`text_kind` values. `point`, `area`, `path`, `frame_grid`. `frame_grid` is an",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-AREA-TYPE-1/3 PASS_V18; folio/src/story.rs:33 point/area/path/frame_grid"
+},
+{
+"id": "STU-TYP-115",
+"section": "14.7.2 Text Model - `StudioTextStory`",
+"title": "Story lifecycle events. Every mutation emits a `StudioHistoryEntry` ([STU-TYP-050])",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "undo records per text edit (layout/src/find_change.rs); studio.typography event accord/src/business_event.rs:113 not emitted by harness"
+},
+{
+"id": "STU-TYP-116",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Auto-size type. `auto_size_type` is a five-value enumeration:",
+"apps": [
+"indesign",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-AREA-TYPE-1 PASS_V18, SMB-ID-FRAME-AUTOSIZE-1 PASS_V16; folio/src/vector_path_text.rs:164; folio/src/layout.rs:30"
+},
+{
+"id": "STU-TYP-117",
+"section": "14.7.3 Auto-Size, Truncation and Frame Fitting",
+"title": "Auto-size reference point. `auto_size_reference` is a nine-value enumeration",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "declared not stored: folio/src/vector_path_text.rs:169, layout/src/autosize.rs:20"
+},
+{
+"id": "STU-TYP-118",
+"section": "14.7.3 Auto-Size, Truncation and Frame Fitting",
+"title": "Auto-size minimums. `use_minimum_height` (bool) with `minimum_height`, and",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "declared not stored: folio/src/vector_path_text.rs:169, layout/src/autosize.rs:20"
+},
+{
+"id": "STU-TYP-119",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Truncation. Truncation is INDEPENDENT of auto-size and MUST be modelled as two",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "story truncation_mode/max_lines grep: 0 (captions only folio/src/clip_finishing.rs:790)"
+},
+{
+"id": "STU-TYP-120",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Path-text geometry. A `path` story binds to a `StudioVectorPath` (geometry owned",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-AREA-TYPE-2 PASS_V19, SMB-AI-TYPE-PATH-RECOLOR PASS_V23; folio/src/vector_path_text.rs:6,26"
+},
+{
+"id": "STU-TYP-121",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Path-text alignment and effect. Two independent enumerations:",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-TYPE-PATH-RECOLOR PASS_V23; folio/src/vector_path_text.rs:36-61"
+},
+{
+"id": "STU-TYP-122",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Threading. Multiple `area` stories MAY be threaded so one logical story flows",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "threads stored as previous/next_text_frame on frames folio/src/layout.rs:13, not on the story"
+},
+{
+"id": "STU-TYP-123",
+"section": "14.7.4 Text-on-Path, Threading and Flow",
+"title": "Placement flow modes. `flow_mode` is a four-value enumeration: `manual`",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep flow_mode|semi_auto|autoflow: 0"
+},
+{
+"id": "STU-TYP-124",
+"section": "14.7.4 Text-on-Path, Threading and Flow",
+"title": "Smart reflow. `smart_reflow` MAY add or remove `StudioPageSpread` pages as a",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep smart_reflow|delete_empty_pages: 0"
+},
+{
+"id": "STU-TYP-125",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Linked stories. A child story MAY mirror a parent story. The link record carries",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19; folio/src/layout_rules.rs:146"
+},
+{
+"id": "STU-TYP-126",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE PASS_V26, SMB-TYPE-ENG-1 PASS_V22; type/src/descriptor.rs native Rust shaper, no platform engine"
+},
+{
+"id": "STU-TYP-127",
+"section": "14.7.5 The Native Shaping Engine",
+"title": "Engine responsibilities. `TextEngine` owns, and is the only owner of: Unicode",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Type owns shaping/outlines composite/src/text.rs:1; justification/hyphenation/line composition in hsk-studio-layout (layout/src/adobe_composer.rs, hyphenate.rs), not TextEngine"
+},
+{
+"id": "STU-TYP-128",
+"section": "14.7.5 The Native Shaping Engine",
+"title": "Engine input closure. A composition call MUST be a pure function of an explicit",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "type/src/descriptor.rs inputs: explicit readset, content-hashed fonts, explicit BCP47; dictionary content hashes not found"
+},
+{
+"id": "STU-TYP-129",
+"section": "14.7.5 The Native Shaping Engine",
+"title": "Font resolution determinism. Font fallback MUST resolve against an explicitly",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "type/src/contract.rs:68-74 FontResource content_hash + revisions; recorded missing-font substitution not found"
+},
+{
+"id": "STU-TYP-130",
+"section": "14.7.5 The Native Shaping Engine",
+"title": "Composition version token. Every composed result MUST carry a",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-TYPE-AUTHORED-TOKEN-1 PASS_V3, SMB-R54-FOLLOWUPS-1 PASS_V5; folio/src/composition_token.rs:2"
+},
+{
+"id": "STU-TYP-131",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Byte-identity proof obligation. Typography acceptance MUST include a",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "single-host determinism only: type/tests/glyph_render.rs:274 NOT_PROVEN cross-host raster identity"
+},
+{
+"id": "STU-TYP-132",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Script coverage. ONE engine MUST handle, at minimum: Latin, Cyrillic, Greek,",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "type/src/descriptor.rs selected_profile scripts [Latn, Arab, Hani] only"
+},
+{
+"id": "STU-TYP-133",
+"section": "14.7.5 The Native Shaping Engine",
+"title": "Digit shaping. `digits_type` is a per-range enumeration with twenty members:",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep digits_type: 0"
+},
+{
+"id": "STU-TYP-134",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Arabic and Hebrew shaping controls. Per-range: `kashidas` (`default` | `off`);",
+"apps": [
+"indesign",
+"illustrator",
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep kashida|diacritic_position|positional_form in type/layout: 0"
+},
+{
+"id": "STU-TYP-135",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Two-axis composition (NORMATIVE). Composition selection is TWO INDEPENDENT",
+"apps": [
+"indesign",
+"illustrator",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21; folio/src/typestyle.rs:152-165; layout/src/typeset.rs:299"
+},
+{
+"id": "STU-TYP-136",
+"section": "14.7.6 Composition: the Two-Axis Composer Model",
+"title": "Composer registry. In addition to the two axes, a paragraph carries",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-CJK-KINSOKU-1 PASS_V18; folio/src/cjk_composition.rs:2,13"
+},
+{
+"id": "STU-TYP-137",
+"section": "14.7.6 Composition: the Two-Axis Composer Model",
+"title": "Kinsoku (CJK line-break tables). A kinsoku table is a first-class named document",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-CJK-KINSOKU-1 PASS_V18; folio/src/cjk_composition.rs:52-71; layout/tests/cjk_kinsoku.rs:37"
+},
+{
+"id": "STU-TYP-138",
+"section": "14.7.6 Composition: the Two-Axis Composer Model",
+"title": "Mojikumi (CJK inter-character spacing tables). A mojikumi table is a first-class",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-CJK-KINSOKU-1 PASS_V18; folio/src/cjk_composition.rs:89; layout/src/cjk.rs:2"
+},
+{
+"id": "STU-TYP-139",
+"section": "14.7.6 Composition: the Two-Axis Composer Model",
+"title": "Leading model. `leading_model` is a five-value per-paragraph enumeration:",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "folio/src/cjk_composition.rs:20 declares leading model not stored"
+},
+{
+"id": "STU-TYP-140",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Composition determinism across the axes. For a fixed input closure",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-CJK-KINSOKU-1 PASS_V18; layout/tests/cjk_mojikumi.rs:115"
+},
+{
+"id": "STU-TYP-141",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": ".",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "balance_ragged_lines declared not stored folio/src/typestyle.rs:26"
+},
+{
+"id": "STU-TYP-145",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Justification mode. `justification` is a NINE-value per-paragraph enumeration and",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout/src/styles.rs:28 five alignments; to_binding_side|away_from_binding grep: 0"
+},
+{
+"id": "STU-TYP-146",
+"section": "14.7.7 Justification and the H&J Parameter Block",
+"title": "Single-word justification. `single_word_justification` is a four-value",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21; folio/src/typestyle.rs:168; layout/src/typeset.rs:249"
+},
+{
+"id": "STU-TYP-147",
+"section": "14.7.7 Justification and the H&J Parameter Block",
+"title": "H&J spacing block (NORMATIVE PARAMETER TABLE). Nine values in three triples. All",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21; folio/src/typestyle.rs:178-182"
+},
+{
+"id": "STU-TYP-148",
+"section": "14.7.7 Justification and the H&J Parameter Block",
+"title": "Auto-leading.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "auto_leading_amount folio/src/typestyle.rs:184; use_auto_leading flag declared not stored (typestyle.rs:28)"
+},
+{
+"id": "STU-TYP-149",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Composer consumption. [STU-TYP-147] and [STU-TYP-148] are the composer's only",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21; layout/tests/composer_wiring.rs:349"
+},
+{
+"id": "STU-TYP-150",
+"section": "14.7.8 Hyphenation",
+"title": "Hyphenation record. Hyphenation is a per-paragraph record resolved against the",
+"apps": [
+"indesign",
+"photoshop",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-COMPOSER-WIRING PASS_V21 folio/src/typestyle.rs:186-200; language resolution en-US only layout/src/hyphenate.rs:12"
+},
+{
+"id": "STU-TYP-151",
+"section": "14.7.8 Hyphenation",
+"title": "Hyphenation toggles. Four independent booleans, none derivable from the others:",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "three toggles folio/src/typestyle.rs:228-232; allow_arbitrary_hyphenation declared not stored (typestyle.rs:27)"
+},
+{
+"id": "STU-TYP-152",
+"section": "14.7.8 Hyphenation",
+"title": "Hyphenation preference scale. An alternative single-axis expression of the",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "hyphenation_preference declared not stored folio/src/typestyle.rs:27"
+},
+{
+"id": "STU-TYP-153",
+"section": "14.7.8 Hyphenation",
+"title": "Hyphenation provider style. `provider_hyphenation_style` is a four-value",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep provider_hyphenation_style|all_but_unaesthetic: 0"
+},
+{
+"id": "STU-TYP-154",
+"section": "14.7.8 Hyphenation",
+"title": "Hyphenation exceptions. A named `hyphenation_exception` list carries",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep hyphenation_exception|added_exceptions: 0"
+},
+{
+"id": "STU-TYP-155",
+"section": "14.7.9 Character Attributes",
+"title": "Character attribute record. Stored per contiguous character range. Mixed values",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "size/line height/letter spacing folio/src/typestyle.rs:116-122; baseline_shift|horizontal_scale|tsume grep in type/folio/layout: 0"
+},
+{
+"id": "STU-TYP-156",
+"section": "14.7.9 Character Attributes",
+"title": "Character enumerations. Each is a separate stored field:",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep kerning_mode|anti_alias_method|metrics_roman_only: 0"
+},
+{
+"id": "STU-TYP-157",
+"section": "14.7.9 Character Attributes",
+"title": "Character booleans. `no_break`, `faux_bold`, `faux_italic`, `fractional_widths`,",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "OpenType legacy booleans mapped to tags type/src/features.rs:18-55; no_break/faux/fractional_widths/overprint grep: 0"
+},
+{
+"id": "STU-TYP-158",
+"section": "14.7.9 Character Attributes",
+"title": "Case and synthesised styles are non-destructive. All-caps, small-caps, title case",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep all_caps|small_caps|small_cap_size on story text: 0 (captions faux styles only)"
+},
+{
+"id": "STU-TYP-159",
+"section": "14.7.9 Character Attributes",
+"title": "Decoration record. Underline and strikethrough are two INDEPENDENT records with",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep underline_weight|strikethrough: 0"
+},
+{
+"id": "STU-TYP-160",
+"section": "14.7.9 Character Attributes",
+"title": "Web-shaped decoration extensions. A second decoration expression exists in the",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep decoration_style|skip_ink: 0"
+},
+{
+"id": "STU-TYP-161",
+"section": "14.7.9 Character Attributes",
+"title": "Per-range hyperlink. A character range MAY carry a hyperlink whose target is",
+"apps": [
+"figma",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "per-range hyperlink grep: 0; folio/src/layoutflow.rs:482 named text anchors only"
+},
+{
+"id": "STU-TYP-165",
+"section": "14.7.2 Text Model - `StudioTextStory`",
+"title": "Frame grid. A `frame_grid` container ([STU-TYP-114]) is a composition grid with",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "frame_grid text_kind folio/src/story.rs:40; grid character size/aki/view mode grep: 0"
+},
+{
+"id": "STU-TYP-166",
+"section": "14.7.10 Vertical and CJK Typography",
+"title": "Jidori and gyoudori.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep jidori|gyoudori: 0"
+},
+{
+"id": "STU-TYP-167",
+"section": "14.7.10 Vertical and CJK Typography",
+"title": "Ruby. Ruby is an attached annotation run, not a separate story. Its record is",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ruby_string|ruby_alignment: 0"
+},
+{
+"id": "STU-TYP-168",
+"section": "14.7.10 Vertical and CJK Typography",
+"title": "Kenten (emphasis marks). Sixteen fields:",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "layout/src/cjk.rs:4 kenten not composed; grep kenten in folio/type: 0"
+},
+{
+"id": "STU-TYP-169",
+"section": "14.7.10 Vertical and CJK Typography",
+"title": "Warichu, tatechuyoko and shatai.",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "layout/src/cjk.rs:4 warichu not composed; grep tatechuyoko|shatai in folio/type: 0"
+},
+{
+"id": "STU-TYP-170",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Feature-tag registry. OpenType features are stored on the character range as an",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/feature_table.rs:9 245 rows; any well-formed tag accepted"
+},
+{
+"id": "STU-TYP-171",
+"section": "14.7.11 OpenType Feature Exposure",
+"title": "Feature groups (operator-facing projection). The registry is projected into named",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7, SMB-TYPE-SENTINELS-REGISTRY-1 PASS_V6; type/src/features.rs:321"
+},
+{
+"id": "STU-TYP-172",
+"section": "14.7.11 OpenType Feature Exposure",
+"title": "Feature semantics. Features are applied by the shaping engine at layout time and",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/features.rs:283,833"
+},
+{
+"id": "STU-TYP-173",
+"section": "14.7.11 OpenType Feature Exposure",
+"title": "Feature availability query. `TextEngine` MUST expose a query returning, for a",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/engine.rs:959; type/src/features.rs:784"
+},
+{
+"id": "STU-TYP-174",
+"section": "14.7.11 OpenType Feature Exposure",
+"title": "Legacy boolean projections. The source applications expose a small set of features",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/features.rs:871"
+},
+{
+"id": "STU-TYP-175",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Figure style and stylistic sets. `figure_style` is a five-value enumeration",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-OT-FEATURES-1 PASS_V7; type/src/features.rs:947"
+},
+{
+"id": "STU-TYP-176",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Font resource record. A font resource carries at minimum: `postscript_name`,",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "type/src/contract.rs:68 FontResource (content_hash, revisions); postscript/family/embedding-permission record not in type crate"
+},
+{
+"id": "STU-TYP-177",
+"section": "14.7.12 Fonts, Variable Fonts and Font Management",
+"title": "Font type enumeration. Ten values: `type1`, `truetype`, `cid`, `atc`, `bitmap`,",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep opentype_cff|FontType: 0"
+},
+{
+"id": "STU-TYP-178",
+"section": "14.7.12 Fonts, Variable Fonts and Font Management",
+"title": "Font status enumeration. Five values: `installed`, `not_available`, `fauxed`,",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep Fauxed|FontStatus: 0"
+},
+{
+"id": "STU-TYP-179",
+"section": "14.7.12 Fonts, Variable Fonts and Font Management",
+"title": "Variable fonts. A variable font resource carries `num_design_axes`, and per axis",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "axis variations type/src/fonts.rs:137; named instances and axis_value records grep: 0"
+},
+{
+"id": "STU-TYP-180",
+"section": "14.7.5 The Native Shaping Engine",
+"title": "Missing fonts. On open, Studio MUST enumerate every story range whose font is",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "font_substituted loss reports harness-view/src/view/layout_export.rs:714; recorded substitution mapping not found"
+},
+{
+"id": "STU-TYP-181",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Font picker and font subsetting. The picker MUST preview each family in its own",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep font_picker: 0; subset in type/src: 0"
+},
+{
+"id": "STU-TYP-182",
+"section": "14.7.12 Fonts, Variable Fonts and Font Management",
+"title": "Composite fonts. A composite font is a first-class named document resource that",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep CompositeFont in type/layout/folio: 0 (folio/src/book.rs:47 sync flag only)"
+},
+{
+"id": "STU-TYP-183",
+"section": "14.7.12 Fonts, Variable Fonts and Font Management",
+"title": "Font sources. Fonts resolve from OS-installed fonts and from a Studio-managed",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "fonts resolved through caller FontResolver (harness-view/src/view/text.rs:258); CAS font library not found"
+},
+{
+"id": "STU-TYP-185",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "Indent and spacing block.",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "LOCAL",
+"ui": "unknown",
+"evidence": "SMB-TYPE-INDENT-SPACING-1 status null (stopped, red tests 5f3112a4 not run); indents/spacing not on origin (folio/src/typestyle.rs gaps)"
+},
+{
+"id": "STU-TYP-186",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "Keep and flow options. Seven independent fields:",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep keep_first_lines|keep_last_lines|keep_all_lines_together: 0"
+},
+{
+"id": "STU-TYP-187",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "Span and split columns. `span_column_type` is a three-value enumeration:",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio/src/layoutflow.rs:17-21 span/split, all sentinel, space before/after, gutters"
+},
+{
+"id": "STU-TYP-188",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "Baseline-grid alignment. `align_to_baseline` (bool) plus",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio/src/layout_grids.rs:153 StudioAlignToGrid"
+},
+{
+"id": "STU-TYP-189",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "Optical margin alignment. ONE control with two facets, not two features: glyph",
+"apps": [
+"indesign",
+"photoshop",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep optical_margin|hanging_list: 0"
+},
+{
+"id": "STU-TYP-190",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "Vertical justification. A CONTAINER property, not a paragraph property, so it",
+"apps": [
+"indesign",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio/src/layoutflow.rs:12; layout/src/threaded_reflow.rs:27"
+},
+{
+"id": "STU-TYP-191",
+"section": "14.7.13 Paragraph Geometry, Spacing and Flow Control",
+"title": "First-baseline offset. A container property: `first_baseline_offset` is a",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ID-FRAME-AUTOSIZE-1 PASS_V16; type/src/area_text.rs:94 declared subset (legacy and em-box modes not modelled)"
+},
+{
+"id": "STU-TYP-192",
+"section": "14.7.9 Character Attributes",
+"title": "Stroke-style registry. Underline, strikethrough, paragraph rules and paragraph",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StrokeStyleRegistry|stroke_style_registry: 0"
+},
+{
+"id": "STU-TYP-193",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Paragraph rules. Rule-above and rule-below are two independent records with",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep rule_above|ParagraphRule: 0"
+},
+{
+"id": "STU-TYP-194",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Paragraph shading. Twenty-two fields: `on`, `colour`, `tint`, `overprint`,",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep paragraph_shading|shading_tint: 0"
+},
+{
+"id": "STU-TYP-195",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Paragraph border. Twenty-six fields, structurally parallel to [STU-TYP-194] but",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep paragraph_border|border_top_line_weight: 0"
+},
+{
+"id": "STU-TYP-196",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Drop caps. Five fields: `drop_cap_lines`, `drop_cap_characters`,",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep drop_cap: 0"
+},
+{
+"id": "STU-TYP-197",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Tabs. A paragraph carries an ordered `tab_list`. A tab stop is four fields:",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep TabStop|tab_position|align_character: 0"
+},
+{
+"id": "STU-TYP-198",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Lists. `list_type` is a three-value enumeration: `no_list`, `bullet_list`,",
+"apps": [
+"photoshop",
+"indesign",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep list_type|bullet_list|numbered_list: 0"
+},
+{
+"id": "STU-TYP-199",
+"section": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+"title": "Auto-styling inside paragraphs. Three independent mechanisms, evaluated in this",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "GREP styles folio/src/typestyle.rs:131; nested_style|nested_line_style grep: 0"
+},
+{
+"id": "STU-TYP-200",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Style scope. `StudioTypeStyle` has exactly two scopes: `character` and",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V27; folio/src/typestyle.rs:59 TypeStyleScope"
+},
+{
+"id": "STU-TYP-201",
+"section": "14.7.15 Type-Style Binding and Resolution",
+"title": "Resolution order (NORMATIVE). A character's effective attribute value is resolved",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/typestyle.rs:195 order for styles + paragraph overrides; nested-style and variable steps absent"
+},
+{
+"id": "STU-TYP-202",
+"section": "14.7.15 Type-Style Binding and Resolution",
+"title": "Override reporting. For any range the engine MUST report, per field, whether the",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "override reporting declared not stored folio/src/typestyle.rs:32"
+},
+{
+"id": "STU-TYP-203",
+"section": "14.7.15 Type-Style Binding and Resolution",
+"title": "Next-style cascade. A paragraph style MAY declare a `next_style`. Applying a",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "next_style stored/edited harness-view/src/layout_ui/styles.rs:35; cascade application in layout/src grep next_style: 0"
+},
+{
+"id": "STU-TYP-204",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Variable-bound typography fields. The following fields MUST accept a",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "variable-bound fields declared not stored folio/src/typestyle.rs:32"
+},
+{
+"id": "STU-TYP-205",
+"section": "14.7.16 Glyphs, Special Characters and Text Variables",
+"title": "Glyph browser. A glyph surface MUST browse every glyph in the active font, filter",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep glyph_browser|GlyphPanel|insert_glyph: 0"
+},
+{
+"id": "STU-TYP-206",
+"section": "14.7.16 Glyphs, Special Characters and Text Variables",
+"title": "User glyph sets. A named glyph set stores chosen glyphs with an optional font",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep GlyphSet in type/layout/folio: 0"
+},
+{
+"id": "STU-TYP-207",
+"section": "14.7.16 Glyphs, Special Characters and Text Variables",
+"title": "Special-character, break and white-space catalogs. Four insertable catalogs. Each",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-SENTINELS-REGISTRY-1 PASS_V6, SMB-LAYOUT-SENTINELS-1 PASS_V6; interop-layout/src/idml_decode.rs:887; layout/src/sentinels.rs"
+},
+{
+"id": "STU-TYP-208",
+"section": "14.7.8 Hyphenation",
+"title": "Text variables. A text variable is a document resource whose value is computed",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC-2 PASS_V25 folio/src/longdoc.rs:1170-1224 twelve types; convert_to_text grep: 0"
+},
+{
+"id": "STU-TYP-209",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "Language record. A language is a document resource carrying `name`,",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep icu_locale|LanguageRecord|single_quotes: 0"
+},
+{
+"id": "STU-TYP-210",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "Per-range language. `applied_language` is a CHARACTER-range attribute. It drives",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33 applied_language folio/src/story.rs:99; not driving dictionaries (en-US patterns only)"
+},
+{
+"id": "STU-TYP-211",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "User dictionaries and spelling. A user dictionary carries `added_words` and",
+"apps": [
+"indesign",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep spell_check|UserDictionary|misspell: 0"
+},
+{
+"id": "STU-TYP-212",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Find/change modes. Five modes, each with its own criteria surface: `text`,",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ID-PREPRESS PASS_V23; layout/src/find_change.rs:1 text/grep/glyph/transliterate/object modes"
+},
+{
+"id": "STU-TYP-213",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "Find/change scope. `search_scope` is a five-value enumeration: `all_documents`,",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout/src/find_change.rs:27 document/story/to-end/selection + hidden toggle; all_documents and four inclusion toggles not found"
+},
+{
+"id": "STU-TYP-214",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "Find/change format criteria. Both the find side and the change side MUST accept a",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "formatting criteria declared gap layout/src/find.rs:13; grep format_criteria: 0"
+},
+{
+"id": "STU-TYP-215",
+"section": "14.7.0 Authority, Derivation and Supersession",
+"title": "Saved queries. A find/change query is a named, reusable, exportable document or",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; layout/src/find_change.rs:503 SavedQuery"
+},
+{
+"id": "STU-TYP-216",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "Transliteration. The `transliterate` find/change mode converts between character",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout/src/find_change.rs:17 full/half-width Roman and hiragana/katakana only; digit targets refused transliteration_unsupported"
+},
+{
+"id": "STU-TYP-217",
+"section": "14.7.17 Language, Dictionaries and Proofing",
+"title": "Autocorrect. Autocorrect is a per-language replacement table (a map from a",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep autocorrect: 0"
+},
+{
+"id": "STU-TYP-220",
+"section": "14.7.18 Model Steerability, GUI and Manual Obligations",
+"title": "GUI / Argus / UserManual obligation (stated once for 14.7). Every operator-facing",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding cross-cutting obligation (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-221",
+"section": "14.7.18 Model Steerability, GUI and Manual Obligations",
+"title": "Parameter introspection for models. The typed command surface MUST expose, for",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "typography parameter introspection: hard_min in type/layout/folio typestyle grep: 0"
+},
+{
+"id": "STU-TYP-222",
+"section": "14.7.18 Model Steerability, GUI and Manual Obligations",
+"title": "Mixed-value protocol. Every read over a range that spans differing values MUST",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "typography mixed-value protocol grep Mixed in type/layout/folio story: 0"
+},
+{
+"id": "STU-TYP-223",
+"section": "14.7.18 Model Steerability, GUI and Manual Obligations",
+"title": "Batch and parallel safety. Typography commands MUST be idempotent under",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep idempotency in type/layout: 0 (generic session idempotency only, session/src/session.rs)"
+},
+{
+"id": "STU-TYP-224",
+"section": "14.7.18 Model Steerability, GUI and Manual Obligations",
+"title": "Privacy obligation. Font resources, dictionaries, glyph sets, autocorrect tables",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "fonts caller-granted with grant_revision type/src/contract.rs:74 (RevokedFont type/src/fonts.rs:22); dictionaries/glyph sets/queries not grant-gated"
+},
+{
+"id": "STU-TYP-230",
+"section": "14.7.19 Validation and Acceptance",
+"title": "Typography validation descriptors. The `StudioValidationDescriptor` catalog",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep typ.parameter_record_complete|StudioValidationDescriptor: 0"
+},
+{
+"id": "STU-TYP-231",
+"section": "14.7.19 Validation and Acceptance",
+"title": "No-platform-text-engine tripwire. The build MUST carry a dependency tripwire that",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep DirectWrite|fontconfig tripwire outside fixtures: 0"
+},
+{
+"id": "STU-TYP-232",
+"section": "14.7.19 Validation and Acceptance",
+"title": "Golden-composition corpus. Acceptance MUST include the thirty golden cases below.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Unicode bidi goldens only type/tests/foundation_contract.rs:448; gold.* 30-case corpus grep: 0"
+},
+{
+"id": "STU-TYP-233",
+"section": "14.7.19 Validation and Acceptance",
+"title": "Round-trip obligation. Every field named in this module MUST survive a",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "byte-identical re-serialization of stored fields (folio/src/layout.rs:9); unstored fields cannot round-trip"
+},
+{
+"id": "STU-TYP-235",
+"section": "14.7.20 Scope Edges",
+"title": "Owned here. The text model; composition and shaping; character and paragraph",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding scope edge (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-236",
+"section": "14.7.20 Scope Edges",
+"title": "Not owned here (referenced). Named-style STORAGE and lifecycle (14.6, 14.10);",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding scope edge (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-237",
+"section": "14.7.20 Scope Edges",
+"title": "Typography capability provenance scale. The capability registry recorded 3,040",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding provenance statement (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-238",
+"section": "14.7.20 Scope Edges",
+"title": "Bound-coverage honesty (SELF-AUDIT). Of 1,181 distinct text attributes recovered",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding self-audit (STU-TYP-240)"
+},
+{
+"id": "STU-TYP-240",
+"section": "14.7.20 Scope Edges",
+"title": "Derivation rule (NORMATIVE). The typography microtask set is derived from this",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation rule (declared non-yielding)"
+},
+{
+"id": "STU-TYP-241",
+"section": "14.7.21 Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under [STU-TYP-240] MUST carry",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation rule (declared non-yielding)"
+},
+{
+"id": "STU-TYP-242",
+"section": "14.7.21 Microtask Derivation",
+"title": "Yields index (NORMATIVE LEDGER). One row per unit group. The last column is the",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation ledger (declared non-yielding)"
+},
+{
+"id": "STU-TYP-243",
+"section": "14.7.21 Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this module cites the clause anchor",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask anchor binding (declared non-yielding)"
+},
+{
+"id": "STU-TYP-244",
+"section": "14.7.21 Microtask Derivation",
+"title": "Table spawn declarations (NORMATIVE). A derivation tool cannot tell from a table's",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "table spawn declarations (declared non-yielding)"
+},
+{
+"id": "STU-TYP-245",
+"section": "14.7.21 Microtask Derivation",
+"title": "Reconciliation of record. First pass (ledger). A derivation tool run against this module before the",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reconciliation of record (declared non-yielding)"
+},
+{
+"id": "STU-VEC-001",
+"section": "14.5 Vector Graphics & Illustration",
+"title": "Studio MUST provide exactly two canonical vector geometry primitives, and every vector",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:2, folio/src/vector_network.rs:2"
+},
+{
+"id": "STU-VEC-002",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "An anchor MUST carry a position (document units per [STU-DOC-003]), an incoming",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:81 (handles + handle_mirroring)"
+},
+{
+"id": "STU-VEC-003",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "A segment (edge) between two anchors MUST be a cubic Bezier; a straight segment is the",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:11,699"
+},
+{
+"id": "STU-VEC-004",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Every closed contour and every enclosed network region MUST carry an explicit fill",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN-2 PASS_V27; folio/src/vector_network.rs:2; paint bucket harness-view/src/view/vector.rs:2323"
+},
+{
+"id": "STU-VEC-005",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Studio MUST provide live (non-destructive) corner treatment on individual anchors via",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN-2 PASS_V27; nib/src/freeform.rs:13,166"
+},
+{
+"id": "STU-VEC-006",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Studio MUST provide the non-destructive path-topology operations below as first-class",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; harness-view/src/view/vector.rs:2715; nib/src/anchor_path.rs:766"
+},
+{
+"id": "STU-VEC-007",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Studio MUST provide the deduped vector drawing/editing tool set in the table below.",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "PEN/PEN-2/PEN-3 PASS; harness-view/src/view/edit.rs:47-66 pen, curvature, pencil, knife, shape builder, width, reshape, blob brush; grep Eraser|Sculpt|vector_crop: 0"
+},
+{
+"id": "STU-VEC-008",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "The pen, curvature, freehand, blob brush and brush tools MUST author either a",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN-3 PASS_V26; harness-view/src/view/vector.rs:2506; nib/tests/network_pen.rs"
+},
+{
+"id": "STU-VEC-009",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "The node-select tool MUST expose, for the current selection, the anchor mirroring mode",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/edit.rs:2"
+},
+{
+"id": "STU-VEC-010",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Studio MUST provide a parametric shape catalog. Each shape is a live",
+"apps": [
+"illustrator",
+"affinity",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; folio/src/live_shape.rs:2,9"
+},
+{
+"id": "STU-VEC-011",
+"section": "14.5.3 Parametric Shape Catalog",
+"title": "The shape catalog is extensible: adding a Studio-native parametric shape MUST be a",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep register_shape|ShapeRegistry|shape_registry: 0"
+},
+{
+"id": "STU-VEC-012",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Studio MUST provide ONE unified geometry-operation set that subsumes every source",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/pathfinder.rs:1; nib/src/boolean.rs:1"
+},
+{
+"id": "STU-VEC-013",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Every boolean operation MUST support a live (non-destructive) result mode and a",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMPOSITE-VECTOR-IN-GROUP PASS_V27; folio/src/vector.rs:45 StudioBooleanGroup; composite/src/vector.rs:14"
+},
+{
+"id": "STU-VEC-014",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Compound paths (a single object with holes formed by multiple contours under a shared",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nib/src/shape_ops.rs:25 merge_paths Merge concatenates to a compound path; grep make_compound|release_compound|CompoundPath: 0"
+},
+{
+"id": "STU-VEC-015",
+"section": "14.5.5 Fills",
+"title": "A vector object's paint MUST be expressed as an ordered stack of fill entries",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25; folio/src/paint.rs:1; harness-view/src/view/vector/style.rs:1"
+},
+{
+"id": "STU-VEC-016",
+"section": "14.5.5 Fills",
+"title": "Every gradient MUST carry a multi-stop ramp with per-stop colour and opacity, an",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-4 PASS_V32; folio/src/paint.rs:26 stroke application mode within/along/across not stored; no on-canvas gradient annotator"
+},
+{
+"id": "STU-VEC-017",
+"section": "14.5.5 Fills",
+"title": "`StudioPattern` MUST support tiled fills with an editable tile-layout type, brick/hex",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-7 PASS_V30; folio/src/vector.rs:12-14 definition + live_source pattern models"
+},
+{
+"id": "STU-VEC-018",
+"section": "14.5.5 Fills",
+"title": "Image fills MUST support the scaling modes of [STU-VEC-139] and MUST expose",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/vector.rs StudioImagePaint (image fill); image adjustment block not stored; paint.video not stored (folio/src/paint.rs header)"
+},
+{
+"id": "STU-VEC-019",
+"section": "14.5.5 Fills",
+"title": "The colour entry surface for any fill or stroke MUST accept HEX, RGB, HSL/HSB, CMYK",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25; harness-view/src/view/vector/swatch.rs:5 RGB/CMYK/LAB/GRAY/spot; grep eyedropper|gamut in vector style/swatch: 0"
+},
+{
+"id": "STU-VEC-020",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "A vector object's stroke MUST be expressed as an ordered stack of stroke entries",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25; folio/src/paint.rs stroke rows; nib/src/stroke.rs:1"
+},
+{
+"id": "STU-VEC-021",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Variable-width profiles MUST be storable as reusable named profiles in the",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/width_profile.rs:1 per-path profile only; grep named_width_profile|WidthProfileLibrary: 0"
+},
+{
+"id": "STU-VEC-022",
+"section": "14.5.5 Fills",
+"title": "Studio MUST provide a per-object appearance stack: an object, group or layer MUST",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25 appearance rows; folio/src/paint.rs header: effect rows not stored; effect stack SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION"
+},
+{
+"id": "STU-VEC-023",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Live effects MUST be attachable at any of these scopes and MUST be carried in the",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION folio/src/vector_live_filter.rs:19; per-row effect scope not stored (folio/src/paint.rs header)"
+},
+{
+"id": "STU-VEC-024",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Graphic styles MUST be named, reusable appearance presets stored in the",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; harness-core/src/action/commands/panel.rs:25-29 add/apply/merge/redefine/break; cross-document libraries, new-art toggle, clear appearance not found"
+},
+{
+"id": "STU-VEC-025",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Opacity and blend mode MUST be settable at object, group, layer and individual",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMPOSITE-VECTOR-MASK-2 PASS_V25; folio/src/appearance.rs:62,68 row opacity and blend_mode"
+},
+{
+"id": "STU-VEC-026",
+"section": "14.5.8 Brushes",
+"title": "Studio MUST provide vector brushes as a single canonical `StudioVectorBrush` primitive",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25 (blame 78a237cb); folio/src/vector_tools.rs:305"
+},
+{
+"id": "STU-VEC-027",
+"section": "14.5.8 Brushes",
+"title": "Each brush kind MUST support the colorisation method of [STU-VEC-163] and per-path",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; folio/src/vector_tools.rs:24,333 colorization + per-path scale_override only"
+},
+{
+"id": "STU-VEC-028",
+"section": "14.5.9 Artboards, Frames, and Layout Touchpoints",
+"title": "Vector artwork MUST be placeable on one or more `StudioArtboard` containers within a",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-ARTBOARD-EXPORT-1, SMB-DOC-NEW-1 READY_FOR_VALIDATION; harness-core/src/harness/containers.rs:2"
+},
+{
+"id": "STU-VEC-029",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Studio MUST provide the vector-relevant alignment and measurement surfaces below:",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25 align/distribute nib/src/arrange.rs:2; grep pixel_snap|snap_to_pixel: 0"
+},
+{
+"id": "STU-VEC-030",
+"section": "14.5.10 Transforms and Distortions",
+"title": "Studio MUST provide the deduped transform and distortion set below. Each is a typed",
+"apps": [
+"illustrator",
+"affinity",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "transforms nib/src/arrange.rs, free distort nib/src/live_effect.rs, envelope nib/src/warp.rs (TOOLS-2 PASS); grep puppet|perspective_grid: 0; liquify raster-only pigment/src/liquify.rs"
+},
+{
+"id": "STU-VEC-031",
+"section": "14.5.10 Transforms and Distortions",
+"title": "Studio MUST provide the procedural repeat construct with `radial`, `grid` and `mirror`",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep RadialRepeat|radial_instances|repeat_construct: 0"
+},
+{
+"id": "STU-VEC-032",
+"section": "14.5.11 Procedural Constructs",
+"title": "Blend: Studio MUST support blending between two or more objects to generate live",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep blend_spacing|specified_steps|BlendSpine|make_blend: 0"
+},
+{
+"id": "STU-VEC-033",
+"section": "14.5.11 Procedural Constructs",
+"title": "Live Paint: Studio MUST support a live-paint construct that treats overlapping paths",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep live_paint|LivePaint: 0"
+},
+{
+"id": "STU-VEC-034",
+"section": "14.5.5 Fills",
+"title": "Gradient Mesh: Studio MUST support gradient-mesh objects (`StudioGradient` kind",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-AI-TYPE-PATH-RECOLOR PASS_V23; folio/src/vector_mesh.rs:1 (conversion from linear/radial gradient declared not written)"
+},
+{
+"id": "STU-VEC-035",
+"section": "14.5.11 Procedural Constructs",
+"title": "Image Trace: Studio MUST provide a deterministic native raster-to-vector trace",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep image_trace|ImageTrace|trace_mode|trace_threshold: 0"
+},
+{
+"id": "STU-VEC-036",
+"section": "14.5.11 Procedural Constructs",
+"title": "Intertwine: Studio MUST support an intertwine construct that makes selected",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep intertwine: 0"
+},
+{
+"id": "STU-VEC-037",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Global Edit: Studio MUST support a global-edit mode that edits all similar objects",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep global_edit|select_same: 0"
+},
+{
+"id": "STU-VEC-038",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "A `StudioVectorPath`/`StudioVectorNetwork` MUST be usable as a typographic baseline",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-AREA-TYPE-1..3, SMB-AI-TYPE-PATH-RECOLOR PASS; folio/src/vector_path_text.rs:2; composite/src/vector_text.rs:2"
+},
+{
+"id": "STU-VEC-039",
+"section": "14.5.11 Procedural Constructs",
+"title": "Studio's default vector pipeline is fully local and deterministic; generative",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioModelAdapter|text_to_vector in vector crates: 0 (only develop/src/retouch.rs)"
+},
+{
+"id": "STU-VEC-040",
+"section": "14.5.13 Provider / AI Lane (Adapter-Backed, Optional)",
+"title": "Every adapter-backed generative result MUST land as ordinary local `StudioDocument`",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no adapter lane in vector domain (grep StudioModelAdapter in nib/folio/composite/harness: 0)"
+},
+{
+"id": "STU-VEC-041",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Every vector tool, shape, geometry operation, fill/stroke attribute, appearance row,",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding cross-cutting obligation (STU-VEC-199); judged per clause"
+},
+{
+"id": "STU-VEC-042",
+"section": "14.5.11 Procedural Constructs",
+"title": "All durable vector authority (geometry, appearance, styles, brushes, patterns,",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "accord/src/business_event.rs:112 studio.vector event name; SurrealDB/EventLedger persistence is host-side, UNVERIFIED in asset repo"
+},
+{
+"id": "STU-VEC-043",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Every contour MUST carry an explicit path direction, and Studio MUST provide a",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AI-ARROWHEADS-1 PASS_V15, SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/shape_ops.rs reverse; nib/src/markers.rs:8"
+},
+{
+"id": "STU-VEC-044",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Curvature continuity at an anchor MUST be classifiable and preservable: an anchor is",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-AI-SIMPLIFY-1 PASS_V11 keeps smooth anchors nib/src/simplify.rs:52,230; continuity classification (C0|C1|G2) grep in nib: 0"
+},
+{
+"id": "STU-VEC-045",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Geometry precision MUST be carried at a resolution independent of the current zoom or",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "f64 document-unit coordinates in nib; pixel snapping command absent (grep pixel_snap|snap_to_pixel: 0); zoom independence UNVERIFIED"
+},
+{
+"id": "STU-VEC-046",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Studio MUST provide drawing modes that govern where new vector art is placed relative",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep draw_behind|draw_inside|DrawingMode: 0"
+},
+{
+"id": "STU-VEC-047",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Tool options MUST be persisted per tool and exposed as typed, model-settable values. A",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core/src/action/commands/vector.rs:48 vector.set_tool_options (fill/stroke); per-tool contracts STU-VEC-118/121/123/124 absent"
+},
+{
+"id": "STU-VEC-048",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Scissors and knife operations MUST define deterministic results: scissors splits a",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:57,817; harness-view/src/view/vector.rs:2105"
+},
+{
+"id": "STU-VEC-049",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Geometry operations MUST be deterministic and repeatable: the same operation over the",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-NIB-VECTOR-RENDER PASS_V19 deterministic nib/src/pathfinder.rs; z-order dependence not stated in contract (grep order_dependent: 0)"
+},
+{
+"id": "STU-VEC-050",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "The shape-builder tool ([STU-VEC-007]) MUST be defined as an interactive front-end",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN-2 PASS_V27; harness-view/src/view/edit.rs:58 ShapeBuilder; harness-core/src/manual.rs:250 shape_builder_layers"
+},
+{
+"id": "STU-VEC-051",
+"section": "14.5.5 Fills",
+"title": "A gradient or pattern fill MUST be storable as a typed swatch in the",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25 gradient swatches + global propagation folio/src/vector_tools.rs:2; freeform/mesh gradients not swatch-storable"
+},
+{
+"id": "STU-VEC-052",
+"section": "14.5.5 Fills",
+"title": "Selection-wide colour editing MUST be supported: a mixed selection MUST enumerate",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-TYPE-PATH-RECOLOR PASS_V23; prism/src/recolor.rs:2; harness-view/src/view/vector/recolor.rs:1"
+},
+{
+"id": "STU-VEC-053",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Studio MUST support sibling/clip masking in addition to opacity masks: a vector object",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMPOSITE-VECTOR-MASK/-2, SMB-FOLIO-ENG-7 PASS; folio/src/vector.rs StudioVectorMask ALPHA/VECTOR/LUMINANCE"
+},
+{
+"id": "STU-VEC-054",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Expand-appearance MUST bake the current appearance stack (multiple fills/strokes,",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "bake via SMB-AI-LIVE-EFFECTS-1 READY harness-view/src/view/vector/live_filters.rs:293; grep expand_fill|expand_stroke|to_specified_steps: 0"
+},
+{
+"id": "STU-VEC-055",
+"section": "14.5.10 Transforms and Distortions",
+"title": "All distortion constructs that wrap editable content MUST provide an edit-contents",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25 (blame 13bb770e); nib/src/warp.rs:1; harness-view/src/view/vector/envelope.rs:1"
+},
+{
+"id": "STU-VEC-056",
+"section": "14.5.10 Transforms and Distortions",
+"title": "Symmetry/mirror drawing MUST be supported for vector authoring (single- or",
+"apps": [
+"affinity",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep symmetry|mirror_draw in vector crates: 0"
+},
+{
+"id": "STU-VEC-057",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Studio MUST provide vector measurement/inspection surfaces usable by operator and",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nib/src/shape_ops.rs:371 path_length only; grep measure_distance|measure_angle|vector_inventory: 0"
+},
+{
+"id": "STU-VEC-058",
+"section": "14.5.9 Artboards, Frames, and Layout Touchpoints",
+"title": "Reusable vector symbol instances are owned by the design-system domain (14.10) via",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "components/src/instance_resolution.rs (design-system instances); vector symbol-source contract absent (grep symbol_kind|nine_slice: 0)"
+},
+{
+"id": "STU-VEC-059",
+"section": "14.5.11 Procedural Constructs",
+"title": "Every procedural construct in this group (blend, live paint, gradient mesh, image",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "only gradient mesh persists source refs folio/src/vector_mesh.rs:2; blend, live paint, trace, intertwine, repeat absent"
+},
+{
+"id": "STU-VEC-060",
+"section": "14.5.13 Provider / AI Lane (Adapter-Backed, Optional)",
+"title": "The native deterministic primitives and the generative adapter lane MUST be separable:",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no adapter lane in vector domain (grep StudioModelAdapter in vector crates: 0)"
+},
+{
+"id": "STU-VEC-061",
+"section": "14.5.13 Provider / AI Lane (Adapter-Backed, Optional)",
+"title": "Prompt text, style-reference selections and any source content sent to a generative",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no adapter lane in vector domain (grep StudioModelAdapter in vector crates: 0)"
+},
+{
+"id": "STU-VEC-062",
+"section": "14.5.6 Strokes",
+"title": "Caps/joins/arrowhead configuration MUST be defined for both simple open-path endpoints",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AI-ARROWHEADS-1/2 PASS; folio/src/vector_network.rs:79 per-vertex stroke_cap/join; composite/src/vector.rs:1085"
+},
+{
+"id": "STU-VEC-063",
+"section": "14.5.6 Strokes",
+"title": "On-canvas stroke and gradient editing MUST be exposed through a live annotator",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep annotator|gradient_handle in harness-view/nib: 0"
+},
+{
+"id": "STU-VEC-064",
+"section": "14.5.6 Strokes",
+"title": "Studio MUST provide a directional-transparency (opacity-gradient) authoring",
+"apps": [
+"affinity",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep opacity_gradient|directional_transparency: 0"
+},
+{
+"id": "STU-VEC-065",
+"section": "14.5.3 Parametric Shape Catalog",
+"title": "Parametric shapes MUST support both handle-based on-canvas parameter editing and",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "vector.set_live_shape harness-core/src/action/commands/vector.rs:27; scale_corners only on transform effect nib/src/live_effect.rs:28"
+},
+{
+"id": "STU-VEC-066",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Rectangles, frames and vector anchors MUST support per-corner independent radius (a",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN/-2 PASS_V27; folio/src/live_shape.rs:84; nib/src/freeform.rs:223"
+},
+{
+"id": "STU-VEC-067",
+"section": "14.5.5 Fills",
+"title": "Studio MUST provide a pattern editing mode that isolates a pattern's tile artwork for",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep pattern_edit|edit_pattern|PatternIsolation: 0"
+},
+{
+"id": "STU-VEC-068",
+"section": "14.5.12 Text-on-Path Touchpoint",
+"title": "Editing the geometry of a path bound to text (moving anchors, reshaping segments,",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "path text re-laid from bound SVPT path at lowering composite/src/vector_text.rs:2; detach/relink on path delete grep: 0"
+},
+{
+"id": "STU-VEC-069",
+"section": "14.5.12 Text-on-Path Touchpoint",
+"title": "Vector geometry authored under this sub-section MUST round-trip through the",
+"apps": [
+"illustrator",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "interop-vector-svg/src/svg_adapter.rs:595 fill-rule round trip (SMB-INTEROP-VECTOR PASS_V37); .ai writer absent (parity-20261111 AI-32)"
+},
+{
+"id": "STU-VEC-070",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Flatten MUST be defined as the general destructive-merge command over any selection",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep vector.flatten|expand_boolean|bake_boolean: 0 (nib/src/flatten.rs is curve flattening)"
+},
+{
+"id": "STU-VEC-071",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Vector selection MUST use the shared `StudioSelectionSet` primitive (14.3) and MUST",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "vector direct select harness-view/src/view/edit.rs:47; lasso raster-only harness-core/src/manual.rs:197; grep select_by_attribute: 0"
+},
+{
+"id": "STU-VEC-072",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Vector object management (group/ungroup, arrange/z-order, lock, hide, rename) is owned",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-UI-3 PASS_V29; harness-view/src/view/layers.rs:2 reorder/group/ungroup, move_layer; z_order four-member enumeration grep: 0"
+},
+{
+"id": "STU-VEC-073",
+"section": "14.5 Vector Graphics & Illustration",
+"title": "Vector history/undo MUST use the shared `StudioHistoryEntry` surface (14.19): each",
+"apps": [
+"illustrator",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "one undo step per vector edit harness-view/src/view/vector.rs:15; StudioHistoryEntry only as schema accord/src/lib.rs:36"
+},
+{
+"id": "STU-VEC-100",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "The seven-field numeric parameter contract. Every numeric parameter defined",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-101",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Unit vocabulary. Every length-, angle- and ratio-bearing field MUST carry one of",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-102",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Soft bounds are UI presentation only. A control whose `soft_min`/`soft_max` are",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-103",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Step contract. Every scrubbable numeric parameter MUST additionally declare",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-104",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Enumeration contract. Every enumerated parameter MUST declare its complete member",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-105",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Capture-conflict rule. Where two captures disagree about the same parameter (for",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-106",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Observed-value rule. Values recovered by mining shipped preset or library content",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-107",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Microtask derivation rule. The microtask set for this domain is derived",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared non-yielding reading rule (STU-VEC-199)"
+},
+{
+"id": "STU-VEC-108",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "`StudioVectorNetwork` element contract. The network is three parallel arrays plus",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMPOSITE-NETWORK-ADAPTER, SMB-ILLUSTRATOR-PEN-2/3 PASS; set_network harness-view/src/view/vector.rs; composite/src/vector.rs:1097"
+},
+{
+"id": "STU-VEC-109",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Handle-mirroring enumeration. Superseding the informal member names",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:7,81; folio/src/vector_network.rs:53"
+},
+{
+"id": "STU-VEC-110",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Winding-rule enumeration, superseding the informal names in [STU-VEC-004]:",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-7 PASS_V30, SMB-ILLUSTRATOR-PEN-3 PASS_V26; folio/src/vector_network.rs:64; folio/src/vector.rs:63"
+},
+{
+"id": "STU-VEC-111",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Path polarity. Completing [STU-VEC-043]: the captured type library exposes contour",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep Polarity outside roto: 0"
+},
+{
+"id": "STU-VEC-112",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Corner-kind enumeration and corner numeric contract. The informal list",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; folio/src/live_shape.rs:49; nib/src/shape.rs:2"
+},
+{
+"id": "STU-VEC-113",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Offset-path parameter contract.",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-NIB-VECTOR-RENDER PASS_V19; nib/src/stroke.rs:86; offset_path harness-view/src/view/vector.rs"
+},
+{
+"id": "STU-VEC-114",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Simplify parameter contract. Simplify is a four-parameter operation, not a single",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-SIMPLIFY-1 PASS_V11; nib/src/simplify.rs:1"
+},
+{
+"id": "STU-VEC-115",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Object dimension and opacity domain. A vector art item's own width, height and",
+"apps": [
+"illustrator"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-DOC-NEW-1 READY_FOR_VALIDATION; harness-core/src/document_new.rs:23,178 (16348 also in folio/src/live_shape.rs)"
+},
+{
+"id": "STU-VEC-116",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Anchor selection state. Anchor selection is not a boolean. The captured",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:88"
+},
+{
+"id": "STU-VEC-117",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Path measurement readouts. Every path MUST expose, as typed read-only values that",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nib/src/shape_ops.rs:371 path_length; area readout grep fn .*area in nib/src: 0"
+},
+{
+"id": "STU-VEC-118",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Pen and curvature tool option contract. The pen family carries a small set of",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep anchor_edit_mode|arc_edit_mode|rubber_band: 0 (index-linked PEN lanes carry no code)"
+},
+{
+"id": "STU-VEC-119",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Freehand (pencil) tool option contract.",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN-2 PASS_V27; harness-view/src/view/vector.rs:408; nib/src/freeform.rs:10"
+},
+{
+"id": "STU-VEC-120",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Blob-brush tool option contract. The blob brush is a filled-geometry painter, not",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "blob brush tool harness-view/src/view/edit.rs:66 (PEN-3 PASS); grep merge_only_with_selection|keep_selected|roundness: 0"
+},
+{
+"id": "STU-VEC-121",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Vector-eraser tool option contract. The eraser nib is the same three-parameter nib",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep Eraser|vector_eraser: 0"
+},
+{
+"id": "STU-VEC-122",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Width-point editing contract. A variable-width profile is a list of width points;",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25; folio/src/width_profile.rs:1"
+},
+{
+"id": "STU-VEC-123",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Shape-builder and region-merge option contract. The gesture front-end",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep gap_detection|GapLength|click_stroke_splits: 0"
+},
+{
+"id": "STU-VEC-124",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Sculpt / push-pull contract. The captured sculpt surface carries a single",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep sculpt|Sculpt: 0"
+},
+{
+"id": "STU-VEC-125",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Selection-by-attribute predicate set. The captured attribute-selection surface",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SelectionPredicate|select_by_attribute|select_same: 0"
+},
+{
+"id": "STU-VEC-126",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Document cleanup contract. Studio MUST provide a document-scoped cleanup command",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep stray_points|unpainted_objects: 0"
+},
+{
+"id": "STU-VEC-127",
+"section": "14.5.3 Parametric Shape Catalog",
+"title": "Parametric shape catalog with captured bounds. SUPERSEDES the unbounded shape",
+"apps": [
+"illustrator",
+"affinity",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN-2 PASS_V27; folio/src/live_shape.rs:15; nine shape tools harness-view/src/view/edit.rs"
+},
+{
+"id": "STU-VEC-128",
+"section": "14.5.3 Parametric Shape Catalog",
+"title": "Extended-primitive registration requirement. The extended parametric primitives",
+"apps": [
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep crescent|double_star|square_star|trapezoid: 0"
+},
+{
+"id": "STU-VEC-129",
+"section": "14.5.3 Parametric Shape Catalog",
+"title": "Live-shape conversion. Converting an arbitrary path INTO a parametric shape MUST",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep convert_to_live_shape|cannot convert: 0 (vector.set_live_shape edits existing live shapes only)"
+},
+{
+"id": "STU-VEC-130",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Canonical geometry-operation enumeration. SUPERSEDES the ten-row table of",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/pathfinder.rs:54 (13 ops); harness-view/src/view/vector.rs:2953"
+},
+{
+"id": "STU-VEC-131",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Geometry-operation option contract. Three captured options govern every operation",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nib/src/path_contract.rs:161 precision/remove_redundant_points/divide_and_outline_remove_unpainted; not exposed as harness tool state (grep in harness: 0)"
+},
+{
+"id": "STU-VEC-132",
+"section": "14.5.4 Boolean, Compound, and Geometry Operations",
+"title": "Trap operation contract. `geom.trap` produces prepress trap geometry and carries",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nib/src/pathfinder.rs:54 Trap op; grep traps_with_process|reverse_traps: 0"
+},
+{
+"id": "STU-VEC-133",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Geometry-operation failure vocabulary. The captured constraint vocabulary names",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; nib/src/anchor_path.rs:14-43 typed errors"
+},
+{
+"id": "STU-VEC-134",
+"section": "14.5.5 Fills",
+"title": "Paint-kind enumeration. SUPERSEDES the five informal fill kinds of",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs header: kinds none/cmyk/gray/spot/lab/video not StudioPaint variants (image via StudioImagePaint, pattern via binding)"
+},
+{
+"id": "STU-VEC-135",
+"section": "14.5.5 Fills",
+"title": "Gradient geometry enumeration. SUPERSEDES the six-member informal list of",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs header: angular, diamond, freeform, mesh gradient kinds not stored"
+},
+{
+"id": "STU-VEC-136",
+"section": "14.5.5 Fills",
+"title": "Gradient-stop contract. Every gradient carries an ordered stop list. Per stop:",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-4 PASS_V32; folio/src/paint.rs:62"
+},
+{
+"id": "STU-VEC-137",
+"section": "14.5.5 Fills",
+"title": "Gradient interpolation and dither. SUPERSEDES the clause in v02.205 [STU-VEC-016]",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs:45,98 classic/perceptual + dither; freeform element selector absent (freeform not stored)"
+},
+{
+"id": "STU-VEC-138",
+"section": "14.5.5 Fills",
+"title": "Pattern paint contract. Two captures contribute and both are normative; the",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-7 PASS_V30; folio/src/vector.rs:14,124"
+},
+{
+"id": "STU-VEC-139",
+"section": "14.5.5 Fills",
+"title": "Image paint contract. SUPERSEDES the four informal scaling modes of",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/vector.rs StudioImagePaint scale modes/rotation/scaling/opacity; image adjustment block not stored"
+},
+{
+"id": "STU-VEC-140",
+"section": "14.5.5 Fills",
+"title": "Colour entry surface contract. The captured colour picker declares its channel",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep active_channel|web_safe in vector/harness: 0"
+},
+{
+"id": "STU-VEC-141",
+"section": "14.5.5 Fills",
+"title": "Spot and swatch library contract. Studio MUST ship a swatch/colour system whose",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25; folio/src/swatch_library.rs; folio/src/colour_book.rs:4"
+},
+{
+"id": "STU-VEC-142",
+"section": "14.5.5 Fills",
+"title": "Colour-harmony adjustment contract. The captured harmony/recolour surface carries",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-TYPE-PATH-RECOLOR PASS_V23; prism/src/recolor.rs:27"
+},
+{
+"id": "STU-VEC-143",
+"section": "14.5.6 Strokes",
+"title": "Stroke geometry enumerations. All three carry captured integer values that Studio",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25 folio/src/paint.rs:120; per-vertex caps folio/src/vector_network.rs:79"
+},
+{
+"id": "STU-VEC-144",
+"section": "14.5.6 Strokes",
+"title": "Stroke weight contract.",
+"apps": [
+"illustrator",
+"indesign",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs:181 weight/miter; per-side weights not stored (paint.rs header)"
+},
+{
+"id": "STU-VEC-145",
+"section": "14.5.6 Strokes",
+"title": "Dash contract. A dash pattern is an ordered list of alternating dash and gap",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs:28 dash list; dash cap, corner adjustment, gap colour not stored (paint.rs header)"
+},
+{
+"id": "STU-VEC-146",
+"section": "14.5.6 Strokes",
+"title": "Arrowhead catalogue. SUPERSEDES the six informal marker names of",
+"apps": [
+"illustrator",
+"indesign",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-ARROWHEADS-1/2 PASS; folio/src/vector_markers.rs:1; composite/src/vector.rs:39"
+},
+{
+"id": "STU-VEC-147",
+"section": "14.5.6 Strokes",
+"title": "Variable-width profile contract. A width profile is an ordered list of width",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/width_profile.rs per-point in/out widths; flip commands and named registry profiles grep: 0"
+},
+{
+"id": "STU-VEC-148",
+"section": "14.5.6 Strokes",
+"title": "Stroke offset construct. The captured live-effect libraries carry a stroke-offset",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep stroke_offset_inside|StrokeOffset: 0"
+},
+{
+"id": "STU-VEC-149",
+"section": "14.5.6 Strokes",
+"title": "Dynamic (hand-drawn) stroke construct. A non-destructive hand-drawn wobble applied",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dynamic_stroke|hand_drawn in vector crates: 0"
+},
+{
+"id": "STU-VEC-150",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Brush and tool dynamics enumeration. Every brush and nib parameter that can vary",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; folio/src/vector_tools.rs:22,161"
+},
+{
+"id": "STU-VEC-151",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Canonical blend-mode set. SUPERSEDES two v02.205",
+"apps": [
+"illustrator",
+"figma",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs:75 StudioBlendMode has PassThrough/LinearBurn/LinearDodgeAdd (RAS discriminants); captured 0..15 interchange mapping UNVERIFIED"
+},
+{
+"id": "STU-VEC-152",
+"section": "14.5.2 Drawing and Editing Tools",
+"title": "Per-kind brush parameter contracts.",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; folio/src/vector_tools.rs:20; composite/src/vector.rs:1748"
+},
+{
+"id": "STU-VEC-153",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Opacity, mask and knockout contract. The captured transparency surface declares",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMPOSITE-VECTOR-MASK/-2 PASS; folio/src/vector.rs mask_clip/invert_mask; composite/src/vector_mask.rs:3"
+},
+{
+"id": "STU-VEC-154",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Live-effect registry contract. An effect entry in a `StudioEffectStack` MUST carry",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-AI-DISTORT-EFFECTS-1 PASS_V4 records; stack SMB-AI-LIVE-EFFECTS-1 READY; stylize/colour/create/path/geometry families not in nib/src/live_effect.rs"
+},
+{
+"id": "STU-VEC-155",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Distortion-effect parameter contracts.",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AI-DISTORT-EFFECTS-1 PASS_V4; nib/src/live_effect.rs:12"
+},
+{
+"id": "STU-VEC-156",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Stylize-effect parameter contracts.",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep DropShadow|InnerGlow|OuterGlow|RoundCorners in nib/src/live_effect.rs, folio/src/vector_live_filter.rs: 0"
+},
+{
+"id": "STU-VEC-157",
+"section": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
+"title": "Transform operation contract. The transform-each command and the live transform",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; nib/src/arrange.rs:2; harness-view/src/view/vector/arrange.rs:139"
+},
+{
+"id": "STU-VEC-158",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Shape-conversion and mosaic effect contracts.",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "convert-to-shape refused ConvertToShapeSizingLawNotRecovered composite/src/vector_live_filters.rs:70; object mosaic not found"
+},
+{
+"id": "STU-VEC-159",
+"section": "14.5.6 Strokes",
+"title": "Scribble-fill contract. A procedural hand-drawn fill. Fully captured, and the",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "scribble refused as vector_effect_unknown_effect composite/tests/vector_live_filters.rs:280; no implementation"
+},
+{
+"id": "STU-VEC-160",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Raster-effect settings contract. Effects that rasterise (blurs, glows, feathers,",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep raster_effect_resolution|RasterEffectSettings: 0"
+},
+{
+"id": "STU-VEC-161",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Graphic-style library contract. The captured shipped inventory is 12 graphic-style",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep graphic_style_library|GraphicStyleLibrary: 0"
+},
+{
+"id": "STU-VEC-162",
+"section": "14.5.8 Brushes",
+"title": "Brush primitive and kind enumeration. [STU-VEC-026] required a single canonical",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; folio/src/vector_tools.rs:20,268 five kinds"
+},
+{
+"id": "STU-VEC-163",
+"section": "14.5.8 Brushes",
+"title": "Brush colorisation enumeration. Identical across three captured brush dialogs and",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; nib/src/brush.rs:2; folio/src/vector_tools.rs:224"
+},
+{
+"id": "STU-VEC-164",
+"section": "14.5.8 Brushes",
+"title": "Brush library contract. The captured shipped inventory is 25 brush library",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep BrushLibrary|brush_library: 0"
+},
+{
+"id": "STU-VEC-165",
+"section": "14.5.9 Artboards, Frames, and Layout Touchpoints",
+"title": "Artboard contract. The captured artboard object and its options dialog declare",
+"apps": [
+"illustrator"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-DOC-NEW-1 READY_FOR_VALIDATION; harness-core/src/document_new.rs:3,44,346"
+},
+{
+"id": "STU-VEC-166",
+"section": "14.5.9 Artboards, Frames, and Layout Touchpoints",
+"title": "Align target enumeration and distribute contract. The captured align surface",
+"apps": [
+"illustrator",
+"affinity",
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; harness-view/src/view/vector/arrange.rs:22"
+},
+{
+"id": "STU-VEC-167",
+"section": "14.5.9 Artboards, Frames, and Layout Touchpoints",
+"title": "Symbol source contract. The captured symbol-options surface declares the fields a",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep symbol_kind|nine_slice|registration_point: 0"
+},
+{
+"id": "STU-VEC-168",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Warp-style enumeration and parameters. The captured warp menu declares fifteen",
+"apps": [
+"illustrator",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25; folio/src/vector_tools.rs:25; composite/src/vector.rs:2121"
+},
+{
+"id": "STU-VEC-169",
+"section": "14.5.7 Appearance Model, Graphic Styles, and Effects",
+"title": "Envelope option contract.",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ILLUSTRATOR-TOOLS-2 PASS_V25 folio/src/vector_tools.rs:28,394; mesh-reset maintain_envelope_shape not stored"
+},
+{
+"id": "STU-VEC-170",
+"section": "14.5.10 Transforms and Distortions",
+"title": "Liquify-family contract. The captured liquify surface declares one shared option",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "vector liquify family absent; pigment/src/liquify.rs is raster-only (grep twirl_rate|brush_affects_anchor_points: 0)"
+},
+{
+"id": "STU-VEC-171",
+"section": "14.5.10 Transforms and Distortions",
+"title": "Repeat-construct parameter contract. Three captured configuration objects, one per",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep radial_radius|grid_horizontal_spacing|symmetry_axis_rotation: 0"
+},
+{
+"id": "STU-VEC-172",
+"section": "14.5.10 Transforms and Distortions",
+"title": "Perspective and puppet-warp contract. Both constructs are IN SCOPE and both are",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep puppet|perspective_grid: 0"
+},
+{
+"id": "STU-VEC-173",
+"section": "14.5.11 Procedural Constructs",
+"title": "Blend parameter contract.",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep blend_easing|colour_shift: 0"
+},
+{
+"id": "STU-VEC-174",
+"section": "14.5.11 Procedural Constructs",
+"title": "Live-paint gap and selection contract.",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep live_paint|gap_detection: 0"
+},
+{
+"id": "STU-VEC-175",
+"section": "14.5.11 Procedural Constructs",
+"title": "Mesh-creation contract. Creating a mesh from a filled object carries a captured",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep mesh_appearance|to_center: 0"
+},
+{
+"id": "STU-VEC-176",
+"section": "14.5.11 Procedural Constructs",
+"title": "Image-trace parameter contract. SUPERSEDES the nine-option list of",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep trace_mode|trace_threshold: 0"
+},
+{
+"id": "STU-VEC-177",
+"section": "14.5.11 Procedural Constructs",
+"title": "Decorative generator constructs. A lens-flare generator (rays and rings, each an",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep lens_flare|symbolism: 0"
+},
+{
+"id": "STU-VEC-178",
+"section": "14.5.12 Text-on-Path Touchpoint",
+"title": "Create-outlines constraint set. The captured constraint vocabulary names three",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-TYPE-GLYPH-RENDER PASS_V21 type/src/create_outlines.rs:1 (one compound path per glyph); overset/bad-glyph/locked-layer errors and per-line grouping not found"
+},
+{
+"id": "STU-VEC-179",
+"section": "14.5.14 Cross-Cutting Obligations",
+"title": "Engine boundary and determinism. All geometry evaluation named in 14.5 --",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-NIB-VECTOR-RENDER PASS_V19; nib/src/raster.rs:1,12; nib/src/flatten.rs:87"
+},
+{
+"id": "STU-VEC-180",
+"section": "14.5.14 Cross-Cutting Obligations",
+"title": "Validation descriptor set. The `StudioValidationDescriptor` catalog (14.24)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioValidationDescriptor: 0"
+},
+{
+"id": "STU-VEC-181",
+"section": "14.5.14 Cross-Cutting Obligations",
+"title": "Shipped-content inventory contract. Studio MUST ship a first-run content set for",
+"apps": [
+"illustrator",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep first_run|shipped brushes/symbols content: 0"
+},
+{
+"id": "STU-VEC-199",
+"section": "14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Derivation",
+"title": "Microtask derivation index. Applying [STU-VEC-107] to this sub-section yields",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation index (declared non-yielding)"
+}
+],
+"counts_by_status": {
+"BUILT_NOT_VALIDATED": 3,
+"LOCAL": 2,
+"MISSING": 108,
+"NOT_PRODUCT": 29,
+"PARTIAL": 101,
+"VALIDATED": 94
+},
+"counts_by_app_and_status": {
+"affinity": {
+"BUILT_NOT_VALIDATED": 1,
+"LOCAL": 1,
+"MISSING": 8,
+"PARTIAL": 14,
+"VALIDATED": 27
+},
+"cross_app": {
+"LOCAL": 1,
+"MISSING": 19,
+"NOT_PRODUCT": 29,
+"PARTIAL": 40,
+"VALIDATED": 16
+},
+"figma": {
+"BUILT_NOT_VALIDATED": 1,
+"MISSING": 11,
+"PARTIAL": 14,
+"VALIDATED": 30
+},
+"illustrator": {
+"BUILT_NOT_VALIDATED": 3,
+"MISSING": 54,
+"PARTIAL": 45,
+"VALIDATED": 61
+},
+"indesign": {
+"LOCAL": 1,
+"MISSING": 38,
+"PARTIAL": 22,
+"VALIDATED": 30
+},
+"photoshop": {
+"MISSING": 10,
+"PARTIAL": 3,
+"VALIDATED": 7
+}
+},
+"top_missing_areas": [
+"Vector procedural constructs: repeat (radial/grid/mirror), blend, live paint, image trace, intertwine, global edit, symmetry drawing (VEC-031..037, 056, 170..177): no code",
+"Paragraph decoration and flow controls: keep options, drop caps, rules/shading/border, tabs, lists, optical margin, nested styles (TYP-037..040, 043, 044, 186, 189, 192..199)",
+"CJK and complex-script depth: ruby, kenten, warichu/tate-chu-yoko, jidori, leading model, digit shaping, Arabic kashida/diacritics; Type admits only Latn/Arab/Hani (TYP-133, 134, 139, 166..169, 132)",
+"Font management and proofing: font picker, glyph browser and glyph sets, composite fonts, font type/status records, spelling dictionaries, autocorrect, language records (TYP-020, 021, 029, 177, 178, 181, 182, 205, 206, 209, 211, 217)",
+"Character attribute depth and model surfaces: case/decoration/character enums, truncation, auto-size reference, range addressing, mixed-value protocol, parameter introspection, validation descriptors (TYP-111, 112, 117..119, 156, 158..161, 221, 222, 230; VEC-180)"
+],
+"notes": [
+"Evidence is the origin tip 87f331f9 read with git grep/git show; MT status was not used. Lane status from ledger.json; READY_FOR_VALIDATION lanes give BUILT_NOT_VALIDATED unless the clause is clearly incomplete (then PARTIAL with the lane named).",
+"Spec-declared non-yielding clauses (STU-VEC-199 set; STU-TYP-240 set) and SUPERSEDED anchors TYP-003/010/011 are NOT_PRODUCT.",
+"Many index-linked PASS lanes cite an ID only in a declared gap comment (e.g. TYP-117/118, TYP-141, TYP-152, TYP-202, TYP-204); those rows are MISSING despite a PASS lane.",
+"Module headers in folio (story.rs, typestyle.rs, paint.rs, vector.rs, vector_tools.rs, cjk_composition.rs) and layout (autosize.rs, find.rs) declare stored/unstored fields; they were used as primary evidence for PARTIAL.",
+"Old TYP-001..051 clauses were judged through their refining successor clauses per STU-TYP-102.",
+"SMB-INTEROP-VECTOR-1 and SMB-TYPE-INDENT-SPACING-1 appear in the index with a null ledger status; the latter is in progress (stopped at the C: cap) and drives the LOCAL rows.",
+"ui: window = a control exists in the harness-view egui host; command = typed command or engine only; unknown = no implementation. The native Vulkan host was not inspected separately."
+],
+"unverified": [
+"VEC-042: SurrealDB/EventLedger persistence of vector authority is host-side and was not inspected.",
+"VEC-045: zoom/artboard independence of stored geometry precision was not proven by a test read.",
+"VEC-050: whether shape-builder gestures resolve to geom.union/subtract_front/divide over the same boolean core was not read.",
+"VEC-151: mapping of pigment StudioBlendMode discriminants to the captured 0..15 interchange integers was not located.",
+"VEC-068: text detach/relink on deletion of a bound path not located.",
+"TYP-223: whether the generic session idempotency layer wraps typography commands was not checked.",
+"App and ui attributions are by reading crate paths and parity audits, not by running the GUI.",
+"Blame was run only for vector_tools.rs, arrange.rs, warp.rs, brush.rs, swatch.rs, envelope.rs, brushes.rs, simplify.rs; other lane attributions come from index lane links and code comments naming lanes."
+]
+}

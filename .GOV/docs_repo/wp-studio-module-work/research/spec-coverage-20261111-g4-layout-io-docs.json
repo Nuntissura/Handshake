@@ -1,0 +1,3582 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G4",
+"prefixes": [
+"STU-LAY",
+"STU-IO",
+"STU-PDF",
+"STU-DOC",
+"STU-SECTION",
+"STU-MDL",
+"STU-HIS",
+"STU-UNI",
+"STU-OVR",
+"STU-PW"
+],
+"generated_at": "2026-11-11",
+"origin_tip": "87f331f9",
+"basis": {
+"spec": "spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md",
+"index": "research/spec-coverage-index-20261111.json",
+"ledger": "ledger.json lanes[] status",
+"code": "origin/codex/handshake-studio-assets @ 87f331f9 via git grep / git show in wt-studio-lanes/smb-layout-composer-depth-1 (no fetch, no cargo/build/test)",
+"context": "research/parity-20261111-adobe-print.json, builders/lanes/*.json"
+},
+"total": 284,
+"rows": [
+{
+"id": "STU-SECTION-001",
+"section": "14. Studio -- Unified Creative Suite [STU-SECTION-001]",
+"title": "14. Studio -- Unified Creative Suite",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "section heading",
+"spec_line": 14
+},
+{
+"id": "STU-SECTION-002",
+"section": "14.0 SurrealDB Authority Override (v02.204) [STU-SDB-001]",
+"title": "SOLE-AUTHORITY / NO-SIDECARS. This Master Spec section is the single source of truth for Studio. The",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "spec sole-authority / no-sidecar governance rule",
+"spec_line": 116
+},
+{
+"id": "STU-SECTION-003",
+"section": "14.0 SurrealDB Authority Override (v02.204) [STU-SDB-001]",
+"title": "DEDUP / NO-DOUBLE-FEATURES. Shared capability across the source suites maps to exactly ONE Studio pr",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Handshake-native ids (grep vendor product names as Studio labels: 0); not deduped: 3 export-recipe shapes (reel export_recipe.rs:273 StudioExportRecipe, harness-view doc_export.rs DocExportRecipe, folio export_settings.rs)",
+"spec_line": 118
+},
+{
+"id": "STU-OVR-001",
+"section": "1. What Studio Is",
+"title": "Studio MUST be implemented as an independently buildable modular asset workspace in the Operator-dec",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": null,
+"evidence": "SMB-HARNESS-SHELL-1 PASS_V22; 60 independent hsk-studio-*/kumihimo crates; package lib.rs: standalone fixtures, no kernel imports",
+"spec_line": 138
+},
+{
+"id": "STU-OVR-002",
+"section": "1. What Studio Is",
+"title": "Studio MUST NOT require Adobe Photoshop, Illustrator, InDesign, the Affinity suite, Figma, or any ot",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": null,
+"evidence": "SMB-AFFINITY-INTEROP-1 PASS_V23; grep InDesign.Application|Photoshop.Application|win32com|CreateObject(: 0",
+"spec_line": 140
+},
+{
+"id": "STU-OVR-015",
+"section": "1. What Studio Is",
+"title": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] thr",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "scope clarification (video editing stays in scope; superseded exclusion)",
+"spec_line": 142
+},
+{
+"id": "STU-OVR-003",
+"section": "1. What Studio Is",
+"title": "Studio MUST NOT introduce a SQLite database/SQL-engine dependency anywhere (not in any Studio asset ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": null,
+"evidence": "SMB-INTEROP-LRCAT PASS_V29 tripwire interop-lrcat/tests/catalog_decode.rs:585; grep rusqlite|libsqlite3|sqlx in Cargo.lock: 0",
+"spec_line": 144
+},
+{
+"id": "STU-IO-186",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "NATIVE EDITABILITY SCOPE. Native editable INDD, PRPROJ, AEP and local FIG imports remain explicit re",
+"apps": [
+"indesign",
+"premiere_pro",
+"after_effects",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "FIG editable import (SMB-INTEROP-FIG-NATIVE PASS_V32); INDD/PRPROJ/AEP detection-only blockers: interop-layout indd_adapter.rs:1, interop-media native.rs:1 'Editable import stays blocked'",
+"spec_line": 211
+},
+{
+"id": "STU-IO-187",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "CONTAINER SAFETY. Native snapshots MUST stream ZIP64 through granted ArtifactService provider ports ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PACKAGE-MASK-TILES PASS_V25, SMB-LR-LIBRARY-WRITE PASS_V23; package bounded_zip.rs:4 (ZIP64, dup/case-folded names, traversal refused), package lib.rs ArtifactService ports; quarantine of unknown records UNVERIFIED",
+"spec_line": 231
+},
+{
+"id": "STU-IO-188",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "PRESERVATION AND SANITIZED DELIVERY. Preservation snapshots and sanitized deliverables MUST use dist",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "sanitized policies only per format: fig-base import.rs:1 sanitized-export policy, press-read sanitized_save.rs:1730 sanitize_full_rewrite; no shared preservation/sanitized export policy; recipient grants are host integration",
+"spec_line": 233
+},
+{
+"id": "STU-IO-189",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "NATIVE AUDIO AND CATALOG INTEROP. `.sesx` editable session transport and Lightroom catalog/develop/W",
+"apps": [
+"audition",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LIGHTROOM-CATALOG PASS_V26 (interop-lrcat fixed-format extraction, OpaqueBlob extract.rs:86); .sesx detection-only (interop-media native.rs:27)",
+"spec_line": 235
+},
+{
+"id": "STU-IO-190",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "Native identity and reopen. `.handshake` is a snapshot/interchange transport, never a grant or live ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "document.reopen/import typed rows (harness-core action/commands/document.rs); grep ReopenDecision|reopen_policy|allocate_fresh: 0 (no reconcile proposal on divergence)",
+"spec_line": 238
+},
+{
+"id": "STU-PDF-001",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "PDF REDACTION. Press MUST expose separate reversible marking and irreversible apply-redaction propos",
+"apps": [
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PRESS PASS_V29, SMB-PRESS-STRUCT-STRIP PASS_V22: irreversible region redaction + payload proof (press-read redaction.rs, sanitized_save.rs); grep RedactAnnot|mark_redaction|RedactionProposal: 0 (no reversible marking/proposal path)",
+"spec_line": 241
+},
+{
+"id": "STU-PDF-002",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "PREPRESS AND ACCESSIBILITY. Shared print/export plans MUST preserve selected output profile hash/int",
+"apps": [
+"acrobat",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "output intent + PDF/X-4 (layout_export.rs:670, SMB-LAYOUT-PDF-HOST-1 READY), inks/separations (SMB-PRESS-INK-MANAGER-1 PASS_V6); grep StructTreeRoot|MarkInfo in press-write/interop-layout: 0 (no tagged reading order)",
+"spec_line": 243
+},
+{
+"id": "STU-DOC-001",
+"section": "14.3 Unified Document Model and Studio Primitive Set",
+"title": "`StudioDocument` (schema id `hsk.studio.document@1`) is the single unified document type spanning al",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-FILL-LAYERS PASS_V20, folio lanes PASS; folio lib.rs:194 StudioDocument, :313 StudioLayerGraph; accord lib.rs:3 hsk.studio.document@1; SMB-DOC-NEW-1 READY",
+"spec_line": 281
+},
+{
+"id": "STU-DOC-002",
+"section": "14.3 Unified Document Model and Studio Primitive Set",
+"title": "The canonical Studio primitive set is normative and deduped (one primitive per shared capability): `",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "23 of 37 primitives typed (folio lib.rs:194-313, components.rs, raster.rs:150 enum StudioAdjustment); grep struct Studio(SelectionSet|RasterTile|VectorPath|ColorProfile|StyleRegistry|LayoutGrid|ImportProfile|HistoryEntry|EditProposal|ModelAdapter|ValidationDescriptor|RenderHarness...): 0",
+"spec_line": 283
+},
+{
+"id": "STU-DOC-003",
+"section": "14.3 Unified Document Model and Studio Primitive Set",
+"title": "Unit law: every model-facing and operator-facing Studio surface (measurements, positions, sizes, typ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ILLUSTRATOR-PEN PASS_V27; folio Length carries unit on the wire but layout restricted to pt (folio layout.rs:6); no StudioColorProfile type (grep: 0)",
+"spec_line": 285
+},
+{
+"id": "STU-DOC-004",
+"section": "14.3 Unified Document Model and Studio Primitive Set",
+"title": "Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-COMPOSITE-VECTOR-MASK-2 PASS_V25; many capabilities are typed-command only, no window projection (layout_place.rs, layout_export.rs egui-free; parity-20261111 gui ENGINE_ONLY)",
+"spec_line": 287
+},
+{
+"id": "STU-LAY-100",
+"section": "14.6.0 Reading Rules: The Parameter Contract, Units, Enumerations, and Derivation",
+"title": "The seven-field numeric parameter contract.",
+"apps": [
+"indesign"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "14.6.0 reading rule (seven-field parameter declaration); bounds judged per parameter clause",
+"spec_line": 5318
+},
+{
+"id": "STU-LAY-101",
+"section": "14.6.0 Reading Rules: The Parameter Contract, Units, Enumerations, and Derivation",
+"title": "Measurement systems and unit vocabulary.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23, SMB-ID-LIQUID-LAYOUT-1 PASS_V19; layout grids.rs:19 to_points/parse_measure, twelve ruler systems + ten suffixes",
+"spec_line": 5334
+},
+{
+"id": "STU-LAY-102",
+"section": "14.6.0 Reading Rules: The Parameter Contract, Units, Enumerations, and Derivation",
+"title": "Enumeration contract.",
+"apps": [
+"indesign"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "14.6.0 reading rule (enumeration declaration)",
+"spec_line": 5371
+},
+{
+"id": "STU-LAY-103",
+"section": "14.6.0 Reading Rules: The Parameter Contract, Units, Enumerations, and Derivation",
+"title": "Capture-conflict rule.",
+"apps": [
+"indesign"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "14.6.0 reading rule (capture-conflict recording)",
+"spec_line": 5377
+},
+{
+"id": "STU-LAY-104",
+"section": "14.6.0 Reading Rules: The Parameter Contract, Units, Enumerations, and Derivation",
+"title": "Microtask derivation rule.",
+"apps": [
+"indesign"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "14.6.0 microtask derivation rule",
+"spec_line": 5382
+},
+{
+"id": "STU-LAY-001",
+"section": "14.6.1 Page and Spread Model",
+"title": "A layout `StudioDocument` MUST hold an ordered set of `StudioPageSpread` containers. A `StudioPageSp",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio lib.rs:233 StudioPageSpread; facing_pages flag not stored (folio layout.rs:55)",
+"spec_line": 5394
+},
+{
+"id": "STU-LAY-105",
+"section": "14.6.1 Page and Spread Model",
+"title": "Document geometry contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio layout.rs:22-30 lists document/page geometry fields not stored",
+"spec_line": 5399
+},
+{
+"id": "STU-LAY-106",
+"section": "14.6.1 Page and Spread Model",
+"title": "Spread page-count contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "folio layout.rs:27 declares spread page_count/binding_location/shuffle not stored; grep allow_page_shuffle|page_shuffle: 0",
+"spec_line": 5443
+},
+{
+"id": "STU-LAY-002",
+"section": "14.6.1 Page and Spread Model",
+"title": "Multi-page (island) spreads are normative: a `StudioPageSpread` MUST support holding more than two p",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "spreads hold N pages (folio lib.rs:233); allow-shuffle flag absent (grep page_shuffle: 0)",
+"spec_line": 5466
+},
+{
+"id": "STU-LAY-003",
+"section": "14.6.1 Page and Spread Model",
+"title": "Pages MUST support mixed sizes and orientations within one document. A page carries its own trim siz",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; per-page size; layout.page.insert_page/move_page/delete_page rows; duplicate/hide/colour label/move-copy absent (folio layout.rs:26 page_colour_label not stored)",
+"spec_line": 5474
+},
+{
+"id": "STU-LAY-107",
+"section": "14.6.1 Page and Spread Model",
+"title": "Page object contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio layout.rs:86 StudioPage; layout.rs:24-26 declared not-stored page fields",
+"spec_line": 5480
+},
+{
+"id": "STU-LAY-004",
+"section": "14.6.1 Page and Spread Model",
+"title": "View-only spread rotation (90, 180, 270 degrees) MUST be available for editing rotated content witho",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep spread_rotation|rotate_spread|SpreadViewRotation|view_rotation: 0",
+"spec_line": 5509
+},
+{
+"id": "STU-LAY-005",
+"section": "14.6.1 Page and Spread Model",
+"title": "A layout document MUST carry a document-wide layer model: named layers span every page/spread and MU",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep DocumentLayer|named_layers|layer_set|lock_guides: 0",
+"spec_line": 5513
+},
+{
+"id": "STU-LAY-109",
+"section": "14.6.1 Page and Spread Model",
+"title": "Document layer contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep DocumentLayer|StudioDocumentLayer|ignore_wrap: 0",
+"spec_line": 5516
+},
+{
+"id": "STU-LAY-006",
+"section": "14.6.1.1 Parent (Master) Pages",
+"title": "Parent pages (the deduped Studio name for master pages) are reusable page templates applied to docum",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-PARENT-PAGES PASS_V25, SMB-LAYOUT-UI-2 PASS_V24; folio parentpages.rs, layout parents.rs; page-local items/parent_transform gaps (parentpages.rs:16)",
+"spec_line": 5541
+},
+{
+"id": "STU-LAY-110",
+"section": "14.6.1.1 Parent (Master) Pages",
+"title": "Parent application and override storage.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; remove_override/detach_item rows; parent_transform not stored (folio parentpages.rs:16)",
+"spec_line": 5547
+},
+{
+"id": "STU-LAY-007",
+"section": "14.6.1.1 Parent (Master) Pages",
+"title": "Parent item override semantics MUST be preserved exactly: override a single parent item on a documen",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; layout.page.override_item/detach_item/remove_override; allow_overrides per item not stored (harness-view layout_ui/pages.rs:12)",
+"spec_line": 5556
+},
+{
+"id": "STU-LAY-008",
+"section": "14.6.1.1 Parent (Master) Pages",
+"title": "A primary text frame MUST be supportable on a parent page: a designated text frame that new pages au",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep primary_text_frame: 0",
+"spec_line": 5564
+},
+{
+"id": "STU-LAY-009",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Studio MUST implement responsive layout adaptation when page size, orientation, margins or bleed cha",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19; layout liquid.rs + adjust_layout.rs",
+"spec_line": 5572
+},
+{
+"id": "STU-LAY-111",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Liquid-rule enumeration.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19; folio layout_rules.rs:49 StudioLiquidRule (7 members)",
+"spec_line": 5576
+},
+{
+"id": "STU-LAY-112",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Adjust-layout contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19; layout adjust_layout.rs (ten keys, scopes)",
+"spec_line": 5596
+},
+{
+"id": "STU-LAY-010",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Adjust layout MUST recompute object positions and sizes when page size, margins or bleed change, wit",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19; layout adjust_layout.rs (font-size bounds, undo)",
+"spec_line": 5606
+},
+{
+"id": "STU-LAY-011",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Alternate layouts MUST be supported: multiple named page-size/orientation variants coexist inside on",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19 alternate layouts as sections (layout alternate.rs); flex/container mode: grep flex_container|FlexLayout|container_layout: 0",
+"spec_line": 5613
+},
+{
+"id": "STU-LAY-012",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Alignment and distribution MUST align/distribute selected objects to selection, a key object, margin",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "align/distribute to selection|artboard|key_object (harness-core action/commands/panel.rs:11); margins/page/spread targets and gridified drawing absent (grep gridif: 0)",
+"spec_line": 5630
+},
+{
+"id": "STU-LAY-113",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "Margin and column contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; per-page margins/gutter (folio layout.rs:300); column guides not stored (layout.rs:27)",
+"spec_line": 5639
+},
+{
+"id": "STU-LAY-013",
+"section": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+"title": "The document MUST provide crash-safe automatic recovery (recovering unsaved changes on next launch f",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-PERSIST-1 READY (layout edits into session history); package atomic recovery; recovery location/document-states surface: grep autosave|recovery_location|document_states: 0",
+"spec_line": 5659
+},
+{
+"id": "STU-LAY-014",
+"section": "14.6.2 Sections, Page Numbering, and Running Headers",
+"title": "Sections MUST partition a document for numbering.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26; layout numbering.rs, folio longdoc.rs:467",
+"spec_line": 5670
+},
+{
+"id": "STU-LAY-108",
+"section": "14.6.2 Sections, Page Numbering, and Running Headers",
+"title": "Section contract, with the captured constraints.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26, SMB-LAYOUT-SENTINELS-1 PASS_V6; folio longdoc.rs:467 StudioSection",
+"spec_line": 5672
+},
+{
+"id": "STU-LAY-015",
+"section": "14.6.2 Sections, Page Numbering, and Running Headers",
+"title": "Automatic page-number markers MUST resolve to the current page's section number wherever placed (par",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-SENTINELS-1 PASS_V6, SMB-LAYOUT-LONGDOC PASS_V26; layout sentinels.rs, folio longdoc.rs:1160 VariableScope",
+"spec_line": 5732
+},
+{
+"id": "STU-LAY-016",
+"section": "14.6.2 Sections, Page Numbering, and Running Headers",
+"title": "Running headers and footers MUST be content-derived: a header/footer field pulls the first or last o",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26, SMB-LAYOUT-LONGDOC-2 PASS_V25; layout running.rs",
+"spec_line": 5738
+},
+{
+"id": "STU-LAY-017",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Flowed copy is a `StudioTextStory` rendered through one or more threaded text frames (`StudioLayer` ",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33, SMB-LAYOUT-UI PASS_V25; folio layout.rs text_frame, layout threaded_reflow.rs",
+"spec_line": 5751
+},
+{
+"id": "STU-LAY-118",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Text-frame preference contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ID-FRAME-AUTOSIZE-1 PASS_V16; fixed/flexible column width, footnote overrides, column rules not stored (folio layout.rs:28)",
+"spec_line": 5754
+},
+{
+"id": "STU-LAY-119",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Auto-sizing enumeration.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-FRAME-AUTOSIZE-1 PASS_V16; layout autosize.rs",
+"spec_line": 5799
+},
+{
+"id": "STU-LAY-120",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "First-baseline enumeration.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-FRAME-AUTOSIZE-1 PASS_V16, -2 PASS_V14; folio StudioFirstBaseline, layout autosize.rs",
+"spec_line": 5811
+},
+{
+"id": "STU-LAY-121",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Vertical justification enumeration.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio layout.rs:268 VerticalJustification; layout threaded_reflow.rs:810 centre/bottom",
+"spec_line": 5827
+},
+{
+"id": "STU-LAY-018",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Story threading MUST let a single `StudioTextStory` flow through an ordered chain of frames across p",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI PASS_V25, SMB-LAYOUT-SENTINELS-1 PASS_V6; layout.thread/unthread rows, harness-view layout_ui/threads.rs",
+"spec_line": 5831
+},
+{
+"id": "STU-LAY-122",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Threading contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI PASS_V25, SMB-LAYOUT-UI-2 PASS_V24; folio layout.rs:13 derived chain fields, layout.thread_info, layout_ui/threads.rs",
+"spec_line": 5834
+},
+{
+"id": "STU-LAY-019",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Linked stories (place-and-link a child copy of a story) MUST show update state and support auto-upda",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-LIQUID-LAYOUT-1 PASS_V19; folio layout_rules.rs:159-196 linked story + linked page item options and state",
+"spec_line": 5842
+},
+{
+"id": "STU-LAY-020",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Autoflow placement modes MUST be supported when placing a loaded text cursor, and are enumerable; sm",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep autoflow|semi_auto|smart_text_reflow in layout/folio: 0",
+"spec_line": 5851
+},
+{
+"id": "STU-LAY-123",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Autoflow and smart text reflow contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep smart_text_reflow|SmartReflow|delete_empty_pages|autoflow (layout/folio): 0",
+"spec_line": 5855
+},
+{
+"id": "STU-LAY-021",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Span and split columns MUST be a paragraph-level attribute: a paragraph may span all or N columns of",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-SENTINELS-1 PASS_V6, SMB-LAYOUT-UI PASS_V25; folio layoutflow.rs:18 span/split + count fields",
+"spec_line": 5887
+},
+{
+"id": "STU-LAY-125",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Paragraph-level layout-flow attribute contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "justification numerics in type style composition (SMB-LAYOUT-COMPOSER-WIRING PASS_V21); keep options partly (folio typestyle.rs, 3 hits of 6 names); indents only in LOCAL SMB-TYPE-INDENT-SPACING-1",
+"spec_line": 5896
+},
+{
+"id": "STU-LAY-022",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Paragraph-level layout-flow attributes MUST be applied through the layout style system even though t",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout-flow attributes on paragraph overrides (folio layoutflow.rs:17); storage on paragraph style records partial (typestyle.rs)",
+"spec_line": 5971
+},
+{
+"id": "STU-LAY-023",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Text on a path MUST bind a `StudioTextStory` to a `StudioVectorPath` (geometry owned by 14.5, [STU-V",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "shared path text (folio vector_path_text.rs, composite vector_text.rs; SMB-AI-TYPE-PATH-RECOLOR PASS_V23); not bindable in layout frames",
+"spec_line": 5976
+},
+{
+"id": "STU-LAY-126",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Text-wrap contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "caller-supplied bounding obstacles only; wrap modes/offsets/contour not stored (folio layout.rs:29)",
+"spec_line": 5981
+},
+{
+"id": "STU-LAY-127",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Anchored-object contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio layoutflow.rs:153 StudioAnchoredObject, layout anchors.rs",
+"spec_line": 6013
+},
+{
+"id": "STU-LAY-024",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Text wrap MUST be a per-object property with the full option set of [STU-LAY-126].",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no per-object text-wrap property (folio layout.rs:29 ignore_text_wrap/wrap refs not stored); engine obstacle wrap only",
+"spec_line": 6039
+},
+{
+"id": "STU-LAY-025",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Anchored/pinned objects MUST attach a frame to a position in text so it travels with reflow, using t",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio layoutflow.rs:24 insert/release anchored objects",
+"spec_line": 6041
+},
+{
+"id": "STU-LAY-026",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "A text-only editing surface (story editor) MUST present a `StudioTextStory` as linear text with a st",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "story editor harness-view layout_ui.rs:855 (SMB-LAYOUT-UI-2 PASS_V24); placed-text import: grep import_docx|import_rtf|word_processor|PlainTextImport: 0",
+"spec_line": 6045
+},
+{
+"id": "STU-LAY-128",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Spreadsheet-import contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep table_import|formatted_table in layout/interop-layout: 0",
+"spec_line": 6053
+},
+{
+"id": "STU-LAY-027",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "A find/change surface MUST operate across modes over layout content.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24, SMB-ID-PREPRESS PASS_V23; layout find.rs, find_change.rs, layout_ui/find.rs",
+"spec_line": 6061
+},
+{
+"id": "STU-LAY-129",
+"section": "14.6.3 Text Frames and Story Threading",
+"title": "Find/change contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ID-PREPRESS PASS_V23; five modes + colour + saved queries (find_change.rs:1); look-around, glyph-id search and other transliteration classes refused",
+"spec_line": 6063
+},
+{
+"id": "STU-LAY-028",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Placed graphics live in graphic frames (`StudioLayer` of placed-asset kind). Picture frames of arbit",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-PLACE-1 READY rectangle/ellipse graphic frames; per-format place options: grep layer_comp|place_layers|poster_frame: 0",
+"spec_line": 6093
+},
+{
+"id": "STU-LAY-130",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Placed-PDF crop enumeration.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; interop-layout pdf_place.rs:33 PdfCrop (7 members)",
+"spec_line": 6111
+},
+{
+"id": "STU-LAY-029",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Fitting MUST support fit-content-to-frame, fit-frame-to-content, fit-content- proportionally, fill-f",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26; layout fitting.rs; objstyle frame-fitting category (objstyle.rs:1)",
+"spec_line": 6132
+},
+{
+"id": "STU-LAY-131",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Fitting enumeration.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "seven-member StudioFit incl ContentAware (folio longdoc.rs:315); content-aware refused content_aware_unavailable (layout fitting.rs:154)",
+"spec_line": 6137
+},
+{
+"id": "STU-LAY-030",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Linked resource management MUST maintain, for every placed external asset, a link record; the surfac",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "asset.update_all_modified / asset.embed_link / list_placements (SMB-PLACE-ASSET-1 READY, SMB-LAYOUT-PLACE-1 READY); grep relink|edit_original|reveal_in|copy_links: 0",
+"spec_line": 6162
+},
+{
+"id": "STU-LAY-132",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Linked-resource record contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PACKAGE-COMPLETENESS PASS_V25; link state folio layout_rules.rs:173, placements actual/effective ppi (READY); 38-field link record absent",
+"spec_line": 6168
+},
+{
+"id": "STU-LAY-031",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Clipping and masking of placed content MUST support applying an embedded clipping path, detecting ed",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "frame-as-mask: graphic frames drawn clipped (SMB-LAYOUT-PLACE-1 READY); clipping path/detect edges/alpha: grep: 0",
+"spec_line": 6202
+},
+{
+"id": "STU-LAY-133",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Clipping and masking contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep clipping_path|ClippingPath|detect_edges|alpha_channel_clip in layout/folio/interop-layout: 0",
+"spec_line": 6206
+},
+{
+"id": "STU-LAY-134",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Layout object-effect targeting and parameter contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep EffectTarget|effect_target|ObjectEffectTarget|FrameEffects: 0",
+"spec_line": 6226
+},
+{
+"id": "STU-LAY-135",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Transparency and blending contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-MANAGER-1 PASS_V6 flattener levels; global light exists for raster styles (composite evaluate_static.rs:502); document-scope layout transparency prefs UNVERIFIED",
+"spec_line": 6293
+},
+{
+"id": "STU-LAY-032",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Object effects and transparency apply through the shared `StudioEffectStack` (14.9) with the four-ta",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "canonical blend modes pigment blend_math.rs:75 StudioBlendMode; four-target layout effect stacks absent (grep EffectTarget|effect_target|FrameEffects: 0)",
+"spec_line": 6309
+},
+{
+"id": "STU-LAY-033",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Multi-state objects MUST be authorable in layout: convert a selection to a multi-state object, add/r",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep MultiState|multi_state|initially_hidden: 0",
+"spec_line": 6319
+},
+{
+"id": "STU-LAY-136",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Multi-state object contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep MultiState|release_as_object|state_type: 0",
+"spec_line": 6323
+},
+{
+"id": "STU-LAY-034",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "QR codes MUST be generatable as editable vector objects, reusable object libraries and snippets MUST",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "QR generator / object libraries: grep generate_qr|QrPayload|ObjectLibrary|snippet (layout): 0",
+"spec_line": 6339
+},
+{
+"id": "STU-LAY-137",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "QR-code contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep QrPayload|qr_contact|generate_qr: 0 (QrCode only a data-merge field kind, data_merge.rs:75)",
+"spec_line": 6343
+},
+{
+"id": "STU-LAY-138",
+"section": "14.6.4 Frames and Placed Graphics",
+"title": "Object library and snippet contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep export_page_items|snippet_import_uses_original|ObjectLibrary: 0",
+"spec_line": 6353
+},
+{
+"id": "STU-LAY-035",
+"section": "14.6.5 Tables",
+"title": "A table is a structured object flowed inside a `StudioTextStory`; its cell content is text, graphics",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26, SMB-LAYOUT-UI-2 PASS_V24; folio longdoc.rs:279 StudioTable; graphic cells and nested tables declared gaps (longdoc.rs:17)",
+"spec_line": 6364
+},
+{
+"id": "STU-LAY-139",
+"section": "14.6.5 Tables",
+"title": "Table structure contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26; header/footer rows, spans, layout.table.* rows; split cells, nested tables, table styles gaps (folio longdoc.rs:17)",
+"spec_line": 6367
+},
+{
+"id": "STU-LAY-140",
+"section": "14.6.5 Tables",
+"title": "Table stroke, fill and alternating-pattern contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26; tint 0..100 checked (folio longdoc.rs:1673); gradient fills and alternating patterns declared gaps (longdoc.rs:17)",
+"spec_line": 6399
+},
+{
+"id": "STU-LAY-141",
+"section": "14.6.5 Tables",
+"title": "Cell contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26; folio longdoc.rs:251 StudioTableCell; diagonal lines, rotation, second inset group gaps (longdoc.rs:17)",
+"spec_line": 6413
+},
+{
+"id": "STU-LAY-036",
+"section": "14.6.6 Layout Style System",
+"title": "Every named format is a record in the shared `StudioStyleRegistry`.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-ID-TOC-INDEX-1 PASS_V8; styles in several record sets (typestyle, layoutflow object styles, TOC); grep StudioStyleRegistry: 0",
+"spec_line": 6457
+},
+{
+"id": "STU-LAY-142",
+"section": "14.6.6 Layout Style System",
+"title": "Layout style-type contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25 object styles; styles.rs consumes align/line height/letter spacing only; object-style fill/stroke/tags stored-only (objstyle.rs header)",
+"spec_line": 6459
+},
+{
+"id": "STU-LAY-037",
+"section": "14.6.6 Layout Style System",
+"title": "Style application mechanics MUST be preserved across all style types: based-on inheritance where a c",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; based_on, next_style, layout.style.clear_overrides; style groups and break-link absent (layout_ui/styles.rs header)",
+"spec_line": 6498
+},
+{
+"id": "STU-LAY-143",
+"section": "14.6.6 Layout Style System",
+"title": "Style constraint vocabulary.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; codes style_name_empty/duplicate/bracket/too_long, based_on cycle (layout_ui/styles.rs:12-98); reserved names and group rules UNVERIFIED",
+"spec_line": 6504
+},
+{
+"id": "STU-LAY-038",
+"section": "14.6.6 Layout Style System",
+"title": "Pattern (regular-expression) styles MUST apply a character style automatically to every regular-expr",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "GREP styles (folio typestyle.rs:131, layout.style.add_grep_rule; SMB-LAYOUT-UI-2 PASS_V24); nested and line styles declared gap (layout_ui/styles.rs:14)",
+"spec_line": 6522
+},
+{
+"id": "STU-LAY-039",
+"section": "14.6.6 Layout Style System",
+"title": "Object styles are the layout counterpart of text styles and MUST carry the full frame-formatting sur",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25 object styles (layout objstyle.rs); table/cell styles absent (grep TableStyle|CellStyle: only book sync flags)",
+"spec_line": 6530
+},
+{
+"id": "STU-LAY-040",
+"section": "14.6.6 Layout Style System",
+"title": "Cross-document style transfer MUST support loading selected styles from another document with per-st",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep load_styles|import_styles|ClashResolution|StyleMapping: 0",
+"spec_line": 6537
+},
+{
+"id": "STU-LAY-145",
+"section": "14.6.6 Layout Style System",
+"title": "Style import contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep import_styles|load_styles|ClashResolution|StyleMapping: 0",
+"spec_line": 6541
+},
+{
+"id": "STU-LAY-146",
+"section": "14.6.6 Layout Style System",
+"title": "Export tag mapping.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "object-style export_tags map + epub_aria fields (folio layoutflow.rs:780), stored-only (objstyle.rs); no text-style export tags",
+"spec_line": 6548
+},
+{
+"id": "STU-LAY-041",
+"section": "14.6.6 Layout Style System",
+"title": "Export tag mapping is stored on the style record in `StudioStyleRegistry` per [STU-LAY-146].",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "tags stored on object-style records only (folio layoutflow.rs:780); no StudioStyleRegistry (grep: 0)",
+"spec_line": 6557
+},
+{
+"id": "STU-LAY-042",
+"section": "14.6.7 Long-Document System",
+"title": "Books MUST bind multiple chapter `StudioDocument`s into one publication unit that shares numbering a",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio book.rs:103 StudioBook, layout book.rs combine_book; book list UI/open/status absent",
+"spec_line": 6564
+},
+{
+"id": "STU-LAY-147",
+"section": "14.6.7 Long-Document System",
+"title": "Book contract and synchronisation category set.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio book.rs sync_* booleans",
+"spec_line": 6568
+},
+{
+"id": "STU-LAY-043",
+"section": "14.6.7 Long-Document System",
+"title": "Book synchronisation MUST propagate the selected categories of [STU-LAY-147] from the style-source d",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; continuous book numbering (layout book.rs:1); style sync not executed, book preflight/package absent",
+"spec_line": 6611
+},
+{
+"id": "STU-LAY-144",
+"section": "14.6.7 Long-Document System",
+"title": "Bullets and numbering contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep bullet_char|BulletChar|ListStyle|numbering_list: 0 (book sync flag only, folio book.rs:40)",
+"spec_line": 6616
+},
+{
+"id": "STU-LAY-044",
+"section": "14.6.7 Long-Document System",
+"title": "Tables of contents MUST be style-driven.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-TOC-INDEX-1 PASS_V8, SMB-LAYOUT-LONGDOC PASS_V26; layout toc.rs",
+"spec_line": 6628
+},
+{
+"id": "STU-LAY-148",
+"section": "14.6.7 Long-Document System",
+"title": "Table-of-contents contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-TOC-INDEX-1 PASS_V8, SMB-ID-TOC-PERSIST-1 PASS_V8; layout toc_contract.rs",
+"spec_line": 6630
+},
+{
+"id": "STU-LAY-045",
+"section": "14.6.7 Long-Document System",
+"title": "Indexing MUST build a topic/subtopic hierarchy through inserted index marks, with sort-by overrides,",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-TOC-INDEX-1 PASS_V8, SMB-LAYOUT-LONGDOC PASS_V26; layout index.rs",
+"spec_line": 6672
+},
+{
+"id": "STU-LAY-149",
+"section": "14.6.7 Long-Document System",
+"title": "Index contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-TOC-INDEX-1 PASS_V8, SMB-ID-TOC-PERSIST-1 PASS_V8; layout index_contract.rs",
+"spec_line": 6675
+},
+{
+"id": "STU-LAY-046",
+"section": "14.6.7 Long-Document System",
+"title": "Notes MUST include footnotes, endnotes and sidenotes.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26, SMB-LAYOUT-MARKER-LOOKUPS-1 PASS_V4; layout footnotes.rs, endnotes.rs, sidenote placement (folio longdoc.rs:77)",
+"spec_line": 6720
+},
+{
+"id": "STU-LAY-150",
+"section": "14.6.7 Long-Document System",
+"title": "Notes contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC PASS_V26, SMB-LAYOUT-LONGDOC-2 PASS_V25; folio longdoc.rs note options",
+"spec_line": 6722
+},
+{
+"id": "STU-LAY-047",
+"section": "14.6.7 Long-Document System",
+"title": "Cross-references MUST insert references to paragraphs or named text anchors using editable formats a",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 PASS_V2, SMB-LAYOUT-ENTRY-TEXT-1 PASS_V3; layout xref.rs; cross-document anchors and paraNum unsupported (parity-20261023 ID-17)",
+"spec_line": 6801
+},
+{
+"id": "STU-LAY-151",
+"section": "14.6.7 Long-Document System",
+"title": "Cross-reference, hyperlink and text-variable contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "text anchors + xref formats (folio layoutflow.rs:482); seven hyperlink object types absent (grep struct .*Hyperlink: 0)",
+"spec_line": 6806
+},
+{
+"id": "STU-LAY-048",
+"section": "14.6.7 Long-Document System",
+"title": "Text variables MUST be resolvable placeholders whose single edit updates every instance. The capture",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-LAYOUT-LONGDOC-2 PASS_V25; twelve variable kinds carried (folio longdoc.rs:71); xref/live-caption kinds typed variable_unsupported",
+"spec_line": 6829
+},
+{
+"id": "STU-LAY-049",
+"section": "14.6.7 Long-Document System",
+"title": "Conditional text MUST let named conditions hide or show tagged text ranges, and condition sets MUST ",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio layoutflow.rs:163 conditions and condition sets",
+"spec_line": 6855
+},
+{
+"id": "STU-LAY-153",
+"section": "14.6.7 Long-Document System",
+"title": "Conditional-text contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-UI PASS_V25; folio layoutflow.rs header: indicator method/appearance/mode, redefine, delete_condition replacement",
+"spec_line": 6858
+},
+{
+"id": "STU-LAY-050",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Grid and guide constructs are `StudioLayoutGrid` records.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio layout_grids.rs (hsk.studio.layout_grids@1)",
+"spec_line": 6872
+},
+{
+"id": "STU-LAY-115",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Document and baseline grid contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio layout_grids.rs:46-54 baseline/document grid; layout grids.rs",
+"spec_line": 6874
+},
+{
+"id": "STU-LAY-114",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Ruler-guide contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio layout_grids.rs:95 StudioRulerGuide",
+"spec_line": 6896
+},
+{
+"id": "STU-LAY-051",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Smart guides MUST give dynamic alignment feedback against object edges and centres, plus smart-dimen",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep smart_guide|smart_dimension|smart_spacing: only design token kumihimo-ui tokens.rs:74",
+"spec_line": 6913
+},
+{
+"id": "STU-LAY-116",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Snapping and view-precision contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23 (grids.rs header); folio layout_grids.rs:56/124 snap flags, guide_snap_to_zone 1..=36, layout grids.rs snap_point",
+"spec_line": 6917
+},
+{
+"id": "STU-LAY-052",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Layout grids and named grids (character-count-based page grids and reusable frame-grid formats impor",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio layout_grids.rs:136 StudioNamedGrid + character-grid fields",
+"spec_line": 6936
+},
+{
+"id": "STU-LAY-117",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Named-grid contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; folio layout_grids.rs:136 StudioNamedGrid, minimum_scale 5..=4000, character-grid fields",
+"spec_line": 6940
+},
+{
+"id": "STU-LAY-053",
+"section": "14.6.8 Grids, Guides, and Measurement",
+"title": "Measurement systems MUST be selectable per axis; the normative enumeration and the accepted input-su",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "units explicit (layout grids.rs:212 Picas..); per-axis selection: grep horizontal_measurement|vertical_measurement: 0",
+"spec_line": 6950
+},
+{
+"id": "STU-LAY-054",
+"section": "14.6.9 Prepress and Output",
+"title": "All render-to-output operations are `StudioExportRecipe` executions dispatched through the quiet/hea",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout.export_pdf typed row via job admission (SMB-LAYOUT-PDF-HOST-1 READY); async export path: grep export_async|async_export: 0",
+"spec_line": 6959
+},
+{
+"id": "STU-LAY-169",
+"section": "14.6.9 Prepress and Output",
+"title": "Export-format enumeration.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "separate PDF/IDML/EPUB/PNG/JPEG paths; no 18-member export-format enum (only harness-view export.rs:32 Png|Jpeg)",
+"spec_line": 6967
+},
+{
+"id": "STU-LAY-055",
+"section": "14.6.9.1 Preflight",
+"title": "Studio MUST run a live preflight engine that continuously validates the active document against a se",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; layout preflight.rs, harness-view layout_ui/preflight.rs; export gate (READY)",
+"spec_line": 6982
+},
+{
+"id": "STU-LAY-154",
+"section": "14.6.9.1 Preflight",
+"title": "Preflight contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; layout preflight.rs:73 PreflightProfile; profiles not stored, no book options (preflight.rs header)",
+"spec_line": 6986
+},
+{
+"id": "STU-LAY-056",
+"section": "14.6.9.1 Preflight",
+"title": "Preflight profiles are editable rule sets carrying severity thresholds, creatable, exportable and im",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "layout.set_preflight_severity row; profiles not stored/exported/embedded (layout preflight.rs header)",
+"spec_line": 7016
+},
+{
+"id": "STU-LAY-057",
+"section": "14.6.9.1 Preflight",
+"title": "The preflight rule categories are enumerable and normative:",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LAYOUT-UI-2 PASS_V24; text/document/objects/xref rules; links, colour, ink, image, fonts, spelling rules declared gaps (preflight.rs header)",
+"spec_line": 7021
+},
+{
+"id": "STU-LAY-058",
+"section": "14.6.9.2 Package and Print",
+"title": "Package MUST collect the document, its linked resources and its fonts into a portable folder with a ",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "self-contained save embeds granted externals (package externals.rs); no package folder with fonts and report (grep collect_fonts|package_report: 0)",
+"spec_line": 7041
+},
+{
+"id": "STU-LAY-155",
+"section": "14.6.9.2 Package and Print",
+"title": "Package contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep copying_fonts|collect_fonts|creating_report|ignore_preflight_errors|package_report: 0",
+"spec_line": 7045
+},
+{
+"id": "STU-LAY-059",
+"section": "14.6.9.2 Package and Print",
+"title": "The print pipeline MUST expose its full option surface.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-BOOKLET-1 PASS_V10; layout print.rs PrintPreferences, PrinterPreset",
+"spec_line": 7053
+},
+{
+"id": "STU-LAY-156",
+"section": "14.6.9.2 Package and Print",
+"title": "Print contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-BOOKLET-1 PASS_V10; layout print.rs bounds, pdf_export_prefs.rs:968 marks",
+"spec_line": 7055
+},
+{
+"id": "STU-LAY-060",
+"section": "14.6.9.2 Package and Print",
+"title": "Booklet and imposition MUST arrange pages for folding.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ID-BOOKLET-1 PASS_V10 imposition plans (layout booklet.rs); imposed sheets not rendered (parity-20261111 ID-27)",
+"spec_line": 7090
+},
+{
+"id": "STU-LAY-157",
+"section": "14.6.9.2 Package and Print",
+"title": "Booklet contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-BOOKLET-1 PASS_V10; layout booklet.rs:47 BookletOptions",
+"spec_line": 7092
+},
+{
+"id": "STU-LAY-061",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "PDF (print) export MUST expose its full panel surface.",
+"apps": [
+"indesign"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "prefs record PASS (SMB-ID-PDF-EXPORT-PREFS-1 PASS_V9); host export layout.export_pdf SMB-LAYOUT-PDF-HOST-1 READY (harness-view view/layout_export.rs)",
+"spec_line": 7115
+},
+{
+"id": "STU-LAY-158",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "PDF export contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-PDF-EXPORT-PREFS-1 PASS_V9, SMB-LAYOUT-PDF-EXPORT PASS_V28; layout pdf_export_prefs.rs",
+"spec_line": 7117
+},
+{
+"id": "STU-LAY-159",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Stock PDF export presets.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PDF-STOCK-PRESETS-1 PASS_V5; press preset/stock.rs; PDF/X stock presets refuse stock_output_intent_not_captured (preset.rs:607)",
+"spec_line": 7164
+},
+{
+"id": "STU-LAY-062",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Prepress control surfaces that drive the colour pipeline (14.8) MUST be provided.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-MANAGER-1 PASS_V6 (press-write inks.rs, separations.rs); overprint not read for placed PDF (press-write coverage.rs:408 PdfOverprintNotRead)",
+"spec_line": 7204
+},
+{
+"id": "STU-LAY-160",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Ink, overprint and separation contract.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-MANAGER-1 PASS_V6; PdfXStandard + ink manager (press-write inks.rs); overprint flags unread (coverage.rs:408)",
+"spec_line": 7206
+},
+{
+"id": "STU-LAY-250",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Total ink coverage contract.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-COVERAGE-1 PASS_V4; press-write coverage.rs:77 total_ink_limit",
+"spec_line": 7236
+},
+{
+"id": "STU-LAY-251",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Ink-limit declaration sites and precedence.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-COVERAGE-1 PASS_V4; press-write coverage.rs:91 ink_limit_source precedence",
+"spec_line": 7272
+},
+{
+"id": "STU-LAY-252",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Coverage evaluation contract.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-COVERAGE-1 PASS_V4; press-write coverage.rs:110 InkLimitCheckState",
+"spec_line": 7298
+},
+{
+"id": "STU-LAY-253",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Ink-limit violation finding.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-COVERAGE-1 PASS_V4; press-write coverage.rs:23 InkCoverageFinding",
+"spec_line": 7326
+},
+{
+"id": "STU-LAY-254",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Published ink limits are reference, not a Studio default (SPEC GAP).",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-COVERAGE-1 PASS_V4; total_ink_limit undeclared by default, not_checked (coverage.rs)",
+"spec_line": 7351
+},
+{
+"id": "STU-LAY-152",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Trap preset contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-ID-TOC-INDEX-1 PASS_V8, SMB-ID-TOC-PERSIST-1 PASS_V8; folio trap_preset_records@1 (folio layout.rs:19), layout print.rs:46",
+"spec_line": 7394
+},
+{
+"id": "STU-LAY-161",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Transparency flattener contract.",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-MANAGER-1 PASS_V6; layout lib.rs:87 FlattenerPreset",
+"spec_line": 7417
+},
+{
+"id": "STU-LAY-063",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Raster export MUST export a selection, ranges, or all pages and spreads with quality, resolution, co",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout.render_pdf_page -> PNG (SMB-LAYOUT-PDF-HOST-1 READY), data merge text only (data_merge.rs); no raster export preference (grep PngExportPref: 0)",
+"spec_line": 7431
+},
+{
+"id": "STU-LAY-162",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Raster export contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "page render to PNG exists (READY); PNG export preference record: grep PngExportPref|png_export_pref: 0",
+"spec_line": 7439
+},
+{
+"id": "STU-LAY-163",
+"section": "14.6.9.3 PDF and Ink/Separation Output",
+"title": "Data-merge contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; interop-layout data_merge.rs text placeholders + arrange_records; image/QR fields parsed, not placed",
+"spec_line": 7453
+},
+{
+"id": "STU-LAY-064",
+"section": "14.6.9.4 Structured Interchange",
+"title": "Round-trip interchange formats -- layout markup export and open for cross-version exchange, tagged-t",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "IDML import/export (SMB-INTEROP-IDML PASS_V25); tagged text and structured XML: grep TaggedText|XmlElement|import_dtd: 0",
+"spec_line": 7485
+},
+{
+"id": "STU-LAY-164",
+"section": "14.6.9.4 Structured Interchange",
+"title": "Structured-XML contract.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep XmlElement|xml_element|import_dtd|StructureTree in layout/interop-layout: 0",
+"spec_line": 7489
+},
+{
+"id": "STU-LAY-065",
+"section": "14.6.10 Interactive/EPUB Touchpoint and Collaboration Posture",
+"title": "Layout objects with interactive behaviour -- hyperlinks, bookmarks, buttons, multi-state objects ([S",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23 reflowable EPUB (interop-layout epub.rs); hyperlinks/buttons/multi-state/media payloads absent",
+"spec_line": 7507
+},
+{
+"id": "STU-LAY-165",
+"section": "14.6.10 Interactive/EPUB Touchpoint and Collaboration Posture",
+"title": "Reflowable-export handoff contract.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ID-PREPRESS PASS_V23; interop-layout epub.rs:184 export_epub (break_document, a11y metadata); fixed-layout variant absent (grep fixed_layout: 0)",
+"spec_line": 7514
+},
+{
+"id": "STU-LAY-066",
+"section": "14.6.10 Interactive/EPUB Touchpoint and Collaboration Posture",
+"title": "Review and collaboration MUST be local-first. The native review surface -- comments, annotations and",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep ReviewComment|StudioComment|annotation_anchor: 0",
+"spec_line": 7542
+},
+{
+"id": "STU-LAY-166",
+"section": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
+"title": "Layout constraint and error vocabulary.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PRESS-INK-COVERAGE-1 PASS_V4; typed error codes per module (find_change.rs, fitting.rs:32, layout_ui/styles.rs:95); no unified layout vocabulary of the captured constraint set",
+"spec_line": 7570
+},
+{
+"id": "STU-LAY-167",
+"section": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
+"title": "Engine boundary and determinism.",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "composition in hsk-studio-layout, native shaping in hsk-studio-type; grep trait LayoutEngine|trait TextEngine: 0",
+"spec_line": 7599
+},
+{
+"id": "STU-LAY-168",
+"section": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
+"title": "Validation descriptor set.",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep StudioValidationDescriptor|ValidationDescriptor: 0",
+"spec_line": 7610
+},
+{
+"id": "STU-LAY-067",
+"section": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
+"title": "Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-st",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "37 layout typed rows (SMB-COMMAND-SURFACE-1 READY) + window layout editor (SMB-LAYOUT-UI-2 PASS_V24); place/export typed-only, no window (layout_place.rs, layout_export.rs headers)",
+"spec_line": 7620
+},
+{
+"id": "STU-LAY-199",
+"section": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
+"title": "Microtask derivation index.",
+"apps": [
+"indesign"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "microtask derivation index",
+"spec_line": 7632
+},
+{
+"id": "STU-IO-100",
+"section": "0. Baseline, supersession and disposition",
+"title": "Baseline preservation and supersession.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "baseline preservation and supersession statement",
+"spec_line": 21120
+},
+{
+"id": "STU-IO-101",
+"section": "1. The export parameter model",
+"title": "`StudioExportRecipe` is a parameter set, not a switch.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_recipe.rs:273 StudioExportRecipe",
+"spec_line": 21135
+},
+{
+"id": "STU-IO-102",
+"section": "1. The export parameter model",
+"title": "Export parameter record (normative shape).",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_parameters.rs header: description, group_path, step, enumerated_values, is_hidden not carried",
+"spec_line": 21137
+},
+{
+"id": "STU-IO-103",
+"section": "1. The export parameter model",
+"title": "Hard bounds and soft bounds are SEPARATE fields and MUST NOT be collapsed.",
+"apps": [
+"media_encoder",
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LR-EXPORT-SIZING-1 PASS_V16 (develop export_stage.rs unclamped unknown max); reel DeclaredValue::Absent (READY)",
+"spec_line": 21160
+},
+{
+"id": "STU-IO-104",
+"section": "1. The export parameter model",
+"title": "Export parameter type-code enumeration (normative, closed, twelve members).",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_parameters.rs:29 ExportTypeCode",
+"spec_line": 21162
+},
+{
+"id": "STU-IO-105",
+"section": "1. The export parameter model",
+"title": "Export parameter facet enumeration (normative, closed, fourteen members).",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_parameters.rs:144-153 facets",
+"spec_line": 21181
+},
+{
+"id": "STU-IO-106",
+"section": "1. The export parameter model",
+"title": "Label coverage is honest.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; 409 rows label_source identifier_fallback (export_parameters.rs header)",
+"spec_line": 21183
+},
+{
+"id": "STU-IO-107",
+"section": "1. The export parameter model",
+"title": "Enumerated option names may be encoder-supplied.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep observed_values_only|ObservedValuesOnly: 0",
+"spec_line": 21185
+},
+{
+"id": "STU-IO-108",
+"section": "1. The export parameter model",
+"title": "Codec identifiers are exporter-local.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_recipe.rs:118 exporter identity, :205 codec integer refusal",
+"spec_line": 21187
+},
+{
+"id": "STU-IO-109",
+"section": "1. The export parameter model",
+"title": "Group path is authority.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): controls descriptor.rs:203 group_path; export dictionary has no group_path (export_parameters.rs header)",
+"spec_line": 21189
+},
+{
+"id": "STU-IO-110",
+"section": "1. The export parameter model",
+"title": "Recipe portability and registration.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep unresolv in reel export: 0 (mxf/meta.rs only); no unresolvable-recipe import state",
+"spec_line": 21191
+},
+{
+"id": "STU-IO-111",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Node-render setting record set (normative, five closed shapes plus one).",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; folio export_settings.rs PNG/JPG/SVG/PDF; JSON_TREE, GIF, video not admitted (header)",
+"spec_line": 21197
+},
+{
+"id": "STU-IO-112",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Raster image settings.",
+"apps": [
+"figma"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; folio export_settings.rs:116-130",
+"spec_line": 21199
+},
+{
+"id": "STU-IO-113",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Vector and document settings.",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; SVG and node PDF settings; JSON_TREE not admitted (export_settings.rs header)",
+"spec_line": 21201
+},
+{
+"id": "STU-IO-114",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Export constraint record (normative).",
+"apps": [
+"figma"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; folio export_settings.rs SCALE/WIDTH/HEIGHT constraint",
+"spec_line": 21207
+},
+{
+"id": "STU-IO-115",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Animated raster settings.",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "GIF not admitted (folio export_settings.rs header); grep loop_count in folio/harness-view: 0",
+"spec_line": 21222
+},
+{
+"id": "STU-IO-116",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Video settings.",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "folio export_settings.rs header: video settings not admitted; grep Webm|WEBM: 0",
+"spec_line": 21224
+},
+{
+"id": "STU-IO-117",
+"section": "2. Node-render settings (the per-node export surface)",
+"title": "Format-suffix and collision rule.",
+"apps": [
+"figma"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; authoring-time suffix collision refusal folio export_settings.rs:24",
+"spec_line": 21226
+},
+{
+"id": "STU-IO-125",
+"section": "3. Document PDF export",
+"title": "PDF export preset contract.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs from_draft refuses preset_incomplete",
+"spec_line": 21232
+},
+{
+"id": "STU-IO-126",
+"section": "3. Document PDF export",
+"title": "PDF setting group set (normative, ten groups).",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs PdfGroup (ten groups)",
+"spec_line": 21234
+},
+{
+"id": "STU-IO-127",
+"section": "3. Document PDF export",
+"title": "Image-downsampling setting family (normative shape, applied three times).",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs:214-393 downsample family",
+"spec_line": 21236
+},
+{
+"id": "STU-IO-128",
+"section": "3. Document PDF export",
+"title": "PDF enumerated value domains (normative, from the shipped preset spread).",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs fourteen enumerations, DomainCompleteness",
+"spec_line": 21238
+},
+{
+"id": "STU-IO-129",
+"section": "3. Document PDF export",
+"title": "PDF numeric setting contracts (from the shipped spread).",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs NumericContract seven fields",
+"spec_line": 21259
+},
+{
+"id": "STU-IO-130",
+"section": "3. Document PDF export",
+"title": "Standards-compliance settings.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs:19 standard_without_output_intent",
+"spec_line": 21276
+},
+{
+"id": "STU-IO-131",
+"section": "3. Document PDF export",
+"title": "Font-embedding settings.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs font settings + font_receipt",
+"spec_line": 21278
+},
+{
+"id": "STU-IO-132",
+"section": "3. Document PDF export",
+"title": "Localised preset descriptions.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs:748 locale description map",
+"spec_line": 21280
+},
+{
+"id": "STU-IO-133",
+"section": "3. Document PDF export",
+"title": "PDF preset provenance.",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; press preset.rs:724 PresetSource",
+"spec_line": 21282
+},
+{
+"id": "STU-IO-134",
+"section": "4. Still-image export",
+"title": "Still-image export setting surface.",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LR-EXPORT-SIZING-1 PASS_V16; key classification only for export-stage keys (develop export_stage.rs EXPORT_STAGE_KEYS), not the 152-key surface",
+"spec_line": 21288
+},
+{
+"id": "STU-IO-135",
+"section": "4. Still-image export",
+"title": "Still-image export group set (normative, thirteen groups with reference key counts).",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LR-EXPORT-GUI-1 PASS_V16; groups image_sizing, output_sharpening, watermarking (export_stage.rs); content_credentials, service etc. absent",
+"spec_line": 21290
+},
+{
+"id": "STU-IO-136",
+"section": "4. Still-image export",
+"title": "Still-image enumerated value domains (normative).",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LR-EXPORT-SIZING-1 PASS_V16, SMB-DEVELOP-EXPORT-TIFF PASS_V22; develop export_stage.rs domains",
+"spec_line": 21292
+},
+{
+"id": "STU-IO-137",
+"section": "4. Still-image export",
+"title": "Still-image numeric contracts (from the shipped spread).",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-LR-EXPORT-SIZING-1 PASS_V16; develop export_stage.rs (1000/100/240, hard min 1)",
+"spec_line": 21313
+},
+{
+"id": "STU-IO-138",
+"section": "4. Still-image export",
+"title": "Still-image boolean settings with shipped defaults.",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-LR-EXPORT-SIZING-1 PASS_V16; constrain_size, do_not_enlarge, use_watermark; grep use_file_size_limit|include_video_files|use_subfolder|renaming_tokens_on: 0",
+"spec_line": 21325
+},
+{
+"id": "STU-IO-139",
+"section": "4. Still-image export",
+"title": "Filename token contract.",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "filename_template tokens in batch runner (harness-core batch.rs:384, SMB-PS-ACTIONS-1 PASS); still-image export naming template UNVERIFIED",
+"spec_line": 21327
+},
+{
+"id": "STU-IO-140",
+"section": "5. Professional video export",
+"title": "Video export scale contract.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-PR-SEQ-EXPORT-UI-1 PASS_V16; 453-row dictionary (READY SMB-PR-EXPORT-RECIPE-1); 704 preset identities not closed (lane note)",
+"spec_line": 21333
+},
+{
+"id": "STU-IO-141",
+"section": "5. Professional video export",
+"title": "Container format record.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export.rs:1363 (exporter_class_id, exporter_file_type)",
+"spec_line": 21335
+},
+{
+"id": "STU-IO-142",
+"section": "5. Professional video export",
+"title": "Frame-rate encoding (normative).",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-REEL-ENCODE PASS_V26; reel ticks per frame at 254016000000 (ADBEVideoFPS ticks, export_parameters.rs header)",
+"spec_line": 21337
+},
+{
+"id": "STU-IO-143",
+"section": "5. Professional video export",
+"title": "Bitrate parameter family.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; bitrate rows in reel export_parameter_rows.rs (3 ids)",
+"spec_line": 21357
+},
+{
+"id": "STU-IO-144",
+"section": "5. Professional video export",
+"title": "Declared bounds exist and MUST be honoured where present.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; declared hard bounds enforced, undeclared unclamped (export_recipe.rs header)",
+"spec_line": 21359
+},
+{
+"id": "STU-IO-145",
+"section": "5. Professional video export",
+"title": "Hidden and slider flags are per parameter and per preset.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep is_hidden_in_any_preset|is_slider_in_any_preset: 0",
+"spec_line": 21361
+},
+{
+"id": "STU-IO-146",
+"section": "5. Professional video export",
+"title": "Colour and HDR parameters.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "colour rows in 453-row dictionary (READY); every unit ExportUnit::Undeclared, cd/m^2 not carried (export_parameters.rs header)",
+"spec_line": 21363
+},
+{
+"id": "STU-IO-147",
+"section": "5. Professional video export",
+"title": "Publishing-destination parameters are adapter-scoped.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; credential rows refused by field name (export_recipe.rs:207)",
+"spec_line": 21365
+},
+{
+"id": "STU-IO-148",
+"section": "5. Professional video export",
+"title": "Image-sequence export.",
+"apps": [
+"media_encoder",
+"premiere_pro"
+],
+"status": "LOCAL",
+"ui": null,
+"evidence": "SMB-DELIVERY-QUEUE-1 (no verdict, local 44da1364: PNG image sequence with alpha); grep image_sequence|ImageSequence in reel/harness-view: 0",
+"spec_line": 21367
+},
+{
+"id": "STU-IO-150",
+"section": "6. Preset and library import",
+"title": "Preset container import (normative, twenty-four format families).",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep PresetContainer|preset_container|8BCO|ASEF|.aco|.ase|.abr: 0 (colour books only from ICC named-colour profiles)",
+"spec_line": 21373
+},
+{
+"id": "STU-IO-151",
+"section": "6. Preset and library import",
+"title": "Preset import parse-status contract (normative, three members).",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep ParseStatus|parse_status: 0",
+"spec_line": 21402
+},
+{
+"id": "STU-IO-152",
+"section": "6. Preset and library import",
+"title": "Preset import scale contract.",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "no preset importer to scale-test (grep PresetContainer|preset_container: 0)",
+"spec_line": 21404
+},
+{
+"id": "STU-IO-153",
+"section": "6. Preset and library import",
+"title": "Library file import.",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep library_definition|published_entries|PublishedEntry: 0",
+"spec_line": 21406
+},
+{
+"id": "STU-IO-154",
+"section": "6. Preset and library import",
+"title": "Format-count honesty.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "documentation count-honesty review rule",
+"spec_line": 21408
+},
+{
+"id": "STU-IO-160",
+"section": "7. Obligations",
+"title": "Colour and unit explicitness at every boundary.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "press NumericContract unit (PASS_V6); reel ExportUnit::Undeclared vs Dimensionless distinct (READY); dictionary rows carry no unit",
+"spec_line": 21414
+},
+{
+"id": "STU-IO-161",
+"section": "7. Obligations",
+"title": "Asset library binding.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "fail-closed link gate (SMB-LAYOUT-PLACE-1 READY); CKC registration and derivation edges: grep derivation_edge|register_output: 0",
+"spec_line": 21416
+},
+{
+"id": "STU-IO-162",
+"section": "7. Obligations",
+"title": "Parallel safety.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY, SMB-SESSION-WRITE-SAFETY-1 READY; exclusive temp writers harness-view view/export.rs:147",
+"spec_line": 21418
+},
+{
+"id": "STU-IO-163",
+"section": "7. Obligations",
+"title": "Determinism.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "deterministic container writer (interop-layout epub.rs/IDML); per-format time-varying declaration: grep time_varying: 0",
+"spec_line": 21420
+},
+{
+"id": "STU-IO-164",
+"section": "7. Obligations",
+"title": "Headless and quiet.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "headless drive (SMB-HARNESS-DRIVE-1 READY, window classifier); refusal of dialog-blocking configs naming the parameter UNVERIFIED",
+"spec_line": 21422
+},
+{
+"id": "STU-IO-165",
+"section": "7. Obligations",
+"title": "Validation descriptor set.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; 5 of 13 descriptor codes in reel export_recipe.rs:204-207",
+"spec_line": 21424
+},
+{
+"id": "STU-IO-166",
+"section": "7. Obligations",
+"title": "Storage constraint.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no SQLite (Cargo.lock grep: 0), content hashing package hashing.rs; SurrealDB SCHEMAFULL tables: grep SCHEMAFULL: 0 (host integration)",
+"spec_line": 21426
+},
+{
+"id": "STU-IO-167",
+"section": "7. Obligations",
+"title": "GUI / Argus / UserManual obligation.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core manual.rs, controls descriptor help text (descriptor.rs:198); literal token lists and unknown bounds in UserManual UNVERIFIED",
+"spec_line": 21430
+},
+{
+"id": "STU-IO-168",
+"section": "8. Microtask Derivation",
+"title": "Derivation rule (NORMATIVE).",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "microtask derivation rule",
+"spec_line": 21436
+},
+{
+"id": "STU-IO-169",
+"section": "8. Microtask Derivation",
+"title": "Open items and blocked dependencies.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "open items / blocked dependencies declaration",
+"spec_line": 21447
+},
+{
+"id": "STU-IO-170",
+"section": "8. Microtask Derivation",
+"title": "Microtask content obligation.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "microtask content obligation",
+"spec_line": 21449
+},
+{
+"id": "STU-IO-171",
+"section": "8. Microtask Derivation",
+"title": "Yields index (NORMATIVE).",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "yields index",
+"spec_line": 21451
+},
+{
+"id": "STU-IO-172",
+"section": "8. Microtask Derivation",
+"title": "Anchor binding.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "microtask anchor binding rule",
+"spec_line": 21468
+},
+{
+"id": "STU-IO-173",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_parameter_bounds_collapsed`.",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep export_parameter_bounds_collapsed: 0",
+"spec_line": 21476
+},
+{
+"id": "STU-IO-174",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_parameter_bound_invented`.",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep export_parameter_bound_invented: 0",
+"spec_line": 21478
+},
+{
+"id": "STU-IO-175",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_parameter_missing_unit`.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_recipe.rs:204",
+"spec_line": 21480
+},
+{
+"id": "STU-IO-176",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_enumerated_domain_presented_as_complete`.",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep export_enumerated_domain_presented_as_complete: 0",
+"spec_line": 21482
+},
+{
+"id": "STU-IO-177",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_codec_integer_without_exporter`.",
+"apps": [
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_recipe.rs:205",
+"spec_line": 21484
+},
+{
+"id": "STU-IO-178",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_frame_rate_stored_as_float`.",
+"apps": [
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_recipe.rs:206",
+"spec_line": 21486
+},
+{
+"id": "STU-IO-179",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_preset_incomplete`.",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6 preset_incomplete (press preset.rs); reel export_preset_incomplete export_recipe.rs:28 (READY)",
+"spec_line": 21488
+},
+{
+"id": "STU-IO-180",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_output_filename_collision`.",
+"apps": [
+"figma"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; folio export_settings.rs:24 authoring-time refusal, harness-view export_set.rs:566 export_name_collision",
+"spec_line": 21490
+},
+{
+"id": "STU-IO-181",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_placed_asset_unresolved`.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-LAYOUT-PLACE-1 READY fail-closed link gate after preflight (layout PDF)",
+"spec_line": 21492
+},
+{
+"id": "STU-IO-182",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_writer_nondeterministic_field_undeclared`.",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep export_writer_nondeterministic_field_undeclared|time_varying: 0",
+"spec_line": 21494
+},
+{
+"id": "STU-IO-183",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`preset_import_partial_reported_as_complete`.",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep preset_import_partial_reported_as_complete: 0",
+"spec_line": 21496
+},
+{
+"id": "STU-IO-184",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`library_definition_count_reported_as_entry_count`.",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep library_definition_count_reported_as_entry_count: 0",
+"spec_line": 21498
+},
+{
+"id": "STU-IO-185",
+"section": "9. Validation Descriptor Catalogue",
+"title": "`export_credential_in_recipe_record`.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EXPORT-RECIPE-1 READY; reel export_recipe.rs:207",
+"spec_line": 21500
+},
+{
+"id": "STU-IO-001",
+"section": "14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container co",
+"title": "NATIVE-FORMAT DECLARATION. Studio MUST provide a versioned portable Handshake-native document snapsh",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PACKAGE PASS_V36, SMB-PACKAGE-STREAM-SAVE PASS_V35, SMB-AFFINITY-INTEROP-1 PASS_V23; package lib.rs native container, manifest/hash, atomic recovery",
+"spec_line": 21506
+},
+{
+"id": "STU-IO-002",
+"section": "1. StudioImportProfile / StudioExportRecipe primitives and the round-trip contract",
+"title": "`StudioImportProfile` MUST define a typed, deterministic decode from a source format into `StudioDoc",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "per-format import/export functions (import_idml, harness-core import/*.rs, reel StudioExportRecipe); grep StudioImportProfile: 0",
+"spec_line": 21512
+},
+{
+"id": "STU-IO-003",
+"section": "1. StudioImportProfile / StudioExportRecipe primitives and the round-trip contract",
+"title": "Every import and export MUST be `StudioColorProfile`-explicit and unit-explicit per [STU-DOC-003]: t",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-DEVELOP-CAMERA-COLOUR PASS_V24; ICC through Prism on import (harness-core import/colour.rs); studio.export event kind only in accord business_event.rs:117, no EventLedger emission",
+"spec_line": 21521
+},
+{
+"id": "STU-IO-004",
+"section": "2. Compatibility scope, fixtures, receipts, and recovery — the promotion gate",
+"title": "NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or sh",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "promotion gate (process); its code artifacts judged under STU-IO-011/012",
+"spec_line": 21525
+},
+{
+"id": "STU-IO-005",
+"section": "2. Compatibility scope, fixtures, receipts, and recovery — the promotion gate",
+"title": "Unsupported-feature handling MUST be lossless-of-intent where the format is a native round-trip targ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-AFFINITY-INTEROP-1 PASS_V23, SMB-PACKAGE-COMPLETENESS PASS_V25, SMB-FIG-EDIT-1 PASS_V20: PSD/FIG/Affinity preservation; INDD/AI-template/.jam family not",
+"spec_line": 21535
+},
+{
+"id": "STU-IO-006",
+"section": "3. Format compatibility matrix (normative rows)",
+"title": "The following matrix is NORMATIVE. Each row is one format family with its Studio support direction a",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "many rows PASS (PSD, TIFF, SVG, PDF, IDML, Affinity, FIG, DNG, DXF/EPS lanes); absent rows e.g. DWG, Freehand, Sketch, PPTX, .jam/.deck; web row 46 bound to STU-WEB-120",
+"spec_line": 21544
+},
+{
+"id": "STU-IO-007",
+"section": "3. Format compatibility matrix (normative rows)",
+"title": "Matrix row-law: the matrix in [STU-IO-006] is the complete deduped Studio format surface. A format p",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "matrix row-law (spec structure rule)",
+"spec_line": 21601
+},
+{
+"id": "STU-IO-008",
+"section": "4. Native round-trip families and the preservation-blob law",
+"title": "The NRT rows are the highest-fidelity interop targets and MUST implement the preservation-blob behav",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-AFFINITY-INTEROP-1 PASS_V23, PSD/FIG/IDML lanes PASS; INDD detection-only, .ait/.aftemplate/.jam/.deck/.buzz/.site/.make not found",
+"spec_line": 21605
+},
+{
+"id": "STU-IO-009",
+"section": "5. Fonts, color profiles, and linked assets",
+"title": "Fonts, profiles, and links MUST each be handled as first-class interop inputs:",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "ICC import/embed (import/colour.rs, PDF/X output intent), link update-all (READY); missing-font replacement diagnostics on open and package collect UNVERIFIED/absent",
+"spec_line": 21617
+},
+{
+"id": "STU-IO-010",
+"section": "6. Unified export surfaces (StudioExportRecipe)",
+"title": "All export surfaces recorded across the source suites MUST unify into `StudioExportRecipe` — one pri",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ARTBOARD-EXPORT-1 READY; three recipe shapes (reel export_recipe.rs:273, harness-view doc_export.rs:2, folio export_settings.rs); legacy web optimizer absent",
+"spec_line": 21625
+},
+{
+"id": "STU-IO-011",
+"section": "7. Fixtures and round-trip expectations",
+"title": "Fixture law: every supported app-and-direction in the matrix MUST have representative fixtures and r",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "fixtures for PSD/IDML/FIG/Affinity lanes; no .indd fixture (interop-layout indd_adapter.rs:9)",
+"spec_line": 21639
+},
+{
+"id": "STU-IO-012",
+"section": "8. Recovery and diagnostics",
+"title": "Import/export MUST fail closed and never write a silent partial or corrupt result to authority:",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-PDF-PRESETS-1 PASS_V6; typed fail-closed refusals and loss receipts across importers; receipts asset-local, not EventLedger-bound",
+"spec_line": 21649
+},
+{
+"id": "STU-IO-013",
+"section": "9. Provider / cloud formats and account-gated surfaces",
+"title": "Any format or export target that requires a provider account, cloud service, or subscription MUST be",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": null,
+"evidence": "omitted, no account-gated runtime dependency (STU-OVR-002 evidence, SMB-AFFINITY-INTEROP-1 PASS_V23); grep optional_adapter|ProviderAdapter: 0",
+"spec_line": 21657
+},
+{
+"id": "STU-IO-014",
+"section": "10. Model steerability, headless operation, and validation obligation",
+"title": "Every `StudioImportProfile` and `StudioExportRecipe` action MUST be a typed, model-steerable command",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONVERT-NATIVE PASS_V34; typed rows document.import, layout.export_*, export.run; Argus/UserManual coverage per format UNVERIFIED",
+"spec_line": 21669
+},
+{
+"id": "STU-MDL-001",
+"section": "14.16 Model Visibility and Steerability (Backend and Frontend)",
+"title": "BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on th",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HARNESS-DRIVE-1 READY typed rows + state; no dry run (harness-core action/commands.rs:69 dry_runnable false, gap)",
+"spec_line": 22525
+},
+{
+"id": "STU-MDL-002",
+"section": "14.16 Model Visibility and Steerability (Backend and Frontend)",
+"title": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-PDF-STOCK-PRESETS-1 PASS_V5 (index link); semantic tree with author_id (kumihimo-ui semantic.rs, SMB-UI-TREE-1 READY); egui host ids partial",
+"spec_line": 22527
+},
+{
+"id": "STU-MDL-003",
+"section": "14.16 Model Visibility and Steerability (Backend and Frontend)",
+"title": "COMMAND-CONTRACT COMPLETENESS. Every shipped Studio command MUST carry a typed contract with: stable",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HARNESS-DRIVE-1 READY; ids are domain.method not studio.<domain>.<command>.vN; no dry run, no suggested_fix receipts",
+"spec_line": 22529
+},
+{
+"id": "STU-MDL-004",
+"section": "14.16 Model Visibility and Steerability (Backend and Frontend)",
+"title": "STEERABILITY IS COMMAND-API-FIRST. A model steers Studio through the canonical command API first; it",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-DRIVE-1 READY; no-injection tests harness/tests/harness_drive.rs:685, native-host tests/gui_frame.rs:571; author_id steering frame.tool_pick",
+"spec_line": 22531
+},
+{
+"id": "STU-MDL-005",
+"section": "14.16 Model Visibility and Steerability (Backend and Frontend)",
+"title": "The model API and the operator UI are two projections of the same command contract and the same prim",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "typed rows + window share Viewer methods (SMB-COMMAND-SURFACE-1 READY); typed operator_only/headless reasons: grep: 0",
+"spec_line": 22533
+},
+{
+"id": "STU-MDL-006",
+"section": "14.16 Model Visibility and Steerability (Backend and Frontend)",
+"title": "[ADD v02.200] NO OPERATOR-ONLY CAPABILITY BY DEFAULT. Every Studio tool, command, and primitive MUST",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "grep operator_only_reason|headless_reason: 0; many editing capabilities have typed rows, coverage not complete",
+"spec_line": 22535
+},
+{
+"id": "STU-PW-001",
+"section": "14.18 Propose-Work System",
+"title": "`StudioEditProposal` (schema id `hsk.studio.edit_proposal@1`) is the typed unit of proposed model wo",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": null,
+"evidence": "schema id only (accord lib.rs:37 hsk.studio.edit_proposal@1, business_event.rs:92); grep struct StudioEditProposal: 0",
+"spec_line": 22563
+},
+{
+"id": "STU-PW-002",
+"section": "14.18 Propose-Work System",
+"title": "VALIDATION. Every `StudioEditProposal` MUST be validated by deterministic checks (document-integrity",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep StudioValidationDescriptor|EditProposal validation: 0",
+"spec_line": 22565
+},
+{
+"id": "STU-PW-003",
+"section": "14.18 Propose-Work System",
+"title": "APPROVAL + PROMOTION. Accepted proposals convert into authority EventLedger events through `Promotio",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep STUDIO-PROM|PromotionGate|approval_inbox: 0",
+"spec_line": 22567
+},
+{
+"id": "STU-PW-004",
+"section": "14.18 Propose-Work System",
+"title": "REPLAYABILITY. A promoted or rejected proposal, and the resulting authority state, MUST be fully rec",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "no EventLedger replay in asset (grep EventLedger receipt replay: 0); accord event kinds only",
+"spec_line": 22569
+},
+{
+"id": "STU-HIS-001",
+"section": "14.19 Per-File History, Undo, and Revert-of-Undo",
+"title": "PER-FILE HISTORY STACK. Each Studio file maintains its own history stack; there is one unified histo",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-DRIVE-1 READY; one undo/redo stack across domains (harness-core harness.rs:440), history.undo/redo rows; not EventLedger-backed",
+"spec_line": 22579
+},
+{
+"id": "STU-HIS-002",
+"section": "14.19 Per-File History, Undo, and Revert-of-Undo",
+"title": "UNDO. Undo reverts the most recent promoted `StudioHistoryEntry` by applying its inverse command or ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-FOLIO-TIMELINE-RECORDS PASS_V27, SMB-PULSE-EDITING PASS_V28; chronicle inverses (harness.rs:440); STUDIO_HISTORY_UNDONE only declared (accord business_event.rs:95)",
+"spec_line": 22581
+},
+{
+"id": "STU-HIS-003",
+"section": "14.19 Per-File History, Undo, and Revert-of-Undo",
+"title": "REVERT-OF-UNDO (redo). The earlier one-level minimum is superseded by retained-history deep Undo/Red",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "redo stack in session memory (harness.rs:442); durable retained redo absent",
+"spec_line": 22583
+},
+{
+"id": "STU-HIS-004",
+"section": "14.19 Per-File History, Undo, and Revert-of-Undo",
+"title": "SNAPSHOT SEMANTICS. For raster-destructive or large-payload operations where inverse-command replay ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CHRONICLE-TABLE PASS_V35; chronicle Snapshot / TileRef (chronicle lib.rs:307); artifact-store and ledger resolution host integration",
+"spec_line": 22585
+},
+{
+"id": "STU-UNI-001",
+"section": "14.21 Operator Unification Surface",
+"title": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified t",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "one StudioDocument (folio); separate per-domain editors (harness-view layout_ui.rs, design, develop); no whiteboard domain",
+"spec_line": 22613
+},
+{
+"id": "STU-UNI-002",
+"section": "14.21 Operator Unification Surface",
+"title": "TASK MODES OVER ONE DOCUMENT. Operator workflows are organized as workspace/persona-style TASK MODES",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 READY raster Layout Preset only (native-host gui/preset.rs); grep TaskMode|WorkspacePreset: 0",
+"spec_line": 22615
+},
+{
+"id": "STU-UNI-003",
+"section": "14.21 Operator Unification Surface",
+"title": "SHARED OPERATOR UX INVARIANTS. Across all task modes: ONE selection model (`StudioSelectionSet` rega",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "one undo stack (harness.rs:440), one colour pipeline (prism); several export recipe shapes (STU-IO-010)",
+"spec_line": 22617
+},
+{
+"id": "STU-UNI-004",
+"section": "14.21 Operator Unification Surface",
+"title": "OPERATOR+MODEL CO-WORK. Operators and models co-work in the same unified surface: the per-file CRDT ",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep presence/pending_proposal (model co-work): 0 relevant hits",
+"spec_line": 22619
+},
+{
+"id": "STU-UNI-005",
+"section": "14.21 Operator Unification Surface",
+"title": "The operator surface is a control room, not a chat window: it surfaces document/layer state, selecti",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "quiet window classifier (SMB-HARNESS-DRIVE-1 READY); pending proposals and validation state not surfaced",
+"spec_line": 22621
+},
+{
+"id": "STU-MDL-100",
+"section": "7. Accessibility, addressing, and observability",
+"title": "The `author_id` grammar (normative, closed).",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMMAND-SURFACE-1 READY, SMB-GUI-FRAME-1 READY; controls ui_descriptor.rs:115 valid_author_id",
+"spec_line": 32330
+},
+{
+"id": "STU-MDL-101",
+"section": "7. Accessibility, addressing, and observability",
+"title": "What an `author_id` MUST NOT contain.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMMAND-SURFACE-1 READY; ids like studio.tab.<panel> without region/index (harness-view commands/seed.rs:28)",
+"spec_line": 32338
+},
+{
+"id": "STU-MDL-102",
+"section": "7. Accessibility, addressing, and observability",
+"title": "A numeric field is addressed by its OWNER, not its location.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 READY; owner addresses studio.options.pen.width, studio.panel.layers.*",
+"spec_line": 32340
+},
+{
+"id": "STU-MDL-103",
+"section": "7. Accessibility, addressing, and observability",
+"title": "Charset, derivation, instances, and immutability.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-COMMAND-SURFACE-1 READY; controls ui_descriptor.rs:109 stable_id, '#n' instances, aliases",
+"spec_line": 32342
+},
+{
+"id": "STU-MDL-104",
+"section": "7. Accessibility, addressing, and observability",
+"title": "Node id space.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "kumihimo-ui semantic.rs:108 node_id = fnv64(author_id) (SMB-UI-TREE-1 READY); shell hashed-prefix registration not in asset (grep hashed_author|HASHED: 0)",
+"spec_line": 32349
+},
+{
+"id": "STU-MDL-105",
+"section": "7. Accessibility, addressing, and observability",
+"title": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a require",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-SPINE-1 READY; kumihimo-ui tree.rs:213 Numeric value/min/max/step; no unit, no temporal state",
+"spec_line": 32351
+},
+{
+"id": "STU-MDL-106",
+"section": "7. Accessibility, addressing, and observability",
+"title": "Observability nodes (normative).",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 READY; studio.dock.state (native-host gui/chrome.rs:499); studio.slot.*.resolved and studio.gesture.active: grep 0",
+"spec_line": 32369
+},
+{
+"id": "STU-MDL-107",
+"section": "7. Accessibility, addressing, and observability",
+"title": "Availability is exposed on the node.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 READY; availability fields on menu items (controls menu.rs:158-213), not on semantic tree nodes",
+"spec_line": 32377
+},
+{
+"id": "STU-MDL-108",
+"section": "7. Accessibility, addressing, and observability",
+"title": "Snapshot truncation is explicit.",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-UI-TREE-1 READY; kumihimo-ui semantic.rs:4 explicit truncation at node cap",
+"spec_line": 32379
+},
+{
+"id": "STU-MDL-109",
+"section": "7. Accessibility, addressing, and observability",
+"title": "Steering path law.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "source-token no-injection tests (harness_drive.rs:685, gui_frame.rs:571); simulated global input negative harness absent",
+"spec_line": 32381
+},
+{
+"id": "STU-MDL-1",
+"section": "14.31 Tools, the Options Surface, and the Scrubbable Numeric Control",
+"title": "This sub-section specifies what lives inside the operator shell of 14.30: the tool registry and its ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": null,
+"evidence": "sub-section introduction",
+"spec_line": 32555
+},
+{
+"id": "STU-MDL-110",
+"section": "8. Accessibility of value fields",
+"title": "Role selection (normative).",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-UI-TREE-1 READY; Role::Slider/SpinButton (kumihimo-ui tree.rs:65); widgets.rs:148/159 assign by part, not by soft range",
+"spec_line": 33323
+},
+{
+"id": "STU-MDL-111",
+"section": "8. Accessibility of value fields",
+"title": "Exposed properties (normative).",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "value/min/max/step only (kumihimo-ui semantic.rs:162); jump, description, temporal_state, time, keyframed_at_time absent",
+"spec_line": 33325
+},
+{
+"id": "STU-MDL-112",
+"section": "8. Accessibility of value fields",
+"title": "The reported bounds MUST be the GRAB rect.",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep grab_rect|GRAB_RECT: 0",
+"spec_line": 33342
+},
+{
+"id": "STU-MDL-113",
+"section": "8. Accessibility of value fields",
+"title": "Agreement tests (normative).",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "agreement tests: grep format(accessible|agreement in controls/kumihimo: 0",
+"spec_line": 33344
+},
+{
+"id": "STU-MDL-114",
+"section": "8. Accessibility of value fields",
+"title": "Enumerated parameters.",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": null,
+"evidence": "grep selected_index|option_tokens: 0",
+"spec_line": 33351
+},
+{
+"id": "STU-MDL-115",
+"section": "8. Accessibility of value fields",
+"title": "Refusal parity.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 single legality owner on descriptor; EXPRESSION_DRIVEN code (controls menu.rs:146); accessibility set-value path parity UNVERIFIED",
+"spec_line": 33353
+},
+{
+"id": "STU-MDL-116",
+"section": "8. Accessibility of value fields",
+"title": "Tool state is inspectable.",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 READY; studio.tool.active (native-host gui/mod.rs:6); studio.task_scope.active, studio.slot.context-bar.resolved: grep 0",
+"spec_line": 33355
+}
+],
+"counts_by_status": {
+"VALIDATED": 69,
+"BUILT_NOT_VALIDATED": 26,
+"PARTIAL": 125,
+"MISSING": 45,
+"LOCAL": 1,
+"NOT_PRODUCT": 18
+},
+"counts_by_app_and_status": {
+"acrobat": {
+"VALIDATED": 14,
+"PARTIAL": 4,
+"MISSING": 1
+},
+"after_effects": {
+"PARTIAL": 1
+},
+"audition": {
+"PARTIAL": 1
+},
+"cross_app": {
+"VALIDATED": 7,
+"BUILT_NOT_VALIDATED": 10,
+"PARTIAL": 48,
+"MISSING": 11,
+"NOT_PRODUCT": 13
+},
+"figma": {
+"BUILT_NOT_VALIDATED": 4,
+"PARTIAL": 3,
+"MISSING": 2
+},
+"illustrator": {
+"PARTIAL": 1,
+"MISSING": 6
+},
+"indesign": {
+"VALIDATED": 58,
+"BUILT_NOT_VALIDATED": 1,
+"PARTIAL": 66,
+"MISSING": 23,
+"NOT_PRODUCT": 5
+},
+"lightroom_classic": {
+"VALIDATED": 3,
+"PARTIAL": 5
+},
+"media_encoder": {
+"VALIDATED": 2,
+"BUILT_NOT_VALIDATED": 11,
+"PARTIAL": 3,
+"MISSING": 3,
+"LOCAL": 1
+},
+"photoshop": {
+"MISSING": 4
+},
+"premiere_pro": {
+"VALIDATED": 1,
+"BUILT_NOT_VALIDATED": 9,
+"PARTIAL": 4,
+"MISSING": 3,
+"LOCAL": 1
+}
+},
+"top_missing_areas": [
+"Layout document structure and flow: document-wide layers, spread rotation and shuffle, primary text frames, autoflow and smart text reflow, bullets and numbering, style import between documents (STU-LAY-004/005/008/020/040/106/109/123/144/145)",
+"InDesign production objects: multi-state objects, QR codes, object libraries and snippets, four-target frame effects, clipping paths, structured XML, review comments, a real package with fonts and report (STU-LAY-033/034/066/133/134/136-138/155/164)",
+"The model proposal and history path: StudioEditProposal validation, promotion gate and approval, EventLedger replay, durable undo/redo and operator+model presence (STU-PW-001..004, STU-HIS-001..004, STU-UNI-004)",
+"Preset and library import: the 24 preset container families, parse status, library files and their validators (STU-IO-150..153, STU-IO-183/184)",
+"Validation descriptor catalogue and accessibility value contract: StudioValidationDescriptor, 7 of 13 interop descriptors, ScrubValue grab rect, agreement tests and option exposure (STU-LAY-168, STU-IO-173/174/176/182, STU-MDL-112/113/114)"
+],
+"notes": [
+"Statuses judged against the integrated tip origin/codex/handshake-studio-assets 87f331f9 (already current in the clean tree; no fetch) and ledger lane status; microtask status ignored as instructed.",
+"VALIDATED = a covering PASS_Vn lane plus tip code; BUILT_NOT_VALIDATED = tip code whose covering lane is READY_FOR_VALIDATION (STUDIO-R60 never opened, so 28 READY lanes are unjudged); LOCAL = only in an unpushed lane (SMB-DELIVERY-QUEUE-1).",
+"Following the parity-20261111 rule, a clause stays PARTIAL while a sub-capability it names is absent, declared as a gap in a module header, or refused typed (e.g. content-aware fit, PDF/X stock presets, nested table cells).",
+"Clauses whose remaining part is kernel integration (EventLedger events and receipts, SurrealDB SCHEMAFULL tables, CKC registration, DCC approval inbox, shell prefix registration) are PARTIAL or MISSING here: STU-OVR-001 schedules that integration later and none of it is in the asset tree.",
+"Lane-file ids that differ from ledger ids were mapped: SMB-CONTROLS-2 = ledger SMB-CONTROLS (PASS_V16, lane file hsk-studio-controls.json); SMB-INTEROP-VECTOR-1 = ledger SMB-INTEROP-VECTOR (PASS_V37).",
+"Some index lane links are incidental (e.g. STU-MDL-002 -> SMB-PDF-STOCK-PRESETS-1, STU-IO-190 -> SMB-INTEROP-VECTOR-1); where a code header names a different owning lane (grids.rs -> SMB-ID-PREPRESS, book.rs -> SMB-LAYOUT-UI) that lane was used as the covering lane.",
+"NOT_PRODUCT covers headings, 14.6.0 reading rules (STU-LAY-100, 102-104), derivation indexes and microtask rules (STU-LAY-199, STU-IO-168..172), the IO promotion gate and row-law (STU-IO-004, 007), supersession/scope statements (STU-IO-100, STU-OVR-015, STU-SECTION-002) and the count-honesty review rule (STU-IO-154).",
+"The index line for several ids points at a cross-reference; section and title in rows come from the definitional clause (spec_line), not from the index line.",
+"ui = window where the egui harness-view layout editor (layout_ui/*.rs), develop export dialog, timeline export or the native Vulkan host (native-host gui, kumihimo-ui) has a control; command = typed row or engine only; null for MISSING, LOCAL and NOT_PRODUCT. Window reach was read from file presence and headers only, not by running the window.",
+"Read only: no cargo, build or test run; no product file edited; nothing committed. Code read with git grep / git show on the tip object only."
+],
+"unverified": [
+"InDesign/Acrobat/Media Encoder behavioural parity of every VALIDATED row (D5 oracle covers only 99 InDesign composition cases, 93 MATCH)",
+"STU-DOC-001: every STU-CMP-092 edge kind present in Folio",
+"STU-LAY-006: multiple parents applied to one page at once and loading parents from another document",
+"STU-LAY-052/117: named-grid import across documents",
+"STU-LAY-135: document-scope layout transparency preferences (global light angle/altitude, spread blending space and flattener override)",
+"STU-LAY-143: reserved style names and style-group rules",
+"STU-LAY-150: all 42 footnote and 15 endnote option properties",
+"STU-IO-134/135: exact count of still-image keys classified (EXPORT_STAGE_KEYS not enumerated here)",
+"STU-IO-139: still-image export filename template tokens (batch runner tokens found only)",
+"STU-IO-164: refusal of dialog-blocking export configurations naming the parameter",
+"STU-IO-167: UserManual literal token lists and unknown bounds",
+"STU-IO-187: quarantine of unknown records with verbatim bytes and provenance",
+"STU-IO-009: missing-font replacement diagnostics on document open",
+"STU-MDL-115: accessibility set-value path refuses with the same reason_code as the pointer path",
+"All READY_FOR_VALIDATION evidence (unjudged; R60 probe findings recorded against SMB-DOC-NEW-1, SMB-LAYOUT-PERSIST-1, SMB-COMMAND-SURFACE-1)"
+]
+}

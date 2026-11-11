@@ -1,0 +1,3701 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G1",
+"prefixes": [
+"STU-COL",
+"STU-RAW",
+"STU-CMP"
+],
+"generated_at": "2026-11-11T16:28:08Z",
+"origin_tip": "87f331f9",
+"rows": [
+{
+"id": "STU-RAW-001",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "StudioRawDevelop MUST be a non-destructive, re-editable parametric graph over an immutable decoded r",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/recipe.rs:1 immutable recipe, lib.rs:1 originals immutable; SMB-DEVELOP PASS_V42"
+},
+{
+"id": "STU-RAW-002",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "Develop authority MUST persist as Studio authority rows bound to the EventLedger per [STU-ARC-003]/[",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/records.rs:357 DevelopRecord/HistoryStep; grep 'studio\\.raw' crates: 0"
+},
+{
+"id": "STU-RAW-003",
+"section": "2. Raw Input Scope and Sensor Decode",
+"title": "The pipeline MUST accept mosaic raw sensor inputs — both the Bayer and the X-Trans colour-filter-arr",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/pipeline.rs:46 CfaPattern Bayer|XTrans, dng.rs; SMB-DEVELOP-RAW-COMPRESSED PASS_V26; develop-as-filter on non-raw layers not found"
+},
+{
+"id": "STU-RAW-004",
+"section": "2. Raw Input Scope and Sensor Decode",
+"title": "The pipeline MUST expose, as projections of the same StudioRawDevelop state to both the operator UI ",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "histogram harness-view/src/view/info.rs:1 (SMB-PS-INFO-HISTOGRAM-1 PASS_V19); grep filmstrip|preview_cache|zoom_preset: 0"
+},
+{
+"id": "STU-RAW-005",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Basic group MUST provide, as typed parameters on StudioRawDevelop each with an is_at_default fla",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "develop/src/adjust.rs BasicTone/Presence/WB (SMB-DEVELOP-CONTROLS PASS_V28); grep auto_tone|is_at_default: 0"
+},
+{
+"id": "STU-RAW-006",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Tone Curve group MUST provide a parametric curve with region sliders and adjustable split points",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/adjust.rs:89 ParametricCurve, recipe.rs:68 ResolvedCurves; SMB-DEVELOP PASS_V42, SMB-DEVELOP-CONTROLS PASS_V28"
+},
+{
+"id": "STU-RAW-007",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Detail group MUST provide, on the deterministic native engine, capture sharpening (amount, radiu",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/detail.rs:45 Sharpen/NoiseReduction; SMB-DEVELOP-CONTROLS-2 PASS_V28"
+},
+{
+"id": "STU-RAW-008",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Colour Grading group MUST provide independent shadow, midtone and highlight wheels (hue and satu",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/colour.rs:74 ColourGrading; SMB-DEVELOP-CONTROLS-2 PASS_V28"
+},
+{
+"id": "STU-RAW-009",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Optics group MUST provide lens-profile correction removing geometric distortion, lens vignetting",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/optics.rs:36 Defringe, lens_profile.rs; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-010",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Geometry group MUST provide automatic perspective/level correction with off, level, vertical, fu",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/geometry.rs:36 UprightMode, upright.rs guides; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-011",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Effects group MUST provide film-grain synthesis (amount, size, roughness) and a post-crop vignet",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/effects.rs:35 Grain, :72 PostCropVignette; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-012",
+"section": "2a. Retained Group-Scope Clauses",
+"title": "The Calibration group MUST expose the develop process version as a first-class field, shadow tint ca",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "calibration develop/src/effects.rs:98 + process_version field recipe.rs:8; receipted process-version change absent (grep set_process_version|migration_receipt: 0)"
+},
+{
+"id": "STU-RAW-013",
+"section": "13. Camera Profiles, Creative Profiles, and Presets",
+"title": "The pipeline MUST provide a profile stage applied *before* slider edits, offering camera-matching an",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "develop/src/look.rs:2, preset.rs:3 profiles/looks/presets/snapshots (SMB-DEVELOP-LENS-PRESETS PASS_V25); grep per_serial|per_iso|camera_default: 0"
+},
+{
+"id": "STU-RAW-014",
+"section": "16. HDR, Lens Blur, and Enhance",
+"title": "Enhance operations MUST be split into the native deterministic tier and the optional model-adapter t",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/lib.rs:195, local.rs:151 model adapter degrades to typed refusal; native enhance tier absent (grep enhance|super_resolution|lens_blur: 0)"
+},
+{
+"id": "STU-RAW-015",
+"section": "15. Local Repair and Distraction Removal",
+"title": "The pipeline MUST provide non-destructive crop and straighten (aspect, angle, rotate, flip), a heal/",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "develop/src/retouch.rs heal/clone (SMB-LR-HEALING-1 PASS_V20), crop recipe.rs:91; red-eye refused (recipe.rs first_unsupported)"
+},
+{
+"id": "STU-RAW-016",
+"section": "17. Crop, Workflow Output, and Linkage to the Raster Document",
+"title": "Workflow options MUST configure how a developed raw is handed to the StudioDocument: output colour s",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "export space/depth/size develop/src/export.rs, export_stage.rs (SMB-HARNESS-DEVELOP-EXPORT PASS_V29); raw as re-editable placed object absent (grep develop in harness-view place.rs: 0)"
+},
+{
+"id": "STU-RAW-017",
+"section": "17. Crop, Workflow Output, and Linkage to the Raster Document",
+"title": "Save and output of a developed raw MUST route through StudioExportRecipe (14.13) for derived deliver",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/dng_write.rs:5 DNG export, records.rs batch_apply; SMB-DEVELOP-DNG-WRITER PASS_V21, SMB-LR-LIBRARY-WRITE PASS_V23"
+},
+{
+"id": "STU-RAW-018",
+"section": "18. Model Steerability, Headless Operation, and Validation",
+"title": "Every StudioRawDevelop control group, mask source, enhance operation, profile and preset action, and",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "photo.develop.* rows harness-core/src/action/commands/photo.rs (16 on origin); remaining rows local in SMB-DEVELOP-COMMANDS-1 (bundled_green)"
+},
+{
+"id": "STU-RAW-100",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "THE DEVELOP PARAMETER SURFACE. The develop surface is a flat namespace of typed parameters organized",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "typed controls develop/src/adjust.rs, settings.rs; 389-param StudioParameterSpec registry absent (grep StudioParameterSpec in develop: 0); per-slider typed rows partial, rest local in SMB-DEVELOP-COMMANDS-1"
+},
+{
+"id": "STU-RAW-101",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "CANONICAL SCALE LAW — ONE SCALE PER PARAMETER, PLUS A REQUIRED CONVERSION LAYER (supersedes the flat",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "interop-lrcat/src/develop_map.rs:1 scale map flagged develop_scale_unverified; SMB-INTEROP-LRCAT PASS_V29"
+},
+{
+"id": "STU-RAW-102",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "ABSENT MEANS DEFAULT — AND FOR MOST PARAMETERS THE DEFAULT IS NOT RECOVERABLE FROM DATA (supersedes ",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "sparse preset keys develop/src/preset.rs:56; grep is_at_default crates: 0"
+},
+{
+"id": "STU-RAW-103",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "INTERCHANGE DECODE AND ENCODE. Develop settings that arrive embedded in a source container or an adj",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "interop-lrcat/src/xmp_sidecar.rs:25, develop/src/dng_write.rs:7; SMB-DEVELOP-DNG-WRITER PASS_V21, SMB-LR-HEALING-2 PASS_V20"
+},
+{
+"id": "STU-RAW-104",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "PROCESS VERSION AND ENGINE VERSION ARE TWO FIELDS.",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/recipe.rs:8-9 PROCESS_VERSION/ENGINE_VERSION separate, in receipts; SMB-DEVELOP PASS_V42"
+},
+{
+"id": "STU-RAW-105",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "PANEL ENABLE FLAGS ARE PART OF THE STATE. Each develop group carries a boolean enable that suppresse",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/recipe.rs:21 Enables (12 flags); SMB-DEVELOP-LENS-PRESETS PASS_V25, SMB-LR-HEALING-1 PASS_V20; per-flag typed rows local in SMB-DEVELOP-COMMANDS-1"
+},
+{
+"id": "STU-RAW-106",
+"section": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+"title": "DETERMINISM AND REPRODUCIBILITY. Given the same decoded raw input, the same fully resolved StudioRaw",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/effects.rs:2 grain seed, tests/develop_parallel.rs; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-110",
+"section": "3. White Balance",
+"title": "WHITE BALANCE PARAMETER CONTRACT (extends [STU-RAW-005]). White balance is seven parameters, and the",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/adjust.rs:3, harness-view/src/view/develop.rs:409; SMB-DEVELOP-CONTROLS PASS_V28"
+},
+{
+"id": "STU-RAW-111",
+"section": "4. Basic Tone and Presence",
+"title": "BASIC TONE AND PRESENCE PARAMETER CONTRACT. Two generations of tone control coexist in the captured ",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "develop/src/adjust.rs:4 current tone set (SMB-DEVELOP-CONTROLS PASS_V28); legacy process-version tone set absent (grep brightness|fill_light in develop: 0)"
+},
+{
+"id": "STU-RAW-112",
+"section": "5. Tone Curve",
+"title": "PARAMETRIC TONE CURVE. The parametric curve is four region amounts plus three adjustable split point",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/adjust.rs:5 split points, harness-view develop.rs shadow_split/midtone_split/highlight_split; SMB-DEVELOP-CONTROLS PASS_V28"
+},
+{
+"id": "STU-RAW-113",
+"section": "5. Tone Curve",
+"title": "POINT TONE CURVES. Four independent point curves exist — composite, red, green and blue — plus a nam",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/recipe.rs:68 four point curves + curve_refine_saturation (SMB-DEVELOP PASS_V42); curve-name selector and legacy set absent; set_point_curve only local in SMB-DEVELOP-COMMANDS-1"
+},
+{
+"id": "STU-RAW-114",
+"section": "6. Detail — Sharpening and Noise",
+"title": "DETAIL PARAMETER CONTRACT. All four sharpening parameters are always written, so all four defaults a",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/detail.rs:3; SMB-DEVELOP-CONTROLS-2 PASS_V28, SMB-HARNESS-DEVELOP-2 PASS_V29"
+},
+{
+"id": "STU-RAW-115",
+"section": "7. Colour Mixer, HSL, and Grayscale Mix",
+"title": "COLOUR MIXER PARAMETER CONTRACT. The colour mixer is eight fixed hue bands — red, orange, yellow, gr",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/adjust.rs:6 ColourMixer, colour.rs:2 GrayscaleMix/PointColour; SMB-DEVELOP-CONTROLS PASS_V28"
+},
+{
+"id": "STU-RAW-116",
+"section": "8. Colour Grading",
+"title": "COLOUR GRADING PARAMETER CONTRACT. Colour grading is four wheels — shadows, midtones, highlights and",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/colour.rs:3 ColourGrading 4 wheels + blending/balance; SMB-DEVELOP-CONTROLS-2 PASS_V28"
+},
+{
+"id": "STU-RAW-117",
+"section": "9. Optics — Lens Correction, Defringe, and Manual Distortion",
+"title": "OPTICS PARAMETER CONTRACT. Fifteen of the seventeen optics parameters are always written, which make",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/optics.rs:1, adjust.rs:136; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-118",
+"section": "10. Geometry and Perspective",
+"title": "GEOMETRY PARAMETER CONTRACT. Manual perspective sliders and an automatic perspective-correction stag",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/geometry.rs:1, upright.rs:1; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-119",
+"section": "11. Effects — Grain and Post-Crop Vignette",
+"title": "EFFECTS PARAMETER CONTRACT.",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/effects.rs:1; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-120",
+"section": "12. Calibration",
+"title": "CALIBRATION PARAMETER CONTRACT. Seven parameters, all sparse, all with the identity default 0 (deriv",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/effects.rs:2 Calibration 7 params; SMB-DEVELOP-CAMERA-COLOUR PASS_V24"
+},
+{
+"id": "STU-RAW-121",
+"section": "14. Masking and Local Adjustment",
+"title": "CORRECTION AND MASK RECORD STRUCTURE. A local adjustment is a correction holding a list of masks plu",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/local.rs:4 Correction/Mask; SMB-DEVELOP-CONTROLS PASS_V28, SMB-HARNESS-DEVELOP-2 PASS_V29"
+},
+{
+"id": "STU-RAW-122",
+"section": "14. Masking and Local Adjustment",
+"title": "THE MASK-LOCAL SLIDER STACK IS A SECOND, DIFFERENTLY-SCALED COPY OF THE GLOBAL STACK. Each correctio",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "develop/src/local.rs:8 LocalStack on normalised scale; per-mask curves and legacy local copies not found"
+},
+{
+"id": "STU-RAW-123",
+"section": "14. Masking and Local Adjustment",
+"title": "MASK SOURCE CATALOGUE AND SUBCATEGORY IDS. Mask sources are identified by a source kind plus a subca",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/local.rs:115 MaskSource + ModelMaskKind; depth_range absent; model masks are typed refusal model_unavailable"
+},
+{
+"id": "STU-RAW-124",
+"section": "15. Local Repair and Distraction Removal",
+"title": "RETOUCH RECORD STRUCTURE AND THE GENERATIVE-FILL BOUNDARY. A retouch area is a record carrying spot_",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/retouch.rs:141 RetouchArea, harness-view develop/spot.rs; SMB-LR-HEALING-1/2 PASS_V20"
+},
+{
+"id": "STU-RAW-125",
+"section": "13. Camera Profiles, Creative Profiles, and Presets",
+"title": "CAMERA PROFILE MODEL. A camera profile is a colour-rendering model, not a geometric one, and Studio ",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/camera_colour.rs:123; SMB-DEVELOP-CAMERA-COLOUR PASS_V24"
+},
+{
+"id": "STU-RAW-126",
+"section": "13. Camera Profiles, Creative Profiles, and Presets",
+"title": "CREATIVE PROFILES AND LOOK TABLES. A creative profile is the same structure with a look table carryi",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/look.rs:1, preset.rs:2 capability flags; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-127",
+"section": "13. Camera Profiles, Creative Profiles, and Presets",
+"title": "LENS PROFILE MODEL. A lens profile is a sampled correction model, not a formula: it stores samples o",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/lens_profile.rs:1 sampled grid; SMB-DEVELOP-LENS-PRESETS PASS_V25"
+},
+{
+"id": "STU-RAW-128",
+"section": "13. Camera Profiles, Creative Profiles, and Presets",
+"title": "PRESET, SNAPSHOT, AND DEFAULTS REGISTRY. A develop preset is a named, grouped, uniquely identified p",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/preset.rs:63 DevelopPreset, :76 Snapshot (SMB-DEVELOP-LENS-PRESETS PASS_V25); defaults registry absent; snapshot/save_preset commands local in SMB-DEVELOP-COMMANDS-1"
+},
+{
+"id": "STU-RAW-129",
+"section": "16. HDR, Lens Blur, and Enhance",
+"title": "HDR DEVELOP STATE. The pipeline MUST carry an HDR edit mode with an SDR-compatibility sub-stack, bec",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "develop/src/hdr_merge.rs + dng_from_hdr (SMB-HDR-MERGE-1 PASS_V17); grep hdr_edit_mode|sdr_blend: 0"
+},
+{
+"id": "STU-RAW-130",
+"section": "16. HDR, Lens Blur, and Enhance",
+"title": "ENHANCE TIERS AND THE LENS-BLUR STAGE. Enhance operations split into two tiers and the split is norm",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "model-mask adapter refusal local.rs:151; native raw-detail/super-resolution and lens-blur stage absent (grep enhance|super_resolution|lens_blur: 0)"
+},
+{
+"id": "STU-RAW-131",
+"section": "17. Crop, Workflow Output, and Linkage to the Raster Document",
+"title": "CROP AND ORIENTATION CONTRACT. Crop is stored as four normalized edge positions plus an angle and tw",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/recipe.rs:91 NormalizedCrop edges+angle+flags, orientation/flip separate; SMB-DEVELOP PASS_V42"
+},
+{
+"id": "STU-RAW-132",
+"section": "18. Model Steerability, Headless Operation, and Validation",
+"title": "DEVELOP-SPECIFIC VALIDATION CHECKS. StudioValidationDescriptor (14.24) MUST carry these blocking che",
+"apps": [
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioValidationDescriptor|ValidationDescriptor crates: 0"
+},
+{
+"id": "STU-COL-001",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "StudioColorProfile (schema id hsk.studio.color_profile@1) is the canonical color-space/profile primi",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy umbrella; profile binding folio/src/lib.rs:204 ProfileBinding, prism ProfileDescriptor; full StudioColorProfile record not found (see COL-125)"
+},
+{
+"id": "STU-COL-002",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Color models MUST include, deduped across suites:",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy umbrella over COL-110..118; see those rows"
+},
+{
+"id": "STU-COL-003",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Bit-depth law: documents MUST support 8-bit and 16-bit integer precision, and 32-bit floating-point ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy umbrella; COL-120/121 validated, COL-122/123 partial"
+},
+{
+"id": "STU-COL-004",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "ICC color management: a StudioColorProfile binds an ICC profile. Studio MUST support document workin",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy umbrella; ICC parse validated (COL-126), policies/assign/convert missing (COL-128/130/131)"
+},
+{
+"id": "STU-COL-005",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "OCIO for 32-bit / scene-linear: for 32-bit float documents, Studio MUST support an OpenColorIO (OCIO",
+"apps": [
+"after_effects",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy umbrella; ACES view transforms prism/src/view_transform.rs:1 (SMB-PRISM-VIEW-TRANSFORM PASS_V26); no OCIO configuration runtime"
+},
+{
+"id": "STU-COL-006",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation m",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism crate (moxcms pure Rust + wide engine), ColorEngine in prism/src/lib.rs; SMB-PRISM-ENG-1..8 PASS_V21-V24"
+},
+{
+"id": "STU-COL-007",
+"section": "2. Swatches — `StudioSwatch`",
+"title": "StudioSwatch (schema id hsk.studio.swatch@1) is the canonical named-color primitive. A swatch declar",
+"apps": [
+"illustrator",
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; folio/src/vector_tools.rs:8 five swatch kinds (SMB-ILLUSTRATOR-TOOLS-2 PASS_V25); mixed_ink kinds declared gap"
+},
+{
+"id": "STU-COL-008",
+"section": "2. Swatches — `StudioSwatch`",
+"title": "Swatch groups + palette scope: swatches organize into named groups/color groups, and palettes are sc",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; groups/scope validated (COL-177/178), panel ops partial (COL-179)"
+},
+{
+"id": "STU-COL-009",
+"section": "2. Swatches — `StudioSwatch`",
+"title": "Swatch interchange: Studio MUST import/export swatches and palettes as a portable exchange format (A",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "legacy umbrella; grep swatch_exchange|AseFile|parse_ase|read_ase|write_ase: 0"
+},
+{
+"id": "STU-COL-010",
+"section": "3. Gradients and Patterns — `StudioGradient` / `StudioPattern`",
+"title": "StudioGradient (schema id hsk.studio.gradient@1) is the canonical gradient primitive: a multi-stop m",
+"apps": [
+"illustrator",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; folio/src/paint.rs:81 linear/radial only (diamond/angular/freeform declared gaps paint.rs:20)"
+},
+{
+"id": "STU-COL-011",
+"section": "3. Gradients and Patterns — `StudioGradient` / `StudioPattern`",
+"title": "Gradient controls MUST include reverse, per-gradient dither toggle, and perceptual-vs-linear interpo",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; dither+interpolation stored (paint.rs:102), stroke application absent"
+},
+{
+"id": "STU-COL-012",
+"section": "3. Gradients and Patterns — `StudioGradient` / `StudioPattern`",
+"title": "StudioPattern (schema id hsk.studio.pattern@1) is the canonical repeating-fill primitive: a tile wit",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy umbrella; folio/src/vector.rs StudioPattern; SMB-FOLIO-ENG-7 PASS_V30"
+},
+{
+"id": "STU-COL-013",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Studio MUST provide the following color-management and prepress operations as one deduped surface (m",
+"apps": [
+"indesign",
+"illustrator",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy prepress table; separations/ink manager validated, appearance of black and colour-management ops missing"
+},
+{
+"id": "STU-COL-014",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Channel operations (channels panel; alpha/spot channels; duplicate/split/merge channels; apply-image",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "scope boundary to 14.4 channel ops"
+},
+{
+"id": "STU-COL-015",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Find/replace color: Studio MUST support finding usages of a color and replacing them with another ac",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout/src/find_change.rs:482 find_colour/change_colour over swatch paints (SMB-ID-PREPRESS PASS_V23); text/gradient/adjustment usages not covered"
+},
+{
+"id": "STU-COL-016",
+"section": "5. Color Picker / Chooser",
+"title": "Studio MUST provide one color picker/chooser primitive that selects and enters color across models, ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; eyedropper harness-view/src/view/info.rs:1; no picker primitive (grep colou?r_picker|ColorPicker: 0)"
+},
+{
+"id": "STU-COL-017",
+"section": "6. Color Harmony and Recolor",
+"title": "Color harmony / guide: Studio MUST provide a deterministic harmony primitive that generates variatio",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy umbrella; prism/src/recolor.rs:69 HarmonyRule; SMB-AI-TYPE-PATH-RECOLOR PASS_V23"
+},
+{
+"id": "STU-COL-018",
+"section": "6. Color Harmony and Recolor",
+"title": "Recolor-artwork: Studio MUST provide a deterministic recolor primitive that remaps all colors in a s",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy umbrella; prism/src/recolor.rs RecolorTable; SMB-AI-TYPE-PATH-RECOLOR PASS_V23"
+},
+{
+"id": "STU-COL-019",
+"section": "6. Color Harmony and Recolor",
+"title": "Generative recolor: any AI/generative recolor or palette-suggestion capability is an OPTIONAL Studio",
+"apps": [
+"illustrator"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "constraint only; no generative adapter exists and deterministic recolour has no model dependency"
+},
+{
+"id": "STU-COL-020",
+"section": "7. Spot-Color and Named-Library Posture (Pantone)",
+"title": "Native spot color is first-class: the StudioSwatch(spot) primitive ([STU-COL-007]) — a named separat",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "harness-view/src/view/vector/separations.rs:2 native spot plates; SMB-AI-TYPE-PATH-RECOLOR PASS_V23"
+},
+{
+"id": "STU-COL-021",
+"section": "7. Spot-Color and Named-Library Posture (Pantone)",
+"title": "Branded spot libraries (Pantone and other color-book libraries — DIC, HKS, Focoltone, Trumatch, ANPA",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "superseded by COL-184..187"
+},
+{
+"id": "STU-COL-022",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Soft-proof: Studio MUST simulate a chosen output condition on screen using a device StudioColorProfi",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy umbrella; prism/src/proof.rs:1, harness-view/src/view/proof.rs:1; SMB-PS-SOFT-PROOF-1 PASS_V11, -2 PASS_V20"
+},
+{
+"id": "STU-COL-023",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Rendering intents MUST include perceptual, relative colorimetric, saturation, and absolute colorimet",
+"apps": [
+"photoshop",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/proof/chain.rs:1 intents + BPC; SMB-PS-SOFT-PROOF-1 PASS_V11"
+},
+{
+"id": "STU-COL-024",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Gamut warning MUST overlay a configurable warning color on pixels/objects outside the target output ",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy umbrella; prism/src/proof/gamut.rs:1, harness-view/src/view/proof.rs:910; SMB-PS-SOFT-PROOF-1 PASS_V11"
+},
+{
+"id": "STU-COL-025",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Separations preview MUST provide per-plate on/off preview, an ink-limit view with a configurable tot",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy umbrella; press-write/src/separations.rs:1, harness-view/src/view/vector/separations.rs:1; SMB-ID-PREPRESS PASS_V23"
+},
+{
+"id": "STU-COL-026",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Overprint MUST be settable per object on fill, stroke, and gap (overprint vs knock-out), previewable",
+"apps": [
+"illustrator",
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; overprint flag in press separations, black overprint in vector separations view; per-object fill/stroke/gap fields not found"
+},
+{
+"id": "STU-COL-027",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Ink manager MUST provide per-ink spot-to-process conversion, all-spots-to-process, ink aliasing (map",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "legacy umbrella; press-write/src/inks.rs:1 InkManager; SMB-PRESS-INK-MANAGER-1 PASS_V6"
+},
+{
+"id": "STU-COL-028",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Trapping MUST support named trap presets (trap width, black width, join and end styles, trap-appeara",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "legacy umbrella; folio trap preset records + page applied_trap_preset folio/src/layout.rs:19; SMB-ID-TOC-PERSIST-1 PASS_V8"
+},
+{
+"id": "STU-COL-029",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Transparency-flattening preview MUST highlight page areas affected by flattening (rasterized regions",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy umbrella; flattener presets layout/src/print.rs (SMB-ID-BOOKLET-1 PASS_V10); flattener preview highlighting not found"
+},
+{
+"id": "STU-COL-030",
+"section": "4. Color-Management Operations (proof / separation / prepress)",
+"title": "Appearance-of-black MUST let the document control whether 100% K displays and prints as rich vs accu",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "legacy umbrella; grep idealized_black|appearance_of_black: 0"
+},
+{
+"id": "STU-COL-031",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Mode conversion MUST be an explicit, reversible-where-lossless operation between the models of [STU-",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "legacy umbrella; prism/src/mode.rs:10 option sets; SMB-PS-MODE-CONVERT-1 PASS_V4"
+},
+{
+"id": "STU-COL-032",
+"section": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Every color-bearing value across all Studio primitives (StudioSwatch, StudioGradient stops, StudioPa",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "legacy rule; StudioColor tagged (folio/src/values.rs:158) but swatch profile_ref optional (absent = working space)"
+},
+{
+"id": "STU-COL-033",
+"section": "2. Swatches — `StudioSwatch`",
+"title": "Global-swatch propagation: editing a global or spot swatch MUST live-update every object, text range",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; see COL-172"
+},
+{
+"id": "STU-COL-034",
+"section": "2. Swatches — `StudioSwatch`",
+"title": "Spot-swatch definition: a spot swatch MUST support an optional Lab definition used for accurate scre",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "legacy; folio/src/vector_tools.rs:92 spot Lab + alternate, per-use tint; SMB-ILLUSTRATOR-TOOLS-2 PASS_V25"
+},
+{
+"id": "STU-COL-035",
+"section": "2. Swatches — `StudioSwatch`",
+"title": "Tint and mixed-ink swatches MUST follow their base ink(s): a tint swatch is a percentage of a base s",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "legacy umbrella; tint validated (COL-174), mixed inks partial (COL-175/176)"
+},
+{
+"id": "STU-COL-036",
+"section": "3. Gradients and Patterns — `StudioGradient` / `StudioPattern`",
+"title": "Mesh and freeform gradients carry extra structure: a mesh gradient stores an editable grid of mesh p",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "mesh folio/src/vector_mesh.rs:41, harness-view/src/view/vector/mesh.rs (SMB-AI-TYPE-PATH-RECOLOR PASS_V23); freeform gradient not found (folio/src/paint.rs:20 declares freeform gap)"
+},
+{
+"id": "STU-COL-100",
+"section": "14.8.0 Authority, Derivation and Supersession",
+"title": "Derivation basis and the missing-menu problem. Colour is the largest single domain in the captured s",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rationale"
+},
+{
+"id": "STU-COL-101",
+"section": "14.8.0 Authority, Derivation and Supersession",
+"title": "Anchor continuity. Anchors STU-COL-001 through STU-COL-036 were assigned in Master Spec v02.199-v02.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "anchor numbering rule"
+},
+{
+"id": "STU-COL-102",
+"section": "14.8.0 Authority, Derivation and Supersession",
+"title": "Disposition of the pre-existing 14.8 anchors.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "disposition table of legacy anchors"
+},
+{
+"id": "STU-COL-103",
+"section": "14.8.0 Authority, Derivation and Supersession",
+"title": "Capture-versus-spec contradiction of record: branded colour libraries. The superseded [STU-COL-021] ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "contradiction of record"
+},
+{
+"id": "STU-COL-104",
+"section": "14.8.0 Authority, Derivation and Supersession",
+"title": "Two further contradictions of record.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "contradictions of record"
+},
+{
+"id": "STU-COL-105",
+"section": "14.8.0 Authority, Derivation and Supersession",
+"title": "Why hard and soft bounds are separate fields. The captured grading surface is the clearest evidence ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "rationale for hard/soft bounds"
+},
+{
+"id": "STU-COL-106",
+"section": "14.8.1 The Colour Parameter Contract",
+"title": "Seven-field parameter record (NORMATIVE, applies to every numeric colour parameter in this module). ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "seven-field ParamRow prism/src/mode.rs:567 (SMB-PS-MODE-CONVERT-1 PASS_V4) and press-write inks; not applied to every colour parameter"
+},
+{
+"id": "STU-COL-107",
+"section": "14.8.1 The Colour Parameter Contract",
+"title": "Unknown-bound rule. Where a bound, default, unit or precision was not declared, the field value is t",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "UNKNOWN preserved in prism/src/mode.rs:564 and press-write/src/inks.rs; not applied across all colour parameters"
+},
+{
+"id": "STU-COL-108",
+"section": "14.8.1 The Colour Parameter Contract",
+"title": "Observed-value rule. A range recovered by surveying shipped presets is OBSERVED, not declared. Obser",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "grep observed_min|observed_max: 0; observed values kept out of hard bounds in ink/mode records only"
+},
+{
+"id": "STU-COL-109",
+"section": "14.8.1 The Colour Parameter Contract",
+"title": "Colour unit tokens. percent (0-100 scale), unit_interval (0.0-1.0 scale), byte (0-255 scale), degree",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "unit tokens partly in folio/src/values.rs (unit_interval); full token set not found"
+},
+{
+"id": "STU-COL-110",
+"section": "14.8.2 Colour Value Model",
+"title": "Tagged-value law. A colour value is a (model, components, profile_ref) triple. There is no untagged ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/values.rs:158 StudioColor carries colour_profile_id (tagged RGB); swatch profile_ref optional (vector_tools.rs:8); SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-COL-111",
+"section": "14.8.2 Colour Value Model",
+"title": "Colour model enumeration. color_model is a seven-value enumeration: gray, rgb, cmyk, lab, hsb, mixed",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "swatch color_model RGB|CMYK|LAB|GRAY folio/src/vector_tools.rs:8; hsb/mixed_ink/none absent"
+},
+{
+"id": "STU-COL-112",
+"section": "14.8.2 Colour Value Model",
+"title": "Component bounds (NORMATIVE PARAMETER TABLE). These are the declared component bounds. Studio fixes ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "component ranges stored in folio/src/vector_tools.rs:8 (RGB/CMYK 0..1, LAB) and values.rs:158; full bound table with divergences not found"
+},
+{
+"id": "STU-COL-113",
+"section": "14.8.2 Colour Value Model",
+"title": "Storage precision versus entry precision. Components are STORED as f32 in the document's declared pr",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio stores f64 components (values.rs:158); f32 storage vs entry-scale contract not verified"
+},
+{
+"id": "STU-COL-114",
+"section": "14.8.2 Colour Value Model",
+"title": "Entry value modes. The colour entry surface MUST accept a value in 8_bit (0-255), 16_bit (0-65535), ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hex parse in controls/src/descriptor.rs; 8_bit/16_bit/percent entry modes not found"
+},
+{
+"id": "STU-COL-115",
+"section": "14.8.2 Colour Value Model",
+"title": "Alpha is not a colour component. Opacity and alpha are separate from the colour value and are carrie",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/values.rs:158 StudioColor has no alpha; gradient stop opacity separate paint.rs:66; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-COL-116",
+"section": "14.8.2 Colour Value Model",
+"title": "Colour-space enumeration for values that are not process colours. A stored value may declare color_s",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "spot alternate_space folio/src/vector_tools.rs:8; full color_space enum (hsb/no_alternate) absent"
+},
+{
+"id": "STU-COL-117",
+"section": "14.8.2 Colour Value Model",
+"title": "Image colour spaces. A placed raster asset declares its own space from a seven-value enumeration: gr",
+"apps": [
+"photoshop",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep device_?n|DeviceN: only ps-* PostScript crates; no placed-raster image colour-space enum in folio"
+},
+{
+"id": "STU-COL-118",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "Document mode enumeration. document_mode is an eight-value enumeration: grayscale, rgb, cmyk, lab, b",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/mode.rs:1 document_mode enum; SMB-PS-MODE-CONVERT-1 PASS_V4"
+},
+{
+"id": "STU-COL-119",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "Mode-conversion option sets (NORMATIVE). Each conversion carries its own option record. Conversions ",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/mode.rs:10, mode/bitmap.rs, indexed.rs, color_table.rs; SMB-PS-MODE-CONVERT-1 PASS_V4"
+},
+{
+"id": "STU-COL-120",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "Bit depth. bits_per_channel is a four-value enumeration with the numeric values 1, 8, 16, 32. 1-bit ",
+"apps": [
+"photoshop",
+"after_effects",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/mode.rs:327 BitsPerChannel, folio/src/lib.rs bits_per_channel; SMB-PS-MODE-CONVERT-1 PASS_V4, SMB-PIGMENT-EXTENDED-RANGE PASS_V26"
+},
+{
+"id": "STU-COL-121",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "Per-model bit-depth availability. Studio's normative availability:",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/mode.rs:359 availability table; SMB-PS-MODE-CONVERT-1 PASS_V4"
+},
+{
+"id": "STU-COL-122",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "HDR luminance model. A 32-bit document carries an explicit HDR configuration: hdr_transfer (linear |",
+"apps": [
+"photoshop",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "PQ HDR views prism/src/view_transform.rs:25 (SMB-RENDER-SCENE-DISPLAY PASS_V26); grep hdr_transfer|HdrTransfer: 0"
+},
+{
+"id": "STU-COL-123",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "32-bit preview control. A non-destructive preview transform MUST exist for 32-bit documents, carryin",
+"apps": [
+"photoshop",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "display-transform selection pigment/src/render_plan/output.rs:29 (SMB-RENDER-SCENE-DISPLAY PASS_V26); grep preview_exposure|preview_gamma: 0"
+},
+{
+"id": "STU-COL-124",
+"section": "14.8.3 Document Modes, Bit Depth and HDR",
+"title": "Auto tone mapping. A document MAY carry auto_tone_map (bool) selecting whether mismatched-dynamic-ra",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/sequence_preset.rs auto_tone_map; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-COL-125",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "StudioColorProfile. Schema id hsk.studio.color_profile@1. Fields: profile_id, display_name, color_mo",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/lib.rs:156 ProfileDescriptor, wide.rs:303 (profile_class); no hsk.studio.color_profile@1 record in folio"
+},
+{
+"id": "STU-COL-126",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Profile classes Studio MUST parse. ICC v2 and v4, matrix/TRC and LUT-based (mft1, mft2, mAB , mBA ),",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism moxcms + wide.rs v2/v4 matrix/LUT, named_colour.rs ncl2; SMB-R53-FOLLOWUPS-1 PASS_V5, SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-127",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Document working spaces. A StudioDocument carries FOUR working-space bindings, independently settabl",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/lib.rs:204-212 working_space_rgb/cmyk/gray/spot + blending_space (folio foundation 5445c705; folio lanes PASS)"
+},
+{
+"id": "STU-COL-128",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Colour-management policy. A document carries the policy record: enable_color_management (bool), rgb_",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep preserve_embedded|convert_to_working|rgb_policy|ColorPolicy: 0"
+},
+{
+"id": "STU-COL-129",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Embedded-profile handling. A placed asset MAY carry its own embedded profile. On placement the docum",
+"apps": [
+"photoshop",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "embedded ICC read on import (interop-psd/src/resources.rs) and develop export ICC (SMB-DEVELOP-EXPORT-TIFF PASS_V22); grep placed_vector_profile_policy: 0"
+},
+{
+"id": "STU-COL-130",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Assign profile. assign_profile RETAGS: it changes the profile reference and leaves component values ",
+"apps": [
+"photoshop",
+"indesign",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep assign_profile|AssignProfile: 0"
+},
+{
+"id": "STU-COL-131",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Convert to profile. convert_to_profile CONVERTS: it changes component values so the appearance is pr",
+"apps": [
+"photoshop",
+"indesign",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep convert_to_profile|ConvertToProfile: 0"
+},
+{
+"id": "STU-COL-132",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Embed on export. Every export recipe carries an explicit profile-embedding selection: dont_include, ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "ICC embed in develop export (develop/src/output.rs check_icc_header; SMB-DEVELOP-EXPORT-TIFF PASS_V22); five-value embed selection absent"
+},
+{
+"id": "STU-COL-133",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Colour conversion strategy at export. An export recipe carries color_conversion_strategy (no_convers",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "repurpose/colour conversion in layout/src/pdf_export_prefs.rs, press/src/preset.rs (PDF only)"
+},
+{
+"id": "STU-COL-134",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Device-link profiles. A device-link profile MUST be usable as a single-step conversion that bypasses",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/wide.rs:498 DeviceLink class refused (typed); single-step device-link conversion absent"
+},
+{
+"id": "STU-COL-135",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Rendering intents (NORMATIVE ENCODING). Four intents. The source applications encode them with DIFFE",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "interop-psd/src/convert.rs:85 RenderingIntent = ICC numbers; SMB-INTEROP-PSD PASS_V50"
+},
+{
+"id": "STU-COL-136",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Black point compensation. BPC is an INDEPENDENT boolean, never bundled into the intent. It is select",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/bpc.rs:1 independent BPC; SMB-PRISM-ENG-5 PASS_V23"
+},
+{
+"id": "STU-COL-137",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Default intent semantics. default_rendering_intent is a document property applying to conversions th",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "default_rendering_intent in press/src/preset.rs (PDF preset) and ps-core PostScript CRD; no document property"
+},
+{
+"id": "STU-COL-138",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Gamut mapping obligation. For an out-of-gamut value under relative_colorimetric or absolute_colorime",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/wide.rs:625 ClipReport, proof/gamut.rs; SMB-PS-SOFT-PROOF-1 PASS_V11"
+},
+{
+"id": "STU-COL-139",
+"section": "14.8.4 ICC Profiles and the Working Space",
+"title": "Chromatic adaptation. Conversions between profiles with different white points MUST apply chromatic ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Bradford adaptation prism/src/view_transform.rs, develop/src/color.rs; chad handled via moxcms; recorded default adaptation not verified"
+},
+{
+"id": "STU-COL-140",
+"section": "14.8.5 The Colour Engine",
+"title": "Native colour engine (RESTATEMENT AND HARDENING of [STU-COL-006]). The colour transform engine, ICC ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/lib.rs, wide.rs native engine; SMB-PRISM-ENG-1 PASS_V24"
+},
+{
+"id": "STU-COL-141",
+"section": "14.8.5 The Colour Engine",
+"title": "No renderer applies ICC (STATED AS A REQUIREMENT, NOT AN ASSUMPTION). No Rust rendering, rasterisati",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs:8 no profile conversion in compositor, view transforms passed as data; SMB-PIGMENT-EXTENDED-RANGE PASS_V26"
+},
+{
+"id": "STU-COL-142",
+"section": "14.8.5 The Colour Engine",
+"title": "Transform materialisation. ColorEngine MUST materialise every transform into a form RenderEngine can",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "matrix/curve plans prism/src/wide_plan.rs, view WGSL params view_transform.rs; baked 3D LUT + shaper materialisation not found"
+},
+{
+"id": "STU-COL-143",
+"section": "14.8.5 The Colour Engine",
+"title": "Materialisation determinism (SCOPED to the materialisation path). For a fixed key under [STU-COL-142",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/tests/wide_determinism.rs, scalar wide engine; SMB-PRISM-ENG-3 PASS_V23"
+},
+{
+"id": "STU-COL-144",
+"section": "14.8.5 The Colour Engine",
+"title": "Precision contract. Transforms evaluate at a declared internal precision that is at least as high as",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism binary64 evaluation (view_transform.rs numerics, wide.rs); SMB-PRISM-ENG-2 PASS_V24"
+},
+{
+"id": "STU-COL-150",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "OCIO support. For scene-linear and 32-bit float work, Studio MUST support an OpenColorIO-class confi",
+"apps": [
+"after_effects",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/view_transform.rs:9 implements ACES transforms natively and states it is not an OCIO runtime; OCIO v1/v2 config parse absent (grep ocio_config: 0)"
+},
+{
+"id": "STU-COL-151",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "Configuration surface. A parsed configuration exposes: ocio_profile_version, name, description, sear",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ocio_config|ConfigProvenance: 0; no OCIO configuration surface"
+},
+{
+"id": "STU-COL-152",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "Roles. The role vocabulary Studio MUST recognise, at minimum: default, reference, data, scene_linear",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "scene_linear bound to ACEScg prism/src/view_transform.rs:60; role indirection via configuration absent"
+},
+{
+"id": "STU-COL-153",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "Captured configuration scale (for sizing, not as a bundling requirement). The captured install shipp",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "sizing data"
+},
+{
+"id": "STU-COL-154",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "Display transform selection. A document carries a display-transform selection with three mutually ex",
+"apps": [
+"after_effects",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pigment/src/render_plan/output.rs:29 Clip|View selection (SMB-PRISM-VIEW-TRANSFORM PASS_V26); icc_display/unmanaged_linear/ocio_display modes not as named"
+},
+{
+"id": "STU-COL-155",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "Colour-space conversion nodes. A document MAY carry explicit colour-space conversion operations nami",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep colour_space_conversion|ColorSpaceTransform|ocio_display: 0"
+},
+{
+"id": "STU-COL-156",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "Working colour space for timeline and sequence work. A timeline or sequence declares a working colou",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/sequence_preset/settings.rs:219 working_color_space; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-COL-157",
+"section": "14.8.6 OCIO and Scene-Linear Colour",
+"title": "ICC and OCIO coexistence. ICC and OCIO are two paths through the SAME ColorEngine, not two engines. ",
+"apps": [
+"after_effects",
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no OCIO path to coexist with ICC; grep ocio_display|ocio_config: 0"
+},
+{
+"id": "STU-COL-158",
+"section": "14.8.7 LUTs",
+"title": "LUT primitive. A LUT is a first-class colour resource: lut_kind (lut_1d | lut_3d | shaper_plus_3d), ",
+"apps": [
+"premiere_pro",
+"after_effects",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/lut.rs:85 CubeLut 1D/3D/shaper, domain, sha256; SMB-PREMIERE-COLOR-TITLES PASS_V24, SMB-PACKAGE-COMPLETENESS-2 PASS_V23"
+},
+{
+"id": "STU-COL-159",
+"section": "14.8.7 LUTs",
+"title": "LUT formats. Studio MUST import at minimum the text cube format (with TITLE, LUT_1D_SIZE / LUT_3D_SI",
+"apps": [
+"premiere_pro",
+"after_effects",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "cube import prism/src/lut.rs:1; 3DL and shader-stack look formats absent"
+},
+{
+"id": "STU-COL-160",
+"section": "14.8.7 LUTs",
+"title": "LUT and grade application order (NORMATIVE). When a colour operation stack contains more than one of",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/grade.rs:2, folio/src/clip_finishing.rs:10, composite/src/clip_finishing.rs:12; SMB-PREMIERE-COLOR-TITLES PASS_V24"
+},
+{
+"id": "STU-COL-161",
+"section": "14.8.8 Where Colour Management Sits Relative to the Compositor",
+"title": "Pipeline position (NORMATIVE). Colour management sits BELOW the compositor on the input side and ABO",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/view_transform.rs:4, pigment/src/render_plan/output.rs:9; SMB-PRISM-VIEW-TRANSFORM PASS_V26, SMB-RENDER-SCENE-DISPLAY PASS_V26"
+},
+{
+"id": "STU-COL-162",
+"section": "14.8.8 Where Colour Management Sits Relative to the Compositor",
+"title": "Blending space. A document declares a blending_space (rgb | cmyk) independently of its working space",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/lib.rs:212 blending_space, pigment/src/render_plan.rs:29; SMB-PIGMENT-EXTENDED-RANGE PASS_V26"
+},
+{
+"id": "STU-COL-163",
+"section": "14.8.8 Where Colour Management Sits Relative to the Compositor",
+"title": "Compositor purity. RenderEngine receives buffers already in the working or blending space and receiv",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/adjust_colour.rs:10, blend_math.rs:8; SMB-PIGMENT-EXTENDED-RANGE PASS_V26"
+},
+{
+"id": "STU-COL-164",
+"section": "14.8.8 Where Colour Management Sits Relative to the Compositor",
+"title": "Overlay purity. Gamut warning, out-of-gamut markers, separation previews, ink limit views and proof ",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "harness-view/src/view/proof.rs:1 overlays not composited; SMB-PS-SOFT-PROOF-2 PASS_V20"
+},
+{
+"id": "STU-COL-165",
+"section": "14.8.8 Where Colour Management Sits Relative to the Compositor",
+"title": "Placed-asset colour independence. Every placed asset carries its own profile and its own input trans",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "placed assets carry ProfileBinding (folio/src/lib.rs); re-derivation on working-space change not verified"
+},
+{
+"id": "STU-COL-170",
+"section": "14.8.9 Swatches",
+"title": "StudioSwatch. Schema id hsk.studio.swatch@1. Fields: swatch_id, name, swatch_kind, color_model, colo",
+"apps": [
+"illustrator",
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/vector_tools.rs:8 StudioSwatch hsk.studio.swatch@1 (SMB-ILLUSTRATOR-TOOLS-2 PASS_V25); mixed-ink fields absent"
+},
+{
+"id": "STU-COL-171",
+"section": "14.8.9 Swatches",
+"title": "Swatch kinds. Seven kinds plus four reserved swatches.",
+"apps": [
+"illustrator",
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "five kinds folio/src/vector_tools.rs:8; mixed_ink, mixed_ink_group and four reserved swatches declared gap (vector_tools.rs:36)"
+},
+{
+"id": "STU-COL-172",
+"section": "14.8.9 Swatches",
+"title": "Global propagation. Editing a global or spot swatch MUST live-update every object fill, object strok",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "StudioSwatchPaint binding folio/src/vector_tools.rs:16, harness-view vector/swatch.rs:305 (SMB-ILLUSTRATOR-TOOLS-2 PASS_V25); gradient-stop/text/adjustment references declared gap"
+},
+{
+"id": "STU-COL-173",
+"section": "14.8.9 Swatches",
+"title": "Spot definition. A spot swatch carries: ink_name, an optional MEASURED definition (Lab, or a named-c",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/vector_tools.rs:92 spot ink_name/Lab/alternate; SMB-ILLUSTRATOR-TOOLS-2 PASS_V25"
+},
+{
+"id": "STU-COL-174",
+"section": "14.8.9 Swatches",
+"title": "Tint swatches. A tint swatch stores base_swatch_ref and tint_value, and recomputes when the base cha",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/vector_tools.rs tint base + tint_value; SMB-ILLUSTRATOR-TOOLS-2 PASS_V25"
+},
+{
+"id": "STU-COL-175",
+"section": "14.8.9 Swatches",
+"title": "Mixed inks. A mixed_ink swatch stores an ink_list (references to inks), an ink_percentages list alig",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "press-write/src/inks.rs MixedInk (SMB-ID-PREPRESS PASS_V23); no mixed_ink swatch in folio (declared gap)"
+},
+{
+"id": "STU-COL-176",
+"section": "14.8.9 Swatches",
+"title": "Mixed-ink groups. A mixed_ink_group stores its base inks and generates a stepped series. Each genera",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "press-write/src/inks.rs MixedInkGroup generation (SMB-ID-PREPRESS PASS_V23); not stored as editable folio swatches (vector_tools.rs:36 declared gap)"
+},
+{
+"id": "STU-COL-177",
+"section": "14.8.9 Swatches",
+"title": "Swatch groups. Swatches organise into named groups. Exactly one ROOT group exists per palette and is",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/swatch_library.rs:1; SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-178",
+"section": "14.8.9 Swatches",
+"title": "Palette scope. Three scopes: document, application, system. A document palette travels with the docu",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/swatch_library.rs:2 StudioPaletteScope; SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-179",
+"section": "14.8.9 Swatches",
+"title": "Swatch panel operations. Create, duplicate, edit, delete with replace-on-delete, merge selected swat",
+"apps": [
+"illustrator",
+"indesign",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "group ops folio/src/swatch_library.rs:1 (SMB-COL-SWATCH-GROUPS-1 PASS_V6); grep replace_on_delete|delete_unused|add_used_colours|merge_swatch: 0"
+},
+{
+"id": "STU-COL-180",
+"section": "14.8.9 Swatches",
+"title": "Swatch interchange. Studio MUST import and export a portable swatch exchange format carrying, per en",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep swatch_exchange|AseFile|parse_ase|read_ase|write_ase: 0"
+},
+{
+"id": "STU-COL-181",
+"section": "14.8.9 Swatches",
+"title": "Import from another Studio document. Loading swatches from another StudioDocument MUST preserve kind",
+"apps": [
+"illustrator",
+"indesign",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep import_swatches|load_swatches|SwatchImport: 0"
+},
+{
+"id": "STU-COL-182",
+"section": "14.8.9 Swatches",
+"title": "Swatch library scale (for sizing). The captured installs ship, as swatch and colour-book data: 8,901",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "sizing data"
+},
+{
+"id": "STU-COL-183",
+"section": "14.8.9 Swatches",
+"title": "Find and replace colour. Studio MUST find every usage of a colour - across object fills, object stro",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout/src/find_change.rs:482 find_colour/change_colour (SMB-ID-PREPRESS PASS_V23); only swatch paint rows"
+},
+{
+"id": "STU-COL-184",
+"section": "14.8.10 Branded Colour Libraries",
+"title": "Native spot is licence-free (retained from [STU-COL-020]). The StudioSwatch(spot) primitive - a name",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/colour_book.rs:2 native spot licence-free; SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-185",
+"section": "14.8.10 Branded Colour Libraries",
+"title": "Colour-book resource. A branded book is a DATA ADAPTER that populates native spot swatches. A book r",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/colour_book.rs:5 book resource; SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-186",
+"section": "14.8.10 Branded Colour Libraries",
+"title": "Per-book licensing posture (NORMATIVE). Licensing is PER BOOK, not blanket. Each book resource decla",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/colour_book.rs:15 license_state, harness-core/src/named_colour_book.rs; SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-187",
+"section": "14.8.10 Branded Colour Libraries",
+"title": "Book coverage recorded for planning. The captured installs bundle five branded book families (ANPA, ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "planning record of bundled book families"
+},
+{
+"id": "STU-COL-188",
+"section": "14.8.10 Branded Colour Libraries",
+"title": "Named-colour profile binding. Where a book is supplied as an ICC named-colour profile (ncl2), Studio",
+"apps": [
+"illustrator",
+"indesign",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/named_colour.rs:2 ncl2 binding; SMB-COL-SWATCH-GROUPS-1 PASS_V6"
+},
+{
+"id": "STU-COL-190",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Gradient geometry. StudioGradient (schema id hsk.studio.gradient@1) is one primitive discriminated b",
+"apps": [
+"illustrator",
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs:81 StudioGradientGeometry linear|radial; paint.rs:20 declares angular/diamond/freeform/mesh gaps"
+},
+{
+"id": "STU-COL-191",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Gradient stops. A gradient carries an ordered list of colour stops and an independent ordered list o",
+"apps": [
+"illustrator",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs:66 stop with opacity; separate opacity-stop list absent (paint.rs:20 gap)"
+},
+{
+"id": "STU-COL-192",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Gradient stop bounds (NORMATIVE PARAMETER TABLE).",
+"apps": [
+"illustrator",
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/paint.rs:66 position/opacity/midpoint 13..87 bounds; opacity-stop list and raster gradient bounds absent"
+},
+{
+"id": "STU-COL-193",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Gradient controls. reverse (bool), dither (bool, to suppress banding), interpolation (linear | perce",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/paint.rs:102 dither/interpolation; reverse and within/along/across stroke absent (grep within_stroke|along_stroke: 0)"
+},
+{
+"id": "STU-COL-194",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Mesh and freeform structure. A mesh gradient stores an editable grid of mesh points, each carrying a",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "mesh folio/src/vector_mesh.rs:41 (SMB-AI-TYPE-PATH-RECOLOR PASS_V23); freeform gradient absent (paint.rs:20 gap)"
+},
+{
+"id": "STU-COL-195",
+"section": "14.8.11 Gradients and Patterns",
+"title": "StudioPattern. Schema id hsk.studio.pattern@1. A pattern carries: tile_type (grid | brick_by_row | b",
+"apps": [
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/vector.rs:2 StudioPattern tile types; SMB-FOLIO-ENG-7 PASS_V30"
+},
+{
+"id": "STU-COL-196",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Pattern placement transform. A pattern fill carries a transform INDEPENDENT of the object it fills: ",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/vector.rs shift_angle/shear_axis/reflect_angle; SMB-FOLIO-ENG-7 PASS_V30"
+},
+{
+"id": "STU-COL-197",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Paint kind enumeration. A fill or stroke entry declares one paint kind: none, solid, gradient, patte",
+"apps": [
+"illustrator",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/paint.rs StudioPaint solid|gradient + pattern binding; none/image/video/shader declared gap (paint.rs:20)"
+},
+{
+"id": "STU-COL-198",
+"section": "14.8.11 Gradients and Patterns",
+"title": "Blend-mode enumeration (NORMATIVE). Twenty-eight modes. The source applications disagree on both the",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs StudioBlendMode covers all named modes; SMB-FOLIO-ENG-2 PASS_V33, SMB-COMPOSITE PASS_V42"
+},
+{
+"id": "STU-COL-205",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Ink resource. An ink is a first-class document resource with ELEVEN fields: name, ink_type, is_proce",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "press-write/src/inks.rs:1 ink params (angle/frequency/ND/solidity/type/alias/convert); grep trap_order|print_ink: 0"
+},
+{
+"id": "STU-COL-206",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Ink type enumeration. Four values: normal, transparent, opaque, opaque_ignore. These drive trapping ",
+"apps": [
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "press-write/src/inks.rs InkType four members; SMB-PRESS-INK-MANAGER-1 PASS_V6"
+},
+{
+"id": "STU-COL-207",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Ink print status. Three values per ink: disable, enable, convert. convert means convert this spot to",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "convert_to_process bool press-write/src/inks.rs:218 (SMB-PRESS-INK-MANAGER-1 PASS_V6); disable/enable print status absent (grep print_ink|ink_print_status: 0)"
+},
+{
+"id": "STU-COL-208",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Ink manager operations. Per-ink spot-to-process conversion; all-spots-to-process as one operation; i",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "press-write/src/inks.rs convert/alias/standard-Lab (SMB-PRESS-INK-MANAGER-1 PASS_V6); trapping sequence absent (grep trap_order: 0)"
+},
+{
+"id": "STU-COL-209",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Composite versus separation output. color_separation_mode is a three-value enumeration: composite, h",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout/src/print.rs:495 untyped color_output, trapping in_rip; typed color_separation_mode absent"
+},
+{
+"id": "STU-COL-210",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Overprint. Overprint is settable INDEPENDENTLY on an object's fill, its stroke, and its stroke gap. ",
+"apps": [
+"illustrator",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "overprint in folio/src/layoutflow.rs (paragraph rules) and press-write separations flag; per-object overprint_stroke/overprint_gap not in folio"
+},
+{
+"id": "STU-COL-211",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Overprint preview and black overprint. An overprint-preview mode MUST render the overprint result on",
+"apps": [
+"illustrator",
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "black overprint harness-view/src/view/vector/separations.rs:2; overprint preview fields layout/src/print.rs, pdf_export_prefs.rs (SMB-ID-BOOKLET-1 PASS_V10)"
+},
+{
+"id": "STU-COL-212",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Separations preview. Three inspection facets on one surface: per-plate visibility toggles (each ink ",
+"apps": [
+"indesign",
+"illustrator",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "press-write/src/separations.rs:1 plates/ink limit/readouts, harness-view/src/view/vector/separations.rs:1; SMB-ID-PREPRESS PASS_V23, SMB-AI-TYPE-PATH-RECOLOR PASS_V23"
+},
+{
+"id": "STU-COL-213",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Trap presets. A trap preset is a named resource with FIFTEEN fields: name, default_trap_width, black",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio StudioTrapPreset (10 fields of 15) used by layout/src/print.rs; SMB-ID-BOOKLET-1 PASS_V10"
+},
+{
+"id": "STU-COL-214",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Transparency flattener presets. A flattener preset is a named resource with SEVEN fields: name, rast",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "layout/src/print.rs FlattenerPreset seven fields; SMB-ID-BOOKLET-1 PASS_V10"
+},
+{
+"id": "STU-COL-215",
+"section": "14.8.12 Inks, Separations and Overprint",
+"title": "Appearance of black. TWO independent booleans, not one: idealized_black_to_screen and idealized_blac",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep idealized_black|appearance_of_black: 0"
+},
+{
+"id": "STU-COL-218",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Camera profile model (NORMATIVE). A camera profile is a colour-RENDERING model, not a geometric one.",
+"apps": [
+"lightroom_classic",
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/camera_colour.rs:123, dng.rs:1006; SMB-DEVELOP-CAMERA-COLOUR PASS_V24, -2 PASS_V26"
+},
+{
+"id": "STU-COL-219",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Camera profile scale and shape (for sizing and for defaulting). The captured corpus was 4,373 profil",
+"apps": [
+"lightroom_classic"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "corpus sizing and tag-presence data"
+},
+{
+"id": "STU-COL-220",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Basic tone and white balance parameter block. These are the primary correction controls of stage 2 i",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/clip_finishing.rs:11 basic tone (SMB-PREMIERE-COLOR-TITLES PASS_V24); kelvin pair, tint_balance, hdr_specular not stored (clip_finishing.rs:23)"
+},
+{
+"id": "STU-COL-221",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Creative look. look selects a look resource by slot index; look_intensity mixes it.",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/clip_finishing.rs look + intensity by artifact id (SMB-PR-SOURCE-MONITOR PASS_V23); look registry slot not stored"
+},
+{
+"id": "STU-COL-222",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Colour wheels: the lift/gamma/gain model (NORMATIVE MATHEMATICS). Studio's colour wheels implement t",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/grade.rs:7 lift/gamma/gain; SMB-PREMIERE-COLOR-TITLES PASS_V24"
+},
+{
+"id": "STU-COL-223",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Five-wheel colour grading and the legacy key trap. Studio's colour-grading surface has FIVE wheels: ",
+"apps": [
+"lightroom_classic",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/colour.rs:74 ColourGrading five-wheel model; SMB-DEVELOP-CONTROLS-2 PASS_V28"
+},
+{
+"id": "STU-COL-224",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Calibration controls. Seven controls, all defaulting to 0: red_hue, red_saturation, green_hue, green",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "develop/src/effects.rs:98 Calibration seven controls; SMB-DEVELOP-CAMERA-COLOUR PASS_V24"
+},
+{
+"id": "STU-COL-225",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Tone curves. Studio MUST provide FOUR independent tone curves - composite, red, green, blue - each a",
+"apps": [
+"premiere_pro",
+"after_effects",
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/clip_finishing.rs:12 curves on declared 0..1 domain, develop/src/recipe.rs:68; SMB-PREMIERE-COLOR-TITLES PASS_V24"
+},
+{
+"id": "STU-COL-226",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Hue / saturation / luminance curves. Studio MUST provide the eight cross-channel curves: hue-vs-hue,",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/clip_finishing.rs:120 hue-vs curves + HSL bands; SMB-PREMIERE-COLOR-TITLES PASS_V24"
+},
+{
+"id": "STU-COL-227",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Secondary (keyed) correction. A secondary correction is a stack entry carrying a key definition, a r",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/grade.rs:22 secondary key (SMB-PREMIERE-COLOR-TITLES PASS_V24); refinement block denoise/blur not stored"
+},
+{
+"id": "STU-COL-228",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Vignette.",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/grade.rs:294 Vignette, clip_finishing.rs; SMB-PREMIERE-COLOR-TITLES PASS_V24"
+},
+{
+"id": "STU-COL-229",
+"section": "14.8.13 Camera Colour Rendering",
+"title": "Colour adjustment catalogue. The following colour adjustments MUST exist as StudioAdjustment kinds, ",
+"apps": [
+"photoshop",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "colour adjustments pigment/src/adjust_colour.rs (SMB-COMPOSITE-ADJ PASS_V39); full catalogue not verified"
+},
+{
+"id": "STU-COL-230",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Colour picker. ONE picker primitive across the whole product. It MUST provide: entry in HSB, HSL, RG",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "eyedropper harness-view/src/view/info.rs:1 (SMB-PS-INFO-HISTOGRAM-1 PASS_V19); grep colou?r_picker|ColorPicker|colou?r_wheel: 0"
+},
+{
+"id": "STU-COL-231",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Picker warning semantics. The out-of-gamut warning is computed against the document's CURRENT PROOF ",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "gamut warning against proof condition prism/src/proof/gamut.rs; no picker to show which condition"
+},
+{
+"id": "STU-COL-232",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Colour samplers. Persistent sample points MUST be placeable on a document, each reading out in a sel",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "harness-view/src/view/info.rs:1 persistent colour samplers in state_json; SMB-PS-INFO-HISTOGRAM-1 PASS_V19"
+},
+{
+"id": "STU-COL-233",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Foreground and background colour. The application carries a foreground and a background colour, each",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "eyedropper samples into active swatch/brush colour harness-view/src/view/info.rs:1; fg/bg colour pair not found"
+},
+{
+"id": "STU-COL-235",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Colour harmony. A DETERMINISTIC harmony primitive generating a variation palette from a base colour ",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/recolor.rs:2, harness-view/src/view/vector/recolor.rs; SMB-AI-TYPE-PATH-RECOLOR PASS_V23"
+},
+{
+"id": "STU-COL-236",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Recolour. A DETERMINISTIC recolour primitive remapping every colour in a selection. Two modes: - ASS",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/recolor.rs:2, harness-view/src/view/vector/recolor.rs:2; SMB-AI-TYPE-PATH-RECOLOR PASS_V23"
+},
+{
+"id": "STU-COL-237",
+"section": "14.8.14 Picker, Harmony and Recolour",
+"title": "Generative colour is an adapter, never a dependency. Any AI or generative recolour, palette suggesti",
+"apps": [
+"illustrator",
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "constraint only; no generative colour adapter exists"
+},
+{
+"id": "STU-COL-240",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "Soft proof. Soft-proofing simulates an output condition on screen WITHOUT converting document values",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/proof.rs:1, folio/src/proof_state.rs:5, harness-view/src/view/proof.rs:1; SMB-PS-SOFT-PROOF-2 PASS_V20"
+},
+{
+"id": "STU-COL-241",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "Proof condition record. A proof condition carries SIX fields: proof_profile (the device being simula",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/proof/condition.rs, folio/src/proof_state.rs:7; SMB-PS-SOFT-PROOF-1 PASS_V11"
+},
+{
+"id": "STU-COL-242",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "Proof presets. A proof condition is nameable, savable and selectable. Studio ships at least: current",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/proof/condition.rs:1 presets, folio/src/proof_state.rs:9; SMB-PS-SOFT-PROOF-2 PASS_V20"
+},
+{
+"id": "STU-COL-243",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "Colour-vision simulation. Studio MUST ship colour-vision-deficiency proof conditions as first-class ",
+"apps": [
+"photoshop",
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/proof/cvd.rs:1 protanopia/deuteranopia; SMB-PS-SOFT-PROOF-1 PASS_V11"
+},
+{
+"id": "STU-COL-244",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "Gamut warning. An overlay marking every pixel or object outside the target gamut, with a configurabl",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "prism/src/proof/gamut.rs:1 GamutWarning, harness-view/src/view/proof.rs:910; SMB-PS-SOFT-PROOF-2 PASS_V20"
+},
+{
+"id": "STU-COL-245",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "In-gamut substitution. Where a picked colour is out of gamut, the picker MUST offer a one-click subs",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/proof/gamut.rs:24 in-gamut substitute with delta; SMB-PS-SOFT-PROOF-1 PASS_V11"
+},
+{
+"id": "STU-COL-246",
+"section": "14.8.15 Soft Proof, Gamut and Accessibility",
+"title": "Contrast checking. Studio MUST expose a contrast-ratio computation between two tagged colour values,",
+"apps": [
+"figma",
+"illustrator",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep contrast_ratio|ContrastRatio|wcag: 0"
+},
+{
+"id": "STU-COL-250",
+"section": "14.8.16 Model Steerability, GUI and Manual Obligations",
+"title": "GUI / Argus / UserManual obligation (stated once for 14.8). Every operator-facing colour surface enu",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "two projections for proof harness-view/src/view/proof.rs:8 (SMB-PS-SOFT-PROOF-2 PASS_V20); most colour surfaces lack window/command/manual pairs"
+},
+{
+"id": "STU-COL-251",
+"section": "14.8.16 Model Steerability, GUI and Manual Obligations",
+"title": "Parameter introspection for models. The typed command surface MUST expose, for every numeric colour ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "seven-field records exposed for mode/ink params only (prism/src/mode.rs:567, press-write inks)"
+},
+{
+"id": "STU-COL-252",
+"section": "14.8.16 Model Steerability, GUI and Manual Obligations",
+"title": "Colour values in model commands. A model command that carries a colour MUST carry the full tagged tr",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no tagged-colour decode rule in command surface; hex accepted by controls/src/descriptor.rs"
+},
+{
+"id": "STU-COL-253",
+"section": "14.8.16 Model Steerability, GUI and Manual Obligations",
+"title": "Privacy obligation. Colour profiles, colour books, LUTs, look libraries, camera profiles, OCIO confi",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "ResourceBroker only in kernel-bindings/interop-lrcat; colour resources not brokered"
+},
+{
+"id": "STU-COL-254",
+"section": "14.8.16 Model Steerability, GUI and Manual Obligations",
+"title": "Bulk binary placement. Profile payloads, LUT payloads, colour-book payloads and look payloads are BU",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "LUT by artifact manifest id + digest folio/src/clip_finishing.rs:18; profiles/books not verified as artifact storage"
+},
+{
+"id": "STU-COL-260",
+"section": "14.8.17 Validation and Acceptance",
+"title": "Colour validation descriptors. The StudioValidationDescriptor catalog (14.24) MUST include the eight",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioValidationDescriptor|ValidationDescriptor crates: 0"
+},
+{
+"id": "STU-COL-261",
+"section": "14.8.17 Validation and Acceptance",
+"title": "No-platform-CMM tripwire. The build MUST fail if any crate in the the owning modular Studio asset cr",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no colour-CMM tripwire in crates/tools/.config (grep tripwire hits only non-colour checks)"
+},
+{
+"id": "STU-COL-262",
+"section": "14.8.17 Validation and Acceptance",
+"title": "Mandatory acceptance cases. Acceptance MUST include the twenty-six cases below. This table SPAWNS TW",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism tests (oracle, soft_proof, mode_conversion) cover part of the 26 cases; no per-case acceptance map"
+},
+{
+"id": "STU-COL-263",
+"section": "14.8.17 Validation and Acceptance",
+"title": "Round-trip obligation. Every field named in this module MUST survive a save/load/save cycle byte-ide",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio round-trip tests for stored colour records; module fields such as policies and OCIO do not exist"
+},
+{
+"id": "STU-COL-265",
+"section": "14.8.18 Scope Edges",
+"title": "Owned here. The colour value model; colour models, document modes and mode conversion; bit depth and",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "ownership scope edge"
+},
+{
+"id": "STU-COL-266",
+"section": "14.8.18 Scope Edges",
+"title": "Not owned here (referenced). Channel operations, alpha and spot channels, apply-image and calculatio",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "scope edge (not owned)"
+},
+{
+"id": "STU-COL-267",
+"section": "14.8.18 Scope Edges",
+"title": "Colour capability provenance scale. The capability registry recorded 7,478 rows in the color domain,",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "provenance scale"
+},
+{
+"id": "STU-COL-268",
+"section": "14.8.18 Scope Edges",
+"title": "Preset names are evidence, contracts are normative. The captured colour corpus contains 4,740 preset",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reading rule for preset names"
+},
+{
+"id": "STU-COL-270",
+"section": "14.8.19 Microtask Derivation",
+"title": "Derivation rule (NORMATIVE). The colour microtask set is derived from this module mechanically, not ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation rule"
+},
+{
+"id": "STU-COL-271",
+"section": "14.8.19 Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under [STU-COL-270] MUST carry into its own body: ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask content obligation"
+},
+{
+"id": "STU-COL-272",
+"section": "14.8.19 Microtask Derivation",
+"title": "Yields index (NORMATIVE LEDGER). One row per unit group. The last column is the microtask count that",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "yields ledger"
+},
+{
+"id": "STU-COL-273",
+"section": "14.8.19 Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this module cites the clause anchor directly. A microtask s",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "anchor binding rule"
+},
+{
+"id": "STU-COL-274",
+"section": "14.8.19 Microtask Derivation",
+"title": "Table spawn declarations (NORMATIVE). A derivation tool cannot tell from a table's shape alone wheth",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "table spawn declarations"
+},
+{
+"id": "STU-COL-275",
+"section": "14.8.19 Microtask Derivation",
+"title": "Reconciliation of record. First pass (ledger). A derivation tool run against this module before the ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reconciliation of record"
+},
+{
+"id": "STU-COL-300",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Studio consumes display characterisation; it does not measure it (SCOPE POSTURE, CLOSING A NAMED GAP",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "scope posture (consume, not measure)"
+},
+{
+"id": "STU-COL-301",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Per-monitor profile acquisition from the host. The host operating system, not Studio, holds the asso",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep GetICMProfile|WcsGet|ColorSync|_ICC_PROFILE|colord: 0 in colour crates"
+},
+{
+"id": "STU-COL-302",
+"section": "14.8.20 Display Device Characterisation",
+"title": "StudioDisplayDevice and stable monitor identity. Schema id hsk.studio.display_device@1. A display de",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep display_device@1|DisplayDevice: 0"
+},
+{
+"id": "STU-COL-303",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Reacting to display change, and the notification that does not exist. The display association is LIV",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep display_device|DisplayDevice|WcsGet|GetICMProfile: 0 in colour crates"
+},
+{
+"id": "STU-COL-304",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Operator-supplied display profile. An operator MUST be able to supply an ICC display profile for a s",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no display-device override (grep display_device_id: 0)"
+},
+{
+"id": "STU-COL-305",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Multiple monitors and a window that spans two. Studio MUST support a different profile per monitor s",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep display_device_id: 0; no per-monitor binding"
+},
+{
+"id": "STU-COL-306",
+"section": "14.8.20 Display Device Characterisation",
+"title": "The unmanaged display state is explicit and visible. Where no profile resolves for a display device,",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep display_device|DisplayDevice: 0 (unmanaged state exists only for the proof chain prism/src/proof/chain.rs)"
+},
+{
+"id": "STU-COL-307",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Display characterisation in the inspection state. [STU-COL-154] already argues that a screenshot can",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no display characterisation inspection state (grep display_device: 0)"
+},
+{
+"id": "STU-COL-308",
+"section": "14.8.20 Display Device Characterisation",
+"title": "Hardware calibration is an optional out-of-process adapter lane. Driving a colorimeter or spectropho",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "optional out-of-process calibration adapter lane"
+},
+{
+"id": "STU-COL-310",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "ACES is the named scene-linear default (CLOSING A NAMED GAP), and it is a CONFIGURATION contract rat",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/view_transform.rs:8 ACES scene-linear default; SMB-PRISM-VIEW-TRANSFORM PASS_V26"
+},
+{
+"id": "STU-COL-311",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "The ACES encodings Studio MUST carry. Four encodings, and they are four different jobs. Treating the",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SceneInput LinearSrgb|AcesCg|Aces2065_1 prism/src/view_transform.rs:53 (SMB-PRISM-VIEW-TRANSFORM-2 PASS_V25); ACEScc/ACEScct absent"
+},
+{
+"id": "STU-COL-312",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "Role bindings under the default. [STU-COL-152] fixes the role vocabulary Studio MUST recognise and s",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/view_transform.rs:50 scene_linear=ACEScg binding; other roles unbound (SMB-PRISM-VIEW-TRANSFORM PASS_V26)"
+},
+{
+"id": "STU-COL-313",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "Display targets and their view transforms. A view transform under a version-2-semantics configuratio",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "select_view prism/src/view_transform.rs:317 with typed view_not_built refusals; SMB-PRISM-VIEW-TRANSFORM-2 PASS_V25"
+},
+{
+"id": "STU-COL-314",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "Configuration provenance on the document. A grade is only reproducible if the document says what it ",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep config_provenance|ConfigProvenance|ocio_config: 0"
+},
+{
+"id": "STU-COL-315",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "Configuration absence, mismatch and re-resolution. Three cases, each with a required behaviour and n",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no OCIO configuration resolution (grep ocio_config: 0)"
+},
+{
+"id": "STU-COL-316",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "Interchange anchors. A configuration is a closed world unless it declares what its spaces mean in te",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "ACES2065-1 anchor SceneInput::Aces2065_1 prism/src/view_transform.rs:61; no configuration anchor requirement"
+},
+{
+"id": "STU-COL-317",
+"section": "14.8.21 ACES Scene-Linear Default",
+"title": "What this module does NOT fix about the ACES release. Stated so an implementer does not read a versi",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "states what is not fixed"
+},
+{
+"id": "STU-COL-320",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "The colour-accuracy metric (CLOSING A NAMED GAP). This module requires colour to be CORRECT in more ",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ciede2000|delta_e_2000: 0"
+},
+{
+"id": "STU-COL-321",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "Metric parametric factors. CIEDE2000 carries three parametric weighting factors. Their standard refe",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ciede2000|kl_factor: 0"
+},
+{
+"id": "STU-COL-322",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "Metric implementation conformance. A CIEDE2000 implementation that is subtly wrong produces plausibl",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ciede2000|de2000: 0"
+},
+{
+"id": "STU-COL-323",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "Per-path accuracy tolerances. A tolerance is only meaningful per PATH, because the four paths have d",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ciede2000|delta_e_2000: 0; only CIE76 gamut threshold prism/src/proof/gamut.rs:40"
+},
+{
+"id": "STU-COL-324",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "The reference patch corpus. A tolerance needs something to measure. Studio ships a reference corpus ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "synthetic/oracle corpus prism/tests/oracle/corpus.json; measured device sets absent"
+},
+{
+"id": "STU-COL-325",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "Expected values are computed independently of the engine under test. A golden corpus generated by ru",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/tests/oracle_t1_lcms2.rs:6 independent lcms2 expected values; SMB-PRISM-ENG-7 PASS_V21"
+},
+{
+"id": "STU-COL-326",
+"section": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+"title": "Accuracy is queryable state, not a test log. A measured difference MUST be readable as structured in",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no accuracy inspection state (grep ciede2000: 0)"
+},
+{
+"id": "STU-COL-330",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "Scopes are a colour-analysis contract owned here (CLOSING A NAMED GAP). Section 14 contained no vide",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep vectorscope|waveform_scope|rgb_parade|luma_waveform: 0"
+},
+{
+"id": "STU-COL-331",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "The scope catalogue. Six scopes, each measuring a different quantity. They are separately implementa",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep vectorscope|waveform_scope|rgb_parade: 0"
+},
+{
+"id": "STU-COL-332",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "The measurement point is declared, never assumed. The single most consequential scope decision is WH",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no video scopes (grep vectorscope|waveform_scope|rgb_parade: 0)"
+},
+{
+"id": "STU-COL-333",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "Scales, units and reference levels. A waveform is read in one of several scales and they are not int",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no scope scales (no scopes)"
+},
+{
+"id": "STU-COL-334",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "Legal, full and valid are three different things. Conflating them is the usual cause of a delivery r",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no legal/full/valid scope checks (no scopes)"
+},
+{
+"id": "STU-COL-335",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "Range and gamut error reporting against the target standard. A scope MUST check the signal against a",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no scope range checks (grep legal_range|ebu.?r103 hits only codec range flags in reel)"
+},
+{
+"id": "STU-COL-336",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "High-dynamic-range readings. In high dynamic range a percentage scale is close to meaningless to a c",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no scopes (grep vectorscope|waveform_scope: 0)"
+},
+{
+"id": "STU-COL-337",
+"section": "14.8.23 Video Scopes and Legal Range",
+"title": "A scope reading is structured state. Every scope MUST publish its reading as queryable inspection st",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no scopes (grep vectorscope|waveform_scope: 0)"
+},
+{
+"id": "STU-COL-340",
+"section": "14.8.24 Declared Open Items for 14.8.20 Through 14.8.23",
+"title": "Open items of record (NON-YIELDING). Each item below is a question this module could not close from ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "open-items index (non-yielding)"
+},
+{
+"id": "STU-COL-350",
+"section": "14.8.25 Transform Materialisation and Application",
+"title": "Materialisation and application are two paths with two different determinism obligations (CLOSING A ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "clarifies COL-143 scope (two paths)"
+},
+{
+"id": "STU-COL-351",
+"section": "14.8.25 Transform Materialisation and Application",
+"title": "The materialisation path is scalar and reproducible. The materialisation path MUST evaluate on a sin",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "scalar deterministic materialisation prism/src/wide.rs, tests/wide_determinism.rs; SMB-PRISM-ENG-3 PASS_V23"
+},
+{
+"id": "STU-COL-352",
+"section": "14.8.25 Transform Materialisation and Application",
+"title": "The application path is held to a numeric tolerance. The application path MAY use vector instruction",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "GPU application path via render-gpu view WGSL; tolerance in CIEDE2000 absent (grep ciede2000: 0)"
+},
+{
+"id": "STU-COL-353",
+"section": "14.8.25 Transform Materialisation and Application",
+"title": "The interpolation rule is part of the transform's identity. This clause closes a second defect in [S",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "tetrahedral rule prism/src/lut.rs, icc_eval.rs; interpolation as part of transform key identity not verified"
+},
+{
+"id": "STU-COL-354",
+"section": "14.8.25 Transform Materialisation and Application",
+"title": "Where a baked lookup table stops being an acceptable materialisation. A baked table is an approximat",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no baked-LUT materialisation (grep bake|baked in prism: 0)"
+},
+{
+"id": "STU-COL-355",
+"section": "14.8.25 Transform Materialisation and Application",
+"title": "Grid size, shaper and storage precision for a baked materialisation. The shaper requirement of [STU-",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "shaper+3D cube parse prism/src/lut.rs:1; baked materialisation grid/shaper policy absent"
+},
+{
+"id": "STU-CMP-001",
+"section": "14.27.0 Status, scope and authority",
+"title": "Compositing is in scope at professional depth. [STU-OVR-015] is superseded by [STU-VID-001]; the ope",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "scope statement"
+},
+{
+"id": "STU-CMP-002",
+"section": "14.27.0 Status, scope and authority",
+"title": "Ownership boundaries. This sub-section owns the layer compositing model: render order, blend modes, ",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "ownership boundaries"
+},
+{
+"id": "STU-CMP-003",
+"section": "14.27.0 Status, scope and authority",
+"title": "No sidecar authority. Every enumeration, order, formula and structural contract below is stated here",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "no-sidecar authority rule"
+},
+{
+"id": "STU-CMP-004",
+"section": "14.27.0 Status, scope and authority",
+"title": "Compositions and sequences interoperate in both directions. A StudioComposition ([STU-MOT-001]) may ",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/timeline.rs:346 ClipSource::Primitive can name a composition (SMB-FOLIO-ENG-1 PASS_V33); sequence as composition layer source and navigation not found"
+},
+{
+"id": "STU-CMP-005",
+"section": "1. Precomposition",
+"title": "Precomposition replaces a set of layers with a single layer whose source is a new composition contai",
+"apps": [
+"after_effects"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "precompose harness-core/src/motion_commands.rs (SMB-MOTION-COMMANDS-1 READY_FOR_VALIDATION); precomp source rendering folio/src/composition.rs:242 validated"
+},
+{
+"id": "STU-CMP-010",
+"section": "2. Render order",
+"title": "The layer render order is normative and is the single most important behavioural contract in this su",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/composition.rs:5, composition/effect_stack.rs:6 render order; SMB-COMPOSITE-COMPOSITION-2 PASS_V27, SMB-AE-EFFECT-STACK-1 PASS_V20"
+},
+{
+"id": "STU-CMP-015",
+"section": "3. Adjustment layers",
+"title": "An adjustment layer's effects apply to the composited result of everything beneath it in the stack.",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/temporal/composition/effects.rs:10 adjustment layer; SMB-COMPOSITE-COMPOSITION-2 PASS_V27, SMB-AE-EFFECT-STACK-1 PASS_V20"
+},
+{
+"id": "STU-CMP-016",
+"section": "4. Collapse transformations and continuous rasterization",
+"title": "One switch, two meanings by layer kind, and both are normative.",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d.rs:77 collapse/rasterize switch; SMB-AE-3D-3 PASS_V22, SMB-COMPOSITE-DOCGRAPH-2 PASS_V23"
+},
+{
+"id": "STU-CMP-020",
+"section": "5. Blend modes",
+"title": "The normative Studio blend-mode set is 38 members. Recovered as 39 rows of which one is a menu title",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs StudioBlendMode 35 members; Stencil/Silhouette, Alpha Add, Luminescent Premul, Classic and Dancing Dissolve absent (render_plan.rs DESCRIPTOR pending list)"
+},
+{
+"id": "STU-CMP-021",
+"section": "5. Blend modes",
+"title": "Blending happens in the composition's declared working space and its declared linearity.",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs:9 BlendSpace declared in receipts, composite/src/lower_plan.rs:171; SMB-COMPOSITE PASS_V42"
+},
+{
+"id": "STU-CMP-022",
+"section": "5. Blend modes",
+"title": "Alpha is explicitly typed as STRAIGHT or PREMULTIPLIED at every boundary. An imported media item dec",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "straight/premultiplied typed pigment/src/blend_math.rs:754, render_plan.rs:35; import ask-when-undeclared not found; covering lane string not in ledger"
+},
+{
+"id": "STU-CMP-025",
+"section": "6. Masks",
+"title": "A mask is a bezier path on a layer that contributes to the layer's alpha, and a layer may carry many",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/mask_paths.rs:1, folio/src/composition.rs:292; SMB-AE-MASK-FEATHER-1 PASS_V17, SMB-AE-ROTO-TIMEREMAP PASS_V22"
+},
+{
+"id": "STU-CMP-026",
+"section": "6. Masks",
+"title": "A unit-normalisation contract, stated because it is a live trap. Mask opacity's value stream declare",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/mask_paths.rs:150, folio/src/composition.rs:647 normalised opacity; SMB-AE-MASK-FEATHER-1 PASS_V17"
+},
+{
+"id": "STU-CMP-027",
+"section": "6. Masks",
+"title": "Mask geometry is the same StudioVectorPath primitive as 14.5's, reached through the same VectorEngin",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/mask_paths.rs:30 StudioVectorPath masks; SMB-AE-MASK-FEATHER-1 PASS_V17, SMB-AE-KEY-TRACK-3 PASS_V23"
+},
+{
+"id": "STU-CMP-030",
+"section": "7. Track mattes",
+"title": "A track matte uses ANOTHER layer's rendered alpha or luminance as this layer's alpha.",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/composition.rs:29 track matte; SMB-COMPOSITE-COMPOSITION-2 PASS_V27, SMB-AE-3D-2 PASS_V23"
+},
+{
+"id": "STU-CMP-031",
+"section": "7. Track mattes",
+"title": "Track mattes and the stencil/silhouette blend modes are two different mechanisms and both are requir",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "track mattes validated (CMP-030); stencil/silhouette modes pending (pigment/src/render_plan.rs DESCRIPTOR pending list)"
+},
+{
+"id": "STU-CMP-032",
+"section": "14.27.2 Keying and matte refinement",
+"title": "Keying is the extraction of an alpha channel from image content, and Studio ships a keying family, n",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/keying.rs:3 keying family (chroma, colour range, luma, difference, linear, inner/outer, key cleaner, wire removal, unmult, spill, chokers); SMB-AE-KEY-TRACK PASS_V25"
+},
+{
+"id": "STU-CMP-033",
+"section": "14.27.2 Keying and matte refinement",
+"title": "A key is a MATTE PIPELINE, not a single effect, and Studio's model says so. The normative pipeline i",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/keying.rs:6 matte pipeline stages; SMB-AE-KEY-TRACK PASS_V25, SMB-AE-ROTO-WIRING PASS_V20"
+},
+{
+"id": "STU-CMP-034",
+"section": "14.27.2 Keying and matte refinement",
+"title": "ASSISTED ROTOSCOPING -- boundary propagation across frames. Mask-path animation ([STU-CMP-025]) rema",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/temporal/composition/roto.rs:2, pigment select_tools/roto.rs; SMB-AE-ROTO-WIRING PASS_V20, SMB-AE-ROTO-TIMEREMAP PASS_V22"
+},
+{
+"id": "STU-CMP-035",
+"section": "1. 3D layers",
+"title": "A layer's is_3d flag promotes its transform to three dimensions and enrols it in the composition's 3",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d.rs:3 is_3d, temporal/composition.rs:254; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-CMP-040",
+"section": "2. Cameras",
+"title": "A camera layer defines the view for the 3D layers in its composition. Its property group is normativ",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d.rs:7 camera, folio/src/composition.rs:302; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-CMP-045",
+"section": "3. Lights",
+"title": "A light layer illuminates 3D layers that accept lights. Its property group is normative:",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d.rs:553 lights, folio/src/composition.rs:306; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-CMP-046",
+"section": "3. Lights",
+"title": "The camera and light property groups carry NO recovered numeric parameter contract, and that absence",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/composition.rs:544 camera/light params carry no invented bounds; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-CMP-050",
+"section": "4. Depth, deep channels and 3D-render integration",
+"title": "Studio consumes 3D-render auxiliary channels as first-class compositing inputs. Eight recovered capa",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d.rs:58, three_d/cryptomatte.rs, three_d/exr.rs; SMB-AE-3D PASS_V23, SMB-AE-3D-2 PASS_V23"
+},
+{
+"id": "STU-CMP-055",
+"section": "5. Immersive and projected compositing",
+"title": "Immersive compositing is projection-aware, and that is what distinguishes it from applying the same ",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d/immersive.rs:3; SMB-AE-3D-2 PASS_V23"
+},
+{
+"id": "STU-CMP-060",
+"section": "6. Renderers",
+"title": "A composition declares a RENDERER, and the renderer determines which 3D features its layers may use.",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/three_d.rs:9 PLANAR_RENDERER capability set; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-CMP-065",
+"section": "14.27.4 Tracking and stabilization",
+"title": "Tracking produces animation data, and that is the whole point: a track's output is ordinary keyframe",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/tracker.rs:14, track_apply.rs:4, camera_solve.rs:1; SMB-AE-KEY-TRACK PASS_V25, SMB-AE-KEY-TRACK-2 PASS_V24"
+},
+{
+"id": "STU-CMP-070",
+"section": "14.27.5 Time-based compositing",
+"title": "Effects that read frames other than the current one are a distinct class and their contract is diffe",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "frame mix/pixel motion composite/src/composition/frame_content.rs:1 (SMB-AE-ROTO-WIRING PASS_V20); grep echo|posterize_time|time_displacement|wide_time|forced_motion in composite/pigment: 0"
+},
+{
+"id": "STU-CMP-075",
+"section": "14.27.6 Simulation",
+"title": "Simulation effects generate elements procedurally over time and are stateful. 22 capabilities are re",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/particles.rs:1, simulations.rs:1; SMB-AE-PARTICLES-2 PASS_V10, SMB-AE-WATER-SIMS-1 PASS_V9"
+},
+{
+"id": "STU-CMP-080",
+"section": "14.27.7 Channel and compositing arithmetic",
+"title": "Channel operations are the compositor's primitive arithmetic and Studio ships the full set.",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Invert effect folio/src/composition/effects.rs:219; grep minimax|set_matte|shift_channel|alpha_levels|compound_arithmetic in src: 0 (besides a pigment descriptor)"
+},
+{
+"id": "STU-CMP-090",
+"section": "14.27.8 The architecture fork: layer-based versus node-based compositing",
+"title": "The layer model specified in 14.27.1 through 14.27.7 is NORMATIVE and is fully derived from real cap",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "normative framing statement"
+},
+{
+"id": "STU-CMP-091",
+"section": "14.27.8 The architecture fork: layer-based versus node-based compositing",
+"title": "The node question is DECLARED SPEC DEBT, and here is the question. High-end visual-effects compositi",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared spec debt (resolved by CMP-092)"
+},
+{
+"id": "STU-CMP-092",
+"section": "14.27.8 The architecture fork: layer-based versus node-based compositing",
+"title": "RESOLVED -- one authored graph, two editing projections.",
+"apps": [
+"after_effects",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "one Folio graph folio/src/lib.rs:930, composite/src/lower_plan.rs:2 layer projection (SMB-FOLIO-ENG-6 PASS_V30); node editing projection not found (grep NodeGraph|NodeView: comments only)"
+},
+{
+"id": "STU-CMP-093",
+"section": "14.27.8 The architecture fork: layer-based versus node-based compositing",
+"title": "Explicit evaluation. Composite lowers revision-bound immutable disposable render plans; Motion owns ",
+"apps": [
+"after_effects",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composite/src/evaluate_static.rs:69 revision-bound disposable plans, pigment/src/render_plan.rs:4; SMB-COMPOSITE PASS_V42"
+},
+{
+"id": "STU-CMP-094",
+"section": "14.27.8 The architecture fork: layer-based versus node-based compositing",
+"title": "Projection proof. Layer-to-graph-to-layer switching/reopen MUST preserve authored records, IDs, hist",
+"apps": [
+"after_effects",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layer projection proof composite/tests/static_plan.rs:72; node projection round trip not found"
+},
+{
+"id": "STU-CMP-095",
+"section": "14.27.9 Recovered enumeration appendix",
+"title": "The seven enumerations recovered by content signature, reproduced verbatim as the completeness check",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "recovered-enumeration appendix (completeness check)"
+},
+{
+"id": "STU-CMP-100",
+"section": "14.27.10 Declared gaps",
+"title": "RESOLVED -- assisted rotoscoping. Specified by [STU-CMP-034] in v02.217: strokes, base frames and sp",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "resolved-gap pointer to CMP-034"
+},
+{
+"id": "STU-CMP-101",
+"section": "14.27.10 Declared gaps",
+"title": "RESOLVED -- layer/node model. [STU-CMP-092] through [STU-CMP-094] select one Folio-authored graph wi",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "resolved-gap pointer to CMP-092..094"
+},
+{
+"id": "STU-CMP-102",
+"section": "14.27.10 Declared gaps",
+"title": "GAP -- renderer inventory and capability sets. [STU-CMP-060] specifies the contract a renderer decla",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap"
+},
+{
+"id": "STU-CMP-103",
+"section": "14.27.10 Declared gaps",
+"title": "GAP -- tracker parameter records. Per [STU-CMP-065b].",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap"
+},
+{
+"id": "STU-CMP-104",
+"section": "14.27.10 Declared gaps",
+"title": "GAP -- parameter records for most keying, matte, 3D-channel, immersive and simulation capabilities.",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap"
+},
+{
+"id": "STU-CMP-105",
+"section": "14.27.10 Declared gaps",
+"title": "GAP -- the light falloff-type and iris-shape enumerations. Both properties are specified and typed; ",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap"
+},
+{
+"id": "STU-CMP-106",
+"section": "14.27.10 Declared gaps",
+"title": "GAP -- the immersive projection-type enumeration, shared with [STU-VID-082].",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap (code keeps it open, composite/src/three_d/immersive.rs:6)"
+},
+{
+"id": "STU-CMP-110",
+"section": "14.27.11 Model steerability, GUI, diagnostics and manual obligation",
+"title": "Every panel, control, layer switch, mask, matte assignment, camera, light and visible state in this ",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core/src/motion_commands.rs:1 (SMB-MOTION-COMMANDS-1 READY_FOR_VALIDATION), harness PASS lanes; no composition window, more rows local in SMB-MOTION-COMMANDS-2"
+},
+{
+"id": "STU-CMP-120",
+"section": "14.27.12 Microtask Derivation",
+"title": "Microtask derivation index. Applying the shared derivation convention to this sub-section yields exa",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation index"
+},
+{
+"id": "STU-CMP-121",
+"section": "14.27.12 Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under [STU-CMP-120] MUST carry into its own body: ",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask content obligation"
+},
+{
+"id": "STU-CMP-122",
+"section": "14.27.12 Microtask Derivation",
+"title": "Ledger.",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "ledger"
+},
+{
+"id": "STU-CMP-123",
+"section": "14.27.12 Microtask Derivation",
+"title": "An open item or a blocked dependency does NOT remove a microtask. A clause that declares a gap, an o",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule for open items"
+},
+{
+"id": "STU-CMP-124",
+"section": "14.27.12 Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this sub-section cites the clause anchor directly, and a ca",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "anchor binding rule"
+}
+],
+"counts_by_status": {
+"BUILT_NOT_VALIDATED": 1,
+"MISSING": 41,
+"NOT_PRODUCT": 47,
+"PARTIAL": 112,
+"VALIDATED": 116
+},
+"counts_by_app_and_status": {
+"acrobat": {
+"PARTIAL": 4,
+"VALIDATED": 2
+},
+"affinity": {
+"MISSING": 3,
+"PARTIAL": 10,
+"VALIDATED": 4
+},
+"after_effects": {
+"BUILT_NOT_VALIDATED": 1,
+"MISSING": 9,
+"NOT_PRODUCT": 20,
+"PARTIAL": 20,
+"VALIDATED": 27
+},
+"cross_app": {
+"MISSING": 19,
+"NOT_PRODUCT": 22,
+"PARTIAL": 32,
+"VALIDATED": 19
+},
+"figma": {
+"MISSING": 1,
+"PARTIAL": 1
+},
+"illustrator": {
+"MISSING": 6,
+"NOT_PRODUCT": 3,
+"PARTIAL": 22,
+"VALIDATED": 22
+},
+"indesign": {
+"MISSING": 6,
+"NOT_PRODUCT": 1,
+"PARTIAL": 22,
+"VALIDATED": 17
+},
+"lightroom_classic": {
+"MISSING": 1,
+"NOT_PRODUCT": 1,
+"PARTIAL": 20,
+"VALIDATED": 31
+},
+"photoshop": {
+"MISSING": 4,
+"NOT_PRODUCT": 3,
+"PARTIAL": 22,
+"VALIDATED": 24
+},
+"premiere_pro": {
+"MISSING": 8,
+"PARTIAL": 9,
+"VALIDATED": 10
+}
+},
+"top_missing_areas": [
+"Video scopes and broadcast legal-range checking: no waveform, vectorscope, parade or range/gamut error reporting exists (STU-COL-330..337).",
+"Display characterisation: no per-monitor ICC profile acquisition, display-device identity, display-change handling, operator override or explicit unmanaged-display state (STU-COL-300..307).",
+"Colour-accuracy metric: no CIEDE2000 implementation, conformance test, per-path tolerances or accuracy inspection state; only a CIE76 gamut threshold exists (STU-COL-320..326, 352).",
+"Document colour management: no OCIO configuration runtime (config surface, roles, conversion nodes, provenance, ICC/OCIO coexistence) and no colour-management policy, assign-profile or convert-to-profile operations (STU-COL-128..131, 150..157, 314..315).",
+"Colour validation and interchange: no StudioValidationDescriptor colour/develop checks, no platform-CMM build tripwire, no ASE swatch exchange or cross-document swatch import, no appearance-of-black or contrast-ratio query (STU-COL-180/181/215/246/260/261, STU-RAW-132)."
+],
+"notes": [
+"Statuses judged from lane links plus code at origin/codex/handshake-studio-assets 87f331f9 (read with git grep/git show only; no builds or tests run). Microtask statuses were not used as evidence.",
+"Each ID was judged against its DEFINING clause in 14-studio-creative-suite.md (the **[ID]** paragraph), not the index line, which often points at a cross-reference (for example the 14.8.0 disposition table or the 14.8.17 validation tables).",
+"Legacy anchors STU-COL-001..036 are umbrellas refined by later clauses; each is rated by the combined status of the clauses that refine it.",
+"Derivation, ledger, scope-edge, rationale, sizing-data, contradiction-of-record and declared-GAP clauses are NOT_PRODUCT; where code honours a declared gap (for example STU-CMP-106) it is noted in evidence.",
+"SMB-DEVELOP-COMMANDS-1 (ledger status null, phase bundled_green) is local only: commits 72aa193a, d2fa72ef and 6363bd19 are not ancestors of the origin tip. It adds typed rows for point curves, group enables, crop, snapshots and preset save; affected develop rows are rated on origin code and name the local lane in evidence.",
+"Precompose (STU-CMP-005) is on origin through SMB-MOTION-COMMANDS-1, which is READY_FOR_VALIDATION, so it is BUILT_NOT_VALIDATED.",
+"ui=window means a control exists in the harness-view egui host (develop panels, proof, info samplers, vector swatch/recolor/separations/mesh views); ui=command means engine or typed command only. No After Effects composition window exists in harness-view, so compositing rows are command.",
+"App tags: cross_app is used for engine-level colour clauses (Prism, Pigment, Folio colour records) that serve every app."
+],
+"unverified": [
+"STU-COL-127 and STU-COL-115: code is the Folio typed document foundation (commit 5445c705), which has no lane id in the ledger; VALIDATED rests on later Folio lanes (SMB-FOLIO-ENG-1..7 PASS) exercising the same records.",
+"STU-COL-165: placed assets carry a ProfileBinding, but re-derivation of input transforms on a working-space change was not traced.",
+"STU-COL-139: chromatic adaptation is applied (Bradford in view_transform.rs, chad via moxcms); whether the default adaptation matrix is recorded in engine configuration was not checked.",
+"STU-COL-113: storage precision (f32 vs entry scale) was not traced beyond folio StudioColor using f64 fields.",
+"STU-COL-229: the 14.8.13 colour adjustment catalogue was not compared row by row with pigment/adjust_colour.rs.",
+"STU-COL-262: the 26 mandatory colour acceptance cases were not mapped to individual tests.",
+"STU-CMP-022: the covering lane in the index is a combined string not present in the ledger; the import-side ask-when-undeclared rule was not found.",
+"STU-RAW-122: LocalStack has about 22 fields; a field-by-field comparison with the 23 local parameters, per-mask curves and legacy copies was not done.",
+"STU-RAW-003: develop on non-raw high-bit-depth layers (re-editable filter) was searched by name only (grep camera_raw_filter|raw_filter|develop_filter|develop_layer hits only harness entry code)."
+]
+}

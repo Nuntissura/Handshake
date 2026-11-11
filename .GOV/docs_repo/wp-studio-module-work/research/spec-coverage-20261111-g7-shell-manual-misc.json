@@ -1,0 +1,3040 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G7",
+"prefixes": [
+"STU-SHL",
+"STU-MAN",
+"STU-QUIET",
+"STU-VAL",
+"STU-PAR",
+"STU-SDB"
+],
+"generated_at": "2026-11-11T16:22:02+00:00",
+"origin_tip": "87f331f9 (origin/codex/handshake-studio-assets, 2026-11-11 12:32 +0100)",
+"rows": [
+{
+"id": "STU-SDB-001",
+"section": "14.0 SurrealDB Authority Override",
+"title": "SurrealDB authority override of every storage phrase in Section 14",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "precedence/reading rule; substance judged in SDB-002..008"
+},
+{
+"id": "STU-SDB-002",
+"section": "14.0 SurrealDB Authority Override",
+"title": "Runtime authority via Handshake SurrealDB SDK; no PgPool/sqlx/SQLite; lrcat byte-decoder exception",
+"apps": [
+"cross_app",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no SQL/PG/sqlite dep: grep Cargo.lock sqlite|postgres|sqlx: 0; lrcat test catalog_decode.rs:585 bans engines; SurrealDB client host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SDB-003",
+"section": "14.0 SurrealDB Authority Override",
+"title": "Every studio_* relation as a SurrealDB SCHEMAFULL table with typed fields/assertions",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SCHEMAFULL|surrealkit crates: 0 code; host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SDB-004",
+"section": "14.0 SurrealDB Authority Override",
+"title": "EventLedger atomicity: one transaction, idempotency replay, expected-revision CAS, replay",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CKC-PORTS-ALIGN PASS_V26: kernel-bindings ckc.rs:16-18,324-330 expected_revision+idempotency on ports only; no SurrealDB txn in assets"
+},
+{
+"id": "STU-SDB-005",
+"section": "14.0 SurrealDB Authority Override",
+"title": "PERMISSIONS NONE + record-user grants; ResourceBroker gate; no root-credential privacy proof",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "ckc.rs:872 ResourceBroker gate on port, ckc_double.rs:106 denial; grep PERMISSIONS|record.user: 0"
+},
+{
+"id": "STU-SDB-006",
+"section": "14.0 SurrealDB Authority Override",
+"title": "Typed SurrealQL, live queries replacing LISTEN/NOTIFY, vector index with permission filter",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep live.?query: 0; grep surrealdb: comments only"
+},
+{
+"id": "STU-SDB-007",
+"section": "14.0 SurrealDB Authority Override",
+"title": "Fresh schema init via SurrealKit rollout start/verify/activate/complete/rollback",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep surrealkit: 0; host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SDB-008",
+"section": "14.0 SurrealDB Authority Override",
+"title": "Storage acceptance on isolated SurrealDB namespace with real SDK calls and privacy cases",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep surrealdb (tests): 0 runtime proofs; only lrcat negative scan"
+},
+{
+"id": "STU-SDB-009",
+"section": "14.0 SurrealDB Authority Override",
+"title": "Legacy PostgreSQL names valid only as provenance locators; record SurrealDB replacement",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "provenance/governance rule"
+},
+{
+"id": "STU-VAL-001",
+"section": "14.24 Validation, Promotion Equivalence, and HBR",
+"title": "StudioValidationDescriptor check catalog with stable codes and severities",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep validation.?descriptor crates: 0"
+},
+{
+"id": "STU-VAL-002",
+"section": "14.24 Validation, Promotion Equivalence, and HBR",
+"title": "Three-tier diagnostics (Flight Recorder, internal_diagnostics, Palmistry) via shared ports",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-OBSERVE-RING-PORT-1 PASS_V14 observe ring.rs; SMB-OBSERVE-DIAG-SINK-1 RFV; native embedding host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-VAL-003",
+"section": "14.24 Validation, Promotion Equivalence, and HBR",
+"title": "Argus visual proof with stable author_id targets for every GUI change",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "author_id trees: kumihimo semantic.rs, harness AccessKit menu.<id> (SMB-HARNESS-SHELL-1 PASS_V22); Argus host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-VAL-004",
+"section": "14.24 Validation, Promotion Equivalence, and HBR",
+"title": "Model inspects structured and rendered output before claiming done; receipts carry before/after",
+"apps": [
+"cross_app",
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "headless state_json + render/export PNG (SMB-HARNESS PASS_V38); grep StudioEditProposal: accord only, no before/after receipts"
+},
+{
+"id": "STU-VAL-005",
+"section": "14.24 Validation, Promotion Equivalence, and HBR",
+"title": "Native runtime + SurrealDB/CRDT duty; no PG/SQLite/Docker; fixtures cannot prove storage",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "negatives hold (no SQL deps); grep yrs|crdt crates: 0 code; SurrealDB host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-VAL-006",
+"section": "14.24 Validation, Promotion Equivalence, and HBR",
+"title": "HBR matrix evaluated per WP/MT with exact applicability",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "governance/process rule"
+},
+{
+"id": "STU-PAR-001",
+"section": "14.17 Parallel Workflows",
+"title": "Each file one CRDT doc and lease scope; renders/exports as scheduler jobs with leases",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-JOB-ADMISSION-1 PASS_V12 session jobs.rs admission/cancel; grep crdt|yrs: 0"
+},
+{
+"id": "STU-PAR-002",
+"section": "14.17 Parallel Workflows",
+"title": "Multiple models on one file via CRDT, actor attribution, conflict state, idempotent promotion",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-ATTRIBUTION-1 PASS_V12 actors; session conflict/Diverged (SMB-SESSION PASS_V38); no CRDT (grep yrs|crdt: 0)"
+},
+{
+"id": "STU-PAR-003",
+"section": "14.17 Parallel Workflows",
+"title": "Scheduler distributes sessions across files with leases/backpressure; observable runtime state",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "kernel-bindings tickets bound to account+principal+resource (SMB-KERNEL-BINDINGS PASS_V36); kernel scheduler host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-PAR-004",
+"section": "14.17 Parallel Workflows",
+"title": "Operator vs agent isolation by project/module scope; same-file agent work via presence",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-DRIVE-1 RFV: required --actor/--session, process without window; presence chip only (native-host chrome.rs)"
+},
+{
+"id": "STU-PAR-005",
+"section": "14.17 Parallel Workflows",
+"title": "Every Studio-spawned process registered with owner and reclaimed; no orphans",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-WORKER-CRATE PASS_V12 worker supervisor.rs:4-20 ledger owner session/pid/start, reap; no owner_wp/owner_role kernel ledger"
+},
+{
+"id": "STU-QUIET-001",
+"section": "14.20 Headless / Quiet Operation Law",
+"title": "Agent-driven work runs headless: no foreground, focus steal, input hijack or cursor moves",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-HARNESS-DEVELOP-EXPORT PASS_V29 headless CLI; harness_drive.rs:685 bans window/input APIs (DRIVE-1 RFV)"
+},
+{
+"id": "STU-QUIET-002",
+"section": "14.20 Headless / Quiet Operation Law",
+"title": "No OS-input automation; negative harness proves no response to simulated global input",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "static API scans harness_drive.rs:685, native-host gui_frame.rs:569-576 (RFV lanes); no runtime simulated-input test"
+},
+{
+"id": "STU-QUIET-003",
+"section": "14.20 Headless / Quiet Operation Law",
+"title": "Agent work elsewhere never brings Studio forward or moves operator viewport/tool",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-VK-HOST-1 RFV quiet window, focus_changes 0 (native-host window.rs); presence/pending-proposal indicators absent"
+},
+{
+"id": "STU-QUIET-004",
+"section": "14.20 Headless / Quiet Operation Law",
+"title": "Headless processes hidden, owner-tagged, reclaimed; no stale windows",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "worker supervisor.rs:5-7 CREATE_NO_WINDOW + reap (SMB-WORKER-CRATE PASS_V12); window absence NOT_PROVEN per source"
+},
+{
+"id": "STU-QUIET-005",
+"section": "14.20 Headless / Quiet Operation Law",
+"title": "Headless visual proof via render-to-buffer and AccessKit-tree assertions",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-PANELS-1 PASS_V21, SMB-HARNESS-SHELL-1 PASS_V22, SMB-PR-SEQ-EXPORT-UI-1 PASS_V16: headless egui frames + AccessKit lookups"
+},
+{
+"id": "STU-MAN-001",
+"section": "14.22 Studio UserManual (Dual-Audience)",
+"title": "One UserManual entry per tool/command/panel/workflow with operator and model layers",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "help view topics from descriptors: controls projection.rs:153, menu.rs manual_topics; SH2; no model layer fields"
+},
+{
+"id": "STU-MAN-002",
+"section": "14.22 Studio UserManual (Dual-Audience)",
+"title": "No-context model can discover full tool surface from manual; drift is a build failure",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "HELP > Full Command Index lists every menu node (shell.rs HelpPage::CommandIndex, SH2); tool surface absent"
+},
+{
+"id": "STU-MAN-003",
+"section": "14.22 Studio UserManual (Dual-Audience)",
+"title": "Manual updated in same change as behaviour with self-consistency and no-context harness",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "topics generated from same descriptors (controls projection.rs:1-2); no wired-surface diff gate"
+},
+{
+"id": "STU-MAN-004",
+"section": "14.22 Studio UserManual (Dual-Audience)",
+"title": "Manual queryable by tool name, task intent, command_id and author_id reverse lookup",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "Search Manual query + command index (shell.rs:1104-1108, SH2); no task-intent or author_id reverse index"
+},
+{
+"id": "STU-SHL-001",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Standing: 14.30 is product law, additive to MDL/QUIET/UNI/MAN/CON clauses",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reading rule"
+},
+{
+"id": "STU-SHL-002",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "One closed vocabulary; superseded names are conformance defects",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "vocabulary definition; grep options_bar|task_mode|persona|document_type in Rust: 0"
+},
+{
+"id": "STU-SHL-003",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Seven addressable regions with stable region_id values and display names",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: dock ids studio.dock.left/right/bottom, display names; grep left-rail|right-rail: 0"
+},
+{
+"id": "STU-SHL-004",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Studio owns no menu bar/registry/router/manual store; contributes into shell menus",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "asset hosts draw a stand-in bar (native-host chrome.rs:62-63); SMB-HARNESS-SHELL-1 PASS_V22 egui bar; shell contribution host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-005",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Module switch is a viewport swap; Studio docs as one StudioViewport pane kind",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioViewport: 0; Handshake shell host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-006",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Register addresses in existing navigation layers; no parallel bus",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep NavTarget|navigation.?target: 0; host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-007",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Layouts, presets, descriptors, manual rows, shortcut sets persist via SurrealDB/EventLedger only",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no SQL deps (Cargo.lock grep: 0); grep hsk.studio_dock_layout|shipped_default: 0 (no persistence)"
+},
+{
+"id": "STU-SHL-008",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "No vendor product name in any Studio name; vendor names only as provenance",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs audit vendor_product_name_in_display_name; viewer_shell.rs:597 test"
+},
+{
+"id": "STU-SHL-009",
+"section": "14.30 Operator Shell, standing and shell law",
+"title": "Every surface AccessKit-addressable by author_id and quiet; no GPU deps in handshake_core",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-PANELS-1 PASS_V21, SH2: menu.<id> AccessKit nodes, headless; handshake_core not in asset tree"
+},
+{
+"id": "STU-SHL-010",
+"section": "14.30 §1 The menu",
+"title": "Menu bar = shell bar with 4 extended + 11 inserted titles while a Studio pane has focus",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "egui bar File/Edit/View/Type/Color/Workspace/Help (shell.rs:1071, SMB-HARNESS-SHELL-1 PASS_V22); native 19 titles static (SMB-GUI-FRAME-1 RFV)"
+},
+{
+"id": "STU-SHL-011",
+"section": "14.30 §1 The menu",
+"title": "Exactly nineteen top-level titles in fixed order",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: native-host preset.rs:13 MENU 19 titles; egui host 7 of 19 in order (PASS lanes)"
+},
+{
+"id": "STU-SHL-012",
+"section": "14.30 §1 The menu",
+"title": "Order fixed; narrow widths abbreviate then chevron overflow; every title stays in AccessKit tree",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: preset.rs:19 abbreviation, chrome.rs:62-90 chevron hidden ids stay in tree"
+},
+{
+"id": "STU-SHL-013",
+"section": "14.30 §1 The menu",
+"title": "Menu tree is exhaustive capability index; command without menu path fails build",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep palette_only: 0; no registry-vs-menu build check"
+},
+{
+"id": "STU-SHL-014",
+"section": "14.30 §1 The menu",
+"title": "Context menus only reference menu-bar leaf ids",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep context_menu: 0 (no context menus)"
+},
+{
+"id": "STU-SHL-015",
+"section": "14.30 §1 The menu",
+"title": "Menu tree is a field on one command record (UiDescriptor); no hand-written menu enum",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-COMMAND-SURFACE-1 RFV UiDescriptor seed lacks menu_path; menu built from ShellCommand enum (shell.rs:942)"
+},
+{
+"id": "STU-SHL-016",
+"section": "14.30 §1 The menu",
+"title": "No parallel STUDIO_COMMANDS registry beside the shell registry",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "asset keeps ShellCommand, RUN_COMMANDS and UiCatalog tables; shell registry host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-017",
+"section": "14.30 §1 The menu",
+"title": "Seven menu invariants as build/test checks",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: MenuBar::audit (menu.rs:432) INV-2/INV-5/depth; INV-4 test viewer_shell.rs:722; INV-1/3/6/7 absent"
+},
+{
+"id": "STU-SHL-018",
+"section": "14.30 §1 The menu",
+"title": "Menu never hides nodes; greyed with reason in every state",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:9 never hidden; NOT_IMPLEMENTED_YET leaves kept (shell.rs:1056)"
+},
+{
+"id": "STU-SHL-019",
+"section": "14.30 §1 The menu",
+"title": "Machine-readable disabled_reason identical across tooltip, AccessKit node and command API",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: viewer_shell.rs:722 command API+projection+AccessKit; AccessKit gets one reason line, not separate properties"
+},
+{
+"id": "STU-SHL-020",
+"section": "14.30 §1 The menu",
+"title": "Enable by promotion: INAPPLICABLE_HERE carries one enabled remedy command",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:397 resolve_remedies, audit inapplicable_without_remedy; worked examples (MOTION>Keyframes, node tool) absent"
+},
+{
+"id": "STU-SHL-021",
+"section": "14.30 §1 The menu",
+"title": "Menu depth cap 3 explicit, 4 with registry expansion",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:33 MAX_MENU_DEPTH 4 audited (menu.rs:454)"
+},
+{
+"id": "STU-SHL-022",
+"section": "14.30 §1 The menu",
+"title": "Tree notation for the designed menu tree",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "notation definition"
+},
+{
+"id": "STU-SHL-023",
+"section": "14.30 §1 The menu",
+"title": "FILE menu leaves (New, Open, Place, Import/Export, Publish, Package, Print, Versions...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-1 PASS_V22: Open/Recent/Save/Save As/Export PNG,JPEG/Close (shell.rs:972); New via SMB-DOC-NEW-1 RFV"
+},
+{
+"id": "STU-SHL-024",
+"section": "14.30 §1 The menu",
+"title": "EDIT menu leaves (Undo/Redo, History, Clipboard, Find, Spelling, Track Changes, Prefs...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-1 PASS_V22: Undo/Redo only (shell.rs:991)"
+},
+{
+"id": "STU-SHL-025",
+"section": "14.30 §1 The menu",
+"title": "VIEW menu leaves (zoom, screen mode, display, proof, rulers, guides, grids, snap...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-PS-SOFT-PROOF-2 PASS_V20: Fit/Actual/Zoom/GPU/Status + View>Proof (shell.rs:999)"
+},
+{
+"id": "STU-SHL-026",
+"section": "14.30 §1 The menu",
+"title": "DOCUMENT menu (setup, sizes, mode, artboards, pages, compositions, develop, profile)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub preset.rs:13 (NIY); artboard/page rules in harness-core document_new.rs (SMB-DOC-NEW-1 RFV)"
+},
+{
+"id": "STU-SHL-027",
+"section": "14.30 §1 The menu",
+"title": "SELECT menu (all, select by, modify, by content, sets, navigate selection)",
+"apps": [
+"photoshop",
+"illustrator",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub only, leaves NIY (preset.rs:13, chrome.rs:18)"
+},
+{
+"id": "STU-SHL-028",
+"section": "14.30 §1 The menu",
+"title": "OBJECT menu (transform, arrange, layer, mask, path, boolean, component, clip...)",
+"apps": [
+"illustrator",
+"figma",
+"indesign",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub; hosted transform/align/path panels under WORKSPACE>Panels (SMB-HARNESS-PANELS-1 PASS_V21), no OBJECT menu"
+},
+{
+"id": "STU-SHL-029",
+"section": "14.30 §1 The menu",
+"title": "TYPE menu (font, character, paragraph, OpenType, glyphs, threading, convert...)",
+"apps": [
+"indesign",
+"illustrator",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-VIEW-POLISH-1 PASS_V17: TYPE > Convert > Create Outlines only (shell.rs:1019)"
+},
+{
+"id": "STU-SHL-030",
+"section": "14.30 §1 The menu",
+"title": "COLOR menu (settings, working spaces, policies, proof, spot/ink, separations, LUTs...)",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-PS-SOFT-PROOF-2 PASS_V20: COLOR > Proof only (shell.rs:1025)"
+},
+{
+"id": "STU-SHL-031",
+"section": "14.30 §1 The menu",
+"title": "EFFECTS menu (apply by family, adjustments, layer effects, live filters, task-scope leaves)",
+"apps": [
+"photoshop",
+"after_effects",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub only, leaves NIY (preset.rs:13)"
+},
+{
+"id": "STU-SHL-032",
+"section": "14.30 §1 The menu",
+"title": "MOTION menu (playback, go to, keyframes, expression, markers, edit actions, tracks...)",
+"apps": [
+"after_effects",
+"premiere_pro",
+"audition",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub only (preset.rs:13); motion typed commands exist (SMB-MOTION-COMMANDS-1 RFV) but no menu"
+},
+{
+"id": "STU-SHL-033",
+"section": "14.30 §1 The menu",
+"title": "INSERT menu (layer, shape, text, table, page element, media, web, whiteboard...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub only, leaves NIY (preset.rs:13)"
+},
+{
+"id": "STU-SHL-034",
+"section": "14.30 §1 The menu",
+"title": "CODE menu (view mode, formatting, edit code, style sheets, validate, server...)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub only, leaves NIY (preset.rs:13)"
+},
+{
+"id": "STU-SHL-035",
+"section": "14.30 §1 The menu",
+"title": "AUTOMATE menu (actions, macros, batch, scripts, Command API, model lane, jobs...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native title stub only, leaves NIY (preset.rs:13)"
+},
+{
+"id": "STU-SHL-036",
+"section": "14.30 §1 The menu",
+"title": "WORKSPACE menu (layout presets, panels, tools, panel layout, toolbox, task scopes...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-PANELS-1 PASS_V21/SMB-TIMELINE-UI-1 PASS_V20: WORKSPACE > Panels 25 toggles only (shell.rs:1041)"
+},
+{
+"id": "STU-SHL-037",
+"section": "14.30 §1 The menu",
+"title": "HELP menu (Studio Manual submenu, command index, shortcuts, diagnostics, about)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: all 16 leaves present (shell.rs:311), 5 functional, rest greyed NOT_IMPLEMENTED_YET"
+},
+{
+"id": "STU-SHL-038",
+"section": "14.30 §1 The menu",
+"title": "Expansion node register: two ASSERTED (Tools 362, Panels 90), rest BUDGETED ship empty",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-PANELS-1 PASS_V21: Panels expansion from Panel::ALL (25 of 90); other expansion nodes absent"
+},
+{
+"id": "STU-SHL-039",
+"section": "14.30 §1 The menu",
+"title": "WORKSPACE > Tools > family > tool, 22 family submenus, never flat",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep studio.workspace.tool: 0"
+},
+{
+"id": "STU-SHL-040",
+"section": "14.30 §1 The menu",
+"title": "375 menu-only nodes typed by menu_only flag",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: MenuNode.menu_only (menu.rs:243), HELP index+diagnostics menu-only (shell.rs:397); AUTOMATE/OBJECT nodes absent"
+},
+{
+"id": "STU-SHL-041",
+"section": "14.30 §1 The menu",
+"title": "Palette shows menu_path breadcrumb; shared fuzzy matcher with prebuilt index",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep fuzzy|command.?palette|breadcrumb in shell crates: 0"
+},
+{
+"id": "STU-SHL-042",
+"section": "14.30 §1 The menu",
+"title": "Shortcut resolution ranks (frozen spine, context scopes, tool letters, no silent shadowing)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep shortcut_conflict|shortcut.?set (shell crates): 0; menu shortcuts are literal labels"
+},
+{
+"id": "STU-SHL-043",
+"section": "14.30 §1 The menu",
+"title": "Shipped shortcut sets: Studio Default plus four migration sets",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep Raster-Familiar|shortcut.?set: 0"
+},
+{
+"id": "STU-SHL-044",
+"section": "14.30 §1 The menu",
+"title": "Menu is the shortcut editor; Shortcut Conflict Report enumerates collisions",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "Keyboard Shortcut Reference lists shortcuts only (shell.rs HelpPage::Shortcuts); no conflict report"
+},
+{
+"id": "STU-SHL-045",
+"section": "14.30 §1 The menu",
+"title": "Default chord set not frozen until arbitration recomputed",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt pointer to STU-SHL-131"
+},
+{
+"id": "STU-SHL-046",
+"section": "14.30 §2 The availability predicate",
+"title": "Exactly one availability predicate evaluated once per element; same result on every surface",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: one evaluation per menu node feeds menu/AccessKit/API (shell.rs:937); rail/search/panels not on it"
+},
+{
+"id": "STU-SHL-047",
+"section": "14.30 §2 The availability predicate",
+"title": "Predicate input is the document profile (container kinds + flags), never a type enum",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "profiles only as creation presets (harness-core document_new.rs:7-8, SMB-DOC-NEW-1 RFV); availability not computed from a profile"
+},
+{
+"id": "STU-SHL-048",
+"section": "14.30 §2 The availability predicate",
+"title": "Profile declared at creation, grows with new container/layer kinds, never shrinks silently",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "document stores no profile (document_new.rs:7-8)"
+},
+{
+"id": "STU-SHL-049",
+"section": "14.30 §2 The availability predicate",
+"title": "Twelve closed requires-clause kinds",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no requires expression type; grep container:|layer_kind: hits are media/fixture strings"
+},
+{
+"id": "STU-SHL-050",
+"section": "14.30 §2 The availability predicate",
+"title": "Three closed availability states",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:85 AvailabilityState"
+},
+{
+"id": "STU-SHL-051",
+"section": "14.30 §2 The availability predicate",
+"title": "Twelve closed reason codes",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:120 ReasonCode::ALL 12; SMB-GUI-FRAME-1 RFV NIY code"
+},
+{
+"id": "STU-SHL-052",
+"section": "14.30 §2 The availability predicate",
+"title": "Per-surface rendering of the three states (menu, rail, search, panels, Context Bar)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21 menu row + panel entries greyed (shell.rs:915); rail/search/Context Bar rows absent"
+},
+{
+"id": "STU-SHL-053",
+"section": "14.30 §2 The availability predicate",
+"title": "Search never filters on availability; rows sorted by state with reasons",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "Full Command Index lists every node with availability (shell.rs HelpPage::CommandIndex); no state-sorted search/palette"
+},
+{
+"id": "STU-SHL-054",
+"section": "14.30 §2 The availability predicate",
+"title": "Layout persistence key = profile signature; named signatures and tie-break",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep profile_signature|ProfileSignature: 0"
+},
+{
+"id": "STU-SHL-055",
+"section": "14.30 §2 The availability predicate",
+"title": "Layout Presets may not gate availability; inspector test required",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no preset-vs-availability test; grep layout_preset_changed_availability_state: 0"
+},
+{
+"id": "STU-SHL-056",
+"section": "14.30 §3 The slot resolver",
+"title": "Slot resolver is a second stage over AVAILABLE candidates",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SlotResolver|slot_resolver|studio.slot.: 0"
+},
+{
+"id": "STU-SHL-057",
+"section": "14.30 §3 The slot resolver",
+"title": "Single-occupant slots: inspector, context-bar, properties",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SlotResolver|studio.slot.: 0"
+},
+{
+"id": "STU-SHL-058",
+"section": "14.30 §3 The slot resolver",
+"title": "Binding declaration record (slot, binds_to, scope, priority, can_bind, sticky_key)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep can_bind|binds_to|sticky_key: 0"
+},
+{
+"id": "STU-SHL-059",
+"section": "14.30 §3 The slot resolver",
+"title": "Ordered resolution algorithm with veto, ranking and empty state",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SlotResolver|slot_resolver: 0"
+},
+{
+"id": "STU-SHL-060",
+"section": "14.30 §3 The slot resolver",
+"title": "At most five auto-resolved sibling tabs (OD-6 open)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SlotResolver: 0"
+},
+{
+"id": "STU-SHL-061",
+"section": "14.30 §3 The slot resolver",
+"title": "Anti-thrash: resolve on selection change, byte-identical reselect test",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SlotResolver|studio.slot.: 0"
+},
+{
+"id": "STU-SHL-062",
+"section": "14.30 §3 The slot resolver",
+"title": "studio.slot.<slot>.resolved exposes chosen author_id, selector, priority",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep studio.slot.: 0"
+},
+{
+"id": "STU-SHL-063",
+"section": "14.30 §4 The dock and panel model",
+"title": "Edge docks are stacks of tab groups; one tiling Tree per region",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: one Panel per region, 3-group Inspect Dock (native-host gui/mod.rs:1-10); static, no tiling tree"
+},
+{
+"id": "STU-SHL-064",
+"section": "14.30 §4 The dock and panel model",
+"title": "Region register sizes and collapse behaviours",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: frame.rs Tool Rail 44, Context Bar 34, Meter 36, docks 260/300/240 rails; overlay/pin collapse NIY"
+},
+{
+"id": "STU-SHL-065",
+"section": "14.30 §4 The dock and panel model",
+"title": "Centre is an unbounded tree of editor groups; no fixed splitter",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep editor.?group|egui_tiles in code: 0; centre is one canvas viewer"
+},
+{
+"id": "STU-SHL-066",
+"section": "14.30 §4 The dock and panel model",
+"title": "Ten closed viewer kinds",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: only studio.viewer.canvas (gui/mod.rs:51)"
+},
+{
+"id": "STU-SHL-067",
+"section": "14.30 §4 The dock and panel model",
+"title": "Panels never dock to centre; documents never dock to an edge",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no panel/tab drag (controls lib.rs:36 not_in_slice docking_windows)"
+},
+{
+"id": "STU-SHL-068",
+"section": "14.30 §4 The dock and panel model",
+"title": "Seven closed panel states incl. collapsed_to_rail and popped_out",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep popped_out|collapsed_to_rail|docked_active in src: 0"
+},
+{
+"id": "STU-SHL-069",
+"section": "14.30 §4 The dock and panel model",
+"title": "Dock constraints: 0.2-0.8 clamp, 6px seam, 4 groups per edge, gestures as commands",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no dock resize/drag; frame.rs fixed preset layout"
+},
+{
+"id": "STU-SHL-070",
+"section": "14.30 §4 The dock and panel model",
+"title": "PanelMoveRequest as one transaction against StudioPanelRegistry",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep PanelMoveRequest: 0"
+},
+{
+"id": "STU-SHL-071",
+"section": "14.30 §4 The dock and panel model",
+"title": "StudioPanelRegistry shape (ordered map, kebab ids, dock/group/tab/binding)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep PanelRegistry: 0"
+},
+{
+"id": "STU-SHL-072",
+"section": "14.30 §4 The dock and panel model",
+"title": "Panel density model (240 floor, 72x24 field, 300/260 Inspect Dock, row pitch) and polish",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: kumihimo tokens + widgets.rs:134 ScrubValue field 72x24, Inspect Dock 300"
+},
+{
+"id": "STU-SHL-073",
+"section": "14.30 §4 The dock and panel model",
+"title": "Below 260px stacked compact form; above 320px presents as overlay",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no compact panel form; frame.rs fit ladder is window-level only"
+},
+{
+"id": "STU-SHL-074",
+"section": "14.30 §4 The dock and panel model",
+"title": "Do not stack field-dense with list-dense panels under 300px",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no mixing-rule check"
+},
+{
+"id": "STU-SHL-075",
+"section": "14.30 §4 The dock and panel model",
+"title": "90 distinct panel identities plus 9 reused shell panes",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "egui host 25 panels (shell.rs Panel::ALL); native frame lists ~20 tab ids, Layers built; shell panes host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-076",
+"section": "14.30 §4 The dock and panel model",
+"title": "90 counts identities not effort; size work from capability corpus",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "sizing rule for work packets"
+},
+{
+"id": "STU-SHL-077",
+"section": "14.30 §4 The dock and panel model",
+"title": "Four closed panel classes",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep always_relevant|task_episodic|selection_contextual: 0"
+},
+{
+"id": "STU-SHL-078",
+"section": "14.30 §4 The dock and panel model",
+"title": "Eight-panel spine ships first and is proven through the inspector",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-SPINE-1/SMB-GUI-FRAME-1 RFV/SMB-VK-UI-PASS-1 RFV: tabs for all 8 ids, only Layers body built"
+},
+{
+"id": "STU-SHL-079",
+"section": "14.30 §4 The dock and panel model",
+"title": "Six compositing/video panels (keyframe-timeline, expression-editor, tracker, render-queue...)",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "render queue items (harness-view timeline_export/render_queue.rs); keyframe-timeline lane SMB-AE-KEYFRAME-TIMELINE-1 BLOCKED"
+},
+{
+"id": "STU-SHL-080",
+"section": "14.30 §4 The dock and panel model",
+"title": "Merge law: merge only when members never need simultaneous visibility",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "panel-design rule; consequences judged under 091/113"
+},
+{
+"id": "STU-SHL-113",
+"section": "14.30 §4 The dock and panel model",
+"title": "Panel catalogue: 90 panel identities, one unit each",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-PANELS-1 PASS_V21, SH2: 25 egui panels; SMB-GUI-SPINE-1, SMB-PROJECT-BIN-1 RFV"
+},
+{
+"id": "STU-SHL-081",
+"section": "14.30 §4 The dock and panel model",
+"title": "Persistence cascade L3 ?? L1 ?? L2 ?? L0 keyed by profile signature",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep shipped_default|user_default|tab_override: 0"
+},
+{
+"id": "STU-SHL-082",
+"section": "14.30 §4 The dock and panel model",
+"title": "Layout operator-scoped; L3 as sibling schema hsk.studio_dock_layout@1 with safe restore",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep hsk.studio_dock_layout: 0"
+},
+{
+"id": "STU-SHL-083",
+"section": "14.30 §4 The dock and panel model",
+"title": "Signature change offers the layout swap once per document",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no profile signature (grep: 0)"
+},
+{
+"id": "STU-SHL-084",
+"section": "14.30 §4 The dock and panel model",
+"title": "Shared default rules (Context Bar top, Tool Rail left, inspector first, layers last group)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: preset.rs:127 RIGHT groups; drag override + L2 not built"
+},
+{
+"id": "STU-SHL-085",
+"section": "14.30 §4 The dock and panel model",
+"title": "Raster default layout",
+"apps": [
+"photoshop"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: preset.rs:91-146 left rail 6, right 0.30/0.24/0.46, bottom rail 5 match"
+},
+{
+"id": "STU-SHL-086",
+"section": "14.30 §4 The dock and panel model",
+"title": "Vector default layout",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "native host ships raster preset only (preset.rs:8)"
+},
+{
+"id": "STU-SHL-087",
+"section": "14.30 §4 The dock and panel model",
+"title": "Layout (page_spread) default layout",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "raster preset only (preset.rs:8)"
+},
+{
+"id": "STU-SHL-088",
+"section": "14.30 §4 The dock and panel model",
+"title": "Web and photo default layouts",
+"apps": [
+"dreamweaver",
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "raster preset only (preset.rs:8)"
+},
+{
+"id": "STU-SHL-134",
+"section": "14.30 §9 Declared spec debt",
+"title": "Photo L0 record carries extrapolated:true and derived_from; others false",
+"apps": [
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep extrapolated in shell crates: 0"
+},
+{
+"id": "STU-SHL-089",
+"section": "14.30 §4 The dock and panel model",
+"title": "Composition default layout rebuilt from measurement",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "raster preset only (preset.rs:8)"
+},
+{
+"id": "STU-SHL-090",
+"section": "14.30 §4 The dock and panel model",
+"title": "Sequence default layout",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "raster preset only (preset.rs:8)"
+},
+{
+"id": "STU-SHL-091",
+"section": "14.30 §4 The dock and panel model",
+"title": "timeline and keyframe-timeline are two panels on one time model",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-TIMELINE-UI-1 PASS_V20 timeline panel; keyframe-timeline not built (SMB-AE-KEYFRAME-TIMELINE-1 BLOCKED)"
+},
+{
+"id": "STU-SHL-092",
+"section": "14.30 §4 The dock and panel model",
+"title": "render-queue owns configuration, shell Jobs owns execution",
+"apps": [
+"after_effects",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "render_queue.rs items -> reel ExportJob; SMB-JOB-ADMISSION-1 PASS_V12; shell Jobs pane host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-093",
+"section": "14.30 §5 Layout Presets and Task Scopes",
+"title": "Layout Preset = L1 named arrangement: docks, rail order, search bias; gates nothing",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: one built-in raster preset as data (preset.rs:1-10); no L1 storage"
+},
+{
+"id": "STU-SHL-094",
+"section": "14.30 §5 Layout Presets and Task Scopes",
+"title": "STU-UNI-002 task modes restated as Layout Presets (clarification)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "clarification of an existing clause"
+},
+{
+"id": "STU-SHL-095",
+"section": "14.30 §5 Layout Presets and Task Scopes",
+"title": "Shipped Layout Presets named for jobs (OD-4 open)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: LAYOUT_PRESET \"Photo\" only (preset.rs:10)"
+},
+{
+"id": "STU-SHL-096",
+"section": "14.30 §5 Layout Presets and Task Scopes",
+"title": "Task Scope is a distinct temporary filter mechanism",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "UiKind::TaskScope token only (ui_descriptor.rs); no mechanism"
+},
+{
+"id": "STU-SHL-097",
+"section": "14.30 §5A Entry paths and document tab strip",
+"title": "Unbounded documents open as tabs, each with own state",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: tab strip with one document tab (chrome.rs tab_strip); multi-document not built"
+},
+{
+"id": "STU-SHL-098",
+"section": "14.30 §5A Entry paths and document tab strip",
+"title": "Module entry swaps the viewport; tab strip swaps the document",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "module switch is a NIY stub (chrome.rs shell.module-switch); shell module rail host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-099",
+"section": "14.30 §5A Entry paths and document tab strip",
+"title": "Cross-module embedded edit and Open in Studio as one navigation-target variant",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep NavTarget|navigation.?target: 0; host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-SHL-100",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Why gesture arbitration is normative",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "rationale"
+},
+{
+"id": "STU-SHL-101",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 1: topmost widget claims gesture at press, no threshold",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: kumihimo tree.rs:498 press claims at press"
+},
+{
+"id": "STU-SHL-102",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 2: panel/tab drags start only from designated chrome",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no panel/tab drag (controls lib.rs:36 not_in_slice docking_windows)"
+},
+{
+"id": "STU-SHL-103",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 3: splitter strips 4px/8px with distinct cursors; field inset 8px",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no splitter widget (kumihimo tokens.rs splitter tokens only)"
+},
+{
+"id": "STU-SHL-104",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 4: drag tracked in screen space beyond window; Escape aborts; cursor hidden, no warping",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): store.rs Escape abort restores; kumihimo tree.rs:490 hover suppressed; cursor hiding grep: 0"
+},
+{
+"id": "STU-SHL-105",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 5: wheel steps hovered field and is consumed; 10px scroll lane",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "scroll-lane token kumihimo tokens.rs; field wheel not_in_slice (controls lib.rs:36)"
+},
+{
+"id": "STU-SHL-106",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 6: Shift x10, Ctrl /10, both x100, Alt excluded, sampled continuously",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): egui_adapter.rs:5-7, descriptor.rs:31-43 GestureRoles"
+},
+{
+"id": "STU-SHL-107",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 7: one undo entry per gesture; wheel coalescing; SetValue one entry",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): store.rs:4-7 one Committed per drag; wheel_gesture_400ms not_in_slice (lib.rs:36)"
+},
+{
+"id": "STU-SHL-108",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Rule 8: studio.gesture.active AccessKit node with owner and gesture kind",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep studio.gesture.active: 0 (store.rs gesture_active is a bool query)"
+},
+{
+"id": "STU-SHL-109",
+"section": "14.30 §6 Pointer gesture arbitration",
+"title": "Arbitration acceptance tests 1-7",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): Escape zero entries / one entry per drag tests; dock-state, screen-edge, wheel, SetValue tests absent"
+},
+{
+"id": "STU-SHL-110",
+"section": "14.30 §8 Build order",
+"title": "Normative prerequisite chain SHL-P-01..22",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "build-order/process; steps judged under their clauses"
+},
+{
+"id": "STU-SHL-111",
+"section": "14.30 §8 Build order",
+"title": "Defects to replace: 2x2 splitter, tab-list rewriting module switch, ported module definition",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "Handshake shell host-side, outside asset tree (kernel-bindings lib.rs:1-3); not inspected"
+},
+{
+"id": "STU-SHL-112",
+"section": "14.30 §8 Build order",
+"title": "Scope boundary for shell-wide steps (OD-7)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "scope/process decision"
+},
+{
+"id": "STU-SHL-120",
+"section": "14.30 §9 Declared spec debt",
+"title": "Declared spec debt: escalate, never choose",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reading rule"
+},
+{
+"id": "STU-SHL-130",
+"section": "14.30 §9 Declared spec debt",
+"title": "SD-1 compositing model decided layer-based",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "decision record"
+},
+{
+"id": "STU-SHL-131",
+"section": "14.30 §9 Declared spec debt",
+"title": "SD-2 shortcut spine breach; shipped chord sets frozen-blocked",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt record"
+},
+{
+"id": "STU-SHL-132",
+"section": "14.30 §9 Declared spec debt",
+"title": "SD-3..SD-8 carried capture gaps",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt record"
+},
+{
+"id": "STU-SHL-133",
+"section": "14.30 §9 Declared spec debt",
+"title": "Debt that is not open (closed questions)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt record"
+},
+{
+"id": "STU-SHL-135",
+"section": "14.30 §9 Declared spec debt",
+"title": "362-tool count is a judgement; vendor_variants ship inline per tool row",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep vendor_variants: 0"
+},
+{
+"id": "STU-SHL-136",
+"section": "14.30 §9 Declared spec debt",
+"title": "Open operator decisions OD-1..OD-13",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "decision register"
+},
+{
+"id": "STU-SHL-137",
+"section": "14.30 §10 Obligations",
+"title": "Every shell command satisfies STU-CON-007 (model-invokable, parallel-safe, verifiable)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HARNESS-SHELL-1 PASS_V22: Viewer::shell_command runs menu leaves headless; dock gestures/presets/scopes absent"
+},
+{
+"id": "STU-SHL-138",
+"section": "14.30 §10 Obligations",
+"title": "Sixteen shell validation descriptor checks",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep menu_leaf_without_command|panel_registered_in_two_trees|author_id_contains_position: 0"
+},
+{
+"id": "STU-SHL-139",
+"section": "14.30 §10 Obligations",
+"title": "Manual entry for every leaf/region/panel/preset/scope/gesture; literal enum token lists",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:502 manual_topics per node; regions/panel classes/gesture kinds absent"
+},
+{
+"id": "STU-SHL-116",
+"section": "14.30 §11 Microtask derivation",
+"title": "Shell microtask derivation rule",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-117",
+"section": "14.30 §11 Microtask derivation",
+"title": "Clauses that yield no microtask",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-118",
+"section": "14.30 §11 Microtask derivation",
+"title": "Open items still yield a microtask",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-119",
+"section": "14.30 §11 Microtask derivation",
+"title": "Shell yields index",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation index"
+},
+{
+"id": "STU-SHL-140",
+"section": "14.31 §1 The tool registry",
+"title": "362 distinct tools in 22 families",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no tool registry: grep family_id|vendor_variants in shell crates: 0; rail shows 19 face tools"
+},
+{
+"id": "STU-SHL-141",
+"section": "14.31 §1 The tool registry",
+"title": "22 closed tool families",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep select_object|draw_path|filter_live|generative_ml in shell crates: 0"
+},
+{
+"id": "STU-SHL-142",
+"section": "14.31 §1 The tool registry",
+"title": "adjustment_live/filter_live are a vendor artefact; OD-3 open",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "open decision record"
+},
+{
+"id": "STU-SHL-143",
+"section": "14.31 §1 The tool registry",
+"title": "Tool record = UiDescriptor kind=tool with family/group/options/availability",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "UiCatalog seed has no kind=tool rows (ui_seed.rs); grep group_id|declared_options: 0"
+},
+{
+"id": "STU-SHL-144",
+"section": "14.31 §1 The tool registry",
+"title": "Four projections (rail, menu, search, family browse) dispatch one command id",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep studio.workspace.tool: 0; family-browse button NIY (chrome.rs)"
+},
+{
+"id": "STU-SHL-145",
+"section": "14.31 §2 The Tool Rail",
+"title": "Tool Rail: single column, one slot per tool group, left-rail",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: chrome.rs:182 tool_rail, preset.rs:50 RAIL 19 groups"
+},
+{
+"id": "STU-SHL-146",
+"section": "14.31 §2 The Tool Rail",
+"title": "Family (taxonomy) vs group (ergonomic slot) distinction",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: rail is group-based (preset.rs:50); family axis absent"
+},
+{
+"id": "STU-SHL-147",
+"section": "14.31 §2 The Tool Rail",
+"title": "20 group slots at rest, hard cap 26",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: 19 slots + FIT-R2 chevron (frame.rs:121); no cap enforcement"
+},
+{
+"id": "STU-SHL-148",
+"section": "14.31 §2 The Tool Rail",
+"title": "Rail is ergonomic, not a directory (~120 tools in groups)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "rationale; rail behaviour judged under 145-151"
+},
+{
+"id": "STU-SHL-149",
+"section": "14.31 §2 The Tool Rail",
+"title": "Untimed variant disclosure: corner marker, shortcut cycle, search, menu",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: VARIANT_MARKER drawn on slots (chrome.rs:197); click/cycle/search NIY"
+},
+{
+"id": "STU-SHL-150",
+"section": "14.31 §2 The Tool Rail",
+"title": "Adaptive face: last-used member becomes slot face",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep last.?used|adaptive.?face in shell crates: 0"
+},
+{
+"id": "STU-SHL-151",
+"section": "14.31 §2 The Tool Rail",
+"title": "Rail may reorder, never gate; renders predicate with worked examples",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "rail has no availability predicate (chrome.rs:182 static slots)"
+},
+{
+"id": "STU-SHL-152",
+"section": "14.31 §2 The Tool Rail",
+"title": "Task Scope contract: temporary filter via task_scope clause, visible exit",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep TaskScope|task_scope: UiKind token only"
+},
+{
+"id": "STU-SHL-153",
+"section": "14.31 §2 The Tool Rail",
+"title": "Seven proposed shipped Task Scopes (OD-5 open)",
+"apps": [
+"photoshop",
+"lightroom_classic",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep task_scope: UiKind token only"
+},
+{
+"id": "STU-SHL-154",
+"section": "14.31 §2 The Tool Rail",
+"title": "generative_ml tools require ml_model_present; exclusion list (OD-9)",
+"apps": [
+"photoshop",
+"after_effects",
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep generative_ml|ml_model_present: 0"
+},
+{
+"id": "STU-SHL-155",
+"section": "14.31 §2A The tool catalogue",
+"title": "Tool catalogue of 362 rows",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "19 rail face tools named from rows (preset.rs:50); engine tools e.g. gradient/bucket (SMB-PS-GRADIENT-BUCKET-1 PASS_V16); no catalogue registry"
+},
+{
+"id": "STU-SHL-156",
+"section": "14.31 §2A The tool catalogue",
+"title": "Catalogue row counts must equal asserted counts",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "spec self-consistency rule"
+},
+{
+"id": "STU-SHL-160",
+"section": "14.31 §3 The two-zone Context Bar",
+"title": "Context Bar: one region, Tool Zone and Selection Zone",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: chrome.rs:142 identity chip, preset, selection label; Selection Zone not resolver-driven"
+},
+{
+"id": "STU-SHL-161",
+"section": "14.31 §3 The two-zone Context Bar",
+"title": "Split rule: next-action values in Tool Zone, existing-content values in Properties",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no Tool Zone controls declared (chrome.rs:141 'no declared controls yet')"
+},
+{
+"id": "STU-SHL-162",
+"section": "14.31 §3 The two-zone Context Bar",
+"title": "Tool Zone order: chip, preset picker, controls, overflow, reset",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: chip + preset picker only (chrome.rs:151-152)"
+},
+{
+"id": "STU-SHL-163",
+"section": "14.31 §3 The two-zone Context Bar",
+"title": "Context Bar contract: 34px, 12-control cap, grouped flyout, no tab stacks",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: height 34 (kumihimo tokens frame.context_bar_h); cap/flyout absent"
+},
+{
+"id": "STU-SHL-164",
+"section": "14.31 §3 The two-zone Context Bar",
+"title": "Parameter sets beyond the cap become a panel; Tool Zone mirrors top 3",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no Tool Zone controls (chrome.rs:141)"
+},
+{
+"id": "STU-SHL-165",
+"section": "14.31 §3 The two-zone Context Bar",
+"title": "Six legibility mechanisms (groups, collapsed, overflow, presets, search, non-default)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): sections/group_path + collapsed_by_default (descriptor.rs:191); search/non-default not_in_slice (lib.rs:36)"
+},
+{
+"id": "STU-SHL-170",
+"section": "14.31 §4 ParamSpec",
+"title": "ParamSpec generated once from captured metadata; never authored in UI source",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator; NumberSpec hand-configured (controls descriptor.rs:106-118)"
+},
+{
+"id": "STU-SHL-171",
+"section": "14.31 §4 ParamSpec",
+"title": "ParamSpec fields (value_kind, hard/soft, bound_provenance, precision, units, flags...)",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): NumberSpec hard/soft/precision/unit/group_path (descriptor.rs:64-70); bound_provenance/display_flags/keyframable grep: 0"
+},
+{
+"id": "STU-SHL-172",
+"section": "14.31 §4 ParamSpec",
+"title": "Hard and soft bounds separate fields from first commit; CI check",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): four separate bound fields (descriptor.rs:60-70); no CI check over kind=param descriptors"
+},
+{
+"id": "STU-SHL-173",
+"section": "14.31 §4 ParamSpec",
+"title": "bound_provenance observed never clamps",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep bound_provenance: 0"
+},
+{
+"id": "STU-SHL-174",
+"section": "14.31 §4 ParamSpec",
+"title": "bounds_unknown renders unclamped and reports a gap",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "missing bounds unclamped (NumberSpec::field None bounds); gap report absent (grep tooltip-gaps: 0)"
+},
+{
+"id": "STU-SHL-175",
+"section": "14.31 §4 ParamSpec",
+"title": "Metadata source precedence ranks 1-7",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator/source adapters"
+},
+{
+"id": "STU-SHL-176",
+"section": "14.31 §4 ParamSpec",
+"title": "Field-to-capture mapping for the generator",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator"
+},
+{
+"id": "STU-SHL-177",
+"section": "14.31 §4 ParamSpec",
+"title": "keyframable is static and generated, distinct from TemporalState",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no ParamSpec.keyframable (grep in controls: 0)"
+},
+{
+"id": "STU-SHL-185",
+"section": "14.31 §5 ScrubValue",
+"title": "One ScrubValue widget constructed from a generated id; no literal-range signature",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): one descriptor-driven control (egui_adapter.rs:1-3) but built from literal NumberSpec ranges"
+},
+{
+"id": "STU-SHL-186",
+"section": "14.31 §5 ScrubValue",
+"title": "Hover: column resize cursor distinct from splitter plus 2px gutter tint",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): egui_adapter.rs:173 uses ResizeHorizontal (not column); no gutter tint"
+},
+{
+"id": "STU-SHL-187",
+"section": "14.31 §5 ScrubValue",
+"title": "Click to type: <3px press edits, Enter/Tab commit, Escape reverts, blur commits",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): separate TextEdit commit Enter/blur, Escape discard (egui_adapter.rs:66-86); 3px rule/Tab not shown"
+},
+{
+"id": "STU-SHL-188",
+"section": "14.31 §5 ScrubValue",
+"title": "Press and drag scrubs on both axes, delta = dx - dy",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): egui_adapter.rs:191-192"
+},
+{
+"id": "STU-SHL-189",
+"section": "14.31 §5 ScrubValue",
+"title": "Wheel steps by step_default and consumes the event",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "controls lib.rs:36 not_in_slice wheel_gesture_400ms; grep wheel in controls src: comment only"
+},
+{
+"id": "STU-SHL-190",
+"section": "14.31 §5 ScrubValue",
+"title": "Modifier semantic map: x1, x10, /10, x100; Alt excluded",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): descriptor.rs:31-43, egui_adapter.rs:35"
+},
+{
+"id": "STU-SHL-191",
+"section": "14.31 §5 ScrubValue",
+"title": "Sensitivity max(q, soft_range/200) or anchor-based; frozen per gesture",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): descriptor.rs:221-227"
+},
+{
+"id": "STU-SHL-192",
+"section": "14.31 §5 ScrubValue",
+"title": "Clamp to hard bounds; soft-bound resistance zone; observed bounds unclamped",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): hard-only clamp (descriptor.rs:232-235); pointer_resistance_zone not_in_slice (lib.rs:36)"
+},
+{
+"id": "STU-SHL-193",
+"section": "14.31 §5 ScrubValue",
+"title": "Formatting at precision with unit; PERCENT flag; rendered == accessible string",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): format_value (descriptor.rs:613); PERCENT flag and AccessKit projection absent"
+},
+{
+"id": "STU-SHL-194",
+"section": "14.31 §5 ScrubValue",
+"title": "Gesture disposition: one scope, finalize once, Escape ABORTED, one history entry",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): store.rs:4-7 Live/Committed/Aborted, abort excluded from undo; host promotion/receipts not here"
+},
+{
+"id": "STU-SHL-195",
+"section": "14.31 §5 ScrubValue",
+"title": "Double-click resets to default; secondary-click menu incl. keyframe and help",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): store reset (ChangeSource::Reset); grep double_click in controls: 0"
+},
+{
+"id": "STU-SHL-196",
+"section": "14.31 §5 ScrubValue",
+"title": "Field 72x24 grab rect, 8px splitter inset, AccessKit bounds = grab rect",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: kumihimo widgets.rs:134 field 72x24; inset/grab-rect bounds not evidenced"
+},
+{
+"id": "STU-SHL-200",
+"section": "14.31 §6 TemporalState",
+"title": "TemporalState is runtime per property, carried by every ScrubValue",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "engine 4-state PropertyState (motion property.rs:21-27); grep TemporalState: 0, not on value fields"
+},
+{
+"id": "STU-SHL-201",
+"section": "14.31 §6 TemporalState",
+"title": "Four closed temporal states with stopwatch/navigator affordances",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "motion property.rs:21-27 Static/Keyframed/ExpressionDriven/ExpressionOverKeyframes; no affordances"
+},
+{
+"id": "STU-SHL-202",
+"section": "14.31 §6 TemporalState",
+"title": "Scrub behaviour by state incl. auto-keyframe document toggle",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep auto_keyframe|AutoKeyframe in code: 0"
+},
+{
+"id": "STU-SHL-203",
+"section": "14.31 §6 TemporalState",
+"title": "Scrubbing an expression-driven field is refused at press with EXPRESSION_DRIVEN",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no value-field refusal (grep TemporalState: 0); ReasonCode::ExpressionDriven only in menu.rs enum"
+},
+{
+"id": "STU-SHL-204",
+"section": "14.31 §6 TemporalState",
+"title": "Stopwatch and keyframe navigator as separate hit targets with derived addresses",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep '.key.prev|stopwatch' in code: 0 (icon only)"
+},
+{
+"id": "STU-SHL-205",
+"section": "14.31 §6 TemporalState",
+"title": "Keyframe navigation and edit commands each with command id and menu leaf",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-MOTION-COMMANDS-1 RFV: keyframe.add/toggle_at_current, shift, set_interpolation (harness-core commands/motion.rs:83-89); prev/next keyframe, menu leaves absent"
+},
+{
+"id": "STU-SHL-206",
+"section": "14.31 §6 TemporalState",
+"title": "Six-member temporal interpolation vocabulary; default influence 0.16666666666",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "motion keyframe.rs:42-47 Linear/Bezier/ContinuousBezier/AutoBezier/Hold, DEFAULT_INFLUENCE :35; Current Settings absent"
+},
+{
+"id": "STU-SHL-210",
+"section": "14.31 §7 The single write path",
+"title": "set_param_clamped(author_id, value, time, intent, source) single write path",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "grep set_param_clamped: 0; controls single validation owner (descriptor.rs:2-3) without time/intent"
+},
+{
+"id": "STU-SHL-211",
+"section": "14.31 §7 The single write path",
+"title": "All five sources (drag, wheel, text, AccessKit, script) use the same path",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): ChangeSource Pointer/Typed/Keyboard/Model share one owner (store.rs:16-23); wheel and AccessKit not wired"
+},
+{
+"id": "STU-SHL-212",
+"section": "14.31 §7 The single write path",
+"title": "One call: one clamp, rounding, mutation, undo entry, change event; time in history",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): one ChangeEvent old/new per accepted write (store.rs:34-51); no time"
+},
+{
+"id": "STU-SHL-213",
+"section": "14.31 §7 The single write path",
+"title": "Typed Refusal with reason_code and remedy; no history, no event",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): typed ControlError leaves store untouched (store.rs:179); no STU-SHL-051 reason_code/remedy"
+},
+{
+"id": "STU-SHL-220",
+"section": "14.31 §9 Obligations",
+"title": "Tools, scopes, Context Bar controls and param writes satisfy STU-CON-007",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): agent JSON projection (projection.rs:65) model-settable controls; tools/scopes absent"
+},
+{
+"id": "STU-SHL-221",
+"section": "14.31 §9 Obligations",
+"title": "Per-property expected-revision precondition; same-property conflict LEASE_HELD_BY_OTHER_ACTOR",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "LEASE_HELD_BY_OTHER_ACTOR only as menu.rs enum member; no property-granular precondition"
+},
+{
+"id": "STU-SHL-222",
+"section": "14.31 §9 Obligations",
+"title": "Seventeen tools/controls validation descriptor checks",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep param_missing_soft_bounds_field|tool_missing_menu_leaf|task_scope_without_visible_exit: 0"
+},
+{
+"id": "STU-SHL-223",
+"section": "14.31 §9 Obligations",
+"title": "Manual entry for every tool/family/scope/control/param; literal enum token lists",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): manual_topics per control with ranges/steps (projection.rs:153); tools/families absent"
+},
+{
+"id": "STU-SHL-224",
+"section": "14.31 §10 Microtask derivation",
+"title": "Tools-and-controls microtask derivation rule",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-225",
+"section": "14.31 §10 Microtask derivation",
+"title": "Clauses that yield no microtask",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-226",
+"section": "14.31 §10 Microtask derivation",
+"title": "Open items still yield a microtask",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-227",
+"section": "14.31 §10 Microtask derivation",
+"title": "Tools-and-controls yields index",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation index"
+},
+{
+"id": "STU-SHL-228",
+"section": "14.31 §10 Microtask derivation",
+"title": "Anchor binding for tools-and-controls microtasks",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-230",
+"section": "14.32 §1 The tooltip system",
+"title": "Five closed tooltip disclosure levels L0-L3 and L-status",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no tooltip system; kumihimo tokens.rs:530 tooltip sizes only"
+},
+{
+"id": "STU-SHL-231",
+"section": "14.32 §1 The tooltip system",
+"title": "L0 name chip contract: one line, chord resolved at render",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no L0 tooltip (grep tooltip in hosts: tokens only)"
+},
+{
+"id": "STU-SHL-232",
+"section": "14.32 §1 The tooltip system",
+"title": "L1 contract incl. reason line and one-click remedy on dimmed elements",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: greyed menu nodes show reason line on hover (menu.rs:9, shell.rs:1589); no summary/range/temporal lines"
+},
+{
+"id": "STU-SHL-233",
+"section": "14.32 §1 The tooltip system",
+"title": "L2 opens the element's manual anchor in an in-Studio side sheet",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "Help for This Command/Panel/Tool greyed NOT_IMPLEMENTED_YET (shell.rs HelpCommand::missing)"
+},
+{
+"id": "STU-SHL-234",
+"section": "14.32 §1 The tooltip system",
+"title": "L-status hintline generated from the tool's gesture map",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-GUI-FRAME-1 RFV: status hintline shows tool name, no gesture map (chrome.rs:457)"
+},
+{
+"id": "STU-SHL-235",
+"section": "14.32 §1 The tooltip system",
+"title": "Anti-annoyance rules for tooltips",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no tooltip system"
+},
+{
+"id": "STU-SHL-236",
+"section": "14.32 §1 The tooltip system",
+"title": "L3 opt-in looping demo (open item)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no L3; open item in spec"
+},
+{
+"id": "STU-SHL-240",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "One generated UiDescriptor per addressable element with required fields",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-COMMAND-SURFACE-1 RFV: ui_descriptor.rs seed (no shortcut_id, manual_anchor, provenance, availability, a11y, ParamSpec)"
+},
+{
+"id": "STU-SHL-241",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "extraction_method closed set of four, required on every descriptor",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "ui_descriptor.rs json() hardcodes handshake_authored; no closed enum"
+},
+{
+"id": "STU-SHL-242",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "Shortcuts resolved from shortcut_id at render, never baked into text",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no shortcut_id field; menu shortcuts are literal strings (shell.rs leaf with_shortcut)"
+},
+{
+"id": "STU-SHL-243",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "author_id never reused; rename adds alias; generator refuses live id in aliases",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-COMMAND-SURFACE-1 RFV: UiCatalog::insert refuses duplicate and alias collision (ui_descriptor.rs:137-150)"
+},
+{
+"id": "STU-SHL-244",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "accessible_name IS display_name and description IS summary; renderers take &UiDescriptor",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "menu label feeds egui text and AccessKit name; AccessKit description is the reason line, not summary (shell.rs)"
+},
+{
+"id": "STU-SHL-245",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "One descriptor-driven tooltip helper taking the generated id enum, never &str",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "52 on_hover_text &str sites (harness-view, controls); no generated id enum"
+},
+{
+"id": "STU-SHL-246",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "Localisation swaps the descriptor set; machine addresses locale-free",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no localisation mechanism; ids are ascii by valid_author_id (ui_descriptor.rs)"
+},
+{
+"id": "STU-SHL-247",
+"section": "14.32 §2 The UiDescriptor data contract",
+"title": "Repair the shell's 142 hover-text calls with no AccessKit description",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "shell defect host-side, outside asset tree (kernel-bindings lib.rs:1-3); asset hosts still use on_hover_text &str (52 sites)"
+},
+{
+"id": "STU-MAN-100",
+"section": "14.32 §3 Generation",
+"title": "Build-time descriptor generator emitting descriptors, id enum, manual seed rows, gap ledger",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator; UiDescriptor hand seed (harness-core action/ui_seed.rs); grep tooltip-gaps: 0"
+},
+{
+"id": "STU-MAN-101",
+"section": "14.32 §3 Generation",
+"title": "Seed rows go to the canonical SurrealDB user_manual store, not the deprecated shim",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep user_manual_ store writers: 0; host-side, outside asset tree (kernel-bindings lib.rs:1-3)"
+},
+{
+"id": "STU-MAN-102",
+"section": "14.32 §3 Generation",
+"title": "Descriptor row and manual row are the same generated record",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16 (lane file SMB-CONTROLS-2): manual topics and agent JSON projected from one descriptor (projection.rs:1-2); not generated"
+},
+{
+"id": "STU-MAN-103",
+"section": "14.32 §3 Generation",
+"title": "Generation idempotent, diffable and offline",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator"
+},
+{
+"id": "STU-MAN-104",
+"section": "14.32 §3 Generation",
+"title": "Captured text used verbatim with source provenance",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep source_app|source_key in shell crates: 0"
+},
+{
+"id": "STU-MAN-105",
+"section": "14.32 §3 Generation",
+"title": "No invented text: summary null, gap row, handshake_authored for native elements",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "UiDescriptor.summary Option never faked (ui_descriptor.rs:53); no tooltip-gaps.json"
+},
+{
+"id": "STU-MAN-106",
+"section": "14.32 §3 Generation",
+"title": "Field sources for summary and manual_anchor",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator; manual_anchor field absent (doc comment only)"
+},
+{
+"id": "STU-MAN-107",
+"section": "14.32 §3 Generation",
+"title": "Seven closed anchor kinds; anchor_value is author_id",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep anchor_kind|studio_tool|studio_param: 0"
+},
+{
+"id": "STU-MAN-108",
+"section": "14.32 §3 Generation",
+"title": "Generated manual entry operator and model layers from one record",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "ManualTopic is id/title/body only (projection.rs:107-111)"
+},
+{
+"id": "STU-MAN-109",
+"section": "14.32 §4 Honest ceiling and CI gates",
+"title": "Measured coverage ceiling (summary at tool level <=58%)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "measurement record"
+},
+{
+"id": "STU-MAN-110",
+"section": "14.32 §4 Honest ceiling and CI gates",
+"title": "tooltip-gaps.json gap ledger with proven_absent",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tooltip-gaps|tooltip_gaps: 0"
+},
+{
+"id": "STU-MAN-111",
+"section": "14.32 §4 Honest ceiling and CI gates",
+"title": "Missing tooltip is a tracked gap, never invented",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no L1 helper or gap ledger (grep tooltip_gaps: 0)"
+},
+{
+"id": "STU-MAN-112",
+"section": "14.32 §4 Honest ceiling and CI gates",
+"title": "Ten CI gates over the descriptor set",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: only descriptor_display_name_empty audited (menu.rs:17); other gates absent"
+},
+{
+"id": "STU-MAN-113",
+"section": "14.32 §4 Honest ceiling and CI gates",
+"title": "Build emits coverage report by kind with delta",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no coverage report emitter"
+},
+{
+"id": "STU-MAN-114",
+"section": "14.32 §5 Binding to manual obligations",
+"title": "Generator emits author_id reverse-lookup index; search offline for both audiences",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "UiCatalog::resolve by author_id/alias/command_id (ui_descriptor.rs:165, RFV); not linked to manual entries"
+},
+{
+"id": "STU-MAN-115",
+"section": "14.32 §5 Binding to manual obligations",
+"title": "Same-change currency detected as wired-surface diff for generated rows",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generator or diff gate"
+},
+{
+"id": "STU-MAN-116",
+"section": "14.32 §5 Binding to manual obligations",
+"title": "Full Command Index enumerates all 362 tools with leaf, id, author_id, anchor",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: Full Command Index lists menu nodes (shell.rs HelpPage::CommandIndex); no tools"
+},
+{
+"id": "STU-MAN-117",
+"section": "14.32 §5 Binding to manual obligations",
+"title": "Every generated entry carries both layers; null summary degrades, never removes",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no generated entries"
+},
+{
+"id": "STU-MAN-118",
+"section": "14.32 §5 Binding to manual obligations",
+"title": "Generated entries carry diagnostic posture and proof linkage",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep posture in shell/manual code: 0"
+},
+{
+"id": "STU-MAN-120",
+"section": "14.32 §6 Declared spec debt",
+"title": "SD-9 manual entry shape for canvas tools undecided",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt record"
+},
+{
+"id": "STU-MAN-121",
+"section": "14.32 §6 Declared spec debt",
+"title": "SD-10 generator manual-version behaviour undecided",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt record"
+},
+{
+"id": "STU-MAN-122",
+"section": "14.32 §6 Declared spec debt",
+"title": "SD-11 model-invokability floor undecided",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "debt record"
+},
+{
+"id": "STU-MAN-123",
+"section": "14.32 §6 Declared spec debt",
+"title": "Unbound captured identifiers get a Handshake name and provenance, never a guess",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "seed descriptors all handshake_authored (ui_descriptor.rs json); unbound-id provenance absent"
+},
+{
+"id": "STU-SHL-250",
+"section": "14.32 §7 Obligations",
+"title": "Manual, search, L2 sheet, gap export and coverage report are commands per STU-CON-007",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: studio.help.manual.open/search run via shell_command headless; L2/gap/coverage absent"
+},
+{
+"id": "STU-SHL-251",
+"section": "14.32 §7 Obligations",
+"title": "Fourteen tooltip/manual validation descriptor checks",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: menu.rs:17-18 descriptor_display_name_empty + vendor_product_name_in_display_name only"
+},
+{
+"id": "STU-SHL-252",
+"section": "14.32 §7 Obligations",
+"title": "Naming law on generated strings; vendor name in display_name fails the build",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-HARNESS-SHELL-2 PASS_V21: MenuBar::audit vendor names (menu.rs:75), test viewer_shell.rs:597"
+},
+{
+"id": "STU-SHL-253",
+"section": "14.32 §8 Microtask derivation",
+"title": "Tooltip/manual microtask derivation rule",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-254",
+"section": "14.32 §8 Microtask derivation",
+"title": "Clauses that yield no microtask",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-255",
+"section": "14.32 §8 Microtask derivation",
+"title": "Open items still yield a microtask",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-SHL-256",
+"section": "14.32 §8 Microtask derivation",
+"title": "Tooltip/manual yields index",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation index"
+}
+],
+"counts_by_status": {
+"BUILT_NOT_VALIDATED": 6,
+"MISSING": 95,
+"NOT_PRODUCT": 39,
+"PARTIAL": 112,
+"VALIDATED": 13
+},
+"counts_by_app_and_status": {
+"acrobat": {
+"PARTIAL": 1
+},
+"after_effects": {
+"MISSING": 6,
+"NOT_PRODUCT": 1,
+"PARTIAL": 10
+},
+"audition": {
+"PARTIAL": 1
+},
+"cross_app": {
+"BUILT_NOT_VALIDATED": 5,
+"MISSING": 83,
+"NOT_PRODUCT": 37,
+"PARTIAL": 100,
+"VALIDATED": 13
+},
+"dreamweaver": {
+"MISSING": 1,
+"PARTIAL": 1
+},
+"figma": {
+"PARTIAL": 2
+},
+"illustrator": {
+"MISSING": 2,
+"PARTIAL": 5
+},
+"indesign": {
+"MISSING": 1,
+"PARTIAL": 3
+},
+"lightroom_classic": {
+"MISSING": 3,
+"PARTIAL": 2
+},
+"media_encoder": {
+"PARTIAL": 1
+},
+"photoshop": {
+"BUILT_NOT_VALIDATED": 1,
+"MISSING": 2,
+"NOT_PRODUCT": 1,
+"PARTIAL": 4
+},
+"premiere_pro": {
+"MISSING": 2,
+"PARTIAL": 3
+}
+},
+"top_missing_areas": [
+"Dock engine: no slot resolver, no panel registry or panel move transaction, no centre tree of editor groups, no panel states, no dock-layout persistence (L0-L3, profile signature); the native host draws one static raster frame.",
+"Tools: no 362-tool registry, no 22 families, no WORKSPACE > Tools menu, no Task Scopes, no availability on the Tool Rail; the rail is a static 19-slot raster preset whose controls answer not_implemented_yet.",
+"Generated descriptors and manual: no build-time generator, no generated id enum, no ParamSpec from captures, no tooltip-gaps ledger, no CI gate suite, no coverage report, no write to the canonical SurrealDB manual store; UiDescriptor is a hand seed.",
+"Tooltips and value-field time: no L0-L3 tooltip system or descriptor-driven tooltip helper, no localisation, and no TemporalState on value fields (stopwatch, keyframe navigator, auto-keyframe, expression refusal at press), no wheel scrubbing.",
+"Storage and parallel work: SurrealDB SCHEMAFULL tables, SurrealKit rollout, record permissions, live queries, CRDT presence and the kernel scheduler/process ledger are absent from the asset tree (host-side); plus no shortcut policy, shortcut sets, conflict report or command palette."
+],
+"notes": [
+"Judged at origin tip 87f331f9 with git grep/show only; no cargo, builds or tests were run.",
+"The index line for many IDs points at a citing reference, not the defining clause (e.g. STU-SHL-043 at 31655, STU-SHL-190..192 at 12879, STU-SHL-221 at 207); each ID was judged against its defining clause text.",
+"Lane file hsk-studio-controls.json names lane SMB-CONTROLS-2 (index ledger_status None); its commits a1d0fbd..fec865b are ledger lane SMB-CONTROLS PASS_V16, used as the verdict for the ScrubValue gesture rows.",
+"Lane file hsk-studio-harness-shell-2.json says READY_FOR_VALIDATION; ledger says PASS_V21; the ledger was used.",
+"Two GUI hosts exist: the egui harness-view window (menus FILE/EDIT/VIEW/TYPE/COLOR/WORKSPACE/HELP, 25 panels; frozen by direction D1 per parity-20261111-figma-affinity-shell.json) and the native Vulkan host (SMB-GUI-FRAME-1/SPINE-1/VK-UI-PASS-1, all READY_FOR_VALIDATION): a static raster frame with all 19 menu titles, Tool Rail, Context Bar and three-group Inspect Dock where only the Layers panel works and every other control answers not_implemented_yet; native-host-only menu titles were scored PARTIAL as typed stubs.",
+"hsk-studio-controls lib.rs:36 DESCRIPTOR lists not_in_slice: accesskit_projection, docking_windows, gizmos, pointer_resistance_zone, wheel_gesture_400ms, gesture_binding_rebinding, search_and_show_non_default_filters.",
+"kernel-bindings lib.rs:1-3 states AppState/SurrealDB/Argus/native adapters live in the Handshake product integration target and are excluded from the asset workspace; host-shell and storage clauses are therefore MISSING or PARTIAL at the asset tip.",
+"Status policy: VALIDATED needs a PASS_V* lane over the code that implements the whole clause; a clause whose code exists only in part is PARTIAL whatever the lane status; BUILT_NOT_VALIDATED marks full implementations on READY_FOR_VALIDATION lanes."
+],
+"unverified": [
+"Handshake shell host code (module switch, navigation layers, 2x2 splitter, 142 hover-text sites, Jobs pane) was not inspected: STU-SHL-005, 006, 098, 099, 111, 247, 092 (Jobs half).",
+"SurrealDB/EventLedger/Argus host adapters were not inspected: STU-SDB-002..008, STU-VAL-003, STU-VAL-005, STU-MAN-101.",
+"No test was run; VALIDATED rows rest on ledger PASS verdicts plus source reading, BUILT_NOT_VALIDATED rows on READY_FOR_VALIDATION lane claims.",
+"Whether the motion engine refuses property.set_value on an expression-driven property (relevant to STU-SHL-203 model path) was not checked.",
+"STU-QUIET-001 VALIDATED covers the headless CLI path (SMB-HARNESS-DEVELOP-EXPORT PASS_V29); the windowed quiet-host and drive-as-process proofs are on READY_FOR_VALIDATION lanes."
+]
+}

@@ -1,0 +1,2643 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G5",
+"prefixes": [
+"STU-WEB",
+"STU-WB"
+],
+"generated_at": "2026-11-11T16:14:49Z",
+"origin_tip": "87f331f9",
+"rows": [
+{
+"id": "STU-WB-001",
+"section": "0. Baseline, supersession and disposition",
+"title": "Studio MUST support a **whiteboard mode** of `StudioDocument`: an unbounded freeform board surface (",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep -i whiteboard crates: 1 (kumihimo design-system.json gap note); grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-002",
+"section": "2. Board structure and collaboration",
+"title": "A whiteboard document MUST support multiple pages/boards within one document, switchable from a navi",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-003",
+"section": "2. Board structure and collaboration",
+"title": "Board objects are collaborative-editing-first: whiteboard mode MUST operate over the CRDT collaborat",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board nodes: grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-004",
+"section": "0. Baseline, supersession and disposition",
+"title": "Studio MUST provide the deduped whiteboard object set below as first-class `StudioLayer` kinds addre",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep sticky_note|shape_with_text|link_unfurl|mindmap|washi node: 0"
+},
+{
+"id": "STU-WB-005",
+"section": "3. Templates, generation and interop",
+"title": "Studio MUST provide a board **template** surface: boards start from a built-in template gallery, tea",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep preview_asset_id: 0; no board template surface"
+},
+{
+"id": "STU-WB-006",
+"section": "0. Baseline, supersession and disposition",
+"title": "Studio MUST support interactive board **widgets** — polls, trackers, voting aids, and similar intera",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep widget_synced_state|board_widget: 0"
+},
+{
+"id": "STU-WB-007",
+"section": "2. Board structure and collaboration",
+"title": "Studio MUST provide session **facilitation** as a projection of the collaboration substrate (14.17),",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep voting_session|cursor_chat|spotlight|facilitat: 0"
+},
+{
+"id": "STU-WB-008",
+"section": "2. Board structure and collaboration",
+"title": "Facilitation features that in the source suite depend on hosted identity/session services (anonymous",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep voting_session|facilitat: 0"
+},
+{
+"id": "STU-WB-009",
+"section": "3. Templates, generation and interop",
+"title": "Studio MUST support **diagram generation** into whiteboard mode: board and diagram structures (flowc",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioCommandBatch: 0; no board node factories"
+},
+{
+"id": "STU-WB-010",
+"section": "3. Templates, generation and interop",
+"title": "Whiteboard import/export MUST route through the unified import/export surface (14.13), not a whitebo",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep column_mapping: 0; grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-011",
+"section": "0. Baseline, supersession and disposition",
+"title": "The whiteboard surface — board mode, every board object type, templates, widgets, facilitation, diag",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board surface or manual entries; grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-100",
+"section": "0. Baseline, supersession and disposition",
+"title": "Baseline preservation and supersession",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "baseline/supersession bookkeeping (STU-WB-137 non-yielding)"
+},
+{
+"id": "STU-WB-101",
+"section": "0. Baseline, supersession and disposition",
+"title": "Domain proportionality, stated honestly",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "domain-proportionality statement (STU-WB-137 non-yielding)"
+},
+{
+"id": "STU-WB-102",
+"section": "1. Board mode and board nodes",
+"title": "Board node kinds are `StudioLayer` kinds",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-103",
+"section": "1. Board mode and board nodes",
+"title": "Board node kind enumeration (normative, closed, twelve members)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep sticky_note|shape_with_text|link_unfurl|stuck_to_node: 0"
+},
+{
+"id": "STU-WB-104",
+"section": "0. Baseline, supersession and disposition",
+"title": "Sticky note contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep author_visible|is_wide_width|StickyNote: 0"
+},
+{
+"id": "STU-WB-105",
+"section": "1. Board mode and board nodes",
+"title": "Shape-with-text contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep TRIANGLE_UP|ENG_DATABASE|PREDEFINED_PROCESS: 0; shape_with_text: 0"
+},
+{
+"id": "STU-WB-106",
+"section": "1. Board mode and board nodes",
+"title": "Connector contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep connector_line_type|connector_endpoint|endpoint_node_id: 0"
+},
+{
+"id": "STU-WB-107",
+"section": "1. Board mode and board nodes",
+"title": "Connector line-type enumeration (normative, closed, three members)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ELBOWED|Elbowed: 0"
+},
+{
+"id": "STU-WB-108",
+"section": "0. Baseline, supersession and disposition",
+"title": "Connector endpoint record (normative, three closed variants)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep connector_endpoint|endpoint_node_id: 0 (magnet hits are photo lasso)"
+},
+{
+"id": "STU-WB-109",
+"section": "0. Baseline, supersession and disposition",
+"title": "Connector stroke-cap enumeration (normative, closed, twelve members)",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "folio/src/vector_markers.rs:11,83 all 12 cap tokens stored as stroke markers (SMB-AI-ARROWHEADS-1/2 PASS_V15/V16); nib/src/markers.rs:131 ERD caps not built; no connector node"
+},
+{
+"id": "STU-WB-110",
+"section": "1. Board mode and board nodes",
+"title": "Stamp contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no stamp board kind; grep stuck_to_node: 0"
+},
+{
+"id": "STU-WB-111",
+"section": "1. Board mode and board nodes",
+"title": "Highlight contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-112",
+"section": "1. Board mode and board nodes",
+"title": "Washi tape contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "interop-fig-native/src/native.rs:970 WASHI_TAPE cap -> typed loss stroke_cap_marker_no_folio_home; no washi node"
+},
+{
+"id": "STU-WB-113",
+"section": "1. Board mode and board nodes",
+"title": "Table contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "harness-core action/commands/layout.rs:35-42 layout.table insert/delete row+column, set_cell_text (SMB-LAYOUT-LONGDOC PASS_V26); no move/resize/cell_at, no board table"
+},
+{
+"id": "STU-WB-114",
+"section": "1. Board mode and board nodes",
+"title": "Code-block contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep code_language|codeLanguage|CodeBlock: 0"
+},
+{
+"id": "STU-WB-115",
+"section": "1. Board mode and board nodes",
+"title": "Section contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep section_contents_hidden|dev_status: 0; fig SECTION imports as frame (interop-fig-base/src/nodes.rs:1969)"
+},
+{
+"id": "STU-WB-116",
+"section": "1. Board mode and board nodes",
+"title": "Media-embed and link-unfurl contracts",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep link_unfurl|unfurl: 0"
+},
+{
+"id": "STU-WB-117",
+"section": "1. Board mode and board nodes",
+"title": "Ink contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep highlighter|pressure_curve: 0"
+},
+{
+"id": "STU-WB-118",
+"section": "0. Baseline, supersession and disposition",
+"title": "Stickable behaviour",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep stuck_to_node: 0"
+},
+{
+"id": "STU-WB-119",
+"section": "0. Baseline, supersession and disposition",
+"title": "Widget contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep widget_synced_state|board_widget: 0"
+},
+{
+"id": "STU-WB-120",
+"section": "2. Board structure and collaboration",
+"title": "Multi-board documents",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "pointer to STU-WB-002; grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-121",
+"section": "1. Board mode and board nodes",
+"title": "Facilitation record shapes",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep voting_session|VotingSession|cursor_chat|spotlight: 0"
+},
+{
+"id": "STU-WB-122",
+"section": "2. Board structure and collaboration",
+"title": "Timer and presence events",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep timer_start|timer_done: 0"
+},
+{
+"id": "STU-WB-123",
+"section": "2. Board structure and collaboration",
+"title": "Collaboration substrate",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board nodes: grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-124",
+"section": "3. Templates, generation and interop",
+"title": "Board template contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep preview_asset_id: 0"
+},
+{
+"id": "STU-WB-125",
+"section": "3. Templates, generation and interop",
+"title": "Diagram generation contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioCommandBatch: 0"
+},
+{
+"id": "STU-WB-126",
+"section": "3. Templates, generation and interop",
+"title": "Generation determinism",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioCommandBatch: 0; no generation"
+},
+{
+"id": "STU-WB-127",
+"section": "3. Templates, generation and interop",
+"title": "Board import and export",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board export recipe; grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-128",
+"section": "3. Templates, generation and interop",
+"title": "Tabular export mapping",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep column_mapping: 0"
+},
+{
+"id": "STU-WB-129",
+"section": "4. Declared gaps and obligations",
+"title": "Resolved shape-vocabulary dependency with preserved native scope",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep TRIANGLE_UP|ENG_DATABASE|PREDEFINED_PROCESS: 0"
+},
+{
+"id": "STU-WB-130",
+"section": "4. Declared gaps and obligations",
+"title": "Resolved presentation disposition — fold into existing Studio modules",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "fold decision; obligations live in STU-PRO-167..174"
+},
+{
+"id": "STU-WB-131",
+"section": "4. Declared gaps and obligations",
+"title": "Accepted single-witness basis with explicit manual limits",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board manual entries (grep -i whiteboard in harness-core: 0)"
+},
+{
+"id": "STU-WB-132",
+"section": "4. Declared gaps and obligations",
+"title": "Asset library binding",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-133",
+"section": "4. Declared gaps and obligations",
+"title": "Contextual panel binding",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep binds_to|author_id_prefix: 0"
+},
+{
+"id": "STU-WB-134",
+"section": "4. Declared gaps and obligations",
+"title": "Command-surface obligation",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board command rows; grep '\"board\\.': 0"
+},
+{
+"id": "STU-WB-135",
+"section": "4. Declared gaps and obligations",
+"title": "Validation descriptor set",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "all 12 descriptor names grep: 0"
+},
+{
+"id": "STU-WB-136",
+"section": "4. Declared gaps and obligations",
+"title": "GUI / Argus / UserManual obligation",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no board GUI/Argus/manual entries; grep StudioBoard|board_node|BoardNode|sticky_note|shape_with_text: 0"
+},
+{
+"id": "STU-WB-137",
+"section": "5. Microtask Derivation",
+"title": "Derivation rule (NORMATIVE)",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WB-138",
+"section": "5. Microtask Derivation",
+"title": "Declared dependency dispositions and retained first acceptance criteria",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WB-139",
+"section": "5. Microtask Derivation",
+"title": "Microtask content obligation",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WB-140",
+"section": "5. Microtask Derivation",
+"title": "Yields index (NORMATIVE)",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WB-141",
+"section": "5. Microtask Derivation",
+"title": "Anchor binding",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WB-142",
+"section": "5. Microtask Derivation",
+"title": "`connector_endpoint_node_unresolvable`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep connector_endpoint_node_unresolvable: 0"
+},
+{
+"id": "STU-WB-143",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`connector_endpoint_magnet_unknown`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep connector_endpoint_magnet_unknown: 0"
+},
+{
+"id": "STU-WB-144",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`stuck_to_node_unresolvable`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep stuck_to_node_unresolvable: 0"
+},
+{
+"id": "STU-WB-145",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`table_index_out_of_range`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep table_index_out_of_range: 0 (only prism color_table_index_out_of_range)"
+},
+{
+"id": "STU-WB-146",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`code_block_language_unknown`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep code_block_language_unknown: 0"
+},
+{
+"id": "STU-WB-147",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`widget_plugin_not_installed`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep widget_plugin_not_installed: 0"
+},
+{
+"id": "STU-WB-148",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`widget_synced_state_schema_violation`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep widget_synced_state_schema_violation: 0"
+},
+{
+"id": "STU-WB-149",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`voting_session_votes_exceed_allowance`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep voting_session_votes_exceed_allowance: 0"
+},
+{
+"id": "STU-WB-150",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`voting_anonymous_actor_projected`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep voting_anonymous_actor_projected: 0"
+},
+{
+"id": "STU-WB-151",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`link_unfurl_network_capability_not_granted`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep link_unfurl_network_capability_not_granted: 0"
+},
+{
+"id": "STU-WB-152",
+"section": "6. Validation Descriptor Catalogue",
+"title": "`embed_execution_capability_not_granted`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep embed_execution_capability_not_granted: 0"
+},
+{
+"id": "STU-WB-153",
+"section": "5. Microtask Derivation",
+"title": "`board_export_column_mapping_missing`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep board_export_column_mapping_missing: 0"
+},
+{
+"id": "STU-WEB-001",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Domain scope",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web engine (SMB-WEB PASS_V18) + web.* host (SMB-WEB-HOST-1 READY): open/edit/export/publish; no code intelligence, CSS surface, templates, live view"
+},
+{
+"id": "STU-WEB-002",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Out of scope",
+"apps": [
+"dreamweaver"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "web-core/src/preview.rs:6 nothing fetched or executed (SMB-WEB PASS_V18); grep server_model: 0"
+},
+{
+"id": "STU-WEB-003",
+"section": "14.28 Web Authoring, Code Intelligence & Site Publishing",
+"title": "Web mode of the unified document",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web-core/src/dom.rs:3 text is authority, edits are source patches (SMB-WEB PASS_V18); not a StudioDocument mode (harness-core/src/web_commands.rs:44-47); unmodelled constructs refused typed"
+},
+{
+"id": "STU-WEB-004",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Text-is-authority corollary",
+"apps": [
+"dreamweaver"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "byte-exact unedited round trip, patches keep quoting (SMB-WEB PASS_V18); host save harness/tests/web_host.rs:14 (SMB-WEB-HOST-1 READY)"
+},
+{
+"id": "STU-WEB-005",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Dedup",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pointer clause (STU-WEB-141 non-yielding); controls/src/menu.rs:46 source-name deny list"
+},
+{
+"id": "STU-WEB-006",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Local-first",
+"apps": [
+"dreamweaver"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "no network code in web crates; publish local_or_network only harness-core/src/web_commands.rs:34 (SMB-WEB-HOST-1 READY)"
+},
+{
+"id": "STU-WEB-007",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Storage",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "records in <file>.studio-site.json sidecar harness-core/src/web_commands.rs:23; grep SCHEMAFULL|surreal in web: 0"
+},
+{
+"id": "STU-WEB-008",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "No new router",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no navigation target; harness-view/src/view/web.rs:2 no drawing and no egui"
+},
+{
+"id": "STU-WEB-009",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Capability basis",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "sizing statement, not a coverage target"
+},
+{
+"id": "STU-WEB-010",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Generative-feature posture",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "posture statement: no generative baseline"
+},
+{
+"id": "STU-WEB-011",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Document-type record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep internal_kind|dtd_context: 0"
+},
+{
+"id": "STU-WEB-012",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Internal-kind enumeration (normative, closed)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep internal_kind: 0"
+},
+{
+"id": "STU-WEB-013",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Document-type set (normative, thirty-nine rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "HTML only: harness-core/src/web_commands.rs:14 doctype html_5 only; no 39-row type set (grep internal_kind: 0)"
+},
+{
+"id": "STU-WEB-014",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "DTD-context enumeration (normative, closed)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dtd_context|DtdContext: 0"
+},
+{
+"id": "STU-WEB-015",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Doctype declaration set (normative, ten rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web.open accepts html_5, refuses others doctype_unsupported harness-core/src/web_commands.rs:356; grep html_401|xhtml_mobile_1: 0"
+},
+{
+"id": "STU-WEB-016",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Extension-to-MIME map (normative, thirteen rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep image/x-icon|font/ttf: 0"
+},
+{
+"id": "STU-WEB-017",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Tag library record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tag_library|TagLibrary: 0"
+},
+{
+"id": "STU-WEB-018",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Tag library set (normative, ten rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tag_library|TagLibrary: 0"
+},
+{
+"id": "STU-WEB-019",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Tag definition record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tag_library|property_inspector: 0"
+},
+{
+"id": "STU-WEB-020",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Formatting-rule record (normative, closed set of eleven keys)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web-core/src/dom.rs:77 protected contents (pre/script/style/textarea) only; grep nlbeforetag: 0; lane SMB-WEB-1 = ledger SMB-WEB PASS_V18"
+},
+{
+"id": "STU-WEB-021",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Attribute definition record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep allowed_values: 0"
+},
+{
+"id": "STU-WEB-022",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Attribute value-type enumeration (normative, closed, twenty members)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep cssclass|relativepath: 0"
+},
+{
+"id": "STU-WEB-023",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Enumerated attribute values",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep allowed_values: 0"
+},
+{
+"id": "STU-WEB-024",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Cross-tag attribute groups",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep cross_tag_attribute_collision|allowed_values: 0"
+},
+{
+"id": "STU-WEB-025",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Tag-name and attribute-name case",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "HTML names case-folded per WHATWG (SMB-WEB-PARITY PASS_V15 local_name/attr_local_name); XML-family types unsupported"
+},
+{
+"id": "STU-WEB-026",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Property-inspector coverage",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep property_inspector|binds_to: 0"
+},
+{
+"id": "STU-WEB-027",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Third-party tag registration",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tag_library: 0"
+},
+{
+"id": "STU-WEB-028",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Source formatting command",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep format_source: 0"
+},
+{
+"id": "STU-WEB-029",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Code-comment commands",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep apply_comment: 0"
+},
+{
+"id": "STU-WEB-030",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Anchor-placement caveat and scope",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep binds_to|panel_id|selection_scope: 0"
+},
+{
+"id": "STU-WEB-031",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "The rejected alternative",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "no persona toggle (grep persona: 0); inspector sections chosen by selected layer in code harness-view/src/view/mod.rs:1193"
+},
+{
+"id": "STU-WEB-032",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "A panel declares its own binding",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "hard-coded selection harness-view/src/view/mod.rs:1193; grep binds_to: 0"
+},
+{
+"id": "STU-WEB-033",
+"section": "7. Plugins",
+"title": "Panel binding record (normative shape)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep binds_to|author_id_prefix|refines_panel_id: 0"
+},
+{
+"id": "STU-WEB-034",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Selector expression grammar (normative, closed)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep binds_to: 0"
+},
+{
+"id": "STU-WEB-035",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Selection-scope enumeration (normative, closed)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep selection_scope|inside_locked: 0"
+},
+{
+"id": "STU-WEB-036",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Priority band enumeration (normative)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep panel_id: 0"
+},
+{
+"id": "STU-WEB-037",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Discriminator",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep refinement_superseded|refines_panel_id: 0"
+},
+{
+"id": "STU-WEB-038",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Context requirement",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep context_requirement: 0"
+},
+{
+"id": "STU-WEB-039",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Render-flag enumeration (normative, closed)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep render_flags|hide_class_control: 0"
+},
+{
+"id": "STU-WEB-040",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Resolution algorithm (normative, deterministic)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep selection_scope|refinement_superseded: 0"
+},
+{
+"id": "STU-WEB-041",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Resolution receipt",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep refinement_superseded: 0"
+},
+{
+"id": "STU-WEB-042",
+"section": "7. Plugins",
+"title": "Registry static analysis",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep panel_id|panel_binding_unresolvable_tie: 0"
+},
+{
+"id": "STU-WEB-043",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Model-visibility obligation",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep author_id_prefix: 0"
+},
+{
+"id": "STU-WEB-044",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Panel lifecycle hooks (normative, closed set of four)",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep can_claim|initialize_ui: 0"
+},
+{
+"id": "STU-WEB-045",
+"section": "1. Board mode and board nodes",
+"title": "Colouring-scheme record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep scheme_id|keyword_lists: 0"
+},
+{
+"id": "STU-WEB-046",
+"section": "14.28.3 Code intelligence",
+"title": "Colouring-scheme priority",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep scheme_id|keyword_lists: 0"
+},
+{
+"id": "STU-WEB-047",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Embedded-block delimiters",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep scheme_id|keyword_lists: 0"
+},
+{
+"id": "STU-WEB-048",
+"section": "14.28.3 Code intelligence",
+"title": "Shipped colouring surface (sizing contract)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep scheme_id|keyword_lists: 0"
+},
+{
+"id": "STU-WEB-049",
+"section": "14.28.3 Code intelligence",
+"title": "Token-class and theme contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep scheme_id|keyword_lists: 0"
+},
+{
+"id": "STU-WEB-050",
+"section": "14.28.3 Code intelligence",
+"title": "Code-hint record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep code_hint|CodeHint: 0"
+},
+{
+"id": "STU-WEB-051",
+"section": "14.28.3 Code intelligence",
+"title": "Code-hint sizing and grouping",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep code_hint|CodeHint: 0"
+},
+{
+"id": "STU-WEB-052",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Validator rule sets (normative, ten rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no markup validator rule sets; grep tag_context_violation|attribute_required_set_unsatisfied: 0"
+},
+{
+"id": "STU-WEB-053",
+"section": "14.28.3 Code intelligence",
+"title": "Validator record shapes (normative)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no markup validator rule sets; grep tag_context_violation|attribute_required_set_unsatisfied: 0"
+},
+{
+"id": "STU-WEB-054",
+"section": "14.28.3 Code intelligence",
+"title": "Value-map record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no markup validator rule sets; grep tag_context_violation|attribute_required_set_unsatisfied: 0"
+},
+{
+"id": "STU-WEB-055",
+"section": "14.28.3 Code intelligence",
+"title": "Validator output contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no validator diagnostics (WebError typed refusals only); grep tag_context_violation: 0"
+},
+{
+"id": "STU-WEB-056",
+"section": "14.28.3 Code intelligence",
+"title": "Linter rule sets (normative, three languages with shipped defaults)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep duplicate-properties|tagname-lowercase|maxerr: 0"
+},
+{
+"id": "STU-WEB-057",
+"section": "14.28.3 Code intelligence",
+"title": "Script-language level configurations",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep maxerr: 0; no script linter"
+},
+{
+"id": "STU-WEB-058",
+"section": "14.28.3 Code intelligence",
+"title": "Linter output contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no linter; site record lacks linter harness-core/src/web_commands.rs:121"
+},
+{
+"id": "STU-WEB-059",
+"section": "14.28.3 Code intelligence",
+"title": "Tag-highlight and code-navigation surface",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep balance_braces|select_parent_tag: 0"
+},
+{
+"id": "STU-WEB-060",
+"section": "14.28.4 The CSS property surface",
+"title": "CSS authoring surface structure",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "read only: web.media @media blocks, web.preview active rules (harness-core/src/web_commands.rs:336; web-core css.rs flat rule scanner); no rule-creation command"
+},
+{
+"id": "STU-WEB-061",
+"section": "14.28.4 The CSS property surface",
+"title": "Property category set (normative, five rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-062",
+"section": "14.28.4 The CSS property surface",
+"title": "Curated property set (normative, 82 entries)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-063",
+"section": "14.28.4 The CSS property surface",
+"title": "Control-type enumeration (normative, closed, fourteen members)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-064",
+"section": "14.28.4 The CSS property surface",
+"title": "Length-unit vocabulary (normative, closed, fifteen members)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-065",
+"section": "14.28.4 The CSS property surface",
+"title": "Layout-category property contracts (normative)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-066",
+"section": "14.28.4 The CSS property surface",
+"title": "`opacity` parameter contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-067",
+"section": "14.28.4 The CSS property surface",
+"title": "Generic length-control parameter contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-068",
+"section": "14.28.4 The CSS property surface",
+"title": "Text-category property contracts (normative)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-069",
+"section": "14.28.4 The CSS property surface",
+"title": "Border and background property contracts (normative)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-070",
+"section": "14.28.4 The CSS property surface",
+"title": "Shadow property contracts",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-071",
+"section": "14.28.4 The CSS property surface",
+"title": "Recognised property vocabulary",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-072",
+"section": "14.28.4 The CSS property surface",
+"title": "Vendor-prefix emission rules",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-073",
+"section": "14.28.4 The CSS property surface",
+"title": "Transition authoring vocabulary (normative, four closed lists)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no CSS property authoring rows in harness-core action/commands/web.rs:18-45; grep vendor_prefix|trim_to_art_bounds: 0"
+},
+{
+"id": "STU-WEB-074",
+"section": "14.28.4 The CSS property surface",
+"title": "Gradient editor contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no web gradient editor; StudioGradient exists in folio but no web binding"
+},
+{
+"id": "STU-WEB-075",
+"section": "14.28.4 The CSS property surface",
+"title": "SVG export defaults for web output",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep trim_to_art_bounds|decimal_precision: 0"
+},
+{
+"id": "STU-WEB-076",
+"section": "14.28.4 The CSS property surface",
+"title": "Media-query record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web-core/src/responsive.rs:20 Breakpoint{min,max width px}, scan_media_blocks; no media_type/conditions record"
+},
+{
+"id": "STU-WEB-077",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Media-type enumeration (normative, closed, eight members)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web-core/src/responsive.rs:1-3 all/screen/only; other media types typed Unsupported"
+},
+{
+"id": "STU-WEB-078",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Media-feature set (normative, closed, twenty-three members with their control kinds and value domain",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web-core/src/responsive.rs:1-3 min-width/max-width px only; other features typed Unsupported"
+},
+{
+"id": "STU-WEB-079",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Visual breakpoint ruler contract (normative numeric constants)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no breakpoint ruler; harness-view/src/view/web.rs:2 no drawing"
+},
+{
+"id": "STU-WEB-080",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Breakpoint parameter contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "web-core/src/responsive.rs:20 Breakpoint px without 7/5000 bounds or precision contract"
+},
+{
+"id": "STU-WEB-081",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Breakpoint-kind enumeration (normative, closed, three members)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Breakpoint min/max optional covers three kinds implicitly (responsive.rs:20); no min_range_value check"
+},
+{
+"id": "STU-WEB-082",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Responsive-framework binding record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep framework_pin|col-md: 0"
+},
+{
+"id": "STU-WEB-083",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Shipped framework descriptors (normative, three major versions)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep framework_pin|col-md: 0"
+},
+{
+"id": "STU-WEB-084",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Grid parameter contracts (shipped bounds)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep framework_pin|col-md: 0"
+},
+{
+"id": "STU-WEB-085",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Framework version pinning",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep framework_pin|col-md: 0"
+},
+{
+"id": "STU-WEB-086",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Preprocessor support",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "export recipe refuses compile_preprocessors/emit_source_maps typed harness-core/src/web_commands.rs:45; no less/scss/sass compile"
+},
+{
+"id": "STU-WEB-087",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Live-view responsive preview",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web.preview viewport_width_px + web.media report active rules at width (action/commands/web.rs); no live view"
+},
+{
+"id": "STU-WEB-088",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Design-to-web breakpoint binding",
+"apps": [
+"dreamweaver",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no design-to-web generation; grep code_syntax in web crates: 0"
+},
+{
+"id": "STU-WEB-089",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Viewport meta contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no viewport meta inspector; grep binds_to: 0"
+},
+{
+"id": "STU-WEB-090",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Template document contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep repeating_table|library_item|locked_region: 0"
+},
+{
+"id": "STU-WEB-091",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Region-kind enumeration (normative, closed, five members)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep repeating_table|library_item|locked_region: 0"
+},
+{
+"id": "STU-WEB-092",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Template expression contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep repeating_table|library_item|locked_region: 0"
+},
+{
+"id": "STU-WEB-093",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Template update propagation",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep repeating_table|library_item|locked_region: 0"
+},
+{
+"id": "STU-WEB-094",
+"section": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
+"title": "Locked-region model",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep repeating_table|library_item|locked_region: 0"
+},
+{
+"id": "STU-WEB-095",
+"section": "9. Interactive documents (authoring side)",
+"title": "Template-safe behaviours",
+"apps": [
+"dreamweaver",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep safe_in_templates|behavior_id: 0"
+},
+{
+"id": "STU-WEB-096",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Library item contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep library_item: 0"
+},
+{
+"id": "STU-WEB-097",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Snippet record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no web snippet records (snippet hits are layout/pigment); grep snippet_trigger_duplicate: 0"
+},
+{
+"id": "STU-WEB-098",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Snippet library sizing and grouping",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no web snippet records (snippet hits are layout/pigment); grep snippet_trigger_duplicate: 0"
+},
+{
+"id": "STU-WEB-099",
+"section": "14.28.6 Templates, library items and snippets",
+"title": "Snippet keyboard triggers",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no web snippet records (snippet hits are layout/pigment); grep snippet_trigger_duplicate: 0"
+},
+{
+"id": "STU-WEB-100",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Insert catalogue structure",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no Insert catalogue; only generic web.insert_element/insert_fragment (action/commands/web.rs)"
+},
+{
+"id": "STU-WEB-101",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Insert category set (normative, twelve rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object implementation records; grep insert.object: 0"
+},
+{
+"id": "STU-WEB-102",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Object implementation record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object implementation records; grep insert.object: 0"
+},
+{
+"id": "STU-WEB-103",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Insertion-mode distribution (sizing contract)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object implementation records; grep insert.object: 0"
+},
+{
+"id": "STU-WEB-104",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Object API hooks (normative, closed set of four)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object implementation records; grep insert.object: 0"
+},
+{
+"id": "STU-WEB-105",
+"section": "9. Interactive documents (authoring side)",
+"title": "Behaviour record (normative shape)",
+"apps": [
+"dreamweaver",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|event_handler_template|safe_in_templates: 0"
+},
+{
+"id": "STU-WEB-106",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Behaviour catalogue (normative, thirty entries in two groups)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|event_handler_template|safe_in_templates: 0"
+},
+{
+"id": "STU-WEB-107",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Template safety of behaviours (shipped distribution)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|event_handler_template|safe_in_templates: 0"
+},
+{
+"id": "STU-WEB-108",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Behaviour parameter-control kinds (normative, closed)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|event_handler_template|safe_in_templates: 0"
+},
+{
+"id": "STU-WEB-109",
+"section": "9. Interactive documents (authoring side)",
+"title": "Shared page helpers",
+"apps": [
+"dreamweaver",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|event_handler_template|safe_in_templates: 0"
+},
+{
+"id": "STU-WEB-110",
+"section": "9. Interactive documents (authoring side)",
+"title": "Event model (normative)",
+"apps": [
+"dreamweaver",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep onDblClick: 0; no event model"
+},
+{
+"id": "STU-WEB-111",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Event-model extensibility",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_event_not_in_model: 0"
+},
+{
+"id": "STU-WEB-112",
+"section": "14.28.7 The Insert catalogue, behaviours and the event model",
+"title": "Insert and behaviour commands",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep insert.object|behavior.apply: 0"
+},
+{
+"id": "STU-WEB-113",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Site record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web.site record subset harness-core/src/web_commands.rs:121 (SMB-WEB-HOST-1 READY): no testing target, server model, preprocessor, framework, linter, browser, VCS"
+},
+{
+"id": "STU-WEB-114",
+"section": "5. Professional video export",
+"title": "Remote-target record (normative shape)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "remote target subset harness-core/src/web_commands.rs:134, credentials_ref only, secret fields refused (SMB-WEB-HOST-1 READY)"
+},
+{
+"id": "STU-WEB-115",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Transport enumeration (normative, closed, six members)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "6-member TRANSPORTS harness-core/src/web_commands.rs:87; only local_or_network publishes, others transport_unsupported :642 (READY)"
+},
+{
+"id": "STU-WEB-116",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "SFTP algorithm policy",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no SFTP or algorithm policy; sftp refused transport_unsupported harness-core/src/web_commands.rs:642"
+},
+{
+"id": "STU-WEB-117",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Transfer-mode map (normative, sixty-eight rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "68-row map TEXT 29 + BINARY 39, unlisted -> binary reported once harness-core/src/web_commands.rs:88-95,965 (SMB-WEB-HOST-1 READY); FTP transport absent"
+},
+{
+"id": "STU-WEB-118",
+"section": "14.28.1 Document types, tag libraries and the attribute vocabulary",
+"title": "Link management",
+"apps": [
+"dreamweaver"
+],
+"status": "LOCAL",
+"ui": "command",
+"evidence": "SMB-WEB-SITE-1 (no verdict; tip 030168fb not on origin): link graph, move_file updates links, broken/orphan/external reports; origin lists links in manifest only"
+},
+{
+"id": "STU-WEB-119",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Synchronisation contract",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "publish = put to local_or_network only harness-core/src/web_commands.rs:34 (READY); no get/sync, no JobPort"
+},
+{
+"id": "STU-WEB-120",
+"section": "6. Scroll, overflow and fixed positioning",
+"title": "Web output binding",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web.export_recipe + web.export tree+manifest harness-core/src/web_commands.rs:27 (READY); one document, no preprocessors/source maps, not 14.13 StudioExportRecipe; site export LOCAL SMB-WEB-SITE-1"
+},
+{
+"id": "STU-WEB-121",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Site reports",
+"apps": [
+"dreamweaver"
+],
+"status": "LOCAL",
+"ui": "command",
+"evidence": "SMB-WEB-SITE-1 web.site_report broken links, orphans, external, missing alt, untitled (no verdict, not on origin); no redundant/empty-tag, lint, checkout rows"
+},
+{
+"id": "STU-WEB-122",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Version-control binding",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "version_control transport member refuses transport_unsupported harness-core/src/web_commands.rs:87,642; no VCS operations"
+},
+{
+"id": "STU-WEB-123",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Browser capability profiles",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "site record lacks browser_baseline harness-core/src/web_commands.rs:121; no browser profiles"
+},
+{
+"id": "STU-WEB-124",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Server-model record (normative shape and eight rows)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep server_model: 0"
+},
+{
+"id": "STU-WEB-125",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Server-model hook set (normative, closed, eleven members)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep server_model: 0"
+},
+{
+"id": "STU-WEB-126",
+"section": "14.28.8 Site definition, transports and server models",
+"title": "Server-behaviour posture (declared reduction)",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no data-access generator (absent); PI/bogus markup kept opaque as loss entries (SMB-WEB PASS_V18 lane file); no server-model recognition (grep server_model: 0)"
+},
+{
+"id": "STU-WEB-127",
+"section": "14.28.0 Scope, posture and dedup",
+"title": "Publishing receipts",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "publish receipt site/target/transport/files/transfer_mode/unmapped/elapsed, partial failure kept harness-core/src/web_commands.rs:680-690 (READY); local only, no EventLedger"
+},
+{
+"id": "STU-WEB-128",
+"section": "14.28.9 Views, commands and obligations",
+"title": "View-mode enumeration (normative, closed, four members)",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no views: harness-view/src/view/web.rs:2 no drawing and no egui"
+},
+{
+"id": "STU-WEB-129",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Live-view editing contract",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no live view: harness-view/src/view/web.rs:2"
+},
+{
+"id": "STU-WEB-130",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Element inspection surface",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web.preview element tree, ARIA, display from simple selectors (web-core preview.rs:1-8, SMB-WEB PASS_V18); no full cascade, no computed box model"
+},
+{
+"id": "STU-WEB-131",
+"section": "6. The model-steerable command surface",
+"title": "Command-surface obligation",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "web.* typed rows (action/commands/web.rs, READY); StaleRevision in web-core (PASS_V18); site lock LOCAL SMB-WEB-SITE-1; grep capture_view: 0"
+},
+{
+"id": "STU-WEB-132",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Shortcut and menu surface",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "web.* rows in shared corpus; menu node carries one shortcut controls/src/menu.rs:241 (SMB-HARNESS-SHELL-2 PASS_V21); no named sets, locale remap or rebinding"
+},
+{
+"id": "STU-WEB-133",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Enabler predicate contract",
+"apps": [
+"cross_app",
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "menu Availability record greyed with reason controls/src/menu.rs:82-155 (SMB-HARNESS-SHELL-2 PASS_V21); no hidden-vs-greyed preference; web rows declare no enabler"
+},
+{
+"id": "STU-WEB-134",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Asset library binding",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "AssetPort/collect_assets gate (web-assets, SMB-WEB PASS_V18); host binds local files, not CKC (grep ckc in harness-core/src/web_commands.rs: 0)"
+},
+{
+"id": "STU-WEB-135",
+"section": "14.28.5 Responsive authoring: media queries and breakpoints",
+"title": "Design-to-web pipeline binding",
+"apps": [
+"dreamweaver",
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep code_syntax|flex-wrap in web crates + host: 0"
+},
+{
+"id": "STU-WEB-136",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Round-trip posture",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no design-to-web direction and no export-only manual statement (manual.rs:383 web rows only)"
+},
+{
+"id": "STU-WEB-137",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Validation descriptor set",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "only credential_in_site_record harness-core/src/web_commands.rs:249 (READY); other 21 names grep: 0 (link_broken LOCAL)"
+},
+{
+"id": "STU-WEB-138",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Diagnostic-tier obligation",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "in-process typed error + observe outcome (web-core report.rs:1-4); flight recorder none, no external watcher (SMB-WEB-HOST-1 host_integration)"
+},
+{
+"id": "STU-WEB-139",
+"section": "14.28.9 Views, commands and obligations",
+"title": "Resource-privacy obligation",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep ResourceBroker in web crates + harness-core/src/web_commands.rs: 0; sidecar JSON records"
+},
+{
+"id": "STU-WEB-140",
+"section": "14.28.9 Views, commands and obligations",
+"title": "GUI / Argus / UserManual obligation",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "manual web_commands table harness-core/src/manual.rs:383-392 (READY); no GUI/Argus surface (view/web.rs:2)"
+},
+{
+"id": "STU-WEB-141",
+"section": "14.28.10 Microtask Derivation",
+"title": "Derivation rule (NORMATIVE)",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WEB-142",
+"section": "14.28.10 Microtask Derivation",
+"title": "Open items and blocked dependencies",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WEB-143",
+"section": "14.28.10 Microtask Derivation",
+"title": "Microtask content obligation",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WEB-144",
+"section": "14.28.10 Microtask Derivation",
+"title": "Yields index (NORMATIVE)",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WEB-145",
+"section": "14.28.10 Microtask Derivation",
+"title": "Anchor binding",
+"apps": [
+"dreamweaver"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation/process clause"
+},
+{
+"id": "STU-WEB-146",
+"section": "14.28.10 Microtask Derivation",
+"title": "`document_type_extension_conflict`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep document_type_extension_conflict: 0"
+},
+{
+"id": "STU-WEB-147",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`doctype_missing`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep doctype_missing: 0"
+},
+{
+"id": "STU-WEB-148",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`tag_unknown_in_active_libraries`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tag_unknown_in_active_libraries: 0"
+},
+{
+"id": "STU-WEB-149",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`attribute_value_outside_enumeration`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep attribute_value_outside_enumeration: 0"
+},
+{
+"id": "STU-WEB-150",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`attribute_required_set_unsatisfied`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep attribute_required_set_unsatisfied: 0"
+},
+{
+"id": "STU-WEB-151",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`tag_context_violation`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tag_context_violation: 0"
+},
+{
+"id": "STU-WEB-152",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`cross_tag_attribute_collision`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep cross_tag_attribute_collision: 0"
+},
+{
+"id": "STU-WEB-153",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`panel_binding_unresolvable_tie`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep panel_binding_unresolvable_tie: 0"
+},
+{
+"id": "STU-WEB-154",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`panel_discriminator_does_not_outrank`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep panel_discriminator_does_not_outrank: 0"
+},
+{
+"id": "STU-WEB-155",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`panel_author_id_collision`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep panel_author_id_collision: 0"
+},
+{
+"id": "STU-WEB-156",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`breakpoint_below_minimum`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep breakpoint_below_minimum: 0"
+},
+{
+"id": "STU-WEB-157",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`breakpoint_range_below_minimum_span`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep breakpoint_range_below_minimum_span: 0"
+},
+{
+"id": "STU-WEB-158",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`framework_class_invalid_for_pinned_version`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep framework_class_invalid_for_pinned_version: 0"
+},
+{
+"id": "STU-WEB-159",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`template_edit_in_locked_region`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep template_edit_in_locked_region: 0"
+},
+{
+"id": "STU-WEB-160",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`template_behavior_not_template_safe`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep template_behavior_not_template_safe: 0"
+},
+{
+"id": "STU-WEB-161",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`snippet_trigger_duplicate`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep snippet_trigger_duplicate: 0"
+},
+{
+"id": "STU-WEB-162",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`behavior_event_not_in_model`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_event_not_in_model: 0"
+},
+{
+"id": "STU-WEB-163",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`link_broken`",
+"apps": [
+"dreamweaver"
+],
+"status": "LOCAL",
+"ui": "command",
+"evidence": "SMB-WEB-SITE-1 lane file: page link to no file is a link_broken warning; grep link_broken at tip: 0"
+},
+{
+"id": "STU-WEB-164",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`file_orphaned`",
+"apps": [
+"dreamweaver"
+],
+"status": "LOCAL",
+"ui": "command",
+"evidence": "SMB-WEB-SITE-1 lane file: site_report orphaned files; grep file_orphaned at tip: 0"
+},
+{
+"id": "STU-WEB-165",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`transfer_mode_unmapped_extension`",
+"apps": [
+"dreamweaver"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "receipt unmapped_extensions harness-core/src/web_commands.rs:683 (READY); descriptor name grep transfer_mode_unmapped_extension: 0"
+},
+{
+"id": "STU-WEB-166",
+"section": "14.28.11 Validation Descriptor Catalogue",
+"title": "`sftp_algorithm_weakened`",
+"apps": [
+"dreamweaver"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep sftp_algorithm_weakened: 0"
+},
+{
+"id": "STU-WEB-167",
+"section": "14.28.10 Microtask Derivation",
+"title": "`credential_in_site_record`",
+"apps": [
+"dreamweaver"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "harness-core/src/web_commands.rs:20-21,249 refuses credential_in_site_record naming the field only (SMB-WEB-HOST-1 READY)"
+}
+],
+"counts_by_status": {
+"BUILT_NOT_VALIDATED": 3,
+"LOCAL": 4,
+"MISSING": 174,
+"NOT_PRODUCT": 16,
+"PARTIAL": 33,
+"VALIDATED": 2
+},
+"counts_by_app_and_status": {
+"cross_app": {
+"MISSING": 15,
+"PARTIAL": 3
+},
+"dreamweaver": {
+"BUILT_NOT_VALIDATED": 3,
+"LOCAL": 4,
+"MISSING": 119,
+"NOT_PRODUCT": 8,
+"PARTIAL": 31,
+"VALIDATED": 2
+},
+"figma": {
+"MISSING": 57,
+"NOT_PRODUCT": 8,
+"PARTIAL": 2
+},
+"indesign": {
+"MISSING": 4
+}
+},
+"top_missing_areas": [
+"Whiteboard mode: none of the twelve board node kinds, connectors, facilitation (voting, timer, spotlight), templates, diagram generation or its twelve checks exist; only connector cap tokens are stored as stroke markers",
+"Studio-wide contextual property-panel binding (STU-WEB-030..044): no binding records, resolver, resolution receipt or registry check; inspectors are chosen in code",
+"Web code intelligence: no document-type set beyond HTML, no tag libraries or attribute vocabulary, no syntax colouring, code hints, markup validator, linters or source formatter",
+"CSS and responsive authoring: no curated CSS property surface, units, breakpoint ruler, grid frameworks or preprocessor compile; media queries are read-only min/max-width px",
+"Templates, library items, snippets, the Insert catalogue, behaviours and the event model, plus the web views (code/split/live/inspect) and every transport beyond a local folder (FTP, SFTP, WebDAV, version control, server models)"
+],
+"notes": [
+"Lane evidence: index lane SMB-WEB-1 is the lane file builders/lanes/hsk-studio-web.json (lane SMB-WEB-1, file status READY_FOR_VALIDATION); the ledger records it as SMB-WEB PASS_V18 and the ledger verdict was used. SMB-WEB-PARITY and SMB-WEB-DIFFTEST are PASS_V15; SMB-CRATE-SEAM-SPLITS-2 (web-core/web-assets split) PASS_V22.",
+"SMB-WEB-HOST-1 (web.* typed host rows) is READY_FOR_VALIDATION; its tip aa68164c is an ancestor of origin 87f331f9. It has no window: harness-view/src/view/web.rs says no drawing and no egui, so every web row is ui=command.",
+"SMB-WEB-SITE-1 has no ledger status and its tip 030168fb is not an ancestor of origin; rows relying on it are LOCAL, judged from the lane file only.",
+"Index section/line differs from the defining clause for 68 IDs (the index took a cross-reference or a mention): STU-WB-001(index 22267, defined 22461); STU-WB-002(index 22334, defined 22463); STU-WB-003(index 22345, defined 22465); STU-WB-004(index 22271, defined 22469); STU-WB-005(index 22351, defined 22487); STU-WB-006(index 22273, defined 22489); STU-WB-007(index 22336, defined 22493); STU-WB-008(index 22336, defined 22502); STU-WB-009(index 22353, defined 22506); STU-WB-010(index 22357, defined 22510); STU-WB-011(index 22267, defined 22514); STU-WB-104(index 22271, defined 22285); STU-WB-107(index 22289, defined 22291); STU-WB-108(index 22272, defined 22293); STU-WB-109(index 22272, defined 22303); STU-WB-117(index 22283, defined 22324); STU-WB-118(index 22271, defined 22326); STU-WB-119(index 22273, defined 22328); STU-WB-121(index 22305, defined 22336); STU-WB-138(index 22389, defined 22399); STU-WB-142(index 22388, defined 22433); STU-WB-153(index 22388, defined 22455); STU-WEB-003(index 30417, defined 30429); STU-WEB-012(index 30449, defined 30451); STU-WEB-014(index 30449, defined 30499); STU-WEB-017(index 30499, defined 30520); STU-WEB-028(index 30431, defined 30599); STU-WEB-030(index 20218, defined 30607); STU-WEB-033(index 21936, defined 30613); STU-WEB-034(index 30618, defined 30630); STU-WEB-035(index 30620, defined 30643); STU-WEB-036(index 30619, defined 30653); STU-WEB-037(index 30622, defined 30667); STU-WEB-038(index 30623, defined 30669); STU-WEB-039(index 30624, defined 30671); STU-WEB-040(index 30651, defined 30673); STU-WEB-041(index 30680, defined 30684); STU-WEB-042(index 21944, defined 30686); STU-WEB-043(index 30625, defined 30688); STU-WEB-044(index 20218, defined 30690); STU-WEB-045(index 22313, defined 30696); STU-WEB-047(index 30601, defined 30700); STU-WEB-052(index 30499, defined 30710); STU-WEB-066(index 30858, defined 30863); STU-WEB-068(index 30886, defined 30893); STU-WEB-069(index 30886, defined 30916); STU-WEB-070(index 30914, defined 30931); STU-WEB-076(index 30823, defined 30952); STU-WEB-077(index 30952, defined 30954); STU-WEB-078(index 30952, defined 30956); STU-WEB-090(index 30451, defined 31039); STU-WEB-094(index 30637, defined 31055); STU-WEB-095(index 20740, defined 31057); STU-WEB-105(index 20740, defined 31081); STU-WEB-109(index 20740, defined 31089); STU-WEB-110(index 20738, defined 31091); STU-WEB-114(index 21365, defined 31103); STU-WEB-115(index 31103, defined 31105); STU-WEB-118(index 30574, defined 31111); STU-WEB-120(index 20696, defined 31115); STU-WEB-122(index 31105, defined 31119); STU-WEB-124(index 30427, defined 31123); STU-WEB-127(index 30435, defined 31140); STU-WEB-131(index 21924, defined 31152); STU-WEB-135(index 31031, defined 31164); STU-WEB-142(index 31191, defined 31200); STU-WEB-146(index 31190, defined 31239); STU-WEB-167(index 31190, defined 31281). Each status was judged against the defining clause in 14.28 or 14.15, titles come from the defining clause, and the section field keeps the index value.",
+"A clause that is fully implemented by READY code is BUILT_NOT_VALIDATED; a clause only partly implemented is PARTIAL whatever its lane verdict, with the lane state named in evidence. Typed refusals naming the clause capability (transport_unsupported, doctype_unsupported, compile_preprocessors refusal) count as PARTIAL.",
+"STU-WEB-002 (no server execution) is a negative clause judged VALIDATED from preview.rs 'nothing fetched or executed' in the PASS_V18 engine plus grep server_model: 0.",
+"ui=unknown on MISSING and NOT_PRODUCT rows means there is no control to classify.",
+"Read only: no cargo, builds or tests were run; evidence is git grep/show at origin/codex/handshake-studio-assets 87f331f9 (no fetch needed) plus ledger, lane files and the 2026-11-11 parity audits (adobe-print lists Dreamweaver outside the row pool: typed web host only, no window)."
+],
+"unverified": [
+"STU-WEB-004 byte preservation on save rests on the PASS_V18 engine verdict and the READY host test web_host.rs:14; no test was re-run here.",
+"STU-WEB-126: whether PHP/ASP/CFML pages actually round-trip byte-for-byte was not tested; judged from the lane file's opaque-markup claim.",
+"STU-WEB-006: absence of network use is inferred from greps of the web crates and web_commands.rs only.",
+"LOCAL rows (STU-WEB-118, 121, 163, 164) rely on lane-file text of SMB-WEB-SITE-1; its worktree and commit 030168fb were not inspected.",
+"STU-WB-109 window control: harness-view/src/view/vector/markers.rs exposes stroke arrowheads; the six ERD caps are stored, not drawn, and a newly chosen ERD cap is refused there.",
+"Whether the SMB-WEB PASS_V18 verdict covers the web-core/web-assets code exactly as it stands at 87f331f9 (later lanes such as SMB-NOTES-BATCH-1 touched the web crate) was not diffed."
+]
+}

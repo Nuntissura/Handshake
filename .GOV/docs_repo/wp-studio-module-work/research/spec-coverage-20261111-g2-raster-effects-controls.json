@@ -1,0 +1,3553 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G2",
+"prefixes": [
+"STU-RAS",
+"STU-FX",
+"STU-CON",
+"STU-ARC"
+],
+"generated_at": "2026-11-11T16:26:37Z",
+"origin_tip": "87f331f9",
+"validated_round_tip": "c4d06841 (R59)",
+"rows": [
+{
+"id": "STU-ARC-001",
+"section": "14.2 Architecture: Kernel Binding and Engine Crates",
+"title": "handshake_core::studio is the integrated authority binding, not the owner of compute/domain implemen",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep handshake_core in assets crates: 0 (kernel-side binding; Handshake repo not inspected)"
+},
+{
+"id": "STU-ARC-002",
+"section": "14.2 Architecture: Kernel Binding and Engine Crates",
+"title": "handshake_core MUST NOT gain Studio GPU/compute implementation dependencies. GPU, CPU render, raster",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-GPU-CLIENT-PORT-1 PASS_V14; render-gpu/src/lib.rs GPU behind typed port, no handshake_core dependency"
+},
+{
+"id": "STU-ARC-003",
+"section": "14.2 Architecture: Kernel Binding and Engine Crates",
+"title": "EventLedger event variants for Studio MUST follow the canonical addition list in 14.23. The Studio m",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-BUSINESS-EVENTS-1 PASS_V12; accord/src/business_event.rs:75"
+},
+{
+"id": "STU-ARC-004",
+"section": "14.2 Architecture: Kernel Binding and Engine Crates",
+"title": "SurrealDB SCHEMAFULL tables for Studio MUST preserve prefixed string domain IDs (e.g. document_id = ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-CKC-PORTS-ALIGN PASS_V26; prefixed ids + event_ledger_event_id kernel-bindings/src/ckc_double.rs:154; grep studio_documents/SCHEMAFULL: 0"
+},
+{
+"id": "STU-ARC-005",
+"section": "14.2 Architecture: Kernel Binding and Engine Crates",
+"title": "A model-authored Studio mutation (any command batch that changes document authority) MUST NOT be wri",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "kernel-bindings/src/lib.rs:94 bridge names PromotionGate decision; grep SandboxAdapter: 0 (kernel-side)"
+},
+{
+"id": "STU-ARC-006",
+"section": "14.2 Architecture: Kernel Binding and Engine Crates",
+"title": "Studio asset workspace and module foundations MAY be activated for production implementation before ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "activation and foundation-order process rule"
+},
+{
+"id": "STU-ARC-007",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "MODULE FOUNDATION AND OWNERSHIP. The approved module map MUST cover every current Studio domain and ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "module-map governance rule"
+},
+{
+"id": "STU-ARC-008",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "BOUNDED SWARM ADMISSION. Every importer, decoder, render, export, preview, model and plugin job MUST",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-JOB-ADMISSION-1 PASS_V12; harness-view/src/view/job_admission.rs:2"
+},
+{
+"id": "STU-ARC-009",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "ASSET MIRROR PROVENANCE. The asset workspace product subtree and Handshake mirror MUST be bound to e",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "asset mirror provenance governance"
+},
+{
+"id": "STU-ARC-010",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "MODULE CATALOG. The canonical asset module roots are handshake-studio-assets/crates/hsk-studio-{acco",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "all 35 named crate roots present at 87f331f9; SMB-CRATE-SEAM-SPLITS PASS_V24"
+},
+{
+"id": "STU-ARC-011",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "MUTATION OWNERSHIP. A document-scoped actor MUST serialize accepted commits while compute consumes i",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-EDIT-FOOTPRINT-1 PASS_V3; components/src/instance_resolution.rs:43"
+},
+{
+"id": "STU-ARC-012",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "BYTE AND PRODUCER BACKPRESSURE. Admission MUST bound pending callers before large allocation/decode,",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-JOB-ADMISSION-1 PASS_V12; admission/lease ports e.g. develop/src/convert.rs:175"
+},
+{
+"id": "STU-ARC-013",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "OVERLOAD AND REALTIME. Only replaceable uncommitted previews MAY coalesce, with typed superseded out",
+"apps": [
+"cross_app",
+"audition",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AU-WAVEFORM-EDITOR PASS_V23, SMB-JOB-ADMISSION-1 PASS_V12; harness-view/src/view/preview_gate.rs:2"
+},
+{
+"id": "STU-ARC-014",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "CANONICAL SHARED ASSETS. Controls MUST implement one reusable panel/control mechanic with typed capa",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16, SMB-HARNESS-PANELS-1 PASS_V21; controls/src/menu.rs:4; AccessKit feed not found"
+},
+{
+"id": "STU-ARC-015",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "VISUAL RECEIPTS. Every visual mutation/check MUST bind Argus observation to exact committed/proposed",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "lanes PASS (e.g. SMB-PULSE-PLAYBACK-2 PASS_V26); web-core/src/preview.rs:4, pigment/src/render_plan.rs; not proven for every visual mutation"
+},
+{
+"id": "STU-ARC-016",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "FOUNDATION PROOF AND BUILD. All 35 module foundations and workspace coordination MUST precede any fe",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "foundation-proof process rule"
+},
+{
+"id": "STU-ARC-017",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "MT PRESERVATION. Architecture migration MUST preserve every prior MT ID, original scope, acceptance ",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "MT preservation governance"
+},
+{
+"id": "STU-ARC-018",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "SELECTIVE REUSE. Adopt upstream Rust leaf algorithms only with pinned source hash, patch/license pro",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "upstream-reuse provenance rule (pins seen e.g. develop/src/levels.rs:4)"
+},
+{
+"id": "STU-ARC-019",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "CURRENT NON-AI ACTIVATION. The current Studio asset/feature implementation scope is full professiona",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "activation scope rule (AI parked)"
+},
+{
+"id": "STU-ARC-020",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "RETRY AND RECOVERY. Idempotency MUST bind authenticated principal, resource/action, canonical payloa",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-SESSION PASS_V38; session/src/ports.rs:67 CommitRequest idempotency key + principal/payload binding"
+},
+{
+"id": "STU-ARC-021",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "PLUGIN AND DELIVERY COMPLETENESS. Realtime providers MUST version immutable plugin-state snapshots p",
+"apps": [
+"cross_app",
+"audition",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-D24A-CODEC-DEFAULTS PASS_V24; reel/src/model.rs:487, score/src/bounce.rs requested/actual counts"
+},
+{
+"id": "STU-ARC-022",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "NEW CLAUSE DERIVATION. Every new v02.207 module-foundation, pressure, native-format, privacy/redacti",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "clause-derivation rule"
+},
+{
+"id": "STU-ARC-023",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "SHARED-CONTROLS OWNER. Kumihimo is the canonical shared-controls asset and the single owner of the c",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "kumihimo-ui in-tree (SMB-UI-TREE-1 READY_FOR_VALIDATION); grep kumihimo-core: 0; controls still on egui"
+},
+{
+"id": "STU-ARC-024",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "GPU CLIENT PORT. Studio holds no GPU device ownership. The render-gpu asset crate MUST expose a type",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "render-gpu/src/client.rs port (SMB-GPU-CLIENT-PORT-1 PASS_V14) over wgpu vulkan+dx12+metal; vulkan/src/owner.rs:278 (SMB-VK-HOST-1 READY_FOR_VALIDATION)"
+},
+{
+"id": "STU-ARC-025",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "NATIVE HOST UI. Studio surfaces render in the kernel-owned native Vulkan shell. The host UI and cont",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "native-host + vulkan crates (SMB-VK-HOST-1 READY_FOR_VALIDATION); harness-view and controls still egui (grep egui: 1241 hits)"
+},
+{
+"id": "STU-ARC-026",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "DIAGNOSTIC RING PRODUCER. The observe asset crate MUST expose a ring-shaped producer port into the i",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-OBSERVE-RING-PORT-1 PASS_V14; observe/src/ring.rs"
+},
+{
+"id": "STU-ARC-027",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "PALMISTRY BINDING. A Studio pane freeze or crash is observed through Palmistry (Section 6.13). DECLA",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep palmistry/FREEZE_THRESHOL: 0"
+},
+{
+"id": "STU-ARC-028",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "RENDER CALLBACK REALTIME. [STU-ARC-013] and [HSK-PLG-011] extend to GPU frame and render callbacks: ",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep wait_free/WaitFree: 0"
+},
+{
+"id": "STU-ARC-029",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "STUDIO SETTINGS TREE. Under [GUI-DESKTOP-014] Studio contributes one Settings tab Studio with one su",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-SETTINGS-SCHEMA-1 PASS_V11; accord/src/settings.rs:35 Settings tab/subtab tree"
+},
+{
+"id": "STU-ARC-030",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "ID BRIDGE. The controls Registry ids are the author_id space of [STU-MDL-104], and those author_ids ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "controls author_id ids controls/src/ui_descriptor.rs; grep client_session_id: 0"
+},
+{
+"id": "STU-ARC-031",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "PRE-ACCOUNT RENDERING. Nothing Studio renders before account activation, including previews and thum",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep pre_account/account_activat/PreAccount: 0"
+},
+{
+"id": "STU-ARC-032",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "ASSET-LOCAL GPU PROOF. While the central GPU owner and its issuer do not exist ([GPU-QUOTA-016], [NA",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "proof-evidence reading rule"
+},
+{
+"id": "STU-ARC-033",
+"section": "14.2.2 Host integration contracts [ADD v02.226]",
+"title": "DOCUMENT REVISION. A Studio document revision is a u64, carried through the kernel-bindings CommitRe",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-SESSION PASS_V38; session/src/ports.rs:67 u64 expected/successor revision"
+},
+{
+"id": "STU-CON-001",
+"section": "14.23 Canonical Studio Authority Contracts",
+"title": "CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each prim",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "spec-authoring rule"
+},
+{
+"id": "STU-CON-002",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "SCHEMA IDS. Canonical Studio schema ids (each a pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"): hsk.s",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "37/37 schema ids in accord/src/lib.rs; SMB-ACCORD-ENG-1 PASS_V12"
+},
+{
+"id": "STU-CON-003",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "EVENT VARIANTS. Canonical KernelEventType additions (wire STUDIO_* SCREAMING_SNAKE_CASE): STUDIO_DOC",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "22/22 wire variants accord/src/business_event.rs:75; SMB-BUSINESS-EVENTS-1 PASS_V12"
+},
+{
+"id": "STU-CON-004",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "TABLES. Canonical studio_* SurrealDB SCHEMAFULL tables (all preserving the specified prefixed domain",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep studio_documents/studio_layers/SCHEMAFULL: 0 (kernel-side)"
+},
+{
+"id": "STU-CON-005",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Render equivalence across GPU backends/drivers MUST",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "render-gpu tolerance-tested against pigment reference (pigment/src/transform_math.rs:1); SMB-RENDER-GPU-EXTENDED-ENVELOPE PASS_V25"
+},
+{
+"id": "STU-CON-006",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recor",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pointer to CON-009..013"
+},
+{
+"id": "STU-CON-007",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "[ADD v02.200] UNIVERSAL COMMAND CONTRACT (HARD). Every Studio command, tool, and primitive defined i",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed command corpus harness-core/src/action/commands.rs (SMB-COMMAND-SURFACE-1 READY_FOR_VALIDATION) covers a subset; pigment/src/fill_tools.rs:36"
+},
+{
+"id": "STU-CON-008",
+"section": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
+"title": "CANONICAL PORT AND SERIALIZATION LAW. Every asset module MUST use the canonical Studio schema IDs, p",
+"apps": [
+"cross_app",
+"premiere_pro",
+"after_effects",
+"audition"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "accord/src/lib.rs:89 TICKS_PER_SECOND 254_016_000_000 checked; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-CON-009",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "Retained history. Chronicle MUST support undo/redo through all retained reachable promoted history, ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "viewer undo/redo over chronicle inverses (SMB-HARNESS-UI-2 PASS_V31); cross-actor order and explicit older revert not found; SMB-HARNESS-DRIVE-1 READY_FOR_VALIDATION"
+},
+{
+"id": "STU-CON-010",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "Semantic gesture batches. Bind actor/session/document, command/gesture ID, base target revisions and",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-BUSINESS-EVENTS-1 PASS_V12 event identities; grep gesture_batch/SemanticBatch: 0"
+},
+{
+"id": "STU-CON-011",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "Host policy approval. Auto-accept defaults OFF. Only an authenticated operator-enrolled, immutable v",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep auto_accept/AutoAccept: 0"
+},
+{
+"id": "STU-CON-012",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "Raster references. Folio stores typed tile identity (object/layer/grid, format/color/schema, dimensi",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "chronicle/src/lib.rs:667 tile content_digest refs; SurrealDB/Yjs side kernel-side"
+},
+{
+"id": "STU-CON-013",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "Flight Recorder binding. Map each of the 22 canonical wire variants explicitly to its studio.* event",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "FR-EVT-STUDIO-* map accord/src/business_event.rs:2 (SMB-BUSINESS-EVENTS-1 PASS_V12); recorder registry kernel-side"
+},
+{
+"id": "STU-CON-014",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "Business-event catalog. The following exact mapping preserves [STU-ARC-003]'s existing family names ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-BUSINESS-EVENTS-1 PASS_V12; accord/src/lib.rs:39 business_event@1"
+},
+{
+"id": "STU-CON-015",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "FOUNDATION SCOPE AND SINGLE AUTHORITY. The following field contracts author the shared StudioDocumen",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-1 PASS_V33; folio/src/lib.rs document/layer/artboard/page_spread/layer_graph"
+},
+{
+"id": "STU-CON-016",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "DOCUMENT FIELDS. StudioDocument has the following foundation fields. Required fields MUST be present",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-1 PASS_V33; folio/src/lib.rs StudioDocument fields"
+},
+{
+"id": "STU-CON-017",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "CONTAINMENT RECORD FIELDS. A node reference is the tagged pair { \"node_kind\": \"layer\" | \"artboard\" |",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio/src/lib.rs:175 NodeKind/Parent"
+},
+{
+"id": "STU-CON-018",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "DOMAIN PAYLOAD FIELDS AND EXTENSIONS. StudioLayer.kind retains the [STU-DOC-001] kinds and all exten",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio/src/lib.rs:268 Payload"
+},
+{
+"id": "STU-CON-019",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "AUTHORED COMPOSITION GRAPH FIELDS. StudioLayerGraph has required schema_id exactly hsk.studio.layer_",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-1 PASS_V33; folio/src/lib.rs:342 operations/edges"
+},
+{
+"id": "STU-CON-020",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "PLACEMENT AND EXTERNAL AUTHORITY. When the owning placed-asset foundation is selected, kind = placed",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-3 PASS_V33; folio/src/raster.rs:797 placed link records"
+},
+{
+"id": "STU-CON-021",
+"section": "14.23.1 Folio canonical document foundation",
+"title": "SNAPSHOT VALIDATION AND PROOF. Folio MUST validate a complete prospective document before publishing",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-ENG-1 PASS_V33; folio validate_document (folio/src/lib.rs:1624)"
+},
+{
+"id": "STU-CON-022",
+"section": "14.23.2 Chronicle property-patch foundation transport",
+"title": "SOURCE TRANSPORT SCOPE. MT-35532's Chronicle foundation consumes a pure supporting property-patch tr",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-CHRONICLE-TABLE PASS_V35, SMB-FOLIO-TIMELINE-RECORDS PASS_V27; chronicle/src/lib.rs:1651"
+},
+{
+"id": "STU-CON-023",
+"section": "14.23.2 Chronicle property-patch foundation transport",
+"title": "PATCH AND ADDRESS FIELDS. The foundation patch transport has the following required wire fields, wit",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-CHRONICLE-TABLE PASS_V35; chronicle transport_version (chronicle/tests/structure.rs:97)"
+},
+{
+"id": "STU-CON-024",
+"section": "14.23.2 Chronicle property-patch foundation transport",
+"title": "REVISION VECTOR AND SERIALIZED APPLICATION. The caller supplies the current immutable Folio snapshot",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-CHRONICLE-TABLE PASS_V35; chronicle/src/lib.rs:211 expected_revision per address"
+},
+{
+"id": "STU-CON-025",
+"section": "14.23.2 Chronicle property-patch foundation transport",
+"title": "RESULT AND INVERSE FIELDS. Successful source-local results have the closed disposition tag changed o",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-CHRONICLE-TABLE PASS_V35; chronicle/src/lib.rs:296 NoChange/changed"
+},
+{
+"id": "STU-CON-026",
+"section": "14.23.2 Chronicle property-patch foundation transport",
+"title": "BOUNDED FAILURE, CANCELLATION AND PROOF. Caller-declared read/write-count, value/input-byte and Foli",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-CHRONICLE-TABLE PASS_V35; chronicle budgets + cancellation (chronicle/src/lib.rs)"
+},
+{
+"id": "STU-CON-027",
+"section": "14.23.3 Pigment resolved-buffer foundation transport",
+"title": "RESOLVED BUFFER SCOPE. MT-35534 consumes injected immutable resolved bytes for existing StudioRaster",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-ENG-1 PASS_V42; pigment/src/masked_patch.rs"
+},
+{
+"id": "STU-CON-028",
+"section": "14.23.3 Pigment resolved-buffer foundation transport",
+"title": "RESOLVED TILE AND MASK FIELDS. A resolved tile input has required tile_ref (the complete existing [S",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-ENG-1 PASS_V42; pigment/src/masked_patch.rs tile/mask fields"
+},
+{
+"id": "STU-CON-029",
+"section": "14.23.3 Pigment resolved-buffer foundation transport",
+"title": "MASKED REPLACEMENT OPERATION AND CONTEXT. The initial supporting operation token is masked_replace, ",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-ENG-1 PASS_V42; masked_replace pigment/src/masked_patch.rs"
+},
+{
+"id": "STU-CON-030",
+"section": "14.23.3 Pigment resolved-buffer foundation transport",
+"title": "BYTE LEASE, EPOCH AND ATOMIC RESULT. Pigment consumes caller-owned typed admission/lease and cancell",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-ENG-1 PASS_V42; lease/epoch ports pigment/src/masked_patch.rs:262"
+},
+{
+"id": "STU-CON-031",
+"section": "14.23.3 Pigment resolved-buffer foundation transport",
+"title": "FOUNDATION PROOF AND OWNER BOUNDARIES. MT-35534's four named test filters remain exactly masked_patc",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-ENG-1 PASS_V42; pigment/tests/masked_patch.rs:412 four named filters"
+},
+{
+"id": "STU-CON-032",
+"section": "14.23.4 Nib geometry foundation proposal transport",
+"title": "VECTOR FOUNDATION SCOPE AND INPUT GEOMETRY. MT-35535 implements one source-only non-destructive eval",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-NIB-ENG-1 PASS_V22; nib/src/descriptor.rs:14 proposal_only"
+},
+{
+"id": "STU-CON-033",
+"section": "14.23.4 Nib geometry foundation proposal transport",
+"title": "OPERATION, READS, STYLES AND OPTIONS. Required request fields are transport_version = 1, document_id",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-NIB-ENG-1 PASS_V22; nib request fields (nib/src/provider.rs)"
+},
+{
+"id": "STU-CON-034",
+"section": "14.23.4 Nib geometry foundation proposal transport",
+"title": "DERIVED NETWORK AND RESULT FIELDS. A successful prepared result has disposition = prepared, required",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-NIB-ENG-1 PASS_V22; nib prepared result (nib/src/provider.rs)"
+},
+{
+"id": "STU-CON-035",
+"section": "14.23.4 Nib geometry foundation proposal transport",
+"title": "FALLIBLE NIB ADMISSION, LIFETIME AND PUBLICATION. Caller limits require unsigned fields input_bytes,",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-NIB-ENG-1 PASS_V22; nib/src/provider.rs:76 sweep_events caps"
+},
+{
+"id": "STU-CON-036",
+"section": "14.23.4 Nib geometry foundation proposal transport",
+"title": "DIAGNOSTIC AND FOUNDATION PROOF BOUNDARY. Existing Observe owner extends its closed typed vector-geo",
+"apps": [
+"illustrator"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-NIB-ENG-1 PASS_V22; observe/src/lib.rs:366 GeometryAddress"
+},
+{
+"id": "STU-CON-037",
+"section": "14.23.5 Type source-only shaped-run transport",
+"title": "SOURCE-ONLY TEXT REQUEST. The existing Type owner implements a TextEngine: Send + Sync shaped_runs o",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-ENG-1 PASS_V22; type/src/engine.rs:16 shaped_runs"
+},
+{
+"id": "STU-CON-038",
+"section": "14.23.5 Type source-only shaped-run transport",
+"title": "EXPLICIT FONT CLOSURE. FontResolver: Send + Sync is an injected Type-owned port over an immutable, e",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-FONTS PASS_V22; type/src/contract.rs:152 FontResolver: Send + Sync"
+},
+{
+"id": "STU-CON-039",
+"section": "14.23.5 Type source-only shaped-run transport",
+"title": "POSITIONED RUN RESULT. A prepared result is an immutable proposal, carrying its complete source/font",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-ENG-1 PASS_V22; positioned run proposal in type crate"
+},
+{
+"id": "STU-CON-040",
+"section": "14.23.5 Type source-only shaped-run transport",
+"title": "SHAPING ADMISSION AND LIFETIMES. The caller supplies explicit checked caps for input UTF-8 bytes/sca",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-ENG-1 PASS_V22; shaping caps (fallback_attempts harness-core/src/diag_sink.rs:696)"
+},
+{
+"id": "STU-CON-041",
+"section": "14.23.5 Type source-only shaped-run transport",
+"title": "CALLER FINALIZATION, OBSERVATION AND PROOF. Source work returns prepared/rejected results only. Call",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TYPE-ENG-1 PASS_V22; caller finalization in type crate"
+},
+{
+"id": "STU-CON-042",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "SOURCE-ONLY DEVELOP REQUEST AND VERSION CLOSURE. MT-35538 evaluates a bounded, ephemeral develop_rec",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-DEVELOP PASS_V42; develop/src/recipe.rs:1"
+},
+{
+"id": "STU-CON-043",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "DECODED SAMPLE, CFA AND DEMOSAIC MATH. The initial supported plane has checked u32 dimensions2..256 ",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-DEVELOP PASS_V42; develop/src/tiffep.rs:154 X-Trans, develop/src/dng.rs:5"
+},
+{
+"id": "STU-CON-044",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "RESOLVED PARAMETER ORDER, COLOR AND NORMALIZED CROP. The native projection requires explicit white_b",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-DEVELOP PASS_V42, SMB-PRISM-ENG-6 PASS_V22; develop/src/recipe.rs:198"
+},
+{
+"id": "STU-CON-045",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "SHARED LEASED PRODUCER AND ATOMIC SOURCE RESULT. Required output_origin_x_px/output_origin_y_px (i64",
+"apps": [
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-DEVELOP-CONTROLS PASS_V28; develop/src/pipeline.rs:621 output_origin"
+},
+{
+"id": "STU-CON-046",
+"section": "14.23.6 Develop decoded-CFA foundation transport",
+"title": "SOURCE PROVENANCE, OBSERVATION AND EXISTING PROOF. Pin the selected private LightCraft leaf adaptati",
+"apps": [
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "LightCraft provenance pinned at af4c5e10 (develop/src/levels.rs:4); grep 88ea1a8/c5881811: 0"
+},
+{
+"id": "STU-FX-001",
+"section": "14.9.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Studio has exactly ONE non-destructive effect model. A filter or effect applied to any StudioLayer i",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-EFFECT-STACK-1 PASS_V20; folio/src/composition/effects.rs, composite effect_stack"
+},
+{
+"id": "STU-FX-002",
+"section": "14.9.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "A StudioEffectStack is an ordered list of StudioLiveFilter entries. Each entry carries: filter_kind ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-EFFECT-STACK-1 PASS_V20; accord/src/lib.rs:19 effect_stack@1; folio/src/composition/effects.rs"
+},
+{
+"id": "STU-FX-003",
+"section": "14.9.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Every stack entry is re-editable, reorderable, maskable, and individually enable/disable-able after ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-EFFECT-STACK-1 PASS_V20; composite/src/temporal/composition/effects.rs"
+},
+{
+"id": "STU-FX-004",
+"section": "14.9.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "A StudioLiveFilter entry MAY host its own StudioMask (raster mask, vector clip, or gradient mask). T",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-EFFECT-FAMILIES-2 PASS_V16; folio/src/composition/effects.rs:16 entry mask"
+},
+{
+"id": "STU-FX-005",
+"section": "14.9.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "The same StudioLiveFilter kind is applicable from any domain in which it is defined as valid: a blur",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "raster/composition stacks + vector stacks folio/src/vector_live_filter.rs (SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION); text/group cross-use not found"
+},
+{
+"id": "STU-FX-006",
+"section": "14.9.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "An effect stack applied to a group layer or a StudioComponent is inherited by the group's rendered r",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-EXTENDED-RANGE-2 PASS_V26, SMB-R43-FOLLOWUPS-1 PASS_V14; pigment/src/render_plan/output.rs"
+},
+{
+"id": "STU-FX-007",
+"section": "2. Effect Application, Masking, Blending, and Ordering",
+"title": "Effect application is a model-steerable typed command (STUDIO_EFFECT_APPLY, STUDIO_EFFECT_UPDATE, ST",
+"apps": [
+"cross_app",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "only vector.live_filter_* rows harness-view/src/view/vector/live_filters.rs:207 (SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION); grep STUDIO_EFFECT_APPLY handler: 0"
+},
+{
+"id": "STU-FX-008",
+"section": "2. Effect Application, Masking, Blending, and Ordering",
+"title": "Each stack entry composes onto the accumulated result using its StudioBlendMode + opacity, exactly a",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-EFFECT-FAMILIES-2 PASS_V16; composite/src/composition/effect_stack.rs"
+},
+{
+"id": "STU-FX-009",
+"section": "2. Effect Application, Masking, Blending, and Ordering",
+"title": "A \"repeat last effect\" affordance re-applies the most recent StudioLiveFilter kind + parameters to t",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep repeat_last/RepeatLast: 0"
+},
+{
+"id": "STU-FX-010",
+"section": "2. Effect Application, Masking, Blending, and Ordering",
+"title": "Effect parameters are typed and unit-bearing per [STU-DOC-003]: radii and offsets in document pixels",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioUnitToken + colour profile folio/src/composition/effects.rs:53; SMB-R50-FOLLOWUPS-1 PASS_V9"
+},
+{
+"id": "STU-FX-011",
+"section": "2. Effect Application, Masking, Blending, and Ordering",
+"title": "Effect evaluation is deterministic: given the same source data, parameters, mask, seed, and StudioCo",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-EFFECT-STACK-1 PASS_V20, SMB-RENDER-FILTERS PASS_V28; seeds folio/src/smart_filter.rs:2"
+},
+{
+"id": "STU-FX-012",
+"section": "2. Effect Application, Masking, Blending, and Ordering",
+"title": "A StudioAdjustment (14.4-owned tonal/color adjustment) and a StudioLiveFilter (14.9-owned filter/eff",
+"apps": [
+"cross_app"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION; harness/tests/viewer_vector_live_filters.rs:4 (new since R59)"
+},
+{
+"id": "STU-FX-013",
+"section": "3. Blur Family",
+"title": "The blur family is a set of StudioLiveFilter kinds sharing a common blur-core in the owning modular ",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pigment blur_math (SMB-PIGMENT-AE-KERNELS-1 PASS_V16) + box/motion/radial/surface in filter_kernels (READY_FOR_VALIDATION); field/iris/tilt-shift/path/spin: grep 0"
+},
+{
+"id": "STU-FX-014",
+"section": "4. Distort Family",
+"title": "Distort effects warp the layer geometry non-destructively. Raster distorts resample source tiles; wh",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "AE distort composite/src/temporal/composition/effects.rs:26 (SMB-AE-EFFECT-STACK-1 PASS_V20); raster displace/pinch/polar/shear: not found"
+},
+{
+"id": "STU-FX-015",
+"section": "5. Noise Family",
+"title": "Noise effects add or remove stochastic detail. Additive-noise kinds carry a seed for reproducibility",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "AddNoise/Median pigment/src/filter_math.rs:3 (SMB-PIGMENT-RETOUCH PASS_V29); Despeckle/Dust&Scratches filter_kernels (READY_FOR_VALIDATION); Reduce Noise: not found"
+},
+{
+"id": "STU-FX-016",
+"section": "6. Pixelate Family",
+"title": "Pixelate effects cluster pixels into cells/dots/blocks. Halftone/screen kinds carry per-channel angl",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Mosaic only pigment/src/filter_kernels.rs:2 (SMB-PIGMENT-FILTER-KERNELS-1 READY_FOR_VALIDATION); crystallize/colour halftone: grep 0"
+},
+{
+"id": "STU-FX-017",
+"section": "7. Render & Generative-Pattern Family (GPU)",
+"title": "Render/generate effects synthesize new pixel data (clouds, fibers, flares, lights, scripted patterns",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "AE generate (checkerboard, circle, ramp) composite effects (SMB-AE-EFFECT-STACK-1 PASS_V20); clouds/fibers/lens flare/lighting: grep 0"
+},
+{
+"id": "STU-FX-018",
+"section": "7. Render & Generative-Pattern Family (GPU)",
+"title": "GPU-required render effects MUST declare their GPU dependency in the StudioLiveFilter descriptor so ",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep EFFECT_GPU_UNAVAILABLE/gpu_requirement: 0"
+},
+{
+"id": "STU-FX-019",
+"section": "8. Sharpen & Detail Family",
+"title": "Sharpen/detail effects increase local/edge contrast. High-pass is one deduped kind used both as a sh",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Unsharp/HighPass pigment/src/filter_math.rs:4 (PASS); Sharpen/More/Edges filter_kernels (READY_FOR_VALIDATION); smart sharpen/shake reduction: 0"
+},
+{
+"id": "STU-FX-020",
+"section": "9. Stylize Family",
+"title": "Stylize effects re-render the image with edge, relief, extrusion, or exposure transforms. Oil-paint ",
+"apps": [
+"photoshop",
+"after_effects",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "FindEdges/Emboss/Solarize pigment/src/filter_kernels.rs:2 (READY_FOR_VALIDATION); oil paint/wind/tiles: 0"
+},
+{
+"id": "STU-FX-021",
+"section": "10. Artistic / Effect-Gallery Family",
+"title": "The artistic families (Artistic, Brush Strokes, Sketch, Texture) are stackable painterly/media-simul",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep effect_gallery/EffectGallery: 0"
+},
+{
+"id": "STU-FX-022",
+"section": "11. Utility, Channel & Convolution Filters",
+"title": "Utility filters are low-level pixel operators used in masking, compositing, and legacy-format workfl",
+"apps": [
+"photoshop",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CustomConvolution/Maximum/Minimum pigment/src/filter_kernels.rs (READY_FOR_VALIDATION); offset/HSB-HSL: not found"
+},
+{
+"id": "STU-FX-023",
+"section": "12. Interactive Filter Workspaces",
+"title": "Four filter capabilities are interactive on-canvas workspaces rather than parameter-only effects; ea",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "liquify only pigment/src/liquify.rs (SMB-PS-SELECT-LIQUIFY PASS_V26); vanishing point/perspective warp/adaptive wide angle: 0"
+},
+{
+"id": "STU-FX-024",
+"section": "12. Interactive Filter Workspaces",
+"title": "The mesh-push (Liquify) workspace hosts sub-tools as one effect kind: forward-warp (push pixels in d",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-PS-SELECT-LIQUIFY PASS_V26; pigment/src/liquify.rs:102 nine tools + FaceAwareSliders :122"
+},
+{
+"id": "STU-FX-025",
+"section": "13. Layer FX (Cross-Domain Effect Kinds)",
+"title": "Layer effects (shadows, glows, bevels, overlays, strokes) are StudioLiveFilter kinds applicable to r",
+"apps": [
+"photoshop",
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "raster layer styles pigment/src/effect_math.rs:171 (SMB-EFFECTS-WAVE-2 PASS_V39); vector/text/group application not shown"
+},
+{
+"id": "STU-FX-026",
+"section": "13. Layer FX (Cross-Domain Effect Kinds)",
+"title": "Because these are ordinary stack entries, a layer fx interleaves with filters and adjustments in one",
+"apps": [
+"photoshop",
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pigment/src/effect_math.rs:264 EffectOrder behind/over content only; no interleave with filters"
+},
+{
+"id": "STU-FX-027",
+"section": "14. Vector Live Effects",
+"title": "Vector live effects are StudioLiveFilter kinds that operate on the live StudioVectorPath/StudioVecto",
+"apps": [
+"illustrator"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION (folio/src/vector_live_filter.rs, composite/src/vector_live_filters.rs) over nib/src/live_effect.rs (SMB-AI-DISTORT-EFFECTS-1 PASS_V4)"
+},
+{
+"id": "STU-FX-028",
+"section": "14. Vector Live Effects",
+"title": "3D-and-materials effects extrude/revolve/inflate/rotate 2D vector art into 3D with cap/bevel/rotatio",
+"apps": [
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nib/src/live_effect.rs:2 3D extrude/revolve (SMB-AI-DISTORT-EFFECTS-1 PASS_V4); materials/ray-traced pass: not found"
+},
+{
+"id": "STU-FX-029",
+"section": "14. Vector Live Effects",
+"title": "Pathfinder effects are live boolean/print-composite operations applied as appearance effects on a gr",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep Pathfinder in nib/src/live_effect.rs: 0 (destructive pathfinder only, harness-core/src/manual.rs:249)"
+},
+{
+"id": "STU-FX-030",
+"section": "14. Vector Live Effects",
+"title": "The document raster-effect resolution/color-model/background/anti-aliasing settings are a document-l",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep svg_filter/feGaussianBlur: 0"
+},
+{
+"id": "STU-FX-031",
+"section": "15. Figma-Origin Composite Effects",
+"title": "The layer-effect rows originating in the Figma effect model (drop/inner shadow, layer blur, progress",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/raster.rs:685 layer/backdrop blur (SMB-FOLIO-PAINT-BLUR-STYLE PASS_V27); progressive blur/glass/texture: not found"
+},
+{
+"id": "STU-FX-032",
+"section": "16. Provider / AI Generative Filter Lane (Adapter-Backed, Optional)",
+"title": "Generative and ML-model filters are an OPTIONAL adapter lane, not native deterministic effects, per ",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep EFFECT_ADAPTER_UNAVAILABLE: 0 (AI scope parked per STU-ARC-019)"
+},
+{
+"id": "STU-FX-033",
+"section": "16. Provider / AI Generative Filter Lane (Adapter-Backed, Optional)",
+"title": "Adapter-backed filter output MUST land as a non-destructive stack entry or a new masked layer select",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no adapter filter lane (StudioModelAdapter only in develop/src/retouch.rs:9); parked"
+},
+{
+"id": "STU-FX-034",
+"section": "16. Provider / AI Generative Filter Lane (Adapter-Backed, Optional)",
+"title": "The ML/neural filter models below and the generative surfaces are recorded as normative Studio effec",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "ML/neural filter rows: no adapter lane; parked per STU-ARC-019"
+},
+{
+"id": "STU-FX-035",
+"section": "17. Adjustments Coordination with 14.4",
+"title": "14.9 owns the filter/effect ENGINE and every effect usable across raster+vector; 14.4 owns the raste",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "ownership split between 14.4 and 14.9"
+},
+{
+"id": "STU-FX-036",
+"section": "18. GPU Render Requirement & Cross-Backend Equivalence",
+"title": "Every filter/effect evaluates through the the owning modular Studio asset crate RenderEngine, driven",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "filters run via render plan on render-cpu/gpu (SMB-RENDER-FILTERS PASS_V28); EFFECT_GPU_UNAVAILABLE: 0"
+},
+{
+"id": "STU-FX-037",
+"section": "18. GPU Render Requirement & Cross-Backend Equivalence",
+"title": "Filter output MUST satisfy the deterministic cross-backend promotion-equivalence contract of 14.24: ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "render-gpu tolerance-tested vs pigment reference (render-gpu/src/kernel.wgsl:497); per-effect tolerances and golden sets absent"
+},
+{
+"id": "STU-FX-038",
+"section": "18. GPU Render Requirement & Cross-Backend Equivalence",
+"title": "The effect engine runs headless and quiet (14.20): batch/model-driven effect application MUST NOT po",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "headless typed photo.liquify (harness-core/src/action/commands/photo.rs); other workspaces absent"
+},
+{
+"id": "STU-FX-039",
+"section": "19. Effect Styles, Presets & Reuse",
+"title": "A StudioEffectStack (or any sub-range of it) is savable as a named, reusable effect style in the Stu",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "style_registry@1 presets folio/src/sequence_preset.rs:18, audio_preset.rs; raster effect-style entries not found"
+},
+{
+"id": "STU-FX-040",
+"section": "20. Model Steerability, GUI, Diagnostics & Manual Obligation",
+"title": "Every effect/filter capability in 14.9 is a single primitive with two projections — the operator eff",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "cross-cutting: typed commands for a subset (harness-core action commands, READY_FOR_VALIDATION); manual harness-core/src/manual.rs"
+},
+{
+"id": "STU-FX-100",
+"section": "14.9.0 Status of this sub-section",
+"title": "REPLACEMENT SCOPE. This sub-section REPLACES sub-section 14.9 as it stood at v02.205. Clauses [STU-F",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "replacement scope (FX-160a no-yield)"
+},
+{
+"id": "STU-FX-101",
+"section": "14.9.0 Status of this sub-section",
+"title": "CLAUSE-LEVEL AMENDMENTS TO 14.9 AS IT STOOD. The following prior clauses are amended rather than ret",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "amendment table (FX-160a no-yield)"
+},
+{
+"id": "STU-FX-102",
+"section": "14.9.0 Status of this sub-section",
+"title": "NO SIDECAR AUTHORITY. Every bound, default, unit, precision, enumerated option and behaviour stateme",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "no-sidecar authority rule (FX-160a no-yield)"
+},
+{
+"id": "STU-FX-103",
+"section": "1. The record",
+"title": "StudioEffectParameter is the single typed parameter record. Every parameter of every StudioLiveFilte",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/composition/effects.rs:330 StudioEffectParamSpec for composition effects; raster adjustments/styles use plain fields"
+},
+{
+"id": "STU-FX-104",
+"section": "2. Hard bounds",
+"title": "hard_min and hard_max are the engine's acceptance range. A value outside [hard_min, hard_max] is an ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-CONTROLS PASS_V16, SMB-AE-EFFECT-STACK-1 PASS_V20; controls/src/value.rs:45 OutOfHardBounds"
+},
+{
+"id": "STU-FX-105",
+"section": "3. Soft bounds",
+"title": "soft_min and soft_max are the range the control presents. They govern the travel of a slider, the de",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16; controls/src/descriptor.rs:53"
+},
+{
+"id": "STU-FX-106",
+"section": "4. Absent bounds",
+"title": "bound_state records where the bounds came from, and \"unknown\" is a legal, required answer. The enume",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/composition/effects.rs:324 StudioBoundState; SMB-R50-FOLLOWUPS-1 PASS_V9"
+},
+{
+"id": "STU-FX-107",
+"section": "5. The irreversible mistake",
+"title": "Collapsing hard and soft bounds into one range is FORBIDDEN and is not recoverable. No Studio type, ",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "four separate bounds controls/src/descriptor.rs:60, folio effects"
+},
+{
+"id": "STU-FX-108",
+"section": "6. Units",
+"title": "unit carries a real unit token, never a guess. The normative StudioUnitToken enumeration is: pixels,",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioUnitToken folio/src/composition/effects.rs:329; SMB-R50-FOLLOWUPS-1 PASS_V9"
+},
+{
+"id": "STU-FX-109",
+"section": "7. Precision",
+"title": "precision is the decimal-place count the source declares, not a rendering preference. It governs the",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "controls/src/descriptor.rs:61 precision; SMB-CONTROLS PASS_V16"
+},
+{
+"id": "STU-FX-110",
+"section": "8. The scrubbable numeric control",
+"title": "Numeric increments and pointer sensitivity are distinct descriptor fields. For continuous discrete a",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "controls/src/descriptor.rs:62 step/fine/coarse; SMB-CONTROLS PASS_V16"
+},
+{
+"id": "STU-FX-112",
+"section": "9. Parameter kinds",
+"title": "The normative StudioParameterKind enumeration. The effect binaries expose 19 parameter type codes, f",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioParameterKind controls/src/descriptor.rs:7, folio effects; SMB-R50-FOLLOWUPS-1 PASS_V9"
+},
+{
+"id": "STU-FX-113",
+"section": "10. Parameter behaviour flags",
+"title": "The normative parameter flag set. Eight behaviour flags were recovered from the effect binaries. Stu",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/composition/effects.rs:358 animatable + interpolable only (2 of 8 flags)"
+},
+{
+"id": "STU-FX-115",
+"section": "11. Value encodings",
+"title": "Recovered value encodings are normative for import and for the descriptor, and are normalised on the",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep 16.16/65536 fixed-point import path: 0"
+},
+{
+"id": "STU-FX-116",
+"section": "12. Enumerated option lists",
+"title": "StudioParameterOption is the enumerated-option record. 433 enumerated option lists were recovered fr",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "options (index,label) folio/src/composition/effects.rs:30; grep is_separator: 0"
+},
+{
+"id": "STU-FX-117",
+"section": "13. Parameter grouping",
+"title": "Parameters form a tree, not a flat list. group parameters open a named collapsible container and a m",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Group kind folio/src/composition/effects.rs:305; no depth/terminator tree"
+},
+{
+"id": "STU-FX-118",
+"section": "14. Colour, point, path and layer-reference parameters",
+"title": "A color parameter's value is meaningless without a profile. Every color parameter carries a required",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/composition/effects.rs:53; SMB-AE-EFFECT-STACK-1 PASS_V20"
+},
+{
+"id": "STU-FX-119",
+"section": "14. Colour, point, path and layer-reference parameters",
+"title": "A point_2d or point_3d parameter exposes an on-canvas manipulator in addition to its numeric fields,",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "point_2d lowered composite/src/temporal/composition/effects.rs:16; on-canvas manipulator not found"
+},
+{
+"id": "STU-FX-120",
+"section": "14. Colour, point, path and layer-reference parameters",
+"title": "A layer_reference parameter names another StudioLayer in the same composition as an input to the eff",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layer_reference by id folio/src/composition/effects.rs:300 (SMB-R50-FOLLOWUPS-1 PASS_V9); is_track_matte_input: 0"
+},
+{
+"id": "STU-FX-121",
+"section": "15. Normalised-input parameters and declared mapping expressions",
+"title": "normalised_scalar is a parameter whose stored value is a 0..1 normalised input and whose real-world ",
+"apps": [
+"audition"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "score/src/dsp.rs:9 normalised-to-value mapping; normalised_scalar parameter kind: 0"
+},
+{
+"id": "STU-FX-123",
+"section": "16. Validation of the contract itself",
+"title": "STUDIO_EFFECT_PARAM_CONTRACT is a required StudioValidationDescriptor check and runs on every effect",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep STUDIO_EFFECT_PARAM_CONTRACT: 0"
+},
+{
+"id": "STU-FX-124",
+"section": "14.9.2 The Effect Descriptor and the Effect Registry",
+"title": "StudioEffectDescriptor (schema id hsk.studio.effect_descriptor@1) is the registration record for one",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioEffectDescriptor/effect_descriptor@1: 0"
+},
+{
+"id": "STU-FX-125",
+"section": "14.9.2 The Effect Descriptor and the Effect Registry",
+"title": "gpu_requirement is a three-valued declaration, not a boolean: required (the effect has no CPU path; ",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep gpu_requirement/GpuRequirement: 0"
+},
+{
+"id": "STU-FX-126",
+"section": "14.9.2 The Effect Descriptor and the Effect Registry",
+"title": "The normative Studio effect category set. Studio ships ONE category vocabulary across every source. ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "category key used folio/src/timeline.rs:190; closed category vocabulary not enumerated"
+},
+{
+"id": "STU-FX-127",
+"section": "14.9.2 The Effect Descriptor and the Effect Registry",
+"title": "Effect identity is by behaviour, not by source. Where two source applications ship the same effect, ",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "import_keys per kind only composite/src/simulations.rs:181"
+},
+{
+"id": "STU-FX-128",
+"section": "Coverage accounting",
+"title": "What the catalogues below cover, stated honestly. The compositing application's registry declares 63",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "coverage statement"
+},
+{
+"id": "STU-FX-129",
+"section": "Coverage accounting",
+"title": "Vendor prose coverage is low and this is declared, not hidden. Only 62 of the 635 effect entries car",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "authored manual entries for undescribed effects not found (harness-core/src/manual.rs has command methods only)"
+},
+{
+"id": "STU-FX-130",
+"section": "14.9.3 Catalogue: the compositing effect set",
+"title": "The tables in this group are the normative Studio effect set for the compositing and motion domain. ",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "subset of compositing catalogue folio/src/composition/effects.rs:35 (SMB-AE-EFFECT-STACK-1 PASS_V20)"
+},
+{
+"id": "STU-FX-131",
+"section": "14.9.4 Typed parameter records",
+"title": "The parameter records in this group are normative. Each table states, for one effect, every recovere",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed records for a subset folio/src/composition/effects.rs:32, composite/src/simulations.rs (SMB-R51-FOLLOWUPS-1 PASS_V8)"
+},
+{
+"id": "STU-FX-132",
+"section": "14.9.5 Layer styles as effect kinds",
+"title": "The ten layer-style kinds are StudioLiveFilter kinds, not a parallel system. Clause [STU-FX-025] alr",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-ADJUST-STYLES PASS_V23; pigment/src/effect_math/style.rs, composite/src/lower_extensions.rs:980"
+},
+{
+"id": "STU-FX-133",
+"section": "14.9.6 Catalogue: the video-editing effect set",
+"title": "The tables in this group are the normative Studio effect set contributed by the video-editing domain",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Lumetri/clip finishing folio/src/clip_finishing.rs:17 (SMB-PREMIERE-COLOR-TITLES PASS_V24); most of 371 effects absent"
+},
+{
+"id": "STU-FX-134",
+"section": "14.9.7 The audio effect domain",
+"title": "Studio ships a native audio effect domain. An audio effect is a StudioLiveFilter whose filter_kind i",
+"apps": [
+"audition",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-SCORE-EFFECTS-2..5 PASS; score/src/delay.rs:24, score/src/lib.rs"
+},
+{
+"id": "STU-FX-135",
+"section": "14.9.7 The audio effect domain",
+"title": "Audio effects are non-destructive stack entries. An audio processor applied to a clip or a track is ",
+"apps": [
+"audition",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AU-MULTITRACK-1 PASS_V18; score/src/chain.rs, pulse/src/comp_audio.rs:3"
+},
+{
+"id": "STU-FX-136",
+"section": "14.9.7 The audio effect domain",
+"title": "Audio parameters are normalised_scalar where the source declares a mapping. Per [STU-FX-121] the rec",
+"apps": [
+"audition"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "score/src/eq.rs:9 hard ranges, score/src/dsp.rs:9 mapping; stored normalised record not found"
+},
+{
+"id": "STU-FX-137",
+"section": "14.9.7 The audio effect domain",
+"title": "Audio routing is a first-class part of the document, not an effect property. Recovered from the sequ",
+"apps": [
+"audition",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-AU-MULTITRACK-1/2/3 PASS; folio/src/audio_routing.rs, folio/src/timeline.rs:27"
+},
+{
+"id": "STU-FX-138",
+"section": "14.9.7 The audio effect domain",
+"title": "The guided audio-adjustment surface. A declarative, mode-driven adjustment layer sits above the raw ",
+"apps": [
+"audition"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dialogue/music/sfx/ambience mode set in src: 0; SMB-SCORE-EFFECTS-6 (in progress) does not cover it"
+},
+{
+"id": "STU-FX-142",
+"section": "14.9.8 Effect presets, styles and portability",
+"title": "Shipped effect presets are data, and their contract is what this specification states -- not their n",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-AE-PARTICLES-AUDIO-PRESETS PASS_V23; folio/src/audio_preset.rs:2, motion_preset.rs"
+},
+{
+"id": "STU-FX-143",
+"section": "14.9.8 Effect presets, styles and portability",
+"title": "A preset carries a category path, not a flat name. 36 category paths were recovered, several of them",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PR-SEQUENCE-PRESETS-1 PASS_V4; folio/src/sequence_preset.rs:17 category_path"
+},
+{
+"id": "STU-FX-144",
+"section": "14.9.8 Effect presets, styles and portability",
+"title": "Effect styles and presets are portable data. [STU-FX-039a] already requires this; this sub-section a",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "content-addressed refs folio/src/audio_preset.rs:11, LUT folio/src/clip_finishing.rs:13; other preset assets not shown"
+},
+{
+"id": "STU-FX-145",
+"section": "14.9.9 Declared gaps",
+"title": "GAP -- soft bounds for the video-editing effect surface. 93.5 percent of that surface's 9,654 parame",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "declared_soft_only used folio/src/clip_finishing.rs:500; soft bounds not authored across the video surface"
+},
+{
+"id": "STU-FX-146",
+"section": "14.9.9 Declared gaps",
+"title": "GAP -- parameter records for 274 of the 482 installed compositing effects. 208 have typed records; t",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "parameter authoring for a subset composite/src/simulations.rs (SMB-AE-WATER-SIMS-1 PASS_V9)"
+},
+{
+"id": "STU-FX-147",
+"section": "14.9.9 Declared gaps",
+"title": "GAP -- the loudness-standard enumeration. The guided audio surface declares a LoudnessStandard integ",
+"apps": [
+"audition"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "score/src/normalize.rs:21 declares the gap; LoudnessStandard enum: 0"
+},
+{
+"id": "STU-FX-148",
+"section": "14.9.9 Declared gaps",
+"title": "GAP -- per-effect promotion-equivalence tolerances. [STU-FX-037] requires a tolerance per effect kin",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "GPU/CPU tolerance tests exist (render-gpu); per-effect tolerances + golden sets: not found"
+},
+{
+"id": "STU-FX-149",
+"section": "14.9.9 Declared gaps",
+"title": "RESOLVED -- shared numeric gesture roles. [STU-SHL-190] owns coarse Shift x10, fine Ctrl (Windows/Li",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16; controls/src/descriptor.rs:7, controls/src/egui_adapter.rs"
+},
+{
+"id": "STU-FX-150",
+"section": "14.9.9 Declared gaps",
+"title": "GAP -- vendor prose for 573 of 635 effect identities. Per [STU-FX-129] only 62 carry a recovered des",
+"apps": [
+"after_effects",
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "authored manual prose for undescribed effects: not found"
+},
+{
+"id": "STU-FX-151",
+"section": "14.9.10 Model steerability, GUI, diagnostics and manual obligation",
+"title": "[STU-FX-040] applies unchanged to every clause and every catalogue row in this sub-section: one prim",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core/src/action/commands.rs:67 says no input_schema; bounds visible via controls/src/projection.rs:30"
+},
+{
+"id": "STU-FX-160",
+"section": "14.9.11 Microtask Derivation",
+"title": "Microtask derivation index. Applying the shared derivation convention to this sub-section yields exa",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation index"
+},
+{
+"id": "STU-FX-161",
+"section": "14.9.11 Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under [STU-FX-160] MUST carry into its own body: t",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask content obligation"
+},
+{
+"id": "STU-FX-162",
+"section": "14.9.11 Microtask Derivation",
+"title": "Ledger.",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation ledger"
+},
+{
+"id": "STU-FX-163",
+"section": "14.9.11 Microtask Derivation",
+"title": "An open item or a blocked dependency does NOT remove a microtask. A clause or a catalogue row that d",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule"
+},
+{
+"id": "STU-FX-164",
+"section": "14.9.11 Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this sub-section cites the clause anchor directly, and a ca",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "anchor binding rule"
+},
+{
+"id": "STU-RAS-001",
+"section": "2. Cross-Cutting Raster Obligations",
+"title": "Every raster feature in this sub-section that creates, changes, or removes an operator-visible surfa",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "four projections exist for a subset (harness-view windows, harness-core action commands READY_FOR_VALIDATION, harness-core/src/manual.rs)"
+},
+{
+"id": "STU-RAS-002",
+"section": "2. Cross-Cutting Raster Obligations",
+"title": "Raster operations MUST obey the headless/quiet law (14.20): brush strokes, filter previews, ML-backe",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness headless_default harness/src/lib.rs:36; SMB-HARNESS-UI-2 PASS_V31"
+},
+{
+"id": "STU-RAS-003",
+"section": "2. Cross-Cutting Raster Obligations",
+"title": "A model-authored raster mutation (any command batch that changes pixel authority — pixel writes, lay",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "kernel-bindings/src/lib.rs:94 PromotionGate decision bridge; sandbox/validation kernel-side"
+},
+{
+"id": "STU-RAS-004",
+"section": "2. Cross-Cutting Raster Obligations",
+"title": "Raster pixel data MUST be stored and composited as StudioRasterTile tiles (14.23), not as monolithic",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "raster_tile@1 folio/src/lib.rs:32, pigment/src/tile.rs; SMB-PACKAGE-MASK-TILES PASS_V25"
+},
+{
+"id": "STU-RAS-005",
+"section": "2. Cross-Cutting Raster Obligations",
+"title": "Every raster operation MUST be reversible through the unified per-document history/undo surface (14.",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "chronicle inverse undo (SMB-HARNESS-UI-2 PASS_V31); selections use a separate viewer history (harness-view/src/view/select_liquify.rs)"
+},
+{
+"id": "STU-RAS-006",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "A raster document is a StudioDocument whose layer tree contains one or more raster-domain StudioLaye",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "multi-artboard folio/src/appearance.rs:1 + artboard.* rows (READY_FOR_VALIDATION); per-artboard guides/auto-nest/export path not found"
+},
+{
+"id": "STU-RAS-007",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "Studio MUST provide the following normative raster StudioLayer kinds. Each row is one deduped primit",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "raster/group/adjustment/fill kinds folio/src/fill_layer.rs:1 (SMB-PS-FILL-LAYERS PASS_V20); live_filter and mask layer kinds: grep 0"
+},
+{
+"id": "STU-RAS-008",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "Adjustment, live-filter, fill, and mask layers MUST be non-destructive and re-editable at any time: ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "non-destructive adjustment/fill records (SMB-PS-ADJUST-STYLES PASS_V23); apply-in-place command: grep apply_in_place 0"
+},
+{
+"id": "STU-RAS-009",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "Studio MUST support layer organization metadata as canonical StudioLayer fields: freeform tags (incl",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep colour_label/layer_comp/tags on StudioLayer: 0"
+},
+{
+"id": "STU-RAS-010",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "Fill-opacity and layer-opacity are independent canonical fields; see [STU-RAS-115] for their paramet",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pure cross-reference to RAS-115 (STU-RAS-176)"
+},
+{
+"id": "STU-RAS-011",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "Studio MUST support pixel-layer rasterization, merge-down, merge-visible, flatten, and stamp-visible",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep merge_down/merge_visible/stamp_visible/defringe: 0"
+},
+{
+"id": "STU-RAS-012",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "The placed_asset layer MUST support both embedded mode (source content stored inside the document) a",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:794 modes + link health (PASS); asset.update_all_modified harness-core/src/action/commands/asset.rs:31 (SMB-PLACE-ASSET-1 READY_FOR_VALIDATION)"
+},
+{
+"id": "STU-RAS-013",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "Duplicating a placed_asset MUST create a shared-source instance (edits to the source propagate to al",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:821 shared source; harness-view/src/view/place.rs (SMB-PLACE-ASSET-1 READY_FOR_VALIDATION)"
+},
+{
+"id": "STU-RAS-014",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "A placed_asset MUST support: non-destructive accumulated transforms with a reset-transforms command;",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "accumulated transform/reset harness-view/src/view/place.rs (READY_FOR_VALIDATION); stack modes/convert-to-layers/export contents: grep 0"
+},
+{
+"id": "STU-RAS-015",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "StudioMask is the single canonical masking primitive across all Studio domains (14.3). Studio MUST s",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pixel/vector/clipping masks (SMB-COMPOSITE-VECTOR-MASK PASS_V26; folio/src/raster.rs:1665); compound/parametric masks not found"
+},
+{
+"id": "STU-RAS-016",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "Masks MUST support density/opacity, feather, and enable/disable, and MUST be linkable or unlinkable ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-COMPOSITE-DOCGRAPH-MASKS PASS_V24; folio/src/vector.rs:28, composite/src/vector_mask.rs"
+},
+{
+"id": "STU-RAS-017",
+"section": "5. Selection",
+"title": "StudioSelectionSet (14.3) is the single canonical selection primitive. All selection tools produce, ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-PIGMENT-SELECTION PASS_V33; pigment/src/selection.rs:91"
+},
+{
+"id": "STU-RAS-018",
+"section": "5. Selection",
+"title": "Studio MUST provide the following deduped selection tools/commands. Each row is one primitive.",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "marquee/polygon/magnetic/quick/wand/colour range pigment/src/select_tools.rs:346; object/subject/sky refuse, tonal-range/luminosity select absent"
+},
+{
+"id": "STU-RAS-019",
+"section": "5. Selection",
+"title": "Object-select, subject-select, and sky-select MUST run on-device by default with no cloud dependency",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed refusal, no on-device model pigment/src/select_tools.rs:29"
+},
+{
+"id": "STU-RAS-020",
+"section": "5. Selection",
+"title": "Studio MUST provide selection-refinement operations as commands on StudioSelectionSet per [STU-RAS-1",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/select_tools/refine.rs:763; SMB-PS-SELECT-LIQUIFY PASS_V26"
+},
+{
+"id": "STU-RAS-021",
+"section": "5. Selection",
+"title": "Quick-mask mode MUST let an operator or model convert the active StudioSelectionSet into a paintable",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep quick_mask/QuickMask/rubylith: 0"
+},
+{
+"id": "STU-RAS-022",
+"section": "5. Selection",
+"title": "Studio MUST support saving a selection to a persistent alpha/spare channel and reloading it as a sel",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-FOLIO-CHANNEL-RECORD PASS_V9, SMB-TIFF-CHANNELS-1 PASS_V7; pigment/src/selection_channel_roundtrip.rs"
+},
+{
+"id": "STU-RAS-023",
+"section": "6. The Brush Engine",
+"title": "Studio MUST implement one native brush engine driving every painting and retouching tool. Brush pres",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "pigment/src/brush.rs:1 engine slice 1; grep BrushPreset/ToolPreset: 0"
+},
+{
+"id": "STU-RAS-024",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "Studio MUST provide the following deduped painting tools, all driven by the one brush engine of §6:",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "raster brush harness-view/src/view/edit.rs:9 (SMB-HARNESS-UI-2 PASS_V31); pencil/mixer/colour replacement/history brush: not found"
+},
+{
+"id": "STU-RAS-025",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "Studio MUST provide fill and gradient primitives: a bucket/flood fill filling similar contiguous are",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-PS-GRADIENT-BUCKET-1 PASS_V16; harness-view/src/view/fill_tools.rs:1"
+},
+{
+"id": "STU-RAS-026",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "Studio MUST provide the following deduped retouching family as one primitive group operating on pixe",
+"apps": [
+"photoshop",
+"lightroom_classic",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "clone/heal/spot heal/patch/CA move pigment/src/retouch.rs, content_aware.rs:4 (SMB-PIGMENT-RETOUCH PASS_V29); pattern stamp/red eye: grep 0"
+},
+{
+"id": "STU-RAS-027",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "Studio MUST provide the local tonal and detail retouch brushes as brush-engine tools: Dodge (lighten",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dodge/sponge/smudge tools in pigment: 0 (blend-mode names only)"
+},
+{
+"id": "STU-RAS-028",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "Studio MUST provide the following deduped eraser family: a general eraser (erase to transparency or ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "erase_replacement/route_erase pigment/src/brush.rs:519; background/magic eraser: grep 0"
+},
+{
+"id": "STU-RAS-029",
+"section": "11. Transforms and Content-Aware Operations",
+"title": "Studio MUST provide the following deduped transform and reshaping primitives on layers, selections, ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "move/free transform harness-core/src/action/commands/transform.rs:1 (READY_FOR_VALIDATION), affine pigment/src/transform_math.rs, CA scale; warp/puppet/perspective warp: not found"
+},
+{
+"id": "STU-RAS-030",
+"section": "11. Transforms and Content-Aware Operations",
+"title": "Content-aware operations are native and on-device per [STU-RAS-143].",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pure cross-reference to RAS-143 (STU-RAS-176)"
+},
+{
+"id": "STU-RAS-031",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "Studio MUST provide a Channels surface exposing per-document color channels, alpha channels, and spo",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/channel.rs:2, duplicate_channel pigment/src/selection_channel_roundtrip.rs:736; split/merge/apply image/calculations: grep 0"
+},
+{
+"id": "STU-RAS-032",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "Studio MUST support the following document color modes as canonical StudioColorProfile-bound states,",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/mode.rs:4 eight modes, seven conversions (SMB-PS-MODE-CONVERT-1 PASS_V4); duotone not enterable"
+},
+{
+"id": "STU-RAS-033",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "Studio MUST support 8-, 16-, and 32-bit-per-channel documents. 32-bit floating point MUST store HDR ",
+"apps": [
+"photoshop",
+"lightroom_classic",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SMB-HDR-MERGE-1 PASS_V17 pigment/src/hdr_merge.rs; preview exposure control: grep 0"
+},
+{
+"id": "STU-RAS-034",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "Studio color management MUST provide working-space profile settings and mismatch policies as saved p",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "soft proof + gamut warning harness-view/src/view/proof.rs:1 (SMB-PS-SOFT-PROOF-2 PASS_V20); assign/convert profile, colour picker: grep 0"
+},
+{
+"id": "STU-RAS-035",
+"section": "9. Adjustments",
+"title": "StudioAdjustment is the single canonical adjustment primitive; every adjustment kind MUST be usable ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "20 adjustment kinds as layers folio/src/raster.rs:150; destructive apply/presets/one-click: not found"
+},
+{
+"id": "STU-RAS-036",
+"section": "9. Adjustments",
+"title": "Where a single named control exists in more than one source family, it MUST map to exactly one Studi",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "one StudioAdjustment enum folio/src/raster.rs:150; SMB-PS-ADJUST-STYLES PASS_V23"
+},
+{
+"id": "STU-RAS-037",
+"section": "9. Adjustments",
+"title": "StudioLiveFilter is the single canonical live-filter primitive: a re-editable, maskable filter hoste",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-SMART-FILTER-WIRING PASS_V24; folio/src/smart_filter.rs:1"
+},
+{
+"id": "STU-RAS-038",
+"section": "12. Blend Modes",
+"title": "StudioBlendMode is the single canonical blend-mode enum, shared by layers, groups, brush tools, fill",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pigment/src/blend_math.rs:75 StudioBlendMode; SMB-PIGMENT-ENG-1 PASS_V42"
+},
+{
+"id": "STU-RAS-039",
+"section": "12. Blend Modes",
+"title": "Additional comparative/intensity modes present in one source family but not another MUST be included",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "extra modes above 30 pigment/src/blend_math.rs; SMB-FOLIO-ENG-2 PASS_V33"
+},
+{
+"id": "STU-RAS-040",
+"section": "13. Layer Effects and Advanced Blending",
+"title": "StudioEffectStack is the single canonical layer-effects/styles primitive. Studio MUST implement the ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-ADJUST-STYLES PASS_V23; folio/src/raster.rs:26, pigment/src/effect_math.rs:171"
+},
+{
+"id": "STU-RAS-041",
+"section": "13. Layer Effects and Advanced Blending",
+"title": "Studio MUST provide advanced/conditional blending on every layer as canonical StudioLayer fields: Bl",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-ADJUST-STYLES-3 PASS_V21; folio/src/raster.rs:23"
+},
+{
+"id": "STU-RAS-042",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "Raster layers, artboards, selections and slices MUST be exportable through the single unified Studio",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "interop-psd/src/compose.rs:1, harness-view/src/view/doc_export.rs (SMB-DOC-EXPORT-1 READY_FOR_VALIDATION); web-slice tool: grep 0"
+},
+{
+"id": "STU-RAS-043",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "Studio MUST preserve alpha channels, spot channels, layer groups, masks, adjustment/live-filter/fill",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-TIFF-CHANNELS-1 PASS_V7, SMB-R52-FOLLOWUPS-1 PASS_V6; harness-core/src/import/tiff.rs:21 loss receipts"
+},
+{
+"id": "STU-RAS-044",
+"section": "14. Provider, Cloud, and Generative Posture",
+"title": "Studio's raster domain is local-first: every raster primitive named in 14.4 — including the ML-backe",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "native CA/HDR/object region; sky replacement absent, object/subject/sky select refuse (pigment/src/select_tools.rs:29)"
+},
+{
+"id": "STU-RAS-045",
+"section": "14. Provider, Cloud, and Generative Posture",
+"title": "Cloud-, account-, or vendor-generative features are NOT core Studio features. They are recorded here",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/retouch.rs:270 adapter-lane record never rendered; SMB-LR-HEALING-1 PASS_V20"
+},
+{
+"id": "STU-RAS-046",
+"section": "14. Provider, Cloud, and Generative Posture",
+"title": "Any adapter lane MUST be opt-in, MUST route through the sandbox → validation → PromotionGate lifecyc",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no adapter lane exists (StudioModelAdapter only in develop/src/retouch.rs); parked per STU-ARC-019"
+},
+{
+"id": "STU-RAS-047",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "Where a raster capability is also reachable from another Studio domain (a mask from vector, a gradie",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reuse/ownership rule"
+},
+{
+"id": "STU-RAS-048",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "Every raster capability MUST be represented by a clause or table row here; see [STU-RAS-102], which ",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "spec-completeness pointer to RAS-102"
+},
+{
+"id": "STU-RAS-049",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "Studio MUST provide the raster tonal-diagnostics feedback surface: a live histogram (per-composite a",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-PS-INFO-HISTOGRAM-1 PASS_V19; harness-view/src/view/info.rs:1"
+},
+{
+"id": "STU-RAS-050",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "Navigation, view, measurement and annotation tools that appear on source raster toolbars but are not",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "shell zoom harness-view/src/view/shell.rs; rotate-view/navigator/count/notes: not found"
+},
+{
+"id": "STU-RAS-051",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "Studio MUST provide a focus-stack / seamless-blend composite operation: given a multi-layer stack, a",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep focus_stack/seamless/auto_blend: 0"
+},
+{
+"id": "STU-RAS-100",
+"section": "0. Replacement, Derivation, and Anchor Disposition",
+"title": "REPLACEMENT DECLARATION. This module replaces the v02.205 bodies of 14.4 and 14.12 in full. The supe",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "replacement declaration (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-101",
+"section": "0. Replacement, Derivation, and Anchor Disposition",
+"title": "ANCHOR DISPOSITION. Every anchor in the v02.205 bodies of 14.4 and 14.12 carries an explicit disposi",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "anchor disposition table (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-102",
+"section": "0. Replacement, Derivation, and Anchor Disposition",
+"title": "SPEC-COMPLETENESS RULE (supersedes the authority direction of [STU-RAS-048]). Every raster capabilit",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "spec-completeness rule (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-103",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "StudioParameterSpec. Every numeric parameter exposed by any Studio raster or develop primitive MUST ",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "grep parameter_spec@1/StudioParameterSpec: 0; hard/soft bounds in controls/src/descriptor.rs:69"
+},
+{
+"id": "STU-RAS-104",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "HARD AND SOFT BOUNDS ARE NEVER EQUATED. hard_* and soft_* MUST both be emitted from the first implem",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "controls keeps hard and soft separate (controls/src/descriptor.rs:471); raster tool params not emitted as specs"
+},
+{
+"id": "STU-RAS-105",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "UNIT VOCABULARY. unit MUST be one of the following tokens. This list is closed; adding a unit is a g",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "levels_0_255 used folio/src/raster.rs:112; closed RAS-105 unit list not implemented (StudioUnitToken differs)"
+},
+{
+"id": "STU-RAS-106",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "THE unknown TOKEN IS NORMATIVE. Where a bound, default, unit, or precision was not declared by any s",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "unknown carried as None folio/src/composition/roto.rs:39; literal token/bound_classification: 0"
+},
+{
+"id": "STU-RAS-107",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "OBSERVED RANGES ARE NOT LIMITS. An observed_min / observed_max pair records the range a parameter wa",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep observed_min/observed_max: 0"
+},
+{
+"id": "STU-RAS-108",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "SCRUBBABLE NUMERIC CONTROL. Every StudioParameterSpec drives one shared numeric control primitive: a",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-CONTROLS PASS_V16; controls/src/descriptor.rs:62, controls/src/egui_adapter.rs"
+},
+{
+"id": "STU-RAS-109",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "ENUMERATED VALUES ARE CLOSED AND INTEGER-STABLE. Every enumerated parameter MUST declare its complet",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "explicit discriminants e.g. pigment/src/blend_math.rs:85; not proven for every enumeration"
+},
+{
+"id": "STU-RAS-110",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "PARAMETER SPECS ARE MODEL-VISIBLE. The full StudioParameterSpec for every parameter of every command",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "controls/src/projection.rs:30 exposes bounds/steps; schemars inputSchema absent (harness-core/src/action/commands.rs:67)"
+},
+{
+"id": "STU-RAS-111",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "PARAMETER-CONTRACT VALIDATION. StudioValidationDescriptor (14.24) MUST carry a check that fails any ",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioValidationDescriptor: 0"
+},
+{
+"id": "STU-RAS-112",
+"section": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+"title": "DERIVATION CLASSIFICATION VOCABULARY. Every value in this module and every StudioParameterSpec field",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "source classification only (prism/src/mode.rs AvailabilitySource, accord/src/settings.rs:201); per-field classification: 0"
+},
+{
+"id": "STU-RAS-113",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "LAYER KIND VERSUS ADJUSTMENT KIND ARE TWO FIELDS, NOT ONE. The captured source object models expose ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:9 adjustment kind separate from layer kind; SMB-PS-ADJUST-STYLES PASS_V23"
+},
+{
+"id": "STU-RAS-114",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "LAYER STACK ORDERING IS AN EXPLICIT ENUMERATED PLACEMENT. Every command that inserts or moves a Stud",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "chronicle/src/structure.rs:136 PlaceMode; SMB-HARNESS-UI-3 PASS_V29"
+},
+{
+"id": "STU-RAS-115",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "LAYER OPACITY PARAMETER CONTRACT (extends [STU-RAS-010]). Fill-opacity and layer-opacity MUST be ind",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/raster.rs:21; SMB-HARNESS-RENDER-RECORDS PASS_V25"
+},
+{
+"id": "STU-RAS-116",
+"section": "2. Cross-Cutting Raster Obligations",
+"title": "BULK BINARY IS NOT AUTHORITY-DATABASE CONTENT. Raster tiles, sampled brush-tip bitmaps, erodible-tip",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "tiles as sha256 package entries; SurrealDB/artifact tier kernel-side"
+},
+{
+"id": "STU-RAS-117",
+"section": "3. Raster Document, Layer Kinds, and Layer Numerics",
+"title": "RASTERIZE TARGET AND MATTE ENUMERATIONS (extends [STU-RAS-011]). The rasterize command MUST take an ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep RasterizeTarget/rasterize command: 0 (harness-view/src/view/fill_tools.rs:398 only refuses)"
+},
+{
+"id": "STU-RAS-118",
+"section": "5. Selection",
+"title": "SELECTION COMBINE MODE ENUMERATION (extends [STU-RAS-017]). The combine mode is a closed four-member",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pigment/src/selection.rs:91 CombineMode; SMB-PIGMENT-SELECTION PASS_V33"
+},
+{
+"id": "STU-RAS-119",
+"section": "5. Selection",
+"title": "MARQUEE CONSTRAINT PARAMETER CONTRACT (extends [STU-RAS-018]). The geometric marquee MUST carry a co",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/select_tools.rs:148; SMB-PS-SELECT-LIQUIFY PASS_V26"
+},
+{
+"id": "STU-RAS-120",
+"section": "5. Selection",
+"title": "SELECTION MODIFY OPERATIONS. StudioSelectionSet MUST expose Grow, Shrink (with a circular-applicatio",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "feather only pigment/src/selection.rs; grow/shrink/smooth/border/expand/contract: not found"
+},
+{
+"id": "STU-RAS-121",
+"section": "5. Selection",
+"title": "UNIFIED EDGE-REFINEMENT SURFACE (extends [STU-RAS-020]). One surface — not two — owns matte and edge",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-SELECT-LIQUIFY PASS_V26; pigment/src/select_tools/refine.rs"
+},
+{
+"id": "STU-RAS-122",
+"section": "5. Selection",
+"title": "REFINEMENT BRUSH SET. The edge-refinement surface MUST provide a brush set with the modes refine_edg",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pigment/src/select_tools/refine_brush.rs:25 seven modes; SMB-PS-SMART-FILTER-WIRING PASS_V24"
+},
+{
+"id": "STU-RAS-123",
+"section": "5. Selection",
+"title": "SKY-REPLACEMENT COMPOSITE PARAMETER CONTRACT. The sky-replacement composite is a named model-steerab",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep sky_replace/SkyReplace: 0"
+},
+{
+"id": "STU-RAS-124",
+"section": "4. Placed-Asset Container and Masking Semantics",
+"title": "MASK MODIFY CONTROL CONTRACT (extends [STU-RAS-015], [STU-RAS-016]). The shared mask-modify surface ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/raster.rs:355 density/feather/inverted; enable/position-link not in record"
+},
+{
+"id": "STU-RAS-125",
+"section": "6. The Brush Engine",
+"title": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]). Studio MUST implement exactly one",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "pigment/src/brush.rs:1 engine slice 1 (SMB-PIGMENT-BRUSH PASS_V32); scatter/dual/texture/smoothing pending (brush.rs:577)"
+},
+{
+"id": "STU-RAS-126",
+"section": "6. The Brush Engine",
+"title": "TIP MODEL — FOUR KINDS, ONE PRIMITIVE. StudioBrushTip MUST support four tip kinds in one primitive, ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "TipKind four members pigment/src/brush.rs:85; sampled/erodible/airbrush refuse tip_kind_unsupported"
+},
+{
+"id": "STU-RAS-127",
+"section": "6. The Brush Engine",
+"title": "PRIMARY TIP PARAMETER CONTRACT. Every brush tip MUST carry these parameters with these contracts. de",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "diameter/hardness/angle/roundness/spacing pigment/src/brush.rs:577; flip_x/y, tip_shape_index, sampled_tip_id: not found"
+},
+{
+"id": "STU-RAS-128",
+"section": "6. The Brush Engine",
+"title": "ERODIBLE-TIP PARAMETER CONTRACT. A tip with tip_kind = erodible or airbrush_spray additionally carri",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed refusal tip_kind_unsupported pigment/src/brush.rs:577"
+},
+{
+"id": "STU-RAS-129",
+"section": "6. The Brush Engine",
+"title": "BRISTLE-PHYSICS PARAMETER CONTRACT. A tip MAY carry a bristle physics model, gated by a boolean. It ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep bristle/Bristle: 0"
+},
+{
+"id": "STU-RAS-130",
+"section": "6. The Brush Engine",
+"title": "DYNAMICS CHANNEL MODEL — TWO SERIALIZATIONS, ONE STUDIO PRIMITIVE. A dynamics channel makes one brus",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Control Off/Fade/PenPressure/PenTilt/Velocity pigment/src/brush.rs:137; jitter refuses"
+},
+{
+"id": "STU-RAS-131",
+"section": "6. The Brush Engine",
+"title": "DYNAMICS CHANNELS AND DRIVING SIGNALS. Studio MUST expose an independent StudioBrushDynamics channel",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "size/opacity/flow channels only (pigment/src/brush.rs:577)"
+},
+{
+"id": "STU-RAS-132",
+"section": "6. The Brush Engine",
+"title": "SCATTER AND DUAL TIP. Scatter and dual tip are two sub-engines, each gated by its own boolean, each ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dual_tip/DualTip: 0; scatter pending"
+},
+{
+"id": "STU-RAS-133",
+"section": "6. The Brush Engine",
+"title": "TEXTURE SUB-ENGINE. A brush MAY be textured by a StudioPattern; 107 of 643 shipped presets are. The ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "brush texture pending (pigment/src/brush.rs:577); grep texture_each_tip: 0"
+},
+{
+"id": "STU-RAS-134",
+"section": "6. The Brush Engine",
+"title": "COLOUR DYNAMICS. Colour dynamics vary the painted colour along the stroke. 17 of 643 shipped presets",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep colour_dynamics/hue_jitter: 0"
+},
+{
+"id": "STU-RAS-135",
+"section": "6. The Brush Engine",
+"title": "WET MIXING AND BRUSH POSE. The mixer sub-engine and the pose override are separate and both are norm",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no mixer sub-engine; grep wetness in pigment: 0"
+},
+{
+"id": "STU-RAS-136",
+"section": "6. The Brush Engine",
+"title": "STROKE SMOOTHING (supersedes the \"0–100\" claim in [STU-RAS-023]). Stroke smoothing is not one 0..100",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "smoothing pending (pigment/src/brush.rs:577); grep pulled_string/catch_up: 0"
+},
+{
+"id": "STU-RAS-137",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "BRUSH-DRIVEN TOOL IDENTITY IS A CLOSED ENUMERATION. Every brush-driven tool carries a stable discrim",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep pattern_stamp/art_history tool enumeration: 0"
+},
+{
+"id": "STU-RAS-138",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "HISTORY-SOURCED PAINTING PARAMETER CONTRACT. The history brush and the art-history brush paint from ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep history_brush/HistoryBrush: 0"
+},
+{
+"id": "STU-RAS-139",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "RETOUCH AND ERASE TOOL OPTION CONTRACTS. The retouch family of [STU-RAS-026], the local tonal brushe",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "clone-stamp options pigment/src/retouch.rs:2; eraser/dodge option contracts absent"
+},
+{
+"id": "STU-RAS-140",
+"section": "0. Replacement, Derivation, and Anchor Disposition",
+"title": "Deliberately unissued anchor; MUST NOT be assigned later",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "deliberately unissued anchor"
+},
+{
+"id": "STU-RAS-141",
+"section": "11. Transforms and Content-Aware Operations",
+"title": "TRANSFORM REFERENCE POINT AND RESAMPLING ENUMERATIONS. Every transform, canvas resize, and image res",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "nine-member Anchor pigment/src/canvas_ops.rs:59; ResampleFilter 3 of 9 pigment/src/transform_math.rs:176"
+},
+{
+"id": "STU-RAS-142",
+"section": "11. Transforms and Content-Aware Operations",
+"title": "TRANSFORM, CROP AND TRIM PARAMETER CONTRACTS.",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-RETOUCH PASS_V29; pigment/src/canvas_ops.rs:2"
+},
+{
+"id": "STU-RAS-143",
+"section": "11. Transforms and Content-Aware Operations",
+"title": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]). Content-aware fill, content-aware scale",
+"apps": [
+"photoshop",
+"lightroom_classic",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PIGMENT-CONTENT-AWARE PASS_V29, -2 PASS_V29; pigment/src/content_aware.rs"
+},
+{
+"id": "STU-RAS-144",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "CHANNEL TYPE ENUMERATION AND CHANNEL-MATH CONTRACT. StudioChannel.kind is closed: component = 1, mas",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/channel.rs:52 kinds (component derived); apply image/calculations: grep 0"
+},
+{
+"id": "STU-RAS-145",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "DOCUMENT COLOUR MODE ENUMERATION AND THE CONVERT-MODE ASYMMETRY. StudioDocument.colour_mode is close",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/mode.rs DocumentMode/ChangeMode (SMB-PS-MODE-CONVERT-1 PASS_V4); harness-core/src/document_new.rs:94 (SMB-DOC-NEW-1 READY_FOR_VALIDATION)"
+},
+{
+"id": "STU-RAS-146",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "BITMAP (1-BIT) CONVERSION CONTRACT. Converting to 1-bit MUST take a method enumerator and its method",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "prism/src/mode/bitmap.rs:1; SMB-PS-MODE-CONVERT-1 PASS_V4"
+},
+{
+"id": "STU-RAS-147",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "INDEXED-COLOUR CONVERSION CONTRACT. Converting to indexed colour MUST take:",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prism/src/mode/indexed.rs:1; system/previous palettes refuse palette_table_not_captured"
+},
+{
+"id": "STU-RAS-148",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "DUOTONE INK CONTRACT. Duotone MUST support one to four ink plates (mono/duo/tri/quadtone), each carr",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "prism/src/mode.rs:4 refuses to_duotone; duotone ink plates/curves: grep 0"
+},
+{
+"id": "STU-RAS-149",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "BIT-DEPTH ENUMERATION AND CAPABILITY GATING. StudioDocument.bits_per_channel is closed and its discr",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "BitsPerChannel + change_availability prism/src/mode.rs; per-command depth metadata not general (pigment/src/hdr_merge/tone.rs:60)"
+},
+{
+"id": "STU-RAS-150",
+"section": "10. Channels, Colour Modes, and Bit Depth",
+"title": "COLOUR-MANAGEMENT ENUMERATIONS AND COLOUR-COMPONENT CONTRACTS. These enumerations are closed and sha",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "RenderingIntent interop-psd/src/convert.rs:73; proof-source and profile-assignment enums not found"
+},
+{
+"id": "STU-RAS-151",
+"section": "9. Adjustments",
+"title": "THE StudioAdjustment KIND ENUMERATION. The adjustment set is closed. Studio declares its own contigu",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "20 kinds folio/src/raster.rs:150; ocio/normals/tone_stretch: grep 0"
+},
+{
+"id": "STU-RAS-152",
+"section": "9. Adjustments",
+"title": "ADJUSTMENT SCALE DECLARATION. Several adjustments are serialized on different numeric scales by diff",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:112; SMB-PS-ADJUST-STYLES PASS_V23"
+},
+{
+"id": "STU-RAS-153",
+"section": "9. Adjustments",
+"title": "UNOBSERVED ADJUSTMENT PARAMETER BLOCKS ARE STATED UNKNOWNS. Four adjustment kinds — invert, ocio, no",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "invert present; ocio/normals/tone_stretch: grep 0"
+},
+{
+"id": "STU-RAS-154",
+"section": "12. Blend Modes",
+"title": "CANONICAL BLEND-MODE ENUMERATION. The set is closed and the discriminants are canonical. They are th",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs:75 discriminants; SMB-PIGMENT-ENG-1 PASS_V42"
+},
+{
+"id": "STU-RAS-155",
+"section": "12. Blend Modes",
+"title": "BLEND-MODE APPLICABILITY IS INSPECTABLE METADATA, NOT SILENT FAILURE. StudioBlendMode MUST carry, pe",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/blend_math.rs:51 Applicability; SMB-PIGMENT-EXTENDED-RANGE-2 PASS_V26"
+},
+{
+"id": "STU-RAS-156",
+"section": "13. Layer Effects and Advanced Blending",
+"title": "EFFECTS ARE MULTI-INSTANCE (supersedes the one-instance-per-kind model implied by [STU-RAS-040]). A ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "multi-instance stack folio/src/raster.rs (MAX_EFFECTS); SMB-FOLIO-PAINT-BLUR-STYLE PASS_V27"
+},
+{
+"id": "STU-RAS-157",
+"section": "13. Layer Effects and Advanced Blending",
+"title": "PER-EFFECT PARAMETER CONTRACTS. Every effect instance carries the common block plus its kind block. ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:580 StudioEffectKind blocks; SMB-PS-ADJUST-STYLES PASS_V23"
+},
+{
+"id": "STU-RAS-158",
+"section": "13. Layer Effects and Advanced Blending",
+"title": "StudioContour MODEL AND GLOBAL LIGHT. A contour is a named curve carried by value inside the effect ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:27 contour + global light; SMB-PS-ADJUST-STYLES PASS_V23"
+},
+{
+"id": "STU-RAS-159",
+"section": "13. Layer Effects and Advanced Blending",
+"title": "BLEND-IF RANGE MODEL — EIGHT VALUES PER CHANNEL, NOT FOUR. A blend range is stored per channel as ei",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/raster.rs:365 eight values per channel; SMB-PS-ADJUST-STYLES PASS_V23"
+},
+{
+"id": "STU-RAS-160",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "StudioGradient MODEL AND PARAMETER CONTRACT (extends [STU-RAS-025]). A gradient is two independent s",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "colour + transparency stops harness-view/src/view/fill_tools.rs:43, folio/src/fill_layer.rs:14; SMB-PS-GRADIENT-BUCKET-1 PASS_V16"
+},
+{
+"id": "STU-RAS-161",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "StudioPattern MODEL. A pattern is a named, id-addressed tile bitmap with a declared colour mode and ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/vector.rs:81 StudioPattern; SMB-PS-FILL-LAYERS PASS_V20"
+},
+{
+"id": "STU-RAS-162",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "UNSUPPORTED-VALUE RECEIPTS. Any import that encounters an enumerator, a preset family, a parameter, ",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "interop-psd/src/loss.rs:15 LossKind incl. PreservedOpaque; SMB-INTEROP-PSD-RECEIPT PASS_V47"
+},
+{
+"id": "STU-RAS-163",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "DIAGNOSTIC SURFACE CONTRACT. The colour sampler MUST support at least four simultaneous persistent s",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pigment/src/diagnostics.rs:230 seven sample sizes; SMB-PS-INFO-HISTOGRAM-1 PASS_V19"
+},
+{
+"id": "STU-RAS-164",
+"section": "14. Provider, Cloud, and Generative Posture",
+"title": "METERED THIRD-PARTY MODELS ARE AN ADAPTER SHAPE, NOT A TOOL SHAPE. The captured field evidence shows",
+"apps": [
+"photoshop",
+"lightroom_classic"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "develop/src/retouch.rs:270 metered model kept as adapter record; SMB-LR-HEALING-1 PASS_V20"
+},
+{
+"id": "STU-RAS-165",
+"section": "6. The Brush Engine",
+"title": "SHIPPED BRUSH-LIBRARY CONTRACT. Studio MUST ship a brush library of at least the scale and shape of ",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep brush_library/BrushLibrary: 0"
+},
+{
+"id": "STU-RAS-166",
+"section": "6. The Brush Engine",
+"title": "TOOL PRESETS. A tool preset MUST capture a tool identity plus that tool's complete option configurat",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep tool_preset/ToolPreset: 0"
+},
+{
+"id": "STU-RAS-167",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "PRESET FAMILIES ARE FIRST-CLASS, TYPED, AND SEPARATELY PANELLED. Studio MUST ship these preset famil",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "LUT registry prism/src/lut.rs:2; other typed preset registries/panels not found"
+},
+{
+"id": "STU-RAS-168",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "SWATCH AND COLOUR-BOOK MODEL. A StudioSwatch MUST carry its colour components *and* the colour space",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "SMB-VECTOR-STYLES PASS_V25; folio/src/swatch_library.rs, folio/src/colour_book.rs"
+},
+{
+"id": "STU-RAS-169",
+"section": "8. Fill, Gradient, Pattern, and the Preset Libraries",
+"title": "MACRO / ACTION MODEL. A recorded macro is an ordered list of steps; each step carries an enabled fla",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "SMB-PS-ACTIONS-1 PASS_V18; harness-core/src/action.rs:9"
+},
+{
+"id": "STU-RAS-170",
+"section": "7. Painting, Retouching, and Erasing Tools",
+"title": "ERASING ON A NON-DESTRUCTIVE LAYER ROUTES THROUGH MASKING. Where the target of an erase is a placed_",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pigment/src/brush.rs:517 route_erase to mask; SMB-PIGMENT-BRUSH PASS_V32"
+},
+{
+"id": "STU-RAS-171",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "RASTER-SIDE EXPORT PARAMETER CONTRACTS. 14.13 owns the format matrix; 14.4 owns these declared raste",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "JPEG quality 1..100 interop-raster/src/jpeg_encode.rs:99; other encoder bounds not carried as specs"
+},
+{
+"id": "STU-RAS-172",
+"section": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+"title": "FILTER PARAMETER ENUMERATIONS ARE OWNED BY 14.9 AND ARE NAMED HERE ONLY TO PREVENT LOSS. The capture",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "some enums folio/src/smart_filter.rs:29 (noise distribution, radial kind); 41-operation enumeration set incomplete"
+},
+{
+"id": "STU-RAS-173",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "THIS SUB-SECTION IS THE MICROTASK SOURCE. The implementing work for 14.4 and 14.12 MUST be cut from ",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-174",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "SPEC-DEBT REGISTER FOR 14.4 AND 14.12. The following are the known, named gaps in this sub-section. ",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "spec-debt register (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-175",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "DERIVATION RULE (NORMATIVE; supersedes cut rules 1 and 2 of [STU-RAS-173]). The 14.4 and 14.12 micro",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-176",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "THE NON-YIELDING SET IS CLOSED. A clause or table in the following four categories yields no microta",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "non-yielding set (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-177",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "AN OPEN ITEM OR A BLOCKED DEPENDENCY STILL YIELDS A MICROTASK. A clause that declares an unknown bou",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation rule (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-178",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "YIELDS INDEX. One row per sub-section. Clause definitions counts anchors defined in that sub-section",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "yields index (STU-RAS-176 no-yield)"
+},
+{
+"id": "STU-RAS-179",
+"section": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+"title": "RECONCILIATION AND ANCHOR BINDING. This module yields exactly 350 microtasks. That total is the modu",
+"apps": [
+"photoshop"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "reconciliation (STU-RAS-176 no-yield)"
+}
+],
+"counts_by_status": {
+"BUILT_NOT_VALIDATED": 4,
+"MISSING": 43,
+"NOT_PRODUCT": 36,
+"PARTIAL": 102,
+"VALIDATED": 116
+},
+"counts_by_app_and_status": {
+"affinity": {
+"BUILT_NOT_VALIDATED": 2,
+"MISSING": 17,
+"PARTIAL": 37,
+"VALIDATED": 31
+},
+"after_effects": {
+"MISSING": 2,
+"NOT_PRODUCT": 1,
+"PARTIAL": 14,
+"VALIDATED": 3
+},
+"audition": {
+"MISSING": 2,
+"PARTIAL": 2,
+"VALIDATED": 6
+},
+"cross_app": {
+"BUILT_NOT_VALIDATED": 1,
+"MISSING": 12,
+"NOT_PRODUCT": 19,
+"PARTIAL": 35,
+"VALIDATED": 55
+},
+"figma": {
+"PARTIAL": 1
+},
+"illustrator": {
+"BUILT_NOT_VALIDATED": 1,
+"MISSING": 2,
+"PARTIAL": 4,
+"VALIDATED": 6
+},
+"indesign": {
+"VALIDATED": 1
+},
+"lightroom_classic": {
+"MISSING": 3,
+"PARTIAL": 12,
+"VALIDATED": 8
+},
+"photoshop": {
+"BUILT_NOT_VALIDATED": 2,
+"MISSING": 25,
+"NOT_PRODUCT": 16,
+"PARTIAL": 61,
+"VALIDATED": 50
+},
+"premiere_pro": {
+"MISSING": 2,
+"PARTIAL": 3,
+"VALIDATED": 8
+}
+},
+"top_missing_areas": [
+"Brush engine depth: no dual tip, scatter, brush texture, colour dynamics, wet mixing, bristles, stroke smoothing, shipped brush library or tool presets (only a parametric round tip with pressure on size/opacity/flow).",
+"Classic Photoshop pixel tools and layer commands: dodge/burn/sponge/smudge, background and magic eraser, history brush, quick mask, merge down/visible/flatten/stamp, an explicit rasterize command, layer tags/colour labels/layer comps, focus stacking and sky replacement.",
+"Effect registration contract: no StudioEffectDescriptor, gpu_requirement, EFFECT_GPU_UNAVAILABLE result, EFFECT_PARAM_CONTRACT validation, StudioValidationDescriptor check, source value-encoding import, or repeat-last-effect command.",
+"Filter catalogue breadth: no Effect Gallery (artistic, brush strokes, sketch, texture), most pixelate/stylize/render filters (clouds, lighting, lens flare), live pathfinder and SVG-filter vector effects, vanishing point and other interactive workspaces, the guided audio (Essential Sound) surface and the loudness-standard enumeration.",
+"Kernel-side integration (outside the assets repo): handshake_core::studio binding, SurrealDB studio_* tables, sandbox and PromotionGate path, auto-accept host policy, Palmistry and wait-free render diagnostics, pre-account render gate; AI adapter lanes stay parked per STU-ARC-019."
+],
+"notes": [
+"Method: spec clause read at its definition line in master-spec-v02.229 14-studio-creative-suite.md; code read from a git archive of origin/codex/handshake-studio-assets 87f331f9 (crates/*.rs, *.wgsl, Cargo.toml); spec-ID citations compared between 87f331f9 and the last validated round tip c4d06841 (R59). No cargo, builds or tests were run.",
+"VALIDATED = clause implemented in code present at c4d06841 and a covering lane is PASS_V* in ledger.json; BUILT_NOT_VALIDATED = implementing code added after R59 by a READY_FOR_VALIDATION lane; PARTIAL also covers typed refusals (for example brush tip kinds, on-device ML selection).",
+"Only 11 of these IDs gained their first code citation after R59 (ARC-024, ARC-032, FX-007, FX-012, FX-016, FX-020, FX-101, FX-128, RAS-029, RAS-042, RAS-145); they come from READY_FOR_VALIDATION lanes SMB-VK-HOST-1, SMB-AI-LIVE-EFFECTS-1, SMB-PIGMENT-FILTER-KERNELS-1, SMB-PLACE-ASSET-1, SMB-DOC-EXPORT-1, SMB-DOC-NEW-1, SMB-COMMAND-SURFACE-1.",
+"ui = window only where a harness-view egui tool or panel drives the feature (layers, edit/brush, fill tools, select/liquify, info, proof, swatches, mixer/waveform, controls). Adjustments, layer styles, filters, retouch, channels, colour-mode conversion and HDR merge have engine code but no window control at the tip; the native Vulkan host shows no raster controls.",
+"No LOCAL rows: the in-progress lanes touching these areas (SMB-SCORE-EFFECTS-6, SMB-R60-FOLLOWUPS-1) do not implement any of these clauses beyond what is already on origin; FX-138 is not covered by SMB-SCORE-EFFECTS-6.",
+"Index section fields for retained RAS anchors point at the disposition table; rows use the heading above the clause definition instead. RAS-140 is unissued."
+],
+"unverified": [
+"Kernel-side clauses (ARC-001, ARC-005, CON-004, CON-011, CON-012, CON-013, RAS-003, RAS-116) were judged from the assets repo only; the Handshake product repo was not inspected.",
+"VALIDATED rows rely on ledger PASS verdicts plus code reading; no test was rerun, and Adobe/Figma/Affinity behavioural parity is UNVERIFIED (code itself labels most formulas as Studio readings, D5).",
+"Lane-to-clause attribution for VALIDATED rows without an index lane link is inferred from crate, lane notes and code comments naming the lane.",
+"Completeness of large catalogue clauses (FX-130, FX-131, FX-133, RAS-151, RAS-154) was judged from enum/kind counts, not row by row.",
+"ui=window is from source reading of harness-view; not checked in a running window."
+]
+}

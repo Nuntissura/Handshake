@@ -208,6 +208,56 @@ Biggest gaps: After Effects has no window surface; new work since 2026-10-30 lan
 
 Readings: GUI numbers measure the frozen egui test host. 30 crates changed since R59, so their PASS verdicts need R60 attempt 3. Details and evidence: `research/parity-20261111-adobe-print.json`, `parity-20261111-video-audio.json`, `parity-20261111-figma-affinity-shell.json`.
 
+## Spec coverage on 2026-11-11 (all 2,303 spec requirements)
+
+Method: eight auditors judged every spec requirement ID against origin code and the latest finished round, with NOT_PRODUCT rows left out of the denominator and score = (VALIDATED + 0.5 x BUILT_NOT_VALIDATED + 0.25 x PARTIAL) / product rows, the parity weights.
+
+| Status | Rows |
+|---|---|
+| VALIDATED | 579 |
+| BUILT_NOT_VALIDATED | 52 |
+| PARTIAL | 781 |
+| MISSING | 640 |
+| LOCAL | 9 |
+| NOT_PRODUCT | 242 |
+| Total (product rows 2061) | 2303 |
+
+Overall: validated 28.1%, score 38.8%, missing 31.1%. Rows tagged with several apps count once per app.
+
+| App | Product requirements | Validated % | Score % | Missing % |
+|---|---|---|---|---|
+| photoshop | 265 | 37.4 | 48.3 | 20.4 |
+| lightroom_classic | 93 | 47.3 | 58.3 | 8.6 |
+| illustrator | 264 | 34.5 | 44.1 | 28.4 |
+| indesign | 340 | 31.2 | 41.5 | 27.6 |
+| premiere_pro | 111 | 42.3 | 55.2 | 17.1 |
+| after_effects | 179 | 40.2 | 52.2 | 14.5 |
+| audition | 16 | 37.5 | 48.4 | 18.8 |
+| figma | 382 | 28.3 | 36.8 | 38.2 |
+| affinity | 163 | 39.3 | 50.0 | 18.4 |
+| acrobat | 28 | 57.1 | 66.1 | 7.1 |
+| dreamweaver | 161 | 1.2 | 7.1 | 74.5 |
+| media_encoder | 37 | 18.9 | 47.3 | 8.1 |
+| bridge | 31 | 22.6 | 35.5 | 25.8 |
+| cross_app | 614 | 18.7 | 31.7 | 31.9 |
+
+Top missing areas (MISSING rows covered):
+
+- Web authoring (Dreamweaver): code intelligence, CSS and responsive authoring, templates, library items, snippets, behaviours, views and remote transports (119)
+- Shell, tools and generated manual: dock engine, 362-tool registry, tooltips, value-field time, generated descriptors, shortcuts, storage and parallel-work host surfaces (95)
+- Typography depth: paragraph controls, CJK and complex scripts, font management and proofing, character attribute model (63)
+- Whiteboard mode: board node kinds, connectors, facilitation, templates, diagram generation (55)
+- Interactive documents, prototyping, After Effects authoring and Premiere pipeline: buttons, forms, prototype logic, Figma Slides, expression and timeline editors, preview rendering (50)
+- Automation and plugins: scripting object model, command contracts, plugin platform for design and graphics (48)
+- Vector procedural constructs: repeat, blend, live paint, image trace, intertwine, global edit, symmetry (45)
+- Colour management and measurement: video scopes, display characterisation, CIEDE2000 accuracy, OCIO and document colour policy, ASE swatches (41)
+- Raster tools, brush engine and effects: brush depth, dodge/burn and other pixel tools, filter gallery, effect registration contract (39)
+- Design-system libraries, variables, handoff and CKC write-back: publish/subscribe, variable commands, layout grids, inspect/codegen, asset provenance (36)
+- Interop, history and model path: preset and library import, validation descriptors, StudioEditProposal, event-ledger undo/redo, kernel integration (26)
+- InDesign layout production: document-wide layers, spreads, autoflow, bullets and numbering, multi-state objects, QR codes, snippets, real package (23)
+
+Rollup: `research/spec-coverage-20261111-rollup.json`; group files: `research/spec-coverage-20261111-g1-*.json` to `-g8-*.json`.
+
 </topic>
 
 <topic id="vulkan-gui-pivot" status="active" summary="The Vulkan GUI pivot: decisions, code state, blockers, what can be done now">

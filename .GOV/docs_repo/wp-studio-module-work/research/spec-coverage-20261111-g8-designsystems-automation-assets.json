@@ -1,0 +1,3510 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G8",
+"prefixes": [
+"STU-DS",
+"STU-AUT",
+"STU-ASSET"
+],
+"generated_at": "2026-11-11T16:21:02Z",
+"origin_tip": "87f331f9",
+"rows": [
+{
+"id": "STU-DS-163",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Parallel-safety scope",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "components instance_resolution.rs:41 record-level footprint keys (check_footprint, StaleProperty); no per-record expected revision in a store (SMB-DS-COMPONENTS-AUTHOR-1 not_done); SMB-PR-EDIT-FOOTPRINT-1 PASS_V3 is pulse-only"
+},
+{
+"id": "STU-DS-100",
+"section": "0. Baseline, supersession and disposition",
+"title": "Baseline preservation and supersession",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "baseline and supersession bookkeeping; STU-DS-168 lists it as non-yielding"
+},
+{
+"id": "STU-DS-001",
+"section": "14.10.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "`StudioComponent` (schema id `hsk.studio.component@1`) is the single canonical reusable-definition p",
+"apps": [
+"figma",
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:31 schema hsk.studio.component@1 (one primitive); SMB-FOLIO-ENG-4 PASS_V32, SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-051",
+"section": "11. Design-System Analytics and Library-Management Posture",
+"title": "GUI / Argus / UserManual obligation",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "instance inspector harness-view view/design/instance.rs:48 and auto-layout section view/design/auto_layout.rs:430; no component, variable, style editors (parity-20261111 figma gap rank 2)"
+},
+{
+"id": "STU-DS-101",
+"section": "0. Baseline, supersession and disposition",
+"title": "Explicit supersessions",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "supersession table; STU-DS-168 lists it as non-yielding"
+},
+{
+"id": "STU-DS-005",
+"section": "14.10.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Studio MUST provide an asset-browser surface that lists local and enabled-library components with te",
+"apps": [
+"figma",
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep component_browser|insert_instance|assets_panel: 0"
+},
+{
+"id": "STU-ASSET-004",
+"section": "1. The binding",
+"title": "Prohibition — no parallel library",
+"apps": [
+"bridge",
+"lightroom_classic",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "kernel-bindings ckc.rs:1-8 typed CKC port that stores and indexes nothing; SMB-CKC-PORTS PASS_V26, SMB-LIGHTROOM-CATALOG PASS_V26, SMB-PACKAGE-COMPLETENESS-2 PASS_V23 resolver ports"
+},
+{
+"id": "STU-DS-013",
+"section": "3. Component Properties",
+"title": "Exposed nested: properties of a nested instance marked \"exposed\" ; surfaces the inner instance's own",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio components.rs:87 type set has five members (no exposed-nested type); is_exposed_instance stored but not surfaced (no consumer in hsk-studio-components)"
+},
+{
+"id": "STU-DS-110",
+"section": "3. Component properties",
+"title": "Component-property type enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:87-90 ComponentPropertyType closed five; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-118",
+"section": "4. The override model",
+"title": "Exposed nested instances",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio components.rs:14 exposed_instance_ids is an unstored projection; flag not surfaced on any inspector"
+},
+{
+"id": "STU-DS-022",
+"section": "6. Variables and Collections",
+"title": "`StudioVariable` (schema id `hsk.studio.variable@1`) is the single design-token primitive",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:33 hsk.studio.variable@1, values_by_mode exactly one per mode (records.rs mode coverage); SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-125",
+"section": "5. Variables and collections",
+"title": "Resolved variable type enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio values.rs VariableType six tokens; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-126",
+"section": "5. Variables and collections",
+"title": "Stored variable data-type enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "VARIABLE_ALIAS stored (folio values.rs StudioValue); EXPRESSION not modelled (folio components.rs:16)"
+},
+{
+"id": "STU-DS-036",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Flow direction MUST support vertical, horizontal, and grid (two-dimensional)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components auto_layout.rs + auto_layout/grid.rs (vertical, horizontal, grid with spans); SMB-FIG-GRID-1 PASS_V15, SMB-FIG-GRID-2 PASS_V15"
+},
+{
+"id": "STU-DS-146",
+"section": "8. Auto layout — full parameter contract",
+"title": "Grid flow contract (normative)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:12,134 eight grid fields; components lib.rs:27 grid_append_child_at, grid_reorder_rows/columns; SMB-FIG-GRID-1/2 PASS_V15"
+},
+{
+"id": "STU-DS-046",
+"section": "9. Constraints (StudioConstraint)",
+"title": "`StudioConstraint` (schema id `hsk.studio.constraint@1`) governs how a non-auto-layout child respond",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "components constraints.rs:1 apply_constraints over folio StudioConstraint; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34 (046d modifier suspension not found)"
+},
+{
+"id": "STU-DS-150",
+"section": "8. Auto layout — full parameter contract",
+"title": "Grid-child placement fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:465 validate_grid_child (anchor below count, span within count); SMB-FIG-GRID-1 PASS_V15"
+},
+{
+"id": "STU-DS-050",
+"section": "11. Design-System Analytics and Library-Management Posture",
+"title": "Design-system analytics (component/variable/style usage counts, adoption, detachment rates, orphaned",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep override_rate|orphaned_instance|detach_count|insertion_count: 0"
+},
+{
+"id": "STU-DS-172",
+"section": "13. Microtask Derivation",
+"title": "Anchor binding",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask anchor-binding rule"
+},
+{
+"id": "STU-DS-102",
+"section": "1. The component object contract",
+"title": "Component node kinds",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:160-218 component, component_set, component_instance records; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-107",
+"section": "1. The component object contract",
+"title": "Required component commands",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "origin: design.instance.swap_component/switch_variant/set_property/reset_all (harness-core action/commands/design.rs:21-27); create, combine, clone, detach, restore only LOCAL in SMB-DS-COMPONENTS-AUTHOR-1 (fa15c84d not pushed)"
+},
+{
+"id": "STU-DS-103",
+"section": "1. The component object contract",
+"title": "Component node required fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:160-175 StudioComponent fields; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-104",
+"section": "1. The component object contract",
+"title": "Component set required fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:177-191 StudioComponentSet (default_variant_id, variant_group_properties); SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-105",
+"section": "1. The component object contract",
+"title": "Component instance required fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:215-232 StudioComponentInstance; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-003",
+"section": "14.10.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "`StudioComponentInstance` (schema id `hsk.studio.component_instance@1`) is a live reference to a `St",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components resolve_instance instance_resolution.rs:565 (definition plus overrides, not a copy); SMB-FIG-EDIT-1/2 PASS_V20"
+},
+{
+"id": "STU-DS-117",
+"section": "4. The override model",
+"title": "Override record shape",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:204-213 override record {overridden_node_id, overridden_fields}; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-106",
+"section": "1. The component object contract",
+"title": "`scale_factor` parameter contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio components.rs:228 hard range 0.01..=100 only; soft bounds, precision and steps not stored"
+},
+{
+"id": "STU-AUT-002",
+"section": "14.14.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Every `StudioCommand` MUST be (a) typed — its input and output are `schemars::JsonSchema`-deriving t",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core action/commands.rs:71-80 corpus rows; no schemars schemas and dry_runnable false everywhere (SMB-PS-ACTIONS-1 not_proven); undo per Run step"
+},
+{
+"id": "STU-DS-108",
+"section": "2. Variant sets",
+"title": "Variant-property schema",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio components.rs:188 ordered variant_group_properties; no reorder command or EventLedger event"
+},
+{
+"id": "STU-DS-109",
+"section": "2. Variant sets",
+"title": "Variant assignment completeness and uniqueness",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio records.rs:376-396 VariantAssignmentIncomplete/Duplicate; SMB-FOLIO-UNIQUENESS PASS_V31, SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-007",
+"section": "2. Variants and Variant Properties",
+"title": "Studio MUST detect variant conflicts: two member definitions with identical variant-property assignm",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio lib.rs:515 Code::VariantAssignmentDuplicate, records.rs:396; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-111",
+"section": "3. Component properties",
+"title": "Component-property definition record",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:148-158 StudioComponentProperty; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-112",
+"section": "3. Component properties",
+"title": "Component-property mutation commands",
+"apps": [
+"figma"
+],
+"status": "LOCAL",
+"ui": "command",
+"evidence": "grep add_property|edit_property|delete_property at origin: 0; property authoring in SMB-DS-COMPONENTS-AUTHOR-1 (status null, local fa15c84d)"
+},
+{
+"id": "STU-DS-113",
+"section": "3. Component properties",
+"title": "Property references on child layers",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio records.rs:84,560 component_property_references stored and validated; reference spelling not parsed (folio components.rs:22); preservation on copy not shown"
+},
+{
+"id": "STU-DS-114",
+"section": "3. Component properties",
+"title": "Preferred-values fallback",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio components.rs:124-146 preferred_values stored; no swap picker with search-all fallback"
+},
+{
+"id": "STU-DS-015",
+"section": "3. Component Properties",
+"title": "Instance-swap properties MUST support an author-curated preferred-values list that restricts the swa",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "preferred_values stored (folio components.rs:124-146); no restricted picker or search-all fallback"
+},
+{
+"id": "STU-DS-115",
+"section": "4. The override model",
+"title": "Overridable field set (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:36-53 OVERRIDABLE_FIELDS (16 incl. corner-radius family); SMB-FIG-EDIT-2 PASS_V20"
+},
+{
+"id": "STU-DS-116",
+"section": "4. The override model",
+"title": "Override precedence",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "components instance_resolution.rs:305 Source tiers, AmbiguousSource refusal; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-119",
+"section": "4. The override model",
+"title": "Override survival across swap and variant switch",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components instance_resolution.rs:681-760 rematch_overrides, DroppedOverride reported; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-018",
+"section": "4. The Override Model",
+"title": "Instance swap MUST offer a searchable picker that replaces an instance with any other component and ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "swap carries matched overrides and drops others (instance_resolution.rs:742); Swap-to buttons (SMB-FIG-EDIT-1 PASS_V20); searchable picker NOT_INSPECTED"
+},
+{
+"id": "STU-DS-120",
+"section": "4. The override model",
+"title": "Reset semantics",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "design.instance.reset_override / reset_all as one undo step (harness-core design.rs:25-26); SMB-FIG-EDIT-1 PASS_V20"
+},
+{
+"id": "STU-DS-121",
+"section": "5. Variables and collections",
+"title": "Variable required fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:262-282 StudioVariable; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-128",
+"section": "5. Variables and collections",
+"title": "Variable scope enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio components.rs:55-78 VARIABLE_SCOPES 22; scope enforcement in picker and command surface absent (components.rs:17)"
+},
+{
+"id": "STU-DS-129",
+"section": "5. Variables and collections",
+"title": "Code-syntax platform enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:80-81 CODE_SYNTAX_PLATFORMS WEB/ANDROID/iOS; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-122",
+"section": "5. Variables and collections",
+"title": "Variable collection required fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:242-260 StudioVariableCollection; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-123",
+"section": "5. Variables and collections",
+"title": "Mode-count contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hard_min 1 enforced (folio validate_collection); MAX_MODES 1024 Folio ceiling; no variables x modes performance advisory"
+},
+{
+"id": "STU-DS-023",
+"section": "6. Variables and Collections",
+"title": "`StudioVariableCollection` (schema id `hsk.studio.variable_collection@1`) groups variables and defin",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio components.rs:246 collection with modes, one value per mode; no plan-gated cap (MAX_MODES budget only); SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-124",
+"section": "5. Variables and collections",
+"title": "Collection extension",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "extended collections recognised and refused UnsupportedDescriptor (folio components.rs validate_collection is_extension)"
+},
+{
+"id": "STU-DS-027",
+"section": "6. Variables and Collections",
+"title": "A `StudioVariableCollection` MAY extend another collection, inheriting its variables while overridin",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "code_syntax stored; collection extension refused UnsupportedDescriptor; no codegen consumer"
+},
+{
+"id": "STU-DS-028",
+"section": "6. Variables and Collections",
+"title": "Number, string, and boolean variables participate in prototype runtime expressions and conditionals ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio reactions.rs:202 SetVariable uses the shared StudioVariable; components player.rs:370 SetVariableMode not modelled; no prototype expressions"
+},
+{
+"id": "STU-DS-127",
+"section": "5. Variables and collections",
+"title": "Variable value record",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio values.rs StudioValue literals and VARIABLE_ALIAS; expression record not modelled"
+},
+{
+"id": "STU-DS-131",
+"section": "5. Variables and collections",
+"title": "Expression function enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep VAR_MODE_LOOKUP|expression_function|GREATER_THAN_OR_EQUAL: 0"
+},
+{
+"id": "STU-DS-025",
+"section": "6. Variables and Collections",
+"title": "Each `StudioVariable` carries a scope that restricts which property pickers offer it (e.g",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "scopes and hidden_from_publishing stored (folio components.rs); no enforcement in picker or command surface"
+},
+{
+"id": "STU-DS-130",
+"section": "5. Variables and collections",
+"title": "Bindable-field enumerations (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "components design.rs:44 variable_bindings (crate-local, unrestricted); grep BINDABLE|bindable: 0"
+},
+{
+"id": "STU-DS-026",
+"section": "6. Variables and Collections",
+"title": "Variables MUST support aliasing: a variable may reference another variable (semantic-token -> primit",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio records.rs:222 alias_cycle -> VariableAliasCycle; components instance_resolution.rs:177; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-132",
+"section": "5. Variables and collections",
+"title": "Explicit mode assignment",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio records.rs explicit_variable_modes on container nodes, pages not keyed (records.rs:19); grep set_explicit_variable_mode: 0"
+},
+{
+"id": "STU-DS-024",
+"section": "6. Variables and Collections",
+"title": "A mode is set explicitly on any `StudioLayer` container (frame/section/page) or inherited (auto) fro",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "explicit modes on containers plus resolve_instance modes map (instance_resolution.rs:564); no mode-set command or subtree re-resolution transaction"
+},
+{
+"id": "STU-DS-133",
+"section": "5. Variables and collections",
+"title": "Variable API surface",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep variable\\.create|set_value_for_mode|resolve_for_consumer|variable_collection\\.add_mode: 0"
+},
+{
+"id": "STU-DS-134",
+"section": "6. Style registry",
+"title": "Style kind enumeration (normative, closed)",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio paint.rs:234-242 StyleKind four members; only PAINT accepted (validate_style PayloadMismatch)"
+},
+{
+"id": "STU-DS-029",
+"section": "7. Styles versus Variables (StudioStyleRegistry)",
+"title": "`StudioStyleRegistry` (schema id `hsk.studio.style_registry@1`) owns named multi-property styles, di",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "only PAINT style entries modelled (folio paint.rs:234, StudioPaintStyle)"
+},
+{
+"id": "STU-DS-135",
+"section": "6. Style registry",
+"title": "Style record required fields",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio paint.rs:244-256 StudioPaintStyle (SSTY id, kind, slash name, publishing, rows) for PAINT only"
+},
+{
+"id": "STU-DS-136",
+"section": "6. Style registry",
+"title": "Inherited style-field enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio paint.rs:225 STYLE_REF_FIELDS six; records.rs:576 refuses other fields; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-137",
+"section": "6. Style registry",
+"title": "Style-mutation change surface (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep changed_properties|style_change: 0"
+},
+{
+"id": "STU-DS-019",
+"section": "5. Libraries, Publishing, and Swap",
+"title": "A library is a publish/subscribe surface over `StudioComponent`, `StudioStyleRegistry` entries, and ",
+"apps": [
+"figma",
+"illustrator",
+"affinity"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep subscribed_library|apply_library|library_update in design crates: 0 (hits only CKC ckc_library.rs)"
+},
+{
+"id": "STU-DS-138",
+"section": "6. Style registry",
+"title": "Style verbs",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep redefine_from_selection|break_link|style\\.apply|apply_style: 0"
+},
+{
+"id": "STU-DS-034",
+"section": "7. Styles versus Variables (StudioStyleRegistry)",
+"title": "Styles-vs-variables division of labor is normative: styles bundle multi-property definitions, variab",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "paint styles (folio paint.rs) and variables (folio components.rs) both exist; variable inside a style and library publish absent"
+},
+{
+"id": "STU-DS-139",
+"section": "6. Style registry",
+"title": "Shipped style-library sizing contract",
+"apps": [
+"illustrator"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no shipped graphic-style or symbol library loader or tested ceiling; grep redefine_from_selection|style\\.apply: 0"
+},
+{
+"id": "STU-DS-140",
+"section": "7. Publishing and libraries",
+"title": "Publish status enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep UNPUBLISHED|get_publish_status: 0"
+},
+{
+"id": "STU-DS-141",
+"section": "7. Publishing and libraries",
+"title": "Publishable-entity common fields",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio values.rs:115 StudioPublishing shared by component, style, variable, collection; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-004",
+"section": "14.10.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Every `StudioComponent` and `StudioComponentInstance` MUST carry an optional description and documen",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "description and doc links on components via StudioPublishing; instances carry none; no asset browser"
+},
+{
+"id": "STU-DS-142",
+"section": "7. Publishing and libraries",
+"title": "Detached-source enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep detach_source|instance\\.detach at origin: 0 (detach only LOCAL in SMB-DS-COMPONENTS-AUTHOR-1)"
+},
+{
+"id": "STU-AUT-124",
+"section": "2. The scripting object model",
+"title": "Command-builder pattern for batch mutation",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep CommandBuilder|command_builder|StudioCommandBatch: 0"
+},
+{
+"id": "STU-DS-143",
+"section": "7. Publishing and libraries",
+"title": "Library update transaction",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no library update transaction; grep apply_library|library_update in design crates: 0"
+},
+{
+"id": "STU-DS-021",
+"section": "5. Libraries, Publishing, and Swap",
+"title": "Library publish, update-review, and swap operations authored by a model MUST pass through the sandbo",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no library operations; PromotionGate appears only as a doc mention in kernel-bindings lib.rs"
+},
+{
+"id": "STU-DS-144",
+"section": "8. Auto layout — full parameter contract",
+"title": "Auto-layout container fields (normative, closed set of seventeen)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:50-170 StudioAutoLayout 17 fields, defaults, mixed padding read; SMB-FIG-GRID-1/2 PASS_V15, SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-041",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Child alignment MUST support a nine-position alignment box plus a separate text-baseline alignment t",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "MIN/CENTER/MAX/SPACE_BETWEEN solved; BASELINE refused UnsupportedLayout (components auto_layout.rs:42-44)"
+},
+{
+"id": "STU-DS-145",
+"section": "8. Auto layout — full parameter contract",
+"title": "Spacing and padding parameter contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio autolayout.rs:36-48 studio_declared hard bounds; soft bounds, precision, steps not enforced (autolayout.rs:8-9)"
+},
+{
+"id": "STU-DS-045",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "`StudioAutoLayout` MUST additionally support: an advanced setting choosing whether child stroke weig",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "deep nesting solved; strokes_included_in_layout refused UnsupportedLayout (components auto_layout.rs:43); no convert-to-auto-layout (MAY)"
+},
+{
+"id": "STU-DS-039",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Auto-layout frames MUST expose a canvas-stacking setting controlling whether overlapping children re",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio autolayout.rs:133 item_reverse_z_index; components auto_layout.rs:576 honours it; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-038",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Gap between children MUST accept a numeric value, an \"auto\" value (space-between distribution across",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components auto_layout.rs:7-8,24 negative gaps and SPACE_BETWEEN auto gap; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-147",
+"section": "8. Auto layout — full parameter contract",
+"title": "Grid track-size record",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:218-255 StudioGridTrackSize FIXED/FLEX/HUG; SMB-FIG-GRID-1 PASS_V15"
+},
+{
+"id": "STU-DS-148",
+"section": "8. Auto layout — full parameter contract",
+"title": "Auto-layout child fields (normative, closed set of three, plus two sizing fields)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:173-215 StudioChildLayout; SMB-FIG-GRID-1 PASS_V15, SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-044",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Individual children MUST be excludable from the flow (ignore-auto-layout / absolute position), remai",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio autolayout.rs:184 ChildPositioning ABSOLUTE falls back to constraints; components auto_layout.rs:9"
+},
+{
+"id": "STU-DS-048",
+"section": "10. Layout Grids (StudioLayoutGrid)",
+"title": "Resizing behavior across the layout system is unified: a child's response to a resizing parent is go",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio records.rs:16 constraints-versus-auto-layout rule; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-042",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Every auto-layout participant MUST have a per-axis resizing mode: hug-contents (the frame sizes to i",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:192 ChildSizing FIXED/HUG/FILL; design.set_child_sizing (harness-core design.rs:12); SMB-FIG-GRID-2 PASS_V15"
+},
+{
+"id": "STU-DS-149",
+"section": "8. Auto layout — full parameter contract",
+"title": "Sizing clamps",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio autolayout.rs:502 validate_clamps bounds and min>max refusal; SMB-FIG-GRID-1 PASS_V15"
+},
+{
+"id": "STU-DS-043",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Auto-layout objects MUST accept minimum and maximum width/height clamps that bound hug and fill resi",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio autolayout.rs:502 size clamps bound hug and fill; components solver applies them; SMB-FIG-GRID-1 PASS_V15"
+},
+{
+"id": "STU-DS-151",
+"section": "9. Constraints",
+"title": "Constraint type enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "components constraints.rs:1 MIN/CENTER/MAX/STRETCH/SCALE on both axes; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-152",
+"section": "9. Constraints",
+"title": "Constraint record and default",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio StudioConstraint {horizontal, vertical} read by components constraints.rs; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34 (default MIN/MIN not inspected)"
+},
+{
+"id": "STU-DS-153",
+"section": "10. Layout grids",
+"title": "Layout-grid pattern enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "folio autolayout.rs:26 layout grids STU-DS-153..156 not stored; grep gutter_size|section_size: 0"
+},
+{
+"id": "STU-DS-154",
+"section": "10. Layout grids",
+"title": "Uniform grid record",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep gutter_size|section_size: 0 (no uniform grid record)"
+},
+{
+"id": "STU-DS-047",
+"section": "10. Layout Grids (StudioLayoutGrid)",
+"title": "`StudioLayoutGrid` (schema id `hsk.studio.layout_grid@1`) is the alignment-guide overlay on a frame ",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "accord lib.rs:29 schema token hsk.studio.layout_grid@1 only; no record (folio autolayout.rs:26)"
+},
+{
+"id": "STU-DS-155",
+"section": "10. Layout grids",
+"title": "Rows/columns grid record",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep gutter_size|section_size: 0 (no rows/columns grid record)"
+},
+{
+"id": "STU-DS-156",
+"section": "10. Layout grids",
+"title": "Stacked overlays and variable binding",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no layout-grid overlays (folio autolayout.rs:26)"
+},
+{
+"id": "STU-DS-157",
+"section": "11. Annotation of design-system state",
+"title": "Annotation property enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep label_markdown|category_id: 0"
+},
+{
+"id": "STU-DS-158",
+"section": "11. Annotation of design-system state",
+"title": "Annotation record and category colours",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep label_markdown|category_id: 0"
+},
+{
+"id": "STU-DS-159",
+"section": "11. Annotation of design-system state",
+"title": "Dev-status enumeration (normative, closed)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep READY_FOR_DEV: 0"
+},
+{
+"id": "STU-AUT-024",
+"section": "8. External API, inspect / codegen, and MCP posture",
+"title": "The inspect surface MUST additionally support the deduped design-handoff aids below as read-oriented",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep label_markdown|measurement_id|dev_resource|drift_report|focus_view|version_compare: 0"
+},
+{
+"id": "STU-DS-160",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Contextual panel binding",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "instance inspector drawn contextually (view/design/instance.rs:48, SMB-FIG-EDIT-1 PASS_V20) and auto-layout section (SMB-FIG-GRID-2 PASS_V15); no variable, style, component editors"
+},
+{
+"id": "STU-DS-161",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Asset library binding",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SPAL: 0; design records hold no CKC placed-asset links"
+},
+{
+"id": "STU-ASSET-005",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Placed-asset link (normative record)",
+"apps": [
+"indesign",
+"photoshop",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-view view/place.rs:1-50 placed sources (embedded sha256 or linked relative path) with link states; no SPAL link_id, CKC asset_id or artifact_manifest_id (grep SPAL: 0); SMB-PLACE-ASSET-1 READY_FOR_VALIDATION"
+},
+{
+"id": "STU-ASSET-011",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Design-system library versus asset catalog — the boundary",
+"apps": [
+"figma",
+"bridge"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no design-system library exists (grep subscribed_library|apply_library: 0), so the library-versus-catalog boundary has no code"
+},
+{
+"id": "STU-DS-162",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Command-surface obligation",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "instance commands typed and drivable (harness-core design.rs:21-27; SMB-DRIVE-TYPED-2 READY_FOR_VALIDATION); STU-DS-112/133 commands absent"
+},
+{
+"id": "STU-DS-164",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Determinism of resolution",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "components lib.rs:12-13 pure functions over borrowed values with BTree maps; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-165",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Validation descriptor set",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "variant and alias-cycle codes (folio lib.rs:513-517), clamp/span/style-ref as generic InvalidField; expression, scope, bindable, rename, library-update descriptors absent"
+},
+{
+"id": "STU-DS-166",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "Analytics report contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep override_rate|orphaned_instance|detach_count: 0"
+},
+{
+"id": "STU-DS-167",
+"section": "12. Panel, asset, and obligation bindings",
+"title": "GUI / Argus / UserManual obligation",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "instance and auto-layout controls in window and typed rows; enumeration token lists in UserManual NOT_INSPECTED; no variable or style surfaces"
+},
+{
+"id": "STU-DS-168",
+"section": "13. Microtask Derivation",
+"title": "Derivation rule (NORMATIVE)",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation rule"
+},
+{
+"id": "STU-DS-173",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variant_assignment_incomplete`",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio lib.rs:513 Code::VariantAssignmentIncomplete, records.rs:376; components lib.rs:152 variant_assignment_incomplete; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-187",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`library_update_would_break_instance`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep library_update_would_break_instance: 0"
+},
+{
+"id": "STU-DS-169",
+"section": "13. Microtask Derivation",
+"title": "Open items and blocked dependencies",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "open-items rule for microtask derivation"
+},
+{
+"id": "STU-DS-170",
+"section": "13. Microtask Derivation",
+"title": "Microtask content obligation",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask content obligation"
+},
+{
+"id": "STU-DS-171",
+"section": "13. Microtask Derivation",
+"title": "Yields index (NORMATIVE)",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "yields index"
+},
+{
+"id": "STU-DS-174",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variant_assignment_duplicate`",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio lib.rs:515 Code::VariantAssignmentDuplicate, records.rs:396; components lib.rs:153; SMB-FOLIO-UNIQUENESS PASS_V31"
+},
+{
+"id": "STU-DS-175",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variable_alias_cycle`",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio lib.rs:517 Code::VariableAliasCycle, records.rs:324; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-DS-176",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variable_expression_cycle`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep variable_expression_cycle: 0; EXPRESSION not modelled"
+},
+{
+"id": "STU-DS-177",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variable_scope_violation`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep variable_scope_violation: 0; scope legality not enforced (folio components.rs:17)"
+},
+{
+"id": "STU-DS-178",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variable_bindable_field_violation`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep variable_bindable_field_violation: 0"
+},
+{
+"id": "STU-DS-179",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`variable_mode_value_missing`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio records.rs values_by_mode coverage refused as InvalidField; components missing_mode_value; grep variable_mode_value_missing in validators: 0 (only fig import)"
+},
+{
+"id": "STU-DS-180",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`component_property_orphan_reference`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "components refuses a property reference nobody defines at resolution (instance_resolution.rs:495); grep component_property_orphan_reference: 0"
+},
+{
+"id": "STU-DS-181",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`component_property_rename_orphans_instance`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep component_property_rename_orphans_instance: 0; no rename command at origin"
+},
+{
+"id": "STU-DS-182",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`override_field_not_overridable`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "components field_not_overridable (lib.rs) and folio InvalidField on overridden_fields; grep override_field_not_overridable: 0"
+},
+{
+"id": "STU-DS-183",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`override_double_source`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "components ambiguous_source (lib.rs); grep override_double_source: 0"
+},
+{
+"id": "STU-DS-184",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`sizing_clamp_inverted`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio autolayout.rs:518 InvalidField size_clamps/width|height; grep sizing_clamp_inverted: 0"
+},
+{
+"id": "STU-DS-185",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`grid_span_exceeds_tracks`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio autolayout.rs:494 InvalidField grid_*_span, components grid.rs:106 grid_span; grep grid_span_exceeds_tracks: 0"
+},
+{
+"id": "STU-DS-186",
+"section": "14. Validation Descriptor Catalogue",
+"title": "`style_reference_field_violation`",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio records.rs:576 InvalidField style_refs; grep style_reference_field_violation: 0"
+},
+{
+"id": "STU-DS-002",
+"section": "14.10.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "A `StudioComponent` is created from a `StudioSelectionSet` of one or more `StudioLayer` nodes",
+"apps": [
+"figma",
+"illustrator",
+"affinity"
+],
+"status": "LOCAL",
+"ui": "command",
+"evidence": "grep create_from_selection|create_component at origin: 0; create and bulk create in SMB-DS-COMPONENTS-AUTHOR-1 (local fa15c84d)"
+},
+{
+"id": "STU-DS-016",
+"section": "4. The Override Model",
+"title": "An instance inherits every change to its main `StudioComponent` except properties the consumer has l",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components resolve_instance tiers over OVERRIDABLE_FIELDS; SMB-FIG-EDIT-1/2 PASS_V20"
+},
+{
+"id": "STU-DS-006",
+"section": "2. Variants and Variant Properties",
+"title": "A `StudioComponent` MAY be a variant set: a group of related component definitions addressed by name",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio StudioComponentSet (components.rs:177); components switch_variant (instance_resolution.rs:763); SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-008",
+"section": "2. Variants and Variant Properties",
+"title": "An instance of a variant-set component exposes its variant properties as switchable fields; setting ",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "design.instance.switch_variant (harness-core design.rs:22); components switch_variant; SMB-FIG-EDIT-1/2 PASS_V20"
+},
+{
+"id": "STU-DS-017",
+"section": "4. The Override Model",
+"title": "Overrides MUST persist across variant switches and component swaps when the target structure matches",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "overrides rematched on swap and switch; per-override and reset-all (SMB-FIG-EDIT-1 PASS_V20)"
+},
+{
+"id": "STU-DS-009",
+"section": "3. Component Properties",
+"title": "A `StudioComponent` MAY declare named component properties that surface on every instance's inspecto",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "instance inspector boolean/text property fields and design.instance.set_property; SMB-FIG-EDIT-1 PASS_V20"
+},
+{
+"id": "STU-DS-010",
+"section": "3. Component Properties",
+"title": "Boolean: visibility of one or more nested layers ; toggles sub-elements on/off without new variants ",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "BOOLEAN property drives nested visibility; inspector toggle (SMB-FIG-EDIT-1 PASS_V20)"
+},
+{
+"id": "STU-DS-011",
+"section": "3. Component Properties",
+"title": "Text: the content of one or more text layers ; edits copy per instance from a named field ;",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "TEXT property drives text content; inspector field (SMB-FIG-EDIT-1 PASS_V20)"
+},
+{
+"id": "STU-DS-012",
+"section": "3. Component Properties",
+"title": "Instance-swap: a nested `StudioComponentInstance` slot ; swaps the nested component, constrained to ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "INSTANCE_SWAP type and preferred_values stored; swap_component exists; no preferred-values restricted picker"
+},
+{
+"id": "STU-DS-014",
+"section": "3. Component Properties",
+"title": "Slot: a structural placeholder region ; lets a consumer insert or replace arbitrary child content pe",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SLOT type stored (folio components.rs:87); components refuses SLOT values in this slice (instance_resolution.rs:258)"
+},
+{
+"id": "STU-DS-020",
+"section": "5. Libraries, Publishing, and Swap",
+"title": "Each `StudioDocument` MUST be able to enable or disable individual published libraries, scoping the ",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no per-document library enablement; grep subscribed_library|apply_library: 0"
+},
+{
+"id": "STU-DS-030",
+"section": "7. Styles versus Variables (StudioStyleRegistry)",
+"title": "Color/paint style: a full paint stack (multiple paints incl. gradients/images) ; fills and strokes ;",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "PAINT style with solid and gradient rows (folio paint.rs; SMB-VECTOR-STYLES PASS_V25 authoring); image and other paint kinds not stored (paint.rs:20)"
+},
+{
+"id": "STU-DS-031",
+"section": "7. Styles versus Variables (StudioStyleRegistry)",
+"title": "Text style: a complete typographic definition (`StudioTypeStyle`, 14.7) ; text stories/ranges ;",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "TEXT style kind refused in registry (folio paint.rs validate_style); paragraph and character styles live in folio typestyle.rs"
+},
+{
+"id": "STU-DS-032",
+"section": "7. Styles versus Variables (StudioStyleRegistry)",
+"title": "Effect style: a `StudioEffectStack` (14.9) — shadows, blurs, glows ; any effect-bearing layer ;",
+"apps": [
+"figma",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "EFFECT style kind refused as PayloadMismatch (folio paint.rs validate_style): typed refusal"
+},
+{
+"id": "STU-DS-033",
+"section": "7. Styles versus Variables (StudioStyleRegistry)",
+"title": "Grid style: a `StudioLayoutGrid` configuration ([STU-DS-047]) ; frames ;",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "GRID style kind refused (folio paint.rs validate_style); layout grid record absent"
+},
+{
+"id": "STU-DS-035",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "`StudioAutoLayout` (schema id `hsk.studio.auto_layout@1`) is the responsive-layout contract on a fra",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio autolayout.rs:110 StudioAutoLayout; components solve_auto_layout; SMB-FIG-GRID-1/2 PASS_V15"
+},
+{
+"id": "STU-DS-037",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Horizontal flow MUST support wrap, flowing overflowing children onto the next line to produce respon",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio LayoutWrap (autolayout.rs:66); components auto_layout.rs:7 wrap; SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34"
+},
+{
+"id": "STU-DS-040",
+"section": "8. Auto Layout (StudioAutoLayout)",
+"title": "Padding MUST be settable uniformly, per axis (horizontal/vertical), or per individual side (top/righ",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "per-side padding fields and horizontal/vertical read (folio autolayout.rs:162-170); design.set_auto_layout_spacing; SMB-FIG-GRID-2 PASS_V15"
+},
+{
+"id": "STU-DS-049",
+"section": "11. Design-System Analytics and Library-Management Posture",
+"title": "Studio MUST be local-first for the entire design system: components, variants, variables, collection",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "design records local in Folio and evaluated by pure functions with no network dependency (components lib.rs:1-13); SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-ASSET-012",
+"section": "3. Publication: how Studio writes back",
+"title": "Exports publish back into CKC",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep export_back|register_export: 0; outputs not registered in CKC (SMB-PS-ACTIONS-1 not_proven)"
+},
+{
+"id": "STU-AUT-022",
+"section": "8. External API, inspect / codegen, and MCP posture",
+"title": "Studio MUST provide a developer inspect and codegen surface — the deduped equivalent of a design-to-",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "JSON state read and frame export by typed command (SMB-HARNESS-DRIVE-1, SMB-ARTBOARD-EXPORT-1 READY_FOR_VALIDATION); grep codegen: 0"
+},
+{
+"id": "STU-AUT-130",
+"section": "3. Batch processing",
+"title": "Filename-template contract",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core batch.rs filename template with sequence contract; date, time, dimension and scale-suffix tokens refused (batch.rs:17-19)"
+},
+{
+"id": "STU-ASSET-014",
+"section": "3. Publication: how Studio writes back",
+"title": "Derived-asset relationship",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep export_back|register_export: 0 (derivation hits are unrelated motion and score code)"
+},
+{
+"id": "STU-ASSET-009",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Resolution at export and publish",
+"apps": [
+"indesign",
+"photoshop",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "layout link gate refuses missing links after preflight (origin 87f331f9, SMB-LAYOUT-PLACE-1 READY_FOR_VALIDATION); receipts carry no asset_id or artifact_manifest_id"
+},
+{
+"id": "STU-AUT-131",
+"section": "3. Batch processing",
+"title": "Collision and error policy enumerations (normative, closed)",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core batch.rs overwrite ask/overwrite/rename/skip and error stop/skip/retry/quarantine; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-136",
+"section": "3. Batch processing",
+"title": "Quiet-law conformance",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "batch.rs refuses always_show and ask before any file (batch_always_show_dialog_in_headless, batch_ask_overwrite_in_headless); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-ASSET-008",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Bulk binary lives in the artifact tier, not in the document",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "package stages bytes by sha256 (SMB-PACKAGE-COMPLETENESS PASS_V25, -2 PASS_V23); no SurrealDB or artifact tier in the workspace"
+},
+{
+"id": "STU-AUT-100",
+"section": "0. Baseline, supersession and disposition",
+"title": "Baseline preservation and supersession",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "baseline and supersession bookkeeping; STU-AUT-176 lists it as non-yielding"
+},
+{
+"id": "STU-AUT-001",
+"section": "14.14.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Studio MUST expose exactly ONE typed command contract as its automation surface",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "harness-core RUN_COMMANDS corpus (action/commands.rs) plus viewer.<method> rows without corpus rows (SMB-HARNESS-DRIVE-1 gaps); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-027",
+"section": "10. GUI, diagnostics, and manual obligations",
+"title": "Every automation surface in this sub-section — the command contract, macros, batch runner, data-driv",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CLI batch and action check plus manual entries (harness-core manual.rs); no GUI actions panel (SMB-PS-ACTIONS-1 not_proven)"
+},
+{
+"id": "STU-AUT-010",
+"section": "3. Actions and macros (record / playback / conditional)",
+"title": "Studio MUST provide a native action/macro system: an operator records a live sequence of Studio comm",
+"apps": [
+"photoshop",
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Run::start_recording/stop_recording/play_action (harness-core harness.rs:761-797), one grouped undo; no GUI; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-103",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Action record (normative shape and field domains)",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs ActionRecord (index, F-key 0-12, colour 0-7, declared_step_count, steps); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-011",
+"section": "3. Actions and macros (record / playback / conditional)",
+"title": "The macro system MUST support the deduped control surface below and MUST NOT require the operator to",
+"apps": [
+"photoshop",
+"illustrator",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "record, play, per-step dialog policy and enable in step record; insert stop/path, conditional, event trigger, library absent (grep message_stop|conditional_branch: 0)"
+},
+{
+"id": "STU-AUT-104",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Action step record (normative shape and field domains)",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs ActionStep fields (enabled, with_dialog, dialog_options, command_id, parameters); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-025",
+"section": "9. Asset browser, OS, and clipboard handoff",
+"title": "Studio MUST provide a local, native asset browser as the deduped equivalent of a companion asset-man",
+"apps": [
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "superseded into a CKC projection; only CKC port contracts (kernel-bindings ckc.rs), no in-viewport asset browser"
+},
+{
+"id": "STU-ASSET-017",
+"section": "4. Closures: what Studio builds instead",
+"title": "Supersession of [STU-AUT-025]",
+"apps": [
+"bridge",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CKC port v3 reads and library writes (kernel-bindings ckc.rs; SMB-LIGHTROOM-CATALOG PASS_V26, SMB-LR-LIBRARY-WRITE PASS_V23); no CKC host adapter or in-viewport projection"
+},
+{
+"id": "STU-AUT-006",
+"section": "2. Scripting object model exposure",
+"title": "Studio MUST expose the canonical primitive set as a typed read/write object model over `StudioDocume",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed state projection via the harness drive state command (SMB-HARNESS-DRIVE-1 READY_FOR_VALIDATION); no typed object-model classes (grep suite_id|plural_name: 0)"
+},
+{
+"id": "STU-AUT-115",
+"section": "2. The scripting object model",
+"title": "The object model is a typed view, not a second model",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pure pointer clause (STU-AUT-176)"
+},
+{
+"id": "STU-AUT-101",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "One recorded-automation primitive",
+"apps": [
+"photoshop",
+"illustrator",
+"affinity"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs ActionSet/ActionRecord single primitive (action.rs:15-17); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-102",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Action set record (normative shape)",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs action set record and strict portable artifact; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-105",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Dialog-option enumeration (normative, closed, four members)",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs:46-58 DialogOption four members; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-106",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Recorded parameter value types (normative, closed, seven members)",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs ValueType (eight incl. string and list; spec heading says seven); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-112",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Event-bound actions",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep document_before_save|application_start|selection_changed: 0"
+},
+{
+"id": "STU-AUT-008",
+"section": "2. Scripting object model exposure",
+"title": "Scripts, plugins, and model lanes MUST address document objects by the stable prefixed IDs of the ca",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "recorded reference values resolve by stable layer id (harness-core action.rs); no operator script labels (grep script_label: 0)"
+},
+{
+"id": "STU-AUT-107",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Recorded unit token set (normative, closed, six members)",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs UnitToken six members; action_measured_value_missing_unit; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-108",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Recorded-parameter scale contract",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "budgets sized to the shipped scale (harness-core action.rs:28-36); scale test and UserManual ceiling NOT_INSPECTED"
+},
+{
+"id": "STU-AUT-109",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Recording is capture of the command stream",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs:7-9 playback calls the same Run method; recordable flag per corpus row (action/commands.rs:77); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-110",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Non-recordable insertion",
+"apps": [
+"photoshop"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "explicit insertion of a recordable:false step is a typed refusal action_step_not_playable (SMB-PS-ACTIONS-1 not_proven)"
+},
+{
+"id": "STU-AUT-111",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Additional step kinds (normative, closed, five members beyond a plain command step)",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep message_stop|conditional_branch|conditional_mode_change|path_literal: 0"
+},
+{
+"id": "STU-AUT-113",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Conditional predicate domain (normative, closed)",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep has_selection or predicate domain in action code: 0 (hits only harness-view and layout UI text)"
+},
+{
+"id": "STU-AUT-114",
+"section": "1. Actions and macros — the recorded-automation model",
+"title": "Action library and portability",
+"apps": [
+"photoshop",
+"affinity"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "strict portable JSON artifact (harness-core action.rs:3-4) with action_step_command_unresolvable; Folio persistence and CKC registration absent"
+},
+{
+"id": "STU-AUT-116",
+"section": "2. The scripting object model",
+"title": "Suite organisation",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep suite_id|plural_name|collection_type_id: 0 in automation code"
+},
+{
+"id": "STU-AUT-005",
+"section": "14.14.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "The command contract is versioned and capability-namespaced",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "corpus rows carry no capability (harness-core action/commands.rs:68); unknown commands refuse typed (unknown_command)"
+},
+{
+"id": "STU-AUT-117",
+"section": "2. The scripting object model",
+"title": "Class record (normative shape)",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep plural_name|collection_type_id: 0"
+},
+{
+"id": "STU-AUT-118",
+"section": "2. The scripting object model",
+"title": "Primitive type system (normative, closed, eighteen members)",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep short_integer|large_integer|object_reference_mixed|properties_record: 0"
+},
+{
+"id": "STU-AUT-120",
+"section": "2. The scripting object model",
+"title": "Enumeration record (normative shape)",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object model exists, so no extensible enumeration records (grep suite_id|plural_name|collection_type_id: 0)"
+},
+{
+"id": "STU-AUT-119",
+"section": "2. The scripting object model",
+"title": "Property record (normative shape)",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object-model property records (grep suite_id|plural_name|collection_type_id: 0)"
+},
+{
+"id": "STU-AUT-121",
+"section": "2. The scripting object model",
+"title": "Method record (normative shape)",
+"apps": [
+"indesign",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object-model method records (grep suite_id|plural_name|collection_type_id: 0)"
+},
+{
+"id": "STU-AUT-122",
+"section": "2. The scripting object model",
+"title": "Object-model scale contract",
+"apps": [
+"indesign",
+"after_effects",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no object-model generator, type stubs or MCP schema generator (grep suite_id|plural_name: 0)"
+},
+{
+"id": "STU-AUT-123",
+"section": "2. The scripting object model",
+"title": "Capability-module organisation",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no script capability modules; corpus rows carry no capability (action/commands.rs:68)"
+},
+{
+"id": "STU-AUT-004",
+"section": "14.14.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Commands MUST be composable into an ordered command sequence (`StudioCommandBatch`) that executes as",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "play_action applies steps as one grouped undo step with rollback; single chronicle transaction NOT_PROVEN (SMB-PS-ACTIONS-1)"
+},
+{
+"id": "STU-AUT-125",
+"section": "2. The scripting object model",
+"title": "Expression language surface (declared, bounded)",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "motion expr_catalogue.rs 333 identifiers, 50 bound, rest SOURCE_FUNCTION_BINDING_UNAVAILABLE; motion-js evaluator; SMB-AE-EXPR-LIBRARY-1 PASS_V4, SMB-MOTION-JS PASS_V21; not shared with 14.10 variables"
+},
+{
+"id": "STU-AUT-126",
+"section": "3. Batch processing",
+"title": "Batch job record (normative shape)",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core batch.rs:1-6 job record, run_batch batch.rs:806 on Job Runtime via JobPort; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-127",
+"section": "3. Batch processing",
+"title": "Source-set kinds (normative, closed, five members)",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folder and explicit_file_list; open_documents, selection_within_document, catalog_query refused batch_source_kind_unsupported"
+},
+{
+"id": "STU-AUT-128",
+"section": "3. Batch processing",
+"title": "Applied-automation kinds (normative, closed, three members)",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "batch.rs applied automation action, command_sequence, none; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-129",
+"section": "3. Batch processing",
+"title": "Output-target record",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "native package targets or TargetExporter port (batch.rs:12-14); no manifest id or CKC registration per target"
+},
+{
+"id": "STU-AUT-012",
+"section": "4. Batch processing (droplet / image-processor / batch-job equivalents)",
+"title": "Studio MUST provide a native batch surface that applies a command sequence or macro over a set of in",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "headless quiet runner with receipts and cancellation (batch.rs:1-6); promotion gate and EventLedger absent"
+},
+{
+"id": "STU-ASSET-010",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Read commands",
+"apps": [
+"indesign",
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "asset.place, list_placements, update_all_modified, embed_link (harness-core action/commands/asset.rs:22-32, READY); asset.get/search in CKC port (ckc.rs:15, PASS_V26); resolve_bytes, get_preview, relink, relink_to_catalog absent"
+},
+{
+"id": "STU-AUT-013",
+"section": "4. Batch processing (droplet / image-processor / batch-job equivalents)",
+"title": "The batch surface MUST cover the deduped capabilities below as ONE runner with options, not as separ",
+"apps": [
+"photoshop",
+"bridge",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "one runner, portable job artifact, multi-target output; load-into-stack, statistics, contact sheet, panorama, watched folder absent"
+},
+{
+"id": "STU-AUT-132",
+"section": "3. Batch processing",
+"title": "Per-file receipting",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "per-input receipts with digest, outcome and output path; no artifact manifest id or EventLedger binding (SMB-PS-ACTIONS-1 not_proven)"
+},
+{
+"id": "STU-AUT-133",
+"section": "3. Batch processing",
+"title": "Portable batch artifact",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "BatchJob export and strict decode portable artifact (batch.rs); CKC registration absent"
+},
+{
+"id": "STU-AUT-134",
+"section": "3. Batch processing",
+"title": "Stack and multi-input batch operations (normative, closed set of eight)",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep contact_sheet|panorama|watched_folder in harness: 0"
+},
+{
+"id": "STU-AUT-135",
+"section": "3. Batch processing",
+"title": "Stack statistical mode enumeration (normative, closed, eight members)",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no stack statistical modes in batch; standard_deviation|summation hits only develop, press and fonts"
+},
+{
+"id": "STU-AUT-137",
+"section": "4. Data-driven graphics",
+"title": "Data-driven binding record",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep binding_id|dataset_id: 0"
+},
+{
+"id": "STU-AUT-014",
+"section": "5. Variables, data sets, and data-driven graphics (data merge)",
+"title": "Studio MUST provide a native data-driven graphics surface: an operator defines typed `StudioVariable",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "interop-layout data_merge.rs text placeholders (SMB-ID-PREPRESS PASS_V23); not StudioVariable bindings; no visibility or pixel replacement"
+},
+{
+"id": "STU-AUT-015",
+"section": "5. Variables, data sets, and data-driven graphics (data merge)",
+"title": "The data-driven surface MUST support the deduped capabilities below",
+"apps": [
+"photoshop",
+"illustrator",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "per-record merge and record selection (data_merge.rs); row preview undo and runner expansion absent"
+},
+{
+"id": "STU-AUT-138",
+"section": "4. Data-driven graphics",
+"title": "Dataset record",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "data_merge.rs records with string, number, boolean fields; @image fields are paths, not CKC asset references"
+},
+{
+"id": "STU-AUT-139",
+"section": "4. Data-driven graphics",
+"title": "Dataset import sources (normative, closed, four members)",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "delimited text (RFC 4180) and JSON records (data_merge.rs); manual_entry and catalog_query absent"
+},
+{
+"id": "STU-AUT-140",
+"section": "4. Data-driven graphics",
+"title": "Row preview and batch expansion",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "merge_story per record; image fields not placed; no one-undo preview or runner expansion (data_merge.rs:26)"
+},
+{
+"id": "STU-ASSET-007",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Link-state enumeration (normative, closed, five members)",
+"apps": [
+"indesign",
+"photoshop",
+"illustrator"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "harness-view view/place.rs:38-41 link states resolved, modified, missing, unauthorized, unresolved (plus embedded, unsupported); SMB-PLACE-ASSET-1 and SMB-LAYOUT-PLACE-1 READY_FOR_VALIDATION"
+},
+{
+"id": "STU-AUT-141",
+"section": "5. Find and change",
+"title": "Find/change query record (normative shape)",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "layout find_change.rs SavedQueries named queries; format criteria a gap (SMB-ID-PREPRESS PASS_V23 gap ID-29)"
+},
+{
+"id": "STU-AUT-142",
+"section": "5. Find and change",
+"title": "Find/change mode enumeration (normative, closed, five members)",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "find.text, find.grep, find.glyph, find.object, find.colour plus extra find.transliterate (layout find_change.rs:6-24); glyph-id search a gap"
+},
+{
+"id": "STU-AUT-143",
+"section": "5. Find and change",
+"title": "Scope enumeration (normative, closed, five members)",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "document, story, to end of story, selection (find_change.rs:26); all_open_documents and site_or_project absent"
+},
+{
+"id": "STU-AUT-144",
+"section": "5. Find and change",
+"title": "Find/change option record (normative, closed, seven flags)",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "only the hidden-layer include toggle (find_change.rs:29); the seven-flag option record absent"
+},
+{
+"id": "STU-AUT-016",
+"section": "6. Find / change and GREP as a batch operation",
+"title": "Studio MUST provide a native find/change command family that operates over the whole document (or a ",
+"apps": [
+"indesign",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "layout find/change family (find_change.rs) and find/change panel (SMB-LAYOUT-UI-2 PASS_V24, SMB-ID-PREPRESS PASS_V23); glyph-id search a gap"
+},
+{
+"id": "STU-AUT-145",
+"section": "5. Find and change",
+"title": "Find/change is one command",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "apply_text_changes returns ONE undo record (find_change.rs:32); receipt and dry-run diff NOT_INSPECTED"
+},
+{
+"id": "STU-AUT-146",
+"section": "5. Find and change",
+"title": "Saved-query library",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "SavedQueries library (find_change.rs:33); no portable export or CKC registration"
+},
+{
+"id": "STU-AUT-147",
+"section": "6. The model-steerable command surface",
+"title": "Command corpus contract",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CommandEntry command_id, display_name, recordable, mutates_authority, dry_runnable, parameters (action/commands.rs:71-80); no schemas, capability, enabler, argus targets (commands.rs:68); SMB-COMMAND-SURFACE-1 READY_FOR_VALIDATION"
+},
+{
+"id": "STU-AUT-148",
+"section": "6. The model-steerable command surface",
+"title": "Enabler predicate contract",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "harness-core action/commands.rs:68 states the corpus has no enabler"
+},
+{
+"id": "STU-AUT-149",
+"section": "6. The model-steerable command surface",
+"title": "Command-surface scale contract",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "manual and drive tables generated from one registry (SMB-HARNESS-DRIVE-1 READY_FOR_VALIDATION); corpus not tested at 2000 entries"
+},
+{
+"id": "STU-AUT-150",
+"section": "6. The model-steerable command surface",
+"title": "Scripted-command surface hooks (normative, closed set of six)",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep receive_arguments|can_accept_command|window_dimensions: 0"
+},
+{
+"id": "STU-AUT-151",
+"section": "6. The model-steerable command surface",
+"title": "Shortcut-set contract",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "fixed shortcut text and Keyboard Shortcut Reference page (harness-view view/shell.rs:199,282); no named sets, rebinding or conflict detection"
+},
+{
+"id": "STU-AUT-152",
+"section": "6. The model-steerable command surface",
+"title": "[STU-CON-007] conformance, stated concretely",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "headless typed drive (SMB-HARNESS-DRIVE-1 READY_FOR_VALIDATION); no dry-run, parallel or visual conformance matrix"
+},
+{
+"id": "STU-AUT-153",
+"section": "6. The model-steerable command surface",
+"title": "Parallel-lane isolation",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "drive requires --actor and --session (SMB-HARNESS-DRIVE-1); record-granularity footprints only in hsk-studio-components"
+},
+{
+"id": "STU-AUT-154",
+"section": "6. The model-steerable command surface",
+"title": "Deterministic replay of a session",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "batch refuses clock tokens to stay deterministic (batch.rs:17-19); no declared seed or clock parameters per command"
+},
+{
+"id": "STU-AUT-155",
+"section": "7. Plugins",
+"title": "Plugin contract retained",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pure pointer clause (STU-AUT-176)"
+},
+{
+"id": "STU-AUT-017",
+"section": "7. Plugin / extension surface",
+"title": "Studio MUST expose domain adapters through the one Handshake-wide plugin platform in 5.1.6 and MEX i",
+"apps": [
+"figma",
+"audition",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "only the CLAP audio plugin host hsk-studio-score-plugin (SMB-SCORE-PLUGIN PASS_V23); no design plugin manifest or platform"
+},
+{
+"id": "STU-AUT-020",
+"section": "7. Plugin / extension surface",
+"title": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplac",
+"apps": [
+"audition",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CLAP adapter in score-plugin, VST3 refused (SMB-AU-WAVEFORM-EDITOR PASS_V23); local registry NOT_INSPECTED"
+},
+{
+"id": "STU-AUT-156",
+"section": "7. Plugins",
+"title": "Manifest record (normative shape)",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep requested_capabilities|extension_points|contributed_commands: 0"
+},
+{
+"id": "STU-AUT-157",
+"section": "7. Plugins",
+"title": "Extension-point enumeration (normative, closed, twelve members)",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep node_factory|event_subscriber|extension_points: 0"
+},
+{
+"id": "STU-AUT-019",
+"section": "7. Plugin / extension surface",
+"title": "The plugin surface MUST support the deduped extension capabilities below",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no plugin capability surface beyond audio CLAP; grep relaunch|node_factory|plugin_data: 0"
+},
+{
+"id": "STU-AUT-158",
+"section": "7. Plugins",
+"title": "Plugin event subscription set (normative, closed)",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep timer_start|selection_change|text_review: 0"
+},
+{
+"id": "STU-AUT-159",
+"section": "7. Plugins",
+"title": "Per-node plugin data",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep plugin_data|shared_plugin_data: 0"
+},
+{
+"id": "STU-AUT-160",
+"section": "7. Plugins",
+"title": "Plugin-local storage",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep client_storage: 0"
+},
+{
+"id": "STU-AUT-161",
+"section": "7. Plugins",
+"title": "Plugin UI isolation",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no plugin platform (grep requested_capabilities|extension_points|contributed_commands|relaunch: 0)"
+},
+{
+"id": "STU-AUT-162",
+"section": "7. Plugins",
+"title": "Plugin quick-run",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no plugin quick-run; grep receive_arguments: 0"
+},
+{
+"id": "STU-AUT-163",
+"section": "8. Inspect, codegen and handoff",
+"title": "Inspect surface retained and bounded",
+"apps": [
+"figma"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "pure pointer clause (STU-AUT-176)"
+},
+{
+"id": "STU-AUT-021",
+"section": "8. External API, inspect / codegen, and MCP posture",
+"title": "Studio's canonical automation entry is local-first: the typed command contract exposed as MCP tools ",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed JSONL command drive over the real process (SMB-HARNESS-DRIVE-1 READY_FOR_VALIDATION); not MCP tools generated from schemas"
+},
+{
+"id": "STU-AUT-023",
+"section": "8. External API, inspect / codegen, and MCP posture",
+"title": "Studio's local automation MUST NOT depend on any vendor account, hosted marketplace, hosted MCP endp",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "local automation with no hosted dependency (harness-core action.rs, batch.rs); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-164",
+"section": "8. Inspect, codegen and handoff",
+"title": "Codegen language enumeration (normative, closed baseline of sixteen, extensible by plugin)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep codegen|CodegenLanguage|GRAPHQL|PLAINTEXT: 0"
+},
+{
+"id": "STU-AUT-165",
+"section": "8. Inspect, codegen and handoff",
+"title": "Codegen unit preference enumeration (normative, closed, two members)",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep codegen: 0"
+},
+{
+"id": "STU-AUT-166",
+"section": "8. Inspect, codegen and handoff",
+"title": "Selection-render contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "frame and artboard export by typed command (SMB-ARTBOARD-EXPORT-1 READY_FOR_VALIDATION); grep render_selection: 0"
+},
+{
+"id": "STU-AUT-167",
+"section": "8. Inspect, codegen and handoff",
+"title": "Handoff aid record shapes",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep measurement_id|dev_resource|label_markdown: 0"
+},
+{
+"id": "STU-AUT-168",
+"section": "8. Inspect, codegen and handoff",
+"title": "Instance-versus-main drift report",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep drift_report|instance_drift: 0"
+},
+{
+"id": "STU-AUT-169",
+"section": "8. Inspect, codegen and handoff",
+"title": "External adapter posture retained",
+"apps": [
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "no vendor or hosted dependency in automation (harness-core action.rs, batch.rs); SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-170",
+"section": "9. Obligations",
+"title": "Asset library binding",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "batch reads folders directly with per-file receipts; catalog_query refused and outputs not registered in CKC"
+},
+{
+"id": "STU-AUT-171",
+"section": "9. Obligations",
+"title": "Validation descriptor set",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "7 of 20 descriptors (181-187) in harness-core action.rs and batch.rs; 188-200 grep: 0"
+},
+{
+"id": "STU-AUT-172",
+"section": "9. Obligations",
+"title": "Diagnostic-tier obligation",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed refusal codes in action.rs and batch.rs; three-tier surfacing NOT_INSPECTED"
+},
+{
+"id": "STU-AUT-173",
+"section": "9. Obligations",
+"title": "Resource-privacy obligation",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no ResourceBroker in harness-core action or batch (grep ResourceBroker: kernel-bindings and lrcat only)"
+},
+{
+"id": "STU-AUT-174",
+"section": "9. Obligations",
+"title": "Storage constraint",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no SQLite or second database in automation (rusqlite|sqlite hits only the lrcat byte decoder); no SurrealDB SCHEMAFULL tables in the workspace"
+},
+{
+"id": "STU-AUT-175",
+"section": "9. Obligations",
+"title": "GUI / Argus / UserManual obligation",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "manual entries and automation vocabulary (harness-core manual.rs); no GUI; manual_anchor per command absent"
+},
+{
+"id": "STU-AUT-176",
+"section": "10. Microtask Derivation",
+"title": "Derivation rule (NORMATIVE)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation rule"
+},
+{
+"id": "STU-AUT-181",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`action_declared_step_count_mismatch`",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs CODE_STEP_COUNT_MISMATCH action_declared_step_count_mismatch; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-200",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`event_bound_action_reentrancy`",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep event_bound_action_reentrancy: 0"
+},
+{
+"id": "STU-AUT-177",
+"section": "10. Microtask Derivation",
+"title": "Open items and blocked dependencies",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "open-items rule for microtask derivation"
+},
+{
+"id": "STU-AUT-178",
+"section": "10. Microtask Derivation",
+"title": "Microtask content obligation",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask content obligation"
+},
+{
+"id": "STU-AUT-179",
+"section": "10. Microtask Derivation",
+"title": "Yields index (NORMATIVE)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "yields index"
+},
+{
+"id": "STU-AUT-180",
+"section": "10. Microtask Derivation",
+"title": "Anchor binding",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask anchor-binding rule"
+},
+{
+"id": "STU-AUT-182",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`action_shortcut_collision`",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs CODE_SHORTCUT_COLLISION action_shortcut_collision; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-183",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`action_step_command_unresolvable`",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs CODE_COMMAND_UNRESOLVABLE action_step_command_unresolvable; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-184",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`action_step_parameter_key_unknown`",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs CODE_PARAMETER_KEY_UNKNOWN action_step_parameter_key_unknown; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-185",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`action_measured_value_missing_unit`",
+"apps": [
+"photoshop"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core action.rs CODE_MEASURED_MISSING_UNIT action_measured_value_missing_unit; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-186",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`batch_always_show_dialog_in_headless`",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core batch.rs batch_always_show_dialog_in_headless; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-187",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`batch_ask_overwrite_in_headless`",
+"apps": [
+"photoshop",
+"bridge"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "harness-core batch.rs batch_ask_overwrite_in_headless; SMB-PS-ACTIONS-1 PASS_V18"
+},
+{
+"id": "STU-AUT-188",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`batch_stack_dimension_mismatch`",
+"apps": [
+"photoshop"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep batch_stack_dimension_mismatch: 0"
+},
+{
+"id": "STU-AUT-189",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`dataset_column_type_coercion_failure`",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dataset_column_type_coercion_failure: 0"
+},
+{
+"id": "STU-AUT-190",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`dataset_asset_reference_unresolvable`",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep dataset_asset_reference_unresolvable: 0"
+},
+{
+"id": "STU-AUT-191",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`findchange_pattern_unbounded`",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep findchange_pattern_unbounded: 0"
+},
+{
+"id": "STU-AUT-192",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`command_missing_input_schema`",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep command_missing_input_schema: 0"
+},
+{
+"id": "STU-AUT-193",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`command_missing_receive_arguments`",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep command_missing_receive_arguments: 0"
+},
+{
+"id": "STU-AUT-194",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`command_enabler_has_side_effect`",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep command_enabler_has_side_effect: 0"
+},
+{
+"id": "STU-AUT-195",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`command_not_deterministic_undeclared`",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep command_not_deterministic_undeclared: 0"
+},
+{
+"id": "STU-AUT-196",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`plugin_capability_not_granted`",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep plugin_capability_not_granted: 0"
+},
+{
+"id": "STU-AUT-197",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`plugin_author_id_prefix_collision`",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep plugin_author_id_prefix_collision: 0"
+},
+{
+"id": "STU-AUT-198",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`plugin_node_data_contains_secret_pattern`",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep plugin_node_data_contains_secret_pattern: 0"
+},
+{
+"id": "STU-AUT-199",
+"section": "11. Validation Descriptor Catalogue",
+"title": "`codegen_language_token_shadows_baseline`",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep codegen_language_token_shadows_baseline: 0"
+},
+{
+"id": "STU-AUT-003",
+"section": "14.14.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "A command invoked by any non-operator caller that mutates document authority (a plugin, an external ",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no sandbox, validation, PromotionGate route (PromotionGate only a doc mention in kernel-bindings lib.rs; SMB-HARNESS-DRIVE-1 READY lists STU-AUT-003 as a gap)"
+},
+{
+"id": "STU-AUT-007",
+"section": "2. Scripting object model exposure",
+"title": "The object model MUST provide a low-level typed descriptor path — the deduped equivalent of a descri",
+"apps": [
+"photoshop",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep batch_play|descriptor_path|DescriptorPath: 0"
+},
+{
+"id": "STU-AUT-009",
+"section": "2. Scripting object model exposure",
+"title": "Any command that mutates document authority MUST execute under the transactional/modal-gated boundar",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no modal or promotion gate around mutations (grep PromotionGate: doc mention only)"
+},
+{
+"id": "STU-AUT-018",
+"section": "7. Plugin / extension surface",
+"title": "Plugins MUST run under the kernel capability/consent gate system and MUST NEVER run unsandboxed",
+"apps": [
+"audition",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "score-plugin hosts CLAP in a worker process and motion-js runs sandboxed (score-plugin lib.rs, motion-js profile.rs); consent gating absent"
+},
+{
+"id": "STU-AUT-026",
+"section": "9. Asset browser, OS, and clipboard handoff",
+"title": "Studio MUST support OS and clipboard handoff as commands: copy-as-CSS/SVG/PNG of a selection to the ",
+"apps": [
+"figma",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep copy_as_css|copy_as_svg|copy_as_png: 0; clipboard hits are the audio waveform only"
+},
+{
+"id": "STU-ASSET-006",
+"section": "2. Consumption: how Studio reads assets",
+"title": "Linked versus embedded",
+"apps": [
+"indesign",
+"photoshop",
+"illustrator"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "embedded and linked placement (harness-view view/place.rs:17-21, SMB-PLACE-ASSET-1 READY_FOR_VALIDATION); embedded has no asset_id or manifest; grep relink_to_catalog: 0"
+},
+{
+"id": "STU-ASSET-016",
+"section": "3. Publication: how Studio writes back",
+"title": "Uncataloged-content report",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep uncataloged|uncatalogued: 0"
+},
+{
+"id": "STU-ASSET-001",
+"section": "1. The binding",
+"title": "CKC is the asset library and file manager",
+"apps": [
+"bridge",
+"lightroom_classic",
+"cross_app"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "kernel-bindings ckc.rs:1-8 CKC is the single catalog, Studio holds port types only; SMB-CKC-PORTS PASS_V26, SMB-CKC-PORTS-ALIGN PASS_V26"
+},
+{
+"id": "STU-ASSET-002",
+"section": "1. The binding",
+"title": "What CKC is, in kernel terms",
+"apps": [
+"bridge"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "describes CKC in kernel terms and a path-reconciliation step before microtasks"
+},
+{
+"id": "STU-ASSET-003",
+"section": "1. The binding",
+"title": "Primitive reuse, not redefinition",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "AssetId UUID per PRIM-Asset (kernel-bindings ckc.rs:169); ArtifactManifest, AiJob, CapabilityProfile not bound"
+},
+{
+"id": "STU-ASSET-013",
+"section": "3. Publication: how Studio writes back",
+"title": "Export-back record (normative)",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep register_export|export_back: 0; CKC receipts carry only the EventLedger event id (ckc.rs:18)"
+},
+{
+"id": "STU-ASSET-015",
+"section": "3. Publication: how Studio writes back",
+"title": "Operator-directed destinations",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "exports write to the operator path without catalog registration; grep register_export: 0"
+},
+{
+"id": "STU-ASSET-018",
+"section": "4. Closures: what Studio builds instead",
+"title": "Amendment of the v02.205 line-471 row",
+"apps": [
+"bridge"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "amendment of a spec matrix row"
+},
+{
+"id": "STU-ASSET-019",
+"section": "4. Closures: what Studio builds instead",
+"title": "Catalog capability set inherited by Studio",
+"apps": [
+"bridge",
+"lightroom_classic"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CKC port covers rating, colour label, flag, keywords, collections, smart rules, XMP, virtual copies (ckc.rs:10-14; SMB-LR-LIBRARY-WRITE PASS_V23); import modes, duplicates, faces, geotag, stacks not shown"
+},
+{
+"id": "STU-ASSET-020",
+"section": "4. Closures: what Studio builds instead",
+"title": "Tailor and cui-studio share the same binding",
+"apps": [
+"cross_app"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no shared SPAL link record (grep SPAL: 0); Tailor and cui-studio are outside this workspace"
+},
+{
+"id": "STU-ASSET-021",
+"section": "4. Closures: what Studio builds instead",
+"title": "Cross-module authorization",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CKC port names ResourceBroker (kernel-bindings ckc.rs) and placements report unauthorized (view/place.rs); denial receipt NOT_INSPECTED"
+},
+{
+"id": "STU-ASSET-022",
+"section": "4. Closures: what Studio builds instead",
+"title": "Model-lane parity",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "CkcActor kind (ckc.rs:299-305) and asset.* rows drivable by model and operator (SMB-HARNESS-DRIVE-1 READY_FOR_VALIDATION)"
+},
+{
+"id": "STU-ASSET-023",
+"section": "4. Closures: what Studio builds instead",
+"title": "Parallel safety",
+"apps": [
+"bridge",
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "asset-granularity expected revision in the CKC port (ckc.rs:16-18; SMB-LR-LIBRARY-WRITE PASS_V23); refusal to delete assets with live placements absent"
+},
+{
+"id": "STU-ASSET-024",
+"section": "4. Closures: what Studio builds instead",
+"title": "Determinism",
+"apps": [
+"cross_app"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "sha256 digests per placed source (view/place.rs:17-21); no artifact-manifest resolution"
+},
+{
+"id": "STU-ASSET-025",
+"section": "5. Declared gaps",
+"title": "DECLARED GAP — the artifact tier binding is named but not verified in the target tree",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap: read the artifact tier and amend the spec or raise BLOCKED"
+},
+{
+"id": "STU-ASSET-026",
+"section": "5. Declared gaps",
+"title": "DECLARED GAP — CKC's own command ids are not enumerated here",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap: enumerate CKC action ids into the spec (SMB-CKC-PORTS-ALIGN lists PROPOSED_CKC_ADDITIONS)"
+},
+{
+"id": "STU-ASSET-027",
+"section": "5. Declared gaps",
+"title": "DECLARED GAP — catalog scale is unverified",
+"apps": [
+"bridge",
+"lightroom_classic"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no measured catalog-scale ceiling in a UserManual"
+},
+{
+"id": "STU-ASSET-028",
+"section": "5. Declared gaps",
+"title": "GUI / Argus / UserManual obligation",
+"apps": [
+"bridge",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "place.rs manual text and asset.* typed rows; engine and commands only, no panel (view/place.rs:3-4)"
+},
+{
+"id": "STU-ASSET-029",
+"section": "6. Microtask Derivation",
+"title": "Derivation rule (NORMATIVE)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation rule"
+},
+{
+"id": "STU-ASSET-030",
+"section": "6. Microtask Derivation",
+"title": "Open items and blocked dependencies",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "open items and blocked dependencies for derivation"
+},
+{
+"id": "STU-ASSET-031",
+"section": "6. Microtask Derivation",
+"title": "Microtask content obligation",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask content obligation"
+},
+{
+"id": "STU-ASSET-032",
+"section": "6. Microtask Derivation",
+"title": "Yields index (NORMATIVE)",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "yields index"
+},
+{
+"id": "STU-ASSET-033",
+"section": "6. Microtask Derivation",
+"title": "Anchor binding",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask anchor-binding rule"
+}
+],
+"counts_by_status": {
+"VALIDATED": 78,
+"BUILT_NOT_VALIDATED": 1,
+"PARTIAL": 110,
+"MISSING": 84,
+"LOCAL": 2,
+"NOT_PRODUCT": 25
+},
+"counts_by_app_and_status": {
+"affinity": {
+"VALIDATED": 2,
+"PARTIAL": 3,
+"MISSING": 2,
+"LOCAL": 1
+},
+"after_effects": {
+"PARTIAL": 1,
+"MISSING": 1,
+"NOT_PRODUCT": 1
+},
+"audition": {
+"PARTIAL": 3
+},
+"bridge": {
+"VALIDATED": 7,
+"PARTIAL": 16,
+"MISSING": 8,
+"NOT_PRODUCT": 2
+},
+"cross_app": {
+"VALIDATED": 5,
+"PARTIAL": 28,
+"MISSING": 37,
+"NOT_PRODUCT": 14
+},
+"figma": {
+"VALIDATED": 55,
+"PARTIAL": 51,
+"MISSING": 46,
+"LOCAL": 2,
+"NOT_PRODUCT": 8
+},
+"illustrator": {
+"VALIDATED": 2,
+"BUILT_NOT_VALIDATED": 1,
+"PARTIAL": 15,
+"MISSING": 5,
+"LOCAL": 1
+},
+"indesign": {
+"BUILT_NOT_VALIDATED": 1,
+"PARTIAL": 17,
+"MISSING": 11
+},
+"lightroom_classic": {
+"VALIDATED": 2,
+"PARTIAL": 2,
+"MISSING": 1
+},
+"media_encoder": {
+"PARTIAL": 1
+},
+"photoshop": {
+"VALIDATED": 18,
+"BUILT_NOT_VALIDATED": 1,
+"PARTIAL": 18,
+"MISSING": 9
+}
+},
+"top_missing_areas": [
+"Design-system libraries: no publish/subscribe, publish status, library update transaction, detach source, usage analytics or style verbs (STU-DS-019..021, 137..143, 166, 187).",
+"Plugin platform for design and graphics: no manifest, extension points, event subscriptions, per-node plugin data, plugin storage, plugin UI or quick-run; only the CLAP audio host exists (STU-AUT-017..019, 156..162, 196..198).",
+"Scripting object model and command-contract depth: no suites, classes, primitive type system, command builder, descriptor path, enablers, scripted-command hooks, capability grants or promotion gate (STU-AUT-003, 007, 009, 116..124, 148, 150).",
+"Variables, layout grids and handoff: no variable or collection commands, expressions, bindable-field sets, scope checks, layout-grid overlays, annotations, dev status, inspect/codegen or drift report (STU-DS-131, 133, 153..159, STU-AUT-024, 164..168).",
+"CKC write-back and provenance: placements are file paths, not SPAL/asset/manifest links; exports are not registered in CKC, no derivation edges, no uncataloged-content report (STU-ASSET-005, 012..016)."
+],
+"notes": [
+"Evidence base: spec module 14 v02.229 clause text read per ID; ledger.json lane status (ledger wins over lane-file status: FIG-EDIT-1/2 PASS_V20, FIG-GRID-1/2 PASS_V15, FOLIO-ENG-4 PASS_V32, PS-ACTIONS-1 PASS_V18 although their lane files still say READY_FOR_VALIDATION); code read with git grep/show at origin/codex/handshake-studio-assets 87f331f9 (fetch not needed).",
+"Index line numbers for several IDs point at a cross-reference (for example STU-ASSET-012 at 21191, STU-DS-163 at 217); section and title here come from the definitional clause.",
+"About 80 PASS lanes linked by the index to STU-AUT-110..114, 129, 132, 147 only repeat SMB-PS-ACTIONS-1 not_proven lines inside shared release verdicts; they are not implementations and were not counted as coverage.",
+"SMB-DS-COMPONENTS-AUTHOR-1 (ledger status null, local commits e9933f32 and fa15c84d, not pushed) holds component create, combine, property, instance and detach authoring; those clauses are LOCAL or PARTIAL.",
+"Validation descriptors that exist only as generic codes (folio InvalidField, components field_not_overridable, ambiguous_source, missing_mode_value) are PARTIAL: the check runs but not as the named catalogue descriptor with the stated diagnostic.",
+"Typed refusals (style kinds TEXT/EFFECT/GRID, extended collections, SLOT values, BASELINE alignment, stroke accounting, non-recordable insertion) are PARTIAL per the audit rule.",
+"ui=window comes from harness-view sections and lane capability text (view/design/instance.rs, view/design/auto_layout.rs, layout find/change panel, vector style authoring); no GUI was run.",
+"Spec deltas noted by SMB-PS-ACTIONS-1: STU-AUT-106 heading says seven value types but the table has eight; STU-AUT-105 cites STU-AUT-112 where STU-AUT-136 is meant."
+],
+"unverified": [
+"STU-DS-152 default {MIN, MIN} not inspected in folio.",
+"STU-DS-018 searchable swap picker not inspected (buttons seen in lane text only).",
+"STU-DS-167 UserManual literal token lists not inspected.",
+"STU-AUT-108 scale tests at 149 actions / 1,543 steps not inspected.",
+"STU-AUT-145 find/change receipt and dry-run diff not inspected.",
+"STU-AUT-172 three-tier diagnostic surfacing not inspected.",
+"STU-AUT-020 local plugin registry not inspected.",
+"STU-ASSET-004 absence of every parallel cache or index is not exhaustively proven; only the CKC port design and greps were checked.",
+"STU-ASSET-020 Tailor and cui-studio live outside this workspace.",
+"STU-ASSET-021 denial receipts not inspected.",
+"window/command ui labels are from code and lane text, not from running the harness."
+]
+}

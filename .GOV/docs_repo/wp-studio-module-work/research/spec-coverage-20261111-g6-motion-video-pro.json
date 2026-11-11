@@ -1,0 +1,3091 @@
+{
+"schema": "hsk.studio.spec_coverage@1",
+"group": "G6",
+"prefixes": [
+"STU-MOT",
+"STU-VID",
+"STU-PRO"
+],
+"generated_at": "2026-11-11T16:22:40+00:00",
+"origin_tip": "87f331f9",
+"inputs": {
+"index": "research/spec-coverage-index-20261111.json",
+"spec": ".GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md",
+"ledger": "ledger.json",
+"parity": [
+"research/parity-20261111-video-audio.json",
+"research/parity-20261111-figma-affinity-shell.json"
+],
+"code": "origin/codex/handshake-studio-assets@87f331f9 (git grep / git show, read only)"
+},
+"rows": [
+{
+"id": "STU-MOT-000",
+"section": "1. Why this sub-section exists",
+"title": "Section 14 at v02.205 offered \"prototyping/motion\" as one domain, specified in 14.11",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "rationale/ownership clause"
+},
+{
+"id": "STU-MOT-001",
+"section": "1. The composition",
+"title": "StudioComposition (schema id hsk.studio.composition@1) is the motion document",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/composition.rs:1; SMB-FOLIO-COMPOSITION PASS_V26"
+},
+{
+"id": "STU-MOT-002",
+"section": "1. Why this sub-section exists",
+"title": "Ownership boundaries. This sub-section owns compositions, the layer stack, the",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "rationale/ownership clause"
+},
+{
+"id": "STU-MOT-003",
+"section": "1. Why this sub-section exists",
+"title": "No sidecar authority. Every structure, enumeration, default, range and evaluation",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "rationale/ownership clause"
+},
+{
+"id": "STU-MOT-004",
+"section": "1. The composition",
+"title": "The normative composition settings record. Every bound and default below is read",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "composition settings folio/src/composition.rs:767; SMB-AE-MOTION-RECORDS-2 PASS_V25; SMB-FOLIO-COMPOSITION PASS_V26"
+},
+{
+"id": "STU-MOT-005",
+"section": "2. Layer types",
+"title": "The normative StudioLayer.kind enumeration for compositions is ten members",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "precomp/3D/camera/light/text/shape layers (folio/src/composition.rs:242); footage source absent (parity AE gap 2); solid/adjustment LOCAL in SMB-MOTION-COMMANDS-2"
+},
+{
+"id": "STU-MOT-006",
+"section": "3. Layer common properties",
+"title": "Every composition layer carries the same common property set, independent of",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioLayerTiming etc folio/src/composition.rs:123; SMB-FOLIO-COMPOSITION PASS_V26"
+},
+{
+"id": "STU-MOT-007",
+"section": "3. Layer common properties",
+"title": "The layer quality enumeration is normative: wireframe, draft, best, plus two",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "StudioRenderQuality incl. Wireframe folio/src/motion_records.rs:460; per-layer quality/resample_filter grep: 0; wireframe refused at render"
+},
+{
+"id": "STU-MOT-008",
+"section": "4. Parenting",
+"title": "A layer MAY declare one parent layer, forming a transform hierarchy. The child's",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "parent forest folio/src/composition.rs:276; SMB-COMPOSITE-COMPOSITION-ADAPTER PASS_V28"
+},
+{
+"id": "STU-MOT-009",
+"section": "4. Parenting",
+"title": "Stack order is render order and it is bottom-to-top. Layer index 1 is topmost in",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/composition.rs:786; SMB-FOLIO-COMPOSITION PASS_V26"
+},
+{
+"id": "STU-MOT-010",
+"section": "1. The core idea",
+"title": "StudioProperty (schema id hsk.studio.property@1) is a value stream, and every",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "StudioProperty with expression motion/src/property.rs (SMB-MOTION PASS_V17); composition streams carry no expression (parity AE-07)"
+},
+{
+"id": "STU-MOT-011",
+"section": "1. The core idea",
+"title": "Property addressing is a stable path, and the path is the model surface. A",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "motion/src/path.rs; SMB-MOTION PASS_V17"
+},
+{
+"id": "STU-MOT-012",
+"section": "2. The recovered property tree",
+"title": "The property tree topology below is normative as SHAPE. Thirteen property-group",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "subset of 13 groups addressable (harness-core/src/motion_commands.rs:14-20)"
+},
+{
+"id": "STU-MOT-013",
+"section": "2. The recovered property tree",
+"title": "The transform group is normative and its members are: anchor point, position",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "transform + 3D rotations; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-MOT-014",
+"section": "2. The recovered property tree",
+"title": "3D material and geometry options are property groups on the layer, not renderer",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioMaterialOptions folio/src/composition.rs:398; SMB-AE-3D PASS_V23"
+},
+{
+"id": "STU-MOT-016",
+"section": "2. The recovered property tree",
+"title": "The audio group carries audio_levels, a keyframable stereo-pair level stream",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pulse/src/comp_audio.rs:1; SMB-AE-PARTICLES-AUDIO-PRESETS PASS_V23"
+},
+{
+"id": "STU-MOT-017",
+"section": "2. The recovered property tree",
+"title": "An effect instance is a property GROUP in the layer's tree, and its parameters are",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "effects/<instance>/<param> groups motion/src/audio_amplitude.rs, folio/src/composition/effects.rs; built-in group (effect mask, CPU/GPU force) grep: 0"
+},
+{
+"id": "STU-MOT-019",
+"section": "2. The recovered property tree",
+"title": "The data group binds an external data source to properties. A data layer exposes",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep data_layer|data_key_times|data_path: 0"
+},
+{
+"id": "STU-MOT-020",
+"section": "1. Composition time",
+"title": "A composition's time model. Time in a composition is expressed in seconds as a",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "tick time base folio/src/composition.rs:12; SMB-FOLIO-COMPOSITION PASS_V26; SMB-AE-RENDER-QUEUE-2 PASS_V21"
+},
+{
+"id": "STU-MOT-030",
+"section": "2. The keyframe record",
+"title": "StudioKeyframe (schema id hsk.studio.keyframe@1). A keyframe is a value at a",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/composition.rs:186; SMB-AE-KEY-TRACK PASS_V25; SMB-FOLIO-COMPOSITION PASS_V26"
+},
+{
+"id": "STU-MOT-031",
+"section": "3. Interpolation types",
+"title": "The normative StudioInterpolation enumeration is five members",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "Interpolation motion/src/keyframe.rs:42; SMB-MOTION PASS_V17"
+},
+{
+"id": "STU-MOT-033",
+"section": "4. Temporal tangents",
+"title": "A temporal tangent is {speed, influence} per component, and both halves are",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "temporal tangents motion/src/keyframe.rs; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-034",
+"section": "4. Temporal tangents",
+"title": "The default ease influence is 0.16666666666. This value appears verbatim in",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "0.16666666666 motion/src/assistants.rs:6-7; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-035",
+"section": "6. Roving keyframes",
+"title": "A roving keyframe holds a value but not a time. When roving is true, the",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "roving motion/src/assistants.rs; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-036",
+"section": "5. Spatial tangents and motion paths",
+"title": "A spatial property has spatial tangents in addition to temporal ones, and they are",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "spatial tangents motion/src/spatial.rs (SMB-AE-MOTION-TOOLS PASS_V25); viewer motion path absent (AE GUI 0)"
+},
+{
+"id": "STU-MOT-037",
+"section": "7. Keyframe assistants",
+"title": "The normative ease assistant set is three operations, each applying 's",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "ease assistants motion/src/assistants.rs:6; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-038",
+"section": "8. Keyframe operations",
+"title": "The normative keyframe operation set. Each is a typed command and one reversible",
+"apps": [
+"after_effects"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "keyframe.* rows harness-core/src/motion_commands.rs:1 (SMB-MOTION-COMMANDS-1 READY); copy/paste/reverse LOCAL in SMB-MOTION-COMMANDS-2"
+},
+{
+"id": "STU-MOT-039",
+"section": "8. Keyframe operations",
+"title": "A keyframe operation on a multi-component property applies per component unless the",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "dimensions_separated motion/src/graph.rs:1-2; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-045",
+"section": "14.26.5 Time remapping",
+"title": "Time remapping turns a layer's source time into a keyframable property. Enabling",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "motion/src/time_remap.rs; SMB-AE-ROTO-TIMEREMAP PASS_V22"
+},
+{
+"id": "STU-MOT-050",
+"section": "14.26.4 The graph editor",
+"title": "The graph editor is a REQUIRED surface, not an advanced option. A timeline that",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "graph model motion/src/graph.rs; no graph editor surface (SMB-AE-KEYFRAME-TIMELINE-1 BLOCKED)"
+},
+{
+"id": "STU-MOT-051",
+"section": "14.26.4 The graph editor",
+"title": "The graph editor has two graph types and they show different things",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "value and speed graphs motion/src/graph.rs:7-9; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-052",
+"section": "14.26.4 The graph editor",
+"title": "Normative graph editor operations: choose which properties are graphed (selected",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "model operations only motion/src/graph.rs; GUI operations absent"
+},
+{
+"id": "STU-MOT-053",
+"section": "14.26.4 The graph editor",
+"title": "The graph editor is a projection of the property tree, not a separate document",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "projection of keyframes motion/src/graph.rs:4-5; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-055",
+"section": "14.26.4 The graph editor",
+"title": "Two numeric dialogs are required and they are the model surface's shape. A",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "interpolation and velocity records motion/src/graph.rs:1; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-070",
+"section": "1. Expressions replace values",
+"title": "An expression is a FIRST-CLASS ALTERNATIVE to a property's value, not an",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "expression state motion/src/property.rs (SMB-MOTION PASS_V17); composition streams have no expression field (parity AE-07)"
+},
+{
+"id": "STU-MOT-071",
+"section": "1. Expressions replace values",
+"title": "The four property states are normative and form a state machine",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "four-state machine motion/src/property.rs:1; SMB-MOTION PASS_V17"
+},
+{
+"id": "STU-MOT-072",
+"section": "2. The expression-driven control -- the required \"animated\" state",
+"title": "A scrubbable numeric control MUST have an explicit expression-driven state, and",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "menu reason EXPRESSION_DRIVEN controls/src/menu.rs:115; no scrub-control expression state"
+},
+{
+"id": "STU-MOT-073",
+"section": "3. The identifier surface",
+"title": "The expression language exposes 333 identifiers in 12 declared categories, and the",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "333 identifiers catalogued motion/src/expr_catalogue.rs (SMB-AE-EXPR-LIBRARY-1 PASS_V4); 283 unbound (parity AE-07)"
+},
+{
+"id": "STU-MOT-074",
+"section": "3. The identifier surface",
+"title": "Six identifier families are load-bearing and are called out because an",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "families catalogued; unbound ones SOURCE_FUNCTION_BINDING_UNAVAILABLE motion/src/expr_catalogue.rs:11-14"
+},
+{
+"id": "STU-MOT-075",
+"section": "3. The identifier surface",
+"title": "37 argument signatures are recovered and are normative for the functions they",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "37 signatures with defaults motion/src/expr_catalogue.rs:1-4; SMB-AE-EXPR-LIBRARY-1 PASS_V4"
+},
+{
+"id": "STU-MOT-076",
+"section": "4. Evaluation",
+"title": "Expression evaluation is deterministic and side-effect-free. Given the same",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "deterministic seeded eval motion + motion-js; SMB-AE-EXPR-LIBRARY-1 PASS_V4; SMB-MOTION-JS PASS_V21"
+},
+{
+"id": "STU-MOT-077",
+"section": "4. Evaluation",
+"title": "A dependency cycle is a validation error, detected and reported, never a hang",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "cycle refused at commit motion/src/depgraph.rs:1; SMB-MOTION PASS_V17"
+},
+{
+"id": "STU-MOT-078",
+"section": "4. Evaluation",
+"title": "An expression error disables the expression and states why; it never renders a",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "fallback + error state motion/src/property.rs (SMB-AE-EXPR-LIBRARY-1 PASS_V4); composition render receipt cannot report it"
+},
+{
+"id": "STU-MOT-079",
+"section": "4. Evaluation",
+"title": "Expressions are sandboxed. Expression evaluation runs inside the kernel sandbox",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "worker sandbox and budgets motion-js/src/engine.rs:55 (SMB-MOTION-JS PASS_V21); grep PromotionGate (product code): 0"
+},
+{
+"id": "STU-MOT-080",
+"section": "5. Expression controls",
+"title": "Expression control effects are a normative bridge between the operator surface and",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep expression_controls|SliderControl|AngleControl: 0"
+},
+{
+"id": "STU-MOT-081",
+"section": "6. The authoring surface",
+"title": "The expression editor is a first-class panel with a stated feature set: an",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no expression editor panel; grep snippet (motion crates): 0"
+},
+{
+"id": "STU-MOT-082",
+"section": "6. The authoring surface",
+"title": "The pick-whip inserts a stable path, never a display name. This is the single",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep pick_?whip|PickWhip: 0"
+},
+{
+"id": "STU-MOT-083",
+"section": "6. The authoring surface",
+"title": "Expression language selected. Studio uses the versioned synchronous deterministic JavaScript compati",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "JS profile motion-js/src/profile.rs; SMB-AE-EXPR-LIBRARY-1 PASS_V4"
+},
+{
+"id": "STU-MOT-090",
+"section": "14.26.7 Text animators",
+"title": "A text layer's animator system is a property subtree, and it is the mechanism by",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "motion/src/text_animator.rs:1; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-091",
+"section": "14.26.7 Text animators",
+"title": "Three selector kinds are normative: a RANGE selector (start, end, offset, units",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "range+wiggly motion/src/text_animator.rs:145-147; expression selector refused without engine composite/src/temporal/motion_records.rs:14"
+},
+{
+"id": "STU-MOT-092",
+"section": "14.26.7 Text animators",
+"title": "99 animator properties are recovered and are the capability target. They cover",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "subset transform/appearance/tracking motion/src/text_animator.rs:149"
+},
+{
+"id": "STU-MOT-093",
+"section": "14.26.7 Text animators",
+"title": "Path options and more options are normative groups. Path options bind the text to",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep first_margin|perpendicular|force_align|anchor_point_grouping|render_order: 0"
+},
+{
+"id": "STU-MOT-094",
+"section": "14.26.7 Text animators",
+"title": "Text shaping remains bound by : the shaping stack is native Rust of the",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "rustybuzz/swash shaping hsk-studio-type/src/engine.rs; SMB-AE-MOTION-RECORDS-2 PASS_V25"
+},
+{
+"id": "STU-MOT-095",
+"section": "14.26.7 Text animators",
+"title": "Recovered group topology appendix, and which clause each part of it serves. The",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "topology appendix carries no contract"
+},
+{
+"id": "STU-MOT-100",
+"section": "14.26.8 Shape operators",
+"title": "A shape layer is a PROCEDURAL vector graph, not a static path, and its operators",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "procedural shape groups folio/src/motion_records.rs:8; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-101",
+"section": "14.26.8 Shape operators",
+"title": "21 shape operator families are normative. They divide into three roles",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "18 item kinds folio/src/motion_records.rs:156-210; trim reveal helper and 3D materials group absent"
+},
+{
+"id": "STU-MOT-102",
+"section": "14.26.8 Shape operators",
+"title": "Operator ORDER within a group is semantic and is part of the document. A trim",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "ordered items folio/src/motion_records.rs:156; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-103",
+"section": "14.26.8 Shape operators",
+"title": "Three modifiers are called out because they are the ones motion graphics is built",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "Trim/Repeater/WiggleTransform folio/src/motion_records.rs:156-210, composite vector_nib/shape_layer.rs; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-104",
+"section": "14.26.8 Shape operators",
+"title": "The shape geometry engine is the Nib vector owner (14.5), reached through",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "Nib geometry nib/src/shape_ops.rs; SMB-AE-MOTION-TOOLS PASS_V25"
+},
+{
+"id": "STU-MOT-110",
+"section": "14.26.9 Motion presets and the scripting surface",
+"title": "A motion preset is a StudioStyleRegistry entry, and per the shipped",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/motion_preset.rs:1; SMB-AE-PARTICLES-AUDIO-PRESETS PASS_V23"
+},
+{
+"id": "STU-MOT-111",
+"section": "14.26.9 Motion presets and the scripting surface",
+"title": "Preset application is path-based and MUST fail loudly on a mismatch. Applying a",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "PRESET_TARGET_INCOMPATIBLE motion/src/preset.rs:4; SMB-AE-PARTICLES-AUDIO-PRESETS PASS_V23"
+},
+{
+"id": "STU-MOT-112",
+"section": "14.26.9 Motion presets and the scripting surface",
+"title": "The automation/scripting surface for motion is enumerated, and 14.14 owns it. 44",
+"apps": [
+"after_effects"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "typed rows over the same Folio records harness-core/src/motion_commands.rs:1; SMB-MOTION-COMMANDS-1 READY"
+},
+{
+"id": "STU-MOT-120",
+"section": "14.26.10 Render and output for compositions",
+"title": "A composition renders through a RENDER QUEUE, and a queue item is a triple",
+"apps": [
+"after_effects",
+"media_encoder"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "render once, several modules harness-view timeline_export/render_queue.rs:1-6; SMB-AE-MOTION-RECORDS-2 PASS_V25"
+},
+{
+"id": "STU-MOT-121",
+"section": "14.26.10 Render and output for compositions",
+"title": "The normative render settings record. 104 controls recovered; the 18 that carry a",
+"apps": [
+"after_effects",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "field render/3:2 pulldown, rate change, wireframe refused timeline_export/render_queue.rs:29,164 (SMB-AE-RENDER-QUEUE-2 PASS_V21)"
+},
+{
+"id": "STU-MOT-122",
+"section": "14.26.10 Render and output for compositions",
+"title": "The normative output module record. 82 controls recovered. The required fields",
+"apps": [
+"after_effects",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "resize/crop/alpha (SMB-AE-MOTION-RECORDS-2 PASS_V25); RGB+alpha codec, post-render actions refused (parity AE-22); PNG sequence LOCAL SMB-DELIVERY-QUEUE-1"
+},
+{
+"id": "STU-MOT-123",
+"section": "14.26.10 Render and output for compositions",
+"title": "Audio level display is a stated unit choice. The audio options surface declares",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep min_slider|MinSlider|level_display: 0"
+},
+{
+"id": "STU-MOT-124",
+"section": "14.26.10 Render and output for compositions",
+"title": "Exporters, importers and codec parameters for compositions. 29 exporter modules",
+"apps": [
+"after_effects",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "outputs MOV VC-3, MOV/MP4 AV1 only (parity AE-22)"
+},
+{
+"id": "STU-MOT-125",
+"section": "14.26.10 Render and output for compositions",
+"title": "Render queue items are model-steerable and headless. Submit, monitor, cancel,",
+"apps": [
+"after_effects",
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "queue add/remove/edit rows harness-core/src/motion_commands.rs:527-974 (SMB-MOTION-COMMANDS-1 READY); reorder/duplicate/templates LOCAL SMB-DELIVERY-QUEUE-1"
+},
+{
+"id": "STU-MOT-126",
+"section": "14.26.10 Render and output for compositions",
+"title": "A collect files operation gathers a composition and every artifact it references",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "package externals report missing/unresolved package/src/externals.rs:9; grep collect_files (product): 0"
+},
+{
+"id": "STU-MOT-130",
+"section": "14.26.11 The command surface",
+"title": "The tables below are the normative Studio motion command vocabulary, on the same",
+"apps": [
+"after_effects"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "STUDIO_* motion rows harness-core/src/motion_commands.rs:1-5; SMB-MOTION-COMMANDS-1 READY"
+},
+{
+"id": "STU-MOT-131",
+"section": "14.26.11 The command surface",
+"title": "The tool set for the composition viewer is normative and is 22 tools across 12",
+"apps": [
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no composition viewer or its tools (no motion surface in harness-view or native-host; parity AE GUI 0)"
+},
+{
+"id": "STU-MOT-140",
+"section": "14.26.12 Declared gaps",
+"title": "GAP -- the interpolation code mapping is heuristic at the byte level. The",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap / capture request"
+},
+{
+"id": "STU-MOT-141",
+"section": "14.26.12 Declared gaps",
+"title": "GAP -- spatial tangent on-disk layout. Per",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap / capture request"
+},
+{
+"id": "STU-MOT-142",
+"section": "14.26.12 Declared gaps",
+"title": "RESOLVED -- expression implementation boundary. Motion owns property/dependency/time/seed semantics ",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "typed provider ports motion/src/expression.rs:1, MotionJS provider; SMB-MOTION-JS PASS_V21"
+},
+{
+"id": "STU-MOT-143",
+"section": "14.26.12 Declared gaps",
+"title": "GAP -- the shape-operator parameter contracts. 21 operator families and 137 shape",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap / capture request"
+},
+{
+"id": "STU-MOT-144",
+"section": "14.26.12 Declared gaps",
+"title": "RESOLVED -- canonical spelling. Canonical host API spelling is camelCase, with exact declared legacy",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "camelCase alias rule motion/src/expr_catalogue.rs:6-10; SMB-AE-EXPR-LIBRARY-1 PASS_V4"
+},
+{
+"id": "STU-MOT-145",
+"section": "14.26.12 Declared gaps",
+"title": "GAP -- categorisation of 206 expression identifiers. Per . They are",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap / capture request"
+},
+{
+"id": "STU-MOT-146",
+"section": "14.26.12 Declared gaps",
+"title": "GAP -- the graph editor is specified behaviourally, not from a captured surface",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "declared gap / capture request"
+},
+{
+"id": "STU-MOT-150",
+"section": "14.26.13 Model steerability, GUI, diagnostics and manual obligation",
+"title": "Every panel, control, property row, keyframe, curve, tangent handle and visible state",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "typed motion rows (READY) and stable paths; no Argus/GUI surface (AE GUI 0)"
+},
+{
+"id": "STU-MOT-250",
+"section": "14.26.14 Microtask Derivation",
+"title": "Microtask derivation index. Applying the shared derivation convention to this",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-MOT-251",
+"section": "14.26.14 Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under MUST carry",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-MOT-252",
+"section": "14.26.14 Microtask Derivation",
+"title": "Ledger",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-MOT-253",
+"section": "14.26.14 Microtask Derivation",
+"title": "An open item or a blocked dependency does NOT remove a microtask. A clause that",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-MOT-254",
+"section": "14.26.14 Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this sub-section cites the clause anchor",
+"apps": [
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-MOT-255",
+"section": "14.26.ADD v02.207 Deterministic expression and provider contract",
+"title": "Language profile. The initial profile is synchronous ECMAScript-2018-shaped JavaScript with numeric/",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "motion-js/src/profile.rs; SMB-MOTION-JS PASS_V21; SMB-AE-EXPR-LIBRARY-1 PASS_V4"
+},
+{
+"id": "STU-MOT-256",
+"section": "14.26.ADD v02.207 Deterministic expression and provider contract",
+"title": "Deterministic Date clock. Persist expression-profile epoch_ms as exact UTC integer milliseconds sinc",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "motion/src/date.rs:1 states a subset of 256/257"
+},
+{
+"id": "STU-MOT-257",
+"section": "14.26.ADD v02.207 Deterministic expression and provider contract",
+"title": "Date forms/calendar. Admit new Date(Number epoch_ms), clone of a profile Date, exact ASCII YYYY-MM-D",
+"apps": [
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "motion/src/date.rs:1 states a subset of 256/257"
+},
+{
+"id": "STU-MOT-258",
+"section": "14.26.ADD v02.207 Deterministic expression and provider contract",
+"title": "Engine candidate and safety. MotionJS owns the executable JavaScript parser/AST/lowering/checkpoint ",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "quickjs isolated worker + limits motion-js/src/quickjs_worker.rs, limits.rs; SMB-MOTION-JS PASS_V21"
+},
+{
+"id": "STU-MOT-259",
+"section": "14.26.ADD v02.207 Deterministic expression and provider contract",
+"title": "Expression diagnostics and portability. Motion exposes stable parse/unsupported/alias/reference-miss",
+"apps": [
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "typed outcome kinds motion/src/expression.rs:13-32; SMB-AE-EXPR-LIBRARY-1 PASS_V4"
+},
+{
+"id": "STU-PRO-001",
+"section": "14.11.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "StudioPrototypeFlow (schema id hsk.studio.prototype_flow@1) is the single prototyping primitive. It ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "folio/src/prototype.rs:1-18 per-page flow records; components/src/prototype.rs:4 no PrototypeFlow container; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-002",
+"section": "14.11.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "A flow MUST support multiple named starting points per page, each defining an entry path, listed in ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "flow_starting_points stored+validated folio/src/prototype.rs:25 (SMB-INTEROP-FIG-PROTOTYPE PASS_V26); play opens first start only harness-view/src/view/prototype.rs:2"
+},
+{
+"id": "STU-PRO-003",
+"section": "14.11.CARRIED Clauses carried forward unchanged from v02.205",
+"title": "Prototype settings MUST let interactive-component state and variable values either reset or persist ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "reset_* and preserve_scroll_position action fields in folio/src/reactions.rs; grep state_preservation|preserve_state: 0"
+},
+{
+"id": "STU-PRO-004",
+"section": "2. Triggers",
+"title": "A trigger is the event that fires an interaction on a hotspot StudioLayer or frame. The trigger set ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "17 triggers storable folio/src/reactions.rs:60; player fires click/hover/press/mouse/timeout only components/src/player.rs:250-256,494"
+},
+{
+"id": "STU-PRO-005",
+"section": "2. Triggers",
+"title": "On click / tap | the hotspot is clicked (pointer) or tapped (touch)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/player.rs:250 OnClick; SMB-INTEROP-FIG-PROTOTYPE PASS_V26; SMB-HARNESS-PROTOTYPE-PLAY PASS_V27"
+},
+{
+"id": "STU-PRO-006",
+"section": "2. Triggers",
+"title": "On drag | the object is dragged, with continuous movement mapping (swipeable UI)",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "OnDrag stored folio/src/reactions.rs:62; not fired by player.rs:250-256"
+},
+{
+"id": "STU-PRO-007",
+"section": "2. Triggers",
+"title": "While hovering | the cursor is over the hotspot; auto-reverts on exit",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/player.rs:251,290 hover with revert; SMB-HARNESS-PROTOTYPE-PLAY PASS_V27"
+},
+{
+"id": "STU-PRO-008",
+"section": "2. Triggers",
+"title": "While pressing | during click-and-hold / tap-and-hold; reverts on release",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "OnPress fires player.rs:256; no revert on release (only hover restores, player.rs:290)"
+},
+{
+"id": "STU-PRO-009",
+"section": "2. Triggers",
+"title": "Key / gamepad | a key, key combination, or controller button is input",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "Keyboard/controller triggers stored folio/src/reactions.rs:76-100; inert in player.rs:250-256"
+},
+{
+"id": "STU-PRO-010",
+"section": "2. Triggers",
+"title": "Mouse enter / leave | the cursor enters / exits the hotspot area, without auto-revert",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/player.rs:252-253; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-011",
+"section": "2. Triggers",
+"title": "Mouse down / up | press start / release, without auto-revert (press state machines)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/player.rs:254-255; harness-core action/commands/prototype.rs:11 mouse_down|mouse_up; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-012",
+"section": "2. Triggers",
+"title": "After delay | a frame-level dwell timer elapses (splash screens, autoplay, timed states)",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "AFTER_TIMEOUT on explicit clock components/src/player.rs:480-494; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-013",
+"section": "2. Triggers",
+"title": "Media timestamp / end | a media-bearing layer reaches a set timestamp or ends playback",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "OnMediaHit/OnMediaEnd stored folio/src/reactions.rs:84-87; no media runtime"
+},
+{
+"id": "STU-PRO-014",
+"section": "3. Actions",
+"title": "An action is what a fired trigger does. The action set is normative and enumerated below; Studio MUS",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "CONDITIONAL and UPDATE_MEDIA_RUNTIME not modelled folio/src/reactions.rs:6-7; navigation/overlay/url/variable actions run in player.rs"
+},
+{
+"id": "STU-PRO-015",
+"section": "3. Actions",
+"title": "Set variable | writes a literal, alias, or expression result into a StudioVariable at runtime",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "literal/alias runtime write player.rs:20; EXPRESSION value form omitted folio/src/values.rs:286"
+},
+{
+"id": "STU-PRO-016",
+"section": "3. Actions",
+"title": "Set variable mode | switches the active mode of a StudioVariableCollection for a target scope",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "SetVariableMode stored; player emits variable_mode_not_modelled components/src/player.rs:370"
+},
+{
+"id": "STU-PRO-017",
+"section": "3. Actions",
+"title": "Media playback control | play/pause/toggle, mute/unmute/toggle, seek, and jump forward/back by secon",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "UPDATE_MEDIA_RUNTIME not modelled folio/src/reactions.rs:6-7; grep UpdateMediaRuntime: doc comment only"
+},
+{
+"id": "STU-PRO-018",
+"section": "4. Animations, Smart Animate, and Easing",
+"title": "Transition animations MUST include: instant (no transition), dissolve (cross-fade with duration + ea",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/smart_animate.rs, transition.rs; SMB-FIG-SMART-ANIMATE PASS_V25; SMB-FIG-SMART-ANIMATE-2 PASS_V25"
+},
+{
+"id": "STU-PRO-019",
+"section": "4. Animations, Smart Animate, and Easing",
+"title": "The easing catalog is normative and shared between prototype transitions and the motion timeline ().",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "bezier presets + custom bezier/spring folio/src/values.rs:207-231; spring presets absent folio/src/prototype.rs:222"
+},
+{
+"id": "STU-PRO-020",
+"section": "5. Overlays",
+"title": "An overlay is a frame layered above the current frame, opened/swapped/closed by the overlay actions ",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "overlay records folio/src/prototype.rs:64-114 + player.rs:23-28; SMB-FIG-SMART-ANIMATE PASS_V25"
+},
+{
+"id": "STU-PRO-021",
+"section": "6. Scroll and Overflow Behaviors",
+"title": "A frame MUST declare overflow scrolling behavior — none, horizontal, vertical, or both — creating ne",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "overflow_direction stored folio/src/prototype.rs:46; no runtime scroll container (SCROLL_TO records target only, player.rs:15)"
+},
+{
+"id": "STU-PRO-022",
+"section": "6. Scroll and Overflow Behaviors",
+"title": "Layers MUST support fixed positioning (stay in the viewport while content scrolls) and sticky positi",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep number_of_fixed|sticky (prototype code): 0"
+},
+{
+"id": "STU-PRO-023",
+"section": "6. Scroll and Overflow Behaviors",
+"title": "Navigation actions MUST optionally preserve the origin frame's scroll offset onto the destination fr",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "preserve_scroll_position stored folio/src/reactions.rs; no runtime scroll offset carry"
+},
+{
+"id": "STU-PRO-024",
+"section": "7. Device Frames, Presentation, and Preview",
+"title": "Presentation settings MUST support wrapping the running prototype in a device frame from a catalog (",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep device_frame|DeviceFrame|chrome_asset_id: 0"
+},
+{
+"id": "STU-PRO-025",
+"section": "9. Variables in Prototyping",
+"title": "Set-variable () and conditional () actions evaluate runtime expressions over StudioVariables: arithm",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "EXPRESSION value form omitted folio/src/values.rs:286; grep conditional_blocks (src): 0"
+},
+{
+"id": "STU-PRO-026",
+"section": "9. Variables in Prototyping",
+"title": "Conditional actions evaluate a boolean expression over variables and branch into distinct action lis",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "CONDITIONAL not modelled folio/src/reactions.rs:6"
+},
+{
+"id": "STU-PRO-027",
+"section": "8. Interactive Components and State",
+"title": "Variant-to-variant interactions authored on a variant-set StudioComponent () MUST run automatically ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "CHANGE_TO records runtime variant player.rs:96,437-439 (SMB-INTEROP-FIG-PROTOTYPE PASS_V26); grep variants harness-view prototype.rs: 0 (switch not drawn)"
+},
+{
+"id": "STU-PRO-028",
+"section": "10. Motion Timeline (StudioMotionTimeline)",
+"title": "StudioMotionTimeline (schema id hsk.studio.motion_timeline@1) is the keyframe-animation primitive. I",
+"apps": [
+"figma",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "schema id only accord/src/lib.rs:31; keyframe animation lives in StudioComposition (14.26)"
+},
+{
+"id": "STU-PRO-029",
+"section": "10. Motion Timeline (StudioMotionTimeline)",
+"title": "Keyframable properties MUST include position, scale, rotation, and opacity per layer, plus animatabl",
+"apps": [
+"figma",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "position/scale/rotation/opacity streams on composition layers folio/src/composition.rs:201; no per-document motion timeline"
+},
+{
+"id": "STU-PRO-030",
+"section": "10. Motion Timeline (StudioMotionTimeline)",
+"title": "Timeline segment easing uses the shared easing catalog (), including Hold and custom cubic-bezier wi",
+"apps": [
+"figma",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hold/bezier segments motion/src/keyframe.rs:42; no spring segment easing"
+},
+{
+"id": "STU-PRO-031",
+"section": "10. Motion Timeline (StudioMotionTimeline)",
+"title": "Position keyframes MUST render an on-canvas motion path shown as easing-spaced dots with a per-keyfr",
+"apps": [
+"figma",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "spatial path math motion/src/spatial.rs; no on-canvas motion path view"
+},
+{
+"id": "STU-PRO-032",
+"section": "10. Motion Timeline (StudioMotionTimeline)",
+"title": "Any AI-assisted keyframe generation is an optional model-lane capability that emits real editable St",
+"apps": [
+"figma",
+"after_effects"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "optional capability; grep auto_keyframe|keyframe generation: 0"
+},
+{
+"id": "STU-PRO-033",
+"section": "9. Interactive documents (authoring side)",
+"title": "Interactive-document objects. Studio MUST support, on StudioLayer nodes, the interactive-document ob",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "unknown",
+"evidence": "hyperlinks/bookmarks in layout PDF export layout/src/pdf_export_prefs.rs:775; buttons/forms/MSO grep StudioButton|Rollover|MultiState: 0"
+},
+{
+"id": "STU-PRO-034",
+"section": "11. Interactive Documents",
+"title": "Buttons MUST support the event set ( through ) and the action set ( through ) enumerated below",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioButton|Rollover|button_state: 0"
+},
+{
+"id": "STU-PRO-035",
+"section": "11. Interactive Documents",
+"title": "Navigation/PDF | go to destination; first/last/next/previous page; go to URL; go to next/previous vi",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioButton|Rollover|button_state: 0"
+},
+{
+"id": "STU-PRO-036",
+"section": "11. Interactive Documents",
+"title": "Show/hide & forms | show/hide buttons and forms; clear form; print form; submit form",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioButton|Rollover|button_state: 0"
+},
+{
+"id": "STU-PRO-037",
+"section": "11. Interactive Documents",
+"title": "Media & state (EPUB/interactive) | animation; go to page; go to state / next state / previous state;",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep StudioButton|Rollover|button_state: 0"
+},
+{
+"id": "STU-PRO-038",
+"section": "11. Interactive Documents",
+"title": "PDF form fields MUST include check box, combo box, list box, radio button, signature field, and text",
+"apps": [
+"indesign",
+"acrobat"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "AcroForm writer on pdfmark path ps-pdf/src/form_fields.rs:1; field read press-read/src/pdf_edit.rs:127; no StudioLayer form-field authoring"
+},
+{
+"id": "STU-PRO-039",
+"section": "11. Interactive Documents",
+"title": "Multi-state objects (MSOs) MUST convert a selection into an object with ordered states that add/reor",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep multi_state|MultiState outside PDF read/edit: 0"
+},
+{
+"id": "STU-PRO-040",
+"section": "11. Interactive Documents",
+"title": "The interactive-document animation surface MUST support motion presets applied to objects with event",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|safe_in_templates|page_transition: 0"
+},
+{
+"id": "STU-PRO-041",
+"section": "11. Interactive Documents",
+"title": "Media placement MUST support video (with poster frame, controller skin, play-on-load, loop, and navi",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep poster_frame|play_on_load|controller_skin|navigation_point: 0"
+},
+{
+"id": "STU-PRO-042",
+"section": "11. Interactive Documents",
+"title": "Page transitions MUST support per-spread or all-spread presets (e.g. blinds, comb, dissolve, fade, p",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep page_transition|PageTransition: 0"
+},
+{
+"id": "STU-PRO-043",
+"section": "12. Interactive and Animated Export Touchpoint",
+"title": "All interactive and motion output is produced through the export pipeline in 14.13 via StudioExportR",
+"apps": [
+"indesign",
+"figma",
+"after_effects"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "motion output via reel ExportQueue reel/src/export.rs:1 (SMB-REEL-ENCODE PASS_V26); no interactive output"
+},
+{
+"id": "STU-PRO-044",
+"section": "12. Interactive and Animated Export Touchpoint",
+"title": "Animated frames MUST export from StudioMotionTimeline and prototype transitions as MP4, WebM, GIF, a",
+"apps": [
+"figma",
+"after_effects",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "composition MOV/MP4 AV1, VC-3 via harness-view timeline_export/composition.rs; WebM container reel/src/matroska.rs; grep GIF/animated SVG encode: 0"
+},
+{
+"id": "STU-PRO-045",
+"section": "12. Interactive and Animated Export Touchpoint",
+"title": "GUI / Argus / UserManual obligation. Every prototyping and motion panel, control, and visible state ",
+"apps": [
+"figma",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "prototype play panel only harness-view/src/view/prototype.rs; no flow/trigger/action inspectors"
+},
+{
+"id": "STU-PRO-100",
+"section": "0. Scope disposition, baseline and supersession",
+"title": "Scope boundary — motion is not in this module. Clauses through (StudioMotionTimeline, keyframes, aut",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "scope boundary clause"
+},
+{
+"id": "STU-PRO-101",
+"section": "0. Scope disposition, baseline and supersession",
+"title": "Baseline preservation and supersession. Clauses through and through of v02.205 remain in force uncha",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "baseline and supersession clause"
+},
+{
+"id": "STU-PRO-102",
+"section": "1. The reaction record",
+"title": "Reaction is the single interaction record. Every interaction on a StudioLayer is a REACTION: {trigge",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioReaction folio/src/reactions.rs:212; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-PRO-103",
+"section": "1. The reaction record",
+"title": "Reactions live on the node. Any StudioLayer that can be a hotspot carries reactions: an ordered arra",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "reactions on node design entries (SMB-COMPONENTS-FOLIO-MIGRATE PASS_V34); grep node.set_reactions: 0"
+},
+{
+"id": "STU-PRO-104",
+"section": "1. The reaction record",
+"title": "Multiple actions per trigger. A single reaction's actions array executes in order. Actions that muta",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "navigation ends array player.rs:12-13 (SMB-INTEROP-FIG-PROTOTYPE PASS_V26); authoring warning not reported folio/src/reactions.rs:9"
+},
+{
+"id": "STU-PRO-105",
+"section": "2. Triggers",
+"title": "Trigger type enumeration (normative, closed). Exactly seventeen members",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "17-member StudioTrigger folio/src/reactions.rs:60-104; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-PRO-106",
+"section": "2. Triggers",
+"title": "Trigger record shape. A trigger record is {type, ...type_specific}",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "device/key_codes/delay/drag axis folio/src/reactions.rs:36-104; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-PRO-107",
+"section": "2. Triggers",
+"title": "Timeout / delay parameter contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hard max 3600000 enforced folio/src/reactions.rs:24,226; seven-field bound record not stored"
+},
+{
+"id": "STU-PRO-108",
+"section": "2. Triggers",
+"title": "Media timestamp parameter contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "media_hit_time stored; duration bound unchecked folio/src/reactions.rs:8 (SMB-FOLIO-ENG-4 PASS_V32)"
+},
+{
+"id": "STU-PRO-109",
+"section": "2. Triggers",
+"title": "Touch mapping. On a touch surface, ON_CLICK maps to tap, MOUSE_DOWN to touch-down, MOUSE_UP to touch",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep touch in components player.rs/prototype.rs: 0"
+},
+{
+"id": "STU-PRO-110",
+"section": "3. Actions",
+"title": "Action type enumeration (normative, closed). Exactly seventeen members: BACK, CLOSE, NODE, URL, SET_",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "modelled subset folio/src/reactions.rs:174-210; CONDITIONAL, UPDATE_MEDIA_RUNTIME, media members absent (:6-7)"
+},
+{
+"id": "STU-PRO-111",
+"section": "3. Actions",
+"title": "Navigation sub-kind enumeration (normative, closed). An action of type NODE carries navigation, exac",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "Navigation 5 members folio/src/reactions.rs:109-114; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-PRO-112",
+"section": "3. Actions",
+"title": "Action record shapes (normative)",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "subset of record shapes folio/src/reactions.rs:174-210 (no CONDITIONAL/UPDATE_MEDIA_RUNTIME)"
+},
+{
+"id": "STU-PRO-113",
+"section": "3. Actions",
+"title": "Variable-write semantics. SET_VARIABLE writes into the RUNNING prototype's variable state, never int",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "runtime variables never document player.rs:20 (SMB-INTEROP-FIG-PROTOTYPE PASS_V26); EXPRESSION evaluation absent values.rs:286"
+},
+{
+"id": "STU-PRO-114",
+"section": "3. Actions",
+"title": "Media action semantics and parameter contract",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "media actions not modelled folio/src/reactions.rs:6-7"
+},
+{
+"id": "STU-PRO-115",
+"section": "3. Actions",
+"title": "Conditional block record. A CONDITIONAL action's conditional_blocks is an ORDERED array of {conditio",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "CONDITIONAL not modelled folio/src/reactions.rs:6"
+},
+{
+"id": "STU-PRO-116",
+"section": "4. Transitions and easing",
+"title": "Transition value shape (normative). A transition on a NODE action is one of exactly three record sha",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "StudioTransition folio/src/reactions.rs:149-169; SMB-FIG-SMART-ANIMATE-2 PASS_V25"
+},
+{
+"id": "STU-PRO-117",
+"section": "4. Transitions and easing",
+"title": "Simple transition record. {type, easing, duration} where type ∈ {DISSOLVE, SMART_ANIMATE, SCROLL_ANI",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/smart_animate.rs:1-30; SMB-FIG-SMART-ANIMATE PASS_V25"
+},
+{
+"id": "STU-PRO-118",
+"section": "4. Transitions and easing",
+"title": "Directional transition record. {type, direction, match_layers, easing, duration} where type ∈ {MOVE_",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "components/src/transition.rs:15-22; SMB-FIG-SMART-ANIMATE-2 PASS_V25"
+},
+{
+"id": "STU-PRO-119",
+"section": "4. Transitions and easing",
+"title": "Easing value shape (normative, closed). Easing is {type, easing_function_cubic_bezier?, easing_funct",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioEasing exactly-one validate folio/src/values.rs:207-280; SMB-FIG-SMART-ANIMATE-2 PASS_V25; SMB-FOLIO-ENG-4 PASS_V32"
+},
+{
+"id": "STU-PRO-120",
+"section": "4. Transitions and easing",
+"title": "Named easing presets are parameter sets, not a separate mechanism. The named presets of — Linear, Ea",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "7 bezier tuples folio/src/prototype.rs:219-231; four spring presets not listed"
+},
+{
+"id": "STU-PRO-121",
+"section": "4. Transitions and easing",
+"title": "Duration parameter contract",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hard max 30000 folio/src/reactions.rs:26; derived spring duration not modelled (:14)"
+},
+{
+"id": "STU-PRO-122",
+"section": "5. Overlays",
+"title": "Overlay fields live on the destination frame. A frame that can be opened as an overlay carries overl",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "StudioFrameOverlay folio/src/prototype.rs:95; SMB-FIG-SMART-ANIMATE PASS_V25"
+},
+{
+"id": "STU-PRO-123",
+"section": "5. Overlays",
+"title": "Overlay position enumeration (normative, closed). Exactly nine values of overlay_position_type: CENT",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/prototype.rs:64; overlay_placement player.rs:515; SMB-FIG-SMART-ANIMATE PASS_V25"
+},
+{
+"id": "STU-PRO-124",
+"section": "5. Overlays",
+"title": "Overlay background enumeration (normative, closed). overlay_background is exactly {type: \"NONE\"} or ",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/prototype.rs:78-90; SMB-FIG-SMART-ANIMATE PASS_V25"
+},
+{
+"id": "STU-PRO-125",
+"section": "6. Scroll, overflow and fixed positioning",
+"title": "Overflow direction enumeration (normative, closed). Exactly four members of overflow_direction: NONE",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioOverflowDirection folio/src/prototype.rs:46; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-126",
+"section": "6. Scroll, overflow and fixed positioning",
+"title": "Fixed and sticky children. A frame carries number_of_fixed_children: a non-negative integer naming h",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep number_of_fixed_children: 0 (declared gap folio/src/prototype.rs:16)"
+},
+{
+"id": "STU-PRO-127",
+"section": "6. Scroll, overflow and fixed positioning",
+"title": "Scroll preservation. preserve_scroll_position on a NODE action carries the origin frame's scroll off",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "field stored; runtime carry and warning absent folio/src/reactions.rs:9-10"
+},
+{
+"id": "STU-PRO-128",
+"section": "7. Flow, state preservation and presentation",
+"title": "Flow starting point record. A page MUST carry flow_starting_points: an ordered array of {node_id, na",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "flow starts, dup refused folio/src/prototype.rs:25-37,196; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-129",
+"section": "7. Flow, state preservation and presentation",
+"title": "Prototype background. A page carries prototype_backgrounds: an ordered array of paint records render",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "start node stored; prototype backgrounds not stored folio/src/prototype.rs:15"
+},
+{
+"id": "STU-PRO-130",
+"section": "7. Flow, state preservation and presentation",
+"title": "State-preservation matrix. The flow-level state-preservation setting of resolves independently for t",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "action reset flags only; grep state_preservation: 0"
+},
+{
+"id": "STU-PRO-131",
+"section": "7. Flow, state preservation and presentation",
+"title": "Navigation history. The running prototype maintains a stack. NAVIGATE pushes; BACK pops; CHANGE_TO, ",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "history stack, empty BACK diagnostic player.rs:13-14; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-132",
+"section": "7. Flow, state preservation and presentation",
+"title": "Presentation surfaces. through remain in force. Additionally: the presentation view's zoom modes are",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "play panel harness-view/src/view/prototype.rs (SMB-HARNESS-PROTOTYPE-PLAY PASS_V27); grep SCALE_DOWN_TO_FIT|chrome_asset_id: 0"
+},
+{
+"id": "STU-PRO-133",
+"section": "8. Interactive components",
+"title": "Interactive-component contract. A reaction authored on a variant member of a component_set () whose ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "runtime variant map, not an override player.rs:96 (SMB-INTEROP-FIG-PROTOTYPE PASS_V26); switched variant not drawn"
+},
+{
+"id": "STU-PRO-134",
+"section": "8. Interactive components",
+"title": "Nested instance targeting. A CHANGE_TO action MAY target a NESTED instance by its path from the oute",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep nested instance path in player.rs/prototype.rs: 0"
+},
+{
+"id": "STU-PRO-135",
+"section": "9. Interactive documents (authoring side)",
+"title": "Interactive-document clauses retained. through (buttons, PDF form fields, multi-state objects, inter",
+"apps": [
+"indesign"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "retention clause; obligations sit in STU-PRO-034..042"
+},
+{
+"id": "STU-PRO-136",
+"section": "9. Interactive documents (authoring side)",
+"title": "Interactive-document event model. When an interactive document targets HTML or EPUB output, its butt",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no interactive-document objects; grep StudioButton|behavior_id: 0"
+},
+{
+"id": "STU-PRO-137",
+"section": "9. Interactive documents (authoring side)",
+"title": "Interactive-document behaviour parameters. A behaviour attached to an interactive-document object is",
+"apps": [
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep behavior_id|safe_in_templates: 0"
+},
+{
+"id": "STU-PRO-138",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Required prototyping commands. Studio MUST expose at minimum: reaction.set (asynchronous, per ), rea",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "prototype.* session rows harness-core action/commands/prototype.rs:9-20 (SMB-DRIVE-TYPED-2 READY); grep reaction.set|flow.add_starting_point: 0"
+},
+{
+"id": "STU-PRO-139",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Model-steerability of the running prototype. prototype.dispatch_trigger and prototype.capture_frame ",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "dispatch_trigger/capture_frame headless (SMB-HARNESS-PROTOTYPE-PLAY PASS_V27); no session id, one per process harness-core prototype.rs:5"
+},
+{
+"id": "STU-PRO-140",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Determinism of the prototype runtime. Given the same document state, the same starting point, and th",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "deterministic state machine, explicit ms clock player.rs:1-8; SMB-INTEROP-FIG-PROTOTYPE PASS_V26"
+},
+{
+"id": "STU-PRO-141",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Contextual panel binding. The flow editor, the trigger inspector, the action inspector, the overlay ",
+"apps": [
+"figma",
+"indesign"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no flow editor or trigger/action inspector panel (harness-view prototype.rs is play-only)"
+},
+{
+"id": "STU-PRO-142",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Asset library binding. Every external byte stream referenced by this domain — device-frame chrome, p",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "no prototype media or device chrome; grep chrome_asset_id|poster_frame: 0"
+},
+{
+"id": "STU-PRO-143",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Validation descriptor set. This module contributes at minimum: reaction_trigger_key_codes_empty, rea",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "named descriptors absent; generic refusals folio/src/reactions.rs:222-236, prototype.rs:114"
+},
+{
+"id": "STU-PRO-144",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "Export touchpoint. , , and remain in force: all interactive output is produced through StudioExportR",
+"apps": [
+"indesign",
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "EPUB export without interactive objects interop-layout/src/epub.rs"
+},
+{
+"id": "STU-PRO-145",
+"section": "10. Command, panel, asset and obligation bindings",
+"title": "GUI / Argus / UserManual obligation. remains in force unchanged and additionally covers every field,",
+"apps": [
+"figma",
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "prototype play panel only; enumerations in UserManual not verified"
+},
+{
+"id": "STU-PRO-146",
+"section": "11. Microtask Derivation",
+"title": "Derivation rule (NORMATIVE). The prototyping microtask set is derived from this module mechanically,",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation/governance clause"
+},
+{
+"id": "STU-PRO-147",
+"section": "11. Microtask Derivation",
+"title": "Open items and blocked dependencies. The four existing parameter contracts (, , , ) retain their res",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation/governance clause"
+},
+{
+"id": "STU-PRO-148",
+"section": "11. Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under MUST carry into its own body: the clause anc",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation/governance clause"
+},
+{
+"id": "STU-PRO-149",
+"section": "11. Microtask Derivation",
+"title": "Yields index (NORMATIVE). The counts below are the derivation surface of this module under . They ar",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation/governance clause"
+},
+{
+"id": "STU-PRO-150",
+"section": "11. Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this module cites its clause anchor directly. A microtask s",
+"apps": [
+"cross_app"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "derivation/governance clause"
+},
+{
+"id": "STU-PRO-151",
+"section": "12. Validation Descriptor Catalogue",
+"title": "reaction_trigger_key_codes_empty. The prototyping validator MUST reject, with severity error, a docu",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "empty key_codes refused InvalidField folio/src/reactions.rs:224-233; named descriptor absent"
+},
+{
+"id": "STU-PRO-152",
+"section": "12. Validation Descriptor Catalogue",
+"title": "reaction_actions_after_terminal_navigation. The prototyping validator MUST reject, with severity war",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "warning not reported folio/src/reactions.rs:9-10; grep reaction_actions_after_terminal_navigation: 0"
+},
+{
+"id": "STU-PRO-153",
+"section": "12. Validation Descriptor Catalogue",
+"title": "action_destination_unresolvable. The prototyping validator MUST reject, with severity error, a docum",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "DanglingReference refusal folio/src/reactions.rs:113-115; named descriptor absent"
+},
+{
+"id": "STU-PRO-154",
+"section": "12. Validation Descriptor Catalogue",
+"title": "overlay_manual_position_missing. The prototyping validator MUST reject, with severity error, a docum",
+"apps": [
+"figma"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "refused folio/src/prototype.rs:13,114; test interop-fig/tests/fig_smart_animate.rs:92; SMB-FIG-SMART-ANIMATE PASS_V25"
+},
+{
+"id": "STU-PRO-155",
+"section": "12. Validation Descriptor Catalogue",
+"title": "overlay_position_on_non_overlay_navigation. The prototyping validator MUST reject, with severity war",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": ".fig import drops with loss code interop-fig-native/src/native.rs:2053; no validator"
+},
+{
+"id": "STU-PRO-156",
+"section": "12. Validation Descriptor Catalogue",
+"title": "preserve_scroll_on_non_navigate. The prototyping validator MUST reject, with severity warning, a doc",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "warning not reported folio/src/reactions.rs:9-10"
+},
+{
+"id": "STU-PRO-157",
+"section": "12. Validation Descriptor Catalogue",
+"title": "easing_both_functions_present. The prototyping validator MUST reject, with severity error, a documen",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "both functions refused InvalidField folio/src/values.rs StudioEasing::validate; named descriptor absent"
+},
+{
+"id": "STU-PRO-158",
+"section": "12. Validation Descriptor Catalogue",
+"title": "easing_no_function_present. The prototyping validator MUST reject, with severity error, a document o",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "no function refused InvalidField folio/src/values.rs StudioEasing::validate; named descriptor absent"
+},
+{
+"id": "STU-PRO-159",
+"section": "12. Validation Descriptor Catalogue",
+"title": "media_timestamp_exceeds_duration. The prototyping validator MUST reject, with severity error, a docu",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "duration bound not checked folio/src/reactions.rs:8; grep media_timestamp_exceeds_duration: 0"
+},
+{
+"id": "STU-PRO-160",
+"section": "12. Validation Descriptor Catalogue",
+"title": "conditional_condition_not_boolean. The prototyping validator MUST reject, with severity error, a doc",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "CONDITIONAL not modelled; grep conditional_condition_not_boolean: 0"
+},
+{
+"id": "STU-PRO-161",
+"section": "12. Validation Descriptor Catalogue",
+"title": "conditional_expression_cycle. The prototyping validator MUST reject, with severity error, a document",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep conditional_expression_cycle: 0"
+},
+{
+"id": "STU-PRO-162",
+"section": "12. Validation Descriptor Catalogue",
+"title": "variant_target_not_sibling. The prototyping validator MUST reject, with severity error, a document o",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep variant_target_not_sibling: 0"
+},
+{
+"id": "STU-PRO-163",
+"section": "12. Validation Descriptor Catalogue",
+"title": "nested_instance_path_unresolvable. The prototyping validator MUST reject, with severity error, a doc",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep nested_instance_path_unresolvable: 0"
+},
+{
+"id": "STU-PRO-164",
+"section": "12. Validation Descriptor Catalogue",
+"title": "flow_starting_point_duplicate. The prototyping validator MUST reject, with severity error, a documen",
+"apps": [
+"figma"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "duplicate node_id refused DuplicateIdentity folio/src/prototype.rs:196; named descriptor and positions absent"
+},
+{
+"id": "STU-PRO-165",
+"section": "12. Validation Descriptor Catalogue",
+"title": "fixed_children_exceeds_child_count. The prototyping validator MUST reject, with severity error, a do",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep fixed_children_exceeds_child_count|number_of_fixed_children: 0"
+},
+{
+"id": "STU-PRO-166",
+"section": "13. Interactive-Document Object Class",
+"title": "Interactive-document object class enumerated. , as redefined in this module, obliges Studio to suppo",
+"apps": [
+"indesign"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "hyperlinks/bookmarks in layout PDF export layout/src/pdf_export_prefs.rs:775, QR interop-layout/src/data_merge.rs; buttons/forms/MSO/animation/media grep: 0"
+},
+{
+"id": "STU-PRO-167",
+"section": "Folded slide and presentation contracts",
+"title": "Slide role folded into Layout. A slide is an ordinary Folio/StudioLayer frame role in the shared .ha",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-168",
+"section": "Folded slide and presentation contracts",
+"title": "Slide-row role folded into Layout. A row uses ordered Folio child references and Layout container op",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-169",
+"section": "Folded slide and presentation contracts",
+"title": "Slide-grid role folded into Layout. The pinned SlideGridNode has readonly type = SLIDE_GRID, a decla",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-170",
+"section": "Folded slide and presentation contracts",
+"title": "Interactive-slide role folded into Components. The pinned InteractiveSlideElementNode extends Opaque",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-171",
+"section": "Folded slide and presentation contracts",
+"title": "Slide-transition record folded into Components. The pinned SlideTransition record has exactly the re",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-172",
+"section": "Folded slide and presentation contracts",
+"title": "Closed slide-transition style vocabulary. The source record's style is exactly one of these twenty-t",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-173",
+"section": "Folded slide and presentation contracts",
+"title": "Closed slide-transition curve vocabulary and explicit mapping. The source record's curve is exactly ",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-PRO-174",
+"section": "Folded slide and presentation contracts",
+"title": "Slide timing folded into Pulse. The source timing record has required type exactly ON_CLICK or AFTER",
+"apps": [
+"figma"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep SLIDE_GRID|SlideGrid|INTERACTIVE_SLIDE_ELEMENT|SlideTransition|AFTER_DELAY: 0"
+},
+{
+"id": "STU-VID-001",
+"section": "1. [STU-OVR-015] is superseded",
+"title": "IS SUPERSEDED AND INVERTED. That clause, added at v02.200, reads",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "supersession/ownership clause"
+},
+{
+"id": "STU-VID-002",
+"section": "2. What this sub-section owns",
+"title": "Ownership boundaries. This sub-section owns the CLIP TIMELINE: sequences,",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "supersession/ownership clause"
+},
+{
+"id": "STU-VID-003",
+"section": "2. What this sub-section owns",
+"title": "No sidecar authority. Every enumeration, default, range, unit and structural",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "supersession/ownership clause"
+},
+{
+"id": "STU-VID-010",
+"section": "14.25.1 The Sequence and its settings",
+"title": "StudioSequence (schema id hsk.studio.sequence@1) is the timeline document",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "folio/src/timeline.rs:1; SMB-FOLIO-TIMELINE-RECORDS PASS_V27"
+},
+{
+"id": "STU-VID-011",
+"section": "14.25.1 The Sequence and its settings",
+"title": "The normative sequence settings record. Every field below is required. Values",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "17-field record folio/src/sequence_preset.rs:4; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-012",
+"section": "The time model",
+"title": "Time is integer ticks, and the tick rate is a constant. A sequence's time base is",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "254016000000 ticks pulse/src/lib.rs:1; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-013",
+"section": "The time model",
+"title": "The frame-rate table is normative and is expressed in ticks per frame",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "ticks/frame table pulse/src/lib.rs:2; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4; SMB-FOLIO-ENG-1 PASS_V33"
+},
+{
+"id": "STU-VID-016",
+"section": "Sequence presets",
+"title": "StudioSequencePreset is a named, complete sequence settings record. Studio",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/sequence_preset/shipped.rs; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-017",
+"section": "Editing modes",
+"title": "StudioEditingMode is a named constraint set over sequence settings. An editing",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/sequence_preset/editing_mode.rs:1; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-018",
+"section": "Immersive and preview settings",
+"title": "Immersive video settings are part of the sequence record, not an effect. The",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioImmersiveSettings folio/src/sequence_preset.rs:6; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-019",
+"section": "Immersive and preview settings",
+"title": "Preview render settings are part of the sequence record. A sequence declares the",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioPreviewRenderFormat folio/src/sequence_preset.rs:6; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-020",
+"section": "2. Tracks and clips",
+"title": "StudioClip (schema id hsk.studio.clip@1). A windowed, retimed reference to a",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "StudioClip folio/src/timeline.rs; SMB-FOLIO-TIMELINE-RECORDS PASS_V27; SMB-PR-RETIME-OUTPUT-1 PASS_V3"
+},
+{
+"id": "STU-VID-021",
+"section": "2. Tracks and clips",
+"title": "StudioTrack (schema id hsk.studio.track@1). An ordered lane in a sequence",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "StudioTrack folio/src/timeline.rs:422-437 lacks height; routing in folio/src/audio_routing.rs"
+},
+{
+"id": "STU-VID-022",
+"section": "1. The two timelines are distinct surfaces",
+"title": "The clip timeline and the keyframe timeline are DIFFERENT surfaces with different",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "clip timeline panel harness-view/src/view/timeline.rs:1 apart from motion keyframes; SMB-TIMELINE-UI-1 PASS_V20"
+},
+{
+"id": "STU-VID-023",
+"section": "3. Monitors, in/out points and assembly",
+"title": "Two monitors, one contract. Studio provides a SOURCE monitor showing a media item",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "source+program monitors harness-view source_monitor.rs, monitor.rs (SMB-PR-SOURCE-MONITOR PASS_V23); program monitor binds no decoder (parity PR-19)"
+},
+{
+"id": "STU-VID-024",
+"section": "3. Monitors, in/out points and assembly",
+"title": "Three-point and four-point editing are the normative assembly model. An edit",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pulse/src/assemble.rs:1; SMB-PULSE-EDITING PASS_V28; SMB-PR-SOURCE-MONITOR PASS_V23"
+},
+{
+"id": "STU-VID-025",
+"section": "3. Monitors, in/out points and assembly",
+"title": "Track targeting and source patching decide where an edit lands, and they are two",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "source patching pulse/src/assemble.rs:1; SMB-PULSE-EDITING PASS_V28"
+},
+{
+"id": "STU-VID-026",
+"section": "4. Trim operations",
+"title": "The normative trim vocabulary. Each is a typed command on event_family =",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pulse/src/timeline_edit.rs, harness-view timeline/trim.rs; SMB-TIMELINE-TRIM-1 PASS_V20"
+},
+{
+"id": "STU-VID-027",
+"section": "5. Cutting, removing and closing",
+"title": "Razor / add edit. Splits the clip under the playhead into two clips sharing the",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "razor/add edit pulse/src/timeline_edit.rs (SMB-TIMELINE-UI-1 PASS_V20); grep join_through|JoinThrough: 0"
+},
+{
+"id": "STU-VID-028",
+"section": "5. Cutting, removing and closing",
+"title": "Removal has two forms and they are not interchangeable",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "lift/extract pulse/src/timeline_edit.rs:6-8; SMB-PULSE-EDITING PASS_V28"
+},
+{
+"id": "STU-VID-029",
+"section": "6. Linking, grouping and sync",
+"title": "Three distinct relationships, deliberately not merged",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "pulse/src/merge_sync.rs:1; SMB-PR-MERGE-SYNC-1 PASS_V4"
+},
+{
+"id": "STU-VID-030",
+"section": "7. Nesting and subsequences",
+"title": "A sequence may be a clip. Nest replaces a selection with a single clip whose",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pulse/src/nest.rs, harness-view timeline/nest.rs; SMB-PR-NEST-1 PASS_V16"
+},
+{
+"id": "STU-VID-031",
+"section": "8. Speed, retiming and frame interpolation",
+"title": "speed is a rational multiplier and retiming is a stated algorithm choice. A",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pulse rate.rs, retime.rs; folio/src/timeline.rs:280; SMB-PR-RATE-STRETCH-1 PASS_V20; SMB-PR-RETIME-OUTPUT-1 PASS_V3"
+},
+{
+"id": "STU-VID-032",
+"section": "9. Transitions",
+"title": "A transition is a timed blend applied AT an edit point, and it is a distinct",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "transition records+handles pulse/src/transition.rs (SMB-PULSE-EDITING PASS_V28); every kind plays as dissolve (parity PR-20)"
+},
+{
+"id": "STU-VID-033",
+"section": "10. Multicam",
+"title": "Multicam is a clip mode, not a separate editor. A multicam source sequence holds",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "multicam planners pulse/src/multicam.rs (SMB-PR-MULTICAM-1 PASS_V21); active angle not played or exported (parity PR-10)"
+},
+{
+"id": "STU-VID-034",
+"section": "11. Markers, snapping, playhead and work area",
+"title": "Markers exist at three scopes and they are not the same object. A CLIP marker",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "3 scopes pulse/src/annotate.rs, folio/src/media_markers.rs; SMB-PR-MEDIA-MARKERS-1 PASS_V3"
+},
+{
+"id": "STU-VID-035",
+"section": "11. Markers, snapping, playhead and work area",
+"title": "Snapping, the playhead and the work area. Snapping is a toggleable magnet that",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "pulse/src/snap.rs; SMB-TIMELINE-UI-1 PASS_V20"
+},
+{
+"id": "STU-VID-036",
+"section": "12. Track display, captions, proxies and previews",
+"title": "Track display state is persisted per sequence and is model-visible. The declared",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "folio/src/track_display.rs:1; SMB-PR-TRACK-DISPLAY-1 PASS_V2"
+},
+{
+"id": "STU-VID-037",
+"section": "12. Track display, captions, proxies and previews",
+"title": "Captions are a track kind, not an overlay effect. A caption track holds caption",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "caption track kind + tx3g/WebVTT export reel/src/captions.rs:1 (SMB-PR-SOURCE-MONITOR PASS_V23); active-language and navigation commands not found"
+},
+{
+"id": "STU-VID-038",
+"section": "12. Track display, captions, proxies and previews",
+"title": "Proxies and offline media are first-class states, not error states. A media item",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "offline media kept package/src/externals.rs:9; proxy arbitration reel/src/registry.rs:1; per-project proxy toggle not found"
+},
+{
+"id": "STU-VID-039",
+"section": "12. Track display, captions, proxies and previews",
+"title": "Timeline preview rendering is explicit and scoped. Render the work area, render",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep render_and_replace|requires_render|render_files: 0"
+},
+{
+"id": "STU-VID-040",
+"section": "13. History",
+"title": "Every operation in this sub-section is one reversible StudioHistoryEntry",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "one history step per edit (pulse proposals; SMB-PULSE-EDITING PASS_V28); grep PromotionGate (product code): 0"
+},
+{
+"id": "STU-VID-041",
+"section": "14. The command surface",
+"title": "The tables below are the normative Studio timeline command vocabulary. Every row",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "subset of command table pulse/src/lib.rs:87 descriptor; SMB-TIMELINE-UI-1 PASS_V20"
+},
+{
+"id": "STU-VID-042",
+"section": "14. The command surface",
+"title": "The keyboard binding model is normative. A binding is (context, command,",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep KeyBinding|key_binding|keymap: 0 (menu shortcut label only controls/src/menu.rs:241)"
+},
+{
+"id": "STU-VID-050",
+"section": "14.25.3 Media import, codecs and containers",
+"title": "Import is a typed, enumerable capability surface, not a file-open dialog. Studio",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "MEDIA_IMPORT_UNSUPPORTED harness-view/src/view/project.rs:366 (SMB-PROJECT-BIN-1 READY); subset of 39 importers"
+},
+{
+"id": "STU-VID-051",
+"section": "14.25.3 Media import, codecs and containers",
+"title": "Codec and container support is a declared",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "reel/src/codec_adapters.rs:1 MEDIA_CODEC_UNAVAILABLE; SMB-AUDIO-CODECS PASS_V16; SMB-D24A-CODEC-DEFAULTS PASS_V24"
+},
+{
+"id": "STU-VID-052",
+"section": "14.25.3 Media import, codecs and containers",
+"title": "Camera and raw source settings are per-media-item, not per-clip. 21 raw source",
+"apps": [
+"premiere_pro"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep raw_source|source_settings|develop_state: 0"
+},
+{
+"id": "STU-VID-053",
+"section": "14.25.3 Media import, codecs and containers",
+"title": "Conform, peak files and the media cache are explicit background operations",
+"apps": [
+"premiere_pro",
+"audition"
+],
+"status": "MISSING",
+"ui": "unknown",
+"evidence": "grep peak_file|PeakFile: 0; mismatched audio rate refused (parity audio gap 2)"
+},
+{
+"id": "STU-VID-060",
+"section": "14.25.4 Export",
+"title": "Video export is a StudioExportRecipe and 14.13 owns the format writers",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "window",
+"evidence": "StudioExportRecipe reel/src/export_recipe.rs:1 (SMB-PR-EXPORT-RECIPE-1 READY); queue SMB-REEL-ENCODE PASS_V26"
+},
+{
+"id": "STU-VID-061",
+"section": "14.25.4 Export",
+"title": "The export parameter dictionary is normative. 453 distinct export parameter",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "453 rows reel/src/export_parameter_rows.rs:1; SMB-PR-EXPORT-RECIPE-1 READY"
+},
+{
+"id": "STU-VID-062",
+"section": "14.25.4 Export",
+"title": "Container formats. 40 distinct container/exporter pairings carry shipped recipes",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "containers reel isobmff/matroska/mxf/mux; SMB-REEL-ENCODE PASS_V26; SMB-AUDIO-CODECS PASS_V16"
+},
+{
+"id": "STU-VID-063",
+"section": "14.25.4 Export",
+"title": "Export recipes are portable data with stable identity. 1,541 shipped recipes",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "shipped preset = user recipe reel/src/export_recipe.rs:4; SMB-PR-EXPORT-RECIPE-1 READY"
+},
+{
+"id": "STU-VID-064",
+"section": "14.25.4 Export",
+"title": "Export is queued, headless and observable. An export is submitted to a queue, runs",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "VALIDATED",
+"ui": "window",
+"evidence": "ExportQueue receipts reel/src/export.rs:1; SMB-REEL-ENCODE PASS_V26"
+},
+{
+"id": "STU-VID-070",
+"section": "14.25.5 Motion-graphics templates as a timeline capability",
+"title": "A motion-graphics template is a parameterised composition placed as a clip",
+"apps": [
+"premiere_pro",
+"after_effects"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "StudioMotionTemplate folio/src/clip_finishing.rs:522; SMB-PREMIERE-COLOR-TITLES PASS_V24"
+},
+{
+"id": "STU-VID-080",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- editing-mode constraint lists. Per , all 53 modes ship with",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "constraints_known=false folio/src/sequence_preset/editing_mode.rs:1; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-081",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- time-display code 113. Five shipped configurations declare it; the",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "code 113 has no member folio/src/sequence_preset/settings.rs:66, pulse/src/display.rs:31; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-082",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- immersive projection-type and stereoscopic-type enumerations. The fields",
+"apps": [
+"premiere_pro"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "immersive fields typed, members open folio/src/composition.rs:733; SMB-PR-SEQUENCE-PRESETS-1 PASS_V4"
+},
+{
+"id": "STU-VID-083",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- 178 export parameter identifiers with no determined facet, and 409 with no",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "BUILT_NOT_VALIDATED",
+"ui": "command",
+"evidence": "undetermined facets/labels kept Absent reel/src/export_parameters.rs:5; SMB-PR-EXPORT-RECIPE-1 READY"
+},
+{
+"id": "STU-VID-084",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- codec adapter selection. specifies the descriptor, the",
+"apps": [
+"premiere_pro",
+"media_encoder"
+],
+"status": "VALIDATED",
+"ui": "command",
+"evidence": "ship list per Operator D24-A reel/src/codec_adapters.rs:1; SMB-AUDIO-CODECS PASS_V16; SMB-REEL-ENG-2 PASS_V20"
+},
+{
+"id": "STU-VID-085",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- caption format support. Caption tracks are specified as a track kind",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "command",
+"evidence": "tx3g + WebVTT export only reel/src/captions.rs:1; no caption import"
+},
+{
+"id": "STU-VID-086",
+"section": "14.25.6 Declared gaps",
+"title": "GAP -- the relationship to engine.director (Spec 11.8) beyond the ownership",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "open cross-section decision (engine.director interface)"
+},
+{
+"id": "STU-VID-090",
+"section": "14.25.7 Model steerability, GUI, diagnostics and manual obligation",
+"title": "Every panel, control, monitor, track header, clip, edit point and visible state in",
+"apps": [
+"premiere_pro"
+],
+"status": "PARTIAL",
+"ui": "window",
+"evidence": "timeline/monitor panels + typed rows; Argus/UserManual coverage not verified"
+},
+{
+"id": "STU-VID-100",
+"section": "14.25.8 Microtask Derivation",
+"title": "Microtask derivation index. Applying the shared derivation convention to this",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-VID-101",
+"section": "14.25.8 Microtask Derivation",
+"title": "Microtask content obligation. A microtask derived under MUST carry",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-VID-102",
+"section": "14.25.8 Microtask Derivation",
+"title": "Ledger",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-VID-103",
+"section": "14.25.8 Microtask Derivation",
+"title": "An open item or a blocked dependency does NOT remove a microtask. A clause that",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-VID-104",
+"section": "14.25.8 Microtask Derivation",
+"title": "Anchor binding. A microtask derived from this sub-section cites the clause anchor",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "microtask derivation clause"
+},
+{
+"id": "STU-VID-105",
+"section": "3. Monitors, in/out points and assembly",
+"title": "Scopes and legal-range checking are owned by 14.8 (CROSS-REFERENCE). The",
+"apps": [
+"premiere_pro"
+],
+"status": "NOT_PRODUCT",
+"ui": "unknown",
+"evidence": "cross-reference to 14.8 (scopes MISSING per parity PR-21)"
+}
+],
+"counts_by_status": {
+"BUILT_NOT_VALIDATED": 8,
+"MISSING": 50,
+"NOT_PRODUCT": 32,
+"PARTIAL": 86,
+"VALIDATED": 91
+},
+"counts_by_prefix_and_status": {
+"STU-MOT": {
+"BUILT_NOT_VALIDATED": 4,
+"MISSING": 7,
+"NOT_PRODUCT": 14,
+"PARTIAL": 24,
+"VALIDATED": 40
+},
+"STU-PRO": {
+"MISSING": 39,
+"NOT_PRODUCT": 8,
+"PARTIAL": 50,
+"VALIDATED": 23
+},
+"STU-VID": {
+"BUILT_NOT_VALIDATED": 4,
+"MISSING": 4,
+"NOT_PRODUCT": 10,
+"PARTIAL": 12,
+"VALIDATED": 28
+}
+},
+"counts_by_app_and_status": {
+"acrobat": {
+"MISSING": 1,
+"PARTIAL": 1
+},
+"after_effects": {
+"BUILT_NOT_VALIDATED": 4,
+"MISSING": 8,
+"NOT_PRODUCT": 17,
+"PARTIAL": 30,
+"VALIDATED": 42
+},
+"audition": {
+"MISSING": 1
+},
+"cross_app": {
+"NOT_PRODUCT": 7
+},
+"figma": {
+"MISSING": 29,
+"PARTIAL": 47,
+"VALIDATED": 23
+},
+"indesign": {
+"MISSING": 11,
+"NOT_PRODUCT": 1,
+"PARTIAL": 7
+},
+"media_encoder": {
+"BUILT_NOT_VALIDATED": 5,
+"PARTIAL": 5,
+"VALIDATED": 5
+},
+"premiere_pro": {
+"BUILT_NOT_VALIDATED": 4,
+"MISSING": 4,
+"NOT_PRODUCT": 10,
+"PARTIAL": 12,
+"VALIDATED": 28
+}
+},
+"top_missing_areas": [
+"Interactive documents (InDesign/Acrobat): buttons, PDF form-field authoring, multi-state objects, object animation, embedded video/audio, page transitions and their event and behaviour models (STU-PRO-033..042, 136, 137) have no implementation beyond PDF hyperlinks/bookmarks.",
+"Prototype logic and media (Figma): conditionals, expression values over variables, the nine media actions and media triggers, fixed/sticky children, nested-instance targeting, touch mapping, device frames and 10 of 15 named validation descriptors are missing; keyboard, drag and controller triggers are stored but never fire.",
+"After Effects authoring surfaces: no composition viewer, keyframe timeline or graph editor GUI (SMB-AE-KEYFRAME-TIMELINE-1 BLOCKED), no expression editor, pick-whip or expression control effects, no data-driven property group, no text path options, and compositions store no expression field.",
+"Figma Slides contracts: slide, slide row, slide grid, interactive slide element, slide-transition record, style and curve vocabularies and slide timing (STU-PRO-167..174) are absent.",
+"Premiere media pipeline: timeline preview rendering and render-and-replace, per-media raw source settings, peak/conform/index background jobs, join through edits and the context-scoped keyboard binding model are missing; transitions all play as dissolves and multicam angles do not play."
+],
+"notes": [
+"Status rule: VALIDATED needs a PASS_V* lane AND code at 87f331f9 that implements the clause; PARTIAL wins over a PASS lane when part of the clause is absent at the tip (for example STU-PRO-104, STU-VID-023).",
+"Lane links in the index are not trusted alone: STU-PRO-167 (SMB-INTEROP-FIG-INSTANCES-FRAMES PASS_V28) and STU-PRO-172 (SMB-FIG-SMART-ANIMATE-2 PASS_V25) are linked but no slide record exists at the tip, so they are MISSING.",
+"Several rows are VALIDATED from lanes the index does not link (for example SMB-MOTION PASS_V17, SMB-MOTION-JS PASS_V21, SMB-INTEROP-FIG-PROTOTYPE PASS_V26) because the implementing module header names that lane and the clause.",
+"UI: window = a control in the harness-view egui host (prototype play panel, timeline, source/program monitors, project bin, export dialog); no Studio motion (After Effects) or prototyping surface exists in the native Vulkan host; command = typed command or engine only; unknown for MISSING and NOT_PRODUCT rows.",
+"NOT_PRODUCT covers supersession, ownership, derivation-index, yields, anchor-binding and declared-gap/capture-request clauses; declared gaps whose code honours the gap (STU-VID-080, 081, 082, 084) are VALIDATED instead.",
+"LOCAL work seen but not counted as status: SMB-MOTION-COMMANDS-2 (solid/adjustment layers, keyframe copy/paste/reverse/selection, review_ready) and SMB-DELIVERY-QUEUE-1 (PNG sequence module, queue reorder/duplicate/templates, local only at 44da1364); they would raise STU-MOT-005, 038, 122, 125 once judged.",
+"Microtask statuses were not used as evidence (almost all PENDING).",
+"No cargo, build or test was run; evidence is git grep/git show at origin tip 87f331f9 plus lane and ledger files."
+],
+"unverified": [
+"Figma, After Effects and Premiere numeric parity of implemented clauses is UNVERIFIED (module headers cite oracle D5 as pending).",
+"STU-PRO-145, STU-VID-090, STU-MOT-150: UserManual entries and Argus coverage of the listed enumerations were NOT_INSPECTED.",
+"STU-VID-016: the shipped preset count (392 over 82 groups) was not recounted; status rests on SMB-PR-SEQUENCE-PRESETS-1 PASS_V4 and the module header.",
+"STU-VID-037: multi-language active-track display and caption navigation commands were searched only by name; absence is UNVERIFIED beyond that grep.",
+"STU-MOT-143: whether shape-operator parameter bounds in folio motion_records.rs are guessed rather than authored was NOT_INSPECTED.",
+"STU-MOT-094: the type crate shaping stack was confirmed by a rustybuzz/swash grep only; byte-identical cross-host shaping was not re-proven.",
+"STU-VID-038: proxy arbitration in reel/src/registry.rs was read from its header only; a per-project full/proxy toggle was searched by name only."
+]
+}
