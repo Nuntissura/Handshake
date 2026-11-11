@@ -14,6 +14,18 @@ cargo registry, logs, results, fixtures, a worktree or anything outside the cand
   bound in .studio-workspace-root must no longer exist. No lane short of PASS_V or ABANDONED may name the tree (ledger
   target_reuse tree or old_tree_idle, a ledger lane row's worktree, a lane file's worktree), and no running cargo, rustc,
   link or test process may name the target, the bound tree or the owner.
+- N3 (plan V, Operator pause 2026-11-11), only for a partial older_copies candidate on D: (D_ROOT); C: candidates, whole
+  removal and every other rule are unchanged.
+  (a) The steward canary target D_ROOT/studio-team-dev/steward-export/target is allowed (that exact path after
+      normalisation, no junction on the way); nothing else under studio-team-dev is, for any partial candidate
+      (D_ROOT/studio-team-dev/target is not a lane target and is REFUSED_PATH). It must still hold
+      .studio-workspace-root and debug/.fingerprint, and it has no lane row, so the lane status check is not applied.
+  (b) A tree that unsettled lanes name in target_reuse is accepted (row field accepted_paused) when every one of those
+      lanes is in ledger direction.pause_20261111.lanes with "tree" equal to the owner; otherwise it stays
+      SKIPPED_IN_USE_BY_LANE (row field not_paused).
+  For (a) and (b) the process check also refuses a running process that names the owner (tree name) or the bound
+  workspace. A candidate without newest_file_utc (plan V was inspected with WizTree, not target_report.py) is checked
+  by size only: the newest file is reported (newest_now) but not compared; the 5% size check applies unchanged.
 """
 import argparse
 import datetime
@@ -40,13 +52,33 @@ MAX_FILES_PER_SEC = 600
 REPARSE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 OWNER = re.compile(r"[a-z0-9][a-z0-9_.-]*")
 NEVER_UNDER = ("studio-round", "registry", "logs", "results", "fixtures")
+STEWARD_CANARY = D_ROOT + "/studio-team-dev/steward-export/target"  # N3 (a)
 
 
-def allowed_path(p):
+def norm(p):
+    return os.path.normcase(os.path.normpath(p))
+
+
+def steward_canary(p):
+    """N3 (a): STEWARD_CANARY when p is exactly that path after normalisation and nothing on the way is a link, else None."""
+    if norm(p) != norm(STEWARD_CANARY) or norm(os.path.realpath(STEWARD_CANARY)) != norm(STEWARD_CANARY):
+        return None
+    parts = STEWARD_CANARY.split("/")
+    for i in range(1, len(parts) + 1):
+        q = "/".join(parts[:i]) + ("/" if i == 1 else "")
+        if os.path.lexists(q) and is_link(os.lstat(q)):
+            return None
+    return STEWARD_CANARY
+
+
+def allowed_path(p, older_d=False):
     p = p.replace("\\", "/")
     if p == C_ROUND or re.fullmatch(re.escape(C_LANES) + r"/[A-Za-z0-9_.-]+", p):
         return True
-    return re.fullmatch(re.escape(D_ROOT) + r"/[A-Za-z0-9_.-]+/target", p) is not None
+    if older_d and steward_canary(p):  # N3 (a)
+        return True
+    # N3 (a): nothing else under studio-team-dev on D: (D_ROOT/studio-team-dev/target is not a lane target)
+    return re.fullmatch(re.escape(D_ROOT) + r"/(?!(?i:studio-team-dev)/)[A-Za-z0-9_.-]+/target", p) is not None
 
 
 def newest(path):
@@ -222,7 +254,11 @@ def main():
         s = str(status or "")
         return s.startswith("PASS_V") or s == "READY_FOR_VALIDATION"
 
-    in_use = {v["tree"] for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items() if not settled(statuses.get(k.lower()))}
+    in_use = {}  # tree: unsettled lanes that name it in target_reuse
+    for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items():
+        if not settled(statuses.get(k.lower())):
+            in_use.setdefault(v["tree"], set()).add(k)
+    paused = {str(k).lower(): v for k, v in led["direction"].get("pause_20261111", {}).get("lanes", {}).items()}  # N3 (b)
     wants_whole = any(c["id"] in approved and c.get("kind") == "whole" for c in plan["candidates"])
     users = tree_users(led, statuses) if wants_whole else {}
     procs = command_lines()
@@ -235,13 +271,17 @@ def main():
         results.append(row)
         path = c["path"].replace("\\", "/")
         whole = c.get("kind") == "whole"
+        older_d = c.get("kind") == "partial" and c.get("select") == "older_copies" and path.startswith(D_ROOT + "/")  # N3
+        canary = older_d and steward_canary(path) is not None
+        if canary:
+            path = STEWARD_CANARY
         if whole:
             row["kind"] = "whole"
             path = whole_path(c["owner"], path)
             if path is None:
                 row["status"] = "REFUSED_PATH"
                 continue
-        elif c.get("kind") != "partial" or not allowed_path(path):
+        elif c.get("kind") != "partial" or not allowed_path(path, older_d):
             row["status"] = "REFUSED_PATH"
             continue
         if not os.path.isfile(os.path.join(path, ".studio-workspace-root")) or not os.path.isdir(os.path.join(path, "debug", ".fingerprint")):
@@ -267,16 +307,30 @@ def main():
                 continue
         else:
             if c["owner"] in in_use:
-                row["status"] = "SKIPPED_IN_USE_BY_LANE"
-                continue
-            if c["owner"] != "studio-round" and not settled(statuses.get(c["owner"], "")):
+                lanes = sorted(in_use[c["owner"]])
+                not_paused = [x for x in lanes if not (older_d and isinstance(paused.get(x.lower()), dict) and paused[x.lower()].get("tree") == c["owner"])]
+                if not_paused:
+                    row["status"] = "SKIPPED_IN_USE_BY_LANE"
+                    if older_d:
+                        row["not_paused"] = not_paused
+                    continue
+                row["accepted_paused"] = lanes  # N3 (b): every unsettled lane on this tree is paused on it
+            if c["owner"] != "studio-round" and not canary and not settled(statuses.get(c["owner"], "")):
                 row["status"] = "SKIPPED_STATUS"
                 continue
             if path.lower() in procs:
                 row["status"] = "SKIPPED_PROCESS"
                 continue
+            if canary or "accepted_paused" in row:  # N3: no process may name the tree (owner) or the bound workspace either
+                ws = os.path.dirname(open(os.path.join(path, ".studio-workspace-root"), encoding="utf-8").read().strip())
+                ws = ws.replace("\\", "/").lower()
+                if (ws and ws in procs) or re.search(r"(?<![a-z0-9_.-])" + re.escape(c["owner"].lower()) + r"(?![a-z0-9_.-])", procs):
+                    row["status"] = "SKIPPED_PROCESS"
+                    continue
         seen = newest(path)
-        if seen != c.get("newest_file_utc"):
+        if older_d and not c.get("newest_file_utc") and c.get("gib"):  # N3: no newest in the plan, size check only
+            row.update(newest_now=seen, newest_check="size only (plan has no newest_file_utc)")
+        elif seen != c.get("newest_file_utc"):
             row.update(status="SKIPPED_CHANGED", newest_now=seen, newest_planned=c.get("newest_file_utc"))
             continue
         if whole:
@@ -290,7 +344,7 @@ def main():
                 continue
             dirs, dir_bytes = [path], 0
         else:
-            files, dirs, dir_bytes = select(c)
+            files, dirs, dir_bytes = select(dict(c, path=path) if canary else c)
         size = sum(s for _, s in files) + dir_bytes
         row.update(files=len(files), dirs=[d.replace("\\", "/") for d in dirs], gib=round(size / GIB, 2))
         if whole:
