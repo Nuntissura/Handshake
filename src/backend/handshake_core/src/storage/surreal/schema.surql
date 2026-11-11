@@ -8056,6 +8056,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_identity_read($kind: strin
     RETURN fn::wp012_member_recipient_metadata($kind, $target.id);
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_password_read($target: object) {
+    IF $access NOT IN ['member_enrollment_recipient_inspection', 'member_enrollment_recipient_installer', 'member_enrollment_recipient'] { RETURN false; };
     RETURN fn::wp012_member_recipient_actor(fn::wp012_member_recipient_auth_row()) AND $target.id = $auth.account_id;
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_revision_read($target: object) {

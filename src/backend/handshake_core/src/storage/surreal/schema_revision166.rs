@@ -96,6 +96,7 @@ pub(super) fn cloud_upgrade_statements(production: bool) -> String {
 }
 
 const BASE_HEADERS: &[&str] = &[
+    "DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_password_read(",
     "DEFINE FUNCTION OVERWRITE fn::wp012_engine_profile_session(",
     "DEFINE TABLE OVERWRITE model_sessions ",
     "DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions",

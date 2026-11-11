@@ -743,6 +743,46 @@ mod tests {
             .unwrap();
         assert_eq!(context.identity.account_id, owner.account_id);
         assert_eq!(context.actor_id, owner.principal_id);
+
+        #[derive(SurrealValue)]
+        struct OrdinaryOwnerAccount {
+            id: RecordId,
+            first_owner_administration_origin: RecordId,
+            password_verifier: Option<String>,
+        }
+
+        use super::super::resource_authority::{RecordUserScope, ResourceAction};
+        let account = RecordId::new("local_accounts", owner.account_id.clone());
+        let selected_account = account.clone();
+        let scope = RecordUserScope {
+            grant_id: None,
+            workspace_id: None,
+            session_token: session.token.clone(),
+            channel_binding_hash: Some(channel.clone()),
+            resource_id: owner.account_id.clone(),
+            session_id: context.session_id.clone(),
+            capability_id: "fs.read".to_owned(),
+            action: ResourceAction::Read,
+        };
+        let rows = storage.with_record_user_scope(scope, storage.with_data_operation(move |database| {
+            Box::pin(async move {
+                database.query_values::<OrdinaryOwnerAccount, _>(
+                    "SELECT id, first_owner_administration_origin, password_verifier
+                     FROM local_accounts WHERE id = $account;",
+                    ("account", selected_account),
+                ).await
+            })
+        })).await.unwrap_or_else(|_| panic!("ordinary owner account query must succeed"));
+        let [row] = rows.as_slice() else {
+            panic!("ordinary owner account query must return exactly one row");
+        };
+        assert!(row.id == account, "ordinary owner must see its own account identity");
+        assert!(
+            row.first_owner_administration_origin == RecordId::new("first_owner_administration_origins", "primary"),
+            "ordinary owner must see its first-owner origin"
+        );
+        assert!(row.password_verifier.is_none(), "ordinary owner must never read the password verifier");
+
         storage.logout_local_account(&context).await.unwrap();
         assert!(storage
             .authenticate_local_session(&session.token, &channel)

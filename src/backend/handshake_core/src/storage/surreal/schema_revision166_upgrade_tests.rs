@@ -502,7 +502,7 @@ mod revision166_upgrade {
                 }
                 reopened.with_admin_operation(move |database| Box::pin(async move {
                     let state = read_context_and_state(&database).await?.unwrap();
-                    assert_eq!((state.revision, state.target_revision, state.apply_state.as_str()), (167, 167, "complete"));
+                    assert_eq!((state.revision, state.target_revision, state.apply_state.as_str()), (SCHEMA_REVISION, SCHEMA_REVISION, "complete"));
                     assert_eq!(state.source_manifest_sha256, if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() });
                     assert_eq!(state.generated_surql_sha256, if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() });
                     assert_eq!(state.info_fingerprint_sha256, expected_info);
@@ -515,7 +515,7 @@ mod revision166_upgrade {
                 let repeated = if production { super::super::super::bootstrap_production_schemas(&second).await? } else { bootstrap_schema(&second).await? };
                 assert!(repeated.reused_existing_schema);
                 assert_eq!(repeated.info_fingerprint_sha256, expected_info);
-                assert_eq!(snapshot(&second, fixture.clone(), production).await?, after, "durable167 reopen preserves complete native state");
+                assert_eq!(snapshot(&second, fixture.clone(), production).await?, after, "durable successor reopen preserves complete native state");
             }
             Ok::<(), SurrealStorageError>(())
         })).await;

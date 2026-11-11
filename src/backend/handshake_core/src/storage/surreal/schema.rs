@@ -21,11 +21,22 @@ use super::{
 mod revision166;
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 167;
+pub const SCHEMA_REVISION: i64 = 168;
 
-// A successor INFO pin requires actual independent measurement; revision166 pins stay immutable.
-const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = Some(("6feddacdcc766afe31855046c08efd743ccfd7b6a4a7eaf7be4841164436fcaf", 4570, 936));
-const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = Some("1ee5422cc9dba8b758f634b923c4b5b33b89d3453aaa99cf6ad2b546e103cd92");
+// Enroll these pins only after independent BASE and FINAL engine INFO measurement.
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
+const PRE_MEMBER_PASSWORD_POLICY_REVISION: i64 = 167;
+const PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED: &str =
+    "6f6e4a5bd5dad4b856e355233dcf435c4febce3e1da7a70b87587f2a1ddd6c43";
+const PRE_MEMBER_PASSWORD_POLICY_BASE_INFO: &str =
+    "1ee5422cc9dba8b758f634b923c4b5b33b89d3453aaa99cf6ad2b546e103cd92";
+const PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_SOURCE: &str =
+    "0e6d38b172acc667b2c04a1f1d0612605b05446cad1b1454f327768a49dce381";
+const PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_GENERATED: &str =
+    "4d01fc27bf5e509dfde093db79070ae77a9acbedbcf3dc37cfea0dcbbdd63da1";
+const PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_INFO: (&str, usize, usize) =
+    ("6feddacdcc766afe31855046c08efd743ccfd7b6a4a7eaf7be4841164436fcaf", 4570, 936);
 const PRE_ROUTING_REVISION: i64 = 166;
 const PRE_ROUTING_BASE_GENERATED: &str = "c6ead3a5410f93d9fbed16999c0653887560394579ffc0e67b06d2e17eb35ff4";
 const PRE_ROUTING_BASE_CATALOG: &str = "98a95b84422fe742f13b76c4900ce6c0edb4cbadfa2bce22cad9bc7e3c78d067";
@@ -4766,7 +4777,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-174 engine-profile declarations: exact source/catalog pins include five functions,
 // one authored field and one event. Live INFO and compatible reopen remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "6f6e4a5bd5dad4b856e355233dcf435c4febce3e1da7a70b87587f2a1ddd6c43";
+    "bbcdb4ecdf26c03d98ccd93533423049ef8b997cf09ad7b94ab2b201b140d0b8";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -6426,6 +6437,35 @@ struct PredecessorUpgradeBindings {
 }
 
 impl SchemaState {
+    fn is_exact_pre_member_password_policy(
+        &self,
+        production: bool,
+        config: &SurrealStorageConfig,
+    ) -> bool {
+        let (source, generated, info) = if production {
+            (
+                PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_SOURCE,
+                PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_GENERATED,
+                PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_INFO.0,
+            )
+        } else {
+            (
+                SCHEMA_LINEAGE_SHA256,
+                PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED,
+                PRE_MEMBER_PASSWORD_POLICY_BASE_INFO,
+            )
+        };
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_MEMBER_PASSWORD_POLICY_REVISION
+            && self.target_revision == PRE_MEMBER_PASSWORD_POLICY_REVISION
+            && self.namespace == config.namespace()
+            && self.database == config.database()
+            && self.apply_state == "complete"
+            && self.source_manifest_sha256 == source
+            && self.generated_surql_sha256 == generated
+            && self.info_fingerprint_sha256 == info
+    }
+
     fn is_exact_pre_routing(&self, production: bool, config: &SurrealStorageConfig) -> bool {
         revision166::recognizes(self, production, config)
     }
@@ -7367,8 +7407,13 @@ const MODEL_REGISTRY_REOBSERVE_SHARED_DELTAS: &[(&str, &str)] = &[
     (r#####"ELSE { fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read') OR ($wp012_original_action IN ['create', 'update'] AND $wp012_original_capability = 'fs.write' AND fn::wp012_model_registry_request($payload, true)) };"#####, r#####"ELSE { fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read') OR ($wp012_original_action = 'update' AND $wp012_original_capability = 'fs.write' AND fn::wp012_model_registry_request($payload, true)) };"#####),
 ];
 
+const MEMBER_PASSWORD_POLICY_GUARD: &str = r#"    IF $access NOT IN ['member_enrollment_recipient_inspection', 'member_enrollment_recipient_installer', 'member_enrollment_recipient'] { RETURN false; };
+"#;
+
 fn restore_pre_routing_shared_schema(source: String) -> String {
-    let mut source = source;
+    assert!(source.matches(MEMBER_PASSWORD_POLICY_GUARD).count() <= 1,
+        "member password policy guard must not be duplicated");
+    let mut source = source.replacen(MEMBER_PASSWORD_POLICY_GUARD, "", 1);
     assert!(source.matches(MODEL_REGISTRY_REBIND_SHARED_DELTA).count() <= 1,
         "model registry rebind shared delta must not be duplicated");
     source = source.replacen(MODEL_REGISTRY_REBIND_SHARED_DELTA, "", 1);
@@ -7586,6 +7631,15 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
         let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
         let state: Option<SchemaState> = response.take(0)?;
         let Some(mut state) = state else { return Ok(None); };
+        if state.is_exact_pre_member_password_policy(true, &database.config) {
+            verify_compiled_manifest(&database).await?;
+            let observed = upgrade_pre_member_password_policy(&database, &state, observed, true).await?;
+            let complete = read_context_and_state(&database).await?.ok_or_else(||
+                SurrealStorageError::TransactionWorker("Member password policy production successor receipt missing".to_owned()))?;
+            return Ok(Some(build_schema_report(
+                complete, observed, SchemaBootstrapOutcome::UpgradedSupportedPredecessor, 10,
+            )));
+        }
         if state.is_exact_pre_routing(true, &database.config) {
             verify_compiled_manifest(&database).await?;
             let observed = upgrade_pre_routing(&database, &state, true).await?;
@@ -7840,6 +7894,13 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current(&database.config) => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_member_password_policy(false, &database.config) => {
+                        let predecessor = read_schema_catalog(&database).await?;
+                        verified_observed = Some(upgrade_pre_member_password_policy(
+                            &database, &state, predecessor, false,
+                        ).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_routing(false, &database.config) => {
                         verified_observed = Some(upgrade_pre_routing(&database, &state, false).await?);
@@ -9251,6 +9312,100 @@ struct RoutingSuccessorBindings {
     namespace: String, database: String,
     previous_source: String, previous_generated: String, previous_info: String,
     source: String, generated: String, pending_info: String,
+}
+
+async fn upgrade_pre_member_password_policy(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+    predecessor: ObservedSchema,
+    production: bool,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    let (_, production_fields, production_indexes) = PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_INFO;
+    if !previous_state.is_exact_pre_member_password_policy(production, &database.config)
+        || predecessor.info_fingerprint_sha256 != previous_state.info_fingerprint_sha256
+        || (production && (predecessor.fields_defined != production_fields
+            || predecessor.indexes_defined != production_indexes))
+    {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_PREDECESSOR_MISMATCH".to_owned()).await;
+    }
+    if ROUTING_SUCCESSOR_BASE_INFO.is_none()
+        || (production && ROUTING_SUCCESSOR_PRODUCTION_INFO.is_none())
+    {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_INFO_UNMEASURED".to_owned()).await;
+    }
+    if read_knowledge_schema_registry_metadata(database).await?
+        != expected_knowledge_schema_registry_metadata().map_err(SurrealStorageError::TransactionWorker)?
+    {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_REGISTRY_MISMATCH".to_owned()).await;
+    }
+    if production {
+        verify_production_module_receipts(database).await?;
+    }
+
+    let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
+    let generated = if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() };
+    let password_policy = schema_function_definition("wp012_member_redemption_password_read");
+    let upgrade = format!(r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current = NONE OR $current.version != $version
+ OR $current.revision != $previous_revision OR $current.target_revision != $previous_revision
+ OR $current.namespace != $namespace OR $current.database != $database
+ OR $current.source_manifest_sha256 != $previous_source
+ OR $current.generated_surql_sha256 != $previous_generated
+ OR $current.info_fingerprint_sha256 != $previous_info OR $current.apply_state != 'complete'
+{{ THROW 'HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_STATE_CHANGED'; }};
+{password_policy}
+UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revision = $revision,
+ source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
+ info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
+COMMIT TRANSACTION;
+"#);
+    database.query_bound(upgrade, RoutingSuccessorBindings {
+        version: SCHEMA_VERSION.to_owned(),
+        previous_revision: PRE_MEMBER_PASSWORD_POLICY_REVISION,
+        revision: SCHEMA_REVISION,
+        namespace: database.config.namespace().to_owned(),
+        database: database.config.database().to_owned(),
+        previous_source: previous_state.source_manifest_sha256.clone(),
+        previous_generated: previous_state.generated_surql_sha256.clone(),
+        previous_info: previous_state.info_fingerprint_sha256.clone(),
+        source: source.clone(),
+        generated: generated.clone(),
+        pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+    }).await?;
+
+    let observed = if production {
+        inspect_production_schema(database).await?
+    } else {
+        let observed = inspect_schema(database).await?;
+        verify_expected_info_fingerprint(database, &observed).await?;
+        observed
+    };
+    finalize_schema_state_bound(database, FinalizeBindings {
+        schema_version: SCHEMA_VERSION.to_owned(),
+        schema_revision: SCHEMA_REVISION,
+        namespace: database.config.namespace().to_owned(),
+        database: database.config.database().to_owned(),
+        source_manifest_sha256: source,
+        generated_surql_sha256: generated.clone(),
+        pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+        info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
+    }).await?;
+    let complete = read_context_and_state(database).await?.ok_or_else(||
+        SurrealStorageError::TransactionWorker("Member password policy successor complete receipt missing".to_owned()))?;
+    let complete_identity = if production {
+        has_production_identity(&complete, &database.config)
+    } else {
+        complete.is_exact_current(&database.config)
+    };
+    if !complete_identity || complete.generated_surql_sha256 != generated
+        || complete.apply_state != "complete"
+        || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256
+    {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_COMPLETE_MISMATCH".to_owned()).await;
+    }
+    Ok(observed)
 }
 
 async fn upgrade_pre_routing(
@@ -12142,6 +12297,198 @@ mod tests {
             observed.info_fingerprint_sha256,
             ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
+    }
+
+    #[tokio::test]
+    async fn revision_167_member_password_policy_upgrade_and_reopen_preserves_base_and_final() {
+        async fn install_revision_167(
+            storage: &SurrealStorage,
+            production: bool,
+        ) -> Result<(), SurrealStorageError> {
+            let shared = SCHEMA.replacen(MEMBER_PASSWORD_POLICY_GUARD, "", 1);
+            assert_eq!(sha256_hex(shared.as_bytes()), PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED);
+            if production {
+                let mut sources = production_schema_sources()
+                    .into_iter()
+                    .map(|(name, body)| (name, body.to_owned()))
+                    .collect::<Vec<_>>();
+                assert_eq!(sources[0].0, "shared");
+                sources[0].1 = shared.clone();
+                assert_eq!(
+                    sha256_hex(&serde_json::to_vec(&sources).unwrap()),
+                    PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_GENERATED,
+                );
+                let manifest = sources.iter()
+                    .map(|(name, body)| (*name, sha256_hex(body.as_bytes())))
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    sha256_hex(&serde_json::to_vec(&(
+                        SCHEMA_VERSION, PRE_MEMBER_PASSWORD_POLICY_REVISION, SCHEMA_LINEAGE_SHA256,
+                        manifest,
+                    )).unwrap()),
+                    PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_SOURCE,
+                );
+            }
+
+            storage.with_admin_operation(move |database| Box::pin(async move {
+                let script = fresh_bootstrap_script(&shared).expect("exact revision 167 BASE source");
+                for statement in [script.definitions, script.indexes_and_rest] {
+                    database.query_bound(statement, BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(),
+                        schema_revision: PRE_MEMBER_PASSWORD_POLICY_REVISION,
+                        namespace: database.config.namespace().to_owned(),
+                        database: database.config.database().to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED.to_owned(),
+                    }).await?;
+                }
+                ensure_knowledge_schema_registry(&database).await
+            })).await?;
+
+            if production {
+                super::super::install_production_module_schemas(storage).await?;
+            }
+            storage.with_admin_operation(move |database| Box::pin(async move {
+                let (source, generated, expected_info) = if production {
+                    verify_production_module_receipts(&database).await?;
+                    (
+                        PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_SOURCE,
+                        PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_GENERATED,
+                        PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_INFO.0,
+                    )
+                } else {
+                    (SCHEMA_LINEAGE_SHA256, PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED,
+                        PRE_MEMBER_PASSWORD_POLICY_BASE_INFO)
+                };
+                let observed = read_schema_catalog(&database).await?;
+                assert_eq!(observed.info_fingerprint_sha256, expected_info);
+                if production {
+                    #[derive(SurrealValue)]
+                    struct PreviousComposition { source: String, generated: String }
+                    database.query_bound(
+                        "UPDATE ONLY handshake_schema_state:primary SET
+                         source_manifest_sha256 = $source, generated_surql_sha256 = $generated;",
+                        PreviousComposition { source: source.to_owned(), generated: generated.to_owned() },
+                    ).await?;
+                }
+                finalize_schema_state_bound(&database, FinalizeBindings {
+                    schema_version: SCHEMA_VERSION.to_owned(),
+                    schema_revision: PRE_MEMBER_PASSWORD_POLICY_REVISION,
+                    namespace: database.config.namespace().to_owned(),
+                    database: database.config.database().to_owned(),
+                    source_manifest_sha256: source.to_owned(),
+                    generated_surql_sha256: generated.to_owned(),
+                    pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                    info_fingerprint_sha256: observed.info_fingerprint_sha256,
+                }).await?;
+                let state = read_context_and_state(&database).await?.expect("revision 167 receipt");
+                assert!(state.is_exact_pre_member_password_policy(production, &database.config));
+                database.query(
+                    "CREATE workspaces:revision167_policy_probe CONTENT { name: 'retained workspace' };"
+                ).await?;
+                Ok(())
+            })).await
+        }
+
+        async fn snapshot(
+            storage: &SurrealStorage,
+            production: bool,
+        ) -> Result<Vec<SurrealValueData>, SurrealStorageError> {
+            storage.with_admin_operation(move |database| Box::pin(async move {
+                let mut query = String::from(
+                    "SELECT * FROM ONLY handshake_schema_state:primary;
+                     SELECT * FROM knowledge_schema_registry ORDER BY id;
+                     SELECT * FROM ONLY workspaces:revision167_policy_probe;"
+                );
+                if production {
+                    query.push_str(
+                        "SELECT * FROM ONLY model_lane_schema_state:primary;
+                         SELECT * FROM ONLY model_lane_cloud_schema_state:primary;
+                         SELECT * FROM ONLY palmistry_schema_state:primary;
+                         SELECT * FROM ONLY swarm_outbox_schema_state:primary;
+                         SELECT * FROM ONLY workspace_settings_schema_state:primary;"
+                    );
+                }
+                let mut response = database.query(query).await?;
+                let count = if production { 8 } else { 3 };
+                (0..count)
+                    .map(|index| response.take::<SurrealValueData>(index).map_err(Into::into))
+                    .collect()
+            })).await
+        }
+
+        async fn open_schema(
+            storage: &SurrealStorage,
+            production: bool,
+        ) -> Result<SchemaBootstrapReport, SurrealStorageError> {
+            if production {
+                super::super::bootstrap_production_schemas(storage).await
+            } else {
+                bootstrap_schema(storage).await
+            }
+        }
+
+        for production in [false, true] {
+            let mut directory = tempfile::Builder::new().prefix("wp012-rev167-").tempdir().unwrap();
+            directory.disable_cleanup(true);
+            let storage = open_test_storage(&directory).await.unwrap();
+            install_revision_167(&storage, production).await.unwrap();
+            let before = snapshot(&storage, production).await.unwrap();
+            storage.shutdown().await.unwrap();
+            drop(storage);
+
+            let reopened = open_test_storage(&directory).await.unwrap();
+            assert_eq!(snapshot(&reopened, production).await.unwrap(), before);
+            let current_policy = schema_function_definition("wp012_member_redemption_password_read");
+            let mixed_info = reopened.with_admin_operation(|database| Box::pin(async move {
+                database.query(current_policy).await?;
+                Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256)
+            })).await.unwrap();
+            let error = open_schema(&reopened, production).await
+                .expect_err("revision 167 receipt cannot admit a mixed catalog");
+            assert!(error.to_string().contains(
+                "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_PREDECESSOR_MISMATCH"
+            ), "{error}");
+            assert_eq!(snapshot(&reopened, production).await.unwrap(), before);
+            let unchanged_info = reopened.with_admin_operation(|database| Box::pin(async move {
+                Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256)
+            })).await.unwrap();
+            assert_eq!(unchanged_info, mixed_info);
+
+            let previous_policy = current_policy.replacen(MEMBER_PASSWORD_POLICY_GUARD, "", 1);
+            reopened.with_admin_operation(move |database| Box::pin(async move {
+                database.query(previous_policy).await?;
+                Ok(())
+            })).await.unwrap();
+            let report = open_schema(&reopened, production).await.unwrap();
+            assert_eq!(report.outcome, SchemaBootstrapOutcome::UpgradedSupportedPredecessor);
+            reopened.with_admin_operation(|database| Box::pin(async move {
+                let state = read_context_and_state(&database).await?.expect("upgraded current state");
+                assert_eq!(state.revision, SCHEMA_REVISION);
+                assert_eq!(state.target_revision, SCHEMA_REVISION);
+                assert_eq!(state.apply_state, "complete");
+                Ok(())
+            })).await.unwrap();
+            let expected_info = if production {
+                ROUTING_SUCCESSOR_PRODUCTION_INFO.expect("measured FINAL INFO").0
+            } else {
+                ROUTING_SUCCESSOR_BASE_INFO.expect("measured BASE INFO")
+            };
+            assert_eq!(report.info_fingerprint_sha256, expected_info);
+            let after = snapshot(&reopened, production).await.unwrap();
+            assert_eq!(after[1..], before[1..], "retain data, registry and existing module receipts");
+            reopened.shutdown().await.unwrap();
+            drop(reopened);
+
+            let second = open_test_storage(&directory).await.unwrap();
+            let repeated = open_schema(&second, production).await.unwrap();
+            assert_eq!(repeated.outcome, SchemaBootstrapOutcome::ReusedExactCurrent);
+            assert_eq!(repeated.info_fingerprint_sha256, expected_info);
+            assert_eq!(snapshot(&second, production).await.unwrap(), after);
+            second.shutdown().await.unwrap();
+            drop(second);
+            directory.disable_cleanup(false);
+        }
     }
 
     #[tokio::test]
