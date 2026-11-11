@@ -1,0 +1,274 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261111-V",
+ "generated_at": "2026-11-11T15:06:04Z",
+ "status": "PROPOSED",
+ "authority": "HSK-ART-003, HSK-ART-005 (inspection-based list; Operator approves the exact list under CX-107). Operator 2026-11-11: pause all agents for the cargo cleanup.",
+ "why": "D: Studio holds 1,911.6 GiB, of which 1,396.0 GiB are older copies of test and binary outputs (earlier feature-set and pre-rebase identities). Partial removal keeps compile reuse: the newest copy of every binary and all libraries stay, so a later run only relinks an older identity it needs.",
+ "inspection": "WizTree 4.33 MFT export 2026-11-11 15:04Z (scratchpad studio-deps-files.csv, 315,404 deps files; folder totals d-folders.csv 14:55Z); older copies computed with target_prune.py's HASHED rule, newest by modified time",
+ "candidates": [
+  {
+   "id": "V-C01",
+   "disk": "D",
+   "owner": "steward-export",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 473.1,
+   "target_total_gib": 547.7,
+   "used_by": [],
+   "lane_note": "steward canary target (studio-team-dev/steward-export/target)"
+  },
+  {
+   "id": "V-C02",
+   "disk": "D",
+   "owner": "smb-pr-edit-footprint-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 169.7,
+   "target_total_gib": 205.3,
+   "used_by": [
+    "SMB-HARNESS-DRIVE-1",
+    "SMB-COMMAND-SURFACE-1",
+    "SMB-LAYOUT-PDF-HOST-1",
+    "SMB-DRIVE-TYPED-2",
+    "SMB-R60-FOLLOWUPS-1"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C03",
+   "disk": "D",
+   "owner": "smb-folio-angle-unbounded-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 154.3,
+   "target_total_gib": 189.1,
+   "used_by": [
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-PROJECT-BIN-1",
+    "SMB-DEVELOP-COMMANDS-1"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C04",
+   "disk": "D",
+   "owner": "smb-pr-sequence-session-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 145.3,
+   "target_total_gib": 184.8,
+   "used_by": [
+    "SMB-SESSION-WRITE-SAFETY-1",
+    "SMB-DOC-EXPORT-1",
+    "SMB-PLACE-ASSET-1",
+    "SMB-MOTION-COMMANDS-2"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C05",
+   "disk": "D",
+   "owner": "smb-r53-followups-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 130.5,
+   "target_total_gib": 171.4,
+   "used_by": [
+    "SMB-OBSERVE-DIAG-SINK-1",
+    "SMB-AUDIO-OUT-MIX-1",
+    "SMB-PR-EXPORT-RECIPE-1",
+    "SMB-DELIVERY-QUEUE-1"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C06",
+   "disk": "D",
+   "owner": "smb-ai-distort-effects-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 92.0,
+   "target_total_gib": 124.5,
+   "used_by": [
+    "SMB-DOC-NEW-1",
+    "SMB-ARTBOARD-EXPORT-1",
+    "SMB-DS-COMPONENTS-AUTHOR-1"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C07",
+   "disk": "D",
+   "owner": "smb-pr-entry-references-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 67.8,
+   "target_total_gib": 108.8,
+   "used_by": [
+    "SMB-PR-ROUTING-REPAIR-1",
+    "SMB-VK-HOST-1",
+    "SMB-GUI-SPINE-1",
+    "SMB-GUI-FRAME-1",
+    "SMB-SCORE-EFFECTS-6"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C08",
+   "disk": "D",
+   "owner": "smb-id-toc-persist-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-persist-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 64.2,
+   "target_total_gib": 97.6,
+   "used_by": [
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-LAYOUT-PLACE-1"
+   ],
+   "lane_note": "tree used only by READY or PASS lanes"
+  },
+  {
+   "id": "V-C09",
+   "disk": "D",
+   "owner": "smb-sentinels-native-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 51.8,
+   "target_total_gib": 83.5,
+   "used_by": [
+    "SMB-WEB-HOST-1",
+    "SMB-WEB-SITE-1"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C10",
+   "disk": "D",
+   "owner": "smb-pr-retime-hold-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 44.5,
+   "target_total_gib": 65.9,
+   "used_by": [
+    "SMB-CONTROLS-EGUI-GATE-1",
+    "SMB-GUI-STEWARD-1",
+    "SMB-UI-TREE-1",
+    "SMB-VK-UI-PASS-1",
+    "SMB-TYPE-INDENT-SPACING-1"
+   ],
+   "lane_note": "tree in use by a lane paused 2026-11-11 (ledger direction.pause_20261111)"
+  },
+  {
+   "id": "V-C11",
+   "disk": "D",
+   "owner": "smb-ps-mode-convert-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-mode-convert-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in each deps folder, every copy except the newest (as plan T)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 2.0,
+   "target_total_gib": 32.4,
+   "used_by": [
+    "SMB-PIGMENT-FILTER-KERNELS-1"
+   ],
+   "lane_note": "tree used only by READY or PASS lanes"
+  }
+ ],
+ "total_gib": 1395.2,
+ "not_listed": [
+  "whole removal of 11 old validated unused D: targets (about 49 GiB: smb-type-authored-token-1 24.6 and ten under 4 GiB) needs the whole kind on D:; later plan",
+  "studio-round D: target (0.1 GiB older), validator-r54-probe, smb-fig-grid-3 (lane PAUSED), oracle-corpus, downloads",
+  "all other Handshake_Artifacts folders (not Studio)"
+ ],
+ "needs_tool_change": "N3: (a) allow the steward canary target D_ROOT/studio-team-dev/steward-export/target for partial older_copies; (b) for partial older_copies only, accept a target whose using lane is unsettled when ledger direction.pause_20261111 lists that lane and no process names the tree or target. Whole removal and C: rules unchanged.",
+ "before_execution": "Operator approves this exact list in chat; N3 in the tool; dry run all WOULD_REMOVE; no process naming the trees; lanes still paused; then --execute",
+ "operator_question": "Approve plan V: remove older copies from 11 Studio build caches on D:, about 1,396 GiB, keeping the newest copy of every binary and all libraries.",
+ "executions": []
+}
