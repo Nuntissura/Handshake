@@ -62,37 +62,35 @@
    "tree_clean": false,
    "reuse_candidate": false,
    "note": "target only; the dirty tree is not touched"
-  },
-  {
-   "id": "U-C06",
-   "owner": "smb-pr-sequence-presets-1-red",
-   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1-red",
-   "kind": "whole",
-   "gib": 0.28,
-   "newest_file_utc": "2026-11-02T14:47Z",
-   "status": "no ledger row; bound to a session scratch tree that no longer exists (plan T N2 note)",
-   "reuse_candidate": false
   }
  ],
- "total_gib": 26.25,
+ "total_gib": 25.97,
  "reuse_considered": "HSK-ART-005 puts reuse first. U-C01..U-C04 are reuse candidates, but no reuse is possible while C: is over the cap, their bases are from 2026-11-01..06 (100+ commits old), so a reusing lane would rebuild nearly every workspace crate; reuse would save only their third-party libraries (0.75 to 1.61 GiB each, minutes on the SSD). Their older copies are 0.00 GiB, so the preferred partial removal frees nothing; only whole removal does.",
  "not_listed": [
   "smb-type-sentinels-registry-1 (0.20 GiB): last written by SMB-UI-TREE-1 (READY, moved to D:), so not P2-listable until that lane is PASS",
   "smb-pr-nudge-1 (34.24 GiB, SMB-AI-LIVE-EFFECTS-1 READY) and smb-layout-composer-depth-1 on C: (about 28.4 GiB, SMB-PARSER-HOSTILE-1 READY): rule P2 lists a lane's target at PASS or abandonment; candidates for the first list after R60 passes those lanes",
   "smb-r54-followups-1 and smb-pr-retime-output-1 beyond T-C01/T-C02: HSK-ART-005 prefers the partial removal that keeps compile reuse, plan T already covers it, and with U the projection is under the alert",
   "studio-round: warm state for attempt 3 (plan T rejected); N3 unbuilt",
-  "anything on D:, the cargo registry cache, logs, results, fixtures"
+  "anything on D:, the cargo registry cache, logs, results, fixtures",
+  "U-C06 smb-pr-sequence-presets-1-red (0.28 GiB), withdrawn 2026-11-11T10:24Z: the tool's dry run returned SKIPPED_STATUS because its bound tree, a non-git copy dated 2026-11-02 in another session's scratchpad, still exists. Plan T's N2 note that the tree is gone was wrong. Not proposed, because removing that scratch copy is outside this plan."
  ],
  "projection_gib": {
   "now": 369.9,
   "after_T_C01_C02": 258.64,
-  "after_T_and_U": 232.39,
+  "after_T_and_U": 232.67,
   "attempt3_peak_without_U": 353.64,
-  "attempt3_peak_with_U": 327.39,
+  "attempt3_peak_with_U": 327.67,
   "basis": "369.90 measured 10:05Z minus fresh older copies 59.16 + 52.10 (target-report-20261111-c-cap.json, stable because no lane writes those targets after the move) minus U 26.25, plus plan T round_growth 95 GiB (estimate). Without U the peak is 1.36 GiB under the validator's 355 stop; with U it is 2.61 GiB under the 330 alert. Assumes no C: lane build before or during the round."
  },
  "needs_tool_change": "N2 (plan T): a 'whole' kind in tools/lead/target_prune.py that removes only the <C_LANES>/<owner> target directory (allowed_path, .studio-workspace-root and debug/.fingerprint present), only when the owner lane is PASS_V or abandoned and no unsettled target_reuse lane names the tree, with the existing process check, newest_file_utc check and 5% size check, dry run first; edited only while no prune runs. This is the lead's tool work, separate from plan T; it must not touch the in-use rule that holds T-C01/T-C02.",
- "before_execution": "Operator approves this exact list in chat; the whole-target kind (N2) exists in target_prune.py and dry-runs clean on this plan; fresh target_report.py --disk c; no round running; then execute.",
- "operator_question": "Approve plan U: whole removal of 6 old Studio build caches on C: (lanes that already passed validation), 26.25 GiB, to give the next validation round safe room on the SSD.",
- "executions": []
+ "before_execution": "Operator approves this exact list in chat; fresh target_report.py --disk c; dry run with the whole kind (done once, 2026-11-11T10:24Z: all five WOULD_REMOVE); no round running; then --execute.",
+ "operator_question": "Approve plan U: whole removal of 5 old Studio build caches on C: (lanes that already passed validation), 25.97 GiB, to give the next validation round safe room on the SSD.",
+ "executions": [],
+ "dry_run": {
+  "at": "2026-11-11T10:24:17Z",
+  "tool_commit": "18974120 (target_prune.py whole kind N2)",
+  "result": "U-C01..U-C05 WOULD_REMOVE 14.66, 4.59, 2.73, 2.65, 1.34 GiB (25.97 total); U-C06 SKIPPED_STATUS (withdrawn)",
+  "negative_checks": "studio-round REFUSED_PATH; D: target REFUSED_PATH; ../ traversal REFUSED_PATH; smb-layout-composer-depth-1 and smb-type-sentinels-registry-1 SKIPPED_IN_USE_BY_LANE"
+ },
+ "generated_at_revised": "2026-11-11T10:24:17Z"
 }
