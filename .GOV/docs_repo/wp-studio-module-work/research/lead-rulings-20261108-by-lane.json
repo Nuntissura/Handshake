@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T07:55:25Z",
+ "updated_at": "2026-11-11T08:16:03Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -114,7 +114,10 @@
    "web.move_file refuses typed move_open_package when the source or destination is the opened document's package or inside it (fix in web_site.rs; no cli/drive.rs edit)."
   ],
   "SMB-DEVELOP-COMMANDS-1": [
-   "ADDED ITEM (R60 attempt-2 probe, SMB-COMMAND-SURFACE-1): photo.info.* rows (harness-core commands/photo.rs about :20) are declared non-mutating but add an undo step: from the spec, either they add no step (queries) or the rows say mutating; red test; name it in the lane file."
+   "ADDED ITEM (R60 attempt-2 probe, SMB-COMMAND-SURFACE-1): photo.info.* rows (harness-core commands/photo.rs about :20) are declared non-mutating but add an undo step: from the spec, either they add no step (queries) or the rows say mutating; red test; name it in the lane file.",
+   "REVIEW READY at 945406d9 (2026-11-11). Crop in the DNG XMP is a named cut (receipt develop_crop_not_in_dng_xmp); next-lane candidate: a harness-view -> interop-lrcat edge (steward, lead approval) or an XMP writer in hsk-studio-develop.",
+   "PATH APPROVED harness-view src/view/doc_export.rs, ONE receipt-note addition develop_crop_not_applied when the document has a stored crop (document export and batch render the uncropped canvas); keep clear of SMB-R60-FOLLOWUPS-1's admission hunk near :844; the second to land rebases. Red test: a cropped develop document export asserts the note.",
+   "The new-op differential test written after its implementation is recorded as red by construction."
   ]
  }
 }
