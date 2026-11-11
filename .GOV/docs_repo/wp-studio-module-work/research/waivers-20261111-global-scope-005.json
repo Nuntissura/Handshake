@@ -1,0 +1,760 @@
+{
+ "file_id": "waivers-20261111-global-scope-005",
+ "file_kind": "scope_audit_decision",
+ "updated_at": "2026-11-11T07:46:04Z",
+ "wp": "WP-KERNEL-STUDIO",
+ "authority": "Operator 2026-11-11: \"just deliberate with specialised agents and use that result as decision\" (HANDOFF.md topic operator-items, direction.operator_direction_20261111); rule GLOBAL-SCOPE-005.",
+ "method": "Read-only. Per lane: brief topic paths, lane file notes, commits on origin/codex/handshake-studio-assets (local ref at 1e652818, not fetched) by git log --grep and git show, ledger.json lane verdicts and round entries. 2026-11-08 lanes: research/lead-rulings-20261108-by-lane.json (PATH APPROVED entries), each lane file's beyond_brief_paths or paths_beyond_brief, and git diff of the lane tree against its merge-base with the product branch. No build, no test run.",
+ "verdict_values": {
+  "WAIVE": "the edit was needed and is safe; keep it",
+  "REVERT_NEEDED": "undo as stated",
+  "CONFIRM": "a lead path approval matches the edit made, or is not yet used",
+  "CONFIRM_RECORD": "keep the edit; the lane must add the path to its beyond-brief note",
+  "CONFIRM_COORDINATE": "the approval stands; a named overlap with another lane must be kept at rebase"
+ },
+ "lanes": [
+  {
+   "lane_id": "SMB-PR-SEQUENCE-PRESETS-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-folio/src/composition.rs",
+     "change": "validate_immersive: fn -> pub(crate) fn, one word, :746",
+     "commit": "3ebf63df"
+    }
+   ],
+   "why": "Reuse Folio's immersive rules for the immersive member of the new sequence settings record instead of copying them (lane notes.deviations_from_brief[1]).",
+   "verdict": "WAIVE",
+   "reason": "Visibility widened inside the same crate only: no behaviour change, no public API change, no other crate can see it. Reuse is safer than a second copy of the rules.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "3ebf63df",
+     "a6f07fdf",
+     "cc58a511"
+    ],
+    "brief": "builders/briefs/lane-smb-pr-sequence-presets-1.md topic paths",
+    "lane_file": "builders/lanes/hsk-studio-pr-sequence-presets-1.json notes.deviations_from_brief[1], notes.lead_decisions[1]",
+    "rounds": "STUDIO-R55 PASS_V1 @ce644577 ... STUDIO-R58 PASS_V4 @89bbf702 (ledger.json lanes)"
+   }
+  },
+  {
+   "lane_id": "SMB-PR-RETIME-HOLD-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/transition.rs",
+     "change": "clip_source_at answers the held frame (8 code lines, 3 doc lines); past_source_end at or past a known source length",
+     "commit": "9d5a6f9f"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/multicam.rs",
+     "change": "HoldUnsupported (multicam_hold_unsupported) and not_held() refusals in resolve_active_angle, plan_multicam_flatten, plan_create_multicam_source, plan_multicam_toggle_enabled; module docs (+30)",
+     "commit": "51eb8f20"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/timeline_edit.rs",
+     "change": "ClipChange::RetimeRecord, its diff entry and accessor arms; the footprint writes the track only for Insert and Remove",
+     "commits": [
+      "8cffce02",
+      "51eb8f20"
+     ]
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/tests/multicam_flatten.rs",
+     "change": "one test frame_hold_is_refused_where_multicam_would_read_it plus a helper (+79)",
+     "commit": "8cffce02"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-session/tests/retime_commit.rs",
+     "change": "new test file (+284)",
+     "commit": "8cffce02"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/rate.rs",
+     "change": "members and multicam_reads -> pub(crate); module doc rewritten (the brief named the file for the gap note only)",
+     "commit": "9d5a6f9f"
+    }
+   ],
+   "why": "transition.rs: frame_layers, transition_frame and frame_layers_nested read clip_source_at, so without it the program monitor plays through a hold (brief item 3 false on that path). multicam.rs and timeline_edit.rs: lead close-out items 2 and 1 (a hold multicam would read is refused by name; a retime-only edit had an empty change list and write footprint). rate.rs: reuse of the link-group and multicam checks instead of a third copy (lane notes.waiver_list_outside_owned_paths).",
+   "verdict": "WAIVE",
+   "reason": "Each edit serves a brief item or a lead close-out item and is additive: the new refusal fires only on a clip with a frame hold (a field this lane added, default none), the new change kind only on a retime record change, the visibility change is crate-internal. ClipChange is a public enum, so the new variant breaks exhaustive matchers outside pulse at compile time; the round compiled every dependent, and later lanes (MERGE-SYNC Relink, EDIT-FOOTPRINT) build on it. No other lane owned these files at the time.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "2b119c69",
+     "9d5a6f9f",
+     "8cffce02",
+     "51eb8f20"
+    ],
+    "brief": "lane-smb-pr-retime-hold-1.md topic paths (folio timeline.rs; pulse rate.rs gap note, new retime module, tests; one literal line per StudioClip literal)",
+    "lane_file": "hsk-studio-pr-retime-hold-1.json notes.waiver_list_outside_owned_paths, notes.lead_decisions.transition_rs",
+    "rounds": "STUDIO-R56 PASS_V1 @091c4d1b ... STUDIO-R59 PASS_V4 @c4d06841; F-R56-2 (interpolation choice not rendered) is a stated gap, not a scope defect",
+    "mutation_proof": "lane notes.red_proof_2.session_test_not_vacuous (retime-not-written mutation turns retime_commit red)"
+   }
+  },
+  {
+   "lane_id": "SMB-PR-MERGE-SYNC-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/timeline_edit.rs",
+     "change": "ClipChange::Relink with its diff() entry and accessor arms; apply_edit -> pub(crate)",
+     "commits": [
+      "bb2ccf2e",
+      "309da2a3"
+     ]
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/annotate.rs",
+     "change": "source_to_timeline -> pub(crate) (one word)",
+     "commit": "309da2a3"
+    }
+   ],
+   "why": "A link-only change had an empty change list and write footprint; apply_edit is reused by the linked-selection toggle planner; source_to_timeline is reused instead of copied (lane notes.waiver_reasons).",
+   "verdict": "WAIVE",
+   "reason": "Same class as RETIME-HOLD's RetimeRecord: needed for a truthful change list; the visibility changes are crate-internal. The reversed-clip marker offset later found in source_to_timeline (F-R57-1) was pre-existing mapping behaviour, not caused by the visibility change, and was fixed in annotate.rs by SMB-PR-MEDIA-MARKERS-1 (88260ae6; PASS_V3 at R59), so the reuse inherits the fix.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "bb2ccf2e",
+     "309da2a3",
+     "9d8c5937",
+     "27cba13b"
+    ],
+    "brief": "lane-smb-pr-merge-sync-1.md topic paths (new merge-and-sync module, lib.rs, tests)",
+    "lane_file": "hsk-studio-pr-merge-sync-1.json notes.waiver_list_outside_owned_paths, notes.waiver_reasons",
+    "rounds": "STUDIO-R56 PASS_V1 @091c4d1b ... STUDIO-R59 PASS_V4 @c4d06841",
+    "later_commits_on_annotate_rs": [
+     "88260ae6",
+     "2fdcbd4a",
+     "d519f6f1",
+     "329e2b9a"
+    ]
+   }
+  },
+  {
+   "lane_id": "SMB-R54-FOLLOWUPS-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/vector.rs",
+     "change": "convert_text_kind refuses a text holding a forced line break with FORCED_LINE_BREAK_UNSUPPORTED (+4, :1666)",
+     "commit": "2fba5f61"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/threaded_reflow.rs",
+     "change": "Line.source doc; a blank line made by a forced break takes its blank span (+7/-1, :1208)",
+     "commit": "aa6ee7d9"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/tests/cjk_kinsoku.rs",
+     "change": "new test mt_31008_each_forced_line_break_makes_one_cjk_line (+48)",
+     "commit": "5c189873"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/tests/marker_lookups.rs",
+     "change": "new tests for blank lines and the byte-to-line rule (+42)",
+     "commit": "5c189873"
+    }
+   ],
+   "why": "F-R55-2: a Viewer path that keeps one line must refuse a forced line break typed instead of composing it with no break. The R55 failure forced-line-break-without-glyph-before-collapsed needs the blank line's source span in threaded_reflow. The new tests pin the layout behaviour (lane notes.touched_beyond_brief; lead_decisions 2026-11-05T11:07:36Z).",
+   "verdict": "WAIVE",
+   "reason": "vector.rs is an additive typed refusal on a path the R55 remediation required (F-R55-2 names the Viewer text paths). threaded_reflow.rs is a reflow module, which the brief owns for marker attribution, and the edit serves the R55 failure the remediation topic orders fixed. Both test files are in layout tests/, which the brief owns. All four were judged by STUDIO-R56 PASS_V2 and later rounds.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "2fba5f61",
+     "368d8481",
+     "aa6ee7d9",
+     "5c189873"
+    ],
+    "brief": "lane-smb-r54-followups-1.md topics paths and remediation-r55 (lead extension V4-15: layout paragraph.rs, cjk.rs, sentinels.rs; harness-view text.rs)",
+    "lane_file": "hsk-studio-r54-followups-1.json notes.touched_beyond_brief, notes.lead_decisions[3]",
+    "rounds": "STUDIO-R55 FAIL_V1 @ce644577 (behaviour, not scope); STUDIO-R56 PASS_V2 @091c4d1b ... STUDIO-R59 PASS_V5 @c4d06841"
+   }
+  },
+  {
+   "lane_id": "SMB-LAYOUT-ENTRY-TEXT-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs",
+     "change": "one NoteHost literal gains resolved_text: None (:1121)",
+     "commit": "1aa6f9a6"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/index_contract.rs",
+     "change": "capture_index_mark reads the selection through derive_text and refuses a selection whose markers have no value; doc lines",
+     "commit": "62f61621"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/sentinels.rs",
+     "change": "resolve folded into one marker value rule, marker_value with MarkerPlace",
+     "commit": "1cb60ec3"
+    }
+   ],
+   "why": "longdoc_pdf.rs: a new public NoteHost field stops that literal compiling. index_contract.rs: a V4-06 site of F-R55-5 found by the sweep, which would have blocked READY. sentinels.rs: the lead ruled one marker value rule, not two pinned equal, after SMB-R54-FOLLOWUPS-1 (which held sentinels.rs) landed (lane notes.path_extensions).",
+   "verdict": "WAIVE",
+   "reason": "All three were lead-approved before the edit. The literal line is the minimum a new public field forces; the index_contract change fixes a found instance of the lane's own defect class; the sentinels fold removes a duplicated rule and was sequenced after the owning lane landed, so there was no concurrent ownership.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "1aa6f9a6",
+     "62f61621",
+     "1cb60ec3",
+     "091c4d1b"
+    ],
+    "brief": "lane-smb-layout-entry-text-1.md topic paths",
+    "lane_file": "hsk-studio-layout-entry-text-1.json notes.path_extensions, notes.lead_decisions[0]",
+    "rounds": "STUDIO-R56 PASS_V1 @091c4d1b ... STUDIO-R58 PASS_V3 @89bbf702"
+   }
+  },
+  {
+   "lane_id": "SMB-PR-EDIT-FOOTPRINT-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/timeline.rs",
+     "change": "plan_move calls the new private helper carry_across_move (exhaustive destructuring, no `..`), carrying the retime record that was lost; module doc lines",
+     "commit": "89551073"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/tests/viewer_timeline_move_keeps.rs",
+     "change": "new test file (+282), asked for by the lead",
+     "commit": "66e85dad"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/timeline/rate.rs",
+     "change": "doc comment only: the Speed/Duration form is not wired; the record holds both options. Not on the HANDOFF list; made on the lead's message (lane notes.stale_comment)",
+     "commit": "41d0e0da"
+    }
+   ],
+   "why": "A clip moved through the Viewer lost its retime record with no report (red 66e85dad); the lead approved plan_move after the lane's finding (lane notes.lead_approved_extension).",
+   "verdict": "WAIVE",
+   "reason": "Fixes a silent data loss the lane found; lead-approved before the edit; no GUI line. Ownership note: carry_across_move has no `..`, so every later lane that adds a StudioClip field must also edit harness-view view/timeline.rs. That tripwire is intended, but future briefs that add a StudioClip field should name this file as owned.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "66e85dad",
+     "89551073",
+     "41d0e0da"
+    ],
+    "brief": "lane-smb-pr-edit-footprint-1.md topic paths (pulse only)",
+    "lane_file": "hsk-studio-pr-edit-footprint-1.json notes.lead_approved_extension, notes.outside_owned_paths, notes.stale_comment",
+    "rounds": "STUDIO-R57 PASS_V1 @4ffe1b06 ... STUDIO-R59 PASS_V3 @c4d06841"
+   }
+  },
+  {
+   "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/toc_contract.rs",
+     "change": "generate_table_of_contents' heading decision reads placed_page_of and the one no-text rule; import and module doc",
+     "commit": "45c4cba9"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/endnotes.rs",
+     "change": "two GeneratedStory literals gain omitted: Default::default()",
+     "commit": "c9648315"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/lib.rs",
+     "change": "the toc re-export gains TocOmitted (not asked beforehand)",
+     "commit": "c9648315"
+    }
+   ],
+   "why": "toc_contract.rs is the F-R56-9 site; the new counter field forces the endnotes literals; a public field's type must be nameable (lane notes.paths_beyond_brief).",
+   "verdict": "WAIVE",
+   "reason": "toc_contract.rs was coordinator-approved and is the defect site; endnotes.rs is the minimum a new field forces; the TocOmitted export is one name in a re-export line of a file the brief lists for DESCRIPTOR, accepted by the lead afterwards. All in layout, the lane's crate.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "c9648315",
+     "fa9f42ca",
+     "45c4cba9",
+     "66c0e7c9"
+    ],
+    "brief": "lane-smb-layout-blank-line-lookups-1.md topic paths",
+    "lane_file": "hsk-studio-layout-blank-line-lookups-1.json notes.paths_beyond_brief, notes.lead_decisions[0]",
+    "rounds": "STUDIO-R57 PASS_V1 @4ffe1b06, STUDIO-R58 PASS_V2 @89bbf702"
+   }
+  },
+  {
+   "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-core/src/harness.rs",
+     "change": "Run::authored_composition delegating to the session (+6)",
+     "commit": "8db11f2f"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-core/src/import.rs",
+     "change": "an import records the current composition token entry (:298)",
+     "commit": "a263b90e"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/design/fig_import.rs",
+     "change": "the fig import records the token entry (+2)",
+     "commit": "a263b90e"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/vector/interop.rs",
+     "change": "the AI import records the token entry (+2)",
+     "commit": "a263b90e"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/vector.rs",
+     "change": "carries the stored token to Type and the report",
+     "commits": [
+      "8db11f2f",
+      "a263b90e"
+     ]
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/vector/path_text.rs",
+     "change": "shaped_glyphs takes self.composition_token() (one line)",
+     "commit": "a263b90e"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness/tests/import_psd.rs",
+     "change": "Opened.loss assertion narrowed to exactly one note named studio/composition_token.*",
+     "commit": "a263b90e"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness/tests/viewer_mask_package.rs",
+     "change": "same narrowing, exactly one composition token note",
+     "commit": "a263b90e"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-type/src/descriptor.rs",
+     "change": "the DESCRIPTOR text names @3, @2, @1 and the forced line break; unit test (F-R56-6)",
+     "commits": [
+      "9bdfb0d9",
+      "1940292c"
+     ]
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-session/src/sequence_records.rs",
+     "change": "the token entry joins the shared open, set and read check; folio_err -> pub(crate)",
+     "commit": "8edf0269"
+    }
+   ],
+   "why": "STU-TYP-130: every path that creates a document must record the token and every path that composes must read it; the DESCRIPTOR lives in descriptor.rs, not lib.rs; sequence_records.rs holds the shared entry check (lane notes.paths_beyond_brief; lead decision 2026-11-05T17:54:37Z).",
+   "verdict": "WAIVE",
+   "reason": "Lead-approved; no Cargo.toml change, no new edge. sequence_records.rs is named by the brief ('a new module or src/sequence_records.rs'); descriptor.rs is where the brief's 'type lib.rs DESCRIPTOR' actually lives; the harness-view files are 'what carries the token' to text.rs. The two narrowed harness assertions allow only the one named note with count 1, so the loss check is not opened wider; its cause (read_package notes every session-owned studio/* entry as Opaque) is stated as a gap outside the lane.",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "1894d7f7",
+     "8edf0269",
+     "391a9f6e",
+     "a9ed57da",
+     "8db11f2f",
+     "9bdfb0d9",
+     "a263b90e",
+     "1940292c"
+    ],
+    "brief": "lane-smb-type-authored-token-1.md topic paths",
+    "lane_file": "hsk-studio-type-authored-token-1.json notes.paths_beyond_brief, notes.lead_decisions[2], [4], [5]",
+    "rounds": "STUDIO-R57 PASS_V1 @4ffe1b06 ... STUDIO-R59 PASS_V3 @c4d06841"
+   }
+  },
+  {
+   "lane_id": "SMB-PR-ENTRY-REFERENCES-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/tests/viewer_inert_routing.rs",
+     "change": "new test file (+130), no harness-view source edit",
+     "commit": "ca698916"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/tests/inert_routing_mix.rs",
+     "change": "new test file (+179)",
+     "commit": "ca698916"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-session/src/source.rs",
+     "change": "one doc sentence on the token list",
+     "commit": "f845ad88"
+    }
+   ],
+   "why": "Requirement 4 needs proof that inert routing ids still play in the mix and the Viewer; the doc sentence states the new open behaviour (lane notes.paths_beyond_brief).",
+   "verdict": "WAIVE",
+   "reason": "Two test-only files and one doc sentence; no behaviour change in pulse or harness-view; the lead accepted them (2026-11-06T06:09:15Z). The lane is on the product branch (see handoff_corrections).",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "d47d8e82",
+     "ca698916",
+     "f845ad88",
+     "d73e656e",
+     "5b7be0f7",
+     "674adc04",
+     "a92b8d85"
+    ],
+    "brief": "lane-smb-pr-entry-references-1.md topic paths",
+    "lane_file": "hsk-studio-pr-entry-references-1.json notes.paths_beyond_brief, notes.lead_decisions[2]",
+    "rounds": "STUDIO-R57 PASS_V1 @4ffe1b06 ... STUDIO-R59 PASS_V3 @c4d06841"
+   }
+  },
+  {
+   "lane_id": "SMB-PR-NUDGE-1",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-pulse/src/timeline_edit.rs",
+     "change": "comment only: the ClipChange::TrackMove doc names plan_nudge_track instead of 'no planner does this' (:190)",
+     "commit": "64d44cf5"
+    }
+   ],
+   "why": "The doc became false when plan_nudge_track was added (lane notes.paths_beyond_brief; approved by the lead's message).",
+   "verdict": "WAIVE",
+   "reason": "Comment only; it makes a stale statement true. The lane is on the product branch (see handoff_corrections).",
+   "evidence": {
+    "certainty": "READ",
+    "commits": [
+     "8172b2c5",
+     "e530167d",
+     "097fc3e8",
+     "64d44cf5",
+     "b9a87c7b"
+    ],
+    "brief": "lane-smb-pr-nudge-1.md topic paths",
+    "lane_file": "hsk-studio-pr-nudge-1.json notes.paths_beyond_brief",
+    "rounds": "STUDIO-R57 PASS_V1 @4ffe1b06 ... STUDIO-R59 PASS_V3 @c4d06841"
+   }
+  }
+ ],
+ "beyond_brief_20261108": [
+  {
+   "lane_id": "SMB-AI-LIVE-EFFECTS-1",
+   "tree": "wt-studio-lanes/smb-pr-nudge-1",
+   "status": "READY_FOR_VALIDATION, on the product branch at 1e652818; no round has judged it (R60 not opened)",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/vector/envelope.rs",
+     "source": "rulings F4 PATH APPROVED",
+     "change": "expand_envelope refuses vector_envelope_live_filters while the layer has any live-filter stack (+6)",
+     "verdict": "CONFIRM",
+     "reason": "Additive typed refusal exactly as ruled; commit bebab80a.",
+     "certainty": "READ",
+     "state": "landed"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-core/src/action/commands/vector.rs; handshake-studio-assets/crates/hsk-studio-harness-view/src/view/commands/vector.rs",
+     "source": "found by this audit outside the brief; recorded in the lane file as ruling Q4 (notes 'commands')",
+     "change": "seven typed rows vector.live_filter_* and their decoders",
+     "verdict": "CONFIRM",
+     "reason": "Lead ruling Q4 named both files; additive rows; the action_records corpus count is computed, no pin changed; commit 8c75ded4.",
+     "certainty": "READ",
+     "state": "landed"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-TYPE-INDENT-SPACING-1",
+   "tree": "wt-studio-lanes/smb-r54-followups-1",
+   "status": "STOPPED (brief item 3 stop rule); commits from c232eaa5 on are marked unbuilt; bundled run not started",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/layout_export.rs:768-773",
+     "source": "rulings PATH APPROVED + lane paths_beyond_brief",
+     "change": "let mut out; out.loss.extend(il::type_style_composition_loss(&doc.styles))",
+     "verdict": "CONFIRM",
+     "reason": "Matches the approval to the line.",
+     "certainty": "READ",
+     "state": "committed, unbuilt"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/tests/composer_wiring.rs; handshake-studio-assets/crates/hsk-studio-interop-layout/tests/idml_composition.rs",
+     "source": "lane paths_beyond_brief (accepted by the lead)",
+     "change": "..Default::default() in literals",
+     "verdict": "CONFIRM",
+     "reason": "Both are in tests/ the brief owns; the minimum a new field forces.",
+     "certainty": "READ",
+     "state": "committed"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-layout/src/xref.rs; handshake-studio-assets/crates/hsk-studio-layout/src/find_change.rs; handshake-studio-assets/crates/hsk-studio-interop-layout/src/data_merge.rs; handshake-studio-assets/crates/hsk-studio-interop-layout/tests/id_prepress_merge_place.rs",
+     "source": "rulings F5 + lane paths_beyond_brief",
+     "change": "stale paragraph keys fixed, one red test each",
+     "verdict": "CONFIRM",
+     "reason": "Ruling F5 names exactly these sites, in the lane's crates.",
+     "certainty": "READ",
+     "state": "committed, unbuilt"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-interop-layout/src/folio_export.rs; handshake-studio-assets/crates/hsk-studio-interop-layout/src/lib.rs",
+     "source": "found by this audit; NOT recorded as beyond-brief",
+     "change": "new pub fn type_style_composition_loss and its export; lib.rs also exports merge_story_with_records",
+     "verdict": "CONFIRM_RECORD",
+     "reason": "The approved layout_export.rs line calls this function and the approved data_merge.rs fix needs the export, so both follow from approvals; the brief owns only interop-layout idml_composition.rs, descriptor.rs and tests. Record them in notes.paths_beyond_brief.",
+     "certainty": "READ",
+     "state": "committed (2e3e6cc0, 7f4bbee7, 3633856a), partly unbuilt"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-core/src/action/commands/layout.rs; handshake-studio-assets/crates/hsk-studio-harness-view/src/view/commands/layout.rs",
+     "source": "found by this audit; NOT recorded as beyond-brief (capabilities_done[4] mentions the 'drive row decoder key + patch text')",
+     "change": "layout.style.edit_style row text names composition; the decoder accepts the composition key",
+     "verdict": "CONFIRM_RECORD",
+     "reason": "Without the decoder key the brief's EditStyle composition patch cannot be reached through the typed command; ruling F6 rules on its merge semantics, so the lead knew the path. Two additive lines. Record them.",
+     "certainty": "READ",
+     "state": "committed (bc6a5afb, c7df9be8, 4b762334), unbuilt"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-SCORE-EFFECTS-6",
+   "tree": "wt-studio-lanes/smb-pr-retime-output-1",
+   "status": "held",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness/tests/harness_drive_audio.rs",
+     "source": "rulings F2 PATH APPROVED",
+     "change": "\"waveform.noise_reduce\" in SLICE_ROWS; :403 template reverb -> flux_capacitor",
+     "verdict": "CONFIRM",
+     "reason": "One row line as approved; the template change is ruling F2's named fix. Commits 04eb03d9, 2e8c8829.",
+     "certainty": "READ",
+     "state": "committed"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness/tests/audio_batch.rs:235",
+     "source": "rulings F1",
+     "change": "filter_kind reverb -> flux_capacitor",
+     "verdict": "CONFIRM",
+     "reason": "Named by review F1.",
+     "certainty": "READ",
+     "state": "committed"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/audio_session.rs; handshake-studio-assets/crates/hsk-studio-harness-view/src/view/audio_session/playback.rs; handshake-studio-assets/crates/hsk-studio-harness-view/src/view/timeline/export_media.rs",
+     "source": "found by this audit: the brief says 'No other harness-view path'; the lane records them under notes.gap_rulings_applied, not as beyond-brief",
+     "change": "one effect-state budget checked in build_bus_stream; program_stream and Export Media record noise-print recomputes (+57/-12)",
+     "verdict": "CONFIRM_RECORD",
+     "reason": "Directed by ruling F4 ('checked in build_bus_stream so mixer, Viewer::bus_stream, playback, mixdown, stems and Export Media share it') and the Gaps ruling. export_media.rs is also an owned path of SMB-DELIVERY-QUEUE-1; the rulings already order DELIVERY-QUEUE to rebase after this lane. Record the three paths as beyond-brief.",
+     "certainty": "READ",
+     "state": "committed"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-DELIVERY-QUEUE-1",
+   "tree": "wt-studio-lanes/smb-r53-followups-1",
+   "status": "FIX_FIRST rulings 2026-11-11 open; one uncommitted edit in tests/delivery_queue.rs (an owned path)",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/commands.rs",
+     "source": "PATHS APPROVED (1)",
+     "change": "\"export\" | \"delivery\" => export::run (one line)",
+     "verdict": "CONFIRM",
+     "reason": "Exactly the one adjacent arm.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/commands/export.rs",
+     "source": "PATHS APPROVED (1)",
+     "change": "delivery.* and export.recipe_* decoder arms (+70)",
+     "verdict": "CONFIRM",
+     "reason": "Decoders only, on the same dispatch path as export.run.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-core/src/manual.rs",
+     "source": "PATHS APPROVED (2)",
+     "change": "one CommandSpec row deliver",
+     "verdict": "CONFIRM",
+     "reason": "One row.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-session/tests/entry_references.rs",
+     "source": "PATHS APPROVED (3)",
+     "change": "NOT_APPLICABLE 18 -> 19 with export_recipes",
+     "verdict": "CONFIRM",
+     "reason": "Count = origin + 1 as ruled; recheck the count at rebase if another entry lands first.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-session/src/lib.rs",
+     "source": "PATHS APPROVED (4)",
+     "change": "mod export_recipes; pub use EXPORT_RECIPES_ENTRY",
+     "verdict": "CONFIRM",
+     "reason": "Two lines.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-core/src/harness/export_recipes.rs (new); harness.rs pub mod line; tests/action_records.rs scan list",
+     "source": "PATHS APPROVED (5)",
+     "change": "Run::set_export_recipes (+56), one pub mod line, include_str of the new file in SOURCE",
+     "verdict": "CONFIRM",
+     "reason": "As ruled, scanned by action_records.",
+     "certainty": "READ"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-DS-COMPONENTS-AUTHOR-1",
+   "tree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "status": "review_ready; FIX_FIRST rulings 2026-11-11 not yet applied (tree clean)",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/vector/style.rs:~310-313",
+     "source": "rulings PATH APPROVED + lane paths_beyond_brief",
+     "change": "refs_ok also accepts a node carrying only component_property_references",
+     "verdict": "CONFIRM",
+     "reason": "Additive acceptance in the function whose :291-300 the brief owns; commit e0bb04d2.",
+     "certainty": "READ",
+     "state": "committed"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/layers.rs (delete path, duplicate path)",
+     "source": "rulings F5, F10 PATH APPROVED",
+     "change": "not edited yet",
+     "verdict": "CONFIRM_COORDINATE",
+     "reason": "The approval stands. SMB-LAYOUT-PLACE-1 adds an early return at the top of Viewer::delete_layer for graphic-frame layers (a86c152d, not landed). Whichever lane lands second keeps both, and the component and instance record drop must not sit after that early return if a graphic-frame layer can carry component records (UNVERIFIED whether it can).",
+     "certainty": "READ for the approval and tree state; UNVERIFIED for the interaction",
+     "state": "not edited"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/design/auto_layout.rs al_commit",
+     "source": "rulings F5 PATH APPROVED",
+     "change": "not edited yet",
+     "verdict": "CONFIRM",
+     "reason": "The brief excluded it only while SMB-AI-LIVE-EFFECTS-1 held it; that lane has landed (1e652818).",
+     "certainty": "READ",
+     "state": "not edited"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-R60-FOLLOWUPS-1",
+   "tree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "status": "build (taken over 2026-11-11T07:28Z)",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness/tests/layout_persist.rs:191-216",
+     "source": "rulings PATH APPROVED",
+     "change": "the stale entry is built directly as a quarantined package entry naming page-9; still asserts refused, no step, kept byte for byte",
+     "verdict": "CONFIRM",
+     "reason": "Keeps the claim as ruled. The delete-then-undo coverage it drops is now in the lane's new r60_layout_followups.rs (r60_b9_undo_restores_the_page_and_its_binding_together and two more).",
+     "certainty": "READ",
+     "state": "committed"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness/tests/layout_pdf_host.rs:232-234",
+     "source": "rulings PATH APPROVED",
+     "change": "mutates_authority asserted true for layout.open only",
+     "verdict": "CONFIRM",
+     "reason": "Exactly as ruled (STU-AUT-147).",
+     "certainty": "READ",
+     "state": "committed"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-LAYOUT-PLACE-1",
+   "tree": "wt-studio-lanes/smb-id-toc-persist-1",
+   "status": "REVIEW_READY, not landed",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/layout_export.rs (link gate ~:561, imports :72-77, 'placements' key, module docs :49-70)",
+     "source": "rulings F2 PATH APPROVED + lane paths_beyond_brief",
+     "change": "gate right after preflight; NoAssets replaced by LayoutAssets; summary key",
+     "verdict": "CONFIRM",
+     "reason": "Matches F2. The module-doc hunk runs :49-70, a few lines past the brief's :52-57, docs only. SMB-TYPE-INDENT-SPACING-1 edits the same file at :768-773: different hunks; the second to land rebases.",
+     "certainty": "READ",
+     "state": "committed (a2e66370 and earlier)"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/place.rs; handshake-studio-assets/crates/hsk-studio-harness-core/src/action/commands/asset.rs; handshake-studio-assets/crates/hsk-studio-harness-view/src/view/mod.rs",
+     "source": "lane paths_beyond_brief",
+     "change": "place.rs internals beyond the listed lines; two rows where the brief says one (asset.fit and document.submit_layout_and_entry); one mod line",
+     "verdict": "CONFIRM",
+     "reason": "Same files the brief names; the second row is required by the action_records corpus coverage.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/layers.rs:182-186",
+     "source": "found by this audit; NOT recorded as beyond-brief",
+     "change": "delete_layer returns delete_graphic_frame for a graphic-frame layer (+4)",
+     "verdict": "CONFIRM_RECORD",
+     "reason": "Directed by the ruling 'Deleting a frame layer drops its frame record in the same undo step' and the common rule; tested by deleting_a_frame_layer_drops_its_frame_record_in_one_undo_step (one step; undo and redo restore both). Record it, and coordinate with SMB-DS-COMPONENTS-AUTHOR-1 F5/F10 (same function).",
+     "certainty": "READ",
+     "state": "committed a86c152d"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-GUI-FRAME-1",
+   "tree": "wt-studio-lanes/smb-pr-entry-references-1",
+   "status": "READY_FOR_VALIDATION, on the product branch; no round has judged it",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-native-host/tests/gui_compose.rs",
+     "source": "lane paths_beyond_brief",
+     "change": "SMB-VK-UI-PASS-1's paint-order assertion generalised to the frame's lists (708caba6)",
+     "verdict": "CONFIRM",
+     "reason": "The lead asked for the bands inside compose, so the old 4-list assertion would be false; the new one still pins each painted list's length and order.",
+     "certainty": "READ"
+    },
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-native-host/src/gui/chrome.rs (new)",
+     "source": "lane paths_beyond_brief",
+     "change": "new band view module (+426)",
+     "verdict": "CONFIRM",
+     "reason": "The brief allows 'or equivalent module files' for new GUI modules.",
+     "certainty": "READ"
+    }
+   ]
+  },
+  {
+   "lane_id": "SMB-WEB-SITE-1",
+   "tree": "wt-studio-lanes/smb-sentinels-native-1",
+   "status": "review; lane file not updated since 2026-11-08T09:49Z",
+   "paths": [
+    {
+     "path": "handshake-studio-assets/crates/hsk-studio-harness-view/src/view/job_admission.rs; handshake-studio-assets/crates/hsk-studio-harness-view/src/view/web.rs",
+     "source": "found by this audit: lane notes.beyond_brief_paths says 'none', written before commit 606121aa (2026-11-11 07:51 +0100)",
+     "change": "Viewer::job_binding() pub(in crate::view) accessor (+6); web commands bind the viewer's job port before every command (+4)",
+     "verdict": "CONFIRM_RECORD",
+     "reason": "Required by the common ruling 'every export is admitted through the Viewer's bound JobPort' (R60 probe j3); additive and module-private. The brief lists no harness-view path, so the lane must record both paths and the lead's approval.",
+     "certainty": "READ",
+     "state": "committed 606121aa, not landed"
+    }
+   ]
+  }
+ ],
+ "not_judged": [
+  "SMB-WEB-HOST-1 notes.beyond_brief_paths: dispatched 2026-11-07, outside the 2026-11-08 set asked for.",
+  "SMB-DEVELOP-COMMANDS-1, SMB-MOTION-COMMANDS-2, SMB-PARSER-HOSTILE-1, SMB-VK-UI-PASS-1: 2026-11-08 lane files with no beyond-brief key and no PATH APPROVED ruling; their trees were not diffed."
+ ],
+ "handoff_corrections": [
+  "HANDOFF operator-items says SMB-PR-ENTRY-REFERENCES-1 and SMB-PR-NUDGE-1 are not on the product branch yet: both are (a92b8d85 and b9a87c7b are ancestors of origin/codex/handshake-studio-assets at 1e652818; READ).",
+  "SMB-PR-EDIT-FOOTPRINT-1 also changed a doc comment in harness-view src/view/timeline/rate.rs (41d0e0da, on the lead's message); not on the HANDOFF list; judged WAIVE above."
+ ],
+ "summary": {
+  "listed_lanes": 10,
+  "waive": 10,
+  "revert_needed": 0,
+  "listed_lane_verdicts": {
+   "SMB-PR-SEQUENCE-PRESETS-1": "WAIVE",
+   "SMB-PR-RETIME-HOLD-1": "WAIVE",
+   "SMB-PR-MERGE-SYNC-1": "WAIVE",
+   "SMB-R54-FOLLOWUPS-1": "WAIVE",
+   "SMB-LAYOUT-ENTRY-TEXT-1": "WAIVE",
+   "SMB-PR-EDIT-FOOTPRINT-1": "WAIVE",
+   "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1": "WAIVE",
+   "SMB-TYPE-AUTHORED-TOKEN-1": "WAIVE",
+   "SMB-PR-ENTRY-REFERENCES-1": "WAIVE",
+   "SMB-PR-NUDGE-1": "WAIVE"
+  },
+  "path_approvals_20261108": "Every PATH APPROVED ruling and every recorded beyond-brief path of the 2026-11-08 lanes matches the edit made, or is approved and not yet used. No revert.",
+  "to_record": [
+   "SMB-TYPE-INDENT-SPACING-1: interop-layout src/folio_export.rs and src/lib.rs; harness-core src/action/commands/layout.rs; harness-view src/view/commands/layout.rs",
+   "SMB-SCORE-EFFECTS-6: harness-view src/view/audio_session.rs, audio_session/playback.rs, timeline/export_media.rs",
+   "SMB-LAYOUT-PLACE-1: harness-view src/view/layers.rs delete_layer",
+   "SMB-WEB-SITE-1: harness-view src/view/job_admission.rs and src/view/web.rs (the lane note says none)"
+  ],
+  "coordination": [
+   "harness-view view/layers.rs delete_layer: SMB-LAYOUT-PLACE-1's early return (committed) and SMB-DS-COMPONENTS-AUTHOR-1 F5/F10 (approved, not edited); the second to land keeps both record drops.",
+   "harness-view view/layout_export.rs: SMB-LAYOUT-PLACE-1 and SMB-TYPE-INDENT-SPACING-1 edit different hunks.",
+   "harness-view view/timeline/export_media.rs: SMB-SCORE-EFFECTS-6 first, then SMB-DELIVERY-QUEUE-1 (already ruled)."
+  ],
+  "future_briefs": "A lane that adds a StudioClip field must also own harness-view src/view/timeline.rs carry_across_move (no `..` by design since SMB-PR-EDIT-FOOTPRINT-1).",
+  "certainty": "READ for every diff, commit, round verdict and file cited; UNVERIFIED only where marked (whether a graphic-frame layer can carry component records)."
+ }
+}

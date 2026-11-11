@@ -23335,7 +23335,13 @@
     "plan_t_reinspection": "the lead's own 're-present past 5%' condition is replaced by a cargo-specialist check: a candidate whose path, owner and older_copies rule are unchanged stays inside the Operator's 2026-11-11 approval of plan T, whatever its fresh size.",
     "vulkan_o1_o10": "already decided 2026-11-07 (direction.blocker_decisions_20261107); the operator-items line was stale."
    },
-   "still_operator_by_hard_rule": "Not questions but rule-bound acts, kept off the Operator's plate until needed: deleting worktrees and branches and any NEW cargo removal list (root CLAUDE.md: Operator approves each exact list); legal checks (os-encode); Windows settings (Search and Defender exclusions); oracle work at the vendor apps. These are listed as held, not asked."
+   "still_operator_by_hard_rule": "Not questions but rule-bound acts, kept off the Operator's plate until needed: deleting worktrees and branches and any NEW cargo removal list (root CLAUDE.md: Operator approves each exact list); legal checks (os-encode); Windows settings (Search and Defender exclusions); oracle work at the vendor apps. These are listed as held, not asked.",
+   "waivers_decided": {
+    "at": "2026-11-11T07:51:05Z",
+    "by": "scope-audit agent, research/waivers-20261111-global-scope-005.json (decision under the Operator's 2026-11-11 instruction)",
+    "result": "All 10 listed lanes WAIVE, no revert: each edit was needed for a brief item, round finding or lead close-out, and is additive, crate-internal, a test or a comment; R55-R59 passed each lane with the edits in. Also waived: SMB-PR-EDIT-FOOTPRINT-1's doc comment in harness-view view/timeline/rate.rs (41d0e0da). The 2026-11-08 PATH APPROVED rulings match the edits made.",
+    "follow_ups": "Four in-flight lanes record their ruled-but-unrecorded paths (TYPE-INDENT-SPACING, SCORE-EFFECTS-6, LAYOUT-PLACE, WEB-SITE). LAYOUT-PLACE-1 and DS-COMPONENTS-AUTHOR-1 both edit harness-view layers.rs delete_layer: the second to land keeps both lanes' record drops. EDIT-FOOTPRINT's carry_across_move destructures StudioClip without `..` on purpose: a brief that adds a StudioClip field lists harness-view view/timeline.rs as an owned path."
+   }
   }
  },
  "round_R45": {

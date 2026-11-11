@@ -567,7 +567,7 @@ FINAL MESSAGE, 12 lines or fewer: shas, exact test counts and exit codes, what i
 
 **Readings the lead took, overrulable:** listed in the `state` topic.
 
-**Waiver of paths outside briefs (GLOBAL-SCOPE-005):**
+**Waiver of paths outside briefs (GLOBAL-SCOPE-005), decided 2026-11-11: all WAIVE (research/waivers-20261111-global-scope-005.json):**
 - SMB-PR-SEQUENCE-PRESETS-1: folio `composition.rs`.
 - SMB-PR-RETIME-HOLD-1: pulse `src/transition.rs`, `src/multicam.rs`, `src/timeline_edit.rs`, `tests/multicam_flatten.rs`; session `tests/retime_commit.rs`; `rate.rs`.
 - SMB-PR-MERGE-SYNC-1: pulse `src/timeline_edit.rs`, `src/annotate.rs`.
@@ -578,7 +578,7 @@ FINAL MESSAGE, 12 lines or fewer: shas, exact test counts and exit codes, what i
 - SMB-TYPE-AUTHORED-TOKEN-1: harness-core `harness.rs`, `import.rs`; harness-view `fig_import.rs`, `vector/interop.rs`, `vector.rs`, `vector/path_text.rs`; harness tests `import_psd.rs`, `viewer_mask_package.rs`; type `descriptor.rs`; session `sequence_records.rs`.
 - Not on the product branch yet: SMB-PR-ENTRY-REFERENCES-1: harness-view `tests/viewer_inert_routing.rs`, pulse `tests/inert_routing_mix.rs`, a doc line in session `src/source.rs`. SMB-PR-NUDGE-1: a comment in pulse `src/timeline_edit.rs`.
 
-**Cleanup list, for approval (nothing has been deleted):** registered scratch worktree `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw`; probe trees `validator-r53-probe`, `validator-r54-probe`, `validator-r55-probe`, `validator-r56-probe`; C: target `lanes/smb-pr-sequence-presets-1-red` and owner folder; worktrees and targets of PASS lanes including SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-SESSION-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-LAYOUT-ENTRY-TEXT-1; local ref `backup/smb-pr-track-display-1-pre-fold`. Later, once each paused lane has landed on the product branch: its GitHub backup branch, plus `lane/smb-pr-media-markers-1-uncommitted` for media markers (`direction.backup_20261105`).
+**Cleanup list (held by the hard rule on deleting worktrees and branches; not asked; nothing has been deleted):** registered scratch worktree `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw`; probe trees `validator-r53-probe`, `validator-r54-probe`, `validator-r55-probe`, `validator-r56-probe`; C: target `lanes/smb-pr-sequence-presets-1-red` and owner folder; worktrees and targets of PASS lanes including SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-SESSION-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-LAYOUT-ENTRY-TEXT-1; local ref `backup/smb-pr-track-display-1-pre-fold`. Later, once each paused lane has landed on the product branch: its GitHub backup branch, plus `lane/smb-pr-media-markers-1-uncommitted` for media markers (`direction.backup_20261105`).
 
 **Spec owner:** SD-31..SD-52 and D7A-01..17 PROPOSED. MT proof commands name targets that do not exist (F-R55-3, F-R56-13).
 

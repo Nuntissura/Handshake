@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T07:03:21Z",
+ "updated_at": "2026-11-11T07:51:05Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -9,7 +9,9 @@
   "Every export is admitted through the Viewer's bound JobPort before its first byte, with typed overloaded, canceled and stale outcomes, using the as_export_job pattern at harness-view view/layout_export.rs:543 (R60 attempt-2 probe class export-job-not-admitted-jobport).",
   "lane-check.sh step 0 now also runs tools/registry-sync.py in check mode and exits 70 on registry drift: a new registry dependency needs a dep-requests line and a lead steward sync before landing.",
   "Lanes land one at a time on the lead's RELEASED; a READY claim cites the lane's own bundled and per-sha logs.",
-  "A deleted object's records are removed in the same undo step as the object, and undo restores both (rule set for parented pages, frame layers and component definitions)."
+  "A deleted object's records are removed in the same undo step as the object, and undo restores both (rule set for parented pages, frame layers and component definitions).",
+  "harness-view layers.rs delete_layer is edited by SMB-LAYOUT-PLACE-1 (frame records, early return) and SMB-DS-COMPONENTS-AUTHOR-1 (component and instance records): the lane that lands second keeps BOTH lanes' record drops in the same undo step, with both lanes' tests green.",
+  "Record every file changed outside the brief's owned paths under notes.beyond_brief_paths, including files changed under a lead ruling (waiver audit 2026-11-11)."
  ],
  "lanes": {
   "SMB-AI-LIVE-EFFECTS-1": [
