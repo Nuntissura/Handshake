@@ -6574,6 +6574,71 @@
       "next_proof": "Resolve the authenticated applicability SELECT database error without changing public denials or replaying the spent original MT022 or canary attempts."
     },
     {
+      "candidate": "first-owner-workspace-create-mounted-canary-revision168-20261111-01",
+      "scope_refs": [
+        "MT-172.json#/picotask_plan",
+        "MT-022.json",
+        "MT-139.json"
+      ],
+      "state": "SOURCE_PUBLISHED_COMPILE_QUALIFIED_CASE06_FAILED_SPENT",
+      "source_head": "a0afb8050303b3803a362b59f1643c033ee10d44",
+      "source_tree": "e1a59f850e63e0e3580cd0208174c568f17edf9e",
+      "independent_publication": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-member-policy-successor-info-enrollment-runtime-preparation-20261111-02/published-schema-info-enrollment-independent-review-01.json",
+        "bytes": 2057,
+        "sha256": "1cb114846edcbf60c9f6c80dc17b0dbdb90268d9f44a7b6d2287e3ea6c9788ee"
+      },
+      "compile_feedback": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-member-policy-successor-info-enrollment-core-codegen-20261111-01/result.json",
+        "bytes": 3387,
+        "sha256": "c9a0556e53a5acec5eb1a073e130c90fe739c104d8d62ce66bd4caba35001e0a"
+      },
+      "prior_canary_ref": "WP-KERNEL-012/MT-212/wsc-01/result.json",
+      "wrapper_failure": {
+        "validator_turn": "01a1ca49-f39f-7861-8130-15e1be98dd61",
+        "outer_exit": 1,
+        "reason": "Missing --expected-binding-sha256 flag. Rejected before main; no test or run root."
+      },
+      "canary": {
+        "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "turn": "01a1ca4c-ff3f-7b20-b14a-09163950c248",
+        "selector": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "test_exit": 101,
+        "outer_exit": 1,
+        "observed_phase": "claim_write",
+        "observed_error_class": "database_error",
+        "settlement_inference": false,
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/s168-06/result.json",
+          "bytes": 7445,
+          "sha256": "73126c3639b6e741d287259dee98947245deafa9682116d130ad5f2ec3f85601"
+        },
+        "workspace_observation": {
+          "ref": "WP-KERNEL-012/MT-212/s168-06/workspace-observation.json",
+          "bytes": 165,
+          "sha256": "1f2f8b46d063c54eb0604d5a0e2ed3fb28bbec0980239625a997d86dd5690935"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/s168-06/released.json",
+          "bytes": 509,
+          "sha256": "73f7526f3efbd6281ab0284a7e263b33ae645be51511423172b400ee91ca1bf7"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/MT-212/s168-06/postguards.json",
+          "bytes": 1995,
+          "sha256": "81787acdbd13c79cbab3c981588aaea28fd51c549eb164b938da70d80091ef37"
+        },
+        "fixture": {
+          "ref": "WP-KERNEL-012/MT-212/s168-06/fixture-final.json",
+          "bytes": 222,
+          "sha256": "dc4d3b60218f0a93159b9a01b5f55da2ca413ad557113851e86593255fca4f16"
+        }
+      },
+      "remaining_case_state": "Case 01 through Case 05 did not start; stopped on first failed body.",
+      "original_acceptance": "OPEN",
+      "next_proof": "Repair the engine-incompatible first-owner claim guard and explicitly forward original operation scope without changing the protected contract. Preserve the prior failed applicability and claim_write cases and original MT022 ordinals. Separately review changed source and admission; no retry is granted."
+    },
+    {
       "candidate": "mt196-operator-chat-offline-component-repaired-20261111-01",
       "original_contract_ref": "MT-196.json",
       "state": "PUBLISHED_COMPONENT_PASS",
