@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T06:59:24Z",
+ "updated_at": "2026-11-11T07:03:21Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -80,7 +80,8 @@
    "F7: the text entry compacts superseded records (latest per key) so redraws do not hit the 256-record cap; refuse typed only when live records exceed it.",
    "F8 (after the rebase on 1e652818): copies carry live-filter stacks; if a kind cannot be carried, record a typed loss note, never a silent drop.",
    "F9: refusal codes name the reason, not the op.",
-   "F10: PATH APPROVED view/layers.rs duplicate path only: duplicating an instance creates an instance bound to the same main (with its overrides); if that cannot be done in this lane, refuse typed duplicate_instance_unsupported, never a silent plain group."
+   "F10: PATH APPROVED view/layers.rs duplicate path only: duplicating an instance creates an instance bound to the same main (with its overrides); if that cannot be done in this lane, refuse typed duplicate_instance_unsupported, never a silent plain group.",
+   "F1 form (2026-11-11, builder's question): no harness-core HistoryStep change (adding fields broke other lanes' struct literals before). Binding states are keyed by (layer, content) and never pruned by later writes in a session, so every undo and redo position finds its binding; states whose layer is absent are pruned when a document is opened (open clears history); total states are bounded at the instance cap 4096, with a typed refusal before writing."
   ],
   "SMB-MOTION-COMMANDS-2": [
    "ADDED ITEM (R60 attempt-2 probe, SMB-MOTION-COMMANDS-1): add_at_current with a value on an anchor without a stream changes the rendered scene (harness-core motion_commands.rs:1738) against STU-MOT-038: refuse typed or apply as the clause says; set_parent's choice made explicit. Red tests first."
