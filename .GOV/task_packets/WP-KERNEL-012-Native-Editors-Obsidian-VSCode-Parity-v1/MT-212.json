@@ -6471,6 +6471,107 @@
       },
       "next_proof": "Acquire and independently qualify the exact published Core libtest before one diagnostic canary. Preserve the original MT022 failures and all runtime obligations.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "mt196-operator-chat-run-route-native-component-verdicts-20261111-01",
+      "original_contract_ref": "MT-196.json",
+      "state": "CASE01_PASS_CASE02_FAILED_SPENT",
+      "source_head": "393b97f997def5517e88916e74021ce9183a6e32",
+      "cases": [
+        {
+          "case": "MT196-OPERATOR-CHAT-RUN-ROUTE-COMP-001",
+          "state": "COMPONENT_PASS",
+          "test_exit": 0,
+          "outer_exit": 0,
+          "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "turn": "01a1c978-eae9-75c3-8fc6-37f99ba5685c",
+          "result": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-runtime-20261111-01-case01/result.json",
+            "bytes": 6463,
+            "sha256": "c7dc6c1429f6837888f14ae8959052b29921038e53ae538b6c6316075d86b520"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-runtime-20261111-01-case01/case-completion.json",
+            "bytes": 11264,
+            "sha256": "57637bf4202a5c95a79b2383c44b7ff3bfe0141e2968a02326df0c377304385b"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-runtime-20261111-01-case01/released.json",
+            "bytes": 586,
+            "sha256": "66ea97377fa62c5a65db4ac53662627f0557bdb1103690d0d1bedec614103244"
+          },
+          "scope": "Actual RUN reachability, typed Engine Profile audit/launch and fetched transcript via recording backend."
+        },
+        {
+          "case": "MT196-OPERATOR-CHAT-RUN-ROUTE-COMP-002",
+          "state": "FAILED_SPENT",
+          "test_exit": 101,
+          "outer_exit": 1,
+          "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "turn": "01a1c986-abc0-7eb2-807a-0f9a9e760c5b",
+          "result": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-runtime-20261111-01-case02/result.json",
+            "bytes": 7373,
+            "sha256": "4d260db66c8168434b7c4a9bf130822c0abef3b49c545ac82e218a45e4bcddca"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-runtime-20261111-01-case02/released.json",
+            "bytes": 1591,
+            "sha256": "7eb8f7cf89648e9ccb6e3132faa145d2f2744b83d0927e8d1121fc4525e8b2dd"
+          },
+          "failure": "RUN opened the tab. The offline fixture did not mount Operator Chat and the first stable surface author ID was absent. No case-completion manifest."
+        }
+      ],
+      "original_acceptance": "OPEN",
+      "next_proof": "Repair the offline fixture in its test and qualify the changed component; retain the passed first case. Real registry and original live docked/detached launch, Vulkan and Palmistry remain open."
+    },
+    {
+      "candidate": "first-owner-workspace-create-mounted-canary-20261111-01",
+      "original_contract_ref": "MT-022.json",
+      "state": "WARM_ACQUISITION_QUALIFIED_CANARY_FAILED_SPENT",
+      "source_head": "393b97f997def5517e88916e74021ce9183a6e32",
+      "warm_acquisition": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-create-canary-warm-acquisition-20261111-01/result.json",
+        "bytes": 3361,
+        "sha256": "0c0815a2bc09b9f6a05d47697470163d0850a4b46cd048f1f5bee22ef6086d9a"
+      },
+      "canary": {
+        "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "turn": "01a1c98b-7fc9-7a52-adf0-79a13b9f00d0",
+        "selector": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "test_exit": 101,
+        "outer_exit": 1,
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/wsc-01/result.json",
+          "bytes": 7328,
+          "sha256": "4b62e4a160230b48947d967e730916aa4f31a9cd59ff0f3715b6d361745d26d0"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/wsc-01/released.json",
+          "bytes": 512,
+          "sha256": "c795dbddd3a7acd42615299bbebdf0db902c494274663284e1b0e944c8bef3d7"
+        },
+        "workspace_observation": {
+          "ref": "WP-KERNEL-012/MT-212/wsc-01/workspace-observation.json",
+          "bytes": 167,
+          "sha256": "51bbbd2cc328efcee5b06c30661abbb0fe95fb7442fbae7604bb04ce3cb7fb96"
+        },
+        "private_job": {
+          "ref": "WP-KERNEL-012/MT-212/wsc-01/private-job-final.json",
+          "bytes": 233,
+          "sha256": "8d3a15c998d8df1dbb90615200554e2d9f2eeebf923d12abae16d1c13e4a7f7e"
+        },
+        "fixture": {
+          "ref": "WP-KERNEL-012/MT-212/wsc-01/fixture-final.json",
+          "bytes": 221,
+          "sha256": "1eb52eae7d3c92d350833bea3e077853e51e90de7af71e9e7ac3c585ab53476d"
+        },
+        "observed_phase": "applicability",
+        "observed_error_class": "database_error",
+        "settlement_inference": false
+      },
+      "original_acceptance": "OPEN",
+      "next_proof": "Resolve the authenticated applicability SELECT database error without changing public denials or replaying the spent original MT022 or canary attempts."
     }
   ],
   "picotask_plan": {
