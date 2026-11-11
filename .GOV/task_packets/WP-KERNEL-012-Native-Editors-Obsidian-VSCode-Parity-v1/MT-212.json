@@ -5827,6 +5827,86 @@
           }
         }
       ]
+    },
+    {
+      "candidate": "gui-production-lane-diagnostics-navigation-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILE_FEEDBACK_QUALIFIED_PUBLISHED_ORIGINAL_RUNTIME_PENDING",
+      "pico_refs": [
+        "GUI-WP012-172-MODELS"
+      ],
+      "original_contract_refs": [
+        "MT-175.json",
+        "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json"
+      ],
+      "source_author": "/root/gui_live_refresh_fixture",
+      "source_reviewer": "/root/refresh_repair_codecheck",
+      "capture_control_reviewer": "/root/lookup_warm_same_codecheck",
+      "published_head": "4b5d3ec499335a79c6ac5532ab29b716b902b844",
+      "published_tree": "fb227a939d60391e5193bcd00e5a320fc57d5c1e",
+      "parent": "84817886a8c650625832b68917b3c33a8038f273",
+      "published_git_blob": "2b757d152d693a7d00e7460f0d81521847bf0fcc",
+      "published_only_path": "src/frontend/handshake_native/tests/test_argus_production_socket_live.rs",
+      "live_candidate_raw_sha256": "e619df7352a8bd2460cd5186692b2185339c5ede29511e7f80816665876ce02f",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "e7125741e9eafd984adc2f38ee40fa9395fbe945bdd5a968be02f6687725b3c6"
+      },
+      "working_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-preparation-20261111-01/working-tree-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "84b006df8b0da72002e35a8e6d08b355d7efc99b4a35dbb3b7cbfcbeda95097d"
+      },
+      "metadata_binding": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-preparation-20261111-01/gui-production-refresh-native-metadata-binding-admitted-01.json",
+        "bytes": 19694,
+        "sha256": "26002add0ed85e341c4165744f17bcd992d40e85eff58478c7811a790de66c09"
+      },
+      "metadata_feedback": {
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/result.json",
+          "bytes": 3998,
+          "sha256": "fea8837b919fbe31418a9e81496a69c598d11e6d46dcad6112884629c3bf7557"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "625307b905d941f0a040ac4e0f6eb7111c64a1463e683da7430eb74f06cf61a5"
+        },
+        "post": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "955eddf2b76af15ee214e69afff1cdc2357ba82b84447ec8b09bf6b76ea4c432"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/check-artifact.json",
+          "bytes": 8990,
+          "sha256": "492c7e8934ee0d4be8788b097ed0dcbf7353928ff069537abcda8d6bff129c32"
+        },
+        "stdout": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/cargo.stdout.jsonl",
+          "bytes": 494245,
+          "sha256": "7af1d03f9581486749cd415ab3be76b5f9d898e165afb3aae1d6e8b9d1e74fb4"
+        },
+        "job": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/private-job-final.json",
+          "bytes": 233,
+          "sha256": "6df8fb9b05c5c28cf3ab127ccc6976c04942e5d428d95fe5e9ad386594e799f1"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "40e4930a08940e2adbdb47197f769288d7c998bd94dfe84764586e1200bb85f4"
+        }
+      },
+      "checked_handoff": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-custody-20261111-01/producer-terminal-handoff.json",
+        "bytes": 3194,
+        "sha256": "fb049663491ba5cbdbaeb7e510e781a9b027411dbe3e760c829a9f7d7681dfe5"
+      },
+      "scope": "Exact focused Native metadata check, one reviewed test source file, Cargo and producer exited 0, same preserved Handpick PE, zero input drift, checked Job and all handles closed. No runtime, original GUI acceptance or source-dependency waiver.",
+      "next_proof": "Original independent live MT008 proof remains open and requires a same-session private observer plus real Palmistry adoption and scoped recorder evidence. Next compile window is the separate reviewed Core mirror source.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
