@@ -803,14 +803,57 @@ pub(super) struct WorkspaceCreationSuccess {
     workspace: Workspace,
     witness: Option<Arc<FirstOwnerWorkspaceCreationWitness>>,
 }
-pub(super) enum FirstOwnerWorkspaceFailure {
-    Operation(ResourceAuthorityError),
+pub(super) struct FirstOwnerWorkspaceFailure {
+    phase: &'static str,
+    error: ResourceAuthorityError,
+}
+impl FirstOwnerWorkspaceFailure {
+    fn at<E: Into<ResourceAuthorityError>>(phase: &'static str) -> impl FnOnce(E) -> Self {
+        move |error| Self { phase, error: error.into() }
+    }
+
+    fn invalid_input(phase: &'static str) -> Self {
+        Self::at(phase)(workspace_creation_denied())
+    }
+
+    fn class(&self) -> &'static str {
+        match &self.error {
+            ResourceAuthorityError::InvalidInput(_) => "invalid_input",
+            ResourceAuthorityError::Denied { .. } => "denied",
+            ResourceAuthorityError::Entropy(_) => "entropy",
+            ResourceAuthorityError::Storage(error) => match error {
+                SurrealStorageError::Database(error) => match error.query_details() {
+                    Some(surrealdb::types::QueryError::TransactionConflict) => "transaction_conflict",
+                    Some(surrealdb::types::QueryError::NotExecuted) => "query_not_executed",
+                    Some(surrealdb::types::QueryError::Cancelled) => "query_cancelled",
+                    _ => "database_error",
+                },
+                SurrealStorageError::TransactionCommit(_) => "commit_error",
+                SurrealStorageError::TransactionCancel(_) => "cancel_error",
+                SurrealStorageError::TransactionSettlementPending { .. } => "settlement_pending",
+                SurrealStorageError::TransactionCancelled => "cancelled",
+                SurrealStorageError::TransactionCallbackPanicked => "callback_panicked",
+                SurrealStorageError::TransactionWorker(_) => "worker_error",
+                SurrealStorageError::TransactionAuthorityRequired => "authority_required",
+                SurrealStorageError::InvalidWorkspaceRecord { .. } => "invalid_workspace_record",
+                SurrealStorageError::Closed => "storage_closed",
+                SurrealStorageError::StatementBudgetExhausted { .. } => "budget_exhausted",
+                SurrealStorageError::StatementTimeout { .. } => "statement_timeout",
+                _ => "storage_error",
+            },
+        }
+    }
 }
 impl From<SurrealStorageError> for FirstOwnerWorkspaceFailure {
-    fn from(error: SurrealStorageError) -> Self { Self::Operation(error.into()) }
-}
-impl From<ResourceAuthorityError> for FirstOwnerWorkspaceFailure {
-    fn from(error: ResourceAuthorityError) -> Self { Self::Operation(error) }
+    fn from(error: SurrealStorageError) -> Self {
+        let phase = match &error {
+            SurrealStorageError::TransactionCommit(_)
+            | SurrealStorageError::TransactionCancel(_)
+            | SurrealStorageError::TransactionSettlementPending { .. } => "engine_finalization",
+            _ => "transaction_worker",
+        };
+        Self::at(phase)(error)
+    }
 }
 #[derive(Clone)]
 pub(super) enum FirstOwnerWorkspaceObservation {
@@ -837,7 +880,24 @@ impl FirstOwnerWorkspaceCreationOperation {
                 Ok(value) => FirstOwnerWorkspaceObservation::Complete(Arc::new(value)),
                 Err(error) => FirstOwnerWorkspaceObservation::Join(Arc::new(error)),
             };
+            let diagnostic = match &observed {
+                FirstOwnerWorkspaceObservation::Complete(result) => {
+                    result.as_ref().as_ref().err().map(|failure| (failure.phase, failure.class()))
+                }
+                FirstOwnerWorkspaceObservation::Join(error) => {
+                    let class = if error.is_panic() { "panicked" } else { "cancelled" };
+                    Some(("worker_join", class))
+                }
+            };
             *state = FirstOwnerWorkspaceState::Observed(observed);
+            if let Some((phase, class)) = diagnostic {
+                tracing::warn!(
+                    target: "handshake_core", phase, class,
+                    "workspace create observation returned an error"
+                );
+                #[cfg(test)]
+                eprintln!("HSK_FIRST_OWNER_WORKSPACE_CREATE_OBSERVATION_ERROR phase={phase} class={class}");
+            }
         }
         match &*state {
             FirstOwnerWorkspaceState::Observed(value) => value.clone(),
@@ -952,54 +1012,73 @@ impl SurrealStorage {
             move |tx| Box::pin(async move {
                 let accounts: Vec<WorkspaceApplicability> = tx.query_values_at(
                     FIRST_OWNER_WORKSPACE_APPLICABILITY, write.clone(), 0,
-                ).await?;
-                let [account] = accounts.as_slice() else { return Err(workspace_creation_denied().into()); };
-                if account.id != write.account { return Err(workspace_creation_denied().into()); }
+                ).await.map_err(FirstOwnerWorkspaceFailure::at("applicability"))?;
+                let [account] = accounts.as_slice() else {
+                    return Err(FirstOwnerWorkspaceFailure::invalid_input("applicability"));
+                };
+                if account.id != write.account {
+                    return Err(FirstOwnerWorkspaceFailure::invalid_input("applicability"));
+                }
+                let transaction_receipt = "transaction_receipt";
                 let mut first_claim = false;
                 if let Some(origin) = &account.first_owner_administration_origin {
                     if *origin != RecordId::new("first_owner_administration_origins", "primary") {
-                        return Err(workspace_creation_denied().into());
+                        return Err(FirstOwnerWorkspaceFailure::invalid_input("origin"));
                     }
                     let origins: Vec<FirstOwnerWorkspaceOriginState> = tx.query_values_at(
                         FIRST_OWNER_WORKSPACE_ORIGIN_STATE, write.clone(), 0,
-                    ).await?;
-                    let [origin] = origins.as_slice() else { return Err(workspace_creation_denied().into()); };
+                    ).await.map_err(FirstOwnerWorkspaceFailure::at("origin"))?;
+                    let [origin] = origins.as_slice() else {
+                        return Err(FirstOwnerWorkspaceFailure::invalid_input("origin"));
+                    };
                     if origin.account != write.account || origin.operator_principal != write.principal
                         || origin.space != write.space || origin.purpose != "prospective_first_owner_administration"
-                        || origin.version != 1 { return Err(workspace_creation_denied().into()); }
+                        || origin.version != 1 { return Err(FirstOwnerWorkspaceFailure::invalid_input("origin")); }
                     match origin.first_workspace_state.as_str() {
                         "unclaimed" if origin.first_workspace_original.is_none() => first_claim = true,
                         "created" => {
                             let stored = decode_workspace_original(origin.first_workspace_original.as_ref()
-                                .ok_or_else(workspace_creation_denied)?)?;
+                                .ok_or_else(|| FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt))?)
+                                .map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
                             let prior: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
                                 FIRST_OWNER_WORKSPACE_READ, stored.receipt_read(), 0,
-                            ).await?;
-                            if prior.len() != 1 { return Err(workspace_creation_denied().into()); }
+                            ).await.map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
+                            if prior.len() != 1 {
+                                return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
+                            }
                         }
-                        _ => return Err(workspace_creation_denied().into()),
+                        _ => return Err(FirstOwnerWorkspaceFailure::invalid_input("origin")),
                     }
                 }
+                let claim_write_error = |error| FirstOwnerWorkspaceFailure::at("claim_write")(SurrealStorageError::from(error));
                 let response = tx.transaction.query(FIRST_OWNER_WORKSPACE_CREATE)
                     .bind(super::original_operation_bindings(write.clone().into_value()))
-                    .bind(("first_claim", first_claim)).await.map_err(SurrealStorageError::from)?;
-                response.check().map_err(SurrealStorageError::from)?;
+                    .bind(("first_claim", first_claim)).await.map_err(claim_write_error)?;
+                response.check().map_err(claim_write_error)?;
                 let expected = if first_claim {
                     let receipts: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
                         FIRST_OWNER_WORKSPACE_READ, write.receipt_read(), 0,
-                    ).await?;
-                    let [receipt] = receipts.as_slice() else { return Err(workspace_creation_denied().into()); };
+                    ).await.map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
+                    let [receipt] = receipts.as_slice() else {
+                        return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
+                    };
                     if receipt.first_workspace_original.clone().into_value() != write.clone().into_value() {
-                        return Err(workspace_creation_denied().into());
+                        return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
                     }
                     Some(receipt.clone())
                 } else { None };
-                captured.expected.set(expected).map_err(|_| workspace_creation_denied())?;
+                captured.expected.set(expected).map_err(|_| FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt))?;
                 Ok(())
             }),
         ).await?;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
         let read = original.bindings.clone();
-        let expected_receipt = original.expected.get().ok_or_else(workspace_creation_denied)?.is_some();
+        let canonical_receipt = "post_commit_receipt";
+        let expected_receipt = original.expected.get()
+            .ok_or_else(|| FirstOwnerWorkspaceFailure::invalid_input(canonical_receipt))?.is_some();
+        let receipt_query_started = Arc::new(AtomicBool::new(false));
+        let receipt_query_marker = Arc::clone(&receipt_query_started);
         let (workspace, receipt) = self.with_record_user_scope(original.scope.clone(),
             self.with_data_operation(move |db| Box::pin(async move {
                 let rows: Vec<WorkspaceRecord> = db.query_values_at(
@@ -1013,14 +1092,24 @@ impl SurrealStorage {
                     created_at: workspace.created_at.clone().into_inner(), updated_at: workspace.updated_at.clone().into_inner(),
                 };
                 let receipt: Vec<FirstOwnerWorkspaceReceipt> = if expected_receipt {
+                    receipt_query_marker.store(true, Ordering::Relaxed);
                     db.query_values_at(FIRST_OWNER_WORKSPACE_READ, read.receipt_read(), 0).await?
                 } else { Vec::new() };
                 Ok((workspace, receipt))
             })),
-        ).await?;
-        if receipt.as_slice() != original.expected.get().and_then(Option::as_ref).map(std::slice::from_ref).unwrap_or(&[]) { return Err(workspace_creation_denied().into()); }
+        ).await.map_err(|error| {
+            let phase = if receipt_query_started.load(Ordering::Relaxed) {
+                canonical_receipt
+            } else {
+                "post_commit_canonical_read"
+            };
+            FirstOwnerWorkspaceFailure::at(phase)(error)
+        })?;
+        if receipt.as_slice() != original.expected.get().and_then(Option::as_ref).map(std::slice::from_ref).unwrap_or(&[]) {
+            return Err(FirstOwnerWorkspaceFailure::invalid_input(canonical_receipt));
+        }
         let witness = if let [receipt] = receipt.as_slice() {
-            Uuid::parse_str(&receipt.setup_operation_id).map_err(|_| workspace_creation_denied())?;
+            Uuid::parse_str(&receipt.setup_operation_id).map_err(|_| FirstOwnerWorkspaceFailure::invalid_input(canonical_receipt))?;
             Some(Arc::new(FirstOwnerWorkspaceCreationWitness {
                 original: Arc::new(FirstOwnerWorkspaceProofSource {
                     storage: original.storage.clone(), context: original.context.clone(),
@@ -1034,7 +1123,11 @@ impl SurrealStorage {
                     policy_version: receipt.first_workspace_policy_version,
                 },
             }))
-        } else if receipt.is_empty() { None } else { return Err(workspace_creation_denied().into()); };
+        } else if receipt.is_empty() {
+            None
+        } else {
+            return Err(FirstOwnerWorkspaceFailure::invalid_input(canonical_receipt));
+        };
         Ok(WorkspaceCreationSuccess { workspace, witness })
     }
     pub(super) async fn first_owner_workspace_creation_witness(
