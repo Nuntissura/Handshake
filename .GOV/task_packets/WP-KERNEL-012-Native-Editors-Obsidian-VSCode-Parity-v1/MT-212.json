@@ -6639,6 +6639,85 @@
       "next_proof": "Repair the engine-incompatible first-owner claim guard and explicitly forward original operation scope without changing the protected contract. Preserve the prior failed applicability and claim_write cases and original MT022 ordinals. Separately review changed source and admission; no retry is granted."
     },
     {
+      "candidate": "first-owner-workspace-create-mounted-revision169-info-enrolled-20261111-01",
+      "scope_refs": [
+        "MT-172.json#/picotask_plan",
+        "MT-022.json",
+        "MT-139.json"
+      ],
+      "state": "SOURCE_PUBLISHED_COMPILE_QUALIFIED_MOUNTED_CASE01_FAILED_SPENT",
+      "source_head": "abac0c459cb840ee7085ae0031b7199237ce4575",
+      "source_tree": "a5809dc32381a183d61a66fd6c9fe40e1450dd1e",
+      "independent_publication": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-claim-surreal32-revision169-info-enrollment-runtime-preparation-20261111-02/published-rev169-info-enrollment-independent-review-01.json",
+        "bytes": 2035,
+        "sha256": "c12f1bae03b62ca213fe058fc8e608e2895733f3e05ae98d95d2b33ada31a977"
+      },
+      "compile_feedback": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-claim-surreal32-revision169-info-enrollment-core-codegen-20261111-01/result.json",
+        "bytes": 3388,
+        "sha256": "e89b41c62fbe14bffef1211c256ad0a8fdd3ac7250b38aeccddca1c7544dbce9"
+      },
+      "retained_core_executable_sha256": "781c786e0d193b83b0777c45a896dc8b8405f6ad8e935deb90b458282faed3dc",
+      "joint_agreement": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-claim-surreal32-revision169-info-enrollment-runtime-preparation-20261111-02/rev169-mounted-post-diagnosis-joint-agreement-01.json",
+        "bytes": 2826,
+        "sha256": "74d7ccb9af65a8d812ca3327b21c11b5f1e231a90ea6e9019ae94bcdaccadec5"
+      },
+      "prior_failed_canary_refs": [
+        "WP-KERNEL-012/MT-212/wsc-01/result.json",
+        "WP-KERNEL-012/MT-212/s168-06/result.json"
+      ],
+      "wrapper_failure": {
+        "validator_turn": "01a1caf4-e354-76e0-96d5-6e30b52f1937",
+        "outer_exit_reported": 1,
+        "reason": "Validator supplied a prior binding digest. Validation rejected it before a child or run root. Only the subsequent invocation used this admission and executed one test body."
+      },
+      "canary": {
+        "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "turn": "01a1caf4-e354-76e0-96d5-6e30b52f1937",
+        "selector": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "test_exit": 101,
+        "controller_failure_branch_exit_reported": 1,
+        "http_status": 403,
+        "expected_http_status": 201,
+        "observed_phase": "claim_write",
+        "observed_error_class": "database_error",
+        "observed_query_stage": "response",
+        "observed_zero_based_query_statement": 10,
+        "observed_query_error_kind": "internal",
+        "settlement_inference": false,
+        "raw_stdout": {
+          "ref": "WP-KERNEL-012/MT-212/s169-01/test.stdout.txt",
+          "bytes": 3597,
+          "sha256": "31e52a2a0e7e0122f5d13064a31fc02b2cd15f8c740448eb3dfd0e3729653aa7"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/s169-01/result.json",
+          "bytes": 7422,
+          "sha256": "c1421ec60aea95e0ade21561ead8b049820c139b6b759d4c48fd81b2b26d7605"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/s169-01/released.json",
+          "bytes": 499,
+          "sha256": "0073750aaecd74601c5aa5c1cb095fbca05c2eb26cae188621073431541f1ad0"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/MT-212/s169-01/postguards.json",
+          "bytes": 1989,
+          "sha256": "677e7c83f96e590e883debdc7daf315b996aa5cc381849e906643fdea0a56b52"
+        },
+        "fixture": {
+          "ref": "WP-KERNEL-012/MT-212/s169-01/fixture-final.json",
+          "bytes": 222,
+          "sha256": "4271264c54ef976ead5568e12f56ce71041d5bfaf98caa6e29aa58f1f6ae7611"
+        }
+      },
+      "remaining_case_state": "Cases 02 through 08 did not start. Prior failed results and original MT022 attempts remain spent.",
+      "original_acceptance": "OPEN",
+      "next_proof": "Repair the effective local_accounts password_verifier and credential_revision field update predicates that pass scalar field values to an object-typed member redemption guard. Preserve complete row transition, permit, no-retry settlement and prior pins. Review the exact changed input and admission separately."
+    },
+    {
       "candidate": "mt196-operator-chat-offline-component-repaired-20261111-01",
       "original_contract_ref": "MT-196.json",
       "state": "PUBLISHED_COMPONENT_PASS",
