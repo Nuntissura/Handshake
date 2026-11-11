@@ -6206,6 +6206,140 @@
           }
         }
       }
+    },
+    {
+      "candidate": "engine-profiles-retained-native-components-20261111-01",
+      "pico_refs": [
+        "GUI-WP012-settings-profiles",
+        "GUI-WP012-172-SCOPE"
+      ],
+      "state": "TWO_EXACT_COMPONENT_CASES_QUALIFIED_NO_CARGO",
+      "original_contract_ref": "MT-196.json",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "live_source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "published_create_ack": "a3a60e0d44eb569f2294449db60ef5e1cb508f76",
+      "executable_sha256": "850038a80b4681031efc35cd5be668923095ab733694b32fe5c7a43ba33d79b9",
+      "independent_source_equivalence": {
+        "ref": "WP-KERNEL-012/MT-212/settings-profile-component-equivalence-20261111-01/native-settings-component-source-equivalence-01.json",
+        "bytes": 18213,
+        "sha256": "58df501fed0a56a596320e898365a7e40e212cac54f321e7bdfe4447570d3729"
+      },
+      "technical_scope_owner": "/root/gui_diagnostic_runtime_readiness",
+      "changed_controller_reviewer": "/root/mt022_ordinary_warm_cc",
+      "capture_owner": "/root/session_query_lookup_coding",
+      "prelaunch_failure": {
+        "state": "FAILED_PRELAUNCH_SPENT_NO_BODY",
+        "outer_exit": 1,
+        "first_failure": "Final JSON sorting changed ordered environment digest; exact same values restored to reviewed insertion order and independently checked on new final raw binding.",
+        "failed_binding": {
+          "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-binding-admitted-01.json",
+          "bytes": 35837,
+          "sha256": "478a7fa36cca4008dae2217bfdf7d29b61d88fd715cc2b9c5fd6f786794072a3"
+        },
+        "failed_admission": {
+          "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-case-admission-01.json",
+          "bytes": 8386,
+          "sha256": "d837383973af7e29ac0fbee83b63f476904f7969c04dcb11a009d510c666eb5d"
+        }
+      },
+      "cases": [
+        {
+          "case": "SETTINGS-PROFILE-COMP-001",
+          "selector": "settings_dialog::tests::settings_author_ids_are_stable",
+          "outer_exit": 0,
+          "test_exit": 0,
+          "selected_passed": 1,
+          "file_handles_closed": 7665,
+          "native_handles_closed": 3,
+          "job_assigned": 0,
+          "records": {
+            "result.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/result.json",
+              "bytes": 6510,
+              "sha256": "4a7040fa7a5b104ad27719ed9e4a63b36eb3c16d3f58a3101699a1a9691a0b15"
+            },
+            "case-completion.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/case-completion.json",
+              "bytes": 21075,
+              "sha256": "3ff8f2665fad55870988ea2f0e5996ad5c760c108af6f8ceb1d3a6c3d040f318"
+            },
+            "released.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/released.json",
+              "bytes": 586,
+              "sha256": "f4d34fd41ecc18496798e39890fc9cbd932db04c290735c1fc73833120edfdc3"
+            },
+            "private-job-final.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/private-job-final.json",
+              "bytes": 339,
+              "sha256": "62f3cec54a695c982fda889df5a4265d7caf3daa3ab79d1e4837d5c0a64cc7cd"
+            },
+            "postguards.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/postguards.json",
+              "bytes": 2274,
+              "sha256": "d80722b8606b75f156cfe420c63fe971d6bddfdaa9225a12d0c17ae75748c9ba"
+            },
+            "binding": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-binding-order-preserved-admitted-01.json",
+              "bytes": 35878,
+              "sha256": "e89f76968c0122405addcaef61549f5fee0a939c4023e6ce97d0e98425e1a8e0"
+            },
+            "admission": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-order-preserved-case-admission-01.json",
+              "bytes": 9410,
+              "sha256": "b533f280b66b1c24fad4308a2cadfb65be4230458523674c33ba10f4674ce3b7"
+            }
+          }
+        },
+        {
+          "case": "SETTINGS-PROFILE-COMP-002",
+          "selector": "operator_chat_pane::client_safety_tests::settings_refresh_fences_old_inventory_and_preserves_started_launch",
+          "outer_exit": 0,
+          "test_exit": 0,
+          "selected_passed": 1,
+          "file_handles_closed": 7668,
+          "native_handles_closed": 3,
+          "job_assigned": 0,
+          "records": {
+            "result.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/result.json",
+              "bytes": 6625,
+              "sha256": "217d575e6d1ff95378e59e1770871552924d688d1de8e4d298f28ac0986437a5"
+            },
+            "case-completion.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/case-completion.json",
+              "bytes": 21185,
+              "sha256": "7c47c12b0b60c74c7d58e1f9d7796c62f2a115f2bcd80c2b9221996c41a55acc"
+            },
+            "released.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/released.json",
+              "bytes": 586,
+              "sha256": "1536d295c68b4a14fe1a3f3e5217386d6b34ff9807eeb72e875d7190963caed7"
+            },
+            "private-job-final.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/private-job-final.json",
+              "bytes": 339,
+              "sha256": "f1a86a23e93b8fb77d76f14c68be2552dfe32dc2a7c5b5a696e4d582c8c983b9"
+            },
+            "postguards.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/postguards.json",
+              "bytes": 2274,
+              "sha256": "a8fde1615f13c48bf6a3b9fe945867def41213903e9b1ebd1b554c3225ca815e"
+            },
+            "binding": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-binding-order-preserved-admitted-02.json",
+              "bytes": 36971,
+              "sha256": "5ee1965dcfe83dca541c0f2e1db799fa7eda2189eea31977b88e37fbc01b0f75"
+            },
+            "admission": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-order-preserved-case-admission-02.json",
+              "bytes": 9394,
+              "sha256": "d0f0cc3f13da2fef4e801128e238acae61c838ad9ce00a581e09f1a8e16b12e6"
+            }
+          }
+        }
+      ],
+      "scope_limit": "Stable Settings Create author ID and fixture-backend stale inventory fencing/in-flight launch preservation. Real loaded registry Create acknowledgement, complete dispatch, Vulkan, Palmistry and original acceptance remain open.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
