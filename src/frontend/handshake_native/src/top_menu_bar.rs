@@ -464,6 +464,7 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID,
     "menu.run.inference-lab",
     "menu.run.flight-recorder",
+    "menu.models.operator-chat",
     "menu.help.user-manual",
     "menu.help.settings",
     "menu.operator.command-palette",
@@ -1400,6 +1401,15 @@ impl MenuBar {
                     None,
                     true,
                     MenuBarAction::NavigateToTab("flight-recorder".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.models.operator-chat",
+                    "Open Operator Chat",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("operator-chat".to_owned()),
                     action,
                 );
                 self.item(
@@ -2451,11 +2461,12 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID));
-        // 9 base overlay/navigation actions + 15 VIEW open-surface leaves (incl. MT-098 open-runtime-chat)
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.operator-chat"));
+        // 10 base overlay/navigation actions + 15 VIEW open-surface leaves (incl. MT-098 open-runtime-chat)
         // + 4 GO editor-navigation leaves + 6 operator-control leaves.
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            34,
+            35,
             "all overlay/navigation actions listed"
         );
         // MT-098 operator menu-bar gap closeout: the Runtime Chat open route is swarm-discoverable.

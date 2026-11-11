@@ -24633,6 +24633,7 @@ impl HandshakeApp {
             "flight-recorder" => PaneType::FlightRecorder,
             "user-manual" => PaneType::UserManual,
             "swarm" => PaneType::Swarm,
+            "operator-chat" => PaneType::OperatorChatLaunch,
             _ => return false,
         };
         self.open_content_on_active_pane(pane_type, None)

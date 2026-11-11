@@ -255,9 +255,9 @@ fn operator_chat_rejects_model_selection_when_audit_persistence_fails() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run();
-    harness.get_by_label("MODELS").click();
+    node_by_author(&harness, "menu-run").click();
     harness.run();
-    harness.get_by_label("Open Operator Chat").click();
+    node_by_author(&harness, "menu.models.operator-chat").click();
     harness.run();
     node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit();
     harness.run();
@@ -375,9 +375,9 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
     harness.run();
 
     // Open the pane through the RUN menu leaf.
-    harness.get_by_label("MODELS").click();
+    node_by_author(&harness, "menu-run").click();
     harness.run();
-    harness.get_by_label("Open Operator Chat").click();
+    node_by_author(&harness, "menu.models.operator-chat").click();
     harness.run();
     harness.run();
     assert!(
@@ -716,8 +716,8 @@ fn deferred_local_launch_recovery_does_not_accept_stale_or_mismatched_reply_or_c
             Box::new(OperatorChatLaunchPaneFactory::with_backend(backend.clone())));
         let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
         harness.run();
-        harness.get_by_label("MODELS").click(); harness.run();
-        harness.get_by_label("Open Operator Chat").click(); harness.run();
+        node_by_author(&harness, "menu-run").click(); harness.run();
+        node_by_author(&harness, "menu.models.operator-chat").click(); harness.run();
         node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit(); harness.run();
         let models = backend.models.lock().expect("model cells").last().expect("refresh").clone();
         *models.lock().expect("models") = Some(Ok(deferred_inventory(true)));

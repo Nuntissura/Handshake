@@ -4527,12 +4527,12 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             section(
                 "purpose",
                 "What this surface is",
-                "The operator chat/launch pane (native egui, PaneType::OperatorChatLaunch, opened \
-                 from the MODELS menu leaf `menu.models.operator-chat`) lets the operator pick a model \
-                 lane (LOCAL / BYOK cloud / official CLI / SUBAGENT), pick a folder/worktree as the session's \
-                 working directory, type a prompt, and launch an interactive lane session. \
-                 The surface is also available as a persisted Settings > Swarm default via \
-                 `settings.swarm-operator-chat-default-open`. The selected lane is structured as \
+                "Open RUN > Open Operator Chat to reach the native operator chat/launch pane \
+                 (PaneType::OperatorChatLaunch). The stable menu action is `menu.models.operator-chat`. \
+                 Pick a model lane (LOCAL / BYOK cloud / official CLI / SUBAGENT), choose the session's \
+                 folder/worktree, type a prompt, and launch an interactive lane session. \
+                 The persisted Settings > Swarm default remains an open requirement. \
+                 The selected lane is structured as \
                  `lane_kind` + `model_id`, with \
                  `cloud_provider` or `cli_provider` attached when the selected row needs a provider. \
                  SUBAGENT rows are no-OS Dexterity lanes owned by the SubagentManager; they carry \
@@ -4799,14 +4799,11 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  `official_cli_provider_selection_honors_requested_provider` proves provider-specific \
                  official CLI dispatch; `mt014_catalog_enumerates_and_labels_configured_model` proves \
                  catalog artifact path exposure. Native: `operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript` \
-                 proves structured selection audit, fetched transcript rows, message-id author_ids, \
-                 and launch status outside transcript; `operator_chat_launch_argus_opens_picks_types_and_launches` \
-                 proves the pane opens, stable controls are addressable, and the launch button fails \
-                 closed on the offline backend; `run_menu_opens_operator_chat_launch` proves MODELS > \
-                 Open Operator Chat opens the native tab; `swarm_accessible_actions_listed` \
-                 proves `menu.models.operator-chat` is swarm-accessible; `operator_chat_swarm_setting_persists` \
-                 and `persisted_swarm_defaults_open_runtime_tabs` prove the Settings Swarm default \
-                 is addressable, persisted, and opens the runtime pane.",
+                 uses the RUN menu and a recording backend to assert the complete Engine Profile in the \
+                 selection audit and launch, fetched transcript rows with message-id author IDs, and launch \
+                 status outside the transcript. `swarm_accessible_actions_listed` checks that \
+                 `menu.models.operator-chat` is in the action registry. Independent verification of the \
+                 repaired route and acceptance on the production backend remain open.",
             ),
         ],
         anchors: vec![

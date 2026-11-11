@@ -6,7 +6,7 @@
 //! launch button. The `with_health` app registers the OFFLINE pane factory, so a
 //! launch honestly reports "backend not wired" instead of fabricating a session.
 
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
@@ -76,9 +76,9 @@ fn operator_chat_launch_argus_opens_picks_types_and_launches() {
     harness.run();
 
     // Open the pane through the RUN menu leaf.
-    harness.get_by_label("MODELS").click();
+    node_by_author(&harness, "menu-run").click();
     harness.run();
-    harness.get_by_label("Open Operator Chat").click();
+    node_by_author(&harness, "menu.models.operator-chat").click();
     harness.run();
     harness.run();
 
