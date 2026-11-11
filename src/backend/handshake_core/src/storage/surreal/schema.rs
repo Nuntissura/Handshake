@@ -26,8 +26,8 @@ pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
 pub const SCHEMA_REVISION: i64 = 169;
 
 // Enroll these pins only after independent BASE and FINAL engine INFO measurement.
-const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
-const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = Some(("1bd1c82774112973553bb290d0813fbd3c64c7176663ff5f525fcf0f971524cf", 4570, 936));
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = Some("8aad971fedcdb5605ac1ebe64667a8eef24c1b3be79498af8c3ef38f4a4cce3f");
 const PRE_MEMBER_PASSWORD_POLICY_REVISION: i64 = 167;
 const PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED: &str =
     "6f6e4a5bd5dad4b856e355233dcf435c4febce3e1da7a70b87587f2a1ddd6c43";
