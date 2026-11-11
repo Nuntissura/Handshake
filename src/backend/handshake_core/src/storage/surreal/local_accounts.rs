@@ -386,7 +386,7 @@ impl SurrealStorage {
             ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
                 params: SigninParams { token_hash, channel_binding_hash } }).await
                 .map_err(|error| session_authentication_error("signin", error))?;
-            let response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, principal_id.principal_kind AS principal_kind, principal_id.actor_kind AS actor_kind, policy_version, delegation_chain, delegated_capabilities FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await
+            let response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, principal_id.principal_kind AS principal_kind, principal_id.actor_kind AS actor_kind, policy_version, delegation_chain, delegated_capabilities FROM $auth WHERE id = $auth.id LIMIT 1;").await
                 .map_err(|error| session_authentication_error("session_query", error))?;
             let mut response = response.check()
                 .map_err(|error| session_authentication_error("session_query_check", error))?;
