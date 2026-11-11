@@ -1,0 +1,128 @@
+{
+ "id": "DIAG-20261111-ADOBEPARAGRAPH-LAST-LINE",
+ "lane": "SMB-TYPE-INDENT-SPACING-1",
+ "tree": "wt-studio-lanes/smb-r54-followups-1/handshake-studio-assets, branch lane/smb-type-indent-spacing-1",
+ "tip": "4b762334",
+ "role": "diagnostics agent with position and red team; read-only on the lane tree; no cargo run (reading plus a Python model settled the numbers)",
+ "helper_scripts": "scratchpad diag-adobeparagraph/ragged_model.py and stats.py (Python model of Para::best for ragged text; a model, not the Rust code)",
+ "cause": {
+  "summary": "The measured case is a LEFT-aligned (ragged) paragraph. The Adobe paragraph composer runs ragged text as ONE whole-paragraph DP (ragged_depth 0, no window), and its memo key holds the line class min(line, flat_from). On the first pass every width is 180 pt, so flat_from = 0 and all lines share one class: about one state per line start (n states). The re-break narrows line INDEX l (the old last line) only, so flat_from moves to l+1 and every line number 0..l becomes its own class. In a whole-paragraph DP a line start s can be reached after many different line counts (one to six words a line), so the states become (start, line) pairs: O(words x lines), quadratic. The memo is never pruned for ragged text, so all of them stay. This is a state explosion from the late flat_from. It is not a lost memo and not a recompose loop: the re-break is one call, but that call has a quadratic state space.",
+  "certainty": "high for the ragged case (code read plus a model whose state counts match the measured ratios and the 5000-word refusal); the justified (windowed) case has no explosion, by reading only (not run)",
+  "evidence": [
+   "crates/hsk-studio-layout/src/threaded_reflow.rs:1339-1341: the gate passes at 100 pt (narrowed 80 holds every toy word), then `width = |line| if line == l { narrowed } else { width(line) }` and break_lines re-composes the WHOLE paragraph with line l narrowed by index",
+   "crates/hsk-studio-layout/src/adobe_composer.rs:779-783: flat_from = first index from which width(i) equals width(n) bit for bit; with only line l narrowed it becomes l+1 (first pass: 0)",
+   "crates/hsk-studio-layout/src/adobe_composer.rs:473-475 and :683-690: State = (start, line class, run, d), class = min(line + 1, flat_from); Memo is keyed on the whole State",
+   "crates/hsk-studio-layout/src/adobe_composer.rs:434-437 and :802-807: ragged_depth 0, so a ragged paragraph is composed with depth WHOLE_PARAGRAPH, one DP over the whole paragraph",
+   "crates/hsk-studio-layout/src/adobe_composer.rs:842-845: the memo is pruned (split_off) only when window > 0, so for ragged text every (start, line) state stays",
+   "crates/hsk-studio-layout/src/adobe_composer.rs:459-464 and :478-482: work budget = items*1024 + 2^24, about 27.0 M steps at 5000 words (about 10,000 items); :745-747: state budget 2^21",
+   "crates/hsk-studio-layout/tests/indent_spacing.rs:165-167 and :606-608: the measurement uses styles() = StudioTextAlign::Left, so justified = false"
+  ],
+  "model_numbers": {
+   "setup": "Python model of Para::best for ragged text: cost (wl-w)^3, last line free, scan stops when w > wl, toy words aaaa/bb/cccccc/ddd/eeeee at 6 pt per glyph, 6 pt space, 180 pt measure, narrowed 80 pt",
+   "states_first_pass": "600 / 1,800 / 5,000 (one per word start)",
+   "states_rebreak_today": "29,397 / 260,997 / 2,004,997 (49x / 145x / 401x)",
+   "scan_steps_word_level": "first pass 4,889 / 14,729 / 40,969; re-break 199,035 / 1,772,235 / 13,626,955",
+   "vs_measured": "measured release time ratios 30x (600) and 98x (1800) sit under the model's 41x/120x step ratios; the gap is BTreeMap log factors and cache effects (UNVERIFIED split)",
+   "refusal_5000": "Rust scans each item (box and glue), about 2 per word, so the re-break takes about 2 x 13.6 M + 2.0 M opened states, about 29 M steps. That is over the 27.0 M work budget (adobe_composer.rs:480-481), so the answer is budget_exceeded after about 2.5 s. The state count (2.0 M) stays just under 2^21. This is an estimate from the model, not a counted Rust run.",
+   "line_counts": "the model reproduces the builder's 120->121, 360->361, 1000->1001"
+  },
+  "why_not_other_cases": {
+   "0 pt / 30 pt / 170 pt": "no re-break: at 30 pt every last line fits 150 pt (the tightest-width gate does not fire); at 170 pt the widest-box gate refuses (threaded_reflow.rs:1339)",
+   "AdobeParagraph justified (windowed, depth 7)": "no explosion by reading: within one window rooted at line L the class is L + (7 - d), a function of d, so a window holds the same number of states as on the first pass; expected cost about 2x (a second full pass). NOT measured: the lane measured Left only",
+   "Knuth-Plass": "its own breaker, not Para; measured 1.8x (two passes); not in scope",
+   "FirstFit / AdobeSingleLine": "line-local, with no state space; measured unchanged"
+  }
+ },
+ "fix": {
+  "position": "LOCAL TAIL RE-BREAK for Composer::AdobeParagraph: keep the first pass's breaks before line t = max(0, l - R), with R = PARA_MODEL.depth - 1 = 6. Re-compose only from line t to the end, with the same index-l narrowing as today, the same gate, one re-break, and the same overfull outcome.",
+  "code": [
+   "adobe_composer.rs: split `paragraph` into `paragraph_from(items, sums, width, rules, ctx, cancel, from: Resume { item, line, run })`, which returns the breaks of lines >= from.line, plus `paragraph(...) = paragraph_from(..., Resume { item: 0, line: 0, run: 0 })`. The only change in the body is the start of the main loop: `let (mut s, mut run, mut line) = (from.item, from.run, from.line)` at :811. flat_from, budget, rescue and the memo logic stay as they are. The tail gets the same rescue retry (:814-823) because its `breaks` starts empty.",
+   "threaded_reflow.rs:1339-1342: for Composer::AdobeParagraph only, after the gate passes: t = l.saturating_sub(PARA_MODEL.depth - 1); item = if t == 0 { 0 } else { line_start(&items, b[t-1].item) }; run = the number of consecutive `flagged` breaks ending at b[t-1], capped at MAX_RUN (the same rule as adobe_composer.rs:839); tail = paragraph_from(..., &width_narrowed_at_l, ..., Resume { item, line: t, run }); b = b[..t] ++ tail. The other composers keep break_lines as today: they measured fine, and FirstFit and AdobeSingleLine are line-local anyway.",
+   "If paragraph_from errs (InvalidGeometry under rescue) or returns no line: keep the first-pass breaks. The set stage then marks the last line overfull (threaded_reflow.rs:1356), the typed outcome the ruling already allows. This cannot happen while the gate holds (every box fits the narrowed width, so a one-word line is always feasible), but it keeps the path total.",
+   "Expose PARA_MODEL.depth (or a `pub(crate) const PARA_TAIL_LINES: usize = PARA_MODEL.depth - 1`) and `MAX_RUN` to threaded_reflow, or put the run computation in an adobe_composer helper `resume_at(items, breaks, t) -> Resume`."
+  ],
+  "why_it_holds": {
+   "bounded_work": "the tail DP covers at most R + 2 = 8 line classes over the text of R + 1 first-pass lines. Model: 130 states (R = 6) whatever the paragraph length, against 29k / 261k / 2.0M today. Re-break cost becomes about constant: 100 pt time is about the 0 pt time plus less than 1 percent of it. At worst (a measure so wide that the tail is the whole paragraph) its work is at most (R + 2) times the first pass's work over the tail items. It still runs under para_work_budget(n), so it can only refuse where the first pass would also be near refusing.",
+   "justified_bit_identical": "for the windowed (justified) composer the result is bit-identical to today's full re-break. A window rooted at line L reads width(L..L+6) only (depth 7, is_terminal at d == 0, :693-696), so every commit for lines < l-6 sees exactly the first pass's widths and makes the same break. Values are functions of State alone (:701-703), so the tail rooted at (s_t, t, run_t, 7) with a fresh memo gives the same values as the full re-break's root at line t.",
+   "ragged_near_identical": "for the whole-paragraph (ragged) composer the tail is a constrained version of today's global re-break. Model over 121 random-word paragraphs (narrowed 80/120/150 pt): R = 6 gives the same breaks as today's full re-break in 116/121 (95.9 percent). In the 5 others today's global re-break had moved breaks 7 to 37 lines above the last line, and the tail's total cost is 0.02 to 17 percent higher (the 17 percent cases are 60-word paragraphs). Toy text 600/1800/5000 words: identical to today at R = 1, 2, 3 and 6, line counts 121/361/1001."
+  },
+  "meets_the_bound": "Yes. 1800 words at 100 pt: about 2.3 ms plus a tail of about 130 states, so well within 2x of 0 pt. 5000 words at 100 pt composes (no budget path left: tail work is independent of n)."
+ },
+ "alternatives_rejected": [
+  {
+   "option": "reuse the first pass's memo for the re-break",
+   "why": "only states after line l (class l+1) have the first pass's values (flat width), so they could be seeded from (s, 0, run). The explosion is in the classes 0..l BEFORE the narrowed line, which no first-pass state can stand for: a state's value there depends on how many lines remain until line l. It does not remove the quadratic part."
+  },
+  {
+   "option": "cap the re-break's work and fall back to a typed overfull line",
+   "why": "the output would depend on paragraph LENGTH, not on the last line: today's re-break needs 199k / 1.77M / 13.6M word-level steps, so any cap that lets 600 words through and keeps 1800 words within 2x makes long paragraphs fall back to overfull while short ones re-break. That is non-local and surprising, and it still spends the capped time before giving up. At most a backstop, and the local tail needs none."
+  },
+  {
+   "option": "full re-break with the line that ENDS the paragraph narrowed (end-keyed width: line_cost uses the narrowed width when `last`), so flat_from stays 0",
+   "why": "it removes the explosion (model: 600/1800/5000 states, the same as the first pass) and narrows the right line. But the whole-paragraph ragged DP then reflows far up: the model shows the first changed line 0 to 43 lines above the end, and for the cyclic toy text from line 0, in every case different from today's breaks. It changes the API of all four composers, and it changes outputs beyond this lane's ruling. Kept as a red-team follow-up, applied inside the local tail (see red_team.defect_found_in_todays_semantics.follow_up), not as a global pass."
+  },
+  {
+   "option": "add the narrowed index to the flat class only near l (classes collapse below l - R)",
+   "why": "this is not exact either: a state's value depends on the exact distance to line l. Doing it soundly is the local tail by another route, with more memo-key surgery."
+  },
+  {
+   "option": "window the ragged composer (give ragged_depth a value)",
+   "why": "it changes every ragged paragraph's output, not just the re-break, and it departs from the fitted model (PARA_MODEL ragged_depth 0). Out of scope."
+  }
+ ],
+ "red_team": {
+  "layouts_that_change_vs_tip": [
+   "AdobeParagraph Justified: none (bit-identical, proof by reading above). Verify with the equivalence test in red_test.",
+   "AdobeParagraph Left/Right/Center (whole-paragraph DP): identical to today in the measured toy setup (121/361/1001 lines, same breaks in the model). On irregular text, about 4 percent of re-broken paragraphs keep breaks above line l-6 that today's global re-break would have moved. Their tail costs 0.02 to 17 percent more by the composer's own measure. The extra line at 100 pt stays (+1 line in 121/121 model cases, the same as today).",
+   "Paragraphs with no gate pass (0, 30 and 170 pt) and every other composer: unchanged."
+  ],
+  "worse_break_where_a_professional_expects_the_re_break": "Rarely, and arguably the opposite. Today a last-line indent can reflow a ragged paragraph up to 37 lines above the end (model). A typesetter applying a last-line indent expects the end of the paragraph to change, not its middle. The 17 percent cost cases are short (60-word) paragraphs where the global optimum shifts the whole rag. The local result there is a valid rag that differs only in the last 7 lines. Verdict: acceptable. Raising R for ragged text (12 to 20) shrinks the gap further at a cost still independent of n, if the lead wants closer parity.",
+  "defect_found_in_todays_semantics": {
+   "finding": "The re-break narrows line INDEX l (the old last line), but at 100 pt it adds a line, so after the re-break line l is no longer the last. Line l was composed for 80 pt but is set in a 180 pt slot. The NEW last line l+1 was composed for 180 pt but is narrowed to 80 at the set stage (threaded_reflow.rs:1350-1356). Ragged: the new last line is overfull although a fitting composition existed (model: 25 of 68 random cases with today's semantics, 0 of 68 when the width is keyed to the paragraph's end). Justified: line l, composed short for 80 pt, is justified to the full 180 pt slot by justify_line(width_pt, slot.width_pt, ...) at threaded_reflow.rs:1535-1546, a very loose line. Read, not run. Toy text happens not to trigger the overfull case.",
+   "follow_up": "Ask the lead for a ruling: inside the same local tail, narrow the line that ENDS the paragraph (in line_cost, use the narrowed width when `last`; in next_line, hopeless stays on the full width) instead of index l. The cost is the same as the tail, it removes both symptoms, and the change stays within the last R + 1 lines. It is not part of this fix because it changes outputs beyond the cost STOP. The existing test indent_spacing.rs:324-348 passes under either rule (model of 'aaaa bbbb cc dd': the same breaks)."
+  },
+  "indesign": "UNVERIFIED. Adobe's manual defines Last Line Right Indent only as a hanging indent on the right side of the paragraph's last line (InDesign CS5 manual, https://www.manualsdir.com/manuals/753853/adobe-indesign-cs5.html?page=280). No source found that says whether the Paragraph Composer counts it while breaking, or whether a line it pushes down gets the indent. A community report says the indent is not honoured on a one-line paragraph (https://community.adobe.com/t5/indesign-discussions/last-line-indent-issue/m-p/9749735). Do not claim InDesign parity for either the index or the end-keyed rule without a D5 oracle row.",
+  "residual_risks": [
+   "The hyphen run at the seam: the tail must start with the first pass's run at line t, or the ladder limit can be broken across the seam. The fix computes it from b[..t].",
+   "Rescue paragraphs (no path from the first line): the tail repeats the rescue retry on its own. If it still finds no path, the first-pass breaks stand and the last line is overfull (typed).",
+   "First-line indent or wrap obstacles in slots: width() keeps absolute line indices, so the tail reads the same widths as today.",
+   "The justified 100 pt case was never measured. The builder must add Justified to the measurement so the bit-identity and the time are shown, not inferred."
+  ]
+ },
+ "acceptance": {
+  "release_ms_AdobeParagraph_Left_180pt": {
+   "600w_100pt": "ok, 121 lines, ms <= 2 x the 0 pt time of the same run (tip: 0.7 -> 21.2)",
+   "1800w_100pt": "ok, 361 lines, ms <= 2 x the 0 pt time (tip: 2.3 -> 224.6; expected about 2.3 to 2.6)",
+   "5000w_100pt": "ok (NOT budget_exceeded), 1001 lines, ms <= 2 x the 0 pt time (tip: budget_exceeded at 2493.5)",
+   "0/30/170pt": "lines and ms unchanged within noise (120/360/1000; 170 pt overfull, breaks as at 0 pt)"
+  },
+  "release_ms_AdobeParagraph_Justified_180pt": "add to the measurement: 600/1800/5000 words at 0/30/100/170 pt; at 100 pt ms <= 2 x 0 pt, and breaks bit-identical to the tip's full re-break",
+  "debug_ms": "AdobeParagraph Left 600w/1800w at 100 pt <= 2 x 0 pt (tip: 115.2 / 1201.5 vs 3.5 / 10.2); run debug at 5000 words at 100 pt too (it was skipped), ok in about 2 x 0 pt (about 65 ms)",
+  "other_composers": "FirstFit, KnuthPlass and AdobeSingleLine: lines and ms unchanged vs the after_gate log (KP 100 pt about 35.5 ms at 5000w)",
+  "line_counts_ruling": "600/1800 at 170 pt stay at 120/360 (unchanged); 100 pt stays 121/361/1001",
+  "tests": "the existing tests stay green, notably indent_spacing.rs last_line_indent_narrows_the_last_line_with_one_rebreak and a_last_line_narrower_than_its_widest_word_keeps_the_breaks_and_is_overfull",
+  "record": "the new numbers go in notes.measure_last_line_indent.after_local_tail, with the sha and the log under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/"
+ },
+ "red_test": {
+  "primary_deterministic": {
+   "name": "indent_spacing.rs `adobe_paragraph_last_line_rebreak_composes_5000_words`",
+   "body": "one Left paragraph of 5000 toy words (the measurement's words), frame 180 x 1,000,000, last_line_indent 100, Composer::AdobeParagraph(default). Assert Ok, 1001 lines, the last line's available_pt == 80.0. Assert that lines[..1000-7] equal the 0 pt run's lines (the prefix is untouched).",
+   "why_deterministic": "the refusal at the tip comes from the composer's step budget (a count, adobe_composer.rs:480), not from a timer, so the test is red at 4b762334 (budget_exceeded) and green after the fix on any machine. Debug takes about 30 ms at 0 pt; the tip spends seconds before it refuses.",
+   "red_at_tip": "yes, by the measured budget_exceeded (the measurement log after_gate, 4b762334)"
+  },
+  "work_count_bound": {
+   "name": "adobe_composer.rs unit test `last_line_rebreak_work_is_bounded`",
+   "body": "add a #[cfg(test)] variant paragraph_from_counted that also returns `work` and `memo.len()` at the end (or a test-only out-param). Build 1800 toy words (as in a_cancel_inside_the_pass_answers_canceled, :862-865), with width 180 everywhere except line l = (the first pass's last line) at 80. Assert that the tail re-break's memo states <= 8 * (items in lines t..=l) and its work <= first-pass work. Today's full path takes about 145x the states (model: 260,997 vs 1,800).",
+   "note": "it counts steps and states, never time, so it is CI-safe in debug"
+  },
+  "equivalence": {
+   "name": "adobe_composer.rs unit test `local_tail_equals_full_rebreak_when_justified`",
+   "body": "justified = true, 600 and 1800 toy words, plus a hyphenated text with HyphenRules limit 2. Compare paragraph(..., width narrowed at l) with prefix(b0[..t]) ++ paragraph_from(..., Resume at t). Assert equal LineBreak vectors (item, overfull, ratio bits). This pins the bit-identity claim and the seam run.",
+   "red_at_tip": "no; a pin of the claim (paragraph_from does not exist at the tip)"
+  }
+ },
+ "scope_split": {
+  "Handshake (Product)": "lane crate hsk-studio-layout: adobe_composer.rs and threaded_reflow.rs (builder's change); tests in indent_spacing.rs and the adobe_composer unit tests",
+  "Repo Governance": "this diagnosis file only; nothing committed"
+ }
+}

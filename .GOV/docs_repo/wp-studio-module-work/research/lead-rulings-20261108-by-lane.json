@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T07:51:05Z",
+ "updated_at": "2026-11-11T07:55:25Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -33,7 +33,10 @@
    "F5: fix the stale keys in xref.rs:465, find_change.rs:401 and data_merge.rs:344 with one red test each (in the lane's crates).",
    "F6: the EditStyle composition key merges only the fields the patch sets.",
    "F7: the export loss line and its host test.",
-   "The empty-story terminator case is a named next-lane candidate."
+   "The empty-story terminator case is a named next-lane candidate.",
+   "Stop rule hit at 100 pt (2026-11-11): AdobeParagraph 1800 words 2.1 to 224.6 ms, 5000 words budget_exceeded. Diagnosis research/diagnosis-20261111-adobeparagraph-last-line.json: moving flat_from makes every line its own memo key, so ragged text grows states as words x lines.",
+   "FIX (binding): AdobeParagraph keeps the first pass's breaks before line t = l-6 and re-breaks only from t to the end, carrying the hyphen run (paragraph_from(Resume{item,line,run}); tail splice at threaded_reflow.rs:1339-1342). Inside the tail, narrow the line that ENDS the paragraph, not line l by number (l stops being last at 100 pt; justified line l was stretched). No memo reuse and no work cap.",
+   "ACCEPTANCE: release Left 180 pt / 100 pt: 600, 1800 and 5000 words compose with 121, 361 and 1001 lines, each within 2x of 0 pt; debug within 2x of 0 pt; 0, 30 and 170 pt and other composers unchanged; add a Justified measurement. Red tests: 5000 words at 100 pt composes (a step count, not a timer); state and step bound; tail equals full re-break for justified text; the final line never overfull when the gate passes, and justified line l is not stretched."
   ],
   "SMB-SCORE-EFFECTS-6": [
    "Review 9322e833 F1: harness/tests/audio_batch.rs:235 uses a nonsense filter_kind (flux_capacitor).",
