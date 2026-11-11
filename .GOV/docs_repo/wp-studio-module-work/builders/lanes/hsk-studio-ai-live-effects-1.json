@@ -1,19 +1,156 @@
 {
   "crate": "hsk-studio-composite (Illustrator live effects on a vector object: folio record, composite evaluation, Viewer typed commands, over nib::live_effect)",
   "lane": "SMB-AI-LIVE-EFFECTS-1",
-  "status": null,
+  "status": "READY_FOR_VALIDATION",
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-pr-nudge-1",
-  "base": "cede5958",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "35c50d3b",
+  "commits": [
+    {
+      "sha": "6e76a608",
+      "item": 3,
+      "kind": "red"
+    },
+    {
+      "sha": "037d90f7",
+      "item": 3,
+      "kind": "green"
+    },
+    {
+      "sha": "f4396cfc",
+      "item": "1,4",
+      "kind": "red"
+    },
+    {
+      "sha": "969ae6f4",
+      "item": 2,
+      "kind": "red"
+    },
+    {
+      "sha": "62cf03b5",
+      "item": 2,
+      "kind": "green"
+    },
+    {
+      "sha": "e5f8d978",
+      "item": "4,5(composite)",
+      "kind": "green"
+    },
+    {
+      "sha": "ca621a47",
+      "item": 6,
+      "kind": "red"
+    },
+    {
+      "sha": "b5622942",
+      "item": "6,5(viewer)",
+      "kind": "green"
+    },
+    {
+      "sha": "1c90c6bb",
+      "item": "review F1 F2 F4 F5 F6",
+      "kind": "red"
+    },
+    {
+      "sha": "53670a54",
+      "item": "review F1 F2 F4 F6",
+      "kind": "green"
+    },
+    {
+      "sha": "8a5568c5",
+      "item": "clippy notes in two test files",
+      "kind": "fix",
+      "built": false
+    },
+    {
+      "sha": "cab9f2be",
+      "item": 5,
+      "kind": "red",
+      "built": false
+    },
+    {
+      "sha": "92cde7eb",
+      "item": 5,
+      "kind": "green",
+      "built": false
+    }
+  ],
+  "capabilities_done": [
+    "nib STEP_REPEAT rows copied from STU-VEC-157 (randomize key; scale/move defaults Studio reading per ruling Q2)",
+    "folio live_filters member: StudioLiveFilterStack / StudioLiveFilter {instance_id, filter_kind, version, enabled, params typed Int|Real|Bool|String}",
+    "composite evaluates enabled filters in list order in own_geometry (render, expand/export), width profiles cycled, typed refusals, aggregate budget, cancel",
+    "Viewer typed commands apply/update/reorder/toggle/remove/bake/read, each one undo step, drive-path rows vector.live_filter_*"
+  ],
+  "tests": {
+    "red_proof": {
+      "sha": "21479f3a (composite src = red commit)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-live-effects-1/focused-smb-ai-live-effects-1-21479f3a.log",
+      "result": "28 run: 21 passed, 7 failed (the 7 composite live-filter tests, for the expected reason: filters ignored); exit 100"
+    },
+    "red_not_run": "nib red dd0a3075 and folio red aabf0855 and harness red c6fbf7d3 not run at their own commits (red by construction: unknown key / unknown field / unknown_command); folio and nib green proven in the same run",
+    "focused_green": [
+      {
+        "sha": "21479f3a",
+        "suites": "nib vector_live_effects 14/14, folio vector_live_filters 5/5",
+        "log": "focused-smb-ai-live-effects-1-21479f3a.log"
+      },
+      {
+        "sha": "ae3da69e (pre-commit tree)",
+        "suites": "composite vector_live_filters 12/12, exit 0",
+        "log": "focused-composite-smb-ai-live-effects-1-21479f3a-wip.log"
+      },
+      {
+        "sha": "dd9ef0b6 (pre-commit tree)",
+        "suites": "harness --features viewer viewer_vector_live_filters 5/5, exit 0",
+        "log": "focused-viewer-smb-ai-live-effects-1-c6fbf7d3-wip.log"
+      }
+    ],
+    "timings": {
+      "live_filter_budget_4096_layers": "1638 layers x 64 filters x 20 elements in 2.33 s (debug, in+out charging); release not measured",
+      "live_filter_cancel": "12 ms (debug)"
+    },
+    "bundled": {
+      "sha": "f962ff49 (pre-rebase of 53670a54, before item 5)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-live-effects-1/bundled-smb-ai-live-effects-1-f962ff49.log",
+      "command": "lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p nib -p folio -p composite -p package -p interop-vector -p interop-vector-core -p interop-vector-svg -p interop-fig-native -p harness-view -p harness-core -p harness --features harness-view/viewer,harness/viewer,harness-core/import-tiff -E 'not package(harness) | harness viewer_vector*, viewer_illustrator*, harness_drive_typed, document_new'",
+      "result": "step 0 clean; clippy over 11 crates + 16 dependents passed (two warnings in lane test files, fixed in 8a5568c5, unbuilt); 881 tests run, 881 passed, 1 skipped; exit 0",
+      "counts": {
+        "composite": 163,
+        "folio": 247,
+        "harness": 64,
+        "harness-core": 72,
+        "harness-view": 139,
+        "interop-fig-native": 11,
+        "interop-vector": 26,
+        "interop-vector-core": 13,
+        "interop-vector-svg": 7,
+        "nib": 97,
+        "package": 42
+      }
+    },
+    "red_proof_review": {
+      "sha": "772776fb (pre-rebase of 1c90c6bb)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-live-effects-1/red-proof-review-smb-ai-live-effects-1-772776fb.log",
+      "result": "20 run: 14 passed, 6 failed (F1 x3, F2, F4, F6 tests), exit 100"
+    },
+    "not_run": "after rebase on 35c50d3b: nothing built (C: held); item 5 tests and loss lines, the clippy-note commit, cargo check of the rebased tree, the affected crate suites (the landed commits touch folio lib.rs, harness-view, harness-core, package tests, interop-vector-svg, interop-vector-core), per-sha",
+    "bundled_tip": {
+      "sha": "1e652818",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-live-effects-1/bundled-smb-ai-live-effects-1-1e652818.log",
+      "result": "900 passed, 1 skipped, EXIT 0"
+    },
+    "per_sha": {
+      "sha": "1e652818",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-live-effects-1/persha-smb-ai-live-effects-1-1e652818.log",
+      "result": "PER_SHA_RESULT OK shas=1 range=26d577b7..1e652818, EXIT 0"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-08T06:00:13Z",
+  "next": "validator judges at 1e652818",
+  "updated_at": "2026-11-11T06:45:28Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -57,6 +194,54 @@
       "MT-289",
       "MT-291"
     ],
-    "reuses_tree_and_target": "smb-pr-nudge-1"
-  }
+    "reuses_tree_and_target": "smb-pr-nudge-1",
+    "spec_basis": "STU-VEC-022 :4084, STU-VEC-023 :4091, STU-VEC-054 :4424, STU-VEC-100 :2993, STU-VEC-101 :3028, STU-VEC-154 :4176 (:4196-4199 typed map), STU-VEC-155 :4201, STU-VEC-157 :4345-4372, STU-FX-002 :19395, STU-FX-003 :19397, STU-FX-007 :19413, STU-FX-011 :19421, STU-FX-012c :19433, STU-FX-027 :19720, Distort and Transform table :19737-19747, STU-CON-007 :22896 (spec module 14 v02.229)",
+    "changed_nib_pins": "tests/vector_live_effects.rs: live_effect_typed_parameter_map (step-repeat rows now STU-VEC-157), vector_step_repeat_live (randomize key; compounding-scale refusal uses scale 4000 x 3 copies on a 1e6 box instead of 1e12), live_effect_descriptor_entry (new needles); new live_effects_keep_the_fill_rule; nib descriptor step_repeat entry rewritten",
+    "sd_items": [
+      "STU-VEC-023 object scope partly met; holder placement in the shared StudioEffectStack open (ruling Q1)",
+      "STU-VEC-157 scale/move default: spec cell 1.0, Studio keeps 100 percent / 0 (ruling Q2); MT-30558 stays open",
+      "per_in read as per 72 px in px documents (ruling Q6)"
+    ],
+    "limits_declared": "folio LIVE_FILTERS_MAX_PER_STACK 64, LIVE_FILTER_MAX_PARAMS 32; composite MAX_LIVE_FILTER_ELEMENTS 2^22 source plus output elements per prepare/expand call (measured debug only)",
+    "package_externals": "no row added: no new property name matches the externals VOCAB (live_filters, layer_id, filters, instance_id, filter_kind, version, enabled, params, type, key, value); the package suite in the bundled run proves it",
+    "v4_06_sweep": {
+      "class": "a reader of vector geometry or records that silently drops a live filter; regex: geometry\\(|own_geometry|envelope_paths|to_owned_path|transform_anchor_path|copy_subtree",
+      "fixed": [
+        "composite vector.rs geometry(): boolean operand -> vector_effect_source",
+        "composite wrap(): envelope top object -> vector_effect_source",
+        "composite prepare_vectors clip source -> vector_effect_source",
+        "composite mask_geometry (VECTOR mask source) -> vector_effect_source",
+        "composite own_geometry (prepare and expand) evaluates the stack",
+        "harness-view vector.rs entry budget list and validate_records retain",
+        "harness-view arrange.rs apply_affines and design/auto_layout.rs rewrite: free distort corners transformed",
+        "composite geometry(): cached boolean outline over a filtered operand -> vector_effect_source (review F6)",
+        "harness-view envelope.rs expand_envelope refuses while a live filter stack is on the layer (review F4)",
+        "interop-fig-native export.rs, interop-vector-svg svg_export.rs, interop-vector-core eps_export.rs: live_filter_not_exported and envelope_not_exported typed losses (envelope drop predates the lane)"
+      ],
+      "not_applicable": [
+        "composite mask_node (ALPHA/LUMINANCE): reads the prepared plane by layer (vector_mask.rs:336), which already includes the effect",
+        "third transform site: none found (git grep transform_anchor_path: arrange.rs and auto_layout.rs only)",
+        "harness-view vector/interop.rs:444, pdf_export.rs:344, separations.rs:301 (re-read at 35c50d3b): go through expand_vectors, which evaluates the stack"
+      ],
+      "pinned_not_changed": [
+        "view/layers.rs duplicate_layer/copy_subtree: the copy carries neither the live filter stack nor the envelope (also not node design style refs); test a_duplicated_layer_does_not_carry_the_stack_pinned; changing it needs an entry write in the same undo step"
+      ],
+      "found_outside_owned_paths": [
+        "envelope.rs expand_envelope order change: fixed under the lead's approval (review F4)"
+      ],
+      "waiting": []
+    },
+    "rule_4e": "harness viewer_vector_live_filters.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml:34 lists hsk-studio-harness [\"viewer\"]; harness-view [viewer] at :44",
+    "commands": "ruling Q4: typed rows vector.live_filter_apply|update|reorder|toggle|remove|bake|read (harness-core commands/vector.rs), decoders in harness-view commands/vector.rs; corpus count is computed (action_records compares corpus_json to RUN_COMMANDS.len()), no pin changed",
+    "review": "research/review-smb-ai-live-effects-1-dd9ef0b6.json FIX_FIRST; F1 fixed (output charged), F2 fixed (non-finite corner refused before commit), F3 suites added to the bundled run, F4 fixed (envelope.rs path approved: expand_envelope refuses while any stack is on the layer), F5 fixed (pre-canceled test renamed as a regression pin; deterministic cancel via assets), F6 reachable (interop-fig-native native.rs writes cached outlines) and fixed (cached boolean with a filtered operand refuses vector_effect_source)",
+    "cut_list": [
+      "duplicate_layer does not copy per-layer vector entry records (pinned by test)",
+      "networks as sources",
+      "group target ring and row scope",
+      "per-entry mask/blend/opacity/render_scope",
+      "release-profile timing of the aggregate budget"
+    ],
+    "takeover_20261111": "Previous builder cut off by account usage limit 2026-11-08 ~10:10Z after bundled green. Landing builder verified clean tree at 1e652818, F1-F6 and item 5 commits present, bundled log covers tip, origin unmoved at 88b5500c, per-sha OK, pushed fast-forward to codex/handshake-studio-assets. No feature edits."
+  },
+  "pushed_sha": "1e652818"
 }

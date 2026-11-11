@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-08T09:49:21Z",
+ "updated_at": "2026-11-11T06:45:52Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19754,8 +19754,8 @@
   },
   {
    "lane_id": "SMB-AI-LIVE-EFFECTS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-composite (Illustrator live effects on a vector object: folio record, composite evaluation, Viewer typed commands, over nib::live_effect)",
    "lane_file": "builders/lanes/hsk-studio-ai-live-effects-1.json",
    "brief": "builders/briefs/lane-smb-ai-live-effects-1.md",
@@ -19763,7 +19763,7 @@
    "base": "cede5958",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T06:00:13Z",
+   "updated_at": "2026-11-11T06:45:52Z",
    "closes": [
     "truth-check 20261105 top_missing rank 2, object scope only: nib::live_effect unreachable from a document",
     "truth-check 20261105 pass_status_findings V07 for MT-30545..30550: effects gain reach; MT-30559 stays a typed refusal by design",
@@ -19784,7 +19784,8 @@
     "MT-32986",
     "MT-289",
     "MT-291"
-   ]
+   ],
+   "claim": "88b5500c..1e652818"
   },
   {
    "lane_id": "SMB-TYPE-INDENT-SPACING-1",
