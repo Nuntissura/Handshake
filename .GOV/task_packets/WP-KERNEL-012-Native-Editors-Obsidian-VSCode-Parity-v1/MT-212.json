@@ -6572,6 +6572,36 @@
       },
       "original_acceptance": "OPEN",
       "next_proof": "Resolve the authenticated applicability SELECT database error without changing public denials or replaying the spent original MT022 or canary attempts."
+    },
+    {
+      "candidate": "mt196-operator-chat-offline-component-repaired-20261111-01",
+      "original_contract_ref": "MT-196.json",
+      "state": "PUBLISHED_COMPONENT_PASS",
+      "source_head": "902ede98a7066f94b091fad869d44c8dc8e3bf22",
+      "selector": "operator_chat_offline_argus_opens_and_reports_unavailable_inventory",
+      "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "turn": "01a1c9ad-aeb6-77b1-83f7-466765fdc7aa",
+      "test_exit": 0,
+      "outer_exit": 0,
+      "records": {
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-offline-component-runtime-20261111-01-case01/result.json",
+          "bytes": 6408,
+          "sha256": "26e6dacc243efc91874e529c8fdd93e968a02726970a5219afc2d9e51347e078"
+        },
+        "completion": {
+          "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-offline-component-runtime-20261111-01-case01/case-completion.json",
+          "bytes": 10415,
+          "sha256": "e20c1f5700cb90de5c30d6f1490d93f8fafd5dbe456ee2a10e973c0befbd2bfd"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-offline-component-runtime-20261111-01-case01/released.json",
+          "bytes": 586,
+          "sha256": "8b546f17f396162c8ee9dbd602aaef79688ff290c511e83abd0e607502dd82ad"
+        }
+      },
+      "scope": "Existing offline pane, stable accessible controls, denied Launch without governed model and owner, and truthful unavailable inventory. Retain prior Case01 pass and spent original Case02 failure.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
