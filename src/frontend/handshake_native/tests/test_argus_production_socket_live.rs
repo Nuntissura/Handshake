@@ -44,8 +44,8 @@ mod live_socket;
 
 use live_socket::{
     assert_bytes_exclude, assert_success, assert_visual_png, collect_author_ids,
-    contains_author_id, decode_verified_capture, discover_binding, list_has_window, node_text,
-    node_value, pane_id_hosting, proof_dir, request_child_close, require_node,
+    contains_author_id, decode_verified_capture, discover_binding, list_has_window, node_by_author_id,
+    node_text, node_value, pane_id_hosting, proof_dir, request_child_close, require_node,
     require_palmistry_ready_backend, wait_for_author_id, wait_for_author_id_between,
     wait_for_window, ArgusClient, ChildGuard, LiveApp, SURFACE_TIMEOUT,
 };
@@ -489,7 +489,28 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
     let diagnostics_dir = require_palmistry_ready_backend();
     let capture_window_started_at_unix_ms = unix_ms();
     let mut app = LiveApp::start("mt008_diagnostics");
-    app.open_models_menu_leaf("menu.models.swarm-lane-diagnostics");
+    app.client
+        .mutation_on_live_surface("argus.click", "main", "module-lab", None);
+    let diagnostics_label = PaneType::SwarmLaneDiagnostics.default_label();
+    let tab_deadline = Instant::now() + SURFACE_TIMEOUT;
+    let diagnostics_tab = loop {
+        let snapshot = app.client.poll_inspect("main");
+        let root = &snapshot["snapshot"]["root"];
+        if let Some(author_id) = collect_author_ids(root).into_iter().find(|author_id| {
+            handshake_native::tab_bar::is_tab_author_id(author_id)
+                && node_by_author_id(root, author_id)
+                    .is_some_and(|node| node_text(node) == diagnostics_label)
+        }) {
+            break author_id;
+        }
+        assert!(
+            Instant::now() < tab_deadline,
+            "LAB did not expose its {diagnostics_label} tab"
+        );
+        std::thread::sleep(Duration::from_millis(200));
+    };
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &diagnostics_tab, None);
     // Capture the immediate post-navigation frame before waiting for the diagnostics landmark. This
     // remains useful on the failure path (where the normal proof matrix is never reached) and makes a
     // production-only layout/accessibility regression directly inspectable instead of leaving only an
@@ -1287,7 +1308,7 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         "child_pid": app.child_pid,
         "authenticated_agent_id_sha256": sha256_hex(app.client.observed_participant_id().as_bytes()),
         "resource_scope_sha256": scope_hash,
-        "navigation": ["menu-models", "menu.models.swarm-lane-diagnostics"],
+        "navigation": ["module-lab", diagnostics_tab],
         "pane_id": pane_id,
         "run_id_sha256": sha256_hex(run_id.as_bytes()),
         "lane_id_sha256": sha256_hex(lane_id.as_bytes()),
