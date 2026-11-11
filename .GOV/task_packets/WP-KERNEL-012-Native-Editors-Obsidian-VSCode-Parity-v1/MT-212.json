@@ -3108,6 +3108,3316 @@
       "compiler_or_writer_grant": false,
       "original_acceptance": "OPEN",
       "limit": "Minimum scope metadata for a bugfix in the existing diagnostics module. One path is appended to each existing path list and one Source record is added. No new module, asset, backend feature, maintenance unit, MT, public command or approval gate. No lease or grant to write, compile or run. All prior owners, picos, statuses, acceptance, HBR and external-module source-first gates remain unchanged."
+    },
+    {
+      "candidate": "handpick-native-library-runtime-20261108-01",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "QUALIFIED_EIGHT_HEADLESS_COMPONENT_CASES_PASSED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "acquisition": {
+        "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-codegen-20261108-01/result.json",
+        "result_sha256": "3f8ac76ae10e895712ad020ff0b7320d2bf270c553458d6504ba0a446444fa48",
+        "executable_sha256": "05d72616a519cd1ea8445ffb232252aef73ec768dabc3c5498c2bbcbbf6db966",
+        "qualified": true
+      },
+      "execution": {
+        "admitted_binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-runtime-admission-20261108-01/handpick-native-library-runtime-binding-admitted-01.json",
+        "admitted_binding_sha256": "b684dff186515c6e97f0b4161f9bde881adee610301781782d46e81d5720084b",
+        "family_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-runtime-20261108-01-case08/handpick05-family.json",
+        "family_sha256": "fa45588b2289116772d60f303b51d2f38c2686fd737232b5fc29e95bc2685efb",
+        "completed_case_count": 8,
+        "passed_case_count": 8,
+        "independent_reviewer": "/root/codecheck_cycle27",
+        "independent_verdict": "PASS_8_OF_8_COMPONENT_ONLY"
+      },
+      "original_acceptance": "OPEN",
+      "scope_limit": "Eight exact headless Handpick05 cases. Full application, authenticated persistence, diagnostics, Palmistry and direct Vulkan acceptance require their original independent proof."
+    },
+    {
+      "candidate": "cabinet-native-library-runtime-20261108-01",
+      "state": "QUALIFIED_EIGHT_HEADLESS_CABINET_NATIVE_CASES_PASSED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "owning_selection_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-compile-preparation-20261026-01/gui22-owning-targets-binding-03.json",
+      "owning_selection_sha256": "b34c8c63f42d9999699419c8b8976e3498b7cf145efaf6af5fd4371b2608b8ed",
+      "acquisition": {
+        "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-library-codegen-20261108-01/result.json",
+        "result_sha256": "3f8ac76ae10e895712ad020ff0b7320d2bf270c553458d6504ba0a446444fa48",
+        "executable_sha256": "05d72616a519cd1ea8445ffb232252aef73ec768dabc3c5498c2bbcbbf6db966",
+        "qualified": true,
+        "reused": true
+      },
+      "execution": {
+        "admitted_binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-library-runtime-admission-20261108-01/cabinet-native-library-runtime-binding-admitted-01.json",
+        "admitted_binding_sha256": "648b668a056b608a48cc2be8892da452cd43391793f97dadeb9e476103448e54",
+        "family_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-library-runtime-20261108-01-case08/cabinet-native-family.json",
+        "family_sha256": "c772a258bbe92116b836814a8365a4c1b1182da75775409c2c34a75492ef7c46",
+        "completed_case_count": 8,
+        "passed_case_count": 8,
+        "independent_reviewer": "/root/codecheck_cycle27",
+        "independent_verdict": "PASS_8_OF_8_COMPONENT_ONLY"
+      },
+      "original_acceptance": "OPEN",
+      "scope_limit": "In-memory ProjectTree and Loom FolderTree, CPU input and typed rename delivery. Actual file I/O, standalone cabinet_host, full GUI, Palmistry and direct Vulkan acceptance require their original independent proof."
+    },
+    {
+      "candidate": "gui22-refresh-integration-codegen-01",
+      "pico_refs": ["GUI-WP012-172-DIAGNOSTICS"],
+      "state": "ACQUISITION_FAILED_RELEASED_REPAIR_PUBLISHED",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui22-refresh-integration-codegen-01/result.json",
+      "result_sha256": "08a74d1ea44763ef9dade113f2e1fc8ed75f6ab6f069d185ccaf32ad8c773780",
+      "release_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui22-refresh-integration-codegen-01/released.json",
+      "release_sha256": "52db08cc4ff803bfa24552bab991f7c1c24f96c39b079f872bf906b5e64dfd30",
+      "failure": "Cargo 101, E0425 at resource_authority.rs:9791. Refresh enables runtime-full without os-keychain. The task-local declaration referenced a type gated on both features.",
+      "repair_commit": "a442a43d5f5e59919f1db9406be752a1ccc0fd93",
+      "source_reviewer": "/root/codecheck_cycle28",
+      "scope_limit": "Static source clearance only. Private job drained naturally and all held handles closed. Cabinet Host and Motion acquisitions did not launch. The two original Refresh runtime cases remain unrun. Any new capture requires scoped admission and current target capacity.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "handpick-bookmark-rim-host-fix-20261108-01",
+      "pico_refs": ["GUI-WP012-search-handpick"],
+      "state": "EXACT_COMPONENT_CASE_FAILED_REPAIR_PUBLISHED",
+      "source_head": "999cbf8130a40a620c77ce7aa0e8c91683b65036",
+      "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-handpick-native-library-runtime-20261108-01-case19/result.json",
+      "result_sha256": "5dc7da4c12812c7f4683a78283b074d20d151b9bdde08b786abeedcb2d8269f8",
+      "failure": "bookmark_rim_preserves_header_height_and_accessible_actions exited 101 at the assertion that bookmark hitboxes stay on the rim above the editable text.",
+      "repair_commit": "ee61267e4ce4b7bc3c1bfb91cdd646a3567a530e",
+      "source_reviewer": "/root/codecheck_cycle27",
+      "scope_limit": "The source repair is published and runtime proof of the failed case is pending. The original test and 18 independently verified sibling results remain intact.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "handpick-native-prepush-capture-custody-20261110-01",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "IMPLEMENTER_COMPILE_QUALIFIED_PUBLISHED",
+      "source_head": "ee61267e4ce4b7bc3c1bfb91cdd646a3567a530e",
+      "source_dirty": true,
+      "source_map_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-capture-custody-preparation-20261110-01/handpick-native-prepush-source-map-01.json",
+      "source_map_sha256": "dc00a2418ef634d493e88523718498b122bc5066e2fc1d81ba743bc45526446f",
+      "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-postfix-native-library-codegen-20261108-01/result.json",
+      "result_sha256": "430746516547e26b62523b6dfc3902323dd2fb805c18b39b66507be89a1638b5",
+      "release_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-postfix-native-library-codegen-20261108-01/released.json",
+      "release_sha256": "8ca5efeb59f9a8e4fa2c2c3b813e88654a305c9d7a7708ffe7465f05be64de4b",
+      "published_head": "e826f17d0224f9a7a6a77d689ee4d4f93893dab9",
+      "published_commits": {
+        "MT020_MT037": "4982ff5293cbaa7c8775e3faa97efe583295f754",
+        "MT212": "a1ae7f8c2063a0be8e6b3722620a4e7e949098e6",
+        "MT196_MT201": "e826f17d0224f9a7a6a77d689ee4d4f93893dab9"
+      },
+      "source_reviewer": "/root/adversarial_refresh",
+      "scope_limit": "Independent implementer-compile qualification only. All ten compiled Native paths match the published tree through path-filtered Git blobs; raw working bytes were unchanged. Cargo and producer exited 0; the private Job drained naturally and checked handles released.",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-child-folder-retry-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "SOURCE_PUBLISHED_AFFECTED_METADATA_CHECK_QUALIFIED",
+      "recorded_at_utc": "2026-11-10T15:08:03.586590+00:00",
+      "published_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "published_tree": "08403187ae02aa51137a4d8b37020ab4333988f5",
+      "source_reviewer": "/root/adversarial_refresh",
+      "attempts": [
+        {
+          "id": "cabinet-native-check-20261110-01",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 1,
+          "qualified": false,
+          "failure_class": "LIVE_TARGET_SCAN_ENTRY_BUDGET",
+          "failing_assertion": "A complete live target sample must stay within the configured scan budget",
+          "changed_input": "First exact metadata check of the reviewed Cabinet source and three inline selectors",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-01/result.json",
+            "sha256": "6a69a7b8d48ba854948c28bc6471b85446258bdbecb4c95a876a106f6f3bf2b0"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-01/released.json",
+            "sha256": "7d4cc2323bad97bb91ce24191f03ff13f51e4f0bf72a0372d37a3e9c6d452ca8"
+          }
+        },
+        {
+          "id": "cabinet-native-check-20261110-02",
+          "consumed": true,
+          "cargo_started": false,
+          "producer_exit": 1,
+          "qualified": false,
+          "failure_class": "NATIVE_CAPTURE_ENVIRONMENT_DIGEST",
+          "failing_assertion": "The declared 42-key child environment digest must match the exact selected output",
+          "changed_input": "Published source pin, 400000 scan visits and fresh output path, with stale overlay digest",
+          "producer_log": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-capture-custody-20261110-02/producer.log",
+            "sha256": "79f1901e96b45d12514a24283fa11fc6bbbe4737c41f81acf36f6aed878eb6b3"
+          },
+          "terminal_handoff": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-capture-custody-20261110-02/producer-terminal-handoff.json",
+            "sha256": "9836fccc4235c98151dbbbc84c0cc1c44bef7199516185be54529162ea59a20c"
+          },
+          "terminal_observation": {
+            "pid": 47940,
+            "birth_filetime": 134387966420252134,
+            "observed_utc": "2026-11-10T15:04:02.383389Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "b13ec3",
+            "custody_returned_by": "/root/coding"
+          }
+        },
+        {
+          "id": "cabinet-native-check-20261110-03",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "qualified": true,
+          "changed_inputs": [],
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/result.json",
+            "sha256": "4555ab1135197e9e97a23e35ab920ea34f68fa21ad044e67b552884ba38d2626"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/released.json",
+            "sha256": "760d77a32ba99cf5efb0f093d99a805253358b452ea0c34ad92ab04c9ba0313f"
+          },
+          "terminal_handoff": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-capture-custody-20261110-03/producer-terminal-handoff.json",
+            "sha256": "41128ad375caf3addba837d4c5c57df7f3dcfd8e6e32432f67384df3f27bbe52"
+          },
+          "terminal_observation": {
+            "pid": 40608,
+            "birth_filetime": 134387971236274811,
+            "observed_utc": "2026-11-10T15:12:18.613008Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "02faeb",
+            "custody_returned_by": "/root/coding"
+          }
+        }
+      ],
+      "diagnosis": {
+        "id": "MT212-CABINET-NATIVE-ENV-OUTPUT-PIN-20261110",
+        "cause": "A new output root changes HANDSHAKE_CAPTURE_RUN_ROOT, so its prior environment digest is invalid.",
+        "code_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-postpush-preparation-20261110-02/cabinet-native-metadata-private-job-capture-03.py:225",
+        "prior_distinct_hypothesis": "Cumulative target directory reconciliation visits can exhaust the 300000-entry scan budget.",
+        "prior_hypothesis_evidence": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-scan-budget-replay-20261110-01/result-02.json",
+          "sha256": "3fe2c3f699b3cd1935f1aa1a7cb8167b49031183e2c26a1002a3132195cc9179"
+        },
+        "intended_fix": "Derive the exact new output digest and verify the producer environment offline before admission.",
+        "next_proof": "Exact published-input Native metadata check, if separately admitted after fresh scoped agreement.",
+        "retry_or_admission_granted": false
+      },
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN",
+      "affected_static_proof": {
+        "check_id": "GUI212-COMBINED-STATIC",
+        "scope": "GUI-WP012-graph-folders child-folder Retry only",
+        "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+        "independent_qualification": "QUALIFIED",
+        "independent_reviewer": "/root/adversarial_refresh",
+        "check_artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/check-artifact.json",
+          "sha256": "49b219603a5482a54e873c466a9cd236114f487fa7dbb5f65b8145c914080811"
+        },
+        "preserved_handpick_executable": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-check-20261110-03/preserved-executable.json",
+          "sha256": "774f5a08277b12a812d5ebded37067903bc228f5deaae30271122858d2187de3"
+        },
+        "coverage": "One complete live target sample and complete final sample. The three affected Native paths and inline tests were type-checked. No test bodies, runtime, visual, or whole-GUI verdict."
+      }
+    },
+    {
+      "candidate": "handpick-bookmark-historical-selector024-20261110",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "HISTORICAL_COMPONENT_PROOF_QUALIFIED",
+      "case_id": "HANDPICK-NATIVE-PARITY-08-SELECTOR-024",
+      "source_head": "e826f17d0224f9a7a6a77d689ee4d4f93893dab9",
+      "live_source_control_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "executable_sha256": "8e27eb7134b69ff1c1f3422e0164c28023004b900efa5b949241eca5f48230a3",
+      "source_witness": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-source-witness-20261110-01/historical-source-witness-01.json",
+        "sha256": "1bdaf1a07c51d7f79491fdc5b6afa357361b03e8ed27e557e4bc87f8c2c796d8"
+      },
+      "retry_of_failed_result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-handpick-native-library-runtime-20261108-01-case19/result.json",
+        "sha256": "5dc7da4c12812c7f4683a78283b074d20d151b9bdde08b786abeedcb2d8269f8"
+      },
+      "retry_consumed": true,
+      "test_exit": 0,
+      "producer_exit": 0,
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-retry-runtime-20261110-01/result.json",
+        "sha256": "8f041d17b5211c7afbbe16e495ae746e2dd78dcfec5d8c048199acb7660b8d0c"
+      },
+      "completion": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-retry-runtime-20261110-01/case-completion.json",
+        "sha256": "990545a9a4f3345d91cccffa65026080528c859bef3c98b55ce3c7e2cb8c6b76"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-historical-retry-runtime-20261110-01/released.json",
+        "sha256": "eff553fa6cf8c578857448013eab0ce5c3cafa4b060393a022d12e46116bc5be"
+      },
+      "terminal_observation": {
+        "pid": 26656,
+        "birth_filetime": 134387988315640029,
+        "observed_utc": "2026-11-10T15:40:54.101434Z",
+        "same_retained_handle": true,
+        "observer_closed": true,
+        "command_ref": "exec-431bcb92-da5d-450e-b262-7705f6697da4",
+        "custody_returned_by": "/root/coding"
+      },
+      "independent_reviewer": "/root/adversarial_refresh",
+      "scope_limit": "One bookmark component test passed with actual live resource sampling. Current workspace was separately guarded. No current-host, full GUI, persistence, Vulkan or Palmistry verdict.",
+      "current_source_acceptance": "NOT_ISSUED",
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-handpick-current-native-codegen-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders",
+        "GUI-WP012-search-handpick"
+      ],
+      "state": "CURRENT_NATIVE_ACQUISITION_AND_CABINET_COMPONENTS_QUALIFIED",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "attempts": [
+        {
+          "id": "cabinet-handpick-native-library-codegen-20261110-01",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 1,
+          "qualified": false,
+          "selected_native_artifact_fresh": false,
+          "changed_inputs": [],
+          "failure_class": "LIVE_TARGET_SCAN_BUDGET",
+          "failing_assertion": "A complete live target sample must stay within the configured scan budget",
+          "changed_input": "First exact current Native codegen for four selectors, with 400000 scan visits and the 25-second deadline",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-01/result.json",
+            "sha256": "3785b023071d40e1586b6a33d3d4e73b85528ddc24b753ad7405e1c4710ede32"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-01/released.json",
+            "sha256": "a252382a7359dac427d605e80037a11d33730182746f99c23f46524154f02964"
+          },
+          "cargo_stdout": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-01/cargo.stdout.jsonl",
+            "sha256": "f71980c02b279778c48298a631a79f2a08813263de2c8e0f9c72aa434c8005e1"
+          },
+          "terminal_observation": {
+            "pid": 41592,
+            "birth_filetime": 134388001044986744,
+            "observed_utc": "2026-11-10T16:18:55.367431Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "64381f",
+            "custody_returned_by": "/root/coding"
+          }
+        },
+        {
+          "id": "cabinet-handpick-native-library-codegen-20261110-02",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "qualified": true,
+          "selected_native_artifact_fresh": true,
+          "fresh_compiler_artifact_count": 458,
+          "changed_inputs": [],
+          "tests_run": false,
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-02/result.json",
+            "sha256": "36d6019834df610c4fc4a798a5238c461837a190e297f619175fbf033c46f9a7"
+          },
+          "artifact": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-02/codegen-artifact.json",
+            "sha256": "4180b1e879b4877fa64e6ab985856a13470a8fd4e1e94dd8822d349506bf395c"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-library-codegen-20261110-02/released.json",
+            "sha256": "e696574679ef9e4dd9fc9a35feebd34fe260ff4be0a6345b0416cec6905cf05f"
+          },
+          "terminal_observation": {
+            "pid": 22896,
+            "birth_filetime": 134388017897601911,
+            "observed_utc": "2026-11-10T16:30:06.036646Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "a6f466",
+            "custody_returned_by": "/root/coding"
+          },
+          "acquisition_reviews": [
+            {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-current-native-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+              "sha256": "cb1bc5ab6f0395050ee2c0c4d30cb85413190fdd22cb13ba89cdaec240701b16"
+            },
+            {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-handpick-native-acquisition-codecheck-20261110-01/current-native-warm-acquisition-review-cc-01.json",
+              "sha256": "e5c980fc48a342f03b25653a041f80a6b06c8d8eebcc079189bceb51342259d9"
+            }
+          ]
+        }
+      ],
+      "diagnosis": {
+        "id": "MT212-CURRENT-NATIVE-WARM-ACQUISITION-20261110",
+        "cause": "A live target scan during Native code generation exhausted its combined visit/time budget. The exact failed counter was not recorded.",
+        "code_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-bookmark-capture-custody-preparation-20261110-01/refresh_resource_guard_v10.py:138",
+        "related_prior_attempt_ref": "MT-212.json#/source_candidates/29",
+        "intended_fix": "Verify completed PE/cache inputs and qualify one warm acquisition requiring fresh:true and unchanged held PE bytes.",
+        "retry_or_admission_granted": false
+      },
+      "independent_reviewer": "/root/adversarial_refresh",
+      "tests_run": true,
+      "runtime_run": true,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN",
+      "component_proof": {
+        "pico_ref": "GUI-WP012-graph-folders",
+        "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+        "executable_sha256": "850038a80b4681031efc35cd5be668923095ab733694b32fe5c7a43ba33d79b9",
+        "independent_reviewer": "/root/adversarial_refresh",
+        "cases": [
+          {
+            "case_id": "CABINET-CHILD-RETRY-COMP-001",
+            "selector": "graph::folder_tree::tests::child_retry_uses_exact_request_and_preserves_cached_children_and_sibling_read",
+            "consumed": true,
+            "qualified": true,
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case01/result.json",
+              "sha256": "f1de29f1bf7b5145521b8c48af486b2fb5518d32a4e2d3caffd36978ec826e14"
+            },
+            "release": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case01/released.json",
+              "sha256": "03255d8faf124ad6dcdbf4a06ceb7985190c189a9ee97603218b83d6e3daacb7"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case01/case-completion.json",
+              "sha256": "b831254d45c64681b3d7eda14fb98c176981e0194f707e9bebdbcedbe3c3550d"
+            },
+            "terminal_observation": {
+              "pid": 23908,
+              "birth_filetime": 134388022751625108,
+              "observed_utc": "2026-11-10T16:38:12.374605Z",
+              "producer_exit": 0,
+              "same_retained_handle": true,
+              "observer_closed": true,
+              "observer_chunk": "538f58"
+            }
+          },
+          {
+            "case_id": "CABINET-CHILD-RETRY-COMP-002",
+            "selector": "graph::folder_tree::tests::child_retry_preserves_an_active_cabinet_write",
+            "consumed": true,
+            "qualified": true,
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case02/result.json",
+              "sha256": "0e60422d49aaac7d900fb46763e233171f4104f0d0bf6240f5b58e297dcbc525"
+            },
+            "release": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case02/released.json",
+              "sha256": "a89dad55c1c670e14aaa7ac72d558c922714449d87a5f9aa861d15a69701a629"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case02/case-completion.json",
+              "sha256": "5c7a160dee271c62dee2a626c6cd23dbe224005f3cd1518f8f720139a7a28b5e"
+            },
+            "terminal_observation": {
+              "pid": 44212,
+              "birth_filetime": 134388023404051091,
+              "observed_utc": "2026-11-10T16:39:17.804499Z",
+              "producer_exit": 0,
+              "same_retained_handle": true,
+              "observer_closed": true,
+              "observer_chunk": "d35f3f"
+            }
+          },
+          {
+            "case_id": "CABINET-CHILD-RETRY-COMP-003",
+            "selector": "app::mt022_child_retry_tests::child_retry_reaches_host_terminal_without_reloading_roots_or_retiring_sibling",
+            "consumed": true,
+            "qualified": true,
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case03/result.json",
+              "sha256": "0fbaf03d59e1d4134bf54383fb2297666896c6b3469e93e28f78a32e5a1509c6"
+            },
+            "release": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case03/released.json",
+              "sha256": "cb87cf74c7ba6e982f176e46445a7097da420a58937c427321e9768a9939728a"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-child-retry-runtime-20261110-01-case03/case-completion.json",
+              "sha256": "a04db0cfdd297061a2d91bb1ab21e962d0820c26773bc5f217441d5c3b033a13"
+            },
+            "terminal_observation": {
+              "pid": 26332,
+              "birth_filetime": 134388023995636425,
+              "observed_utc": "2026-11-10T16:40:16.695120Z",
+              "producer_exit": 0,
+              "same_retained_handle": true,
+              "observer_closed": true,
+              "observer_chunk": "9856f2"
+            }
+          }
+        ],
+        "scope_limit": "Three exact Cabinet child Retry component cases qualified with observed live resource checks and serial custody release. Real backend delivery, full GUI, Vulkan and Palmistry acceptance remain open."
+      }
+    },
+    {
+      "candidate": "cabinet-folder-tree-integration-acquisition-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "FOLDER_TREE_INTEGRATION_EXECUTABLE_QUALIFIED",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "selected_target": "test_folder_tree",
+      "features": [
+        "bundled-fonts",
+        "default",
+        "integration"
+      ],
+      "executable_sha256": "3e4d54ed1be7bca9ed135455e5827d55066a5cf78177ba296d95568d206eca99",
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-codegen-20261110-01/result.json",
+        "sha256": "51aa7205b6db4a960fdcfe141161e6f7856adb81eff034963b9b892cbf54440d"
+      },
+      "artifact": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-codegen-20261110-01/codegen-artifact.json",
+        "sha256": "7bfb8e1ccf1e534d5a61ee574a0fb46974bb2b22dc2fc8ff9ca52ff20696df79"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-codegen-20261110-01/released.json",
+        "sha256": "f61ad5a3d2ecb9a9da5ced0be53828657e1bce4db9eed0e29f1bb351d1690708"
+      },
+      "acquisition_reviews": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+          "sha256": "80a6acdac02f7af982de131d9ff6dbfc16882652ab50e6368a1ea3af85b0f628"
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-integration-acquisition-codecheck-20261110-01/folder-tree-integration-acquisition-review-cc-01.json",
+          "sha256": "fbb258a57066c2962ebdcd1959f86fe39c1340a4c2a327924f58b75ba98e50fa"
+        }
+      ],
+      "terminal_observation": {
+        "pid": 29804,
+        "birth_filetime": 134388040061362345,
+        "observed_utc": "2026-11-10T17:23:43.386447Z",
+        "producer_exit": 0,
+        "same_retained_handle": true,
+        "observer_closed": true,
+        "observer_chunk": "f427f4"
+      },
+      "scope_limit": "Native integration no-run acquisition only. Authenticated Folder Tree body, Core launch and direct Vulkan acceptance remain open. Reuse across a later revision requires current relevant-input equivalence.",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-core-production-prerequisite-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "CORE_SOURCE_PUBLISHED_FORMAL_ACQUISITION_OPEN",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "published_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "published_tree": "e5f94710ca0676e0148add226a98cefd06b754ad",
+      "published_paths": [
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/src/backend_runtime/mod.rs",
+        "src/backend/handshake_core/src/backend_runtime/startup_recovery.rs"
+      ],
+      "preserved_uncompiled_paths": [
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs"
+      ],
+      "attempts": [
+        {
+          "id": "cabinet-core-production-prerequisite-20261110-01",
+          "consumed": true,
+          "cargo_exit": 0,
+          "producer_exit": 1,
+          "qualified": false,
+          "formal_proof": false,
+          "failure_class": "LIVE_TARGET_SCAN_ENTRY_BUDGET",
+          "failing_assertion": "A complete live target sample must stay within the configured scan budget",
+          "observed_bound": {
+            "reason": "ENTRY_LIMIT",
+            "entries": 450001,
+            "maximum_entries": 450000,
+            "elapsed_seconds": 14.422,
+            "deadline_seconds": 25,
+            "reconciled_directories": 3,
+            "measured_stop_invoked": false
+          },
+          "changed_input": "First ordinary Core app-runtime implementer compile solely for the MT022 prerequisite, using v11 cold calibration",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/result.json",
+            "sha256": "1b90ffe07f8299882dbf6999815130f45429f8e1690e8020422ccfd9e2a8ede9"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/released.json",
+            "sha256": "6975a463d3e794c78fc36ef03ec4845b7d605d7008e7a14886491ff05d6a192b"
+          },
+          "cargo_stdout": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/cargo.stdout.jsonl",
+            "sha256": "e01ed923ff002f6b069563c7f5943863feed134a80a4584fec7904fd028226b5"
+          },
+          "resource_evidence": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-01/resource-guard.jsonl",
+            "sha256": "aeef186b46fc0cb437f9295ff539dbc73f3bc728262ff15da0a7229cfd31087f"
+          },
+          "terminal_observation": {
+            "pid": 32600,
+            "birth_filetime": 134388052598371287,
+            "observed_utc": "2026-11-10T18:00:58.320601Z",
+            "same_retained_handle": true,
+            "observer_closed": true,
+            "launcher_exit": 0,
+            "observer_chunk": "072117"
+          }
+        }
+      ],
+      "diagnosis": {
+        "id": "MT212-MT022-CORE-PUBLISHED-ACQUISITION-20261110",
+        "cause": "The dirty-source feedback capture hit the exact visit bound; the linked binary is not formal proof.",
+        "intended_fix": "Bind published Core and the two held e2e exclusions in a separate ordinary app-runtime acquisition that can reuse the existing target.",
+        "retry_or_admission_granted": false
+      },
+      "scope_limit": "Only three reviewed production paths checkpointed after actual compile and clean custody. Formal Core executable acquisition, MT022 runtime and PT007 F4/e2e acceptance remain open.",
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": false,
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-mt022-authenticated-roundtrip-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "EXACT_AUTHENTICATED_BACKEND_CASE_FAILED_CUSTODY_RETURNED",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "formal_core_prerequisite": {
+        "scope": "ORDINARY_CORE_APP_RUNTIME_ACQUISITION_ONLY",
+        "executable_sha256": "cbae5ca0c4e0e15bbc71fd2a664e2a9ccf54223b2ad651c2848307a9dd0cd999",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-02/result.json",
+          "sha256": "631044eef876a12142289548eaff59b5bfd692d58511156f6132c426b223a9d9"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-02/codegen-artifact.json",
+          "sha256": "353deb25f7dee16d2ed3884040c9284cb013cf0d0c32c81729e1c7c2e40c3899"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-20261110-02/released.json",
+          "sha256": "7d03f92a43f467a2a6b023df6bfa3ad197ebe8480270199617501bf1e9469f35"
+        },
+        "acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-acquisition-dx-review-20261110-02/native-acquisition-review-dx-01.json",
+            "sha256": "c72d1c0a1b681c267104505aec08ce2b9d62c6bec5b6665da3b287fde00bca98"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-acquisition-codecheck-20261110-01/core-production-acquisition-review-cc-01.json",
+            "sha256": "5b1125875c6f32fbdb10feba04565dea165c9f8af03c7bdba17cb5060f71b640"
+          }
+        ]
+      },
+      "case_id": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+      "selector": "folder_tree_live_surrealdb_self_seeded_round_trip",
+      "admission_history": [
+        {
+          "admission": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-case-admission-05.json",
+            "sha256": "051499682e90709a54e3962f74244a208c2155d9176fbf64bdc39ea14745531d"
+          },
+          "case_entered": false,
+          "reason": "Legacy broad WP preparation selection corrected; admission expired before entry."
+        },
+        {
+          "admission": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-case-admission-06.json",
+            "sha256": "a55cf732d174a4bd870f66ab9e596a767021e9186a0e6e22ac7d9705a1dd88b0"
+          },
+          "case_entered": false,
+          "reason": "IV returned unstarted; its historical Native acquisition MT212 hash was verified against the exact original Git bytes, while live guards match current bytes."
+        },
+        {
+          "admission": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-case-admission-07.json",
+            "sha256": "fe3cde3d398938b54c22edf6c825820607867399702ebce5b7d86afa71f6a5ab"
+          },
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-05/mt022-roundtrip-controller-binding-admitted-07.json",
+            "sha256": "7ec332f2973fd2290414bfe83f59e1b5236e60a1caef0e87eaf2f11bcbf743bd"
+          },
+          "case_entered": true,
+          "entered_at_utc": "2026-11-10T19:01:50.097456Z",
+          "producer_exit": 1,
+          "test_exit": 101,
+          "case_passed": false
+        }
+      ],
+      "original_independent_owner": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "owner_verdict": "FAIL",
+      "results": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/result.json",
+          "sha256": "69f003f285f7e7303ad84d68d659800491427938807b532ea07bbfb52075eb24"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/released.json",
+          "sha256": "b309a962aba86d18904ec18d374198cda4d28b3dcce2d2d6b399c25a86f5db92"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/postguards.json",
+          "sha256": "23931d33a65872bbbaba11964d6d4e19f2f6db8b2207ae0feafd0d74e201cffd"
+        },
+        "private_job_final": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/private-job-final.json",
+          "sha256": "4bce073022b962568ba95073cb03a19cd96742e99a35e0b07caae1fe17452392"
+        },
+        "libtest_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/test.stdout.txt",
+          "sha256": "8d5e5f45585ed1f0d78f1e69b4343b95cfd376c147dd44bdd95bb2c4571c61e9"
+        },
+        "core_startup_stdout": {
+          "ref": "WP-KERNEL-012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/wp-kernel-012/backend-runtime/r-737fe689eaf924b3/s-1fb0461669c4190a/ddca3527-3813-461a-a7ec-c919a7518a6e/backend.stdout.log",
+          "sha256": "a88f2779b64b875b9d3650b5563922254785c8997f6e10be39ae4fee8ae163d2"
+        },
+        "success_receipt_written": false,
+        "all_handles_closed": true,
+        "private_job_empty": true,
+        "actual_input_drift": false,
+        "live_resource_qualification": true
+      },
+      "diagnosis": {
+        "id": "MT212-MT022-SURREAL-VERBATIM-FIXTURE-PATH-20261110",
+        "cause": "Core rejected the canonical verbatim drive path before SurrealDB listen; its 262 UTF-16 units exceed dunce 1.0.5 stripping limit.",
+        "evidence": {
+          "ref": "WP-KERNEL-012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-01/wp-kernel-012/backend-runtime/r-737fe689eaf924b3/s-1fb0461669c4190a/ddca3527-3813-461a-a7ec-c919a7518a6e/backend.stdout.log",
+          "sha256": "a88f2779b64b875b9d3650b5563922254785c8997f6e10be39ae4fee8ae163d2"
+        },
+        "ordinary_path_utf16": 258,
+        "verbatim_path_utf16": 262,
+        "failing_assertion": "Owned Core exited 1 before the listen report; the one Native integration case returned 101 at backend_proof_support/mod.rs:1372.",
+        "attempt_1_input": "Admission07 ran the published app-runtime Core and qualified Native PE, the bound Windows User host scope and the 46-character isolated fixture leaf.",
+        "root_cause_source_refs": [
+          "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:1372",
+          "src/backend/handshake_core/src/storage/surreal.rs:2494",
+          "src/backend/handshake_core/src/storage/surreal.rs:4895",
+          "src/backend/handshake_core/Cargo.lock#dunce@1.0.5:src/lib.rs:178"
+        ],
+        "intended_setup_fix": "Use fresh canonical MT212 child ft022-02. Same suffix projects 220 ordinary and 224 verbatim UTF-16 units. Preserve both PEs, exact selector, authentication, receipt and fixture cleanup.",
+        "retry_scope": "CX-EXEC-003A; same case and failing assertion, ordinal 2 probe only after technical, independent and fresh Primary admission. No reset or replay of ordinal 1.",
+        "changed_input_candidate": "Fresh shorter isolated fixture root inside canonical MT212 artifacts; preserve test, PEs, authentication and fixed receipt contract.",
+        "automatic_retry_authorized": false
+      },
+      "scope_limit": "One consumed backend case. Checked IV custody return. No new runtime grant, Vulkan/Palmistry verdict, or original MT lifecycle change.",
+      "tests_run": true,
+      "runtime_run": true,
+      "final_acceptance": "OPEN",
+      "original_acceptance": "UNCHANGED"
+    },
+    {
+      "candidate": "cabinet-mt022-short-fixture-probe-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "state": "ORDINAL_2_PROBE_FAILED_AT_SESSION_EXCHANGE_CUSTODY_RETURNED",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "case_id": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+      "selector": "folder_tree_live_surrealdb_self_seeded_round_trip",
+      "ordinal": 2,
+      "probe_of_diagnosis": "MT212-MT022-SURREAL-VERBATIM-FIXTURE-PATH-20261110",
+      "changed_input": "Short isolated ft022-02 fixture, with unchanged Core/Native executables, selector, Owner auth and fixed receipt.",
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-06/mt022-roundtrip-controller-binding-admitted-08.json",
+        "sha256": "a64290347088496616d0cd1935525a8e6a5553cc51a5688e1575d0d9e91af874"
+      },
+      "admission": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-roundtrip-runtime-controller-20261110-06/mt022-roundtrip-case-admission-08.json",
+        "sha256": "981f3ff627b2ce6c715dfff02647dee940e4b920a68b2e5220625e6f26ed61e2"
+      },
+      "entry_utc": "2026-11-10T19:13:35.222522Z",
+      "producer_exit": 1,
+      "test_exit": 101,
+      "independent_owner": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "owner_verdict": "FAIL",
+      "results": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/result.json",
+          "sha256": "83edaf9e65c139932a76db04f471989d537fdd77484a974eb4ac65f5580c0c80"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/released.json",
+          "sha256": "8641f4ac9def8f667008ceb42230d627240aa40f0f448cff275929cc57a680dd"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/postguards.json",
+          "sha256": "4cf6df702640d489e9ed58da60fdf3e4cf47a7d91469e0c1ce07cf2af269b3f4"
+        },
+        "private_job_final": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/private-job-final.json",
+          "sha256": "8b815ce0d2b7ce11c35d8c909d8b4755e5f8eac2803e9465318e4c24e2e6fad0"
+        },
+        "libtest_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261110-02/test.stdout.txt",
+          "sha256": "3ba4dd7f0cc5dabd34d6a9af9f2d4dd9ccc4a6adbee752ef559ab2e08322cf9c"
+        },
+        "core_stdout": {
+          "ref": "WP-KERNEL-012/MT-212/ft022-02/wp-kernel-012/backend-runtime/r-444a42255ff91960/s-1fb0461669c4190a/c8edd74e-cb9f-4ad9-b0db-431082b2d1b2/backend.stdout.log",
+          "sha256": "e22cc9fa39f4c49b673e69d183673e7e40639ba13964c9c6f9252f9f58dfa5fa"
+        },
+        "shorter_fixture_passed_core_listen": true,
+        "success_receipt_written": false,
+        "all_handles_closed": true,
+        "private_job_empty": true,
+        "actual_input_drift": false,
+        "live_resource_qualification": true
+      },
+      "changed_failure": {
+        "failing_assertion": "Product session exchange returned HTTP403 after Owner setup instead of completing the authenticated exchange; Native panicked at backend_proof_support/mod.rs:906.",
+        "observed_backend_boundary": "The local Surreal authenticated session SELECT failed in response.check(), after record signin and query transport, before row decode and login-event write. The logged SDK class is Internal, outer storage phase login_event_identity.",
+        "source_refs": [
+          "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:906",
+          "src/backend/handshake_core/src/storage/surreal/local_accounts.rs:369",
+          "src/backend/handshake_core/src/storage/surreal/local_accounts.rs:372",
+          "src/backend/handshake_core/src/api/authority.rs:2331"
+        ],
+        "related_contract_ref": "MT-174.json#session_reauthentication_diagnostic_probe_20261023",
+        "underlying_engine_cause": "UNRESOLVED",
+        "next_step": "Use exact source and existing engine evidence to isolate the first statement error; keep fail-closed authentication, public denial, cleanup and prior runtime limits.",
+        "automatic_retry_authorized": false
+      },
+      "tests_run": true,
+      "runtime_run": true,
+      "final_acceptance": "OPEN",
+      "original_acceptance": "UNCHANGED"
+    },
+    {
+      "candidate": "cabinet-host-library-cold-acquisition-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "CARGO_LINKED_CAPTURE_UNQUALIFIED_NATURAL_RELEASE",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "operation_id": "cabinet_host_library",
+      "consumed": true,
+      "codegen_only": true,
+      "cargo_exit": 0,
+      "producer_exit": 1,
+      "tests_run": false,
+      "runtime_run": false,
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/result.json",
+        "sha256": "b548866e3b7c7e5dcd2414b616b1e6717cd7efbd80440e15882855e3e624383e"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/released.json",
+        "sha256": "90040cf41a2ce4020b7e6bf351f6b6720ac430cc4354a24ccfdc0d8a5240935c"
+      },
+      "terminal_observer": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-custody-20261110-01/producer-native-terminal-observer-01.json",
+        "sha256": "e763657f59e843ceb7affbc4881b4eb0de11f504fd1a2a6fca0ecf8a26ac7aea"
+      },
+      "raw_cargo": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/cargo.stdout.jsonl",
+        "sha256": "d4b919a25599ed2d50bbf7bd9a80a5975897c36b13ceb69122a008f2f48f42dc"
+      },
+      "postguards": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/postguards.json",
+        "sha256": "fa358b2d5b78720cf74ee1737d3b09d92d0666983877f6167cf05481e0c93d05"
+      },
+      "owned_drain": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/owned-drain.json",
+        "sha256": "8b5d21eff6be65ebcbd248853e021e80a05da3cb35f11429a2cc5be9c91b9e97"
+      },
+      "resource_guard": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-01/resource-guard.jsonl",
+        "sha256": "7fda28fe2c270864943e77e5aa2b92709ed49c1d64ebff9fd6af9b44f5725ab8"
+      },
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-independent-acquisition-preparation-20261110-01/cabinet-host-library-codegen-binding-admitted-01.json",
+        "sha256": "f4fc4f480ebe678682754ac74c1d33925963a9a32581362ddf68ad7d3f6036e4"
+      },
+      "linked_pe": {
+        "target_ref": "WP-KERNEL-012/MT-174/kb-phase02/target/debug/deps/cabinet_host-0e54da7507675558.exe",
+        "sha256": "fd048c7bdc58f938323fe0ec509cf0af90808a6e8b8f6e00eef869fe94153289",
+        "bytes": 1378816,
+        "volume_serial": 705387220,
+        "file_index": 844424933282425,
+        "qualification": "NONE; observed after checked release"
+      },
+      "diagnosis": {
+        "id": "MT212-CABINET-HOST-COLD-LIVE-ENTRY-LIMIT-20261110",
+        "failing_assertion": "Full live TargetProbe closing observation exceeded 450000 visits during the cold build.",
+        "cause": "v11 reached ENTRY_LIMIT at 450001 after 10 directory reconciliations; actual wall-time was 7.812s, not the 25s deadline. No measured tripwire and no force.",
+        "source_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-preparation-20261110-01/refresh_resource_guard_v11.py#TargetProbe.target_bytes",
+        "prior_attempt_input": "First distinct Cabinet Host compile-only capture with cold Cargo work and no preheld executable.",
+        "next_candidate": "One separately admitted warm-only acquisition with same source/argv, exact held postrelease PE and every Cargo row fresh. Preserve full v11 live guard; no cold repeat, short bracket, force, cleanup, or test body.",
+        "automatic_retry_authorized": false
+      },
+      "scope_limit": "No qualified codegen manifest, no Cabinet Host test verdict, no Refresh or Motion launch or historical custody upgrade.",
+      "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-host-library-warm-acquisition-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "INDEPENDENTLY_QUALIFIED_WARM_ACQUISITION_ONLY",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "operation_id": "cabinet_host_library",
+      "predecessor": "MT212-CABINET-HOST-COLD-LIVE-ENTRY-LIMIT-20261110",
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-warm-acquisition-preparation-20261110-01/cabinet-host-library-codegen-binding-admitted-02.json",
+        "sha256": "a4d95003bfd199bf8ec911c3ce854ae281b1c0b424c98d219aba833e217df57b"
+      },
+      "result": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-02/result.json",
+        "sha256": "92f7c37a7503592e693de982688f8e956c03c2f964c910ba357d43d8eadadfc7"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-02/released.json",
+        "sha256": "e4be07de6a265eb5df61731e30377735ae2a25532a9d1b0ee2f932066fdd5075"
+      },
+      "artifact": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-codegen-20261110-02/codegen-artifact.json",
+        "sha256": "bbe15b6f4633ebc417628537e58a1240cd4ff8932f77a2c82d3e82c4ee4e5163"
+      },
+      "terminal_observer": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-independent-custody-20261110-02/producer-native-terminal-observer-01.json",
+        "sha256": "87291cebb00404c235d22bca56c20c83f9ccd4389746ce5907b719472afb2d91"
+      },
+      "independent_reviews": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-warm-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+          "sha256": "b492c15f3943f5094a57b29921363872b59d11c043645bdb94f469b22d52488f"
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-library-acquisition-codecheck-20261110-01/cabinet-host-library-acquisition-review-cc-01.json",
+          "sha256": "dfa7744fefc4bc893837e4675ddc4e81a0ef206bea13b04ca3c6ca5dc5aaba9d"
+        }
+      ],
+      "executable_sha256": "fd048c7bdc58f938323fe0ec509cf0af90808a6e8b8f6e00eef869fe94153289",
+      "all_31_artifacts_fresh": true,
+      "cargo_exit": 0,
+      "producer_exit": 0,
+      "live_target_samples": 1,
+      "live_disk_samples": 2,
+      "checked_job_and_handle_release": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "scope_limit": "Acquisition only; no Cabinet Host body verdict, mounted/authenticated workflow, Vulkan, Palmistry or other task acceptance. Cold attempt remains unqualified.",
+      "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-diagnostic-source-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+      "state": "EXACT_ONE_FILE_REVIEWED_SOURCE_INTEGRATION_ALLOCATED",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "failure_ref": "MT-212.json#/source_candidates/35/changed_failure",
+      "blocker": "The scoped ordinal2 test received HTTP403 after successful record sign-in. SurrealDB statement check logged a generic Internal category, before row decode or login-event write.",
+      "necessary_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "expected_live_preimage": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-20261110-01/local-accounts-preimage.rs",
+        "sha256": "b5b22e5d033ea5e8963a06faa9c111a0facf5927b7ac1820d4fc6d458fc39c26"
+      },
+      "approved_exact_candidate": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-20261110-01/local-accounts-candidate.rs",
+        "sha256": "766bb0189312eb7a4e9f51ae68db2ed13bbbaab15f03f7b06f2448c14ae7753c"
+      },
+      "review_delta": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-20261110-01/local-accounts.patch",
+        "sha256": "fb14f0a2494dd1a4ae5cd41d4aef57280e751b59f7f2630d13f6c6ba19d34bc0"
+      },
+      "author": "/root/coding_session_query",
+      "independent_source_reviewer": "/root/adversarial_refresh",
+      "physical_source_owner": "/root",
+      "approved_change": "Only fixed payload-free labels for Internal statement errors at session_query_check, including an unclassified fallback, plus its one pure classifier regression. Exact preserved mixed-EOL preimage for all untouched bytes.",
+      "controls": "No raw error text, SQL, token, account or binding exposure. Preserve the original error, query/authorization and public 403, revocation and cleanup. No manifest, schema, lock or unrelated file change.",
+      "original_proof": "MT022 actual authentication and Cabinet round trip remain open. Original MT174 Runtime05/06 remain spent and stopped. Pure classifier coverage gives no authentication verdict.",
+      "next_proof": {
+        "selector": "storage::surreal::local_accounts::tests::session_query_check_error_details_use_fixed_labels",
+        "dormant_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-preparation-20261110-01/cabinet-session-query-diagnostic-codegen-binding-dormant-01.json",
+          "sha256": "e877e8caffd48a637e0803bf48c32c1ff9a93f5525710f38d75d9246d244b4e1"
+        },
+        "scope": "Separate compile-only Core libtest acquisition, exact current live custody and independent admission required before launch; pure selector body separate."
+      },
+      "compiler_or_runtime_admission_granted": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-diagnostic-compile-and-publication-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "CORE_DIAGNOSTIC_SOURCE_PUBLISHED_COLD_CAPTURE_UNQUALIFIED",
+      "original_contract_ref": "MT-022.json",
+      "source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "published_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "published_tree": "8afd2a54b88a497637a933b104837ce2dfdeee5a",
+      "published_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "published_git_blob": "573b0d224ad2a3ebddc5ee68c7a9d9d08924dedd",
+      "live_raw_source_sha256": "766bb0189312eb7a4e9f51ae68db2ed13bbbaab15f03f7b06f2448c14ae7753c",
+      "pinned_published_source_map": {
+        "sha256": "70a3779b326e6b4297babcd636fe770bf2ca961b75778d6c865f582ed4092447",
+        "bytes": 1075443,
+        "head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+        "tree": "8afd2a54b88a497637a933b104837ce2dfdeee5a",
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-preparation-20261110-01/published-source-map-01.json"
+      },
+      "source_only_publication": "CX-EXEC-007 / KB-OUT-001; exact sole file, independently reviewed compile feedback. Two e2e files retain their raw hashes and are unstaged.",
+      "cold_attempt": {
+        "codegen_only": true,
+        "consumed": true,
+        "cargo_exit": 0,
+        "producer_exit": 1,
+        "guard_qualified": false,
+        "observed_job_empty": true,
+        "result": {
+          "bytes": 5642,
+          "sha256": "c7891526f2466e6a6d1d8b7de44adc560536653fa4ab7db32ef41ffd6847113d",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/result.json"
+        },
+        "release": {
+          "bytes": 2240,
+          "sha256": "a43d7d184b5ff8a96a1c439cd9d05e59c5697b6010db0617f784da414cad25e9",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/released.json"
+        },
+        "same_handle_terminal": {
+          "bytes": 649,
+          "sha256": "659a0cc22130df29f104d804de46c70eca51caaeca209d02179a36a65cc817ab",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-custody-20261110-01/producer-native-terminal-observer-02.json"
+        },
+        "raw_cargo": {
+          "bytes": 2034599,
+          "sha256": "9fbf6a07413d4292743d497ddd513f9bda111d6e3b8064ad6978be795ae4e697",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/cargo.stdout.jsonl"
+        },
+        "resource": {
+          "bytes": 8065,
+          "sha256": "f47ab0fa5a198edf5e6a93405da58b756ced7702ad041d93a13fe97522fc0fa3",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/resource-guard.jsonl"
+        },
+        "postguards": {
+          "bytes": 1869,
+          "sha256": "3d071d07f71a70ba8b3be261e93166750b5a8e6f8f97cce91f6752f0893c1321",
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-codegen-20261110-01/postguards.json"
+        },
+        "body_ran": false
+      },
+      "linked_pe": {
+        "bytes": 446554624,
+        "sha256": "32d6736dcba7a3ab34e3b8164fa2f898cf6c4f0ed0cd6b7f3948fb1706e1f961",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "observation": "Observed after verified custody release. Cold capture grants no artifact or execution credit.",
+        "ref": "WP-KERNEL-012/MT-174/kb-phase02/target/debug/deps/handshake_core-ed05041c61d5ee60.exe"
+      },
+      "diagnosis": {
+        "id": "MT212-CORE-DIAG-COLD-ENTRY-LIMIT-20261110",
+        "failing_assertion": "Complete live resource sample required for qualification. The v11 closing scan exceeded the 450000 entry budget during cold codegen.",
+        "observed": "450001 entries after three directory reconciliations at 19.985s. The 25s deadline and measured tripwires did not trigger. No forced process stop.",
+        "source_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-core-production-prerequisite-preparation-20261110-01/refresh_resource_guard_v11.py#TargetProbe.target_bytes",
+        "first_input": "Cold compile-only of exact reviewed raw local_accounts.rs on the prepublication base.",
+        "changed_input": "One separately admitted warm-only acquisition on the actual one-file published child, preserving the prior full raw map and exact preheld libtest PE. Require all compiler artifacts fresh and full unchanged live v11 qualification.",
+        "automatic_retry_authorized": false
+      },
+      "tests_run": false,
+      "runtime_run": false,
+      "formal_acquisition": "OPEN",
+      "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-host-seven-components-and-core-classifier-20261110",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "EIGHT_COMPONENT_CASES_INDEPENDENTLY_QUALIFIED",
+      "published_live_source_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "cabinet_acquisition_source_head": "8566836bcca84293655fa826c219e63353feb00f",
+      "cabinet_source_equivalence": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-current-source-equivalence-dx-review-20261110-01/cabinet-host-source-equivalence-dx-01.json",
+        "sha256": "a3d2e7278997c8a981fa1d118d21774c9fa023a750f79f8bdbcb7c1e64e718c0"
+      },
+      "core_diagnostic_warm_acquisition": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-20261110-01/result.json",
+          "sha256": "0946171271923c9130dff43431a66ff045118ef7e88318be96ae8aa4095bd55c"
+        },
+        "independent_acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-dx-review-20261110-01/native-acquisition-review-dx-01.json",
+            "sha256": "c714467d11a738e47a08d2d9345e48ac4a41011a12d43b2c103e7255619e91fd"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-codecheck-20261110-01/core-session-query-diagnostic-acquisition-review-cc-01.json",
+            "sha256": "e5cba4d9fc4acb94e33b3e6bd3d9a3a236ab094d2219ad48dcae5aee346b7e23"
+          }
+        ]
+      },
+      "component_cases": [
+        {
+          "case_id": "GUI22-CASE-11",
+          "selector": "tests::stale_epoch_and_sequence_cannot_settle_the_bound_read",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case11/result.json",
+            "sha256": "6defc8de1af4ecd78177dd265dde14d860dad7c66fda34dc8944b4b1b8b2b2ab"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case11/released.json",
+            "sha256": "ec2aee28c52921629b3c1907f9f079732d5ccfdb22df5a9d0738fb7624e4c9c6"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case11/case-completion.json",
+            "sha256": "e0efd682cc71396570d0dfa70ce6484a6c861443f5bb290c268b029b414cf1bb"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-12",
+          "selector": "tests::write_terminal_requires_a_later_canonical_marker_to_release_custody",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case12/result.json",
+            "sha256": "17281550d0bb04edf58fa9590bbfc48846c5e511c67d6a177693c864e5a607a1"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case12/released.json",
+            "sha256": "29947e2feb62481a3fb8b92ead17ee6a80214ce5daeb9daef909101b5db59920"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case12/case-completion.json",
+            "sha256": "2221785a4f6da0104767b43c32e5411231d6d80dd2cb21924af531033558c1cd"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-13",
+          "selector": "tests::failed_read_replacement_and_expansion_retain_the_original_host_read",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case13/result.json",
+            "sha256": "272ad7132089bf683fa917692546f6fde50920a2b86cc31a252cd054df1d6ae6"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case13/released.json",
+            "sha256": "e135fb0b991eaa0ae23018ff98300232f0d26f81a70025d863e4440a454b58f6"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case13/case-completion.json",
+            "sha256": "50ad6785ce2f2a1a102c708fe0ab54b743e81626f50fd5a6dbe0db4f0a1c3a47"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-14",
+          "selector": "tests::successful_read_replacement_retires_only_the_local_old_binding",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case14/result.json",
+            "sha256": "479afc6350aa61102b6cefd45021854f0f94e71757212740951d5f0306ae8c11"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case14/released.json",
+            "sha256": "cd0df761c1d4b26c0691fcdb2aa396bb4ec0b8a09af9f13a86808812b7bf3ccd"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case14/case-completion.json",
+            "sha256": "f564e34011e12439ceb34ae2644e2dca4690e537f9fa06983c8f56d81441d8fc"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-15",
+          "selector": "tests::cloning_a_host_never_duplicates_projection_or_dispatched_ownership",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case15/result.json",
+            "sha256": "64e2ed6cfdd98ed0145fec49ab88524f22fce7780043865148b94afbc30e4c52"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case15/released.json",
+            "sha256": "757bcf100c10ab2bbca3b570d0b297cd806f999e5a99c87a2e660ec9906b1e1b"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case15/case-completion.json",
+            "sha256": "afde85396ea8125ed5b91113948d546e54795f159f9cdb2d5a3f6f1a31b5bc37"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-16",
+          "selector": "tests::projection_restore_arrow_expansion_and_label_read_remain_distinct",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case16/result.json",
+            "sha256": "e980dae5e9290535fe8589ce6e741ad15227f050d03c3839f794ca9f24bce027"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case16/released.json",
+            "sha256": "b65114425a70b8e1a50baf6b1c897a86453b79a51b3003170bcd7649ab1db2c0"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case16/case-completion.json",
+            "sha256": "e757c6f5569e043699685aafae0ea47f221b1d7248525ac62993eb7573e1f76e"
+          }
+        },
+        {
+          "case_id": "GUI22-CASE-17",
+          "selector": "tests::controlled_drafts_keep_kind_text_and_error_visibility",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case17/result.json",
+            "sha256": "220f725082f230b32acb9513ca764f9b4b65acbec35dfcbe857d5030cf68b40b"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case17/released.json",
+            "sha256": "fa2de2c3352f4b75377a415790f9c7e1e8376c0191f0a26c8a898d661fb15d59"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-component-runtime-20261110-01-case17/case-completion.json",
+            "sha256": "15ccad41892e984fe8197ad00353bfdda4ace8fcbdfd87d17bb1078e82f77bf5"
+          }
+        },
+        {
+          "case_id": "CORE-SESSION-QUERY-CLASSIFIER-001",
+          "selector": "storage::surreal::local_accounts::tests::session_query_check_error_details_use_fixed_labels",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-classifier-runtime-20261110-01/result.json",
+            "sha256": "efa1a0ed2d2a7edd1a1468cf8d3e63e142e747684bfefd74d47632ee5f8a8158"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-classifier-runtime-20261110-01/released.json",
+            "sha256": "b39b31b867c3cd8041afa109843956c0226efb1d8bcd7bac630022ce27ae6a37"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-classifier-runtime-20261110-01/case-completion.json",
+            "sha256": "d9a91a5b4ec1d37e991b9e7678ffcaaa0eb01788b204df4d9c6e3c97de063c98"
+          }
+        }
+      ],
+      "independent_component_review": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-host-and-session-classifier-component-codecheck-20261110-01/eight-component-results-review-cc-01.json",
+        "sha256": "4b3a3affc84c6a7569623dfa85f47a82c9a857fed79d70f7046de759ded15760"
+      },
+      "result_scope": "Seven standalone Cabinet Host State cases and one fixed-label classifier only. Each exact body passed once, complete resource observation and clean checked custody. Original MT022 live authenticated exchange and original GUI/Vulkan/Palmistry remain open.",
+      "follow_on": "The currently published embedded storage test can isolate the same query beneath HTTP with synthetic Owner data. Historical MT109 earlier failures and storage pass do not prove current source; previous MT022 and MT174 executions remain spent. Any distinct current diagnostic requires exact short private fixture/resource scope, fresh reviewed admission and retention of credential-safe evidence. No runtime grant here.",
+      "original_acceptance": "UNCHANGED",
+      "final_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-embedded-diagnostic-20261110-01",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "state": "DISTINCT_EMBEDDED_DIAGNOSTIC_SCOPE_SELECTED_SOURCE_CLEAR_NOT_ADMITTED",
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; CX-EXEC-004; KB-CAD-001",
+      "original_contract_ref": "MT-022.json",
+      "original_proof_case": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+      "original_disposition": "Both consumed authenticated HTTP attempts remain closed with existing failure/release verdicts. This diagnostic supplies no original verdict or new HTTP attempt.",
+      "recorded_failure": "MT022 ordinal2 reached the live authority session endpoint on real embedded RocksDB, then returned constant HTTP 403 after session_query_check/Internal and login_event_identity/Storage. The pure fixed-label component passed and did not disclose the engine cause.",
+      "hypothesis": "The exact current library test exercises the same positive statement after record sign-in on a fresh real embedded RocksDB base schema, before the app/router/vault differences. The private error and test stage can distinguish that lower-level path. A pass leaves app state, schema and authority route unresolved.",
+      "required_source_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "product_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "test_harness_sha256": "32d6736dcba7a3ab34e3b8164fa2f898cf6c4f0ed0cd6b7f3948fb1706e1f961",
+      "acquisition": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-diagnostic-warm-acquisition-20261110-01/result.json",
+        "bytes": 3336,
+        "sha256": "0946171271923c9130dff43431a66ff045118ef7e88318be96ae8aa4095bd55c"
+      },
+      "controller": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-capture-02.py",
+        "bytes": 80612,
+        "sha256": "28fd5414510d0193749da34f129539c0afc5832a99ee5bd0a8ba0819659df938"
+      },
+      "dormant_binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-binding-dormant-02.json",
+        "bytes": 17120,
+        "sha256": "1f25fc49ed846c9c5bedf38733d65a05b08eda14a464746ac64d43ff518c1429"
+      },
+      "private_acl_and_environment_preflight": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/acl-env-offline-proof-01.json",
+        "bytes": 1315,
+        "sha256": "432aed24532846a74c74529886b49b4919f7cb917d0a033023be482a4678b8e0"
+      },
+      "changed_only_diff": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/controller-v1-to-v2.diff",
+        "bytes": 19881,
+        "sha256": "29fd1950a1aede0ff88c7a5adeea9f662271581dc4f5c918383de3f5f73a9773"
+      },
+      "owners": {
+        "primary": "01a17815-783f-71b0-a740-3c48849c43f9",
+        "technical": "/root/coding_session_query",
+        "independent_codecheck": "/root/adversarial_refresh",
+        "runtime_executor_integration_validator": "01a16b9e-0d1e-7b81-b116-05291184319b"
+      },
+      "authority_state": "Technical source handback, independent changed-only scope clear and independent validator readiness in principle. No runtime until an exact final pinned binding and fresh Primary one-shot custody, reviewed by the named runtime executor.",
+      "one_case": {
+        "case_id": "CORE-SESSION-QUERY-EMBEDDED-001",
+        "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+        "argv": [
+          "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+          "--exact",
+          "--test-threads=1",
+          "--format=pretty",
+          "--color=never"
+        ],
+        "target": "core_session_query_diagnostic_lib",
+        "output": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01",
+        "child_environment_binding": {
+          "recipe": "Existing ordered 42-key overlay bound to private child TEMP/TMP/TMPDIR; no unbound product keys in child",
+          "declared_overlay_key_count": 42,
+          "declared_overlay_sha256": "5eb3b0553ff92b9075774fe5abd7047783f1e27ee7396abefdd29491b05d2a3a"
+        },
+        "temp_keys": [
+          "TEMP",
+          "TMP",
+          "TMPDIR"
+        ],
+        "temp_root": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/t",
+        "strip_unbound_prefixes": [
+          "HANDSHAKE_",
+          "HSK_"
+        ],
+        "deny_effective": [
+          "HANDSHAKE_TEST_SURREAL_SYNC",
+          "unbound watcher credentials and libtest overrides"
+        ]
+      },
+      "controls": "Fresh short private directory and TempDir with no-follow ancestry and protected current SID/SYSTEM ACL readback, exact fresh source and guard pins, private raw output, existing v11 full resource measurements, actual owned Job settlement, exact producer exit and independent two-terminal-handle close witness. No Cargo, app, HTTP, account data, cleanup, process stop or retry. Abort on mismatch.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-query-and-motion-components-20261110-01",
+      "state": "INDEPENDENT_EMBEDDED_DIAGNOSTIC_AND_MOTION_COMPONENTS_PASS_ORIGINAL_ACCEPTANCE_OPEN",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "motion_owning_unit_ref": "MT-212.json#/context_capsule/host_build_units/motion_preference",
+      "product_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "embedded": {
+        "case_id": "CORE-SESSION-QUERY-EMBEDDED-001",
+        "integration_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c758-c01f-7f83-9730-a7a910127c64",
+        "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/result.json",
+          "bytes": 6812,
+          "sha256": "9e3544f1bda3c743d5940644f1a8357c8931abf988beb2438671cc39eb2097dd"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/released.json",
+          "bytes": 497,
+          "sha256": "6230d9e95eaab6b2a4afc9e03868d1a9861b508182d90920c98960b9dce87c29"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/postguards.json",
+          "bytes": 2299,
+          "sha256": "e9ac504553ac4a03983367d0a179108feb5e7b652f18e93086a0971c4f1d8568"
+        },
+        "completion": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/case-completion.json",
+          "bytes": 19900,
+          "sha256": "f91c92f1019be61345eced2b5c72c50a79192ba28b3b5fd8b809fafe0c09b1b3"
+        },
+        "numeric_exit": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqe-01/test-exit.json",
+          "bytes": 899,
+          "sha256": "1bec3480754d3cd76ae19980f9f387ffb076f6c1263b42d667adc8328b3c7645"
+        },
+        "rejected_unstarted_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-binding-admitted-02.json",
+          "bytes": 34025,
+          "sha256": "bd655cf306bf1004e36e7eecf139dbc6463122d0943ed6cb2df5942a9cc37df4"
+        },
+        "used_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-embedded-runtime-preparation-20261110-02/session-query-embedded-binding-admitted-03.json",
+          "bytes": 34025,
+          "sha256": "f2e5d9204f45300a3f8fa0a46ebf25e43444436f9422a6c21d8a846f77c5aba7"
+        },
+        "unstarted_reason": "Independent preflight decoded UTF-8 JSON with Windows cp1252 and reported a different basis. It never invoked the controller. Raw UTF-8 decoder reproduced the correct digest; fresh admission03 was the sole launch.",
+        "observed": {
+          "test_exit": 0,
+          "producer_exit": 0,
+          "test_bodies": 1,
+          "terminal_output_handles_expected": 2,
+          "terminal_output_handles_closed": 2,
+          "private_job_active": 0,
+          "private_job_assigned": 0,
+          "temp_dir_entries": 0,
+          "cargo": false
+        },
+        "scope": "Real synthetic embedded RocksDB base-schema account path only. Both original HTTP attempts remain failed and spent; no MT022 acceptance or test replay."
+      },
+      "motion": {
+        "operation_id": "motion_library",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/result.json",
+          "bytes": 3340,
+          "sha256": "96fbe293df63bc75d624db10eb434558638caec2a823d1570528a5d141057706"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/released.json",
+          "bytes": 481,
+          "sha256": "c50c152a975c8fdbfd4222d4f7aea9266de486a87d6dfe4521928bca7e2f5a32"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/postguards.json",
+          "bytes": 110,
+          "sha256": "18267b6edae79c8d1af8ef3e40c44be97c5d7766a86adf476e94ee9f8cce8b29"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-codegen-20261110-01/codegen-artifact.json",
+          "bytes": 7130,
+          "sha256": "45cfaa52b048a9abd232448243b4a93e1b719395fc75a7e3140fbf63fb8331ef"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "8e39b817ab7a35e33f2a360038c1b67b7ca6425bc6756ec88e49678ccd575f82"
+        },
+        "independent_acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-acquisition-dx-review-20261110-01/motion-library-acquisition-review-dx-01.json",
+            "bytes": 790,
+            "sha256": "0e49c34299bb3f6970de5289db59d236e668a328bde141f05f64d1460283724a"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-independent-acquisition-codecheck-20261110-01/motion-library-independent-acquisition-review-cc-01.json",
+            "bytes": 792,
+            "sha256": "a532716e2fe54073c45b4308e22327e49f94819b111a669d76f0cde265186041"
+          }
+        ],
+        "independent_runtime_review": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-codecheck-20261110-01/three-motion-component-results-review-cc-01.json",
+          "bytes": 8641,
+          "sha256": "fa493275230c212329621e91db6f5f5ad6b08104b14680c1fb6d2040433d9963"
+        },
+        "cases": [
+          {
+            "case_id": "GUI22-CASE-18",
+            "selector": "motion_tests::reduce_motion_updates_both_themes_and_restores_each_duration",
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/result.json",
+              "bytes": 6906,
+              "sha256": "6b18661e45062e6c87929800b2b01654390bf62d050a43787583c0d375bcbad5"
+            },
+            "released": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/released.json",
+              "bytes": 480,
+              "sha256": "38b058f6e21837643328701f8218fe7bce9eedc4b180dab29f38b9b7fb7a11c6"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/case-completion.json",
+              "bytes": 19454,
+              "sha256": "9ffc7a01ddbabc6d30fc2c4330f9a103cf0014e80800e6dcc5412e9352ff9984"
+            },
+            "terminal": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case18/primary-terminal-observation-01.json",
+              "bytes": 1081,
+              "sha256": "986a3ac9dd4988b464e74e38e06c0c07b9a7d726ea3bdc332ca8f12ebb04645d"
+            },
+            "test_exit": 0,
+            "producer_exit": 0
+          },
+          {
+            "case_id": "GUI22-CASE-19",
+            "selector": "motion_tests::reduce_motion_is_applied_independently_to_each_context",
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/result.json",
+              "bytes": 6897,
+              "sha256": "a8ef5fe2abcf5722808c3f41a811e7b0c8face3576f65b7eacbbcabdc58c51de"
+            },
+            "released": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/released.json",
+              "bytes": 480,
+              "sha256": "eef284296c2cc055a47c38ada0bba2abeaf4eabd2a730c1bb8848aa42890bf94"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/case-completion.json",
+              "bytes": 19439,
+              "sha256": "017972fee8489e9bb58c811a49af6c3fa8cfe71478db8ac3f0781a8b02aad119"
+            },
+            "terminal": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case19/primary-terminal-observation-01.json",
+              "bytes": 1081,
+              "sha256": "ab9e9214a9f1159f63cebfae36619b7240a1ab9dfb73d80d20e6cce0894dae1b"
+            },
+            "test_exit": 0,
+            "producer_exit": 0
+          },
+          {
+            "case_id": "GUI22-CASE-20",
+            "selector": "motion_tests::account_reset_can_restore_timing_before_context_data_is_discarded",
+            "result": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/result.json",
+              "bytes": 6918,
+              "sha256": "197069c24078ecda91e550026a3d3a3270d02af26bf6c54a5b057ccfbff701f1"
+            },
+            "released": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/released.json",
+              "bytes": 480,
+              "sha256": "95fe8f5e8b143d6a1bf62a154081cd88cf799149c75f1b0172faa9100a218153"
+            },
+            "completion": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/case-completion.json",
+              "bytes": 19465,
+              "sha256": "970563dfb4e8cb90e34e1a52001f6871d1ae1e4ce8497abbd2c13c4d9080b4ff"
+            },
+            "terminal": {
+              "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/motion-library-component-runtime-20261110-01-case20/primary-terminal-observation-01.json",
+              "bytes": 1081,
+              "sha256": "94e36a15544e4af3f98b6273a0d0d4b62f8ab5a75b5c8c7cc34c720492fee3ee"
+            },
+            "test_exit": 0,
+            "producer_exit": 0
+          }
+        ],
+        "scope": "Retains both Native settings siblings and older Handpick proof; original host/Vulkan/Palmistry acceptance remains open. Refresh stop remains separate."
+      },
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-production-schema-test-only-20261110-01",
+      "state": "EXACT_ONE_TEST_FILE_SOURCE_CLEAR_INTEGRATION_ALLOCATED_NO_EXECUTION_ADMISSION",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; KB-CAD-001; CX-EXEC-004",
+      "original_contract_ref": "MT-022.json",
+      "recorded_failure": "Original MT022 ordinal2 failed at session_query_check/Internal after HTTP route with production configuration. Same authenticating statement passed under the qualified base-schema synthetic test.",
+      "hypothesis": "Run the same synthetic flow on production schema composition, changing bootstrap only. Scope excludes the real route and OS vault. Bootstrap failure is a prerequisite failure; a post-bootstrap failure can distinguish production-composed behavior. A pass leaves the remaining app/route/credentials state unresolved.",
+      "author": "/root/coding_session_query",
+      "independent_source_reviewer": "/root/adversarial_refresh",
+      "physical_product_owner": "/root",
+      "preimage_product_head": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "required_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "preimage_raw_sha256": "766bb0189312eb7a4e9f51ae68db2ed13bbbaab15f03f7b06f2448c14ae7753c",
+      "candidate_source": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-candidate-20261110-01/local-accounts-candidate.rs",
+        "bytes": 160396,
+        "sha256": "ba5e366abda65629788c71c95738e4933e8f3618d49a3c0090b3ddb59832987b"
+      },
+      "changed_only_patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-candidate-20261110-01/production-schema-only.diff",
+        "bytes": 1638,
+        "sha256": "78d596d4b37d6c083fb0afd3d36ab6ba7cd9cfff79602263f8e50d2601977aed"
+      },
+      "required_proof": {
+        "new_selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded_production_schema",
+        "prior_same_base_fixture": "CORE-SESSION-QUERY-EMBEDDED-001 passed and stays reused",
+        "current_admission": "NONE",
+        "limit": "Separate exact Core libtest acquisition and independent execution. Real synthetic RocksDB and production bootstrap only, short protected temp fixture, no watcher credentials or sync overrides. No HTTP, OS vault, old attempts, or acceptance substitution."
+      },
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-production-schema-test-source-published-20261110-01",
+      "state": "INDEPENDENT_SYNTHETIC_PRODUCTION_SCHEMA_STORAGE_DIAGNOSTIC_PASS_ORIGINAL_HTTP_OPEN",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/coding_session_query",
+      "source_reviewer": "/root/adversarial_refresh",
+      "published_head": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "published_tree": "6ae7a95d432264f2f0b782e08eb302b17edc878e",
+      "parent": "0c362a44987f5a4e262cf3fa99202ede614c37c9",
+      "published_git_blob": "55a3f1ea9fd6e185a7b62203f792aa1d23366b11",
+      "published_only_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "live_candidate_raw_sha256": "ba5e366abda65629788c71c95738e4933e8f3618d49a3c0090b3ddb59832987b",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-preparation-20261110-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "700cc6f1cfc60ced81af9fb0ab734cbb6c5ef2a4b93986ff970d1d21aeb11e8f"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-codegen-20261110-01/result.json",
+          "bytes": 3387,
+          "sha256": "a7b9418748d0f33e7cd934ccacb871c9a93775d847c0b45ca0b4754452883d06"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-codegen-20261110-01/released.json",
+          "bytes": 481,
+          "sha256": "0a3abf35118ff349067424107761ecc9df9f296c20c7fd91c28067b33837cad6"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-codegen-20261110-01/postguards.json",
+          "bytes": 110,
+          "sha256": "9f76ef80be3b57906c48da717ec06e7e94e7ea7daa7aafedc4eb2331f2695ba9"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-codegen-20261110-01/cargo.stdout.jsonl",
+          "bytes": 2034599,
+          "sha256": "db00a3517162fe1fd6df8ce40593896c9ad53c276ed157d3a4eb8bccedd495d0"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-codegen-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "874e0c401f9a0cb36f4ffa6aee9688a069bbb4810667e828bd0a80507e55c43a"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-codegen-custody-20261110-01/producer-terminal-handoff.json",
+          "bytes": 3332,
+          "sha256": "fe9efc32bba2d88c6fe5f1307e55cd12f17cee28878ffa95b772b0bc9cab547e"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "bytes": 446558720,
+        "sha256": "713d0aa3a55ab032f8fb43ea7bec1a961eb0e180d482718158d241ba740ce932",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Qualified implementer compile feedback only on the reviewed raw candidate. Cargo and producer numeric zero, empty Job and checked release, no test bodies or formal proof. Published child independently reread and all 7623 raw files match prepublication witness.",
+      "next_proof": "The existing base and production schema synthetic storage cases remain qualified. The actual HTTP 403 requires a discriminating app or authority route scope before further execution; do not rerun either existing case or the spent original HTTP proof.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-preparation-20261110-01/production-schema-warm-binding-admitted-01.json",
+          "bytes": 22347,
+          "sha256": "31fa986724b44b94cdf79fd17b49d2fd099e0163d43533d6c9a8680b6c9af91d"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/result.json",
+          "bytes": 3361,
+          "sha256": "ced379f943bbfe4ee28bfd50e1426a27f64182af31cc3e43fbbdb312744b644d"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/codegen-artifact.json",
+          "bytes": 9730,
+          "sha256": "6dfa74efb1a64fd65bc7e79ff024d4279de0a3c276225dc10c6a1e127776508c"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/released.json",
+          "bytes": 481,
+          "sha256": "b9b915f0b5efa3d40694c31af2bdd532397f22adef8f6c745f39e0ed81491920"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-20261110-01/postguards.json",
+          "bytes": 110,
+          "sha256": "43886da782cf347886ae2aadcdeb70ddcb4b83b9ca2fe78f2b1411721b72f0f4"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "04692ee6aecb5609a3dc1efc2024e8e0bfd4960494f061f2aa2c6ced5403f3d4"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-dx-review-20261110-01/production-schema-warm-acquisition-review-dx-01.json",
+            "bytes": 787,
+            "sha256": "b2b4830217e72ae36215caf07eaf34803333b90c2dbe1dc9463142c0fca6d0c7"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-codecheck-20261110-01/production-schema-warm-acquisition-review-cc-01.json",
+            "bytes": 791,
+            "sha256": "50c4da0ea198695dea72a0d79500b74b1353e2a1937d6bd97822649b98b3d4c3"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 819,
+          "selected_pe_sha256": "713d0aa3a55ab032f8fb43ea7bec1a961eb0e180d482718158d241ba740ce932",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      },
+      "runtime": {
+        "integration_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c7a3-344b-7bd0-b3b0-aef47f30b141",
+        "case_id": "CORE-SESSION-QUERY-EMBEDDED-PRODUCTION-SCHEMA-001",
+        "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded_production_schema",
+        "unstarted_01": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-runtime-preparation-20261110-01/production-schema-runtime-binding-admitted-01.json",
+          "bytes": 35247,
+          "sha256": "7f528df92ed89b2f9d684b9b9eca713a9acff74a260a8823744a13cfe493a857"
+        },
+        "unstarted_reason": "Validator required recorded distinct warm acquisition qualification before launch and explicitly returned custody unstarted.",
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-runtime-preparation-20261110-01/production-schema-runtime-binding-admitted-02.json",
+          "bytes": 35247,
+          "sha256": "543b07972abb8e625e2b527f871508ec4b07c0efda926da7ba124af60c079644"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/result.json",
+          "bytes": 6891,
+          "sha256": "db932e2c6a713e7cc5fd6feb3b105aea4041dc74192f733311c7cd7bca946634"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/released.json",
+          "bytes": 506,
+          "sha256": "b5f9eae0a03841c1ad635fec6338bc1c76d887689ef400b124c3c4969fa9203e"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/postguards.json",
+          "bytes": 2336,
+          "sha256": "8bf407788bc39cc7ad3fd7f0dc78f42d8bb103c6bd49d2ab3e5079be3b91722c"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/test-exit.json",
+          "bytes": 918,
+          "sha256": "799036e762b614fa3bc8796a2014b8b1dd5a8a5f9d221e579b5b2960ed9c2e31"
+        },
+        "job": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/private-job-final.json",
+          "bytes": 233,
+          "sha256": "4da18085f3e0c9d70ebbe00eaa76c6bd14786dd69bcb7fba936ae4218acbe86d"
+        },
+        "completion": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqp-01/case-completion.json",
+          "bytes": 20154,
+          "sha256": "318eda8837318dce24375304d9b81137150727376e15849505fdde9b1d169a68"
+        },
+        "observed": {
+          "producer_exit": 0,
+          "test_exit": 0,
+          "terminal_outputs_expected": 2,
+          "terminal_outputs_closed": 2,
+          "job_active": 0,
+          "job_assigned": 0,
+          "fixture_entries": 0,
+          "test_bodies": 1
+        },
+        "scope": "Production schema alone did not reproduce the 403 symptom in this private synthetic storage flow. No HTTP, OS vault, watcher, or MT022 acceptance. Both original attempts remain spent."
+      }
+    },
+    {
+      "candidate": "refresh-integration-standalone-needed-retry-20261110-01",
+      "state": "REFRESH_WARM_ACQUISITION_QUALIFIED_FIRST_COMPONENT_FAILED_CASE22_UNSTARTED",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "primary_owner": "/root",
+      "technical_scope_partner": "/root/gui_refresh_readiness",
+      "independent_scope_partner": "/root/motion_cycle_codecheck",
+      "source_head": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "source_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-production-schema-warm-acquisition-preparation-20261110-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "700cc6f1cfc60ced81af9fb0ab734cbb6c5ef2a4b93986ff970d1d21aeb11e8f"
+      },
+      "prior_attempts": {
+        "initial_compile_failure": {
+          "result": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\gui22-refresh-integration-codegen-01\\result.json",
+            "bytes": 1896,
+            "sha256": "08a74d1ea44763ef9dade113f2e1fc8ed75f6ab6f069d185ccaf32ad8c773780"
+          },
+          "release": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\gui22-refresh-integration-codegen-01\\released.json",
+            "bytes": 364,
+            "sha256": "52db08cc4ff803bfa24552bab991f7c1c24f96c39b079f872bf906b5e64dfd30"
+          },
+          "cargo_exit": 101,
+          "failure": "E0425 MemberRecipientPhysical gated out in Refresh runtime-full without os-keychain.",
+          "published_repair": "a442a43d5f5e59919f1db9406be752a1ccc0fd93"
+        },
+        "consumed_postfix": {
+          "binding": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\remaining-gui-postfix-compile-preparation-20261108-01\\gui22-remaining-postfix-codegen-binding-admitted-20261110-01.json",
+            "bytes": 28727,
+            "sha256": "9f5c205c77ce1dcafeccd65b952123cc4a0c69909174deb4ede25bf243ef37e3"
+          },
+          "interrupted_disposition": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\refresh-capture-custody-preparation-20261110-01\\primary-interrupted-capture-disposition-20261110-01.json",
+            "bytes": 1877,
+            "sha256": "542b43161d68616ea6dcef38484dbc5c73ebbf9261442622f43f43c7fa6c979a"
+          },
+          "producer": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\remaining-gui-postfix-compile-preparation-20261108-01\\gui22-remaining-postfix-codegen-private-job-capture-10.py",
+            "bytes": 45151,
+            "sha256": "e01c4493959fda53c3d41128ba22f7902e18c015669330321b786cb4ae240769"
+          },
+          "guard": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\refresh-resource-guard-preparation-20261108-01\\refresh_resource_guard_v3.py",
+            "bytes": 19492,
+            "sha256": "4a4f56911e67143f17be9b17dd5fd7c964ed31e9d566d9053cfc49f42982ebb1"
+          },
+          "observed_failure": "Two incomplete live target samples from unstable directories. No measured tripwire or stop call, no selected artifact, no numeric terminal or checked Job release.",
+          "numeric_exit": "UNKNOWN",
+          "historical_owned_job_release": "UNVERIFIED",
+          "attempt_pool_reset": false
+        },
+        "changed_control_hypothesis": "The qualified Motion producer and launcher retain same-token startup, producer acknowledgment, the original private Job, and numeric terminal evidence. v11 verifies bounded reconciliation and full live and final target measurements. These changes address the observed unstable sampling and missing terminal records. The published E0425 repair predates the spent postfix and supplies no new retry authority.",
+        "retry_authority": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261025/team_workflow/retry_limits and packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy."
+      },
+      "controller": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/refresh-integration-codegen-private-job-capture-01.py",
+        "bytes": 44312,
+        "sha256": "786a1f96371533dc8c87fa52fe47203ab4b89e6268dfecb6ad63e68af34b81f2"
+      },
+      "launcher": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/mt212-refresh-integration-capture-custody-launcher-01.py",
+        "bytes": 24827,
+        "sha256": "084309585ce4e6c0407efba5f456e134384c053df00f50d0b6ea216705a09105"
+      },
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/refresh-integration-codegen-binding-dormant-01.json",
+        "bytes": 19727,
+        "sha256": "da7b35435adf16faf9eb8093a884882bc948f5019bcba8e2b350d4118a713b9e"
+      },
+      "changed_only_patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-acquisition-preparation-20261110-01/refresh-integration-capture-changed-only.patch",
+        "bytes": 36137,
+        "sha256": "eeb55b8a94bdc90deae132de779900f4e107ea25511566d1ce134efcbce23873"
+      },
+      "exact_command": [
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "src/frontend/handshake_native_composition_tests/Cargo.toml",
+        "--package",
+        "handshake_native_composition_tests",
+        "--test",
+        "test_swarm_lane_diagnostics_argus",
+        "--no-run",
+        "-j",
+        "1",
+        "--message-format=json"
+      ],
+      "eventual_body_selectors": [
+        "diagnostics_refresh_queues_once_then_disables_until_delivery",
+        "diagnostics_refresh_rejects_initial_busy_and_offline_controls"
+      ],
+      "limits": "One focused compile-only acquisition after actual current Core custody handback, final pinned source/resource/runner admission. No Refresh bodies, sibling replays, old custody reinterpretation, force, short bracket, cleanup or automatic retry.",
+      "original_acceptance": "OPEN",
+      "actual_cold_attempt": {
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/result.json",
+          "bytes": 5699,
+          "sha256": "ad033d09669d0d81fddeabca11828e0b7a1511e91b7863f87102291b7b95cfd9"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/released.json",
+          "bytes": 2241,
+          "sha256": "ccb0f75ffe95dfb673dbd89f9748741bbd645cbc3f6cfe7b5e70d91a66d61376"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/postguards.json",
+          "bytes": 1870,
+          "sha256": "352a46a9ffc122993244a28c41f30f27f9e8bea75f262c1c1625d2c694be6627"
+        },
+        "final_job": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/private-job-final.json",
+          "bytes": 234,
+          "sha256": "7067a084c03935fa71a9b40ef9ab4dbe8ddef3d6b0787e75a4b86404a21eb2f7"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-custody-20261110-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "c5fead5ce14c6e2036506d432b7de77c7815ffead499b9c761b21cf981fd5fce"
+        },
+        "raw_cargo": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-independent-codegen-20261110-01/cargo.stdout.jsonl",
+          "bytes": 2398298,
+          "sha256": "52c31593b2b5d77239779cfd2ba7148b4f08577405a9952d012f9483c89d1245"
+        },
+        "cargo_exit": 0,
+        "producer_exit": 1,
+        "consumed": true,
+        "codegen_artifact": null,
+        "tests_run": false,
+        "live_failure": {
+          "deadline_exceeded": false,
+          "elapsed_seconds": 12.671999999962281,
+          "entries": 450001,
+          "entries_exceeded": true,
+          "reason": "ENTRY_LIMIT",
+          "reconciled_directories": 3,
+          "scan_max_entries": 450000,
+          "scan_timeout_ms": 25000,
+          "stage": "live",
+          "vanished_entries": 0
+        },
+        "final_target_apparent_bytes": 191959588530,
+        "minimum_sampled_free_bytes": 121690787840,
+        "actual_scope": "Cold link emitted one exact Refresh test PE in raw Cargo; capture failed proof, not executable acquisition. Retain both earlier attempts including the historical unknown unchanged."
+      },
+      "next_proof": "Correct the existing headless fixture to open Diagnostics through the current shell route and preserve both original Refresh assertions. Verify changed exact inputs and scoped retry agreement before a future rerun. Do not execute case22 against the same failing fixture.",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-preparation-20261111-01/refresh-integration-warm-codegen-binding-admitted-01.json",
+          "bytes": 26727,
+          "sha256": "319030c0c4a3d1812f3fe8dac61574f682462f5713ba5452b08941093a30d878"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/result.json",
+          "bytes": 3401,
+          "sha256": "7eb71011568446da4b210b2a8360cf353f271d388d458a41613267b77bff57e3"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9327,
+          "sha256": "4b36369d73e580a4113b69070cf7091310086bf809c211332b04c2d5b3550df5"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "b941b1b02a439d62141fac4c68733c55d015269f322964505550e7ee60011fa9"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "db7ca3c2aacc7fd7e554f4e75d39fe55fa89a6be70698d6ea85df9eeb5dfba0c"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "b6a316670b5680e96375caae0ec32ba212125316370a2441eb5922e14ad1f11e"
+        },
+        "independent_acquisition_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-dx-review-20261111-01/refresh-integration-warm-acquisition-review-dx-01.json",
+            "bytes": 791,
+            "sha256": "3c73ed2e2d478de0775cecae29a4dfe585c3b76275f88713bd22e3f4aecf7911"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-warm-acquisition-codecheck-20261111-01/refresh-integration-warm-acquisition-review-cc-01.json",
+            "bytes": 792,
+            "sha256": "b6d3f76b625dfa709772302dc26aff016b64d92716b50a46aa4792d52151c01d"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "cargo_fresh_artifact_rows": 915,
+          "pe_sha256": "e86db9b1afb85f4e972e1839a24c1c8bc761909e16bcb3a356ad6d18b9d74e23",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "scope": "Separate current qualified warm-only acquisition. Earlier cold and other consumed history remain unqualified or failed as recorded."
+      },
+      "component_attempt": {
+        "case_id": "GUI22-CASE-21",
+        "selector": "diagnostics_refresh_queues_once_then_disables_until_delivery",
+        "consumed": true,
+        "test_exit": 101,
+        "producer_exit": 1,
+        "case22_status": "UNSTARTED_AFTER_FIRST_FAILURE",
+        "failure": "Headless harness helper test_swarm_lane_diagnostics_argus.rs:419 queried the retired MODELS menu. The full actual AccessKit tree includes the normal shell menus alongside the Owner setup pane, but has no MODELS node. Refresh assertions never ran. Pass-only parser rejected the failed output afterward; no completion manifest.",
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/result.json",
+          "bytes": 7971,
+          "sha256": "41a817d407ee66ea02acd4d0787e356786b78581f351c622feef51756bf7c537"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/released.json",
+          "bytes": 1522,
+          "sha256": "a437c7306037a52e6d53fd6ccc34d3608c263613cb71aa596f898c965888fe33"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/postguards.json",
+          "bytes": 3366,
+          "sha256": "4aa7348155e8877ef4a585613e4c3d2ed4cb8b486678c0bf261b1b9e145c5254"
+        },
+        "raw_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/test.stdout.txt",
+          "bytes": 175919,
+          "sha256": "509d8c50207f312b65a2e93fad4c782742247b810f11faa3f36202482d0398a3"
+        },
+        "parent_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-20261110-01-case21/primary-terminal-observation-01.json",
+          "bytes": 1102,
+          "sha256": "694e97273e45ffd89ccf874b5c6218895fc92a63364fad49b491d4387e6397b7"
+        },
+        "independent_result_review": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-integration-component-runtime-codecheck-20261111-01/refresh-case21-failure-and-case22-unstarted-review-cc-01.json",
+          "bytes": 5165,
+          "sha256": "b9c403dabe5b7f1ae609fdc98e39007e90f655b69dbb6529d0702295fe5a3a3b"
+        },
+        "checked_release": true
+      }
+    },
+    {
+      "candidate": "embedded-session-route-issued-identity-test-only-20261111-01",
+      "state": "EXACT_ONE_TEST_FILE_SOURCE_CLEAR_INTEGRATION_ALLOCATED_NO_EXECUTION_ADMISSION",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; KB-CAD-001; CX-EXEC-004",
+      "original_contract_ref": "MT-022.json",
+      "prior_proof": "Both base and production schema embedded synthetic account tests passed. Actual HTTP still failed during query after record signin. No old HTTP replay.",
+      "hypothesis": "The actual setup/default-login routes provision the configured Operator profile and reconciliation principal that the synthetic storage baseline omits. Reuse those routes in a private production-schema test, then exchange with the validated channel and route TTL and invoke the exact first reauthentication step before any vault or session login audit. Distinguish exact identity success, reproduced session_query_check category, and unrelated earlier setup/cleanup failures.",
+      "required_path": "src/backend/handshake_core/src/api/authority.rs",
+      "preimage_product_head": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "preimage_raw_sha256": "f9a50b7d81983072e8d3a5d14759909368b3d8f4dbc5ac01716c2441aef3b63c",
+      "author": "/root/route_identity_coding",
+      "independent_source_reviewer": "/root/schema_warm_codecheck",
+      "physical_product_owner": "/root",
+      "candidate_source": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-candidate-20261110-02/authority-candidate.rs",
+        "bytes": 128848,
+        "sha256": "521607b84f51f538b47c712491d386c20e6344ebbc2708b4b691a72ace311ad3"
+      },
+      "normalized_diff": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-candidate-20261110-02/route-identity-only.diff",
+        "bytes": 7391,
+        "sha256": "dc5175fe8787efd0a4945ff23cba6f7e4379978887841265f9f56a4dc3a2844d"
+      },
+      "candidate_pins": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-candidate-20261110-02/candidate-pins.json",
+        "bytes": 3028,
+        "sha256": "c17948685131ed424a0831e507296ef201fd4f9df0954808a020263eb663e22e"
+      },
+      "required_proof": {
+        "new_selector": "api::authority::local_account_http_tests::route_issued_owner_session_resolves_before_vault",
+        "scope": "Exact independent private synthetic test only. Protected short output and fixture, strip watcher/sync keys, private raw stderr, fixed phase labels, checked revocation/shutdown or preserve fixture on unknown closure, no real vault/HTTP session or original replay.",
+        "current_admission": "NONE"
+      },
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-route-identity-test-source-published-20261111-01",
+      "state": "INDEPENDENT_ROUTE_IDENTITY_REPRODUCED_SESSION_QUERY_FAILURE_CHECKED_RELEASE",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/route_identity_coding",
+      "source_reviewer": "/root/schema_warm_codecheck",
+      "published_head": "e018430e7c096531bcb8894ca613079afbaf5c8c",
+      "published_tree": "35acad2b6703fb0381b3d28cfcf9261f05ef6a1c",
+      "parent": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "published_git_blob": "fc0f3968c2f4e653ef9625026321d8a86fc3bf3d",
+      "published_only_path": "src/backend/handshake_core/src/api/authority.rs",
+      "live_candidate_raw_sha256": "521607b84f51f538b47c712491d386c20e6344ebbc2708b4b691a72ace311ad3",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "1383dda2102098fa387501945c5736743fbad0c9d22f39a4cdeb6bc72fd263f3"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/result.json",
+          "bytes": 5642,
+          "sha256": "1f8dc8cdce3b60802a433af894c6af43c96ba6f37d83cddaae0f507dc4d3d2d6"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/released.json",
+          "bytes": 2239,
+          "sha256": "30c478f2a994fad3af8927be953d9dc24cbfd59db52544bd5ac81093232875f7"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/postguards.json",
+          "bytes": 1868,
+          "sha256": "e8c32a5169634846b327be9c4ca2f558cca69756f3227706f48dcc413593245a"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2034599,
+          "sha256": "dd35b68eb36ab6161aea368a3aa7912928e6094ec3103556d908a67cfe14e22a"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "06b473b6d7cc2ef7e50da5b8fc9cfa2af41b767dee96b25a7abac7bc6c61d469"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-custody-20261111-01/producer-terminal-handoff.json",
+          "bytes": 3174,
+          "sha256": "4c44e4b5c250f42424b877527eeff2b03ebf060efa9428ac059b67fa147bd35e"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "bytes": 445665792,
+        "sha256": "0e1ea0ca0c7f4649fc015972ace1182e0bf30e667cce4bde753e9ebc4452a6b3",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
+      "cold_capture_qualified": false,
+      "producer_exit": 1,
+      "next_proof": "Investigate the route-issued session inputs and exact record-authorized query. Do not replay the same failed selector or either spent original HTTP attempt without a distinct changed input and scoped admission.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-preparation-20261111-01/route-identity-warm-binding-admitted-01.json",
+          "bytes": 22168,
+          "sha256": "143d819430b08a313a115517e714c28150da0906906ba676e1aa48ab0413912b"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/result.json",
+          "bytes": 3348,
+          "sha256": "097e4de76f41aac4dad2dc79032780569dad2d3161d483c479ea0f00fd5e0e4a"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9718,
+          "sha256": "d9e6c7be3c9a3da3ba1602583967564b8c88f698a8a5961952fefce5a11179f1"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "a4322b2d639c5ec2b756b86acd69d8969c3869b42a1700ad1eacc1e45b69addb"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "5a3d397a9de050f27841abbd06a1979cb262c87e88c19e7ed4f897e38479e70c"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "c9b15c5f934c154efb3e0c1c56826cd6e7667ee36384345a00968154812bd0e0"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-dx-review-20261111-01/route-identity-warm-acquisition-review-dx-01.json",
+            "bytes": 786,
+            "sha256": "5a4e768ca520fe8f4554d8f5d3a2f2371cdc084867f891b310386b2e11d0ef0b"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-codecheck-20261111-01/route-identity-warm-acquisition-review-cc-01.json",
+            "bytes": 790,
+            "sha256": "18b327966b9b7534cd30d6599cc4a34256418c164c5ca9fa0d1b74063c706e34"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 819,
+          "selected_pe_sha256": "0e1ea0ca0c7f4649fc015972ace1182e0bf30e667cce4bde753e9ebc4452a6b3",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      },
+      "runtime": {
+        "validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c804-1d0a-7641-9f52-9c54ca0a1bb0",
+        "validator_custody_handback_turn": "01a1c807-70bd-74b1-8977-05d307f69219",
+        "selector": "api::authority::local_account_http_tests::route_issued_owner_session_resolves_before_vault",
+        "case_id": "CORE-SESSION-QUERY-ROUTE-IDENTITY-001",
+        "consumed": true,
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-runtime-preparation-20261111-01/route-identity-runtime-binding-admitted-01.json",
+          "bytes": 36023,
+          "sha256": "7e4e1affd60927c5ea5778d5be56f25f3d78f9ff6fb8793a18eedc60764db532"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqr-01/result.json",
+          "bytes": 7807,
+          "sha256": "60035c0f0eb96e2277f42296ffe8d9946f8dda375d06f34858bc323c1fa9d119"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqr-01/released.json",
+          "bytes": 1490,
+          "sha256": "58e86b633b0ba7010a775f32b6506ff43a4d4a22a4b59ddc1c06072b29d43a4b"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqr-01/postguards.json",
+          "bytes": 3320,
+          "sha256": "e95367e8cf6eeeb96ecc231909ee5d38208d2e97fe5e46845912556f6178b867"
+        },
+        "test_exit_record": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqr-01/test-exit.json",
+          "bytes": 897,
+          "sha256": "f0c49ca08691a95dddd118b16f8abb63d8465f2e9110204ccca93b1b7f5a0bcf"
+        },
+        "final_job": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqr-01/private-job-final.json",
+          "bytes": 233,
+          "sha256": "358e8f198efc02749d52166d5fcbb2552709b162413717ead256fa5ee73515d1"
+        },
+        "private_fixed_stderr": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqr-01/test.stderr.txt",
+          "bytes": 166,
+          "sha256": "3f6cc0bd425961e752834395cad10113741e023c95e15c269fad42ea1bbf0b97"
+        },
+        "actual": {
+          "test_exit": 101,
+          "producer_exit": 1,
+          "phase": "session_query_check",
+          "cause": "Internal",
+          "detail": "unclassified_internal",
+          "terminal_streams_closed": 2,
+          "job_active": 0,
+          "job_assigned": 0,
+          "fixture_entries": 0
+        },
+        "scope": "Reproduces the old statement failure on route-issued identity in the private store before actual vault, session-login audit or listener. Does not identify the underlying engine error, settle original HTTP acceptance or reset any attempt."
+      }
+    },
+    {
+      "candidate": "refresh-navigation-fixture-source-clear-20261111-01",
+      "state": "EXACT_TEST_FIXTURE_REPAIR_SOURCE_CLEAR_COMPILE_FEEDBACK_ALLOCATED",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "failed_case": "GUI22-CASE-21",
+      "first_failure": "Obsolete MODELS menu query in fixture, before either Refresh assertion.",
+      "case22_prior_state": "UNSTARTED",
+      "affected_path": "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+      "base_product_head": "e018430e7c096531bcb8894ca613079afbaf5c8c",
+      "preimage_git_blob": "33c5d70cb25d21a9b2a7d7fd8b73b291ab557d2e",
+      "preimage_raw_sha256": "3badaf85b39ba9318a5b70df0d5e2eeb02bbf8c3ab81f4ac12c379f9a6a605b1",
+      "change": "Use the actual LAB module and Lane Diagnostics tab AccessKit Click through the common fixture path. Both original assertions and product auth behavior preserved.",
+      "author": "/root/refresh_fixture_coding",
+      "independent_reviewer": "/root/refresh_warm_codecheck",
+      "physical_owner": "/root",
+      "candidate_source": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-candidate-20261111-01/test_swarm_lane_diagnostics_argus-candidate.rs",
+        "bytes": 68653,
+        "sha256": "82be3d0584ae9aa97179d2cc53a773ac4de7984f6dfe8cf785427ec2bee003c8"
+      },
+      "patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-candidate-20261111-01/refresh-navigation-fixture-only.patch",
+        "bytes": 1802,
+        "sha256": "02a10e1ce89dbfbf70d5cc4d4c52d5e62deb50333aa039e5cd2bd6703a1721f6"
+      },
+      "compile_feedback_controller": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-preparation-20261111-01/refresh-navigation-fixture-compile-feedback-capture-01.py",
+        "bytes": 45899,
+        "sha256": "e5fad823a725325308849da95b5d38b8295c2915f46c48640ce7106105d5d5e2"
+      },
+      "compile_feedback_dormant_binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-preparation-20261111-01/refresh-navigation-fixture-compile-feedback-binding-dormant-01.json",
+        "bytes": 22723,
+        "sha256": "9df302bdf83e84f387eb7de7b1a915e53e6fdb3cf3d0d497a0269b1ecc7b6807"
+      },
+      "next_proof": "One exact Core-independent Refresh compile-feedback --no-run on reviewed fixture then sole-file push and fresh published acquisition. Actual technical and Codecheck independently agree to one changed-input case21 retry and case22 first actual after independent executable qualification and fresh per-case admission. No other retries, old scope replay, cleanup or force.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "refresh-navigation-fixture-source-published-20261111-01",
+      "state": "REPAIRED_REFRESH_BOTH_ORIGINAL_COMPONENT_CASES_INDEPENDENTLY_QUALIFIED",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/refresh_fixture_coding",
+      "source_reviewer": "/root/refresh_warm_codecheck",
+      "published_head": "17667de23a791d652faeaf0f461ab45a206f1534",
+      "published_tree": "07fa749e9a3c61dcc8c1b44d64cd25beb3eadade",
+      "parent": "e018430e7c096531bcb8894ca613079afbaf5c8c",
+      "published_git_blob": "b74c2156943a3401b4e664a392f8f3b2a39e799c",
+      "published_only_path": "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+      "live_candidate_raw_sha256": "82be3d0584ae9aa97179d2cc53a773ac4de7984f6dfe8cf785427ec2bee003c8",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "3c1cd7bcf5df676b694f6fd684ab76d447d12bb368d9109a267355ef50b6af59"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/result.json",
+          "bytes": 5675,
+          "sha256": "69667d250a28ce089afa86f8c0fe6cf8d81fcfbb37dfe5117f1a3272530d83d2"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/released.json",
+          "bytes": 2229,
+          "sha256": "f0ebd12044ee7ee41cf4b0fe3189e747e9f683b82cbc31910c8f089dff708308"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/postguards.json",
+          "bytes": 1858,
+          "sha256": "23697efa95f2608659026168cf87efe592bd6a9b9bc1cdf48db792428402626c"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2398296,
+          "sha256": "b03468ec9168c82d281895e7f5d70026df7bf9edc3189ed94175a28116295291"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "42beaaae6b17ee9931dd4f9838462cf36b01304d27b347c2ef4a2c712ec16e31"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-compile-feedback-custody-20261111-01/producer-terminal-handoff.json",
+          "bytes": 3242,
+          "sha256": "4236f6012c8abfd3cfd2e8c9ef7fe545f1e92464c49f6d758c860c64ef16d661"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\test_swarm_lane_diagnostics_argus-493950bbb096065e.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\test_swarm_lane_diagnostics_argus-493950bbb096065e.exe",
+        "bytes": 301284352,
+        "sha256": "71bb42424275b8fb4d5aab6a869bd6de1d8305a1050741f0c84e19a58de2f822",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 5910974514114876
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
+      "cold_capture_qualified": false,
+      "producer_exit": 1,
+      "next_proof": "Full actual production Diagnostics/receipt/DTO/Vulkan/Palmistry acceptance remains independently open. Reuse the exact two qualified components when their asserted inputs stay equivalent.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-preparation-20261111-01/refresh-navigation-fixture-warm-binding-admitted-01.json",
+          "bytes": 23422,
+          "sha256": "331b7fcc96c752f19f239580c47b3460eac5087808652466da58f577053a5480"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-20261111-01/result.json",
+          "bytes": 3432,
+          "sha256": "2eee005afe42da0049fddd3eb4f875a5a261560e9b140b886f06dded0fa1f5c2"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9335,
+          "sha256": "d0e31f6decdd4a1acce3fb048f94a7d976c5c082cab4fd42b8b07fd13f3f8c30"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "db22b79b0cfc277330cba587b8e9ccd084a35eedf7410151f2cd2eba64e6e568"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "1088b680bbe4aa21251bb46157451b9df26b200822b7053afb0812be9ba8bb96"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "a67d7e9099b284980107f62d9a949227f651f578d5eb56c9929f03d67dbe6acc"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-dx-review-20261111-01/refresh-navigation-fixture-warm-acquisition-review-dx-01.json",
+            "bytes": 790,
+            "sha256": "b9468f83ceb037f668d25b9bf629f97865c89971b7c57ecb9ee4ad1564588554"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-warm-codecheck-20261111-01/native-acquisition-review-cc-01.json",
+            "bytes": 794,
+            "sha256": "b4ae6962725bb4d1748a34e1d150d2e90dc97b0344ec1a0bde537671e299ee30"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 915,
+          "selected_pe_sha256": "71bb42424275b8fb4d5aab6a869bd6de1d8305a1050741f0c84e19a58de2f822",
+          "tests_run": false
+        }
+      },
+      "components": [
+        {
+          "case_id": "GUI22-CASE-21",
+          "selector": "diagnostics_refresh_queues_once_then_disables_until_delivery",
+          "attempt": "ONE_CHANGED_INPUT_RETRY_PASSED",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case21-retry/result.json",
+            "bytes": 7041,
+            "sha256": "fdaa1e18762b7f54ab36e66e505235543b5d16b0f4e22a84ac337cc7470b9d0f"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case21-retry/case-completion.json",
+            "bytes": 20639,
+            "sha256": "6b085fd58d36f198f3472dd76e264b67833b42fc6448b9bc2ee9287cfe6bdc5e"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case21-retry/released.json",
+            "bytes": 480,
+            "sha256": "496fc554d76e4b4c6b3d8d7cd2bc0f9fbd0871ef46a06130f14d699c60c30902"
+          },
+          "terminal": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case21-retry/primary-terminal-observation-01.json",
+            "bytes": 1141,
+            "sha256": "4ba4488bcf936beb9ab6bfb73ac68e72648a594b3bb22d9983bd236a742162a1"
+          },
+          "test_exit": 0,
+          "producer_exit": 0
+        },
+        {
+          "case_id": "GUI22-CASE-22",
+          "selector": "diagnostics_refresh_rejects_initial_busy_and_offline_controls",
+          "attempt": "FIRST_EXECUTION_PASSED",
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case22/result.json",
+            "bytes": 7017,
+            "sha256": "4a094914964be41d498cbbafc427ea9fe1b3d025d70eafe94c50d0b6328a384a"
+          },
+          "completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case22/case-completion.json",
+            "bytes": 20628,
+            "sha256": "0b6c47b6414d2ec3ebaa1aedb367e7c74a8888407d5913a716f7549f92b195c2"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case22/released.json",
+            "bytes": 480,
+            "sha256": "4b2b4dbd800ccfe18831d7b0b75e3210bfbb0116798139b7cad521d9525d3b1d"
+          },
+          "terminal": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-20261111-01-case22/primary-terminal-observation-01.json",
+            "bytes": 1129,
+            "sha256": "614dd80873961caa920f52d8d0751b527f03f162f95d4b2c66226296e034aa55"
+          },
+          "test_exit": 0,
+          "producer_exit": 0
+        }
+      ],
+      "independent_runtime_review": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/refresh-navigation-fixture-component-runtime-codecheck-20261111-01/refresh-case21-retry-and-case22-first-runtime-review-cc-01.json",
+        "bytes": 8122,
+        "sha256": "9c99dbd17a937d8ff5215875fbc4cccd8c62a3b7db228da4df3f6ad78817e67f"
+      }
+    },
+    {
+      "candidate": "cabinet-session-query-auth-record-lookup-source-clear-20261111-01",
+      "state": "EXACT_ONE_LINE_AUTHENTICATED_RECORD_LOOKUP_SOURCE_CLEAR_COMPILE_FEEDBACK_ALLOCATED",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "scope_authority": "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion; CX-EXEC-004; KB-CAD-001; WP012 current scoped retry authority",
+      "original_contract_ref": "MT-022.json",
+      "recorded_failure": "Private route-issued session on e018430e7 reproduced session_query_check/Internal/unclassified_internal before vault. Base and production schema storage lifecycle previously passed; their shared query changes.",
+      "hypothesis": "Locked SurrealDB table scan can apply per-row permissions before WHERE to a reconciliation session created by setup. That row can enter a recipient helper that throws. Replace the query source with the successful sign-in protected $auth RecordId, keeping the predicate/projection/array decoding/auth and permissions. Actual underlying original throw is unconfirmed.",
+      "required_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "base_product_head": "17667de23a791d652faeaf0f461ab45a206f1534",
+      "base_parent": "e018430e7c096531bcb8894ca613079afbaf5c8c",
+      "intervening_only_path": "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+      "exact_preimage_git_blob": "55a3f1ea9fd6e185a7b62203f792aa1d23366b11",
+      "exact_preimage_raw_sha256": "ba5e366abda65629788c71c95738e4933e8f3618d49a3c0090b3ddb59832987b",
+      "author": "/root/session_query_lookup_coding",
+      "independent_scope_partner": "/root/route_warm_codecheck",
+      "physical_owner": "/root",
+      "independent_runtime_executor": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "candidate_source": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-candidate-20261111-01/local-accounts-candidate.rs",
+        "bytes": 160379,
+        "sha256": "b81dbc5fb2303a03e1c224736e0302bb99ccbdf6e2e0d4fb7ad70d031d58ba95"
+      },
+      "changed_only_patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-candidate-20261111-01/auth-record-lookup-only.patch",
+        "bytes": 1360,
+        "sha256": "aa37662277be35e212e93d10e853157d7d1265bc746d49028d3fc3f12b4f231f"
+      },
+      "candidate_pins": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-candidate-20261111-01/candidate-pins.json",
+        "bytes": 1562,
+        "sha256": "56f21f8df8f635f45f8eff6ceb30081fed5af2881520723983fb09c82f7c0ffb"
+      },
+      "codegen_dormant": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-preparation-20261111-01/auth-record-lookup-cold-binding-dormant-01.json",
+        "bytes": 16517,
+        "sha256": "fb4625af170ba1deb05baa9dfb396c4be02da4c37cec1ace13e89b4ef8216304"
+      },
+      "next_proof": "One scoped Core compile-feedback and sole-file publication, then separate warm published executable qualification. Actual technical and independent Codecheck agree one changed-input private route retry followed by each affected storage lifecycle selector once on same qualified PE, distinct Primary/IV case admissions, stop on first failure. No new original HTTP attempts, force, cleanup or acceptance substitution.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "cabinet-session-query-auth-record-lookup-source-published-20261111-01",
+      "state": "EXACT_PUBLISHED_LOOKUP_FIX_INDEPENDENT_PRIVATE_ROUTE_AND_BOTH_LIFECYCLE_CASES_PASS",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/session_query_lookup_coding",
+      "source_reviewer": "/root/route_warm_codecheck",
+      "published_head": "84817886a8c650625832b68917b3c33a8038f273",
+      "published_tree": "2f6ca792231f7380b214b137cc37699b7c138fc4",
+      "parent": "17667de23a791d652faeaf0f461ab45a206f1534",
+      "published_git_blob": "797be185ad20fd6948ea138049dc4a0ea8dafa21",
+      "published_only_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "live_candidate_raw_sha256": "b81dbc5fb2303a03e1c224736e0302bb99ccbdf6e2e0d4fb7ad70d031d58ba95",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "ac605859b3cf21e860bfe4f3158de0d5669dd2024e1d32ab7f45b9e1cf9a039d"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/result.json",
+          "bytes": 5644,
+          "sha256": "5892dcd63b15f253a7f3c7b602d7911bacb8a7c5a95a95c1dea975bc70815ca7"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/released.json",
+          "bytes": 2240,
+          "sha256": "c06a3df9377f67b1fb56574c5b9edc03fc845b0a2ef12bc432990e281cea52df"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/postguards.json",
+          "bytes": 1869,
+          "sha256": "7badaf04fdd0d4a0998def1d5f420ad5aa54e098bc77d01cd7ea313bb13a2104"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2034599,
+          "sha256": "ce108977d4e16a1045af7f808c8bab5e17c2a3984959fa304ae1a7d023942a21"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "f8c1cf8e1b5f075ad8df34fb495fb737661711e878bd03c4d3125187867ca396"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-codegen-custody-20261111-01/producer-terminal-handoff.json",
+          "bytes": 3211,
+          "sha256": "3314d1982395c8c454db4b54d898d725b233e4a218a2da0a4c8dc303d45a35bc"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "bytes": 445665792,
+        "sha256": "e03f27a40a3a5df8a64c4b0ea65bc51687f3b0cff392f704eba856ec42f0a483",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
+      "cold_capture_qualified": false,
+      "producer_exit": 1,
+      "next_proof": "Original MT022 actual HTTP/activation/Cabinet proof still needs its own explicitly authorized changed-input admission; historic HTTP failures remain spent. In parallel proceed with accepted MT212 GUI navigation and mirror candidates under exact sequential compile-feedback windows. Full GUI/Vulkan/Palmistry acceptance remains open.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-preparation-20261111-01/auth-record-lookup-warm-binding-admitted-01.json",
+          "bytes": 23594,
+          "sha256": "f82431e959c2d06edf637cb4c299ad59c42176a1424b031ed6d3175d09e798a2"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/result.json",
+          "bytes": 3349,
+          "sha256": "eb796c5993e5fc9b0f89117c98f4dcf006198a6eb2a696a41274364f79704754"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9733,
+          "sha256": "aa35f878fcda1689efe36da065810a7c4265a753b616be707896ea796ec24e3e"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "9430bc30b12a3438d64154d5be76fb0ee469bb6283e693436dafb8ba94e994ec"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "e7e636b0025eb50af454cde0bf28d7e00311c5a40289945a8d74f49a3c452b85"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 415,
+          "sha256": "57060f2822fec04e08a80fc18b662973dcddd7251631517b1809f5e7f6bcb438"
+        },
+        "raw_cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2034598,
+          "sha256": "37a15d8c328a1f483d5d33100deed457d4a0d52e7fee03a62273c439d4e69f38"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-named-dx-20261111-01/auth-record-lookup-warm-acquisition-review-dx-01.json",
+            "bytes": 1467,
+            "sha256": "00e3c6db34378ccf1e262bc9d94a0a4aaabbdd6c1036af78dcfea7ba87434d22"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-same-cc-20261111-01/auth-record-lookup-warm-acquisition-review-cc-01.json",
+            "bytes": 1386,
+            "sha256": "f9c927e963a3911a8accb8aabdccf64551e5943551a71d1943ce650ec1edfaab"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 819,
+          "selected_pe_sha256": "e03f27a40a3a5df8a64c4b0ea65bc51687f3b0cff392f704eba856ec42f0a483",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      },
+      "runtime_cases": [
+        {
+          "case_id": "CORE-SESSION-QUERY-ROUTE-IDENTITY-002",
+          "selector": "api::authority::local_account_http_tests::route_issued_owner_session_resolves_before_vault",
+          "source_head": "84817886a8c650625832b68917b3c33a8038f273",
+          "independent_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "verdict_turn": "01a1c868-b690-7cb3-af74-bdf401983fae",
+          "verdict": "PASS_PRIVATE_COMPONENT_ONLY",
+          "controller_exit": 0,
+          "test_exit": 0,
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-runtime-preparation-20261111-01/auth-record-lookup-runtime-binding-admitted-01-owner-bound.json",
+            "bytes": 36493,
+            "sha256": "dfeaad62ca80ea1c94aa9d873aabd11e5cbaec9582cfdc6e902d3218ea52f6e2"
+          },
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/result.json",
+            "bytes": 6856,
+            "sha256": "37980fcbdfeef97b01279c170e5549cf2e83c097e41dc1944777c3f079bdf9bb"
+          },
+          "case_completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/case-completion.json",
+            "bytes": 20979,
+            "sha256": "c904edba05281951ec833981fff9d7b190f2488b8f21c9f61efb5f0375295eb5"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/released.json",
+            "bytes": 507,
+            "sha256": "bbce8cd25dfd27d555f4d1dc2c3cc6094fc9b79b5c13d76307617ccd26359a7f"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/postguards.json",
+            "bytes": 2339,
+            "sha256": "3d58e80984c06ca276939352c28e4630e78073bd8e89a9d645b21ee034b59067"
+          },
+          "fixture_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/fixture-final.json",
+            "bytes": 255,
+            "sha256": "85fa87068c0cd085ded8dc8405b9fca84ee3df0e95994e1e22baf77ba06f83f3"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlr-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "049a859e9434b73b8b2b0fd09da09cabc2c0abf9b2e3bfd1f649266c4b567ac7"
+          }
+        },
+        {
+          "case_id": "CORE-SESSION-QUERY-EMBEDDED-002",
+          "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded",
+          "source_head": "84817886a8c650625832b68917b3c33a8038f273",
+          "independent_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "verdict_turn": "01a1c86b-fd89-7f30-9a96-fa7e0afd88f8",
+          "verdict": "PASS_PRIVATE_COMPONENT_ONLY",
+          "controller_exit": 0,
+          "test_exit": 0,
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-runtime-preparation-20261111-01/auth-record-lookup-runtime-binding-admitted-02.json",
+            "bytes": 36810,
+            "sha256": "874300f513d74dee54148a4b3c6f99d46e34129a9eecfb0ef7645c7f2c2eb05d"
+          },
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/result.json",
+            "bytes": 6861,
+            "sha256": "aee215b6361a8a64860a42da41f248c23bc7bb68831841b5ffe2e5f8f752a836"
+          },
+          "case_completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/case-completion.json",
+            "bytes": 20972,
+            "sha256": "ef4e72011b79a4ef4af5f32e7c84675f33f074e654b2e52a2205ba28beb250ac"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/released.json",
+            "bytes": 507,
+            "sha256": "b75cd55f7dcc256bfdddaad22c87a8ab104351295030a5dc0e7f8ed5b21862ea"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/postguards.json",
+            "bytes": 2339,
+            "sha256": "3c0f8c341b583e8a48c1c8043b3e32cb201dade53fd75a418fac69a71b7710cd"
+          },
+          "fixture_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/fixture-final.json",
+            "bytes": 255,
+            "sha256": "e3f634028850603e6a5f4ac9a23c0ae144c1abd5f205cb3db4b8ad3b39aa3c49"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqle-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "0d28210d9709198c8df0f9dc152b55e57e8c4c0c0c6d24362e47342bcbe09cea"
+          }
+        },
+        {
+          "case_id": "CORE-SESSION-QUERY-EMBEDDED-PRODUCTION-SCHEMA-002",
+          "selector": "storage::surreal::local_accounts::tests::local_owner_setup_login_replay_and_revocation_embedded_production_schema",
+          "source_head": "84817886a8c650625832b68917b3c33a8038f273",
+          "independent_validator": "01a16b9e-0d1e-7b81-b116-05291184319b",
+          "verdict_turn": "01a1c86f-0378-7c43-906c-83a3f085703d",
+          "verdict": "PASS_PRIVATE_COMPONENT_ONLY",
+          "controller_exit": 0,
+          "test_exit": 0,
+          "binding": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-runtime-preparation-20261111-01/auth-record-lookup-runtime-binding-admitted-03.json",
+            "bytes": 36956,
+            "sha256": "5d46b361273c8f8b5277514a426aca56dacb15cdd780c9c80934ef2f3ceac292"
+          },
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/result.json",
+            "bytes": 6914,
+            "sha256": "eb13d1b374eab6ec1628316448ff3c903e5c26dc5c80010ac7c2333fe74bebfc"
+          },
+          "case_completion": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/case-completion.json",
+            "bytes": 21054,
+            "sha256": "d537b3efdf6b670c071edb8a645ae660bdf1465b1c779f410df1be01c9574d6a"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/released.json",
+            "bytes": 507,
+            "sha256": "6ca59aedaca0df00e9a7757b6928d2e9068f479c14193e5e43c452b5e6e68b9b"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/postguards.json",
+            "bytes": 2339,
+            "sha256": "356908388e49996f2146798255da4b13165354d6cddeda47f0c573f54dbfc1a4"
+          },
+          "fixture_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/fixture-final.json",
+            "bytes": 255,
+            "sha256": "8a8a44e4afb35bfa72800af2910fa88b0c337a6c0f0a5e25da6b79322328623e"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/sqlp-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "f2c355245bede6c2cc10c2d87d183033ff7e0786baf977ce894753e91cb7452a"
+          }
+        }
+      ]
+    },
+    {
+      "candidate": "gui-production-lane-diagnostics-navigation-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILE_FEEDBACK_QUALIFIED_PUBLISHED_ORIGINAL_RUNTIME_PENDING",
+      "pico_refs": [
+        "GUI-WP012-172-MODELS"
+      ],
+      "original_contract_refs": [
+        "MT-175.json",
+        "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json"
+      ],
+      "source_author": "/root/gui_live_refresh_fixture",
+      "source_reviewer": "/root/refresh_repair_codecheck",
+      "capture_control_reviewer": "/root/lookup_warm_same_codecheck",
+      "published_head": "4b5d3ec499335a79c6ac5532ab29b716b902b844",
+      "published_tree": "fb227a939d60391e5193bcd00e5a320fc57d5c1e",
+      "parent": "84817886a8c650625832b68917b3c33a8038f273",
+      "published_git_blob": "2b757d152d693a7d00e7460f0d81521847bf0fcc",
+      "published_only_path": "src/frontend/handshake_native/tests/test_argus_production_socket_live.rs",
+      "live_candidate_raw_sha256": "e619df7352a8bd2460cd5186692b2185339c5ede29511e7f80816665876ce02f",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "e7125741e9eafd984adc2f38ee40fa9395fbe945bdd5a968be02f6687725b3c6"
+      },
+      "working_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-preparation-20261111-01/working-tree-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "84b006df8b0da72002e35a8e6d08b355d7efc99b4a35dbb3b7cbfcbeda95097d"
+      },
+      "metadata_binding": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-preparation-20261111-01/gui-production-refresh-native-metadata-binding-admitted-01.json",
+        "bytes": 19694,
+        "sha256": "26002add0ed85e341c4165744f17bcd992d40e85eff58478c7811a790de66c09"
+      },
+      "metadata_feedback": {
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/result.json",
+          "bytes": 3998,
+          "sha256": "fea8837b919fbe31418a9e81496a69c598d11e6d46dcad6112884629c3bf7557"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "625307b905d941f0a040ac4e0f6eb7111c64a1463e683da7430eb74f06cf61a5"
+        },
+        "post": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "955eddf2b76af15ee214e69afff1cdc2357ba82b84447ec8b09bf6b76ea4c432"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/check-artifact.json",
+          "bytes": 8990,
+          "sha256": "492c7e8934ee0d4be8788b097ed0dcbf7353928ff069537abcda8d6bff129c32"
+        },
+        "stdout": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/cargo.stdout.jsonl",
+          "bytes": 494245,
+          "sha256": "7af1d03f9581486749cd415ab3be76b5f9d898e165afb3aae1d6e8b9d1e74fb4"
+        },
+        "job": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-20261111-01/private-job-final.json",
+          "bytes": 233,
+          "sha256": "6df8fb9b05c5c28cf3ab127ccc6976c04942e5d428d95fe5e9ad386594e799f1"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "40e4930a08940e2adbdb47197f769288d7c998bd94dfe84764586e1200bb85f4"
+        }
+      },
+      "checked_handoff": {
+        "ref": "WP-KERNEL-012/MT-212/gui-production-refresh-static-custody-20261111-01/producer-terminal-handoff.json",
+        "bytes": 3194,
+        "sha256": "fb049663491ba5cbdbaeb7e510e781a9b027411dbe3e760c829a9f7d7681dfe5"
+      },
+      "scope": "Exact focused Native metadata check, one reviewed test source file, Cargo and producer exited 0, same preserved Handpick PE, zero input drift, checked Job and all handles closed. No runtime, original GUI acceptance or source-dependency waiver.",
+      "next_proof": "Original independent live MT008 proof remains open and requires a same-session private observer plus real Palmistry adoption and scoped recorder evidence. Next compile window is the separate reviewed Core mirror source.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "gui-argus-flight-recorder-scope-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_METADATA_CAPTURE_UNQUALIFIED_ORIGINAL_RUNTIME_PENDING",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "original_contract_refs": [
+        "MT-175.json",
+        "MT-172.json",
+        "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json"
+      ],
+      "source_author": "/root/gui_receipt_mirror_coding",
+      "source_reviewer": "/root/refresh_repair_codecheck",
+      "capture_control_reviewer": "/root/refresh_repair_codecheck",
+      "published_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "published_tree": "b98329c3466ea6c43e24b4bf7956fc490717c89f",
+      "parent": "4b5d3ec499335a79c6ac5532ab29b716b902b844",
+      "published_git_blob": "c38deea89d639d8cf94192de0294c723564299fc",
+      "published_only_path": "src/backend/handshake_core/src/api/palmistry.rs",
+      "live_candidate_raw_sha256": "08cea6f30239d6f13d08be400cc026b1a57093a51152c571f40c1d01aee169ae",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-static-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "5a1dc02c07b605f828b9ebd4d9ca062edb8c33831302e79d252cf1594023292a"
+      },
+      "working_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-static-preparation-20261111-01/working-tree-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "985c35cd43c967c08c682b50e2ad174b844294dcb80d1feb268b8465cadc9b0d"
+      },
+      "metadata_binding": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-static-preparation-20261111-01/argus-flight-recorder-core-check-binding-admitted-01.json",
+        "bytes": 18952,
+        "sha256": "fc20af5aa715578a772bd051e02dab1c70c3fbd3a8e876d4c20681448d5f6e99"
+      },
+      "metadata_feedback": {
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/result.json",
+          "bytes": 5619,
+          "sha256": "7c2f46d142602546be939b4df2dac5e537935b5e36be55ccad29f19bdd4ccf54"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/released.json",
+          "bytes": 2235,
+          "sha256": "1694a7b6deee93605459e77ee4de480210c116cc7d9055727315f8a0ffa2dc31"
+        },
+        "post": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/postguards.json",
+          "bytes": 1864,
+          "sha256": "cb7a8b7a215023feb5a7d4d6648085cace6b75df732253eb57c3bf54ca58a738"
+        },
+        "stdout": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/cargo.stdout.jsonl",
+          "bytes": 1952028,
+          "sha256": "75c7b85e3bb26627200df4068b760d253460cfdcd273db06040b86c7b9dcafc8"
+        },
+        "job": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/private-job-final.json",
+          "bytes": 234,
+          "sha256": "42d01be4814bf98259c70e3ce5170616548cbaa471329c5f7352c20eb9777af2"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "ef081005b1bbb1bcdd76a8731efe83f9ba57e403413eeca20df254d274c3d63e"
+        }
+      },
+      "checked_handoff": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-custody-20261111-01/producer-terminal-handoff.json",
+        "bytes": 3006,
+        "sha256": "968a9c429181c505981318f86d34e822f75a6a27a8350610208b3454f33dac66"
+      },
+      "scope": "Exact one-file Core app-runtime metadata check produced the selected ordinary library metadata and Cargo exited 0. The producer exited 1 because a live target scan reached 450001 visits. Final sample completed; no stop, no drift, private Job empty and all held handles closed. Implementer compile feedback only. No metadata acquisition qualification, runtime or original acceptance.",
+      "next_proof": "Qualify ordinary app-runtime Core on the published input for the separately agreed original MT022 HTTP scope, with final exact Native executable equivalence and independent admission. Keep MT008 signed receipt and scoped mirror readback with genuine watcher adoption, same-session observer, original replay/foreign-scope cases, and full GUI/Vulkan/Palmistry acceptance open.",
+      "original_acceptance": "OPEN",
+      "selected_cargo_feedback": {
+        "raw_line_number": 1494,
+        "raw_byte_range": [
+          1950952,
+          1951985
+        ],
+        "raw_line_sha256": "e702110bf964f950261d5283471d921bad3e76f9a463e054826220835d642c89",
+        "metadata_output_observed": {
+          "ref": "WP-KERNEL-012/MT-174/kb-phase02/target/debug/deps/libhandshake_core-6323503323746562.rmeta",
+          "bytes": 221368914,
+          "sha256": "72689592f74dd13da5b55fb907c56dce66b041b6689559bd86c99f6583b400ee"
+        },
+        "guard_verdict": "UNQUALIFIED_LIVE_SCAN_ENTRY_LIMIT"
+      }
+    },
+    {
+      "candidate": "mt022-ordinary-repaired-core-acquisition-20261111-01",
+      "state": "PUBLISHED_CORE_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_ORIGINAL_HTTP_ORDINAL_3_FAILED",
+      "original_contract_ref": "MT-022.json",
+      "source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "source_tree": "b98329c3466ea6c43e24b4bf7956fc490717c89f",
+      "cold_unqualified": {
+        "binding": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-preparation-20261111-02/mt022-repaired-ordinary-core-binding-admitted-01.json",
+          "bytes": 23014,
+          "sha256": "84da258486427c2f7468287302f67a2ac7f8b7382bea0fc779a925cfe00ecc90"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-20261111-01/result.json",
+          "bytes": 5580,
+          "sha256": "337da050e379a3b159641c54f77be3f3474fbe26f1a1f1e47081bc2a9c497cb1"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-20261111-01/released.json",
+          "bytes": 2224,
+          "sha256": "4440e5f6c627f774b0aa51dce02690975f2b02671d8dcbe557398877d4036fde"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "08ec0c453629e76102f8ed9d058056ff53081a64c46cd686260d34a618f1bbde"
+        },
+        "raw_cargo": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-repaired-ordinary-core-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2004916,
+          "sha256": "85e7f3fd5877e3254badaddcf5366a4c07b3aba1f0f0fe80e952df36d24302bc"
+        },
+        "failure": {
+          "deadline_exceeded": true,
+          "elapsed_seconds": 25.0,
+          "entries": 553227,
+          "entries_exceeded": false,
+          "reason": "DEADLINE",
+          "reconciled_directories": 4,
+          "scan_max_entries": 900000,
+          "scan_timeout_ms": 25000,
+          "stage": "live",
+          "vanished_entries": 0
+        },
+        "cargo_exit": 0,
+        "producer_exit": 1,
+        "acquisition": "UNQUALIFIED"
+      },
+      "warm": {
+        "binding": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-preparation-20261111-01/mt022-ordinary-core-warm-binding-admitted-01.json",
+          "bytes": 27086,
+          "sha256": "d0432feec3dc8d9bc8ff5f7e2f6b1505fda7f51606bb7ca3b59273e1e2419c7a"
+        },
+        "records": {
+          "result": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/result.json",
+            "bytes": 3329,
+            "sha256": "1e5b4663befdf0458e034cb064fee2e38380707e6972e822c9731c2e2e1b6727"
+          },
+          "artifact": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/codegen-artifact.json",
+            "bytes": 11322,
+            "sha256": "7489ee1c875c4246898dc4b71f8a5baf9f2ca67ddc6e128c68e6267904b61709"
+          },
+          "released": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/released.json",
+            "bytes": 481,
+            "sha256": "e10c6a15deee01d9710e9e9061047c1399cb45b166657226af8b169833c5ece0"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/postguards.json",
+            "bytes": 110,
+            "sha256": "1771fa42c4fd9ea7e0f6b21a5bf5e227b69d877670b4c89caeddacd715855650"
+          },
+          "cargo_exit": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/cargo-exit.json",
+            "bytes": 768,
+            "sha256": "c332db9a63c37cf73da6078c49e47ce3579409d406d5fb553cdddc72095a90a5"
+          },
+          "raw_cargo": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/cargo.stdout.jsonl",
+            "bytes": 2004914,
+            "sha256": "adcf4d5871066840e1f339a25a204447a4b9d4529f35774a92efe45de968c9c3"
+          },
+          "private_job_final": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-20261111-01/private-job-final.json",
+            "bytes": 233,
+            "sha256": "07451eaf68815b68babfe7bf0c473ef190c59e774dad346cbc23e39a6b15cdb2"
+          },
+          "capture_started": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-custody-20261111-01/capture-started.json",
+            "bytes": 1525,
+            "sha256": "8fa9b2646ee5058b222fd6a0f8b40a9052d67dd9d239ce79c76182703d3179da"
+          },
+          "producer_terminal": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-custody-20261111-01/producer-terminal-native-01.json",
+            "bytes": 416,
+            "sha256": "f195bc158ce8144c7c41ee31af881ad88efef34babf84b9020338c1cfe8aae9b"
+          },
+          "producer_handoff": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-custody-20261111-01/producer-terminal-handoff.json",
+            "bytes": 3004,
+            "sha256": "545bb60cbc7c97f000b3ce2f2c1258f0060591a05804276cdcc2a59d4b9f4ee7"
+          }
+        },
+        "all_fresh_cargo_artifacts": 808,
+        "selected_executable": {
+          "PE": {
+            "characteristics": 34,
+            "machine": "AMD64",
+            "machine_hex": "0x8664",
+            "optional_magic": "0x020b"
+          },
+          "bytes": 386772480,
+          "file_id": {
+            "file_index": 10696049117015181,
+            "volume_serial": 705387220
+          },
+          "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\handshake_core.exe",
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\handshake_core.exe",
+          "read_handle_retained_until_checked_release": true,
+          "sha256": "27e4f04dc7a24ac7b3395b2cc99cfcaf174103d1b67b8f2de18aba738f33f272"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-named-dx-20261111-01/ordinary-core-warm-acquisition-review-dx-01.json",
+            "bytes": 1707,
+            "sha256": "515afabdaa92972066d32b2f09204e224ffb4434c34fbde43e391f75915c48f8"
+          },
+          {
+            "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-same-cc-20261111-01/ordinary-core-warm-acquisition-same-cc-01.json",
+            "bytes": 1076,
+            "sha256": "eb4e7bf1720e0f8597c8fd357536c132a3be9d17753d5bba6a4a4e1088360ca0"
+          }
+        ],
+        "independent_fixture_freshness": {
+          "ref": "WP-KERNEL-012/MT-212/mt022-ordinary-core-warm-named-dx-20261111-01/ordinary-core-fixture-freshness-dx-01.json",
+          "bytes": 2173,
+          "sha256": "c50b484338d0ff0370eca1f120a61cf8b38eb8e87cd8410e42c72467ec2f8fe5"
+        },
+        "scope": "Published ordinary Core acquisition only. No runtime executable launch or proof credit."
+      },
+      "native_input_equivalence": {
+        "ref": "WP-KERNEL-012/MT-212/mt022-final-native-source-equivalence-dx-20261111-01/native-integration-source-equivalence-dx-01.json",
+        "bytes": 5618,
+        "sha256": "5ee3ded2795225f63b7a53d3b526e85e834cf53135ee42f7bd6a07bb59f76595"
+      },
+      "next_proof": "Diagnose the first exact workspace-create denial from ordinal 3. No automatic runtime retry. Preserve spent ordinals 1–3 and separately qualified Core/Native acquisition.",
+      "original_acceptance": "OPEN",
+      "original_http_ordinal_3": {
+        "case_id": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+        "selector": "folder_tree_live_surrealdb_self_seeded_round_trip",
+        "state": "FAILED_SPENT",
+        "validator_thread": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c8c5-dd16-7321-af9d-f0cfbd5a0fc6",
+        "outer_controller_exit": 1,
+        "test_exit": 101,
+        "selected_tests": 1,
+        "first_failure": "POST /workspaces returned 403 HSK-403-PROTECTED-RESOURCE after authenticated session lookup.",
+        "completion_manifest_present": false,
+        "fixed_seed_receipt_present": false,
+        "unchanged_inputs": true,
+        "owned_resume_previous_suspend_count": 1,
+        "all_file_handles_closed": 7722,
+        "all_native_handles_closed": 14,
+        "final_job_active": 0,
+        "final_job_assigned": 0,
+        "termination_invoked": false,
+        "custody": "IV explicitly returned runtime, compiler and fixed-receipt-writer custody; final Job empty, all handle closes succeeded and test PID absent.",
+        "records": {
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/result.json",
+            "bytes": 8207,
+            "sha256": "63ba877f00b376ce13ba581f87f74be1d092fa7ee2da4594372e8059deb720e5"
+          },
+          "stdout": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/test.stdout.txt",
+            "bytes": 1023,
+            "sha256": "af233980f658c29428713221cd10ce517149815c3e73152f2775e481c5b49c3b"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/released.json",
+            "bytes": 1975,
+            "sha256": "e30388b2901750988bd7afc1133204538cff857382c76a8a994b35e9ba0e7d54"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/postguards.json",
+            "bytes": 3828,
+            "sha256": "a89f65407f743ce4cb5cfdbbd5bf323aede2d4a75d5ad09289ffe6c08c05a7e7"
+          },
+          "job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/private-job-final.json",
+            "bytes": 340,
+            "sha256": "026c08eb0bf55d76aaeef1ecc696534dd7e87d8e8d2957427ecfe65b261d3b5e"
+          },
+          "binding": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-repaired-http-runtime-preparation-20261111-01/mt022-roundtrip-controller-binding-admitted-12.json",
+            "bytes": 50315,
+            "sha256": "c6f7b9828d6b8d478e5b66c963eebb4d2131170f5f501ca28c1993749306c45e"
+          },
+          "admission": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-repaired-http-runtime-preparation-20261111-01/mt022-roundtrip-case-admission-12.json",
+            "bytes": 27184,
+            "sha256": "f92504093d4c0f5d10fd91da0b0c12d10c2c22a3cc5d309f97b3e24add183932"
+          }
+        }
+      }
+    },
+    {
+      "candidate": "engine-profiles-retained-native-components-20261111-01",
+      "pico_refs": [
+        "GUI-WP012-settings-profiles",
+        "GUI-WP012-172-SCOPE"
+      ],
+      "state": "TWO_EXACT_COMPONENT_CASES_QUALIFIED_NO_CARGO",
+      "original_contract_ref": "MT-196.json",
+      "source_head": "9625a6064ef9964014ca3989c6d23a1b4044c5d8",
+      "live_source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "published_create_ack": "a3a60e0d44eb569f2294449db60ef5e1cb508f76",
+      "executable_sha256": "850038a80b4681031efc35cd5be668923095ab733694b32fe5c7a43ba33d79b9",
+      "independent_source_equivalence": {
+        "ref": "WP-KERNEL-012/MT-212/settings-profile-component-equivalence-20261111-01/native-settings-component-source-equivalence-01.json",
+        "bytes": 18213,
+        "sha256": "58df501fed0a56a596320e898365a7e40e212cac54f321e7bdfe4447570d3729"
+      },
+      "technical_scope_owner": "/root/gui_diagnostic_runtime_readiness",
+      "changed_controller_reviewer": "/root/mt022_ordinary_warm_cc",
+      "capture_owner": "/root/session_query_lookup_coding",
+      "prelaunch_failure": {
+        "state": "FAILED_PRELAUNCH_SPENT_NO_BODY",
+        "outer_exit": 1,
+        "first_failure": "Final JSON sorting changed ordered environment digest; exact same values restored to reviewed insertion order and independently checked on new final raw binding.",
+        "failed_binding": {
+          "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-binding-admitted-01.json",
+          "bytes": 35837,
+          "sha256": "478a7fa36cca4008dae2217bfdf7d29b61d88fd715cc2b9c5fd6f786794072a3"
+        },
+        "failed_admission": {
+          "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-case-admission-01.json",
+          "bytes": 8386,
+          "sha256": "d837383973af7e29ac0fbee83b63f476904f7969c04dcb11a009d510c666eb5d"
+        }
+      },
+      "cases": [
+        {
+          "case": "SETTINGS-PROFILE-COMP-001",
+          "selector": "settings_dialog::tests::settings_author_ids_are_stable",
+          "outer_exit": 0,
+          "test_exit": 0,
+          "selected_passed": 1,
+          "file_handles_closed": 7665,
+          "native_handles_closed": 3,
+          "job_assigned": 0,
+          "records": {
+            "result.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/result.json",
+              "bytes": 6510,
+              "sha256": "4a7040fa7a5b104ad27719ed9e4a63b36eb3c16d3f58a3101699a1a9691a0b15"
+            },
+            "case-completion.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/case-completion.json",
+              "bytes": 21075,
+              "sha256": "3ff8f2665fad55870988ea2f0e5996ad5c760c108af6f8ceb1d3a6c3d040f318"
+            },
+            "released.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/released.json",
+              "bytes": 586,
+              "sha256": "f4d34fd41ecc18496798e39890fc9cbd932db04c290735c1fc73833120edfdc3"
+            },
+            "private-job-final.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/private-job-final.json",
+              "bytes": 339,
+              "sha256": "62f3cec54a695c982fda889df5a4265d7caf3daa3ab79d1e4837d5c0a64cc7cd"
+            },
+            "postguards.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case01/postguards.json",
+              "bytes": 2274,
+              "sha256": "d80722b8606b75f156cfe420c63fe971d6bddfdaa9225a12d0c17ae75748c9ba"
+            },
+            "binding": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-binding-order-preserved-admitted-01.json",
+              "bytes": 35878,
+              "sha256": "e89f76968c0122405addcaef61549f5fee0a939c4023e6ce97d0e98425e1a8e0"
+            },
+            "admission": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-order-preserved-case-admission-01.json",
+              "bytes": 9410,
+              "sha256": "b533f280b66b1c24fad4308a2cadfb65be4230458523674c33ba10f4674ce3b7"
+            }
+          }
+        },
+        {
+          "case": "SETTINGS-PROFILE-COMP-002",
+          "selector": "operator_chat_pane::client_safety_tests::settings_refresh_fences_old_inventory_and_preserves_started_launch",
+          "outer_exit": 0,
+          "test_exit": 0,
+          "selected_passed": 1,
+          "file_handles_closed": 7668,
+          "native_handles_closed": 3,
+          "job_assigned": 0,
+          "records": {
+            "result.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/result.json",
+              "bytes": 6625,
+              "sha256": "217d575e6d1ff95378e59e1770871552924d688d1de8e4d298f28ac0986437a5"
+            },
+            "case-completion.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/case-completion.json",
+              "bytes": 21185,
+              "sha256": "7c47c12b0b60c74c7d58e1f9d7796c62f2a115f2bcd80c2b9221996c41a55acc"
+            },
+            "released.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/released.json",
+              "bytes": 586,
+              "sha256": "1536d295c68b4a14fe1a3f3e5217386d6b34ff9807eeb72e875d7190963caed7"
+            },
+            "private-job-final.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/private-job-final.json",
+              "bytes": 339,
+              "sha256": "f1a86a23e93b8fb77d76f14c68be2552dfe32dc2a7c5b5a696e4d582c8c983b9"
+            },
+            "postguards.json": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-runtime-20261111-01-case02/postguards.json",
+              "bytes": 2274,
+              "sha256": "a8fde1615f13c48bf6a3b9fe945867def41213903e9b1ebd1b554c3225ca815e"
+            },
+            "binding": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-binding-order-preserved-admitted-02.json",
+              "bytes": 36971,
+              "sha256": "5ee1965dcfe83dca541c0f2e1db799fa7eda2189eea31977b88e37fbc01b0f75"
+            },
+            "admission": {
+              "ref": "WP-KERNEL-012/MT-212/settings-profile-component-proof-preparation-20261111-01/settings-profile-component-order-preserved-case-admission-02.json",
+              "bytes": 9394,
+              "sha256": "d0f0cc3f13da2fef4e801128e238acae61c838ad9ce00a581e09f1a8e16b12e6"
+            }
+          }
+        }
+      ],
+      "scope_limit": "Stable Settings Create author ID and fixture-backend stale inventory fencing/in-flight launch preservation. Real loaded registry Create acknowledgement, complete dispatch, Vulkan, Palmistry and original acceptance remain open.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "mt196-native-profile-carriage-first-component-20261111-01",
+      "pico_refs": [
+        "GUI-WP012-settings-profiles",
+        "GUI-WP012-172-CHAT"
+      ],
+      "original_contract_ref": "MT-196.json",
+      "state": "COMPILE_ONLY_INDEPENDENTLY_QUALIFIED_FIRST_COMPONENT_FAILED",
+      "source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "test_source_blob": "b1ee178a09b40ac4f6f7dc40cbd02a0f2af53b14",
+      "acquisition": {
+        "verdict": "QUALIFIED_COMPILE_ONLY",
+        "cargo_exit": 0,
+        "producer_exit": 0,
+        "executable_sha256": "30c40e82a2cd0682ab8ee1fc2994538f2ed3198415f86b5e8bfda0e585228479",
+        "independent_record": {
+          "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-acquisition-review-20261111-01/mt196-native-profile-carriage-acquisition-review-01.json",
+          "bytes": 6465,
+          "sha256": "775ef7be82fad55e2ca80eac01a954c8a22cb59163fc06c016154d38faf93f76"
+        }
+      },
+      "runtime": {
+        "state": "FAILED_SPENT",
+        "case_id": "MT196-NATIVE-PROFILE-CARRIAGE-COMP-001",
+        "selector": "operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript",
+        "independent_validator_thread": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "independent_validator_turn": "01a1c912-3fc1-7b83-9aeb-72a9d47f5f03",
+        "outer_exit": 1,
+        "test_exit": 101,
+        "first_failure": "No AccessKit node matching MODELS at test_operator_chat_selection_and_transcript_argus.rs:378. Audit, launch and transcript assertions not reached.",
+        "test_pid": 23676,
+        "file_handles_closed": 7670,
+        "native_handles_closed": 3,
+        "final_job_active": 0,
+        "final_job_assigned": 0,
+        "termination_invoked": false,
+        "completion_manifest_present": false,
+        "records": {
+          "result.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/result.json",
+            "bytes": 7185,
+            "sha256": "85e8e5bd6c74a696064370c415e1a71d973ca41786ffddb2befe2f39924dd1ad"
+          },
+          "released.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/released.json",
+            "bytes": 1562,
+            "sha256": "3edfec35b55db79532eecd6e01106ff6967463c52208b290d1669de76b4738d3"
+          },
+          "private-job-final.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/private-job-final.json",
+            "bytes": 339,
+            "sha256": "ea57e8cd13f9db56195c656dadf62e1928bf160d8a8f7c4886e22644353896ca"
+          },
+          "postguards.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/postguards.json",
+            "bytes": 2806,
+            "sha256": "d057285a550adb2dfa1dcf16c133c32d97421dbec369c3cad78d062d1de8617b"
+          },
+          "test.stdout.txt": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/test.stdout.txt",
+            "bytes": 175998,
+            "sha256": "d08a16e1ca8bd5652a3f795740a52267c819317c171ee4baf6936a9648501fc8"
+          },
+          "binding": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-preparation-20261111-01/mt196-native-profile-carriage-runtime-binding-admitted-03.json",
+            "bytes": 18290,
+            "sha256": "713ce1634c3acb11c2282647981cbbceef953f7a0976028fbb57d24951e9bbd8"
+          },
+          "admission": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-preparation-20261111-01/mt196-native-profile-carriage-runtime-case-admission-03.json",
+            "bytes": 8204,
+            "sha256": "9cb3526a510ec4d72ff3bafa14437ff08ff12808c08d1755d410406741432ee9"
+          }
+        }
+      },
+      "next_proof": "Resolve current real Operator Chat navigation through original WP1 MT012 reachability. Preserve same full-profile, audit, launch and transcript assertions. A changed-input proof requires separate scoped agreement and admission.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {

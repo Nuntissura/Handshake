@@ -491,6 +491,16 @@
       "protected_admission": "Protected account/workspace/module work still requires current grants.",
       "logout_and_retention": "Logout stops new protected work, preserves the shell and retains in-flight GPU ownership until actual settlement.",
       "before_use": "The real issuer and registered capability must be implemented and reviewed before use. Actual technical owners choose and validate the representation under this approved boundary; this record invents no capability ID, endpoint, privileged constructor, issuer identity bytes or permission bypass.",
+      "retained_string_and_profile_denial_proof": {
+        "evidence_id": "WP012-MT203-PREACCOUNT-ORDINARY-GRANT-DENIAL-01",
+        "product_revision": "3d6098de4debdfc732cf8c903c6699a00f4420b8",
+        "selector": "capabilities::tests::test_shell_gpu_capability_is_not_grantable_by_strings_or_profiles",
+        "result": "One exact library regression passed. Nextest exit 0 and checked private Job release were recorded.",
+        "artifacts_root_relative_dir": "WP-KERNEL-012/MT-172/shared-compile-preparation-20261025-01/host-shell-capability-runtime-preparation-02/runtime-01",
+        "result_sha256": "332c612aa60d46e68569def4bda588234075cb5aa5acb7742e5e2d509a6283b6",
+        "release_sha256": "120432cec03503417f8eebffde30571d1cd82d536ab4d934d97f106d94f461de",
+        "scope": "Retain the historical library proof for denial of ordinary string and profile grants. Generated registry publication, genuine issuer and trust-port integration, Vulkan startup, and independent acceptance remain separate."
+      },
       "preservation": "Host-policy approval only; no live execution, retry, source/process/compiler/Git release, scope reduction, pin change or acceptance verdict."
     },
     "shared_gui_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
