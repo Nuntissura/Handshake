@@ -1,0 +1,133 @@
+{
+ "lane": "SMB-DS-COMPONENTS-AUTHOR-1",
+ "tip": "fa15c84d",
+ "base": "eb17fad6",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "The commands, decoders, typed refusals, undo of the vector entry and save/reopen of a live instance read correct, and nothing found breaks the build. But the native binding model loses data: bindings live only in the non-history `design` entry, are pruned by any later write (F1) or by the 256-state eviction (F2), and the record caps are enforced only on decode, so ordinary create/delete cycles can make the whole vector entry undecodable (F3). F4 to F7 refuse valid commands. F1 to F3 need fixes and red tests before the bundled run. F5 and F10 need lead path rulings.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ",
+   "severity": "lost write (an authored instance silently becomes a plain group; undo cannot bring it back)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/instance.rs:701-713 (design_receipt: a native binding exists only while a `design` entry state names it); crates/hsk-studio-harness-view/src/view/design/persist.rs:209-242 (read: Folio drops a refused state) and :258-276 (write_design_state rebuilds the entry from the admitted states only); crates/hsk-studio-folio/src/design_state.rs:248 (absent layer), :319-321 (override node absent), :328-329 (instance record absent), :336/:374 (main component absent); persist.rs:11-15 (the `design` entry is outside the history)",
+   "what": "A native instance's binding lives only in the `design` session entry, which is not part of any history step. read_design_state drops every state Folio refuses, and write_design_state (run by every create_instance, sync_instances and design.instance.* command) stores only the admitted states. So any state that is temporarily invalid is deleted for good by the next unrelated write. This happens after the definition is deleted (component_id dangling; persist.rs:166 native_state returns early for main null, so the stale id stays), after the instance layer is deleted, after instance.detach, and after deleting a definition child that the instance overrides. The vector entry keeps the record (main_component_id null, or the full record), so undo restores the record and the layers but never the binding. STU-DS-003a/105 require the instance to stay valid and renderable with main_component_id null and restorable; the common ruling requires undo to restore the object and its records together.",
+   "scenario": "(a) Priority check 1: button A, instance I of A, delete A's layer, then create_instance of any other component. I's state is dropped and I now reads not_an_instance (test a_deleted_definition_leaves_its_instances_rendering_with_no_main runs this sequence and never re-checks I). (b) Instance I, delete I's layer, create another instance (prunes I's state: layer absent), undo twice: I's layers and record are back, I is a plain group. (c) instance.detach I, create another instance, undo twice: same. (d) Override the icon of I, delete the icon in the definition, run any instance command elsewhere: I is unbound.",
+   "fix": "Spec answer for priority 1: neither detach nor refuse. The instance stays an instance with main_component_id null, and its binding must survive. In persist.rs (owned): write_design_state re-appends, unvalidated, every dropped state whose instance_id is a native SCIN id (shape-valid, layer and instance id well-formed) instead of discarding it, so a refusal by records or layer never deletes a binding. design_receipt already binds leniently. Bound them under MAX_PERSISTED_STATES (F2). For a main-null record, the state keeps the last main id (Folio cannot store null; recorded reading). Red tests: (a) to (d) above, each asserting instance.get_main_component answers after the extra write and after undo."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ",
+   "severity": "lost write (oldest native instances lose their binding)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/persist.rs:36 (MAX_PERSISTED_STATES = 256) and :265-271 (oldest states drained on write); crates/hsk-studio-harness-view/src/view/vector/style.rs:294 (MAX_ENTRY_INSTANCES = 4096); crates/hsk-studio-harness-view/src/view/design/instance.rs:701-713 (binding = state)",
+   "what": "Each native redraw adds one state per (layer, content) and keeps the older ones. Above 256 states the oldest are drained, so the first instance's only state goes and that instance becomes a plain group with an orphan record. The cap of 256 states sits under the cap of 4096 instances, and is reached by 256 edits on a single instance.",
+   "scenario": "Create instance I1, then 256 design.instance.set_override calls on instance I2 (or 256 more create_instance calls): I1 reads not_an_instance, and component.list_instances no longer lists it.",
+   "fix": "Never evict the newest state of a native instance whose layer exists. Evict only the superseded (older content) states and the fig states, or keep native binding states outside the 256 count, bounded by MAX_ENTRY_INSTANCES and Folio MAX_DESIGN_STATES (1024, which is itself under 4096: lower MAX_ENTRY_INSTANCES to fit, or refuse create_instance at the bound with a typed code). Red test: 257 states, the first instance still binds."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ",
+   "severity": "lost write (the vector entry stops decoding: every vector layer, record and command of the document fails, including after save and reopen)",
+   "where": "crates/hsk-studio-harness-view/src/view/vector/style.rs:309 (MAX_ENTRY_COMPONENTS, MAX_ENTRY_INSTANCES and nodes <= MAX_STYLES are checked only by decode, vector.rs:613/619); crates/hsk-studio-harness-view/src/view/design/component.rs:400-412 commit_structure and instance.rs:1078-1092 native_redraw write without that check; instance.rs:217-223 settle never removes an instance record; instance.rs:536-541 and :582 (node entries of redraw copies are appended, never removed)",
+   "what": "No write path enforces the caps that decode enforces. Instance records of deleted instance layers are never removed: settle only nulls mains, and only detach removes a record. So ordinary create and delete cycles grow component_instances without bound. Each redraw of a definition with a styled vector layer also appends a node entry for the copy, and the entries of deleted copies stay. When the count passes 4096 instances, 1024 components and sets, or 4096 nodes, the write succeeds, but every later vector_entry() fails with `vector_entry_design: members`. design_receipt then silently drops all authored records (instance.rs:664 `.ok()`), and the saved package carries the undecodable entry. state_json design.components also lists the orphan records as instances with layer_id null.",
+   "scenario": "Create and delete an instance 4097 times (or create_one_per_top_level_node 1024 leaves when one component exists, giving 1025): the next vector command and render refuse, and reopen fails the same way.",
+   "fix": "Run validate_entry_styles (or the same three counts) on the record set in commit_structure and native_redraw before writing, as a typed refusal (component_over_cap / instance_over_cap). Per the common ruling, remove an instance record in the same step as its layer, or settle-at-commit dropping records whose binding layer is absent, kept restorable by undo through the vector entry history. Prune node entries of layers absent from the projected document at commit time, or count only present ones. Red test: over-cap create refused, and the entry still decodes."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ",
+   "severity": "wrong answer (a valid create_instance is refused, and a detached frame is briefly re-bound)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/component.rs:187-198 (mint_record_id starts at taken.len()), :224-233 (Ctx::ids counts live records only), :491 (detach removes the record), :665 (SCIN minted); crates/hsk-studio-folio/src/design_state.rs:271 (one layer per instance)",
+   "what": "Ids are minted from the count of live records. After instance.detach removes the newest instance record, the next create_instance mints the same SCIN id. The detached frame's state is still in the `design` entry (detach does not write it), so after the redraw step design_receipt binds the old frame to the new record. write_design_state then holds two layers for one instance id and Folio refuses (duplicate_identity instances/<i>/instance_id). The step is undone and the command refused. The same scheme can re-mint the SCMP id of a deleted component, and stale deleted-main states then resolve to the new component.",
+   "scenario": "button A (SCMP-..000), create_instance (SCIN-..001), instance.detach it, create_instance of A again: refused `design_state duplicate_identity`. This repeats for as long as the stale state stays (no other write happens).",
+   "fix": "Mint past every id ever seen: include the instance ids of the `design` entry states and the max counter of existing ids (parse the trailing hex and take max+1) in `taken`. Alternatively, make detach also remove its states. That conflicts with F1's undo requirement, so prefer the mint fix. Red test: detach the newest instance, then create_instance succeeds."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ",
+   "severity": "wrong answer (auto-layout commands refuse valid edits)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:421-425 al_records and :655 al_commit (Folio validate_design_records on the raw entry with Budget::default); crates/hsk-studio-folio/src/records.rs:346-350 (definition layer must exist), :513-516 (node layer must exist); folio lib.rs:546-553 (Budget::default nodes 4096, payload_bytes 262144); crates/hsk-studio-harness-view/src/view/design/component.rs:390 (check_authored filters absent nodes for validation only, :409 stores them)",
+   "what": "Priority check 3. This lane makes the raw entry fail Folio in three ways that al_commit cannot settle. (1) A deleted definition layer leaves its component record until the next component command. (2) A deleted layer that carried a component-property reference leaves its node entry in the stored entry permanently, because component commands keep absent nodes and only filter them for validation. (3) Authored text or records above Budget::default trip budget_exceeded: set_description allows 65536 bytes, so four descriptions reach 256 KiB, and 1024 components plus 4096 instances pass the 4096-node ceiling. In each case every auto_layout command on the document refuses with `folio DanglingReference ...` or BudgetExceeded until undo.",
+   "scenario": "Make a component with a set_property_reference on its icon, delete the icon, then auto_layout set on any frame: refused, and still refused after any number of component commands.",
+   "fix": "This lane causes it, so it is not a named cut. Fix at the root per the common ruling: deleting a definition or reference-carrying layer drops its records in the same undo step (layers.rs delete_layer through restructure_and_entry; needs a lead PATH approval). Or, after SMB-AI-LIVE-EFFECTS-1 lands and with a PATH approval for auto_layout.rs, have al_commit validate a settled copy: design::instance::settle plus dropping nodes whose layer is absent, as check_authored does, under AUTHORED_BUDGET. Red test: delete a definition and a referenced layer, then auto_layout set succeeds."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ",
+   "severity": "wrong answer (one stale override makes sync_instances refuse for every instance of the component)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/component.rs:716-738 sync_instances (all jobs in one native_redraw); crates/hsk-studio-harness-view/src/view/design/instance.rs:1095-1113 (a failed state write undoes the whole step); persist.rs:138-145 state_of keeps every record override; folio design_state.rs:319-321, :387-390",
+   "what": "STU-DS-003 slice 2 depends on sync_instances. If a definition child that some instance overrides is deleted, that instance's state, written after the redraw, fails Folio (override node absent). native_redraw then undoes the step and refuses the whole sync. resolve_instance may already refuse the stale override earlier (UNVERIFIED, components crate not read). Either way no instance of the component can be synced until that one instance's overrides are reset by hand.",
+   "scenario": "Two instances, set_override on the icon of one, delete the icon in the definition, component.sync_instances: refused (design_state dangling_reference), and neither instance is redrawn.",
+   "fix": "Before the redraw, drop overrides whose overridden_node_id is not under the member's layer, and report a note `override_target_gone`. Or move such an instance into `skipped` with that reason. Red test for the scenario above."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ",
+   "severity": "wrong answer (redraws refuse permanently once 256 text records accumulate)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/instance.rs:563 (each copied text layer appends a TextLayerRecord), :571-573 (refusal above MAX_TEXT_LAYERS = 256), :1086-1089 (text entry written outside the history step); crates/hsk-studio-harness-view/src/view/text.rs:76-130 (decode and validate never prune records of absent layers)",
+   "what": "The text entry is append-only and outside history. Every create_instance, sync_instances, design.instance.* redraw and undo of those leaves the old copies' text records in place. After 256 records in total, every redraw of a component that has a text layer refuses (`the redraw passes the window's 256 text layers`), even with a few text layers visible. The mechanism predates this lane in the fig redraw, but this lane makes it the normal path: sync after every definition edit.",
+   "scenario": "A label component with two instances: about 127 sync_instances calls, or create/undo cycles, and then every instance command refuses.",
+   "fix": "In Redraw::new or finish, drop text layer and story records whose layer is absent from the projected document and is not referenced by any history step, or count only present layers against the cap. Or bound it explicitly and document it as a named cut with a typed code and test."
+  },
+  {
+   "id": "F8",
+   "certainty": "READ",
+   "severity": "wrong answer after the rebase (silent visual loss in instance copies)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/instance.rs:411 and :470-476 (Redraw notes only attachments and effects); lane/smb-ai-live-effects-1 1e652818 view/vector.rs folio_records `r.live_filters.retain(...)` and view/vector/live_filters.rs:124 transform_live_filters",
+   "what": "SMB-AI-LIVE-EFFECTS-1 adds per-layer live filter stacks (StudioVectorRecords.live_filters, free-distort corners in document coordinates). Redraw copies a definition vector layer's paths but not its stack, and emits no note, so an instance renders without the definition's live filters. No error is reported.",
+   "scenario": "After the rebase: apply a live filter to a definition's rectangle, then create_instance: the copy draws without the filter, and the notes are empty.",
+   "fix": "During the rebase, add `definition_live_filters_not_copied` to the Redraw notes when a copied layer has a stack, mirroring the attachments note. Or copy the stack to the new layer id, translated by d through transform_live_filters. Red test after the rebase."
+  },
+  {
+   "id": "F9",
+   "certainty": "READ",
+   "severity": "receipt names the wrong code (low)",
+   "where": "crates/hsk-studio-harness-view/src/view/design/instance.rs:1045; crates/hsk-studio-harness-view/src/view/commands.rs:97-114 leading_code",
+   "what": "native_redraw refuses `{op}: vector_entry_not_persistable` with op such as `component_create_instance`. leading_code takes the whole underscore-token `component_create_instance` as the refusal code, not vector_entry_not_persistable. commit_structure (component.rs:401-403) uses the right form.",
+   "scenario": "A session without the vector entry token, then component.create_instance: refusal code component_create_instance.",
+   "fix": "Return `design: vector_entry_not_persistable (...)` (it is then rewritten to `component: `) or `refused(\"vector_entry_not_persistable\", op)`."
+  },
+  {
+   "id": "F10",
+   "certainty": "READ",
+   "severity": "silent semantic loss (named-cut candidate)",
+   "where": "crates/hsk-studio-harness-view/src/view/layers.rs:123-181 duplicate_layer and copy_subtree (not owned)",
+   "what": "Priority check 4. Duplicating an instance group copies its layers only. The copy has no record and no state, so it is a plain group, and the result returns just the id with no note. The source keeps its binding, so no stored data is lost, but the caller is told nothing. Duplicating a definition likewise yields a plain group, not a component.",
+   "scenario": "duplicate_layer on an instance frame, then instance.get_main_component on the copy: not_an_instance, and the duplicate gave no loss line.",
+   "fix": "Either the lead names it a cut, recorded in the lane notes and the module docs, with a test pinning the plain-group result. Or, with a PATH approval for layers.rs: when the source is a native instance, run component.create_instance semantics, a new record and state at the copy's origin with the source's properties and overrides, in the same step."
+  }
+ ],
+ "lead_questions": {
+  "Q1_priority1": "Spec (STU-DS-003a, STU-DS-105 main_component_id null only in the deleted-main state): neither detach nor refuse. The instance must stay an instance with main null, renderable, and restorable later by component.restore_main_from_instance. Today the record stays (main null), but the binding is dropped by the next design-entry write (F1). Approve fixing this in persist.rs (owned) by carrying refused native states forward?",
+  "Q2_priority2": "Not unbounded. The vector entry is bounded by the session's max_entry_bytes (package limits.rs:33, 512 MiB), and serde_json's recursion limit bounds depth. The full serde Value parse (vector.rs:552) and the typed design parse (vector.rs:616) already ran before this lane's caps, and the pre-lane code also typed-parsed components before refusing them, so the lane adds no new pre-cap allocation. Optional hardening: extend the length pre-check at vector.rs:613 to components, component_sets and component_instances. That file is SMB-AI-LIVE-EFFECTS-1's, with a hunk at :622, so the edit needs a path ruling and a rebase. The real cap gap is on write (F3).",
+  "Q3_priority3": "This lane causes the al_commit refusals (F5), so this should not be a named cut. Choose the root: (a) delete_layer drops definition and reference records in the same step (layers.rs PATH approval; matches the common ruling), or (b) after the live-effects lane lands, al_commit validates a settled copy (auto_layout.rs PATH approval). (a) also helps F1 and F3.",
+  "Q4_priority4": "duplicate_layer of an instance: name it a cut, with a pinned test and a module-docs line, or approve layers.rs to create an instance? The binding of the source is not lost. The copy is silently plain.",
+  "Q5": "Nested instances: a definition holding an instance draws plain copies of it inside each new instance (no nested binding, no exposed_instance_ids). This is inside the brief's 'exposed nested instances' cut. Confirm, and add a redraw note `nested_instance_flattened`?",
+  "Q6": "Orphan instance records of deleted instance layers (F3): remove them in the delete step (common ruling, layers.rs) or settle them at commit? Either needs the binding to be restorable by undo, which F1's fix gives."
+ },
+ "checked": [
+  "Full diff eb17fad6..fa15c84d (11 files) with git show at the tip: component.rs (all 1117 lines), instance.rs diff, persist.rs, style.rs, both commands.rs, both component row/decoder files, design.rs, both test files.",
+  "Spec STU-DS-002, -003, -003a, -104, -105, -107, -162, -163 (module 14 lines 19936-19970, 20222-20226, 20320-20330); the lane brief and lead rulings (common, lane entry); lane notes v4_06_sweep; wave-parity-2-common rules 4a-4e.",
+  "Folio validate_design_records (records.rs:330-520, 616-677) and validate_design_state_records (design_state.rs:140-410); Folio Budget::default; package max_entry_bytes.",
+  "Harness-core restructure_and_entry, set_tiles_and_entry, set_document_entry (harness.rs:1488-1660): which writes enter history.",
+  "VectorEntry::decode (vector.rs:551-640), TextEntry::decode and validate (text.rs:76-130), layers.rs mint_layer_id, duplicate_layer and delete_layer, auto_layout.rs al_records and al_commit.",
+  "Undo/redo: entry-only steps (set_tiles_and_entry) and structure steps (restructure_and_entry) restore the vector entry. The `design` and `text` entries are outside history (F1, F7).",
+  "Save/reopen: vector and `design` entries are saved, and the test covers a live instance. Losses after prune are F1/F2.",
+  "Variant property types: five types, SLOT refused, VARIANT only on sets, default type checks, VARIANT default refused on edit, value removal in use by a member refused, rename and delete rewrite member assignments and instance keys.",
+  "Overrides survive sync (resolve_instance sources Override/ComponentProperty/PropertyDefault drawn). A stale override breaks sync (F6).",
+  "Cycles: create_instance with parent refuses component_cycle via reach() (bounded loop). Cycles made by move_layer are not refused, but the redraw is a single finite copy (no recursion found).",
+  "Id collisions with .fig: mint avoids receipt ids, and a shared id is the typed design_record_duplicate on every command. Re-minting of detached or deleted ids is F4.",
+  "Typed refusals map through engine_refusal/leading_code. Exception: F9.",
+  "Row ids do not collide with existing rows or aliases (git grep). ui_seed author ids are distinct. action_records tests filter Surface::Run, so typed rows are not pinned. viewer_design_components.rs is feature viewer, and round-features.toml enables [\"viewer\"] for hsk-studio-harness (rule 4e).",
+  "Origin eb17fad6..88b5500c touches none of the lane's crates."
+ ],
+ "not_checked": [
+  "No cargo build, clippy, nextest or doctest was run (read-only review). Compile and clippy cleanliness of the tip is NOT_INSPECTED beyond reading visibility and imports.",
+  "hsk-studio-components internals: resolve_instance with an override naming an absent node, Design::new over dangling node entries, Limits on record counts.",
+  "interop-fig-native export of native components (no loss line; lane notes say NOT_INSPECTED) and doc_export.rs PSD.",
+  "Whether other text writers prune the text entry (F7 relies on Redraw and TextEntry decode/validate only).",
+  "Cost of sync_instances at scale: design_receipt plus read_design_state run once per job, and origin_of_layer runs per component. Bounded, not measured.",
+  "Figma/vendor parity (D5) of create, combine, detach and duplicate.",
+  "STU-DS-163 per-record expected revisions: declared out of slice, not reviewed."
+ ],
+ "rebase_note": "SMB-AI-LIVE-EFFECTS-1 (lane/smb-ai-live-effects-1 at 1e652818, same base eb17fad6) edits view/vector.rs (mod line about :76, members list at :622, live_filters retain at :692), vector/arrange.rs (:207), vector/envelope.rs, design/auto_layout.rs (rewrite at :1068), commands/vector.rs in harness-core and harness-view, folio (StudioVectorRecords.live_filters), composite and interop-fig-native export.rs. This lane edits none of those files, so a textual rebase should be clean (UNVERIFIED until run). No impl Viewer method name collides: live_filters.rs adds live_filters, apply/update/reorder/toggle/remove/bake_live_filter(s), commit_live_filters, live_filter_sources and live_filter_trial. Command ids and DOMAINS lines do not collide, and ROW_COUNT is computed. The lane builds no struct literal of a type they extend. Semantic overlap: F8 (Redraw must note or copy live filter stacks). F5 option (b) and the Q2 hardening edit auto_layout.rs or vector.rs, so do them only after rebasing onto live-effects. The vector.rs :613 pre-check is two lines from their :622 hunk. Rebased proof: live-effects touches hsk-studio-harness-view and harness-core, so per the brief run the harness-view and harness-core suites once, then --per-sha HEAD~1, plus viewer_design_components and the drive test component_authoring_runs_through_the_process."
+}

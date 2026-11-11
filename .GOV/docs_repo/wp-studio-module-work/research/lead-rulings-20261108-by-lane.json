@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T07:00:00Z",
+ "updated_at": "2026-11-11T06:58:47Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -58,7 +58,18 @@
   ],
   "SMB-DS-COMPONENTS-AUTHOR-1": [
    "PATH APPROVED: view/vector/style.rs about 310-313, in the same function as 291-300 (design nodes carrying only component_property_references).",
-   "Review of fa15c84d was cut off by the limit; it is redone before the bundled run. Priority checks: a deleted definition's instance binding (detach or refuse, from the spec); caps counted after the serde parse; auto_layout.rs al_commit after a definition delete; duplicate_layer of an instance."
+   "Review of fa15c84d was cut off by the limit; it is redone before the bundled run. Priority checks: a deleted definition's instance binding (detach or refuse, from the spec); caps counted after the serde parse; auto_layout.rs al_commit after a definition delete; duplicate_layer of an instance.",
+   "Review fa15c84d (research/review-smb-ds-components-author-1-fa15c84d.json) FIX_FIRST, lead rulings 2026-11-11:",
+   "F1: per STU-DS-003a and STU-DS-105, an instance whose main is deleted stays bound with main null: not detached, not refused. Instance state writes are part of the command's undo step (not outside history), so undo restores them (persist.rs:258-276, instance.rs:701-713). Red tests: delete a definition, save, reopen, undo.",
+   "F2: no silent drop past MAX_PERSISTED_STATES: persisted states cover the instance cap (4096); at the cap, refuse typed before writing.",
+   "F3: check the component, instance and node caps on write (encode) as well as on decode; a write that would not decode refuses typed; records of deleted layers and old copies are removed in the same step (common rule).",
+   "F4: mint ids from a monotonic source (max existing id plus one, or a stored counter), never from the live count, so detach then create_instance cannot reuse an id.",
+   "F5: PATH APPROVED harness-view view/layers.rs delete path only: a layer delete drops the component and instance records keyed to it in the same undo step; and, since SMB-AI-LIVE-EFFECTS-1 has landed, PATH APPROVED view/design/auto_layout.rs al_commit: validate the settled entry, not the raw one.",
+   "F6: one stale override refuses that instance only; sync_instances proceeds for the others and reports the per-instance refusals.",
+   "F7: the text entry compacts superseded records (latest per key) so redraws do not hit the 256-record cap; refuse typed only when live records exceed it.",
+   "F8 (after the rebase on 1e652818): copies carry live-filter stacks; if a kind cannot be carried, record a typed loss note, never a silent drop.",
+   "F9: refusal codes name the reason, not the op.",
+   "F10: PATH APPROVED view/layers.rs duplicate path only: duplicating an instance creates an instance bound to the same main (with its overrides); if that cannot be done in this lane, refuse typed duplicate_instance_unsupported, never a silent plain group."
   ],
   "SMB-MOTION-COMMANDS-2": [
    "ADDED ITEM (R60 attempt-2 probe, SMB-MOTION-COMMANDS-1): add_at_current with a value on an anchor without a stream changes the rendered scene (harness-core motion_commands.rs:1738) against STU-MOT-038: refuse typed or apply as the clause says; set_parent's choice made explicit. Red tests first."
