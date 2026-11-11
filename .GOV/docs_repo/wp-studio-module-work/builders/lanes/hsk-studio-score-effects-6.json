@@ -2,18 +2,124 @@
   "crate": "hsk-studio-score",
   "lane": "SMB-SCORE-EFFECTS-6",
   "status": null,
-  "phase": "build",
-  "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
-  "base": "cede5958",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "phase": "held",
+  "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+  "base": "88b5500c",
+  "commits": [
+    {
+      "sha": "f9288b6d",
+      "was": "5291d4e5",
+      "slice": "red tests and refusing stubs"
+    },
+    {
+      "sha": "b004f647",
+      "was": "5cabd766",
+      "slice": "graphic EQ kernel"
+    },
+    {
+      "sha": "1bb1d724",
+      "was": "c00beb20",
+      "slice": "spec rows"
+    },
+    {
+      "sha": "2efc3c1a",
+      "was": "eb8c02df",
+      "slice": "filter-kind table"
+    },
+    {
+      "sha": "65c14f0f",
+      "was": "e1eb73db",
+      "slice": "harness-view reach"
+    },
+    {
+      "sha": "b99ef799",
+      "was": "9322e833",
+      "slice": "waveform noise op"
+    },
+    {
+      "sha": "55368d6d",
+      "was": "cc8dba9d",
+      "slice": "red F3/F4"
+    },
+    {
+      "sha": "f03a4dcc",
+      "was": "50766a97",
+      "slice": "F3"
+    },
+    {
+      "sha": "50c43a5f",
+      "was": "f348b752",
+      "slice": "F4"
+    },
+    {
+      "sha": "cd7933e9",
+      "was": "d62be223",
+      "slice": "F1 and F5"
+    },
+    {
+      "sha": "5be84c15",
+      "was": "fb6de725",
+      "slice": "red gap rulings"
+    },
+    {
+      "sha": "5d72cf20",
+      "was": "9a3f6d0f",
+      "slice": "gap rulings"
+    },
+    {
+      "sha": "ef4b1df0",
+      "was": "17f24f29",
+      "slice": "last gap fix (precedes its red test)"
+    },
+    {
+      "sha": "34f7f0b9",
+      "was": "1257efbe",
+      "slice": "red last gap (red at c8835697)"
+    },
+    {
+      "sha": "fd52679b",
+      "slice": "red F2: template list equality, waveform.noise_reduce drive row",
+      "was": "11b964dc"
+    },
+    {
+      "sha": "2e8c8829",
+      "slice": "F2: TEMPLATES 16 names in harness-core and harness-view, waveform.noise_reduce rows, harness_drive_audio.rs:403 nonsense template",
+      "was": "b6883e62"
+    },
+    {
+      "sha": "04eb03d9",
+      "slice": "waveform.noise_reduce in harness_drive_audio SLICE_ROWS (approved one line)",
+      "was": "8284a561"
+    }
+  ],
+  "capabilities_done": [
+    "graphic_eq_10_20_30_bands (score GraphicEq, spec tables)",
+    "spec_parameter_rows GraphicEQ10/20/30Bands row for row; SPEC_ROWS gain/amp bound, accuracy/range undeclared",
+    "filter-kind table: 12 rows with binding class, build_audio_filter, AudioFilterError",
+    "document reach: bus, master, presets, keyframes, batch, waveform effect, save/reopen, stems",
+    "waveform noise_reduce op (print range + digest, stale refusal)"
+  ],
+  "tests": {
+    "red_proof": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-effects-6/smb-score-effects-6-red-tree.log (red tree = 5291d4e5 content): score 18 run 0 passed 18 failed, exit 100; harness audio_filter_kinds + audio_waveform_effects 8 run 1 passed 7 failed, exit 100",
+    "focused_green": "smb-score-effects-6-focused-score-wip.log (score graphic_eq, filter_kinds, automation, multiband: 22 run, 21 passed, 1 test-side fix then) and smb-score-effects-6-focused-harness-wip.log (score graphic_eq 10/10 exit 0; harness audio_filter_kinds 6/6 + audio_waveform_effects 2/2 exit 0); tree = tip 9322e833 content, run before the commits were cut",
+    "measured": "worst band-centre error dB at +-12: 10@44100 0.6946, 20@44100 0.6520, 30@44100 0.8741, 10@48000 0.6604, 20@48000 0.6519, 30@48000 0.8741 (bound 1.0); designs over 8000-frame 30-band ramp 32; design+hop debug 139/541/1340 us (10/20/30); noise floor drop 21.22 dB at reduction_db 24 (bound reduction-6), tone change -0.014 dB; stems residual master GEQ -145.1 dBFS (sums), master hard_limiter -50.4 dBFS (shows)",
+    "not_run": "harness-view [viewer] whole suite; harness-core [import-tiff]; --per-sha; release design time",
+    "clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-harness-view --features hsk-studio-harness-view/audio-batch --tests at tip: exit 0, no warning in a lane-touched file",
+    "step0": "lane-check.sh --step0-only at tip: clean, exit 0",
+    "review_fixes": "rebased onto 88b5500c; red proofs of the review, gap and F2 tests run 2026-11-11 (red_proof_review)",
+    "red_proof_review": "own tree, detached, harness [audio-batch, audio-device] with harness-view [desktop, audio-batch], 2026-11-11: 55368d6d (red F3/F4) 2 run 0 passed 2 failed exit 100 (smb-score-effects-6-red-f3f4-55368d6d.log); 5be84c15 (red gap rulings) 2 run 0 passed 2 failed exit 100 (smb-score-effects-6-red-gaps-5be84c15.log); 34f7f0b9 picked onto 5d72cf20 as detached commit a589ec25 (no reset --hard needed; branch restored) playback_and_export_media_record_a_recomputed_noise_print 1 run 0 passed 1 failed exit 100 (smb-score-effects-6-red-lastgap-a589ec25.log); fd52679b (red F2) 2 run 0 passed 2 failed exit 100 (smb-score-effects-6-red-f2-fd52679b.log); every failure is the test's own assertion",
+    "focused_tip": "04eb03d9, 2026-11-11 (smb-score-effects-6-focused-04eb03d9.log): score graphic_eq, filter_kinds, automation, multiband 22 run 22 passed 1 skipped, exit 0; harness audio_filter_kinds, audio_waveform_effects, audio_batch, harness_drive_audio 26 run 20 passed 6 failed, exit 100: all 6 are harness_drive_audio process tests answering unknown_command from a stale example studio-harness.exe (built 2026-11-07; --test filters do not build examples). After a fresh example build (smb-score-effects-6-focused-drive-04eb03d9.log): harness_drive_audio 9 run 9 passed, exit 0",
+    "bundled": "run 1 at 04eb03d9 (smb-score-effects-6-bundled-04eb03d9.log, -summary.txt), NOT GREEN: unit 0 fresh example build exit 0; unit 1 lane-check (step 0 clean, registry in sync, clippy clean, nextest score + harness-core + harness-view [desktop, audio-batch] whole suites + harness [audio-batch, audio-device] tests audio_filter_kinds, audio_mixer, audio_batch, audio_waveform_effects, audio_out_mix, harness_drive_audio, audio_waveform, audio_session, audio_import, cli_export_sequence, harness_drive) 505 run 504 passed 1 failed 3 skipped, exit 100: hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run (child abort did not end in 60 s; a file this lane does not touch; cause NOT_INSPECTED); unit 2 harness-view [viewer] exit 77 (studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 389 GiB at 2026-11-11T09:29:03Z > cap 360 GiB); unit 3 harness-core [import-tiff] not run"
+  },
   "verdicts": [],
-  "blockers": [],
+  "blockers": [
+    "C: cap guard exit 77: C:/HandshakeBuild/WP-KERNEL-STUDIO 389 GiB > 360 GiB (2026-11-11T09:29:03Z); lane stopped for the lead",
+    "bundled run 1 not green: harness-core diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run timed out (60 s); one bundled run used of the two-run loop cap"
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-08T06:00:13Z",
+  "next": "lead: free C: below the 360 GiB cap or name a disk, and rule on the diag_sink abort timeout (not a lane file); then builder: bundled run 2 at 04eb03d9 (same script; units 1-3); stop at BUNDLED GREEN; on RELEASED: fetch, rebase, suites of crates touched by landed commits, --per-sha HEAD~1, guarded push, READY_FOR_VALIDATION.",
+  "updated_at": "2026-11-11T10:14:09Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,7 +139,7 @@
   },
   "notes": {
     "dispatched_at": "2026-11-08T06:00:13Z",
-    "disk": "C",
+    "disk": "D",
     "closes": [
       "truth-check 20261105 mt-video-audio-design-web top_missing rank 5: graphic EQ (engine and headless document path); de-esser and distortion raised as an SD item, not built",
       "Score processors with no document path: reverb, feedback_delay, flanger, chorus, phaser, hard_limiter, hum_remover, click_repair, multiband_compressor (bus, master, batch, preset, waveform); noise reduction on a waveform selection with a persisted print",
@@ -49,6 +155,89 @@
       "MT-32731 (read, no claim)",
       "MT-32663 (read, no claim)"
     ],
-    "reuses_tree_and_target": "smb-pr-retime-output-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1 with its D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target (moved 2026-11-11T10:14:09Z from C: tree smb-pr-retime-output-1; lane-check --owner smb-pr-entry-references-1 --disk d; STUDIO_BUILD_DISK unset, STUDIO_OWNER=smb-pr-entry-references-1; build the studio-harness example first)",
+    "tip": "04eb03d9 (local, not pushed), rebased on origin 88b5500c, branch lane/smb-score-effects-6",
+    "spec_basis": [
+      "STU-FX-128 :13141-13150 (MUST raise the gap rather than invent a parameter list)",
+      "STU-FX-136a :18727, STU-FX-136b :18732, GraphicEQ10Bands :18824, 20 :18844, 30 :18874",
+      "STU-FX-134a :19024; DeEsser :19057, Distortion :19062, DeHummer :19058, Analog Delay :19038, Multiband Compressor :19126; STU-FX-146 :19220"
+    ],
+    "interaction_20_bands": "c pinned 0.37 for 20 bands: Python prototype of the same design over all +12, all -12, zigzag and 40 seeded sets per rate, worst dB c=0.30 0.937/0.890 ... 0.36 0.646/0.615, 0.37 0.625/0.625, 0.38 0.636, 0.40 0.657 (44100/48000); Rust test with 200 seeded sets: 0.652",
+    "sd_item_proposed": {
+      "id": "SD-FX146-AUDIO-ROWS (lead to record)",
+      "text": "STU-FX-146 gap for the audio rows met by SMB-SCORE-EFFECTS-6. Not implemented for lack of a parameter table: DeEsser (:19057) and Distortion (:19062). Hosted under score's existing authored sets with no catalogue row claimed (FILTER_KINDS sd_item): Analog Delay (:19038) as feedback_delay {time_ms 0..5000, feedback -0.99..0.99, damping_hz 0=none or 20..rate/2, mix 0..1, ping_pong 0/1} (SD-FX146-ANALOG-DELAY); DeHummer (:19058) as hum_remover {fundamental_hz 20..1000, harmonics 1..16, bandwidth_hz 0.1..100} (SD-FX146-DEHUMMER); Multiband Compressor (:19126) as multiband_compressor {bands 2..4, crossover_<i>_hz ascending 20..rate/2, per band the 12 DynamicsParams fields} (SD-FX146-MULTIBAND). The spec owner adopts or replaces each before documents depend on it; a later spec row replaces the engine_authored label."
+    },
+    "kind_count": "The brief says 14 kinds; the re-scoped table has 12 rows (14 minus the dropped de_esser and distortion). effect_templates gains these 12.",
+    "failure_class_sweep_v4_06": {
+      "a_no_document_path": "SidechainDynamics: needs a key-source route through pulse's graph (pulse bus_mix.rs:15), STU-FX-138, next slice. Pan and ChannelMix change the channel layout (bus stacks are stereo, layout-preserving). RampedGain: block-ramp semantics, Gain covers the stored form. LoudnessMeter: pass-through meter, no sound. NoiseReducer as a live bus effect: needs a stored profile (Folio decision); shipped as a waveform op instead.",
+      "b_save_state": "Hosted kinds without save_state: hard_limiter, flanger, phaser, chorus, click_repair, feedback_delay, hum_remover, multiband_compressor (reverb and the graphic EQ have it). A bus or master stack holding one is not checkpointable (bus.rs:457-459, :776); MixGraph::seek Exact backward then resets and re-renders from 0 (bus.rs:952-965, last_seek_frames = target). READ, not measured.",
+      "c_nyquist_sites": "graphic_eq.rs new: centres >= 0.95 Nyquist dropped (tested at 8000..44100); restore.rs:601 hum harmonics dropped; multiband.rs:63 crossovers >= rate/2 refused; modulation.rs:463 phaser max_hz >= rate/2 refused; delay.rs damping > rate/2 refused; eq.rs frequency > Nyquist refused. Defaults: phaser max 3000 Hz refuses at rates <= 6000.",
+      "d_casts": "filter_kinds.rs Reader::whole checks finite, integral and range before `as usize` (tested 1e308, -1, 2.5, NaN, inf); waveform.rs noise op fft_size and freq_smoothing_bins through as_u64 + try_from + range; score constructors cast only after validate (delay.rs:122, dsp.rs:414, restore.rs:148, reverb.rs:199).",
+      "e_sizing": "delay time 0..5000 ms + MAX_DELAY_LINE_SAMPLES; fft_size power of two 256..8192 at parse and in NoiseProfiler::new before allocation; bands whole 2..4, graphic EQ {10,20,30}; voices 1..4; stages 2..12; harmonics 1..16; ar_order 4..64; at most 256 params per set."
+    },
+    "not_proven": "impulse decay below 1e-6 at +-70 dB not run (slowest pole radius 0.99999997 at 768 kHz needs ~5e8 samples); stability rests on every pole radius < 1 (tested at 8000..768000 Hz). Graphic EQ parity with any vendor UNVERIFIED (D5). AC-007 operator surface open. Cancellation inside a design is not observable (a design runs between cancel polls; polls stay every 256 frames).",
+    "mts": "MT-32706/32707/32708 (graphic EQ rows) and MT-32629..32631 (their tables): partly met for the engine rows, tables and headless document path only; AC-007 operator surface open; MT proof commands name --test score_contract which does not exist (F-R55-3 class), MT files not edited. MT-32731, MT-32663: no claim (identity reach only). MT-32662, MT-32667 untouched.",
+    "host_integration_check": "no egui/eframe/winit/wgpu line, no Cargo.toml change, no Folio schema change; new mutating op (waveform noise_reduce) is the existing attributed entry-only step; drive registry rows wait for SMB-DRIVE-TYPED-2.",
+    "review_rulings_applied": "F1 applied; F3 applied as ruled (receipt = viewer op record waveform_noise_print_recomputed with one observe frame, waveform_json().noise_print_recomputed, status line; the sequence_sound repair replay in audio_session.rs:315 (not an owned path) uses replay() and does not record); F4 applied in mixer_rebuild (open_mixer) and before a mixer edit commits; extended to every bus-graph builder by the gap ruling (gap_rulings_applied); F5 applied; F2 waits for DRIVE-TYPED-2.",
+    "gap_rulings_applied": {
+      "budget": "effect_state_budget (harness-view mixer.rs) is checked in audio_session.rs build_bus_stream, the one builder used by the mixer, Viewer::bus_stream, playback (audio_session/playback.rs program_stream and sound_stream), mixdown, stems and Export Media (timeline_export.rs:478); refusal PulseError::LimitExceeded (limit_exceeded); the mixer keeps its own pre-commit and rebuild check (effect_state_over_budget). Not covered, other crate: pulse NestedAudioSources::with_routing (hsk-studio-pulse/src/nest.rs) builds nested sequence mixes inside pulse; whether it instantiates bus effects is NOT_INSPECTED. timeline_export.rs:482 fallback builds no effects (factory refuses).",
+      "repair_record": "sequence_sound uses replay_noted and keeps the notes in SequenceSound::noise_print_recomputed; every caller records them through record_print_recomputes (op record waveform_noise_print_recomputed with one observe frame, status line): export_sequence_mix, export_sequence_stems, audio_session/playback.rs program_stream (now &mut self), timeline/export_media.rs export_sequence and the window export (export_form_start). Tests: tests/audio_filter_kinds.rs the_mixdown_repair_replay_records_a_recomputed_noise_print and playback_and_export_media_record_a_recomputed_noise_print (cfg audio-device, unit [audio-batch, audio-device]). Commit order note: fix 17f24f29 precedes its red test 1257efbe (script error); the test is red at 9a3f6d0f."
+    },
+    "takeover": "2026-11-11T06:40Z: a new builder took the lane over after the previous builder was cut off by an account usage limit (2026-11-08 about 10:10Z); work taken from disk at 04eb03d9, clean, 17 commits on 88b5500c",
+    "beyond_brief_paths": [
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/audio_session.rs",
+        "commits": [
+          "5d72cf20"
+        ],
+        "ruling": "lead gap ruling 2026-11-08 (F4 extended): the aggregate effect-state budget is checked in build_bus_stream, the one bus-graph builder of mixer, Viewer::bus_stream, playback, mixdown, stems and Export Media; sequence_sound repair replay records its recomputes"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/audio_session/playback.rs",
+        "commits": [
+          "ef4b1df0"
+        ],
+        "ruling": "lead gap ruling 2026-11-08 (gaps): program_stream records the repair replay's recomputed noise prints (now &mut self)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/timeline/export_media.rs",
+        "commits": [
+          "ef4b1df0"
+        ],
+        "ruling": "lead gap ruling 2026-11-08 (gaps): Export Media (export_sequence and the window export) records the repair replay's recomputed noise prints"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/mixer.rs (beyond effect_templates)",
+        "commits": [
+          "50c43a5f"
+        ],
+        "ruling": "review F4 lead ruling 2026-11-08: one 256 MiB aggregate effect-state budget (effect_state_budget), checked at mixer rebuild and before a mixer edit commits"
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/audio_batch.rs",
+        "commits": [
+          "cd7933e9"
+        ],
+        "ruling": "review F1, path approved: line 235 uses the nonsense filter_kind flux_capacitor"
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/harness_drive_audio.rs",
+        "commits": [
+          "2e8c8829",
+          "04eb03d9"
+        ],
+        "ruling": "review F2, PATH APPROVED: :403 nonsense template; waveform.noise_reduce in SLICE_ROWS (one line)"
+      }
+    ],
+    "moves": [
+      {
+        "at": "2026-11-11T10:14:09Z",
+        "from_tree": "smb-pr-retime-output-1",
+        "to_tree": "smb-pr-entry-references-1",
+        "branch": "lane/smb-score-effects-6-d",
+        "tip": "04eb03d9",
+        "decision": "research/decision-20261111-c-cap-placement.json"
+      }
+    ]
   }
 }

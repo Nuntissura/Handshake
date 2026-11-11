@@ -1,0 +1,98 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261111-U",
+ "generated_at": "2026-11-11T10:14:55Z",
+ "status": "PROPOSED",
+ "authority": "HSK-ART-003 (P2), HSK-ART-005 (inspection-based removal list, Operator approval of the exact list under CX-107). Prepared by the lead per research/decision-20261111-c-cap-placement.json item 3; deletion stays with the Operator by hard rule (direction.operator_direction_20261111).",
+ "why": "R60 attempt 3 margin on C:. After plan T's T-C01 and T-C02 run (once SMB-TYPE-INDENT-SPACING-1 and SMB-SCORE-EFFECTS-6 land), the round's projected C: peak is 353.64 GiB without this plan, 1.36 GiB under the validator's 355 stop, and 327.39 GiB with it, under the 330 alert.",
+ "inspection": "target_report.py --disk c at 2026-11-11T10:00:38Z (read-only; values equal plan T N2)",
+ "candidates": [
+  {
+   "id": "U-C01",
+   "owner": "smb-pr-media-markers-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1",
+   "kind": "whole",
+   "gib": 14.66,
+   "newest_file_utc": "2026-11-06T20:00Z",
+   "status": "PASS_V3",
+   "tree_clean": true,
+   "reuse_candidate": true
+  },
+  {
+   "id": "U-C02",
+   "owner": "smb-pr-sequence-presets-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1",
+   "kind": "whole",
+   "gib": 4.59,
+   "newest_file_utc": "2026-11-02T15:11Z",
+   "status": "PASS_V4",
+   "tree_clean": true,
+   "reuse_candidate": true
+  },
+  {
+   "id": "U-C03",
+   "owner": "smb-layout-sentinels-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-sentinels-1",
+   "kind": "whole",
+   "gib": 2.73,
+   "newest_file_utc": "2026-11-01T14:42Z",
+   "status": "PASS_V6",
+   "tree_clean": true,
+   "reuse_candidate": true
+  },
+  {
+   "id": "U-C04",
+   "owner": "smb-layout-blank-line-lookups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-blank-line-lookups-1",
+   "kind": "whole",
+   "gib": 2.65,
+   "newest_file_utc": "2026-11-05T16:44Z",
+   "status": "PASS_V2",
+   "tree_clean": true,
+   "reuse_candidate": true
+  },
+  {
+   "id": "U-C05",
+   "owner": "smb-press-observe-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-press-observe-1",
+   "kind": "whole",
+   "gib": 1.34,
+   "newest_file_utc": "2026-11-01T13:17Z",
+   "status": "PASS_V3",
+   "tree_clean": false,
+   "reuse_candidate": false,
+   "note": "target only; the dirty tree is not touched"
+  },
+  {
+   "id": "U-C06",
+   "owner": "smb-pr-sequence-presets-1-red",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1-red",
+   "kind": "whole",
+   "gib": 0.28,
+   "newest_file_utc": "2026-11-02T14:47Z",
+   "status": "no ledger row; bound to a session scratch tree that no longer exists (plan T N2 note)",
+   "reuse_candidate": false
+  }
+ ],
+ "total_gib": 26.25,
+ "reuse_considered": "HSK-ART-005 puts reuse first. U-C01..U-C04 are reuse candidates, but no reuse is possible while C: is over the cap, their bases are from 2026-11-01..06 (100+ commits old), so a reusing lane would rebuild nearly every workspace crate; reuse would save only their third-party libraries (0.75 to 1.61 GiB each, minutes on the SSD). Their older copies are 0.00 GiB, so the preferred partial removal frees nothing; only whole removal does.",
+ "not_listed": [
+  "smb-type-sentinels-registry-1 (0.20 GiB): last written by SMB-UI-TREE-1 (READY, moved to D:), so not P2-listable until that lane is PASS",
+  "smb-pr-nudge-1 (34.24 GiB, SMB-AI-LIVE-EFFECTS-1 READY) and smb-layout-composer-depth-1 on C: (about 28.4 GiB, SMB-PARSER-HOSTILE-1 READY): rule P2 lists a lane's target at PASS or abandonment; candidates for the first list after R60 passes those lanes",
+  "smb-r54-followups-1 and smb-pr-retime-output-1 beyond T-C01/T-C02: HSK-ART-005 prefers the partial removal that keeps compile reuse, plan T already covers it, and with U the projection is under the alert",
+  "studio-round: warm state for attempt 3 (plan T rejected); N3 unbuilt",
+  "anything on D:, the cargo registry cache, logs, results, fixtures"
+ ],
+ "projection_gib": {
+  "now": 369.9,
+  "after_T_C01_C02": 258.64,
+  "after_T_and_U": 232.39,
+  "attempt3_peak_without_U": 353.64,
+  "attempt3_peak_with_U": 327.39,
+  "basis": "369.90 measured 10:05Z minus fresh older copies 59.16 + 52.10 (target-report-20261111-c-cap.json, stable because no lane writes those targets after the move) minus U 26.25, plus plan T round_growth 95 GiB (estimate). Without U the peak is 1.36 GiB under the validator's 355 stop; with U it is 2.61 GiB under the 330 alert. Assumes no C: lane build before or during the round."
+ },
+ "needs_tool_change": "N2 (plan T): a 'whole' kind in tools/lead/target_prune.py that removes only the <C_LANES>/<owner> target directory (allowed_path, .studio-workspace-root and debug/.fingerprint present), only when the owner lane is PASS_V or abandoned and no unsettled target_reuse lane names the tree, with the existing process check, newest_file_utc check and 5% size check, dry run first; edited only while no prune runs. This is the lead's tool work, separate from plan T; it must not touch the in-use rule that holds T-C01/T-C02.",
+ "before_execution": "Operator approves this exact list in chat; the whole-target kind (N2) exists in target_prune.py and dry-runs clean on this plan; fresh target_report.py --disk c; no round running; then execute.",
+ "operator_question": "Approve plan U: whole removal of 6 old Studio build caches on C: (lanes that already passed validation), 26.25 GiB, to give the next validation round safe room on the SSD.",
+ "executions": []
+}

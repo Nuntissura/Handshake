@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-11T09:44:52Z",
+ "updated_at": "2026-11-11T10:14:09Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -22870,10 +22870,14 @@
      "disk": "C"
     },
     "SMB-TYPE-INDENT-SPACING-1": {
-     "tree": "smb-r54-followups-1",
-     "branch": "lane/smb-type-indent-spacing-1",
-     "previous_branch": "lane/smb-project-bin-1",
-     "disk": "C"
+     "tree": "smb-pr-retime-hold-1",
+     "branch": "lane/smb-type-indent-spacing-1-d",
+     "previous_branch": "lane/smb-vk-ui-pass-1",
+     "old_tree_idle": "smb-r54-followups-1 (C: target, branch lane/smb-type-indent-spacing-1 kept at 5f3112a4; GitHub backup branch lane/smb-type-indent-spacing-1)",
+     "moved_at": "2026-11-11T10:14:09Z",
+     "moved_tip": "5f3112a4",
+     "disk": "D",
+     "why": "C: tree 369.9 GiB > 360 cap after T-C04; research/decision-20261111-c-cap-placement.json"
     },
     "SMB-PARSER-HOSTILE-1": {
      "tree": "smb-layout-composer-depth-1",
@@ -22882,10 +22886,14 @@
      "disk": "C"
     },
     "SMB-SCORE-EFFECTS-6": {
-     "tree": "smb-pr-retime-output-1",
-     "branch": "lane/smb-score-effects-6",
-     "previous_branch": "lane/smb-audio-out-mix-1",
-     "disk": "C"
+     "tree": "smb-pr-entry-references-1",
+     "branch": "lane/smb-score-effects-6-d",
+     "previous_branch": "lane/smb-gui-frame-1",
+     "old_tree_idle": "smb-pr-retime-output-1 (C: target, branch lane/smb-score-effects-6 kept at 04eb03d9; GitHub backup branch lane/smb-score-effects-6)",
+     "moved_at": "2026-11-11T10:14:09Z",
+     "moved_tip": "04eb03d9",
+     "disk": "D",
+     "why": "C: tree 369.9 GiB > 360 cap after T-C04; research/decision-20261111-c-cap-placement.json"
     },
     "SMB-LAYOUT-PLACE-1": {
      "tree": "smb-id-toc-persist-1",
@@ -23325,6 +23333,18 @@
     "at": "2026-11-11T06:40:43Z",
     "change": "tools/lane-check.sh step 0 runs tools/registry-sync.py in check mode after the policy scan and returns 70 on drift (F-R60-2 closed for registry pins and probe APPROVED; path-edge approval still needs the steward probe). Edited while no lane run was in flight.",
     "proof": "bash -n OK; --step0-only on a clean tree at 88b5500c: policy clean, registry in sync, exit 0. The drift path (exit 70) was not exercised."
+   },
+   "c_cap_20261111": {
+    "at": "2026-11-11T10:14:09Z",
+    "measured": "C: tree 389.38 GiB at 09:41Z (guard record 389 GiB at 09:29:03Z; INDENT and SCORE refused, exit 77). Grant CX-984-014 400 GB = 372.5 GiB was exceeded until T-C04.",
+    "t_c04": "executed 09:51:11Z, 19.47 GiB, 670 files, after SMB-PARSER-HOSTILE-1 READY (kernel 0f3ada12); C: 369.90 GiB at 10:05Z",
+    "decision": "research/decision-20261111-c-cap-placement.json (cargo-specialist deliberation per direction.operator_direction_20261111): INDENT and SCORE take over READY D: trees and warm targets; no new target; plan U prepared PROPOSED for the Operator, for R60 attempt 3 margin.",
+    "backups_before_switch": {
+     "lane/smb-type-indent-spacing-1": "5f3112a4 (tree smb-r54-followups-1)",
+     "lane/smb-score-effects-6": "04eb03d9 (tree smb-pr-retime-output-1)",
+     "how": "new GitHub branches, plain push, no force, verified with ls-remote, as resume_20261108.width_lanes.backups_before_switch. Deleting them later needs the Operator."
+    },
+    "t_c01_t_c02_guard": "after the move the prune tool no longer sees the C: targets in use; the lead approves T-C01/T-C02 only after the lane file says READY_FOR_VALIDATION and the tip is on origin"
    }
   },
   "operator_direction_20261111": {

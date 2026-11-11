@@ -64,7 +64,8 @@
    "when": "after SMB-TYPE-INDENT-SPACING-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
    "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
    "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
-   "why_safe": "the largest older set on C:; 34.47 of 61.10 GiB of its test binaries are older identities left by SMB-R54-FOLLOWUPS-1 and SMB-PROJECT-BIN-1 before this lane"
+   "why_safe": "the largest older set on C:; 34.47 of 61.10 GiB of its test binaries are older identities left by SMB-R54-FOLLOWUPS-1 and SMB-PROJECT-BIN-1 before this lane",
+   "when_note_20261111": "The lane moved to a D: tree on 2026-11-11 (research/decision-20261111-c-cap-placement.json), so target_prune no longer counts this C: target as in use. Still execute only after the lane is READY_FOR_VALIDATION with its tip on origin; the lead checks that before passing the id to --approve."
   },
   {
    "id": "T-C02",
@@ -98,7 +99,8 @@
    "when": "after SMB-SCORE-EFFECTS-6 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
    "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
    "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
-   "why_safe": "24.48 of 51.56 GiB of its test binaries are older identities left by earlier lanes (SMB-AUDIO-OUT-MIX-1 and before)"
+   "why_safe": "24.48 of 51.56 GiB of its test binaries are older identities left by earlier lanes (SMB-AUDIO-OUT-MIX-1 and before)",
+   "when_note_20261111": "The lane moved to a D: tree on 2026-11-11 (research/decision-20261111-c-cap-placement.json), so target_prune no longer counts this C: target as in use. Still execute only after the lane is READY_FOR_VALIDATION with its tip on origin; the lead checks that before passing the id to --approve."
   },
   {
    "id": "T-C03",

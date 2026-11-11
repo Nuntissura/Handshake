@@ -1,0 +1,189 @@
+{
+ "schema": "hsk.studio.lead_decision@1",
+ "file_id": "DECISION-20261111-C-CAP-PLACEMENT",
+ "decided_at": "2026-11-11T10:10:00Z",
+ "decided_by": "cargo and disk specialist agent (read-only), under direction.operator_direction_20261111 (open questions decided by a specialised agent, not put to the Operator)",
+ "question": "C:/HandshakeBuild/WP-KERNEL-STUDIO is over the 360 GiB guard cap after T-C04, and the guard refuses SSD builds (exit 77). Where do SMB-TYPE-INDENT-SPACING-1 and SMB-SCORE-EFFECTS-6 build next; how does that stay within P3; should a new removal list (plan U) be prepared now and what would it list; and what are the risks?",
+ "facts_at_decision": {
+  "c_tree_gib": 369.9,
+  "c_tree_measured": "2026-11-11T10:05Z, robocopy /L listing, the guard's own method (studio-env.sh studio_ssd_kib): tree 369.90, studio-round 96.15, studio-team-dev 273.75",
+  "c_over_cap_by_gib": 9.9,
+  "guard_record": "C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size = 408209893 KiB (389.3 GiB) measured 2026-11-11T09:29Z; stale, but a fresh measure (369.9) still refuses",
+  "cap_gib": 360,
+  "grant_gib": 372.5,
+  "round_alert_gib": 330,
+  "round_stop_gib": 355,
+  "free_gib": {"C": 233.5, "D": 880.3, "at": "2026-11-11T10:05Z"},
+  "t_c01_older_copies_gib": 59.16,
+  "t_c02_older_copies_gib": 52.1,
+  "d_lock": "busy at about 10:05Z: holder smb-sentinels-native-1 lane-check, queued smb-r53-followups-1 and smb-pr-edit-footprint-1 (two entries); 7 cargo/rustc/nextest/link processes running",
+  "d_p3_live_count": "11 by the 2026-11-08 literal ruling (7 building: id-toc-persist-1, sentinels-native-1, ai-distort-effects-1, r53-followups-1, folio-angle-unbounded-1, pr-sequence-session-1, pr-edit-footprint-1; 3 READY: pr-entry-references-1 GUI-FRAME-1, pr-retime-hold-1 VK-UI-PASS-1, ps-mode-convert-1 PIGMENT-FILTER-KERNELS-1; 1 PAUSED: fig-grid-3), 12 if the stale D: target of smb-layout-composer-depth-1 is counted (its tree's lane PARSER-HOSTILE-1 is READY but built on C:). Over 6 either way."
+ },
+ "options_considered": [
+  {
+   "id": "O1",
+   "what": "D: now through the guard's fallback in the lanes' own trees: STUDIO_BUILD_DISK unset (lane-check --disk d), STUDIO_OWNER=smb-r54-followups-1 / smb-pr-retime-output-1, so CARGO_TARGET_DIR = <Handshake Worktrees>/Handshake_Artifacts/WP-KERNEL-STUDIO/<tree>/target (studio-env.sh line 52). Neither D: target exists today: two new targets, each a fresh full compile.",
+   "for": "No git change; the lanes keep tree and branch; the guard's message names this fallback.",
+   "against": "Creates two new D: lane targets while D: holds 11 live ones: forbidden by direction.lead_rulings_20261108.p3 ('no new target ... on a disk until that disk is at 6 or fewer'). Each is a full dependency plus workspace compile on the spinning disk: third-party libraries about 1.6 to 2.1 GiB and the newest-copy test-binary set about 35 to 38 GiB per lane (94.47-59.16 and 90.17-52.10 on C:), behind the shared D: lock. Duration UNVERIFIED (indicative only: F-R33-7 default test build 38 min, each harness feature unit 10 to 17 min, disk not recorded)."
+  },
+  {
+   "id": "O2",
+   "what": "D: now by taking over two READY D: trees with their warm D: targets (HANDOFF workflow item 11; P3 ruling: taking over a READY lane's tree adds nothing to the count; precedent direction.c_cap_20261107.moves with '-d' branches). INDENT -> smb-pr-retime-hold-1 (VK-UI-PASS-1 READY at 88b5500c), SCORE -> smb-pr-entry-references-1 (GUI-FRAME-1 READY at eb17fad6).",
+   "for": "No new target on either disk (P3 unchanged, HSK-ART-005 reuse before build). Both targets hold every crate the two lanes build (folio, layout, interop_layout, package, harness, harness_core, harness_view, score, score_device, pulse; target_report 10:07:25Z). retime-hold-1 sits exactly on both lanes' base 88b5500c; eb17fad6 is 11 commits behind it and those commits touch only hsk-studio-vulkan and hsk-studio-native-host, which neither lane builds. No third-party compile; only the lanes' own crates and their dependents rebuild. Both trees are clean, their tips are on origin/codex/handshake-studio-assets, no build process names them. The lanes' C: trees, branches and targets stay untouched, so T-C01/T-C02 keep their approved scope and their re-inspection will match the 09:50Z report.",
+   "against": "Shares the busy D: lock (FIFO, 30 to 60 min waits per check per HANDOFF item 16; per-sha holds up to about 55 min). The first build on each taken target recompiles the lane's touched crates and dependents for every feature unit and relinks the test binaries (cost UNVERIFIED, no compile of third-party). A git switch in each taken tree and new '-d' branches. The two READY lanes lose their warm tree for an R60 remediation (a remediation after a FAIL takes a fresh tree anyway)."
+  },
+  {
+   "id": "O3",
+   "what": "Hold both lanes for an Operator-approved new removal list (plan U) and build on C: again.",
+   "for": "C: lock idle, SSD speed.",
+   "against": "The most plan U can list under P2 is 26.25 GiB of idle PASS-lane targets, and only with a new whole-target kind in target_prune (N2, not built; the tool supports partial older_copies only and those targets have 0.00 to 0.01 GiB of older copies). That brings C: to about 343.6 GiB, 16.4 GiB under the cap, which the two lanes' remaining bundled runs, per-sha and landing suites can eat (plan T lane_growth allowance 10 GiB per lane, UNVERIFIED; 8.8 GiB per lane per hour observed 2026-11-07), and it spends the margin R60 attempt 3 needs. The critical path (INDENT and SCORE land -> T-C01/T-C02 -> attempt 3) would wait on the Operator."
+  },
+  {
+   "id": "O4",
+   "what": "Raise STUDIO_SSD_CAP_GB toward the 372.5 GiB grant for these two lanes.",
+   "for": "No move, SSD speed.",
+   "against": "Leaves 2.6 GiB to the Operator's 400 GB grant (CX-984-014) with about 10 GiB of growth per lane: breaks the grant, a hard Operator limit. Rejected."
+  },
+  {
+   "id": "O5",
+   "what": "Hold both lanes until R60 attempt 3.",
+   "for": "No disk action.",
+   "against": "Circular: attempt 3 needs T-C01/T-C02, which need these two lanes landed; 369.9 + 95 is far over the cap. Rejected."
+  },
+  {
+   "id": "O6",
+   "what": "Take over an idle PASS-lane tree and target on C: (media-markers-1 and others).",
+   "for": "Reuse on the SSD.",
+   "against": "Any SSD build is refused while the whole C: tree is over the cap, whichever lane target it uses. Rejected."
+  }
+ ],
+ "decision": {
+  "1_placement": {
+   "ruling": "O2. Both lanes build on D: now by taking over READY D: trees and their warm D: targets; no new target, no fresh full compile, no wait for the Operator.",
+   "assignment": {
+    "SMB-TYPE-INDENT-SPACING-1": {
+     "tree": "wt-studio-lanes/smb-pr-retime-hold-1",
+     "taken_from": "SMB-VK-UI-PASS-1 (READY_FOR_VALIDATION at 88b5500c, on origin; lane file next: 'validator: judge ... builder holds')",
+     "new_branch": "lane/smb-type-indent-spacing-1-d at 5f3112a4",
+     "owner": "smb-pr-retime-hold-1",
+     "target": "<Handshake Worktrees>/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/target (65.65 GiB, bound to that tree, newest file 2026-11-08T09:24Z)",
+     "why_this_tree": "its HEAD is the lane's base 88b5500c, so only the lane's own 6 crates (folio, layout, interop-layout, harness-core, harness-view, harness) and dependents rebuild; it is the larger crate set and INDENT has the larger bundled run (7 crates, 1277 tests)"
+    },
+    "SMB-SCORE-EFFECTS-6": {
+     "tree": "wt-studio-lanes/smb-pr-entry-references-1",
+     "taken_from": "SMB-GUI-FRAME-1 (READY_FOR_VALIDATION at eb17fad6, on origin)",
+     "new_branch": "lane/smb-score-effects-6-d at 04eb03d9",
+     "owner": "smb-pr-entry-references-1",
+     "target": "<Handshake Worktrees>/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target (68.10 GiB, bound to that tree, newest file 2026-11-08T08:31Z)",
+     "why_this_tree": "has score, score_device, pulse, harness_core, harness_view and harness built; eb17fad6..88b5500c changes only vulkan and native-host, which SCORE does not build"
+    }
+   },
+   "how_d_placement_works": "studio-env.sh: STUDIO_BUILD_DISK unset, d, D or hdd -> CARGO_TARGET_DIR=${HANDSHAKE_ARTIFACTS_ROOT or <kernel>/../Handshake_Artifacts}/WP-KERNEL-STUDIO/${STUDIO_OWNER}/target and the D: lock <same root>/.disk-build-lock; no cap guard on D:. lane-check.sh defaults to --disk ssd for lanes, so every lane-check call must pass --disk d (lane_env exports STUDIO_BUILD_DISK=d). The target is bound by .studio-workspace-root to the tree, so STUDIO_OWNER must be the taken tree's name, never the lane id and never the old tree.",
+   "fresh_full_compile": "No. Third-party libraries and every untouched workspace crate are warm; Cargo.lock and root Cargo.toml are unchanged 88b5500c..27365b81 (origin) and the lanes do not build the two crates that differ at eb17fad6.",
+   "rough_cost": "UNVERIFIED estimate: first hold per lane recompiles its touched crates plus dependents per feature unit and relinks test binaries, on the order of the lane's previous bundled runs plus D: slowness, plus D: queue waits of 30 to 60 min per check (HANDOFF item 16). Disk growth on D: tens of GiB at most against 880 GiB free. A fresh full target (O1) would add a full third-party and workspace compile and 35 to 38 GiB of new writes per lane.",
+   "c_targets_after_move": "smb-r54-followups-1 and smb-pr-retime-output-1 C: targets are no longer written. T-C01 and T-C02 still run only after their lanes land (READY_FOR_VALIDATION), exactly as plan T was approved; this decision does not move that condition."
+  },
+  "2_p3": {
+   "ruling": "No D: lane pauses and no new target is created. The two take-overs reuse targets of READY (not PASS) lanes, which the P3 ruling already counts as live, so D: stays at 11 live lane targets (12 with the ambiguous composer-depth D: target). C: building lanes go from 2 to 0.",
+   "branch_rule": "A branch can be checked out in one worktree only, so the lanes do not move their branches: each taken tree gets a new branch '<lane branch>-d' at the lane's current tip (precedent lane/smb-ui-tree-1-d and others, direction.c_cap_20261107.moves). The old trees smb-r54-followups-1 and smb-pr-retime-output-1 keep lane/smb-type-indent-spacing-1 and lane/smb-score-effects-6 at 5f3112a4 and 04eb03d9; nothing there is switched, reset or deleted. The taken trees' READY branches (lane/smb-vk-ui-pass-1, lane/smb-gui-frame-1) stay as refs; their tips are on origin.",
+   "remediation_tree": "If R60 attempt 3 fails VK-UI-PASS-1 or GUI-FRAME-1, the remediation takes a fresh tree (capacity rule), not these: after T-C01/T-C02 the freed C: trees smb-r54-followups-1 / smb-pr-retime-output-1 (PASS-owner targets, warm, C: under the cap) are the first take-over candidates, after the round, never during it.",
+   "not_taken": "smb-ps-mode-convert-1 (PIGMENT-FILTER-KERNELS-1 READY at 5341e561, 111 commits behind 88b5500c): kept as the fallback tree if either take-over finds the tree dirty or a process naming it."
+  },
+  "3_plan_u": {
+   "ruling": "Yes: the lead prepares plan U now (file research/cargo-cleanup-plan-20261111-U.json, status PROPOSED) and holds it for the Operator as a rule-bound act (direction.operator_direction_20261111.still_operator_by_hard_rule). It is not for the two lanes; it buys R60 attempt 3 its margin. Nothing in it runs before the Operator approves that exact list and the whole-target kind exists and dry-runs clean.",
+   "candidates_fresh_inspection": "target_report.py --disk c at 2026-11-11T10:00:38Z (read-only; values equal plan T N2)",
+   "list": [
+    {"id": "U-C01", "owner": "smb-pr-media-markers-1", "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1", "kind": "whole", "gib": 14.66, "newest_file_utc": "2026-11-06T20:00Z", "status": "PASS_V3", "tree_clean": true, "reuse_candidate": true},
+    {"id": "U-C02", "owner": "smb-pr-sequence-presets-1", "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1", "kind": "whole", "gib": 4.59, "newest_file_utc": "2026-11-02T15:11Z", "status": "PASS_V4", "tree_clean": true, "reuse_candidate": true},
+    {"id": "U-C03", "owner": "smb-layout-sentinels-1", "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-sentinels-1", "kind": "whole", "gib": 2.73, "newest_file_utc": "2026-11-01T14:42Z", "status": "PASS_V6", "tree_clean": true, "reuse_candidate": true},
+    {"id": "U-C04", "owner": "smb-layout-blank-line-lookups-1", "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-blank-line-lookups-1", "kind": "whole", "gib": 2.65, "newest_file_utc": "2026-11-05T16:44Z", "status": "PASS_V2", "tree_clean": true, "reuse_candidate": true},
+    {"id": "U-C05", "owner": "smb-press-observe-1", "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-press-observe-1", "kind": "whole", "gib": 1.34, "newest_file_utc": "2026-11-01T13:17Z", "status": "PASS_V3", "tree_clean": false, "reuse_candidate": false, "note": "target only; the dirty tree is not touched"},
+    {"id": "U-C06", "owner": "smb-pr-sequence-presets-1-red", "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1-red", "kind": "whole", "gib": 0.28, "newest_file_utc": "2026-11-02T14:47Z", "status": "no ledger row; bound to a session scratch tree that no longer exists (plan T N2 note)", "reuse_candidate": false}
+   ],
+   "total_gib": 26.25,
+   "reuse_considered": "HSK-ART-005 puts reuse first. U-C01..U-C04 are reuse candidates, but no reuse is possible while C: is over the cap, their bases are from 2026-11-01..06 (100+ commits old), so a reusing lane would rebuild nearly every workspace crate; reuse would save only their third-party libraries (0.75 to 1.61 GiB each, minutes on the SSD). Their older copies are 0.00 GiB, so the preferred partial removal frees nothing; only whole removal does.",
+   "needs_tool_change": "N2 (plan T): a 'whole' kind in tools/lead/target_prune.py that removes only the <C_LANES>/<owner> target directory (allowed_path, .studio-workspace-root and debug/.fingerprint present), only when the owner lane is PASS_V or abandoned and no unsettled target_reuse lane names the tree, with the existing process check, newest_file_utc check and 5% size check, dry run first; edited only while no prune runs. This is the lead's tool work, separate from plan T; it must not touch the in-use rule that holds T-C01/T-C02.",
+   "not_listed": [
+    "smb-type-sentinels-registry-1 (0.20 GiB): last written by SMB-UI-TREE-1 (READY, moved to D:), so not P2-listable until that lane is PASS",
+    "smb-pr-nudge-1 (34.24 GiB, SMB-AI-LIVE-EFFECTS-1 READY) and smb-layout-composer-depth-1 on C: (about 28.4 GiB, SMB-PARSER-HOSTILE-1 READY): rule P2 lists a lane's target at PASS or abandonment; candidates for the first list after R60 passes those lanes",
+    "smb-r54-followups-1 and smb-pr-retime-output-1 beyond T-C01/T-C02: HSK-ART-005 prefers the partial removal that keeps compile reuse, plan T already covers it, and with U the projection is under the alert",
+    "studio-round: warm state for attempt 3 (plan T rejected); N3 unbuilt",
+    "anything on D:, the cargo registry cache, logs, results, fixtures"
+   ],
+   "projection_gib": {
+    "now": 369.9,
+    "after_T_C01_C02": 258.64,
+    "after_T_and_U": 232.39,
+    "attempt3_peak_without_U": 353.64,
+    "attempt3_peak_with_U": 327.39,
+    "basis": "369.90 measured 10:05Z minus fresh older copies 59.16 + 52.10 (target-report-20261111-c-cap.json, stable because no lane writes those targets after the move) minus U 26.25, plus plan T round_growth 95 GiB (estimate). Without U the peak is 1.36 GiB under the validator's 355 stop; with U it is 2.61 GiB under the 330 alert. Assumes no C: lane build before or during the round."
+   }
+  },
+  "4_risks": "see risks"
+ },
+ "exact_commands_for_builders": {
+  "variables": "K=\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel\"; S=\"$K/.GOV/docs_repo/wp-studio-module-work\"; W=\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes\" (this machine's paths; both derive from the Handshake Worktrees folder that holds the kernel)",
+  "lead_before_handover": [
+   "Re-check that no process names the taken trees: powershell -NoProfile -Command 'Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match \"smb-pr-retime-hold-1|smb-pr-entry-references-1\" } | Select-Object ProcessId,Name' (bash single quotes so $_ reaches PowerShell; expect none besides read-only shells; any cargo, rustc, nextest or lane-check -> use smb-ps-mode-convert-1 instead)",
+   "git -C \"$W/smb-pr-retime-hold-1\" status --porcelain  (expect empty) ; git -C \"$W/smb-pr-retime-hold-1\" branch -r --contains HEAD  (expect origin/codex/handshake-studio-assets)",
+   "git -C \"$W/smb-pr-entry-references-1\" status --porcelain  (expect empty) ; git -C \"$W/smb-pr-entry-references-1\" branch -r --contains HEAD  (expect origin/codex/handshake-studio-assets)",
+   "Backup the two local-only lane tips as new GitHub branches (plain push, never force; precedent lead_rulings_20261108 backups_before_switch): git -C \"$W/smb-r54-followups-1\" push origin lane/smb-type-indent-spacing-1 ; git -C \"$W/smb-pr-retime-output-1\" push origin lane/smb-score-effects-6 ; verify: git -C \"$W/smb-r54-followups-1\" ls-remote origin refs/heads/lane/smb-type-indent-spacing-1 refs/heads/lane/smb-score-effects-6  (expect 5f3112a4... and 04eb03d9...)",
+   "git -C \"$W/smb-pr-retime-hold-1\" switch -c lane/smb-type-indent-spacing-1-d 5f3112a4",
+   "git -C \"$W/smb-pr-entry-references-1\" switch -c lane/smb-score-effects-6-d 04eb03d9",
+   "Record the moves (lead): ledger direction.workflow_20261107.target_reuse SMB-TYPE-INDENT-SPACING-1 = {tree smb-pr-retime-hold-1, branch lane/smb-type-indent-spacing-1-d, previous_branch lane/smb-vk-ui-pass-1, old_tree_idle 'smb-r54-followups-1 (C: target, branch lane/smb-type-indent-spacing-1 kept at 5f3112a4)', moved_at, moved_tip 5f3112a4, disk D}; SMB-SCORE-EFFECTS-6 = {tree smb-pr-entry-references-1, branch lane/smb-score-effects-6-d, previous_branch lane/smb-gui-frame-1, old_tree_idle 'smb-pr-retime-output-1 (C: target, branch lane/smb-score-effects-6 kept at 04eb03d9)', moved_at, moved_tip 04eb03d9, disk D}; lane files: worktree, notes.disk D, notes.reuses_tree_and_target, owner for lane-check. Add to plan T T-C01/T-C02 'when': still after the lane is READY_FOR_VALIDATION, not after the move."
+  ],
+  "SMB-TYPE-INDENT-SPACING-1": [
+   "cd \"$W/smb-pr-retime-hold-1/handshake-studio-assets\" && unset STUDIO_BUILD_DISK && export STUDIO_OWNER=smb-pr-retime-hold-1 && source \"$S/builders/studio-env.sh\" && echo \"$CARGO_TARGET_DIR\"   (expect .../Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/target; a 'bound to' refusal means the wrong owner: stop)",
+   "One hold, background, log under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/ with first line 'HEAD=<sha> lane=smb-type-indent-spacing-1': red proof at 5f3112a4: cargo nextest run -p hsk-studio-layout -E 'test(narrows_the_line_that_ends_the_paragraph)' --no-fail-fast  (expect 3 FAIL at assertions)",
+   "Write the fix (first_fit, knuth_plass, single_line), commit, then focused runs in one hold as the lane file 'next' lists (layout suite + indent_spacing + composer_depth + composer_depth_diff + measurement 0/30/100/170), same sourced env",
+   "cargo build -p hsk-studio-harness --example studio-harness --features viewer   (same env; the taken target's example is from another lane)",
+   "bash \"$S/tools/lane-check.sh\" --owner smb-pr-retime-hold-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-layout -p hsk-studio-interop-layout -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --no-fail-fast   -> stop at BUNDLED GREEN",
+   "On RELEASED: fetch, rebase lane/smb-type-indent-spacing-1-d onto origin/codex/handshake-studio-assets (27365b81 or later; no file overlap with 88b5500c..27365b81 today), suites of crates touched by landed commits, then bash \"$S/tools/lane-check.sh\" --owner smb-pr-retime-hold-1 --disk d --per-sha HEAD~1, guarded non-force push, READY_FOR_VALIDATION"
+  ],
+  "SMB-SCORE-EFFECTS-6": [
+   "Gate: the lead's ruling on the diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run timeout comes first (bundled run 2 is the last of the two-run cap)",
+   "cd \"$W/smb-pr-entry-references-1/handshake-studio-assets\" && unset STUDIO_BUILD_DISK && export STUDIO_OWNER=smb-pr-entry-references-1 && source \"$S/builders/studio-env.sh\" && echo \"$CARGO_TARGET_DIR\"   (expect .../Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target)",
+   "Bundled run 2 at 04eb03d9: the run-1 script (smb-score-effects-6-bundled-04eb03d9.log) with every lane-check call changed to --owner smb-pr-entry-references-1 --disk d and plain cargo calls in the env above: unit 0 fresh example build, unit 1 lane-check (score + harness-core + harness-view [desktop, audio-batch] suites + the harness [audio-batch, audio-device] tests), unit 2 harness-view [viewer], unit 3 harness-core [import-tiff]; logs under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-effects-6/ -> stop at BUNDLED GREEN",
+   "On RELEASED: fetch, rebase lane/smb-score-effects-6-d onto origin, suites of crates touched by landed commits, bash \"$S/tools/lane-check.sh\" --owner smb-pr-entry-references-1 --disk d --per-sha HEAD~1, guarded non-force push, READY_FOR_VALIDATION"
+  ],
+  "lead_after_landing": [
+   "Only after SMB-TYPE-INDENT-SPACING-1 (resp. SMB-SCORE-EFFECTS-6) is READY_FOR_VALIDATION in the ledger: python \"$S/tools/lead/target_report.py\" --disk c smb-r54-followups-1 smb-pr-retime-output-1, refresh T-C01/T-C02 gib and newest_file_utc, then python \"$S/tools/lead/target_prune.py\" --plan \"$S/research/cargo-cleanup-plan-20261108-T.json\" --approve T-C01,T-C02 (dry run), then the same with --execute",
+   "Measure C: by the guard's method (robocopy listing) before freezing attempt 3; freeze only when tree + 95 <= 355 GiB (tree <= 260) and no C: lane build is queued; with plan U executed the target is tree <= 235"
+  ]
+ },
+ "risks": [
+  {"id": "R1", "risk": "D: lock contention: two more builders behind 7 D: lanes delay the critical path by hours (HANDOFF item 16: 30 to 60 min per check; per-sha holds up to 55 min).", "mitigation": "Red and focused runs in one hold; runs in the background; the lead releases INDENT and SCORE landings first because they gate T-C01/T-C02 and attempt 3; other D: lanes land after them."},
+  {"id": "R2", "risk": "After target_reuse records the move, target_prune no longer counts smb-r54-followups-1 / smb-pr-retime-output-1 as in use (in_use is keyed by the lane's current tree), so a dry run of T-C01/T-C02 would say WOULD_REMOVE before the lanes land: an execution outside the approved condition.", "mitigation": "The lead checks the lane's ledger status READY_FOR_VALIDATION before passing T-C01 or T-C02 to --approve (command above) and writes that condition into plan T's 'when'; the tool is not changed here."},
+  {"id": "R3", "risk": "First build on a taken target recompiles the lane's crates and dependents for each feature unit, and a stale example studio-harness.exe from the previous lane fails harness process tests with unknown_command (seen in both lane files).", "mitigation": "Build the example first in the same hold (INDENT step, SCORE unit 0); budget the first hold as a rebuild, not a warm run."},
+  {"id": "R4", "risk": "SCORE's diag_sink abort test timed out at 60 s on C:; on a busy spinning D: a timing-bound test may fail again and burn the last bundled run.", "mitigation": "Diag_sink ruling before run 2; if the cause stays NOT_INSPECTED, run that one test focused in the same hold before the bundled run."},
+  {"id": "R5", "risk": "The taken trees belong to READY lanes judged by R60 attempt 3; a FAIL needs a remediation tree while D: is over P3.", "mitigation": "Remediation takes the C: trees freed after T-C01/T-C02 (C: then under the cap), after the round; the round itself builds from its frozen studio-round source, not from lane trees."},
+  {"id": "R6", "risk": "Attempt 3 without plan U peaks about 353.6 GiB against the 355 stop; the 95 GiB round growth is an estimate.", "mitigation": "Prepare plan U now (26.25 GiB, peak about 327.4); freeze gate on a fresh guard-method measure; no C: lane build during the round; other levers from plan T (matrix cut on the validator's no-objection) stay open."},
+  {"id": "R7", "risk": "git switch in two shared trees and new branches: state change in trees other lanes used.", "mitigation": "Trees verified clean and tips on origin before the switch; local-only lane tips pushed to new GitHub branches first, never force; old trees and branches untouched (precedent c_cap_20261107)."},
+  {"id": "R8", "risk": "Plan U needs a new deletion path (whole kind) in target_prune.", "mitigation": "Narrow kind: lane target directory only under C_LANES, PASS or abandoned owner, no unsettled user, process, newest-file and 5% checks, dry run before --execute; edited only when no prune runs; Operator approves the exact list."},
+  {"id": "R9", "risk": "Someone deletes the stale .studio-ssd-size record to 're-admit' SSD builds.", "mitigation": "Do not: the fresh measure is 369.9 GiB, still over the cap; C: stays closed to lane builds until T-C01/T-C02 run."},
+  {"id": "R10", "risk": "Wrong STUDIO_OWNER (lane id or old tree) on D: creates a new D: target and breaks P3, or trips the tree-binding refusal.", "mitigation": "Owner is always the taken tree's name; check echo $CARGO_TARGET_DIR before the first cargo call; lane-check always with --disk d."}
+ ],
+ "verified": [
+  "Guard and D: placement: builders/studio-env.sh lines 26-54 (unset/d -> ${_studio_art}/${STUDIO_OWNER}/target), 136-151 (cap check, message 'Fallback order'), 84-88 (tree binding); tools/lane-check.sh lines 1-40 and 188-196 (--disk default ssd, lane_env)",
+  "Guard record C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size = '408209893 1794389343' (389.3 GiB, 09:29Z)",
+  "C: tree 369.90 / studio-round 96.15 / studio-team-dev 273.75 GiB by robocopy /L at 2026-11-11T10:05Z; C: free 233.5, D: free 880.3 GiB (Get-PSDrive)",
+  "research/cargo-cleanup-plan-20261108-T.json (APPROVED; T-C03, T-C04 executed; T-C01/T-C02 'after <lane> lands'), research/cargo-cleanup-result-20261108-T-C04.json (19.47 GiB REMOVED 09:51:11Z)",
+  "research/target-report-20261111-c-cap.json (09:50:04Z): smb-r54-followups-1 94.47 (older 59.16, newest 09:22Z), smb-pr-retime-output-1 90.17 (older 52.10, newest 08:49Z), smb-pr-nudge-1 34.24, smb-pr-media-markers-1 14.66, smb-layout-composer-depth-1 47.90 before T-C04",
+  "target_report.py --disk c (10:00:38Z, scratchpad tr-c-small.json): the six U candidates plus smb-type-sentinels-registry-1, total 26.45 GiB, values as listed",
+  "target_report.py --disk d (10:07:25Z, scratchpad tr-d-ready.json): smb-pr-entry-references-1 68.10 GiB, smb-pr-retime-hold-1 65.65 GiB, both bound to their trees, crates listed include every crate the two lanes build",
+  "tools/lead/target_prune.py: partial kind only (line 131), select older_copies (73-86), settled = PASS_V or READY_FOR_VALIDATION (113-119), in_use from direction.workflow_20261107.target_reuse current tree (121)",
+  "ledger.json: direction.c_cap_20261107 (moves with -d branches, p3_note), direction.lead_rulings_20261108.p3 (literal ruling), direction.workflow_20261107.target_reuse (36 entries; current tree users and statuses), resume_20261108.plan_t, operator_direction_20261111",
+  "Git (read-only): smb-pr-retime-hold-1 lane/smb-vk-ui-pass-1 at 88b5500c clean, on origin; smb-pr-entry-references-1 lane/smb-gui-frame-1 at eb17fad6 clean, on origin; eb17fad6..88b5500c = 11 commits touching only hsk-studio-vulkan, hsk-studio-native-host, Cargo.lock, tools/workspace-probe.rs; INDENT tip 5f3112a4 and SCORE tip 04eb03d9 clean, on no GitHub branch, visible from both taken trees; branches lane/smb-type-indent-spacing-1-d and lane/smb-score-effects-6-d free; local origin ref codex/handshake-studio-assets at 27365b81, 31 commits after 88b5500c, no root manifest change, no file overlap with either lane's diff",
+  "Lane files builders/lanes/hsk-studio-type-indent-spacing-1.json and hsk-studio-score-effects-6.json (phase, next, bundled argv, diag_sink timeout); hsk-studio-vk-ui-pass-1.json, hsk-studio-gui-frame-1.json, hsk-studio-pigment-filter-kernels-1.json (READY_FOR_VALIDATION, builder holds)",
+  "Processes: no cargo/rustc/nextest process names the taken trees or the two C: trees; one read-only grep from another session reads smb-pr-retime-output-1; D: lock holder smb-sentinels-native-1 lane-check with smb-r53-followups-1 and smb-pr-edit-footprint-1 queued",
+  "validation/dispatch-prompt-R60.txt line 28: alert 330 GiB, stop cleanly above 355 GiB; HANDOFF.md items 11 and 16 and lessons (D: spinning, per-sha holds)"
+ ],
+ "unverified": [
+  "Build durations on D: for the first hold on a taken target and for a fresh target (no measurement for these crates on D:; F-R33-7 numbers have no recorded disk)",
+  "Round growth of 95 GiB for attempt 3 and lane growth of about 10 GiB per lane (plan T estimates)",
+  "Whether the stale D: target of smb-layout-composer-depth-1 counts toward P3 (the count is over 6 either way)",
+  "The exact test file of the three narrows_the_line_that_ends_the_paragraph tests (the filter is by name) and SCORE's unit 0 example features (taken from its run-1 script)",
+  "D: lock wait times at the moment the builders start (queue observed only at about 10:05Z)",
+  "Cause of the diag_sink abort timeout (NOT_INSPECTED here)"
+ ]
+}
