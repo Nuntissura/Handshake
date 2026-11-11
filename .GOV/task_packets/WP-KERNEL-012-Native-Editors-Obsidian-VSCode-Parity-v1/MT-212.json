@@ -6000,7 +6000,7 @@
     },
     {
       "candidate": "mt022-ordinary-repaired-core-acquisition-20261111-01",
-      "state": "PUBLISHED_CORE_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_ORIGINAL_HTTP_PENDING",
+      "state": "PUBLISHED_CORE_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_ORIGINAL_HTTP_ORDINAL_3_FAILED",
       "original_contract_ref": "MT-022.json",
       "source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
       "source_tree": "b98329c3466ea6c43e24b4bf7956fc490717c89f",
@@ -6146,8 +6146,66 @@
         "bytes": 5618,
         "sha256": "5ee3ded2795225f63b7a53d3b526e85e834cf53135ee42f7bd6a07bb59f76595"
       },
-      "next_proof": "One separate original MT022 HTTP case, fresh Primary/IV admission, exact unchanged Native Folder Tree executable and qualified ordinary Core, private short SurrealDB and fixed receipt. Prior ordinal 1 and 2 failures remain spent, no retry or GUI credit.",
-      "original_acceptance": "OPEN"
+      "next_proof": "Diagnose the first exact workspace-create denial from ordinal 3. No automatic runtime retry. Preserve spent ordinals 1–3 and separately qualified Core/Native acquisition.",
+      "original_acceptance": "OPEN",
+      "original_http_ordinal_3": {
+        "case_id": "MT022-LIVE-SURREALDB-ROUNDTRIP-001",
+        "selector": "folder_tree_live_surrealdb_self_seeded_round_trip",
+        "state": "FAILED_SPENT",
+        "validator_thread": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "validator_turn": "01a1c8c5-dd16-7321-af9d-f0cfbd5a0fc6",
+        "outer_controller_exit": 1,
+        "test_exit": 101,
+        "selected_tests": 1,
+        "first_failure": "POST /workspaces returned 403 HSK-403-PROTECTED-RESOURCE after authenticated session lookup.",
+        "completion_manifest_present": false,
+        "fixed_seed_receipt_present": false,
+        "unchanged_inputs": true,
+        "owned_resume_previous_suspend_count": 1,
+        "all_file_handles_closed": 7722,
+        "all_native_handles_closed": 14,
+        "final_job_active": 0,
+        "final_job_assigned": 0,
+        "termination_invoked": false,
+        "custody": "IV explicitly returned runtime, compiler and fixed-receipt-writer custody; final Job empty, all handle closes succeeded and test PID absent.",
+        "records": {
+          "result": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/result.json",
+            "bytes": 8207,
+            "sha256": "63ba877f00b376ce13ba581f87f74be1d092fa7ee2da4594372e8059deb720e5"
+          },
+          "stdout": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/test.stdout.txt",
+            "bytes": 1023,
+            "sha256": "af233980f658c29428713221cd10ce517149815c3e73152f2775e481c5b49c3b"
+          },
+          "release": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/released.json",
+            "bytes": 1975,
+            "sha256": "e30388b2901750988bd7afc1133204538cff857382c76a8a994b35e9ba0e7d54"
+          },
+          "postguards": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/postguards.json",
+            "bytes": 3828,
+            "sha256": "a89f65407f743ce4cb5cfdbbd5bf323aede2d4a75d5ad09289ffe6c08c05a7e7"
+          },
+          "job_final": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-folder-tree-live-roundtrip-20261111-03/private-job-final.json",
+            "bytes": 340,
+            "sha256": "026c08eb0bf55d76aaeef1ecc696534dd7e87d8e8d2957427ecfe65b261d3b5e"
+          },
+          "binding": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-repaired-http-runtime-preparation-20261111-01/mt022-roundtrip-controller-binding-admitted-12.json",
+            "bytes": 50315,
+            "sha256": "c6f7b9828d6b8d478e5b66c963eebb4d2131170f5f501ca28c1993749306c45e"
+          },
+          "admission": {
+            "ref": "WP-KERNEL-012/MT-212/mt022-repaired-http-runtime-preparation-20261111-01/mt022-roundtrip-case-admission-12.json",
+            "bytes": 27184,
+            "sha256": "f92504093d4c0f5d10fd91da0b0c12d10c2c22a3cc5d309f97b3e24add183932"
+          }
+        }
+      }
     }
   ],
   "picotask_plan": {
