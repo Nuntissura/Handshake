@@ -6418,6 +6418,59 @@
       },
       "next_proof": "Resolve current real Operator Chat navigation through original WP1 MT012 reachability. Preserve same full-profile, audit, launch and transcript assertions. A changed-input proof requires separate scoped agreement and admission.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "mt196-operator-chat-run-route-native-20261111-01",
+      "pico_refs": [
+        "GUI-WP012-settings-profiles",
+        "GUI-WP012-172-CHAT"
+      ],
+      "original_contract_ref": "MT-196.json",
+      "state": "PUBLISHED_NATIVE_COMPILE_ONLY_QUALIFIED",
+      "source_head": "e5e8c7ec4364ff740851f6b9a208f7942d45c96a",
+      "acquisition_base": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "acquisition_result": {
+        "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-codegen-20261111-01/result.json",
+        "bytes": 3671,
+        "sha256": "90d413eece39edd17108a20478aca6558665f0244977a90c1fbfff78d8b6629d"
+      },
+      "independent_acquisition_review": {
+        "ref": "WP-KERNEL-012/MT-212/mt196-operator-chat-run-route-native-independent-acquisition-review-20261111-01.json",
+        "bytes": 7670,
+        "sha256": "4cde2105d08b582ccf70b2bf9b4f198a2fd80c0c9e4b120487ef44749839855e"
+      },
+      "next_proof": "Independent exact pushed-source and Native executable reread, then run repaired profile-carriage case once under scoped agreement and fresh custody. Run the offline launch case only after checked Case 01 success and handback.",
+      "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "first-owner-workspace-create-canary-phase-diagnostic-20261111-02",
+      "original_contract_ref": "MT-022.json",
+      "state": "PUBLISHED_COMPILER_ZERO_CAPTURE_UNQUALIFIED",
+      "source_head": "393b97f997def5517e88916e74021ce9183a6e32",
+      "acquisition_base": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "source_file": "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+      "source_raw_sha256": "ae48055e7601eac0533100aee26a450046956494dd213c1744a41dd1cd5d83c6",
+      "cargo_exit": 0,
+      "producer_exit": 1,
+      "tests_run": false,
+      "first_failure": "One live full target scan exceeded 25 seconds at 152076 entries. Final scan and 65 live full scans completed; no resource tripwire measurement or forced termination. No qualified executable record.",
+      "result": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-create-canary-codegen-20261111-01/result.json",
+        "bytes": 5602,
+        "sha256": "b7205ced00135855d843acd3e94acca8897d8af2011bbc4cb7e871ac5e305a92"
+      },
+      "release": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-create-canary-codegen-20261111-01/released.json",
+        "bytes": 2225,
+        "sha256": "44d3d3346b9fd1d7cba2a3bd6bd1a0f541a3d59254b1c902cdb2f842da50540f"
+      },
+      "direct_producer_wait": {
+        "ref": "WP-KERNEL-012/MT-212/first-owner-workspace-create-canary-codegen-custody-20261111-01/coding-direct-producer-core-wait-01.json",
+        "bytes": 1577,
+        "sha256": "86f7526ed434630f18e82f4a0290b6971abee7a5b95af22737de4e1135e100c5"
+      },
+      "next_proof": "Acquire and independently qualify the exact published Core libtest before one diagnostic canary. Preserve the original MT022 failures and all runtime obligations.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
