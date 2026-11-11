@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T11:09:18Z",
+ "updated_at": "2026-11-11T13:21:52Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -151,7 +151,10 @@
    "REVIEW READY at 945406d9 (2026-11-11). Crop in the DNG XMP is a named cut (receipt develop_crop_not_in_dng_xmp); next-lane candidate: a harness-view -> interop-lrcat edge (steward, lead approval) or an XMP writer in hsk-studio-develop.",
    "PATH APPROVED harness-view src/view/doc_export.rs, ONE receipt-note addition develop_crop_not_applied when the document has a stored crop (document export and batch render the uncropped canvas); keep clear of SMB-R60-FOLLOWUPS-1's admission hunk near :844; the second to land rebases. Red test: a cropped develop document export asserts the note.",
    "The new-op differential test written after its implementation is recorded as red by construction.",
-   "Review 945406d9 (research/review-smb-develop-commands-1-945406d9.json) FIX_FIRST: F1 HIGH lost write (per-brush versus per-edit dab budget): develop_change decodes what it commits and refuses before commit, plus a whole-edit dab-sum check; F2 apply_preset maps enable.* to enables_override (typed refusal only for an unmapped key); F3 no 'preview' crop claim without a preview; F4 export stage sized on the crop's source bounds."
+   "Review 945406d9 (research/review-smb-develop-commands-1-945406d9.json) FIX_FIRST: F1 HIGH lost write (per-brush versus per-edit dab budget): develop_change decodes what it commits and refuses before commit, plus a whole-edit dab-sum check; F2 apply_preset maps enable.* to enables_override (typed refusal only for an unmapped key); F3 no 'preview' crop claim without a preview; F4 export stage sized on the crop's source bounds.",
+   "RELEASED 2026-11-11T13:21Z at BUNDLED GREEN 6363bd19 (lead checked bundled-6363bd19.log: step 0 clean, registry in sync, 223 passed 1 skipped, 89 passed).",
+   "Review Q1 READING: save_develop_preset is an authoring save of a preset file, not an export or job, so JobPort admission is not required (the common rule covers exports). It stays as built and is listed under notes as a reading.",
+   "F4 has no separate red proof, because its check follows F3's in the same test. ACCEPTED: F4 is covered at green. Record 'F4 red not proven' under not_proven."
   ]
  }
 }

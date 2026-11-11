@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261111-U",
  "generated_at": "2026-11-11T10:14:55Z",
- "status": "PROPOSED",
+ "status": "EXECUTED",
  "authority": "HSK-ART-003 (P2), HSK-ART-005 (inspection-based removal list, Operator approval of the exact list under CX-107). Prepared by the lead per research/decision-20261111-c-cap-placement.json item 3; deletion stays with the Operator by hard rule (direction.operator_direction_20261111).",
  "why": "R60 attempt 3 margin on C:. After plan T's T-C01 and T-C02 run (once SMB-TYPE-INDENT-SPACING-1 and SMB-SCORE-EFFECTS-6 land), the round's projected C: peak is 353.64 GiB without this plan, 1.36 GiB under the validator's 355 stop, and 327.39 GiB with it, under the 330 alert.",
  "inspection": "target_report.py --disk c at 2026-11-11T10:00:38Z (read-only; values equal plan T N2)",
@@ -85,12 +85,33 @@
  "needs_tool_change": "N2 (plan T): a 'whole' kind in tools/lead/target_prune.py that removes only the <C_LANES>/<owner> target directory (allowed_path, .studio-workspace-root and debug/.fingerprint present), only when the owner lane is PASS_V or abandoned and no unsettled target_reuse lane names the tree, with the existing process check, newest_file_utc check and 5% size check, dry run first; edited only while no prune runs. This is the lead's tool work, separate from plan T; it must not touch the in-use rule that holds T-C01/T-C02.",
  "before_execution": "Operator approves this exact list in chat; fresh target_report.py --disk c; dry run with the whole kind (done once, 2026-11-11T10:24Z: all five WOULD_REMOVE); no round running; then --execute.",
  "operator_question": "Approve plan U: whole removal of 5 old Studio build caches on C: (lanes that already passed validation), 25.97 GiB, to give the next validation round safe room on the SSD.",
- "executions": [],
+ "executions": [
+  {
+   "at": "2026-11-11T13:08:30Z",
+   "ids": [
+    "U-C01",
+    "U-C02",
+    "U-C03",
+    "U-C04",
+    "U-C05"
+   ],
+   "removed_gib": 25.97,
+   "files": 83650,
+   "result": "research/cargo-cleanup-result-20261111-U.json",
+   "before": "Operator 'Approve plan U'; fresh report research/target-report-20261111-plan-u.json equal to the plan (size and newest file); no process naming the trees; no round ticket; dry run all WOULD_REMOVE",
+   "c_tree_after_gib_estimate": 343.9
+  }
+ ],
  "dry_run": {
   "at": "2026-11-11T10:24:17Z",
   "tool_commit": "18974120 (target_prune.py whole kind N2)",
   "result": "U-C01..U-C05 WOULD_REMOVE 14.66, 4.59, 2.73, 2.65, 1.34 GiB (25.97 total); U-C06 SKIPPED_STATUS (withdrawn)",
   "negative_checks": "studio-round REFUSED_PATH; D: target REFUSED_PATH; ../ traversal REFUSED_PATH; smb-layout-composer-depth-1 and smb-type-sentinels-registry-1 SKIPPED_IN_USE_BY_LANE"
  },
- "generated_at_revised": "2026-11-11T10:24:17Z"
+ "generated_at_revised": "2026-11-11T10:24:17Z",
+ "operator_approval": {
+  "at": "2026-11-11T12:57:06Z",
+  "quote": "Approve plan U",
+  "scope": "the 5 listed candidates U-C01..U-C05, 25.97 GiB, whole removal, as dry-run at kernel 1c593d54"
+ }
 }

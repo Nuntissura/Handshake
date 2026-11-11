@@ -1,0 +1,84 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261111-U",
+ "execute": true,
+ "at": "2026-11-11T13:08:30Z",
+ "total_gib": 25.97,
+ "results": [
+  {
+   "id": "U-C01",
+   "owner": "smb-pr-media-markers-1",
+   "planned_gib": 14.66,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-media-markers-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V3",
+   "files": 28133,
+   "dirs": [
+    "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1"
+   ],
+   "gib": 14.66,
+   "subdirs": 4710,
+   "status": "REMOVED"
+  },
+  {
+   "id": "U-C02",
+   "owner": "smb-pr-sequence-presets-1",
+   "planned_gib": 4.59,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-sequence-presets-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "files": 22391,
+   "dirs": [
+    "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1"
+   ],
+   "gib": 4.59,
+   "subdirs": 3741,
+   "status": "REMOVED"
+  },
+  {
+   "id": "U-C03",
+   "owner": "smb-layout-sentinels-1",
+   "planned_gib": 2.73,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-sentinels-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "files": 15002,
+   "dirs": [
+    "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-sentinels-1"
+   ],
+   "gib": 2.73,
+   "subdirs": 2545,
+   "status": "REMOVED"
+  },
+  {
+   "id": "U-C04",
+   "owner": "smb-layout-blank-line-lookups-1",
+   "planned_gib": 2.65,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-blank-line-lookups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V2",
+   "files": 14835,
+   "dirs": [
+    "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-blank-line-lookups-1"
+   ],
+   "gib": 2.65,
+   "subdirs": 2519,
+   "status": "REMOVED"
+  },
+  {
+   "id": "U-C05",
+   "owner": "smb-press-observe-1",
+   "planned_gib": 1.34,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-press-observe-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V3",
+   "files": 3289,
+   "dirs": [
+    "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-press-observe-1"
+   ],
+   "gib": 1.34,
+   "subdirs": 592,
+   "status": "REMOVED"
+  }
+ ]
+}
