@@ -6340,6 +6340,84 @@
       ],
       "scope_limit": "Stable Settings Create author ID and fixture-backend stale inventory fencing/in-flight launch preservation. Real loaded registry Create acknowledgement, complete dispatch, Vulkan, Palmistry and original acceptance remain open.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "mt196-native-profile-carriage-first-component-20261111-01",
+      "pico_refs": [
+        "GUI-WP012-settings-profiles",
+        "GUI-WP012-172-CHAT"
+      ],
+      "original_contract_ref": "MT-196.json",
+      "state": "COMPILE_ONLY_INDEPENDENTLY_QUALIFIED_FIRST_COMPONENT_FAILED",
+      "source_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "test_source_blob": "b1ee178a09b40ac4f6f7dc40cbd02a0f2af53b14",
+      "acquisition": {
+        "verdict": "QUALIFIED_COMPILE_ONLY",
+        "cargo_exit": 0,
+        "producer_exit": 0,
+        "executable_sha256": "30c40e82a2cd0682ab8ee1fc2994538f2ed3198415f86b5e8bfda0e585228479",
+        "independent_record": {
+          "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-acquisition-review-20261111-01/mt196-native-profile-carriage-acquisition-review-01.json",
+          "bytes": 6465,
+          "sha256": "775ef7be82fad55e2ca80eac01a954c8a22cb59163fc06c016154d38faf93f76"
+        }
+      },
+      "runtime": {
+        "state": "FAILED_SPENT",
+        "case_id": "MT196-NATIVE-PROFILE-CARRIAGE-COMP-001",
+        "selector": "operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript",
+        "independent_validator_thread": "01a16b9e-0d1e-7b81-b116-05291184319b",
+        "independent_validator_turn": "01a1c912-3fc1-7b83-9aeb-72a9d47f5f03",
+        "outer_exit": 1,
+        "test_exit": 101,
+        "first_failure": "No AccessKit node matching MODELS at test_operator_chat_selection_and_transcript_argus.rs:378. Audit, launch and transcript assertions not reached.",
+        "test_pid": 23676,
+        "file_handles_closed": 7670,
+        "native_handles_closed": 3,
+        "final_job_active": 0,
+        "final_job_assigned": 0,
+        "termination_invoked": false,
+        "completion_manifest_present": false,
+        "records": {
+          "result.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/result.json",
+            "bytes": 7185,
+            "sha256": "85e8e5bd6c74a696064370c415e1a71d973ca41786ffddb2befe2f39924dd1ad"
+          },
+          "released.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/released.json",
+            "bytes": 1562,
+            "sha256": "3edfec35b55db79532eecd6e01106ff6967463c52208b290d1669de76b4738d3"
+          },
+          "private-job-final.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/private-job-final.json",
+            "bytes": 339,
+            "sha256": "ea57e8cd13f9db56195c656dadf62e1928bf160d8a8f7c4886e22644353896ca"
+          },
+          "postguards.json": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/postguards.json",
+            "bytes": 2806,
+            "sha256": "d057285a550adb2dfa1dcf16c133c32d97421dbec369c3cad78d062d1de8617b"
+          },
+          "test.stdout.txt": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-20261111-01-case01/test.stdout.txt",
+            "bytes": 175998,
+            "sha256": "d08a16e1ca8bd5652a3f795740a52267c819317c171ee4baf6936a9648501fc8"
+          },
+          "binding": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-preparation-20261111-01/mt196-native-profile-carriage-runtime-binding-admitted-03.json",
+            "bytes": 18290,
+            "sha256": "713ce1634c3acb11c2282647981cbbceef953f7a0976028fbb57d24951e9bbd8"
+          },
+          "admission": {
+            "ref": "WP-KERNEL-012/MT-212/mt196-native-profile-carriage-runtime-preparation-20261111-01/mt196-native-profile-carriage-runtime-case-admission-03.json",
+            "bytes": 8204,
+            "sha256": "9cb3526a510ec4d72ff3bafa14437ff08ff12808c08d1755d410406741432ee9"
+          }
+        }
+      },
+      "next_proof": "Resolve current real Operator Chat navigation through original WP1 MT012 reachability. Preserve same full-profile, audit, launch and transcript assertions. A changed-input proof requires separate scoped agreement and admission.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
