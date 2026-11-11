@@ -405,6 +405,16 @@ impl SwarmLaneDiagnosticsTransport for DeferredDiagnosticsTransport {
     }
 }
 
+fn open_refresh_diagnostics(harness: &mut Harness<'_, HandshakeApp>) {
+    harness.run();
+    harness.get_by_label("LAB").click();
+    harness.run();
+    harness
+        .get_by_label(PaneType::SwarmLaneDiagnostics.default_label())
+        .click_accesskit();
+    harness.run();
+}
+
 fn deferred_diagnostics_harness(
     transport: Arc<DeferredDiagnosticsTransport>,
 ) -> Harness<'static, HandshakeApp> {
@@ -415,11 +425,7 @@ fn deferred_diagnostics_harness(
     }));
     app.set_swarm_lane_diagnostics_transport_for_test(transport);
     let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
-    harness.run();
-    harness.get_by_label("MODELS").click();
-    harness.run();
-    harness.get_by_label("Open Lane Diagnostics").click();
-    harness.run();
+    open_refresh_diagnostics(&mut harness);
     harness
 }
 
@@ -481,11 +487,7 @@ fn diagnostics_refresh_rejects_initial_busy_and_offline_controls() {
         "Refresh cannot duplicate the initial in-flight fetch");
 
     let mut offline = shell_harness();
-    offline.run();
-    offline.get_by_label("MODELS").click();
-    offline.run();
-    offline.get_by_label("Open Lane Diagnostics").click();
-    offline.run();
+    open_refresh_diagnostics(&mut offline);
     let current = accesskit_label(&offline, FRESHNESS_AUTHOR_ID);
     assert_refresh_disabled_and_argus_rejected(&mut offline);
     node_by_author(&offline, REFRESH_AUTHOR_ID).click_accesskit();
