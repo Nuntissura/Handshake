@@ -1,17 +1,28 @@
-"""Guarded partial removal from Studio cargo targets, from an Operator-approved plan (HSK-ART-005, CX-107).
+"""Guarded removal from Studio cargo targets, from an Operator-approved plan (HSK-ART-003, HSK-ART-005, CX-107).
 
 Usage: python target_prune.py --plan research/cargo-cleanup-plan-<id>.json --approve ID,ID,... [--after-round R59] [--execute]
-A dry run unless --execute. It works only on the plan's approved partial candidates, only inside a lane or round target
-and only on the file kinds the plan names. A candidate that changed since inspection, is in use, or differs from the plan
-by more than 5% is skipped and needs fresh approval. Removal is permanent and goes file by file, throttled. It never
-touches libraries, build scripts, fingerprints, the registry, logs, results or anything outside target/.
+A dry run unless --execute, and --execute needs a plan marked APPROVED. It works only on the plan's approved candidates,
+of two kinds. A candidate that changed since inspection (newest file), is in use, or differs from the plan by more than
+5% is skipped and needs fresh approval. Removal is permanent and goes file by file, throttled. Neither kind touches the
+cargo registry, logs, results, fixtures, a worktree or anything outside the candidate's target.
+- partial: only inside a lane or round target and only the file kinds the plan names (older_copies: every copy of a test
+  or binary in debug/deps except the newest); never libraries, build scripts or fingerprints. A lane target is in use
+  while a lane short of READY_FOR_VALIDATION or PASS_V names its tree in target_reuse (plan T N1).
+- whole (plan T N2): the directory C_LANES/<owner> and nothing else. The plan path must equal it after normalisation,
+  with no symlink or junction on the way or inside; never studio-round or D:. The owner lane must be PASS_V or ABANDONED
+  in the ledger (rule P2; READY_FOR_VALIDATION is not enough), or, for a plan entry marked 'no ledger row', the tree
+  bound in .studio-workspace-root must no longer exist. No lane short of PASS_V or ABANDONED may name the tree (ledger
+  target_reuse tree or old_tree_idle, a ledger lane row's worktree, a lane file's worktree), and no running cargo, rustc,
+  link or test process may name the target, the bound tree or the owner.
 """
 import argparse
 import datetime
+import glob
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -26,6 +37,9 @@ C_ROUND = "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target"  # the round 
 HASHED = re.compile(r"^(?:lib)?(?P<name>.+?)-(?P<hash>[0-9a-f]{16})\.(?P<ext>exe|pdb|dll|dll\.lib|dll\.exp|lib|exp)$")
 GIB = 1024.0 ** 3
 MAX_FILES_PER_SEC = 600
+REPARSE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+OWNER = re.compile(r"[a-z0-9][a-z0-9_.-]*")
+NEVER_UNDER = ("studio-round", "registry", "logs", "results", "fixtures")
 
 
 def allowed_path(p):
@@ -86,6 +100,96 @@ def select(c):
     return older_copies(os.path.join(debug, "deps")), [], 0
 
 
+def is_link(st):
+    return stat.S_ISLNK(st.st_mode) or bool(getattr(st, "st_file_attributes", 0) & REPARSE)
+
+
+def whole_path(owner, path):
+    """The one directory a whole candidate may remove, C_LANES/<owner>, or None when the plan path is anything else."""
+    if not OWNER.fullmatch(owner) or ".." in owner:
+        return None
+    target = C_LANES + "/" + owner
+    parts = target.split("/")
+    if parts[0].upper() != "C:" or any(x.lower() in NEVER_UNDER for x in parts):
+        return None
+    norm = lambda p: os.path.normcase(os.path.normpath(p))
+    if norm(path) != norm(target) or norm(os.path.realpath(target)) != norm(target):
+        return None
+    for i in range(1, len(parts) + 1):  # no symlink or junction on the way, the target itself included
+        p = "/".join(parts[:i]) + ("/" if i == 1 else "")
+        if os.path.lexists(p) and is_link(os.lstat(p)):
+            return None
+    return target
+
+
+def whole_contents(target):
+    """Every file (path, size) below target and every directory below it, deepest first. Raises on a link inside."""
+    files, dirs, stack = [], [], [target]
+    while stack:
+        with os.scandir(stack.pop()) as it:
+            for e in it:
+                st = e.stat(follow_symlinks=False)
+                if e.is_symlink() or is_link(st):
+                    raise ValueError(f"symlink or junction inside the target: {e.path}")
+                if stat.S_ISDIR(st.st_mode):
+                    dirs.append(e.path)
+                    stack.append(e.path)
+                else:
+                    files.append((e.path, st.st_size))
+    return files, sorted(dirs, key=lambda d: d.replace("\\", "/").count("/"), reverse=True)
+
+
+def settled_whole(status):
+    # Rule P2 (HSK-ART-003): a lane's target is listed for whole removal at PASS or abandonment. READY_FOR_VALIDATION is
+    # not enough: a FAIL in the round sends the lane back to its tree and target.
+    s = str(status or "")
+    return s.startswith("PASS_V") or s.upper() == "ABANDONED"
+
+
+def tree_of(field):
+    """The tree a ledger or lane-file field names: 'wt-studio-lanes/<tree> ...', '<tree> (...)' or a path ending in it."""
+    t = str(field or "").replace("\\", "/").strip()
+    m = re.search(r"wt-studio-lanes/([A-Za-z0-9_.-]+)", t) or re.match(r"([A-Za-z0-9_.-]+)(?:\s|$)", t)
+    return m.group(1) if m else os.path.basename(t.rstrip("/")) or None
+
+
+def tree_users(led, statuses):
+    """{tree: lane ids} of lanes short of PASS_V or ABANDONED that name the tree in the ledger or their lane file."""
+    users = {}
+
+    def add(tree, lane, status):
+        if tree and not settled_whole(status):
+            users.setdefault(tree, set()).add(str(lane))
+
+    for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items():
+        for field in ("tree", "old_tree_idle"):
+            add(tree_of(v.get(field)), k, statuses.get(k.lower()))
+    for x in led["lanes"]:
+        if x.get("worktree"):
+            add(tree_of(x["worktree"]), x.get("lane_id"), x.get("status"))
+    for f in sorted(glob.glob(os.path.join(S, "builders", "lanes", "*.json"))):
+        try:
+            d = json.load(open(f, encoding="utf-8"))
+        except (OSError, ValueError) as err:
+            sys.exit(f"target_prune: refused: lane file {os.path.basename(f)} unreadable ({err}); whole candidates need every lane file")
+        if isinstance(d, dict) and d.get("worktree"):
+            lane = str(d.get("lane") or os.path.basename(f))
+            add(tree_of(d["worktree"]), lane, statuses[lane.lower()] if lane.lower() in statuses else d.get("status"))
+    return users
+
+
+def whole_basis(c, statuses, bound):
+    """Why the owner lane is settled for whole removal, or None."""
+    no_row = str(c.get("status", "")).startswith("no ledger row")
+    if c["owner"] in statuses:
+        s = statuses[c["owner"]]
+        return str(s) if settled_whole(s) and not no_row else None
+    tree = os.path.dirname(bound) if bound and os.path.isabs(bound) else None
+    if no_row and tree and not os.path.lexists(tree):
+        return "no ledger row; bound tree gone"
+    return None
+
+
 def command_lines():
     out = subprocess.run(["powershell", "-NoProfile", "-Command",
                           "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.Name -in 'cargo.exe','rustc.exe','link.exe','rust-lld.exe','cargo-nextest.exe' -or $_.Name -like '*test*' } | ForEach-Object { $_.CommandLine }"],
@@ -119,6 +223,8 @@ def main():
         return s.startswith("PASS_V") or s == "READY_FOR_VALIDATION"
 
     in_use = {v["tree"] for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items() if not settled(statuses.get(k.lower()))}
+    wants_whole = any(c["id"] in approved and c.get("kind") == "whole" for c in plan["candidates"])
+    users = tree_users(led, statuses) if wants_whole else {}
     procs = command_lines()
     results = []
     total = 0
@@ -128,28 +234,67 @@ def main():
         row = {"id": c["id"], "owner": c["owner"], "planned_gib": c["gib"]}
         results.append(row)
         path = c["path"].replace("\\", "/")
-        if c.get("kind") != "partial" or not allowed_path(path):
+        whole = c.get("kind") == "whole"
+        if whole:
+            row["kind"] = "whole"
+            path = whole_path(c["owner"], path)
+            if path is None:
+                row["status"] = "REFUSED_PATH"
+                continue
+        elif c.get("kind") != "partial" or not allowed_path(path):
             row["status"] = "REFUSED_PATH"
             continue
         if not os.path.isfile(os.path.join(path, ".studio-workspace-root")) or not os.path.isdir(os.path.join(path, "debug", ".fingerprint")):
             row["status"] = "REFUSED_NOT_A_TARGET"
             continue
-        if c["owner"] in in_use:
-            row["status"] = "SKIPPED_IN_USE_BY_LANE"
-            continue
-        if c["owner"] != "studio-round" and not settled(statuses.get(c["owner"], "")):
-            row["status"] = "SKIPPED_STATUS"
-            continue
-        if path.lower() in procs:
-            row["status"] = "SKIPPED_PROCESS"
-            continue
+        if whole:
+            bound = open(os.path.join(path, ".studio-workspace-root"), encoding="utf-8").read().strip()
+            row["bound_to"] = bound
+            if c["owner"] in users:
+                row.update(status="SKIPPED_IN_USE_BY_LANE", used_by=sorted(users[c["owner"]]))
+                continue
+            basis = whole_basis(c, statuses, bound)
+            tree = os.path.dirname(bound) if os.path.isabs(bound) else ""
+            if basis is None:
+                row.update(status="SKIPPED_STATUS", lane_status=statuses.get(c["owner"], "no ledger row"))
+                if c["owner"] not in statuses:
+                    row["bound_tree_exists"] = os.path.lexists(tree) if tree else None
+                continue
+            row["settled_by"] = basis
+            tree = tree.replace("\\", "/").lower()
+            if path.lower() in procs or (tree and tree in procs) or re.search(r"(?<![a-z0-9_.-])" + re.escape(c["owner"].lower()) + r"(?![a-z0-9_.-])", procs):
+                row["status"] = "SKIPPED_PROCESS"
+                continue
+        else:
+            if c["owner"] in in_use:
+                row["status"] = "SKIPPED_IN_USE_BY_LANE"
+                continue
+            if c["owner"] != "studio-round" and not settled(statuses.get(c["owner"], "")):
+                row["status"] = "SKIPPED_STATUS"
+                continue
+            if path.lower() in procs:
+                row["status"] = "SKIPPED_PROCESS"
+                continue
         seen = newest(path)
         if seen != c.get("newest_file_utc"):
             row.update(status="SKIPPED_CHANGED", newest_now=seen, newest_planned=c.get("newest_file_utc"))
             continue
-        files, dirs, dir_bytes = select(c)
+        if whole:
+            try:
+                files, subdirs = whole_contents(path)
+            except ValueError as err:
+                row.update(status="REFUSED_LINK_INSIDE", error=str(err))
+                continue
+            except OSError as err:
+                row.update(status="SKIPPED_UNREADABLE", error=str(err))
+                continue
+            dirs, dir_bytes = [path], 0
+        else:
+            files, dirs, dir_bytes = select(c)
         size = sum(s for _, s in files) + dir_bytes
         row.update(files=len(files), dirs=[d.replace("\\", "/") for d in dirs], gib=round(size / GIB, 2))
+        if whole:
+            row["subdirs"] = len(subdirs)
         if c["gib"] and abs(size / GIB - c["gib"]) > 0.05 * c["gib"] + 0.02:
             row["status"] = "SKIPPED_DIFFERS_FROM_PLAN"
             continue
@@ -160,10 +305,19 @@ def main():
         done = 0
         started = time.time()
         for n, (p, s) in enumerate(files, 1):
+            if whole and not p.replace("\\", "/").startswith(path + "/"):
+                raise SystemExit(f"target_prune: refused file outside {path}: {p}")
             os.remove(p)
             done += s
             if n % MAX_FILES_PER_SEC == 0:
                 time.sleep(max(0.0, n / MAX_FILES_PER_SEC - (time.time() - started)))
+        if whole:
+            for d in subdirs:
+                if not d.replace("\\", "/").startswith(path + "/"):
+                    raise SystemExit(f"target_prune: refused directory {d}")
+                os.rmdir(d)
+            os.rmdir(path)
+            dirs = []
         for d in dirs:
             if os.path.basename(d) != "incremental" or not d.replace("\\", "/").startswith(path + "/"):
                 raise SystemExit(f"target_prune: refused directory {d}")
