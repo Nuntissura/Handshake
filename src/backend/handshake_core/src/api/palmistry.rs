@@ -3717,6 +3717,13 @@ async fn record_argus_receipt(
     .payload(payload.clone())
     .build()
     .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
+    let mut mirror_payload = json!({
+        "diagnostic_id": "argus.action_receipt",
+        "type": "argus.action_receipt",
+        "receipt": payload,
+    });
+    scope.stamp_json_object(&mut mirror_payload)
+        .map_err(|_| PalmistryLaunchError::bad_request("Argus receipt scope is invalid"))?;
     let event_ledger_event_id = state
         .palmistry_store
         .append_kernel_event(kernel_event, authority, flight_recorder_event_id)
@@ -3726,31 +3733,49 @@ async fn record_argus_receipt(
                 "Argus EventLedger receipt append failed: {error}"
             ))
         })?;
-    let mirror_exists = !state
-        .recorder
-        .list_events(EventFilter {
-            event_id: Some(flight_recorder_event_id),
-            ..EventFilter::default()
-        })
-        .await
-        .unwrap_or_default()
-        .is_empty();
+    mirror_payload["event_ledger_event_id"] = json!(&event_ledger_event_id);
+    let workspace_id = scope.workspace_id.as_str().to_owned();
     let mut flight_event = FlightRecorderEvent::new(
         FlightRecorderEventType::Diagnostic,
         FlightRecorderActor::Agent,
         request.diagnostics_session_id,
-        json!({
-            "diagnostic_id": "argus.action_receipt",
-            "type": "argus.action_receipt",
-            "event_ledger_event_id": event_ledger_event_id.clone(),
-            "receipt": payload,
-        }),
+        mirror_payload,
     )
-    .with_actor_id(request.agent_id);
+    .with_actor_id(request.agent_id)
+    .with_wsids(vec![workspace_id.clone()]);
     flight_event.event_id = flight_recorder_event_id;
-    flight_event.trace_id = request.diagnostics_session_id;
-    let flight_recorder_mirrored =
-        mirror_exists || state.recorder.record_event(flight_event).await.is_ok();
+    flight_event.normalize_payload();
+
+    use crate::swarm_orchestration::resource_scope::ResourceScopeQuery;
+    let mirror_filter = EventFilter {
+        event_id: Some(flight_recorder_event_id),
+        wsid: Some(workspace_id),
+        resource_scope: Some(
+            ResourceScopeQuery::for_owner(scope.owner_account_id)
+                .within_workspace(scope.workspace_id.clone()),
+        ),
+        ..EventFilter::default()
+    };
+    let events = match state.recorder.list_events(mirror_filter.clone()).await {
+        Ok(events) if events.is_empty() => {
+            // A concurrent writer can win the insert, so confirm what the recorder stored.
+            let _ = state.recorder.record_event(flight_event.clone()).await;
+            state.recorder.list_events(mirror_filter).await
+        }
+        result => result,
+    };
+    let flight_recorder_mirrored = events.is_ok_and(|events| {
+        let [stored] = events.as_slice() else {
+            return false;
+        };
+        stored.event_id == flight_event.event_id
+            && stored.trace_id == flight_event.trace_id
+            && stored.event_type == flight_event.event_type
+            && stored.actor == flight_event.actor
+            && stored.actor_id == flight_event.actor_id
+            && stored.wsids == flight_event.wsids
+            && stored.payload == flight_event.payload
+    });
     Ok(Json(ArgusActionDurabilityReceipt {
         event_ledger_event_id,
         flight_recorder_event_id: flight_recorder_mirrored.then_some(flight_recorder_event_id),
