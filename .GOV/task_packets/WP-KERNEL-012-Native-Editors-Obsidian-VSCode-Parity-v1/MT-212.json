@@ -5102,6 +5102,81 @@
         "current_admission": "NONE"
       },
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "embedded-session-route-identity-test-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_COLD_CAPTURE_UNQUALIFIED_WARM_PROOF_PENDING",
+      "pico_refs": [
+        "GUI-WP012-graph-folders"
+      ],
+      "original_contract_ref": "MT-022.json",
+      "source_author": "/root/route_identity_coding",
+      "source_reviewer": "/root/schema_warm_codecheck",
+      "published_head": "e018430e7c096531bcb8894ca613079afbaf5c8c",
+      "published_tree": "35acad2b6703fb0381b3d28cfcf9261f05ef6a1c",
+      "parent": "374231101dadabe3971a5ab64e81ebbf47398e62",
+      "published_git_blob": "fc0f3968c2f4e653ef9625026321d8a86fc3bf3d",
+      "published_only_path": "src/backend/handshake_core/src/api/authority.rs",
+      "live_candidate_raw_sha256": "521607b84f51f538b47c712491d386c20e6344ebbc2708b4b691a72ace311ad3",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-warm-acquisition-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "1383dda2102098fa387501945c5736743fbad0c9d22f39a4cdeb6bc72fd263f3"
+      },
+      "cold_compile_feedback": {
+        "capture_result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/result.json",
+          "bytes": 5642,
+          "sha256": "1f8dc8cdce3b60802a433af894c6af43c96ba6f37d83cddaae0f507dc4d3d2d6"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/released.json",
+          "bytes": 2239,
+          "sha256": "30c478f2a994fad3af8927be953d9dc24cbfd59db52544bd5ac81093232875f7"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/postguards.json",
+          "bytes": 1868,
+          "sha256": "e8c32a5169634846b327be9c4ca2f558cca69756f3227706f48dcc413593245a"
+        },
+        "cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2034599,
+          "sha256": "dd35b68eb36ab6161aea368a3aa7912928e6094ec3103556d908a67cfe14e22a"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "06b473b6d7cc2ef7e50da5b8fc9cfa2af41b767dee96b25a7abac7bc6c61d469"
+        },
+        "handoff": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-route-identity-codegen-custody-20261111-01/producer-terminal-handoff.json",
+          "bytes": 3174,
+          "sha256": "4c44e4b5c250f42424b877527eeff2b03ebf060efa9428ac059b67fa147bd35e"
+        }
+      },
+      "compiled_executable": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "final_path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_core-ed05041c61d5ee60.exe",
+        "bytes": 445665792,
+        "sha256": "0e1ea0ca0c7f4649fc015972ace1182e0bf30e667cce4bde753e9ebc4452a6b3",
+        "file_id": {
+          "volume_serial": 705387220,
+          "file_index": 1125899909992958
+        },
+        "PE": {
+          "machine": "AMD64",
+          "machine_hex": "0x8664",
+          "optional_magic": "0x020b",
+          "characteristics": 34
+        },
+        "read_handle_retained_until_checked_release": true
+      },
+      "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
+      "cold_capture_qualified": false,
+      "producer_exit": 1,
+      "next_proof": "One exact warm-only published Core library --no-run with same preheld PE and every Cargo artifact fresh. Separate qualified acquisition and independent one-case runtime are required. Prior base and production-schema diagnostic passes stay valid. Old HTTP attempts remain spent.",
+      "original_acceptance": "OPEN"
     }
   ],
   "picotask_plan": {
