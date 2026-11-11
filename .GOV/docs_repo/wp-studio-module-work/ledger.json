@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-11T10:14:09Z",
+ "updated_at": "2026-11-11T10:39:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -22361,6 +22361,16 @@
     "added_at": "2026-11-07T17:49:57Z",
     "item": "Viewer::run_command does not accept layer.set_visible (the host calls Viewer methods directly)",
     "owner": "a later harness-view typed-rows slice"
+   },
+   {
+    "added_at": "2026-11-11T10:39:51Z",
+    "item": "layer.delete of a threaded text-frame layer re-links the thread past the frame (or ends it) and drops its flow records in one undo step; undo restores; reopen editable (replaces the typed refusal layer_bound_by_layout_records that SMB-R60-FOLLOWUPS-1 adds)",
+    "owner": "layout UI / harness-view layers.rs (from the SMB-R60-FOLLOWUPS-1 review c43f2d90)"
+   },
+   {
+    "added_at": "2026-11-11T10:39:51Z",
+    "item": "diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run: child abort did not end in 60 s under D: load in SMB-SCORE-EFFECTS-6 bundled run 1 (cause NOT_INSPECTED; no error-report event); record only if it repeats",
+    "owner": "harness-core diag sink (SMB-OBSERVE-DIAG-SINK-1 area)"
    }
   ],
   "pause_20261103": {

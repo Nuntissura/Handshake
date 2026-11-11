@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T10:38:33Z",
+ "updated_at": "2026-11-11T10:39:51Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -110,7 +110,8 @@
    "Item 6 graphic frame on a deleted page: ACCEPTED as the named typed case page_not_empty (content on the page, as for text frames; removal with content stays the next-lane candidate). Catch-all at containers.rs:582: ACCEPTED only as a fail-closed guard that names the failing record kind and id in the typed refusal; list in the lane notes which record kinds can reach it.",
    "Item 6 test APPROVED: a parent-bound page that is the only page of its spread. Delete it, undo restores the spread, the binding and the spread id, and the layout reopens editable.",
    "Text-frame layer deleted outside the layout editor: owned by SMB-LAYOUT-PLACE-1 (its delete_layer ruling, clarified today to cover flow records). Not this lane.",
-   "Then: one bundled run on D: after items 3a, 3b and export_audio (after SMB-SCORE-EFFECTS-6 LANDED), BUNDLED GREEN, wait for RELEASED."
+   "Then: one bundled run on D: after items 3a, 3b and export_audio (after SMB-SCORE-EFFECTS-6 LANDED), BUNDLED GREEN, wait for RELEASED.",
+   "ADDED 2026-11-11T10:39Z, after SMB-LAYOUT-PLACE-1 LANDED (it owns delete_layer's frame-layer path): deleting a text-frame layer that a layout flow or thread record names refuses typed layer_bound_by_layout_records, naming the record and checked before any change, so no save can leave a stale entry that locks the layout. Red test first: delete such a layer, expect the typed refusal, document unchanged, save, reopen, layout editable. PATH APPROVED as beyond_brief: the harness-view layers.rs delete route, that check only. Same bundled run as item 3. Full re-linking (thread continues past the deleted frame in one undo step) is a next-lane candidate, not this lane."
   ],
   "SMB-LAYOUT-PLACE-1": [
    "Review fbf7f0cd F1: the export link gate caches the link state per source_id, hashes each source once per export, checks the cancel token per frame.",
@@ -122,7 +123,8 @@
    "Add the brief's hostile tests (oversized, truncated, wrong-format and zero-dimension sources; a path outside the root; a link to a folder).",
    "Pass PNG pHYs and JPEG JFIF/EXIF density when the decoder exposes it; else 72, named, SD item.",
    "Reword the canvas docs line at place.rs:79-81 (layout documents have an empty graph; the canvas does not draw the picture; UNVERIFIED by a run).",
-   "Clarified 2026-11-11T09:58Z (from the SMB-R60-FOLLOWUPS-1 review): deleting a text-frame layer anywhere, not only in the layout editor, drops its frame record and every flow or thread record naming that frame in the same undo step: the thread re-links past the frame or ends there. Undo restores all of it. After save and reopen the layout stays editable. One test covers it."
+   "Clarified 2026-11-11T09:58Z (from the SMB-R60-FOLLOWUPS-1 review): deleting a text-frame layer anywhere, not only in the layout editor, drops its frame record and every flow or thread record naming that frame in the same undo step: the thread re-links past the frame or ends there. Undo restores all of it. After save and reopen the layout stays editable. One test covers it.",
+   "SUPERSEDES the 2026-11-11 text-frame-layer clarification (2026-11-11T10:39Z): the bundled run at a2e66370 started 09:38Z before it, and delete_layer's early return covers graphic-frame layers only, so re-linking would be new code plus a second bundled run in a 9-ticket D: queue. This lane lands WITHOUT it once a2e66370 is BUNDLED GREEN. The text-frame route goes to SMB-R60-FOLLOWUPS-1 after this lane lands."
   ],
   "SMB-WEB-SITE-1": [
    "ADDED ITEM (R60 attempt-2 probe j3, SMB-WEB-HOST-1): web.export and web.publish, and the site export, ask the host's bound JobPort before the first file (resource-less admission is NOT accepted); red test with a saturated port: no file, asked once.",
