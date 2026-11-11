@@ -738,6 +738,12 @@ impl ArgusClient {
         }
     }
 
+    /// Keep the authorized login inputs out of the acceptance transcript.
+    pub fn finish_private_account_bootstrap(&mut self, password: &str) {
+        self.assert_transcript_is_secret_free(&[password]);
+        self.transcript.clear();
+    }
+
     /// Assert the redacted transcript never retained a live credential or the given canaries.
     pub fn assert_transcript_is_secret_free(&self, canaries: &[&str]) -> Vec<u8> {
         let transcript =
@@ -1378,7 +1384,9 @@ impl LiveApp {
         let mut command = Command::new(env!("CARGO_BIN_EXE_handshake-native"));
         command
             .env("LOCALAPPDATA", &tmp)
-            .env("HANDSHAKE_DIAGNOSTICS_DIR", &diagnostics_dir);
+            .env("HANDSHAKE_DIAGNOSTICS_DIR", &diagnostics_dir)
+            .env_remove("HANDSHAKE_PROOF_ACCOUNT_NAME")
+            .env_remove("HANDSHAKE_PROOF_ACCOUNT_PASSWORD");
         if let Some(proxy_url) = proxy_url {
             command
                 .env("HTTP_PROXY", proxy_url)

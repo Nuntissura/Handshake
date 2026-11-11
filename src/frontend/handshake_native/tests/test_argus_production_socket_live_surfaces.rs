@@ -1048,15 +1048,145 @@ fn production_socket_model_runtime_rows_refresh_receipt_negative_states_and_deta
     app.shutdown();
 }
 
+fn apply_operator_chat_bootstrap(
+    app: &mut LiveApp,
+    method: &str,
+    author_id: &str,
+    value: Option<&str>,
+) {
+    let (before, response) = app.client.attempt_mutation(
+        method,
+        "main",
+        author_id,
+        value.map(|value| ("value", serde_json::Value::String(value.to_owned()))),
+    );
+    let receipt = &response["result"];
+    assert!(
+        response["error"].is_null()
+            && receipt["status"] == "applied"
+            && receipt["target"] == author_id
+            && receipt["before_revision"] == before,
+        "the fresh Native account bootstrap did not apply {author_id}"
+    );
+}
+
+fn prepare_operator_chat_account(app: &mut LiveApp) -> serde_json::Value {
+    use handshake_native::mcp::binding::process_birth_identity;
+    use handshake_native::project_tabs::project_tab_author_id;
+
+    let owner = std::env::var("HANDSHAKE_PROOF_ACCOUNT_NAME").expect("bind the private fixture owner");
+    let password = zeroize::Zeroizing::new(
+        std::env::var("HANDSHAKE_PROOF_ACCOUNT_PASSWORD").expect("bind the private fixture password"),
+    );
+    let workspace = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID").expect("bind the admitted workspace");
+    assert!(!owner.is_empty() && !password.is_empty() && !workspace.is_empty());
+
+    wait_for_author_id(&mut app.client, "main", "account.name", SURFACE_TIMEOUT);
+    apply_operator_chat_bootstrap(app, "argus.set_value", "account.name", Some(owner.as_str()));
+    apply_operator_chat_bootstrap(app, "argus.set_value", "account.password", Some(password.as_str()));
+    apply_operator_chat_bootstrap(app, "argus.click", "account.submit", None);
+    wait_for_author_id(&mut app.client, "main", "account.confirm-discard", SURFACE_TIMEOUT);
+    apply_operator_chat_bootstrap(app, "argus.click", "account.confirm-discard", None);
+    wait_for_author_id(&mut app.client, "main", "account.menu", SURFACE_TIMEOUT);
+    app.client.finish_private_account_bootstrap(password.as_str());
+
+    let tab_id = project_tab_author_id(&workspace);
+    let tabs = wait_for_author_id(&mut app.client, "main", &tab_id, SURFACE_TIMEOUT);
+    let project_tabs = collect_author_ids(&tabs["snapshot"]["root"])
+        .into_iter()
+        .filter(|id| id.starts_with("project-tab-"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        project_tabs.as_slice(),
+        &[tab_id],
+        "the proof owner must have exactly one workspace"
+    );
+    // A fresh login selects the sole workspace through the shell's normal activation path.
+    wait_for_author_id(&mut app.client, "main", "menu-run", SURFACE_TIMEOUT);
+    let deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+    let inspected = loop {
+        let snapshot = app.client.poll_inspect("main");
+        let response = app.client.call("argus.inspect", serde_json::json!({
+            "window_id": "main",
+            "window_epoch": snapshot["window_epoch"],
+            "expected_revision": snapshot["revision"],
+            "include_workspace_activation_readback": true,
+        }));
+        if response["error"]["message"] == "Argus window revision is stale"
+            && std::time::Instant::now() < deadline
+        {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            continue;
+        }
+        assert!(response["error"].is_null(), "workspace activation readback failed");
+        break response["result"].clone();
+    };
+    let activation = &inspected["workspace_activation_readback"];
+    let observation = &activation["observation"];
+    assert!(
+        activation["status"] == "observed"
+            && activation["source"] == "fresh_canonical_get"
+            && activation["cached"] == false
+            && activation["expected"]["workspace_id"] == workspace
+            && observation["workspace_id"] == workspace
+            && observation["outcome"]["status"] == "applied"
+            && observation["readiness"]["status"] == "current",
+        "the Native shell did not publish canonical readiness for the admitted workspace"
+    );
+    let association = &inspected["internal_diagnostics"]["owner_association"];
+    assert_eq!(association["parent_pid"], app.child_pid);
+    assert_eq!(
+        association["parent_process_birth"],
+        serde_json::to_value(process_birth_identity(app.child_pid).expect("Native process birth"))
+            .expect("encode Native process birth"),
+    );
+    let watcher_pid = association["watcher_launch_pid"].as_u64()
+        .and_then(|pid| u32::try_from(pid).ok())
+        .filter(|pid| *pid != 0 && *pid != app.child_pid)
+        .expect("signed startup must identify the separate Palmistry process");
+    let watcher_birth = process_birth_identity(watcher_pid).expect("Palmistry process birth");
+
+    // The server can persist this receipt only after the real adopted child supplies the key.
+    let receipt = app.client.mutation_on_live_surface("argus.click", "main", "account.menu", None);
+    app.client.mutation_on_live_surface("argus.click", "main", "account.menu", None);
+    serde_json::json!({
+        "workspace_id": workspace,
+        "activation_operation_id": observation["operation_id"],
+        "diagnostics_session_id": association["session_id"],
+        "native_process_birth": association["parent_process_birth"],
+        "watcher_launch_pid": watcher_pid,
+        "watcher_process_birth": watcher_birth,
+        "watcher_launch_process_instance_id": association["watcher_launch_process_instance_id"],
+        "durable_adoption_gate_receipt": receipt["result"]["evidence_ref"],
+    })
+}
+
 #[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires injected \
             embedded SurrealDB, Palmistry-ready handshake_core on 127.0.0.1:37501, \
             HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
 #[test]
 fn operator_chat_live_argus_docked_and_detached_launch_transcript() {
+    assert_eq!(std::env::var("HANDSHAKE_NATIVE_TEST").as_deref(), Ok("1"),
+        "the owned production socket proof must use quiet Native startup");
     let foreground_before = foreground_process_id();
     let mut app = LiveApp::start("operator_chat");
+    let fixture = prepare_operator_chat_account(&mut app);
 
-    app.open_models_menu_leaf("menu.models.operator-chat");
+    let (menu_id, leaf_id) = ("menu-run", "menu.models.operator-chat");
+    app.client
+        .mutation_on_live_surface("argus.click", "main", menu_id, None);
+    let menu = wait_for_author_id(
+        &mut app.client,
+        "main",
+        leaf_id,
+        std::time::Duration::from_secs(10),
+    );
+    assert!(
+        contains_author_id(&menu["snapshot"]["root"], leaf_id),
+        "RUN menu did not expose {leaf_id}"
+    );
+    app.client
+        .mutation_on_live_surface("argus.click", "main", leaf_id, None);
     let opened = wait_for_author_id(&mut app.client, "main", SURFACE_AUTHOR_ID, SURFACE_TIMEOUT);
     let root = opened["snapshot"]["root"].clone();
     let pane_id = pane_id_hosting(&root, &PaneType::OperatorChatLaunch.label());
@@ -1347,7 +1477,8 @@ fn operator_chat_live_argus_docked_and_detached_launch_transcript() {
         "mt_id": "MT-012",
         "child_pid": app.child_pid,
         "authenticated_agent_id": app.client.observed_participant_id(),
-        "navigation": ["menu-models", "menu.models.operator-chat"],
+        "navigation": [menu_id, leaf_id],
+        "account_fixture": fixture,
         "pane_id": pane_id,
         "foreground_pid_before": foreground_before,
         "foreground_pid_after": foreground_after,

@@ -2190,7 +2190,8 @@ in Files (menu.edit.find-all, Ctrl+Shift+F), Replace in Files, plus Command Pale
   command and reach the same mounted pane or overlay. EDITORS opens editor-specific side panes and commands: \
   Outline, Relevant Memory, Outgoing Links, Stage, Route selection to Stage, Capture and embed from Stage, Sidebar, Daily Journal, Format \
   Document, Next/Previous Diagnostic, Rename Symbol, and Quick Fix. RUN launches operational surfaces: Open Swarm Board, \
-Open Inference Lab, Open Flight Recorder, Launch Model Session in Workspace Folder \
+Open Inference Lab, Open Flight Recorder, Open Operator Chat (menu.models.operator-chat), \
+Launch Model Session in Workspace Folder \
 (menu.run.model-session-launch), and Open Terminal in Workspace Folder (menu.run.terminal). HELP opens the \
 User Manual, Settings, and About. Every enabled item dispatches its REAL command by id through the one shell \
 dispatcher and every disabled item is honestly greyed with a reason (no lying-enabled entries). OPERATOR is \
@@ -3042,6 +3043,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Read model-session launch status",
             mcp_tool: "list_widgets",
             description: "list_widgets surfaces model-session-launch-status after launch; it distinguishes POST /jobs job creation from NEEDS_MANAGED_RESOURCE_PROOF and EndpointMissing kernel_swarm_spawn_session.",
+        },
+        AgentToolRow {
+            author_id: "menu.models.operator-chat",
+            surface: ManualSurface::Model,
+            action_label: "Open Operator Chat from the Run menu",
+            mcp_tool: crate::mcp::argus::ARGUS_CLICK_METHOD,
+            description: "Open RUN (menu-run), then argus.click{target:'menu.models.operator-chat'}. Inspect operator-chat.surface for the available models, launch status, and transcript.",
         },
         AgentToolRow {
             author_id: INFERENCE_LAB_MENU_AUTHOR_ID,

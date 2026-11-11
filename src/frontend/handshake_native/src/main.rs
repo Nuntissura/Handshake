@@ -523,7 +523,7 @@ fn main() -> eframe::Result<()> {
             &session.ring_path,
             &control_socket,
             native_lease,
-            uuid::Uuid::new_v4(),
+            uuid::Uuid::now_v7(),
             launch_nonce,
             zeroize::Zeroizing::new(signing_seed.to_vec()),
             provenance.transport_public_key(),
