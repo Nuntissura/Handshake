@@ -23296,7 +23296,23 @@
     "projection": "Tree 307.94 GiB now. With T executed after the four C: lanes land, and NO C: lane build during R60 attempt 3, the round peaks at about 335.5 GiB, under the 355 stop. If lanes keep building on C: during the round: about 375.5 GiB (over the cap).",
     "tool_change_N1": "tools/lead/target_prune.py: a READY_FOR_VALIDATION lane counts as settled like PASS_V, because record_ready.py checks its commits are on origin before writing READY. The process check and the newest-file check still refuse a target being written. Dry run now: all four SKIPPED_IN_USE_BY_LANE (their lanes are building), total 0.",
     "not_done": "N2 (a whole-target kind for 7 idle targets, 26.45 GiB) and N3 (round selection by unit hash, 9.70 GiB) need tool work; reuse comes before removal for 4 of those targets.",
-    "operator_decision": "Approve plan T (T-C01..T-C04). The lead executes it only after the four C: lanes have landed, with a fresh inspection and a refreshed gib and newest_file_utc per candidate (a changed candidate needs fresh approval), then dispatches R60 attempt 3 with no C: lane build during the round."
+    "operator_decision": "Approve plan T (T-C01..T-C04). The lead executes it only after the four C: lanes have landed, with a fresh inspection and a refreshed gib and newest_file_utc per candidate (a changed candidate needs fresh approval), then dispatches R60 attempt 3 with no C: lane build during the round.",
+    "operator_approval": {
+     "at": "2026-11-11T06:40:43Z",
+     "words": "Approve plan T (Operator in chat, 2026-11-11, sent twice with 'Try again' after the usage limit).",
+     "scope": "T-C01 smb-r54-followups-1, T-C02 smb-pr-retime-output-1, T-C03 smb-pr-nudge-1, T-C04 smb-layout-composer-depth-1: partial older_copies only, as the lead's question put it: removed after each C: lane lands, with a fresh inspection; a candidate whose size moved past the tool's 5% check is presented again for fresh approval."
+    }
+   },
+   "usage_limit_stop": {
+    "at": "2026-11-08 about 10:10Z",
+    "what": "Every agent (11 builders, 3 reviewers, the cargo inspector having finished) stopped with an API weekly usage limit error (reset 2026-11-10 12:00 Europe/Brussels). Their work is on disk: commits and uncommitted edits in each lane tree; no build process or held lock was left (swept 2026-11-11T06:35Z). Origin stayed at 88b5500c.",
+    "found_after": "SMB-AI-LIVE-EFFECTS-1's bundled run at 1e652818 finished after its agent stopped: 900 passed, 1 skipped, EXIT 0 (bundled-smb-ai-live-effects-1-1e652818.log).",
+    "resume_rule": "Lanes are taken over by fresh builders from their trees, lane files and research/lead-rulings-20261108-by-lane.json (the old agents' contexts are 400k to 800k tokens with an expired cache, so a fresh takeover costs less). Rulings given only by message are now in that file."
+   },
+   "lane_check_registry": {
+    "at": "2026-11-11T06:40:43Z",
+    "change": "tools/lane-check.sh step 0 runs tools/registry-sync.py in check mode after the policy scan and returns 70 on drift (F-R60-2 closed for registry pins and probe APPROVED; path-edge approval still needs the steward probe). Edited while no lane run was in flight.",
+    "proof": "bash -n OK; --step0-only on a clean tree at 88b5500c: policy clean, registry in sync, exit 0. The drift path (exit 70) was not exercised."
    }
   }
  },

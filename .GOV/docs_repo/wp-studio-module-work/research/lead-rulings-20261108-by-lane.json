@@ -1,0 +1,92 @@
+{
+ "schema": "hsk.studio.lead_rulings_by_lane@1",
+ "file_id": "LEAD-RULINGS-20261108-BY-LANE",
+ "updated_at": "2026-11-11T07:00:00Z",
+ "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
+ "common": [
+  "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
+  "Any lane that changes a Viewer command's refusal order runs every harness process test that drives that command, with a freshly built examples/studio-harness.exe (the 35c50d3b trunk break).",
+  "Every export is admitted through the Viewer's bound JobPort before its first byte, with typed overloaded, canceled and stale outcomes, using the as_export_job pattern at harness-view view/layout_export.rs:543 (R60 attempt-2 probe class export-job-not-admitted-jobport).",
+  "lane-check.sh step 0 now also runs tools/registry-sync.py in check mode and exits 70 on registry drift: a new registry dependency needs a dep-requests line and a lead steward sync before landing.",
+  "Lanes land one at a time on the lead's RELEASED; a READY claim cites the lane's own bundled and per-sha logs.",
+  "A deleted object's records are removed in the same undo step as the object, and undo restores both (rule set for parented pages, frame layers and component definitions)."
+ ],
+ "lanes": {
+  "SMB-AI-LIVE-EFFECTS-1": [
+   "Review dd9ef0b6 F1: charge each evaluation's output, not only its sources (vector_live_filters.rs:121-123); budget tests re-numbered; red test for step-repeat amplification.",
+   "F2: transform_live_filters refuses typed when any resulting value is non-finite, before commit, disabled entries included.",
+   "F3: the bundled run adds the harness-core whole suite plus harness_drive_typed and document_new.",
+   "F4: PATH APPROVED crates/hsk-studio-harness-view/src/view/vector/envelope.rs: expand_envelope refuses typed while the layer has any live-filter stack, enabled or not (STU-FX-003, STU-VEC-054); additive refusal only.",
+   "F5: the pre-canceled test must fail without the lane's code; the mid-stack cancel test is deterministic.",
+   "F6: reachable through interop-fig-native cached outlines: a cached boolean group with a filtered operand refuses vector_effect_source (done by the builder).",
+   "Item 5 (exporter loss lines) follows SMB-ARTBOARD-EXPORT-1, which landed at 35c50d3b."
+  ],
+  "SMB-TYPE-INDENT-SPACING-1": [
+   "Stop rule: re-break the last line only when the narrowed width holds the widest box; otherwise the line is overfull, a typed outcome. Acceptance: AdobeParagraph at 5000 words composes; line counts at 600 and 1800 words back to baseline; Knuth-Plass on the 170 pt case near its 19 ms baseline; measurements at 0, 30, 100 and 170 pt in release and debug in the lane notes. If the refusal point still moves at 100 pt, stop and report the numbers.",
+   "PATH APPROVED harness-view layout_export.rs:771-773 (`let mut out` and out.loss.extend(type_style_composition_loss(&doc.styles))) plus the host test.",
+   "Review a300982c F1: text inserted at the start of paragraph P belongs to P, for P = 0 and P > 0, with its local override and span/split record (textflow.rs map_pos).",
+   "F2: after column balancing, recompute space-before for paragraphs whose column-top status changed (threaded_reflow.rs:1560-1563).",
+   "F3: on both Adobe composers the last-line fit gate uses the narrowest width allowed compression reaches.",
+   "F4: widest-word gate at the tip; split paragraphs get no re-break, pinned by a test and named.",
+   "F5: fix the stale keys in xref.rs:465, find_change.rs:401 and data_merge.rs:344 with one red test each (in the lane's crates).",
+   "F6: the EditStyle composition key merges only the fields the patch sets.",
+   "F7: the export loss line and its host test.",
+   "The empty-story terminator case is a named next-lane candidate."
+  ],
+  "SMB-SCORE-EFFECTS-6": [
+   "Review 9322e833 F1: harness/tests/audio_batch.rs:235 uses a nonsense filter_kind (flux_capacitor).",
+   "F2 (done after the SMB-DRIVE-TYPED-2 rebase): harness_drive_audio.rs:403 nonsense template; TEMPLATES lists all 16 names in harness-core commands/mixer.rs and harness-view view/commands/mixer.rs with the equality test; waveform.noise_reduce rows in both crates; PATH APPROVED waveform.noise_reduce in harness_drive_audio SLICE_ROWS.",
+   "F3: no bit-for-bit digest block on replay: same source and range recompute the noise print and record noise_print_recomputed with both digests (op record, observe frame, status line); a different source refuses typed.",
+   "F4: one 256 MiB aggregate effect-state budget across all buses, checked in build_bus_stream so mixer, Viewer::bus_stream, playback, mixdown, stems and Export Media share it.",
+   "F5: the stability test prints MEASURED; the impulse-decay note is its own ignored test with the reason.",
+   "Gaps: sequence_sound repair replay, program_stream and Export Media record their recomputes; hsk-studio-pulse nest.rs stays NOT_INSPECTED and named.",
+   "Red proof of 2cc5e307 against c8835697 in the lane's own tree: clean status, git switch --detach c8835697, git cherry-pick --no-commit 2cc5e307, run the one test, git reset --hard on the detached state, git switch back; if the pick does not apply, record red by construction with the reason. Never a second tree (P3, HSK-ART-005).",
+   "SMB-DELIVERY-QUEUE-1 rebases after this lane lands (timeline/export_media.rs)."
+  ],
+  "SMB-PARSER-HOSTILE-1": [
+   "Keep XML_MAX_NESTING 256; the guarded XML parse runs on a fixed 8 MiB worker thread behind the non-recursive depth pre-check; a panic or join error is a typed refusal. Mint-free walks stay on the caller (about 250 B/level measured).",
+   "Principle: a bound stops hostile amplification and never refuses a big legitimate print file; every refusal typed.",
+   "Limits: per stream refuse decoded > 2 GiB, or decoded > 256 MiB at decoded/encoded > 1024; images up to 150 Mpx at any colour space and bit depth; a 4 GiB per-call budget, no whole-document total; 50,000,000 operators per stream; a bad Flate tail keeps base behaviour with a warning. Required passes: 300 dpi A3 Flate CMYK 8 and 16 bit, A2 RGB 300 dpi JPEG and Flate. Required refusals: a 1 KiB stream inflating past 256 MiB, a 200 Mpx image.",
+   "Encryption is out of scope: base behaviour on every route that read encrypted files before.",
+   "CIDToGIDMap, CIDSet, halftone and ICC streams are data, never scanned as syntax.",
+   "F8 option B: hayro keeps the original bytes; the residual is named; next-lane candidate: press-read exposes an xref-repair signal.",
+   "The lane yields its landing slot to any feature lane ready at the same time."
+  ],
+  "SMB-DELIVERY-QUEUE-1": [
+   "PATHS APPROVED: (1) one \"delivery\" arm in harness-view view/commands.rs run_row plus delivery.* and export.recipe_* decoders in view/commands/export.rs; (2) one CommandSpec row `deliver` in harness-core manual.rs; (3) session tests/entry_references.rs one NOT_APPLICABLE row export_recipes, count = origin's count + 1, token appended at the end; (4) session src/lib.rs mod export_recipes and pub use EXPORT_RECIPES_ENTRY; (5) new harness-core src/harness/export_recipes.rs plus its one pub mod line (an entry-only named undo step with the caller's CommandContext, one op record, one observe frame, removal supported), scanned by action_records.",
+   "Review of 44da1364 was cut off by the limit; it is redone before the bundled run."
+  ],
+  "SMB-DS-COMPONENTS-AUTHOR-1": [
+   "PATH APPROVED: view/vector/style.rs about 310-313, in the same function as 291-300 (design nodes carrying only component_property_references).",
+   "Review of fa15c84d was cut off by the limit; it is redone before the bundled run. Priority checks: a deleted definition's instance binding (detach or refuse, from the spec); caps counted after the serde parse; auto_layout.rs al_commit after a definition delete; duplicate_layer of an instance."
+  ],
+  "SMB-MOTION-COMMANDS-2": [
+   "ADDED ITEM (R60 attempt-2 probe, SMB-MOTION-COMMANDS-1): add_at_current with a value on an anchor without a stream changes the rendered scene (harness-core motion_commands.rs:1738) against STU-MOT-038: refuse typed or apply as the clause says; set_parent's choice made explicit. Red tests first."
+  ],
+  "SMB-R60-FOLLOWUPS-1": [
+   "Item 6a CHANGED: page.delete of a parent-bound page succeeds and, in the same undo step, drops the deleted page's parent binding and any record keyed to it, so the entry validates after save and reopen; undo restores both; refuse typed page_bound_by_layout_records only where a record cannot be updated consistently, each case named.",
+   "PATH APPROVED crates/hsk-studio-harness/tests/layout_persist.rs:191-216: keep the claim (a stale entry is refused, not replaced) with the stale entry built directly as a quarantined package entry naming a missing page.",
+   "PATH APPROVED crates/hsk-studio-harness/tests/layout_pdf_host.rs:232-234: split layout.open out of the mutates check and assert mutates_authority true (STU-AUT-147).",
+   "Items 3a and 3b (audio_session.rs admissions) wait for SMB-SCORE-EFFECTS-6 to land."
+  ],
+  "SMB-LAYOUT-PLACE-1": [
+   "Review fbf7f0cd F1: the export link gate caches the link state per source_id, hashes each source once per export, checks the cancel token per frame.",
+   "F2: PATH APPROVED: move the link gate to just after the preflight check (layout_export.rs about :560); the layout_export.rs commit stays last.",
+   "F3: decode frame ids once per command.",
+   "profile() tagging working-space paint colours as linear ICC: if it changes PDF output of documents without placements, restore their bytes and pin them; else keep and name the rule.",
+   "Deleting a frame layer drops its frame record in the same undo step.",
+   "update_all_modified accepts resized sources and refits each frame by its stored fit mode as one undo step; a frame that cannot refit refuses typed and the others proceed.",
+   "Add the brief's hostile tests (oversized, truncated, wrong-format and zero-dimension sources; a path outside the root; a link to a folder).",
+   "Pass PNG pHYs and JPEG JFIF/EXIF density when the decoder exposes it; else 72, named, SD item.",
+   "Reword the canvas docs line at place.rs:79-81 (layout documents have an empty graph; the canvas does not draw the picture; UNVERIFIED by a run)."
+  ],
+  "SMB-WEB-SITE-1": [
+   "ADDED ITEM (R60 attempt-2 probe j3, SMB-WEB-HOST-1): web.export and web.publish, and the site export, ask the host's bound JobPort before the first file (resource-less admission is NOT accepted); red test with a saturated port: no file, asked once.",
+   "Accepted: .css scanning (url() rewritten on a move), case_mismatch, the refusals output_inside_site, entry_document_missing, move_site_record, move_kind_changes and move_case_only (named in the lane file and manual rows), folder links without a trailing slash listed.",
+   "web.move_file refuses typed move_open_package when the source or destination is the opened document's package or inside it (fix in web_site.rs; no cli/drive.rs edit)."
+  ],
+  "SMB-DEVELOP-COMMANDS-1": [
+   "ADDED ITEM (R60 attempt-2 probe, SMB-COMMAND-SURFACE-1): photo.info.* rows (harness-core commands/photo.rs about :20) are declared non-mutating but add an undo step: from the spec, either they add no step (queries) or the rows say mutating; red test; name it in the lane file."
+  ]
+ }
+}

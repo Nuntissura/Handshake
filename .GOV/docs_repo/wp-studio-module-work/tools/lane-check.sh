@@ -42,8 +42,8 @@
 #   artifacts are shared. One disk-lock hold for the whole range, as the bundled run. No --locked (a commit waiting
 #   for a steward sync may carry an unsynced lock; the round's step 0 reports that). Logs: <artifact root>/WP-KERNEL-
 #   STUDIO/<owner>/per-sha-<tip8>/<sha8>-<unit>.log (first line = the sha); the temp tree is removed afterwards.
-# Exit: 72/71 step 0 policy hit (round codes), 2 usage or step 0 config error; else clippy's status when it fails
-#   (the tests are not run), else the test run's status. --per-sha: the first failing unit's status (step 0: 72/71/2),
+# Exit: 72/71 step 0 policy hit (round codes), 70 registry drift (registry-sync check), 2 usage or step 0 config error; else clippy's status when it fails
+#   (the tests are not run), else the test run's status. --per-sha: the first failing unit's status (step 0: 72/71/70/2),
 #   2 on a range/archive/metadata error, else 0.
 set -uo pipefail
 owner="" disk=ssd tests="" step0_only=0 step0_selftest="" per_sha=""
@@ -148,7 +148,20 @@ lane_step0() {
   fi
   step0_scan "$ws" "$script"; rc=$?
   case $rc in
-    0) echo "lane-check: step 0 policy clean (V4-03 machine paths, V4-05 frozen duplicates)" >&2; return 0 ;;
+    0) echo "lane-check: step 0 policy clean (V4-03 machine paths, V4-05 frozen duplicates)" >&2
+       # F-R60-1/F-R60-2 (2026-11-08): the round's canary refuses registry drift at step 0, so check it here too.
+       # registry-sync.py check mode is read-only: exit 0 in sync, 1 drift, 2 lock edge missing or ambiguous.
+       if [ -f "$ws/tools/registry-sync.py" ]; then
+         local reg_out reg_rc
+         reg_out=$("$step0_py" -X utf8 -I "$ws/tools/registry-sync.py" "$ws" 2>&1); reg_rc=$?
+         if [ $reg_rc -ne 0 ]; then
+           printf '%s\n' "$reg_out" | head -n 20 >&2
+           echo "lane-check: registry drift (registry-sync exit $reg_rc): a new registry dependency has no root Cargo.toml pin or workspace-probe APPROVED entry, so the round's step 0 would refuse it (F-R60-1). File the dep-request line and ask the lead for a steward sync; clippy and tests not run" >&2
+           return 70
+         fi
+         echo "lane-check: registry pins and probe APPROVED in sync" >&2
+       fi
+       return 0 ;;
     71|72)
       echo "lane-check: step0 policy: $([ $rc -eq 72 ] && echo 'V4-03 machine-local path' || echo 'V4-05 new frozen-duplicate site') (round would exit $rc; clippy and tests not run)" >&2
       printf '%s
