@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T09:58:49Z",
+ "updated_at": "2026-11-11T10:38:33Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -12,7 +12,8 @@
   "A deleted object's records are removed in the same undo step as the object, and undo restores both (rule set for parented pages, frame layers and component definitions).",
   "harness-view layers.rs delete_layer is edited by SMB-LAYOUT-PLACE-1 (frame records, early return) and SMB-DS-COMPONENTS-AUTHOR-1 (component and instance records): the lane that lands second keeps BOTH lanes' record drops in the same undo step, with both lanes' tests green.",
   "Record every file changed outside the brief's owned paths under notes.beyond_brief_paths, including files changed under a lead ruling (waiver audit 2026-11-11).",
-  "harness-view doc_export.rs carries separate hunks from three lanes (SMB-R60-FOLLOWUPS-1 admission at :844 and :984; SMB-DEVELOP-COMMANDS-1 a crop receipt note; SMB-MOTION-COMMANDS-2 a PSD loss entry at about :740): each keeps to its hunk, and the later lanes rebase."
+  "harness-view doc_export.rs carries separate hunks from three lanes (SMB-R60-FOLLOWUPS-1 admission at :844 and :984; SMB-DEVELOP-COMMANDS-1 a crop receipt note; SMB-MOTION-COMMANDS-2 a PSD loss entry at about :740): each keeps to its hunk, and the later lanes rebase.",
+  "ONE HOLD PER PHASE (lead 2026-11-11T10:38Z, D: queue of 9 tickets): while builders share the D: lock, run every lock-needing step of a phase (example build, focused or bundled lane-check, extra cargo runs; on landing the touched-crate suites and --per-sha) inside ONE outer hold: source builders/studio-env.sh, then `studio_disk_lock_run \"<lane> <phase>\" bash <your scratch script>`. Inner cargo and lane-check calls re-enter the held lock (STUDIO_DISK_BUILD_LOCK_TOKEN, tools/disk-build-lock.sh re-entrant), so the lane queues once instead of once per step. Skip a separate focused hold when the bundled run that follows covers the same tests. Focused runs select test binaries with cargo target flags (--test NAME, --lib), because a -E filter alone still compiles every test binary of the package."
  ],
  "lanes": {
   "SMB-AI-LIVE-EFFECTS-1": [
