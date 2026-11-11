@@ -5559,7 +5559,7 @@
     },
     {
       "candidate": "cabinet-session-query-auth-record-lookup-source-published-20261111-01",
-      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_COLD_CAPTURE_UNQUALIFIED_WARM_PROOF_PENDING",
+      "state": "EXACT_PUBLISHED_WARM_ACQUISITION_INDEPENDENTLY_QUALIFIED_RUNTIME_PENDING",
       "pico_refs": [
         "GUI-WP012-graph-folders"
       ],
@@ -5629,8 +5629,67 @@
       "scope": "Implementer compile feedback only on the reviewed raw candidate. Cargo numeric zero, producer and capture status preserved, empty Job and checked release, no test bodies or formal proof. Published child reread and all 7623 raw files match prepublication witness.",
       "cold_capture_qualified": false,
       "producer_exit": 1,
-      "next_proof": "One exact warm-only published Core library --no-run with same preheld PE and every Cargo artifact fresh. Separate qualified acquisition before one changed-input independent route retry and affected embedded lifecycle checks. Preserve prior route failure and both embedded passes as historical proof. Old HTTP attempts remain spent.",
-      "original_acceptance": "OPEN"
+      "next_proof": "Independent KB-CAD-001 route-issued identity before-vault retry first, under exact changed input. Once it passes, prove the two affected existing embedded lifecycle cases once each under their own admission. Prior attempts and their verdicts remain; no actual server, OS vault or watcher and no original HTTP retry.",
+      "original_acceptance": "OPEN",
+      "warm_acquisition": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-preparation-20261111-01/auth-record-lookup-warm-binding-admitted-01.json",
+          "bytes": 23594,
+          "sha256": "f82431e959c2d06edf637cb4c299ad59c42176a1424b031ed6d3175d09e798a2"
+        },
+        "result": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/result.json",
+          "bytes": 3349,
+          "sha256": "eb796c5993e5fc9b0f89117c98f4dcf006198a6eb2a696a41274364f79704754"
+        },
+        "artifact": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/codegen-artifact.json",
+          "bytes": 9733,
+          "sha256": "aa35f878fcda1689efe36da065810a7c4265a753b616be707896ea796ec24e3e"
+        },
+        "released": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/released.json",
+          "bytes": 481,
+          "sha256": "9430bc30b12a3438d64154d5be76fb0ee469bb6283e693436dafb8ba94e994ec"
+        },
+        "postguards": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/postguards.json",
+          "bytes": 110,
+          "sha256": "e7e636b0025eb50af454cde0bf28d7e00311c5a40289945a8d74f49a3c452b85"
+        },
+        "producer_terminal": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 415,
+          "sha256": "57060f2822fec04e08a80fc18b662973dcddd7251631517b1809f5e7f6bcb438"
+        },
+        "raw_cargo_stdout": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-acquisition-20261111-01/cargo.stdout.jsonl",
+          "bytes": 2034598,
+          "sha256": "37a15d8c328a1f483d5d33100deed457d4a0d52e7fee03a62273c439d4e69f38"
+        },
+        "independent_reviews": [
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-named-dx-20261111-01/auth-record-lookup-warm-acquisition-review-dx-01.json",
+            "bytes": 1467,
+            "sha256": "00e3c6db34378ccf1e262bc9d94a0a4aaabbdd6c1036af78dcfea7ba87434d22"
+          },
+          {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-session-query-auth-record-lookup-warm-same-cc-20261111-01/auth-record-lookup-warm-acquisition-review-cc-01.json",
+            "bytes": 1386,
+            "sha256": "f9c927e963a3911a8accb8aabdccf64551e5943551a71d1943ce650ec1edfaab"
+          }
+        ],
+        "actual": {
+          "cargo_exit": 0,
+          "producer_exit": 0,
+          "all_fresh_cargo_artifacts": 819,
+          "selected_pe_sha256": "e03f27a40a3a5df8a64c4b0ea65bc51687f3b0cff392f704eba856ec42f0a483",
+          "job_active": 0,
+          "job_assigned": 0,
+          "tests_run": false
+        },
+        "verdict": "INDEPENDENTLY_QUALIFIED_ACQUISITION_ONLY"
+      }
     }
   ],
   "picotask_plan": {
