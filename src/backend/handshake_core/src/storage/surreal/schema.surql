@@ -5908,7 +5908,21 @@ DEFINE FIELD OVERWRITE updated_at ON TABLE local_accounts TYPE datetime;
 DEFINE INDEX OVERWRITE local_accounts_account_key_unique ON TABLE local_accounts FIELDS account_key UNIQUE;
 
 -- LOCAL_ACCOUNT_SETUP_BEGIN
-DEFINE FIELD OVERWRITE password_verifier ON TABLE local_accounts TYPE option<string> PERMISSIONS FOR select WHERE fn::wp012_member_redemption_password_read($this) FOR create NONE FOR update WHERE fn::wp012_member_redemption_identity_update('account', $before, $after);
+DEFINE FIELD OVERWRITE password_verifier ON TABLE local_accounts TYPE option<string>
+    PERMISSIONS FOR select WHERE fn::wp012_member_redemption_password_read($this)
+    FOR create NONE FOR update WHERE IF $access = 'member_enrollment_recipient' AND $before != $after {
+        LET $member = fn::wp012_member_recipient_auth_row();
+        IF !fn::wp012_member_recipient_actor($member)
+            OR $this.id != $member.account_id
+            OR $this.member_enrollment_origin != $member.id { RETURN false; };
+        LET $permit = fn::wp012_member_recipient_bound_permit();
+        RETURN $permit.state = 'prepared' AND $member.status = 'consumed'
+            AND $member.redemption_attempt_id = $permit.attempt
+            AND $member.password_verifier = $permit.phc AND $member.consumed_at != NONE
+            AND fn::wp012_member_recipient_issuer_current($member)
+            AND $before = NONE AND $permit.account_before.password_verifier = NONE
+            AND $after = $permit.phc;
+    } ELSE { false };
 DEFINE TABLE OVERWRITE local_account_setup TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE account_id ON TABLE local_account_setup TYPE record<local_accounts>;
 DEFINE FIELD OVERWRITE principal_id ON TABLE local_account_setup TYPE record<principals>;
@@ -7877,7 +7891,19 @@ THEN {
 };
 DEFINE FIELD OVERWRITE credential_revision ON TABLE local_accounts TYPE int DEFAULT 0 ASSERT $value >= 0
     PERMISSIONS FOR select WHERE (fn::mt109_live_session() AND id = $auth.account_id) OR fn::wp012_member_recipient_revision_read($this)
-    FOR create WHERE $value = 0 FOR update WHERE fn::wp012_member_redemption_identity_update('account', $before, $after);
+    FOR create WHERE $value = 0 FOR update WHERE IF $access = 'member_enrollment_recipient' AND $before != $after {
+        LET $member = fn::wp012_member_recipient_auth_row();
+        IF !fn::wp012_member_recipient_actor($member)
+            OR $this.id != $member.account_id
+            OR $this.member_enrollment_origin != $member.id { RETURN false; };
+        LET $permit = fn::wp012_member_recipient_bound_permit();
+        RETURN $permit.state = 'prepared' AND $member.status = 'consumed'
+            AND $member.redemption_attempt_id = $permit.attempt
+            AND $member.password_verifier = $permit.phc AND $member.consumed_at != NONE
+            AND fn::wp012_member_recipient_issuer_current($member)
+            AND $before = $permit.prior_revision AND $before = $permit.account_before.credential_revision
+            AND $after = $permit.prior_revision + 1;
+    } ELSE { false };
 DEFINE EVENT OVERWRITE wp012_local_account_credential_revision ON TABLE local_accounts
 WHEN $event IN ['CREATE', 'UPDATE']
 THEN {

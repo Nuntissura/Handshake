@@ -21,13 +21,15 @@ use super::{
 mod revision166;
 #[path = "schema_revision168.rs"]
 mod revision168;
+#[path = "schema_revision169.rs"]
+mod revision169;
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 169;
+pub const SCHEMA_REVISION: i64 = 170;
 
 // Enroll these pins only after independent BASE and FINAL engine INFO measurement.
-const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = Some(("1bd1c82774112973553bb290d0813fbd3c64c7176663ff5f525fcf0f971524cf", 4570, 936));
-const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = Some("8aad971fedcdb5605ac1ebe64667a8eef24c1b3be79498af8c3ef38f4a4cce3f");
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
 const PRE_MEMBER_PASSWORD_POLICY_REVISION: i64 = 167;
 const PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED: &str =
     "6f6e4a5bd5dad4b856e355233dcf435c4febce3e1da7a70b87587f2a1ddd6c43";
@@ -4781,7 +4783,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-174 engine-profile declarations: exact source/catalog pins include five functions,
 // one authored field and one event. Live INFO and compatible reopen remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "b1bc55b01549fbeb17a5345c95d271ffd0453d39eaf2fffb0cdaaaa23ca88203";
+    "d8f17e8be49a849622ea730822b14404995b349b9c2d291fb960bd76d36fcb37";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -7415,7 +7417,7 @@ const MEMBER_PASSWORD_POLICY_GUARD: &str = r#"    IF $access NOT IN ['member_enr
 "#;
 
 fn restore_pre_member_password_policy_schema(source: String) -> String {
-    let source = revision168::restore_shared_schema(source);
+    let source = revision168::restore_shared_schema(revision169::restore_shared_schema(source));
     const HEADER: &str = "DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_password_read($target: object) {\n";
     let current = format!("{HEADER}{MEMBER_PASSWORD_POLICY_GUARD}");
     assert!(source.matches(&current).count() <= 1,
@@ -7641,7 +7643,8 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
         let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
         let state: Option<SchemaState> = response.take(0)?;
         let Some(mut state) = state else { return Ok(None); };
-        if revision168::recognizes(&state, true, &database.config)
+        if revision169::recognizes(&state, true, &database.config)
+            || revision168::recognizes(&state, true, &database.config)
             || state.is_exact_pre_member_password_policy(true, &database.config)
         {
             verify_compiled_manifest(&database).await?;
@@ -7907,7 +7910,8 @@ async fn bootstrap_schema_unbounded(
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
-                    Some(state) if revision168::recognizes(&state, false, &database.config)
+                    Some(state) if revision169::recognizes(&state, false, &database.config)
+                        || revision168::recognizes(&state, false, &database.config)
                         || state.is_exact_pre_member_password_policy(false, &database.config) =>
                     {
                         let predecessor = read_schema_catalog(&database).await?;
@@ -9334,24 +9338,30 @@ async fn upgrade_workspace_claim_predecessor(
     predecessor: ObservedSchema,
     production: bool,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    let from_revision168 = previous_state.revision == revision168::REVISION;
-    let exact_predecessor = if from_revision168 {
-        revision168::recognizes(previous_state, production, &database.config)
-            && revision168::matches_observed_catalog(&predecessor, production)
-    } else {
-        let (_, production_fields, production_indexes) = PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_INFO;
-        previous_state.is_exact_pre_member_password_policy(production, &database.config)
-            && predecessor.info_fingerprint_sha256 == previous_state.info_fingerprint_sha256
-            && (!production || (predecessor.fields_defined == production_fields
-                && predecessor.indexes_defined == production_indexes))
+    let (exact_predecessor, mismatch) = match previous_state.revision {
+        revision169::REVISION => (
+            revision169::recognizes(previous_state, production, &database.config)
+                && revision169::matches_observed_catalog(&predecessor, production),
+            "HANDSHAKE_SURREAL_CREDENTIAL_FIELD_PREDECESSOR_MISMATCH",
+        ),
+        revision168::REVISION => (
+            revision168::recognizes(previous_state, production, &database.config)
+                && revision168::matches_observed_catalog(&predecessor, production),
+            "HANDSHAKE_SURREAL_WORKSPACE_CLAIM_PREDECESSOR_MISMATCH",
+        ),
+        _ => {
+            let (_, production_fields, production_indexes) = PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_INFO;
+            (
+                previous_state.is_exact_pre_member_password_policy(production, &database.config)
+                    && predecessor.info_fingerprint_sha256 == previous_state.info_fingerprint_sha256
+                    && (!production || (predecessor.fields_defined == production_fields
+                        && predecessor.indexes_defined == production_indexes)),
+                "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_PREDECESSOR_MISMATCH",
+            )
+        }
     };
     if !exact_predecessor {
-        let error = if from_revision168 {
-            "HANDSHAKE_SURREAL_WORKSPACE_CLAIM_PREDECESSOR_MISMATCH"
-        } else {
-            "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_PREDECESSOR_MISMATCH"
-        };
-        return fail_closed(database, error.to_owned()).await;
+        return fail_closed(database, mismatch.to_owned()).await;
     }
     if ROUTING_SUCCESSOR_BASE_INFO.is_none()
         || (production && ROUTING_SUCCESSOR_PRODUCTION_INFO.is_none())
@@ -9369,12 +9379,14 @@ async fn upgrade_workspace_claim_predecessor(
 
     let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
     let generated = if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() };
-    let predecessor_delta = if from_revision168 {
-        String::new()
-    } else {
-        schema_function_definition("wp012_member_redemption_password_read").to_owned()
+    let mut schema_delta = match previous_state.revision {
+        revision169::REVISION => String::new(),
+        revision168::REVISION => revision168::append_upgrade_statements(String::new()),
+        _ => revision168::append_upgrade_statements(
+            schema_function_definition("wp012_member_redemption_password_read").to_owned(),
+        ),
     };
-    let schema_delta = revision168::append_upgrade_statements(predecessor_delta);
+    schema_delta.push_str(&revision169::upgrade_statements());
     let upgrade = format!(r#"
 BEGIN TRANSACTION;
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
@@ -9491,7 +9503,7 @@ UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revi
  source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
-"#, revision166::upgrade_statements(production),
+"#, revision166::upgrade_statements(production) + &revision169::upgrade_statements(),
         model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default(),
         revision166::cloud_upgrade_statements(production));
     let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(RoutingSuccessorBindings {
@@ -12344,9 +12356,15 @@ mod tests {
         assert_workspace_claim_predecessor_upgrade(revision168::REVISION).await;
     }
 
+    #[tokio::test]
+    async fn revision_169_credential_field_upgrade_and_reopen_preserves_base_and_final() {
+        assert_workspace_claim_predecessor_upgrade(revision169::REVISION).await;
+    }
+
     async fn assert_workspace_claim_predecessor_upgrade(predecessor_revision: i64) {
         fn predecessor_pins(revision: i64, production: bool) -> (&'static str, &'static str, &'static str) {
             match (revision, production) {
+                (revision169::REVISION, production) => revision169::receipt_pins(production),
                 (revision168::REVISION, production) => revision168::receipt_pins(production),
                 (PRE_MEMBER_PASSWORD_POLICY_REVISION, true) => (
                     PRE_MEMBER_PASSWORD_POLICY_PRODUCTION_SOURCE,
@@ -12366,12 +12384,19 @@ mod tests {
             production: bool,
             predecessor_revision: i64,
         ) -> Result<(), SurrealStorageError> {
-            let shared = if predecessor_revision == revision168::REVISION {
-                let restored = revision168::restore_shared_schema(SCHEMA.to_owned());
-                assert_eq!(revision168::restore_shared_schema(restored.clone()), restored);
-                restored
-            } else {
-                restore_pre_member_password_policy_schema(SCHEMA.to_owned())
+            let shared = match predecessor_revision {
+                revision169::REVISION => {
+                    let restored = revision169::restore_shared_schema(SCHEMA.to_owned());
+                    assert_eq!(revision169::restore_shared_schema(restored.clone()), restored);
+                    restored
+                }
+                revision168::REVISION => {
+                    let revision169_shared = revision169::restore_shared_schema(SCHEMA.to_owned());
+                    let restored = revision168::restore_shared_schema(revision169_shared);
+                    assert_eq!(revision168::restore_shared_schema(restored.clone()), restored);
+                    restored
+                }
+                _ => restore_pre_member_password_policy_schema(SCHEMA.to_owned()),
             };
             let (base_source, base_generated, _) = predecessor_pins(predecessor_revision, false);
             let (source, generated, expected_info) = predecessor_pins(predecessor_revision, production);
@@ -12442,11 +12467,11 @@ mod tests {
                     info_fingerprint_sha256: observed.info_fingerprint_sha256,
                 }).await?;
                 let state = read_context_and_state(&database).await?.expect("exact predecessor receipt");
-                if predecessor_revision == revision168::REVISION {
-                    assert!(revision168::recognizes(&state, production, &database.config));
-                } else {
-                    assert!(state.is_exact_pre_member_password_policy(production, &database.config));
-                }
+                assert!(match predecessor_revision {
+                    revision169::REVISION => revision169::recognizes(&state, production, &database.config),
+                    revision168::REVISION => revision168::recognizes(&state, production, &database.config),
+                    _ => state.is_exact_pre_member_password_policy(production, &database.config),
+                });
                 database.query(
                     "CREATE workspaces:revision167_policy_probe CONTENT { name: 'retained workspace' };"
                 ).await?;
@@ -12492,16 +12517,28 @@ mod tests {
             }
         }
 
-        let from_revision168 = predecessor_revision == revision168::REVISION;
-        let mixed_definition = if from_revision168 {
-            "wp012_member_recipient_metadata"
-        } else {
-            "wp012_member_redemption_password_read"
-        };
-        let mixed_catalog_error = if from_revision168 {
-            "HANDSHAKE_SURREAL_WORKSPACE_CLAIM_PREDECESSOR_MISMATCH"
-        } else {
-            "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_PREDECESSOR_MISMATCH"
+        let (current_policy, previous_policy, mixed_catalog_error) = match predecessor_revision {
+            revision169::REVISION => (
+                revision169::field_statements().next().expect("password verifier field"),
+                revision169::PREVIOUS_PASSWORD_VERIFIER.to_owned(),
+                "HANDSHAKE_SURREAL_CREDENTIAL_FIELD_PREDECESSOR_MISMATCH",
+            ),
+            revision168::REVISION => {
+                let current = schema_function_definition("wp012_member_recipient_metadata");
+                (
+                    current,
+                    current.replacen(MEMBER_PASSWORD_POLICY_GUARD, "", 1),
+                    "HANDSHAKE_SURREAL_WORKSPACE_CLAIM_PREDECESSOR_MISMATCH",
+                )
+            }
+            _ => {
+                let current = schema_function_definition("wp012_member_redemption_password_read");
+                (
+                    current,
+                    current.replacen(MEMBER_PASSWORD_POLICY_GUARD, "", 1),
+                    "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_PREDECESSOR_MISMATCH",
+                )
+            }
         };
         for production in [false, true] {
             let mut directory = tempfile::Builder::new().prefix("wp012-workspace-claim-").tempdir().unwrap();
@@ -12514,7 +12551,6 @@ mod tests {
 
             let reopened = open_test_storage(&directory).await.unwrap();
             assert_eq!(snapshot(&reopened, production).await.unwrap(), before);
-            let current_policy = schema_function_definition(mixed_definition);
             let mixed_info = reopened.with_admin_operation(|database| Box::pin(async move {
                 database.query(current_policy).await?;
                 Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256)
@@ -12528,7 +12564,7 @@ mod tests {
             })).await.unwrap();
             assert_eq!(unchanged_info, mixed_info);
 
-            let previous_policy = current_policy.replacen(MEMBER_PASSWORD_POLICY_GUARD, "", 1);
+            let previous_policy = previous_policy.clone();
             reopened.with_admin_operation(move |database| Box::pin(async move {
                 database.query(previous_policy).await?;
                 Ok(())
