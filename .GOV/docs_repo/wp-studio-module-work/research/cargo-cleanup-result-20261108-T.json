@@ -2,16 +2,16 @@
  "schema": "hsk.studio.cleanup_result@1",
  "plan": "CARGO-CLEANUP-PLAN-20261108-T",
  "execute": true,
- "at": "2026-11-11T06:46:58Z",
- "total_gib": 7.76,
+ "at": "2026-11-11T09:51:11Z",
+ "total_gib": 19.47,
  "results": [
   {
-   "id": "T-C03",
-   "owner": "smb-pr-nudge-1",
-   "planned_gib": 7.78,
-   "files": 176,
+   "id": "T-C04",
+   "owner": "smb-layout-composer-depth-1",
+   "planned_gib": 19.47,
+   "files": 670,
    "dirs": [],
-   "gib": 7.76,
+   "gib": 19.47,
    "status": "REMOVED"
   }
  ]
