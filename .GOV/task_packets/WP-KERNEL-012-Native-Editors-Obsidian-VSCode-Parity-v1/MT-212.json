@@ -5907,6 +5907,96 @@
       "scope": "Exact focused Native metadata check, one reviewed test source file, Cargo and producer exited 0, same preserved Handpick PE, zero input drift, checked Job and all handles closed. No runtime, original GUI acceptance or source-dependency waiver.",
       "next_proof": "Original independent live MT008 proof remains open and requires a same-session private observer plus real Palmistry adoption and scoped recorder evidence. Next compile window is the separate reviewed Core mirror source.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "gui-argus-flight-recorder-scope-source-published-20261111-01",
+      "state": "EXACT_ONE_FILE_COMPILED_PUBLISHED_METADATA_CAPTURE_UNQUALIFIED_ORIGINAL_RUNTIME_PENDING",
+      "pico_refs": [
+        "GUI-WP012-172-DIAGNOSTICS"
+      ],
+      "original_contract_refs": [
+        "MT-175.json",
+        "MT-172.json",
+        "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json"
+      ],
+      "source_author": "/root/gui_receipt_mirror_coding",
+      "source_reviewer": "/root/refresh_repair_codecheck",
+      "capture_control_reviewer": "/root/refresh_repair_codecheck",
+      "published_head": "03883150fd826bacbf1dda70530e53b4eeec56fa",
+      "published_tree": "b98329c3466ea6c43e24b4bf7956fc490717c89f",
+      "parent": "4b5d3ec499335a79c6ac5532ab29b716b902b844",
+      "published_git_blob": "c38deea89d639d8cf94192de0294c723564299fc",
+      "published_only_path": "src/backend/handshake_core/src/api/palmistry.rs",
+      "live_candidate_raw_sha256": "08cea6f30239d6f13d08be400cc026b1a57093a51152c571f40c1d01aee169ae",
+      "checked_published_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-static-preparation-20261111-01/published-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "5a1dc02c07b605f828b9ebd4d9ca062edb8c33831302e79d252cf1594023292a"
+      },
+      "working_raw_map": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-static-preparation-20261111-01/working-tree-source-map-01.json",
+        "bytes": 1029673,
+        "sha256": "985c35cd43c967c08c682b50e2ad174b844294dcb80d1feb268b8465cadc9b0d"
+      },
+      "metadata_binding": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-static-preparation-20261111-01/argus-flight-recorder-core-check-binding-admitted-01.json",
+        "bytes": 18952,
+        "sha256": "fc20af5aa715578a772bd051e02dab1c70c3fbd3a8e876d4c20681448d5f6e99"
+      },
+      "metadata_feedback": {
+        "result": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/result.json",
+          "bytes": 5619,
+          "sha256": "7c2f46d142602546be939b4df2dac5e537935b5e36be55ccad29f19bdd4ccf54"
+        },
+        "release": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/released.json",
+          "bytes": 2235,
+          "sha256": "1694a7b6deee93605459e77ee4de480210c116cc7d9055727315f8a0ffa2dc31"
+        },
+        "post": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/postguards.json",
+          "bytes": 1864,
+          "sha256": "cb7a8b7a215023feb5a7d4d6648085cace6b75df732253eb57c3bf54ca58a738"
+        },
+        "stdout": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/cargo.stdout.jsonl",
+          "bytes": 1952028,
+          "sha256": "75c7b85e3bb26627200df4068b760d253460cfdcd273db06040b86c7b9dcafc8"
+        },
+        "job": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-20261111-01/private-job-final.json",
+          "bytes": 234,
+          "sha256": "42d01be4814bf98259c70e3ce5170616548cbaa471329c5f7352c20eb9777af2"
+        },
+        "terminal": {
+          "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-custody-20261111-01/producer-terminal-native-01.json",
+          "bytes": 416,
+          "sha256": "ef081005b1bbb1bcdd76a8731efe83f9ba57e403413eeca20df254d274c3d63e"
+        }
+      },
+      "checked_handoff": {
+        "ref": "WP-KERNEL-012/MT-212/gui-argus-flight-recorder-core-check-custody-20261111-01/producer-terminal-handoff.json",
+        "bytes": 3006,
+        "sha256": "968a9c429181c505981318f86d34e822f75a6a27a8350610208b3454f33dac66"
+      },
+      "scope": "Exact one-file Core app-runtime metadata check produced the selected ordinary library metadata and Cargo exited 0. The producer exited 1 because a live target scan reached 450001 visits. Final sample completed; no stop, no drift, private Job empty and all held handles closed. Implementer compile feedback only. No metadata acquisition qualification, runtime or original acceptance.",
+      "next_proof": "Qualify ordinary app-runtime Core on the published input for the separately agreed original MT022 HTTP scope, with final exact Native executable equivalence and independent admission. Keep MT008 signed receipt and scoped mirror readback with genuine watcher adoption, same-session observer, original replay/foreign-scope cases, and full GUI/Vulkan/Palmistry acceptance open.",
+      "original_acceptance": "OPEN",
+      "selected_cargo_feedback": {
+        "raw_line_number": 1494,
+        "raw_byte_range": [
+          1950952,
+          1951985
+        ],
+        "raw_line_sha256": "e702110bf964f950261d5283471d921bad3e76f9a463e054826220835d642c89",
+        "metadata_output_observed": {
+          "ref": "WP-KERNEL-012/MT-174/kb-phase02/target/debug/deps/libhandshake_core-6323503323746562.rmeta",
+          "bytes": 221368914,
+          "sha256": "72689592f74dd13da5b55fb907c56dce66b041b6689559bd86c99f6583b400ee"
+        },
+        "guard_verdict": "UNQUALIFIED_LIVE_SCAN_ENTRY_LIMIT"
+      }
     }
   ],
   "picotask_plan": {
