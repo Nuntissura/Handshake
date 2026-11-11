@@ -363,7 +363,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 Operator: "lets pause all agents so we can do the cargo clean up faster ... we will resume work after the cargo clean up". Every Studio build process tree was stopped; each lane's tree, branch, head and resume step are in `ledger.json` direction.pause_20261111. All trees are clean except SMB-DS-COMPONENTS-AUTHOR-1 (8 uncommitted files, left as is). Origin is 87f331f9. Landed today: PARSER-HOSTILE-1 27365b81, LAYOUT-PLACE-1 87f331f9. SMB-DEVELOP-COMMANDS-1 was RELEASED and rebased (4506a6cf) but not pushed. To resume: SendMessage each lane agent (ids in the pause record) or dispatch takeover builders with the rulings file; INDENT and SCORE land first, then plan T T-C01/T-C02 run, then R60 attempt 3.
 
-Disk state: C: Studio tree about 344 GiB after plan T T-C04 (19.47) and plan U (25.97). D: Studio uses 1,912 GiB (WizTree 2026-11-11 14:55Z): steward-export 540, active lane targets 66 to 205 each. Plan V (`research/cargo-cleanup-plan-20261111-V.json`, PROPOSED): older copies from 11 Studio D: caches, about 1,395 GiB, keeping the newest copy of every binary and all libraries; tool support N3 at kernel 234bc442; its dry run waits until the Operator's own delete of the non-Studio Handshake_Artifacts folders ends; needs "Approve plan V".
+Disk state: C: Studio tree about 344 GiB after plan T T-C04 (19.47) and plan U (25.97). D: Studio used 1,912 GiB before plan V (WizTree 2026-11-11 14:55Z): steward-export 540, active lane targets 66 to 205 each. Plan V EXECUTED 2026-11-11 17:45Z to 18:01Z on the Operator's "can you execute it?" (`research/cargo-cleanup-plan-20261111-V.json`): older copies removed from 11 Studio D: caches, 1,395.2 GiB, 27,841 files, all 11 REMOVED, keeping the newest copy of every binary and all libraries (`research/cargo-cleanup-result-20261111-V.json`); the lead's post-check found no duplicate test or binary copies left in any candidate's deps folder. D: free 3.3 TiB after the run, still rising from the Operator's separate delete of non-Studio Handshake_Artifacts folders.
 
 ## RUNNING (2026-11-08, from about 05:30Z; updated 2026-11-08T08:55:13Z)
 
@@ -666,6 +666,8 @@ FINAL MESSAGE, 12 lines or fewer: shas, exact test counts and exit codes, what i
 - Not on the product branch yet: SMB-PR-ENTRY-REFERENCES-1: harness-view `tests/viewer_inert_routing.rs`, pulse `tests/inert_routing_mix.rs`, a doc line in session `src/source.rs`. SMB-PR-NUDGE-1: a comment in pulse `src/timeline_edit.rs`.
 
 **Plan U: DONE 2026-11-11 13:08Z** on the Operator's "Approve plan U": 5 old C: build caches of validated lanes removed whole, 25.97 GiB, 83,650 files (`research/cargo-cleanup-result-20261111-U.json`). Next for the Operator: a Studio D: removal list (D: Studio 1,912 GiB), prepared after the WizTree file export.
+
+**Plan V: DONE 2026-11-11 18:01Z** on the Operator's "can you execute it?": older copies of test and binary outputs removed from 11 Studio D: build caches, 1,395.2 GiB, 27,841 files, newest copy of every binary and all libraries kept (`research/cargo-cleanup-result-20261111-V.json`).
 
 **C: cap 2026-11-11:** the C: tree reached 389 GiB, over the 400 GB grant, while three C: lanes rebuilt. T-C04 (plan T) freed 19.47 GiB, leaving 369.9 GiB. A cargo-specialist deliberation (`research/decision-20261111-c-cap-placement.json`) moved SMB-TYPE-INDENT-SPACING-1 and SMB-SCORE-EFFECTS-6 onto READY D: trees with warm targets. T-C01 and T-C02 run after those two lanes land.
 

@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261111-V",
  "generated_at": "2026-11-11T15:06:04Z",
- "status": "PROPOSED",
+ "status": "EXECUTED",
  "authority": "HSK-ART-003, HSK-ART-005 (inspection-based list; Operator approves the exact list under CX-107). Operator 2026-11-11: pause all agents for the cargo cleanup.",
  "why": "D: Studio holds 1,911.6 GiB, of which 1,396.0 GiB are older copies of test and binary outputs (earlier feature-set and pre-rebase identities). Partial removal keeps compile reuse: the newest copy of every binary and all libraries stay, so a later run only relinks an older identity it needs.",
  "inspection": "WizTree 4.33 MFT export 2026-11-11 15:04Z (scratchpad studio-deps-files.csv, 315,404 deps files; folder totals d-folders.csv 14:55Z); older copies computed with target_prune.py's HASHED rule, newest by modified time",
@@ -270,10 +270,65 @@
  "needs_tool_change": "N3: (a) allow the steward canary target D_ROOT/studio-team-dev/steward-export/target for partial older_copies; (b) for partial older_copies only, accept a target whose using lane is unsettled when ledger direction.pause_20261111 lists that lane and no process names the tree or target. Whole removal and C: rules unchanged.",
  "before_execution": "Operator approves this exact list in chat; N3 in the tool; dry run all WOULD_REMOVE; no process naming the trees; lanes still paused; then --execute",
  "operator_question": "Approve plan V: remove older copies from 11 Studio build caches on D:, about 1,396 GiB, keeping the newest copy of every binary and all libraries.",
- "executions": [],
+ "executions": [
+  {
+   "started": "2026-11-11T17:45:37Z",
+   "at": "2026-11-11T18:01:45Z",
+   "ids": [
+    "V-C01",
+    "V-C02",
+    "V-C03",
+    "V-C04",
+    "V-C05",
+    "V-C06",
+    "V-C07",
+    "V-C08",
+    "V-C09",
+    "V-C10",
+    "V-C11"
+   ],
+   "removed_gib": 1395.2,
+   "per_item_gib": {
+    "V-C01": 472.94,
+    "V-C02": 169.74,
+    "V-C03": 154.32,
+    "V-C04": 145.28,
+    "V-C05": 130.52,
+    "V-C06": 92.03,
+    "V-C07": 67.84,
+    "V-C08": 64.22,
+    "V-C09": 51.78,
+    "V-C10": 44.47,
+    "V-C11": 2.04
+   },
+   "files": 27841,
+   "status": "all 11 REMOVED",
+   "result": "research/cargo-cleanup-result-20261111-V.json",
+   "before": "Operator 'can you execute it?' (operator_approval); N3 in the tool at 234bc442; dry run all 11 WOULD_REMOVE; lanes paused (ledger direction.pause_20261111)",
+   "post_check": {
+    "at": "after the run ended 2026-11-11T18:01:45Z (lead)",
+    "by": "lead, independent of target_prune.py",
+    "result": "in every candidate's deps folder(s), zero duplicate copies of any test or binary name (.exe/.pdb) remain; the target folders themselves remain (expected for older_copies)"
+   },
+   "d_free_after": "3.3 TiB after the run, still rising: a separate Operator-approved delete of non-Studio Handshake_Artifacts folders was running, so not all of it is plan V",
+   "recorded_at": "2026-11-11T18:04:07Z"
+  }
+ ],
  "tool": {
   "commit": "234bc442",
   "change": "N3: steward canary target allowed for partial older_copies; paused-lane trees accepted (accepted_paused) when every unsettled user is in ledger direction.pause_20261111; process checks kept; D: plans without newest_file_utc compare size only",
-  "dry_run": "not run: stopped 2026-11-11 for the Operator's own delete in Handshake_Artifacts (non-Studio folders); run after that ends"
+  "dry_run": "run 2026-11-11T17:45:36Z (research/cargo-cleanup-dryrun-20261111-V.json; see dry_run)"
+ },
+ "operator_approval": {
+  "at": "2026-11-11T15:22:39Z",
+  "quote": "can you execute it?",
+  "context": "reply to the lead's question 'Approve plan V (remove older copies on D:, about 1,395 GiB)?'",
+  "scope": "the 11 listed partial older_copies candidates V-C01..V-C11 as committed at cdcf5481/425e4bba"
+ },
+ "dry_run": {
+  "at": "2026-11-11T17:45:36Z",
+  "tool_commit": "234bc442 (target_prune.py N3)",
+  "file": "research/cargo-cleanup-dryrun-20261111-V.json",
+  "result": "V-C01..V-C11 WOULD_REMOVE, 1395.2 GiB total; newest check size only (plan has no newest_file_utc); accepted_paused for the 8 paused lanes using V-C02..V-C07, V-C09, V-C10"
  }
 }

@@ -1,0 +1,154 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261111-V",
+ "execute": true,
+ "at": "2026-11-11T18:01:45Z",
+ "total_gib": 1395.2,
+ "results": [
+  {
+   "id": "V-C01",
+   "owner": "steward-export",
+   "planned_gib": 473.1,
+   "newest_now": "2026-10-24T03:29Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 14274,
+   "dirs": [],
+   "gib": 472.94,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C02",
+   "owner": "smb-pr-edit-footprint-1",
+   "planned_gib": 169.7,
+   "accepted_paused": [
+    "SMB-R60-FOLLOWUPS-1"
+   ],
+   "newest_now": "2026-11-11T12:33Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 1988,
+   "dirs": [],
+   "gib": 169.74,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C03",
+   "owner": "smb-folio-angle-unbounded-1",
+   "planned_gib": 154.3,
+   "accepted_paused": [
+    "SMB-DEVELOP-COMMANDS-1"
+   ],
+   "newest_now": "2026-11-11T13:20Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 1762,
+   "dirs": [],
+   "gib": 154.32,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C04",
+   "owner": "smb-pr-sequence-session-1",
+   "planned_gib": 145.3,
+   "accepted_paused": [
+    "SMB-MOTION-COMMANDS-2"
+   ],
+   "newest_now": "2026-11-11T13:05Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 2290,
+   "dirs": [],
+   "gib": 145.28,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C05",
+   "owner": "smb-r53-followups-1",
+   "planned_gib": 130.5,
+   "accepted_paused": [
+    "SMB-DELIVERY-QUEUE-1"
+   ],
+   "newest_now": "2026-11-11T14:34Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 2345,
+   "dirs": [],
+   "gib": 130.52,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C06",
+   "owner": "smb-ai-distort-effects-1",
+   "planned_gib": 92.0,
+   "accepted_paused": [
+    "SMB-DS-COMPONENTS-AUTHOR-1"
+   ],
+   "newest_now": "2026-11-11T13:35Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 1276,
+   "dirs": [],
+   "gib": 92.03,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C07",
+   "owner": "smb-pr-entry-references-1",
+   "planned_gib": 67.8,
+   "accepted_paused": [
+    "SMB-SCORE-EFFECTS-6"
+   ],
+   "newest_now": "2026-11-11T14:20Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 942,
+   "dirs": [],
+   "gib": 67.84,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C08",
+   "owner": "smb-id-toc-persist-1",
+   "planned_gib": 64.2,
+   "newest_now": "2026-11-11T12:50Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 812,
+   "dirs": [],
+   "gib": 64.22,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C09",
+   "owner": "smb-sentinels-native-1",
+   "planned_gib": 51.8,
+   "accepted_paused": [
+    "SMB-WEB-SITE-1"
+   ],
+   "newest_now": "2026-11-11T12:37Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 884,
+   "dirs": [],
+   "gib": 51.78,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C10",
+   "owner": "smb-pr-retime-hold-1",
+   "planned_gib": 44.5,
+   "accepted_paused": [
+    "SMB-TYPE-INDENT-SPACING-1"
+   ],
+   "newest_now": "2026-11-11T14:30Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 970,
+   "dirs": [],
+   "gib": 44.47,
+   "status": "REMOVED"
+  },
+  {
+   "id": "V-C11",
+   "owner": "smb-ps-mode-convert-1",
+   "planned_gib": 2.0,
+   "newest_now": "2026-11-07T14:51Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 298,
+   "dirs": [],
+   "gib": 2.04,
+   "status": "REMOVED"
+  }
+ ]
+}
