@@ -621,6 +621,14 @@
    "lead_reading": "A typed takeover report at the commit, the routing still applies; undo told by value, so an inverse carried across a reopen reports a takeover; Viewer ids skip entry-named ids.",
    "source": "lane SMB-PR-ROUTING-REPAIR-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-76",
+   "gap": "PNG and JPEG placed into a layout frame carry no density the decoder exposes",
+   "needs": "spec line naming the default placement density for raster sources without one",
+   "lead_reading": "72 ppi, as SMB-LAYOUT-PLACE-1 documents",
+   "source": "lane SMB-LAYOUT-PLACE-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

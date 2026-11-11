@@ -1,19 +1,92 @@
 {
   "crate": "hsk-studio-harness-view (layout graphic frames: place, fit, link states and the layout PDF's asset resolver), hsk-studio-harness-core (asset rows, one Run step for layout records plus the raster records entry), hsk-studio-harness (tests)",
   "lane": "SMB-LAYOUT-PLACE-1",
-  "status": null,
+  "status": "READY_FOR_VALIDATION",
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
-  "base": "eb17fad6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "27365b81",
+  "commits": [
+    {
+      "sha": "4edfed51",
+      "what": "red tests harness/tests/layout_place.rs (9 tests, commands by id + process)"
+    },
+    {
+      "sha": "6b81166f",
+      "what": "harness-core Run::submit_layout_and_entry, history layout arm swaps the step entry, rows asset.place frame params, asset.fit, document.submit_layout_and_entry"
+    },
+    {
+      "sha": "0af46560",
+      "what": "harness-view layout_place.rs (child of place), place.rs branch/source_for/frame fields/resize refusal/transform refusal/manual, commands/place.rs"
+    },
+    {
+      "sha": "fbf7f0cd",
+      "what": "layout_assets.rs resolver, layout_export.rs gate + graphics + placements (LAST commit, rebases over SMB-TYPE-INDENT-SPACING-1)"
+    },
+    {
+      "sha": "2768e0f0",
+      "what": "red tests for the fbf7f0cd review rulings: frame layer delete, resized-source refit, gate order, hostile sources, cancel, paint profile (unit)"
+    },
+    {
+      "sha": "a86c152d",
+      "what": "harness-view layers.rs delete early return + layout_place.rs/place.rs: delete drops the frame record (one layout step), Update All Links refits resized sources (refused per source), gate reads each source once + cancel between frames (F1), frame ids decoded once (F3), ppi and canvas docs"
+    },
+    {
+      "sha": "77009e6b",
+      "what": "layout_assets.rs: profile() resolves nothing (layouts without pictures keep base bytes)"
+    },
+    {
+      "sha": "a2e66370",
+      "what": "layout_export.rs: link gate right after preflight (F2), docs (LAST commit, rebases over SMB-TYPE-INDENT-SPACING-1)"
+    }
+  ],
+  "capabilities_done": [
+    "asset.place into a layout graphic frame (rectangle/ellipse, fit, stored rule, anchor), one undo step",
+    "asset.fit through fit_content, frame_to_content resizes the record",
+    "list_placements page/frame/fit/actual_ppi/effective_ppi",
+    "layout PDF draws graphic frames, clipped; STU-ASSET-009 fail-closed link gate; receipt placements",
+    "transform.* refuse graphic_frame_transform_unsupported; Update All Links keeps the frame (resized source refuses)"
+  ],
+  "tests": {
+    "red": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/red-4edfed51-layout_place-clean.log",
+      "result": "9 of 9 FAIL at 4edfed51 (asset.place canvas_unavailable, process unknown_command from a stale example), exit 100"
+    },
+    "focused": {
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/focused-4edfed51-wip-1.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/focused-fbf7f0cd-process.log"
+      ],
+      "result": "harness layout_place 9/9, place_asset 7/7, layout_pdf_host 8/8 (process tests after cargo build --example studio-harness); harness-view lib layout_place 3/3; harness-core action_records 6/6; step0 clean",
+      "note": "wip-1 ran on the working tree identical to fbf7f0cd before the commits; its 2 process failures were the stale example binary (--test does not build examples), passed after the example build"
+    },
+    "bundled": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/bundled-a2e66370-smb-layout-place-1.log",
+      "result": "a2e66370: step 0 clean, registry in sync, clippy harness-core/harness-view/harness + dependent native-host clean (warnings only), nextest harness-core whole, harness-view whole (viewer), harness layout_place 13, layout_pdf_host 8, layout_persist 6, place_asset 7, harness_drive_typed 8, document_new 15, viewer_layers 2: 287 passed, 1 skipped, exit 0; examples/studio-harness.exe rebuilt in the run"
+    },
+    "red_review": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/red-2768e0f0-review-rulings.log",
+      "result": "5 FAIL for the expected reasons (profile Some(icc); export gate not canceled; delete 'not in a layer stack'; pdfx_created_required before the gate; graphic_frame_source_resized), hostile sources PASS (existing behaviour), exit 100"
+    },
+    "focused_review": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/focused-a2e66370-review-rulings.log",
+      "result": "harness-view lib layout_place+layout_assets, harness layout_place, place_asset, layout_pdf_host: 33/33, exit 0 (process tests on the previous example; the bundled run rebuilt it)"
+    },
+    "post_rebase": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/landing-87f331f9-smb-layout-place-1.log",
+      "result": "one hold: example studio-harness rebuilt; harness-core + harness-view (viewer) whole suites 228 passed, 1 skipped, exit 0; harness layout_place, layout_pdf_host, layout_persist, place_asset, harness_drive_typed, document_new, viewer_layers 59 passed, exit 0; rebase onto 27365b81 had no conflict"
+    },
+    "per_sha": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-place-1/landing-87f331f9-smb-layout-place-1.log",
+      "per_unit_logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-persist-1/per-sha-87f331f9/",
+      "result": "PER_SHA_RESULT OK shas=1 range=8f75d563..87f331f9 (harness-view + dependents harness, native-host, every round feature unit)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T08:50:53Z",
+  "next": "validator: independent validation of e2e28244..87f331f9 on origin/codex/handshake-studio-assets (base eb17fad6 lane work, rebased on 27365b81); builder does not claim PASS",
+  "updated_at": "2026-11-11T12:50:33Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -56,6 +129,83 @@
       "MT-163",
       "MT-170"
     ],
-    "reuses_tree_and_target": "smb-id-toc-persist-1"
-  }
+    "reuses_tree_and_target": "smb-id-toc-persist-1",
+    "paths_beyond_brief": [
+      "place.rs: #[path] child module line + pub use; PlaceOptions.frame field; SourceImage.ppi + 2 lines in decode_source; source sharing moved from place_inner into source_for (pure move); placements() calls frame_fields; transform_inner check (not in the three pub fns); Cuts line",
+      "layout_export.rs: import lines 72-77 (PdfAssets/PlacedRaster/OwnedPath now unused) and one key 'placements' in the summary json (~:715); the gate sits at :665 after shaping (the brief's hunk list excludes :564-650), still before lowering and writing",
+      "commands/asset.rs: two rows (asset.fit and Run row document.submit_layout_and_entry, required by harness-core action_records corpus coverage)",
+      "mod.rs: one mod line (layout_assets); layout_place is declared from place.rs instead"
+    ],
+    "incident_20261108": "git stash is shared by every worktree of the repo: my 'git stash pop' after the red proof applied SMB-DS-COMPONENTS-AUTHOR-1's stash c5b9eab9 (pushed meanwhile). Restored at once: git stash store of c5b9eab9 back to stash@{0} with its message, its 4 tracked files reverted in my tree after a byte check against the stash, its 2 untracked files moved (byte-identical) to the session scratchpad smb-layout-place-1/foreign-copy; my own stash db5f3d85 applied by sha and left in the list (stash@{1}), not dropped. That lane's stash was never popped by them in between (mine was still listed).",
+    "sd_items": [
+      "content size from the source ppi (TIFF only through the import route) else 72",
+      "frame required on a page",
+      "modified-link refusal at export vs STU-ASSET-007 render-current-bytes",
+      "PNG pHYs and JPEG JFIF/Exif density: hsk-studio-interop-raster exposes none (jpeg.rs records only a jfif flag; no pHYs parse), so those sources take 72 ppi (ppi_source default); a decoder change belongs to interop-raster"
+    ],
+    "mts": "read all 14; none claimed whole. Partial evidence: MT-30721 AC-001 (rectangle/ellipse clip+fit; path frames not), MT-30730 AC-001 and MT-30731/30732 (fit members; content_aware typed unavailable), MT-162 AC-001/AC-002 (fitting modes, stored fit rule; no clip/contour feed). MT-30722/30723/30733-30736, MT-157, MT-163, MT-170: not proven here.",
+    "not_proven": [
+      "per-file cancel inside the link hash loop (hsk-studio-package linked.rs, out of scope): a canceled export still finishes the current file's hash",
+      "65537th frame (guard only; no 65536-layer fixture)",
+      "byte digest of a layout PDF without pictures against eb17fad6 (pinned by the resolver-equivalence unit test only)",
+      "viewer canvas behaviour for a layout document (docs reading, UNVERIFIED by a run)",
+      "deleting a group or page/spread that holds a graphic-frame layer (only a direct frame-layer delete drops the record); text-frame layer delete (ruled to SMB-R60-FOLLOWUPS-1)",
+      "asset.place with fit frame_to_content keeps the given frame bounds in the record (asset.fit and the refit resize it); observed by reading, not changed",
+      "11 pre-existing clippy warnings in layout_place.rs (needless borrows in to_value(&g.fit...), one complex type); not errors"
+    ],
+    "takeover": "2026-11-11: a new builder took over after the previous builder's 2026-11-08 usage-limit stop; its 5 uncommitted review fixes were inspected, kept, finished and committed as 2768e0f0..a2e66370",
+    "beyond_brief_paths": [
+      "harness-view src/view/layers.rs delete_layer: a 4-line documented early return to Viewer::delete_graphic_frame (ruling lead-rulings-20261108-by-lane SMB-LAYOUT-PLACE-1 'Deleting a frame layer drops its frame record in the same undo step' and common 'A deleted object's records are removed in the same undo step'); shared with SMB-DS-COMPONENTS-AUTHOR-1's record drops: the lane landing second keeps both",
+      "harness-view src/view/layout_export.rs :561-567: link gate moved right after preflight (ruling F2 PATH APPROVED)",
+      "harness-view src/view/layout_export.rs import lines and the summary key 'placements' (review fbf7f0cd rebase_note; listed by the previous builder in paths_beyond_brief)",
+      "place.rs, commands/asset.rs, mod.rs extras: as listed in paths_beyond_brief (previous builder)"
+    ],
+    "rulings_closed_20261111": {
+      "F1": "layout_pdf_placements caches link state per source_id (one hash per source per export) and checks the token per frame -> canceled; unit test a_canceled_token_refuses_the_decode_and_the_export_and_changes_nothing",
+      "F2": "gate right after preflight; test the_link_gate_refuses_before_the_export_settings_are_read (placed_link_modified wins over pdfx_created_required)",
+      "F3": "update_inner takes graphic_frame_ids once; placement_tiles no longer decodes; transform_inner keeps one call",
+      "profile": "changed PDF output of layouts without pictures (paint bound to the working-space id became ICCBased): restored to None; pinned structurally by unit test paint_colours_resolve_no_profile_so_a_layout_without_pictures_keeps_its_bytes (resolver == NoAssets without frames); no byte digest against eb17fad6 was run",
+      "frame_layer_delete": "delete_layer -> delete_graphic_frame, one layout step; test deleting_a_frame_layer_drops_its_frame_record_in_one_undo_step",
+      "resized_refit": "Update All Links refits by stored fit in one step; a frame that cannot refit lands in refused and its source stays modified (per source: the source record is shared by its frames); test update_all_links_refits_resized_sources_and_refuses_a_frame_that_cannot_refit",
+      "hostile": "test hostile_sources_refuse_typed_and_change_nothing: truncated, format_unrecognised, corrupt_png (zero width), resource_too_large (embedded and linked), resource_unreadable (folder, embedded and linked), placed_link_missing (link replaced by a folder); outside root covered by hostile_frames_and_sources_refuse_typed_and_change_nothing",
+      "ppi": "decoders expose no PNG/JPEG density: 72, named in place.rs docs, SD item",
+      "canvas_docs": "place.rs docs reworded: the canvas does not draw the picture (UNVERIFIED by a run)",
+      "text_frame_delete": "not folded in (lead ruling 2026-11-11: goes to SMB-R60-FOLLOWUPS-1 as a typed refusal)"
+    }
+  },
+  "pushed": "87f331f9 (origin/codex/handshake-studio-assets, fast-forward from 27365b81, ls-remote confirmed)",
+  "commits_rebased": [
+    {
+      "sha": "e2e28244",
+      "was": "4edfed51"
+    },
+    {
+      "sha": "53be7408",
+      "was": "6b81166f"
+    },
+    {
+      "sha": "eedd8c6b",
+      "was": "0af46560"
+    },
+    {
+      "sha": "60b07f35",
+      "was": "fbf7f0cd"
+    },
+    {
+      "sha": "e0da5323",
+      "was": "2768e0f0"
+    },
+    {
+      "sha": "9a121e30",
+      "was": "a86c152d"
+    },
+    {
+      "sha": "8f75d563",
+      "was": "77009e6b"
+    },
+    {
+      "sha": "87f331f9",
+      "was": "a2e66370"
+    }
+  ]
 }
