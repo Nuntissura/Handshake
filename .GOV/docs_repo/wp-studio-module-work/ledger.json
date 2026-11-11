@@ -23325,6 +23325,17 @@
     "change": "tools/lane-check.sh step 0 runs tools/registry-sync.py in check mode after the policy scan and returns 70 on drift (F-R60-2 closed for registry pins and probe APPROVED; path-edge approval still needs the steward probe). Edited while no lane run was in flight.",
     "proof": "bash -n OK; --step0-only on a clean tree at 88b5500c: policy clean, registry in sync, exit 0. The drift path (exit 70) was not exercised."
    }
+  },
+  "operator_direction_20261111": {
+   "at": "2026-11-11T07:34:57Z",
+   "words": "i have no idea what you open questions are about, just deliberate with specialised agents and use that result as decision for it.",
+   "lead_reading": "Open questions the lead would put to the Operator are decided by a specialised agent's deliberation (position plus red team where it matters), and the lead records the result as the decision. The Operator is not asked them.",
+   "applied": {
+    "waivers_global_scope_005": "decided by a scope-audit agent (research/waivers-20261111-global-scope-005.json).",
+    "plan_t_reinspection": "the lead's own 're-present past 5%' condition is replaced by a cargo-specialist check: a candidate whose path, owner and older_copies rule are unchanged stays inside the Operator's 2026-11-11 approval of plan T, whatever its fresh size.",
+    "vulkan_o1_o10": "already decided 2026-11-07 (direction.blocker_decisions_20261107); the operator-items line was stale."
+   },
+   "still_operator_by_hard_rule": "Not questions but rule-bound acts, kept off the Operator's plate until needed: deleting worktrees and branches and any NEW cargo removal list (root CLAUDE.md: Operator approves each exact list); legal checks (os-encode); Windows settings (Search and Defender exclusions); oracle work at the vendor apps. These are listed as held, not asked."
   }
  },
  "round_R45": {
