@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T09:35:17Z",
+ "updated_at": "2026-11-11T09:58:49Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -99,7 +99,17 @@
    "PATH APPROVED crates/hsk-studio-harness/tests/layout_persist.rs:191-216: keep the claim (a stale entry is refused, not replaced) with the stale entry built directly as a quarantined package entry naming a missing page.",
    "PATH APPROVED crates/hsk-studio-harness/tests/layout_pdf_host.rs:232-234: split layout.open out of the mutates check and assert mutates_authority true (STU-AUT-147).",
    "Items 3a and 3b (audio_session.rs admissions) wait for SMB-SCORE-EFFECTS-6 to land.",
-   "REVIEW READY at c43f2d90 (2026-11-11). Builder-named defects fixed in-lane: the page id scan reads id fields only, never free story text; the batch per-target export (doc_export.rs:984) admits through the host's port. Item 6's typed page_not_empty is accepted (base already refused, untyped); next-lane candidate: page.delete with content, removing frames and re-linking threads in one undo step."
+   "REVIEW READY at c43f2d90 (2026-11-11). Builder-named defects fixed in-lane: the page id scan reads id fields only, never free story text; the batch per-target export (doc_export.rs:984) admits through the host's port. Item 6's typed page_not_empty is accepted (base already refused, untyped); next-lane candidate: page.delete with content, removing frames and re-linking threads in one undo step.",
+   "Review c43f2d90 rulings (2026-11-11T09:58Z, research/review-smb-r60-followups-1-c43f2d90.json, FIX_FIRST):",
+   "F1 PATH APPROVED crates/hsk-studio-harness/src/cli/drive.rs, typed() undo_name source only: take result[\"undo_name\"] only when the result carries that key, otherwise use the newest-step comparison the other rows use. This fixes the whole class, not layout.open alone. Add the drive-reply assert (undo_name \"layout.open\" after a sized open) to r60_i3. Do not also add undo_name to layout_open's result.",
+   "F2 fix in-lane (containers.rs): when highest.checked_add(1) is None, mint the lowest n >= 1 that no page key in the document, the history's container and layout documents, or the entry page keys names; refuse page_number_exhausted only if that search fails. Test: a document whose page key is page-18446744073709551615, then page.add returns a page and a second page.add returns another.",
+   "F3 OWNER this lane (probe class export-job-not-admitted-jobport, which R60 attempt 3 re-checks). PATHS APPROVED as beyond_brief_paths: harness-view view/mod.rs Viewer::export, develop.rs export_develop, vector/interop.rs export_vector_svg, vector/pdf_export.rs export_vector_pdf, audio_import.rs export_audio. Wrap each like export_document: cheap path checks, admit through the bound JobPort before the first byte, write, settle. One test per route with a saturated port: typed refusal, no file written, the port asked exactly once. Touch only those functions: SMB-DEVELOP-COMMANDS-1 also edits develop.rs (Viewer::develop_crop_stored) and SMB-DELIVERY-QUEUE-1 edits view/mod.rs, so whoever lands second rebases. export_audio goes with items 3a and 3b after SMB-SCORE-EFFECTS-6 lands.",
+   "Batch port (doc_export.rs RecipeTargets::write): bind the inner viewer with set_job_port to the caller's port and let its export_document admit, once per target. Do not admit in write() as well. The test asserts asks == number of targets.",
+   "Refusal order: page.delete gained page_not_empty and page_bound_by_layout_records, so per the common rule the bundled run adds every harness process test that drives page.delete (drive_viewer.rs delete_page and any test sending page.delete), with a fresh example build.",
+   "Item 6 graphic frame on a deleted page: ACCEPTED as the named typed case page_not_empty (content on the page, as for text frames; removal with content stays the next-lane candidate). Catch-all at containers.rs:582: ACCEPTED only as a fail-closed guard that names the failing record kind and id in the typed refusal; list in the lane notes which record kinds can reach it.",
+   "Item 6 test APPROVED: a parent-bound page that is the only page of its spread. Delete it, undo restores the spread, the binding and the spread id, and the layout reopens editable.",
+   "Text-frame layer deleted outside the layout editor: owned by SMB-LAYOUT-PLACE-1 (its delete_layer ruling, clarified today to cover flow records). Not this lane.",
+   "Then: one bundled run on D: after items 3a, 3b and export_audio (after SMB-SCORE-EFFECTS-6 LANDED), BUNDLED GREEN, wait for RELEASED."
   ],
   "SMB-LAYOUT-PLACE-1": [
    "Review fbf7f0cd F1: the export link gate caches the link state per source_id, hashes each source once per export, checks the cancel token per frame.",
@@ -110,7 +120,8 @@
    "update_all_modified accepts resized sources and refits each frame by its stored fit mode as one undo step; a frame that cannot refit refuses typed and the others proceed.",
    "Add the brief's hostile tests (oversized, truncated, wrong-format and zero-dimension sources; a path outside the root; a link to a folder).",
    "Pass PNG pHYs and JPEG JFIF/EXIF density when the decoder exposes it; else 72, named, SD item.",
-   "Reword the canvas docs line at place.rs:79-81 (layout documents have an empty graph; the canvas does not draw the picture; UNVERIFIED by a run)."
+   "Reword the canvas docs line at place.rs:79-81 (layout documents have an empty graph; the canvas does not draw the picture; UNVERIFIED by a run).",
+   "Clarified 2026-11-11T09:58Z (from the SMB-R60-FOLLOWUPS-1 review): deleting a text-frame layer anywhere, not only in the layout editor, drops its frame record and every flow or thread record naming that frame in the same undo step: the thread re-links past the frame or ends there. Undo restores all of it. After save and reopen the layout stays editable. One test covers it."
   ],
   "SMB-WEB-SITE-1": [
    "ADDED ITEM (R60 attempt-2 probe j3, SMB-WEB-HOST-1): web.export and web.publish, and the site export, ask the host's bound JobPort before the first file (resource-less admission is NOT accepted); red test with a saturated port: no file, asked once.",

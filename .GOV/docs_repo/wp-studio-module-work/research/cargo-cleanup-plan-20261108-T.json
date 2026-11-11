@@ -156,8 +156,8 @@
     "the newest copy of each binary",
     "all libraries, build scripts, fingerprints, examples and tmp"
    ],
-   "gib": 0.69,
-   "target_total_gib": 21.03,
+   "gib": 19.47,
+   "target_total_gib": 47.9,
    "parts_gib": {
     "test_and_binary_outputs": 15.98,
     "workspace_libraries": 2.75,
@@ -170,11 +170,23 @@
     "other:tmp": 0.0
    },
    "lane_status": "owner smb-layout-composer-depth-1 PASS_V2; tree in use by SMB-PARSER-HOSTILE-1 (building on C: now, branch lane/smb-parser-hostile-1 at 655b83bb)",
-   "newest_file_utc": "2026-11-08T07:02Z",
+   "newest_file_utc": "2026-11-11T09:40Z",
    "when": "after SMB-PARSER-HOSTILE-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
    "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
    "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
-   "why_safe": "0.69 GiB older identities (SMB-LAYOUT-PDF-HOST-1 and before); small, listed so the batch covers every C: lane"
+   "why_safe": "0.69 GiB older identities (SMB-LAYOUT-PDF-HOST-1 and before); small, listed so the batch covers every C: lane",
+   "reinspections": [
+    {
+     "at": "2026-11-11T09:50:40Z",
+     "report": "research/target-report-20261111-c-cap.json",
+     "gib_before": 0.69,
+     "newest_before": "2026-11-08T07:02Z",
+     "target_total_gib": 47.9,
+     "older_binary_variants_gib": 19.47,
+     "newest_file_utc": "2026-11-11T09:40Z",
+     "reading": "SMB-PARSER-HOSTILE-1 READY at 27365b81 (kernel 0f3ada12); its bundled and 21-unit per-sha runs added older feature-unit copies. Path, owner and rule unchanged, so within the Operator's plan T approval per direction.operator_direction_20261111."
+    }
+   ]
   }
  ],
  "totals_gib": {
@@ -363,6 +375,17 @@
    "files": 176,
    "result": "research/cargo-cleanup-result-20261108-T-C03.json",
    "after": "SMB-AI-LIVE-EFFECTS-1 READY at 1e652818"
+  },
+  {
+   "at": "2026-11-11T09:51:11Z",
+   "ids": [
+    "T-C04"
+   ],
+   "removed_gib": 19.47,
+   "files": 670,
+   "result": "research/cargo-cleanup-result-20261108-T-C04.json",
+   "after": "SMB-PARSER-HOSTILE-1 READY at 27365b81 (kernel 0f3ada12); re-inspected 09:50Z (research/target-report-20261111-c-cap.json), dry run WOULD_REMOVE 19.47, no process naming the tree",
+   "c_tree_after_gib_estimate": 369.9
   }
  ]
 }
