@@ -888,37 +888,62 @@ async fn read_first_owner_workspace_transaction_receipt(
     }
     #[cfg(test)]
     {
-        let report = |stage, statement, error: &surrealdb::Error| {
-            let kind = first_owner_workspace_claim_error_kind(error);
-            if kind == "internal" {
-                let family = first_owner_workspace_receipt_internal_family(error.message());
-                eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind} internal_family={family}");
-            } else {
-                eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind}");
-            }
-        };
-        let bindings = super::original_operation_bindings(bindings.into_value());
-        let query = tx.transaction.query(FIRST_OWNER_WORKSPACE_READ);
-        let response = if matches!(bindings, surrealdb::types::Value::None) {
-            query.await
-        } else {
-            query.bind(bindings).await
-        }.map_err(|error| {
-            report("await", "none", &error);
-            SurrealStorageError::from(error)
-        })?;
-        let mut response = super::ObservedQueryResults::from(response);
-        super::check_query_response(&mut response).map_err(|error| {
-            if let SurrealStorageError::Database(database_error) = &error {
-                report("response", "0", database_error);
-            }
-            error
-        })?;
-        response.take(0).map_err(|error| {
-            report("decode", "0", &error);
-            SurrealStorageError::from(error)
-        })
+        observe_first_owner_workspace_receipt_query(tx, FIRST_OWNER_WORKSPACE_READ, bindings, branch)
+            .await
     }
+}
+
+#[cfg(test)]
+async fn observe_first_owner_workspace_receipt_query<R: surrealdb::types::SurrealValue>(
+    tx: &super::SurrealTransactionContext<'_>,
+    statement: &'static str,
+    bindings: WorkspaceCreationBindings,
+    branch: &'static str,
+) -> Result<Vec<R>, SurrealStorageError> {
+    let report = |stage, statement, error: &surrealdb::Error| {
+        let kind = first_owner_workspace_claim_error_kind(error);
+        if kind == "internal" {
+            let family = first_owner_workspace_receipt_internal_family(error.message());
+            eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind} internal_family={family}");
+        } else if kind == "validation" && branch == "scalar_probe" {
+            let family = match error.validation_details() {
+                Some(surrealdb::types::ValidationError::Parse) => "parse",
+                Some(surrealdb::types::ValidationError::InvalidRequest) => "invalid_request",
+                Some(surrealdb::types::ValidationError::InvalidParams) => "invalid_params",
+                Some(surrealdb::types::ValidationError::NamespaceEmpty) => "namespace_empty",
+                Some(surrealdb::types::ValidationError::DatabaseEmpty) => "database_empty",
+                Some(surrealdb::types::ValidationError::InvalidParameter { .. }) => "invalid_parameter",
+                Some(surrealdb::types::ValidationError::InvalidContent { .. }) => "invalid_content",
+                Some(surrealdb::types::ValidationError::InvalidMerge { .. }) => "invalid_merge",
+                Some(_) => "other_detail",
+                None => "no_detail",
+            };
+            eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind} validation_family={family}");
+        } else {
+            eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind}");
+        }
+    };
+    let bindings = super::original_operation_bindings(bindings.into_value());
+    let query = tx.transaction.query(statement);
+    let response = if matches!(bindings, surrealdb::types::Value::None) {
+        query.await
+    } else {
+        query.bind(bindings).await
+    }.map_err(|error| {
+        report("await", "none", &error);
+        SurrealStorageError::from(error)
+    })?;
+    let mut response = super::ObservedQueryResults::from(response);
+    super::check_query_response(&mut response).map_err(|error| {
+        if let SurrealStorageError::Database(database_error) = &error {
+            report("response", "0", database_error);
+        }
+        error
+    })?;
+    response.take(0).map_err(|error| {
+        report("decode", "0", &error);
+        SurrealStorageError::from(error)
+    })
 }
 
 pub(super) struct FirstOwnerWorkspaceFailure {
@@ -1458,7 +1483,11 @@ async fn observe_first_owner_workspace_receipt_scalar(
             .expect("workspace receipt SELECT has its canonical FROM clause");
         format!("\nSELECT VALUE true\nFROM {from}")
     });
-    match transaction.query_values_at::<bool, _>(SCALAR_QUERY.as_str(), bindings, 0).await {
+    match observe_first_owner_workspace_receipt_query::<bool>(
+        transaction, SCALAR_QUERY.as_str(), bindings, "scalar_probe",
+    )
+    .await
+    {
         Ok(rows) if rows.as_slice() == [true] => "one_visible",
         Ok(rows) if rows.is_empty() => "empty",
         Ok(_) => "unexpected_scalar_shape",
