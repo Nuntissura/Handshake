@@ -1,19 +1,112 @@
 {
   "crate": "hsk-studio-harness-view (develop typed rows for every DevelopOp and FamilyOp, and the develop must-haves: group enables, point curves, snapshots, preset save, crop and straighten, over hsk-studio-develop)",
   "lane": "SMB-DEVELOP-COMMANDS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
-  "base": "eb17fad6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
-  "verdicts": [],
+  "base": "87f331f9",
+  "commits": [
+    {
+      "sha": "ab28e323",
+      "kind": "red",
+      "what": "typed develop rows equal direct develop_op (red: unknown_command)",
+      "log": "red1-ee3e8307.log (pre-rebase sha ee3e8307) 0/3 passed exit 100"
+    },
+    {
+      "sha": "1809f8c2",
+      "kind": "green",
+      "what": "typed rows for every DevelopOp and FamilyOp, set and set_many"
+    },
+    {
+      "sha": "264051ca",
+      "kind": "red",
+      "what": "group enables, point curves, crop, snapshots, preset save",
+      "log": "red3-12ab1509.log (pre-rebase 12ab1509) 3/7 passed exit 100"
+    },
+    {
+      "sha": "a2ed6feb",
+      "kind": "green",
+      "what": "DevelopOp::Recipe: set_enable/clear_enable, set_point_curve, set_crop, snapshot.save/apply/delete; save_preset output row; develop entry optional members"
+    },
+    {
+      "sha": "363e1ce8",
+      "kind": "red",
+      "what": "new-op differentials (red by construction: written after a2ed6feb, never run red) and red for the R60 photo.info probe",
+      "log": "red5-5bc73f37.log (pre-rebase 5bc73f37) 8/9 passed exit 100"
+    },
+    {
+      "sha": "93d93a54",
+      "kind": "green",
+      "what": "photo.info.* rows declare mutates_authority true (ADDED ITEM, R60 attempt-2 probe SMB-COMMAND-SURFACE-1)"
+    },
+    {
+      "sha": "7be876a0",
+      "kind": "tidy",
+      "what": "one crop JSON for entry and state"
+    },
+    {
+      "sha": "99c3cb22",
+      "kind": "tidy",
+      "what": "clippy bool_assert_comparison in the lane test; entry blank line"
+    },
+    {
+      "sha": "5162f5d8",
+      "kind": "red",
+      "what": "document export of a cropped develop names develop_crop_not_applied",
+      "log": "red7-d7a0a2ac.log (pre-rebase d7a0a2ac) 0/1 passed exit 100 (fails at the cropped-note assert)"
+    },
+    {
+      "sha": "44e0fdde",
+      "kind": "green",
+      "what": "doc_export.rs develop_crop_not_applied note (lead PATH APPROVED) via Viewer::develop_crop_stored"
+    },
+    {
+      "sha": "1c034bb3",
+      "kind": "red",
+      "what": "review 945406d9 F1-F4 tests",
+      "log": "red8-32b5430b.log (pre-rebase 32b5430b) 10/13 passed exit 100: F1 Ok instead of develop_limit, F2 enables_override empty, F3 applied_to preview; F4 assert sits after F3 in the same test and was not reached at red"
+    },
+    {
+      "sha": "4506a6cf",
+      "kind": "green",
+      "what": "F1 entry read-back guard + whole-edit dab budget; F2 preset enable.* -> enables_override; F3 DNG without preview applied_to none; F4 export stage sizes the crop"
+    }
+  ],
+  "capabilities_done": [
+    "photo.develop.* rows for every DevelopOp/FamilyOp member without one (add_colour_range, add_correction, add_mask, lens_profile, clear_lens_profile, lens_toggles, upright, upright_guides, grain_seed, vignette_style, look, clear_look, apply_preset) plus set and set_many",
+    "group enables as optional operator overrides (STU-RAW-105), absent = derived; red_eye on stays refused",
+    "point curves (STU-RAW-113) through Curve::new; tone curve enable follows unless overridden",
+    "crop and straighten (STU-RAW-015/131) stored, applied at develop export (PNG/JPEG/TIFF/DNG preview); canvas uncropped, develop_json.crop_preview = crop_preview_not_applied",
+    "snapshots save/apply/delete (STU-RAW-128), at most 64, in the develop entry",
+    "save_preset output row: no-clobber, refused over the opened source, overwrite flag",
+    "develop entry optional members enables_override, point_curves, crop, snapshots, absent when default; hostile decoder bounds each",
+    "ADDED ITEM: photo.info.* rows declare mutates_authority true (they make one undo step each)"
+  ],
+  "tests": {
+    "bundled-6363bd19.log": "one outer D: hold (owner smb-folio-angle-unbounded-1), exit 0: step 0 clean, registry in sync; fresh studio-harness example build exit 0; clippy harness-core + harness-view [viewer] and harness [viewer] --tests exit 0, no warning in lane files; nextest WHOLE suites harness-core + harness-view [viewer] 223 passed, 1 skipped (48 binaries); harness [viewer] viewer_develop, _2, _3, _commands, _dng, _export_stage, _lens, _tiff, doc_export, harness_drive, harness_drive_typed, harness_drive_audio, place_asset: 89 passed",
+    "red_proofs": "red1, red3, red5, red7, red8 (see commits)",
+    "per_sha": "PER_SHA_RESULT OK (landing2-4506a6cf.log)",
+    "landing2-4506a6cf.log": "one outer D: hold on 4506a6cf (base 87f331f9), exit 0: fresh studio-harness example build; lane-check step 0 clean, registry in sync, clippy harness-core + harness-view [viewer] and harness [viewer] --tests clean in lane files; whole suites harness-core + harness-view [viewer] 228 passed, 1 skipped; harness bundled list + layout_place + layout_pdf_host 110 passed; PER_SHA_RESULT OK shas=1 range=1c034bb3..4506a6cf",
+    "landing-4506a6cf.log": "never acquired the D: lock (pause 2026-11-11); superseded by landing2-4506a6cf.log"
+  },
+  "verdicts": [
+    {
+      "state": "READY_FOR_VALIDATION",
+      "sha": "4506a6cf",
+      "pushed": "origin/codex/handshake-studio-assets 87f331f9..4506a6cf fast-forward, ls-remote 4506a6cf76a8a6f69a338045bd10d448da9edf35",
+      "at": "2026-11-12T10:26:08Z",
+      "logs": [
+        "bundled-6363bd19.log (pre-rebase)",
+        "landing2-4506a6cf.log"
+      ],
+      "claim": "not PASS; awaiting independent validation"
+    }
+  ],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T08:51:44Z",
+  "next": "validator: independent validation of SMB-DEVELOP-COMMANDS-1 at 4506a6cf (origin/codex/handshake-studio-assets); builder holds",
+  "updated_at": "2026-11-12T10:26:08Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -50,6 +143,50 @@
       "MT-413",
       "MT-30319"
     ],
-    "reuses_tree_and_target": "smb-folio-angle-unbounded-1"
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1",
+    "takeover": "2026-11-11: builder took over after the previous builder stopped on an account usage limit 2026-11-08 ~10:10Z during tidy and clippy; inherited tip d88ff00c (7 commits), added 945406d9; rebased onto 1e652818 (lead) 2026-11-11, tip 6363bd19",
+    "failure_class_sweep_v4_06": {
+      "export_develop": "fixed: document recipe includes crop; PNG/JPEG/TIFF receipts carry develop_crop",
+      "cli_develop_adjust": "not applicable: goes through Viewer::set_develop_many and export_develop (cli.rs execute_develop)",
+      "doc_export_develop_stage": "fixed (lead ruling 2026-11-11): doc export renders the uncropped canvas and its report notes name develop_crop_not_applied when the develop entry stores a crop (ab3ba458; test document_export_of_a_cropped_develop_names_the_crop_not_applied)",
+      "dng_xmp": "cut (lead ruling 2026-11-11): named note develop_crop_not_in_dng_xmp; applied_to names the preview, or none with develop_crop_not_applied when no preview is written (review F3); see notes.cuts",
+      "develop_json_state_json": "fixed: group_enables, enables_override, point_curves, crop, crop_preview, snapshots",
+      "develop_panel": "read only: panel does not read enables; no egui line",
+      "cli_batch": "fixed through doc export: the batch runner's RecipeTargets export through Viewer::export_document, so its report carries the same note",
+      "export_stage_size": "review F4: develop_json.export_stage, the export-stage precheck and staged_ok size the cropped frame (crop source_bounds), not the uncropped window",
+      "apply_preset_enables": "review F2: enable.* keys of a preset apply as enables_override in the same step; a key with no mapping is a typed refusal"
+    },
+    "round_features_4e": "checked: tests/viewer_develop_commands.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness [\"viewer\"] (viewer includes import-raw), so the round compiles and runs it",
+    "cuts": [
+      {
+        "item": "crop in the DNG XMP (lead ruling 2026-11-11: named cut; receipt code develop_crop_not_in_dng_xmp stays)",
+        "next_lane_candidate": "the DNG XMP crs: crop keys need a harness-view -> interop-lrcat edge (a steward edge, lead approval) or an XMP writer in hsk-studio-develop"
+      }
+    ],
+    "red_by_construction": "every_new_develop_op_row_equals_the_direct_call (5bc73f37): red by construction, the differential was written after its implementation and never ran red (lead ruling 2026-11-11)",
+    "beyond_brief_paths": [
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/doc_export.rs",
+        "what": "one receipt-note addition in Viewer::export_document_inner: develop_crop_not_applied when the develop entry stores a crop (Viewer::develop_crop_stored, develop.rs)",
+        "authority": "lead ruling 2026-11-11 PATH APPROVED",
+        "commit": "ab3ba458",
+        "conflict_note": "SMB-R60-FOLLOWUPS-1 edits the same file (JobPort admission near :844); this hunk is at the end of export_document_inner, away from it; whichever lands second rebases"
+      }
+    ],
+    "egui_line_note": "F4 changed one argument (develop_export_source_size -> develop_export_stage_size) in the existing staged_ok line inside develop_ui (develop.rs, egui panel fn), as the review named it (:1719); no new egui call, type or line",
+    "export_develop_note": "per lead 2026-11-11, export_develop (the public fn SMB-R60-FOLLOWUPS-1 wraps) is untouched; F3/F4 edits are in export_develop_inner",
+    "readings": [
+      "save_develop_preset is an authoring save, not an export, so it takes no JobPort admission (lead ruling 2026-11-11 on review Q1)"
+    ],
+    "not_proven": [
+      "F4 red not proven: its assert follows the F3 assert in crop_receipts_name_what_was_applied_and_the_stage_sizes_the_crop and was not reached at red (accepted by the lead 2026-11-11)"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-12T10:30:18Z",
+        "on": "paths beyond the brief at READY",
+        "decision": "approved: crates/hsk-studio-harness-view/src/view/doc_export.rs (one receipt-note hunk, develop_crop_not_applied) and one argument on the existing staged_ok line in develop_ui (develop.rs, develop_export_source_size -> develop_export_stage_size, review F4)"
+      }
+    ]
   }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-11T14:36:13Z",
+ "updated_at": "2026-11-12T10:30:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19949,8 +19949,8 @@
   },
   {
    "lane_id": "SMB-DEVELOP-COMMANDS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (develop typed rows for every DevelopOp and FamilyOp, and the develop must-haves: group enables, point curves, snapshots, preset save, crop and straighten, over hsk-studio-develop)",
    "lane_file": "builders/lanes/hsk-studio-develop-commands-1.json",
    "brief": "builders/briefs/lane-smb-develop-commands-1.md",
@@ -19958,7 +19958,7 @@
    "base": "eb17fad6",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T08:51:44Z",
+   "updated_at": "2026-11-12T10:30:18Z",
    "closes": [
     "scenario photo-retouch gap rank 5 (photo commands on the model surface), develop part",
     "scenario photo-retouch gap rank 8 (develop must-haves): crop and straighten, point curves, group toggles, snapshots, save preset",
@@ -19972,7 +19972,8 @@
     "MT-30369",
     "MT-413",
     "MT-30319"
-   ]
+   ],
+   "claim": "87f331f9..4506a6cf"
   },
   {
    "lane_id": "SMB-MOTION-COMMANDS-2",
@@ -22387,6 +22388,11 @@
     "added_at": "2026-11-11T12:51:10Z",
     "item": "deleting a group, page or spread that holds a frame layer drops the frame records in the same undo step (not tested in SMB-LAYOUT-PLACE-1)",
     "owner": "layout place / harness-view layers.rs"
+   },
+   {
+    "added_at": "2026-11-12T10:30:18Z",
+    "item": "crop in the DNG XMP: the crs: crop keys need a harness-view -> interop-lrcat edge (steward edge, lead approval) or an XMP writer in hsk-studio-develop (cut in SMB-DEVELOP-COMMANDS-1, receipt code develop_crop_not_in_dng_xmp)",
+    "owner": "develop export (hsk-studio-develop / harness-view develop.rs)"
    }
   ],
   "pause_20261103": {
