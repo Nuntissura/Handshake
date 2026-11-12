@@ -905,6 +905,8 @@ pub struct SurrealStorageConfig {
     /// TEST-ONLY: keep the engine default (`Every`) even when [`HANDSHAKE_TEST_SURREAL_SYNC_ENV`]
     /// is `never`; for crash/durability proofs. See [`Self::with_test_datastore_sync_durable`].
     test_datastore_sync_durable: bool,
+    #[cfg(test)]
+    test_compute_only_planner: bool,
 }
 
 /// TEST-ONLY switch read by the test-support store openers: `never` disables the per-commit WAL
@@ -961,7 +963,15 @@ impl SurrealStorageConfig {
             engine_transaction_timeout: None,
             test_datastore_sync_never: false,
             test_datastore_sync_durable: false,
+            #[cfg(test)]
+            test_compute_only_planner: false,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_test_compute_only_planner(mut self) -> Self {
+        self.test_compute_only_planner = true;
+        self
     }
 
     #[cfg(feature = "surreal-test-support")]
@@ -2509,6 +2519,15 @@ impl SurrealStorage {
         let engine_config = EngineConfig::new()
             .query_timeout(config.engine_query_timeout())
             .transaction_timeout(config.engine_transaction_timeout());
+        #[cfg(test)]
+        let engine_config = if config.test_compute_only_planner {
+            use surrealdb::opt::capabilities::{Capabilities, PlannerStrategy};
+            engine_config.capabilities(
+                Capabilities::default().with_planner_strategy(PlannerStrategy::ComputeOnly),
+            )
+        } else {
+            engine_config
+        };
         let client = if config.test_datastore_sync_never() {
             // TEST-ONLY: the SDK keeps the query string (surrealdb-3.2.0 `opt/endpoint/mod.rs`
             // path_to_string) and the datastore maps `sync=never` to `datastore_sync`.

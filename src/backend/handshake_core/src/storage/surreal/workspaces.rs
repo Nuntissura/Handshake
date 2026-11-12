@@ -758,7 +758,18 @@ struct FirstOwnerWorkspaceOriginal {
     deadline: std::time::Instant,
     cancellation: Arc<super::ContextOperationCancellation>,
     expected: std::sync::OnceLock<Option<FirstOwnerWorkspaceReceipt>>,
+    #[cfg(test)]
+    receipt_scalar_probe: bool,
 }
+
+#[cfg(test)]
+tokio::task_local! {
+    static FIRST_OWNER_WORKSPACE_RECEIPT_SCALAR_PROBE: ();
+}
+
+#[cfg(test)]
+const RECEIPT_SCALAR_PROBE_ROLLBACK: &str = "receipt_scalar_probe_rollback";
+
 struct FirstOwnerWorkspaceProofSource {
     storage: SurrealStorage,
     context: super::local_accounts::LocalSessionContext,
@@ -1029,6 +1040,50 @@ impl FirstOwnerWorkspaceCreationOperation {
     }
 }
 impl SurrealStorage {
+    #[cfg(test)]
+    pub(crate) async fn probe_first_owner_workspace_receipt_projection(
+        &self,
+        context: &super::local_accounts::LocalSessionContext,
+        scope: &RecordUserScope,
+        workspace: NewWorkspace,
+    ) -> Result<&'static str, ResourceAuthorityError> {
+        let operation = FIRST_OWNER_WORKSPACE_RECEIPT_SCALAR_PROBE
+            .scope((), self.begin_account_workspace_creation(context, scope, workspace))
+            .await?;
+        if !operation.original.receipt_scalar_probe {
+            return Err(workspace_creation_denied());
+        }
+        let FirstOwnerWorkspaceObservation::Complete(result) = operation.wait().await else {
+            return Err(workspace_creation_denied());
+        };
+        let Err(failure) = result.as_ref() else {
+            return Err(workspace_creation_denied());
+        };
+        // The transaction worker returns this callback error only after the SDK
+        // acknowledges cancellation. A failed cancel replaces it with a finalization error.
+        let ResourceAuthorityError::InvalidInput(outcome) = &failure.error else {
+            return Err(workspace_creation_denied());
+        };
+        if failure.phase != RECEIPT_SCALAR_PROBE_ROLLBACK {
+            return Err(workspace_creation_denied());
+        }
+        let mut retained = self
+            .inner
+            .transaction_settlements
+            .lock()
+            .map_err(|_| workspace_creation_denied())?;
+        let operation_id = operation.original.operation_id;
+        if !matches!(
+            retained.get(&operation_id),
+            Some(Some(super::AuthenticatedTransactionRetention::FirstOwnerWorkspace(owner)))
+                if Arc::ptr_eq(owner, &operation)
+        ) {
+            return Err(workspace_creation_denied());
+        }
+        retained.remove(&operation_id);
+        Ok(*outcome)
+    }
+
     pub(super) async fn begin_account_workspace_creation(
         &self, context: &super::local_accounts::LocalSessionContext,
         scope: &RecordUserScope, workspace: NewWorkspace,
@@ -1087,6 +1142,8 @@ impl SurrealStorage {
             storage: self.clone(), scope: scope.clone(), context: context.clone(), operation_id,
             bindings, deadline, cancellation: super::ContextOperationCancellation::new(),
             expected: std::sync::OnceLock::new(),
+            #[cfg(test)]
+            receipt_scalar_probe: FIRST_OWNER_WORKSPACE_RECEIPT_SCALAR_PROBE.try_with(|_| ()).is_ok(),
         });
         let operation = Arc::new(FirstOwnerWorkspaceCreationOperation {
             original: original.clone(), state: tokio::sync::Mutex::new(FirstOwnerWorkspaceState::Starting),
@@ -1158,6 +1215,10 @@ impl SurrealStorage {
                         _ => return Err(FirstOwnerWorkspaceFailure::invalid_input("origin")),
                     }
                 }
+                #[cfg(test)]
+                if captured.receipt_scalar_probe && !first_claim {
+                    return Err(FirstOwnerWorkspaceFailure::invalid_input("receipt_scalar_probe_not_first_claim"));
+                }
                 let claim_write_error = |error| FirstOwnerWorkspaceFailure::at("claim_write")(SurrealStorageError::from(error));
                 let response = tx.transaction.query(FIRST_OWNER_WORKSPACE_CREATE)
                     .bind(super::original_operation_bindings(write.clone().into_value()))
@@ -1189,6 +1250,14 @@ impl SurrealStorage {
                         );
                         return Err(claim_write_error(errors.into_iter().next().expect("first query error").1));
                     }
+                }
+                #[cfg(test)]
+                if captured.receipt_scalar_probe {
+                    let outcome = observe_first_owner_workspace_receipt_scalar(&tx, write.receipt_read()).await;
+                    // An error deliberately prevents this test-only operation from reaching commit.
+                    return Err(FirstOwnerWorkspaceFailure::at(RECEIPT_SCALAR_PROBE_ROLLBACK)(
+                        ResourceAuthorityError::InvalidInput(outcome),
+                    ));
                 }
                 let expected = if first_claim {
                     let receipts = read_first_owner_workspace_transaction_receipt(
@@ -1375,6 +1444,28 @@ WHERE first_workspace_operation_id = $operation_id AND first_workspace = $worksp
  AND first_workspace_session = $account_session AND first_workspace_channel_hash = $channel_hash
  AND first_workspace_name = $name AND first_workspace_deadline = $deadline;
 "#;
+
+#[cfg(test)]
+async fn observe_first_owner_workspace_receipt_scalar(
+    transaction: &super::SurrealTransactionContext<'_>,
+    bindings: WorkspaceCreationBindings,
+) -> &'static str {
+    // Use the production FROM and WHERE verbatim. Keep the receipt-read binding
+    // and the same record user, transaction and claim writes.
+    static SCALAR_QUERY: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        let (_, from) = FIRST_OWNER_WORKSPACE_READ
+            .split_once("\nFROM ")
+            .expect("workspace receipt SELECT has its canonical FROM clause");
+        format!("\nSELECT VALUE true\nFROM {from}")
+    });
+    match transaction.query_values_at::<bool, _>(SCALAR_QUERY.as_str(), bindings, 0).await {
+        Ok(rows) if rows.as_slice() == [true] => "one_visible",
+        Ok(rows) if rows.is_empty() => "empty",
+        Ok(_) => "unexpected_scalar_shape",
+        Err(SurrealStorageError::Database(error)) => first_owner_workspace_claim_error_kind(&error),
+        Err(_) => "storage_error",
+    }
+}
 
 const FIRST_OWNER_WORKSPACE_READ_STRICT: &str = r#"
 SELECT setup_operation_id, account, operator_principal, space, setup_receipt, setup_policy_version, created_at,

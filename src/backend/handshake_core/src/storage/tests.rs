@@ -277,6 +277,16 @@ impl EmbeddedTestBackend {
         Ok(reopened)
     }
 
+    #[cfg(test)]
+    pub(crate) async fn close_and_preserve(self) -> StorageResult<()> {
+        let storage = self.cleanup.take_storage().ok_or_else(|| {
+            StorageError::Database("embedded test store cleanup custody unavailable".to_owned())
+        })?;
+        drop(self);
+        storage.shutdown().await?;
+        Ok(())
+    }
+
     /// Close the store and remove its directory.
     pub async fn close_and_remove(self) -> StorageResult<()> {
         let EmbeddedTestBackend {
@@ -440,7 +450,12 @@ fn cleanup_unopened_test_store(data_dir: &PathBuf, error: impl std::fmt::Display
 /// `POSTGRES_TEST_URL` / `DATABASE_URL` resolution chain is gone rather than
 /// ported - there is nothing left to resolve.
 pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
-    open_embedded_test_backend(true).await
+    open_embedded_test_backend(true, std::convert::identity).await
+}
+
+#[cfg(test)]
+pub(crate) async fn embedded_test_backend_compute_only() -> StorageResult<EmbeddedTestBackend> {
+    open_embedded_test_backend(true, SurrealStorageConfig::with_test_compute_only_planner).await
 }
 
 /// Open an isolated store with only the production resource-authority schema.
@@ -448,11 +463,12 @@ pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
 /// MT-109 exercises record-user permissions and protected-resource policy; it
 /// must not pay for or depend on the unrelated full product-schema migration.
 pub async fn embedded_resource_authority_test_backend() -> StorageResult<EmbeddedTestBackend> {
-    open_embedded_test_backend(false).await
+    open_embedded_test_backend(false, std::convert::identity).await
 }
 
 async fn open_embedded_test_backend(
     run_product_migrations: bool,
+    configure: fn(SurrealStorageConfig) -> SurrealStorageConfig,
 ) -> StorageResult<EmbeddedTestBackend> {
     let data_dir = test_store_root()?.join(format!("store-{}", Uuid::now_v7().simple()));
     std::fs::create_dir_all(&data_dir).map_err(|error| {
@@ -465,7 +481,7 @@ async fn open_embedded_test_backend(
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     #[cfg(any(test, feature = "surreal-test-support"))]
     let config = config.with_test_sync_from_env();
-    let storage = open_test_storage_on_engine_runtime(config)
+    let storage = open_test_storage_on_engine_runtime(configure(config))
         .await
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     let database = SurrealDatabase::new(storage.clone());

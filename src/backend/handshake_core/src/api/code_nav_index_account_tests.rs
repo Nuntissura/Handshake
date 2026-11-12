@@ -43,10 +43,23 @@ async fn request(router: &Router, method: &str, uri: &str, headers: &HeaderMap, 
     (status, if bytes.is_empty() { Value::Null } else { serde_json::from_slice(&bytes).unwrap() })
 }
 
-#[tokio::test]
-async fn mounted_index_account_source_witness_revocation_and_workspace_delete() {
+struct MountedIndexAccountFixture {
+    _binding: Binding,
+    backend: crate::storage::tests::EmbeddedTestBackend,
+    state: AppState,
+    router: Router,
+    headers: HeaderMap,
+    session: Value,
+}
+
+async fn mounted_index_account_fixture(compute_only: bool) -> MountedIndexAccountFixture {
     let binding = Binding::new();
-    let backend = crate::storage::tests::embedded_test_backend().await.unwrap();
+    let backend = if compute_only {
+        crate::storage::tests::embedded_test_backend_compute_only().await
+    } else {
+        crate::storage::tests::embedded_test_backend().await
+    }
+    .unwrap();
     let recorder = Arc::new(crate::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7).unwrap());
     let state = AppState {
         storage: backend.database.clone(), surreal: backend.storage.clone(),
@@ -75,6 +88,69 @@ async fn mounted_index_account_source_witness_revocation_and_workspace_delete() 
     headers.insert("x-hsk-actor-kind","operator".parse().unwrap());
     headers.insert("x-hsk-kernel-task-run-id","mounted-index-proof".parse().unwrap());
     headers.insert("x-hsk-session-run-id","mounted-index-proof".parse().unwrap());
+    MountedIndexAccountFixture { _binding: binding, backend, state, router, headers, session }
+}
+
+async fn first_owner_workspace_receipt_scalar_outcome(compute_only: bool) -> &'static str {
+    use crate::storage::surreal::resource_authority::{RecordUserScope, ResourceAction};
+
+    let MountedIndexAccountFixture { _binding, backend, state, router, headers, .. } =
+        mounted_index_account_fixture(compute_only).await;
+    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .unwrap_or_else(|_| panic!("receipt scalar probe account authentication failed"));
+    // Same prospective Workspace/Create scope as the real collection handler.
+    let scope = RecordUserScope {
+        workspace_id: Some(uuid::Uuid::now_v7().to_string()),
+        resource_id: uuid::Uuid::now_v7().to_string(),
+        session_id: credentials.context.session_id.clone(),
+        session_token: credentials.session_token,
+        channel_binding_hash: Some(credentials.channel_binding_hash),
+        capability_id: "fs.write".to_owned(),
+        action: ResourceAction::Create,
+        grant_id: None,
+    };
+    let observed = state
+        .surreal
+        .probe_first_owner_workspace_receipt_projection(
+            &credentials.context,
+            &scope,
+            crate::storage::NewWorkspace { name: "Owned indexed workspace".to_owned() },
+        )
+        .await;
+    let Ok(outcome) = observed else {
+        drop(router);
+        drop(state);
+        assert!(backend.close_and_preserve().await.is_ok(), "receipt scalar probe fixture close unobserved");
+        panic!("receipt scalar probe rollback unobserved");
+    };
+    let logout_ok = request(&router, "POST", "/authority/logout", &headers, Value::Null).await.0
+        == StatusCode::OK;
+    drop(router);
+    drop(state);
+    assert!(backend.close_and_remove().await.is_ok(), "receipt scalar probe fixture cleanup unobserved");
+    assert!(logout_ok, "receipt scalar probe logout failed after checked rollback");
+    outcome
+}
+
+#[tokio::test]
+async fn first_owner_workspace_receipt_scalar_projection_observes_rollback() {
+    let outcome = first_owner_workspace_receipt_scalar_outcome(false).await;
+    // A scalar failure cannot count as receipt acceptance.
+    assert_eq!(outcome, "one_visible", "receipt scalar probe after checked rollback");
+}
+
+#[tokio::test]
+async fn first_owner_workspace_receipt_compute_only_observes_rollback() {
+    let outcome = first_owner_workspace_receipt_scalar_outcome(true).await;
+    // This compares the fixed outcome with the archived default-planner run.
+    assert_eq!(outcome, "one_visible", "receipt compute-only scalar probe after checked rollback");
+}
+
+#[tokio::test]
+async fn mounted_index_account_source_witness_revocation_and_workspace_delete() {
+    let MountedIndexAccountFixture { _binding, backend: _backend, state, router, headers, session } =
+        mounted_index_account_fixture(false).await;
     let (status, workspace) = request(&router,"POST","/workspaces",&headers,json!({"name":"Owned indexed workspace"})).await;
     assert_eq!(status,StatusCode::CREATED,"owned workspace create: {workspace}");
     let workspace_id = workspace["id"].as_str().unwrap();
