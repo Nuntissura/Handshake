@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T14:55:49Z",
+ "updated_at": "2026-11-12T15:08:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19899,8 +19899,8 @@
   },
   {
    "lane_id": "SMB-WEB-SITE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core (web site document set, link graph, site reports, update links on move, export of the set, site lock, job admission), hsk-studio-harness (tests)",
    "lane_file": "builders/lanes/hsk-studio-web-site-1.json",
    "brief": "builders/briefs/lane-smb-web-site-1.md",
@@ -19908,7 +19908,7 @@
    "base": "eb17fad6",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T08:50:53Z",
+   "updated_at": "2026-11-12T15:08:00Z",
    "closes": [
     "board-slides-web gap rank 14 at 0a733db8: broken links, orphans, external links, missing alt and untitled documents (validator and linter stay open)",
     "board-slides-web steps 105 and 111; the document set part of 113",
@@ -19920,7 +19920,8 @@
     "MT-34346",
     "MT-34349",
     "MT-34348"
-   ]
+   ],
+   "claim": "54b9c895 on origin: the local site as one link graph (web.site_report, export of the document set, web.move_file update-links-on-move with a receipt, site lock with nonce, web.save under the lock inside local_root), every web job (open export, publish, site export, report, move) admitted through the host's bound JobPort, never resource-less (R60 probe j3), review e3fc0e89 F1-F9 and Q1-Q4 fixed; land-2-smb-web-site-1-54b9c895.log: whole harness-core, harness-view[viewer], harness[viewer] suites 620/620 with a fresh example, per-sha OK"
   },
   {
    "lane_id": "SMB-DS-COMPONENTS-AUTHOR-1",
@@ -22396,6 +22397,16 @@
     "added_at": "2026-11-12T10:30:18Z",
     "item": "crop in the DNG XMP: the crs: crop keys need a harness-view -> interop-lrcat edge (steward edge, lead approval) or an XMP writer in hsk-studio-develop (cut in SMB-DEVELOP-COMMANDS-1, receipt code develop_crop_not_in_dng_xmp)",
     "owner": "develop export (hsk-studio-develop / harness-view develop.rs)"
+   },
+   {
+    "added_at": "2026-11-12T15:08:00Z",
+    "item": "hsk-studio-session Action::Read for read-only verbs (web.site_report and similar), with the kernel-bindings mapping",
+    "owner": "lead"
+   },
+   {
+    "added_at": "2026-11-12T15:08:00Z",
+    "item": "web change-link-site-wide slice: rewrite case-mismatched and percent-encoded spellings of a moved file in other documents (out of SMB-WEB-SITE-1 per lead Q3)",
+    "owner": "lead"
    }
   ],
   "pause_20261103": {

@@ -629,6 +629,14 @@
    "lead_reading": "72 ppi, as SMB-LAYOUT-PLACE-1 documents",
    "source": "lane SMB-LAYOUT-PLACE-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-77",
+   "gap": "A web job with no package open is admitted on a derived SDOC id (UUIDv7 shape, SHA-256 of the case-folded absolute site folder) that no Folio document has; whether the host Job Runtime (kernel-bindings BridgeJobs) accepts an id unknown to Folio is host-side and NOT_INSPECTED.",
+   "needs": "A spec statement of the resource a document-less job (a web site, a file-to-file batch) is admitted on, or a site record kind the session can address.",
+   "lead_reading": "Lead Q1 2026-11-11: the resource is what the job reads or writes; a host refusal returns overloaded with the long retry, which fails closed.",
+   "source": "lane SMB-WEB-SITE-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

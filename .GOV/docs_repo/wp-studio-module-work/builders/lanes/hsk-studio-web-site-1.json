@@ -1,19 +1,52 @@
 {
   "crate": "hsk-studio-harness-core (web site document set, link graph, site reports, update links on move, export of the set, site lock, job admission), hsk-studio-harness (tests)",
   "lane": "SMB-WEB-SITE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
   "base": "eb17fad6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "ba26fd47 web site, SMB-WEB-SITE-1: red tests for the site link graph (report, document-set export, move, lock, page-link warning)",
+    "78097680 web site, SMB-WEB-SITE-1: red test without a drive-letter literal (step 0)",
+    "b07a996d web site, SMB-WEB-SITE-1: the site as one link graph",
+    "aa595320 web site, SMB-WEB-SITE-1: red tests, web jobs through the viewer's job port (R60 probe j3) and the opened package never moved",
+    "ff565837 web site, SMB-WEB-SITE-1: web jobs through the viewer's bound job port with the open package as resource; move_open_package",
+    "96b9117a web site, SMB-WEB-SITE-1: red tests, web jobs with no package open still ask the bound job port (R60 probe j3, resource-less admission not accepted)",
+    "895c489f web site, SMB-WEB-SITE-1: red test helpers that do not assume a frame with no package open",
+    "47d14bb1 web site, SMB-WEB-SITE-1: web jobs are never resource-less; with no package open the site's derived id addresses the job (R60 probe j3)",
+    "5df7142f web site, SMB-WEB-SITE-1: red tests for review e3fc0e89 (F1 to F8, Q1 to Q4)",
+    "87f7382f web site, SMB-WEB-SITE-1: review e3fc0e89 fixes F1 to F9, Q1 to Q4",
+    "54b9c895 web site, SMB-WEB-SITE-1: clippy explicit_auto_deref in the move's verification"
+  ],
+  "capabilities_done": [
+    "web.site_report: broken links (missing, case_mismatch, folder_missing, anchor_missing), orphaned files, external links, missing alt, untitled documents, denied, unparsed, skipped",
+    "web.export documents: site (every document, union of assets incl. style-sheet references, documents list)",
+    "open export: page link to no file is a link_broken warning",
+    "web.move_file: one receipted transaction, graph-verified before the first write, restore on a failed write, link base honoured, reverse move restores",
+    "site lock .studio-site.lock naming the holder (site_report, site export, move_file, publish)",
+    "job admission of web.export/publish/site_report/move_file through the host's bound JobPort, asked once before any lock, read or file, never resource-less (package id, else the site's derived id); overloaded, canceled, stale_revision",
+    "web.move_file refuses move_open_package (from or to is the opened package or inside it)"
+  ],
+  "tests": {
+    "red_0b59d57e": "lane-check --owner smb-sentinels-native-1 --disk d: nextest -p hsk-studio-harness --test web_site: 10 run, 0 passed, 10 failed, EXIT 100 (red-smb-web-site-1-0b59d57e.log; unknown_command for web.site_report/web.move_file, asset_missing for the open-export page link)",
+    "focused_0ed2f291_pre_commit": "lane-check --owner smb-sentinels-native-1 --disk d (clippy harness-core + harness, no dependents): nextest -p harness-core -p harness -E binary(web_site)|binary(web_host)|test(web_site::): 21 run, 21 passed, EXIT 0 (focused-1-smb-web-site-1-0b59d57e-dirty.log: the uncommitted lane diff of 0ed2f291 minus one clippy fix); clippy -p harness-core --tests after the fix EXIT 0, no warning",
+    "red2_dcf46289": "lane-check --owner smb-sentinels-native-1 --disk d: nextest -p hsk-studio-harness (viewer) --test web_site: 2 run, 0 passed, 2 failed, EXIT 100 (red2-smb-web-site-1-dcf46289.log: move of the opened package accepted; viewer web.export Ok through a saturated port)",
+    "focused_dcf46289_dirty": "25 run, 25 passed, EXIT 0 (focused-2-smb-web-site-1-dcf46289-dirty.log; the tree of 606121aa)",
+    "red4_629f5fcd": "lane-check --owner smb-sentinels-native-1 --disk d: nextest -p hsk-studio-harness --features viewer --test web_site -E test(no_package): 2 run, 0 passed, 2 failed, EXIT 100 (red4-smb-web-site-1-629f5fcd.log: web.export accepted with no package open, port asked 0; red3-...-192012e8.log failed the bare-Run test on a frame-count helper, fixed in 629f5fcd)",
+    "focused_3_e3fc0e89": "lane-check --owner smb-sentinels-native-1 --disk d (clippy harness-core, harness-view, harness with viewer; no dependents): nextest binary(web_site)|binary(web_host)|test(web_site::)|test(web_commands::)|test(catalog): 33 run, 33 passed, EXIT 0, no clippy warning in the lane's crates (focused-3-smb-web-site-1-e3fc0e89.log; includes web_host::web_commands_run_in_the_drive_session and the catalog tests)",
+    "red5_a63db2e3": "one hold: lane-check (clippy harness[viewer]) nextest -p hsk-studio-harness --features viewer --test web_site: 22 run, 11 passed, 11 failed, EXIT 100; nextest -p hsk-studio-harness-core --lib test(web_site::): 4 run, 3 passed, 1 failed, EXIT 100 (red5-smb-web-site-1-a63db2e3.log; each failure the finding's own: MEDIA move accepted, gallery move_rewrite_unverified, unquoted rewrite corrupt, 2100 link_broken rows, publish target refusal answered overloaded, recipe.file stale, whole holder echoed, site work on the package id, document_unreadable without reason, save accepted under a held lock, </style sheet document_unreadable, lock guard deleted a later holder's lock)",
+    "bundled_1_030168fb": "not run: queued in the D: lock when the Operator paused the lanes (bundled-1-smb-web-site-1-030168fb.log ends waiting); the waiter did not survive the pause",
+    "focused_4_030168fb": "one hold: lane-check (clippy harness[viewer]) nextest -p hsk-studio-harness --features viewer --test web_site --test web_host: 31 run, 31 passed; nextest -p hsk-studio-harness-core --lib test(web_): 4 run, 4 passed; EXIT 0 (focused-4-smb-web-site-1-030168fb.log); clippy explicit_auto_deref at web_site.rs:1282 fixed in aa518007",
+    "bundled_2_aa518007": "ONE hold: lane-check step 0 clean, clippy harness-core + harness-view[viewer] + harness[viewer] --tests (no warning in the lane's files), nextest WHOLE suites of hsk-studio-harness-core, hsk-studio-harness-view and hsk-studio-harness (features harness-view/viewer, harness/viewer; no target flag, so examples/studio-harness.exe was rebuilt in the run, 11:44Z): 565 run, 565 passed, 22 skipped, EXIT 0, incl. web_host::web_commands_run_in_the_drive_session, the catalog tests and every web_site test (bundled-2-smb-web-site-1-aa518007.log)",
+    "land_1_611c0721": "ONE hold on 611c0721 (rebased onto 153a410d): whole suites harness-core, harness-view[viewer], harness[viewer] with a fresh example: 608 run, 608 passed, 22 skipped; --per-sha HEAD~1 PER_SHA_RESULT OK; push rejected non-fast-forward (origin moved to 03894fdd, SMB-MOTION-COMMANDS-2) (land-1-smb-web-site-1-611c0721.log)",
+    "land_2_54b9c895": "ONE hold on 54b9c895 (rebased onto 03894fdd; origin's new commits touch harness-core, harness-view, harness, none of the lane's files): whole suites harness-core, harness-view[viewer], harness[viewer] with a fresh example: 620 run, 620 passed (1 slow), 22 skipped, SUITES_EXIT 0; lane-check --per-sha HEAD~1: PER_SHA_RESULT OK (range 87f7382f..54b9c895, every round feature unit); guarded push 03894fdd..54b9c895 accepted, PUSH_EXIT 0 (land-2-smb-web-site-1-54b9c895.log)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T08:50:53Z",
+  "next": "validator: STUDIO round of 54b9c895 (SMB-WEB-SITE-1); builder waits",
+  "updated_at": "2026-11-12T15:07:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -27,7 +60,7 @@
     },
     "control_descriptors": "none",
     "attribution": "unchanged: every command runs under Run::begin_at with the caller's command context (web_commands.rs:1299); the lock file records that context's actor and client session; no default_actor() or literal actor",
-    "jobs": "none",
+    "jobs": "four job classes, each admitted through the host's bound session JobPort (Run::bind_web_jobs; the Viewer binds its own port and lifecycle before every web command) after its checks that need no file and before any lock, read or write, never resource-less: web.export open (Action export, resource = the open package's document id at its head, else the site's id), web.publish (export, same rule), web.export documents site (export, the site's id), web.site_report (export: session Action has no read class), web.move_file (edit, the site's id); the site's id is SDOC- in the UUIDv7 shape from the SHA-256 of the site folder made absolute and case-folded without a file-system call; outcomes: refused overloaded (retry_after_ms) / canceled (lifecycle refused_canceled, port not asked) / stale_revision; settled completed / canceled / failed(code), settlement in the result's job; publish checks cancel per file; deadline: none by nature, ended by cancel (HBR-HOST-004)",
     "settings": "none",
     "refactor_exposure": "medium"
   },
@@ -48,6 +81,80 @@
       "MT-34349",
       "MT-34348"
     ],
-    "reuses_tree_and_target": "smb-sentinels-native-1"
+    "reuses_tree_and_target": "smb-sentinels-native-1",
+    "lane_branch": "lane/smb-web-site-1 from eb17fad6 (tree smb-sentinels-native-1; aa68164c confirmed on origin/codex/handshake-studio-assets)",
+    "tip": "54b9c895",
+    "page_link_rule_tests": "No existing assertion flipped: web_host.rs passes unchanged except web_rows_are_in_the_corpus_and_run_through_web_command (row count 20 -> 22, the two new rows). The drive process test web_host::web_commands_run_in_the_drive_session (feature viewer; drives web.export and web.publish, whose refusal order now has admission and, for publish, the site lock) is NOT RUN yet: in the bundled run.",
+    "limits": "collect_assets bounds one document at Limits::max_nodes = 200000 references (parse bounds nodes at the same number first); the site at 262144 references, 64 MiB of source, 4096 files, 16384 entries, 32 segments. Cancellation: checked per directory, per source and before the first move write; mid-walk and mid-move cancel are NOT_PROVEN by a test (only a token canceled before the command, unit test site_jobs_refuse_overloaded_and_canceled_before_any_work).",
+    "decisions_to_review": [
+      "SUPERSEDED by the lead ruling 2026-11-08 (resource-less admission not accepted): the job's resource is the open package's document id (bound to its head, as as_export_job), else an SDOC id in the UUIDv7 shape from the SHA-256 of the site's folder (local_root, else the open document's folder, canonical when it resolves), bound to the web source revision; the port is always asked. A real host's Job Runtime may not know that derived id (NOT_INSPECTED: kernel-bindings BridgeJobs forwards it; a host refusal arrives as overloaded with its hint).",
+      "Style sheets (.css) are scanned through the engine by wrapping them as a style body (no second scanner), so an image used only from a style sheet is not an orphan, a site export copies it, and a move rewrites and re-bases url() in .css files; beyond the brief's every .html/.htm.",
+      "A case-only mismatch (Thanks.html vs thanks.html) is a broken link (case_mismatch) and, for a non-page reference in the site export, asset_missing: deterministic across file systems.",
+      "Open export: a navigation link naming an existing folder without a trailing slash is now listed in links (was asset_missing).",
+      "Site export refuses an output inside the site (output_inside_site); the entry recipe.file must be a document of the set (entry_document_missing).",
+      "web.move_file refuses a document with a site record beside it (move_site_record), a kind change (move_kind_changes) and a case-only rename (move_case_only) instead of moving the record or renaming in two steps.",
+      "Recipe gains documents (open|site) in state_json and the sidecar (additive key).",
+      "Q3 widens recipe.file to a root-relative path of portable segments (web.export_recipe and the sidecar accept pages/x.html); the open export refuses such a file document_outside_site_root.",
+      "web.site_report admits as Action::Export, not Read (no Read in the session Action enum)."
+    ],
+    "beyond_brief_paths": {
+      "crates/hsk-studio-harness-view/src/view/job_admission.rs": "606121aa: Viewer::job_binding (pub(in crate::view)) hands the viewer's port and lifecycle to the web host; ruling: lead-rulings-20261108-by-lane.json SMB-WEB-SITE-1 item 1 (R60 probe j3: web.export, web.publish and the site export ask the host's bound JobPort before the first file)",
+      "crates/hsk-studio-harness-view/src/view/web.rs": "606121aa: Viewer::web_command binds that port with Run::bind_web_jobs before every web command; same ruling (probe j3 file_line names harness-view view/web.rs:10)",
+      "within_brief": "crates/hsk-studio-harness-core/src/{web_site.rs,web_commands.rs,action/commands/web.rs}, crates/hsk-studio-harness/tests/{web_site.rs,web_host.rs (row count only)}"
+    },
+    "risk_drive_package": "closed in web_site.rs by move_open_package (ruling); cli/drive.rs untouched",
+    "mts": "MT-34270, MT-34271, MT-34274, MT-34275 (validator rule sets, output contract, linter): read, not touched. MT-34346 (STU-WEB-118): advanced (graph, update-links-on-move with receipt, broken/orphan/external reports, link base); change-link-site-wide not done, so not met. MT-34349 (STU-WEB-121): advanced (broken, orphans, missing alt, untitled); redundant nested tags, empty tags, lint threshold, checked-out files not done, not on the batch runner. MT-34348 (STU-WEB-120): advanced (which document set). None claimed met; MT files not edited.",
+    "takeover": "2026-11-11T10:46:56Z: a fresh builder took the lane over after the 2026-11-08 usage-limit stop; the previous builder's 5 uncommitted files were inspected, kept and committed as 606121aa; rulings from research/lead-rulings-20261108-by-lane.json applied",
+    "rulings_closed": {
+      "jobport": "web.export, web.publish, the site export, web.site_report and web.move_file ask the bound JobPort once before any lock, read or file, with or without a package (tests with_no_package_open_web_jobs_still_ask_the_bound_port, through_the_viewer::the_probe_j3_export_with_no_package_asks_the_viewers_port, through_the_viewer::web_jobs_are_admitted_through_the_viewers_job_port)",
+      "move_open_package": "web_site.rs move_file refuses move_open_package for from/to equal to or inside the opened package; no cli/drive.rs edit (test a_move_never_touches_the_opened_package)",
+      "accepted_decisions": "kept as implemented: .css scanning, case_mismatch, output_inside_site, entry_document_missing, move_site_record, move_kind_changes, move_case_only, folder links without a trailing slash listed"
+    },
+    "review_e3fc0e89": {
+      "verdict": "FIX_FIRST (research/review-smb-web-site-1-e3fc0e89.json); rulings: lead-rulings-20261108-by-lane.json SMB-WEB-SITE-1 entries 3-17",
+      "F1": "Files.spelled: every prefix of to case-folded; a link in any case refuses move_outside_site; an existing folder's walked spelling adopted for the path and the references; resolved(to) must start with resolved(root) before the first write (test a_move_target_is_compared_case_folded_against_links_and_folders, junction)",
+      "F2": "plan re-bases every relative, non-rooted, scheme-less reference of the moved file by path arithmetic on its bytes (levels above the root kept for the document link base; site_root above the root refuses reference_not_rewritable); Reach::place keys Denied by the folder-resolved raw path (test a_moved_document_rebases_every_relative_reference)",
+      "F3": "Quote::Unquoted (and Absent) rewritten as \"escape_attr\"; verification also requires each rewritten reference to equal reference_after and every other to keep its text (test an_unquoted_value_rewritten_whole_is_quoted)",
+      "F4": "capped_rows (2000 + link_broken_truncated) and manifest_bytes (export_manifest_too_large over MAX_RECORD_BYTES) in both exports (test the_export_caps_broken_links_and_its_manifest, 2600 long-named pages)",
+      "F5": "move_checks / publish_checks / export_checks before admission; site id lexical (std::path::absolute + fold, no fs call); execute leaves cancellation of the four admitted commands to the lifecycle; job_json in the result; publish cancel per file with the partial receipt (test job_admission_edges_are_typed)",
+      "F6": "a_linked_folder_inside_the_site_is_skipped uses link_dir (symlink, else junction via mklink /J; fails, never skips); refusal rows for an absolute (runtime-built), /x.png, //host/share, ADS, con.png, NUL, img/nul.png target; viewer test asserts resources and actions",
+      "F7": "lock nonce; drop removes only its own lock (unit test a_lock_guard_removes_only_its_own_lock); contention detail.holder = {account_id, client_session, command_id} through row_text",
+      "F8": "masked_sheet reads each </style as <_style (same length); sheets written from their disk bytes with the edits applied; 1024-edit bound declared in the manual and commands/web.rs (test a_style_sheet_holding_end_style_text_blocks_nothing)",
+      "F9": "host_integration.jobs set; manual line 'Deadline: none by nature; ended by cancel'",
+      "Q1": "JobOn::Open (open export, publish: package id, else site id) / JobOn::Site (site export, report, move). Lead reading (RELEASED message): web.site_report admits as Action::Export (REPORT_ACTION) because hsk-studio-session Action has only Edit, Save, Export (ports.rs:12-16) and adding Read changes the session and kernel-bindings APIs outside this brief; accepted for this lane",
+      "Q2": "web.save inside local_root holds the site lock (test a_save_inside_the_site_takes_the_site_lock)",
+      "Q3": "a move of recipe.file sets recipe.file = to (receipt recipe_file); recipe_from accepts a root-relative path of portable segments; the open export refuses document_outside_site_root for a recipe.file in a folder (test moving_the_entry_document_updates_the_recipe); accepted by the lead (RELEASED message)",
+      "Q4": "document_unreadable target '<file>: <reason>', detail {file, reason}; manual declares the fail-closed limit (hostile_trees_are_bounded_and_typed)"
+    },
+    "next_lane_candidates": [
+      "hsk-studio-session Action::Read for read-only verbs (web.site_report and similar), with the kernel-bindings mapping"
+    ],
+    "local_commits_before_rebase": [
+      "f7999b54 red: tests/web_site.rs (site report, document-set export, move, lock, page-link warning)",
+      "0b59d57e red: drop a drive-letter literal (step 0)",
+      "0ed2f291 green: harness-core web_site.rs (walk, graph, site_report, document-set export, move_file, site lock, job admission), web_commands.rs page-link warning + documents recipe, rows web.site_report/web.move_file, web_host.rs row count 20->22",
+      "dcf46289 red: viewer job port (R60 probe j3, package open) and move_open_package (previous builder)",
+      "606121aa green: previous builder's uncommitted work committed on takeover (Run::bind_web_jobs, Viewer binds its port per web command, package as resource, move_open_package)",
+      "192012e8 red: no package open still asks the bound port (bare Run and the probe j3 shape through the Viewer)",
+      "629f5fcd red: test helpers that do not assume a frame with no package open",
+      "e3fc0e89 green: never resource-less; with no package open the site's derived SDOC id addresses the job; unit test saturates the port",
+      "a63db2e3 red: review e3fc0e89 F1-F8 and Q1-Q4 (13 tests red for their reasons: red5-smb-web-site-1-a63db2e3.log)",
+      "030168fb green: review e3fc0e89 fixes F1-F9, Q1-Q4",
+      "aa518007 green: clippy explicit_auto_deref in the move's verification (focused-4)"
+    ],
+    "pushed": "54b9c895 on origin/codex/handshake-studio-assets (03894fdd..54b9c895), 2026-11-12T15:07:44Z",
+    "backup_branch": "Before the first rebase the builder pushed aa518007 to a NEW remote branch origin/lane/smb-web-site-1 (CLAUDE.md: back up the committed state before a state-hiding git action). It is not a canonical branch; the lead decides whether to keep or delete it.",
+    "lead_decisions": [
+      {
+        "at": "2026-11-12T15:08:00Z",
+        "on": "Q1",
+        "decision": "web.site_report admits as Action::Export (no Read in the session Action enum); Action::Read is a next-lane candidate"
+      },
+      {
+        "at": "2026-11-12T15:08:00Z",
+        "on": "Q3",
+        "decision": "root-relative recipe.file accepted, with document_outside_site_root on the open export"
+      }
+    ]
   }
 }
