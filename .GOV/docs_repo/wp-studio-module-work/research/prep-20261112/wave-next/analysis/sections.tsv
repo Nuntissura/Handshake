@@ -1,0 +1,448 @@
+G3	STU-TYP	14.7.0 Authority, Derivation and Supersession	M=8	P=24	Pcmd=14	V=20	B=0	CMDONLY=10	L=1
+G7	STU-SHL	14.30 §1 The menu	M=7	P=23	Pcmd=3	V=2	B=2	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §4 The dock and panel model	M=17	P=11	Pcmd=1	V=0	B=1	CMDONLY=0	L=0
+G5	STU-WEB	14.28.1 Document types, tag libraries and the attribute vocabulary	M=17	P=4	Pcmd=4	V=0	B=0	CMDONLY=0	L=1
+G5	STU-WEB	14.28.11 Validation Descriptor Catalogue	M=17	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=2
+G5	STU-WEB	14.28.4 The CSS property surface	M=15	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G2	STU-RAS	6. The Brush Engine	M=8	P=7	Pcmd=6	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.2 Drawing and Editing Tools	M=9	P=5	Pcmd=2	V=9	B=0	CMDONLY=1	L=0
+G4	STU-LAY	14.6.4 Frames and Placed Graphics	M=7	P=7	Pcmd=7	V=2	B=0	CMDONLY=2	L=0
+G5	STU-WB	1. Board mode and board nodes	M=13	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.5 Responsive authoring: media queries and breakpoints	M=9	P=5	Pcmd=5	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	12. Validation Descriptor Catalogue	M=8	P=6	Pcmd=6	V=1	B=0	CMDONLY=1	L=0
+G8	STU-AUT	11. Validation Descriptor Catalogue	M=13	P=0	Pcmd=0	V=7	B=0	CMDONLY=7	L=0
+G3	STU-VEC	14.5.5 Fills	M=2	P=10	Pcmd=0	V=7	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.11 Procedural Constructs	M=10	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.2 Contextual property-panel binding (Studio-wide contract)	M=11	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.3 Code intelligence	M=12	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	14. Validation Descriptor Catalogue	M=5	P=7	Pcmd=7	V=3	B=0	CMDONLY=3	L=0
+G4	STU-LAY	14.6.3 Text Frames and Story Threading	M=3	P=8	Pcmd=6	V=11	B=0	CMDONLY=7	L=0
+G5	STU-WEB	14.28.9 Views, commands and obligations	M=4	P=7	Pcmd=5	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.4 ICC Profiles and the Working Space	M=3	P=7	Pcmd=7	V=5	B=0	CMDONLY=5	L=0
+G4	STU-LAY	14.6.6 Layout Style System	M=2	P=8	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WB	6. Validation Descriptor Catalogue	M=10	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.7 The Insert catalogue, behaviours and the event model	M=10	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	2. The scripting object model	M=9	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.9 Swatches	M=2	P=7	Pcmd=3	V=4	B=0	CMDONLY=0	L=0
+G2	STU-RAS	10. Channels, Colour Modes, and Bit Depth	M=1	P=8	Pcmd=7	V=2	B=0	CMDONLY=2	L=0
+G2	STU-RAS	1. The Parameter Contract (normative for 14.4 and 14.12)	M=2	P=7	Pcmd=7	V=1	B=0	CMDONLY=0	L=0
+G3	STU-TYP	4. Paragraph Controls	M=6	P=3	Pcmd=2	V=4	B=0	CMDONLY=4	L=0
+G3	STU-VEC	14.5.7 Appearance Model, Graphic Styles, and Effects	M=3	P=6	Pcmd=2	V=5	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.1 Page and Spread Model	M=4	P=5	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WB	0. Baseline, supersession and disposition	M=8	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	3. Actions	M=3	P=6	Pcmd=4	V=1	B=0	CMDONLY=1	L=0
+G6	STU-PRO	11. Interactive Documents	M=8	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §5 ScrubValue	M=1	P=8	Pcmd=0	V=3	B=0	CMDONLY=0	L=0
+G7	STU-MAN	14.32 §3 Generation	M=7	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	5. Variables and collections	M=2	P=7	Pcmd=7	V=4	B=0	CMDONLY=4	L=0
+G1	STU-COL	14.8.12 Inks, Separations and Overprint	M=1	P=7	Pcmd=6	V=3	B=0	CMDONLY=2	L=0
+G1	STU-COL	14.8.23 Video Scopes and Legal Range	M=8	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-CON	14.23.6 Develop decoded-CFA foundation transport	M=2	P=6	Pcmd=5	V=8	B=0	CMDONLY=8	L=0
+G3	STU-TYP	14.7.9 Character Attributes	M=6	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.6 Strokes	M=5	P=3	Pcmd=0	V=3	B=0	CMDONLY=1	L=0
+G5	STU-WB	3. Templates, generation and interop	M=8	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.8 Site definition, transports and server models	M=3	P=5	Pcmd=5	V=0	B=1	CMDONLY=1	L=1
+G6	STU-PRO	2. Triggers	M=1	P=7	Pcmd=5	V=7	B=0	CMDONLY=2	L=0
+G6	STU-PRO	Folded slide and presentation contracts	M=8	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §2 The availability predicate	M=4	P=4	Pcmd=1	V=2	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §2 The Tool Rail	M=5	P=3	Pcmd=0	V=0	B=1	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §4 ParamSpec	M=5	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	6. The model-steerable command surface	M=2	P=6	Pcmd=5	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.2 Colour Value Model	M=1	P=6	Pcmd=6	V=1	B=0	CMDONLY=1	L=0
+G1	STU-COL	14.8.20 Display Device Characterisation	M=7	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-ARC	14.2.2 Host integration contracts [ADD v02.226]	M=3	P=4	Pcmd=3	V=3	B=0	CMDONLY=3	L=0
+G2	STU-RAS	7. Painting, Retouching, and Erasing Tools	M=3	P=4	Pcmd=3	V=1	B=0	CMDONLY=1	L=0
+G3	STU-TYP	14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling	M=6	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.17 Language, Dictionaries and Proofing	M=4	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.1 Vector Geometry Model: Paths and Vector Networks	M=1	P=6	Pcmd=4	V=18	B=1	CMDONLY=1	L=0
+G4	STU-IO	7. Obligations	M=0	P=7	Pcmd=7	V=0	B=1	CMDONLY=1	L=0
+G4	STU-MDL	8. Accessibility of value fields	M=3	P=4	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WB	2. Board structure and collaboration	M=7	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WB	4. Declared gaps and obligations	M=7	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.6 Templates, library items and snippets	M=7	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	10. Command, panel, asset and obligation bindings	M=2	P=5	Pcmd=3	V=1	B=0	CMDONLY=1	L=0
+G7	STU-SDB	14.0 SurrealDB Authority Override	M=4	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §3 The slot resolver	M=7	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §6 Pointer gesture arbitration	M=3	P=4	Pcmd=1	V=1	B=1	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §6 TemporalState	M=3	P=4	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.32 §1 The tooltip system	M=5	P=2	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.32 §2 The UiDescriptor data contract	M=4	P=3	Pcmd=2	V=0	B=1	CMDONLY=1	L=0
+G8	STU-DS	12. Panel, asset, and obligation bindings	M=2	P=5	Pcmd=3	V=1	B=0	CMDONLY=1	L=0
+G8	STU-AUT	3. Batch processing	M=2	P=5	Pcmd=5	V=4	B=0	CMDONLY=4	L=0
+G8	STU-ASSET	4. Closures: what Studio builds instead	M=1	P=6	Pcmd=6	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	7. Plugins	M=7	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.CARRIED Clauses carried forward unchanged from v02.205	M=0	P=6	Pcmd=6	V=2	B=0	CMDONLY=2	L=0
+G1	STU-COL	14.8.6 OCIO and Scene-Linear Colour	M=3	P=3	Pcmd=3	V=1	B=0	CMDONLY=1	L=0
+G1	STU-COL	14.8.11 Gradients and Patterns	M=0	P=6	Pcmd=2	V=3	B=0	CMDONLY=1	L=0
+G1	STU-COL	14.8.21 ACES Scene-Linear Default	M=2	P=4	Pcmd=4	V=1	B=0	CMDONLY=1	L=0
+G1	STU-COL	14.8.22 Colour Accuracy Metric and Reference Patch Sets	M=5	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G2	STU-RAS	3. Raster Document, Layer Kinds, and Layer Numerics	M=3	P=3	Pcmd=3	V=3	B=0	CMDONLY=1	L=0
+G3	STU-TYP	14.7.8 Hyphenation	M=3	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.10 Transforms and Distortions	M=5	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.7 Long-Document System	M=1	P=5	Pcmd=5	V=9	B=0	CMDONLY=9	L=0
+G4	STU-LAY	14.6.9.3 PDF and Ink/Separation Output	M=0	P=6	Pcmd=6	V=8	B=1	CMDONLY=9	L=0
+G4	STU-IO	9. Validation Descriptor Catalogue	M=6	P=0	Pcmd=0	V=1	B=6	CMDONLY=7	L=0
+G5	STU-WEB	14.28.0 Scope, posture and dedup	M=4	P=2	Pcmd=2	V=2	B=1	CMDONLY=3	L=0
+G7	STU-SHL	14.31 §3 The two-zone Context Bar	M=2	P=4	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	7. Styles versus Variables (StudioStyleRegistry)	M=0	P=6	Pcmd=5	V=0	B=0	CMDONLY=0	L=0
+G8	STU-ASSET	2. Consumption: how Studio reads assets	M=1	P=5	Pcmd=5	V=0	B=1	CMDONLY=1	L=0
+G8	STU-AUT	1. Actions and macros — the recorded-automation model	M=3	P=3	Pcmd=3	V=8	B=0	CMDONLY=8	L=0
+G8	STU-AUT	5. Find and change	M=0	P=6	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	9. Obligations	M=1	P=5	Pcmd=5	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	2. Swatches — `StudioSwatch`	M=1	P=4	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-COL	4. Color-Management Operations (proof / separation / prepress)	M=1	P=4	Pcmd=2	V=6	B=0	CMDONLY=2	L=0
+G1	STU-COL	14.8.16 Model Steerability, GUI and Manual Obligations	M=2	P=3	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.9 Declared gaps	M=2	P=3	Pcmd=3	V=1	B=0	CMDONLY=0	L=0
+G2	STU-RAS	5. Selection	M=2	P=3	Pcmd=2	V=7	B=0	CMDONLY=4	L=0
+G3	STU-TYP	14.7.5 The Native Shaping Engine	M=1	P=4	Pcmd=3	V=1	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.12 Fonts, Variable Fonts and Font Management	M=3	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.4 Boolean, Compound, and Geometry Operations	M=0	P=5	Pcmd=4	V=3	B=0	CMDONLY=0	L=0
+G4	STU-IO	14.2.1 Approved modular asset and pressure contracts [ADD v02.207]	M=0	P=5	Pcmd=5	V=0	B=0	CMDONLY=0	L=0
+G4	STU-MDL	14.16 Model Visibility and Steerability (Backend and Frontend)	M=0	P=5	Pcmd=3	V=0	B=1	CMDONLY=0	L=0
+G4	STU-UNI	14.21 Operator Unification Surface	M=1	P=4	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-MDL	7. Accessibility, addressing, and observability	M=0	P=5	Pcmd=0	V=0	B=5	CMDONLY=0	L=0
+G6	STU-MOT	14.26.10 Render and output for compositions	M=1	P=4	Pcmd=4	V=1	B=1	CMDONLY=2	L=0
+G6	STU-PRO	10. Motion Timeline (StudioMotionTimeline)	M=1	P=4	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G7	STU-VAL	14.24 Validation, Promotion Equivalence, and HBR	M=1	P=4	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G7	STU-PAR	14.17 Parallel Workflows	M=0	P=5	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 Operator Shell, standing and shell law	M=2	P=3	Pcmd=1	V=2	B=0	CMDONLY=0	L=0
+G7	STU-MAN	14.32 §5 Binding to manual obligations	M=3	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	14.14.CARRIED Clauses carried forward unchanged from v02.205	M=1	P=4	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	6. Style registry	M=3	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G8	STU-ASSET	3. Publication: how Studio writes back	M=5	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	8. Inspect, codegen and handoff	M=4	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G1	STU-RAW	1. Pipeline, Parameter Surface, and the Two Laws That Govern It	M=0	P=4	Pcmd=3	V=5	B=0	CMDONLY=2	L=0
+G1	STU-COL	14.8.1 The Colour Parameter Contract	M=0	P=4	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.13 Camera Colour Rendering	M=0	P=4	Pcmd=4	V=7	B=0	CMDONLY=5	L=0
+G1	STU-COL	14.8.17 Validation and Acceptance	M=2	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.25 Transform Materialisation and Application	M=1	P=3	Pcmd=3	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	14.9.2 The Effect Descriptor and the Effect Registry	M=2	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G2	STU-RAS	2. Cross-Cutting Raster Obligations	M=0	P=4	Pcmd=3	V=2	B=0	CMDONLY=2	L=0
+G2	STU-RAS	4. Placed-Asset Container and Masking Semantics	M=1	P=3	Pcmd=3	V=1	B=2	CMDONLY=3	L=0
+G2	STU-RAS	15. Diagnostics, Export Touchpoints, and Domain Authority	M=0	P=4	Pcmd=3	V=3	B=0	CMDONLY=1	L=0
+G3	STU-TYP	14.7.2 Text Model - `StudioTextStory`	M=2	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.10 Vertical and CJK Typography	M=4	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.18 Model Steerability, GUI and Manual Obligations	M=3	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.19 Validation and Acceptance	M=2	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.3 Parametric Shape Catalog	M=3	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.1.1 Parent (Master) Pages	M=1	P=3	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts	M=0	P=4	Pcmd=3	V=4	B=0	CMDONLY=4	L=0
+G4	STU-LAY	14.6.5 Tables	M=0	P=4	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.11 Constraint Vocabulary and Cross-Cutting Obligations	M=1	P=3	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	1. The export parameter model	M=2	P=2	Pcmd=2	V=1	B=5	CMDONLY=5	L=0
+G4	STU-IO	2. Node-render settings (the per-node export surface)	M=2	P=2	Pcmd=2	V=0	B=3	CMDONLY=3	L=0
+G4	STU-IO	4. Still-image export	M=0	P=4	Pcmd=1	V=2	B=0	CMDONLY=0	L=0
+G4	STU-IO	6. Preset and library import	M=4	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-PW	14.18 Propose-Work System	M=3	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-HIS	14.19 Per-File History, Undo, and Revert-of-Undo	M=0	P=4	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	9. Interactive documents (authoring side)	M=4	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-MAN	14.22 Studio UserManual (Dual-Audience)	M=0	P=4	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §1 The tool registry	M=4	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §7 The single write path	M=0	P=4	Pcmd=4	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §9 Obligations	M=2	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G7	STU-MAN	14.32 §4 Honest ceiling and CI gates	M=3	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	3. Component Properties	M=0	P=4	Pcmd=3	V=3	B=0	CMDONLY=0	L=0
+G8	STU-DS	6. Variables and Collections	M=0	P=4	Pcmd=4	V=3	B=0	CMDONLY=3	L=0
+G8	STU-DS	10. Layout grids	M=4	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	2. Scripting object model exposure	M=2	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	4. Data-driven graphics	M=1	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	7. Plugin / extension surface	M=1	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G1	STU-RAW	16. HDR, Lens Blur, and Enhance	M=0	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	3. Gradients and Patterns — `StudioGradient` / `StudioPattern`	M=0	P=3	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.14 Picker, Harmony and Recolour	M=0	P=3	Pcmd=0	V=3	B=0	CMDONLY=0	L=0
+G2	STU-ARC	14.2 Architecture: Kernel Binding and Engine Crates	M=1	P=2	Pcmd=2	V=2	B=0	CMDONLY=2	L=0
+G2	STU-FX	14. Vector Live Effects	M=2	P=1	Pcmd=1	V=0	B=1	CMDONLY=1	L=0
+G2	STU-FX	16. Provider / AI Generative Filter Lane (Adapter-Backed, Optional)	M=3	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	18. GPU Render Requirement & Cross-Backend Equivalence	M=0	P=3	Pcmd=3	V=0	B=0	CMDONLY=0	L=0
+G2	STU-RAS	9. Adjustments	M=0	P=3	Pcmd=3	V=3	B=0	CMDONLY=3	L=0
+G3	STU-TYP	3. Character Controls	M=1	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.1 The Typography Parameter Contract	M=1	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.13 Paragraph Geometry, Spacing and Flow Control	M=2	P=1	Pcmd=0	V=3	B=0	CMDONLY=2	L=1
+G3	STU-TYP	14.7.15 Type-Style Binding and Resolution	M=1	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.13 Provider / AI Lane (Adapter-Backed, Optional)	M=3	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.12 Text-on-Path Touchpoint	M=0	P=3	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-DOC	14.3 Unified Document Model and Studio Primitive Set	M=0	P=3	Pcmd=3	V=1	B=0	CMDONLY=1	L=0
+G4	STU-LAY	14.6.9.1 Preflight	M=0	P=3	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.9.2 Package and Print	M=1	P=2	Pcmd=2	V=3	B=0	CMDONLY=3	L=0
+G4	STU-LAY	14.6.10 Interactive/EPUB Touchpoint and Collaboration Posture	M=1	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	5. Professional video export	M=1	P=2	Pcmd=1	V=1	B=4	CMDONLY=5	L=1
+G6	STU-MOT	2. The recovered property tree	M=1	P=2	Pcmd=2	V=3	B=0	CMDONLY=3	L=0
+G6	STU-MOT	14.26.7 Text animators	M=1	P=2	Pcmd=2	V=2	B=0	CMDONLY=2	L=0
+G6	STU-PRO	14.11.CARRIED Clauses carried forward unchanged from v02.205	M=0	P=3	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	6. Scroll and Overflow Behaviors	M=1	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	9. Interactive documents (authoring side)	M=2	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	12. Interactive and Animated Export Touchpoint	M=0	P=3	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	7. Flow, state preservation and presentation	M=0	P=3	Pcmd=2	V=2	B=0	CMDONLY=1	L=0
+G6	STU-VID	12. Track display, captions, proxies and previews	M=1	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G6	STU-VID	14.25.3 Media import, codecs and containers	M=2	P=1	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G7	STU-QUIET	14.20 Headless / Quiet Operation Law	M=0	P=3	Pcmd=2	V=2	B=0	CMDONLY=1	L=0
+G7	STU-SHL	14.30 §5 Layout Presets and Task Scopes	M=1	P=2	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §5A Entry paths and document tab strip	M=1	P=2	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §10 Obligations	M=1	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	5. Libraries, Publishing, and Swap	M=3	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	7. Publishing and libraries	M=3	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G8	STU-DS	11. Annotation of design-system state	M=3	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	8. External API, inspect / codegen, and MCP posture	M=1	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G1	STU-RAW	2. Raw Input Scope and Sensor Decode	M=0	P=2	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G1	STU-RAW	2a. Retained Group-Scope Clauses	M=0	P=2	Pcmd=0	V=6	B=0	CMDONLY=0	L=0
+G1	STU-RAW	13. Camera Profiles, Creative Profiles, and Presets	M=0	P=2	Pcmd=1	V=3	B=0	CMDONLY=2	L=0
+G1	STU-RAW	18. Model Steerability, Headless Operation, and Validation	M=1	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-RAW	14. Masking and Local Adjustment	M=0	P=2	Pcmd=1	V=1	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.3 Document Modes, Bit Depth and HDR	M=0	P=2	Pcmd=2	V=5	B=0	CMDONLY=5	L=0
+G1	STU-CMP	5. Blend modes	M=0	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	14.27.8 The architecture fork: layer-based versus node-based compositi	M=0	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G2	STU-ARC	14.2.1 Approved modular asset and pressure contracts [ADD v02.207]	M=0	P=2	Pcmd=1	V=7	B=0	CMDONLY=7	L=0
+G2	STU-FX	2. Effect Application, Masking, Blending, and Ordering	M=1	P=1	Pcmd=1	V=3	B=1	CMDONLY=4	L=0
+G2	STU-FX	7. Render & Generative-Pattern Family (GPU)	M=1	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	13. Layer FX (Cross-Domain Effect Kinds)	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14. Colour, point, path and layer-reference parameters	M=0	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	14.9.7 The audio effect domain	M=1	P=1	Pcmd=1	V=3	B=0	CMDONLY=0	L=0
+G2	STU-RAS	11. Transforms and Content-Aware Operations	M=0	P=2	Pcmd=2	V=2	B=0	CMDONLY=2	L=0
+G2	STU-RAS	14. Provider, Cloud, and Generative Posture	M=1	P=1	Pcmd=1	V=2	B=0	CMDONLY=2	L=0
+G3	STU-TYP	8. Type-Style Binding (`StudioTypeStyle` / `StudioStyleRegistry`)	M=1	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.3 Auto-Size, Truncation and Frame Fitting	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.4 Text-on-Path, Threading and Flow	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.16 Glyphs, Special Characters and Text Variables	M=2	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G3	STU-VEC	14.5.8 Brushes	M=1	P=1	Pcmd=0	V=3	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.9 Artboards, Frames, and Layout Touchpoints	M=1	P=1	Pcmd=0	V=1	B=2	CMDONLY=0	L=0
+G3	STU-VEC	14.5.14 Cross-Cutting Obligations	M=2	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G4	STU-PDF	14.2.1 Approved modular asset and pressure contracts [ADD v02.207]	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.8 Grids, Guides, and Measurement	M=1	P=1	Pcmd=1	V=6	B=0	CMDONLY=6	L=0
+G4	STU-LAY	14.6.9 Prepress and Output	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.9.4 Structured Interchange	M=1	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	1. StudioImportProfile / StudioExportRecipe primitives and the round-t	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WB	5. Microtask Derivation	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	12. Panel, asset, and obligation bindings	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	7. Plugins	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	14.26.4 The graph editor	M=0	P=2	Pcmd=2	V=3	B=0	CMDONLY=3	L=0
+G6	STU-MOT	3. The identifier surface	M=0	P=2	Pcmd=2	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	4. Evaluation	M=0	P=2	Pcmd=2	V=2	B=0	CMDONLY=2	L=0
+G6	STU-MOT	6. The authoring surface	M=2	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	14.26.ADD v02.207 Deterministic expression and provider contract	M=0	P=2	Pcmd=2	V=3	B=0	CMDONLY=3	L=0
+G6	STU-PRO	9. Variables in Prototyping	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	1. The reaction record	M=0	P=2	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G6	STU-PRO	4. Transitions and easing	M=0	P=2	Pcmd=2	V=4	B=0	CMDONLY=1	L=0
+G6	STU-PRO	6. Scroll, overflow and fixed positioning	M=1	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G6	STU-PRO	8. Interactive components	M=1	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	14. The command surface	M=1	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §9 Declared spec debt	M=2	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.32 §7 Obligations	M=0	P=2	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G8	STU-DS	14.10.CARRIED Clauses carried forward unchanged from v02.205	M=1	P=1	Pcmd=1	V=2	B=0	CMDONLY=1	L=1
+G8	STU-DS	11. Design-System Analytics and Library-Management Posture	M=1	P=1	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G8	STU-DS	3. Component properties	M=0	P=2	Pcmd=2	V=2	B=0	CMDONLY=2	L=1
+G8	STU-DS	8. Auto Layout (StudioAutoLayout)	M=0	P=2	Pcmd=1	V=9	B=0	CMDONLY=3	L=0
+G8	STU-DS	1. The component object contract	M=0	P=2	Pcmd=1	V=4	B=0	CMDONLY=4	L=0
+G8	STU-AUT	3. Actions and macros (record / playback / conditional)	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	9. Asset browser, OS, and clipboard handoff	M=1	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	4. Batch processing (droplet / image-processor / batch-job equivalents	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	5. Variables, data sets, and data-driven graphics (data merge)	M=0	P=2	Pcmd=2	V=0	B=0	CMDONLY=0	L=0
+G8	STU-ASSET	5. Declared gaps	M=1	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G1	STU-RAW	15. Local Repair and Distraction Removal	M=0	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	17. Crop, Workflow Output, and Linkage to the Raster Document	M=0	P=1	Pcmd=0	V=2	B=0	CMDONLY=1	L=0
+G1	STU-RAW	4. Basic Tone and Presence	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-RAW	5. Tone Curve	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=0	L=0
+G1	STU-COL	5. Color Picker / Chooser	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.5 The Colour Engine	M=0	P=1	Pcmd=1	V=4	B=0	CMDONLY=4	L=0
+G1	STU-COL	14.8.7 LUTs	M=0	P=1	Pcmd=1	V=2	B=0	CMDONLY=2	L=0
+G1	STU-COL	14.8.8 Where Colour Management Sits Relative to the Compositor	M=0	P=1	Pcmd=1	V=4	B=0	CMDONLY=3	L=0
+G1	STU-COL	14.8.15 Soft Proof, Gamut and Accessibility	M=1	P=0	Pcmd=0	V=6	B=0	CMDONLY=1	L=0
+G1	STU-CMP	14.27.0 Status, scope and authority	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G1	STU-CMP	7. Track mattes	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	14.27.5 Time-based compositing	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G1	STU-CMP	14.27.7 Channel and compositing arithmetic	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G1	STU-CMP	14.27.11 Model steerability, GUI, diagnostics and manual obligation	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.CARRIED Clauses carried forward unchanged from v02.205	M=0	P=1	Pcmd=1	V=5	B=0	CMDONLY=5	L=0
+G2	STU-FX	3. Blur Family	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	4. Distort Family	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	5. Noise Family	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	6. Pixelate Family	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	8. Sharpen & Detail Family	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	9. Stylize Family	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	10. Artistic / Effect-Gallery Family	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	11. Utility, Channel & Convolution Filters	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	12. Interactive Filter Workspaces	M=0	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G2	STU-FX	15. Figma-Origin Composite Effects	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	19. Effect Styles, Presets & Reuse	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	20. Model Steerability, GUI, Diagnostics & Manual Obligation	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	1. The record	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	10. Parameter behaviour flags	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	11. Value encodings	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	12. Enumerated option lists	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	13. Parameter grouping	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	15. Normalised-input parameters and declared mapping expressions	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	16. Validation of the contract itself	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	Coverage accounting	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.3 Catalogue: the compositing effect set	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.4 Typed parameter records	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.6 Catalogue: the video-editing effect set	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.8 Effect presets, styles and portability	M=0	P=1	Pcmd=1	V=2	B=0	CMDONLY=2	L=0
+G2	STU-FX	14.9.10 Model steerability, GUI, diagnostics and manual obligation	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G2	STU-RAS	8. Fill, Gradient, Pattern, and the Preset Libraries	M=0	P=1	Pcmd=1	V=6	B=0	CMDONLY=2	L=0
+G3	STU-TYP	7. Glyphs, Special Characters, and White-space Catalogs	M=1	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G3	STU-TYP	9. Font Management	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.6 Composition: the Two-Axis Composer Model	M=1	P=0	Pcmd=0	V=3	B=0	CMDONLY=3	L=0
+G3	STU-TYP	14.7.7 Justification and the H&J Parameter Block	M=0	P=1	Pcmd=1	V=2	B=0	CMDONLY=2	L=0
+G3	STU-VEC	14.5 Vector Graphics & Illustration	M=0	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G4	STU-SECTION	14.0 SurrealDB Authority Override (v02.204) [STU-SDB-001]	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	2. Compatibility scope, fixtures, receipts, and recovery — the promoti	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	3. Format compatibility matrix (normative rows)	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	4. Native round-trip families and the preservation-blob law	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	5. Fonts, color profiles, and linked assets	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	6. Unified export surfaces (StudioExportRecipe)	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	7. Fixtures and round-trip expectations	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	8. Recovery and diagnostics	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	10. Model steerability, headless operation, and validation obligation	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28 Web Authoring, Code Intelligence & Site Publishing	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	1. Board mode and board nodes	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	5. Professional video export	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	6. Scroll, overflow and fixed positioning	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	6. The model-steerable command surface	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G5	STU-WEB	14.28.10 Microtask Derivation	M=1	P=0	Pcmd=0	V=0	B=1	CMDONLY=1	L=0
+G6	STU-MOT	2. Layer types	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	3. Layer common properties	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	1. The core idea	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	5. Spatial tangents and motion paths	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	1. Expressions replace values	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	2. The expression-driven control -- the required "animated" state	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	5. Expression controls	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	14.26.8 Shape operators	M=0	P=1	Pcmd=1	V=4	B=0	CMDONLY=4	L=0
+G6	STU-MOT	14.26.11 The command surface	M=1	P=0	Pcmd=0	V=0	B=1	CMDONLY=1	L=0
+G6	STU-MOT	14.26.13 Model steerability, GUI, diagnostics and manual obligation	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	4. Animations, Smart Animate, and Easing	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=0	L=0
+G6	STU-PRO	7. Device Frames, Presentation, and Preview	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	8. Interactive Components and State	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	13. Interactive-Document Object Class	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	2. Tracks and clips	M=0	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G6	STU-VID	3. Monitors, in/out points and assembly	M=0	P=1	Pcmd=0	V=2	B=0	CMDONLY=0	L=0
+G6	STU-VID	5. Cutting, removing and closing	M=0	P=1	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G6	STU-VID	9. Transitions	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	10. Multicam	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	13. History	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	14.25.6 Declared gaps	M=0	P=1	Pcmd=1	V=4	B=1	CMDONLY=5	L=0
+G6	STU-VID	14.25.7 Model steerability, GUI, diagnostics and manual obligation	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §8 Build order	M=1	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §2A The tool catalogue	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-MAN	14.32 §6 Declared spec debt	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G8	STU-ASSET	1. The binding	M=0	P=1	Pcmd=1	V=2	B=0	CMDONLY=2	L=0
+G8	STU-DS	4. The override model	M=0	P=1	Pcmd=1	V=5	B=0	CMDONLY=3	L=0
+G8	STU-DS	8. Auto layout — full parameter contract	M=0	P=1	Pcmd=1	V=6	B=0	CMDONLY=1	L=0
+G8	STU-DS	2. Variant sets	M=0	P=1	Pcmd=1	V=1	B=0	CMDONLY=1	L=0
+G8	STU-DS	4. The Override Model	M=0	P=1	Pcmd=0	V=2	B=0	CMDONLY=0	L=0
+G8	STU-DS	10. Layout Grids (StudioLayoutGrid)	M=1	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G8	STU-AUT	10. GUI, diagnostics, and manual obligations	M=0	P=1	Pcmd=1	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	6. Find / change and GREP as a batch operation	M=0	P=1	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-RAW	3. White Balance	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	6. Detail — Sharpening and Noise	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	7. Colour Mixer, HSL, and Grayscale Mix	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	8. Colour Grading	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	9. Optics — Lens Correction, Defringe, and Manual Distortion	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	10. Geometry and Perspective	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	11. Effects — Grain and Post-Crop Vignette	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-RAW	12. Calibration	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-COL	6. Color Harmony and Recolor	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=0	L=0
+G1	STU-COL	7. Spot-Color and Named-Library Posture (Pantone)	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.0 Authority, Derivation and Supersession	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.10 Branded Colour Libraries	M=0	P=0	Pcmd=0	V=4	B=0	CMDONLY=3	L=0
+G1	STU-COL	14.8.18 Scope Edges	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.19 Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-COL	14.8.24 Declared Open Items for 14.8.20 Through 14.8.23	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-CMP	1. Precomposition	M=0	P=0	Pcmd=0	V=0	B=1	CMDONLY=1	L=0
+G1	STU-CMP	2. Render order	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	3. Adjustment layers	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	4. Collapse transformations and continuous rasterization	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	6. Masks	M=0	P=0	Pcmd=0	V=3	B=0	CMDONLY=3	L=0
+G1	STU-CMP	14.27.2 Keying and matte refinement	M=0	P=0	Pcmd=0	V=3	B=0	CMDONLY=3	L=0
+G1	STU-CMP	1. 3D layers	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	2. Cameras	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	3. Lights	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G1	STU-CMP	4. Depth, deep channels and 3D-render integration	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	5. Immersive and projected compositing	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	6. Renderers	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	14.27.4 Tracking and stabilization	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	14.27.6 Simulation	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G1	STU-CMP	14.27.9 Recovered enumeration appendix	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-CMP	14.27.10 Declared gaps	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G1	STU-CMP	14.27.12 Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-CON	14.23 Canonical Studio Authority Contracts	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-CON	14.2.1 Approved modular asset and pressure contracts [ADD v02.207]	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-CON	14.23.1 Folio canonical document foundation	M=0	P=0	Pcmd=0	V=7	B=0	CMDONLY=7	L=0
+G2	STU-CON	14.23.2 Chronicle property-patch foundation transport	M=0	P=0	Pcmd=0	V=5	B=0	CMDONLY=5	L=0
+G2	STU-CON	14.23.3 Pigment resolved-buffer foundation transport	M=0	P=0	Pcmd=0	V=5	B=0	CMDONLY=5	L=0
+G2	STU-CON	14.23.4 Nib geometry foundation proposal transport	M=0	P=0	Pcmd=0	V=5	B=0	CMDONLY=5	L=0
+G2	STU-CON	14.23.5 Type source-only shaped-run transport	M=0	P=0	Pcmd=0	V=5	B=0	CMDONLY=5	L=0
+G2	STU-FX	17. Adjustments Coordination with 14.4	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	14.9.0 Status of this sub-section	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-FX	2. Hard bounds	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	3. Soft bounds	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G2	STU-FX	4. Absent bounds	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	5. The irreversible mistake	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	6. Units	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	7. Precision	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	8. The scrubbable numeric control	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G2	STU-FX	9. Parameter kinds	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	14.9.5 Layer styles as effect kinds	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G2	STU-FX	14.9.11 Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-RAS	12. Blend Modes	M=0	P=0	Pcmd=0	V=4	B=0	CMDONLY=3	L=0
+G2	STU-RAS	13. Layer Effects and Advanced Blending	M=0	P=0	Pcmd=0	V=6	B=0	CMDONLY=6	L=0
+G2	STU-RAS	0. Replacement, Derivation, and Anchor Disposition	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G2	STU-RAS	19. Microtask Derivation Rule (normative for 14.4 and 14.12)	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.6.11 Constraint Vocabulary and Cross-Cutting Obligations	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G3	STU-TYP	5. OpenType Feature Exposure	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G3	STU-TYP	14.7.11 OpenType Feature Exposure	M=0	P=0	Pcmd=0	V=4	B=0	CMDONLY=4	L=0
+G3	STU-TYP	14.7.20 Scope Edges	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-TYP	14.7.21 Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G3	STU-VEC	14.5.0 Reading Rules: The Parameter Contract, Enumerations, and Deriva	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-SECTION	14. Studio -- Unified Creative Suite [STU-SECTION-001]	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-OVR	1. What Studio Is	M=0	P=0	Pcmd=0	V=3	B=0	CMDONLY=0	L=0
+G4	STU-LAY	14.6.0 Reading Rules: The Parameter Contract, Units, Enumerations, and	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G4	STU-LAY	14.6.2 Sections, Page Numbering, and Running Headers	M=0	P=0	Pcmd=0	V=4	B=0	CMDONLY=4	L=0
+G4	STU-IO	0. Baseline, supersession and disposition	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	3. Document PDF export	M=0	P=0	Pcmd=0	V=9	B=0	CMDONLY=9	L=0
+G4	STU-IO	8. Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G4	STU-IO	14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for t	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G4	STU-IO	9. Provider / cloud formats and account-gated surfaces	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G4	STU-MDL	14.31 Tools, the Options Surface, and the Scrubbable Numeric Control	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	1. Why this sub-section exists	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-MOT	1. The composition	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G6	STU-MOT	4. Parenting	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G6	STU-MOT	1. Composition time	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	2. The keyframe record	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	3. Interpolation types	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	4. Temporal tangents	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G6	STU-MOT	6. Roving keyframes	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	7. Keyframe assistants	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	8. Keyframe operations	M=0	P=0	Pcmd=0	V=1	B=1	CMDONLY=2	L=0
+G6	STU-MOT	14.26.5 Time remapping	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-MOT	14.26.9 Motion presets and the scripting surface	M=0	P=0	Pcmd=0	V=2	B=1	CMDONLY=3	L=0
+G6	STU-MOT	14.26.12 Declared gaps	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G6	STU-MOT	14.26.14 Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	5. Overlays	M=0	P=0	Pcmd=0	V=4	B=0	CMDONLY=0	L=0
+G6	STU-PRO	0. Scope disposition, baseline and supersession	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-PRO	11. Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	1. [STU-OVR-015] is superseded	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	2. What this sub-section owns	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G6	STU-VID	14.25.1 The Sequence and its settings	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=1	L=0
+G6	STU-VID	The time model	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G6	STU-VID	Sequence presets	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-VID	Editing modes	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-VID	Immersive and preview settings	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G6	STU-VID	1. The two timelines are distinct surfaces	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G6	STU-VID	4. Trim operations	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G6	STU-VID	6. Linking, grouping and sync	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-VID	7. Nesting and subsequences	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G6	STU-VID	8. Speed, retiming and frame interpolation	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=0	L=0
+G6	STU-VID	11. Markers, snapping, playhead and work area	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=0	L=0
+G6	STU-VID	14.25.4 Export	M=0	P=0	Pcmd=0	V=2	B=3	CMDONLY=3	L=0
+G6	STU-VID	14.25.5 Motion-graphics templates as a timeline capability	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G6	STU-VID	14.25.8 Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.30 §11 Microtask derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.31 §10 Microtask derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G7	STU-SHL	14.32 §8 Microtask derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	0. Baseline, supersession and disposition	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	9. Constraints (StudioConstraint)	M=0	P=0	Pcmd=0	V=1	B=0	CMDONLY=1	L=0
+G8	STU-DS	13. Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-DS	2. Variants and Variant Properties	M=0	P=0	Pcmd=0	V=3	B=0	CMDONLY=2	L=0
+G8	STU-DS	9. Constraints	M=0	P=0	Pcmd=0	V=2	B=0	CMDONLY=2	L=0
+G8	STU-AUT	0. Baseline, supersession and disposition	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-AUT	10. Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0
+G8	STU-ASSET	6. Microtask Derivation	M=0	P=0	Pcmd=0	V=0	B=0	CMDONLY=0	L=0

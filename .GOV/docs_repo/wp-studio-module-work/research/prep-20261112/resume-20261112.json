@@ -1,0 +1,116 @@
+{
+ "schema": "hsk.studio.resume_prep@1",
+ "at": "2026-11-12T18:16:44Z",
+ "operator": "can we pause work when the current active agents are finished. then continue later tonight",
+ "state": {
+  "product_origin": "b57c82d1445f8c0858f73f0fd670c8c08b637b18",
+  "ready_for_validation": 36,
+  "landed_20261112": {
+   "SMB-DEVELOP-COMMANDS-1": "4506a6cf",
+   "SMB-SCORE-EFFECTS-6": "733789d6",
+   "SMB-TYPE-INDENT-SPACING-1": "153a410d",
+   "SMB-MOTION-COMMANDS-2": "03894fdd",
+   "SMB-WEB-SITE-1": "54b9c895",
+   "SMB-DELIVERY-QUEUE-1": "aa033c05",
+   "SMB-R60-FOLLOWUPS-1": "e29d933a",
+   "SMB-DS-COMPONENTS-AUTHOR-1": "b57c82d1"
+  },
+  "lane_agents": "none running; all 8 lane agents finished",
+  "builds": "no Studio cargo process running at pause",
+  "disk": "D: about 4.2 TiB free, C: 445 GiB free (2026-11-12)"
+ },
+ "round_R60_attempt_3": {
+  "id": "STUDIO-R60 attempt 3 (R60 never opened; attempts 1-2 NOT_OPENED; same id per R53 precedent)",
+  "scope": "FULL with canary (CX-VAL-011; root inputs changed: Cargo.lock, hsk-studio-vulkan Cargo.toml, spv-build, workspace-probe)",
+  "lanes": "all 36 READY_FOR_VALIDATION plus PASS lanes the validator re-opens at the freeze",
+  "candidate": "origin tip at dispatch; b57c82d1 at pause (re-run ls-remote first; recount commits since c4d06841 and 35c50d3b: 308 and 188 at b57c82d1)",
+  "blocker": "tools/lead/dispatch_r60.py is hard-coded for attempt 2 (line 46; line 52 claim about the Vulkan validation layer is false at b57c82d1). Commit the attempt-3 generator first: research/prep-20261112/round-R60-a3/dispatch_r60_attempt3.py, then run it with <sha> <since_R59> <since_a2> --write and read validation/dispatch-prompt-R60.txt before launch",
+  "lead_decision_open": "record form: R53 form (opened attempt at top level, attempt_1 nested) as drafted, unless the lead rules otherwise",
+  "before_dispatch": [
+   "ls-remote equals candidate",
+   "registry-sync exit 0 (passed at b57c82d1: research/prep-20261112/round-R60-a3/registry-check-b57c82d1.txt)",
+   "measure the C: tree fresh; fresh + ~95 GiB <= 330 GiB",
+   "stray_cargo.py",
+   "no steward sync, no tool-script edits during the round"
+  ],
+  "launch": "one fresh general-purpose opus agent, effort xhigh, background, prompt = generated file; validator runs tools/run-round.sh --canary --all then --all on the C: round target; round takes C: lock as class round, GPU lock on D:; no D: round hold",
+  "preview": "research/prep-20261112/round-R60-a3/dispatch-prompt-R60-a3.preview.txt",
+  "notes": [
+   "two lanes have no review file: SMB-CONTROLS-EGUI-GATE-1, SMB-GUI-STEWARD-1",
+   "several ledger claims are prose, not ranges",
+   "GPU tests now run with the validation layer on in debug (owner.rs:716)",
+   "DISPATCH_TEMPLATES.md:98 still names the retired gameplan step"
+  ]
+ },
+ "next_wave": {
+  "status": "PROPOSAL, not generated; lead review pending",
+  "lanes": [
+   {
+    "id": "SMB-GUI-MENU-1",
+    "kind": "GUI",
+    "tree": "smb-pr-entry-references-1",
+    "closes": "STU-SHL-010..055, 230..247; menus from one descriptor; typed command items"
+   },
+   {
+    "id": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
+    "kind": "engine",
+    "tree": "smb-pr-retime-hold-1",
+    "closes": "STU-TYP-155..161, 192, 209"
+   },
+   {
+    "id": "SMB-BOARD-1",
+    "kind": "engine",
+    "tree": "smb-sentinels-native-1",
+    "closes": "STU-WB-001, 002, 102..117, 121, 134"
+   },
+   {
+    "id": "SMB-WEB-CODE-1",
+    "kind": "engine",
+    "tree": "smb-r53-followups-1",
+    "closes": "STU-WEB-011..029, 046..076, 090"
+   },
+   {
+    "id": "SMB-LAYOUT-DELETE-CASCADE-1",
+    "kind": "engine",
+    "tree": "smb-pr-edit-footprint-1",
+    "closes": "page.delete with content, frame delete with thread re-link, STU-LAY-020, 123"
+   },
+   {
+    "id": "SMB-DS-VARIABLES-AUTHOR-1",
+    "kind": "engine",
+    "tree": "smb-ai-distort-effects-1",
+    "closes": "STU-DS-123..133, 024..034; component text compaction; .fig prune at save"
+   },
+   {
+    "id": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
+    "kind": "engine",
+    "tree": "smb-folio-angle-unbounded-1",
+    "closes": "STU-FX-007, STU-RAS-035/151/153, 103..112, STU-RAW-015; DNG XMP crop"
+   },
+   {
+    "id": "SMB-WEB-SITE-2",
+    "kind": "engine",
+    "tree": "smb-pr-sequence-session-1",
+    "closes": "STU-WEB-091..099; change-link-site-wide; session Action::Read"
+   }
+  ],
+  "estimate": "about 64 MISSING and 45 PARTIAL rows (estimate, not measured)",
+  "landing_order": "5, 8, 6, 7, 2, 4, 1, 3 (one at a time); lane 1 is the only GUI lane until B9; lane 3 lands last if it adds Payload variants",
+  "open_rulings": [
+   "lane 7 DNG XMP crop: harness-view -> interop-lrcat edge (recommended) or a second crs: writer",
+   "lane 1: record the reading that the spine GATE_CHECK gates panel fan-out (B10+), not B6"
+  ],
+  "generate_blockers": [
+   "wave_from_scope.py reads only S/research/scope-20261107-<area>.json: copy the 8 drafts from research/prep-20261112/wave-next/ there and commit",
+   "the tool switches all 8 trees and writes ledger, briefs and lane files at once (no dry run)",
+   "P3: allowed only because each lane takes over a READY lane's tree; a fix lane after R60 needs a C: tree (smb-pr-nudge-1 or smb-layout-composer-depth-1)",
+   "run target_report.py before any removal proposal"
+  ],
+  "drafts": "research/prep-20261112/wave-next/"
+ },
+ "resume_order": [
+  "1. Check round blocker; commit the attempt-3 generator; generate and read the prompt; dispatch R60 attempt 3",
+  "2. Review the wave proposal, settle the two open rulings, copy scopes, generate the wave; builders read code and write red tests while the round holds the C: lock",
+  "3. Land wave lanes one at a time in the stated order"
+ ]
+}

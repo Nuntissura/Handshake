@@ -359,6 +359,10 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 <topic id="state" status="active" updated_at="2026-11-08T05:40:01Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
 
+## PAUSED 2026-11-12T18:16:44Z (Operator: pause when the active agents finish, continue later tonight)
+
+All 8 lanes resumed on 2026-11-12 have landed; origin codex/handshake-studio-assets is b57c82d1 and 36 lanes are READY_FOR_VALIDATION. No lane agent and no Studio build is running; nothing is dispatched. Resume from `research/prep-20261112/resume-20261112.json`: (1) R60 attempt 3, full with canary, at the origin tip; first commit the attempt-3 generator (`research/prep-20261112/round-R60-a3/dispatch_r60_attempt3.py`), because `tools/lead/dispatch_r60.py` is hard-coded for attempt 2; (2) the next-wave proposal of 8 lanes (`research/prep-20261112/wave-next/`), with two open rulings (DNG XMP crop path, spine gate reading); (3) land the wave one lane at a time. SD decisions for the landings are in kernel f0066096 (SD-80..82); plan T is fully EXECUTED (kernel 4c0cfc5c).
+
 ## PAUSED 2026-11-11 ~15:20Z for the Operator's cargo cleanup
 
 **RESUMED 2026-11-12T08:22:07Z** on the Operator's "Resume lanes": all 8 lane agents restarted from their recorded resume steps (INDENT and SCORE first on the D: lock). DEVELOP-COMMANDS-1 lands now because it was RELEASED before the pause; INDENT and SCORE keep priority among the rest. Record: ledger `direction.pause_20261111.resumed`.

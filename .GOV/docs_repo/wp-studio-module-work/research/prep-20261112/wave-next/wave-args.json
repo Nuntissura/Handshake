@@ -1,0 +1,17 @@
+{
+ "schema": "scratch.wave_next_args@1",
+ "note": "Draft only. wave_from_scope.py reads S/research/scope-20261107-<area>.json; copy the scope files there first. Nothing here was run.",
+ "base": "b57c82d1",
+ "hold": "R60 attempt 3 takes the D: lock first. Until it releases, read the code, write red tests and commit locally; your first hold queues behind the round. Run every lock-needing step of a phase inside one outer hold (wave-parity-2-common ONE HOLD PER PHASE). Lanes land one at a time on the lead's release (HANDOFF workflow item 16).",
+ "areas": [
+  "gui-menu-1",
+  "type-character-attributes-1",
+  "board-1",
+  "web-code-1",
+  "layout-delete-cascade-1",
+  "ds-variables-author-1",
+  "ps-filter-adjust-commands-1",
+  "web-site-2"
+ ],
+ "command": "python tools/lead/wave_from_scope.py --base b57c82d1 --hold \"<hold>\" gui-menu-1 type-character-attributes-1 board-1 web-code-1 layout-delete-cascade-1 ds-variables-author-1 ps-filter-adjust-commands-1 web-site-2"
+}
