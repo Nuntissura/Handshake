@@ -107,6 +107,11 @@ impl AuthenticatedContext {
     }
 }
 
+pub(crate) enum AuthenticatedRequestError {
+    Rejected(String),
+    Transport(String),
+}
+
 pub struct AuthenticatedRequest {
     client: reqwest::Client,
     context: Option<std::sync::Arc<AuthenticatedContext>>,
@@ -141,18 +146,27 @@ impl AuthenticatedRequest {
         Ok(value)
     }
     pub async fn send(self) -> Result<reqwest::Response, String> {
-        let context = self
-            .context
-            .ok_or_else(|| "Account login required".to_owned())?;
-        let request = context.authorize(self.request)?;
-        let response = self
-            .client
-            .execute(request)
-            .await
-            .map_err(|error| send_error_detail(&error))?;
+        self.send_classified().await.map_err(|error| match error {
+            AuthenticatedRequestError::Rejected(message)
+            | AuthenticatedRequestError::Transport(message) => message,
+        })
+    }
+
+    pub(crate) async fn send_classified(self) -> Result<reqwest::Response, AuthenticatedRequestError> {
+        let context = self.context.ok_or_else(|| {
+            AuthenticatedRequestError::Rejected("Account login required".to_owned())
+        })?;
+        let request = context
+            .authorize(self.request)
+            .map_err(AuthenticatedRequestError::Rejected)?;
+        let response = self.client.execute(request).await.map_err(|error| {
+            AuthenticatedRequestError::Transport(send_error_detail(&error))
+        })?;
         context.observe_status(response.status());
         if !context.is_active() {
-            return Err("Account session is no longer active".into());
+            return Err(AuthenticatedRequestError::Rejected(
+                "Account session is no longer active".to_owned(),
+            ));
         }
         Ok(response)
     }

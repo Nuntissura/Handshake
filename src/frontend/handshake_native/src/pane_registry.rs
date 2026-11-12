@@ -539,6 +539,9 @@ pub trait PaneFactory: Send + Sync {
     /// Render the pane body into `ui`. Must never panic on any valid record.
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext);
 
+    /// Discard factory-owned state for panes that no longer mount this factory.
+    fn retain_pane_state(&self, _is_mounted: &dyn Fn(&PaneId) -> bool) {}
+
     /// The AccessKit role for this pane's container node. Defaults to `Group`.
     fn accesskit_role(&self) -> accesskit::Role {
         accesskit::Role::Group

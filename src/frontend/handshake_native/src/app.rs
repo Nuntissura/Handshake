@@ -16774,10 +16774,20 @@ impl HandshakeApp {
         }
     }
 
+    fn retain_lane_diagnostics_state(&self, is_mounted: &dyn Fn(&PaneId) -> bool) {
+        if let Some(factory) = self.factories.get(&PaneType::SwarmLaneDiagnostics) {
+            factory.retain_pane_state(is_mounted);
+        }
+    }
+
     /// MT-099: mirror each pane's active tab into the pane registry record immediately before the central
     /// pane host renders. The tab bar remains the operator-visible navigation source; the registry remains
     /// the render source that `SplitLayoutWidget` passes into each pane factory.
     fn sync_active_tab_records(&mut self) {
+        self.retain_lane_diagnostics_state(&|pane_id| {
+            self.tab_bar_states.get(pane_id).and_then(TabBarState::active)
+                .is_some_and(|tab| tab.pane_type == PaneType::SwarmLaneDiagnostics)
+        });
         let sidebar_active_block = self
             .active_pane
             .as_ref()
@@ -24448,17 +24458,21 @@ impl HandshakeApp {
     }
 
     fn close_tab_now(&mut self, pane_id: PaneId, index: usize) -> bool {
-        let tab = self
-            .tab_bar_states
-            .get(&pane_id)
-            .and_then(|bar| bar.tabs.get(index))
-            .cloned();
+        let bar = self.tab_bar_states.get(&pane_id);
+        let tab = bar.and_then(|bar| bar.tabs.get(index)).cloned();
+        let closes_active_diagnostics = bar.is_some_and(|bar| {
+            bar.active_index == index && tab.as_ref()
+                .is_some_and(|tab| tab.pane_type == PaneType::SwarmLaneDiagnostics)
+        });
         let closed = self
             .tab_bar_states
             .get_mut(&pane_id)
             .is_some_and(|bar| bar.close_tab(index));
         if !closed {
             return false;
+        }
+        if closes_active_diagnostics {
+            self.retain_lane_diagnostics_state(&|mounted| mounted != &pane_id);
         }
         let Some(tab) = tab else { return true };
         if matches!(tab.pane_type, PaneType::LoomWikiPage) {
@@ -36099,6 +36113,7 @@ impl HandshakeApp {
         self.split_weights = SplitWeights::default();
         self.active_pane = None;
         self.popout_manager = PopOutManager::new();
+        self.retain_lane_diagnostics_state(&|_| false);
         self.tab_bar_states = default_tab_bar_states();
         // A fresh default work surface shows the left rail OPEN and the bottom stash CLOSED (MT-014),
         // mirroring the React `defaultWorkbenchLayoutState` drawers. A subsequent lifecycle load
@@ -37170,6 +37185,7 @@ impl HandshakeApp {
         }
 
         // Restore per-pane tab state.
+        self.retain_lane_diagnostics_state(&|_| false);
         self.tab_bar_states = snapshot.tab_bars.into_iter().collect();
         let legacy_module_binding = snapshot.pane_modules.is_empty();
         *self.editor_mounts.secondary.atelier_modules.lock()
@@ -39733,8 +39749,13 @@ impl HandshakeApp {
                 .or_else(|| factories.get(fallback_key))
                 .expect("placeholder fallback factory always registered")
                 .as_ref();
-            let role = factory.accesskit_role();
-            let label = record.pane_type.label();
+            let diagnostics_closed = record.pane_type == PaneType::SwarmLaneDiagnostics
+                && tab_bar_states.get(pane_id).and_then(TabBarState::active).is_none();
+            let (role, label) = if diagnostics_closed {
+                (egui::accesskit::Role::Pane, "Empty pane".to_owned())
+            } else {
+                (factory.accesskit_role(), record.pane_type.label())
+            };
             let locked = record.lock_state == LockState::Locked;
 
             // Carve, from the TOP: MT-013 header strip, then MT-007 tab strip, then the body — the SAME
@@ -39844,7 +39865,9 @@ impl HandshakeApp {
             // Background pane hit target must be registered before the factory's controls/context
             // menus so it cannot shadow their pointer responses in the detached viewport.
             child.interact(body_rect, pane_egui_id, egui::Sense::hover());
-            factory.render(&mut child, &render_ctx);
+            if !diagnostics_closed {
+                factory.render(&mut child, &render_ctx);
+            }
             // Live AccessKit pane node in the pop-out's own tree, addressed by the SAME author_id as
             // when docked, so out-of-process steering finds the pane regardless of host window.
             accessibility::emit_pane_node(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
@@ -40414,6 +40437,79 @@ mod mt066_stage_route_admission_tests {
             Some(&retained.receipt.event_id),
             "committing the older admitted route cannot erase the later retained request"
         );
+    }
+}
+
+#[cfg(test)]
+mod lane_diagnostics_tab_lifecycle_tests {
+    use super::*;
+    use crate::swarm_lane_diagnostics::{SwarmLaneDiagnosticsCell, SwarmLaneDiagnosticsTransport};
+    use egui_kittest::{kittest::{NodeT, Queryable}, Harness};
+
+    #[derive(Default)]
+    struct DeferredDiagnostics(Mutex<Vec<(String, SwarmLaneDiagnosticsCell)>>);
+
+    impl SwarmLaneDiagnosticsTransport for DeferredDiagnostics {
+        fn fetch_latest(&self, _cell: SwarmLaneDiagnosticsCell) {
+            panic!("the run-bound diagnostics tab must not fetch latest");
+        }
+
+        fn fetch_run(&self, run_id: &str, cell: SwarmLaneDiagnosticsCell) {
+            self.0.lock().unwrap().push((run_id.to_owned(), cell));
+        }
+    }
+
+    #[test]
+    fn closing_the_last_lane_diagnostics_tab_retires_its_delivery_before_same_run_reopen() {
+        for render_while_closed in [true, false] {
+            let transport = Arc::new(DeferredDiagnostics::default());
+            let pane_id = PaneId::from("pane-a");
+            let run_id = "01900000-0000-7000-8000-000000000021";
+            let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+            app.set_swarm_lane_diagnostics_transport_for_test(transport.clone());
+            app.tab_bar_states.insert(pane_id.clone(), TabBarState::new(pane_id.clone(), Vec::new()));
+            assert!(app.open_content_on_pane(pane_id.clone(), PaneType::SwarmLaneDiagnostics, Some(run_id.to_owned())));
+            let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+            harness.run();
+            let registry = harness.state().pane_registry();
+            let initial = registry.lock().unwrap().get(&pane_id).unwrap().last_update;
+            let old = {
+                let requests = transport.0.lock().unwrap();
+                assert_eq!(requests.len(), 1);
+                assert_eq!(requests[0].0, run_id);
+                requests[0].1.clone()
+            };
+
+            assert!(harness.state_mut().close_active_tab());
+            assert!(harness.state().tab_bar_states[&pane_id].tabs.is_empty());
+            if render_while_closed {
+                harness.run();
+                assert_eq!(transport.0.lock().unwrap().len(), 1);
+                assert!(!harness.root().children_recursive().any(|node| {
+                    node.accesskit_node().label().as_deref() == Some("Swarm Lane Diagnostics")
+                }));
+            }
+            assert!(harness.state_mut().open_content_on_pane(
+                pane_id.clone(), PaneType::SwarmLaneDiagnostics, Some(run_id.to_owned()),
+            ));
+            harness.run();
+            assert_eq!(registry.lock().unwrap().get(&pane_id).unwrap().last_update, initial);
+            let new = {
+                let requests = transport.0.lock().unwrap();
+                assert_eq!(requests.len(), 2);
+                assert_eq!(requests[1].0, run_id);
+                requests[1].1.clone()
+            };
+            assert!(!Arc::ptr_eq(&old, &new));
+            *old.lock().unwrap() = Some(Err("late closed tab result".to_owned()));
+            harness.run();
+            assert!(!harness.root().children_recursive().any(|node| {
+                node.accesskit_node().label().as_deref() == Some("late closed tab result")
+            }));
+            *new.lock().unwrap() = Some(Err("reopened tab result".to_owned()));
+            harness.run();
+            harness.get_by_label("reopened tab result");
+        }
     }
 }
 

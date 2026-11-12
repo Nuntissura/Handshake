@@ -6105,7 +6105,15 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                  empty run ID, lane/message count mismatch, missing stable lane author IDs, \
                  missing payload refs, missing EventLedger/FlightRecorder evidence, or \
                  missing HBR-INT-009 tiers. Backend projection failures surface as a pane \
-                 error with author ID `swarm-lane-diagnostics.error`. Flight Recorder-only \
+                 error with author ID `swarm-lane-diagnostics.error`. If the initial load fails, \
+                 use `swarm-lane-diagnostics.action.refresh` after the backend is available. \
+                 Refresh uses the pane's Run filter. Clear it to load the latest run. A later \
+                 refresh failure keeps the last successful projection marked STALE. Closing the \
+                 tab discards its pending result. Reopening the run starts a fresh load. The request \
+                 client records a typed completion, including local authorization rejection \
+                 before network dispatch, through internal_diagnostics for the standalone \
+                 Palmistry ring reader. The marker contains no run IDs or error text. It carries \
+                 no business-event or survivor verdict. Flight Recorder-only \
                  diagnostics are not enough. Tier-2 internal_diagnostics is WIRED for typed \
                  panic-latch, UI heartbeat, frame-time, resource, backend-route, GUI-action and \
                  mechanical-job events. The native panic hook durably writes a bounded, content-free \

@@ -72,7 +72,7 @@ impl SwarmLaneDiagnosticsClient {
         &self,
         cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {
-        self.request_future(self.latest_request(), cell)
+        self.request_future(self.latest_request(), None, cell)
     }
 
     /// Construct an owned run request without borrowing the client or run identifier.
@@ -81,43 +81,93 @@ impl SwarmLaneDiagnosticsClient {
         run_id: &str,
         cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {
-        self.request_future(self.run_request(run_id), cell)
+        self.request_future(
+            self.run_request(run_id),
+            Some(run_id.to_owned()),
+            cell,
+        )
     }
 
     fn request_future(
         &self,
         spec: RequestSpec,
+        requested_run: Option<String>,
         cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {
         let client = self.client.clone();
         let account = self.authenticated_context.clone();
+        let delivery = Arc::downgrade(&cell);
         async move {
-            let result = get_json(&client, account, &spec.url, &[])
-                .await
-                .and_then(|value| {
-                    crate::swarm_lane_diagnostics::decode_projection_for_native_surface(value)
-                        .map_err(AppError::Parse)
-                })
-                .map_err(|error| error.to_string());
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+            use crate::diagnostics::gui_events::{
+                record_gui_observation, GuiDiagnosticOperation, GuiDiagnosticPhase,
+            };
+            let result =
+                fetch_swarm_lane_diagnostics(&client, account, &spec.url, requested_run.as_deref())
+                    .await;
+            let phase = match &result {
+                Ok(_) => GuiDiagnosticPhase::Completed,
+                Err((phase, _)) => *phase,
+            };
+            record_gui_observation(GuiDiagnosticOperation::SwarmLaneDiagnosticsFetch, phase);
+            if let Some(cell) = delivery.upgrade() {
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(result.map_err(|(_, error)| error.to_string()));
+                };
             }
         }
-    }
-
-    fn fetch(&self, spec: RequestSpec, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
-        self.runtime.spawn(self.request_future(spec, cell));
     }
 }
 
 impl crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsTransport for SwarmLaneDiagnosticsClient {
     fn fetch_latest(&self, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
-        self.fetch(self.latest_request(), cell);
+        self.runtime.spawn(self.latest_request_future(cell));
     }
 
     fn fetch_run(&self, run_id: &str, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
-        self.fetch(self.run_request(run_id), cell);
+        self.runtime.spawn(self.run_request_future(run_id, cell));
     }
+}
+
+async fn fetch_swarm_lane_diagnostics(
+    client: &reqwest::Client,
+    account: AccountContext,
+    url: &str,
+    requested_run: Option<&str>,
+) -> Result<
+    crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsProjection,
+    (crate::diagnostics::gui_events::GuiDiagnosticPhase, AppError),
+> {
+    use crate::diagnostics::gui_events::GuiDiagnosticPhase::{Failed, Rejected};
+    use crate::local_account::{AuthenticatedRequest, AuthenticatedRequestError};
+    use crate::swarm_lane_diagnostics::{decode_projection_for_native_surface, validate_requested_run};
+
+    let context = account
+        .ok_or_else(|| (Rejected, AppError::Http("Account login required".to_owned())))?;
+    let request = client.get(url).timeout(Duration::from_secs(5));
+    let response = AuthenticatedRequest::new(client.clone(), Some(context.clone()), request)
+        .send_classified()
+        .await
+        .map_err(|error| match error {
+            AuthenticatedRequestError::Rejected(message) => (Rejected, AppError::Http(message)),
+            AuthenticatedRequestError::Transport(message) => (Failed, AppError::Http(message)),
+        })?;
+    let status = response.status();
+    if !status.is_success() {
+        let phase = if matches!(status.as_u16(), 401 | 403) {
+            Rejected
+        } else {
+            Failed
+        };
+        return Err((phase, AppError::Http(format!("GET non-success status {status}"))));
+    }
+    let value = canvas_response_json(&context, response)
+        .await
+        .map_err(|error| (Rejected, error))?;
+    let projection = decode_projection_for_native_surface(value)
+        .map_err(|error| (Rejected, AppError::Parse(error)))?;
+    validate_requested_run(&projection, requested_run)
+        .map_err(|error| (Rejected, AppError::Parse(error)))?;
+    Ok(projection)
 }
 
 /// Retained unchanged across an unknown POST outcome and its canonical reconciliation.

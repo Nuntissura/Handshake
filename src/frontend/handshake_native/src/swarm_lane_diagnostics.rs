@@ -2,18 +2,17 @@
 //!
 //! The pane renders Dexterity model-lane runs, lanes, messages, payload refs,
 //! promotion state, routing execution/stage/outbox lifecycle, recovery state,
-//! and diagnostic tier posture. Production
-//! data is fetched from the `handshake_core` PostgreSQL-backed diagnostics
-//! route; tests may inject a projection into the same renderer.
+//! and diagnostic tier posture. Production data comes from the Core diagnostics route.
+//! Tests can supply a projection to the same renderer.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     sync::{Arc, Mutex},
 };
 
 use egui::accesskit;
 
-use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
+use crate::pane_registry::{PaneFactory, PaneId, PaneRecord, PaneRenderContext, PaneType};
 
 pub use handshake_swarm_lane_diagnostics::*;
 
@@ -27,107 +26,120 @@ pub trait SwarmLaneDiagnosticsTransport: Send + Sync {
     fn fetch_run(&self, run_id: &str, cell: SwarmLaneDiagnosticsCell);
 }
 
-#[derive(PartialEq, Eq)]
-enum FetchStartOutcome {
-    Queued,
-    Busy,
-    Unavailable,
+struct PendingFetch {
+    run_id: Option<String>,
+    delivery: SwarmLaneDiagnosticsCell,
+    run_filter_edited: bool,
 }
 
 #[derive(Default)]
 struct DiagnosticsUiState {
+    project_id: String,
+    content_id: Option<String>,
     projection: Option<SwarmLaneDiagnosticsProjection>,
     run_filter: String,
     lane_filter: String,
     message_filter: String,
     selected_message_id: Option<String>,
-    pending_fetch: bool,
+    pending_fetch: Option<PendingFetch>,
     error: Option<String>,
     projection_stale: bool,
     last_success_unix_ms: Option<u128>,
 }
 
+impl DiagnosticsUiState {
+    fn for_record(record: &PaneRecord, projection: Option<&SwarmLaneDiagnosticsProjection>) -> Self {
+        Self {
+            project_id: record.project_id.clone(),
+            content_id: record.content_id.clone(),
+            run_filter: record.content_id.clone().unwrap_or_default(),
+            projection: projection.cloned(),
+            last_success_unix_ms: projection.map(|_| now_unix_ms()),
+            ..Default::default()
+        }
+    }
+
+    fn begin_fetch(&mut self) -> (Option<String>, SwarmLaneDiagnosticsCell) {
+        let run_id = self.run_filter.trim();
+        let run_id = (!run_id.is_empty()).then(|| run_id.to_owned());
+        let delivery = Arc::new(Mutex::new(None));
+        self.pending_fetch = Some(PendingFetch {
+            run_id: run_id.clone(),
+            delivery: Arc::clone(&delivery),
+            run_filter_edited: false,
+        });
+        self.error = None;
+        (run_id, delivery)
+    }
+
+    fn drain_delivery(&mut self) {
+        let delivered = self.pending_fetch.as_ref().and_then(|pending| {
+            pending.delivery.lock().ok().and_then(|mut slot| slot.take())
+        });
+        let (Some(result), Some(pending)) = (delivered, self.pending_fetch.as_ref()) else {
+            return;
+        };
+        let result = result.and_then(|projection| {
+            validate_projection_for_native_surface(&projection)?;
+            validate_requested_run(&projection, pending.run_id.as_deref())?;
+            Ok(projection)
+        });
+        let run_filter_edited = pending.run_filter_edited;
+        self.pending_fetch = None;
+        match result {
+            Ok(projection) => {
+                if !run_filter_edited {
+                    self.run_filter.clone_from(&projection.run.run_id);
+                }
+                self.projection = Some(projection);
+                self.error = None;
+                self.projection_stale = false;
+                self.last_success_unix_ms = Some(now_unix_ms());
+            }
+            Err(error) => {
+                self.error = Some(error);
+                self.projection_stale = self.projection.is_some();
+            }
+        }
+    }
+}
+
+pub(crate) fn validate_requested_run(
+    projection: &SwarmLaneDiagnosticsProjection,
+    requested_run: Option<&str>,
+) -> Result<(), String> {
+    if requested_run.is_some_and(|run_id| run_id != projection.run.run_id.as_str()) {
+        return Err("Diagnostics response did not match the requested run".to_owned());
+    }
+    Ok(())
+}
+
 pub struct SwarmLaneDiagnosticsPaneFactory {
-    state: Arc<Mutex<DiagnosticsUiState>>,
+    states: Mutex<BTreeMap<PaneId, DiagnosticsUiState>>,
     transport: Option<Arc<dyn SwarmLaneDiagnosticsTransport>>,
-    delivery: SwarmLaneDiagnosticsCell,
+    initial_projection: Option<SwarmLaneDiagnosticsProjection>,
 }
 
 impl SwarmLaneDiagnosticsPaneFactory {
     pub fn offline() -> Self {
         Self {
-            state: Arc::new(Mutex::new(DiagnosticsUiState::default())),
+            states: Mutex::default(),
             transport: None,
-            delivery: Arc::new(Mutex::new(None)),
+            initial_projection: None,
         }
     }
 
     pub fn with_projection(projection: SwarmLaneDiagnosticsProjection) -> Self {
         Self {
-            state: Arc::new(Mutex::new(DiagnosticsUiState {
-                projection: Some(projection),
-                last_success_unix_ms: Some(now_unix_ms()),
-                ..Default::default()
-            })),
-            transport: None,
-            delivery: Arc::new(Mutex::new(None)),
+            initial_projection: Some(projection),
+            ..Self::offline()
         }
     }
 
     pub fn with_transport(transport: Arc<dyn SwarmLaneDiagnosticsTransport>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(DiagnosticsUiState::default())),
             transport: Some(transport),
-            delivery: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    fn start_fetch(&self, run_id: Option<&str>) -> FetchStartOutcome {
-        let Some(transport) = &self.transport else {
-            return FetchStartOutcome::Unavailable;
-        };
-        let Ok(mut state) = self.state.lock() else {
-            return FetchStartOutcome::Unavailable;
-        };
-        if state.pending_fetch {
-            return FetchStartOutcome::Busy;
-        }
-        state.pending_fetch = true;
-        state.error = None;
-        drop(state);
-        match run_id {
-            Some(id) if !id.trim().is_empty() => {
-                transport.fetch_run(id.trim(), self.delivery.clone())
-            }
-            _ => transport.fetch_latest(self.delivery.clone()),
-        }
-        FetchStartOutcome::Queued
-    }
-
-    fn drain_delivery(&self) {
-        let delivered = self.delivery.lock().ok().and_then(|mut slot| slot.take());
-        if let Some(result) = delivered {
-            if let Ok(mut state) = self.state.lock() {
-                state.pending_fetch = false;
-                match result {
-                    Ok(projection) => {
-                        if let Err(error) = validate_projection_for_native_surface(&projection) {
-                            state.error = Some(error);
-                            state.projection_stale = state.projection.is_some();
-                        } else {
-                            state.run_filter = projection.run.run_id.clone();
-                            state.projection = Some(projection);
-                            state.error = None;
-                            state.projection_stale = false;
-                            state.last_success_unix_ms = Some(now_unix_ms());
-                        }
-                    }
-                    Err(error) => {
-                        state.error = Some(error);
-                        state.projection_stale = state.projection.is_some();
-                    }
-                }
-            }
+            ..Self::offline()
         }
     }
 }
@@ -138,26 +150,33 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
     }
 
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
-        self.drain_delivery();
-        if self.transport.is_some()
-            && self
-                .state
-                .lock()
-                .ok()
-                .is_some_and(|state| state.projection.is_none() && !state.pending_fetch)
-        {
-            self.start_fetch(ctx.record.content_id.as_deref());
-        }
-
-        let Ok(mut state) = self.state.lock() else {
+        let Ok(mut states) = self.states.lock() else {
             ui.label("Diagnostics state unavailable");
             return;
         };
+        let record = ctx.record;
+        let create_state = || {
+            DiagnosticsUiState::for_record(record, self.initial_projection.as_ref())
+        };
+        let state = states.entry(record.pane_id.clone()).or_insert_with(&create_state);
+        if state.project_id != record.project_id || state.content_id != record.content_id {
+            *state = create_state();
+        }
+        state.drain_delivery();
 
-        let pane_id: &str = ctx.record.pane_id.as_ref();
-
+        let transport = self.transport.as_deref();
+        let mut request = if transport.is_some()
+            && state.projection.is_none()
+            && state.pending_fetch.is_none()
+            && state.error.is_none()
+        {
+            Some(state.begin_fetch())
+        } else {
+            None
+        };
+        let pane_id: &str = record.pane_id.as_ref();
         let refresh_author_id = scoped_author_id(pane_id, REFRESH_AUTHOR_ID);
-        let mut fetch_after_render: Option<String> = None;
+        let mut refresh_requested = false;
         ui.vertical(|ui| {
             // Bind the surface landmark to the rendered heading response. Builder-only custom nodes
             // are discoverable but receive no AccessKit bounds; a genuine widget response supplies
@@ -179,10 +198,15 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                     node.set_author_id(scoped_author_id(pane_id, RUN_FILTER_AUTHOR_ID));
                     node.set_label("Run filter".to_owned());
                 });
-                let refresh_enabled = self.transport.is_some() && !state.pending_fetch;
+                if response.changed() {
+                    if let Some(pending) = state.pending_fetch.as_mut() {
+                        pending.run_filter_edited = true;
+                    }
+                }
+                let refresh_enabled = transport.is_some() && state.pending_fetch.is_none();
                 let refresh = ui
                     .add_enabled(refresh_enabled, egui::Button::new("Refresh"))
-                    .on_disabled_hover_text(if self.transport.is_none() {
+                    .on_disabled_hover_text(if transport.is_none() {
                         "Diagnostics transport unavailable"
                     } else {
                         "Diagnostics request already queued"
@@ -200,9 +224,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                     node.set_author_id(refresh_author_id.clone());
                     node.set_label("Refresh".to_owned());
                 });
-                if refresh.clicked() {
-                    fetch_after_render = Some(state.run_filter.clone());
-                }
+                refresh_requested = refresh.clicked();
             });
             ui.horizontal(|ui| {
                 ui.label("Lane");
@@ -227,7 +249,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                 });
             });
 
-            if state.pending_fetch {
+            if state.pending_fetch.is_some() {
                 ui.label("Loading Dexterity model-lane diagnostics...");
             }
             if let Some(error) = state.error.as_deref() {
@@ -285,18 +307,31 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                 .id_salt(ctx.egui_id.with("swarm-lane-diagnostics-scroll"))
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    render_projection(ui, ctx, pane_id, &projection, &mut state);
+                    render_projection(ui, ctx, pane_id, &projection, state);
                 });
         });
-        drop(state);
-        if let Some(run_id) = fetch_after_render {
-            if self.start_fetch(Some(&run_id)) == FetchStartOutcome::Queued {
+        if refresh_requested {
+            request = Some(state.begin_fetch());
+        }
+        drop(states);
+        if let (Some(transport), Some((run_id, delivery))) = (transport, request) {
+            match run_id.as_deref() {
+                Some(run_id) => transport.fetch_run(run_id, delivery),
+                None => transport.fetch_latest(delivery),
+            }
+            if refresh_requested {
                 crate::mcp::argus::acknowledge_action_effect_allow_target_transition(
                     ui.ctx(),
                     &refresh_author_id,
                 );
                 ui.ctx().request_repaint();
             }
+        }
+    }
+
+    fn retain_pane_state(&self, is_mounted: &dyn Fn(&PaneId) -> bool) {
+        if let Ok(mut states) = self.states.lock() {
+            states.retain(|pane_id, _| is_mounted(pane_id));
         }
     }
 

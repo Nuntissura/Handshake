@@ -4,7 +4,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::pane_registry::PaneType;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneFactory, PaneRecord, PaneRenderContext, PaneType,
+};
 use handshake_native::swarm_lane_diagnostics::{
     lane_author_id, message_author_id, message_payload_author_id, message_promotion_author_id,
     mt_status_author_id, routing_execution_author_id, routing_outbox_author_id,
@@ -13,7 +15,7 @@ use handshake_native::swarm_lane_diagnostics::{
     visible_message_ids_for_filters,
     SwarmLaneDiagnosticsLane, SwarmLaneDiagnosticsMessage, SwarmLaneDiagnosticsMtStatus,
     SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsResourceScope, SwarmLaneDiagnosticsRun,
-    SwarmLaneDiagnosticsTier, SwarmLaneDiagnosticsTransport, SwarmLaneRoutingExecutionDiagnostics,
+    SwarmLaneDiagnosticsPaneFactory, SwarmLaneDiagnosticsTier, SwarmLaneDiagnosticsTransport, SwarmLaneRoutingExecutionDiagnostics,
     SwarmLaneRoutingOutboxDiagnostics, SwarmLaneRoutingStageDiagnostics, EMPTY_MESSAGES_AUTHOR_ID,
     ERROR_AUTHOR_ID, FRESHNESS_AUTHOR_ID, LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID,
     PRIVACY_ACCESS_SPACE_AUTHOR_ID, PRIVACY_DENIAL_AUTHOR_ID, PRIVACY_OWNER_AUTHOR_ID,
@@ -378,9 +380,13 @@ impl DeferredDiagnosticsTransport {
     }
 
     fn deliver_next(&self, projection: SwarmLaneDiagnosticsProjection) {
+        self.deliver_next_result(Ok(projection));
+    }
+
+    fn deliver_next_result(&self, result: Result<SwarmLaneDiagnosticsProjection, String>) {
         let cell = self.pending.lock().expect("take pending diagnostics delivery")
             .pop_front().expect("a diagnostics request is pending");
-        *cell.lock().expect("deliver diagnostics result") = Some(Ok(projection));
+        *cell.lock().expect("deliver diagnostics result") = Some(result);
     }
 
     fn requested_runs(&self) -> Vec<Option<String>> {
@@ -474,6 +480,102 @@ fn diagnostics_refresh_queues_once_then_disables_until_delivery() {
     harness.run();
     assert!(!node_by_author(&harness, REFRESH_AUTHOR_ID).accesskit_node().is_disabled());
     assert!(accesskit_label(&harness, FRESHNESS_AUTHOR_ID).starts_with("CURRENT |"));
+}
+
+fn diagnostics_pane_harness(
+    transport: Arc<DeferredDiagnosticsTransport>,
+    run_id: Option<String>,
+) -> Harness<'static, PaneRecord> {
+    let factory = SwarmLaneDiagnosticsPaneFactory::with_transport(transport);
+    let record = PaneRecord::new(
+        Arc::from("diagnostics-pane-a"),
+        PaneType::SwarmLaneDiagnostics,
+        "diagnostics-workspace",
+        run_id,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::Human,
+    );
+    Harness::builder().build_ui_state(move |ui, record| {
+        let egui_id = ui.id().with(record.pane_id.as_ref());
+        factory.render(ui, &PaneRenderContext { record, egui_id });
+    }, record)
+}
+
+#[test]
+fn diagnostics_initial_failure_retains_exact_or_latest_refresh_scope() {
+    for run_id in [Some(fixture_projection().run.run_id), None] {
+        let transport = Arc::new(DeferredDiagnosticsTransport::default());
+        let mut harness = diagnostics_pane_harness(transport.clone(), run_id.clone());
+        assert_eq!(transport.requested_runs(), vec![run_id.clone()]);
+
+        let failure = "initial diagnostics request failed";
+        transport.deliver_next_result(Err(failure.to_owned()));
+        harness.run();
+        harness.run();
+        assert_eq!(transport.requested_runs(), vec![run_id.clone()]);
+        harness.get_by_label(failure);
+
+        harness.get_by_label("Refresh").click_accesskit();
+        harness.run();
+        assert_eq!(transport.requested_runs(), vec![run_id.clone(), run_id]);
+        transport.deliver_next(fixture_projection());
+        harness.run();
+        assert!(harness.root().children_recursive().any(|node| {
+            node.accesskit_node().label().is_some_and(|label| label.starts_with("CURRENT |"))
+        }));
+    }
+}
+
+#[test]
+fn diagnostics_pane_rebinding_ignores_the_previous_delivery_and_keeps_other_panes_independent() {
+    let transport = Arc::new(DeferredDiagnosticsTransport::default());
+    let mut harness = diagnostics_pane_harness(transport.clone(), Some("run-old".to_owned()));
+    harness.state_mut().content_id = Some("run-new".to_owned());
+    harness.run();
+    harness.state_mut().pane_id = Arc::from("diagnostics-pane-b");
+    harness.state_mut().content_id = Some("run-other".to_owned());
+    harness.run();
+    assert_eq!(transport.requested_runs(), vec![
+        Some("run-old".to_owned()),
+        Some("run-new".to_owned()),
+        Some("run-other".to_owned()),
+    ]);
+
+    transport.deliver_next_result(Err("stale diagnostics completion".to_owned()));
+    harness.state_mut().pane_id = Arc::from("diagnostics-pane-a");
+    harness.state_mut().content_id = Some("run-new".to_owned());
+    harness.run();
+    assert!(harness.get_by_label("Refresh").accesskit_node().is_disabled());
+    assert!(!harness.root().children_recursive().any(|node| {
+        node.accesskit_node().label().as_deref() == Some("stale diagnostics completion")
+    }));
+    transport.deliver_next_result(Err("current diagnostics completion".to_owned()));
+    harness.run();
+    harness.get_by_label("current diagnostics completion");
+
+    harness.state_mut().pane_id = Arc::from("diagnostics-pane-b");
+    harness.state_mut().content_id = Some("run-other".to_owned());
+    harness.run();
+    assert!(harness.get_by_label("Refresh").accesskit_node().is_disabled());
+    assert!(!harness.root().children_recursive().any(|node| {
+        node.accesskit_node().label().as_deref() == Some("current diagnostics completion")
+    }));
+}
+
+#[test]
+fn diagnostics_completion_does_not_replace_an_edited_run_filter() {
+    let transport = Arc::new(DeferredDiagnosticsTransport::default());
+    let mut harness = diagnostics_pane_harness(transport.clone(), None);
+    let filter = harness.get_by_label("Run filter");
+    filter.focus();
+    filter.type_text("next-run");
+    harness.run();
+    transport.deliver_next(fixture_projection());
+    harness.run();
+    harness.get_by_label("Refresh").click_accesskit();
+    harness.run();
+    assert_eq!(transport.requested_runs(), vec![None, Some("next-run".to_owned())]);
 }
 
 #[test]

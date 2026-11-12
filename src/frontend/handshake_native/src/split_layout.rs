@@ -544,14 +544,20 @@ impl SplitLayoutWidget {
             }
 
             let mut effective_record = record.clone();
-            if let Some(active_tab) = tab_bars.get(&pane_id).and_then(|bar| bar.active()) {
+            let active_tab = tab_bars.get(&pane_id).and_then(|bar| bar.active());
+            if let Some(active_tab) = active_tab {
                 effective_record.pane_type = active_tab.pane_type.clone();
                 effective_record.content_id = active_tab.content_id.clone();
             }
+            let diagnostics_closed = active_tab.is_none()
+                && effective_record.pane_type == PaneType::SwarmLaneDiagnostics;
 
             let factory = factory_for(&effective_record.pane_type);
-            let role = factory.accesskit_role();
-            let label = effective_record.pane_type.label();
+            let (role, label) = if diagnostics_closed {
+                (egui::accesskit::Role::Pane, "Empty pane".to_owned())
+            } else {
+                (factory.accesskit_role(), effective_record.pane_type.label())
+            };
             let render_ctx = PaneRenderContext {
                 record: &effective_record,
                 egui_id: pane_egui_id,
@@ -577,7 +583,9 @@ impl SplitLayoutWidget {
                         bus.set_undo_focus_owner(pane_id.clone(), false);
                     });
             }
-            factory.render(&mut child, &render_ctx);
+            if !diagnostics_closed {
+                factory.render(&mut child, &render_ctx);
+            }
             emit_accesskit(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
         });
         if let Err(error) = render_result { ui.colored_label(header_palette.text_subtle,error); }
