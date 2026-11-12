@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T12:48:44Z",
+ "updated_at": "2026-11-12T14:55:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19979,8 +19979,8 @@
   },
   {
    "lane_id": "SMB-MOTION-COMMANDS-2",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core (typed motion commands: solid and adjustment layers, keyframe selection, clipboard and ease) over hsk-studio-folio motion records and hsk-studio-composite composition evaluation (adjustment-layer effects, STU-CMP-015)",
    "lane_file": "builders/lanes/hsk-studio-motion-commands-2.json",
    "brief": "builders/briefs/lane-smb-motion-commands-2.md",
@@ -19988,7 +19988,7 @@
    "base": "eb17fad6",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T08:53:46Z",
+   "updated_at": "2026-11-12T14:55:49Z",
    "closes": [
     "workflows/scenario-motion-comp.json gap 9 part: solid layer and adjustment-layer effect stacks (steps 16, 17, 44)",
     "workflows/scenario-motion-comp.json gap 1 remainder part: layer kinds solid and adjustment, keyframe selection, copy and paste",
@@ -20000,7 +20000,8 @@
     "MT-33884",
     "MT-33885",
     "MT-33883"
-   ]
+   ],
+   "claim": "153a410d..03894fdd"
   },
   {
    "lane_id": "SMB-DELIVERY-QUEUE-1",

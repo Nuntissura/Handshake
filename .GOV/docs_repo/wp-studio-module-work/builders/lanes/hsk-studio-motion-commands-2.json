@@ -1,19 +1,147 @@
 {
   "crate": "hsk-studio-harness-core (typed motion commands: solid and adjustment layers, keyframe selection, clipboard and ease) over hsk-studio-folio motion records and hsk-studio-composite composition evaluation (adjustment-layer effects, STU-CMP-015)",
   "lane": "SMB-MOTION-COMMANDS-2",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
-  "base": "eb17fad6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "153a410d",
+  "commits": [
+    {
+      "sha": "46d0df40",
+      "kind": "red",
+      "what": "red tests: folio solid/adjustment records, composite adjustment effects, harness rows"
+    },
+    {
+      "sha": "c2270b14",
+      "kind": "red",
+      "what": "red test for the R60 attempt-2 probe (add at current takes no caller value; set_parent states its choice)"
+    },
+    {
+      "sha": "def45163",
+      "kind": "green",
+      "what": "folio StudioMotionRecords.solid_layers and the group-payload adjustment layer"
+    },
+    {
+      "sha": "f3039c62",
+      "kind": "green",
+      "what": "composite solids and composition adjustment-layer effect stacks (STU-CMP-015)"
+    },
+    {
+      "sha": "17a4c92e",
+      "kind": "green",
+      "what": "R60 added item: add/toggle at current refuse a caller value; set_parent reports transform_compensated false"
+    },
+    {
+      "sha": "e6788dcd",
+      "kind": "green",
+      "what": "harness-core solid and adjustment kinds, set_solid, keyframe select/deselect/selection/copy/paste/reverse/shift_selected/ease/toggle_hold"
+    },
+    {
+      "sha": "4cc84dc2",
+      "kind": "red",
+      "what": "red tests for review F1-F7"
+    },
+    {
+      "sha": "4ad85248",
+      "kind": "red",
+      "what": "F4 composite and F7 red tests fail for their own reason"
+    },
+    {
+      "sha": "afde2056",
+      "kind": "green",
+      "what": "F2 unmasked when no mask contributes; F4 scale_scene keeps the adjustment layer at the identity and scales its stack"
+    },
+    {
+      "sha": "aa449d3f",
+      "kind": "green",
+      "what": "F1 reverse paste negates speeds; F3 open clears selection; F5 KEY_AT_CURRENT; F6 dropped count"
+    },
+    {
+      "sha": "76a4b548",
+      "kind": "green",
+      "what": "F7 doc_export.rs one hunk (lead-approved path): PSD loss for a composition adjustment layer"
+    },
+    {
+      "sha": "17325c7f",
+      "kind": "green",
+      "what": "clippy Groups alias"
+    },
+    {
+      "sha": "df4ee39e",
+      "kind": "test",
+      "what": "F2 mode-none only (Folio refuses open composition masks); F7 visible refuses typed, hidden records the loss"
+    },
+    {
+      "sha": "56a46c54",
+      "kind": "test",
+      "what": "clippy single-element loop in the F2 test"
+    },
+    {
+      "sha": "03894fdd",
+      "kind": "pushed_tip",
+      "what": "lane rebased on origin 153a410d (15 commits 153a410d..03894fdd), pushed to codex/handshake-studio-assets"
+    }
+  ],
+  "capabilities_done": [
+    "solid layer kind (composition.add_layer kind solid, composition.set_solid; Folio solid_layers; composite draws through shape_layer_content)",
+    "adjustment layer kind (document kind adjustment, payload group; composite applies its stack to the composite beneath, L = B + k (E - B), nesting by construction; typed refusals blend/matte/3d/transform/clipped/collapsed)",
+    "keyframe selection (3 scopes, replace/add/remove, dropped-key count), copy, paste, reverse paste, shift_selected, ease both/in/out, toggle_hold as typed commands",
+    "R60 attempt-2 added item: keyframe.add_at_current / toggle_at_current never seed from a caller value (parameter_invalid; property_default_unknown where composite alone knows the value); set_parent states transform_compensated false"
+  ],
+  "tests": {
+    "focused": {
+      "sha": "e6788dcd",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-focused4-rebased-e6788dcd.log",
+      "result": "55/55 passed, exit 0",
+      "scope": "folio motion_solid_adjustment_records + motion_records_contract; composite[motion] composition_adjustment_effects + vector_live_filters; harness-core selection_tests; harness[media] motion_commands + motion_commands_2; clippy over the 4 tested crates (dependents skipped, focused run)"
+    },
+    "red": {
+      "folio_and_harness": "smb-motion-commands-2-red-e3cd9856.log (e3cd9856 = 46d0df40 before rebase except a 2-line compile fix in the composite test): folio 3/3 fail, harness 8/9 fail",
+      "composite": "smb-motion-commands-2-red-composite-e3cd9856.log: 6/7 fail (the 7th pins motion's own assistants by design)",
+      "r60": "smb-motion-commands-2-r60red-wip-a3dd2e78.log: r60 test and the 2 SMB-MOTION-COMMANDS-1 pins fail before the current_slot fix (dirty tree with the other items in place)"
+    },
+    "red_review": {
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-red-review-4cc84dc2.log (11 fail)",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-red-review2-4ad85248.log (F4 composite, F7 fail)",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-red-f7-df4ee39e.log (final F7 test fails with 76a4b548 reverted, detached 77407d32)"
+      ]
+    },
+    "bundled": {
+      "sha": "76a4b548",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-bundled-76a4b548.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-harness-76a4b548.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-example-76a4b548.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-bundled-summary-76a4b548.log"
+      ],
+      "result": "lane-check step 0 clean, clippy over 6 crates + 20 dependents exit 0; whole suites folio, composite[motion], harness-core[import-tiff], session, package, harness-view[viewer]: 937/938 (the failure: F2 test open-mask case, Folio refuses it); harness[media] motion_commands, motion_commands_2, motion_records_session, render_queue_records, render_queue_settings, composition_export, harness_drive, doc_export: 78/79 (F7 test, visible layer refused typed before the loss)"
+    },
+    "rerun": {
+      "sha": "df4ee39e",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-rerun-df4ee39e.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-rerun-summary-df4ee39e.log"
+      ],
+      "result": "clippy harness-core[import-tiff] lib+tests, composite test, harness tests exit 0; composition_adjustment_effects 9/9, harness-core lib 6/6, fresh example, harness motion_commands + motion_commands_2 + harness_drive 52/52; 56a46c54 (lint-only test edit) not yet run"
+    },
+    "land": {
+      "sha": "03894fdd",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-land-03894fdd.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-land-persha-03894fdd.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-land-summary-03894fdd.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motion-commands-2/smb-motion-commands-2-postland-folio-package-03894fdd.log"
+      ],
+      "result": "clippy harness[media] --tests 0; lane-check suites harness-core[import-tiff] + harness-view[viewer] 229/229 (1 skipped); composition_adjustment_effects 9/9; fresh example; harness[media] motion_commands, motion_commands_2, harness_drive, doc_export 60/60; per-sha HEAD~1 PER_SHA_RESULT OK; push 153a410d..03894fdd; after the push, folio + package suites 301/301 (the landing script's crate check missed folio, which INDENT touched; composite untouched by landed commits)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T08:53:46Z",
+  "next": "validator: round on 03894fdd",
+  "updated_at": "2026-11-12T14:55:49Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -48,6 +176,29 @@
       "MT-33885",
       "MT-33883"
     ],
-    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+    "reuses_tree_and_target": "smb-pr-sequence-session-1",
+    "takeover": "2026-11-11: builder (opus) took over after the previous builder's account usage limit stop on 2026-11-08 ~10:10Z; its 13 uncommitted files were inspected, kept, and committed in 4 slices; clippy items-after-test-module and type-complexity fixed; cancel check added in the adjustment premultiply loop; rebased on origin 1e652818 (SMB-AI-LIVE-EFFECTS-1 landed): folio and composite DESCRIPTOR conflicts resolved by keeping both, our key on its own line",
+    "reader_sweep": {
+      "composite lower_extensions.rs:146-150": "not applicable: is_adjustment_layer requires PrimitiveReference to ADJUSTMENT_SCHEMA, a group-payload layer is not a pigment adjustment",
+      "folio raster.rs:1677/1700": "applies unchanged: a group-payload adjustment layer as a clip base in a document graph is refused AdjustmentClipBase (typed)",
+      "folio raster.rs:1762/1819": "not applicable: test PrimitiveReference payload only; proven by motion_solid_adjustment_records a_group_payload_adjustment_layer_validates_and_needs_no_pigment_record",
+      "harness-core harness.rs:124, harness-view info.rs:311, render.rs:582": "not applicable: resolver primitive_layer_binding binds only PrimitiveReference adjustment layers; a group payload names no primitive",
+      "static document render": "refuses the group-payload adjustment source typed unsupported_payload (composition_adjustment_effects a_raster_document_render_refuses_a_composition_adjustment_layer_typed); no code change"
+    },
+    "mt_claims_candidate": "MT-33853 AC-009 (adjustment) and MT-33885 AC-002 (add at current never changes the render, headless) proven here; MT-33853 AC-003 (solid) NOT claimed: the document layer kind stays raster with a solid record; MT-33885 AC-003 needs GUI proof; MT-34075, MT-33884, MT-33883 have empty acceptance lists; MT-33885 AC-002 also relies on SMB-MOTION-COMMANDS-1's real-evaluator media test add_at_current_leaves_the_real_evaluator_unchanged (lead 2026-11-11)",
+    "not_proven": "vendor parity of the lerp mix, paste collision, reverse tangent swap and the 0.1667 ease influence UNVERIFIED (D5); cancel mid-B/E only checked by code and a pre-canceled render; Viewer::after_edit marks the Viewer dirty after non-mutating keyframe.select rows (harness-view edit.rs, outside the brief's paths, not changed); package externals needs no row (no vocabulary word in solid_layers fields)",
+    "review_e6788dcd": "FIX_FIRST F1-F7 applied per lead rulings 2026-11-11: F1 speeds negated on reverse; F2 no contributing mask = unmasked (open composition masks are refused by Folio, so only mode none is testable); F3 finish_open clears the selection, keeps the clipboard; F4 scale_scene scales the adjustment stack (points per axis, lengths by the mean scale, kernels resampled, coverage box-averaged; Studio reading); F5 rows declare no value, a sent value is parameter_unknown; F6 dropped counted until read; F7 found that a visible composition adjustment layer already stops PSD export typed (composite unsupported_payload, nothing written), the loss entry covers a hidden one",
+    "paths_beyond_brief": "harness-core harness.rs finish_open (F3, lead ruling); harness-view src/view/doc_export.rs one hunk at emit (F7, lead-approved path)",
+    "pause_2026_11_11": "hold for the rerun died in the Operator pause before acquiring; re-queued 2026-11-12; one re-queue failed at once on an invalid git revert -q flag (nothing ran)",
+    "f7_ruling": "lead 2026-11-12: keep the PSD loss entry for a hidden composition adjustment layer (reporting a dropped hidden layer is correct; a visible one is already refused typed)",
+    "released": "lead RELEASED at 56a46c54 (2026-11-12), landing after SCORE-EFFECTS-6 and TYPE-INDENT-SPACING-1 on LAND; landing hold adds harness tests clippy and motion_commands_2 (56a46c54 never compiled)",
+    "landing": "pushed 03894fdd on origin 153a410d; folio and package suites ran after the push (script path-prefix bug skipped them), green",
+    "lead_decisions": [
+      {
+        "at": "2026-11-12T14:55:49Z",
+        "on": "F7",
+        "decision": "keep the PSD loss entry for a hidden composition adjustment layer; a visible one is refused typed (lead 2026-11-12)"
+      }
+    ]
   }
 }
