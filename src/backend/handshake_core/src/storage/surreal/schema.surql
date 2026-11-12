@@ -8531,13 +8531,13 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_source(
     $row: object, $resource: record<protected_resources>, $grant: record<resource_grants>,
     $kind: string, $actions: array<string>, $capabilities: array<string>
 ) {
-    LET $session = $row.first_workspace_session;
+    LET $receipt_session = $row.first_workspace_session;
     RETURN record::exists($resource) AND record::exists($grant)
         AND $resource.resource_kind = $kind
         AND $resource.external_resource_id = record::id($row.first_workspace)
         AND $resource.owner_account_id = $row.account
         AND $resource.created_by_principal_id = $row.operator_principal
-        AND $resource.created_in_session_id = $session AND $resource.access_space_id = $row.space
+        AND $resource.created_in_session_id = $receipt_session AND $resource.access_space_id = $row.space
         AND $resource.creator_grant_id = $grant AND $resource.parent_resource_id = $row.first_workspace_resource
         AND $resource.schema_version = 1 AND $resource.lifecycle_state = 'active'
         AND $resource.policy_version = $row.first_workspace_policy_version
@@ -8547,7 +8547,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_source(
         AND $grant.account_id = $row.account AND $grant.principal_id = $row.operator_principal
         AND $grant.access_space_id = $row.space AND $grant.resource_id = $resource
         AND $grant.actions = $actions AND $grant.capability_ids = $capabilities
-        AND $grant.delegation_chain = $session.delegation_chain
+        AND $grant.delegation_chain = $receipt_session.delegation_chain
         AND $grant.status = 'active' AND $grant.revoked_at = NONE
         AND ($grant.expires_at = NONE OR $grant.expires_at > time::now())
         AND $grant.grant_version = 1 AND $grant.policy_version = $row.first_workspace_policy_version
@@ -8580,10 +8580,10 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_sources($row: object) 
         OR array::len($o.memory_surfaces) != 5
         OR array::map($o.memory_surfaces, |$surface| $surface.kind) != ['memory_pack','memory_proposal','memory_commit_report','memory_item','memory_item_count']
         { RETURN false; };
-    LET $session = $row.first_workspace_session;
-    LET $granted = IF $session.delegated_capabilities CONTAINS '*' AND $row.operator_principal.delegated_capabilities CONTAINS '*'
+    LET $receipt_session = $row.first_workspace_session;
+    LET $granted = IF $receipt_session.delegated_capabilities CONTAINS '*' AND $row.operator_principal.delegated_capabilities CONTAINS '*'
         { $o.capabilities } ELSE { array::filter($o.capabilities, |$capability|
-            ($session.delegated_capabilities CONTAINS '*' OR $session.delegated_capabilities CONTAINS $capability)
+            ($receipt_session.delegated_capabilities CONTAINS '*' OR $receipt_session.delegated_capabilities CONTAINS $capability)
             AND ($row.operator_principal.delegated_capabilities CONTAINS '*' OR $row.operator_principal.delegated_capabilities CONTAINS $capability)) };
     IF $row.first_workspace_grant.capability_ids != $granted
         OR $row.first_workspace_grant.actions != ['create','read','update','delete']

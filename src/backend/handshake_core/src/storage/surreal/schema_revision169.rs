@@ -62,7 +62,8 @@ pub(super) fn upgrade_statements() -> String {
     statements
 }
 
-pub(super) fn restore_shared_schema(mut source: String) -> String {
+pub(super) fn restore_shared_schema(source: String) -> String {
+    let mut source = revision170::restore_shared_schema(source);
     let fields: Vec<_> = field_statements().collect();
     if fields.iter().all(|field| !source.contains(*field)) {
         return source;

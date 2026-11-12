@@ -23,13 +23,15 @@ mod revision166;
 mod revision168;
 #[path = "schema_revision169.rs"]
 mod revision169;
+#[path = "schema_revision170.rs"]
+mod revision170;
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 170;
+pub const SCHEMA_REVISION: i64 = 171;
 
 // Enroll these pins only after independent BASE and FINAL engine INFO measurement.
-const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = Some(("d3aaf84e49b7f19b8dffad1be10bef41e5859f3502ce047d89ac32988885e294", 4570, 936));
-const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = Some("cd5bf4df67b91146ed9dbd3c47802184107419fbe8710bf66a610e6cc66dba2f");
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
 const PRE_MEMBER_PASSWORD_POLICY_REVISION: i64 = 167;
 const PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED: &str =
     "6f6e4a5bd5dad4b856e355233dcf435c4febce3e1da7a70b87587f2a1ddd6c43";
@@ -4783,7 +4785,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-174 engine-profile declarations: exact source/catalog pins include five functions,
 // one authored field and one event. Live INFO and compatible reopen remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "d8f17e8be49a849622ea730822b14404995b349b9c2d291fb960bd76d36fcb37";
+    "ec2a2552e0abd613ef53f814b07e65673b167f58afb0f04ade1f50cb0885d651";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -7643,14 +7645,15 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
         let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
         let state: Option<SchemaState> = response.take(0)?;
         let Some(mut state) = state else { return Ok(None); };
-        if revision169::recognizes(&state, true, &database.config)
+        if revision170::recognizes(&state, true, &database.config)
+            || revision169::recognizes(&state, true, &database.config)
             || revision168::recognizes(&state, true, &database.config)
             || state.is_exact_pre_member_password_policy(true, &database.config)
         {
             verify_compiled_manifest(&database).await?;
             let observed = upgrade_workspace_claim_predecessor(&database, &state, observed, true).await?;
             let complete = read_context_and_state(&database).await?.ok_or_else(||
-                SurrealStorageError::TransactionWorker("Member password policy production successor receipt missing".to_owned()))?;
+                SurrealStorageError::TransactionWorker("Workspace claim production successor receipt missing".to_owned()))?;
             return Ok(Some(build_schema_report(
                 complete, observed, SchemaBootstrapOutcome::UpgradedSupportedPredecessor, 10,
             )));
@@ -7910,7 +7913,8 @@ async fn bootstrap_schema_unbounded(
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
-                    Some(state) if revision169::recognizes(&state, false, &database.config)
+                    Some(state) if revision170::recognizes(&state, false, &database.config)
+                        || revision169::recognizes(&state, false, &database.config)
                         || revision168::recognizes(&state, false, &database.config)
                         || state.is_exact_pre_member_password_policy(false, &database.config) =>
                     {
@@ -9339,6 +9343,11 @@ async fn upgrade_workspace_claim_predecessor(
     production: bool,
 ) -> Result<ObservedSchema, SurrealStorageError> {
     let (exact_predecessor, mismatch) = match previous_state.revision {
+        revision170::REVISION => (
+            revision170::recognizes(previous_state, production, &database.config)
+                && revision170::matches_observed_catalog(&predecessor, production),
+            "HANDSHAKE_SURREAL_WORKSPACE_RECEIPT_PREDECESSOR_MISMATCH",
+        ),
         revision169::REVISION => (
             revision169::recognizes(previous_state, production, &database.config)
                 && revision169::matches_observed_catalog(&predecessor, production),
@@ -9368,6 +9377,11 @@ async fn upgrade_workspace_claim_predecessor(
     {
         return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_PASSWORD_POLICY_INFO_UNMEASURED".to_owned()).await;
     }
+    let resume_revision170 = previous_state.revision == revision170::REVISION
+        && previous_state.apply_state == "schema_applied";
+    if resume_revision170 && !production {
+        ensure_knowledge_schema_registry(database).await?;
+    }
     if read_knowledge_schema_registry_metadata(database).await?
         != expected_knowledge_schema_registry_metadata().map_err(SurrealStorageError::TransactionWorker)?
     {
@@ -9377,16 +9391,37 @@ async fn upgrade_workspace_claim_predecessor(
         verify_production_module_receipts(database).await?;
     }
 
+    let previous_info = if resume_revision170 {
+        finalize_schema_state_bound(database, FinalizeBindings {
+            schema_version: SCHEMA_VERSION.to_owned(),
+            schema_revision: revision170::REVISION,
+            namespace: database.config.namespace().to_owned(),
+            database: database.config.database().to_owned(),
+            source_manifest_sha256: previous_state.source_manifest_sha256.clone(),
+            generated_surql_sha256: previous_state.generated_surql_sha256.clone(),
+            pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+            info_fingerprint_sha256: predecessor.info_fingerprint_sha256.clone(),
+        }).await?;
+        predecessor.info_fingerprint_sha256
+    } else {
+        previous_state.info_fingerprint_sha256.clone()
+    };
     let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
     let generated = if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() };
     let mut schema_delta = match previous_state.revision {
-        revision169::REVISION => String::new(),
+        revision170::REVISION | revision169::REVISION => String::new(),
         revision168::REVISION => revision168::append_upgrade_statements(String::new()),
         _ => revision168::append_upgrade_statements(
             schema_function_definition("wp012_member_redemption_password_read").to_owned(),
         ),
     };
-    schema_delta.push_str(&revision169::upgrade_statements());
+    if previous_state.revision != revision170::REVISION {
+        schema_delta.push_str(&revision169::upgrade_statements());
+    }
+    for name in revision170::RECEIPT_FUNCTIONS {
+        schema_delta.push_str(schema_function_definition(name));
+        schema_delta.push('\n');
+    }
     let upgrade = format!(r#"
 BEGIN TRANSACTION;
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
@@ -9411,7 +9446,7 @@ COMMIT TRANSACTION;
         database: database.config.database().to_owned(),
         previous_source: previous_state.source_manifest_sha256.clone(),
         previous_generated: previous_state.generated_surql_sha256.clone(),
-        previous_info: previous_state.info_fingerprint_sha256.clone(),
+        previous_info,
         source: source.clone(),
         generated: generated.clone(),
         pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -9503,7 +9538,9 @@ UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revi
  source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
-"#, revision166::upgrade_statements(production) + &revision169::upgrade_statements(),
+"#, revision166::upgrade_statements(production)
+        + schema_function_definition("wp012_first_owner_workspace_source")
+        + "\n" + &revision169::upgrade_statements(),
         model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default(),
         revision166::cloud_upgrade_statements(production));
     let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(RoutingSuccessorBindings {
@@ -12333,16 +12370,22 @@ mod tests {
             .expect("adopt the same Mem client for production module measurement");
         super::super::install_production_module_schemas(&storage).await
             .expect("apply the exact ordered production module body");
-        storage.with_admin_operation(|database| Box::pin(async move {
+        let final_catalog = storage.with_admin_operation(|database| Box::pin(async move {
             let observed = observe_catalog(&database, "FINAL").await?;
             eprintln!("MT139_PRODUCTION_SCHEMA_INFO_SHA256={}; fields={}; indexes={}; source={}; inventory={}",
                 observed.info_fingerprint_sha256, observed.fields_defined, observed.indexes_defined,
                 production_source_sha256(), production_catalog_sha256()?);
-            Ok::<_, SurrealStorageError>(())
+            Ok::<_, SurrealStorageError>(observed)
         })).await.expect("observe the whole production catalog without enrolling a pin");
         assert_eq!(
             observed.info_fingerprint_sha256,
-            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor BASE INFO required")
+        );
+        let (expected_info, expected_fields, expected_indexes) =
+            ROUTING_SUCCESSOR_PRODUCTION_INFO.expect("independently qualified successor FINAL INFO required");
+        assert_eq!(
+            (final_catalog.info_fingerprint_sha256.as_str(), final_catalog.fields_defined, final_catalog.indexes_defined),
+            (expected_info, expected_fields, expected_indexes)
         );
     }
 
@@ -12361,9 +12404,15 @@ mod tests {
         assert_workspace_claim_predecessor_upgrade(revision169::REVISION).await;
     }
 
+    #[tokio::test]
+    async fn revision_170_workspace_receipt_parameter_upgrade_and_reopen_preserves_base_and_final() {
+        assert_workspace_claim_predecessor_upgrade(revision170::REVISION).await;
+    }
+
     async fn assert_workspace_claim_predecessor_upgrade(predecessor_revision: i64) {
         fn predecessor_pins(revision: i64, production: bool) -> (&'static str, &'static str, &'static str) {
             match (revision, production) {
+                (revision170::REVISION, production) => revision170::receipt_pins(production),
                 (revision169::REVISION, production) => revision169::receipt_pins(production),
                 (revision168::REVISION, production) => revision168::receipt_pins(production),
                 (PRE_MEMBER_PASSWORD_POLICY_REVISION, true) => (
@@ -12385,6 +12434,11 @@ mod tests {
             predecessor_revision: i64,
         ) -> Result<(), SurrealStorageError> {
             let shared = match predecessor_revision {
+                revision170::REVISION => {
+                    let restored = revision170::restore_shared_schema(SCHEMA.to_owned());
+                    assert_eq!(revision170::restore_shared_schema(restored.clone()), restored);
+                    restored
+                }
                 revision169::REVISION => {
                     let restored = revision169::restore_shared_schema(SCHEMA.to_owned());
                     assert_eq!(revision169::restore_shared_schema(restored.clone()), restored);
@@ -12468,6 +12522,7 @@ mod tests {
                 }).await?;
                 let state = read_context_and_state(&database).await?.expect("exact predecessor receipt");
                 assert!(match predecessor_revision {
+                    revision170::REVISION => revision170::recognizes(&state, production, &database.config),
                     revision169::REVISION => revision169::recognizes(&state, production, &database.config),
                     revision168::REVISION => revision168::recognizes(&state, production, &database.config),
                     _ => state.is_exact_pre_member_password_policy(production, &database.config),
@@ -12518,6 +12573,14 @@ mod tests {
         }
 
         let (current_policy, previous_policy, mixed_catalog_error) = match predecessor_revision {
+            revision170::REVISION => {
+                let current = schema_function_definition("wp012_first_owner_workspace_source");
+                (
+                    current,
+                    current.replace("$receipt_session", "$session"),
+                    "HANDSHAKE_SURREAL_WORKSPACE_RECEIPT_PREDECESSOR_MISMATCH",
+                )
+            }
             revision169::REVISION => (
                 revision169::field_statements().next().expect("password verifier field"),
                 revision169::PREVIOUS_PASSWORD_VERIFIER.to_owned(),
