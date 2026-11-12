@@ -653,6 +653,30 @@
    "lead_reading": "artboards stand in, UNVERIFIED (lead ruling 2026-11-08)",
    "source": "lane SMB-DS-COMPONENTS-AUTHOR-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-80",
+   "gap": "STU-FX-134a audio rows Analog Delay (:19038), DeEsser (:19057), DeHummer (:19058), Distortion (:19062) and Multiband Compressor (:19126) have no parameter table; STU-FX-146 admits a recovered or a deliberately authored record but names no adoption step for an authored one",
+   "needs": "Spec owner adopts or replaces the three authored parameter sets as STU-FX-134a contract rows, and supplies parameter tables for DeEsser and Distortion",
+   "lead_reading": "2026-11-12T18:03:24Z: three authored sets ship labelled engine_authored with no catalogue row claimed (lane ids SD-FX146-ANALOG-DELAY, -DEHUMMER, -MULTIBAND): Analog Delay as feedback_delay {time_ms 0..5000, feedback -0.99..0.99, damping_hz 0 = none or 20..rate/2, mix 0..1, ping_pong 0/1}; DeHummer as hum_remover {fundamental_hz 20..1000, harmonics 1..16, bandwidth_hz 0.1..100}; Multiband Compressor as multiband_compressor {bands 2..4, crossover_<i>_hz ascending 20..rate/2, per band the 12 DynamicsParams fields}. DeEsser and Distortion are not implemented (STU-FX-128: raise the gap, never invent). A later spec row replaces the engine_authored label.",
+   "source": "lane SMB-SCORE-EFFECTS-6 notes.sd_item_proposed (SD-FX146-AUDIO-ROWS), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-81",
+   "gap": "STU-MOT-122 gives starting_number (hard_min 0, hard_max 9999999) and use_comp_frame_number for sequences but no file-name pattern: separator, padding width and where the number goes",
+   "needs": "Spec owner states the image-sequence naming template, or adds it as an output module field",
+   "lead_reading": "2026-11-12T18:03:24Z: output_path <stem>.png writes <stem>_<7 digits>.png; number = starting_number + span index, or the composition frame number with use_comp_frame_number (vendor UNVERIFIED D5); seven digits because hard_max 9999999 fits and names sort; the receipt names the pattern <stem>_%07d.png and the range.",
+   "source": "lane SMB-DELIVERY-QUEUE-1 notes.sd_items_to_propose, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-82",
+   "gap": "STU-VID-064 makes batch export one queue and STU-SHL-113 lists the render-queue panel for sequences too, but only composition queue items have a record (STU-MOT-120 queue item, RenderQueueItem); no clause says whether a queued sequence export is saved with the document",
+   "needs": "Spec owner states whether queued sequence-export items are document records (with a schema) or session state handed to Jobs (STU-SHL-092)",
+   "lead_reading": "2026-11-12T18:03:24Z: the delivery queue is per Viewer and not saved; composition items persist as StudioRenderQueueItem, sequence items are re-added after reopen; saving them needs a new record.",
+   "source": "lane SMB-DELIVERY-QUEUE-1 notes.sd_items_to_propose, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

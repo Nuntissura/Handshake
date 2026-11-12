@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T17:58:12Z",
+ "updated_at": "2026-11-12T18:03:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -22430,6 +22430,11 @@
     "added_at": "2026-11-12T17:58:12Z",
     "item": "prune superseded .fig instance design states at save time, keeping reopen byte-identical, so a long-lived design file does not reach design_state_over_cap",
     "owner": "lead"
+   },
+   {
+    "added_at": "2026-11-12T18:03:24Z",
+    "item": "user export recipes live in the package document entry export_recipes (SMB-DELIVERY-QUEUE-1, asset-local transport); STU-IO-166 makes recipes SurrealDB SCHEMAFULL tables: the host binding takes them into its recipe table and the entry stays transport (not an SD: the spec settles the store)",
+    "owner": "host integration: kernel binding recipe store (STU-ARC-001, STU-IO-166)"
    }
   ],
   "pause_20261103": {
