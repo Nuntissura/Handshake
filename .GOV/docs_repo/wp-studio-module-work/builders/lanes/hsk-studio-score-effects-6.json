@@ -1,93 +1,93 @@
 {
   "crate": "hsk-studio-score",
   "lane": "SMB-SCORE-EFFECTS-6",
-  "status": null,
-  "phase": "held",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
-  "base": "88b5500c",
+  "base": "4506a6cf",
   "commits": [
     {
-      "sha": "f9288b6d",
+      "sha": "b69b1184",
       "was": "5291d4e5",
       "slice": "red tests and refusing stubs"
     },
     {
-      "sha": "b004f647",
+      "sha": "2437c80f",
       "was": "5cabd766",
       "slice": "graphic EQ kernel"
     },
     {
-      "sha": "1bb1d724",
+      "sha": "8bfe64ce",
       "was": "c00beb20",
       "slice": "spec rows"
     },
     {
-      "sha": "2efc3c1a",
+      "sha": "6436eccc",
       "was": "eb8c02df",
       "slice": "filter-kind table"
     },
     {
-      "sha": "65c14f0f",
+      "sha": "06573650",
       "was": "e1eb73db",
       "slice": "harness-view reach"
     },
     {
-      "sha": "b99ef799",
+      "sha": "fad3db9c",
       "was": "9322e833",
       "slice": "waveform noise op"
     },
     {
-      "sha": "55368d6d",
+      "sha": "473fee8e",
       "was": "cc8dba9d",
       "slice": "red F3/F4"
     },
     {
-      "sha": "f03a4dcc",
+      "sha": "1ae606c1",
       "was": "50766a97",
       "slice": "F3"
     },
     {
-      "sha": "50c43a5f",
+      "sha": "aa5d789e",
       "was": "f348b752",
       "slice": "F4"
     },
     {
-      "sha": "cd7933e9",
+      "sha": "e8521416",
       "was": "d62be223",
       "slice": "F1 and F5"
     },
     {
-      "sha": "5be84c15",
+      "sha": "7d67dbf4",
       "was": "fb6de725",
       "slice": "red gap rulings"
     },
     {
-      "sha": "5d72cf20",
+      "sha": "cc737878",
       "was": "9a3f6d0f",
       "slice": "gap rulings"
     },
     {
-      "sha": "ef4b1df0",
+      "sha": "cfaeddd0",
       "was": "17f24f29",
       "slice": "last gap fix (precedes its red test)"
     },
     {
-      "sha": "34f7f0b9",
+      "sha": "501f5190",
       "was": "1257efbe",
       "slice": "red last gap (red at c8835697)"
     },
     {
-      "sha": "fd52679b",
+      "sha": "7b922af3",
       "slice": "red F2: template list equality, waveform.noise_reduce drive row",
       "was": "11b964dc"
     },
     {
-      "sha": "2e8c8829",
+      "sha": "9dbbd4ad",
       "slice": "F2: TEMPLATES 16 names in harness-core and harness-view, waveform.noise_reduce rows, harness_drive_audio.rs:403 nonsense template",
       "was": "b6883e62"
     },
     {
-      "sha": "04eb03d9",
+      "sha": "733789d6",
       "slice": "waveform.noise_reduce in harness_drive_audio SLICE_ROWS (approved one line)",
       "was": "8284a561"
     }
@@ -103,23 +103,23 @@
     "red_proof": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-effects-6/smb-score-effects-6-red-tree.log (red tree = 5291d4e5 content): score 18 run 0 passed 18 failed, exit 100; harness audio_filter_kinds + audio_waveform_effects 8 run 1 passed 7 failed, exit 100",
     "focused_green": "smb-score-effects-6-focused-score-wip.log (score graphic_eq, filter_kinds, automation, multiband: 22 run, 21 passed, 1 test-side fix then) and smb-score-effects-6-focused-harness-wip.log (score graphic_eq 10/10 exit 0; harness audio_filter_kinds 6/6 + audio_waveform_effects 2/2 exit 0); tree = tip 9322e833 content, run before the commits were cut",
     "measured": "worst band-centre error dB at +-12: 10@44100 0.6946, 20@44100 0.6520, 30@44100 0.8741, 10@48000 0.6604, 20@48000 0.6519, 30@48000 0.8741 (bound 1.0); designs over 8000-frame 30-band ramp 32; design+hop debug 139/541/1340 us (10/20/30); noise floor drop 21.22 dB at reduction_db 24 (bound reduction-6), tone change -0.014 dB; stems residual master GEQ -145.1 dBFS (sums), master hard_limiter -50.4 dBFS (shows)",
-    "not_run": "harness-view [viewer] whole suite; harness-core [import-tiff]; --per-sha; release design time",
+    "not_run": "release design time",
     "clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-harness-view --features hsk-studio-harness-view/audio-batch --tests at tip: exit 0, no warning in a lane-touched file",
     "step0": "lane-check.sh --step0-only at tip: clean, exit 0",
     "review_fixes": "rebased onto 88b5500c; red proofs of the review, gap and F2 tests run 2026-11-11 (red_proof_review)",
     "red_proof_review": "own tree, detached, harness [audio-batch, audio-device] with harness-view [desktop, audio-batch], 2026-11-11: 55368d6d (red F3/F4) 2 run 0 passed 2 failed exit 100 (smb-score-effects-6-red-f3f4-55368d6d.log); 5be84c15 (red gap rulings) 2 run 0 passed 2 failed exit 100 (smb-score-effects-6-red-gaps-5be84c15.log); 34f7f0b9 picked onto 5d72cf20 as detached commit a589ec25 (no reset --hard needed; branch restored) playback_and_export_media_record_a_recomputed_noise_print 1 run 0 passed 1 failed exit 100 (smb-score-effects-6-red-lastgap-a589ec25.log); fd52679b (red F2) 2 run 0 passed 2 failed exit 100 (smb-score-effects-6-red-f2-fd52679b.log); every failure is the test's own assertion",
     "focused_tip": "04eb03d9, 2026-11-11 (smb-score-effects-6-focused-04eb03d9.log): score graphic_eq, filter_kinds, automation, multiband 22 run 22 passed 1 skipped, exit 0; harness audio_filter_kinds, audio_waveform_effects, audio_batch, harness_drive_audio 26 run 20 passed 6 failed, exit 100: all 6 are harness_drive_audio process tests answering unknown_command from a stale example studio-harness.exe (built 2026-11-07; --test filters do not build examples). After a fresh example build (smb-score-effects-6-focused-drive-04eb03d9.log): harness_drive_audio 9 run 9 passed, exit 0",
-    "bundled": "run 1 at 04eb03d9 (smb-score-effects-6-bundled-04eb03d9.log, -summary.txt), NOT GREEN: unit 0 fresh example build exit 0; unit 1 lane-check (step 0 clean, registry in sync, clippy clean, nextest score + harness-core + harness-view [desktop, audio-batch] whole suites + harness [audio-batch, audio-device] tests audio_filter_kinds, audio_mixer, audio_batch, audio_waveform_effects, audio_out_mix, harness_drive_audio, audio_waveform, audio_session, audio_import, cli_export_sequence, harness_drive) 505 run 504 passed 1 failed 3 skipped, exit 100: hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run (child abort did not end in 60 s; a file this lane does not touch; cause NOT_INSPECTED); unit 2 harness-view [viewer] exit 77 (studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 389 GiB at 2026-11-11T09:29:03Z > cap 360 GiB); unit 3 harness-core [import-tiff] not run"
+    "bundled": "run 1 at 04eb03d9 (smb-score-effects-6-bundled-04eb03d9.log, -summary.txt), NOT GREEN: unit 0 fresh example build exit 0; unit 1 lane-check (step 0 clean, registry in sync, clippy clean, nextest score + harness-core + harness-view [desktop, audio-batch] whole suites + harness [audio-batch, audio-device] tests audio_filter_kinds, audio_mixer, audio_batch, audio_waveform_effects, audio_out_mix, harness_drive_audio, audio_waveform, audio_session, audio_import, cli_export_sequence, harness_drive) 505 run 504 passed 1 failed 3 skipped, exit 100: hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run (child abort did not end in 60 s; a file this lane does not touch; cause NOT_INSPECTED); unit 2 harness-view [viewer] exit 77 (studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 389 GiB at 2026-11-11T09:29:03Z > cap 360 GiB); unit 3 harness-core [import-tiff] not run",
+    "bundled_2": "BUNDLED GREEN at 04eb03d9 on D: (tree wt-studio-lanes/smb-pr-entry-references-1, branch lane/smb-score-effects-6-d, owner smb-pr-entry-references-1, --disk d); log smb-score-effects-6-bundled2-04eb03d9.log (first line the sha) and -summary.txt: unit 0 fresh example studio-harness build exit 0; units 1-3 in ONE outer hold 2026-11-11T13:35:54Z-14:20:20Z: unit 1 lane-check (step 0 clean, registry in sync, clippy over score, harness-core, harness-view, harness [features] and dependents native-host, pulse, score-device, score-plugin clean, no warning in a lane file) nextest score + harness-core + harness-view [desktop, audio-batch] whole suites + harness [audio-batch, audio-device] audio_filter_kinds, audio_mixer, audio_batch, audio_waveform_effects, audio_out_mix, harness_drive_audio, audio_waveform, audio_session, audio_import, cli_export_sequence, harness_drive: 505 run 505 passed 3 skipped, exit 0 (example rebuilt in the hold, mtime 14:11:03Z); unit 2 harness-view [viewer] whole suite 151 run 151 passed 1 skipped, exit 0; unit 3 harness-core [import-tiff] whole suite 72 run 72 passed, exit 0",
+    "diag_sink": "harness-core diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run: timed out at 60 s in bundled run 1 (C:, 2026-11-11); passed in bundled run 2 unit 1 and unit 3 (9.8 s); no single-test rerun was needed (lead ruling); a load-dependent failure outside the lane, cause NOT_INSPECTED",
+    "landing": "RELEASED by the lead 2026-11-12 at 04eb03d9. Rebase onto 87f331f9 -> 6d1f6fa2; ONE hold (smb-score-effects-6-land-6d1f6fa2.log, -summary.txt): fresh example exit 0; harness-core + harness-view [desktop, audio-batch] whole + harness [audio-batch, audio-device] lane and drive/export tests 364 run 364 passed 1 skipped exit 0; harness-view [viewer] 156/156 1 skipped exit 0; harness-core [import-tiff] 72/72 exit 0; --per-sha HEAD~1 PER_SHA_RESULT OK exit 0. Origin moved to 4506a6cf (SMB-DEVELOP-COMMANDS-1, 12 commits, no file of this lane) -> rebase 733789d6; ONE hold (smb-score-effects-6-land-733789d6.log, -summary.txt): fresh example exit 0; harness audio_filter_kinds, audio_waveform_effects, audio_batch, harness_drive_audio 26 run 26 passed exit 0; --per-sha HEAD~1 PER_SHA_RESULT OK shas=1 range=9dbbd4ad..733789d6 exit 0. Guarded push 4506a6cf..733789d6 to codex/handshake-studio-assets 2026-11-12"
   },
   "verdicts": [],
-  "blockers": [
-    "C: cap guard exit 77: C:/HandshakeBuild/WP-KERNEL-STUDIO 389 GiB > 360 GiB (2026-11-11T09:29:03Z); lane stopped for the lead",
-    "bundled run 1 not green: harness-core diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run timed out (60 s); one bundled run used of the two-run loop cap"
-  ],
+  "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "lead: free C: below the 360 GiB cap or name a disk, and rule on the diag_sink abort timeout (not a lane file); then builder: bundled run 2 at 04eb03d9 (same script; units 1-3); stop at BUNDLED GREEN; on RELEASED: fetch, rebase, suites of crates touched by landed commits, --per-sha HEAD~1, guarded push, READY_FOR_VALIDATION.",
-  "updated_at": "2026-11-11T10:14:09Z",
+  "next": "validator: validate 733789d6 (READY_FOR_VALIDATION); builder never claims PASS. Lead: record SD-FX146-AUDIO-ROWS (notes.sd_item_proposed); SMB-DELIVERY-QUEUE-1 and SMB-R60-FOLLOWUPS-1 rebase after this landing.",
+  "updated_at": "2026-11-12T12:14:33Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -156,7 +156,7 @@
       "MT-32663 (read, no claim)"
     ],
     "reuses_tree_and_target": "smb-pr-entry-references-1 with its D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target (moved 2026-11-11T10:14:09Z from C: tree smb-pr-retime-output-1; lane-check --owner smb-pr-entry-references-1 --disk d; STUDIO_BUILD_DISK unset, STUDIO_OWNER=smb-pr-entry-references-1; build the studio-harness example first)",
-    "tip": "04eb03d9 (local, not pushed), rebased on origin 88b5500c, branch lane/smb-score-effects-6",
+    "tip": "733789d6 pushed to origin/codex/handshake-studio-assets (on 4506a6cf), branch lane/smb-score-effects-6-d",
     "spec_basis": [
       "STU-FX-128 :13141-13150 (MUST raise the gap rather than invent a parameter list)",
       "STU-FX-136a :18727, STU-FX-136b :18732, GraphicEQ10Bands :18824, 20 :18844, 30 :18874",
@@ -238,6 +238,8 @@
         "tip": "04eb03d9",
         "decision": "research/decision-20261111-c-cap-placement.json"
       }
-    ]
+    ],
+    "tree_move": "2026-11-11T10:14Z lead decision research/decision-20261111-c-cap-placement.json: lane moved to D: tree wt-studio-lanes/smb-pr-entry-references-1, branch lane/smb-score-effects-6-d at 04eb03d9; C: tree smb-pr-retime-output-1 idle; GitHub backup branch lane/smb-score-effects-6 is not pushed to",
+    "pushed": "733789d6a5c37f680453cab8cc4acae23d2b4b88"
   }
 }

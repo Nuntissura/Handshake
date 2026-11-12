@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T10:30:18Z",
+ "updated_at": "2026-11-12T12:14:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19837,8 +19837,8 @@
   },
   {
    "lane_id": "SMB-SCORE-EFFECTS-6",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-score",
    "lane_file": "builders/lanes/hsk-studio-score-effects-6.json",
    "brief": "builders/briefs/lane-smb-score-effects-6.md",
@@ -19846,7 +19846,7 @@
    "base": "cede5958",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T06:00:13Z",
+   "updated_at": "2026-11-12T12:14:47Z",
    "closes": [
     "truth-check 20261105 mt-video-audio-design-web top_missing rank 5: graphic EQ (engine and headless document path); de-esser and distortion raised as an SD item, not built",
     "Score processors with no document path: reverb, feedback_delay, flanger, chorus, phaser, hard_limiter, hum_remover, click_repair, multiband_compressor (bus, master, batch, preset, waveform); noise reduction on a waveform selection with a persisted print",
@@ -19859,7 +19859,8 @@
     "MT-32631",
     "MT-32731 (read, no claim)",
     "MT-32663 (read, no claim)"
-   ]
+   ],
+   "claim": "READY_FOR_VALIDATION at 733789d6 (17 commits on 4506a6cf): graphic EQ 10/20/30 bands (spec tables), spec parameter rows, 12-row filter-kind table with binding classes, document reach (bus, master, presets, keyframes, batch, waveform effect, save/reopen, stems), waveform noise_reduce op with print range + digest (F3 recompute record), one 256 MiB aggregate effect-state budget across every bus-graph builder (F4), drive template lists and waveform.noise_reduce rows (F2). Proof: bundled run 2 at 04eb03d9 (smb-score-effects-6-bundled2-04eb03d9.log: 505/505, 151/151, 72/72, all exit 0); landing holds smb-score-effects-6-land-6d1f6fa2.log and smb-score-effects-6-land-733789d6.log (per-sha OK). Red proofs: 55368d6d, 5be84c15, a589ec25 (34f7f0b9 on 5d72cf20), fd52679b, all exit 100. Never PASS."
   },
   {
    "lane_id": "SMB-LAYOUT-PLACE-1",
