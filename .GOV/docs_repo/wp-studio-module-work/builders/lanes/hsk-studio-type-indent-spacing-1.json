@@ -1,82 +1,86 @@
 {
   "crate": "hsk-studio-folio (stored fields), hsk-studio-layout (composition), hsk-studio-interop-layout (IDML import), hsk-studio-harness-view (one edit field and two shift calls)",
   "lane": "SMB-TYPE-INDENT-SPACING-1",
-  "status": null,
-  "phase": "STOPPED at the C: cap (exit 77) after the lead ruling 2026-11-11 (second): red tests committed at 5f3112a4, not yet run; fix not written; BUNDLED GREEN at e660aa49 stands for e660aa49 only",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "READY_FOR_VALIDATION at 153a410d (pushed 733789d6..153a410d to origin/codex/handshake-studio-assets, 19 commits, fast-forward)",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
-  "base": "88b5500c (origin/codex/handshake-studio-assets; lead rebase, 15 commits, shas changed from the list below by message)",
+  "base": "733789d6 (origin/codex/handshake-studio-assets at the push; rebased from 88b5500c through 87f331f9 and 4506a6cf)",
   "commits": [
     {
-      "sha": "01cd8cd1",
-      "subject": "folio typestyle (red): STU-TYP-185 fields, red validation tests"
+      "sha": "72eb4c29",
+      "subject": "folio typestyle, SMB-TYPE-INDENT-SPACING-1 (red): STU-TYP-185 indent and spacing fields on StudioCompositionSettings, red tests for points-only finite validation"
     },
     {
-      "sha": "ed95636c",
-      "subject": "folio typestyle: finite points validation; STU-TYP-185 table as data"
+      "sha": "e55b6104",
+      "subject": "folio typestyle, SMB-TYPE-INDENT-SPACING-1: indents and spacing validate as finite points; STU-TYP-185 table as data"
     },
     {
-      "sha": "96dca9f3",
-      "subject": "layout (red): ParagraphGeometry plumbing, red composition tests"
+      "sha": "6c74a63c",
+      "subject": "layout, SMB-TYPE-INDENT-SPACING-1 (red): ParagraphGeometry plumbing and red composition tests for STU-TYP-185"
     },
     {
-      "sha": "1e8e708c",
-      "subject": "layout: indents and spacing composed by every composer"
+      "sha": "84d6da9a",
+      "subject": "layout, SMB-TYPE-INDENT-SPACING-1: paragraph indents and spacing composed by every composer (STU-TYP-185)"
     },
     {
-      "sha": "bc6a5afb",
-      "subject": "layout textflow + harness-view (red): shift_paragraph_records skeleton, StylePatch.composition, drive key"
+      "sha": "a31292eb",
+      "subject": "layout textflow + harness-view, SMB-TYPE-INDENT-SPACING-1 (red): shift_paragraph_records skeleton, StylePatch.composition, drive decoder key; red tests"
     },
     {
-      "sha": "1cd3dc4e",
-      "subject": "layout textflow: shift_paragraph_records (V4-06 class C)"
+      "sha": "debc3952",
+      "subject": "layout textflow, SMB-TYPE-INDENT-SPACING-1: shift_paragraph_records moves, drops and dedupes paragraph-keyed records (V4-06 class C)"
     },
     {
-      "sha": "d628ee10",
-      "subject": "harness-view layout styles: EditStyle sets and clears composition"
+      "sha": "fd1bc518",
+      "subject": "harness-view layout styles, SMB-TYPE-INDENT-SPACING-1: EditStyle sets and clears a paragraph style's composition settings"
     },
     {
-      "sha": "2e3e6cc0",
-      "subject": "interop-layout (red): IDML import and export-loss tests"
+      "sha": "e3ae0bc6",
+      "subject": "interop-layout, SMB-TYPE-INDENT-SPACING-1 (red): IDML indent/spacing import and export-loss tests; type_style_composition_loss stub"
     },
     {
-      "sha": "7f4bbee7",
-      "subject": "interop-layout: IDML indents/spacing import; typed export loss"
+      "sha": "27c238e1",
+      "subject": "interop-layout, SMB-TYPE-INDENT-SPACING-1: IDML indents and spacing import as points; typed loss for composition settings IDML export does not write"
     },
     {
-      "sha": "c7df9be8",
-      "subject": "clippy clean-up and the ignored last-line re-break measurement"
+      "sha": "cd73e506",
+      "subject": "SMB-TYPE-INDENT-SPACING-1: clippy clean-up (boxed StylePatch.composition) and the ignored last-line re-break measurement"
     },
     {
-      "sha": "3633856a",
-      "subject": "(red) lead rulings 2026-11-08 red tests; class C siblings as skeletons (was f46589ae)"
+      "sha": "fb662005",
+      "subject": "SMB-TYPE-INDENT-SPACING-1 (red): lead rulings 2026-11-08 red tests; class C siblings as skeletons"
     },
     {
-      "sha": "c232eaa5",
-      "subject": "lead rulings 2026-11-08 1, 2, 4: stop-rule gate, host IDML loss line, class C siblings (was 73abeb87)"
+      "sha": "ae4ca376",
+      "subject": "SMB-TYPE-INDENT-SPACING-1: lead rulings 2026-11-08 1, 2, 4 (unbuilt: C: held)"
     },
     {
-      "sha": "713e0be3",
-      "subject": "layout textflow: text at byte 0 joins the first paragraph (was 74c0f61b)"
+      "sha": "c1c1410c",
+      "subject": "layout textflow, SMB-TYPE-INDENT-SPACING-1: text inserted at byte 0 of a non-empty story joins the first paragraph (unbuilt)"
     },
     {
-      "sha": "01c44296",
-      "subject": "(red) review F1, F2, F3, F4, F6 red tests (was 7b9d95b3)"
+      "sha": "b4f5336c",
+      "subject": "SMB-TYPE-INDENT-SPACING-1 (red, unbuilt): review F1, F2, F3, F4, F6 red tests"
     },
     {
-      "sha": "4b762334",
-      "subject": "review fixes F1, F2, F3, F4, F6 (was a7070820)"
+      "sha": "472c8249",
+      "subject": "SMB-TYPE-INDENT-SPACING-1 (unbuilt): review fixes F1, F2, F3, F4, F6"
     },
     {
-      "sha": "429e3ee3",
-      "subject": "(red) lead ruling 2026-11-11 AdobeParagraph last-line re-break red tests (paragraph_from/Resume/last_line_rebreak skeleton keeping today's behaviour)"
+      "sha": "b423ceec",
+      "subject": "SMB-TYPE-INDENT-SPACING-1 (red): lead ruling 2026-11-11 AdobeParagraph last-line re-break red tests"
     },
     {
-      "sha": "e660aa49",
-      "subject": "layout: AdobeParagraph last-line re-break as a local tail composed for the paragraph's end"
+      "sha": "dc444c8e",
+      "subject": "layout, SMB-TYPE-INDENT-SPACING-1: AdobeParagraph last-line re-break as a local tail composed for the paragraph's end"
     },
     {
-      "sha": "5f3112a4",
-      "subject": "(red) lead ruling 2026-11-11 (second): last-line re-break red tests for FirstFit, Knuth-Plass and AdobeSingleLine (unrun: C: cap)"
+      "sha": "76523dc8",
+      "subject": "SMB-TYPE-INDENT-SPACING-1 (red): lead ruling 2026-11-11 (second) last-line re-break red tests for FirstFit, Knuth-Plass and AdobeSingleLine"
+    },
+    {
+      "sha": "153a410d",
+      "subject": "layout, SMB-TYPE-INDENT-SPACING-1: FirstFit, Knuth-Plass and AdobeSingleLine narrow the line that ends the paragraph"
     }
   ],
   "capabilities_done": [
@@ -87,20 +91,18 @@
     "harness-view: EditStyle StylePatch.composition (set, clear, scope refusal, Folio validation), DeleteStyle drops the style's entry, drive row decoder key + patch text; ReplaceText and change call shift_paragraph_records"
   ],
   "tests": {
-    "argv": "bash tools/lane-check.sh --owner smb-r54-followups-1 -- cargo nextest run -p hsk-studio-folio -p hsk-studio-layout -p hsk-studio-interop-layout -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --no-fail-fast (after cargo build -p hsk-studio-harness --example studio-harness --features viewer, EXIT 0); step 0 clean, registry in sync, clippy over the 7 crates + 17 dependents clean; log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-bundled-e660aa49.log",
+    "argv": "bundled: one D: hold at 069ae07d (example build, lane-check --owner smb-pr-retime-hold-1 --disk d over folio, layout, interop-layout, package, harness-core, harness-view [viewer], harness [viewer]): 1280/1280, EXIT 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-bundled-069ae07d.log). Landing holds: f0d14989 on 87f331f9 (suites folio, interop-layout, package, harness-core, harness-view [viewer], harness [viewer] 957/957, --per-sha OK; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-land-f0d14989.log); 15aee984 on 4506a6cf (harness-core, harness-view [viewer], harness [viewer] 582/582, --per-sha OK, push skipped: origin moved; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-land-15aee984.log); 153a410d on 733789d6 (same suites 582/582, --per-sha HEAD~1 PER_SHA_RESULT OK, guarded push EXIT 0; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-land-153a410d.log)",
     "exit": 0,
-    "sha": "e660aa49",
-    "passed": 1277,
+    "sha": "153a410d",
+    "passed": 582,
     "failed": 0
   },
   "verdicts": [],
-  "blockers": [
-    "C: cap guard (studio-env): C:/HandshakeBuild/WP-KERNEL-STUDIO held 389 GiB at 2026-11-11T09:29:03Z > cap 360 GiB; SSD build refused, exit 77 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-red8-5f3112a4.log). Cleanup or a D: decision is the lead's / cargo manager's."
-  ],
+  "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "lead/cargo manager: free C: below the 360 GiB cap (or rule D:); then builder: prove 5f3112a4 red (the three narrows_the_line_that_ends_the_paragraph tests), end-keyed final-line narrowing in first_fit, knuth_plass and single_line (local, same gate, no memo or work-cap change), layout suite + indent_spacing + composer_depth + composer_depth_diff + measurement 0/30/100/170, BUNDLED GREEN (amended) stop; then the RELEASED steps as written",
-  "updated_at": "2026-11-11T10:14:09Z",
+  "next": "validator: judge SMB-TYPE-INDENT-SPACING-1 at 153a410d; builder holds",
+  "updated_at": "2026-11-12T12:48:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -208,6 +210,17 @@
         "other_composers_Justified": "FirstFit and AdobeSingleLine within noise; KnuthPlass release 5000w 18.8/35.0/46.6/21.5, debug 5000w 184.5/374.6/465.2/316.2 (each within about 2.5x of 0 pt; KP keeps its full two-pass re-break, not in this ruling)",
         "acceptance": "met: AdobeParagraph Left release 100 pt composes 121/361/1001 lines at 0.7/2.3/6.6 ms vs 0 pt 0.8/2.3/6.4 (within 2x); debug 100 pt 3.6/10.1/29.0 vs 3.4/10.1/28.6 (within 2x, 5000 words included); 0/30/170 pt and the other composers unchanged; Justified measured",
         "red_tests": "red at 429e3ee3 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-red7-429e3ee3.log, 4 FAIL at assertions, EXIT 100): indent_spacing adobe_paragraph_last_line_rebreak_composes_5000_words (BudgetExceeded), the_final_line_fits_when_the_gate_passes_and_line_l_is_not_stretched (breaks [0,10,13]), adobe_composer last_line_rebreak_work_is_bounded (ragged states 260,997 / work 3,539,458 vs first pass 1,800 / 24,446), local_tail_equals_full_rebreak_when_justified; green at e660aa49 (focus8, 50/50: lib adobe_composer + indent_spacing + composer_depth + composer_depth_diff)"
+      },
+      "after_end_keyed": {
+        "sha": "069ae07d",
+        "ruling": "lead ruling 2026-11-11 (second): FirstFit, Knuth-Plass and AdobeSingleLine narrow the line that ENDS the paragraph in the re-break (same gate)",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-measure-end-keyed-069ae07d.log (D: target; same hold as the bundled run)",
+        "line_counts": "identical to after_local_tail on every composer, alignment, size and indent (Left: FirstFit/AdobeSingleLine/AdobeParagraph 120/120/121/120, 360/360/361/360, 1000/1000/1001/1000; KnuthPlass 96/97/97/96, 288/289/289/288, 800/801/801/800; Justified: AdobeParagraph and AdobeSingleLine 100/101/101/100, 300/301/301/300, 834 x4)",
+        "release_ms_Left_5000w": "FirstFit 3.1/3.0/3.0/2.9, KnuthPlass 17.9/31.7/32.0/17.7, AdobeSingleLine 3.2/2.7/3.3/3.0, AdobeParagraph 5.7/5.8/5.6/5.8",
+        "release_ms_Justified_5000w": "FirstFit 3.0/3.0/3.1/2.9, KnuthPlass 18.9/32.0/32.4/17.6, AdobeSingleLine 2.9/2.7/3.1/2.9, AdobeParagraph 23.7/23.2/23.3/23.4",
+        "debug_ms_Left_5000w": "FirstFit 15.2/15.2/15.6/15.0, KnuthPlass 171.8/335.0/353.5/175.8, AdobeSingleLine 17.1/16.5/17.9/16.5, AdobeParagraph 27.9/28.4/28.0/28.1",
+        "debug_ms_Justified_5000w": "FirstFit 15.2/15.6/15.3/14.9, KnuthPlass 170.0/326.6/326.6/232.8, AdobeSingleLine 24.0/23.8/24.0/23.8, AdobeParagraph 222.1/216.1/211.0/189.1",
+        "note": "D: target (spinning disk) vs the C: numbers of after_local_tail; times within noise of them; no refusal anywhere"
       }
     },
     "v4_06_sweep": {
@@ -259,7 +272,7 @@
     "observations": [
       "Mixed leading in baseline_of (:273 multiplies earlier lines by the current paragraph's height): reported per brief, not fixed; space tests use one leading.",
       "Focused runs build harness_drive_typed against the examples/studio-harness binary; a stale example from another tree failed 8 drive tests until `cargo build --example studio-harness --features viewer` (focus5 log); the whole-suite bundled run builds it.",
-      "Lead ruling 2026-11-11 (second): FirstFit, Knuth-Plass and AdobeSingleLine must also narrow the line that ENDS the paragraph in the re-break (same gate, local change); red tests at 5f3112a4, fix pending the C: cap"
+      "Lead ruling 2026-11-11 (second) applied at 069ae07d: every composer narrows the line that ENDS the paragraph in the last-line re-break; red at 5f3112a4 (D:, 3 FAIL at assertions), green in the bundled run"
     ],
     "focused_runs": [
       "red1 8b8c8a5d: layout indent_spacing 11 red / 2 pins green (exit 100)",
@@ -273,7 +286,13 @@
       "red7 429e3ee3: 4 FAIL at assertions, 23 pass (EXIT 100): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-red7-429e3ee3.log",
       "focus8 e660aa49: layout lib adobe_composer + indent_spacing + composer_depth + composer_depth_diff, 50/50 PASS (EXIT 0): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-focus8-e660aa49.log",
       "bundled e660aa49: example build EXIT 0 (studio-harness.exe 2026-11-08 07:53 -> 2026-11-11 09:15, rebuilt again by the run at 10:08 +0100), lane-check EXIT 0, 1277/1277 PASS, 25 skipped; harness_drive_typed and layout_pdf_host process tests 16 PASS: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-bundled-e660aa49.log",
-      "red8 5f3112a4: refused by the C: cap guard before any build (exit 77, 389 GiB > 360): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-red8-5f3112a4.log (log first named red8-8f9e3d48 by a typo, renamed; its first line carries the sha)"
+      "red8 5f3112a4: refused by the C: cap guard before any build (exit 77, 389 GiB > 360): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-red8-5f3112a4.log (log first named red8-8f9e3d48 by a typo, renamed; its first line carries the sha)",
+      "red8d 5f3112a4 (D: tree smb-pr-retime-hold-1): the three narrows_the_line_that_ends_the_paragraph tests, 3 FAIL at assertions (EXIT 100), each showing the pushed-down final line set narrowed and overfull: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-red8d-5f3112a4.log",
+      "hold 069ae07d first attempt 2026-11-11: interrupted by the pause during the example build (no exit line): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-bundled-069ae07d-interrupted-20261111.log",
+      "bundled 069ae07d 2026-11-12 (one outer hold after a 3179 s lock wait): example build EXIT 0, lane-check EXIT 0, 1280/1280 PASS, 25 skipped; harness_drive_typed and layout_pdf_host 16 PASS; the three composer tests PASS: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-bundled-069ae07d.log",
+      "land f0d14989: example build EXIT 0, suites 957/957, --per-sha OK: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-land-f0d14989.log",
+      "land 15aee984: example EXIT 0, 582/582, --per-sha OK, push skipped (origin moved to 733789d6): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-land-15aee984.log",
+      "land 153a410d: example EXIT 0, 582/582, --per-sha OK, pushed 733789d6..153a410d: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-indent-spacing-1/smb-type-indent-spacing-1-land-153a410d.log"
     ],
     "host_integration_rules": "(1) no egui/eframe/winit/wgpu line added; (2) no GPU; (3) no new command or control: existing layout.style.edit_style row gains a decoded key; (4) no new mutating op without caller actor: the edit stays in LayoutEditor/Viewer::layout_apply; (5) layout returns typed refusals only; (6) no jobs; (7) host_integration block present",
     "lead_rulings_20261108": {
@@ -293,9 +312,10 @@
       "F6": "fixed in a7070820, red style_composition_patch_merges_only_its_fields: the patch is overlaid field by field; null clears the whole record; patch text and StylePatch doc say so",
       "F7": "fixed in 73abeb87 (layout_export.rs 'let mut out' + extend), host assert in harness drive_edit_style_composition_sets_the_indent"
     },
-    "takeover": "2026-11-11: builder taken over after the previous builder's usage-limit stop (2026-11-08 ~10:10Z); tree clean at 4b762334 on origin 88b5500c; every ruling item mapped to its commit (stop rule + F5 + F7: 3633856a red / c232eaa5; byte 0: 713e0be3; F1/F2/F3/F4/F6: 01c44296 red / 4b762334); red proofs and focused run re-run at the rebased shas; stopped at the measurement per the stop rule; 2026-11-11 lead ruling on the 100 pt stop applied (429e3ee3 red, e660aa49 fix), bundled green at e660aa49",
+    "takeover": "2026-11-11: builder taken over after the previous builder's usage-limit stop (2026-11-08 ~10:10Z); tree clean at 4b762334 on origin 88b5500c; every ruling item mapped to its commit (stop rule + F5 + F7: 3633856a red / c232eaa5; byte 0: 713e0be3; F1/F2/F3/F4/F6: 01c44296 red / 4b762334); red proofs and focused run re-run at the rebased shas; stopped at the measurement per the stop rule; 2026-11-11 lead ruling on the 100 pt stop applied (429e3ee3 red, e660aa49 fix), bundled green at e660aa49; 2026-11-11 moved to D: tree smb-pr-retime-hold-1 (branch lane/smb-type-indent-spacing-1-d) by the lead; 2026-11-12 BUNDLED GREEN (amended) at 069ae07d",
     "beyond_brief_paths": [
-      "crates/hsk-studio-layout/src/adobe_composer.rs: paragraph_from, Resume, ParaStats, PARA_TAIL_LINES, resume_at, last_line_rebreak, Para.last_indent/line_width + 2 unit tests (lead ruling 2026-11-11, which names it)",
+      "crates/hsk-studio-layout/src/adobe_composer.rs: paragraph_from, Resume, ParaStats, PARA_TAIL_LINES, resume_at, last_line_rebreak, Para.last_indent/line_width + 2 unit tests (lead ruling 2026-11-11, which names it); single_line_last (lead ruling 2026-11-11 second)",
+      "crates/hsk-studio-layout/src/breaker.rs: first_fit_last, knuth_plass_last, ends_narrowed (lead ruling 2026-11-11 second; first_fit and knuth_plass keep their signatures, cjk unchanged)",
       "crates/hsk-studio-harness-view/src/view/layout_export.rs:771-773: let mut out + one loss extend line (ruling 2026-11-08, approved path)",
       "crates/hsk-studio-harness-core/src/action/commands/layout.rs and crates/hsk-studio-harness-view/src/view/commands/layout.rs: layout.style.edit_style patch text and composition decoder key (brief ruling 'New: the existing typed edit')",
       "crates/hsk-studio-interop-layout/src/folio_export.rs and src/lib.rs: type_style_composition_loss (paragraph_composition_not_exported) and its export (brief ruling on IDML export loss; lib.rs also exports merge_story_with_records)",
@@ -311,6 +331,13 @@
         "tip": "5f3112a4",
         "decision": "research/decision-20261111-c-cap-placement.json"
       }
-    ]
+    ],
+    "landing": {
+      "pushed": "153a410df8e9de4fa073349bdb6d63c5a9b848ce",
+      "push_range": "733789d6..153a410d",
+      "at": "2026-11-12T12:48:44Z",
+      "rebases": "88b5500c -> 87f331f9 (layout_export.rs merged cleanly, lane lines intact) -> 4506a6cf (SMB-DEVELOP-COMMANDS-1, no file overlap) -> 733789d6 (SMB-SCORE-EFFECTS-6, no file overlap)",
+      "not_proven": "InDesign parity of every reading (D5); the layout suite was not rerun after the rebases (no landed commit touched hsk-studio-layout)"
+    }
   }
 }

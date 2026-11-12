@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T12:14:47Z",
+ "updated_at": "2026-11-12T12:48:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19789,8 +19789,8 @@
   },
   {
    "lane_id": "SMB-TYPE-INDENT-SPACING-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio (stored fields), hsk-studio-layout (composition), hsk-studio-interop-layout (IDML import), hsk-studio-harness-view (one edit field and two shift calls)",
    "lane_file": "builders/lanes/hsk-studio-type-indent-spacing-1.json",
    "brief": "builders/briefs/lane-smb-type-indent-spacing-1.md",
@@ -19798,7 +19798,7 @@
    "base": "cede5958",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T06:00:13Z",
+   "updated_at": "2026-11-12T12:48:44Z",
    "closes": [
     "truth-check top_missing rank 1, the indent and spacing part only",
     "the declared convention at threaded_reflow.rs:11, paragraphs have no space before or after",
@@ -19808,7 +19808,8 @@
     "MT-30972 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
     "MT-30999 (read; STU-TYP-201 steps 3 and 4 only, no claim on the whole order)",
     "MT-30898 (read only; no claim; token rule)"
-   ]
+   ],
+   "claim": "READY_FOR_VALIDATION at 153a410d (19 commits on 733789d6): STU-TYP-185 indents and spacing on StudioCompositionSettings (pt, finite, signed, no bound) with the parameter rows as data; composed by every composer (slot narrowing, last_line_indent with one gated re-break that narrows the line ending the paragraph on all four composers, AdobeParagraph as a local 7-line tail; space before/after as one gap, column-top drop, same-style suppression, span/split larger-of, balance keeps the gap); paragraph-keyed records follow text edits (F1 ownership rule, class C siblings in xref, find/change, data merge); IDML import of the six attributes and a typed export loss (host layout_export line); EditStyle composition key merged field by field. Proof: bundled 069ae07d 1280/1280 (smb-type-indent-spacing-1-bundled-069ae07d.log); landing 153a410d suites 582/582 and --per-sha OK (smb-type-indent-spacing-1-land-153a410d.log); measurement notes.measure_last_line_indent.after_end_keyed. Not proven: InDesign parity (D5)."
   },
   {
    "lane_id": "SMB-PARSER-HOSTILE-1",
