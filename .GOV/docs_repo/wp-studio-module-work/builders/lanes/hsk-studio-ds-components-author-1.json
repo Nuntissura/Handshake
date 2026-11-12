@@ -1,19 +1,50 @@
 {
   "crate": "hsk-studio-harness-view (component, variant set, property and instance authoring commands over Folio StudioDesignRecords and the hsk-studio-components redraw)",
   "lane": "SMB-DS-COMPONENTS-AUTHOR-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
-  "base": "eb17fad6",
-  "commits": [],
+  "base": "e29d933a",
+  "commits": [
+    "18823ad6 red tests (pushed)",
+    "f89f0275 implementation (pushed)",
+    "7db0976f red tests for review fa15c84d (pushed)",
+    "01e6017c red F2 test, 257 instances (pushed)",
+    "da54f768 review fixes F1-F10 (pushed)",
+    "685d9072 new binding checked alone (pushed)",
+    "b9306cba red tests for rulings R1-R3 (pushed)",
+    "68575b77 R1 and R2 (pushed)",
+    "fee4212b red R2 test, delete cycles (pushed; superseded by 7f30d165)",
+    "2ad326ab R2: states of instances whose record is gone pruned on open (pushed)",
+    "7f30d165 R2 test as create and undo cycles (pushed)",
+    "b57c82d1 R2 limited to authored instances (pushed, tip; origin codex/handshake-studio-assets = b57c82d1)"
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_e9933f32": "9 run, 0 passed, 9 failed (all unknown_command), exit 100; log e9933f32-red-2.log",
+    "focused_fa15c84d_viewer_design_components": "8 run, 8 passed (wip-focused-3.log, same tree as fa15c84d)",
+    "focused_fa15c84d_harness_drive_typed": "9 run, 9 passed incl. component_authoring_runs_through_the_process and the typed-row sweep, exit 0 (fa15c84d-process.log; studio-harness example rebuilt first)",
+    "focused_fa15c84d_harness_view_fig": "viewer_fig_edit + viewer_fig_edit_persist + 2 lib units: 18 run, 18 passed, exit 0 (fa15c84d-fig.log)",
+    "not_run": "doctests (none added); folio and components suites (no engine change)",
+    "rebase_e0bb04d2_suites": "harness-core + harness-view [viewer] whole suites after rebase on 1e652818: 224 run, 224 passed, exit 0 (rebase-suites-smb-ds-components-author-1-e0bb04d2.log)",
+    "red_6a7c756a": "viewer_design_components: 17 run, 8 passed, 9 failed (the 9 new review tests, each for its finding), exit 100 (red-review-smb-ds-components-author-1-6a7c756a.log)",
+    "red_0a13011b": "revised F2 test on pre-fix code: 1 run, 1 failed (256 states: eviction), exit 100 (red-review-smb-ds-components-author-1-0a13011b.log)",
+    "focused_8a94c6af": "harness-view lib units 5/5 and viewer_design_components 17/17, exit 0 (focused-smb-ds-components-author-1-8a94c6af.log)",
+    "bundled_8a94c6af": "ONE bundled run: fresh studio-harness example built (exit 0); clippy harness-core, harness-view + dependents harness, native-host, then nextest whole suites harness-core and harness-view [viewer]: 227 run, 227 passed, exit 0; clippy harness + nextest harness [viewer] harness_drive, harness_drive_audio, harness_drive_typed, viewer_design_auto_layout, viewer_design_components, viewer_vector_live_filters: 69 run, 69 passed, exit 0 (bundled-smb-ds-components-author-1-8a94c6af.log)",
+    "red_aecb9d9d": "R1 tests failed on their own assertions (text record lost after 140 syncs and undo; no in-session refusal), exit 100; R3 F9 unit and F10 design file refusal passed (both fixed at 8a94c6af); R2 drawn-shape form timed out (red-rulings-smb-ds-components-author-1-aecb9d9d.log)",
+    "red_2d0be15c": "R2 undo-cycle test on 4f6ecf3e's code (detached temporary commit): failed design_state_over_cap in the reopened session, exit 100 (red-rulings-smb-ds-components-author-1-2d0be15c.log)",
+    "bundled_1e853663": "FAILED once: viewer_fig_edit_persist edited_instance_survives_save_and_reopen (the R2 prune changed a design file entry on reopen), bundled 1 exit 100, bundled 2 74/74 exit 0 (bundled-smb-ds-components-author-1-1e853663.log); fixed by 5649aa20",
+    "focused_5649aa20": "harness-view lib units 6/6, viewer_fig_edit_persist + viewer_fig_edit 16/16, viewer_design_components 20/20, exit 0 (focused-smb-ds-components-author-1-5649aa20.log)",
+    "bundled_5649aa20": "ONE bundled run: fresh studio-harness example exit 0; clippy harness-core, harness-view + dependents, nextest whole suites harness-core and harness-view [viewer]: 228 run, 228 passed, exit 0; clippy harness + nextest harness [viewer] harness_drive, harness_drive_audio, harness_drive_typed, viewer_design_auto_layout, viewer_design_components, viewer_vector_live_filters, viewer_layers: 74 run, 74 passed, exit 0 (bundled-smb-ds-components-author-1-5649aa20.log). layout_place is not in this tree before the landing rebase (SMB-LAYOUT-PLACE-1 87f331f9)",
+    "land_b57c82d1": "after rebase on e29d933a (SMB-DELIVERY-QUEUE-1 and others landed: harness-core, harness-view, harness, session, folio touched), one hold: fresh example exit 0; clippy core, view + dependents and whole suites harness-core and harness-view [viewer]: 246 run, 246 passed, exit 0; harness [viewer] harness_drive, harness_drive_audio, harness_drive_typed, viewer_design_auto_layout, viewer_design_components, viewer_vector_live_filters, viewer_layers, layout_place: 87 run, 87 passed, exit 0 (land-smb-ds-components-author-1-b57c82d1.log); an earlier landing hold at 3b2ce47e was green (238/238, 87/87, per-sha OK) but origin moved during it, so it did not push (land-smb-ds-components-author-1-3b2ce47e.log)",
+    "persha_b57c82d1": "lane-check --per-sha HEAD~1: PER_SHA_RESULT OK shas=1 range=7f30d165..b57c82d1, exit 0 (persha-smb-ds-components-author-1-b57c82d1.log)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T08:51:44Z",
+  "next": "validator: validate SMB-DS-COMPONENTS-AUTHOR-1 at b57c82d1 on origin codex/handshake-studio-assets",
+  "updated_at": "2026-11-12T17:57:45Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -50,6 +81,105 @@
       "MT-30592",
       "MT-30593"
     ],
-    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+    "reuses_tree_and_target": "smb-ai-distort-effects-1",
+    "lane_tree_branch": "lane/smb-ds-components-author-1 from eb17fad6 in wt-studio-lanes/smb-ai-distort-effects-1",
+    "declared_readings": [
+      "native instance origin = top-left of vector path bounds and text origins under the layer, at command time (no Folio field)",
+      "component_property_references use the plain property name (Folio does not parse the spelling, STU-DS-113)",
+      "STU-DS-003 partly met: instances follow a definition edit on component.sync_instances, not automatically",
+      "artboards stand in for design pages (UNVERIFIED, spec owner question)",
+      "a component made from one group keeps the group name; another name is refused component_name_mismatch",
+      "VARIANT properties: variant_group_properties plus one VARIANT definition per group on the set (Folio checks instance values against definitions)",
+      "publish_key of an authored record = local/<record id> (Folio requires a non-empty key)",
+      "native instance binding = design entry state (layer, instance, content); its other fields are written from the vector entry instance record before Folio reads the entry",
+      "Figma behaviour of create, combine and detach UNVERIFIED (D5); no web research done in this lane"
+    ],
+    "v4_06_sweep": {
+      "view/layers.rs duplicate_layer": "fixed (F10): an authored instance copy is an instance of the same main; a design file instance is refused duplicate_instance_unsupported",
+      "delete of a definition layer": "fixed (F1, F5): the record goes in the delete step, instances stay bound with main null; binding survives later writes, save/reopen and undo",
+      "design/auto_layout.rs al_commit": "fixed (F5): validates the settled records",
+      "interop-fig-native export": "NOT_INSPECTED: no loss line added",
+      "SVG and PDF export": "not applicable: they draw layers",
+      "doc_export.rs PSD": "NOT_INSPECTED in this pass",
+      "prune on open": "fixed at read: settle runs in design_receipt and in every authoring commit; copied nodes drop component_property_references",
+      "state_json design projection": "fixed: design.components lists authored components, sets, instances"
+    },
+    "paths_beyond_brief": [
+      "view/vector/style.rs node check at ~310-313 (same function as 291-300): accept nodes carrying only component_property_references (lead PATH APPROVED)",
+      "view/layers.rs delete_layer and duplicate_layer paths only (lead PATH APPROVED F5, F10)",
+      "view/design/auto_layout.rs al_commit (lead PATH APPROVED F5)",
+      "view/mod.rs open_inner: one call line self.design_opened() (lead PATH APPROVED 2026-11-11)",
+      "view/commands.rs: leading_code made pub(in crate::view) for the F9 unit test (no behaviour change)"
+    ],
+    "not_done": [
+      "STU-DS-163 per-record expected revision",
+      "caps of components/instances are counted after the serde parse of the entry (the pre-parse member check is in vector.rs, not owned)",
+      "design file (fig) instance states with superseded contents are not pruned on open (R2 limited to authored instances; see lead_rulings_20261112)",
+      "in a session, about 127 syncs of a component with one text layer and two instances reach text_layer_over_cap; a save and reopen compacts (R1)"
+    ],
+    "round_features": "harness [viewer] and harness-view [viewer] units exist in .config/round-features.toml: no change needed (rule 4e)",
+    "stash_incident": "builder used git stash push/pop once (10:2xZ) for the red proof before the NO GIT STASH rule; own tree verified complete afterwards (6 modified + 3 new files, now in fa15c84d); no other stash entry touched by this lane",
+    "takeover": "2026-11-11: a new builder took over after the previous builder stopped at REVIEW READY (account usage limit); review research/review-smb-ds-components-author-1-fa15c84d.json FIX_FIRST applied per research/lead-rulings-20261108-by-lane.json",
+    "review_fa15c84d_closure": {
+      "F1": "native bindings (design entry states of authored instances) are never pruned by a later write and never refused by Folio on read; states keyed by layer, content and instance (a deleted layer's id is minted again); a deleted main stays bound with main null across writes, save/reopen and undo (tests f1_*)",
+      "F2": "no eviction: MAX_PERSISTED_STATES = Folio MAX_DESIGN_STATES (1024); design_state_over_cap refused before the step and before the write (unit a_state_past_the_bound..., f2 test 257 instances)",
+      "F3": "decode caps checked on every write (component_over_cap, instance_over_cap, design_node_over_cap; unit test); delete drops instance records with their layer (f5 test); a native redraw drops node entries, live filter stacks and paths of the copies it deletes in its own step",
+      "F4": "ids minted max+1 over records and every id the design states name (unit ids_are_minted_past..., f1 detach test)",
+      "F5": "layers.rs delete_layer drops component, set, instance records and property references of deleted layers in the same undo step (restructure_and_entry); al_commit validates the settled records (f5 test)",
+      "F6": "sync_instances refuses an instance whose override target is gone (refused[].code override_target_gone) and redraws the others (f6 test)",
+      "F7": "under lead ruling R1: no text record an undo can reach is dropped; a redraw past the text entry cap is refused text_layer_over_cap in a session; text records of redraw copies the document no longer draws are compacted on open with no history (tests r1_text_records_an_undo_can_reach_are_never_compacted, r1_reopen_compacts_unreachable_copy_text_and_redraws_run_again)",
+      "F8": "instance copies carry the definition layer's live filter stack moved by the copy offset; definition_live_filters_not_copied when not carried (f8 test)",
+      "F9": "native_redraw refuses design: vector_entry_not_persistable (<op>), leading_code maps it to vector_entry_not_persistable (unit test a_native_redraw_without_the_vector_entry_token_refuses_with_its_reason_code)",
+      "F10": "duplicate_layer of an authored instance makes an instance of the same main with its properties and overrides in one undo step (f10 test); a design file instance is refused duplicate_instance_unsupported and nothing is copied (r3 test)"
+    },
+    "lead_rulings_20261111": [
+      "F1 mechanism approved: no harness-core change (HistoryStep holds one entry); binding states keyed by (layer, content), never pruned by later writes while the session lives",
+      "F1 (b): design states of absent layers pruned on OPEN when the run has no undo or redo step (Viewer::design_opened, persist.rs); PATH APPROVED view/mod.rs open_inner one call line",
+      "F2/(c): native state cap = Folio MAX_DESIGN_STATES 1024, refused typed design_state_over_cap before writing; MAX_ENTRY_INSTANCES lowered 4096 -> 1024 because THIS lane introduced it (git log -S: only e0bb04d2/fa15c84d)"
+    ],
+    "beyond_brief_paths": [
+      "view/vector/style.rs node check at ~310-313 (same function as 291-300): accept nodes carrying only component_property_references (lead PATH APPROVED)",
+      "view/layers.rs delete_layer and duplicate_layer paths only (lead PATH APPROVED F5, F10)",
+      "view/design/auto_layout.rs al_commit (lead PATH APPROVED F5)",
+      "view/mod.rs open_inner: one call line self.design_opened() (lead PATH APPROVED 2026-11-11)",
+      "view/commands.rs: leading_code made pub(in crate::view) for the F9 unit test (no behaviour change)"
+    ],
+    "layout_place_overlap": "SMB-LAYOUT-PLACE-1 (landed 87f331f9) adds an early return in delete_layer for graphic-frame layers (submit_layout). A graphic frame is a placed-picture leaf layer; component, set and instance records key only group layers (settle requires kind group, Payload::Group), so that path drops no component record (read on lane/smb-layout-place-1, layout_place.rs:263). Keep both at the landing rebase.",
+    "lead_rulings_20261112": [
+      "R1: text compaction only where no history can return (chosen: on open with no history); in a session a redraw past the cap is refused text_layer_over_cap. This supersedes the 2026-11-11 F7 'refuse only when live records exceed it' in a session",
+      "R2: on open with no history, design states of superseded contents are pruned; extended to native states whose instance record is gone (they can never bind again). Limited to authored instances: design file states are kept as saved, because viewer_fig_edit_persist (lane SMB-FIG-EDIT-2) pins a byte-identical entry on reopen. A design file document can therefore still reach design_state_over_cap after about 1024 edits over its lifetime (pre-lane: silent eviction at 256): lead decision open",
+      "R3: tests added for F9 and the F10 design file refusal (both pass at 8a94c6af: the fixes predate the tests)"
+    ],
+    "lead_rulings_20261112_release": [
+      "R1 consequence accepted for this lane: a label component refuses text_layer_over_cap after about 127 syncs in a session until a save and reopen (typed, recoverable, no data lost)",
+      "Design file (.fig) states stay unpruned on open; viewer_fig_edit_persist's byte-identical reopen wins",
+      "The one-word view/commands.rs visibility change (leading_code) is accepted"
+    ],
+    "not_proven": [
+      "per-session sync cap: a component with text layers reaches text_layer_over_cap after about 127 syncs (two instances, one text layer) until save and reopen (R1, accepted)",
+      "a long-lived .fig document can reach design_state_over_cap after about 1024 instance edits over its life (design file states are not pruned on open; ruling 2026-11-12)",
+      "Figma behaviour of create, combine, detach and duplicate UNVERIFIED (D5)"
+    ],
+    "next_lane_candidates": [
+      "history-aware text-record compaction for component syncs: drop records no retained undo step can reach (or record the compaction inside the undo step) to lift the per-session sync cap",
+      "prune superseded .fig instance design states at save time, keeping reopen byte-identical, so a long-lived design file does not reach design_state_over_cap"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-12T17:58:12Z",
+        "on": "R1 consequence",
+        "decision": "a label component refusing text_layer_over_cap after about 127 syncs until save and reopen is accepted for this lane (typed, recoverable, no data lost)"
+      },
+      {
+        "at": "2026-11-12T17:58:12Z",
+        "on": ".fig design states on open",
+        "decision": "stay unpruned; viewer_fig_edit_persist's byte-identical reopen wins"
+      },
+      {
+        "at": "2026-11-12T17:58:12Z",
+        "on": "view/commands.rs leading_code visibility",
+        "decision": "one-word change accepted"
+      }
+    ]
   }
 }

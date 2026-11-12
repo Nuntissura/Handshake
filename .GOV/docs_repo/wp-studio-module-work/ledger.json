@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T17:43:00Z",
+ "updated_at": "2026-11-12T17:58:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19925,8 +19925,8 @@
   },
   {
    "lane_id": "SMB-DS-COMPONENTS-AUTHOR-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (component, variant set, property and instance authoring commands over Folio StudioDesignRecords and the hsk-studio-components redraw)",
    "lane_file": "builders/lanes/hsk-studio-ds-components-author-1.json",
    "brief": "builders/briefs/lane-smb-ds-components-author-1.md",
@@ -19934,7 +19934,7 @@
    "base": "eb17fad6",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T08:51:44Z",
+   "updated_at": "2026-11-12T17:58:12Z",
    "closes": [
     "scenario product-design gap rank 3 (component authoring commands) for create, combine, properties, instance, detach",
     "scenario vector-brand gap: component and symbol authoring (steps 25, 26, 82)",
@@ -19948,7 +19948,8 @@
     "MT-30591",
     "MT-30592",
     "MT-30593"
-   ]
+   ],
+   "claim": "READY_FOR_VALIDATION at b57c82d1 (origin codex/handshake-studio-assets): component, variant set, property and instance authoring (component.*, component_set.*, instance.*) in the vector entry's design member, review fa15c84d F1-F10 and lead rulings R1-R3 applied; landing hold land-smb-ds-components-author-1-b57c82d1.log (246/246 core+view [viewer], 87/87 harness list incl. viewer_layers and layout_place, fresh example) and persha-smb-ds-components-author-1-b57c82d1.log (PER_SHA_RESULT OK)"
   },
   {
    "lane_id": "SMB-DEVELOP-COMMANDS-1",
@@ -22419,6 +22420,16 @@
     "added_at": "2026-11-12T17:43:00Z",
     "item": "text-frame layer delete with re-linking: the thread continues past the deleted frame in one undo step",
     "owner": "next lane (SMB-R60-FOLLOWUPS-1 cut list)"
+   },
+   {
+    "added_at": "2026-11-12T17:58:12Z",
+    "item": "history-aware text-record compaction for component syncs: drop records no retained undo step can reach (or record the compaction inside the undo step) to lift the per-session sync cap",
+    "owner": "lead"
+   },
+   {
+    "added_at": "2026-11-12T17:58:12Z",
+    "item": "prune superseded .fig instance design states at save time, keeping reopen byte-identical, so a long-lived design file does not reach design_state_over_cap",
+    "owner": "lead"
    }
   ],
   "pause_20261103": {
