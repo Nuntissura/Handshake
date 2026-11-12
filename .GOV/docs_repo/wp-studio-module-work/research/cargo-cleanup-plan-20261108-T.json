@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261108-T",
  "generated_at": "2026-11-08T09:58:44Z",
- "status": "APPROVED (Operator in chat 2026-11-11: 'Approve plan T'; executed per candidate after its lane lands, with a fresh inspection; a candidate past the tool's 5% check is presented again)",
+ "status": "EXECUTED 2026-11-12T12:53:38Z: Operator approved in chat 2026-11-11 ('Approve plan T'); all four candidates removed per candidate after each lane landed, 138.5 GiB: T-C03 7.76, T-C04 19.47, T-C01 59.16, T-C02 52.1 (results research/cargo-cleanup-result-20261108-T-C03.json, research/cargo-cleanup-result-20261108-T-C04.json, research/cargo-cleanup-result-20261112-T-c01-c02.json)",
  "authority": "root HSK-ART-005 (Operator 2026-11-07: 'reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal'); CX-107: the Operator approves this exact list",
  "why": "R60 attempt 2 was stopped on the C: cap projection (ledger round_R60, validation/round-R60.json attempt_2). Attempt 3 needs studio-round to grow about 95 GiB more while the four C: width lanes finish, all under the 360 GiB cap with margin.",
  "inspection": [
@@ -46,26 +46,38 @@
     "the newest copy of each binary",
     "all libraries, build scripts, fingerprints, examples and tmp"
    ],
-   "gib": 34.47,
-   "target_total_gib": 67.85,
+   "gib": 59.16,
+   "target_total_gib": 94.47,
    "parts_gib": {
-    "test_and_binary_outputs": 61.1,
-    "workspace_libraries": 4.32,
-    "third_party_libraries": 1.67,
-    "other:examples": 0.59,
-    "build_scripts": 0.13,
+    "test_and_binary_outputs": 87.33,
+    "workspace_libraries": 4.6,
+    "third_party_libraries": 1.75,
+    "other:examples": 0.6,
+    "build_scripts": 0.14,
     "fingerprints": 0.03,
     "dep_info_and_other": 0.01,
     "other:tmp": 0.0,
     "incremental": 0.0
    },
    "lane_status": "owner smb-r54-followups-1 PASS_V5; tree in use by SMB-TYPE-INDENT-SPACING-1 (building on C: now, branch lane/smb-type-indent-spacing-1 at 4b762334)",
-   "newest_file_utc": "2026-11-08T09:50Z",
+   "newest_file_utc": "2026-11-11T09:22Z",
    "when": "after SMB-TYPE-INDENT-SPACING-1 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
    "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
    "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
    "why_safe": "the largest older set on C:; 34.47 of 61.10 GiB of its test binaries are older identities left by SMB-R54-FOLLOWUPS-1 and SMB-PROJECT-BIN-1 before this lane",
-   "when_note_20261111": "The lane moved to a D: tree on 2026-11-11 (research/decision-20261111-c-cap-placement.json), so target_prune no longer counts this C: target as in use. Still execute only after the lane is READY_FOR_VALIDATION with its tip on origin; the lead checks that before passing the id to --approve."
+   "when_note_20261111": "The lane moved to a D: tree on 2026-11-11 (research/decision-20261111-c-cap-placement.json), so target_prune no longer counts this C: target as in use. Still execute only after the lane is READY_FOR_VALIDATION with its tip on origin; the lead checks that before passing the id to --approve.",
+   "reinspections": [
+    {
+     "at": "2026-11-12T12:53:16Z",
+     "report": "research/target-report-20261112-plan-t-c01-c02.json",
+     "gib_before": 34.47,
+     "newest_before": "2026-11-08T09:50Z",
+     "target_total_gib": 94.47,
+     "older_binary_variants_gib": 59.16,
+     "newest_file_utc": "2026-11-11T09:22Z",
+     "reading": "SMB-TYPE-INDENT-SPACING-1 READY at 153a410d (kernel f8c6fa9b); the 11-11 builds before the move to D: added older copies. Path, owner and rule unchanged, so within the Operator's plan T approval per direction.operator_direction_20261111."
+    }
+   ]
   },
   {
    "id": "T-C02",
@@ -81,26 +93,38 @@
     "the newest copy of each binary",
     "all libraries, build scripts, fingerprints, examples and tmp"
    ],
-   "gib": 24.48,
-   "target_total_gib": 56.06,
+   "gib": 52.1,
+   "target_total_gib": 90.17,
    "parts_gib": {
-    "test_and_binary_outputs": 51.56,
-    "workspace_libraries": 2.22,
-    "third_party_libraries": 1.72,
-    "other:examples": 0.43,
+    "test_and_binary_outputs": 85.07,
+    "workspace_libraries": 2.64,
+    "third_party_libraries": 1.78,
+    "other:examples": 0.51,
     "build_scripts": 0.1,
+    "other:tmp": 0.04,
     "fingerprints": 0.02,
-    "other:tmp": 0.01,
     "dep_info_and_other": 0.01,
     "incremental": 0.0
    },
    "lane_status": "owner smb-pr-retime-output-1 PASS_V3; tree in use by SMB-SCORE-EFFECTS-6 (building on C: now, branch lane/smb-score-effects-6 at 04eb03d9)",
-   "newest_file_utc": "2026-11-08T09:51Z",
+   "newest_file_utc": "2026-11-11T08:49Z",
    "when": "after SMB-SCORE-EFFECTS-6 lands (READY, tip on origin, no process naming the tree) and before or after a round, never during one; re-inspect first, because the lane's builds change both newest_file_utc and the GiB",
    "what_rebuilds": "only test and binary links: the dropped copies are other feature-set or profile identities of the same test binaries (plan R finding why_copies_multiply); a later lane run under one of those identities relinks it from the kept libraries. No library compile.",
    "cost_if_wrong": "minutes of relink per dropped identity a later lane uses again; never a compile",
    "why_safe": "24.48 of 51.56 GiB of its test binaries are older identities left by earlier lanes (SMB-AUDIO-OUT-MIX-1 and before)",
-   "when_note_20261111": "The lane moved to a D: tree on 2026-11-11 (research/decision-20261111-c-cap-placement.json), so target_prune no longer counts this C: target as in use. Still execute only after the lane is READY_FOR_VALIDATION with its tip on origin; the lead checks that before passing the id to --approve."
+   "when_note_20261111": "The lane moved to a D: tree on 2026-11-11 (research/decision-20261111-c-cap-placement.json), so target_prune no longer counts this C: target as in use. Still execute only after the lane is READY_FOR_VALIDATION with its tip on origin; the lead checks that before passing the id to --approve.",
+   "reinspections": [
+    {
+     "at": "2026-11-12T12:53:16Z",
+     "report": "research/target-report-20261112-plan-t-c01-c02.json",
+     "gib_before": 24.48,
+     "newest_before": "2026-11-08T09:51Z",
+     "target_total_gib": 90.17,
+     "older_binary_variants_gib": 52.1,
+     "newest_file_utc": "2026-11-11T08:49Z",
+     "reading": "SMB-SCORE-EFFECTS-6 READY at 733789d6 (kernel cf962f62); the 11-11 builds before the move to D: added older copies. Path, owner and rule unchanged, so within the Operator's plan T approval per direction.operator_direction_20261111."
+    }
+   ]
   },
   {
    "id": "T-C03",
@@ -388,6 +412,17 @@
    "result": "research/cargo-cleanup-result-20261108-T-C04.json",
    "after": "SMB-PARSER-HOSTILE-1 READY at 27365b81 (kernel 0f3ada12); re-inspected 09:50Z (research/target-report-20261111-c-cap.json), dry run WOULD_REMOVE 19.47, no process naming the tree",
    "c_tree_after_gib_estimate": 369.9
+  },
+  {
+   "at": "2026-11-12T12:53:38Z",
+   "ids": [
+    "T-C01",
+    "T-C02"
+   ],
+   "removed_gib": 111.27,
+   "files": 1334,
+   "result": "research/cargo-cleanup-result-20261112-T-c01-c02.json",
+   "after": "SMB-TYPE-INDENT-SPACING-1 READY at 153a410d (kernel f8c6fa9b) and SMB-SCORE-EFFECTS-6 READY at 733789d6 (kernel cf962f62), both building in D: trees; re-inspected 12:52Z (research/target-report-20261112-plan-t-c01-c02.json), dry run WOULD_REMOVE T-C01 59.16 and T-C02 52.1 (research/cargo-cleanup-dryrun-20261112-T-c01-c02.json), no process naming either tree; C: free 334G to 445G (df -h /c)"
   }
  ]
 }
