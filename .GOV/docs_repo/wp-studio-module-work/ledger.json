@@ -23331,6 +23331,11 @@
       "done_today": [
        "SMB-PARSER-HOSTILE-1 27365b81 (kernel 0f3ada12)"
       ]
+     },
+     {
+      "at": "2026-11-12T08:22:07Z",
+      "landing": "resume after pause_20261111",
+      "after": "SMB-DEVELOP-COMMANDS-1 lands now (released before the pause); then SMB-TYPE-INDENT-SPACING-1 and SMB-SCORE-EFFECTS-6 first when green (they gate plan T T-C01/T-C02); then the rest in BUNDLED GREEN order"
      }
     ]
    },
@@ -23472,7 +23477,14 @@
      "resume": "fix runs were in progress; rerun its hold"
     }
    },
-   "resume_rule": "resume each agent with SendMessage (its transcript is kept); one hold per phase; INDENT and SCORE land first"
+   "resume_rule": "resume each agent with SendMessage (its transcript is kept); one hold per phase; INDENT and SCORE land first",
+   "resumed": {
+    "at": "2026-11-12T08:22:07Z",
+    "operator": "Resume lanes",
+    "after": "cleanup finished: plan V executed (1,395.2 GiB, kernel 1a29f9c1); Operator delete of non-Studio Handshake_Artifacts finished 2026-11-11 19:29Z (32 entries gone); D: free 4,264 GiB",
+    "how": "each of the 8 lane agents resumed with SendMessage from its recorded resume step; INDENT and SCORE messaged first so they queue first on the D: lock",
+    "decision_develop": "SMB-DEVELOP-COMMANDS-1 was RELEASED before the pause, so it lands now (fetch, rebase if origin moved, landing hold, guarded push); INDENT/SCORE priority applies among lanes not yet released; the landing rule has no push slot"
+   }
   }
  },
  "round_R45": {
