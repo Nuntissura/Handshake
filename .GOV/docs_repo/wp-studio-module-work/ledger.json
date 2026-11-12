@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T15:08:00Z",
+ "updated_at": "2026-11-12T16:49:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20006,8 +20006,8 @@
   },
   {
    "lane_id": "SMB-DELIVERY-QUEUE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (one admitted delivery queue over reel's ExportQueue for sequence recipes and composition render queue items; user StudioExportRecipe records; PNG image sequence with alpha) with rows in hsk-studio-harness-core and a CLI verb in hsk-studio-harness",
    "lane_file": "builders/lanes/hsk-studio-delivery-queue-1.json",
    "brief": "builders/briefs/lane-smb-delivery-queue-1.md",
@@ -20015,7 +20015,7 @@
    "base": "eb17fad6",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-08T08:53:46Z",
+   "updated_at": "2026-11-12T16:49:34Z",
    "closes": [
     "workflows/scenario-video-edit.json gap 5 part: user recipes (step 95) and one batch queue with per-item receipts and cancel (step 96)",
     "workflows/scenario-motion-comp.json gap 7 part: product run path for the render queue (step 87), PNG sequence (step 84), alpha through PNG (step 83 part), reorder, duplicate and templates (step 86 part)",
@@ -20026,7 +20026,8 @@
     "MT-34024",
     "MT-34027",
     "MT-34028"
-   ]
+   ],
+   "claim": "READY_FOR_VALIDATION at aa033c05: one admitted delivery queue (sequence recipes and render queue items, per-item receipts and cancel), user recipes as the export_recipes document entry, PNG sequence with alpha; review 44da1364 F1-F7 applied per lead rulings 2026-11-11; landing2 log green (suites 1039/1039, audio_out_mix 5/5, per-sha OK)"
   },
   {
    "lane_id": "SMB-R60-FOLLOWUPS-1",

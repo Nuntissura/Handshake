@@ -1,19 +1,70 @@
 {
   "crate": "hsk-studio-harness-view (one admitted delivery queue over reel's ExportQueue for sequence recipes and composition render queue items; user StudioExportRecipe records; PNG image sequence with alpha) with rows in hsk-studio-harness-core and a CLI verb in hsk-studio-harness",
   "lane": "SMB-DELIVERY-QUEUE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "READY_FOR_VALIDATION at aa033c05 (pushed to origin/codex/handshake-studio-assets, fast-forward from 54b9c895)",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
-  "base": "eb17fad6",
-  "commits": [],
+  "base": "54b9c895",
+  "commits": [
+    {
+      "sha": "612e3ccd",
+      "what": "red: tests/delivery_queue.rs (9 tests)"
+    },
+    {
+      "sha": "feab46d4",
+      "what": "session: export_recipes token + module, entry_references row (approved)"
+    },
+    {
+      "sha": "65a5a114",
+      "what": "harness-core: delivery and recipe rows, set_export_recipes, queue_reorder/duplicate/apply_template, manual row deliver"
+    },
+    {
+      "sha": "0632a486",
+      "what": "folio PngSequence; harness-view delivery.rs, recipes, export_sequence through job_from_recipe, PNG module"
+    },
+    {
+      "sha": "ea3b0234",
+      "what": "harness: deliver CLI verb"
+    },
+    {
+      "sha": "f4766ba0",
+      "what": "red: review 44da1364 F1-F6 tests",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/red2-smb-delivery-queue-1-419e9a75.log (6 run, 6 failed, EXIT 100)"
+    },
+    {
+      "sha": "c3d2e6d7",
+      "what": "harness-core: F2 8 MiB store bound, F4 AV1 codec_option + container extension, recipe_delete recipe_id|all, sRGB PNG default"
+    },
+    {
+      "sha": "ddc44a6e",
+      "what": "harness-view: F1-F7"
+    },
+    {
+      "sha": "aa033c05",
+      "what": "harness: deliver functions outside the export-sequence manual scan span",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/landing2-smb-delivery-queue-1-aa033c05.log"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red": "red2 log: 6/6 review tests failed at 419e9a75 on their findings",
+    "bundled": "bundled1 at b32b3cf6 (whole folio, session, reel, package, harness-core, harness-view[audio-batch] 951/951) + bundled2b at b5026561 (fresh example, harness[media] delivery_queue, cli_export_sequence, render_queue_*, composition_export, motion_records_session, harness_drive* 77/77)",
+    "landing": "landing2 at aa033c05 on origin 54b9c895, one hold: example[audio-batch] EXIT 0; clippy + whole folio, harness-core, harness-view, harness suites [audio-batch] 1039/1039 SUITES_EXIT 0 (audio_batch, audio_import included); example[audio-batch,audio-device] EXIT 0; audio_out_mix 5/5 EXIT 0; PER_SHA_RESULT OK ddc44a6e..aa033c05",
+    "logs": [
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/bundled1-smb-delivery-queue-1-b32b3cf6.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/bundled2b-smb-delivery-queue-1-b5026561.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/landing1-smb-delivery-queue-1-d36a7834.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/landing1b-audio-out-mix-smb-delivery-queue-1-d36a7834.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-delivery-queue-1/landing2-smb-delivery-queue-1-aa033c05.log"
+    ],
+    "not_run": "os-encode and av1-encode units beyond per-sha cargo check; 8.3 short-name collision not exercised by a test; F7 post-admission failure proven by a unit test only"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-08T08:53:46Z",
+  "next": "validator: round validation of SMB-DELIVERY-QUEUE-1 at aa033c05",
+  "updated_at": "2026-11-12T16:49:26Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -47,6 +98,77 @@
       "MT-34027",
       "MT-34028"
     ],
-    "reuses_tree_and_target": "smb-r53-followups-1"
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "beyond_brief_paths": [
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/commands.rs",
+        "what": "one `delivery` arm in run_row beside `export` (one adjacent line; SMB-DS-COMPONENTS-AUTHOR-1 also adds arms near :157, keep both at rebase)",
+        "why": "a typed row reaches the Viewer only through run_command -> run_row's first-segment match",
+        "ruling": "lead APPROVED 2026-11-08 (1)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/commands/export.rs",
+        "what": "decoder arms for delivery.* and export.recipe_*",
+        "why": "same dispatch path as export.set_settings / export.run",
+        "ruling": "lead APPROVED 2026-11-08 (1)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-core/src/manual.rs",
+        "what": "one CommandSpec row `deliver` beside `export-sequence`",
+        "why": "cli.rs dispatch and help read manual::COMMANDS",
+        "ruling": "lead APPROVED 2026-11-08 (2)"
+      },
+      {
+        "path": "crates/hsk-studio-session/tests/entry_references.rs",
+        "what": "one NOT_APPLICABLE row for export_recipes, count = origin's at rebase + 1 (18 -> 19)",
+        "why": "every_document_entry_token_is_classified fails once the token is added",
+        "ruling": "lead APPROVED 2026-11-08 (3); token appended at the end of DOCUMENT_ENTRY_TOKENS"
+      },
+      {
+        "path": "crates/hsk-studio-session/src/lib.rs",
+        "what": "mod export_recipes; pub use EXPORT_RECIPES_ENTRY",
+        "why": "the new entry module the brief names",
+        "ruling": "lead APPROVED 2026-11-08 (4)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-core/src/harness/export_recipes.rs (new) + one `pub mod` line in src/harness.rs; tests/action_records.rs scan list",
+        "what": "Run::set_export_recipes, an entry-only named undo step with the caller's CommandContext, one op record, one observe frame, removal supported; its Surface::Run row document.set_export_recipes",
+        "why": "recipe validation needs reel, which harness-core lacks; Run::set_document_entry makes no step or record",
+        "ruling": "lead APPROVED 2026-11-08 (5), as a new file, scanned by action_records like SMB-ARTBOARD-EXPORT-1 F6"
+      }
+    ],
+    "decisions": [
+      "delivery items run one at a time in queue order, each on its own worker thread hsk-delivery (sequence items reuse export_sequence's worker and frame serving); admission per item just before it runs, so 4096 queued items never overload the 16-slot port",
+      "a cancel before the run cancels the item's reel handle at submit (reel never starts it, settles canceled); DeliveryCancel cancels a running item (reel publishes nothing; a PNG sequence names the frames written)",
+      "delivery item output paths are relative only (no root, drive, ':' or '..'); export_sequence keeps accepting absolute paths",
+      "PNG naming: output_path <stem>.png -> <stem>_<7 digits>.png; number = starting_number + span index, or with use_comp_frame_number the composition frame number (UNVERIFIED D5); codec_option = deflate effort; audio on refused output_audio_png",
+      "PNG samples written as rendered (no transfer conversion, no colour chunk), like the MOV path; premultiplied colour written into PNG RGBA when color=premultiplied (PNG defines straight alpha; AE behaviour UNVERIFIED D5)",
+      "output-module template mapping: reel exporter mov/mp4, VC-3 DNxHR LB/SQ/HQ/HQX or AV1 quantizer, PCM bits/float -> audio on; parameters/scope/targets/filters -> template_not_mapped; H.264/HEVC -> template_format_unsupported",
+      "composition items render in the static renderer's working space (linear sRGB, LinearLight) from DocumentTiles (copied planes, 1 GiB cap); audio layers: audio_id sha256:<hex> resolved on the bound sound port at the module rate",
+      "a user recipe id never equals a shipped preset id (export_recipe_exists; an entry that shadows one is export_recipes_invalid)"
+    ],
+    "gaps_not_built": [
+      "determinate progress of a delivery run is not exposed (delivery_run is synchronous; reel handles hold progress)",
+      "render-settings templates (render_settings_template_unbuilt), post-render actions, MOV alpha",
+      "STU-MOT-122a colour mismatch warning on the queue item"
+    ],
+    "sd_items_to_propose": [
+      "user recipes in the document entry export_recipes instead of SurrealDB tables (STU-IO-166)",
+      "PNG sequence naming and seven-digit padding",
+      "delivery queue state per Viewer, not saved"
+    ],
+    "mts_state": "MT-33766, MT-33831, MT-34024, MT-34027, MT-34028 read (one ASSET-AC each, all PENDING); this lane advances each partly, none fully: 33831 lacks a progress surface, 34024 PNG fields only, 34027 PNG only, 34028 lacks render-settings templates and post-render actions; no MT file edited",
+    "takeover": "2026-11-11: a new builder took over at REVIEW READY 44da1364 after the previous builder's account usage limit; rebased on origin 1e652818 (clean), applied review 44da1364 F1-F7 per lead rulings 2026-11-11; paused by the Operator for the cargo cleanup and resumed 2026-11-12 (bundled run 2 hold killed during the pause, rerun as bundled2b)",
+    "review_44da1364": {
+      "F1": "recipe_record takes the user recipes lazily: shipped ids never read the entry; a user id on an unreadable entry refuses export_recipes_invalid plus a status note (test an_unreadable_recipe_entry_never_blocks_a_shipped_preset)",
+      "F2": "one 8 MiB bound: save over it export_recipes_full (harness-core store 8 MiB, a shrinking delete allowed); export.recipes lists shipped + readable user recipes + user_entry {readable, code, detail, unreadable}; recipe_delete by id on a raw recipes array, or all (test recipe_entry_size_bound_is_one_for_save_and_read_and_an_oversized_entry_is_repairable)",
+      "F3": "PNG: sRGB or BT.709 OETF on straight colour, premultiplied after encoding, alpha linear; iCCP sRGB v4 (doc_export's) or cICP 1/1/0/1 when embed_color_space; preserve_rgb as rendered; receipt names transfer and chunk; new PNG module defaults to srgb; CRC via hsk_studio_package::crc32_of (V4-05 D16) (tests png_frames_apply_the_colour_space_transfer_and_tag_it, mid_grey_encodes_through_the_colour_space_transfer)",
+      "F4": "codec_option '<q>[,speed=N][,bitrate=N][,keyframe=N]' written by queue_apply_template, read by render_queue av1_settings; output extension follows mov/mp4 (tests an_output_module_template_keeps_av1_settings_and_the_container_extension, av1_codec_option_round_trips_every_setting, template_tests)",
+      "F5": "collision key: deepest existing ancestor canonicalized, trailing dots/spaces stripped per segment, case folded; outputs matching <stem>_<7 digits>.png of a queued PNG pattern collide (test windows_equivalent_outputs_collide_before_any_write; 8.3 names UNVERIFIED by test)",
+      "F6": "PngSequenceReceipt keeps pattern <stem>_%07d.png, first_number, frames_written; artifacts one range object (test png_receipt_names_the_pattern_and_range_not_each_frame)",
+      "F7": "export_sequence_with returns SequenceFail with the settlement after admission; delivery receipt failed with job (unit test a_failure_after_admission_is_failed_with_its_job; red by construction, no compiling red: a worker spawn failure or panic is not reachable from a test)",
+      "frame_bound": "4,000,000 frames inclusive, documented in render_queue and run_png_sequence docs (test exactly_max_frames_is_allowed)"
+    },
+    "landing": "2026-11-12: rebased onto 153a410d (export_media.rs overlap with SMB-SCORE-EFFECTS-6 resolved as ruled), landing1 green except audio_out_mix (example built without audio-device; landing1b log), then rebased onto 54b9c895 (motion_commands.rs overlap with SMB-MOTION-COMMANDS-2: both module-doc paragraphs, Edit keeps keys/next_keys/label plus export_recipes, origin's current_slot, both test modules), landing2 green, guarded push aa033c05"
   }
 }
