@@ -942,21 +942,23 @@ impl OperatorChatLaunchPaneFactory {
         }
     }
 
-    fn launch(&self) {
+    fn launch(&self) -> bool {
         let pending = {
-            let Ok(mut state) = self.state.lock() else { return; };
-            if state.pending_launch { return; }
+            let Ok(mut state) = self.state.lock() else { return false; };
+            if state.pending_launch || state.pending_selection.is_some() {
+                return false;
+            }
             let choice = state.local_candidate.clone().or_else(||
                 state.selected.clone().map(|selection| (selection, state.selected_model.clone())));
-            let Some((selection, display)) = choice else { return; };
+            let Some((selection, display)) = choice else { return false; };
             if !state.owner_session_is_canonical_and_available()
                 || !state.selection_is_ready_to_launch(&selection)
                 || state.folder.trim().is_empty() || state.prompt.trim().is_empty()
             {
                 state.error = Some("Choose an available profile and owner, folder and prompt.".to_owned());
-                return;
+                return false;
             }
-            let Some(owner_session_id) = state.selected_owner_session_id.clone() else { return; };
+            let Some(owner_session_id) = state.selected_owner_session_id.clone() else { return false; };
             let pending = PendingLaunch {
                 selection, display, workspace_id: state.workspace_id.clone(),
                 owner_session_id, working_dir: state.folder.clone(), prompt: state.prompt.clone(),
@@ -966,17 +968,17 @@ impl OperatorChatLaunchPaneFactory {
                 pending.working_dir.clone(), pending.prompt.clone(), pending.cell.clone());
             if !self.recovery_scope_is_active() {
                 state.error = Some("The captured launch account is no longer active.".to_owned());
-                return;
+                return false;
             }
-            let Ok(mut entries) = self.launch_recovery.lock() else { return; };
+            let Ok(mut entries) = self.launch_recovery.lock() else { return false; };
             if entries.len() >= LAUNCH_RECOVERY_CAPACITY {
                 state.error = Some("Launch recovery is full. Review and dismiss completed returned references in their original workspaces before launching again.".to_owned());
-                return;
+                return false;
             }
-            let Ok(mut next_ui_key) = self.launch_recovery_ui_sequence.lock() else { return; };
+            let Ok(mut next_ui_key) = self.launch_recovery_ui_sequence.lock() else { return false; };
             let Some(following_ui_key) = next_ui_key.checked_add(1) else {
                 state.error = Some("Launch recovery UI identity is exhausted. No new launch was dispatched.".to_owned());
-                return;
+                return false;
             };
             let ui_key = *next_ui_key;
             *next_ui_key = following_ui_key;
@@ -992,12 +994,15 @@ impl OperatorChatLaunchPaneFactory {
         };
         if let Some(client) = &self.client {
             client.launch(pending.0, &pending.1, &pending.2, &pending.3, pending.4);
-        } else if let Ok(mut state) = self.state.lock() {
+            return true;
+        }
+        if let Ok(mut state) = self.state.lock() {
             state.pending_launch = false;
             state.pending_launch_request = None;
             self.forget_launch_receipt(&pending.4);
             state.error = Some("backend not wired (offline pane)".to_owned());
         }
+        false
     }
 
     fn routing_action(&self, action: OperatorChatRoutingAction) -> bool {
@@ -1313,7 +1318,6 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 && !state.pending_launch;
             ui.add_enabled_ui(launch_ready, |ui| {
                 if labelled_button(ui, LAUNCH_AUTHOR_ID, "Launch session") {
-                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), LAUNCH_AUTHOR_ID);
                     do_launch = true;
                 }
             });
@@ -1446,6 +1450,8 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 state.local_candidate = Some((selection, display));
                 state.error = None;
             } else if !state.pending_launch && state.pending_selection.is_none() {
+                state.selected = None;
+                state.selected_model.clear();
                 state.local_candidate = None;
                 let cell = Arc::new(Mutex::new(None));
                 let working_dir = (!state.folder.trim().is_empty()).then(|| state.folder.clone());
@@ -1466,8 +1472,8 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
         if do_refresh {
             self.refresh_models();
         }
-        if do_launch {
-            self.launch();
+        if do_launch && self.launch() {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), LAUNCH_AUTHOR_ID);
         }
         if let Some((action, author)) = routing_action {
             if self.routing_action(action) {
@@ -1484,6 +1490,170 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
 #[cfg(test)]
 mod client_safety_tests {
     use super::*;
+
+    #[test]
+    fn argus_launch_acknowledges_only_dispatched_choice() {
+        use crate::mcp::argus::register_action_effect;
+        use crate::pane_registry::{DirtyState, LockState, PaneAuthority, PaneRecord};
+        use std::time::{Duration, Instant};
+
+        #[derive(Default)]
+        struct Backend {
+            selections: Mutex<Vec<SelectionCell>>,
+            launches: Mutex<Vec<OperatorChatLaunchSelection>>,
+        }
+
+        impl OperatorChatBackend for Backend {
+            fn fetch_models(&self, _: ModelsCell) {
+                panic!("no model refresh expected");
+            }
+
+            fn record_selection(
+                &self,
+                _: OperatorChatLaunchSelection,
+                _: Option<String>,
+                cell: SelectionCell,
+            ) {
+                self.selections.lock().unwrap().push(cell);
+            }
+
+            fn launch(
+                &self,
+                selection: OperatorChatLaunchSelection,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: LaunchCell,
+            ) {
+                self.launches.lock().unwrap().push(selection);
+            }
+
+            fn fetch_transcript(&self, _: &str, _: TranscriptCell) {
+                panic!("no launch result supplied");
+            }
+
+            fn routing_action(&self, _: OperatorChatRoutingAction, _: String, _: RoutingCell) {
+                panic!("no routing action expected");
+            }
+        }
+
+        let backend = Arc::new(Backend::default());
+        let factory = OperatorChatLaunchPaneFactory::with_backend(backend.clone());
+        {
+            let mut state = factory.state.lock().unwrap();
+            state.workspace_id = "workspace".to_owned();
+            state.selected = Some(OperatorChatLaunchSelection::cli("previous", "codex"));
+            state.selected_model = "previous".to_owned();
+            state.selected_owner_session_id = Some("owner".to_owned());
+            state.folder = "component-worktree".to_owned();
+            state.prompt = "component prompt".to_owned();
+            state.inventory.sessions.push(OperatorChatSessionRow {
+                session_id: "owner".to_owned(),
+                status: "available".to_owned(),
+                ..Default::default()
+            });
+            state.inventory.cloud_cli_bridge = ["previous", "replacement"]
+                .map(|model_id| OperatorChatCloudRow {
+                    provider: "codex".to_owned(),
+                    model_id: model_id.to_owned(),
+                    label: model_id.to_owned(),
+                    status: "logged_in".to_owned(),
+                })
+                .into();
+        }
+
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let record = PaneRecord::new(
+            Arc::from("launch-ticket"),
+            PaneType::OperatorChatLaunch,
+            "workspace",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::Human,
+        );
+        let draw = |events| {
+            ctx.run(
+                egui::RawInput {
+                    events,
+                    focused: true,
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1280.0, 900.0),
+                    )),
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        factory.render(
+                            ui,
+                            &PaneRenderContext {
+                                record: &record,
+                                egui_id: egui::Id::new("launch-ticket"),
+                            },
+                        );
+                    });
+                },
+            )
+            .platform_output
+            .accesskit_update
+            .expect("mounted Operator Chat frame")
+        };
+        let click = |tree: &accesskit::TreeUpdate, author: &str| {
+            let target = tree
+                .nodes
+                .iter()
+                .find(|(_, node)| {
+                    node.author_id() == Some(author)
+                        && !node.is_disabled()
+                        && node.supports_action(accesskit::Action::Click)
+                })
+                .expect("enabled pane action")
+                .0;
+            accesskit::ActionRequest {
+                action: accesskit::Action::Click,
+                target,
+                data: None,
+            }
+        };
+        let begin_launch_ticket = |receipt, request: &accesskit::ActionRequest| {
+            register_action_effect(
+                &ctx,
+                egui::ViewportId::ROOT,
+                receipt,
+                LAUNCH_AUTHOR_ID,
+                request,
+                Instant::now() + Duration::from_secs(10),
+            )
+            .expect("exact launch effect ticket")
+        };
+
+        let frame = draw(Vec::new());
+        let launch_click = click(&frame, LAUNCH_AUTHOR_ID);
+        let replacement = model_selection_author_id("cli", Some("codex"), "replacement");
+        let refused_ticket = begin_launch_ticket(1, &launch_click);
+        draw(vec![
+            egui::Event::AccessKitActionRequest(click(&frame, &replacement)),
+            egui::Event::AccessKitActionRequest(launch_click),
+        ]);
+        assert!(backend.launches.lock().unwrap().is_empty());
+        assert!(!refused_ticket.acknowledged_after_frame(&ctx, 1));
+        refused_ticket.release();
+
+        let audit = backend.selections.lock().unwrap()[0].clone();
+        *audit.lock().unwrap() = Some(Ok(()));
+        let frame = draw(Vec::new());
+        let launch_click = click(&frame, LAUNCH_AUTHOR_ID);
+        let accepted_ticket = begin_launch_ticket(2, &launch_click);
+        draw(vec![egui::Event::AccessKitActionRequest(launch_click)]);
+        assert!(accepted_ticket.acknowledged_after_frame(&ctx, 2));
+        assert!(!accepted_ticket.allows_target_transition());
+        assert_eq!(
+            backend.launches.lock().unwrap().as_slice(),
+            &[OperatorChatLaunchSelection::cli("replacement", "codex")],
+        );
+    }
 
     #[test]
     fn settings_refresh_fences_old_inventory_and_preserves_started_launch() {

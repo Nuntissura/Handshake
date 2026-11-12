@@ -820,6 +820,52 @@ fn first_owner_workspace_claim_error_kind(error: &surrealdb::Error) -> &'static 
     }
 }
 
+// SurrealDB 3.2.0 maps these engine errors to the SDK's generic Internal kind.
+#[cfg(test)]
+fn first_owner_workspace_receipt_internal_family(message: &str) -> &'static str {
+    const KVS_PREFIX: &str = "There was a problem with the key-value store: ";
+    match message.strip_prefix(KVS_PREFIX) {
+        Some(cause) if cause.starts_with("There was a problem with a transaction: ") => {
+            "kvs_transaction"
+        }
+        Some(cause) if cause.starts_with("There was a problem with the datastore: ") => {
+            "kvs_datastore"
+        }
+        _ if message == "Reached excessive computation depth due to functions, subqueries, or computed values" => {
+            "computation_depth"
+        }
+        _ => "other_internal",
+    }
+}
+
+#[test]
+fn receipt_internal_family_classifies_only_pinned_engine_messages() {
+    for (message, expected) in [
+        (
+            "Reached excessive computation depth due to functions, subqueries, or computed values",
+            "computation_depth",
+        ),
+        (
+            "There was a problem with the key-value store: There was a problem with a transaction: opaque detail",
+            "kvs_transaction",
+        ),
+        (
+            "There was a problem with the key-value store: There was a problem with the datastore: opaque detail",
+            "kvs_datastore",
+        ),
+        (
+            "Reached excessive computation depth due to functions, subqueries, or computed values: extra",
+            "other_internal",
+        ),
+        (
+            "There was a problem with a transaction: opaque detail",
+            "other_internal",
+        ),
+    ] {
+        assert_eq!(first_owner_workspace_receipt_internal_family(message), expected);
+    }
+}
+
 async fn read_first_owner_workspace_transaction_receipt(
     tx: &super::SurrealTransactionContext<'_>,
     bindings: WorkspaceCreationBindings,
@@ -833,7 +879,12 @@ async fn read_first_owner_workspace_transaction_receipt(
     {
         let report = |stage, statement, error: &surrealdb::Error| {
             let kind = first_owner_workspace_claim_error_kind(error);
-            eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind}");
+            if kind == "internal" {
+                let family = first_owner_workspace_receipt_internal_family(error.message());
+                eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind} internal_family={family}");
+            } else {
+                eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch={branch} stage={stage} statement={statement} kind={kind}");
+            }
         };
         let bindings = super::original_operation_bindings(bindings.into_value());
         let query = tx.transaction.query(FIRST_OWNER_WORKSPACE_READ);

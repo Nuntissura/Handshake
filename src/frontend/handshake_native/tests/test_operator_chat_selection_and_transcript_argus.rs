@@ -660,6 +660,7 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
 #[derive(Default)]
 struct DeferredLaunchBackend {
     models: Mutex<Vec<ModelsCell>>,
+    selection_audits: Mutex<Vec<(OperatorChatLaunchSelection, SelectionCell)>>,
     launches: Mutex<Vec<(OperatorChatLaunchSelection, LaunchCell)>>,
     transcript_calls: Mutex<Vec<String>>,
 }
@@ -668,8 +669,17 @@ impl OperatorChatBackend for DeferredLaunchBackend {
     fn fetch_models(&self, cell: ModelsCell) {
         self.models.lock().expect("model cells").push(cell);
     }
-    fn record_selection(&self, _: OperatorChatLaunchSelection, _: Option<String>, _: SelectionCell) {
-        panic!("a local candidate must not audit before its complete ordinary launch");
+    fn record_selection(
+        &self,
+        selection: OperatorChatLaunchSelection,
+        _: Option<String>,
+        cell: SelectionCell,
+    ) {
+        assert_ne!(selection.lane_kind, "local");
+        self.selection_audits
+            .lock()
+            .expect("selection audit cells")
+            .push((selection, cell));
     }
     fn launch(&self, selection: OperatorChatLaunchSelection, owner: &str, folder: &str,
         prompt: &str, cell: LaunchCell) {
@@ -703,6 +713,106 @@ fn deferred_inventory(owner_available: bool) -> OperatorChatModelInventory {
         }],
         ..Default::default()
     }
+}
+
+#[test]
+fn rejected_or_cancelled_replacement_selection_cannot_launch_the_previous_model() {
+    let backend = Arc::new(DeferredLaunchBackend::default());
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_pane_factory(
+        PaneType::OperatorChatLaunch,
+        Box::new(OperatorChatLaunchPaneFactory::with_backend(backend.clone())),
+    );
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    node_by_author(&harness, "menu-run").click();
+    harness.run();
+    node_by_author(&harness, "menu.models.operator-chat").click();
+    harness.run();
+    node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit();
+    harness.run();
+
+    let mut inventory = deferred_inventory(true);
+    inventory.cloud_cli_bridge.push(OperatorChatCloudRow {
+        provider: "codex".to_owned(),
+        model_id: "component-cli".to_owned(),
+        label: "Component CLI".to_owned(),
+        status: "logged_in".to_owned(),
+    });
+    let models = backend.models.lock().expect("model cells")[0].clone();
+    *models.lock().expect("models") = Some(Ok(inventory));
+    harness.run();
+
+    let profile = component_profile("deferred-component-model");
+    let local = profile_selection_author_id(&profile);
+    let cli = model_selection_author_id("cli", Some("codex"), "component-cli");
+    node_by_author(&harness, &local).click_accesskit();
+    harness.run();
+    node_by_author(&harness, &session_selection_author_id("component-owner")).click_accesskit();
+    harness.run();
+    node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).focus();
+    harness.run();
+    node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).type_text("D:/work/deferred-component");
+    harness.run();
+    node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).focus();
+    harness.run();
+    node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).type_text("deferred component request");
+    harness.run();
+    node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit();
+    harness.run();
+
+    let first_launch = backend.launches.lock().expect("launch cells")[0].1.clone();
+    *first_launch.lock().expect("first launch") = Some(Ok(OperatorChatLaunched {
+        engine_profile: Some(profile.clone()),
+        instance_id: "accepted-instance".to_owned(),
+        run_id: "accepted-run".to_owned(),
+        lane_id: "accepted-lane".to_owned(),
+    }));
+    harness.run();
+    harness.run();
+    assert!(!node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled());
+
+    node_by_author(&harness, &cli).click_accesskit();
+    harness.run();
+    harness.run();
+    assert!(node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled());
+    let (selection, rejected) = backend.selection_audits.lock().expect("audit cells")[0].clone();
+    assert_eq!(selection, OperatorChatLaunchSelection::cli("component-cli", "codex"));
+    *rejected.lock().expect("rejected selection") = Some(Err("component audit denied".to_owned()));
+    harness.run();
+    assert!(node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled());
+
+    node_by_author(&harness, &cli).click_accesskit();
+    harness.run();
+    let cancelled = backend.selection_audits.lock().expect("audit cells")[1].1.clone();
+    node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit();
+    harness.run();
+    let models = backend.models.lock().expect("model cells")[1].clone();
+    *models.lock().expect("models") = Some(Ok(deferred_inventory(true)));
+    harness.run();
+    *cancelled.lock().expect("cancelled selection") = Some(Ok(()));
+    harness.run();
+    assert!(node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled());
+    assert_eq!(backend.launches.lock().expect("launch cells").len(), 1);
+    assert_eq!(
+        backend.transcript_calls.lock().expect("transcript calls").as_slice(),
+        &["accepted-run".to_owned()]
+    );
+    assert!(live_labels(&harness).iter().any(|label| label.contains("launched run accepted-run")));
+
+    node_by_author(&harness, &local).click_accesskit();
+    harness.run();
+    harness.run();
+    assert!(!node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled());
+    node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit();
+    harness.run();
+    let launches = backend.launches.lock().expect("launch cells");
+    assert_eq!(launches.len(), 2);
+    assert_eq!(launches[1].0, OperatorChatLaunchSelection::local(profile));
 }
 
 #[test]
