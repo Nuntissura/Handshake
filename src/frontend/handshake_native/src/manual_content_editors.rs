@@ -710,6 +710,12 @@ when present, review the retained draft, then explicitly retry Append/Import aga
 Refresh is unavailable in local preview. \
 Backend Export txt/json reads the selected saved version for comparison. Local-preview export uses current \
 draft text, including unsaved edits, and is non-persistent.\n\n\
+CKC contact sheets: open CKC (module-ckc) > Ingest (atelier-tab-ingest) > Dataset intake and expand an intake batch. \
+Set rows, columns and DPI under Contact sheet. If Contact sheet will use ... appears beside Export contact sheet, \
+it shows the layout export will use. The fields keep your typed values. Edit them to use a different layout. \
+After export, wait for Exported backend contact sheet and check the SVG and source-item receipt refs \
+in atelier-ingest-contact-receipt. If export is blocked or fails, check the Ingest status and resolve the issue before retrying. \
+Local preview produces no backend artifacts.\n\n\
 From the mounted Code Editor, place the caret on a tree-sitter identifier or select exactly that identifier, \
 then choose the context-menu action Copy as note reference; \
 the mounted pane writes [[code:path#symbol]] to the shared InteractionBus clipboard. Activate the Rich \

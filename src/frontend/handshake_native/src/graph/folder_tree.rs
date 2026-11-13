@@ -580,7 +580,9 @@ impl LoomFolderTree {
                 if let Some(node) = node {
                     let leaf = node.child_blocks.as_ref().and_then(|blocks| blocks.iter().find(|block| block.block_id == entry.resource_id)).cloned();
                     if let Some(leaf) = leaf {
-                        let (ev, response) = render_leaf(&leaf, ui, palette, row.depth);
+                        let (ev, response) = render_leaf(
+                            &leaf, ui, palette, row.depth, self.cabinet.navigation_available(),
+                        );
                         self.cabinet.row_navigation(ui, &response, &entry.id);
                         if node.take_reveal_children_once() { response.scroll_to_me(None); }
                         if let Some(ev) = ev {
@@ -998,6 +1000,7 @@ fn render_leaf(
     ui: &mut egui::Ui,
     palette: &HsPalette,
     depth: usize,
+    navigation_available: bool,
 ) -> (Option<FolderTreeEvent>, egui::Response) {
     let mut event = None;
     let resp = ui
@@ -1006,7 +1009,8 @@ fn render_leaf(
             // Content-type icon char + title (the contract's "block title + content_type icon
             // character").
             let label = format!("{} {}", leaf.icon(), leaf.title);
-            ui.add(
+            ui.add_enabled(
+                navigation_available,
                 egui::Label::new(egui::RichText::new(label).color(palette.text))
                     .sense(Sense::click()),
             )
@@ -1014,7 +1018,13 @@ fn render_leaf(
         .inner;
     // Leaf TreeItem (no Expand/Collapse — leaves do not expand). Click is the default open action.
     emit_tree_item_accesskit(ui, resp.id, &leaf.block_id, &leaf.title, false, false, None);
-    if resp.clicked() {
+    if !navigation_available {
+        ui.ctx().accesskit_node_builder(resp.id, |node| {
+            node.set_disabled();
+            node.remove_action(accesskit::Action::Click);
+        });
+    }
+    if navigation_available && resp.clicked() {
         event = Some(FolderTreeEvent::OpenBlock {
             block_id: leaf.block_id.clone(),
         });
@@ -1232,6 +1242,124 @@ mod tests {
         assert_eq!(tree.find_folder_mut("folder-001").unwrap().child_blocks.as_ref().unwrap()[0].block_id, "B-1");
         tree.cabinet_bind_scope(4, None);
         assert!(tree.cabinet.model().is_none());
+    }
+
+    #[test]
+    fn cabinet_leaf_open_is_disabled_during_an_owned_write() {
+        use egui_kittest::{kittest::{NodeT, Queryable}, Harness};
+        use std::sync::{Arc, Mutex};
+
+        let mut rows = rows_fixture();
+        let mut tree = LoomFolderTree::new("workspace-one");
+        tree.cabinet_bind_scope(3, None);
+        tree.set_folders(&rows);
+        let show_member = |tree: &mut LoomFolderTree| {
+            let folder = tree.find_folder_mut("folder-001").unwrap();
+            folder.expanded = true;
+            folder.child_blocks = Some(vec![LeafBlock::new("B-1", "Member", "note")]);
+        };
+        show_member(&mut tree);
+        tree.sync_cabinet().unwrap();
+        let folder_id = folder_entry_id("folder-001");
+        let member_id = member_entry_id("folder-001", "B-1");
+        tree.cabinet.select(&folder_id, cabinet::SelectionModifiers::default()).unwrap();
+        let tree = Arc::new(Mutex::new(tree));
+        let event = Arc::new(Mutex::new(None));
+        let ui_tree = Arc::clone(&tree);
+        let ui_event = Arc::clone(&event);
+        let mut harness = Harness::builder().with_size(egui::vec2(500.0, 600.0)).build_ui(move |ui| {
+            if let Some(next) = ui_tree.lock().unwrap().show(ui, &crate::theme::HsTheme::Dark.palette()) {
+                *ui_event.lock().unwrap() = Some(next);
+            }
+        });
+        harness.step();
+        let target = {
+            let member = harness.get_by_label("Member");
+            assert!(!member.accesskit_node().data().is_disabled());
+            assert!(member.accesskit_node().data().supports_action(accesskit::Action::Click));
+            member.accesskit_node().id()
+        };
+        harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+            action: accesskit::Action::Focus, target, data: None,
+        }));
+        harness.step();
+        assert!(harness.get_by_label("Member").is_focused());
+        assert!(event.lock().unwrap().is_none());
+
+        {
+            let mut tree = tree.lock().unwrap();
+            tree.cabinet.request(cabinet::Operation::SetColor {
+                id: folder_id.clone(),
+                color: Some([0, 0, 255]),
+            }).unwrap();
+            assert!(tree.cabinet_bind_request(3, 81));
+        }
+        harness.step();
+        let position = {
+            let member = harness.get_by_label("Member");
+            assert_eq!(member.accesskit_node().id(), target);
+            assert!(member.accesskit_node().data().is_disabled());
+            assert!(!member.accesskit_node().data().supports_action(accesskit::Action::Click));
+            assert!(!member.is_focused());
+            member.rect().center()
+        };
+        for action in [accesskit::Action::Focus, accesskit::Action::Click] {
+            harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+                action, target, data: None,
+            }));
+            harness.step();
+            assert!(!harness.get_by_label("Member").is_focused());
+        }
+        harness.event(egui::Event::Key {
+            key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        });
+        harness.step();
+        harness.event(egui::Event::Key {
+            key: egui::Key::Enter, physical_key: None, pressed: false, repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        });
+        harness.step();
+        harness.event(egui::Event::PointerMoved(position));
+        for pressed in [true, false] {
+            harness.event(egui::Event::PointerButton {
+                pos: position, button: egui::PointerButton::Primary, pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
+            harness.step();
+        }
+        assert!(event.lock().unwrap().is_none());
+        {
+            let mut tree = tree.lock().unwrap();
+            let model = tree.cabinet.model().unwrap();
+            assert!(model.is_selected(&folder_id));
+            assert!(!model.is_selected(&member_id));
+            assert!(matches!(tree.cabinet.host_operation(), Some(cabinet::Operation::SetColor { .. })));
+            assert!(tree.cabinet_terminal(3, 81, Ok(())));
+            rows[0].color = Some("#0000ff".to_owned());
+            tree.set_folders(&rows);
+            show_member(&mut tree);
+        }
+        harness.step();
+        {
+            let member = harness.get_by_label("Member");
+            assert_eq!(member.accesskit_node().id(), target);
+            assert!(!member.accesskit_node().data().is_disabled());
+            assert!(member.accesskit_node().data().supports_action(accesskit::Action::Click));
+        }
+        harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+            action: accesskit::Action::Focus, target, data: None,
+        }));
+        harness.step();
+        assert!(harness.get_by_label("Member").is_focused());
+        assert!(event.lock().unwrap().is_none());
+        harness.event(egui::Event::Key {
+            key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        });
+        harness.step();
+        assert!(matches!(&*event.lock().unwrap(), Some(FolderTreeEvent::OpenBlock { block_id }) if block_id == "B-1"));
+        assert!(tree.lock().unwrap().cabinet.model().unwrap().is_selected(&member_id));
     }
 
     #[test]

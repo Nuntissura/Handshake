@@ -690,6 +690,8 @@ pub const ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID: &str = "atelier-ingest-contac
 pub const ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID: &str = "atelier-ingest-contact-fit";
 pub const ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID: &str = "atelier-ingest-contact-output";
 pub const ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID: &str = "atelier-ingest-contact-export";
+const ATELIER_INGEST_CONTACT_LAYOUT_ADJUSTMENT_AUTHOR_ID: &str =
+    "atelier-ingest-contact-layout-adjustment";
 pub const ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID: &str = "atelier-ingest-contact-preview";
 pub const ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-contact-receipt";
 pub const ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID: &str = "atelier-ingest-facial-profile";
@@ -17531,6 +17533,7 @@ impl AtelierPanelRuntime {
                 &state.ingest_contact_thumbnail_fit,
             );
         });
+        let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(&state);
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Output").color(palette.text));
             let output = ui.text_edit_singleline(&mut state.ingest_contact_output_path);
@@ -17555,7 +17558,6 @@ impl AtelierPanelRuntime {
                 state.ingest_contact_export_pending,
             );
             if export.clicked() {
-                let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(&state);
                 if let Some((batch_id, items)) = expanded_items.as_ref() {
                     let actor_id = state.ingest_actor.trim().to_owned();
                     let actor_id = if actor_id.is_empty() {
@@ -17646,6 +17648,28 @@ impl AtelierPanelRuntime {
                     state.ingest_contact_sheet_receipt =
                         "contact_sheet_export_blocked=missing_expanded_batch".to_owned();
                 }
+            }
+        });
+        let adjusted = [
+            (&state.ingest_contact_rows, rows),
+            (&state.ingest_contact_columns, columns),
+            (&state.ingest_contact_dpi, dpi),
+        ]
+        .into_iter()
+        .any(|(draft, effective)| draft.trim().parse::<usize>() != Ok(effective));
+        ui.push_id(ATELIER_INGEST_CONTACT_LAYOUT_ADJUSTMENT_AUTHOR_ID, |ui| {
+            if adjusted {
+                let text =
+                    format!("Contact sheet will use {rows} by {columns} at {dpi} DPI.");
+                let notice = ui.add(egui::Label::new(&text).wrap());
+                emit_node(
+                    ui.ctx(),
+                    notice.id,
+                    accesskit::Role::Label,
+                    ATELIER_INGEST_CONTACT_LAYOUT_ADJUSTMENT_AUTHOR_ID,
+                    &text,
+                    false,
+                );
             }
         });
         ui.add_space(6.0);
@@ -19330,6 +19354,72 @@ fn emit_pose_slider_node(
         node.add_action(accesskit::Action::SetValue);
         node.add_action(accesskit::Action::Focus);
     });
+}
+
+#[cfg(test)]
+mod ingest_contact_sheet_tests {
+    use super::*;
+    use egui_kittest::{Harness, kittest::NodeT};
+
+    #[test]
+    fn ingest_shows_effective_contact_sheet_layout_only_for_adjusted_inputs() {
+        let runtime = Arc::new(AtelierPanelRuntime::with_client(
+            Arc::new(Mutex::new(AtelierSidePanel::with_client(None))),
+            None,
+        ));
+        let for_ui = runtime.clone();
+        let palette = crate::theme::HsTheme::Dark.palette();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1000.0, 1000.0))
+            .build_ui(move |ui| for_ui.show_ingest(ui, &palette));
+
+        for (drafts, expected_notice) in [
+            (["3", "4", "300"], None),
+            (
+                ["0", "invalid", "1201"],
+                Some("Contact sheet will use 1 by 4 at 1200 DPI."),
+            ),
+            ([" 01 ", "4", "1200"], None),
+        ] {
+            {
+                let mut state = runtime.state.lock().unwrap();
+                state.ingest_contact_rows = drafts[0].to_owned();
+                state.ingest_contact_columns = drafts[1].to_owned();
+                state.ingest_contact_dpi = drafts[2].to_owned();
+            }
+            harness.run();
+            let notice = harness
+                .root()
+                .children_recursive()
+                .find(|node| {
+                    node.accesskit_node().author_id()
+                        == Some(ATELIER_INGEST_CONTACT_LAYOUT_ADJUSTMENT_AUTHOR_ID)
+                });
+            match expected_notice {
+                Some(expected) => {
+                    let notice = notice.expect("contact sheet layout adjustment");
+                    assert_eq!(notice.accesskit_node().label().as_deref(), Some(expected));
+                }
+                None => assert!(notice.is_none(), "valid input must have no adjustment node"),
+            }
+
+            for (author_id, draft) in [
+                ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+                ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+                ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+            ]
+            .into_iter()
+            .zip(drafts)
+            {
+                let input = harness
+                    .root()
+                    .children_recursive()
+                    .find(|node| node.accesskit_node().author_id() == Some(author_id))
+                    .expect("existing contact sheet input");
+                assert_eq!(input.accesskit_node().value().as_deref(), Some(draft));
+            }
+        }
+    }
 }
 
 #[cfg(test)]

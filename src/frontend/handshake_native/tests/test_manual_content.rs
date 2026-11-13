@@ -354,6 +354,40 @@ fn mt033_ckc_stage_manual_is_no_context_and_matches_runtime_ids() {
 }
 
 #[test]
+fn ckc_ingest_contact_sheet_manual_matches_live_control_ids_and_export_behavior() {
+    use handshake_native::atelier_panel::{
+        ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
+    };
+
+    let section = editors_manual_section();
+    let interop = topic_body(&section, "Interop Edges");
+    let workflow = interop
+        .split_once("CKC contact sheets:")
+        .and_then(|(_, rest)| rest.split_once("\n\n"))
+        .map(|(workflow, _)| workflow)
+        .expect("Interop Edges must document the CKC contact-sheet workflow");
+
+    assert!(workflow.contains(&format!("Ingest ({ATELIER_TAB_INGEST_AUTHOR_ID})")));
+    assert!(workflow.contains(&format!("in {ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID}.")));
+    for required in [
+        "Dataset intake and expand an intake batch",
+        "Set rows, columns and DPI under Contact sheet",
+        "Contact sheet will use",
+        "it shows the layout export will use",
+        "The fields keep your typed values",
+        "Exported backend contact sheet",
+        "SVG and source-item receipt refs",
+        "check the Ingest status and resolve the issue before retrying",
+        "Local preview produces no backend artifacts",
+    ] {
+        assert!(
+            workflow.contains(required),
+            "CKC contact-sheet manual is missing: {required}"
+        );
+    }
+}
+
+#[test]
 fn mt088_manual_documents_backend_down_operation_and_recovery() {
     let section = editors_manual_section();
     let diagnostics = topic_body(&section, "internal_diagnostics");
