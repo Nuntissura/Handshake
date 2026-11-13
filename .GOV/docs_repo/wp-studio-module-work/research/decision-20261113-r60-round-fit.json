@@ -1,0 +1,294 @@
+{
+ "schema": "hsk.studio.lead_decision@1",
+ "file_id": "DECISION-20261113-R60-ROUND-FIT",
+ "decided_at": "2026-11-13T16:55:00Z",
+ "decided_by": "cargo and disk specialist agent (read-only except this file), under direction.operator_direction_20261111 (open questions decided by a specialised agent) and the Operator's 2026-11-12/13 cargo direction ('manage cargo better, try and avoid building of large cargo builds and not removing unneeded old cargo')",
+ "question": "How does STUDIO-R60 attempt 4 (FULL with canary, CX-VAL-011) fit, given the C: grant (CX-984-014, 400 GB = 372.53 GiB)? Options from the lead: (a) product lane lowering debuginfo in the workspace profile; (b) round-only profile override through CARGO_PROFILE_* in the round runner; (c) more C: room (Operator); (d) the round on D: during a pause of all builders; (e) wait for the Operator. Pick one the lead can carry out tonight without any deletion, or say plainly that none exists and name the smallest Operator approval.",
+ "answer_in_one_line": "Choose (d): run R60 attempt 4 on the existing D: round slot Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target at the origin tip after the trunk repair lands, with no new builder holds during the round. It needs no deletion, no product commit and no Operator approval. No C: option fits tonight without deletion. At the new tip, no C: removal list makes a FULL round reliably fit the grant either.",
+
+ "facts": {
+  "F1_free_space": {
+   "value": "C: 298.9 GiB free (320.9 GB), D: 3578.8 GiB free (3842.7 GB)",
+   "source": "python shutil.disk_usage 2026-11-13T16:28Z; df -h: C: 299G avail 96%, D: 3.5T avail 76%"
+  },
+  "F2_c_studio_tree": {
+   "value": "368.00 GiB = studio-round/target 231.49 + studio-team-dev/target/lanes 136.51",
+   "source": "target_report.py inspect_target() on C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (2026-11-13T16:50Z): 231.49 GiB, test_and_binary_outputs 217.73, workspace_libraries 8.41, third_party_libraries 3.21, examples 1.14, older_binary_variants 180.01, newest file 2026-11-13T08:25Z; target_report.py --disk c (16:35Z) total 136.51; validator end sample 368.001 (validation/round-R60.json attempt_3.c_tree_end)",
+   "limits": "grant 372.53 GiB (headroom 4.53 GiB); lead stop 368 (headroom 0.00); steward cap STUDIO_SSD_CAP_GB default 360 (builders/studio-env.sh:138) exceeded by 8.0 GiB, so studio-env refuses SSD lane builds (exit 77)"
+  },
+  "F3_c_team_dev_lane_targets": {
+   "value": "smb-pr-retime-output-1 38.07 PASS_V3 (reuse Y); smb-r54-followups-1 35.30 PASS_V5 (reuse Y); smb-pr-nudge-1 34.24 PASS_V3; smb-layout-composer-depth-1 28.42 PASS_V2; smb-pr-sequence-presets-1-red 0.28 no ledger row; smb-type-sentinels-registry-1 0.20 PASS_V6; older copies 0.00 in each (plan T executed)",
+   "source": "python -I tools/lead/target_report.py --disk c, 2026-11-13 (read-only)"
+  },
+  "F4_debuginfo_already_line_tables": {
+   "value": "Every round and every builder already compiles with debuginfo = line-tables-only and incremental off. The measured .pdb share (75% of the round's new bytes, 65% of lane deps) is measured WITH line-tables-only. The workspace Cargo.toml sets no debug key (only opt-level = 3 for sha2, hsk-studio-prism and hsk-studio-interop-psd).",
+   "source": "export at b57c82d1 (git_blob_equal true per round-R60.json attempt_3.export) tools/run-round.sh:573-574 'export ... CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only' and 'export CARGO_INCREMENTAL=0', present since faf1be45 (2026-10-11, git log -S); run-round.sh:1079 env_set lists both; builders/studio-env.sh:58-59 and :64; Cargo.toml:332-337; Codex CX-984-014 requires exactly line-tables-only for validation builds on a granted location; build logs say 'Finished `test` profile [unoptimized + debuginfo]' (results/R60-canary-3/*/build.stderr.txt), which cargo prints for any debuginfo level above none"
+  },
+  "F5_cargo_file_name_hash": {
+   "value": "The output file-name hash (unit_id, used for -C extra-filename) hashes the unit's features, the unit's profile ('settings like debuginfo and whatnot'), the target name and kind, the rustc version, rustflags and the sorted unit_ids of every dependency. A profile change gives every unit a new file name. A new dependency in a feature set gives that crate and every dependent a new file name. Old files stay in the target until removed.",
+   "source": "cargo master src/compiler/build_runner/compilation_files.rs compute_metadata() and Metadata::c_extra_filename() (fetched with gh api 2026-11-13); the toolchain is rustc 1.97.1 (rust-toolchain.toml; C: target .rustc_info.json). The 1.97.1 source was not read separately (UNVERIFIED that it is identical, but these fields are long-standing)"
+  },
+  "F6_new_tip_changes_harness_identities": {
+   "value": "b57c82d1..a77c4ee4 (136 commits, a77c4ee4 = origin tip read locally) changes hsk-studio-harness-view: feature viewer gains dep:hsk-studio-interop-lrcat (d1d1a143) and layout-ui gains dep:hsk-studio-type (12fd5b8a); Cargo.lock gains one line. In hsk-studio-harness, viewer, desktop, media, media-native, os-encode, audio-device, audio-batch, audio-plugin and studio-aac all enable viewer. By F5, every harness and harness-view unit with viewer or layout-ui gets a new identity at any candidate that contains these commits: the 10 viewer-family harness feature units, layout-ui and the 2 harness-view units. The 6 import-* harness units and the non-harness units keep theirs.",
+   "source": "git diff b57c82d1 a77c4ee4 in wt-studio-lanes/smb-folio-angle-unbounded-1 (read-only); git show a77c4ee4:handshake-studio-assets/crates/hsk-studio-harness{,-view}/Cargo.toml; .config/round-features.toml at a77c4ee4"
+  },
+  "F7_attempt_3_growth": {
+   "value": "cold heavy harness units 20.6, 20.4, 27.4, 23.1, 23.2 GiB (mean 22.9); layout-ui 1.0; warm units 0.0-4.3; deps written since the canary started: .pdb 119.76 of 159.66 GiB = 75.0%, .exe 35.87 = 22.5%; 18 of 164 test units plus fixture and 3 prebuilds in 2 h 47 m; projection to the end of the full canary at b57c82d1: tree 457.2 / 498.2 / 584.0 GiB (low/mid/high, the validator's UNVERIFIED projection); R57 warm union growth 5.9 GiB",
+   "source": "validation/round-R60.json attempt_3.growth, deps_split, time; ledger round_R60.growth_projection"
+  },
+  "F8_test_binary_multiplier": {
+   "value": "hsk-studio-harness has 100 integration-test files (100 test binaries), hsk-studio-harness-view 36. Each feature unit links all of them again under its own identity: the C: round deps folder holds 925 distinct test or binary names with up to 36 copies each (diag_sink_process 34 copies 4.2 GiB, viewer_develop 36 copies 3.8 GiB).",
+   "source": "ls crates/hsk-studio-harness/tests/*.rs in the b57c82d1 export; read-only scandir of C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/deps 2026-11-13T16:5xZ"
+  },
+  "F9_d_round_slot": {
+   "value": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target exists: 21.52 GiB (workspace libraries 16.04, third-party 3.99, test outputs 0.19), newest file 2026-10-24T05:58Z, bound (.studio-workspace-root) to the same export manifest as the C: round target, so run-round's binding check (run-round.sh:560-565) passes; run-round puts a target under the sole artifact root in class artifact-root with TMP <target>/../tmp and the D: lock (run-round.sh:436-506)",
+   "source": "target_report.py inspect_target() 2026-11-13T16:47Z; cat .studio-workspace-root; export tools/run-round.sh"
+  },
+  "F10_locks_and_builders_now": {
+   "value": "C: lock: no holder, empty queue. D: lock: holder smb-r53-followups-1 'smb-fix-menu-catalog-coverage-1 land' (acquired 16:30:09Z); one queued ticket smb-sentinels-native-1 'smb-fix-layer-record-prune-1 bundled-example' (queued 16:31:02Z). Ledger: 50 lanes READY_FOR_VALIDATION. 6 of the 7 R60-a3 fix-wave lanes are READY; the 8-lane wave has landed.",
+   "source": "C:/HandshakeBuild/.disk-build-lock and Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held/owner and queue/* read 2026-11-13T16:43Z; ledger.json lanes status count; HANDOFF topic state (16:28Z)"
+  },
+  "F11_trunk_red": {
+   "value": "origin carries the red native-host [document] gui_menu MENU-INV-1 test until SMB-FIX-MENU-CATALOG-COVERAGE-1's c0e87947 lands; that landing holds the D: lock now",
+   "source": "HANDOFF topic state lines 385-387; D: lock owner (F10)"
+  },
+  "F12_disks": {
+   "value": "C: Samsung SSD 870 QVO 8TB (SATA SSD); D: TOSHIBA MG08ACA16TE (SATA HDD)",
+   "source": "Get-Partition/Get-Disk/Get-PhysicalDisk 2026-11-13 (read-only)"
+  },
+  "F13_no_proof_needs_full_debuginfo": {
+   "value": "No acceptance or proof surface depends on full debuginfo. The prompt's only debug-build reference is the Vulkan validation layer, which is gated by cfg!(debug_assertions) (crates/hsk-studio-vulkan/src/owner.rs ~:718). That flag is independent of the debug/debuginfo key. git grep at a77c4ee4 finds no RUST_BACKTRACE, std::backtrace or Backtrace::capture in any .rs, .toml or .sh. run-round's fixture build already uses debug=0 with strip=symbols (run-round.sh:270-271).",
+   "source": "validation/dispatch-prompt-R60.txt line 31; export owner.rs; git grep in the product worktree (read-only)"
+  }
+ },
+
+ "options": [
+  {
+   "id": "a",
+   "what": "Product lane: lower debuginfo in the workspace [profile.*] (line-tables-only for deps or everything).",
+   "for": [
+    "Would shrink every future lane target and round, if it went BELOW line-tables-only (debug = 0 / package.\"*\" debug = false).",
+    "No proof surface needs full debuginfo (F13)."
+   ],
+   "against": [
+    "As worded it saves nothing. Every round and builder already runs line-tables-only through env (F4), and an identical resolved profile hashes the same (F5). The 75%/65% .pdb share is already line-tables-only.",
+    "The real lever is debug = none (+ strip), which is outside CX-984-014's literal 'line-tables-only' for validation builds and needs a Codex change or the Operator first.",
+    "Any profile change gives every unit in every lane target a new identity (F5): one cold rebuild per live lane, with the old identities left on disk until an Operator-approved prune. That is the opposite of 'avoid large cargo builds' and 'no unneeded old cargo'.",
+    "It is a root input (full round) and a product lane that cannot be built, reviewed and landed before tonight's round.",
+    "On C: it still would not fit: the round target's 231.49 GiB of old identities stay, and headroom is 4.53 GiB."
+   ],
+   "verdict": "rejected for tonight; parked as a later Operator/Codex item (see later_items)"
+  },
+  {
+   "id": "b",
+   "what": "Round-only profile override (CARGO_PROFILE_DEV_DEBUG / CARGO_PROFILE_TEST_DEBUG / per-package) in the round runner.",
+   "for": [
+    "Touches only the round target, not lane targets."
+   ],
+   "against": [
+    "The runner is not kernel tooling. tools/run-round.sh is checked-in product code in Nuntissura/assets handshake-studio-assets (F4) and is a round entry script (round-select full_reasons). CX-VAL-007 forbids adding the variables at run time, and the dispatch text says 'no environment variable, flag or wrapper'.",
+    "run-round.sh already sets exactly these two variables to line-tables-only (F4), so (b) as worded changes nothing. Going lower is the CX-984-014 deviation in (a).",
+    "A lower setting gives every round unit a new identity (F5): a full cold rebuild into the C: target beside its 231.49 GiB of old identities, against 4.53 GiB of headroom. It cannot fit without deletion.",
+    "Without PDBs, a crashing test's backtrace frames lose symbol names (UNVERIFIED for this toolchain)."
+   ],
+   "verdict": "rejected"
+  },
+  {
+   "id": "c",
+   "what": "More C: room.",
+   "for": [
+    "The SSD is faster than the D: HDD (F12)."
+   ],
+   "against": [
+    "The Operator's call; not available tonight.",
+    "Plan W's C: part (W-C01..W-C03, 73.57 GiB) is unapproved, and its dry run says SKIPPED_IN_USE_BY_LANE until five READY lanes PASS or tool change N5 lands (research/cargo-cleanup-plan-20261113-W.json).",
+    "Even removing the whole of studio-team-dev (136.51 GiB) covers only the mid projection of a resume at the stale b57c82d1 (136.1 GiB needed with the union), not the high one (221.9 GiB).",
+    "At the current tip the 10 viewer-family harness units go cold again (F6). Even an empty 372.53 GiB grant holds the projected full identity set (320.7 / 361.7 / 447.5 GiB) only at the low end. More room means a larger grant, not a removal list."
+   ],
+   "verdict": "not available tonight; does not solve a FULL round at the current tip in any case"
+  },
+  {
+   "id": "d",
+   "what": "Run attempt 4 on D: (the existing studio-round slot under the sole artifact root) during a builder pause.",
+   "for": [
+    "Fits: D: has 3578.8 GiB free (F1) against a projected full cold canary of at most about 450 GiB plus about 6 GiB for the union.",
+    "No deletion, no product commit, no Codex change and no Operator approval. D: is the sole artifact root (CX-984-012) and studio-round is its fixed slot (HSK-ART-003). The slot exists, is bound to the same export (F9) and adds no target, so P3 is unchanged and reuse comes first (HSK-ART-005).",
+    "The entrypoint is unchanged; only the --target-dir argument changes, and run-round supports artifact-root targets by design (F9). CX-VAL-007 holds.",
+    "The C: round target is left exactly as it is, so nothing the Operator might still choose is destroyed.",
+    "The 07:55Z ruling against D: rested on the 8 wave builders, which have since landed. Only one landing hold and one queued bundled run remain (F10), so a pause costs little now.",
+    "It does not depend on the candidate's identities: it works at the current tip, which also covers the 7 fix lanes and the 8 wave lanes (50 READY claims, F10)."
+   ],
+   "against": [
+    "It is a large cold build: the slot's 21.52 GiB is stale (newest 2026-10-24), so nearly every unit compiles and links cold. But on C: the current tip is also cold for the 10 heavy units (F6), so the large build is the same on either disk, and only D: has room for it.",
+    "D: is a spinning HDD (F12): the round will be slower than attempt 3's 13-16 min per cold heavy unit on the SSD (UNVERIFIED by how much).",
+    "It holds the D: lock for each unit (yielding one gap per 300 s slice), so builders that keep working are slowed.",
+    "After the round, about 350-450 GiB of round identities sit on D: and the 231.49 GiB C: round target sits idle and mostly stale (F6): cargo the Operator must rule on in the morning."
+   ],
+   "verdict": "CHOSEN"
+  },
+  {
+   "id": "e",
+   "what": "Wait for the Operator.",
+   "for": [
+    "No build tonight."
+   ],
+   "against": [
+    "Idles 50 READY claims, while D: has room now.",
+    "None of the Operator's C: choices (plan W, more room) makes a FULL round at the current tip reliably fit C: (see c), so the morning would most likely land on D: anyway.",
+    "The Operator delegated open questions to specialised agents (direction.operator_direction_20261111)."
+   ],
+   "verdict": "rejected"
+  },
+  {
+   "id": "x_resume_at_b57c82d1_on_C",
+   "what": "Resume the canary on C: at the same candidate b57c82d1 so that the 18 completed units stay warm.",
+   "for": [
+    "Lowest growth of any C: variant."
+   ],
+   "against": [
+    "It still needs 95.1 / 136.1 / 221.9 GiB (low/mid/high, union included) against 4.53 GiB of headroom (F2, F7), so it cannot run without deletion.",
+    "b57c82d1 is stale: the fix wave that answers attempt 3's probe failures has landed since. A round there would FAIL lanes whose fixes are already on origin and spend fix budget (CX-EXEC-015)."
+   ],
+   "verdict": "rejected"
+  }
+ ],
+
+ "chosen": {
+  "option": "d",
+  "summary": "STUDIO-R60 attempt 4 runs FULL with the canary on the D: round slot Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target. It freezes the origin tip after SMB-FIX-MENU-CATALOG-COVERAGE-1 has landed (READY at 89f27330 per kernel f973efe7), and builders start no new hold until the round ends. No deletion, no product or profile change, no Operator approval. The C: Studio tree (368.00 GiB) is not used and not touched.",
+  "c_disk_statement": "Plainly: no attempt 4 can run on C: tonight without deletion (headroom 4.53 GiB under the grant, 0 under the 368 stop). At the current tip, no removal list reliably fits a FULL round inside the 400 GB grant at all."
+ },
+
+ "exact_steps": [
+  {
+   "step": 1,
+   "what": "Wait for the trunk repair to land, so the candidate does not carry the known red MENU-INV-1 (F11).",
+   "how": "Update at the commit of this file: kernel f973efe7 (merged before this commit) records SMB-FIX-MENU-CATALOG-COVERAGE-1 READY_FOR_VALIDATION at 89f27330, its landed sha (record_ready.py checks that the tip is on origin). Before freezing, still run git -C \"<Handshake Worktrees>/wt-studio-lanes/smb-r53-followups-1\" ls-remote origin refs/heads/codex/handshake-studio-assets and confirm 89f27330 is an ancestor of the tip to be frozen."
+  },
+  {
+   "step": 2,
+   "what": "Builder pause: no new holds.",
+   "how": "Message the active builder agents (SMB-FIX-LAYER-RECORD-PRUNE-1; any landing lane) to start no new lane-check or cargo hold until the round's final message. A ticket already queued may run: the round queues as class round (priority) and yields only one gap per 300 s slice (run-round.sh:67-75, 822-827). Stop no process and touch no lock by hand. Dispatch no new lane while the round runs."
+  },
+  {
+   "step": 3,
+   "what": "Pre-freeze measurements, read-only.",
+   "how": "python -c \"import shutil;[print(d, round(shutil.disk_usage(d).free/2**30,1)) for d in ('C:/','D:/')]\"; the D: slot size through target_report.py's inspect_target() as in F9; commit free as in attempt 3. Record them in the dispatch."
+  },
+  {
+   "step": 4,
+   "what": "Attempt-4 prompt generator (kernel tool, lead-owned; attempt-3 precedent: generator committed before dispatch).",
+   "how": "Edit tools/lead/dispatch_r60.py, or add an attempt-4 copy beside it, so that the text says: ATTEMPT 4; attempt 3 summary (b57c82d1, canary stopped at the 368 GiB C: guard after 18 of 164 units, failure_class c-cap-368-canary-cold-harness-identities); record form (if not opened, attempt_4 beside attempt_3 plus an attempts entry; if opened, the R53 precedent); a 4th count, commits since b57c82d1; round target '<studio-round>/target' on D: (artifact-root class, bound to the export; the warm C: target is NOT used and must not be built in); lock text 'run-round queues for the D: disk build lock as class round, holds it per unit and yields one gap per 300 s slice; the GPU test lock as before'. Replace the C: cap paragraph: record D: free at freeze, during and at the end; alert the lead below 1000 GiB free; stop cleanly as infrastructure below 300 GiB free; record the C: tree at start and end only, to show it unchanged. TIME: report duration against attempt 3's per-unit SSD times, noting the D: HDD. Results names R60-canary-4 and R60-union-4; working dir validator-R60-a4. Entrypoints, nothing before bash and nothing after: 'bash tools/run-round.sh --canary --all --results <studio-round>/results/R60-canary-4 --target-dir <studio-round>/target', then only if green 'bash tools/run-round.sh --all --results <studio-round>/results/R60-union-4 --target-dir <studio-round>/target'."
+  },
+  {
+   "step": 5,
+   "what": "Freeze and dispatch.",
+   "how": "Freeze the origin tip at dispatch; python -X utf8 tools/lead/dispatch_r60.py <cand8> <since c4d06841> <since 35c50d3b> [<since b57c82d1>] --write; commit the generator and the prompt with a pathspec commit; dispatch the validator (opus/xhigh)."
+  },
+  {
+   "step": 6,
+   "what": "Record this decision.",
+   "how": "Point ledger round_R60.next (or direction.blocker_decisions_*) at research/decision-20261113-r60-round-fit.json, and add an Operator-items line for the morning (step 7). No change to tools/run-round.sh, Cargo.toml, builders/studio-env.sh or the Codex tonight."
+  },
+  {
+   "step": 7,
+   "what": "Morning Operator items (presented, not executed).",
+   "how": "(i) plan W, unchanged. (ii) What happens to the idle C: round target, 231.49 GiB, of which 180.01 GiB is older copies, inspected 2026-11-13T16:50Z: at the new tip its viewer-family identities are stale (F6). If rounds stay on D:, propose its removal as an exact list from a fresh target_report inspection (CX-107, HSK-ART-005). If C: rounds return, keep it. (iii) Debuginfo policy below line-tables-only, needing a Codex CX-984-014 change, measured on one lane first (later_items)."
+  }
+ ],
+
+ "space_arithmetic": {
+  "units": "GiB = 2^30 bytes; the grant 400 GB = 400e9 / 2^30 = 372.53 GiB",
+  "c_now": {
+   "studio_round_target": 231.49,
+   "studio_team_dev_lanes": 136.51,
+   "tree": 368.0,
+   "headroom_to_grant": 4.53,
+   "headroom_to_lead_stop_368": 0.0,
+   "over_steward_cap_360": 8.0,
+   "source": "F2, F3"
+  },
+  "c_resume_at_b57c82d1": {
+   "needed_low_mid_high": [95.1, 136.1, 221.9],
+   "how": "remaining canary 457.2 / 498.2 / 584.0 minus 368.0 (F7), plus 5.9 union",
+   "fits": false
+  },
+  "c_attempt_at_current_tip_on_existing_target": {
+   "needed_low_mid_high": [233, 287, 395],
+   "how": "10 viewer-family harness units cold again x 20.4 / 22.9 / 27.4 (204 / 229 / 274) + 2 harness-view units x 5 / 10 / 20 + layout-ui 1 + 26 other feature units x 0.5 / 1 / 2 + 109 doctest units x 0 / 0.05 / 0.2 + union 5.9; per-unit rates are the validator's (F7), the identity change is F5+F6",
+   "fits": false,
+   "status": "UNVERIFIED projection"
+  },
+  "c_empty_grant_full_set": {
+   "projected_full_identity_set_low_mid_high": [320.7, 361.7, 447.5],
+   "how": "validator's end-of-canary tree projection 457.2 / 498.2 / 584.0 minus the constant studio-team-dev 136.51",
+   "vs_grant": 372.53,
+   "reading": "fits only at the low projection; at mid 10.8 GiB of margin minus the 5.9 GiB union; fails at high. A FULL round of this matrix does not reliably fit the grant even with an empty C: Studio tree.",
+   "status": "UNVERIFIED projection"
+  },
+  "d_attempt_4": {
+   "d_free_now": 3578.8,
+   "d_slot_now": 21.52,
+   "projected_growth_upper": "about 450 + 6 (union)",
+   "d_free_after_upper_estimate": "about 3120",
+   "fits": true,
+   "guard": "alert below 1000 GiB free, clean stop below 300 GiB free (far below any projection)"
+  },
+  "debuginfo_lever_for_later": {
+   "pdb_share_of_new_round_bytes": "75.0% (119.76 of 159.66 GiB, F7), already at line-tables-only (F4)",
+   "exe_share": "22.5%",
+   "reading": "If debug = none also stopped the PDBs on windows-msvc, a cold heavy harness unit might drop from about 23 GiB to about 6 GiB (UNVERIFIED: whether the linker still writes a PDB at debug = none depends on cargo's default strip and rustc's MSVC /DEBUG handling, not verified for 1.97.1)"
+  }
+ },
+
+ "risks_and_mitigations": [
+  {"risk": "HDD speed: the cold canary and union take much longer than on the SSD (UNVERIFIED by how much).", "mitigation": "Start as soon as the trunk repair lands. The validator records per-unit build and run times. The union rebuilds in place and stays warm after the canary."},
+  {"risk": "Builders compete for the D: lock and HDD I/O, which slows the round and them.", "mitigation": "No new holds during the round (step 2). The class-round queue priority and the 300 s slice yields already bound the effect."},
+  {"risk": "The candidate is frozen while MENU-INV-1 is still red on origin (F11).", "mitigation": "Step 1: freeze after c0e87947 lands and verify with ls-remote."},
+  {"risk": "Target binding refusal (run-round.sh:564).", "mitigation": "Verified: the D: slot's .studio-workspace-root names the same export manifest as the C: target (F9). No new target dir is created."},
+  {"risk": "Stale libraries in the D: slot (2026-10-24) make it nearly cold.", "mitigation": "Accepted. At the current tip the heavy harness units are cold on C: too (F6), and only D: has room. The 21.52 GiB already there is reused where its identities still match."},
+  {"risk": "Leftover cargo: about 350-450 GiB of round identities on D: plus 231.49 GiB idle on C: after the round ('unneeded old cargo').", "mitigation": "Morning item (ii): an inspection-based exact list for the C: round target, decided once the disk for future rounds is known. CX-VAL-005 cleans the round's outputs after verdicts, still within CX-107/HSK-ART-005 approval."},
+  {"risk": "D: fills from other actors during the round.", "mitigation": "D: free-space guard (alert below 1000, stop below 300 GiB) as a clean infrastructure stop with no verdict."},
+  {"risk": "Memory pressure from cold builds.", "mitigation": "Record commit free as in attempt 3 (min 103.6 GB then). Fewer concurrent builders tonight. Classify any memory failure from its output (CX-VAL-006)."},
+  {"risk": "The CX-EXEC-015(4) reading: the same infrastructure failure_class twice (a2 c-cap-projection, a3 c-cap-368) might bar a round until the declared test environment changes.", "mitigation": "Both attempts opened no round, so (4) arguably does not apply (UNVERIFIED reading). If it does, a different target disk under the sole root is a change of the declared build location, and the C:-cap class cannot recur on D:. The lead records the reading in the dispatch."},
+  {"risk": "GPU tests on D:.", "mitigation": "No change: the GPU test lock was already under the D: artifact root in attempt 3."}
+ ],
+
+ "operator_approval": {
+  "needed_for_chosen_option": "none",
+  "c_path_if_ever_wanted": "No removal list makes a FULL attempt 4 at the current tip reliably fit the 400 GB grant (c_empty_grant_full_set). Only a larger grant, or a debuginfo/test-binary reduction (later_items), would. For the stale b57c82d1 resume only (rejected), the smallest list would be whole removal of the six studio-team-dev lane targets under C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes, 136.51 GiB, owners PASS_V2..V6 plus one red tree with no ledger row (target_report.py --disk c, 2026-11-13). It covers the mid projection, not the high one.",
+  "morning_items": [
+   "plan W (unchanged, research/cargo-cleanup-plan-20261113-W.json)",
+   "C: round target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target, 231.49 GiB (older copies 180.01): keep for future C: rounds or remove, from a fresh target_report inspection (CX-107, HSK-ART-005)",
+   "debuginfo below line-tables-only for test builds (Codex CX-984-014 change plus a product commit to run-round.sh and studio-env.sh, measured on one lane first)"
+  ]
+ },
+
+ "later_items": [
+  {"what": "Fewer harness test binaries: fold hsk-studio-harness's 100 integration-test files (and harness-view's 36) into a few binaries.", "why_high_roi": "Each feature unit relinks every test binary under its own identity (F8: up to 36 copies of one name). Bytes and link time scale with binaries x feature units, independent of debuginfo.", "validation": "Measure one heavy unit's growth before and after on a lane target; full round afterwards (root input).", "status": "UNVERIFIED savings; product lane, steward-owned"},
+  {"what": "Land the steward's cut of the 5 strict-subset harness feature units (.config/round-features.toml).", "why_high_roi": "Five fewer harness identities per full round; R59 recorded matrix_cut_no_objection.", "validation": "round-select plan count; the next full round.", "status": "pending landing (round-R60.json attempt_3.matrix_cut)"},
+  {"what": "debug = none (and the matching strip) for round and lane test builds.", "why_high_roi": ".pdb is 75% of new round bytes at line-tables-only (F7).", "validation": "Measure one lane first: check whether a PDB is still written, the unit growth, and that panic messages still carry file:line.", "status": "needs a Codex CX-984-014 change; every target goes cold once (F5)"}
+ ],
+
+ "unverified": [
+  "All per-unit and full-canary projections (the validator's attempt-3 projection basis and the rates applied in space_arithmetic).",
+  "That the current tip gives the viewer-family units new identities: derived from cargo master source (F5) and the Cargo.toml diff (F6), not observed by a build. The 1.97.1 cargo source was not read.",
+  "Whether the default (workspace) unit's identity changes at the current tip.",
+  "Build duration on the D: HDD.",
+  "Whether rustc 1.97.1 on windows-msvc still writes a PDB at debug = none, and the size saved.",
+  "That panic file:line output stays intact without debuginfo (standard Rust behaviour, not run here).",
+  "The CX-EXEC-015(4) reading for two unopened attempts.",
+  "That 89f27330 (the trunk repair's landed sha per kernel f973efe7) is on origin: not checked by ls-remote here."
+ ],
+
+ "verified_reads": [
+  "validation/round-R60.json attempts, attempt_3 (growth, deps_split, c_tree, stop, time, matrix_cut, selection)",
+  "ledger.json round_R60, direction.resume_20261108 (plan_t, c_cap_20261111), operator_direction_20261111, pause_20261111, pause_20261112, c_cap_20261107",
+  "research/measure-20261113-debuginfo.json, research/decision-20261111-c-cap-placement.json, research/cargo-cleanup-plan-20261113-W.json",
+  "tools/lead/dispatch_r60.py, tools/lead/target_report.py (run read-only: --disk c, and inspect_target() on both round targets)",
+  "validation/dispatch-prompt-R60.txt, Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R60.jsonl (22 lines, last kind kernel_commit 77993b93)",
+  "export tools/run-round.sh, .cargo/config.toml, Cargo.toml profiles, .config/disk-build-lock.toml, rust-toolchain.toml; builders/studio-env.sh",
+  "Codex CX-VAL-001..011, CX-984-012/014, CX-107, CX-EXEC-015; root CLAUDE.md HSK-ART-001..005",
+  "product worktree wt-studio-lanes/smb-folio-angle-unbounded-1 at a77c4ee4 (read-only: git diff, git show, git grep)"
+ ]
+}
