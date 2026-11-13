@@ -717,6 +717,14 @@
    "lead_reading": "lead ruling Q2 2026-11-13: the STU-RAS rows govern this lane's filters; no STU-FX-103 record is emitted (named cut)",
    "source": "lane SMB-PS-FILTER-ADJUST-COMMANDS-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-88",
+   "gap": "STU-WB-001 whiteboard mode has no StudioDocument field",
+   "needs": "a document-level place for whiteboard mode",
+   "lead_reading": "whiteboard mode stored in the document-level artboard_options entry, not a StudioDocument field",
+   "source": "lane SMB-BOARD-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

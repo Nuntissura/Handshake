@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T13:38:07Z",
+ "updated_at": "2026-11-13T13:55:09Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20086,8 +20086,8 @@
   },
   {
    "lane_id": "SMB-BOARD-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio (board node records), hsk-studio-composite (drawing over existing vector and text paths), hsk-studio-harness-core (action/commands/board.rs), hsk-studio-harness-view (new egui-free board module)",
    "lane_file": "builders/lanes/hsk-studio-board-1.json",
    "brief": "builders/briefs/lane-smb-board-1.md",
@@ -20095,11 +20095,12 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T13:55:09Z",
    "closes": [
     "research/width-plan-20261108-print-web.json rank 4",
     "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WB board rows"
-   ]
+   ],
+   "claim": "whiteboard first slice at c8fca900: board profile (whiteboard mode written at creation in the artboard_options entry), boards as artboards, sticky, shape_with_text, section and connector (STRAIGHT/ELBOWED, node and magnet endpoints, 12 caps) as typed board.* rows, each one step named by its catalog id (Run::catalog_step / set_entry_step), connectors rerouted in the step, PNG export through the JobPort; review e4d033aa F1-F13 fixed; R60-a3 options entry bounded by the live artboards"
   },
   {
    "lane_id": "SMB-WEB-CODE-1",
@@ -22835,6 +22836,31 @@
     "added_at": "2026-11-13T13:38:07Z",
     "item": "SMB-LAYER-ID-STABILITY-1: never-reuse layer ids (industry norm) across all mint sites, with chronicle retired-address pruning (Budget.revisions), DS design states keyed by (layer, instance), stable copy ids with in-place redraw, and no-op sync semantics; cross-lane, owns harness-view layers, text, vector and design mint sites plus chronicle. Findings from this lane (option A at 7b0ca538, reverted): (1) with stable copy ids a sync that changes nothing has no structure write and the run refuses it nothing_to_change, while 13 DS tests (one_undo_step..., undo_back_across_compactions..., redo_after_the_undo..., a_state_refused_after_the_sync..., both measured probes, three_hundred_syncs..., r1_*, detach_keeps_the_frame..., f6_a_stale_override..., a_native_state_whose_children..., a_sync_moves_an_explicit_mode...) expect every sync to be one history step (a no-op sync needs a defined step or success semantics; whether the run accepts identical entry bytes as a step is UNVERIFIED); (2) a_sync_with_no_room_for_its_states_is_refused_whole expects a sync to add states, which stable identity replaces (net 0); (3) r2_reopen_after_more_than_1024_instance_commands_keeps_working fails undo budget_exceeded under never-reuse ids, inferred (not instrumented) from the chronicle revision table (Budget.revisions 8192, hsk-studio-chronicle lib.rs:364-380, check near line 951) growing one address per fresh layer id; (4) the run refuses a delete and a create of one id in one transaction (duplicate_layer), so in-place update is the only stable-id redraw; (5) the delete paths other than delete_layer that leave raster_records rows (vector piece/pathfinder/knife replacements, design copy deletes, text conversions)",
     "owner": "cross-lane: harness-view layers, text, vector and design mint sites plus chronicle"
+   },
+   {
+    "added_at": "2026-11-13T13:55:09Z",
+    "item": "StudioDocument: implement Default and switch the 48 struct-literal sites to ..Default::default(), so new document fields stop causing rebase conflicts in every crate (then whiteboard mode can move into the document record)",
+    "owner": "a later folio lane"
+   },
+   {
+    "added_at": "2026-11-13T13:55:09Z",
+    "item": "board node resize command (a shape's size follows its text upward in SMB-BOARD-1)",
+    "owner": "a later board lane"
+   },
+   {
+    "added_at": "2026-11-13T13:55:09Z",
+    "item": "convert board node to plain vector (pathfinder, Create Outlines and Outline Stroke refuse board_node_not_vector_editable until then)",
+    "owner": "a later board lane"
+   },
+   {
+    "added_at": "2026-11-13T13:55:09Z",
+    "item": "under the PRIORITY central-prune candidate: a plain layer delete of a board node leaves its story in the text entry",
+    "owner": "the central-prune lane"
+   },
+   {
+    "added_at": "2026-11-13T13:55:09Z",
+    "item": "under the PRIORITY central-prune candidate: a deleted board node's path records stay in the vector entry",
+    "owner": "the central-prune lane"
    }
   ],
   "pause_20261103": {

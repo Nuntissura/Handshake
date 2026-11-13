@@ -1,19 +1,157 @@
 {
   "crate": "hsk-studio-folio (board node records), hsk-studio-composite (drawing over existing vector and text paths), hsk-studio-harness-core (action/commands/board.rs), hsk-studio-harness-view (new egui-free board module)",
   "lane": "SMB-BOARD-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
-  "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "f321760f",
+  "commits": [
+    {
+      "sha": "bd8d8c3b",
+      "slice": "folio board records: boards, board_nodes (sticky, shape_with_text, connector, section), closed enums, validation; board kinds accepted as vector-backed layers"
+    },
+    {
+      "sha": "cf8d25b3",
+      "slice": "composite board drawing: shapes, magnets, STRAIGHT/ELBOWED routes, twelve caps"
+    },
+    {
+      "sha": "2ddfbca3",
+      "slice": "harness-core board.* rows; document.new board profile; manual and CLI usage; doc-new test pin moved"
+    },
+    {
+      "sha": "97c51273",
+      "slice": "red tests: harness/tests/board.rs"
+    },
+    {
+      "sha": "70099d29",
+      "slice": "harness-view board module (Viewer::board_command), decoder, routing, document.new registration"
+    },
+    {
+      "sha": "d9fc2176",
+      "slice": "red test: every native shape and cap renders in a board export"
+    },
+    {
+      "sha": "d039cecc",
+      "slice": "shape interior lines as a second path; outline stays a closed area-text container"
+    },
+    {
+      "sha": "a61209ca",
+      "slice": "red test: shape text fits (text_overset in reads)"
+    },
+    {
+      "sha": "afd18841",
+      "slice": "shape text on a centred fixed first baseline; reads report text_overset"
+    },
+    {
+      "sha": "e4d033aa",
+      "slice": "shape sizing per text band (fits), inset 8, slack; clippy needless-borrow fix"
+    },
+    {
+      "sha": "dc8ca7a9",
+      "slice": "red tests for review e4d033aa FIX_FIRST (F1-F13); export split into admission and the admitted run"
+    },
+    {
+      "sha": "b8825d6b",
+      "slice": "red test R60-a3 probe lead (SMB-DOC-NEW-1): 2001 add/set/delete artboard cycles keep the options entry bounded"
+    },
+    {
+      "sha": "9a588250",
+      "slice": "folio: boards member removed (F4 option B)"
+    },
+    {
+      "sha": "fd1a2ddd",
+      "slice": "composite: hollow ERD zero ring (F8)"
+    },
+    {
+      "sha": "584ba183",
+      "slice": "harness-core: whiteboard mode in artboard_options at creation (F4); options entry bounded by live artboards (R60-a3); manual bounds"
+    },
+    {
+      "sha": "5b7c7ffa",
+      "slice": "harness-view: F1, F2 paths in place, F4, F5, F6, F9, F12, F13"
+    },
+    {
+      "sha": "08e770ed",
+      "slice": "tests: R60-a3 options red test reads the containers' `id` key (first red run stopped on the wrong key; re-proven red); hostile sticky case uses another control character (F12 ruling), two-line section name stays refused"
+    },
+    {
+      "sha": "985555ac",
+      "slice": "view: move reroutes on the in-place bounds (no second offset)"
+    },
+    {
+      "sha": "26ac1c74",
+      "slice": "clippy: unused import; arrange test slice of a reference"
+    },
+    {
+      "sha": "012768fc",
+      "slice": "view: F12 line breaks stored as U+2028 (forced line break), commands and reads speak \n"
+    },
+    {
+      "sha": "5f602d81",
+      "slice": "red: Run::catalog_step tests (tests/run_catalog_step.rs) with an inert stub"
+    },
+    {
+      "sha": "e5225df8",
+      "slice": "harness-core: Run::catalog_step (F3, approved beyond brief)"
+    },
+    {
+      "sha": "aab70e11",
+      "slice": "view: F2 text in place, F3 catalog-id steps (catalog_step, set_entry_step), F7 text entry in the step, story dropped on delete"
+    },
+    {
+      "sha": "92c82599",
+      "slice": "manual: board bounds after F2/F7"
+    },
+    {
+      "sha": "36ceda4d",
+      "slice": "red: F1 fresh-id test (green after the PS-FILTER rebase)"
+    },
+    {
+      "sha": "8a9c2207",
+      "slice": "test: open-drop unit test builds its second viewer through with_context (re-proven red at 0d5a173d)"
+    },
+    {
+      "sha": "506af0a3",
+      "slice": "harness-core: RUN_COMMANDS row layer.restructure_and_entry names catalog_step (corpus coverage)"
+    },
+    {
+      "sha": "c8fca900",
+      "slice": "pushed tip (506af0a3 rebased onto f321760f)"
+    }
+  ],
+  "capabilities_done": [
+    "document.new profile board: one artboard Board 1, listed as the first board (whiteboard mode); board.add adds boards (artboards) in one undo step",
+    "board.sticky.create/.set, board.shape_with_text.create/.set, board.section.create/.set, board.connector.create/.set, board.node.read/.set_text/.set_fill/.move/.delete, board.read: each mutating row one undo step through the caller's run context",
+    "connectors: position, magnet and position_and_node endpoints; AUTO/TOP/RIGHT/BOTTOM/LEFT/CENTER; STRAIGHT and ELBOWED routes; twelve STU-WB-109 caps drawn; reroute on board.node.move in the same step; broken state on delete with connector_endpoint_node_unresolvable (warning), last route kept",
+    "board.export_png: board content bounds (or board bounds) to PNG, admitted through the viewer JobPort",
+    "save and reopen: records ride the vector entry's vector_records member; text stories in the text entry"
+  ],
+  "tests": {
+    "red": "97c51273 board 0/6 (command_not_driveable); d9fc2176 shapes test FAIL (vector_refused vector_text_layout, cylinder); a61209ca shapes test FAIL (text_overset); logs Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/smb-board-1-logs/smb-board-1-red-<sha>.log",
+    "focused_e4d033aa": "harness --test board 7/7 PASS; clippy composite + harness-view[viewer] --tests rc 0 (smb-board-1-green-board-e4d033aa.log, smb-board-1-clippy-e4d033aa.log)",
+    "focused_70099d29": "folio+composite board units 8/8, harness board+document_new 21/21 (smb-board-1-focused-70099d29.log); composite board units 3/3 again at d039cecc",
+    "visual": "smb-board-1-visual-e4d033aa.png inspected: section label, stickies (square, wide), rectangle/ellipse/diamond/cylinder with centred text, straight/elbowed connectors with ARROW_EQUILATERAL, ERD_ONE, ERD_ZERO_OR_MORE, CIRCLE_FILLED, ARROW_LINES caps",
+    "bundled": "not run yet (waiting for the lead after REVIEW READY)",
+    "red_review_e4d033aa": "b8825d6b (contains dc8ca7a9): 11 board tests FAIL on their own assertions or their ok() refusal, five_thousand_moves TIMEOUT 120 s, view F9/F13 unit tests FAIL; logs smb-board-1-red-b8825d6b.log, smb-board-1-red-view-b8825d6b.log",
+    "red_r60_a3": "b8825d6b with the 08e770ed key line: FAIL 'set_options refused at cycle 2000: artboard_options_invalid' (69.97 s); log smb-board-1-red-options-b8825d6b.log",
+    "green_26ac1c74": "harness board+document_new 28/32 (open: multi-line sticky, then fixed in 012768fc; text writes F2-text, sticky undo F7, JSONL undo name F3 wait for DS-VARIABLES); options cycles PASS 6.53 s; 5000 moves PASS 4.1 s; view board unit 2/2; folio+composite board unit 8/8 (at 5b7c7ffa); clippy: no warning in lane files; logs smb-board-1-green-26ac1c74.log, smb-board-1-clippy-26ac1c74.log",
+    "red_catalog_step": "5f602d81 (inert stub): run_catalog_step 0/4, each on its own assertion; log smb-board-1-red-catalog-5f602d81.log",
+    "green_92c82599": "harness-core run_catalog_step 4/4 + run_restructure_and_entry 2/2 + run_and_entry_redo 4/4; harness board 16/16 + document_new 16/16 (5000 moves 4.17 s, 1000 text writes 11.6 s, JSONL 16.0 s of the 120 s cap, options cycles 6.5 s); view board unit 2/2; clippy: no warning in lane files (containers.rs:970 bool::then is 758d968a, LAYOUT-DELETE); logs smb-board-1-core-92c82599.log, smb-board-1-green-92c82599.log, smb-board-1-view-92c82599.log, smb-board-1-clippy-92c82599.log",
+    "red_f1_fresh_id": "36ceda4d (before PS-FILTER's revision mint): a_layer_made_after_a_board_node_delete_takes_a_fresh_id FAIL on its own assertion (the shape took the deleted sticky's id SLYR-...-7ede-9000-000000000000); log smb-board-1-red-freshid-36ceda4d.log",
+    "f3_attribution_mutation": "36ceda4d with the JSONL session run as actor board-mutant (test input mutated in the working tree, restored): FAIL at board.rs:672, the record's actor assertion (left board-mutant, right board-lane); log smb-board-1-mutation-actor-36ceda4d.log",
+    "red_f1_revised": "reused-id test appended to ff0c8373 (pre-fix tree): FAIL on its own assertion (the shape took the deleted sticky's id SLYR-...-9000-000000000000 and inherited 2 records); log smb-board-1-red-reusedid-ff0c8373.log. Open-drop unit test: first run at 0d5a173d stopped on a compile error (Viewer::new not in the lib test build), fixed in 8a9c2207, re-proof in hold13",
+    "focused_1d78c4a7": "harness board 17/17 + document_new 16/16 PASS (log smb-board-1-focused-1d78c4a7.log)",
+    "red_open_drop": "0d5a173d with 8a9c2207's viewer construction: FAIL on its own assertion (4 records, expected 3); log smb-board-1-red-opendrop-0d5a173d.log",
+    "bundled_1_8a9c2207": "FAILED: 790 run, 789 passed, 1 failed (harness-core action_records corpus_lists_every_run_operation_with_recordability: 'mutating Run methods without a RUN_COMMANDS row: [catalog_step]'), 1 skipped; fresh example exit 0; clippy clean; log smb-board-1-bundled-8a9c2207.log. Fixed in 506af0a3 (row layer.restructure_and_entry names catalog_step)",
+    "bundled_2_506af0a3": "GREEN: lane-check exit 0; fresh example (studio-harness, viewer) exit 0; step 0 clean; clippy over the tested crates and their dependents clean in lane files (the one hit, containers.rs:985 bool::then, is 758d968a LAYOUT-DELETE); ONE test run 790 run, 790 passed, 1 skipped: folio 278, package 44, composite 166, harness-core 89, harness-view [viewer] 180, harness board 17 + document_new 16 = 33; log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/smb-board-1-logs/smb-board-1-bundled-506af0a3.log (first line: sha 506af0a353d7df032a2af6aae39bd9aa7ea52c11)",
+    "landing_c8fca900": "rebased onto f321760f (PS-FILTER-ADJUST-COMMANDS-1 landed: harness-core, harness-view touched; view/mod.rs conflict resolved keeping both modules; layers.rs delete path merged with both hooks); one D: hold: fresh example exit 0; lane-check suites harness-core 89 + harness-view [viewer] 187 + harness board 17 + document_new 16 = 309 run, 309 passed, 1 skipped, exit 0; per-sha HEAD~1 PER_SHA_RESULT OK (range 10fe764d..c8fca900); pushed c8fca9005eeedcc167b6058c3aa5c0fc52100c75 (guarded, no force); log smb-board-1-logs/smb-board-1-land-c8fca900.log, per-sha logs per-sha-c8fca900/"
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 1807,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: SMB-BOARD-1 at c8fca900 (builder idle)",
+  "updated_at": "2026-11-13T13:54:54Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +177,118 @@
       "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WB board rows"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-sentinels-native-1"
+    "reuses_tree_and_target": "smb-sentinels-native-1",
+    "design": "No new Payload variant and no new NodeKind: a board node is a StudioLayer whose kind is its STU-WB-103 token (sticky, shape_with_text, connector, section) with Payload::Vector (its drawing); Folio validate_document accepts these four kinds exactly as vector layers (lib.rs vector arm and the graph source typing). Board fields live in StudioVectorRecords.boards / .board_nodes (skipped when empty, byte-identical older sets), riding the existing vector entry, so no session entry token and no package change were needed. Node text is an area-text story bound inside the node's own path (Studio reading of STU-WB-104/105 'text sublayer', declared).",
+    "payload_matches_touched": "none (no Payload variant added); kind-string sites: folio lib.rs initial_binding (n/a, falls to the vector arm), lib.rs (kind, Payload::Vector) arm (fixed), lib.rs graph source typing (fixed)",
+    "spec_basis": "STU-WB-001 whiteboard mode of the one StudioDocument; STU-WB-002/120 boards as page-kind containers (artboards); STU-WB-102 board nodes are StudioLayer kinds; STU-WB-103 twelve kinds (four bound); STU-WB-104 sticky fields; STU-WB-105 shape_type vocabulary+token kept apart, studio_declared 12 and Plugin API 1.141.0 30 tokens; STU-WB-106/107/108/109 connector fields, line types, endpoints, caps; STU-WB-115 section fields and dev_status (STU-DS-159); STU-WB-127/010 PNG export; STU-WB-134 factory/read/mutate commands; STU-WB-142 broken endpoint warning",
+    "v4_06_class": "board-kind vector layers treated as non-vector by kind-string checks, and board edits that bypass the board commands; regex kind == \"vector\"|\"vector\" =>|r\\.kind == \"vector\" over crates/*/src plus the vector-tool move path: folio lib.rs:705 initial_binding n/a; folio lib.rs:804 fixed; folio lib.rs:914 fixed; harness-core harness.rs:285 n/a (entry token); harness-core document_new.rs:64 n/a (profile token); harness-view commands.rs:163 n/a (command domain); harness-view hosted.rs:1235 named not fixed (hosted panel vector list omits board nodes; GUI out of scope); harness-view vector.rs:1526 named not fixed (Text tool click does not target board nodes); harness-view vector.rs:2531 named not fixed (direct selection order omits unselected board nodes); harness-view vector/arrange.rs transform_layers/apply_affines named not fixed (a vector-tool move of a board node does not reroute its connectors until the next board edit; board.read route_current=false reports it). Count 10 sites: 2 fixed, 4 n/a, 4 named not fixed.",
+    "sibling_gaps": "a generic layer delete (layers.rs) or duplicate of a board node leaves the record dormant / copies no record (board.read lists recorded nodes only; board.node.delete removes record and layer in one step); a vector-tool transform of a board node does not reroute connectors until the next board edit (board.read route_current says so); section_contents_hidden stored and read, not drawn; CURVED and six Plugin API shapes (SHIELD, ENG_QUEUE, ENG_FILE, ENG_FOLDER, DOCUMENT_MULTIPLE, SPEECH_BUBBLE) refused typed; connector text label, stamps, highlights, washi tape, tables, code blocks, media, link unfurls, widgets, facilitation (STU-WB-121), templates, PDF/CSV export, board GUI (OD-4) not done; text entry 256-story cap bounds board text edits per document (typed text_entry_over_budget)",
+    "beyond_brief_paths": [
+      "hsk-studio-folio/src/lib.rs, vector.rs (owned crate src: mod board, two StudioVectorRecords members, board kinds in validate_document)",
+      "hsk-studio-composite/src/lib.rs (owned crate src: pub mod board)",
+      "hsk-studio-harness-core/src/document_new.rs (DocumentProfile::Board, BOARD_DEFAULT_SIZE, blank board document): the brief's target 'document.new board profile' lives here",
+      "hsk-studio-harness-core/src/manual.rs:23 (new usage lists board; profile_not_available removed)",
+      "hsk-studio-harness/src/cli.rs:345,485 (usage strings list board)",
+      "hsk-studio-harness/tests/document_new.rs:87,558 (the pinned board refusal of SMB-DOC-NEW-1 becomes a board document)",
+      "hsk-studio-harness-view/src/view/mod.rs (pub mod board), view/commands.rs (mod board + one route line), view/commands/board.rs (decoder, new), view/document_new.rs (board profile registers its first board), view/board/write.rs (submodule of the owned board.rs)"
+    ],
+    "mts_proven_candidates": "MT-521, MT-33623 (STU-WB-001); MT-522, MT-33624 (STU-WB-002, partial: navigator reuse = artboards); MT-33577 (102); MT-33578 (103, partial: 4 of 12 bound); MT-33579 (104); MT-33580 (105); MT-33581 (106, partial: no label); MT-33582 (107, CURVED refused); MT-33583 (108); MT-33584 (109); MT-33590 (115, collapse not drawn); MT-33603 (129); MT-33608 (134, partial: 4 of 12 kinds, no voting tally); MT-33611 (142); MT-539, MT-33632 (010, PNG only); MT-33601 (127, PNG only)",
+    "parity": "FigJam sizes, routes, AUTO side choice, cap drawings and text placement are Studio readings, UNVERIFIED (D5)",
+    "text_fit": "shape text_overset 0 for all 12 studio_declared shapes and ENG_DATABASE, SUMMING_JUNCTION, INTERNAL_STORAGE; STAR oversets 3 glyphs (not asserted; Studio reading)",
+    "beyond_brief_paths_approved": "coordinator 2026-11-13: harness-core document_new.rs (board profile) and manual.rs:23; harness cli.rs:345,485 (usage text); harness tests/document_new.rs:87,558 (rule 4a: the profile_not_available pin becomes a board document); one-line wiring in harness-view view/mod.rs and view/commands.rs; the hook in view/document_new.rs; new view/commands/board.rs and view/board/write.rs; folio lib.rs, the two kind-string sites",
+    "partial_cuts": [
+      {
+        "row": "STU-WB-103 / MT-33578",
+        "status": "PARTIAL",
+        "cut": "4 of 12 kinds bound (sticky, shape_with_text, connector, section); stamp, highlight, washi_tape, table, code_block, media_embed, link_unfurl, widget refused PayloadMismatch",
+        "next_lane": "SMB-BOARD-2 (stamp, highlight, washi_tape with stuck_to_node_id STU-WB-110..112, 118) and SMB-BOARD-3 (table, code_block STU-WB-113, 114)"
+      },
+      {
+        "row": "STU-WB-106 / MT-33581",
+        "status": "PARTIAL",
+        "cut": "connector text label and text_background not done; rotation stored, not applied",
+        "next_lane": "SMB-BOARD-2 (label as path text on the route)"
+      },
+      {
+        "row": "STU-WB-107 / MT-33582",
+        "status": "PARTIAL",
+        "cut": "CURVED refused connector_line_type_not_available",
+        "next_lane": "SMB-BOARD-2"
+      },
+      {
+        "row": "STU-WB-105, 129 / MT-33580, MT-33603",
+        "status": "PARTIAL",
+        "cut": "six Plugin API tokens without native geometry refused shape_type_geometry_not_available (SHIELD, ENG_QUEUE, ENG_FILE, ENG_FOLDER, DOCUMENT_MULTIPLE, SPEECH_BUBBLE); STAR text oversets; no fixture parity proof",
+        "next_lane": "SMB-BOARD-2 or a nib shape lane"
+      },
+      {
+        "row": "STU-WB-115 / MT-33590",
+        "status": "PARTIAL",
+        "cut": "section_contents_hidden stored and read, collapse not drawn; membership computed from node centres",
+        "next_lane": "SMB-BOARD-2"
+      },
+      {
+        "row": "STU-WB-002, 120 / MT-522, MT-33624",
+        "status": "PARTIAL",
+        "cut": "boards are artboards of a whiteboard-mode document; navigator reuse through go_to_artboard, no board GUI (OD-4 at STU-SHL-136)",
+        "next_lane": "board GUI lane after OD-4"
+      },
+      {
+        "row": "STU-WB-134 / MT-33608",
+        "status": "PARTIAL",
+        "cut": "factory/read/mutate for 4 kinds; voting tally (STU-WB-121) not done",
+        "next_lane": "SMB-BOARD-FACILITATION-1 (STU-WB-121, 122)"
+      },
+      {
+        "row": "STU-WB-010, 127 / MT-539, MT-33632, MT-33601",
+        "status": "PARTIAL",
+        "cut": "PNG export only; PDF and tabular (CSV, STU-WB-128) not done",
+        "next_lane": "SMB-BOARD-EXPORT-1"
+      },
+      {
+        "row": "STU-WB-121",
+        "status": "MISSING (cut)",
+        "cut": "facilitation records not started",
+        "next_lane": "SMB-BOARD-FACILITATION-1"
+      }
+    ],
+    "review_e4d033aa": "FIX_FIRST, research/review-smb-board-1-e4d033aa.json (kernel 1963fb96). Red tests dc8ca7a9. Fixed in the working tree (commits pending the check hold): F1 delete hook (view/layers.rs both delete branches), F2 paths in place (move, redraw, reroute, restyle; entry-only steps), F4 option B, F5 degenerate connector, F6 arrange hook and rewrite refusals, F8 hollow ring, F9 read cancel and bounds once, F12 multi-line text and connector fill null, F13 canceled export. Waiting on DS-VARIABLES: F2 text in place inside the step, F3 catalog-id undo names. Waiting on PS-FILTER: F1 fresh-id test.",
+    "f4_reading": "whiteboard mode stored in the document-level artboard_options entry, not a StudioDocument field (lead ruling 2026-11-13, option B; written by harness-core Run::new_document for the CLI and the viewer; read by Run::whiteboard_mode; set_options keeps it; board.add and board node creates refuse not_whiteboard_document on any other document; never switched silently)",
+    "r60_a3_probe_lead": "R60-a3 probe lead (SMB-DOC-NEW-1), added scope 2026-11-13: the artboard_options entry outgrew its reader after 2001 add/set/delete cycles. Red test b8825d6b (tests/document_new.rs add_set_delete_cycles_keep_the_artboard_options_entry_bounded_by_the_live_artboards). Fix (harness-core harness/containers.rs, document_new.rs doc): artboard.delete removes its options row in its own step (container undo/redo swap the entry), set_options writes the live artboards' rows only.",
+    "next_lane_candidates": [
+      "StudioDocument: implement Default and switch the 48 struct-literal sites to ..Default::default(), so new document fields stop causing rebase conflicts in every crate (then whiteboard mode can move into the document record)",
+      "board node resize command (a shape's size follows its text upward in this slice)",
+      "convert board node to plain vector (pathfinder, Create Outlines and Outline Stroke refuse board_node_not_vector_editable until then)"
+    ],
+    "v4_06_additions": "named after review F6: pathfinder (refused board_node_not_vector_editable), Create Outlines (refused), Outline Stroke (refused), arrange align/distribute/transform (fixed: text follows the outline, connectors reroute in the same step), duplicate_layer (named not fixed: the copy carries no board record, it is a plain vector layer of a board kind that board.read does not list), artboard.delete (named not fixed: board nodes are root layers, so a board with nodes is deletable and its nodes stay recorded under the gone board_id; board.read lists them, board.export_png of that board is board_unknown), expand (n/a: it refuses layers that are not live shapes already)",
+    "beyond_brief_paths_pending_approval": "harness-view view/layers.rs (two lines, F1 hook), view/vector.rs (three guards, F6), view/vector/arrange.rs (one line, F6 hook); harness-core harness/containers.rs (F4 mode write and reader; R60-a3 options bound: approved by the coordinator as the artboard-options writer); harness-view view/mod.rs open_inner: one hook line self.board_opened() after design_opened (revised F1 ruling: drop records of absent layers at open); harness-core action/commands/layer.rs: the RUN_COMMANDS row layer.restructure_and_entry names catalog_step (corpus coverage of the approved Run::catalog_step)",
+    "f12_reading": "sticky and shape text take several lines (at most 64, \n in commands and reads); a line break is stored as U+2028, Type's forced line break, which the live area-text path lays out (a line feed is a paragraph separator there and the viewer shaping refuses it InvalidBidi: probe at 26ac1c74); a section name is one line; a connector reads fill null (STU-WB-106)",
+    "rebase_20261113": "rebased onto 3fb489ab (DS-VARIABLES landed): old -> new shas dc8ca7a9->377fad9f, b8825d6b->bebf8e64, 9a588250->7c82c33e, fd1a2ddd->4a6db8de, 584ba183->13db4f3a, 5b7c7ffa->54fdb1e6, 08e770ed->977e7460, 985555ac->241230c1, 26ac1c74->9df2a1a4, 012768fc->fb5ae948 (red logs keep the old names; the code is identical); conflicts in view/commands.rs and view/mod.rs resolved keeping both lanes' lines",
+    "beyond_brief_paths_approved_2": "coordinator 2026-11-13: harness-core harness.rs Run::catalog_step (F3) with tests (harness-core tests/run_catalog_step.rs); harness-core document_new.rs and its artboard-options writer harness/containers.rs (R60-a3 probe lead); harness-core suite added to the bundled run",
+    "rebase_20261113b": "rebased onto 12fd5b8a (WEB-CODE-1 and TYPE-CHARACTER-ATTRIBUTES-1 landed), no conflict: 377fad9f->ff0c8373 (red e4d033aa), 5f602d81->7c417646 (red catalog_step), e5225df8->a26b7042, aab70e11->3555d195, 92c82599->0c100094, 36ceda4d->121bf1f4, ac058ddd->0d5a173d (red revised F1), d8efab8b->1d78c4a7 (tip)",
+    "f1_revised_ruling": "lead 2026-11-13: the never-reuse id scheme moved to SMB-LAYER-ID-STABILITY-1, so layer ids may be reused; F1 holds without fresh ids: the delete step drops the board record and text binding (54fdb1e6), and at open board records naming an absent layer are dropped with a board_record_dropped loss note (Viewer::board_opened, 1d78c4a7). The fresh-id test of 121bf1f4 (red, reachable) is replaced by a_layer_made_after_a_board_node_delete_never_inherits_its_board_record (0d5a173d).",
+    "rebase_20261113c": "rebased onto f321760f: tip 506af0a3 -> c8fca900 (bundled log smb-board-1-bundled-506af0a3.log covers folio and package, which the PS-FILTER commits did not touch)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T13:55:09Z",
+        "on": "SMB-BOARD-1 review e4d033aa F4",
+        "decision": "option B: harness-core writes whiteboard mode at creation into the artboard_options entry (CLI and viewer); board commands refuse not_whiteboard_document on other documents"
+      },
+      {
+        "at": "2026-11-13T13:55:09Z",
+        "on": "SMB-BOARD-1 review e4d033aa F3",
+        "decision": "Run::catalog_step approved beyond the brief (generic helper: group step and record named by the catalog id, rollback newest-first, nesting refused)"
+      },
+      {
+        "at": "2026-11-13T13:55:09Z",
+        "on": "SMB-BOARD-1 review e4d033aa F1 (revised)",
+        "decision": "layer ids may be reused until SMB-LAYER-ID-STABILITY-1; the delete step drops the board record and binding, and records naming an absent layer are dropped at open with a loss note"
+      },
+      {
+        "at": "2026-11-13T13:55:09Z",
+        "on": "SMB-BOARD-1 beyond-brief paths",
+        "decision": "approved: view/layers.rs F1 hook, view/vector.rs F6 guards, view/vector/arrange.rs F6 hook, view/mod.rs board_opened hook, harness-core action/commands/layer.rs catalog_step on an existing row, harness-core harness.rs catalog_step, document_new.rs and harness/containers.rs (R60-a3)"
+      }
+    ]
   }
 }
