@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T09:27:50Z",
+ "updated_at": "2026-11-13T10:32:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20175,8 +20175,8 @@
   },
   {
    "lane_id": "SMB-WEB-SITE-2",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core (web_site.rs, action/commands/web.rs), hsk-studio-session (ports.rs Action), hsk-studio-kernel-bindings (wire.rs mapping)",
    "lane_file": "builders/lanes/hsk-studio-web-site-2.json",
    "brief": "builders/briefs/lane-smb-web-site-2.md",
@@ -20184,13 +20184,14 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T10:32:17Z",
    "closes": [
     "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WEB 14.28.6 rows",
     "ledger direction.next_lane_candidates 2026-11-12T15:08:00Z Action::Read",
     "ledger direction.next_lane_candidates 2026-11-12T15:08:00Z change-link-site-wide",
     "ledger direction.next_lane_candidates 2026-11-11T11:09:18Z change-link-site-wide"
-   ]
+   ],
+   "claim": "3e087001 on origin: session Action::Read (wire read, bridge_version 2; edit implies read at the kernel-bindings host); change-link-site-wide with case and percent spellings (engine-denied spellings left_denied, complete=false); templates with five region kinds, expressions, update propagation with drift, orphan refusal and reapply/detach; STU-WEB-094 locked-region guard on every write path; library items; one site-level snippet library (studio-snippets.json) with unique triggers; STU-WEB-113 optional site-record fields; web.synchronize put/get with plan digest (two-way cut); review dccc57b2 F1-F14 and the R60-a3 probe leads on SMB-WEB-SITE-1 code fixed. bundled-smb-web-site-2-8a165c6c.log: lane-check 286/286, kernel-bindings test-faults 28/28 and ckc-test-double 28/28, harness[viewer] web 56/56 with a fresh example; land-smb-web-site-2-8a165c6c.log: rebased onto 580f44b2, harness-core 75/75, harness[viewer] web 56/56, per-sha OK, pushed"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22685,6 +22686,21 @@
     "added_at": "2026-11-13T09:27:50Z",
     "item": "a designed-tree projection beside state.shell.menu so a process client can list every studio.* leaf the drive surface runs",
     "owner": "a later harness lane"
+   },
+   {
+    "added_at": "2026-11-13T10:32:17Z",
+    "item": "site record (STU-WEB-113 fields) as one site-level record at local_root, like the snippet library (lead ruling F4)",
+    "owner": "web site (harness-core web_site.rs)"
+   },
+   {
+    "added_at": "2026-11-13T10:32:17Z",
+    "item": "two-way web.synchronize with a per-target sync baseline (per-file hash at the last sync) so both-changed is a held conflict (lead ruling Q4)",
+    "owner": "web site (harness-core web_site.rs)"
+   },
+   {
+    "added_at": "2026-11-13T10:32:17Z",
+    "item": "moving a template or library item rewrites the marker paths that name it (now refused move_template_or_library_item)",
+    "owner": "web site (harness-core web_site.rs)"
    }
   ],
   "pause_20261103": {

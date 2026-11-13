@@ -1,19 +1,132 @@
 {
   "crate": "hsk-studio-harness-core (web_site.rs, action/commands/web.rs), hsk-studio-session (ports.rs Action), hsk-studio-kernel-bindings (wire.rs mapping)",
   "lane": "SMB-WEB-SITE-2",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
   "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "dd775313",
+      "subject": "red tests for site depth (read class, change link, spellings, templates, library items, snippets, site record)"
+    },
+    {
+      "sha": "a834a71b",
+      "subject": "Action::Read, change-link-site-wide, templates, library items, snippets, site-record optional fields"
+    },
+    {
+      "sha": "099d45b3",
+      "subject": "red test for synchronisation (STU-WEB-119)"
+    },
+    {
+      "sha": "d8e39d98",
+      "subject": "web.synchronize (STU-WEB-119)"
+    },
+    {
+      "sha": "a54092e1",
+      "subject": "clippy: boxed site depth, named complex types"
+    },
+    {
+      "sha": "b9f6cd59",
+      "subject": "tests: encoded spellings the engine passes; a moved repeat row is edited first"
+    },
+    {
+      "sha": "3c18cc5b",
+      "subject": "red tests for review dccc57b2 F1-F14 (F7: e1b7f955 red inputs restored)"
+    },
+    {
+      "sha": "a5919443",
+      "subject": "review fixes F1-F14, Q4, F4 option A"
+    },
+    {
+      "sha": "8e0cc60d",
+      "subject": "web.snippet borrow fix (E0502)"
+    },
+    {
+      "sha": "ec094270",
+      "subject": "red tests for the R60-a3 probe leads (SMB-WEB-SITE-1)"
+    },
+    {
+      "sha": "3e087001",
+      "subject": "R60-a3 probe leads fixed; tip, pushed"
+    }
+  ],
+  "capabilities_done": [
+    "session Action::Read (token read) with the kernel-bindings ActionWire mapping; web.site_report admitted as read",
+    "references percent-decoded before they resolve; web.move_file rewrites case-mismatched and percent-encoded spellings",
+    "web.change_link (change-link-site-wide, STU-WEB-118): every spelling, missing from allowed, one receipted transaction",
+    "templates (STU-WEB-090..093): five region kinds, params, evaluated and pass-through expressions, web.template_regions, web.template_instance, web.instance_param, web.instance_repeat, web.template_update with locked-text digest drift, reapply, detach",
+    "library items (STU-WEB-096): web.library_item_insert (one history step), web.library_item_update (receipted transaction)",
+    "snippets (STU-WEB-097..099, STU-WEB-161): site-record snippets, web.snippet, web.snippets, web.snippet_insert (block, wrap, trigger), snippet_trigger_duplicate",
+    "site record optional fields (STU-WEB-113) through web.site, saved and read back",
+    "web.synchronize (STU-WEB-119): review, put, get, both, dependents prompt/include/exclude, per-file receipt",
+    "review dccc57b2 F1-F14 fixed under the lead rulings; R60-a3 probe leads (SMB-WEB-SITE-1) (1)-(4) fixed"
+  ],
+  "tests": {
+    "red_proof": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-site-2/focused-smb-web-site-2-70f64b55.log",
+      "e1b7f955": "17 run, 7 passed, 10 failed (new tests, web row pin)",
+      "beab3b6b": "18 run, 13 passed, 5 failed (sync test, web row pin, three tests fixed in dccc57b2)"
+    },
+    "focused": [
+      {
+        "argv": "cargo clippy -p hsk-studio-session -p hsk-studio-kernel-bindings -p hsk-studio-harness-core --lib --tests",
+        "sha": "70f64b55",
+        "exit": 0,
+        "note": "no warning from this lane"
+      },
+      {
+        "argv": "cargo nextest run -p hsk-studio-session -p hsk-studio-kernel-bindings -p hsk-studio-harness-core --lib",
+        "sha": "70f64b55",
+        "exit": 0,
+        "passed": 39,
+        "failed": 0
+      },
+      {
+        "argv": "cargo nextest run -p hsk-studio-harness --test web_site_depth --test web_host --test web_site",
+        "sha": "70f64b55",
+        "exit": 100,
+        "passed": 35,
+        "failed": 3,
+        "note": "test-design faults fixed in dccc57b2"
+      },
+      {
+        "argv": "cargo nextest run -p hsk-studio-harness-core --lib -E test(web_site); cargo nextest run -p hsk-studio-harness --test web_site_depth",
+        "sha": "dccc57b2",
+        "exit": 0,
+        "passed": 19,
+        "failed": 0,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-site-2/focused-smb-web-site-2-dccc57b2.log"
+      }
+    ],
+    "red_proof_review_round": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-site-2/focused3-smb-web-site-2-8a165c6c.log",
+      "51636c02": "harness web_site_depth+web_site 41 run, 17 failed; kernel-bindings bridge_contract+command_context 16 run, 5 failed (exit 100)",
+      "5144cb60": "4 probe-lead tests run, 4 failed (exit 100)",
+      "8a165c6c_focused": "harness web_site_depth+web_host+web_site 53 run, 53 passed (exit 0)"
+    },
+    "bundled": {
+      "sha": "8a165c6c",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-site-2/bundled-smb-web-site-2-8a165c6c.log",
+      "argv": "one hold: cargo build -p hsk-studio-harness --features viewer --example studio-harness (fresh example); lane-check --owner smb-pr-sequence-session-1 --disk d (step 0, clippy session/kernel-bindings/harness-core + dependents harness, harness-view, interop-lrcat) -- cargo nextest run -p hsk-studio-session -p hsk-studio-kernel-bindings -p hsk-studio-harness-core; nextest -p hsk-studio-kernel-bindings --features test-faults; --features ckc-test-double; nextest -p hsk-studio-harness --features viewer --test web_host --test web_site --test web_site_depth",
+      "exit": 0,
+      "passed": 398,
+      "failed": 0,
+      "detail": "EXAMPLE_EXIT 0; lane-check 286/286 (3 skipped) LANE_CHECK_EXIT 0; kernel-bindings test-faults 28/28; ckc-test-double 28/28 (1 skipped); harness[viewer] web targets 56/56; no clippy warning in the lane's files"
+    },
+    "landing": {
+      "pushed": "3e087001",
+      "base": "580f44b2",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-site-2/land-smb-web-site-2-8a165c6c.log",
+      "detail": "one hold: rebased onto 580f44b2 (landed commits touch harness-core, harness, harness-view; not session or kernel-bindings): harness-core suite 75/75 exit 0; fresh studio-harness example exit 0; harness[viewer] web_host+web_site+web_site_depth 56/56 exit 0; lane-check --per-sha HEAD~1 PER_SHA_RESULT OK shas=1 range=ec094270..3e087001; guarded push 580f44b2..3e087001 accepted (attempt 1)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: judge 3e087001 (READY_FOR_VALIDATION); never PASS claimed by the builder",
+  "updated_at": "2026-11-13T10:32:02Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -27,7 +140,7 @@
     },
     "control_descriptors": "none",
     "attribution": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
-    "jobs": "none",
+    "jobs": "admitted through the bound JobPort before any work, never resource-less (web_site::ADMITTED): web.export (export; open package else site id), web.publish (export; open package else site id), web.site_report (read; site id), web.move_file (edit; site id), web.change_link (edit; site id), web.template_update (edit; site id), web.library_item_update (edit; site id), web.synchronize (review read, apply put export, apply get edit; site id). Outcomes: overloaded (retry_after_ms), canceled, stale_revision; each admitted job settles completed, canceled or failed with its code; deadline none by nature (ended by cancel). Test site_work_is_admitted_with_its_action.",
     "settings": "none",
     "refactor_exposure": "medium"
   },
@@ -41,6 +154,207 @@
       "ledger direction.next_lane_candidates 2026-11-11T11:09:18Z change-link-site-wide"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+    "reuses_tree_and_target": "smb-pr-sequence-session-1",
+    "beyond_brief_paths": [
+      {
+        "path": "crates/hsk-studio-harness-core/src/web_commands.rs",
+        "approved_at": "2026-11-13T05:22:52Z",
+        "ruling": "lead: limited to three hunks: (1) the execute fallthrough to self.site_command(...), which itself ends in the typed no(\"unknown_command\", ..) for rows it does not own so a later lane can chain its dispatcher; (2) one `depth: web_site::SiteDepth` field on Site; (3) one call line each in site_from, site_json and read_sidecar. All logic stays in web_site.rs. SMB-WEB-CODE-1 lands after and chains at its rebase.",
+        "why": "WebHost::execute dispatch and the Site record (STU-WEB-113) live there; no new web.* row runs without it"
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/web_host.rs, crates/hsk-studio-harness/tests/web_site.rs",
+        "why": "existing pins this lane's change moves: the web row count (22 -> 34) and mutating list; the viewer job-port action list (site report export -> read)",
+        "approved_at": "2026-11-13T07:01:57Z",
+        "ruling": "lead: approved; web_host.rs row count 34 (the corpus count), web_site.rs viewer list expects read"
+      },
+      {
+        "path": "crates/hsk-studio-harness-core/src/web_commands.rs",
+        "approved_at": "lead message 2026-11-13 (review rulings F3, F11)",
+        "why": "fourth hunk: one call line `self.locked_guard(label, &patch)?;` in WebHost::edit (F3); F11 doc lines (module docs on locks and admitted commands, the Site doc, bind_web_jobs doc)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/web.rs",
+        "approved_at": "lead message 2026-11-13 (review ruling F11)",
+        "why": "doc lines only: the admitted commands"
+      },
+      {
+        "path": "crates/hsk-studio-kernel-bindings/src/host.rs, src/lib.rs, tests/bridge_contract.rs, tests/command_context.rs",
+        "approved_at": "lead message 2026-11-13 (review ruling F10)",
+        "why": "edit implies read at the host (held()), DESCRIPTOR bridge_version 2 and grant rule, test edit_implies_read_at_the_host, bridge_version literal pins 1 -> 2"
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/web_site.rs (the_site_lock_names_its_holder_and_never_blocks)",
+        "approved_at": "lead message 2026-11-13 (review ruling F10)",
+        "why": "the site report (a read) takes no lock: it runs while a writer holds it"
+      },
+      {
+        "path": "crates/hsk-studio-harness-core/src/web_commands.rs (save)",
+        "approved_at": "lead message 2026-11-13 (R60-a3 probe lead 4)",
+        "why": "one call line `web_site::save_target_allowed(&path)?;` in WebHost::save, before the lock is taken"
+      }
+    ],
+    "spec_basis": "14-studio-creative-suite.md 14.28.6 [STU-WEB-090]..[STU-WEB-099], 14.28.8 [STU-WEB-113], [STU-WEB-118], [STU-WEB-119], [STU-WEB-124], [STU-WEB-085], [STU-WEB-086], [STU-WEB-122], diagnostics [STU-WEB-159] (named, not done), [STU-WEB-161]",
+    "unverified": [
+      "template, instance and library marker spellings (TemplateBeginEditable, InstanceBegin, #BeginLibraryItem, TemplatePassthroughExpr and the rest) follow Dreamweaver as recalled, UNVERIFIED against the application (D5 oracle)",
+      "template parameter types text/boolean/color/URL/number UNVERIFIED",
+      "locked_sha256 on InstanceBegin is Studio's own attribute (drift baseline), not a Dreamweaver one"
+    ],
+    "cut": [
+      "STU-WEB-095 template-safe behaviours",
+      "nested templates, repeats inside repeats, expressions in attribute values, server-language dwt.* types",
+      "moving a template or library item (refused move_template_or_library_item)",
+      "shipped 647-snippet baseline (no corpus; NOT_PROVEN)",
+      "two-way sync (lead ruling Q4: refused sync_two_way_unsupported until a per-file sync baseline exists); sync: no deletion, local_or_network only",
+      "site-record optional fields recorded only (publish, lint and preprocessors do not read them yet)",
+      "a sync cancel between files with the partial receipt is implemented but not exercised by a test (removed from the manual)"
+    ],
+    "v4_06": {
+      "class": "a reference or marker path compared by exact spelling where any spelling of the same file must match; regex `Reach::File\\(id\\) if id ==|== from|i.template == template|library_target\\(.*\\) == Some`",
+      "sites": [
+        {
+          "site": "web_site.rs plan (move and change link)",
+          "status": "fixed: reaches() matches exact, case and decoded spellings"
+        },
+        {
+          "site": "web_site.rs Reach::place (move verification)",
+          "status": "fixed: same predicate"
+        },
+        {
+          "site": "web_site.rs SitePort::reach",
+          "status": "fixed: path percent-decoded before it resolves (decoded_path)"
+        },
+        {
+          "site": "web_site.rs export_site / site_report Reach::File arms",
+          "status": "not applicable: they read the resolved id"
+        },
+        {
+          "site": "web_commands.rs asset_id (open export Port)",
+          "status": "named, not changed: outside the approved hunks; a percent-encoded name still refuses there as before"
+        },
+        {
+          "site": "web_site.rs percent_decoded (fragments)",
+          "status": "named: a second decoder with lenient fragment semantics, kept separate from decoded_path (strict paths)"
+        },
+        {
+          "site": "web_site.rs template_update instance selection (was i.template == template)",
+          "status": "fixed: folded_target(set.files, decoded template path); case variant reported as case_mismatch"
+        },
+        {
+          "site": "web_site.rs library_item_update reference selection (was library_target(..) == Some(item))",
+          "status": "fixed: decoded, folded_target; case variant reported as case_mismatch"
+        },
+        {
+          "site": "web_site.rs marker_targets (site report referenced set)",
+          "status": "fixed: decoded, folded_target"
+        },
+        {
+          "site": "web_site.rs instance_of template attribute (a percent-encoded path refused the page)",
+          "status": "fixed: decoded_path before site_path"
+        },
+        {
+          "site": "web_site.rs template_for / library_item_insert single-file reads",
+          "status": "fixed: lone_found reads the on-disk spelling in another letter case"
+        },
+        {
+          "site": "web_site.rs synchronize row keys and files parameter",
+          "status": "fixed: ASCII case-folded keys; a pair spelled differently refuses sync_case_conflict"
+        },
+        {
+          "site": "web_site.rs plan/left_denied for engine-denied spellings",
+          "status": "fixed per lead ruling F7: listed as left_denied, complete=false"
+        }
+      ],
+      "action_exhaustive_matches": "Action exhaustive matches: ports.rs as_str, wire.rs From<Action> and From<ActionWire>; all three updated; the other 28 Action:: hits are constructors, not matches"
+    },
+    "next_lane_candidates": [
+      "site record (STU-WEB-113 fields) as one site-level record at local_root, like the snippet library (lead ruling F4)",
+      "two-way synchronisation with a per-target sync baseline (per-file hash at the last sync) so both-changed is a held conflict (lead ruling Q4)",
+      "move of a template or library item rewriting the marker paths that name it"
+    ],
+    "R60-a3 probe leads (SMB-WEB-SITE-1)": [
+      {
+        "lead": "(1) move_file leaves a reference under <base href> broken",
+        "fix": "8a165c6c: a reference under a <base href> that is a site path resolves against the base folder and is rewritten from it (based(), Edge.base)",
+        "test": "a_move_rewrites_references_under_a_base_href"
+      },
+      {
+        "lead": "(2) move_file skips pages with a space or non-ASCII name yet says complete",
+        "fix": "8a165c6c: every site-wide writer lists them as not_scanned with complete=false",
+        "test": "pages_the_walk_skips_make_the_receipt_incomplete"
+      },
+      {
+        "lead": "(3) undo then redo of a move brings back the old recipe.file",
+        "fix": "8a165c6c: the move updates the recipe values held by history steps",
+        "test": "redo_after_a_move_keeps_the_moved_recipe_file"
+      },
+      {
+        "lead": "(4) a save to the site lock file leaves the site locked",
+        "fix": "8a165c6c: web.save refuses save_onto_site_lock (any letter case) before taking the lock",
+        "test": "a_save_onto_the_site_lock_file_is_refused"
+      }
+    ],
+    "history_rebuild": "2026-11-13: 8bd77320 and 60ec4ba0 did not compile (E0499 in one test line, focused2-smb-web-site-2-f5891ce2.log), and a non-compiling red commit may not be pushed. Nothing was pushed, so the commits after dccc57b2 were rebuilt on a detached HEAD (cherry-pick, the one-line fix in 51636c02, same messages) and lane/smb-web-site-2 moved to 8a165c6c with git branch -f (no branch created or removed; the old commits stay in the reflog). git diff 7f867fad 8a165c6c is that one test line only.",
+    "history_rewrite_ruling": "lead 2026-11-13 at RELEASED: the cherry-pick plus branch -f rewrite is accepted this once (old commits in the reflog, one-line diff verified); from now on no lane-history rewriting: fix a broken red commit with a new commit and record the red sha that failed on its assertion. Old shas: 8bd77320 (red, did not compile: E0499 web_site_depth.rs:852) -> 51636c02; 5e86d7f6 -> f3463250; f5891ce2 -> 7d953c80; 60ec4ba0 (red, did not compile, same line) -> 5144cb60; 7f867fad -> 8a165c6c.",
+    "pre_rebase_commits": [
+      {
+        "sha": "e1b7f955",
+        "subject": "red tests for site depth (read class, change link, spellings, templates, library items, snippets, site record)"
+      },
+      {
+        "sha": "6e4f8021",
+        "subject": "Action::Read, change-link-site-wide, templates, library items, snippets, site-record optional fields"
+      },
+      {
+        "sha": "beab3b6b",
+        "subject": "red test for synchronisation (STU-WEB-119) and the 34-row web pin"
+      },
+      {
+        "sha": "4b764975",
+        "subject": "web.synchronize (STU-WEB-119) for local_or_network targets"
+      },
+      {
+        "sha": "70f64b55",
+        "subject": "clippy: boxed site depth, named complex types"
+      },
+      {
+        "sha": "dccc57b2",
+        "subject": "tests: encoded spellings the engine passes (it denies %2E/%2F/%5C first); a moved repeat row is edited first"
+      },
+      {
+        "sha": "51636c02",
+        "subject": "red tests for review dccc57b2 F1-F14 (rebuilt from 8bd77320 with a one-line borrow fix in a test so the red commit compiles)"
+      },
+      {
+        "sha": "f3463250",
+        "subject": "review fixes F1-F14, Q4, F4 option A (was 5e86d7f6, same content)"
+      },
+      {
+        "sha": "7d953c80",
+        "subject": "web.snippet borrow fix E0502 (was f5891ce2)"
+      },
+      {
+        "sha": "5144cb60",
+        "subject": "red tests for the R60-a3 probe leads (was 60ec4ba0, plus the test fix carried from 51636c02)"
+      },
+      {
+        "sha": "8a165c6c",
+        "subject": "R60-a3 probe leads fixed (was 7f867fad); tip"
+      }
+    ],
+    "mts_proved": [
+      "MT-34318",
+      "MT-34319",
+      "MT-34320",
+      "MT-34321",
+      "MT-34324",
+      "MT-34325",
+      "MT-34327",
+      "MT-34385",
+      "MT-34341",
+      "MT-34347 (put/get; two-way cut)",
+      "MT-34322/MT-34383/MT-34252 (STU-WEB-094 locked-region refusal, added in the fix round)",
+      "MT-34326 partly (no 647-snippet corpus)"
+    ]
   }
 }
