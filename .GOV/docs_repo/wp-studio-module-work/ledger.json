@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T16:46:23Z",
+ "updated_at": "2026-11-13T17:08:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20340,6 +20340,88 @@
    ],
    "note": "Trunk repair (2026-11-13T16:28:39Z, from the lane file at 16:14:16Z): trunk check at origin 86ee4e57 832/833, the one failure gui_menu MENU-INV-1 (79 catalog commands, 6 homeless domains); c0e87947 adds 79 palette_only entries (16 no_menu_home, 63 menu_path_pending) and DOMAIN_HOMES for 6 domains; BUNDLED GREEN 270/270 (kernel dd97edb0); waits for RELEASED, then rebase, --per-sha and push. New common rule MENU COVERAGE (lead 2026-11-13; research/lead-rulings-20261108-by-lane.json common, builders/briefs/wave-parity-2-common.md): a lane adding or renaming catalog commands runs the native-host [document] gui_menu test (MENU-INV-1) green at landing, or adds the matching menu_tree.rs leaf or palette_only entries in the same lane; its review and landing reports say which.",
    "claim": "89f27330: trunk repair of native-host [document] gui_menu MENU-INV-1 (red at 86ee4e57: 79 catalog commands without a leaf or a palette_only reason, 6 homeless domains; trunk check 833 run, 832 passed, only that test red, log smb-fix-menu-catalog-coverage-1-trunk-86ee4e57.log); menu_tree.rs only: 79 palette_only (63 menu_path_pending, 16 no_menu_home incl. 12 noun-named queries), DOMAIN_HOMES adjustment, effect, board, variable, variable_collection, node; bundled c0e87947 270/270; landing on a77c4ee4: rebased onto a77c4ee4 (EXPORT-ADMISSION landed: batch.rs, doc_export.rs, no catalog rows) inside the one D: hold; native-host [document] + harness-view [viewer] whole suites 290 run, 290 passed, 1 skipped (gui_menu MENU-INV-1 passes); per-sha HEAD~1 PER_SHA_RESULT OK range a77c4ee4..89f27330; guarded push a77c4ee4..89f27330"
+  },
+  {
+   "lane_id": "SMB-PROTOTYPE-PLAY-CANCEL-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (view/prototype.rs PrototypePlay cancel token; view/commands/prototype.rs capture render)",
+   "lane_file": "builders/lanes/hsk-studio-prototype-play-cancel-1.json",
+   "brief": "builders/briefs/lane-smb-prototype-play-cancel-1.md",
+   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "base": "89f27330",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T17:08:44Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-13T15:08:59Z prototype play renders under the viewer's cancel token",
+    "MT-33254 (STU-PRO-138; read, no claim)"
+   ]
+  },
+  {
+   "lane_id": "SMB-PR-TIMELINE-FIXES-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-pulse (annotate.rs next_marker and prev_marker; merge_sync.rs and timeline_edit.rs transition keep on a group move), hsk-studio-harness-view (view/timeline/nest.rs Open Nested mapping; view/timeline.rs marker dispatch lines only)",
+   "lane_file": "builders/lanes/hsk-studio-pr-timeline-fixes-1.json",
+   "brief": "builders/briefs/lane-smb-pr-timeline-fixes-1.md",
+   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+   "base": "89f27330",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T17:08:44Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-06T16:40:02Z F-R58-6 Open Nested on a reversed nested clip",
+    "ledger direction.next_lane_candidates 2026-11-06T17:40:58Z F-PR59-2 NextMarker can stick",
+    "ledger direction.next_lane_candidates 2026-11-05T14:24:14Z F-R56-12 group move of both clips of a transition",
+    "MT-33737 (STU-VID-035; read, candidate for the navigation rows)",
+    "MT-33726 (STU-VID-029; read, candidate for the group move row)"
+   ]
+  },
+  {
+   "lane_id": "SMB-MOTION-IMPLIED-VALUES-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (motion_commands.rs enable_animation and toggle on an absent anchor or position, member() point_of_interest, text_slot), hsk-studio-composite (track_apply.rs put(), with the lead's approval), the implied-value seam the lead approves",
+   "lane_file": "builders/lanes/hsk-studio-motion-implied-values-1.json",
+   "brief": "builders/briefs/lane-smb-motion-implied-values-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+   "base": "89f27330",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T17:08:44Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z PRIORITY enable_animation and toggle-on of an absent anchor or position",
+    "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z camera and light point_of_interest",
+    "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z text animator params",
+    "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z composite track_apply put() (if the lead approves the composite edit; else named)",
+    "MT-33887 (STU-MOT-038 enable animation; candidate)",
+    "MT-33885 (STU-MOT-038 add or delete at current time; candidate)",
+    "MT-33869 (STU-MOT-020b; candidate)"
+   ]
+  },
+  {
+   "lane_id": "SMB-GUI-GESTURE-GATE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-native-host [document] (gui/mod.rs input routing and a gesture arbiter, chrome.rs studio.gesture.active node, window.rs host clock and cursor requests, document.rs and GuiFrame::open viewer context), kumihimo-ui (only with the lead's approval)",
+   "lane_file": "builders/lanes/hsk-studio-gui-gesture-gate-1.json",
+   "brief": "builders/briefs/lane-smb-gui-gesture-gate-1.md",
+   "worktree": "wt-studio-lanes/smb-r53-followups-1",
+   "base": "89f27330",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T17:08:44Z",
+   "closes": [
+    "validation/round-R60.json attempt_3.findings_leads F-R60-43",
+    "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY SMB-GUI-SPINE-1 spine gate tests 1 to 7",
+    "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z tip clock (window.rs does not feed GuiFrame::advance)",
+    "ledger direction.next_lane_candidates 2026-11-13T15:54:30Z native-host document and gui scene viewer context",
+    "MT-34640 (STU-SHL-109; candidate; the GATE_CHECK is an independent agent's)",
+    "MT-34632..MT-34639 (STU-SHL-101..108; candidates where a test proves them)",
+    "MT-34650 (STU-MDL-106 studio.gesture.active; candidate)",
+    "MT-35106 (STU-SHL-235 tooltip clock; read, no claim)"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -23424,7 +23506,11 @@
     "lane/smb-fix-capture-admission-1",
     "lane/smb-fix-export-admission-1",
     "lane/smb-fix-layer-record-prune-1",
-    "lane/smb-fix-menu-catalog-coverage-1"
+    "lane/smb-fix-menu-catalog-coverage-1",
+    "lane/smb-prototype-play-cancel-1",
+    "lane/smb-pr-timeline-fixes-1",
+    "lane/smb-motion-implied-values-1",
+    "lane/smb-gui-gesture-gate-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -23725,6 +23811,26 @@
      "tree": "smb-r53-followups-1",
      "branch": "lane/smb-fix-menu-catalog-coverage-1",
      "previous_branch": "lane/smb-web-code-1"
+    },
+    "SMB-PROTOTYPE-PLAY-CANCEL-1": {
+     "tree": "smb-ai-distort-effects-1",
+     "branch": "lane/smb-prototype-play-cancel-1",
+     "previous_branch": "lane/smb-fix-capture-admission-1"
+    },
+    "SMB-PR-TIMELINE-FIXES-1": {
+     "tree": "smb-folio-angle-unbounded-1",
+     "branch": "lane/smb-pr-timeline-fixes-1",
+     "previous_branch": "lane/smb-fix-export-admission-1"
+    },
+    "SMB-MOTION-IMPLIED-VALUES-1": {
+     "tree": "smb-pr-sequence-session-1",
+     "branch": "lane/smb-motion-implied-values-1",
+     "previous_branch": "lane/smb-fix-animation-values-1"
+    },
+    "SMB-GUI-GESTURE-GATE-1": {
+     "tree": "smb-r53-followups-1",
+     "branch": "lane/smb-gui-gesture-gate-1",
+     "previous_branch": "lane/smb-fix-menu-catalog-coverage-1"
     }
    },
    "why": {

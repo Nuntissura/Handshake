@@ -1,0 +1,50 @@
+{
+  "crate": "hsk-studio-harness-core (motion_commands.rs enable_animation and toggle on an absent anchor or position, member() point_of_interest, text_slot), hsk-studio-composite (track_apply.rs put(), with the lead's approval), the implied-value seam the lead approves",
+  "lane": "SMB-MOTION-IMPLIED-VALUES-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+  "base": "89f27330",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T17:08:44Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: each motion command's existing terminal frame, codes and counters only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T17:08:44Z",
+    "disk": "D",
+    "closes": [
+      "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z PRIORITY enable_animation and toggle-on of an absent anchor or position",
+      "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z camera and light point_of_interest",
+      "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z text animator params",
+      "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z composite track_apply put() (if the lead approves the composite edit; else named)"
+    ],
+    "closes_candidates": [
+      "MT-33887 (STU-MOT-038 enable animation; candidate)",
+      "MT-33885 (STU-MOT-038 add or delete at current time; candidate)",
+      "MT-33869 (STU-MOT-020b; candidate)"
+    ],
+    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+  }
+}

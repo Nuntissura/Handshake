@@ -1,0 +1,143 @@
+{
+ "id": "SMB-PR-TIMELINE-FIXES-1",
+ "file": "hsk-studio-pr-timeline-fixes-1",
+ "brief": "lane-smb-pr-timeline-fixes-1",
+ "crate": "hsk-studio-pulse (annotate.rs next_marker and prev_marker; merge_sync.rs and timeline_edit.rs transition keep on a group move), hsk-studio-harness-view (view/timeline/nest.rs Open Nested mapping; view/timeline.rs marker dispatch lines only)",
+ "crates_head": "pulse, harness-view",
+ "summary": "Open Nested lands on the frame the nested layer shows, Next Marker never sticks, and a group move of both clips of a transition keeps it",
+ "target": "Video timeline correctness: Open Nested lands on the frame the nested layer shows, Next Marker never sticks, and a group move of both clips of a transition keeps it whatever the source length (hsk-studio-pulse, hsk-studio-harness-view timeline)\n\nWhy this lane: three validator findings still open as ledger candidates, each with a probe to port, verbatim: 2026-11-06T16:40:02Z \"F-R58-6: Open Nested on a reversed nested clip lands one frame past the picture (harness-view timeline/nest.rs:370); open at the nested layer's source_tick. Small, egui-free, view state\"; 2026-11-06T17:40:58Z \"F-PR59-2: NextMarker can stick on a reversed audio in point at a sequence's end or on a position off the frame grid; forward 2x has the same class at every commit (annotate.rs:597, playback.rs:542)\"; 2026-11-05T14:24:14Z \"F-R56-12: a group move of both clips of a transition keeps it with a known source length and drops it with an unknown one, though the cut does not change\".\n\nFacts are READ by the wave-next-2 planner at origin 89f27330 (read-only, not run; `git diff a77c4ee4 89f27330` touches only harness-view src/view/menu_tree.rs). Treat them as claims and check them.\n- Spec: STU-VID-035 (module 14 :23855, the playhead and marker navigation), STU-VID-029 (:23758, group move).\n- `harness-view/src/view/timeline/nest.rs:362-383` timeline_open_nested: the playhead inside the clip maps through `clip_source_at(clip, p, &ext, true)` with NestedExtents and pulse UnknownExtents (`:369-374`); the R58 repair direction is to open at the nested layer's source_tick (the program monitor's frame_layers_nested path). nest.rs last changed e76bfe0f (2026-11-07, id minting), not the mapping.\n- `pulse/src/annotate.rs:593-604` next_marker returns the first marker_spans start strictly after `after`; prev_marker `:606`. harness-view `view/timeline.rs:1472-1476` dispatches NextMarker and PreviousMarker. F-PR59-2 file:line are at R59 (annotate.rs:597, playback.rs:542); at 89f27330 pulse `src/playback.rs:536` scrub and `:557` step. annotate.rs has no commit after 329e2b9a (2026-11-06T19:07Z); R59 claim probe c5 recorded F-PR59-2 unchanged.\n- `pulse/src/merge_sync.rs:434-450` plan_move_clips (`:438`) runs the crate's propose(..) (imported at `:82`; its module not read here); the transition between two moved clips is kept or listed in dropped_transitions depending on the source extent. merge_sync.rs last changed c4d06841 (2026-11-06, marker alignment). State at the base UNVERIFIED by run.\n- Probes to port: `../Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r58-probe/hsk-studio-harness-view/r58_probe_viewer.rs:168-200` r58_v1_open_nested_on_a_reversed_nested_clip (prints, and uses egui::Context: port it egui-free); `validator-r59-probe/hsk-studio-pulse/tests/r59_probe_claim.rs:328` r59_c5_next_marker_at_the_end; `validator-r56-probe/p4_merge_tail.rs:189-205` r56_m7_group_move_keeps_a_transition_between_its_members. They print rows; the ports assert the finding's expected behaviour.\n\nRed test (must fail first):\n`pulse/tests/timeline_fixes.rs` (new): m7 asserts the transition between both moved clips is kept and dropped_transitions is empty for a known and an unknown extent, undo restoring; c5 asserts Next Marker from a reversed audio in point at a sequence's end and from a position off the frame grid moves forward or answers none, never the same position. `harness-view/tests/viewer_timeline_fixes.rs` (new, [viewer], egui-free) asserts Open Nested on a reversed nested clip opens at the nested frame the program monitor shows, for each reversed speed of the probe. If a port passes at the base, report it with its log as already fixed and drop that item; never invent a red.\n\nFix contract:\n- Open Nested and Next Marker are view state: no undo step, no actor. The group move stays one undo step named by its catalog id (common ruling 10) with the caller's context.\n- Open Nested maps through the same function the monitor uses; marker navigation compares on the presented frame grid; a group move keeps a transition both of whose clips move by the same delta, whatever the extents.\n- 2 to 5 commits.\n\nHow to work:\n1. Read the code at the file:line above first. Cite spec clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`); use only names already in the spec, MTs or code.\n2. Red first: the red test above, run red at the base and committed compiling. A red test is never rewritten so that it passes; the code gets fixed (common ruling 11). No history rewriting (common ruling 12).\n3. Then the fix and its focused tests. A mutating step stays one undo step named by its catalog id (common ruling 10) and carries the caller's context.\n4. V4-06: the sibling sites named above, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n5. Small and focused: these items only. State what you cut. MTs: name any your fix proves in your report; do not edit MT files.\n\nCargo (wave-parity-2-common topic cargo-discipline, Operator 2026-11-13): build and test only the touched crates and test binaries (`-p <crate> --test <name>`); no --workspace outside the one bundled lane-check; no --release; never a new CARGO_TARGET_DIR: the mapped target only (`--owner smb-folio-angle-unbounded-1 --disk d`). ONE HOLD PER PHASE. Focused: `cargo nextest run -p hsk-studio-pulse --test timeline_fixes --test merge_sync --test media_markers` and `cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_timeline_fixes --test viewer_timeline_nest --test viewer_timeline_nest_2`. Bundled: the pulse suite and the harness-view [viewer] suite in one lane-check, plus the harness test binaries that drive the timeline (git grep NextMarker, OpenNested, plan_move_clips in crates/hsk-studio-harness/tests; send the list with REVIEW READY).\nMENU COVERAGE: this lane adds or renames no catalog command; say so in the reports.\n\nOut of scope: multicam active-angle playback (candidate 2026-11-07T07:57:24Z), marker synchronize at -2 (candidate 2026-11-06T18:47:15Z), the appearing-markers walk cost F-R58-3, timeline_ui.rs (egui, quarantined), harness-view view/mod.rs and view/commands.rs (SMB-FIX-LAYER-RECORD-PRUNE-1's), any Cargo.lock change without asking.\n\nLanding: one lane at a time on the lead's RELEASED, order 1 SMB-PROTOTYPE-PLAY-CANCEL-1, 2 SMB-PR-TIMELINE-FIXES-1, 3 SMB-MOTION-IMPLIED-VALUES-1, 4 SMB-GUI-GESTURE-GATE-1; the lead may interleave SMB-FIX-LAYER-RECORD-PRUNE-1. This lane lands 2 of 4.",
+ "diag": "producer_through_observe: the group move's existing edit frame; navigation is view state with no frame of its own; codes and counters only",
+ "attr": "required: the group move's commit takes the caller's context; navigation and Open Nested are view state (no actor)",
+ "exposure": "low",
+ "paths": "hsk-studio-pulse/src/annotate.rs; hsk-studio-pulse/src/merge_sync.rs and src/timeline_edit.rs (transition keep path only); hsk-studio-harness-view/src/view/timeline/nest.rs; hsk-studio-harness-view/src/view/timeline.rs (NextMarker and PreviousMarker dispatch only); hsk-studio-pulse/tests/timeline_fixes.rs (new); hsk-studio-harness-view/tests/viewer_timeline_fixes.rs (new)",
+ "suites": "pulse suite; harness-view [viewer] suite; the harness test binaries that drive the timeline (list them with REVIEW READY)",
+ "closes": [
+  "ledger direction.next_lane_candidates 2026-11-06T16:40:02Z F-R58-6 Open Nested on a reversed nested clip",
+  "ledger direction.next_lane_candidates 2026-11-06T17:40:58Z F-PR59-2 NextMarker can stick",
+  "ledger direction.next_lane_candidates 2026-11-05T14:24:14Z F-R56-12 group move of both clips of a transition"
+ ],
+ "mts": [
+  "MT-33737 (STU-VID-035; read, candidate for the navigation rows)",
+  "MT-33726 (STU-VID-029; read, candidate for the group move row)"
+ ],
+ "tree": "smb-folio-angle-unbounded-1",
+ "disk": "d",
+ "candidates_verbatim": [
+  {
+   "added_at": "2026-11-06T16:40:02Z",
+   "item": "F-R58-6: Open Nested on a reversed nested clip lands one frame past the picture (harness-view timeline/nest.rs:370); open at the nested layer's source_tick. Small, egui-free, view state"
+  },
+  {
+   "added_at": "2026-11-06T17:40:58Z",
+   "item": "F-PR59-2: NextMarker can stick on a reversed audio in point at a sequence's end or on a position off the frame grid; forward 2x has the same class at every commit (annotate.rs:597, playback.rs:542)"
+  },
+  {
+   "added_at": "2026-11-05T14:24:14Z",
+   "item": "F-R56-12: a group move of both clips of a transition keeps it with a known source length and drops it with an unknown one, though the cut does not change"
+  }
+ ],
+ "anchors": {
+  "spec": [
+   "STU-VID-035 (:23855)",
+   "STU-VID-029 (:23758)"
+  ],
+  "mts": [
+   "MT-33737",
+   "MT-33726"
+  ],
+  "findings": [
+   "F-R58-6",
+   "F-PR59-2",
+   "F-R56-12"
+  ]
+ },
+ "red_tests": [
+  "hsk-studio-pulse/tests/timeline_fixes.rs (new): r56 m7 and r59 c5 ported with assertions",
+  "hsk-studio-harness-view/tests/viewer_timeline_fixes.rs (new, [viewer], egui-free): r58 v1 ported with assertions"
+ ],
+ "touched_crates": [
+  "hsk-studio-pulse",
+  "hsk-studio-harness-view (feature viewer)"
+ ],
+ "focused_commands": [
+  "cargo nextest run -p hsk-studio-pulse --test timeline_fixes --test merge_sync --test media_markers",
+  "cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_timeline_fixes --test viewer_timeline_nest --test viewer_timeline_nest_2",
+  "bundled: bash <S>/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer"
+ ],
+ "reuse": {
+  "tree": "smb-folio-angle-unbounded-1",
+  "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+  "workspace": "wt-studio-lanes/smb-folio-angle-unbounded-1/handshake-studio-assets",
+  "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/target",
+  "studio_workspace_root": "wt-studio-lanes/smb-folio-angle-unbounded-1/handshake-studio-assets/Cargo.toml (read 2026-11-13; matches the tree)",
+  "previous_lane": "SMB-FIX-EXPORT-ADMISSION-1 (READY_FOR_VALIDATION at a77c4ee4; built harness-view [viewer], harness-core and the harness batch tests on this target)",
+  "previous_lane_status": "READY_FOR_VALIDATION, tip on origin (tree HEAD equals its READY sha and is an ancestor of 89f27330)",
+  "tree_head": "a77c4ee4",
+  "git_status_porcelain": "clean (0 lines, read 2026-11-13)",
+  "target_size_gib": 112.9,
+  "target_parts_gib": {
+   "test_and_binary_outputs": 105.36,
+   "workspace_libraries": 5.2,
+   "third_party_libraries": 1.53,
+   "other:examples": 0.61,
+   "build_scripts": 0.12,
+   "fingerprints": 0.04,
+   "other:tmp": 0.02,
+   "dep_info_and_other": 0.01,
+   "other:nextest": 0.0,
+   "incremental": 0.0
+  },
+  "target_newest_file_utc": "2026-11-13T16:22Z",
+  "target_workspace_crates_built": [
+   "accord",
+   "chronicle",
+   "components",
+   "composite",
+   "controls",
+   "develop",
+   "folio",
+   "harness",
+   "harness_core",
+   "harness_view",
+   "interop_fig",
+   "interop_fig_base",
+   "interop_fig_native",
+   "interop_layout",
+   "interop_lrcat",
+   "interop_psd",
+   "interop_raster",
+   "interop_tiff",
+   "interop_vector",
+   "interop_vector_core",
+   "interop_vector_svg",
+   "kernel_bindings",
+   "layout",
+   "motion",
+   "nib",
+   "observe",
+   "package",
+   "pigment",
+   "press",
+   "press_read",
+   "press_write",
+   "prism",
+   "pulse",
+   "reel",
+   "render_cpu",
+   "render_gpu",
+   "score",
+   "session",
+   "type",
+   "web",
+   "web_assets",
+   "web_core"
+  ],
+  "measured_by": "tools/lead/target_report.py --disk d (read-only)"
+ },
+ "risks": [
+  "A port may pass at the base if a later commit fixed the finding (F-R56-12 and F-PR59-2 are UNVERIFIED by run at 89f27330): then report and drop the item, never invent a red.",
+  "The R58 probe drives the Viewer with an egui::Context: the port must use the egui-free Viewer path (TimelineCommand, state_json); no new egui line (D1).",
+  "A pulse edit recompiles harness-view, harness, interop-media and native-host for per-sha; harness-view is the mega unit. Keep commits few.",
+  "view/timeline.rs is large and shared by other timeline work; touch only the marker dispatch lines."
+ ]
+}

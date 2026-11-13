@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-pulse (annotate.rs next_marker and prev_marker; merge_sync.rs and timeline_edit.rs transition keep on a group move), hsk-studio-harness-view (view/timeline/nest.rs Open Nested mapping; view/timeline.rs marker dispatch lines only)",
+  "lane": "SMB-PR-TIMELINE-FIXES-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+  "base": "89f27330",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T17:08:44Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: the group move's existing edit frame; navigation is view state with no frame of its own; codes and counters only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: the group move's commit takes the caller's context; navigation and Open Nested are view state (no actor)",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T17:08:44Z",
+    "disk": "D",
+    "closes": [
+      "ledger direction.next_lane_candidates 2026-11-06T16:40:02Z F-R58-6 Open Nested on a reversed nested clip",
+      "ledger direction.next_lane_candidates 2026-11-06T17:40:58Z F-PR59-2 NextMarker can stick",
+      "ledger direction.next_lane_candidates 2026-11-05T14:24:14Z F-R56-12 group move of both clips of a transition"
+    ],
+    "closes_candidates": [
+      "MT-33737 (STU-VID-035; read, candidate for the navigation rows)",
+      "MT-33726 (STU-VID-029; read, candidate for the group move row)"
+    ],
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1"
+  }
+}

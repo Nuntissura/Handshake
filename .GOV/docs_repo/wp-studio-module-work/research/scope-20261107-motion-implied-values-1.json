@@ -1,0 +1,149 @@
+{
+ "id": "SMB-MOTION-IMPLIED-VALUES-1",
+ "file": "hsk-studio-motion-implied-values-1",
+ "brief": "lane-smb-motion-implied-values-1",
+ "crate": "hsk-studio-harness-core (motion_commands.rs enable_animation and toggle on an absent anchor or position, member() point_of_interest, text_slot), hsk-studio-composite (track_apply.rs put(), with the lead's approval), the implied-value seam the lead approves",
+ "crates_head": "harness-core, composite",
+ "summary": "Enable animation keys the evaluated value of an absent anchor or position, and no key-creating path seeds an absent stream from the caller's key (STU-MOT-038, STU-MOT-020b)",
+ "target": "Absent motion streams take their implied value, never the caller's key: enable animation and toggle-on of an absent anchor or position key the evaluated value, and point_of_interest, text animator params and track apply seed nothing from a key (harness-core motion_commands.rs; composite track_apply.rs with approval)\n\nWhy this lane: ledger PRIORITY candidate 2026-11-13T15:35:24Z, verbatim: \"PRIORITY: enable_animation and toggle-on of an absent anchor or position: evaluate the implied value through the composite evaluator and key it, so new layers can enable anchor and position animation (STU-MOT-038; review aa4a35e3 F2, accepted limit in SMB-FIX-ANIMATION-VALUES-1)\". Its three siblings from the same lane's V4-06 sweep (builders/lanes/hsk-studio-fix-animation-values-1.json notes.v4_06 and next_lane_candidates), verbatim: \"camera and light point_of_interest: keyframe.set or paste on an absent point_of_interest creates it from the caller's value, and disable leaves a two-node camera or light (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)\"; \"text animator params: keyframe.set or paste on a param absent from the animator creates the stream from the caller's value (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)\"; \"composite track_apply put(): a missing position, rotation or scale stream gets the first key's value as its static value, so disabling afterwards keeps it (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)\".\n\nFacts are READ by the wave-next-2 planner at origin 89f27330 (read-only, not run; `git diff a77c4ee4 89f27330` touches only harness-view src/view/menu_tree.rs). Treat them as claims and check them.\n- Spec: STU-MOT-038 (module 14 :27695, enable animation captures the current evaluated value) and STU-MOT-020b (:27569, disabling every keyframe returns exactly the prior static value).\n- `harness-core/src/motion_commands.rs:60-66` module docs: enable_animation, add_at_current and toggle_at_current refuse `property_default_unknown` for an absent anchor or position. `:2141` current_slot calls slot(e, id, prop, None); `:2090-2107` implied_property, implied_stream, implied_return.\n- `:1771-1774` member(v, default, hint, prop): no default and no hint is property_default_unknown, a hint seeds the member; camera `:1881` and light `:1892` point_of_interest call member(.., None, hint, ..).\n- `:1999-2020` text_slot(e, id, rest, hint, prop): an absent animator param is created from the hint, else property_default_unknown (`:2020`).\n- composite `src/track_apply.rs:198-206` put(): a missing stream gets `keys.first()` as static_value (static_implied false).\n- harness-core has no hsk-studio-composite dependency (its Cargo.toml path deps: accord, folio, session, controls, observe, web, package, interop-psd, develop, interop-tiff, press, interop-raster, interop-affinity, prism); harness and harness-view take composite only under their feature `viewer` (harness Cargo.toml `viewer = [.., \"dep:hsk-studio-composite\", ..]`; harness-view likewise), and the motion tests of the previous lane and the R60 probe run hsk-studio-harness with default features (no composite). Evaluating through composite needs a seam the lead approves: a port the host fills under [viewer] or [media], or a steward-owned harness-core -> composite edge.\n- Tests of the previous lane: harness/tests/fix_animation_values.rs, motion_commands.rs, motion_commands_2.rs, motion_records_session.rs; its accepted limit (notes.cut) is this lane's target.\n\nRed test (must fail first):\n`harness/tests/motion_implied_values.rs` (new): (a) property.enable_animation on a new layer's absent anchor and position keys the composite-evaluated value at the current time (today property_default_unknown), disable returns the implied static, and toggle on, off, on at one time is one key each with undo restoring; (b) keyframe.set on an absent camera and light point_of_interest, then disable: the node returns to its prior state, not a two-node camera or light with the caller's value as static; (c) keyframe.set and paste on a text animator param absent from the animator, then disable: the static is the param's implied value, not the caller's key; (d) only if the lead approves the composite edit: apply_track on a layer with no position, rotation or scale stream, then disable: the static is the layer's prior value, not the first track key. They fail at the base.\n\nFix contract:\n- FIRST: send the lead the seam shape before coding (where the implied value is evaluated, which of (a) to (d) it covers, the asks: new edge or port, composite file approval). Report it as a blocker message and wait.\n- Each command stays one undo step named by its catalog id (common ruling 10) with the caller's ActorContext; static_implied semantics of SMB-FIX-ANIMATION-VALUES-1 are kept.\n- No folio record change without asking the lead; no new crate edge without the steward and lead.\n- 2 to 5 commits.\n\nHow to work:\n1. Read the code at the file:line above first. Cite spec clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`); use only names already in the spec, MTs or code.\n2. Red first: the red test above, run red at the base and committed compiling. A red test is never rewritten so that it passes; the code gets fixed (common ruling 11). No history rewriting (common ruling 12).\n3. Then the fix and its focused tests. A mutating step stays one undo step named by its catalog id (common ruling 10) and carries the caller's context.\n4. V4-06: the sibling sites named above, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n5. Small and focused: these items only. State what you cut. MTs: name any your fix proves in your report; do not edit MT files.\n\nCargo (wave-parity-2-common topic cargo-discipline, Operator 2026-11-13): build and test only the touched crates and test binaries (`-p <crate> --test <name>`); no --workspace outside the one bundled lane-check; no --release; never a new CARGO_TARGET_DIR: the mapped target only (`--owner smb-pr-sequence-session-1 --disk d`). ONE HOLD PER PHASE. Focused: `cargo nextest run -p hsk-studio-harness-core` (lib and its own tests) and `cargo nextest run -p hsk-studio-harness --test motion_implied_values --test fix_animation_values --test motion_commands --test motion_commands_2 --test motion_records_session`; `-p hsk-studio-composite --features motion` only if composite is touched. Bundled: the harness-core suite, composite if touched, and those harness binaries in one lane-check.\nMENU COVERAGE: if a catalog row changes (action/commands/motion.rs), run native-host [document] gui_menu MENU-INV-1 at landing or add menu_tree entries, and say which; otherwise say none changed.\n\nOut of scope: F-R60-42 (set_parent compensation), F-R60-24 (composition.remove_layer leaves the adjustment's document layer), expressions, keyframe selection UI, harness-core harness.rs (SMB-FIX-LAYER-RECORD-PRUNE-1 may add a Run hook there), harness-view view/mod.rs and view/commands.rs (that lane's), any Cargo.lock change without asking.\n\nLanding: one lane at a time on the lead's RELEASED, order 1 SMB-PROTOTYPE-PLAY-CANCEL-1, 2 SMB-PR-TIMELINE-FIXES-1, 3 SMB-MOTION-IMPLIED-VALUES-1, 4 SMB-GUI-GESTURE-GATE-1; the lead may interleave SMB-FIX-LAYER-RECORD-PRUNE-1. This lane lands 3 of 4.",
+ "diag": "producer_through_observe: each motion command's existing terminal frame, codes and counters only",
+ "attr": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+ "exposure": "medium",
+ "paths": "hsk-studio-harness-core/src/motion_commands.rs; hsk-studio-harness-core/src/action/commands/motion.rs (rows only, lead approval); hsk-studio-composite/src/track_apply.rs (lead approval); the seam's host side in hsk-studio-harness/src (lead approval); hsk-studio-harness/tests/motion_implied_values.rs (new)",
+ "suites": "harness-core suite; composite suite [motion] if touched; harness --test motion_implied_values, fix_animation_values, motion_commands, motion_commands_2, motion_records_session",
+ "closes": [
+  "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z PRIORITY enable_animation and toggle-on of an absent anchor or position",
+  "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z camera and light point_of_interest",
+  "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z text animator params",
+  "ledger direction.next_lane_candidates 2026-11-13T15:35:24Z composite track_apply put() (if the lead approves the composite edit; else named)"
+ ],
+ "mts": [
+  "MT-33887 (STU-MOT-038 enable animation; candidate)",
+  "MT-33885 (STU-MOT-038 add or delete at current time; candidate)",
+  "MT-33869 (STU-MOT-020b; candidate)"
+ ],
+ "tree": "smb-pr-sequence-session-1",
+ "disk": "d",
+ "candidates_verbatim": [
+  {
+   "added_at": "2026-11-13T15:35:24Z",
+   "item": "PRIORITY: enable_animation and toggle-on of an absent anchor or position: evaluate the implied value through the composite evaluator and key it, so new layers can enable anchor and position animation (STU-MOT-038; review aa4a35e3 F2, accepted limit in SMB-FIX-ANIMATION-VALUES-1)"
+  },
+  {
+   "added_at": "2026-11-13T15:35:24Z",
+   "item": "camera and light point_of_interest: keyframe.set or paste on an absent point_of_interest creates it from the caller's value, and disable leaves a two-node camera or light (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)"
+  },
+  {
+   "added_at": "2026-11-13T15:35:24Z",
+   "item": "text animator params: keyframe.set or paste on a param absent from the animator creates the stream from the caller's value (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)"
+  },
+  {
+   "added_at": "2026-11-13T15:35:24Z",
+   "item": "composite track_apply put(): a missing position, rotation or scale stream gets the first key's value as its static value, so disabling afterwards keeps it (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)"
+  }
+ ],
+ "anchors": {
+  "spec": [
+   "STU-MOT-038 (:27695)",
+   "STU-MOT-020b (:27569)"
+  ],
+  "mts": [
+   "MT-33884",
+   "MT-33885",
+   "MT-33887",
+   "MT-33869"
+  ],
+  "lead": [
+   "builders/lanes/hsk-studio-fix-animation-values-1.json notes.lead_decisions (review aa4a35e3 F2 accepted limit)"
+  ]
+ },
+ "red_tests": [
+  "hsk-studio-harness/tests/motion_implied_values.rs (new): (a) enable/toggle absent anchor and position, (b) point_of_interest, (c) text animator params, (d) track_apply put() if approved"
+ ],
+ "touched_crates": [
+  "hsk-studio-harness-core",
+  "hsk-studio-composite (lead approval)",
+  "hsk-studio-harness (tests; src only for an approved seam)"
+ ],
+ "focused_commands": [
+  "cargo nextest run -p hsk-studio-harness-core",
+  "cargo nextest run -p hsk-studio-harness --test motion_implied_values --test fix_animation_values --test motion_commands --test motion_commands_2 --test motion_records_session (default features; add --features viewer only if the approved seam is host-side)",
+  "cargo nextest run -p hsk-studio-composite --features motion (only if composite is touched)"
+ ],
+ "reuse": {
+  "tree": "smb-pr-sequence-session-1",
+  "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+  "workspace": "wt-studio-lanes/smb-pr-sequence-session-1/handshake-studio-assets",
+  "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/target",
+  "studio_workspace_root": "wt-studio-lanes/smb-pr-sequence-session-1/handshake-studio-assets/Cargo.toml (read 2026-11-13; matches the tree)",
+  "previous_lane": "SMB-FIX-ANIMATION-VALUES-1 (READY_FOR_VALIDATION at ae14cef8; built folio, composite, harness-core and the harness motion tests on this target)",
+  "previous_lane_status": "READY_FOR_VALIDATION, tip on origin (tree HEAD equals its READY sha and is an ancestor of 89f27330)",
+  "tree_head": "ae14cef8",
+  "git_status_porcelain": "clean (0 lines, read 2026-11-13)",
+  "target_size_gib": 57.02,
+  "target_parts_gib": {
+   "test_and_binary_outputs": 48.02,
+   "workspace_libraries": 6.26,
+   "third_party_libraries": 1.89,
+   "other:examples": 0.67,
+   "build_scripts": 0.11,
+   "fingerprints": 0.04,
+   "other:tmp": 0.02,
+   "dep_info_and_other": 0.01,
+   "other:nextest": 0.0,
+   "incremental": 0.0
+  },
+  "target_newest_file_utc": "2026-11-13T15:34Z",
+  "target_workspace_crates_built": [
+   "accord",
+   "chronicle",
+   "components",
+   "composite",
+   "controls",
+   "develop",
+   "folio",
+   "harness",
+   "harness_core",
+   "harness_view",
+   "interop_fig",
+   "interop_fig_base",
+   "interop_fig_native",
+   "interop_layout",
+   "interop_psd",
+   "interop_raster",
+   "interop_tiff",
+   "interop_vector",
+   "interop_vector_core",
+   "interop_vector_svg",
+   "kernel_bindings",
+   "layout",
+   "motion",
+   "nib",
+   "observe",
+   "package",
+   "pigment",
+   "press",
+   "press_read",
+   "press_write",
+   "prism",
+   "pulse",
+   "reel",
+   "render_cpu",
+   "render_gpu",
+   "score",
+   "session",
+   "type",
+   "web",
+   "web_assets",
+   "web_core"
+  ],
+  "measured_by": "tools/lead/target_report.py --disk d (read-only)"
+ },
+ "risks": [
+  "The seam is a design decision: a harness-core -> composite edge is steward-owned and grows harness-core's build graph (composite pulls pigment, type, nib, motion); a host-filled port keeps harness-core small. The lead rules before coding.",
+  "A harness-core edit recompiles harness-view, harness and native-host for the dependents' clippy and per-sha (the mega units); keep commits few so per-sha runs stay few.",
+  "The tree is at ae14cef8, two lanes behind the base: the switch to 89f27330 recompiles harness-view (doc_export, prototype, menu_tree) once.",
+  "If the seam is host-side, the red test needs hsk-studio-harness --features viewer (or media), which links harness-view [viewer] and egui as dependencies (no new egui line); the default-feature motion binaries stay as they are.",
+  "Composite's evaluated anchor and position depend on content bounds; text and solid layers may evaluate differently from the renderer if the seam reads a different path. Prove against the renderer's value."
+ ]
+}
