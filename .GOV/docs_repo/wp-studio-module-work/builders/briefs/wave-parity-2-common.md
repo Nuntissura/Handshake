@@ -1,7 +1,7 @@
 ---
 file_id: WAVE-PARITY-2-COMMON
 file_kind: dispatch_preamble
-updated_at: 2026-10-31T16:40:09Z
+updated_at: 2026-11-13T05:20:00Z
 ---
 
 <topic id="common" status="active" summary="Shared rules for parity wave 2 builders">
@@ -35,5 +35,18 @@ updated_at: 2026-10-31T16:40:09Z
 - Where Adobe or Figma behaviour is the reference and unverified, label it UNVERIFIED (it goes to the D5 oracle session). Never invent parity.
 - Clean-room: no copyleft (GPL/LGPL/MPL) source; permissive source may be read and adapted with attribution.
 - Deadline: first pushed commit within 30 minutes, then one at least every 30 minutes. Final message of 10 lines or fewer: shas per slice, capabilities, tests, gaps left.
+
+</topic>
+
+<topic id="cargo-discipline" status="active" updated_at="2026-11-13T05:20:00Z" summary="Operator 2026-11-13 cargo discipline for builder lanes">
+
+## CARGO DISCIPLINE (Operator 2026-11-13)
+
+1. Build and test only the crates and test binaries your change touches (`-p <crate> --test <name>` or a nextest filter). No `--workspace` build or test outside the one bundled lane-check.
+2. No `--release` builds unless your brief requires one.
+3. Never create a new CARGO_TARGET_DIR. Use the lane's assigned target: `--owner <tree> --disk d` as before.
+4. Reuse the existing example binary when its features match. Rebuild it only when its features or sources changed.
+5. After a lane lands READY, the lead prunes older copies on its target (`tools/lead/target_prune.py`, select `older_copies`). Builders do not delete anything themselves.
+6. ONE HOLD PER PHASE, as before (bullet above).
 
 </topic>

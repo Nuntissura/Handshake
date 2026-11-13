@@ -1,0 +1,23 @@
+{
+ "id": "SMB-WEB-SITE-2",
+ "file": "hsk-studio-web-site-2",
+ "brief": "lane-smb-web-site-2",
+ "crate": "hsk-studio-harness-core (web_site.rs, action/commands/web.rs), hsk-studio-session (ports.rs Action), hsk-studio-kernel-bindings (wire.rs mapping)",
+ "crates_head": "harness-core, session, kernel-bindings",
+ "summary": "Templates, library items and snippets on the site, change-link-site-wide, and session Action::Read for read-only verbs",
+ "target": "Site depth after SMB-WEB-SITE-1: templates with editable, locked and repeating regions and update propagation, library items, snippets, change-link-site-wide, and a session Action::Read for read-only verbs\n\nWhy this lane: the spec-coverage audit of 2026-11-11 (`S/research/spec-coverage-20261111-rollup.json` and the group file named below) judged every requirement against origin 87f331f9. Rows named here as MISSING or PARTIAL are your acceptance: a row moves when a model can run it through a typed command (JSONL loop of `harness/src/cli/drive.rs`) and the result reaches save and export.\n\nFacts are READ by the wave planner at origin b57c82d1 with git grep, read-only, not run, unless marked 'planner READ at 0a733db8' (research/width-plan-20261108-*.json, older pin: re-check). Treat them as claims and check them.\n\nGroup file: research/spec-coverage-20261111-g5-web-whiteboard.json. Rows: 14.28.6 STU-WEB-091..093, 096..099 (7 MISSING), site record and synchronisation STU-WEB-113, 119 (PARTIAL). Ledger candidates: 2026-11-12T15:08:00Z session Action::Read for read-only verbs (web.site_report and similar) with the kernel-bindings mapping; 2026-11-12T15:08:00Z and 2026-11-11T11:09:18Z change-link-site-wide for case-mismatched and percent-encoded spellings; 2026-11-11T10:39:51Z diag_sink abort flake (act only if it repeats in R60 attempt 3 or in your bundled run).\n\nFacts:\n- `session/src/ports.rs:12-17` `enum Action { Edit, Save, Export }` with `as_str`; `kernel-bindings/src/wire.rs:128-130` maps each variant; `harness-core/src/web_site.rs:124` `REPORT_ACTION: Action = Action::Export` (lead Q1 reading at SMB-WEB-SITE-1). Action::Export or Save is named in 15 files (31 hits): list the exhaustive matches a new variant touches before coding.\n- No template, library item or snippet record: grep repeating_table|library_item|locked_region: 0; snippet_trigger_duplicate: 0 (audit).\n- SMB-WEB-CODE-1 runs in parallel in web-core and new harness-core files; this lane owns web_site.rs and commands/web.rs.\n- diag_sink test: `harness-core/tests/diag_sink.rs:568` an_abort_leaves_the_lines_written_and_no_end_of_run; module `harness-core/src/diag_sink.rs`.\n\nHow to work:\n1. Read the code first. Use the spec's names and cite clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`). Use only names already in the spec, MTs or code.\n2. Red test and focused test per item. Typed commands with typed parameters and typed refusals; each mutating command is one named undo step, carries the caller's attribution and survives save and reopen.\n3. Commands register in the existing catalog: your domain file under `harness-core/src/action/commands/` (the per-domain `ROWS` tables that `commands.rs` concatenates into `RUN_COMMANDS`), or a `viewer.<method>` row.\n4. V4-06: a short list of sibling sites, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n5. About 6 commits. Width over polish. State what you cut.\nMTs: read those your slice proves and name them in your report; the lead records them. Do not edit MT files.\n\nOut of scope: panels and drawing (except where this lane is the GUI lane), RF-01, render-gpu, any Cargo.lock change without asking the lead.",
+ "diag": "producer_through_observe: one terminal frame per command, codes and counters only",
+ "attr": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+ "exposure": "medium",
+ "paths": "hsk-studio-harness-core/src/web_site.rs; hsk-studio-harness-core/src/action/commands/web.rs; hsk-studio-session/src/ports.rs; hsk-studio-kernel-bindings/src/wire.rs; hsk-studio-harness/tests (new web site targets)",
+ "suites": "session and kernel-bindings suites; harness-core suite; harness [viewer] web targets",
+ "closes": [
+  "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WEB 14.28.6 rows",
+  "ledger direction.next_lane_candidates 2026-11-12T15:08:00Z Action::Read",
+  "ledger direction.next_lane_candidates 2026-11-12T15:08:00Z change-link-site-wide",
+  "ledger direction.next_lane_candidates 2026-11-11T11:09:18Z change-link-site-wide"
+ ],
+ "mts": [],
+ "tree": "smb-pr-sequence-session-1",
+ "disk": "d"
+}

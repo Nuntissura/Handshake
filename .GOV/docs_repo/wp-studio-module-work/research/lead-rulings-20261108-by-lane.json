@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-11T13:21:52Z",
+ "updated_at": "2026-11-13T05:14:58Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -155,6 +155,32 @@
    "RELEASED 2026-11-11T13:21Z at BUNDLED GREEN 6363bd19 (lead checked bundled-6363bd19.log: step 0 clean, registry in sync, 223 passed 1 skipped, 89 passed).",
    "Review Q1 READING: save_develop_preset is an authoring save of a preset file, not an export or job, so JobPort admission is not required (the common rule covers exports). It stays as built and is listed under notes as a reading.",
    "F4 has no separate red proof, because its check follows F3's in the same test. ACCEPTED: F4 is covered at green. Record 'F4 red not proven' under not_proven."
+  ],
+  "SMB-LAYOUT-DELETE-CASCADE-1": [
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 1 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-WEB-SITE-2": [
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 2 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-DS-VARIABLES-AUTHOR-1": [
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 3 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-PS-FILTER-ADJUST-COMMANDS-1": [
+   "DNG XMP crop (lead 2026-11-13; open ruling 'lane 7' of research/prep-20261112/resume-20261112.json next_wave, settled): add the dependency edge harness-view -> interop-lrcat (one steward edge plus the Cargo.lock line), so one codec (interop-lrcat src/xmp.rs) owns the crs: keys. Do NOT add a second crs: writer. This answers the brief's 'Ask the lead before either' and its condition on hsk-studio-harness-view/Cargo.toml.",
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 4 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-TYPE-CHARACTER-ATTRIBUTES-1": [
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 5 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-WEB-CODE-1": [
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 6 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-GUI-MENU-1": [
+   "Spine gate (lead 2026-11-13; open ruling 'lane 1' of research/prep-20261112/resume-20261112.json next_wave, settled): the lead reads the spine GATE_CHECK as gating panel fan-out (build-order B10 and later), not menus (B6). SMB-GUI-MENU-1 may proceed, and it is the only GUI lane until B9.",
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 7 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
+  ],
+  "SMB-BOARD-1": [
+   "Landing order, wave 2026-11-13 (lead 2026-11-13): 5, 8, 6, 7, 2, 4, 1, 3 = SMB-LAYOUT-DELETE-CASCADE-1, SMB-WEB-SITE-2, SMB-DS-VARIABLES-AUTHOR-1, SMB-PS-FILTER-ADJUST-COMMANDS-1, SMB-TYPE-CHARACTER-ATTRIBUTES-1, SMB-WEB-CODE-1, SMB-GUI-MENU-1, SMB-BOARD-1, one at a time on the lead's release. This lane lands 8 of 8. SMB-BOARD-1 lands last if it adds Payload variants."
   ]
  }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-12T18:03:24Z",
+ "updated_at": "2026-11-13T05:13:41Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20046,6 +20046,149 @@
     "validation/round-R60.json attempt_2_probes: SMB-DOC-EXPORT-1 j1, SMB-ARTBOARD-EXPORT-1 j2, SMB-AUDIO-OUT-MIX-1 a1 a2, SMB-DOC-NEW-1 g2, SMB-PR-EXPORT-RECIPE-1 vtt trailing name, SMB-LAYOUT-PERSIST-1 parented page delete and the layout.open row, SMB-UI-TREE-1 u1 u2"
    ],
    "claim": "R60 attempt-2 probe failures fixed at e29d933a (red first): document export, export.run, the batch per-target export (caller's port), Viewer::export, export_develop, export_vector_svg, export_vector_pdf, the routed mixdown, the stem set and export_audio (derived resource) admit through the bound JobPort before the first byte with typed refusals and one settlement; page.add mint never loops (id fields only, lowest free number past u64::MAX); page.delete updates parent bindings and sections in one undo step, refuses page_not_empty / page_bound_by_layout_records named; layout.open row mutates and the drive names its step; reel .vtt names compared as Windows resolves them; kumihimo edge_gaps and Hug clamp; a threaded text-frame layer delete refuses layer_bound_by_layout_records. Logs: bundled-29a185fb.log, landing2-29a185fb.log (suites of newly touched crates, PER_SHA_RESULT OK)."
+  },
+  {
+   "lane_id": "SMB-GUI-MENU-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-native-host (feature document: menu popups, availability, tooltips), kumihimo-ui (additive menu_popup, menu_item, tooltip widgets), hsk-studio-harness-view (one new egui-free menu tree module), hsk-studio-controls (read; additive only)",
+   "lane_file": "builders/lanes/hsk-studio-gui-menu-1.json",
+   "brief": "builders/briefs/lane-smb-gui-menu-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/spec-coverage-20261111-g7-shell-manual-misc.json STU-SHL menu, availability, tooltip, UiDescriptor rows",
+    "gui-design/build-order.json B6",
+    "ledger direction.next_lane_candidates 2026-11-07T17:49:57Z menus"
+   ]
+  },
+  {
+   "lane_id": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (typestyle.rs stored fields), hsk-studio-layout (textflow.rs), hsk-studio-type, hsk-studio-harness-view (layout_ui.rs, view/commands/layout.rs, view/layout_export.rs), hsk-studio-harness-core (action/commands/layout.rs)",
+   "lane_file": "builders/lanes/hsk-studio-type-character-attributes-1.json",
+   "brief": "builders/briefs/lane-smb-type-character-attributes-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/width-plan-20261108-print-web.json rank 3",
+    "research/spec-coverage-20261111-g3-vector-type.json STU-TYP 14.7.9 rows"
+   ]
+  },
+  {
+   "lane_id": "SMB-BOARD-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (board node records), hsk-studio-composite (drawing over existing vector and text paths), hsk-studio-harness-core (action/commands/board.rs), hsk-studio-harness-view (new egui-free board module)",
+   "lane_file": "builders/lanes/hsk-studio-board-1.json",
+   "brief": "builders/briefs/lane-smb-board-1.md",
+   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/width-plan-20261108-print-web.json rank 4",
+    "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WB board rows"
+   ]
+  },
+  {
+   "lane_id": "SMB-WEB-CODE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-web-core (new modules), hsk-studio-harness-core (new command file and handlers)",
+   "lane_file": "builders/lanes/hsk-studio-web-code-1.json",
+   "brief": "builders/briefs/lane-smb-web-code-1.md",
+   "worktree": "wt-studio-lanes/smb-r53-followups-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WEB 14.28.1, 14.28.3, 14.28.4 rows"
+   ]
+  },
+  {
+   "lane_id": "SMB-LAYOUT-DELETE-CASCADE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (harness/containers.rs), hsk-studio-harness-view (view/layers.rs, layout_place.rs, layout_ui/threads.rs), hsk-studio-layout (threaded_reflow.rs)",
+   "lane_file": "builders/lanes/hsk-studio-layout-delete-cascade-1.json",
+   "brief": "builders/briefs/lane-smb-layout-delete-cascade-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-12T17:43:00Z page.delete with content and text-frame layer delete",
+    "ledger direction.next_lane_candidates 2026-11-11T10:39:51Z layer.delete of a threaded text-frame layer",
+    "ledger direction.next_lane_candidates 2026-11-11T12:51:10Z frame_to_content bounds and group/page/spread delete",
+    "research/spec-coverage-20261111-g4-layout-io-docs.json STU-LAY-020, STU-LAY-123"
+   ]
+  },
+  {
+   "lane_id": "SMB-DS-VARIABLES-AUTHOR-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (vector entry design member, view/design/*, view/design/persist.rs), hsk-studio-harness-core (design command rows), hsk-studio-components (read)",
+   "lane_file": "builders/lanes/hsk-studio-ds-variables-author-1.json",
+   "brief": "builders/briefs/lane-smb-ds-variables-author-1.md",
+   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/width-plan-20261108-raster-vector-design.json rank 3",
+    "research/spec-coverage-20261111-g8-designsystems-automation-assets.json STU-DS variables rows",
+    "ledger direction.next_lane_candidates 2026-11-12T17:58:12Z text-record compaction",
+    "ledger direction.next_lane_candidates 2026-11-12T17:58:12Z .fig prune at save"
+   ]
+  },
+  {
+   "lane_id": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (place.rs entry-edit helper, effect and adjustment commands, develop.rs XMP crop), hsk-studio-harness-core (photo or effect rows), hsk-studio-pigment (read), hsk-studio-folio (read), hsk-studio-interop-lrcat (read, if the edge is approved)",
+   "lane_file": "builders/lanes/hsk-studio-ps-filter-adjust-commands-1.json",
+   "brief": "builders/briefs/lane-smb-ps-filter-adjust-commands-1.md",
+   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/width-plan-20261108-raster-vector-design.json rank 4",
+    "ledger direction.next_lane_candidates 2026-11-07T13:29:59Z filter commands",
+    "ledger direction.next_lane_candidates 2026-11-12T10:30:18Z crop in the DNG XMP"
+   ]
+  },
+  {
+   "lane_id": "SMB-WEB-SITE-2",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (web_site.rs, action/commands/web.rs), hsk-studio-session (ports.rs Action), hsk-studio-kernel-bindings (wire.rs mapping)",
+   "lane_file": "builders/lanes/hsk-studio-web-site-2.json",
+   "brief": "builders/briefs/lane-smb-web-site-2.md",
+   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+   "base": "b57c82d1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-13T05:13:41Z",
+   "closes": [
+    "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WEB 14.28.6 rows",
+    "ledger direction.next_lane_candidates 2026-11-12T15:08:00Z Action::Read",
+    "ledger direction.next_lane_candidates 2026-11-12T15:08:00Z change-link-site-wide",
+    "ledger direction.next_lane_candidates 2026-11-11T11:09:18Z change-link-site-wide"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22789,7 +22932,15 @@
     "lane/smb-develop-commands-1",
     "lane/smb-motion-commands-2",
     "lane/smb-delivery-queue-1",
-    "lane/smb-r60-followups-1"
+    "lane/smb-r60-followups-1",
+    "lane/smb-gui-menu-1",
+    "lane/smb-type-character-attributes-1",
+    "lane/smb-board-1",
+    "lane/smb-web-code-1",
+    "lane/smb-layout-delete-cascade-1",
+    "lane/smb-ds-variables-author-1",
+    "lane/smb-ps-filter-adjust-commands-1",
+    "lane/smb-web-site-2"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -23010,6 +23161,46 @@
      "branch": "lane/smb-r60-followups-1",
      "previous_branch": "lane/smb-drive-typed-2",
      "disk": "D"
+    },
+    "SMB-GUI-MENU-1": {
+     "tree": "smb-pr-entry-references-1",
+     "branch": "lane/smb-gui-menu-1",
+     "previous_branch": "lane/smb-score-effects-6-d"
+    },
+    "SMB-TYPE-CHARACTER-ATTRIBUTES-1": {
+     "tree": "smb-pr-retime-hold-1",
+     "branch": "lane/smb-type-character-attributes-1",
+     "previous_branch": "lane/smb-type-indent-spacing-1-d"
+    },
+    "SMB-BOARD-1": {
+     "tree": "smb-sentinels-native-1",
+     "branch": "lane/smb-board-1",
+     "previous_branch": "lane/smb-web-site-1"
+    },
+    "SMB-WEB-CODE-1": {
+     "tree": "smb-r53-followups-1",
+     "branch": "lane/smb-web-code-1",
+     "previous_branch": "lane/smb-delivery-queue-1"
+    },
+    "SMB-LAYOUT-DELETE-CASCADE-1": {
+     "tree": "smb-pr-edit-footprint-1",
+     "branch": "lane/smb-layout-delete-cascade-1",
+     "previous_branch": "lane/smb-r60-followups-1"
+    },
+    "SMB-DS-VARIABLES-AUTHOR-1": {
+     "tree": "smb-ai-distort-effects-1",
+     "branch": "lane/smb-ds-variables-author-1",
+     "previous_branch": "lane/smb-ds-components-author-1"
+    },
+    "SMB-PS-FILTER-ADJUST-COMMANDS-1": {
+     "tree": "smb-folio-angle-unbounded-1",
+     "branch": "lane/smb-ps-filter-adjust-commands-1",
+     "previous_branch": "lane/smb-develop-commands-1"
+    },
+    "SMB-WEB-SITE-2": {
+     "tree": "smb-pr-sequence-session-1",
+     "branch": "lane/smb-web-site-2",
+     "previous_branch": "lane/smb-motion-commands-2"
     }
    },
    "why": {
