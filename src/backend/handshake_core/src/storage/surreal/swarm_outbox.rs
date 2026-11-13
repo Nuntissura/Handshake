@@ -61,6 +61,7 @@ IF array::len($existing) > 1 OR array::len($prior) > 1 {
         event_id: $ledger_record_id,
         event_version: 'kernel_event_v1',
         kernel_task_run_id: $workspace_id,
+        wsids: [$workspace_id],
         session_run_id: $authenticated_session_id,
         aggregate_type: 'swarm_terminal_event',
         aggregate_id: $event_id,
@@ -219,8 +220,8 @@ pub(super) async fn verify_schema_receipt(
 pub async fn bootstrap_swarm_outbox_schema(
     storage: &SurrealStorage,
 ) -> Result<(), SurrealStorageError> {
-    super::bootstrap_schema(storage).await?;
-    install_swarm_outbox_schema(storage).await
+    super::bootstrap_production_schemas(storage).await?;
+    Ok(())
 }
 
 // Production composition calls this only after its verified shared prerequisite.
@@ -278,7 +279,12 @@ impl SurrealSwarmOutboxStore {
         Ok(Self::new_exact(storage, scope))
     }
 
-    async fn ensure_initialized(&self) -> Result<(), SurrealSwarmOutboxError> {
+    pub(crate) fn storage_and_scope(&self) -> (&SurrealStorage, &ExactResourceScopeAttribution) {
+        (&self.storage, &self.scope)
+    }
+
+    /// Prepare this store before a worker begins accepting timed events.
+    pub async fn prepare(&self) -> Result<(), SurrealSwarmOutboxError> {
         self.initialized
             .get_or_try_init(|| async { bootstrap_swarm_outbox_schema(&self.storage).await })
             .await?;
@@ -291,7 +297,7 @@ impl SurrealSwarmOutboxStore {
         event_json: String,
         capacity: usize,
     ) -> Result<SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxError> {
-        self.ensure_initialized().await?;
+        self.prepare().await?;
         if event_id.trim().is_empty()
             || event_json.trim().is_empty()
             || serde_json::from_str::<serde_json::Value>(&event_json).is_err()
@@ -343,11 +349,11 @@ impl SurrealSwarmOutboxStore {
     pub async fn next_pending(
         &self,
     ) -> Result<Option<SurrealSwarmOutboxEvent>, SurrealSwarmOutboxError> {
-        self.ensure_initialized().await?;
+        self.prepare().await?;
         let bindings = self.scope_bindings();
         let rows = self.storage.with_data_operation(|database| Box::pin(async move {
             database.query_values::<PendingRow, _>(
-                "SELECT event_id, event_json FROM swarm_terminal_event_outbox WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND storage_authority = 'embedded_surrealdb' AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'swarm_terminal_outbox' AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event' ORDER BY created_at ASC, event_id ASC LIMIT 1;",
+                "SELECT event_id, event_json, created_at FROM swarm_terminal_event_outbox WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND storage_authority = 'embedded_surrealdb' AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'swarm_terminal_outbox' AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event' ORDER BY created_at ASC, event_id ASC LIMIT 1;",
                 bindings,
             ).await
         })).await?;
@@ -358,7 +364,7 @@ impl SurrealSwarmOutboxStore {
     }
 
     pub async fn mark_delivered(&self, event_id: &str) -> Result<(), SurrealSwarmOutboxError> {
-        self.ensure_initialized().await?;
+        self.prepare().await?;
         let bindings = self.event_bindings(event_id, String::new())?;
         self.storage.with_data_operation(|database| Box::pin(async move {
             database.query_bound(
@@ -375,7 +381,7 @@ impl SurrealSwarmOutboxStore {
         event_id: &str,
         error: &str,
     ) -> Result<(), SurrealSwarmOutboxError> {
-        self.ensure_initialized().await?;
+        self.prepare().await?;
         let last_error: String = error.chars().take(4096).collect();
         let bindings = self.event_bindings(event_id, last_error)?;
         self.storage.with_data_operation(|database| Box::pin(async move {

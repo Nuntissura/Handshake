@@ -48,6 +48,7 @@ struct OutboxProbe {
 #[derive(Debug, SurrealValue)]
 struct EventLedgerProbe {
     event_id: String,
+    wsids: Vec<String>,
     aggregate_type: String,
     aggregate_id: String,
     idempotency_key: String,
@@ -326,6 +327,7 @@ fn assert_exact_ledger_scope(scope: &ExactResourceScopeAttribution, row: &EventL
     );
     assert_eq!(row.access_space_id, scope.access_space_id.to_string());
     assert_eq!(row.workspace_id, scope.workspace_id.to_string());
+    assert_eq!(row.wsids, [scope.workspace_id.to_string()]);
 }
 
 async fn cleanup(scope: &mut IsolatedSurrealTestStore) {
@@ -606,6 +608,7 @@ async fn bridge_terminal_events_are_acknowledged_ordered_and_drained_without_los
     let storage = test_scope.storage().clone();
     let scope = exact_scope();
     let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    store.prepare().await.expect("prepare outbox before starting worker");
     let recorder = Arc::new(CollectingRecorder::default());
     let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
     let (bridge, drain) =
@@ -650,6 +653,7 @@ async fn pending_terminal_event_recovers_through_new_store_and_healthy_shutdown_
     let storage = test_scope.storage().clone();
     let scope = exact_scope();
     let first_store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    first_store.prepare().await.expect("prepare outbox before starting worker");
     let event = terminal_event("recover-after-recorder-outage");
     let (degraded_bridge, degraded_drain) =
         DurableSwarmFrBridge::spawn_outbox_only(first_store.clone(), 4);
@@ -674,6 +678,7 @@ async fn pending_terminal_event_recovers_through_new_store_and_healthy_shutdown_
     drop(degraded_drain);
     drop(first_store);
     let recovered_store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    recovered_store.prepare().await.expect("prepare outbox before starting worker");
     let recorder = Arc::new(CollectingRecorder::default());
     let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
     let (healthy_bridge, healthy_drain) = DurableSwarmFrBridge::spawn_with_surreal_outbox(
@@ -743,6 +748,7 @@ async fn shutdown_timeout_is_negative_then_recovers_without_terminal_loss() {
     let storage = test_scope.storage().clone();
     let scope = exact_scope();
     let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    store.prepare().await.expect("prepare outbox before starting worker");
     let recorder = Arc::new(BlockingRecorder::new());
     let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
     let (bridge, drain) =
@@ -781,6 +787,7 @@ async fn bounded_non_terminal_capacity_reports_drop_and_preserves_accepted_order
         .expect("allocate isolated Surreal scope");
     let storage = test_scope.storage().clone();
     let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), exact_scope());
+    store.prepare().await.expect("prepare outbox before starting worker");
     let recorder = Arc::new(BlockingRecorder::new());
     let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
     let (bridge, drain) =
@@ -865,6 +872,7 @@ async fn committed_terminal_reemit_acknowledges_without_duplicate_recording_or_s
     let storage = test_scope.storage().clone();
     let scope = exact_scope();
     let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    store.prepare().await.expect("prepare outbox before starting worker");
     let recorder = Arc::new(CollectingRecorder::default());
     let first = terminal_event("committed-first");
     let later = terminal_event("later-distinct");
@@ -910,6 +918,7 @@ async fn live_worker_periodically_retries_pending_terminal_event_after_same_reco
     let storage = test_scope.storage().clone();
     let scope = exact_scope();
     let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    store.prepare().await.expect("prepare outbox before starting worker");
     let recorder = Arc::new(RecoveringRecorder {
         healthy: AtomicBool::new(false),
         recorded: CollectingRecorder::default(),

@@ -439,6 +439,24 @@ async fn run(
             ),
         }
 
+        let outbox = storage::surreal::SurrealSwarmOutboxStore::new_exact(
+            control_plane.surreal.clone(),
+            product_local_scope.exact().clone(),
+        );
+        if outbox.prepare().await.is_err() {
+            tracing::error!(
+                target: "handshake_core::swarm_orchestration",
+                "outbox preparation failed before workspace activation"
+            );
+            activation.unavailable();
+            activation = tokio::select! {
+                request = activation_rx.recv() => retain_on_error!(request.ok_or("workspace activation channel closed")),
+                result = &mut server => { retain_on_error!(server_result(result)); break; },
+                _ = &mut connection_drain_deadline => { retain_failed_runtime(&terminal, "account HTTP drain timed out").await; },
+            };
+            continue;
+        }
+
         let runtime_host_scope_id =
             retain_on_error!(crate::process_ledger::resolve_embedded_runtime_host_scope());
         let process_runtime = retain_on_error!(ProcessReclaimRuntime::production(
@@ -611,12 +629,11 @@ async fn run(
         let janitor_handle = janitor.clone().spawn_background();
 
         let (launch_service, swarm_drain) = crate::swarm_orchestration::production_factory::
-            build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
-                state.surreal.clone(), state.flight_recorder.clone(), catalog.clone(),
+            build_scoped_operator_chat_launch_service_with_outbox(
+                outbox, state.flight_recorder.clone(), catalog.clone(),
                 process_runtime.ledger(), process_runtime.reclaim(), cloud,
                 Some(process_runtime.sandbox_registry()), genie_x_resolver,
-                state.surreal.resource_access_lifecycle(),
-                product_local_scope.exact().clone(), uuid::Uuid::now_v7(),
+                Some(state.surreal.resource_access_lifecycle()), uuid::Uuid::now_v7(),
             );
         let operator_chat_state = api::operator_chat::OperatorChatState::with_production_dependencies(
             launch_service.clone(), catalog, cloud_registry, model_access_state.cli_auth_probe(),

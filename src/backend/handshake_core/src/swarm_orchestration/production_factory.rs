@@ -338,8 +338,12 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
     Arc<super::operator_chat::OperatorChatLaunchService>,
     super::events::DurableSwarmFrDrain,
 ) {
-    build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
+    let outbox = crate::storage::surreal::SurrealSwarmOutboxStore::new_exact(
         surreal_storage,
+        exact_scope,
+    );
+    build_scoped_operator_chat_launch_service_with_outbox(
+        outbox,
         recorder,
         catalog.into(),
         process_ledger_runtime,
@@ -348,7 +352,6 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
         sandbox_registry,
         None,
         None,
-        exact_scope,
         trace_id,
     )
 }
@@ -375,8 +378,12 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifec
     Arc<super::operator_chat::OperatorChatLaunchService>,
     super::events::DurableSwarmFrDrain,
 ) {
-    build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
+    let outbox = crate::storage::surreal::SurrealSwarmOutboxStore::new_exact(
         surreal_storage,
+        exact_scope,
+    );
+    build_scoped_operator_chat_launch_service_with_outbox(
+        outbox,
         recorder,
         catalog.into(),
         process_ledger_runtime,
@@ -385,13 +392,12 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifec
         sandbox_registry,
         genie_x_resolver,
         Some(lifecycle),
-        exact_scope,
         trace_id,
     )
 }
 
-fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
-    surreal_storage: crate::storage::surreal::SurrealStorage,
+pub(crate) fn build_scoped_operator_chat_launch_service_with_outbox(
+    outbox: crate::storage::surreal::SurrealSwarmOutboxStore,
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
     catalog: Option<Arc<crate::model_runtime::catalog::ModelCatalog>>,
     process_ledger_runtime: RetainedLedgerBatcher,
@@ -400,12 +406,13 @@ fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     genie_x_resolver: Option<Arc<dyn GenieXHostBindingResolver>>,
     lifecycle: Option<ResourceAccessLifecycleRegistry>,
-    exact_scope: ExactResourceScopeAttribution,
     trace_id: uuid::Uuid,
 ) -> (
     Arc<super::operator_chat::OperatorChatLaunchService>,
     super::events::DurableSwarmFrDrain,
 ) {
+    let (surreal_storage, exact_scope) = outbox.storage_and_scope();
+    let surreal_storage = surreal_storage.clone();
     let resource_scope = super::resource_scope::ResourceScope::new(
         exact_scope.owner_account_id,
         exact_scope.actor_principal_id,
@@ -413,10 +420,6 @@ fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
     .with_session(exact_scope.authenticated_session_id)
     .with_access_space(exact_scope.access_space_id)
     .with_workspace(exact_scope.workspace_id.clone());
-    let outbox = crate::storage::surreal::SurrealSwarmOutboxStore::new_exact(
-        surreal_storage.clone(),
-        exact_scope,
-    );
     let model_lane_store = match lifecycle {
         Some(lifecycle) => {
             ModelLaneStore::new_scoped_with_lifecycle(surreal_storage, resource_scope, lifecycle)
