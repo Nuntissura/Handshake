@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T11:28:13Z",
+ "updated_at": "2026-11-13T11:42:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20102,8 +20102,8 @@
   },
   {
    "lane_id": "SMB-WEB-CODE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-web-core (new modules), hsk-studio-harness-core (new command file and handlers)",
    "lane_file": "builders/lanes/hsk-studio-web-code-1.json",
    "brief": "builders/briefs/lane-smb-web-code-1.md",
@@ -20111,10 +20111,11 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T11:42:08Z",
    "closes": [
     "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WEB 14.28.1, 14.28.3, 14.28.4 rows"
-   ]
+   ],
+   "claim": "READY_FOR_VALIDATION at f02e6d85 (origin codex/handshake-studio-assets): web code intelligence as 20 typed web.* rows (web_code domain): 39 document types, 10 SHA-pinned doctypes, MIME map, tag libraries and the HTML vocabulary (WHATWG CC BY 4.0 / BSD-3, W3C, Ecma; crate NOTICE), CSS property surface with numeric contracts and the one-call rule edit, regions by document type, code hints, html_all validation with STU-WEB-147..151 codes, markup and CSS linters, rendering-neutral format_source, comments by a CSS/script lexer, indent/outdent, doctype edit; every edit one named undo step with the caller's context, saved and reopened; whole-document rows admitted as jobs with a work budget and cancellation; review c1e077d9 F1-F14 under the lead rulings; bundled smb-web-code-1-bundle-60dc2d16.log (A 226/226, B 71/71, fresh example); landing smb-web-code-1-land-60dc2d16.log (rebased onto 3fb489ab, harness-core 75/75, fresh example, harness [viewer] web 71/71, per-sha OK, pushed)"
   },
   {
    "lane_id": "SMB-LAYOUT-DELETE-CASCADE-1",
@@ -22722,6 +22723,21 @@
     "added_at": "2026-11-13T11:28:13Z",
     "item": ".fig redraws in the step: vector, text and design entries (ends R1 for design files)",
     "owner": "a next design-system lane"
+   },
+   {
+    "added_at": "2026-11-13T11:42:08Z",
+    "item": "the vendor-sized web vocabulary from a permissive source (the other 9 tag libraries, attribute definitions and enumerated values) with hint item descriptions (STU-WEB-051 described flag is false today)",
+    "owner": "web code (hsk-studio-web-core vocabulary.rs, hints.rs)"
+   },
+   {
+    "added_at": "2026-11-13T11:42:08Z",
+    "item": "STU-WEB-049 token-class palette and themes and the STU-WEB-048 scheme sizing for the colouring schemes",
+    "owner": "web code (hsk-studio-web-core hints.rs)"
+   },
+   {
+    "added_at": "2026-11-13T11:42:08Z",
+    "item": "script lint provider selection (STU-WEB-057; web.lint script refuses script_lint_provider_unselected) and site-wide batch lint (STU-WEB-058)",
+    "owner": "spec owner + web code"
    }
   ],
   "pause_20261103": {

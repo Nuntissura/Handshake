@@ -1,19 +1,105 @@
 {
   "crate": "hsk-studio-web-core (new modules), hsk-studio-harness-core (new command file and handlers)",
   "lane": "SMB-WEB-CODE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
-  "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "3fb489ab",
+  "commits": [
+    {
+      "sha": "1292ac10",
+      "what": "red tests (harness web_code.rs, web_host pins 54)"
+    },
+    {
+      "sha": "0e4e4ef1",
+      "what": "doc types, doctypes, MIME, tag vocabulary (STU-WEB-011..027)"
+    },
+    {
+      "sha": "a124c70d",
+      "what": "CSS property surface, media records, rule edit (STU-WEB-060..076)"
+    },
+    {
+      "sha": "bbc779dc",
+      "what": "regions, hints, navigation, validator, linters (STU-WEB-045..059)"
+    },
+    {
+      "sha": "2ee19bcc",
+      "what": "format_source, comments, indent, doctype edit; web re-export"
+    },
+    {
+      "sha": "ad22e6ac",
+      "what": "20 web.* rows and handlers (harness-core); web_code arm before site_command"
+    },
+    {
+      "sha": "acd86976",
+      "what": "review c1e077d9 red tests (harness web_code.rs F1-F13)"
+    },
+    {
+      "sha": "1eaff2b0",
+      "what": "review fixes F1-F11, F13, F14 (lexer comments, jobs and Work budget, rendering-neutral format, rule identity, implied skeleton, regions by type, NOTICE, BOM)"
+    },
+    {
+      "sha": "f02e6d85",
+      "what": "review F12: code edits in locked template regions refused (SMB-WEB-SITE-2 guard); pushed tip"
+    }
+  ],
+  "capabilities_done": [
+    "STU-WEB-011..016: document-type record, closed kind and DTD-context sets, the 39 types, 10 doctypes (SHA-256 pinned), MIME map; web.document_types, web.set_doctype",
+    "STU-WEB-017..027: tag-library/definition/formatting-rule/attribute records, 10 libraries with load-delta diagnostics, 20 value types, enumerated values in declared order, cross-tag groups with collision diagnostics, case rules, generic inspector fallback, typed registration; web.tag_vocabulary",
+    "STU-WEB-028/020: web.format_source driven by the formatting rules, dry-runnable, idempotent, one undo step",
+    "STU-WEB-029: web.apply_comment / web.remove_comment by the language at the range (html, css, javascript)",
+    "STU-WEB-045..047: scheme record, priority bands, exact embedded-block delimiters with ambiguity diagnosed at registration, region-ownership receipts; web.regions",
+    "STU-WEB-050/051: code-hint record and groups from the vocabulary, described flag; web.code_hints",
+    "STU-WEB-052..055: rule-set, value-map (linear-time pattern engine) and diagnostic records, shipped html_all subset; web.validate",
+    "STU-WEB-056..058: exact CSS 35 / markup 23 / script 69-key configurations and 4 levels; markup and CSS linters with not_run listing; web.lint",
+    "STU-WEB-059: web.balance_braces, web.select_parent_tag, web.collapse_full_tag, web.collapse_selection, web.indent, web.outdent, web.code_navigator",
+    "STU-WEB-060..076: categories, control types, units, 54 curated contracts, numeric contracts with declared/studio_declared bounds, transition lists, prefix rules, SVG web defaults, gradient constant, media-query records; web.css_properties, web.css_rule, web.media_records"
+  ],
+  "tests": {
+    "red_proof": {
+      "sha": "fb2b1b86",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/smb-web-code-1-red-fb2b1b86.log",
+      "result": "nextest -p hsk-studio-harness --test web_code --test web_host: 12 run, 7 passed, 5 failed (the 4 web_code tests: rows absent / unknown_command; web_host pin left 22), exit 100"
+    },
+    "focused_pre_commit": {
+      "logs": "smb-web-code-1-{clippy,webcore,harness}-it3.log",
+      "result": "clippy web-core, web, harness-core --tests exit 0; web-core code_* 42/42 passed; harness web_code + web_host (no viewer) 12/12 passed"
+    },
+    "bundled": {
+      "sha": "60dc2d16",
+      "base": "3e087001",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/smb-web-code-1-bundle-60dc2d16.log",
+      "result": "example (harness --features viewer) exit 0; lane-check A (web-core, web, harness-core; clippy with dependents) 226/226 exit 0; lane-check B (harness viewer web_host, web_site, web_site_depth, web_code) 71/71 exit 0"
+    },
+    "fix_red_proof": {
+      "sha": "4ea3223d",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/smb-web-code-1-red-4ea3223d.log",
+      "result": "nextest -p hsk-studio-harness --test web_code -E 'test(/^f[0-9]/)': 9 run, 9 failed (the review findings, before the fixes)"
+    },
+    "fix_focused": "pre-rebase c38002c9: clippy exit 0; web-core code_* 55/55; harness web_code + web_host 21/21 (logs smb-web-code-1-{clippy,webcore,harness}-fix3.log). Earlier attempts: 8e618182 compile error (hints.rs lifetime); c60394e7 54/55 and 20/21 (test fixture and job field), fixed in tests",
+    "bundled_pre_rebase": {
+      "sha": "c38002c9",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/smb-web-code-1-bundle-c38002c9.log",
+      "result": "example exit 0; lane-check A (web-core, web, harness-core) 219/219 exit 0; lane-check B (harness viewer web_host, web_site, web_code) 45/45 exit 0"
+    },
+    "fix_focused_rebased": {
+      "sha": "60dc2d16",
+      "logs": "smb-web-code-1-{clippy,webcore,harness}-fix4.log",
+      "result": "clippy web-core, web, harness-core --tests exit 0 (one warning in harness/containers.rs:911, SMB-LAYOUT-DELETE-CASCADE-1 code, not this lane); web-core code_* 55/55; harness web_code + web_host + web_site_depth (no viewer) 47/47"
+    },
+    "landing": {
+      "sha": "f02e6d85",
+      "base": "3fb489ab",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/smb-web-code-1-land-60dc2d16.log",
+      "result": "rebased onto 3fb489ab (newly landed commits touched harness, harness-core, harness-view, kernel-bindings, session): harness-core 75/75 exit 0; fresh example exit 0; harness [viewer] web_host, web_site, web_site_depth, web_code 71/71 exit 0; per-sha HEAD~1 OK (smb-web-code-1-persha-f02e6d85.log); pushed f02e6d85"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: SMB-WEB-CODE-1 at f02e6d85",
+  "updated_at": "2026-11-13T11:41:57Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +124,58 @@
       "research/spec-coverage-20261111-g5-web-whiteboard.json STU-WEB 14.28.1, 14.28.3, 14.28.4 rows"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-r53-followups-1"
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "spec_basis": [
+      "STU-WEB-013: Studio MUST ship exactly these document types.",
+      "STU-WEB-028: Studio MUST expose web.format_source ... dry-runnable (returns the diff), receipted and undoable as one operation. It MUST be idempotent.",
+      "STU-WEB-055: Diagnostics MUST be readable through the command surface so a model can validate a document headlessly.",
+      "STU-WEB-060: a model MUST be able to create a rule in a named media query in a named stylesheet in one call."
+    ],
+    "beyond_brief_paths": [
+      "crates/hsk-studio-web/src/lib.rs: one re-export line for the six new web-core modules (lead approved 2026-11-13)",
+      "crates/hsk-studio-harness-core/src/web_commands.rs: `#[path = \"web_code.rs\"] mod web_code;` and one dispatch line before the site_command fallthrough (lead approved 2026-11-13)",
+      "crates/hsk-studio-harness/tests/web_host.rs: web_command row count and mutating-row pins grow by this lane's rows (lead approved 2026-11-13)",
+      "crates/hsk-studio-harness/tests/web_code.rs: new Run-level tests and the viewer drive-session test (lead approved 2026-11-13)",
+      "builders/dep-requests.jsonl: data line for the WHATWG HTML Living Standard (CC BY 4.0) vocabulary tables (kernel file, not committed by the builder)",
+      "crates/hsk-studio-web-core/NOTICE (lead ruling F9: attribution beside the data)",
+      "crates/hsk-studio-harness-core/src/web_commands.rs open/save: WebHost.bom field, BOM stripped on open and written on save (lead ruling F10)",
+      "crates/hsk-studio-harness-core/src/manual.rs DRIVE_LIMITS dry-run line and tests/action_records.rs dry-runnable assertion (lead ruling F13)",
+      "tools/license_evidence.json asset_licenses entry hsk-studio-web-core (lead ruling F9/Q3; kernel file, not committed by the builder)"
+    ],
+    "cut": [
+      "vendor vocabulary sizes not reached (UNVERIFIED, D5): 470 tag definitions (121 html declared, ~110 loaded, other 9 libraries 0), 9,741 attribute definitions, 14,733 enumerated values, 33 schemes / 46 keyword lists / 271 token classes, 4,811 hint items, the vendor validator rule sets and 433-key value map, 82 curated entries (54 stated in the spec shipped), 369 recognised properties",
+      "STU-WEB-049 token-class palette and themes; STU-WEB-048 sizing; hint descriptions (every group flagged described=false)",
+      "per-document BOM override (STU-WEB-013), publish-receipt MIME report (STU-WEB-016: publish path is web_commands, not this lane), template regions (STU-WEB-090 stays at the type rows)",
+      "plugin consent gate for registration (no plugin host: TagRegistry::register is API only, no command row)",
+      "script linting (STU-WEB-057: provider unselected, refused typed), site-wide batch lint (STU-WEB-058), per-site/per-document persisted lint overrides (per-call only)",
+      "expand-all and word-wrap (view state), external stylesheet files (the web host holds one document), nested @media below one level",
+      "BOM: the per-document override (STU-WEB-013) and BOMs in web.export/publish output (the export path is web_commands'); open strips and save writes the mark only",
+      "registered schemes own opaque markup nodes (PI-style blocks) only; a registered delimiter inside text or attributes is not a region"
+    ],
+    "v4_06_sibling_sites": {
+      "class": "hostile CSS text read by substring instead of tokens (V4-08)",
+      "regex": "contains\\(|split_once\\(|find\\(",
+      "sites": [
+        "web-core css_properties.rs (new): scan_css / declarations / normalised tokenise comments, strings, escapes: fixed (tests style_sheets_scan_by_tokens, hostile_media_text_is_tokenised_not_substring_matched)",
+        "web-core responsive.rs apply_feature: text.contains(['<','>','=','(']) and split_once(':') on raw query text: named, not changed (not this lane's module)",
+        "web-core css.rs parse_declarations: splits on ';' without skipping comments: named, not changed"
+      ]
+    },
+    "mts": [
+      "MT-34229",
+      "MT-34230",
+      "MT-34234",
+      "MT-34246",
+      "MT-34274",
+      "MT-34277",
+      "MT-34281"
+    ],
+    "whatwg_licence": "HTML Standard notice (fetched 2026-11-13 from html.spec.whatwg.org acknowledgements): Copyright WHATWG (Apple, Google, Mozilla, Microsoft); CC BY 4.0, and portions incorporated into source code are licensed under the BSD 3-Clause License instead. The Rust tables are source code: NOTICE (CC BY 4.0 attribution + BSD-3-Clause text) to be added beside them in the fix round.",
+    "review": {
+      "file": "research/review-smb-web-code-1-c1e077d9.json",
+      "verdict": "FIX_FIRST",
+      "rulings": "F1-F14, Q1-Q7 (lead message 2026-11-13)",
+      "f12": "after the rebase onto SMB-WEB-SITE-2: a web_code edit inside a locked template region refuses through WebHost::edit (test to add then)"
+    }
   }
 }

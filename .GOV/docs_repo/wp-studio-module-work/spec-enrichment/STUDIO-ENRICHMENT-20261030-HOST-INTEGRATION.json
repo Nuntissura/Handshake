@@ -701,6 +701,14 @@
    "lead_reading": "2026-11-13 ruling Q6: the listing is the source",
    "source": "lane SMB-GUI-MENU-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-86",
+   "gap": "STU-WEB-018 says the html and templates tag libraries apply to all seven template types, while STU-WEB-013 lists eight TEMPLATE rows (template_html and seven server-model templates).",
+   "needs": "spec owner: seven or eight, and which template type is excluded if seven",
+   "lead_reading": "builder reading, not a lead ruling: both libraries apply to all eight TEMPLATE rows (vocabulary.rs module docs)",
+   "source": "lane SMB-WEB-CODE-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
