@@ -709,6 +709,14 @@
    "lead_reading": "builder reading, not a lead ruling: both libraries apply to all eight TEMPLATE rows (vocabulary.rs module docs)",
    "source": "lane SMB-WEB-CODE-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-87",
+   "gap": "STU-FX-103 / STU-FX-106 define hsk.studio.effect_parameter@1 with one bound_state per parameter, while STU-RAS-103..106 define hsk.studio.parameter_spec@1 with hard and soft bounds as separate classified values and `unknown` as normative; a raster smart filter is both an effect (STU-FX-007) and a raster filter (STU-RAS-037), so both record shapes claim the same parameters",
+   "needs": "one parameter record for raster smart filters: STU-FX-103 references STU-RAS-103 for bounds and STU-FX-106 bound_state becomes a projection of the STU-RAS-112 classifications",
+   "lead_reading": "lead ruling Q2 2026-11-13: the STU-RAS rows govern this lane's filters; no STU-FX-103 record is emitted (named cut)",
+   "source": "lane SMB-PS-FILTER-ADJUST-COMMANDS-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

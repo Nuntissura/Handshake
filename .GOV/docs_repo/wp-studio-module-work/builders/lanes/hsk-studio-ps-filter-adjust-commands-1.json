@@ -1,19 +1,234 @@
 {
   "crate": "hsk-studio-harness-view (place.rs entry-edit helper, effect and adjustment commands, develop.rs XMP crop), hsk-studio-harness-core (photo or effect rows), hsk-studio-pigment (read), hsk-studio-folio (read), hsk-studio-interop-lrcat (read, if the edge is approved)",
   "lane": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
   "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "784dd890",
+      "what": "red tests: tests/viewer_raster_effects.rs (effect.*, adjustment.*, DNG crop XMP, process test)",
+      "was": "fbc797bc",
+      "landed": "98841807"
+    },
+    {
+      "sha": "9e19d489",
+      "what": "effect.* rows over the 25 smart filter kinds with parameter specs and the contract check; adjustment.create/edit/apply; place.rs entry-edit, layer-with-record and in-place pixel helpers; dispatch",
+      "was": "8a545e67",
+      "landed": "d662effe"
+    },
+    {
+      "sha": "ba0895d7",
+      "what": "develop crop in the DNG XMP through the lrcat codec; edge harness-view -> interop-lrcat (root metadata, Cargo.toml, Cargo.lock)",
+      "was": "63440e97",
+      "landed": "d1d1a143"
+    },
+    {
+      "sha": "aa6fa519",
+      "what": "unit test counter typed (arithmetic_side_effects)",
+      "was": "cd82577b",
+      "landed": "beff4cef"
+    },
+    {
+      "sha": "4828640e",
+      "what": "declared integer defaults as integers",
+      "was": "4f46ac6e",
+      "landed": "a5e93094"
+    },
+    {
+      "sha": "c38626d3",
+      "what": "rows name real methods Viewer::effect_command / adjustment_command; helper rename (clash with fill_tools)",
+      "was": "d4e55cc2",
+      "landed": "96643f61"
+    },
+    {
+      "sha": "004bd30c",
+      "what": "adjustment.create on any open document (no invented artboard requirement)",
+      "was": "d05d2699",
+      "landed": "7a3446e8"
+    },
+    {
+      "sha": "8a06182e",
+      "what": "red test: a layer created after a delete gets a fresh id and no inherited smart filter stack (session and reopen); lead ruling 2026-11-13",
+      "was": "0e4a5c96",
+      "landed": "5ab82d4a"
+    },
+    {
+      "sha": "c03ee8e1",
+      "what": "layers.rs mint_layer_id: revision bits in the counter, an id is never minted again (approved path)",
+      "was": "cb807859",
+      "landed": "31f7bfd2"
+    },
+    {
+      "sha": "92f0321a",
+      "what": "mint conditions of the lead ruling: typed layer_id_space_exhausted (no wrap, no truncation), tests (1)-(6): layers.rs unit tests and harness viewer_raster_effects minted_layer_ids_are_never_minted_twice_and_survive_save_reopen_and_export",
+      "was": "9eac2562",
+      "landed": "2a91216c"
+    },
+    {
+      "sha": "57ed549a",
+      "what": "red tests for the review of d05d2699 (harness viewer_raster_effects over the code of 9eac2562)",
+      "was": "d27c1f38",
+      "landed": "45a619d7"
+    },
+    {
+      "sha": "82cb0c9e",
+      "what": "review F4: lrcat write_sidecar_crop (crop keys only) and develop xmp_crop_keys",
+      "was": "7a44fdc1",
+      "landed": "8aeed389"
+    },
+    {
+      "sha": "ba0a9240",
+      "what": "review F1, F2, F5-F10, Q5: render admission at the command, 9200/9300 revision mints, input schemas and discriminants, in-place apply by the composite rule through the JobPort, mesh summary and cap, defaults; in-crate F7 test over the 20 kinds",
+      "was": "aa376f88",
+      "landed": "39dc8417"
+    },
+    {
+      "sha": "51c9166d",
+      "what": "focused-run fixes of aa376f88: liquify vertex cap = Folio node budget of the records (4096) before decoding; undecoded (non rgb_f32le) tiles budget-checked over bounds only; test read-back by bounds",
+      "was": "ca329a2f",
+      "landed": "d0d0f839"
+    },
+    {
+      "sha": "1b4cee1e",
+      "what": "tests only: the process session with a refused row exits 1 (drive rule); F7 legacy brightness/contrast compared, modern refused alike, alpha 0.3 tolerance 2^-22",
+      "was": "fa37bd73",
+      "landed": "5c24f3d4"
+    },
+    {
+      "sha": "3b22e63a",
+      "what": "red test for review F3: every layer creator refuses typed at an injected exhausted revision (cfg(test) seams in layers.rs)",
+      "was": "3b22e63a",
+      "landed": "766b2a4a"
+    },
+    {
+      "sha": "636785a5",
+      "what": "review F3: layers::mint_or_refuse at text.rs, vector.rs (4 sites), design/component.rs (2), design/instance.rs (Redraw::mint), refusing before any write; mint_layer_id and its sentinel removed",
+      "was": "636785a5",
+      "landed": "772de6ad"
+    },
+    {
+      "sha": "f940a794",
+      "what": "red tests for stable identity of instance copies (300 syncs keep copy ids; deleted instance ids never minted again; a record keyed to a copy survives a sync)",
+      "was": "f940a794",
+      "landed": "d7fc5eef"
+    },
+    {
+      "sha": "7b0ca538",
+      "what": "lead ruling 2026-11-13 option A: a native redraw of the same member keeps its copies' ids and updates them in place (paths, story, node entry, live filters); new nodes fresh, gone copies deleted and retired; swaps and design file instances keep fresh copies",
+      "was": "7b0ca538",
+      "landed": "9a89f274"
+    },
+    {
+      "sha": "ee4610a4",
+      "what": "revert 7b0ca538 (option A, stable identity) - lead decision 2026-11-13",
+      "was": "ee4610a4",
+      "landed": "ae9c713e"
+    },
+    {
+      "sha": "5fb41777",
+      "what": "revert f940a794 (option A tests)",
+      "was": "5fb41777",
+      "landed": "5257536a"
+    },
+    {
+      "sha": "dacc99ad",
+      "what": "revert 636785a5 (F3 try_mint call sites)",
+      "was": "dacc99ad",
+      "landed": "a7289978"
+    },
+    {
+      "sha": "edc49948",
+      "what": "revert 3b22e63a (F3 red test)",
+      "was": "edc49948",
+      "landed": "8bdea35e"
+    },
+    {
+      "sha": "4f5592c2",
+      "what": "revert the never-reuse mint: layers.rs and layout_place.rs back to the base (3fb489ab), 9200/9300 lowest-free mints in place.rs, the never-reuse tests removed",
+      "was": "4f5592c2",
+      "landed": "432a543c"
+    },
+    {
+      "sha": "e2a40195",
+      "what": "red tests: a deleted layer's records leave with it (same undo step, undo restores, no inheritance in session and after reopen); records of absent layers dropped on open with a loss note",
+      "was": "e2a40195",
+      "landed": "73c10ccc"
+    },
+    {
+      "sha": "a394a3c7",
+      "what": "layers.rs delete_layer takes the deleted layers' raster_records rows and placed instances along in its own undo step; place.rs drops rows of absent layers at open with a loss note per layer",
+      "was": "a394a3c7",
+      "landed": "f321760f"
+    }
+  ],
+  "capabilities_done": [
+    "STU-FX-007: effect.apply/update/reorder/toggle/remove typed rows over a raster layer's Folio StudioSmartFilterStack, one entry-only undo step each, caller attribution, save/reopen and export proven (mask_edit and bake: next slice)",
+    "STU-FX-104 / STU-RAS-104..108 / STU-RAS-110 / STU-RAS-112: effect.parameters lists a StudioParameterSpec per parameter of all 25 kinds (hard and soft separate with per-value classification, unknown where no source declares, STU-RAS-108 steps, observed absent); effect_param_out_of_range names parameter, value and both hard bounds at the command",
+    "STU-RAS-107 / STU-RAS-111 / STU-FX-123: STUDIO_EFFECT_PARAM_CONTRACT check over every listed spec (findings empty for the shipped table; unit test shows each defect class found, incl. a hard bound classified observed)",
+    "STU-RAS-035: adjustment.create (adjustment layer with its Folio StudioAdjustment record, clip option, own id block 7ede-9300), adjustment.edit (re-editable, change layer content), adjustment.apply (destructive in-place form equal to the layer's frame)",
+    "STU-RAW-015: develop crop written as crs: keys into the DNG XMP by the lrcat codec (lead ruling), caller packet kept byte for byte without a crop"
+  ],
+  "tests": {
+    "red": {
+      "sha": "fbc797bc",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-smb-ps-filter-adjust-commands-1-cd82577b.log (red section; the green part of that log did not compile: E0592 helper name clash)",
+      "result": "5 run, 0 passed, 5 failed (unknown_command x4 in process and in-process, develop_crop.xmp null), exit 100"
+    },
+    "focused": {
+      "sha": "fa37bd73",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-smb-ps-filter-adjust-commands-1-aa376f88.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-smb-ps-filter-adjust-commands-1-ca329a2f.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-smb-ps-filter-adjust-commands-1-fa37bd73.log"
+      ],
+      "result": "fa37bd73: harness [viewer] viewer_raster_effects 14/14; harness-view [viewer] in_place_tests 2/2; ca329a2f: harness-view [viewer] lib raster_effects + layers + in_place_tests 11/11 (F7 per-kind max diffs printed: exact rows 0 for all 20 kinds, alpha 0.3 at most 1.19e-7); aa376f88: harness [viewer] viewer_develop_dng + viewer_develop_commands + place_asset all passed, interop-lrcat xmp_sidecar 2/2; clippy harness-core + harness-view [viewer] + interop-lrcat --tests and the harness test target exit 0 (no diagnostic in the lane's lines)"
+    },
+    "step0": {
+      "sha": "d05d2699",
+      "result": "lane-check --step0-only clean, registry in sync"
+    },
+    "red_review": {
+      "sha": "d27c1f38",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-smb-ps-filter-adjust-commands-1-aa376f88.log (red sections)",
+      "result": "red 0e4a5c96: reused-id test 1 failed (exit 100); red d27c1f38 over 9eac2562 code: 14 run, 4 passed, 10 failed (exit 100); the 4 passing pin unchanged behaviour (F5 option b is doc-only)"
+    },
+    "red_f3": {
+      "sha": "3b22e63a",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-f3-smb-ps-filter-adjust-commands-1-636785a5.log",
+      "result": "red: 1 failed (text place_text: text_styles InvalidId style_id), exit 100; tip 636785a5: harness-view [viewer] layers::tests 5/5, clippy harness-view [viewer] --tests exit 0"
+    },
+    "bundled": {
+      "sha": "a394a3c7",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/bundled-smb-ps-filter-adjust-commands-1-a394a3c7.log",
+      "result": "BUNDLED GREEN: fresh studio-harness example built; lane-check step 0 clean, registry pins in sync, clippy harness-core + harness-view [viewer] + harness [viewer] + interop-lrcat and dependent hsk-studio-native-host clean; nextest harness-core + harness-view [viewer] (lib incl.) + the whole harness [viewer] suite + interop-lrcat: 795 run, 795 passed, 22 skipped, exit 0"
+    },
+    "identity": {
+      "sha": "7b0ca538",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-identity-smb-ps-filter-adjust-commands-1-7b0ca538.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-identity2-smb-ps-filter-adjust-commands-1-7b0ca538.log"
+      ],
+      "result": "red at f940a794: 5 of 6 failed as expected; tip: clippy harness-view [viewer] --tests exit 0; harness viewer_raster_effects + viewer_design_history + viewer_design_components + viewer_design_variables + viewer_design_auto_layout + harness_drive_typed: 82 run, 64 passed, 18 failed; harness-view viewer_fig_edit 11/11. 16 failures: a sync with nothing to redraw now has no write and refuses nothing_to_change (DS tests expect every sync to be one history step); a_sync_with_no_room_for_its_states_is_refused_whole expects a sync to add new states (stable identity replaces them); r2 still undo budget_exceeded."
+    },
+    "records": {
+      "sha": "a394a3c7",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/focused-records-smb-ps-filter-adjust-commands-1-a394a3c7.log",
+      "result": "red at e2a40195: both new tests failed (row stays with the delete; row kept on open), exit 100; tip: clippy harness-view [viewer] --tests and the harness test target exit 0; harness [viewer] viewer_raster_effects + viewer_layers + place_asset + layout_delete_cascade + layout_place + viewer_design_history + viewer_design_components 86/86 (r2_reopen_after_more_than_1024_instance_commands_keeps_working passes with the old mint); harness-view [viewer] lib place/raster_effects/layers 11/11"
+    },
+    "land": {
+      "sha": "f321760f",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-filter-adjust-commands-1/land-smb-ps-filter-adjust-commands-1-f321760f.log",
+      "result": "rebased onto origin 12fd5b8a (no conflict); fresh studio-harness example; harness-core + harness-view [viewer] (lib incl.) + the whole harness [viewer] suite: 800 run, 800 passed, 22 skipped; lane-check --per-sha HEAD~1: PER_SHA_RESULT OK shas=1 range=73c10ccc..f321760f; pushed f321760f to codex/handshake-studio-assets (12fd5b8a..f321760f)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: judge at f321760f",
+  "updated_at": "2026-11-13T13:37:42Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -27,7 +242,7 @@
     },
     "control_descriptors": "none",
     "attribution": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
-    "jobs": "none",
+    "jobs": "adjustment.apply: one job admitted through the viewer's bound JobPort (Action::Edit, cost the layer's texel bytes x 16), refusals overloaded / canceled / stale_revision before any pixel is read, settled completed / canceled / failed(code) and reported as `job` (review Q5); the other rows are synchronous command steps",
     "settings": "none",
     "refactor_exposure": "medium"
   },
@@ -40,6 +255,126 @@
       "ledger direction.next_lane_candidates 2026-11-12T10:30:18Z crop in the DNG XMP"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-folio-angle-unbounded-1"
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1",
+    "beyond_brief_paths": [
+      {
+        "path": "Cargo.lock",
+        "why": "the hsk-studio-interop-lrcat line of hsk-studio-harness-view (DNG XMP crop edge)",
+        "approved_at": "2026-11-13",
+        "ruling": "lead: DNG XMP crop ruling, add the harness-view -> interop-lrcat edge, no second crs: writer"
+      },
+      {
+        "path": "Cargo.toml (root)",
+        "why": "workspace.metadata.studio.dependencies.hsk-studio-harness-view allowed += hsk-studio-interop-lrcat, written by tools/edges.py (acyclic check ok)",
+        "approved_at": "2026-11-13",
+        "ruling": "lead: same edge ruling"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/mod.rs",
+        "why": "the `pub mod raster_effects;` line for the brief's new module",
+        "approved_at": "2026-11-13",
+        "ruling": "lead: approved (coordinator records check)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/commands.rs",
+        "why": "the two dispatch arms `effect` and `adjustment` of run_row",
+        "approved_at": "2026-11-13",
+        "ruling": "lead: approved (coordinator records check)"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/layers.rs",
+        "why": "delete_layer only: the raster records of the deleted layers leave in the delete's own undo step (two call lines, a394a3c7); the earlier mint changes there are reverted (4f5592c2: the file is the base's otherwise)",
+        "approved_at": "2026-11-13",
+        "ruling": "lead decision 2026-11-13: revert the mint changes, fix the defect at its root (the layer delete step removes every layer-keyed record of the deleted layers)"
+      },
+      {
+        "path": "crates/hsk-studio-interop-lrcat/src/xmp_sidecar.rs",
+        "why": "pub fn write_sidecar_crop(original, recipe, limits) and its unit tests",
+        "approved_at": "2026-11-13",
+        "ruling": "lead: review F4"
+      },
+      {
+        "path": "crates/hsk-studio-interop-lrcat/src/lib.rs",
+        "why": "the write_sidecar_crop re-export (lib.rs:47)",
+        "approved_at": "2026-11-13",
+        "ruling": "lead: review F4"
+      }
+    ],
+    "spec_basis": [
+      "STU-FX-007: effect application is a model-steerable typed command (STUDIO_EFFECT_APPLY, _UPDATE, _REORDER, _TOGGLE, _REMOVE, _MASK_EDIT, _BAKE)",
+      "STU-FX-104: a value outside [hard_min, hard_max] is an error, not a clamp: EFFECT_PARAM_OUT_OF_RANGE naming the parameter, the offending value and both hard bounds",
+      "STU-RAS-103/104/106/107/108/110/111/112: StudioParameterSpec fields as separate values, hard and soft never equated, unknown is normative, observed ranges are not limits, the scrub step derivation, specs model-visible, the contract check, the classification vocabulary",
+      "STU-RAS-035: every adjustment kind usable as a non-destructive adjustment layer (built-in mask, clip-to-parent, re-editable parameters) and as an explicit destructive apply-in-place command",
+      "STU-RAW-015: non-destructive crop and straighten on StudioRawDevelop"
+    ],
+    "v4_06": [
+      "class stale-record-on-reused-layer-id, regex `delete_layer|records_after_delete|raster_records_after_delete|prune`: layers.rs delete_layer (layout and stack paths) now takes the raster_records rows and placed instances of every deleted layer along in its own undo step; open drops rows of absent layers with a loss note. NOT covered here (other delete paths that leave raster_records rows until the next open: vector replace_with_pieces_deleting / pathfinder / knife, design redraws deleting copies, text conversions; copies and vector layers rarely carry raster_records rows): named for SMB-LAYER-ID-STABILITY-1",
+      "class destructive-pixel-edit-of-a-placed-layer, regex `refuse_placed_pixels|placed\\(layer_id\\)`: map_layer_pixels (adjustment.apply) refuses layer_not_pixel for placed and graphic-frame layers; fill tools and liquify already refuse",
+      "class accepted-entry-the-render-refuses (review F1), regex `SmartFilterOp::check|admit\\(`: effect.apply and effect.update refuse with the render's own predicates (RgbaPlane::validate, FilterKernel::admit, filter_window_cost against StackLimits::default(), liquify mesh bounds) over the layer's content bounds",
+      "class range-invented-or-clamped (STU-RAS-106/107), regex `clamp\\(|within\\(|observed_` over raster_effects.rs and pigment adjust_colour.rs: raster_effects clamps nothing and refuses only on table or engine hard bounds; pigment adjust_colour.rs refuses spec-unknown hard bounds as engine limits: NOT fixed (pigment owned), named",
+      "class second-crs-writer, regex `crs:` in harness-view src: develop.rs calls lrcat write_sidecar_crop only (crop keys only, review F4)"
+    ],
+    "cuts": [
+      "STUDIO_EFFECT_MASK_EDIT, selection-scoped apply, destructive filter forms and STUDIO_EFFECT_BAKE (next slice per brief)",
+      "STU-FX-007 sandbox -> StudioValidationDescriptor -> PromotionGate route not built (commit through chronicle after the command checks)",
+      "STU-RAS-151/153: ocio, normals, tone_stretch, desaturate, equalize, auto kinds have no Folio StudioAdjustment member (folio is read-only here); adjustment parameter specs (STU-RAS-151 table) not emitted",
+      "STU-RAS-035 presets and default-valued one-click adjustment creation (adjustment defaults unknown)",
+      "STU-RAS-111 check is a command result and a unit-test gate, not a registration gate (no effect descriptor registry exists)",
+      "DNG XMP: the flips have no crs: key (report note develop_crop_flip_not_in_dng_xmp)",
+      "effect edits and adjustment.edit are entry-only steps (no document revision, no chronicle provider, no CommitPort; review F5 option b, lead 2026-11-13); preview staleness after them NOT_PROVEN (no preview-dirty mechanism reachable from the viewer)",
+      "STU-RAS-035 adjustment layer built-in mask: adjustment.create makes none (review F6)",
+      "STU-FX-103 / STU-FX-106 hsk.studio.effect_parameter@1 record and its bound_state are not emitted: the STU-RAS-103..112 rows govern this lane's filters (lead ruling Q2); SD proposal in notes.sd_proposals"
+    ],
+    "mts": "MT-263 (STU-FX-007 effect commands), MT-32797 (STU-FX-007 derived), MT-30168 and MT-055..058 (STU-RAS-035); derived MTs of STU-RAS-107, 111, 151, 153 and STU-RAW-015 for the lead to record (not edited)",
+    "round_features": "harness [viewer] and harness-view [viewer] are .config/round-features.toml units (rule 4e); the new test file is #![cfg(feature = \"viewer\")]",
+    "unverified": "Photoshop / Camera Raw parity of kernels, defaults and the crs: crop mapping UNVERIFIED (D5)",
+    "next_lane_candidates": [
+      "STUDIO_EFFECT_MASK_EDIT: per-filter and stack mask authoring on raster smart filter stacks (STU-FX-007, STU-RAS-037)",
+      "STUDIO_EFFECT_BAKE and the destructive filter forms, selection-scoped filter apply (STU-FX-007, STU-RAS-037, STU-FX-012c)",
+      "STU-FX-007 sandbox -> StudioValidationDescriptor -> PromotionGate route for effect mutations (STU-ARC-005)",
+      "Folio StudioAdjustment members ocio, normals, tone_stretch, desaturate, equalize and the auto kinds (STU-RAS-151, STU-RAS-153)",
+      "adjustment parameter specs from the STU-RAS-151 table, and pigment adjust_colour ranges that refuse spec-unknown hard bounds (STU-RAS-104, 106)",
+      "adjustment presets and one-click creation with declared defaults (STU-RAS-035)",
+      "STU-RAS-111 check as a registration gate over effect descriptors (needs a descriptor registry)",
+      "DNG XMP crop flips (no crs: key; orientation in the DNG)",
+      "revisioned raster-records step (session step kind plus Run method) for effect.* and adjustment.edit; preview staleness after an entry-only step: not_proven (no reachable preview-dirty mechanism) (review F5, lead 2026-11-13)",
+      "Studio DNG import reading the crs: keys of tag 700 back into the develop recipe (review F4, lead 2026-11-13)",
+      "STU-RAS-035 adjustment layer built-in mask (review F6)",
+      "SMB-LAYER-ID-STABILITY-1: never-reuse layer ids (industry norm) across all mint sites, with chronicle retired-address pruning (Budget.revisions), DS design states keyed by (layer, instance), stable copy ids with in-place redraw, and no-op sync semantics; cross-lane, owns harness-view layers, text, vector and design mint sites plus chronicle. Findings from this lane (option A at 7b0ca538, reverted): (1) with stable copy ids a sync that changes nothing has no structure write and the run refuses it nothing_to_change, while 13 DS tests (one_undo_step..., undo_back_across_compactions..., redo_after_the_undo..., a_state_refused_after_the_sync..., both measured probes, three_hundred_syncs..., r1_*, detach_keeps_the_frame..., f6_a_stale_override..., a_native_state_whose_children..., a_sync_moves_an_explicit_mode...) expect every sync to be one history step (a no-op sync needs a defined step or success semantics; whether the run accepts identical entry bytes as a step is UNVERIFIED); (2) a_sync_with_no_room_for_its_states_is_refused_whole expects a sync to add states, which stable identity replaces (net 0); (3) r2_reopen_after_more_than_1024_instance_commands_keeps_working fails undo budget_exceeded under never-reuse ids, inferred (not instrumented) from the chronicle revision table (Budget.revisions 8192, hsk-studio-chronicle lib.rs:364-380, check near line 951) growing one address per fresh layer id; (4) the run refuses a delete and a create of one id in one transaction (duplicate_layer), so in-place update is the only stable-id redraw; (5) the delete paths other than delete_layer that leave raster_records rows (vector piece/pathfinder/knife replacements, design copy deletes, text conversions)"
+    ],
+    "mint_ruling": "SUPERSEDED by the lead decision of 2026-11-13: the never-reuse id scheme (revision bits, F2 9200/9300 on it, F3 try_mint call sites, option A stable copy ids) left this lane (reverted by new commits ee4610a4..4f5592c2) for the next-lane candidate SMB-LAYER-ID-STABILITY-1; the defect it targeted is fixed at its root (a394a3c7).",
+    "bundled_scope": "lead 2026-11-13: step 0; clippy harness-core + harness-view [viewer] + dependents; harness-core suite; harness-view [viewer] suite incl. lib tests; the whole harness [viewer] suite (mint change reaches every layer-creating path) with a freshly built studio-harness example",
+    "sd_proposals": [
+      "STU-FX-103 / STU-FX-106 vs STU-RAS-103 / STU-RAS-104 / STU-RAS-106 (review F6, lead ruling Q2): STU-FX-103 defines an effect parameter record hsk.studio.effect_parameter@1 with a single bound_state per parameter (STU-FX-106), while STU-RAS-103..106 define hsk.studio.parameter_spec@1 with hard and soft bounds as separate values, each classified, and `unknown` as normative. A raster smart filter is both an effect (STU-FX-007) and a raster filter (STU-RAS-037), so both record shapes claim the same parameters. Proposal: STU-FX-103 references STU-RAS-103 for parameter bounds (one spec record), and STU-FX-106's bound_state becomes a projection of the STU-RAS-112 classifications. This lane emits only the STU-RAS record (lead ruling Q2); no Master Spec edit here."
+    ],
+    "review_fixes": {
+      "review": "S/research/review-smb-ps-filter-adjust-commands-1-d05d2699.json (FIX_FIRST), lead rulings 2026-11-13",
+      "F1_Q1": "effect.apply/update refuse with the render's own predicates over the layer's content bounds: effect_value_range_unsupported (RgbaPlane::validate), effect_render_budget_exceeded {needed, limit} (FilterKernel::admit, filter_window_cost vs StackLimits::default()), liquify mesh over other bounds parameter_invalid params.mesh; tests an_entry_the_render_cannot_run_is_refused_at_the_command (box blur 2000: 12001 > 6001; 127 x 50: 12701 > 6001), harness-view place::in_place_tests::a_layer_outside_the_unit_range_is_refused_by_both_forms_and_the_stack; a layer whose tiles are not rgb_f32le (undecoded by viewer and render) is budget-checked over its bounds only",
+      "F2_Q6a": "DROPPED (lead decision 2026-11-13): the 9200/9300 paths on the revision scheme do not apply without it; the lowest-free 9200 (base) and 9300 mints are back (4f5592c2); a deleted layer's records no longer outlive it (a394a3c7)",
+      "F3_Q6b": "DROPPED (lead decision 2026-11-13): reverted with the never-reuse scheme (dacc99ad, edc49948)",
+      "F4_Q4": "crop keys only through lrcat write_sidecar_crop merged into the caller's packet; report xmp_crop_keys written|unchanged|absent; tests lrcat crop_writer_tests (byte-identical other keys and user content, no-crop packet untouched, stale crop -> HasCrop False, read_sidecar round trip) and the_develop_dng_xmp_carries_the_crop_keys",
+      "F5": "option (b): module doc corrected; test effect_and_adjustment_edits_are_entry_only_steps_and_leave_the_revision; cut and next-lane candidate named",
+      "F6_Q2": "STU-RAS-110 input_schema per kind and effect_apply_input_schema (known hard bounds only), STU-RAS-109 integer discriminants for every enumeration member; check finds discriminant_missing; FX record and adjustment built-in mask named as cuts; SD proposal recorded",
+      "F7": "adjustment.apply maps texels with pigment composite_adjustment_in (OutputStage::default() range and depth, Normal, coverage 1), the composite's own rule; harness-view place::in_place_tests::apply_in_place_renders_as_the_adjustment_layer_for_every_kind compares both forms' linear renders for the 20 kinds over opaque, alpha 0.5/0.25/0.3/0 texels: exact except alpha 0.3 within 2^-22 (reason in the test; measured at most 1.2e-7); modern brightness/contrast refused by both forms alike (pigment adjust_unsupported); a_layer_outside_the_unit_range_is_refused_by_both_forms_and_the_stack covers the float layer",
+      "Q5": "adjustment.apply is one job admitted through the bound JobPort (Action::Edit, texel bytes); test adjustment_apply_is_admitted_through_the_bound_job_port (saturated port: overloaded, asked once, nothing changed); the result carries job",
+      "F8": "a float parameter is checked on the f32 the record stores; test a_float_parameter_is_checked_on_the_value_the_record_stores",
+      "F9": "effect.read summarises a liquify mesh unless full; opacity-only and resample-only updates keep the stored mesh without decoding it; vertex lists capped at Folio's node budget of the raster records (Budget::default().nodes 4096, below MAX_LIQUIFY_VERTICES) with budget_exceeded before decoding; tests a_large_liquify_mesh_is_summarised_and_kept_by_updates (65536-vertex mesh refused through the row), raster_effects::tests::a_mesh_list_over_the_cap_is_refused_before_decoding",
+      "F10": "radial blur centre default = centre of the layer content bounds; dust threshold unit normalized_0_1 (table_unit pixel); opacity refusal in the STU-FX-104 shape; test the_radial_blur_centre_defaults_to_the_layer_centre_and_the_dust_threshold_is_normalized",
+      "F11": "beyond_brief_paths (with approval markers), v4_06 and commit-message overclaims corrected; mint changes reverted by new commits",
+      "records_root_fix": "lead decision 2026-11-13: layers.rs delete_layer removes the raster_records rows and placed instances of the deleted layers in its own undo step (undo restores them); open drops rows naming absent layers with a loss note; tests a_deleted_layers_records_leave_with_it_and_undo_brings_them_back, records_naming_an_absent_layer_are_dropped_on_open_with_a_loss_note (red at e2a40195)"
+    },
+    "rebased_onto": "landed on origin/codex/handshake-studio-assets 12fd5b8a (after 3fb489ab); commits list `landed` shas",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T13:38:07Z",
+        "on": "layer id mint (review F2, F3, option A)",
+        "decision": "the never-reuse id scheme leaves this lane for SMB-LAYER-ID-STABILITY-1 (reverted by new commits); the defect is fixed at its root: delete_layer removes the deleted layers' raster_records rows and placed instances in its undo step, open drops records of absent layers with a loss note; F2 and F3 dropped"
+      },
+      {
+        "at": "2026-11-13T13:38:07Z",
+        "on": "remaining delete paths",
+        "decision": "accepted for this lane; PRIORITY next-lane candidate: central prune of layer-keyed records for layers absent after any structure step, in the same step"
+      }
+    ]
   }
 }

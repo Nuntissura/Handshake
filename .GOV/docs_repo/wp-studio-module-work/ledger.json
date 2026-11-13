@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T12:15:38Z",
+ "updated_at": "2026-11-13T13:38:07Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20160,8 +20160,8 @@
   },
   {
    "lane_id": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (place.rs entry-edit helper, effect and adjustment commands, develop.rs XMP crop), hsk-studio-harness-core (photo or effect rows), hsk-studio-pigment (read), hsk-studio-folio (read), hsk-studio-interop-lrcat (read, if the edge is approved)",
    "lane_file": "builders/lanes/hsk-studio-ps-filter-adjust-commands-1.json",
    "brief": "builders/briefs/lane-smb-ps-filter-adjust-commands-1.md",
@@ -20169,12 +20169,13 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T13:38:07Z",
    "closes": [
     "research/width-plan-20261108-raster-vector-design.json rank 4",
     "ledger direction.next_lane_candidates 2026-11-07T13:29:59Z filter commands",
     "ledger direction.next_lane_candidates 2026-11-12T10:30:18Z crop in the DNG XMP"
-   ]
+   ],
+   "claim": "effect.* rows over the 25 Folio smart filter kinds with STU-RAS-103..112 parameter specs, input schemas, integer discriminants and the contract check (STU-FX-007/104/105/123); render admission at the command; adjustment.create/edit/apply (STU-RAS-035), apply in place by the composite's rule through the bound JobPort; develop crop keys merged into the DNG XMP by lrcat write_sidecar_crop (STU-RAW-015); a layer delete takes its raster records along in its undo step and open drops records of absent layers"
   },
   {
    "lane_id": "SMB-WEB-SITE-2",
@@ -22769,6 +22770,71 @@
     "added_at": "2026-11-13T12:15:38Z",
     "item": "V4-06 class D (review F10): layout alternate.rs update_linked_stories and the TOC/index into_story target replacement leave the target's character overrides at old positions (session validation refuses them); copy or drop them in the same step",
     "owner": "a later layout lane (hsk-studio-layout alternate.rs, toc_contract.rs, index_contract.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "PRIORITY (lead 2026-11-13): central prune of layer-keyed records for layers absent after any structure step, in the same step: vector piece and pathfinder replacements, design copy deletes and other delete paths besides layers.rs delete_layer leave raster_records rows until the next open, so a reused id can inherit them in-session; pairs with SMB-LAYER-ID-STABILITY-1",
+    "owner": "a later harness-view lane (place.rs records, every structure-step delete path)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "STUDIO_EFFECT_MASK_EDIT: per-filter and stack mask authoring on raster smart filter stacks (STU-FX-007, STU-RAS-037)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "STUDIO_EFFECT_BAKE and the destructive filter forms, selection-scoped filter apply (STU-FX-007, STU-RAS-037, STU-FX-012c)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "STU-FX-007 sandbox -> StudioValidationDescriptor -> PromotionGate route for effect mutations (STU-ARC-005)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "Folio StudioAdjustment members ocio, normals, tone_stretch, desaturate, equalize and the auto kinds (STU-RAS-151, STU-RAS-153)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "adjustment parameter specs from the STU-RAS-151 table, and pigment adjust_colour ranges that refuse spec-unknown hard bounds (STU-RAS-104, 106)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "adjustment presets and one-click creation with declared defaults (STU-RAS-035)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "STU-RAS-111 check as a registration gate over effect descriptors (needs a descriptor registry)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "DNG XMP crop flips (no crs: key; orientation in the DNG)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "revisioned raster-records step (session step kind plus Run method) for effect.* and adjustment.edit; preview staleness after an entry-only step: not_proven (no reachable preview-dirty mechanism) (review F5, lead 2026-11-13)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "Studio DNG import reading the crs: keys of tag 700 back into the develop recipe (review F4, lead 2026-11-13)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "STU-RAS-035 adjustment layer built-in mask (review F6)",
+    "owner": "a later raster/photo lane (harness-view raster_effects, place.rs)"
+   },
+   {
+    "added_at": "2026-11-13T13:38:07Z",
+    "item": "SMB-LAYER-ID-STABILITY-1: never-reuse layer ids (industry norm) across all mint sites, with chronicle retired-address pruning (Budget.revisions), DS design states keyed by (layer, instance), stable copy ids with in-place redraw, and no-op sync semantics; cross-lane, owns harness-view layers, text, vector and design mint sites plus chronicle. Findings from this lane (option A at 7b0ca538, reverted): (1) with stable copy ids a sync that changes nothing has no structure write and the run refuses it nothing_to_change, while 13 DS tests (one_undo_step..., undo_back_across_compactions..., redo_after_the_undo..., a_state_refused_after_the_sync..., both measured probes, three_hundred_syncs..., r1_*, detach_keeps_the_frame..., f6_a_stale_override..., a_native_state_whose_children..., a_sync_moves_an_explicit_mode...) expect every sync to be one history step (a no-op sync needs a defined step or success semantics; whether the run accepts identical entry bytes as a step is UNVERIFIED); (2) a_sync_with_no_room_for_its_states_is_refused_whole expects a sync to add states, which stable identity replaces (net 0); (3) r2_reopen_after_more_than_1024_instance_commands_keeps_working fails undo budget_exceeded under never-reuse ids, inferred (not instrumented) from the chronicle revision table (Budget.revisions 8192, hsk-studio-chronicle lib.rs:364-380, check near line 951) growing one address per fresh layer id; (4) the run refuses a delete and a create of one id in one transaction (duplicate_layer), so in-place update is the only stable-id redraw; (5) the delete paths other than delete_layer that leave raster_records rows (vector piece/pathfinder/knife replacements, design copy deletes, text conversions)",
+    "owner": "cross-lane: harness-view layers, text, vector and design mint sites plus chronicle"
    }
   ],
   "pause_20261103": {
