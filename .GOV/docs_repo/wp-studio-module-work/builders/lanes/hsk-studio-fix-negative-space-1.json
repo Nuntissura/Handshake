@@ -1,19 +1,67 @@
 {
   "crate": "hsk-studio-layout (threaded_reflow.rs paragraph space and overset)",
   "lane": "SMB-FIX-NEGATIVE-SPACE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
   "base": "c8fca900",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "c65d6806",
+      "kind": "red",
+      "what": "tests/fix_negative_space.rs: probe port (4 composers) plus balancing, smaller leading, above-line anchor; red at base, 4/4 FAIL (EXIT 100)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/red-smb-fix-negative-space-1-c65d6806.log"
+    },
+    {
+      "sha": "4c91c923",
+      "kind": "fix",
+      "what": "threaded_reflow.rs: floored() at the gap, in next_slot and in balance_band; baseline_of exact guard; Cursor.gaps keeps the column's signed space sum checked finite",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/focused-smb-fix-negative-space-1-4c91c923.log"
+    },
+    {
+      "sha": "a7de5fcd",
+      "kind": "ruling",
+      "what": "lead ruling: Cursor.gaps removed; indent_spacing.rs hostile case space(-max, 0.0) asserts the floored outcome (rule 4a): Ok, finite, no baseline above the first line's, 10/10/10, overset None",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/focused-smb-fix-negative-space-1-a7de5fcd.log"
+    },
+    {
+      "sha": "3afa9e1c",
+      "kind": "red",
+      "what": "review F1-F3 tests in fix_negative_space.rs; F1 (vertical justification) and F2 (line box) red at a7de5fcd, 2 of 9 FAIL, EXIT 100; F3 tests green there, proven by mutation at c28d1b26",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/red-smb-fix-negative-space-1-3afa9e1c.log"
+    },
+    {
+      "sha": "c28d1b26",
+      "kind": "fix",
+      "what": "review F1: vertical_justify block from the highest line top to the deepest line bottom; F2: floored(cur, height, rise) keeps a lifted line box at or below the column top",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/bundled-smb-fix-negative-space-1-c28d1b26.log"
+    }
+  ],
+  "capabilities_done": [
+    "A negative paragraph gap lifts a paragraph at most to its column's first baseline on all four composers; what does not fit is overset (probe: 10 lines placed, overset 30..119)",
+    "Column balancing re-adds a negative gap at most up to the column's first baseline (review F2 site)",
+    "A later line of smaller leading after a lifted paragraph stays at the column's first baseline (mixed-leading reading)",
+    "An above-line anchor push after a negative gap starts from the lifted position",
+    "Vertical justification (Bottom, Center, Justify) keeps every line of a column with a lifted paragraph inside the frame (review F1)",
+    "A lifted paragraph's line box stays at or below the column top with a metric first-baseline kind (review F2)",
+    "Tests tell each floor apart (next_slot, balance_band, gap site) and cover a two-frame thread with exact overset (review F3)"
+  ],
+  "tests": {
+    "red": "c65d6806: cargo nextest run -p hsk-studio-layout --test fix_negative_space: 4 run, 0 passed, 4 failed, EXIT 100 (base values -966 probe min, -954/-978 balancing, -978/-982 leading, -936 anchor)",
+    "focused": "4c91c923: cargo clippy -p hsk-studio-layout --tests CLIPPY_EXIT 0 (no new layout warning; adobe_composer.rs:1061 pre-existing); cargo nextest run -p hsk-studio-layout --test fix_negative_space --test indent_spacing: 31 run, 31 passed, 1 skipped, EXIT 0 (kept tests space_before_and_after_add_one_gap_dropped_at_a_column_top and hostile_indent_and_space_values_give_typed_answers PASS unchanged)",
+    "bundled": "c28d1b26: lane-check --owner smb-pr-retime-hold-1 --disk d -- cargo nextest run -p hsk-studio-layout --no-fail-fast: step 0 clean, registry in sync, clippy over hsk-studio-layout + dependents [harness, harness-view, interop-layout] clean, 380 run, 380 passed, 3 skipped, EXIT 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/bundled-smb-fix-negative-space-1-c28d1b26.log)",
+    "focused_ruling": "a7de5fcd: cargo clippy -p hsk-studio-layout --tests CLIPPY_EXIT 0; cargo nextest run -p hsk-studio-layout --test fix_negative_space --test indent_spacing: 31 run, 31 passed, 1 skipped, EXIT 0",
+    "red_review": "3afa9e1c: cargo nextest run -p hsk-studio-layout --test fix_negative_space: 9 run, 7 passed, 2 failed, EXIT 100 (F1 Bottom 98/110/122/98; F2 [10, 10] for [10, 20])",
+    "focused_review": "c28d1b26: clippy -p hsk-studio-layout --tests CLIPPY_EXIT 0; nextest --test fix_negative_space --test indent_spacing: 36 run, 36 passed, 1 skipped, EXIT 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/focused-smb-fix-negative-space-1-c28d1b26.log)",
+    "mutation": "c28d1b26: next_slot floor removed -> the_lines_after_a_floored_line_step_down_from_it FAIL (9 run, 8 passed, 1 failed, exit 100); balance_band floor removed -> balancing_steps_the_row_after_a_floored_row_down_from_it FAIL (9 run, 8 passed, 1 failed, exit 100); source restored and verified clean (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/mutation-smb-fix-negative-space-1-c28d1b26.log)",
+    "per_sha": "cdd31aff: rebased on origin 2c6fd52c; lane-check --owner smb-pr-retime-hold-1 --disk d --per-sha HEAD~1: PER_SHA_RESULT OK (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-negative-space-1/land-smb-fix-negative-space-1-c28d1b26.log; per-sha unit logs under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/per-sha-cdd31aff/)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge SMB-FIX-NEGATIVE-SPACE-1 at cdd31aff (claim: notes.ready_claim)",
+  "updated_at": "2026-11-13T15:23:05Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +87,66 @@
       "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY negative space_before and overset"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+    "reuses_tree_and_target": "smb-pr-retime-hold-1",
+    "spec_basis": "STU-TYP-185 (14-studio-creative-suite.md:8823-8835): space_before and space_after hard_min/hard_max/soft bounds UNKNOWN, default 0 pt; the floor at the column's first baseline is a reading of STU-TYP-185, InDesign parity UNVERIFIED (D5).",
+    "design": "floored(cur, height, rise) raises extra to (rise - line * height).min(0): the line sits at or below the column's first baseline and its box at or below the column top (rise = inset_top + ascent - first for a frame-top column, 0 in a band); applied at the Single gap (before the anchored push), in next_slot for every slot, and in balance_band per row; baseline_of returns max(baseline, base) against rounding. vertical_justify measures the block from the highest line top to the deepest line bottom (review F1). Cursor.gaps (4c91c923) removed at a7de5fcd under the lead ruling 2026-11-13.",
+    "v4_06": {
+      "class": "a signed vertical offset (negative paragraph gap) places a line above its column's first baseline",
+      "regex": "extra\\s*(\\+?=)|extra:|baseline_of\\(|larger\\((before|after)|block_(top|bottom)",
+      "scope": "crates/hsk-studio-layout/src (paragraph space exists only in threaded_reflow.rs; grep space_before|space_after over src: typeset.rs fields only)",
+      "sites": [
+        "threaded_reflow.rs baseline_of: fixed (exact guard)",
+        "threaded_reflow.rs next_slot floor before baseline_of: fixed",
+        "threaded_reflow.rs next_slot next column / next frame reset (extra 0): not applicable",
+        "threaded_reflow.rs next_slot next.extra + snap delta (>= 0 up to EPS*step): not applicable",
+        "threaded_reflow.rs balance_band extra += m.gap (review F2 recompute): fixed (floored per row), test balancing_lifts_a_negative_gap_at_most_to_the_column_top",
+        "threaded_reflow.rs break_target column cursor (extra 0): not applicable",
+        "threaded_reflow.rs compose_flow Single gap (was :1147): fixed, test negative_space_before_never_lifts_a_line_above_the_column_top",
+        "threaded_reflow.rs compose_flow anchored push (was :1152, pre >= 0): fixed by order (floor before the push), test an_above_line_anchor_pushes_from_the_lifted_position",
+        "threaded_reflow.rs compose_flow span band larger(before, gap): not applicable (flow before >= 0, paragraph_flows nonneg)",
+        "threaded_reflow.rs compose_flow split before larger(before, gap): not applicable (>= 0)",
+        "threaded_reflow.rs compose_flow span after larger(after, space_after): not applicable (>= 0)",
+        "threaded_reflow.rs compose_flow split after larger(after, space_after): not applicable (>= 0)",
+        "threaded_reflow.rs mixed leading (smaller line height after a lifted paragraph): fixed via next_slot floor, test a_smaller_leading_after_a_negative_gap_stays_at_the_column_top",
+        "threaded_reflow.rs vertical_justify block extent (first/last line in index order; Center/Bottom dy, Justify cumulative dy): fixed at c28d1b26 (min top / max bottom over the column), test vertical_justification_keeps_every_line_of_a_lifted_column_inside_the_frame (review F1; was wrongly marked not applicable)",
+        "threaded_reflow.rs floored line box with a metric first-baseline kind (larger ascent lifted above the inset top): fixed at c28d1b26 (rise), test a_lifted_paragraph_with_a_larger_ascent_keeps_its_line_box_inside_the_inset_top (review F2)"
+      ],
+      "count": "15 sites listed, 8 fixed, 7 not applicable"
+    },
+    "cut": "Only this defect. Not touched: F-R60-27 (textflow.rs paragraph delete), other indent/spacing findings, the unchecked `c.extra += pre[pi]` sum (pre >= 0; an overflow there gives +inf, which next_slot moves past the frame, never NaN), lib.rs DESCRIPTOR text (states no negative-space rule; not an owned path).",
+    "beyond_brief_paths": [
+      "crates/hsk-studio-layout/tests/indent_spacing.rs hostile_indent_and_space_values_give_typed_answers, the space(-max, 0.0) case only (lead ruling 2026-11-13, rule 4a: pinned behaviour replaced by the fix), commit a7de5fcd"
+    ],
+    "mts_proven": "none named by the brief; no MT file edited",
+    "ruling_deviation": "The ruling asked the updated case to assert overset reported; for that case's story (three one-line paragraphs, frame 120 x 100) every lifted line lands on baseline 10 and fits, so the case asserts overset None. Overset under a lifting gap is proven by fix_negative_space negative_space_before_never_lifts_a_line_above_the_column_top (overset 30..119).",
+    "review_a7de5fcd": "research/review-smb-fix-negative-space-1-a7de5fcd.json (kernel 59df31ee), FIX_FIRST F1 medium, F2 low, F3 low: all three fixed under the lead rulings (red 3afa9e1c, fix c28d1b26, mutation proofs at c28d1b26). Lead question 3 (repeated negative gaps stack lifted paragraphs on the first baseline, so overlapping lines count as fitting) left as the ruled reading.",
+    "pushed": {
+      "sha": "cdd31aff1690076f784b8467d3c1c4dc08be7c21",
+      "branch": "origin/codex/handshake-studio-assets",
+      "origin_before": "2c6fd52c",
+      "at": "2026-11-13T15:23:05Z",
+      "rebased_as": {
+        "c65d6806": "8cb834dc",
+        "4c91c923": "863c02c6",
+        "a7de5fcd": "93dbb420",
+        "3afa9e1c": "f94a6969",
+        "c28d1b26": "cdd31aff"
+      },
+      "origin_moved": "c8fca900..2c6fd52c (SMB-FIX-CAPTURE-ADMISSION-1: harness, harness-view only); no lane crate touched, no suite rerun"
+    },
+    "thread_test": "a_lifted_paragraph_continues_into_the_next_frame_and_the_rest_is_overset is coverage (green before and after c28d1b26), not a mutation proof (lead 2026-11-13); the mutation proofs are the_lines_after_a_floored_line_step_down_from_it (next_slot floor) and balancing_steps_the_row_after_a_floored_row_down_from_it (balance_band floor).",
+    "ready_claim": "At cdd31aff: a negative paragraph gap (STU-TYP-185 space_before/space_after) lifts a paragraph at most to its column's first baseline and its line box at most to the column top, on all four composers, in balancing, under a smaller leading, below an above-line anchor and across a thread; the lines that do not fit are overset (probe: 10 lines, overset 30..119); vertical justification Bottom/Center/Justify keeps such a column inside the frame. Tests: tests/fix_negative_space.rs (9) and indent_spacing.rs hostile case (floored outcome, rule 4a). The floor is a reading of STU-TYP-185, InDesign parity UNVERIFIED (D5).",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T15:23:18Z",
+        "on": "Cursor.gaps",
+        "decision": "removed (a7de5fcd); indent_spacing.rs hostile case space(-max, 0.0) asserts the floored outcome (rule 4a), overset None accepted for that story; path approved beyond the brief for that one case"
+      },
+      {
+        "at": "2026-11-13T15:23:18Z",
+        "on": "review F1-F3 of a7de5fcd",
+        "decision": "F1 vertical_justify min/max block, F2 line-box floor, F3 mutation-distinguishing tests: fixed at c28d1b26 (red 3afa9e1c); thread test accepted as coverage"
+      }
+    ]
   }
 }

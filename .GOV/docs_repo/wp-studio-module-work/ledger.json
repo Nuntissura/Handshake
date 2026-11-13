@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T15:08:59Z",
+ "updated_at": "2026-11-13T15:23:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20217,8 +20217,8 @@
   },
   {
    "lane_id": "SMB-FIX-NEGATIVE-SPACE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-layout (threaded_reflow.rs paragraph space and overset)",
    "lane_file": "builders/lanes/hsk-studio-fix-negative-space-1.json",
    "brief": "builders/briefs/lane-smb-fix-negative-space-1.md",
@@ -20226,11 +20226,12 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T15:23:18Z",
    "closes": [
     "validation/round-R60.json attempt_3.probes.failures SMB-TYPE-INDENT-SPACING-1 negative-space-places-lines-outside-the-frame",
     "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY negative space_before and overset"
-   ]
+   ],
+   "claim": "At cdd31aff: a negative paragraph gap (STU-TYP-185 space_before/space_after) lifts a paragraph at most to its column's first baseline and its line box at most to the column top, on all four composers, in balancing, under a smaller leading, below an above-line anchor and across a thread; the lines that do not fit are overset (probe: 10 lines, overset 30..119); vertical justification Bottom/Center/Justify keeps such a column inside the frame. Tests: tests/fix_negative_space.rs (9) and indent_spacing.rs hostile case (floored outcome, rule 4a). The floor is a reading of STU-TYP-185, InDesign parity UNVERIFIED (D5)."
   },
   {
    "lane_id": "SMB-FIX-HOST-TERMINAL-FRAME-1",
