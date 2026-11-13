@@ -15,6 +15,19 @@
  },
  "asset_licenses_note": "Approved licences of non-code assets embedded in workspace members (vendored forks). license_gate.py gates only registry `locked` crates.io records and does not read this section; it is the decision and verification record for the steward sync that adds the member.",
  "asset_licenses": {
+  "hsk-studio-web-core": {
+   "decision": "Lead ruling F9/Q3 on review-smb-web-code-1-c1e077d9 (2026-11-13): CC BY 4.0 data accepted with its attribution; one asset_licenses entry approved beyond the brief.",
+   "lane": "SMB-WEB-CODE-1",
+   "introduced_by": "lane/smb-web-code-1 (not yet on origin)",
+   "verified_at": "2026-11-13",
+   "verified_by": "builder SMB-WEB-CODE-1 (notices fetched from the sources; no GPL/LGPL/MPL source read); steward verification pending",
+   "assets": [
+    {"paths": "crates/hsk-studio-web-core/src/vocabulary.rs (HTML element and attribute tables), src/validation.rs (html_all rule set)", "license": "CC-BY-4.0; BSD-3-Clause for portions in source code (WHATWG notice)", "license_text": "crates/hsk-studio-web-core/NOTICE (attribution, CC BY 4.0 link, BSD-3-Clause text)"},
+    {"paths": "crates/hsk-studio-web-core/src/hints.rs JAVASCRIPT_MIME_ESSENCES", "license": "CC-BY-4.0; BSD-3-Clause for portions in source code (WHATWG MIME Sniffing)", "license_text": "crates/hsk-studio-web-core/NOTICE"},
+    {"paths": "crates/hsk-studio-web-core/src/vocabulary.rs REFERRERPOLICY tokens", "license": "W3C Software and Document License", "license_text": "crates/hsk-studio-web-core/NOTICE (notice and licence URL)"},
+    {"paths": "crates/hsk-studio-web-core/src/hints.rs JS_KEYWORDS", "license": "Ecma International copyright notice and BSD License", "license_text": "crates/hsk-studio-web-core/NOTICE (notice and licence URL)"}
+   ]
+  },
   "hsk-studio-ps": {
    "decision": "Lead decision 2026-10-24 (steward EPS sync dispatch) on Operator decision 2026-10-22 'replace EPS with open source fonts'; same treatment as the 2026-10-14 bundled-font decision (START_LOG).",
    "lane": "SMB-EPS-FREE-FONTS", "introduced_by": "d195ef7 (vendored stet 0.8.4 fork); verified at origin 1709b748",
