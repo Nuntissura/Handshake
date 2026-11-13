@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T11:42:08Z",
+ "updated_at": "2026-11-13T12:15:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20068,8 +20068,8 @@
   },
   {
    "lane_id": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio (typestyle.rs stored fields), hsk-studio-layout (textflow.rs), hsk-studio-type, hsk-studio-harness-view (layout_ui.rs, view/commands/layout.rs, view/layout_export.rs), hsk-studio-harness-core (action/commands/layout.rs)",
    "lane_file": "builders/lanes/hsk-studio-type-character-attributes-1.json",
    "brief": "builders/briefs/lane-smb-type-character-attributes-1.md",
@@ -20077,11 +20077,12 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T12:15:38Z",
    "closes": [
     "research/width-plan-20261108-print-web.json rank 3",
     "research/spec-coverage-20261111-g3-vector-type.json STU-TYP 14.7.9 rows"
-   ]
+   ],
+   "claim": "12fd5b8a on origin: per-range character attributes (STU-TYP-155..161, 133, 192, 209) stored as one Folio record per style and per local override, resolved by one bounded CharacterResolver (STU-TYP-201 order, legacy style fields folded at their level), typed layout.* rows with the STU-TYP-222 mixed read (effective values, defaulted, insertion point) and STU-TYP-221 rows; script and language itemization (STU-TYP-127..129) into Type; the PDF export shapes coalesced spans within Type's limits, per-cluster tracking, case transforms under /ActualText (press-write writes, press-read reads, bounded), /W from the font program, feature receipts and losses; replace_text CR LF and empty-story forms; the delete cascade drops overrides and node links. Review 83cb89b8 F1-F15 and Q1-Q8 fixed per lead rulings. bundled-666e261b: lane-check 1522/1522 with a fresh example; smb-type-character-attributes-1-land-12fd5b8a.log: rebased onto f02e6d85, layout-ui-only harness-view build, session, harness-core, harness-view [viewer] and harness [viewer] layout + PDF + harness_drive_typed 554/554, per-sha OK, pushed"
   },
   {
    "lane_id": "SMB-BOARD-1",
@@ -22738,6 +22739,36 @@
     "added_at": "2026-11-13T11:42:08Z",
     "item": "script lint provider selection (STU-WEB-057; web.lint script refuses script_lint_provider_unselected) and site-wide batch lint (STU-WEB-058)",
     "owner": "spec owner + web code"
+   },
+   {
+    "added_at": "2026-11-13T12:15:38Z",
+    "item": "STU-TYP-113 / review F12: right-to-left paragraph composition (bidi runs through Type and layout); the export detects the base direction and reports paragraph_direction_not_applied",
+    "owner": "a later type or layout lane (harness-view layout_export, hsk-studio-layout)"
+   },
+   {
+    "added_at": "2026-11-13T12:15:38Z",
+    "item": "STU-TYP-158: small caps and OpenType position synthesis (small_cap_size, superscript/subscript size and position) when the receipt is unavailable_inert",
+    "owner": "a later type lane (harness-view layout_export)"
+   },
+   {
+    "added_at": "2026-11-13T12:15:38Z",
+    "item": "STU-TYP-159/160: underline and strikethrough drawn through press stroke_path with the stroke-style registry, auto weight/offset from font metrics, skip_ink",
+    "owner": "a later layout export lane"
+   },
+   {
+    "added_at": "2026-11-13T12:15:38Z",
+    "item": "STU-TYP-161: hyperlinks written as PDF link annotations (URI, GoTo a page node) from the composed glyph boxes",
+    "owner": "a later press or layout export lane"
+   },
+   {
+    "added_at": "2026-11-13T12:15:38Z",
+    "item": "STU-TYP-155: horizontal/vertical scale, rotation and skew as PDF glyph transforms with scaled advances in composition",
+    "owner": "a later layout export lane"
+   },
+   {
+    "added_at": "2026-11-13T12:15:38Z",
+    "item": "V4-06 class D (review F10): layout alternate.rs update_linked_stories and the TOC/index into_story target replacement leave the target's character overrides at old positions (session validation refuses them); copy or drop them in the same step",
+    "owner": "a later layout lane (hsk-studio-layout alternate.rs, toc_contract.rs, index_contract.rs)"
    }
   ],
   "pause_20261103": {

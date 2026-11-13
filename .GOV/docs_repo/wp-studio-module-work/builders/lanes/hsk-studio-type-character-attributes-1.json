@@ -1,19 +1,155 @@
 {
   "crate": "hsk-studio-folio (typestyle.rs stored fields), hsk-studio-layout (textflow.rs), hsk-studio-type, hsk-studio-harness-view (layout_ui.rs, view/commands/layout.rs, view/layout_export.rs), hsk-studio-harness-core (action/commands/layout.rs)",
   "lane": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
-  "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "f02e6d85",
+  "commits": [
+    {
+      "sha": "26d58dbe",
+      "subject": "folio typestyle + story, session, SMB-TYPE-CHARACTER-ATTRIBUTES-1: character attribute records, stroke-style registry, language records; empty-story form (lead decision (a))",
+      "pushed": true
+    },
+    {
+      "sha": "0f197962",
+      "subject": "type itemize, SMB-TYPE-CHARACTER-ATTRIBUTES-1: script_runs, one ISO 15924 run per strong script (STU-TYP-127)",
+      "pushed": true
+    },
+    {
+      "sha": "dcd29ca6",
+      "subject": "layout textflow, SMB-TYPE-CHARACTER-ATTRIBUTES-1: a newline typed into an empty story splits it; local character overrides move with text edits",
+      "pushed": true
+    },
+    {
+      "sha": "f1f581f5",
+      "subject": "harness-view/core layout, SMB-TYPE-CHARACTER-ATTRIBUTES-1: typed rows for character attributes, style character attributes, stroke styles, languages, applied language and the mixed-value read",
+      "pushed": true
+    },
+    {
+      "sha": "deafe06a",
+      "subject": "harness-view layout_export, SMB-TYPE-CHARACTER-ATTRIBUTES-1: spans shape with their character attributes, script runs and range language; unrendered fields and IDML gaps reported",
+      "pushed": true
+    },
+    {
+      "sha": "256c294a",
+      "subject": "SMB-TYPE-CHARACTER-ATTRIBUTES-1 (red): review FIX_FIRST of 83cb89b8 and the lead rulings, one red test per fix, with skeletons only",
+      "pushed": true
+    },
+    {
+      "sha": "d6225af6",
+      "subject": "SMB-TYPE-CHARACTER-ATTRIBUTES-1 (red): F5 test draws U+0311, the combining mark the bundled font maps",
+      "pushed": true
+    },
+    {
+      "sha": "37cf3db3",
+      "subject": "SMB-TYPE-CHARACTER-ATTRIBUTES-1 (fix): review FIX_FIRST of 83cb89b8 and the lead rulings, on the red tests of 747a9911",
+      "pushed": true
+    },
+    {
+      "sha": "12fd5b8a",
+      "subject": "harness-view, SMB-TYPE-CHARACTER-ATTRIBUTES-1: the layout-ui feature enables hsk-studio-type (lead-approved)",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "Folio StudioCharacterAttributes: STU-TYP-155 numeric block, 156 enumerations, 157 booleans, 170/174 feature map, 158 synthesis parameters, 159/160 underline and strikethrough records, 161 hyperlink, 133 digits_type; per style and as local overrides over story bytes; stated bounds and references refused typed",
+    "Folio stroke-style registry (STU-TYP-192) and language records (STU-TYP-209); CHARACTER_PARAMS, CHARACTER_ENUMERATIONS, CHARACTER_ATTRIBUTE_FIELDS as data (STU-TYP-221)",
+    "Typed rows: layout.set_character_attributes, layout.style.set_character_attributes, layout.define_stroke_style, layout.delete_stroke_style, layout.define_language, layout.set_language (one named undo step each, saved and reopened), layout.character_attributes (STU-TYP-222 mixed values with extents)",
+    "PDF export: size, leading, tracking, manual kerning, baseline shift, feature map, kerning mode, capitalization (OpenType or one-to-one case mapping of the shaped copy), OpenType and synthesised position reach Type and composition; script runs and range language replace Latn/en; unrendered fields reported per field; IDML gaps reported",
+    "replace_text newline typed into an empty story makes paragraphs (ledger 2026-11-07T12:31:03Z); empty story stored in Folio's own form with its paragraph style (ledger 2026-11-07T17:33:46Z, lead decision (a)); script and language itemization (ledger 2026-11-07T16:35:52Z)"
+  ],
+  "tests": {
+    "focused_51b4d006": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-focused-51b4d006.log",
+      "clippy folio, type, layout, session --tests": "exit 0",
+      "clippy harness-core, harness-view, harness [viewer] --tests": "exit 0",
+      "folio character_attributes + empty_story_form": "11/11",
+      "type itemize": "3/3",
+      "layout empty_story_edits + character_override_edits": "5/5",
+      "package externals": "9/9",
+      "harness-core action_records": "6/6",
+      "example studio-harness [viewer]": "built",
+      "harness [viewer] layout_character_attributes + layout_pdf_host + harness_drive_typed": "19/20 (the PDF test's all-caps check read glyph Unicode; fixed in the test)"
+    },
+    "focused_pdf_85251757": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-focused-pdf-85251757.log",
+      "harness [viewer] layout_character_attributes": "3/3 exit 0"
+    },
+    "tree_note": "83cb89b8 (five area commits on b57c82d1) has the tree of the tested 85251757; the local red commit e2f70907 and the fix commits were folded with a private index (git commit-tree), the lane branch moved by update-ref, nothing pushed",
+    "red_747a9911": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-red-747a9911.log",
+      "folio proof branch 70667a20 character_attributes": "4/6 fail on their assertions (F15 re-proof)",
+      "folio character_review": "5/5 fail on assertions",
+      "session layout_records_character": "2/3 fail on assertions",
+      "layout empty_story_edits": "1/4 fails on its assertion (Q7)",
+      "press-write actual_text": "1/2 fails on its assertion",
+      "harness-view layout_export::tests": "3/3 fail on assertions",
+      "harness [viewer] layout_character_review + layout_character_attributes": "13/15 fail; F5 failed on setup (MissingGlyph: U+0301 not in Ubuntu-Light), corrected in 571bfd63"
+    },
+    "red_571bfd63_and_focused": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-focused-571bfd63-fixes-wip.log",
+      "red F5 at 571bfd63": "fails on its assertion (the mark moved off its base)",
+      "focused with the fixes applied (uncommitted, patch sha256 19ed503d...)": "folio 16/16, layout 6/6, session 3/3, press-write 3/3, press-read lib 45/45, harness-view layout_export 3/3, example built, harness [viewer] 47/48 (F14 test setup: page-2 on page-1's spread; corrected in 666e261b)",
+      "clippy -D warnings": "not usable: pre-existing hsk-studio-observe too_many_arguments under -D (lane-check clippy is the clippy proof)"
+    },
+    "bundled_666e261b": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-bundled-666e261b.log",
+      "example studio-harness [viewer]": "built (EXAMPLE_EXIT 0)",
+      "lane-check step 0": "clean; registry in sync",
+      "clippy crates + 20 dependents": "exit 0; no warning in the lane's changed lines (containers.rs:926 unnecessary_lazy_evaluations is SMB-LAYOUT-DELETE-CASCADE-1's line)",
+      "nextest folio, layout, type, package, session (whole), interop-layout, press-write, press-read, harness-core, harness-view [viewer], harness [viewer] layout + PDF targets + harness_drive_typed": "1522/1522 passed, 6 skipped",
+      "LANE_CHECK_EXIT": 0
+    },
+    "land_df56d1ba": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-land-df56d1ba.log",
+      "rebase": "666e261b rebased onto origin 3e087001 (clean), tip df56d1ba",
+      "example studio-harness [viewer]": "built (EXAMPLE_EXIT 0)",
+      "nextest session, harness-core, harness-view [viewer], harness [viewer] layout + PDF targets + harness_drive_typed": "545/545 passed, 3 skipped (SUITES_EXIT 0)",
+      "per-sha HEAD~1": "PER_SHA_RESULT FAIL unit=features:hsk-studio-harness+layout-ui exit=101 (21 units ok before it); log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/per-sha-df56d1ba/df56d1ba-features_hsk-studio-harness_layout-ui.log"
+    },
+    "land_e1fa9ac4": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-land-e1fa9ac4.log",
+      "base": "3e087001 (origin moved to 3fb489ab during the hold)",
+      "example": "EXAMPLE_EXIT 0",
+      "harness-view --no-default-features --features layout-ui": "LAYOUT_UI_BUILD_EXIT 0",
+      "suites": "545/545 passed, 3 skipped",
+      "per-sha HEAD~1": "PER_SHA_RESULT OK (df56d1ba..e1fa9ac4)",
+      "push": "not pushed (origin moved)"
+    },
+    "land_ae4f050a": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-land-ae4f050a.log",
+      "base": "3fb489ab (origin moved to f02e6d85 during the hold)",
+      "example": "EXAMPLE_EXIT 0",
+      "harness-view --no-default-features --features layout-ui": "LAYOUT_UI_BUILD_EXIT 0",
+      "suites": "554/554 passed, 3 skipped",
+      "per-sha HEAD~1": "PER_SHA_RESULT OK (bce31135..ae4f050a)",
+      "push": "not pushed (origin moved)"
+    },
+    "land_12fd5b8a": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-land-12fd5b8a.log",
+      "base": "f02e6d85",
+      "example": "EXAMPLE_EXIT 0",
+      "harness-view --no-default-features --features layout-ui": "LAYOUT_UI_BUILD_EXIT 0",
+      "nextest session, harness-core, harness-view [viewer] whole; harness [viewer] layout + PDF targets + harness_drive_typed": "554/554 passed, 3 skipped (SUITES_EXIT 0)",
+      "per-sha HEAD~1": "PER_SHA_RESULT OK shas=1 range=37cf3db3..12fd5b8a (per-sha logs per-sha-12fd5b8a)",
+      "push": "PUSH_EXIT 0: f02e6d85..12fd5b8a -> codex/handshake-studio-assets; origin re-fetched, contains 12fd5b8a"
+    }
+  },
   "verdicts": [],
-  "blockers": [],
+  "blockers": [
+    {
+      "at": "2026-11-13T11:06:40Z",
+      "what": "per-sha unit features:hsk-studio-harness+layout-ui: error[E0433] cannot find crate hsk_studio_type at crates/hsk-studio-harness-view/src/layout_ui.rs:1591 (the read's legacy_booleans, lane commit 9e893dfa): hsk-studio-type is optional in harness-view and only the viewer feature enables it",
+      "proposed_fix": "crates/hsk-studio-harness-view/Cargo.toml:18 layout-ui = [\"dep:egui\", \"dep:hsk-studio-layout\", \"dep:hsk-studio-type\"] (hsk-studio-layout already depends on hsk-studio-type, so no new crate in the graph); path beyond the brief, needs the lead's approval",
+      "pushed": true,
+      "resolved": "2026-11-13T11:07:54Z: lead approved the proposed Cargo.toml line; fix commit on the lane"
+    }
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: READY_FOR_VALIDATION at 12fd5b8a; builder idle",
+  "updated_at": "2026-11-13T12:15:19Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +175,216 @@
       "research/spec-coverage-20261111-g3-vector-type.json STU-TYP 14.7.9 rows"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+    "reuses_tree_and_target": "smb-pr-retime-hold-1",
+    "lead_decisions": [
+      "2026-11-13 lead: paths 1-3 approved (pinned replace_text newline tests, package externals CLASSIFIED rows, layout_ui/styles.rs DeleteStyle and ClearOverrides lines).",
+      "2026-11-13 lead: empty-story form option (a): Folio accepts exactly one [0,0) paragraph and at most one [0,0) range on an empty stream, refuses anything else; the session workaround layout_records.rs:166-182 is removed; older files without a paragraph still open.",
+      "2026-11-13 lead: layout/src/lib.rs (one re-export line) approved beyond the brief.",
+      "2026-11-13 lead: no further lane-history rewriting (no commit-tree/update-ref folding); the red commit stays reachable on red/smb-type-character-attributes-1; the bundled run waits for the read-only review of 83cb89b8.",
+      "2026-11-13 lead: review FIX_FIRST of 83cb89b8 (research/review-smb-type-character-attributes-1-83cb89b8.json): F1-F15 and Q1-Q8 rulings; each fix red first (747a9911), then focused tests and one bundled lane-check.",
+      "2026-11-13 lead: F1+Q1 Type limits not raised: spans coalesce, carry only effective features, a paragraph is shaped in chunks within the limits split at span edges.",
+      "2026-11-13 lead: F2+Q3 case transforms use ActualText; ToUnicode stays the glyph mapping; PDF paths interop-layout pdf_export.rs, longdoc.rs, press-write export.rs, press-read vector_read.rs and vector_source.rs approved; /W is the glyph's own hmtx width, tracking a TJ adjustment.",
+      "2026-11-13 lead: F3+Q2+Q4 one canonical storage, the Folio record; precedence local override, character style, paragraph style; overlap_swash, stretched_alternate and kana stay booleans in the record.",
+      "2026-11-13 lead: rebase onto SMB-LAYOUT-DELETE-CASCADE-1 (81de18b9); containers.rs approved; the cascade drops this lane's overrides in the same undo step.",
+      "2026-11-13 lead: bundled run adds the whole session suite, the interop-layout, press-write and press-read suites and the harness [viewer] layout and PDF targets with a fresh example.",
+      "2026-11-13 lead: RELEASED at 666e261b; accepted the test edits (F14 page-2 own spread, F5 glyph ids, F13c booleans), the readings (Q6; F12 PARTIAL with a next-lane candidate; F4; F1) and the pre-existing observe clippy note.",
+      "2026-11-13 lead: approved harness-view Cargo.toml:18 layout-ui enabling hsk-studio-type; the read is not gated behind viewer; one fix commit, then one landing hold (per-sha HEAD~1, a layout-ui-only harness-view compile, the touched suites).",
+      {
+        "at": "2026-11-13T12:15:38Z",
+        "on": "review 83cb89b8 (FIX_FIRST)",
+        "decision": "F1-F15 and Q1-Q8 rulings applied red first (747a9911, 571bfd63); RELEASED at 666e261b after bundled 1522/1522"
+      },
+      {
+        "at": "2026-11-13T12:15:38Z",
+        "on": "666e261b acceptance",
+        "decision": "accepted: F14 test page-2 on its own spread, F5 glyph ids, F13c booleans; readings Q6 CJK-only kern off, F12 RTL detected and reported (PARTIAL, composed LTR), F4 receipts plus loss, F1 counted once per span; the pre-existing observe clippy note"
+      },
+      {
+        "at": "2026-11-13T12:15:38Z",
+        "on": "landing per-sha layout-ui unit",
+        "decision": "approved harness-view Cargo.toml:18 layout-ui enabling hsk-studio-type; the read is not gated behind viewer"
+      }
+    ],
+    "beyond_brief_paths": [
+      "crates/hsk-studio-folio/src/story.rs tiles(): one empty entry on an empty stream (lead decision (a)); field docs",
+      "crates/hsk-studio-session/src/layout_records.rs:166-182: the empty-story workaround removed (lead decision (a)); StoryContent import dropped",
+      "crates/hsk-studio-harness/tests/harness_drive_typed.rs:200-201 and the renamed replace_text_newline_makes_two_paragraphs (was known_defect_replace_text_newline_keeps_one_paragraph): lead-approved path 1",
+      "crates/hsk-studio-harness/tests/layout_pdf_host.rs: a_newline_typed_into_an_empty_frame_makes_two_paragraphs_both_drawn (was a_break_inside_one_paragraph_is_set_as_a_line_break_with_both_sides_drawn): lead-approved path 1",
+      "crates/hsk-studio-package/tests/externals.rs CLASSIFIED: StudioCharacterAttributes.font_baseline_option, StudioCharacterAttributes.hyperlink, StudioHyperlink.url (lead-approved path 2, rule 4b)",
+      "crates/hsk-studio-harness-view/src/layout_ui/styles.rs: DeleteStyle drops style_character; ClearOverrides clears the paragraph's character overrides (lead-approved path 3)",
+      "crates/hsk-studio-layout/src/lib.rs:102: re-export of shift_character_overrides (lead-approved 2026-11-13)",
+      "crates/hsk-studio-type/src/lib.rs: mod itemize and its re-export (type src is the brief's itemization path)",
+      "crates/hsk-studio-harness-core/src/harness/containers.rs: cascade_layout_delete drops the character overrides of removed stories and node links to removed text anchors; delete_page_with_content drops node links to a removed page spread (lead ruling on the SMB-LAYOUT-DELETE-CASCADE-1 rebase, review F14)",
+      "crates/hsk-studio-session/src/layout_records.rs validate: character overrides checked against their stories (review F9, lead-approved)",
+      "crates/hsk-studio-harness-view/src/layout_ui/styles.rs: edit_style writes size and leading into the style's character record, style rows read sizes through CharacterResolver, ClearOverrides clears the language and keeps non-typographic fields (review F3, F6+Q8, lead-approved)",
+      "crates/hsk-studio-interop-layout/src/pdf_export.rs: embed_fonts /W from hsk_studio_press::font_advance_widths; frame_lines draws case-mapped spans inside ActualText spans; Placed.end (review F2, F5, lead-approved)",
+      "crates/hsk-studio-interop-layout/src/pdf_export/longdoc.rs: PdfLongDoc.actual_text (review F2, lead-approved)",
+      "crates/hsk-studio-press-write/src/export.rs: begin_actual_text / end_actual_text (/Span <</ActualText UTF-16BE>> BDC ... EMC), Level.actual_texts (review F2, lead-approved)",
+      "crates/hsk-studio-press-read/src/vector_read.rs: VectorGlyph.actual_text (innermost span), VectorNote::ActualTextTruncated, MAX_ACTUAL_TEXT_CHARS 4096 (crate-private) (review F2, lead-approved)",
+      "crates/hsk-studio-press-read/src/vector_source.rs:85-95 and :403-432: Mark.actual_text from an inline BDC property dict, decoded bounded (cut at 4096 chars + U+FFFD) (lead-approved)",
+      "crates/hsk-studio-press-write/tests/actual_text.rs (new): ActualText round trip, a PDF without ActualText reads as before, a hostile 5000-char value and a span without one",
+      "crates/hsk-studio-harness-view/Cargo.toml:18 layout-ui = [\"dep:egui\", \"dep:hsk-studio-layout\", \"dep:hsk-studio-type\"] (lead-approved 2026-11-13 after the per-sha layout-ui unit failed E0433; hsk-studio-layout already depends on hsk-studio-type, no crate added)"
+    ],
+    "spec_basis": [
+      "STU-TYP-155 (14-studio-creative-suite.md :8328): numeric block, every bound UNKNOWN except stroke_weight hard_min 0; tracking/kerning_manual precision 0",
+      "STU-TYP-156 (:8354): ten enumerations; underline_type and strikethrough_type are off plus the stroke-style registry",
+      "STU-TYP-157 (:8376), STU-TYP-170/174 (:8544, :8732): legacy OpenType booleans are tag-map entries, no second storage",
+      "STU-TYP-158 (:8383): case and synthesised styles are render transforms; synthesis parameter table",
+      "STU-TYP-159/160 (:8400, :8421): two independent decoration records; web decoration maps onto them",
+      "STU-TYP-161 (:8431): per-range hyperlink url | node",
+      "STU-TYP-192 (:8929): one stroke-style registry, solid a member",
+      "STU-TYP-209/210 (:9194, :9206): language record; applied_language per character range",
+      "STU-TYP-133 (:8114): digits_type twenty members",
+      "STU-TYP-127 (:8076): script and language run resolution is TextEngine's",
+      "STU-TYP-221/222 (:9258, :9264): parameter introspection; mixed-value protocol",
+      "STU-TYP-110 (:7930): character ranges carry local overrides"
+    ],
+    "declared_readings": [
+      "Character attributes are stored beside the styles (style_character per style of either scope, character_overrides over story byte spans), not on StudioTypeStyle/StoryRange, so existing records and every struct literal keep their shape (the composition-settings precedent).",
+      "Resolution order: paragraph style based_on chain, character style based_on chain, local override (STU-TYP-201 reading). A record `size` wins over the legacy style font_size fields in the export.",
+      "The 157 booleans with a single registered tag (ligatures ... proportional_metrics, Type's LegacyBoolean mapping) live only in opentype_features (STU-TYP-174); the read projects them as legacy_booleans. overlap_swash, stretched_alternate, kana (hkna/vkna), italics, connection_forms and the non-OpenType booleans are stored fields.",
+      "STU-TYP-158 synthesis parameters are stored per record (the spec does not say document or range; InDesign holds them in text preferences, UNVERIFIED D5). Synthesised super/subscript is applied only when its size and position are stated (UNKNOWN defaults are not invented); a subscript position moves down. UNVERIFIED.",
+      "Built-in stroke styles: solid, dotted, wavy (STU-TYP-192 solid; STU-TYP-160 decoration styles). InDesign's default stroke style list UNVERIFIED (D5).",
+      "Hyperlink URLs refuse script and inline-data schemes (javascript, vbscript, data) and whitespace: a hostile-input reading, not spec text.",
+      "No stated language shapes as `und` (was `en`); a key without a record is used when it is a locale name (en_US, en-US), else `und` and applied_language_unresolved. A paragraph with no strong character is declared Latn (the vendored engine shapes Zyyy only for default-ignorables).",
+      "Tracking and manual kerning are added to every glyph advance of their span ((t + k) / 1000 em); InDesign applies manual kerning per pair at the insertion point (UNVERIFIED, D5).",
+      "Paragraph line height is the largest stated leading of its spans, else 1.25 em of each span's size (the editor's convention); ascent capped at the line height."
+    ],
+    "v4_06_sweep": {
+      "class_A": "records keyed by story bytes move with every text edit (regex `replace_story_text\\(|shift_paragraph_records\\(|shift_flow_records\\(`)",
+      "class_A_sites": [
+        "harness-view layout_ui.rs transform ReplaceText -> shift_paragraph_records: fixed (moves character_overrides)",
+        "harness-view layout_ui/find.rs:97-99 change -> shift_paragraph_records: fixed (same function)",
+        "layout find_change.rs:432-433 apply_text_changes_with_records -> shift_paragraph_records: fixed (same function)",
+        "layout xref.rs:465-466 -> shift_paragraph_records: fixed (same function)",
+        "interop-layout data_merge.rs:371-373 -> shift_paragraph_records: fixed (same function)",
+        "layout find_change.rs:405 apply_text_changes (no records argument): named, not fixed (pre-existing: paragraph records not moved either)",
+        "layout xref.rs:489-490 shift_flow_records only (no type-style records): named, not fixed (pre-existing gap, same as paragraph_composition)",
+        "harness-view layout_ui/tables.rs SetCellText / commit (cell stories rebuilt whole): named, not fixed (an override on a cell story is not moved; cell stories are not exported to PDF, table_not_exported)",
+        "layout textflow.rs conditional_view: overrides in hidden text are not remapped; named, not applicable (layout_export does not compose through conditional_view)"
+      ],
+      "class_B": "records keyed by a style id leave with their style (regex `style_composition.retain`)",
+      "class_B_sites": [
+        "harness-view layout_ui/styles.rs DeleteStyle: fixed (style_character dropped, lead-approved line)"
+      ],
+      "class_C": "records keyed by a story id outlive their story (layer delete cascade, unthread)",
+      "class_C_sites": [
+        "harness-core containers.rs cascade_layout_delete / delete_page_with_content: fixed (a removed story's character overrides and node links to a removed anchor or spread go in the delete's undo step; lead ruling on the SMB-LAYOUT-DELETE-CASCADE-1 rebase)",
+        "harness-view layout_ui.rs apply: fixed (every editor step drops overrides of stories it removed and node links to nodes it removed)",
+        "session layout_records.rs validate: fixed (review F9: an override names a stored story, lies inside its bytes and on character boundaries, else DanglingReference / InvalidField)"
+      ],
+      "class_D": "whole-content writers (review F10): a story's content, paragraphs or ranges replaced whole rather than through replace_story_text (regex `\\.content = |content: StoryContent::Inline|into_story\\(|to_story\\(`); stale overrides are refused by session validation since F9 (DanglingReference / InvalidField), never kept silently",
+      "class_D_sites": [
+        "layout alternate.rs:416-440 update_linked_stories (child takes the parent's content, paragraphs and ranges): named, not fixed: the child's character overrides keep child byte positions (the function has no type-style records argument); next-lane candidate: copy the parent's overrides onto the child id or drop the child's in the host's same step",
+        "harness-view layout_ui.rs:928-931 egui story editor 'Commit text' (ReplaceText of [0, len)): moves overrides through replace_story_text (class A), so overrides inside the replaced range collapse to the edit point and go; named, not fixed under D1 (the GUI panel is not this lane's)",
+        "harness-view layout_ui/tables.rs:355 SetCellText / :168 cell story built whole: named, not fixed (as class A: overrides on a cell story are not moved; cell stories are not exported to PDF, table_not_exported)",
+        "layout toc_contract.rs:1022 and index_contract.rs:1020 into_story(target_id) (a generated TOC or index story replaces its target story whole, same id): named, not fixed: overrides on the target story keep old byte positions; the host applying the proposal must drop the target's overrides in the same step (session validation refuses positions past the new text); next-lane candidate",
+        "harness-view view/design/instance.rs:574 component instance text override: not applicable (a fresh story id, no overrides keyed to it)",
+        "layout grep.rs:189 GREP styles: not applicable (the same text, character ranges re-derived)",
+        "layout textflow.rs:181 and :496 replace_story_text / conditional_view: fixed (class A) / not applicable (as listed there)",
+        "importers interop-layout idml_longdoc.rs:375 (validated :1105-1116), interop-vector-core ai_import.rs:752 (validated :1100-1105), interop-fig-native native.rs:1161 (validated :3656-3661), layout toc.rs:138 to_story: not applicable (new stories, no overrides)"
+      ]
+    },
+    "cut": [
+      "Underline, strikethrough and hyperlink are stored, typed, saved and reported (character_attribute_not_rendered) but not drawn or written as PDF links",
+      "Horizontal and vertical scale, rotation, skew, aki, tsume, stroke weight, anti-aliasing, character alignment, alternate glyph forms, baseline direction and option, digits_type, faux styles, no_break and the CJK booleans: stored and reported, not rendered or composed",
+      "STU-TYP-158 path report (OpenType feature vs synthesis) and synthesis when the font lacks smcp/c2sc: not done (smcp/c2sc requested declared:false; Type reports an absent tag as inert)",
+      "Language deletion command, typographer-quote substitution from the quote pairs, hyphenation and spelling vendors in use: not done",
+      "IDML import/export of the new records: export reports *_not_exported; import not mapped",
+      "Editor preview (fixed-advance) does not read character attributes; the GUI panel is not this lane's",
+      "Paired-bracket script resolution (UAX #24) and Hira/Kana with Han: not done",
+      "Paragraph base direction (review F12): derived and reported (paragraph_direction_not_applied); right-to-left composition is not done"
+    ],
+    "mt_candidates": [
+      "MT-30926, MT-30927 (STU-TYP-155 clause and parameter table: stored, bounds as data; engine half, gui_obligation open)",
+      "MT-30928 .. MT-30938 (STU-TYP-156 clause and catalogue rows: stored and typed; underline/strikethrough types via the registry; operator-surface tooltip obligation open)",
+      "MT-30939 (STU-TYP-157 booleans: stored; OpenType ones as feature-map entries)",
+      "MT-30940 (STU-TYP-158 clause: render transform proven; 'report which path it took' not done: partial)",
+      "MT-30941 (STU-TYP-158 parameter table: stored, hard bounds refused)",
+      "MT-30942, MT-30943 (STU-TYP-159 record and parameter table)",
+      "MT-30944 (STU-TYP-160 mapped onto the 159 record)",
+      "MT-30945 (STU-TYP-161 hyperlink stored, survives split/merge as an override; not exported as a link)",
+      "MT-30983 (STU-TYP-192 registry)",
+      "MT-31023 (STU-TYP-209 language record; vendors an open string)",
+      "MT-30901 (STU-TYP-133: stored only, digit glyph selection not applied: candidate partial, not met)"
+    ],
+    "declared_readings_more": [
+      "The empty-frame test: on the code before the lane the paragraph style already survived save and reopen through the session workaround; the red part was the typed newline (one paragraph). Folio's own refusal of the empty paragraph is the red folio test.",
+      "Itemization receipt: the PDF export's result lists spans per script and shaping language (`itemization`)."
+    ],
+    "red_commit": {
+      "sha": "747a9911",
+      "also": [
+        "571bfd63 (F5 test mark corrected)",
+        "e2f70907 (first red, kept on red/smb-type-character-attributes-1)",
+        "70667a20 (folio proof branch red/smb-type-character-attributes-1-folio, F15)"
+      ],
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-character-attributes-1/smb-type-character-attributes-1-red-747a9911.log",
+      "tree": "review red tests and compile-only skeletons on bf912736",
+      "history_note": "no history rewriting since the lead's ruling: red commits stay on the lane branch"
+    },
+    "partial_cuts": [
+      {
+        "rows": "STU-TYP-155 (horizontal_scale, vertical_scale, character_rotation, skew, aki_left, aki_right, tsume, stroke_weight)",
+        "state": "PARTIAL: stored, typed, saved, bounds checked; the PDF reports character_attribute_not_rendered per field",
+        "next_lane_candidate": "PDF glyph transforms (Tz/text matrix for scale and skew, rotation per glyph) in layout_export plus composition with scaled advances; aki/tsume with the CJK composer"
+      },
+      {
+        "rows": "STU-TYP-156 (anti_alias_method, character_alignment, alternate_glyph_form, baseline_direction, font_baseline_option) and STU-TYP-157 non-OpenType booleans (no_break, faux_bold, faux_italic, fractional_widths, connection_forms, kana, italics, rotate_single_byte_characters, cjk_grid_tracking, overprint_fill, overprint_stroke, overlap_swash, stretched_alternate)",
+        "state": "PARTIAL: stored and typed; not composed or drawn; reported per field",
+        "next_lane_candidate": "no_break in the layout breakers; faux bold/italic as stroke and skew in the PDF; overprint in press; the CJK fields with the vertical/CJK lanes"
+      },
+      {
+        "rows": "STU-TYP-158",
+        "state": "PARTIAL: all caps and lower case are render transforms of the shaped copy, drawn inside /ActualText spans with the stored text (review F2); small caps and OpenType positions request smcp/c2sc and sups/subs/numr/dnom, and a tag the font lacks is reported (feature_receipts unavailable_inert, character_attribute_not_rendered capitalization/position); synthesis when the font lacks them is not done",
+        "next_lane_candidate": "synthesis with small_cap_size and the superscript/subscript parameters when the receipt is inert"
+      },
+      {
+        "rows": "STU-TYP-159/160 underline and strikethrough",
+        "state": "PARTIAL: records stored, typed, saved; not drawn (reported underline/strikethrough)",
+        "next_lane_candidate": "decoration strokes in layout_export through press stroke_path with the registry pattern, auto weight/offset from font metrics, skip_ink"
+      },
+      {
+        "rows": "STU-TYP-161 hyperlink",
+        "state": "PARTIAL: stored and typed; not written as a PDF link annotation (reported hyperlink)",
+        "next_lane_candidate": "press link annotations (URI and GoTo to a page node) from the composed glyph boxes"
+      },
+      {
+        "rows": "STU-TYP-133 digits_type",
+        "state": "PARTIAL: stored and typed; digit glyph selection not applied (reported digits_type)",
+        "next_lane_candidate": "digit substitution in the shaped copy with a byte map for clusters, or locl/language-driven digits in Type"
+      },
+      {
+        "rows": "STU-TYP-209/210",
+        "state": "PARTIAL: language records and applied_language drive the shaping language; quote substitution, vendors and dictionaries not used; no delete-language command",
+        "next_lane_candidate": "typographer quotes from the record's pairs on typing; layout.delete_language with a reference check"
+      }
+    ],
+    "test_corrections_review": [
+      "571bfd63: the F5 test draws x U+0311 y (Ubuntu-Light maps no U+0301; the 747a9911 red run refused the export MissingGlyph, a setup failure); re-proven red at 571bfd63 on its assertion (focused-571bfd63-fixes-wip.log step 0).",
+      "666e261b: the F14 test adds page-2 on a spread of its own (add_page new_spread true): a page added to page-1's spread leaves that spread node, and its link, in place; its red at 747a9911 failed on the refusal assertion, unchanged.",
+      "666e261b: the F5 test also compares the drawn glyph ids (G.id was unread); the folio resolution test states liga/smcp as booleans (F13 c)."
+    ],
+    "declared_readings_review": [
+      "Q6 (lead ruling): kerning_mode metrics_roman_only turns kern off for CJK runs only (Hani, Hira, Kana, Hrkt, Hang, Bopo, Jpan, Kore, Hans); every other script is Roman for this rule.",
+      "F1: an explicit 0 on a tag outside the default-on set (abvm blwm calt ccmp clig curs dist fina init isol kern liga locl mark medi mkmk rclt rlig rvrn valt vert) changes nothing and is not sent; a span keeps at most Type's per-request feature count (64), the rest reported opentype_features_over_shaping_limit.",
+      "F3: a style's legacy font_size, line height and letter spacing fold into its own level before its record (size; leading, a percent line height of the size in force; tracking, 1 % = 10/1000 em, a length at the size in force); layout composes with composition_styles (legacy spacing and line height stripped, size the chain's resolved size), the shaped paragraphs carrying the resolved leading and tracking.",
+      "F4: case mapping keeps a character whose case form is not one character of the same UTF-8 length (sharp s), and i / dotless i under tr or az; each kept one counts case_mapping_incomplete.",
+      "F12: base direction: paragraph_direction, else story_direction, else the first strong character (UAX #9 P2-P3; strong R/AL by block, L any other alphabetic: a block-level reading UNVERIFIED per code point, D5); an RTL paragraph is still composed left to right and counted paragraph_direction_not_applied.",
+      "F13: hard bounds the spec does not state read UNKNOWN; size, leading and the two scales carry exclusive_min 0; the spec's step values read UNKNOWN beside the implementation's selected steps (points 1/10/0.1, em/1000 10/100/1, percent 1/10/0.1, degrees 1/15/0.1).",
+      "F8: resolution bounds: based_on chains of at most 64 styles (BudgetExceeded past, RenderCycle on a cycle), step budgets per export story (1<<24), per read and preview (1<<22); a read refuses past 4096 segments.",
+      "Q5: CR LF in replace_text is normalised to LF at the input (one terminator)."
+    ],
+    "bundled_scope_note": "The bundled run (bundled-666e261b) built harness-view and harness with viewer only; the layout-ui-only configuration (hsk-studio-harness feature layout-ui) was first compiled by the per-sha check at landing, where layout_ui.rs:1591 (hsk_studio_type::LegacyBoolean, lane commit 9e893dfa) failed E0433; fixed by the lead-approved Cargo.toml line, proven by the landing hold's layout-ui-only build and per-sha.",
+    "landing": {
+      "pushed_sha": "12fd5b8a0da21e5922fae1e06131c6fa1daa644c",
+      "at": "2026-11-13T12:15:19Z",
+      "rebases": [
+        "666e261b -> df56d1ba on 3e087001",
+        "e1fa9ac4 -> ae4f050a on 3fb489ab (SMB-DS-VARIABLES-AUTHOR-1 landed)",
+        "ae4f050a -> 12fd5b8a on f02e6d85 (SMB-WEB-CODE-1 landed)"
+      ],
+      "conflicts": "none"
+    }
   }
 }
