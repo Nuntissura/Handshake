@@ -2,18 +2,38 @@
   "crate": "hsk-studio-pulse (annotate.rs next_marker and prev_marker; merge_sync.rs and timeline_edit.rs transition keep on a group move), hsk-studio-harness-view (view/timeline/nest.rs Open Nested mapping; view/timeline.rs marker dispatch lines only)",
   "lane": "SMB-PR-TIMELINE-FIXES-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
   "base": "89f27330",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "2a7c2177",
+      "kind": "red",
+      "crate": "harness-view",
+      "what": "tests/viewer_timeline_fixes.rs F-R58-6 Open Nested red (run red at 89f27330, log smb-pr-timeline-fixes-1-red-89f27330.log)"
+    },
+    {
+      "sha": "85b147dd",
+      "kind": "red",
+      "crate": "pulse",
+      "what": "tests/timeline_fixes.rs F-R56-12 m7 and F-PR59-2 c5 red (run red at 2a7c2177, log smb-pr-timeline-fixes-1-red2-2a7c2177.log)"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red": {
+      "harness-view viewer_timeline_fixes open_nested_lands_on_the_nested_frame_the_program_monitor_shows_r58_v1": "FAIL at 89f27330 (30 rows one frame past; forward controls equal)",
+      "pulse timeline_fixes a_group_move_of_both_clips_keeps_their_transition_whatever_the_extent_r56_m7": "FAIL at 2a7c2177 (extent None only: dropped tr-1)",
+      "pulse timeline_fixes next_and_previous_marker_move_the_playhead_or_answer_none_r59_c5": "FAIL at 2a7c2177 (5 of 7 rows stuck)"
+    },
+    "logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-timeline-fixes-1/"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T17:08:44Z",
+  "next": "PAUSED 2026-11-13 by Operator via coordinator. Tip 85b147dd (local only, nothing pushed). Fix written but UNCOMMITTED in the lane tree (pulse src/annotate.rs, src/merge_sync.rs, src/timeline_edit.rs; harness-view src/view/timeline.rs NextMarker/PreviousMarker dispatch and its import line, src/view/timeline/nest.rs, tests/viewer_timeline_fixes.rs one added Viewer marker test). The queued focused hold was cancelled before it got the lock (no result). RESUME: rerun the focused hold (one D: hold: clippy -p pulse -p harness-view [viewer] --tests; nextest pulse --test timeline_fixes merge_sync media_markers marker_track_kind editing edit_footprint track_nudge; nextest harness-view --features viewer --test viewer_timeline_fixes viewer_timeline_nest viewer_timeline_nest_2), then commit the fix (pulse commit, harness-view commit) only when green, then REVIEW READY to the lead.",
+  "updated_at": "2026-11-13T18:08:32Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",

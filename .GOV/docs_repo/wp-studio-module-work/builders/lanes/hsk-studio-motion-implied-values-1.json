@@ -2,18 +2,22 @@
   "crate": "hsk-studio-harness-core (motion_commands.rs enable_animation and toggle on an absent anchor or position, member() point_of_interest, text_slot), hsk-studio-composite (track_apply.rs put(), with the lead's approval), the implied-value seam the lead approves",
   "lane": "SMB-MOTION-IMPLIED-VALUES-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
   "base": "89f27330",
-  "commits": [],
+  "commits": [
+    "0a09b69e red: harness tests/motion_implied_values.rs (new), composite tests/track_apply.rs (d), harness-core port trait ImpliedValues + Run::motion_command_with as a no-op"
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_proof": "red-proof-smb-motion-implied-values-1-89f27330-wt.log (owner folder smb-pr-sequence-session-1): harness default motion_implied_values 6 run 1 passed 5 failed (exit 100; helper closure refactored to fn text_stream after this step, same assertions); composite [motion] track_apply 6 run 5 passed 1 failed (exit 100); harness [media] motion_implied_values 8 run 1 passed 7 failed (exit 100, the committed file); the passing guard test an_absent_position_under_a_keyed_anchor_is_refused_before_the_port refuses at base too"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T17:08:44Z",
+  "next": "PAUSED (Operator, via lead). Tip 0a09b69e (red, committed). Fix uncommitted in the lane tree: harness-core src/motion_commands.rs, composite src/track_apply.rs + src/temporal/composition.rs + tests/composition_adapter.rs, harness-view src/view/delivery.rs + src/view/edit.rs. The focused hold was QUEUED (not started) and was cancelled (its dead queue ticket is removed by any waiter). RESUME: start the focused hold again: bash <scratch>/smb-motion-implied-values-1/focus_outer.sh (clippy harness-core --tests, composite [motion] --tests, harness-view [media], harness [media] --test motion_implied_values; nextest harness-core; harness --test motion_implied_values fix_animation_values motion_commands motion_commands_2; composite [motion] --test track_apply composition_adapter; harness [media] --test motion_implied_values motion_commands motion_records_session); on green commit the fix as 2 commits (harness-core; composite + harness-view), then REVIEW READY",
+  "updated_at": "2026-11-13T18:08:39Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -45,6 +49,19 @@
       "MT-33885 (STU-MOT-038 add or delete at current time; candidate)",
       "MT-33869 (STU-MOT-020b; candidate)"
     ],
-    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+    "reuses_tree_and_target": "smb-pr-sequence-session-1",
+    "lead_ruling_seam": "2026-11-13 lead rulings 1-10 for this lane (option A; record S/research/deliberation-20261113-motion-implied-seam.json)",
+    "beyond_brief_paths": [
+      "hsk-studio-composite/src/temporal/composition.rs: read-only pub accessor layer_anchor_position over transform_parts (lead ruling 1, 2026-11-13; deliberation-20261113-motion-implied-seam.json)",
+      "hsk-studio-harness-view/src/view/delivery.rs: the port impl ImpliedFromComposite under feature media (lead ruling 1)",
+      "hsk-studio-harness-view/src/view/edit.rs:664-668: Viewer::motion_command cfg(feature = \"media\") branch calling Run::motion_command_with (lead ruling 1)",
+      "hsk-studio-composite/tests/track_apply.rs: the (d) proof (lead ruling 8)",
+      "hsk-studio-composite/tests/composition_adapter.rs: the accessor test (deliberation test_placement)"
+    ],
+    "spec_basis": [
+      "STU-MOT-038 (module 14 :27695-27705): Add or delete at current time captures the current evaluated value, so adding a keyframe never changes the render; Enable animation creates the first keyframe at the current time",
+      "STU-MOT-020b (:27569-27571): disabling every keyframe returns exactly the prior static value"
+    ],
+    "paused_at_note": "focused hold cancelled while queued; nothing pushed"
   }
 }

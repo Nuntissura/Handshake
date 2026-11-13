@@ -2,18 +2,37 @@
   "crate": "hsk-studio-native-host [document] (gui/mod.rs input routing and a gesture arbiter, chrome.rs studio.gesture.active node, window.rs host clock and cursor requests, document.rs and GuiFrame::open viewer context), kumihimo-ui (only with the lead's approval)",
   "lane": "SMB-GUI-GESTURE-GATE-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "89f27330",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "2817e7c5",
+      "slice": "red: tests/gui_gesture_gate.rs (STU-SHL-109 #1-#6, #7a, clock, actor) plus typed stubs",
+      "pushed": false,
+      "run": "not run (hold cancelled while queued)"
+    },
+    {
+      "sha": "3b785d66",
+      "slice": "actor context (harness-view lib.rs RunContext re-export, document.rs open_viewer_as, offscreen.rs, diag.rs) and host clock (window.rs)",
+      "pushed": false,
+      "run": "not run"
+    },
+    {
+      "sha": "3b980c3d",
+      "slice": "arbiter plus field (gui/gesture.rs, gui/mod.rs, gui/chrome.rs, tests/gui_chrome.rs:79-80 re-pin)",
+      "pushed": false,
+      "run": "not run"
+    }
+  ],
   "capabilities_done": [],
   "tests": {},
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T17:08:44Z",
+  "next": "PAUSED 2026-11-13T18:08:12Z (Operator pause). Resume: one D: hold running scratchpad smb-gui-gesture-gate-1/hold-red-focused.sh (cancelled while queued, never ran): switch --detach 2817e7c5, nextest native-host [document] --test gui_gesture_gate (expect red), switch back to lane/smb-gui-gesture-gate-1 at 3b980c3d, cargo check -p hsk-studio-harness-view --features viewer, cargo check -p hsk-studio-native-host --tests, nextest native-host [document] --test gui_gesture_gate --test gui_frame --test gui_menu --test gui_chrome; then REVIEW READY. Fix commits 3b785d66 and 3b980c3d are local, unpushed and not yet run. Open ask for REVIEW READY: native-host src/lib.rs DESCRIPTOR says the window does not feed the dwell clock yet (stale after this lane).",
+  "updated_at": "2026-11-13T18:08:12Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -46,6 +65,31 @@
       "MT-34650 (STU-MDL-106 studio.gesture.active; candidate)",
       "MT-35106 (STU-SHL-235 tooltip clock; read, no claim)"
     ],
-    "reuses_tree_and_target": "smb-r53-followups-1"
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "lead_rulings": "research/deliberation-20261113-gui-gesture-gate.json (binding) and the lead's message of 2026-11-13: placement P (studio.panel.properties.opacity in the Properties body while a layer is selected, 2 px hover gutter tint painted); one Viewer::set_opacity per gesture, no catalog_step; clock amended (Modifiers and Focus forwarded in window.rs, clock stopped while scripted steps remain, no exit while a gesture timer is pending, offscreen settles timers at script end, quiet-window proof 5 notches = commits 1 and revision +1); A1 one RunContext re-export at harness-view lib.rs root with a rule-4a waiver (cargo check -p hsk-studio-harness-view --features viewer); A2, A3, A4 approved; A5 split (7a now, 7b with the palette lane); A6 winit cursor calls in window.rs for the Operator window only, ColResize approved, set_cursor_position rejected, set_cursor_visible deferred",
+    "beyond_brief_paths": [
+      "crates/hsk-studio-harness-view/src/lib.rs: one `pub use hsk_studio_harness_core::RunContext;` at the crate root (A1, lead 2026-11-13; rule 4a waived for it: cargo check -p hsk-studio-harness-view --features viewer)",
+      "crates/hsk-studio-native-host/src/diag.rs: HostRun keeps a clone of its actor and exposes HostRun::actor (A2, lead 2026-11-13)",
+      "crates/hsk-studio-native-host/src/offscreen.rs: the HostRun actor threaded through run, run_scene and gui_run (and the non-document stub) to GuiFrame::open_as (A3, lead 2026-11-13)",
+      "crates/hsk-studio-native-host/tests/gui_chrome.rs:79-80: the semantic root list gains studio.gesture.active (A4, lead 2026-11-13)"
+    ],
+    "known_gaps": [
+      "Undo label: Viewer::set_opacity's step is labelled `set_opacity opacity <layer>` (harness-core harness.rs:1248), not the catalog id; its attribution command_id is layer.set_opacity. Common ruling 10 (0-based) is not met literally; the lead accepts it as a known gap (2026-11-13).",
+      "Canvas preview at release only: STU-SHL-194 private draft NOT_PROVEN (no non-committing appearance preview in harness-view).",
+      "The field's spec (hard 0..100, soft 0..100, precision 1, unit %) is a cited constant copied from harness-core panel.rs:96-101: a named deviation from STU-SHL-185.",
+      "Brief deviation (lead-accepted): 'a window run feeds GuiFrame::advance (a dwell tip appears without show_tip)' is proven by the quiet-window wheel-idle commit; dwell in the Operator window is UNVERIFIED by run (STU-SHL-235 rule 5 forbids tips in agent runs).",
+      "Spine GATE_CHECK stays blocked on test 7b (menu and palette reachability, STU-SHL-109 #7)."
+    ],
+    "next_lane_candidates": [
+      "property_edit undo names as catalog ids in harness-core (harness.rs:1248) for layer.set_opacity, set_blend_mode, rename and set_visible, with the harness drive and harness-view suites",
+      "Viewer non-committing layer-appearance draft for a live canvas preview during a scrub, discarded on Escape (STU-SHL-194; harness-view)",
+      "Operator-window scrub cursor: CursorGrabMode::Locked plus set_cursor_visible(false) at press and raw DeviceEvent::MouseMotion, no SetCursorPos (STU-SHL-104)",
+      "A custom ScrubValue cursor distinct from EwResize on Windows before any splitter lane (STU-SHL-103)",
+      "A harness-view accessor for the selected layer's NumberSpec so the field reads its spec (STU-SHL-185)",
+      "Test 7b: untimed equivalents reachable from the menu and the palette, with the palette lane (STU-SHL-109 #7, STU-SHL-041..044); the spine GATE_CHECK waits on it",
+      "The opacity field in the Layers header strip (mock_raster.py:95) as a second instance on the same arbiter",
+      "Move the arbiter's pure state machine into kumihimo-ui when a second consumer appears (O4)"
+    ],
+    "shape": "2026-11-13T17:21:19Z shape sent before coding; ruled by the lead 2026-11-13 (notes.lead_rulings)"
   }
 }

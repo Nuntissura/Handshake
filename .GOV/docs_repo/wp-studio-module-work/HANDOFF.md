@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-11-13T16:28:39Z
+updated_at: 2026-11-13T18:36:00Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh (this file is a projection; they win on conflict)
 previous_version: handoff-archive/HANDOFF-20261101.md
@@ -357,7 +357,35 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 </topic>
 
-<topic id="state" status="active" updated_at="2026-11-13T16:28:39Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
+<topic id="state" status="active" updated_at="2026-11-13T18:36:00Z" summary="PAUSED 2026-11-13 18:08Z except R60 attempt 4, whose canary runs on the D: round slot; older sections kept for history">
+
+## Pause 2026-11-13
+
+**Operator:** "can we find a spot to pause work?", then chose to keep the R60 round running unattended. The wave-next-2 lane files record the pause at 18:08Z. Record: ledger `direction.pause_20261113`. Every fact below was read from files, git or the process list at 18:28Z to 18:35Z unless marked UNVERIFIED.
+
+- **Product origin** `codex/handshake-studio-assets` is 198f6dc4 (ls-remote 18:34:36Z).
+- **READY_FOR_VALIDATION, unjudged:** all 7 R60-a3 fix-wave lanes (CAPTURE-ADMISSION, NEGATIVE-SPACE, ANIMATION-VALUES, DIAG-SINK-ABORT, HOST-TERMINAL-FRAME, EXPORT-ADMISSION, and LAYER-RECORD-PRUNE at 198f6dc4) plus the trunk repair lane SMB-FIX-MENU-CATALOG-COVERAGE-1 (landed as 89f27330), per their lane files `builders/lanes/hsk-studio-fix-*.json`.
+- **Round R60 attempt 4 runs on through the pause:** FULL with canary at 198f6dc4 on the D: round slot (`Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target`; `research/decision-20261113-r60-round-fit.json` option d; dispatch kernel 6d2ff64a). The canary launched at 17:20:51Z (tag R60C4, win pid 29888; `studio-round/RUNNING-R60.jsonl`, kind launched). At 18:28Z run-round (pid 29888) was alive, nextest was building hsk-studio-harness [os-encode] test units into the slot target, the D: disk build lock was held by `run-round studio-round` with an empty queue, and the guard log read units=20, D: free 3343.0 GiB (guard alert below 1000 GiB, clean stop below 500 GiB).
+- **When the canary ends**, the round agent records the result and does NOT start the union; the union waits for the resume. UNVERIFIED on disk: this was given to the round agent by message, and the committed `validation/dispatch-prompt-R60.txt` still names the union command (line 30).
+- **wave-next-2 lanes PAUSED** (dispatched 17:08:44Z on base 89f27330, D: trees). No cargo, rustc or nextest process runs in their trees; every build process at 18:28Z belonged to the round. Each lane's queued D: hold was cancelled before it took the lock (lane files; lock queue empty). The exact resume step is each lane file's `next`:
+  - SMB-PROTOTYPE-PLAY-CANCEL-1 (`hsk-studio-prototype-play-cancel-1.json`; tree smb-ai-distort-effects-1, clean, tip 6a50c9b3). Review FIX_FIRST of 2adb7501 is answered by red 9e49e051 and fix 6a50c9b3: both committed, neither run. Resume: one D: hold of `hold-review.sh 9e49e051 6a50c9b3`, then a lead re-check of the tip before the bundled run (`hold-bundled.sh`).
+  - SMB-PR-TIMELINE-FIXES-1 (`hsk-studio-pr-timeline-fixes-1.json`; tree smb-folio-angle-unbounded-1, tip 85b147dd, local only). Red commits 2a7c2177 and 85b147dd both ran red. The fix is UNCOMMITTED in the tree, 6 files: pulse `src/annotate.rs`, `src/merge_sync.rs`, `src/timeline_edit.rs`; harness-view `src/view/timeline.rs`, `src/view/timeline/nest.rs`, `tests/viewer_timeline_fixes.rs`. Resume: the focused hold (`hold.sh <phase> focused-inner.sh`), commit only if green (a pulse commit and a harness-view commit), then REVIEW READY.
+  - SMB-MOTION-IMPLIED-VALUES-1 (`hsk-studio-motion-implied-values-1.json`; tree smb-pr-sequence-session-1, tip 0a09b69e, red). The fix is UNCOMMITTED, 6 files: harness-core `src/motion_commands.rs`; composite `src/track_apply.rs`, `src/temporal/composition.rs`, `tests/composition_adapter.rs`; harness-view `src/view/delivery.rs`, `src/view/edit.rs`. Resume: `focus_outer.sh`, then 2 commits if green (harness-core; composite plus harness-view), then REVIEW READY. Rulings: `research/deliberation-20261113-motion-implied-seam.json`.
+  - SMB-GUI-GESTURE-GATE-1 (`hsk-studio-gui-gesture-gate-1.json`; tree smb-r53-followups-1, clean, tip 3b980c3d). Red 2817e7c5 and fixes 3b785d66 and 3b980c3d were all committed before any run; none is pushed. Resume: one hold of `hold-red-focused.sh` (the red run at 2817e7c5, then the focused run at the tip), then REVIEW READY. Rulings: `research/deliberation-20261113-gui-gesture-gate.json`.
+  - The hold scripts exist only in the pausing lead session's scratchpad (`%TEMP%/claude/931a7b7dfbf57a66/2f082911-1934-415a-b13f-9299b603ccc5/scratchpad/<lane-id>/`), not in the repo. If that folder is gone, rebuild each hold from its lane file's `next`, which lists every command.
+  - All four sit on base 89f27330, behind origin 198f6dc4. They rebase at landing (workflow rule 16).
+
+**Resume, in order:**
+1. Read the round agent's canary report, or `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R60.jsonl` and `studio-round/results/R60-canary-4/`.
+2. If the canary is green, start the union (`validation/dispatch-prompt-R60.txt`, results `R60-union-4`, D: slot). If it failed, handle the canary failures first: a canary failure is infrastructure and opens no round.
+3. Resume the 4 lanes from their lane files' `next`, one D: hold each.
+4. Lead reviews: the prototype tip re-check before its bundled run, then REVIEW READY of the timeline, motion and gui lanes.
+
+**Open Operator items (not resolved by this pause):**
+- "Approve plan W": the cargo cleanup, 262.21 GiB (`research/cargo-cleanup-plan-20261113-W.json`; operator-items topic).
+- Keep or remove the idle C: round target `C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target`, 231.49 GiB, of which 180.01 GiB are older copies (`research/decision-20261113-r60-round-fit.json` step 7 (ii)). A removal goes as an exact list from a fresh target_report inspection.
+- A debuginfo policy below line-tables-only for test builds. It needs a Codex CX-984-014 change and is measured on one lane first (same file, step 7 (iii); `research/measure-20261113-debuginfo.json`).
+- Larger deletions: the cleanup list in the operator-items topic, held by the hard rule; nothing deleted.
 
 ## Overnight 2026-11-13
 

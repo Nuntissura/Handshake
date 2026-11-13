@@ -1,19 +1,64 @@
 {
   "crate": "hsk-studio-harness-view (view/prototype.rs PrototypePlay cancel token; view/commands/prototype.rs capture render)",
   "lane": "SMB-PROTOTYPE-PLAY-CANCEL-1",
-  "status": null,
-  "phase": "build",
+  "status": "PAUSED",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "89f27330",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "e530a74c",
+      "kind": "red",
+      "summary": "red tests: capture render-stage cancel, no-path capture cancel, start_session import cancel, play render refuses canceled before rendering"
+    },
+    {
+      "sha": "2adb7501",
+      "kind": "fix",
+      "summary": "PrototypePlay::render_with / open_with / open_document_with take the caller's token; cancels typed canceled; commands/prototype.rs passes the viewer's token per call"
+    },
+    {
+      "sha": "9e49e051",
+      "kind": "red",
+      "summary": "review 2adb7501 F1 red test (NativeRejected(Code::Canceled)) and F3 real press render-back test; red run NOT done (hold cancelled at the pause)"
+    },
+    {
+      "sha": "6a50c9b3",
+      "kind": "fix",
+      "summary": "F1 arm, F2 write_frame split + test, Q1 view/mod.rs open_with(self.cancel) and start_session via v.open_prototype, Q2 harness-core capture row run_method render_with, F6 docs; committed before the pause, focused run NOT done"
+    }
+  ],
+  "capabilities_done": [
+    "prototype.capture_frame (with and without a path) renders under the viewer's token per call: a cancel raised after admission is refused by the render (canceled, before the render), job settled canceled once, nothing written",
+    "prototype.start_session imports, decodes and maps under the viewer's token (PrototypePlay::open_with, per call)",
+    "PrototypePlay::render_with refuses canceled before any frame is rendered or a cached one served; every render step (frame PDF export, press render back, smart native mapping) runs under the caller's token",
+    "a cancel seen by an interop-fig or press step is typed canceled with the step code as detail (FigError::Canceled, ExportRefused(\"canceled\")), never a *_refused failure"
+  ],
+  "tests": {
+    "red_at_base": {
+      "sha": "e530a74c",
+      "test": "cargo nextest run -p hsk-studio-harness-view --features viewer --lib --no-fail-fast",
+      "result": "44 run: 40 passed, 4 failed (exactly the 4 new tests), exit 100",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-red-e530a74c.log"
+    },
+    "focused": {
+      "sha": "2adb7501",
+      "run": "one outer D: hold: nextest -p hsk-studio-harness-view --features viewer --lib; nextest -p hsk-studio-harness --features viewer --test fix_capture_admission --test viewer_prototype; cargo build -p hsk-studio-harness --features viewer --example studio-harness (fresh, common ruling 2); nextest -p hsk-studio-harness --features viewer --test harness_drive_audio -E design_and_prototype_rows_run_through_the_process | refused_design_and_prototype_rows_answer_typed",
+      "result": "harness-view lib 48 run: 48 passed (exit 0); harness 13 run: 13 passed (exit 0); example build exit 0; harness_drive_audio 2 run: 2 passed, 3 skipped by filter (exit 0)",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused-view-2adb7501.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused-harness-2adb7501.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-example-2adb7501.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused-process-2adb7501.log"
+      ]
+    },
+    "bundled": null
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 878,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T17:08:44Z",
+  "next": "RESUME (Operator pause 2026-11-13T18:08Z): the queued review-fix hold was cancelled before it took the D: lock (nothing ran). Resume step: from the lane tree (clean, branch at 6a50c9b3), one outer D: hold running scratchpad smb-prototype-play-cancel-1/hold-review.sh 9e49e051 6a50c9b3: red at 9e49e051 (harness-view [viewer] --lib, expect only a_cancel_seen_by_the_folio_validations_of_to_native_is_typed_canceled to fail), then at 6a50c9b3: harness-view [viewer] --lib, harness-core --lib --test action_records, harness [viewer] fix_capture_admission + viewer_prototype, fresh studio-harness example, the 2 harness_drive_audio prototype process tests. Then message the lead the tip for a re-check before the bundled run (hold-bundled.sh, now also the harness-core suite).",
+  "updated_at": "2026-11-13T18:08:28Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +85,103 @@
     "closes_candidates": [
       "MT-33254 (STU-PRO-138; read, no claim)"
     ],
-    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+    "reuses_tree_and_target": "smb-ai-distort-effects-1",
+    "spec_basis": [
+      "STU-PRO-138 (module 14 :20746): prototype.capture_frame renders the current prototype viewport to bytes; prototype.start_session",
+      "STU-ARC-013 (module 14 :221): stop/deadline/cancel epochs MUST be observed between bounded compute chunks",
+      "HBR-HOST-004 via HOST INTEGRATION (6): every job is admitted with typed cancellation"
+    ],
+    "red_tests": [
+      "harness-view view/commands/prototype.rs a_cancel_after_admission_is_refused_by_the_render_and_nothing_is_written",
+      "harness-view view/commands/prototype.rs a_canceled_token_refuses_a_capture_without_a_path_at_the_render",
+      "harness-view view/commands/prototype.rs a_canceled_token_refuses_start_session_at_the_import",
+      "harness-view view/prototype.rs a_canceled_token_makes_the_render_refuse_canceled_before_rendering"
+    ],
+    "green_tests_added": [
+      "view/prototype.rs render_with_takes_the_callers_token_for_that_call",
+      "view/prototype.rs a_cancel_seen_by_a_step_is_typed_canceled_with_the_step_as_detail",
+      "view/prototype.rs open_with_a_canceled_token_refuses_canceled",
+      "view/prototype.rs the_play_keeps_its_openers_token"
+    ],
+    "test_home": "harness-view [viewer] lib unit tests (round unit harness-view [viewer], rule 4e): the viewer's token is private to harness-view and no public accessor exists outside view/mod.rs, so the harness tests/prototype_play_cancel.rs option was not used (no new test binary)",
+    "v4_06": {
+      "class": "a prototype play step (.fig import, decode, native mapping, frame PDF export, press render back) run under a token other than its caller's",
+      "regex": "import_fig\\(|decode_document\\(|to_native\\(|export_frame_pdf\\(|render_frame_export\\(  (harness-view src) plus the token-less entries PrototypePlay::open\\(|self\\.render\\(\\) in product code",
+      "sites_at_2adb7501": [
+        {
+          "site": "view/prototype.rs:555 import_fig (open_with)",
+          "status": "fixed: caller's token"
+        },
+        {
+          "site": "view/prototype.rs:560 decode_document (open_with)",
+          "status": "fixed: caller's token"
+        },
+        {
+          "site": "view/prototype.rs:575 to_native (open_document_with)",
+          "status": "fixed: caller's token"
+        },
+        {
+          "site": "view/prototype.rs:814 export_frame_pdf (frame_raster_under)",
+          "status": "fixed: render_with's token; frame_raster's play token"
+        },
+        {
+          "site": "view/prototype.rs:815 render_frame_export (frame_raster_under)",
+          "status": "fixed: as above"
+        },
+        {
+          "site": "view/prototype.rs:861 to_native (smart_raster_under)",
+          "status": "fixed: as above"
+        },
+        {
+          "site": "view/prototype.rs:868 export_frame_pdf (smart_raster_under)",
+          "status": "fixed: as above"
+        },
+        {
+          "site": "view/prototype.rs:869 render_frame_export (smart_raster_under)",
+          "status": "fixed: as above"
+        },
+        {
+          "site": "view/design/fig_import.rs:194, :199, :203 (design import)",
+          "status": "not applicable: already under the caller's token"
+        },
+        {
+          "site": "view/mod.rs:435 Viewer::open_prototype -> PrototypePlay::open (fresh token), reached by view/shell.rs:1365 (open dialog) and tests",
+          "status": "named, not fixed: view/mod.rs belongs to SMB-FIX-LAYER-RECORD-PRUNE-1; one-line change open_with(fig, None, self.cancel) proposed (lead question Q1)"
+        },
+        {
+          "site": "view/prototype.rs:978 ui() -> self.render() (play's own token)",
+          "status": "named: quarantined egui test host, untouched; runs under the opener's token (the viewer's for plays opened by prototype.start_session, a fresh one for Viewer::open_prototype)"
+        }
+      ],
+      "count": 13
+    },
+    "not_proven": [
+      "a cancel seen inside to_native's Folio validations (NativeRejected(Code::Canceled)) is proven by the refused() mapping test only; no hook exists between the walk and the validation",
+      "the shell open dialog route cannot cancel the viewer's token from harness tests (the token is private to harness-view); it shares Viewer::open_prototype with prototype.start_session, whose test covers the routed path"
+    ],
+    "cut": [
+      "no harness tests/prototype_play_cancel.rs (see test_home)",
+      "public token-taking forms only for open, open_document and render; frame_raster, smart_raster, smart_raster_mode and directional_raster keep their token-less public forms (private *_under forms take the token; no caller needs a public one)"
+    ],
+    "lead_questions": [
+      "Q1 and Q2 answered by the lead 2026-11-13 (approved; Q2 narrowed to :19)"
+    ],
+    "menu_coverage": "this lane adds or renames no catalog command (no harness-core catalog edit); neither MENU COVERAGE option is needed",
+    "mts": "MT-33254 (STU-PRO-138, the whole required command set): read, no claim; no MT row moved",
+    "beyond_brief_paths": [
+      "crates/hsk-studio-harness-view/src/view/mod.rs:433-435 Viewer::open_prototype opens with PrototypePlay::open_with(fig, None, self.cancel) (lead ruling Q1/F4 2026-11-13)",
+      "crates/hsk-studio-harness-core/src/action/commands/prototype.rs:19 capture_frame run_method PrototypePlay::render_with (lead ruling Q2 2026-11-13)"
+    ],
+    "bundled_scope": "one outer D: hold: cargo build -p hsk-studio-harness --features viewer --example studio-harness (fresh, common ruling 2); lane-check --owner smb-ai-distort-effects-1 --disk d -- cargo nextest run -p hsk-studio-harness-view --features viewer (whole suite, lib included); lane-check ... -- cargo nextest run -p hsk-studio-harness --features viewer --test fix_capture_admission --test viewer_prototype --test harness_drive_audio --test viewer_panels --test viewer_shell (git grep PrototypePlay / prototype.capture_frame in crates/hsk-studio-harness/tests; viewer_panels and viewer_shell match PrototypePlayer and drive the play panel); no doctests added",
+    "egui": "no new egui, eframe, winit, wgpu, naga or WGSL line (ui() untouched)",
+    "review_2adb7501": {
+      "file": "research/review-smb-prototype-play-cancel-1-2adb7501.json",
+      "verdict": "FIX_FIRST",
+      "rulings": "F1 fix (red first); F2 fix (write half split + unit test); F3 fix (real press value); F4/Q1 approved; Q2 approved narrowed to the capture row (:19); F5 not here (next-lane candidate); F6 doc line",
+      "status": "F1, F2, F3, F4/Q1, Q2, F6 committed (9e49e051 red, 6a50c9b3 fix); red and focused runs pending (paused)"
+    },
+    "next_lane_candidates": [
+      "review F5 of 2adb7501: view/commands.rs:143 run_command records every refusal as command_refused, so a canceled command (prototype.start_session, a no-path capture) is recorded as a validation failure; pass Err(\"canceled\") when the refusal code is canceled (pre-existing, owner of view/commands.rs)"
+    ]
   }
 }
