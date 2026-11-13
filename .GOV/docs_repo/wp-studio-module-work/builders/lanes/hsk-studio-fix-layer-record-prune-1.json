@@ -1,19 +1,94 @@
 {
   "crate": "hsk-studio-harness-view (one central prune of layer-keyed records in every structure step: place, vector, board, design and text entries); hsk-studio-harness-core (harness.rs only if the lead approves a Run hook)",
   "lane": "SMB-FIX-LAYER-RECORD-PRUNE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
   "base": "c8fca900",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
-  "verdicts": [],
+  "commits": [
+    {
+      "sha": "44d1ed9f",
+      "kind": "red",
+      "what": "harness tests/fix_layer_record_prune.rs: knife, pathfinder, design sync copy delete, board node Layers > Delete, Q3 design node and own style, Q2 component delete guard",
+      "red_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/red-proof-smb-fix-layer-record-prune-1-d45468e7.log (5 of 6 fail on their own assertion; the Q2 guard passes at the base)",
+      "landed": "97bd2478"
+    },
+    {
+      "sha": "55926964",
+      "kind": "fix",
+      "what": "view/layer_records.rs Viewer::structure_step / before_structure / prune_removed; every structure-step site through it; records_after_delete, board_records_after_delete, board_story_drop (drop_stories), raster_records_into_delete_step moved or removed",
+      "landed": "2c3b0c2b"
+    },
+    {
+      "sha": "d67e17f6",
+      "kind": "docs",
+      "what": "vector module docs: paths append-only while referenced (Q1); component module docs name the central prune",
+      "landed": "c711eb51"
+    },
+    {
+      "sha": "aa9d48fa",
+      "kind": "docs",
+      "what": "board.rs module doc names Viewer::structure_step (lead-approved, beyond the brief)",
+      "landed": "e74d7f62"
+    },
+    {
+      "sha": "6b424c71",
+      "kind": "red",
+      "what": "review FIX_FIRST of 95460d11: F1/Q1 named and based_on type styles kept, Q2 refusal, Q4/F2 page.delete and editor page delete, Q3/F5 warning in the driven row result, F7 area to point; F3 coverage (bystander, Q1 keep branch, point and area text); the knife test cuts the clipped layer (Q2)",
+      "red_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/red-review-smb-fix-layer-record-prune-1-aa9d48fa.log (15 run, 9 passed, 6 failed on their own assertions)",
+      "landed": "46eb8578"
+    },
+    {
+      "sha": "01548534",
+      "kind": "fix",
+      "what": "review FIX_FIRST of 95460d11 F1-F8 per lead rulings Q1-Q6 (layer_records.rs rewrite of the text, scan and warning parts; Q2 refusals; delete_page and layout_commit; Q6 scan in drop_deleted_copies; prune_warnings field and run_command warnings)",
+      "landed": "198f6dc4"
+    }
+  ],
+  "capabilities_done": [
+    "records of layers any structure step removes leave in that step (raster, vector, text entries); undo restores, redo removes"
+  ],
+  "tests": {
+    "focused": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/fix2-smb-fix-layer-record-prune-1-d45468e7.log",
+      "note": "worktree with the fix uncommitted on d45468e7 (= 440e2df7 + docs, before the PrunedVector type alias)",
+      "result": "harness [viewer] --test fix_layer_record_prune 6/6 passed, exit 0; clippy harness-view [viewer] lib clean for the touched files"
+    },
+    "focused_review": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/fix3-smb-fix-layer-record-prune-1-6b424c71.log",
+      "note": "worktree = 01548534 (the fix uncommitted on 6b424c71)",
+      "result": "clippy harness-view [viewer] lib+tests exit 0, no warning in touched files; harness-view lib layer_records:: 5/5; harness [viewer] --test fix_layer_record_prune 15/15; exit 0"
+    },
+    "bundled": {
+      "sha": "01548534",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/bundled-smb-fix-layer-record-prune-1-01548534.log",
+      "result": "step 0 clean; clippy harness-view [viewer] and dependents (harness, native-host) clean; harness-view [viewer] 196 passed, 1 skipped; harness-core [import-tiff] 89 passed; harness [viewer] 29 targets 244 passed; EXIT 0 (1=0 2=0 3=0)",
+      "example_part": {
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/bundled-smb-fix-layer-record-prune-1-01548534-example.log",
+        "why": "the --test selection did not rebuild examples/studio-harness (stale exe from 13:43Z); example rebuilt at 16:47:51Z and the 7 process-test binaries rerun",
+        "result": "example build exit 0; place_asset layout_place layout_delete_cascade r60_layout_followups viewer_raster_effects harness_drive_typed harness_drive_audio 71 passed; EXIT 0"
+      }
+    },
+    "landing": {
+      "sha": "198f6dc4",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-layer-record-prune-1/land-smb-fix-layer-record-prune-1-198f6dc4.log",
+      "result": "fresh examples/studio-harness.exe (16:53:32Z); harness-view [viewer] 196 passed 1 skipped; harness-core [import-tiff] 92 passed; harness [viewer] 29 targets incl. fix_layer_record_prune and the 7 process tests 244 passed; native-host [document] gui_menu 23 passed (MENU-INV-1; the lane adds or renames no catalog command); PER_SHA_RESULT OK shas=1 range=46eb8578..198f6dc4 (per-sha logs smb-sentinels-native-1/per-sha-198f6dc4); guarded push 89f27330..198f6dc4"
+    }
+  },
+  "verdicts": [
+    {
+      "by": "read-only review",
+      "of": "95460d11",
+      "verdict": "FIX_FIRST",
+      "ref": "research/review-smb-fix-layer-record-prune-1-95460d11.json (kernel 19a535be)",
+      "findings": "F1 HIGH, F2-F4 medium, F5-F8 low"
+    }
+  ],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge 198f6dc4 (fix_layer_record_prune 15 tests, layer_records lib tests 5); next-lane candidates in notes",
+  "updated_at": "2026-11-13T17:13:28Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +113,84 @@
       "ledger direction.next_lane_candidates 2026-11-13T13:38:07Z PRIORITY central prune of layer-keyed records"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-sentinels-native-1"
-  }
+    "reuses_tree_and_target": "smb-sentinels-native-1",
+    "lead_rulings": {
+      "design_approved_at": "2026-11-13 (coordinator message)",
+      "Q1": "prune path records of removed layers only when no reference remains anywhere (document after the step, every other entry incl. design states and layout records, import receipt, rest of the entry); vector docs updated",
+      "Q2": "delete_layer through the central prune: layout_records_missing no longer refuses (guard test a_deleted_component_layer_drops_its_component_records_in_the_step)",
+      "Q3": "design node entries of removed layers leave; own appearance styles leave when nothing references them; a referenced style stays (test a_deleted_layers_design_node_and_unreferenced_own_style_leave_and_a_shared_style_stays)",
+      "Q3_reading": "accepted 2026-11-13: published styles (graphic styles, swatch companions) stay; only own appearance styles are dropped",
+      "native_redraw_deviation": "accepted 2026-11-13: pre-step drop_deleted_copies stays (MAX_PATHS bound of the redraw's own write)",
+      "bundled_plan": "approved 2026-11-13; run after the read-only review of 95460d11",
+      "F4_scan_interpretation": "accepted 2026-11-13: a bound or cancel skips the prune part with prune_skipped:<entry> and the step commits; substring matching accepted (exact-boundary matching on the lead follow-up list)"
+    },
+    "path_id_consumers": "grep at c8fca900: layer payloads (Payload::Vector path_ids), live shapes (path_id), width profiles (on the path record), boolean groups fill_geometry_path_ids, path texts path_id, area texts container_id, gradient meshes source_path_id; design states name layer ids only (persist::content); no persisted clipboard, symbol or library store in harness-view (waveform's clipboard is audio)",
+    "v4_06": {
+      "class": "layer-keyed records outliving their layer after a structure step",
+      "regex": "run\\.restructure|restructure_and_entr|catalog_step\\(|delete_layout_layers\\(|self\\.structure\\(",
+      "sites": {
+        "layers.rs structure() :92": "fixed (structure_step); covers new_layer, duplicate_layer, move, group, ungroup, delete, text.rs:761 place_text, vector.rs create_vector_layer :1915, replace_with_pieces_deleting :2212, pathfinder :2714, instance.rs redraw :1138",
+        "layers.rs delete_layer layout path :257": "fixed (structure_step, entry None)",
+        "layers.rs delete_layer :287": "fixed (through structure())",
+        "vector.rs replace_with_entry :1651": "fixed (point/area text conversion, create outlines)",
+        "design/component.rs commit_structure :480": "fixed (structure branch; the entry-only branch removes no layer)",
+        "design/component.rs duplicate :901, :940": "fixed (creates only; through structure_step for uniformity)",
+        "design/instance.rs native_redraw :1211/:1214": "fixed; its pre-step drop_deleted_copies stays (bounds the redraw's own entry write under MAX_PATHS before the post-step prune decodes it)",
+        "place.rs create_layer_with_record :575, place_asset :1075": "fixed (creates only; before_structure + prune_removed keep the typed refusal)",
+        "board/write.rs board_commit :195": "fixed (structure_step around catalog_step); :197 and :199 are path and entry-only steps (no layer leaves): not applicable",
+        "layout_ui/pages.rs:196 page delete": "fixed through shell.rs layout_commit (lead ruling Q4)",
+        "F-R60-36 Layers > Duplicate of a placed layer drops its raster record": "named sibling, out of scope",
+        "document_new.rs delete_page :112": "fixed (before_structure/prune_removed; lead ruling Q4)",
+        "shell.rs layout_commit :792 (layout.page.delete_page, smart reflow delete_empty_pages)": "fixed (lead ruling Q4)",
+        "harness-core harness.rs:879 Run::play_action Call::Restructure (batch.rs:971, :985)": "named, not fixable here: harness-core cannot reach Viewer::structure_step; next-lane candidate: a Run hook for the prune"
+      }
+    },
+    "not_pruned": "design binding states (entry design, lead ruling F1 form), layout records, develop entry, board connector endpoints naming a deleted node, placed sources",
+    "beyond_brief_paths": [
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/board.rs:23-24",
+        "why": "module doc named the removed Viewer::board_records_after_delete",
+        "approval": "lead 2026-11-13 (coordinator message: one-line doc edit only)",
+        "commit": "5b43c518"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/mod.rs (Viewer field prune_warnings and its initializer)",
+        "why": "lead ruling Q3: the typed warning in the step's result",
+        "approval": "lead 2026-11-13"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/commands.rs run_command",
+        "why": "clear prune_warnings before the row; add warnings to an object result only when non-empty (results without warnings byte-identical)",
+        "approval": "lead 2026-11-13"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/document_new.rs delete_page",
+        "why": "lead ruling Q4/F2",
+        "approval": "lead 2026-11-13"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/shell.rs layout_commit",
+        "why": "lead ruling Q4/F2 (layout editor page delete, smart reflow delete_empty_pages, layout_ui/pages.rs:196)",
+        "approval": "lead 2026-11-13"
+      }
+    ],
+    "review_rulings_95460d11": {
+      "F1_Q1": "only own (unnamed) STYS of removed layers drop (STYS-<uuid> and its -a000- / flipped-nibble siblings); named, imported and published type styles stay; Q1 scan over style ids incl. based_on, next_style, grep; style and story side rows pruned consistently",
+      "Q2": "knife, shape builder, blob brush and pathfinder over a clip/mask source or a text carrier refuse structure_would_drop_dependents naming the dependents; next-lane candidate: carry clips, masks and text over to the replacement",
+      "Q3_F5": "an entry that cannot be pruned: the step commits without that part and returns prune_skipped:<entry> (Viewer::prune_warnings; driven rows carry warnings)",
+      "Q4_F2": "Viewer::delete_page and layout_commit through before_structure/prune_removed (approved beyond the brief); Run::play_action restructure (harness-core harness.rs:879, batch.rs:971/985) named under V4-06 with a next-lane candidate (harness-core Run hook)",
+      "Q5_F8": "SVPT id reuse after a prune accepted (SMB-LAYER-ID-STABILITY-1); the three append-only comments fixed",
+      "Q6": "native_redraw's pre-step drop_deleted_copies keeps every copy path the projected document, another entry or the receipt names",
+      "F4": "fixed parts scanned once per prune for every candidate (substring: glued references count), cancel check between parts, MAX_SCAN_BYTES 256 MiB with layer_records_scan_over_budget; after the prune every named path still resolves or the vector part is skipped",
+      "F6": "the prune joins the newest step only when the structure step pushed exactly one; otherwise prune_skipped:no_step",
+      "F7": "binding stories read from the vector entry before the step too"
+    },
+    "next_lane_candidates": [
+      "Q2: carry clips, masks and area/path text over to the pieces of a knife, shape builder, blob brush or pathfinder instead of refusing structure_would_drop_dependents",
+      "F2: a harness-core Run hook so Run::play_action's restructure (harness.rs:879; batch.rs:971, :985) prunes layer records like Viewer::structure_step",
+      "F4: exact-boundary id matching in the layer-record reference scan (today a substring hit keeps the id, which only keeps more)"
+    ],
+    "next_lane_candidates_accepted": "lead 2026-11-13: all three on the follow-up list"
+  },
+  "rebased_onto": "landed on origin/codex/handshake-studio-assets 89f27330 (after EXPORT-ADMISSION and MENU-CATALOG-COVERAGE); commits list `landed` shas; pushed 198f6dc4"
 }

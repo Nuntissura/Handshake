@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T17:08:44Z",
+ "updated_at": "2026-11-13T17:13:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20309,8 +20309,8 @@
   },
   {
    "lane_id": "SMB-FIX-LAYER-RECORD-PRUNE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (one central prune of layer-keyed records in every structure step: place, vector, board, design and text entries); hsk-studio-harness-core (harness.rs only if the lead approves a Run hook)",
    "lane_file": "builders/lanes/hsk-studio-fix-layer-record-prune-1.json",
    "brief": "builders/briefs/lane-smb-fix-layer-record-prune-1.md",
@@ -20318,10 +20318,11 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T17:13:35Z",
    "closes": [
     "ledger direction.next_lane_candidates 2026-11-13T13:38:07Z PRIORITY central prune of layer-keyed records"
-   ]
+   ],
+   "claim": "records of layers any structure step removes leave the raster_records, vector and text entries in that same undo step (Viewer::structure_step, view/layer_records.rs); undo restores, redo removes; named, imported and published styles and anything still referenced stay; replacements of a clip source or text carrier refuse structure_would_drop_dependents; an unprunable part commits with prune_skipped:<entry>; tests fix_layer_record_prune (15) and layer_records lib tests (5)"
   },
   {
    "lane_id": "SMB-FIX-MENU-CATALOG-COVERAGE-1",
@@ -23136,6 +23137,21 @@
     "added_at": "2026-11-13T16:46:23Z",
     "item": "DOCUMENT > Boards > New Board -> board.add (all parameters optional): needs a board-container gate in Profile::of (whiteboard mode derives the board container) so the leaf is available only where board commands run",
     "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T17:13:35Z",
+    "item": "Q2 (SMB-FIX-LAYER-RECORD-PRUNE-1): carry clips, masks and area/path text over to the pieces of a knife, shape builder, blob brush or pathfinder instead of refusing structure_would_drop_dependents",
+    "owner": "a later vector lane"
+   },
+   {
+    "added_at": "2026-11-13T17:13:35Z",
+    "item": "F2 (SMB-FIX-LAYER-RECORD-PRUNE-1): a harness-core Run hook so Run::play_action's restructure (harness.rs:879; batch.rs:971, :985) prunes layer records like Viewer::structure_step",
+    "owner": "a later harness-core lane"
+   },
+   {
+    "added_at": "2026-11-13T17:13:35Z",
+    "item": "F4 (SMB-FIX-LAYER-RECORD-PRUNE-1): exact-boundary id matching in the layer-record reference scan (today a substring hit keeps the id, which only keeps more)",
+    "owner": "lead follow-up"
    }
   ],
   "pause_20261103": {
