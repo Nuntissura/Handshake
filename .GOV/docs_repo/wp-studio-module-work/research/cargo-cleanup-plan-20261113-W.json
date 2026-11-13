@@ -1,0 +1,768 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261113-W",
+ "generated_at": "2026-11-13T06:04:00Z",
+ "status": "PROPOSED",
+ "authority": "HSK-ART-003 (P2), HSK-ART-005 (inspection-based exact list; Operator approves the exact list under CX-107). Prepared as a proposal with a dry run only; nothing removed.",
+ "why": "Operator 2026-11-12 night: manage cargo better and stop leaving unneeded old cargo on disk. Older copies of test and binary outputs grew again on the trees that landed lanes since plan V; targets of validated lanes that nothing uses still hold full builds.",
+ "inspection": "Read-only Python scandir walk of every Studio cargo target under the two WP-KERNEL-STUDIO roots (D: 2026-11-13T06:02:03Z, C: 2026-11-13T05:15:46Z); older copies computed by importing target_prune.py's own older_copies()/HASHED rule (not re-implemented), totals and newest file by mtime in the tool's format. target_report.py not run (slow), as plan V. Ledger read from the kernel working tree, which already holds the 8 wave lanes (status unset) another agent is generating tonight.",
+ "exclusions": [
+  "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round (R60 validation round tonight) and the D: studio-round target",
+  "the cargo registry caches (cargo-home/registry under MT-* folders)",
+  "anything outside the WP-KERNEL-STUDIO roots on C: and D:",
+  "worktrees, logs, results, fixtures, downloads, oracle corpora"
+ ],
+ "groups": {
+  "a": "older copies on the 8 wave trees (resume-20261112.json next_wave)",
+  "b": "older copies on every other live Studio target",
+  "c": "whole removal of targets whose owner lane is PASS/SUPERSEDED/LOST/DONE and that no READY, active or wave lane uses",
+  "d": "stray Studio cargo targets reported by stray_cargo.py"
+ },
+ "candidates": [
+  {
+   "id": "W-D01",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-pr-retime-hold-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 54.3,
+   "target_total_gib": 103.38,
+   "older_copies_files": 1144,
+   "lane_status": "PASS_V4",
+   "status": "PASS_V4",
+   "used_by": [
+    "SMB-CONTROLS-EGUI-GATE-1",
+    "SMB-GUI-STEWARD-1",
+    "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
+    "SMB-TYPE-INDENT-SPACING-1",
+    "SMB-UI-TREE-1",
+    "SMB-VK-UI-PASS-1"
+   ],
+   "wave_lane": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-retime-hold-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T12:47Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-TYPE-CHARACTER-ATTRIBUTES-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-TYPE-CHARACTER-ATTRIBUTES-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-TYPE-CHARACTER-ATTRIBUTES-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D02",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-pr-entry-references-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 33.65,
+   "target_total_gib": 76.7,
+   "older_copies_files": 386,
+   "lane_status": "PASS_V3",
+   "status": "PASS_V3",
+   "used_by": [
+    "SMB-GUI-FRAME-1",
+    "SMB-GUI-MENU-1",
+    "SMB-GUI-SPINE-1",
+    "SMB-PR-ROUTING-REPAIR-1",
+    "SMB-SCORE-EFFECTS-6",
+    "SMB-VK-HOST-1"
+   ],
+   "wave_lane": "SMB-GUI-MENU-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-entry-references-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T12:14Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-GUI-MENU-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-GUI-MENU-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-GUI-MENU-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D03",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-r53-followups-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 30.62,
+   "target_total_gib": 76.82,
+   "older_copies_files": 386,
+   "lane_status": "PASS_V5",
+   "status": "PASS_V5",
+   "used_by": [
+    "SMB-AUDIO-OUT-MIX-1",
+    "SMB-DELIVERY-QUEUE-1",
+    "SMB-OBSERVE-DIAG-SINK-1",
+    "SMB-PR-EXPORT-RECIPE-1",
+    "SMB-WEB-CODE-1"
+   ],
+   "wave_lane": "SMB-WEB-CODE-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-r53-followups-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T16:48Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-WEB-CODE-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-WEB-CODE-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-WEB-CODE-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D04",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-pr-edit-footprint-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 9.67,
+   "target_total_gib": 49.26,
+   "older_copies_files": 290,
+   "lane_status": "PASS_V3",
+   "status": "PASS_V3",
+   "used_by": [
+    "SMB-COMMAND-SURFACE-1",
+    "SMB-DRIVE-TYPED-2",
+    "SMB-HARNESS-DRIVE-1",
+    "SMB-LAYOUT-DELETE-CASCADE-1",
+    "SMB-LAYOUT-PDF-HOST-1",
+    "SMB-R60-FOLLOWUPS-1"
+   ],
+   "wave_lane": "SMB-LAYOUT-DELETE-CASCADE-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-edit-footprint-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T17:42Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-LAYOUT-DELETE-CASCADE-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-LAYOUT-DELETE-CASCADE-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-LAYOUT-DELETE-CASCADE-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D05",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-pr-sequence-session-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 9.52,
+   "target_total_gib": 49.48,
+   "older_copies_files": 324,
+   "lane_status": "PASS_V4",
+   "status": "PASS_V4",
+   "used_by": [
+    "SMB-DOC-EXPORT-1",
+    "SMB-MOTION-COMMANDS-2",
+    "SMB-PLACE-ASSET-1",
+    "SMB-SESSION-WRITE-SAFETY-1",
+    "SMB-WEB-SITE-2"
+   ],
+   "wave_lane": "SMB-WEB-SITE-2",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-sequence-session-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T14:55Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-WEB-SITE-2 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-WEB-SITE-2"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-WEB-SITE-2 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D06",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-ai-distort-effects-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 1.53,
+   "target_total_gib": 35.78,
+   "older_copies_files": 116,
+   "lane_status": "PASS_V4",
+   "status": "PASS_V4",
+   "used_by": [
+    "SMB-ARTBOARD-EXPORT-1",
+    "SMB-DOC-NEW-1",
+    "SMB-DS-COMPONENTS-AUTHOR-1",
+    "SMB-DS-VARIABLES-AUTHOR-1"
+   ],
+   "wave_lane": "SMB-DS-VARIABLES-AUTHOR-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ai-distort-effects-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T17:57Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-DS-VARIABLES-AUTHOR-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-DS-VARIABLES-AUTHOR-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-DS-VARIABLES-AUTHOR-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D07",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-sentinels-native-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 0.36,
+   "target_total_gib": 34.01,
+   "older_copies_files": 89,
+   "lane_status": "PASS_V5",
+   "status": "PASS_V5",
+   "used_by": [
+    "SMB-BOARD-1",
+    "SMB-WEB-HOST-1",
+    "SMB-WEB-SITE-1"
+   ],
+   "wave_lane": "SMB-BOARD-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-sentinels-native-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T15:07Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-BOARD-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-BOARD-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-BOARD-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D08",
+   "group": "a",
+   "disk": "D",
+   "owner": "smb-folio-angle-unbounded-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 0.09,
+   "target_total_gib": 35.6,
+   "older_copies_files": 84,
+   "lane_status": "PASS_V7",
+   "status": "PASS_V7",
+   "used_by": [
+    "SMB-DEVELOP-COMMANDS-1",
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-PROJECT-BIN-1",
+    "SMB-PS-FILTER-ADJUST-COMMANDS-1"
+   ],
+   "wave_lane": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-folio-angle-unbounded-1/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-12T10:25Z",
+   "reinspect_before_execution": true,
+   "why_safe": "Partial only: the newest copy of every test/binary and every library stay, so the wave lane SMB-PS-FILTER-ADJUST-COMMANDS-1 and the READY lanes on this tree only relink an older identity they need. The wave builder may start compiling in this target tonight, so the target is re-inspected (fresh size, process check, dry run) before execution; the tool skips it while an unsettled lane names the tree.",
+   "dry_run": {
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "not_paused": [
+     "SMB-PS-FILTER-ADJUST-COMMANDS-1"
+    ]
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "SMB-PS-FILTER-ADJUST-COMMANDS-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+  },
+  {
+   "id": "W-D09",
+   "group": "b",
+   "disk": "D",
+   "owner": "sync-export",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sync-export/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 0.13,
+   "target_total_gib": 1.12,
+   "older_copies_files": 54,
+   "lane_status": "no ledger row",
+   "status": "no ledger row",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sync-export/src/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-02T09:44Z",
+   "why_safe": "Partial only: the newest copy of every test/binary and all libraries stay, so any lane on this tree only relinks an older identity it needs. Owner lane no ledger row; tree used by no unsettled lane.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "not a lane target path the tool accepts (studio-team-dev other than the steward canary); drop, or a tool change"
+  },
+  {
+   "id": "W-D10",
+   "group": "b",
+   "disk": "D",
+   "owner": "validator-r54-probe",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r54-probe/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 0.09,
+   "target_total_gib": 7.73,
+   "older_copies_files": 56,
+   "lane_status": "no ledger row",
+   "status": "no ledger row",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r54-probe/src/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-11-08T08:37Z",
+   "why_safe": "Partial only: the newest copy of every test/binary and all libraries stay, so any lane on this tree only relinks an older identity it needs. Owner lane no ledger row; tree used by no unsettled lane.",
+   "dry_run": {
+    "status": "SKIPPED_STATUS"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "no ledger lane row; drop, or a tool rule for probe targets"
+  },
+  {
+   "id": "W-D11",
+   "group": "b",
+   "disk": "D",
+   "owner": "smb-fig-grid-3",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-3/target",
+   "kind": "partial",
+   "select": "older_copies",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest (target_prune.py older_copies, as plans T and V)"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts, fingerprints, examples and tmp"
+   ],
+   "gib": 0.07,
+   "target_total_gib": 14.21,
+   "older_copies_files": 68,
+   "lane_status": "PAUSED",
+   "status": "PAUSED",
+   "used_by": [
+    "SMB-FIG-GRID-3"
+   ],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-fig-grid-3/handshake-studio-assets/Cargo.toml",
+   "inspected_newest_file_utc": "2026-10-30T18:08Z",
+   "why_safe": "Partial only: the newest copy of every test/binary and all libraries stay, so any lane on this tree only relinks an older identity it needs. Owner lane PAUSED; tree used by SMB-FIG-GRID-3.",
+   "dry_run": {
+    "status": "SKIPPED_STATUS"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "lane PAUSED; listable when the lane is PASS_V or READY_FOR_VALIDATION"
+  },
+  {
+   "id": "W-D12",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-type-authored-token-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/target",
+   "kind": "whole",
+   "gib": 24.7,
+   "target_total_gib": 24.7,
+   "older_copies_gib": 0.0,
+   "lane_status": "PASS_V3",
+   "status": "PASS_V3",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-type-authored-token-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-05T17:53Z",
+   "inspected_newest_file_utc": "2026-11-05T17:53Z",
+   "why_safe": "Owner lane SMB-TYPE-AUTHORED-TOKEN-1 is PASS_V3; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D13",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-pr-track-display-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/target",
+   "kind": "whole",
+   "gib": 3.18,
+   "target_total_gib": 3.18,
+   "older_copies_gib": 0.0,
+   "lane_status": "PASS_V2",
+   "status": "PASS_V2",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-track-display-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-05T15:13Z",
+   "inspected_newest_file_utc": "2026-11-05T15:13Z",
+   "why_safe": "Owner lane SMB-PR-TRACK-DISPLAY-1 is PASS_V2; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D14",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-r52-followups-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/target",
+   "kind": "whole",
+   "gib": 2.98,
+   "target_total_gib": 2.98,
+   "older_copies_gib": 0.09,
+   "lane_status": "PASS_V6",
+   "status": "PASS_V6",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-r52-followups-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-01T13:43Z",
+   "inspected_newest_file_utc": "2026-11-01T13:43Z",
+   "why_safe": "Owner lane SMB-R52-FOLLOWUPS-1 is PASS_V6; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D15",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-layout-marker-lookups-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-marker-lookups-1/target",
+   "kind": "whole",
+   "gib": 2.8,
+   "target_total_gib": 2.8,
+   "older_copies_gib": 0.06,
+   "lane_status": "PASS_V4",
+   "status": "PASS_V4",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-layout-marker-lookups-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-05T04:31Z",
+   "inspected_newest_file_utc": "2026-11-05T04:31Z",
+   "why_safe": "Owner lane SMB-LAYOUT-MARKER-LOOKUPS-1 is PASS_V4; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D16",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-col-swatch-groups-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-col-swatch-groups-1/target",
+   "kind": "whole",
+   "gib": 2.72,
+   "target_total_gib": 2.72,
+   "older_copies_gib": 0.06,
+   "lane_status": "PASS_V6",
+   "status": "PASS_V6",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-col-swatch-groups-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-01T13:32Z",
+   "inspected_newest_file_utc": "2026-11-01T13:32Z",
+   "why_safe": "Owner lane SMB-COL-SWATCH-GROUPS-1 is PASS_V6; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D17",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-layout-entry-text-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/target",
+   "kind": "whole",
+   "gib": 2.69,
+   "target_total_gib": 2.69,
+   "older_copies_gib": 0.06,
+   "lane_status": "PASS_V3",
+   "status": "PASS_V3",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-layout-entry-text-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-05T11:36Z",
+   "inspected_newest_file_utc": "2026-11-05T11:36Z",
+   "why_safe": "Owner lane SMB-LAYOUT-ENTRY-TEXT-1 is PASS_V3; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D18",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-tiff-channels-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-tiff-channels-1/target",
+   "kind": "whole",
+   "gib": 2.69,
+   "target_total_gib": 2.69,
+   "older_copies_gib": 0.0,
+   "lane_status": "PASS_V7",
+   "status": "PASS_V7",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-tiff-channels-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-01T14:17Z",
+   "inspected_newest_file_utc": "2026-11-01T14:17Z",
+   "why_safe": "Owner lane SMB-TIFF-CHANNELS-1 is PASS_V7; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D19",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-press-ink-manager-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-manager-1/target",
+   "kind": "whole",
+   "gib": 2.42,
+   "target_total_gib": 2.42,
+   "older_copies_gib": 0.04,
+   "lane_status": "PASS_V6",
+   "status": "PASS_V6",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-press-ink-manager-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-01T13:04Z",
+   "inspected_newest_file_utc": "2026-11-01T13:04Z",
+   "why_safe": "Owner lane SMB-PRESS-INK-MANAGER-1 is PASS_V6; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D20",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-pr-merge-sync-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-merge-sync-1/target",
+   "kind": "whole",
+   "gib": 1.9,
+   "target_total_gib": 1.9,
+   "older_copies_gib": 0.03,
+   "lane_status": "PASS_V4",
+   "status": "PASS_V4",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-merge-sync-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-05T10:00Z",
+   "inspected_newest_file_utc": "2026-11-05T10:00Z",
+   "why_safe": "Owner lane SMB-PR-MERGE-SYNC-1 is PASS_V4; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D21",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-press-ink-coverage-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-coverage-1/target",
+   "kind": "whole",
+   "gib": 1.73,
+   "target_total_gib": 1.73,
+   "older_copies_gib": 0.04,
+   "lane_status": "PASS_V4",
+   "status": "PASS_V4",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-press-ink-coverage-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-01T04:32Z",
+   "inspected_newest_file_utc": "2026-11-01T04:32Z",
+   "why_safe": "Owner lane SMB-PRESS-INK-COVERAGE-1 is PASS_V4; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  },
+  {
+   "id": "W-D22",
+   "group": "c",
+   "disk": "D",
+   "owner": "smb-layout-blank-line-lookups-1",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/target",
+   "kind": "whole",
+   "gib": 0.8,
+   "target_total_gib": 0.8,
+   "older_copies_gib": 0.0,
+   "lane_status": "PASS_V2",
+   "status": "PASS_V2",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-layout-blank-line-lookups-1/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-05T15:20Z",
+   "inspected_newest_file_utc": "2026-11-05T15:20Z",
+   "why_safe": "Owner lane SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 is PASS_V2; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
+   "dry_run": {
+    "status": "REFUSED_PATH"
+   },
+   "skipped_by_dry_run": true,
+   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+  }
+ ],
+ "total_gib": 188.64,
+ "total_by_disk_gib": {
+  "D": 188.64,
+  "C": 0
+ },
+ "totals_gib": {
+  "a_partial_D": 139.74,
+  "b_partial_D": 0.29,
+  "c_whole_D": 48.61
+ },
+ "group_d_stray": "none: stray_cargo.py (read-only, 2026-11-13) reported no repo-local target, no stray Handshake_Artifacts folder and no stray cargo process",
+ "reuse_considered": "HSK-ART-005 puts reuse first. The 8 wave trees keep their targets (partial only). The 11 group (c) targets are PASS lanes' targets that nothing names; the wave already took over 8 READY trees, and the resume plan gives a post-R60 fix lane a C: tree (smb-pr-nudge-1 or smb-layout-composer-depth-1), so none of the 11 is reserved for reuse; their bases are 2026-11-01..05.",
+ "not_listed": [
+  "smb-id-toc-persist-1 (D:): older copies 0.0 GiB, target 33.48 GiB; lane PASS_V8; used by ['SMB-LAYOUT-PERSIST-1', 'SMB-LAYOUT-PLACE-1']",
+  "smb-layout-composer-depth-1 (D:): older copies 0.0 GiB, target 0.38 GiB; lane PASS_V2; used by ['SMB-LAYOUT-PDF-HOST-1', 'SMB-PARSER-HOSTILE-1']",
+  "smb-ps-mode-convert-1 (D:): older copies 0.0 GiB, target 30.47 GiB; lane PASS_V4; used by ['SMB-PIGMENT-FILTER-KERNELS-1']",
+  "smb-sentinels-native-1-red (D:): older copies 0.0 GiB, target 0.73 GiB; lane no ledger row; used by none",
+  "smb-type-sentinels-registry-1 (D:): older copies 0.0 GiB, target 1.19 GiB; lane PASS_V6; used by ['SMB-UI-TREE-1']",
+  "smb-type-sentinels-registry-1-red (D:): older copies 0.0 GiB, target 0.21 GiB; lane no ledger row; used by none",
+  "steward-export (D:): older copies 0.0 GiB, target 66.97 GiB; lane no ledger row; used by none",
+  "validator-r53-probe (D:): older copies 0.0 GiB, target 0.36 GiB; lane no ledger row; used by none",
+  "smb-layout-composer-depth-1 (C:): older copies 0.0 GiB, target 28.42 GiB; lane PASS_V2; used by ['SMB-LAYOUT-PDF-HOST-1', 'SMB-PARSER-HOSTILE-1']",
+  "smb-pr-nudge-1 (C:): older copies 0.0 GiB, target 34.24 GiB; lane PASS_V3; used by ['SMB-AI-LIVE-EFFECTS-1', 'SMB-DOC-EXPORT-1']",
+  "smb-pr-retime-output-1 (C:): older copies 0.0 GiB, target 38.07 GiB; lane PASS_V3; used by ['SMB-AUDIO-OUT-MIX-1', 'SMB-SCORE-EFFECTS-6']",
+  "smb-pr-sequence-presets-1-red (C:): older copies 0.0 GiB, target 0.28 GiB; lane no ledger row; used by none",
+  "smb-r54-followups-1 (C:): older copies 0.0 GiB, target 35.3 GiB; lane PASS_V5; used by ['SMB-PROJECT-BIN-1', 'SMB-TYPE-INDENT-SPACING-1']",
+  "smb-type-sentinels-registry-1 (C:): older copies 0.0 GiB, target 0.2 GiB; lane PASS_V6; used by ['SMB-UI-TREE-1']",
+  "cargo output inside the Studio roots that is not a lane target (no .studio-workspace-root), tool REFUSED_PATH territory, 0.16 GiB in all: MT-35536/studio-assets-validator/type-reference-producer/cargo-target 0.08, studio-team-dev/steward/sccache-probe/tiny-t1 0.02, studio-team-dev/steward/sccache-probe/tiny-t2 0.02, studio-team-dev/steward/scratch/wd-target 0.0, studio-team-dev/steward-export/tmp/fxrepro/t1 0.01, studio-team-dev/steward-export/tmp/fxrepro/t2 0.01, studio-team-dev/steward-export/tmp/fxrepro/t3 0.01, studio-team-dev/steward-export/tmp/fxrepro/t4 0.01",
+  "whole removal of smb-sentinels-native-1-red (D:, 0.73 GiB) and smb-type-sentinels-registry-1-red (D:, 0.21 GiB): no ledger row and the bound tree still exists (red-tree-f28efc16; the held scratch worktree smb-type-sentinels-registry-1/rw)",
+  "whole removal of C: lanes/smb-pr-sequence-presets-1-red (0.28 GiB): no ledger row and its bound tree (another session's scratchpad red-tree) still exists; same as plan U's withdrawn U-C06",
+  "whole removal of the C: lane targets smb-layout-composer-depth-1, smb-pr-nudge-1, smb-pr-retime-output-1, smb-r54-followups-1 and smb-type-sentinels-registry-1: READY_FOR_VALIDATION lanes name each tree (target_reuse tree or old_tree_idle); rule P2 lists them at PASS",
+  "whole removal of validator-r53-probe/target (0.36 GiB) and validator-r54-probe/target (7.73 GiB): no owner lane; the probe trees are on the HANDOFF cleanup list held by the hard rule",
+  "studio-round on C: and D:, cargo registry caches, logs, results, fixtures, downloads, oracle corpora, and everything outside the WP-KERNEL-STUDIO roots"
+ ],
+ "needs_tool_change": {
+  "N4_whole_on_D": "group (c) is whole removal on D:; target_prune.py allows whole only for C_LANES/<owner> and REFUSES_PATH on D:. N4 would allow D_ROOT/<owner>/target with the N2 checks unchanged (PASS_V or ABANDONED owner, no unsettled lane naming the tree, no link, process, newest and 5% checks).",
+  "wave_trees": "group (a) is SKIPPED_IN_USE_BY_LANE while a wave lane short of READY_FOR_VALIDATION names the tree (N1); N3(b) accepts only lanes in direction.pause_20261111. Executable without a tool change once each wave lane is READY_FOR_VALIDATION, or with a pause record for the wave lanes and an N3(b) extension to it.",
+  "group_b_rest": "smb-fig-grid-3 (lane PAUSED: SKIPPED_STATUS), studio-team-dev/sync-export/target (REFUSED_PATH, not a lane target) and validator-r54-probe/target (no lane row: SKIPPED_STATUS) are listed for completeness, 0.29 GiB in all; dropping them costs nothing."
+ },
+ "before_execution": "Operator approves this exact list in chat (or a named subset); fresh size of each approved target (the wave trees will have changed); no cargo, rustc, link or test process naming a tree; dry run all WOULD_REMOVE; then target_prune.py --execute. No execution while the R60 round holds a lock on the tree's disk.",
+ "operator_question": "Approve plan W: remove older copies from the 8 next-wave Studio build caches and whole old caches of 11 validated lanes on D:, about 188.64 GiB.",
+ "dry_run": {
+  "at": "2026-11-13T06:04:02Z",
+  "tool_commit": "234bc442 (target_prune.py N3), unchanged",
+  "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261113-W.json --approve W-D01..W-D22 (no --execute)",
+  "file": "research/cargo-cleanup-dryrun-20261113-W.json",
+  "would_remove_gib": 0.0,
+  "result": "all 22 skipped, 0.0 GiB WOULD_REMOVE: W-D01..W-D08 SKIPPED_IN_USE_BY_LANE (each names its unsettled wave lane), W-D09 REFUSED_PATH, W-D10 and W-D11 SKIPPED_STATUS, W-D12..W-D22 REFUSED_PATH (whole on D:). Every candidate stopped before the tool's process and size checks; a separate read-only process listing during inspection showed no cargo, rustc, link or nextest process.",
+  "skipped": [
+   "W-D01",
+   "W-D02",
+   "W-D03",
+   "W-D04",
+   "W-D05",
+   "W-D06",
+   "W-D07",
+   "W-D08",
+   "W-D09",
+   "W-D10",
+   "W-D11",
+   "W-D12",
+   "W-D13",
+   "W-D14",
+   "W-D15",
+   "W-D16",
+   "W-D17",
+   "W-D18",
+   "W-D19",
+   "W-D20",
+   "W-D21",
+   "W-D22"
+  ]
+ }
+}
