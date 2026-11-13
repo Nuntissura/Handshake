@@ -1,19 +1,103 @@
 {
   "crate": "hsk-studio-harness-core (harness/containers.rs), hsk-studio-harness-view (view/layers.rs, layout_place.rs, layout_ui/threads.rs), hsk-studio-layout (threaded_reflow.rs)",
   "lane": "SMB-LAYOUT-DELETE-CASCADE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
   "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "c7aa6123",
+      "what": "red tests: tests/layout_delete_cascade.rs (9 tests), r60_layout_followups l1 and b9-locked now expect the cascade"
+    },
+    {
+      "sha": "318ad105",
+      "what": "harness-core containers.rs: cascade_layout_delete; page.delete takes text frames, graphic frames and the spread's layers in one layout step; Run::delete_layout_layers; row layer.delete_layout_layers"
+    },
+    {
+      "sha": "155f8f9e",
+      "what": "harness-view layers.rs: layout-bound layer delete (threaded frame, graphic frame, group holding one) through the cascade in one step; layout_place.rs: asset.place frame_to_content stores the fitted frame"
+    },
+    {
+      "sha": "9ee9b328",
+      "what": "layout_ui/threads.rs autoflow (flow.manual|semi_auto|auto|fixed_page_auto) and smart_reflow; rows layout_flow.autoflow, layout_flow.smart_reflow; view/commands/layout_flow.rs"
+    },
+    {
+      "sha": "acd73bc7",
+      "what": "process test checks frames by page"
+    },
+    {
+      "sha": "b810646f",
+      "what": "red tests for review FIX_FIRST of acd73bc7 (F1, F2, F3, F5, F6, F7, F8, F9) plus the API and routing they call (cancel parameter, rows layout.autoflow / layout.smart_reflow routed by layout_flow::owns)"
+    },
+    {
+      "sha": "758d968a",
+      "what": "review fixes F1, F2, F3, F5, F6, F7, F8, F9, Q5"
+    },
+    {
+      "sha": "81de18b9",
+      "what": "delete_empty_pages whole-spread filter retains in place (clippy manual_retain)"
+    }
+  ],
+  "capabilities_done": [
+    "page.delete with content: text frames, graphic frames (layer + record), spread layers; thread closed over removed frames; one undo step; reopen editable",
+    "layer.delete of a threaded text frame relinks the thread; last frame of a story drops the story and its records",
+    "group delete holding a frame layer: subtree, graph entries, thread closed, one step",
+    "asset.place frame_to_content stores the content-fitted frame",
+    "layout_flow.autoflow four flow modes, one step layout.autoflow",
+    "layout_flow.smart_reflow: add pages while overset, delete_empty_pages, preserve_facing_page_spreads"
+  ],
+  "tests": {
+    "red": {
+      "sha": "c7aa6123",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-red-c7aa6123.log",
+      "result": "16 run: 5 passed, 11 failed (all 9 new + 2 changed r60), exit 100"
+    },
+    "focused": {
+      "sha": "9ee9b328",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-focused-9ee9b328.log",
+      "result": "harness [viewer] layout_delete_cascade, r60_layout_followups, layout_place, viewer_layers: 31 run, 30 passed, 1 failed (process test assertion on a reused frame id, fixed in acd73bc7, not re-run); harness-core action_records 6/6"
+    },
+    "step0": "lane-check --step0-only clean at acd73bc7",
+    "red2": {
+      "sha": "b810646f",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-red2-b810646f.log",
+      "result": "23 run: 13 passed, 10 failed, exit 100; each new test red on its own assertion (F7 entry written, F6 unreadable coded stale, F9 layer.delete not a row, F3 footnote survives, F5 cancel ignored, F8 undo_name of an earlier step, F2 layout_records_rejected, F1 pages after page-3, process test against the old example)"
+    },
+    "focused2": {
+      "sha": "758d968a",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-focused2-758d968a.log",
+      "result": "example built; harness [viewer] layout_delete_cascade, r60_layout_followups, layout_place, viewer_layers, viewer_layout_ui_2, layout_persist: 46 run, 46 passed, exit 0; harness-core action_records 6/6, exit 0"
+    },
+    "bundled": {
+      "sha": "81de18b9",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-bundled-81de18b9.log",
+      "result": "lane-check (step 0 clean, registry in sync, clippy core+view [viewer] and dependents harness, native-host clean): nextest harness-core + harness-view [viewer] 246 run, 245 passed, 1 failed, 1 skipped, exit 100; example studio-harness rebuilt, exit 0; harness [viewer] document_new, r60_layout_followups, layout_persist, layout_place, place_asset, viewer_layers, viewer_design_components, layout_delete_cascade, viewer_layout_ui_2: 88 run, 88 passed, exit 0",
+      "failure": "hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run: 'child abort did not end in 60 s' (60.76 s) under D: load; the ledger 2026-11-11T10:39:51Z item (SMB-SCORE-EFFECTS-6), now repeated; this lane touches neither diag_sink.rs nor tests/diag_sink.rs",
+      "isolated": {
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-diag-sink-alone-81de18b9.log",
+        "result": "the same test alone at 81de18b9: 1 passed in 13.1 s, exit 0"
+      }
+    },
+    "per_sha": {
+      "range": "758d968a..81de18b9",
+      "result": "PER_SHA_RESULT OK shas=1",
+      "logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/per-sha-81de18b9/"
+    },
+    "landing": {
+      "origin_before": "b57c82d1",
+      "rebase": "no-op (origin had not moved; no suite rerun needed)",
+      "pushed": "81de18b90d5f1220e30db19d53ab6a608c95c5ca",
+      "origin_after": "81de18b9",
+      "at": "2026-11-13T07:58:43Z"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: judge 81de18b9 (claims: lane notes capabilities_done, mts_proven_candidates; PARTIAL in not_proven)",
+  "updated_at": "2026-11-13T07:58:43Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -41,6 +125,112 @@
       "research/spec-coverage-20261111-g4-layout-io-docs.json STU-LAY-020, STU-LAY-123"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1",
+    "spec_basis": [
+      "STU-LAY-003 page and spread delete as typed commands",
+      "STU-LAY-122 threading (previous/next links)",
+      "STU-LAY-020 autoflow modes and smart text reflow",
+      "STU-LAY-123 four flow members and the six reflow controls (defaults UNKNOWN, none assumed: every control is a required parameter)",
+      "STU-LAY-131 frame fitting (frame_to_content)"
+    ],
+    "mts_proven_candidates": [
+      "MT-30662 (STU-LAY-003 page and spread delete)",
+      "MT-30693 (STU-LAY-018 threading)",
+      "MT-30694 (STU-LAY-122 threading contract)",
+      "MT-30698 (STU-LAY-123 four flow modes, flow.manual tested)"
+    ],
+    "beyond_brief_paths": [
+      "crates/hsk-studio-harness-view/src/view/commands.rs: mod layout_flow; plus the \"layout_flow\" dispatch arm in Viewer::run_row (APPROVED by lead 2026-11-13T06:02:03Z)",
+      "crates/hsk-studio-harness-view/src/view/commands/layout_flow.rs: new file (APPROVED by lead 2026-11-13T06:02:03Z)",
+      "crates/hsk-studio-harness/tests/layout_delete_cascade.rs: new test file (APPROVED by lead 2026-11-13T06:02:03Z)",
+      "crates/hsk-studio-harness/tests/r60_layout_followups.rs: the two pinned refusals (page_not_empty, layer_bound_by_layout_records) replaced per rule 4a, r60_l1 renamed (APPROVED by lead 2026-11-13T06:02:03Z)",
+      "crates/hsk-studio-harness-view/src/layout_ui/pages.rs: PageEdit::DeletePage call site moved onto Run::delete_page_with_content (review F2; APPROVED by lead for that call-site change only; SMB-TYPE-CHARACTER-ATTRIBUTES-1 rebases)",
+      "crates/hsk-studio-harness-view/src/view/document_new.rs: Viewer::delete_page re-reads raster records and an open layout editor (review Q5; APPROVED)",
+      "crates/hsk-studio-harness-view/src/view/commands.rs: the approved dispatch arm is now `\"layout\" if layout_flow::owns(id)` (rows renamed layout.autoflow / layout.smart_reflow for F9; still the mod line plus one arm)"
+    ],
+    "v4_06": {
+      "class": "a delete that leaves layout records (or a thread) naming a removed page, layer or story",
+      "regex": "layers[.]retain|pages[.]remove[(]|page_spreads[.]remove|PlacementWrite [{] layer_id: .*, to: None",
+      "sites": [
+        "harness-core containers.rs delete_page_edit / page.delete: fixed (cascade)",
+        "harness-core containers.rs cascade_layout_delete: the fix",
+        "harness-view view/layers.rs delete_layer: fixed (layout-bound layers through the cascade)",
+        "harness-view view/layout_place.rs delete_graphic_frame: removed, folded into the cascade",
+        "harness-view view/layers.rs ungroup (removes the group layer): named, not fixed (a layout record naming a group layer, e.g. applied_object_styles, would go stale; rare)",
+        "harness-view view/vector.rs 1641/1793/2208/2708, view/design/instance.rs 499, view/design/component.rs 176: named, not fixed (non-frame layer deletes; a layout record naming those layers would go stale)",
+        "harness-view view/document_new.rs 183, view/place.rs 385/507, view/text.rs 750, motion_commands.rs: not applicable (view copy or non-layout records)",
+        "harness-view layout_ui/pages.rs PageEdit::DeletePage (layout.page.delete_page): fixed, runs Run::delete_page_with_content (review F2)",
+        "harness-view layout_ui/threads.rs remove_empty_pages (smart reflow delete_empty_pages): fixed, runs Run::delete_page_with_content (review F2; the site the review found unlisted)"
+      ]
+    },
+    "cut": [
+      "smart reflow is a command run on demand, not automatic on every edit: the six controls are not a stored preference (Folio has no record; adding one is a Folio/session change); smart_text_reflow, smart_text_reflow_sync, limit_to_primary_text_frames and link_text_files_when_importing are not taken",
+      "flow.manual and flow.semi_auto place the same frame headless; they differ in the window cursor only (UNVERIFIED D5)",
+      "no Viewer-level end-to-end for a group holding a GRAPHIC frame (graphic-frame layers are spread-parented); the grouped text frame fixture covers the group path"
+    ],
+    "known_sibling": "layout_ui.rs mint (not owned): the editor mints the first free SLYR id, so a new frame can reuse a deleted frame's id (seen in the process test); harness-core page mint avoids history ids, the editor's does not",
+    "unverified": "InDesign parity of the thread closing, replacement-to-suppress override rule, autoflow frame geometry (margin box) and facing-page pairing (D5)",
+    "not_proven": [
+      "STU-LAY-020 / STU-LAY-123 smart text reflow is PARTIAL (lead ruling, review F4): it runs on demand (layout.smart_reflow), not automatically on every edit; 2 of the 6 controls are taken (delete_empty_pages, preserve_facing_page_spreads); smart_text_reflow, smart_text_reflow_sync, limit_to_primary_text_frames and link_text_files_when_importing are not taken and none is stored",
+      "hsk-studio-layout suite not run: the lane changed no file of that crate (threaded_reflow.rs untouched; CARGO DISCIPLINE: only touched crates)",
+      "InDesign parity UNVERIFIED (D5): thread closing, replacement-to-suppress override, autoflow frame geometry and existing-page rule, smart reflow insertion point (after the story's last page), facing-page pairing, empty-page rule"
+    ],
+    "next_lane_candidates": [
+      "a stored smart-reflow controls record (all six STU-LAY-123 booleans as a Folio/session document preference) and edit-triggered automatic smart text reflow; the 4 controls not taken here: smart_text_reflow, smart_text_reflow_sync, limit_to_primary_text_frames (STU-LAY-008 primary text frames), link_text_files_when_importing",
+      "Folio longdoc story-id check: LayoutRecords::validate (or the longdoc validator) refuses a longdoc story id that the stored stories do not hold, so the fail-closed guard covers what a cascade misses (review F3 optional guard; not in this lane: story.rs belongs to SMB-TYPE-CHARACTER-ATTRIBUTES-1 and validate_longdoc_records takes no stories)",
+      "atomic layout plus entry history step: Run::layout_and_entry_step ignores a refused rollback undo (review Q4), after SMB-DS-VARIABLES-AUTHOR-1 lands its combined-entries step",
+      "layout_ui id mint (owner of layout_ui.rs): avoid ids named by the undo/redo history's layout documents and by stored records, as harness-core's page mint does (review answers.id_reuse; F3 closes the live path here)"
+    ],
+    "review": {
+      "file": "research/review-smb-layout-delete-cascade-1-acd73bc7.json",
+      "kernel": "f894e9bb",
+      "verdict": "FIX_FIRST",
+      "fixed": [
+        "F1",
+        "F2",
+        "F3",
+        "F5",
+        "F6",
+        "F7",
+        "F8",
+        "F9",
+        "Q5"
+      ],
+      "demoted": "F4: STU-LAY-020 and STU-LAY-123 / MT-30697 PARTIAL only",
+      "follow_up": [
+        "Q4",
+        "layout_ui id mint"
+      ]
+    },
+    "mts_partial": [
+      "MT-30696 (STU-LAY-020): smart reflow on demand only, not automatic",
+      "MT-30697 (STU-LAY-123 six reflow controls): 2 of 6 taken (delete_empty_pages, preserve_facing_page_spreads), none stored"
+    ],
+    "catalog": "every commit of this lane runs under a RUN_COMMANDS row: page.delete, layer.delete_layout_layers (Layers > Delete of layout layers), layout.autoflow, layout.smart_reflow (rows in action/commands/layout_flow.rs, routed by view/commands/layout_flow.rs owns()); tests assert it (catalogued)",
+    "known_flake": {
+      "test": "hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run",
+      "ruling": "lead 2026-11-13T07:58:43Z: accepted as the known load-dependent flake (ledger 2026-11-11T10:39:51Z item, now seen twice), unrelated to this lane (no diag_sink file in the diff)",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-bundled-81de18b9.log (failed: child abort did not end in 60 s, 60.76 s, under D: load)",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-delete-cascade-1/smb-layout-delete-cascade-1-diag-sink-alone-81de18b9.log (alone at 81de18b9: 1 passed, 13.1 s, exit 0)"
+      ]
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T07:59:45Z",
+        "on": "diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run timeout in the bundled run at 81de18b9",
+        "decision": "accepted as the known load-dependent flake (ledger 2026-11-11T10:39:51Z, seen twice), unrelated; recorded with both logs"
+      },
+      {
+        "at": "2026-11-13T07:59:45Z",
+        "on": "review F4",
+        "decision": "STU-LAY-020 / STU-LAY-123 and MT-30696, MT-30697 PARTIAL only; MT-30698 with the flow.manual test"
+      },
+      {
+        "at": "2026-11-13T07:59:45Z",
+        "on": "beyond-brief paths",
+        "decision": "approved: view/commands.rs (mod + one dispatch arm), view/commands/layout_flow.rs, tests/layout_delete_cascade.rs, tests/r60_layout_followups.rs (rule 4a), layout_ui/pages.rs DeletePage call site (F2), view/document_new.rs (Q5)"
+      }
+    ]
   }
 }

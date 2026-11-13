@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T05:13:41Z",
+ "updated_at": "2026-11-13T07:59:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20117,8 +20117,8 @@
   },
   {
    "lane_id": "SMB-LAYOUT-DELETE-CASCADE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core (harness/containers.rs), hsk-studio-harness-view (view/layers.rs, layout_place.rs, layout_ui/threads.rs), hsk-studio-layout (threaded_reflow.rs)",
    "lane_file": "builders/lanes/hsk-studio-layout-delete-cascade-1.json",
    "brief": "builders/briefs/lane-smb-layout-delete-cascade-1.md",
@@ -20126,13 +20126,14 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T07:59:45Z",
    "closes": [
     "ledger direction.next_lane_candidates 2026-11-12T17:43:00Z page.delete with content and text-frame layer delete",
     "ledger direction.next_lane_candidates 2026-11-11T10:39:51Z layer.delete of a threaded text-frame layer",
     "ledger direction.next_lane_candidates 2026-11-11T12:51:10Z frame_to_content bounds and group/page/spread delete",
     "research/spec-coverage-20261111-g4-layout-io-docs.json STU-LAY-020, STU-LAY-123"
-   ]
+   ],
+   "claim": "81de18b9: page.delete with content (text frames, graphic frames, spread layers; thread closed; records, binding, section) in one undo step; Layers > Delete of threaded frames, graphic frames and groups holding frames relinks threads in one step (layer.delete_layout_layers); layout.page.delete_page shares the cascade; asset.place frame_to_content stores the fitted frame; layout.autoflow (4 flow modes, 256-frame bound, cancel); layout.smart_reflow PARTIAL (on demand; delete_empty_pages, preserve_facing_page_spreads); no empty layout entry is written; MT candidates MT-30662, MT-30693, MT-30694, MT-30698; MT-30696 and MT-30697 PARTIAL"
   },
   {
    "lane_id": "SMB-DS-VARIABLES-AUTHOR-1",
@@ -22578,6 +22579,26 @@
     "added_at": "2026-11-12T18:03:24Z",
     "item": "user export recipes live in the package document entry export_recipes (SMB-DELIVERY-QUEUE-1, asset-local transport); STU-IO-166 makes recipes SurrealDB SCHEMAFULL tables: the host binding takes them into its recipe table and the entry stays transport (not an SD: the spec settles the store)",
     "owner": "host integration: kernel binding recipe store (STU-ARC-001, STU-IO-166)"
+   },
+   {
+    "added_at": "2026-11-13T07:59:45Z",
+    "item": "a stored smart-reflow controls record (the six STU-LAY-123 booleans as a Folio/session preference) and edit-triggered automatic smart text reflow; not taken in SMB-LAYOUT-DELETE-CASCADE-1: smart_text_reflow, smart_text_reflow_sync, limit_to_primary_text_frames, link_text_files_when_importing",
+    "owner": "next lane (layout flow / Folio records)"
+   },
+   {
+    "added_at": "2026-11-13T07:59:45Z",
+    "item": "Folio longdoc story-id check: LayoutRecords::validate or the longdoc validator refuses a longdoc story id the stored stories do not hold (review F3 optional guard of acd73bc7)",
+    "owner": "Folio longdoc / session layout records"
+   },
+   {
+    "added_at": "2026-11-13T07:59:45Z",
+    "item": "atomic layout plus entry history step: Run::layout_and_entry_step ignores a refused rollback undo (review Q4 of acd73bc7), after SMB-DS-VARIABLES-AUTHOR-1 lands its combined-entries step",
+    "owner": "harness-core harness.rs"
+   },
+   {
+    "added_at": "2026-11-13T07:59:45Z",
+    "item": "layout_ui id mint avoids ids named by the undo/redo history's layout documents and by stored records, as harness-core's page mint does (review answers.id_reuse of acd73bc7)",
+    "owner": "layout_ui.rs owner"
    }
   ],
   "pause_20261103": {
