@@ -213,7 +213,7 @@ struct LoadResult {
 /// The left-rail project tree widget + its state.
 ///
 /// Owns the loaded document/canvas lists, the per-workspace load lifecycle (load_id + channel),
-/// the expand/collapse flags for the two groups, and a width cache for the paper-strip labels. It
+/// the Cabinet projection, and a width cache for the paper-strip labels. It
 /// does NOT own pane state — clicking a leaf is reported as a [`ProjectTreeEvent`] the app applies.
 pub struct ProjectTree {
     cabinet: cabinet_host::State,
@@ -236,11 +236,6 @@ pub struct ProjectTree {
     loading: bool,
     /// The last load's error, shown inline with a Retry button.
     error: Option<String>,
-    /// Group expand/collapse flags (chevron state).
-    documents_open: bool,
-    canvases_open: bool,
-    /// Bookmarks-group expand/collapse flag (chevron state).
-    bookmarks_open: bool,
     /// Monotonic load request id. Stamped on every spawn; a delivered result is applied ONLY when
     /// its `load_id` equals this value, so a stale (pre-switch) result is discarded.
     load_id: u64,
@@ -278,9 +273,6 @@ impl ProjectTree {
             bookmarks: Vec::new(),
             loading: false,
             error: None,
-            documents_open: true,
-            canvases_open: true,
-            bookmarks_open: true,
             load_id: 0,
             rx: None,
             width_cache: std::collections::HashMap::new(),
@@ -626,11 +618,6 @@ impl ProjectTree {
             self.error = Some(format!("Project tree unavailable: {error}"));
         }
         let mut visible: std::collections::HashSet<String> = self.cabinet.model().map(|model| model.projected_rows().iter().map(|row| row.id.clone()).collect()).unwrap_or_default();
-        if let Some(model) = self.cabinet.model() {
-            self.documents_open = model.expanded("project-tree.group.documents");
-            self.canvases_open = model.expanded("project-tree.group.canvases");
-            self.bookmarks_open = model.expanded("project-tree.group.bookmarks");
-        }
 
         // Container Tree node: register a fixed id on the tree's rect so its live AccessKit node
         // attaches under the correct parent, then enrich it (Role::Tree + author_id).
@@ -695,19 +682,18 @@ impl ProjectTree {
         }
 
         // Documents group.
-        if Self::group_header(
+        let (expanded, changed) = Self::group_header(
             ui,
             "Documents",
             "documents",
-            &mut self.documents_open,
             self.documents.len(),
             colors,
             &mut self.cabinet,
-        ) {
-            let _ = self.cabinet.projection_expand("project-tree.group.documents", self.documents_open);
+        );
+        if changed {
             if let Some(model) = self.cabinet.model() { visible = model.projected_rows().iter().map(|row| row.id.clone()).collect(); }
         }
-        if self.documents_open {
+        if expanded {
             for doc in &self.documents {
                 let author_id = format!("project-tree.doc.{}", stable_part(&doc.id));
                 let entry_id = format!("document:{}", doc.id);
@@ -738,19 +724,18 @@ impl ProjectTree {
         }
 
         // Canvases group.
-        if Self::group_header(
+        let (expanded, changed) = Self::group_header(
             ui,
             "Canvases",
             "canvases",
-            &mut self.canvases_open,
             self.canvases.len(),
             colors,
             &mut self.cabinet,
-        ) {
-            let _ = self.cabinet.projection_expand("project-tree.group.canvases", self.canvases_open);
+        );
+        if changed {
             if let Some(model) = self.cabinet.model() { visible = model.projected_rows().iter().map(|row| row.id.clone()).collect(); }
         }
-        if self.canvases_open {
+        if expanded {
             for canvas in &self.canvases {
                 let author_id = format!("project-tree.canvas.{}", stable_part(&canvas.id));
                 let entry_id = format!("canvas:{}", canvas.id);
@@ -786,19 +771,18 @@ impl ProjectTree {
         // any) or the pinned block (matching React `handleOpenBookmark`).
         let bookmarks_rect_start = ui.available_rect_before_wrap();
         let bookmarks_container_id = unsafe { egui::Id::from_high_entropy_bits(BOOKMARKS_NODE_ID) };
-        if Self::group_header(
+        let (expanded, changed) = Self::group_header(
             ui,
             "Bookmarks",
             "bookmarks",
-            &mut self.bookmarks_open,
             self.bookmarks.len(),
             colors,
             &mut self.cabinet,
-        ) {
-            let _ = self.cabinet.projection_expand("project-tree.group.bookmarks", self.bookmarks_open);
+        );
+        if changed {
             if let Some(model) = self.cabinet.model() { visible = model.projected_rows().iter().map(|row| row.id.clone()).collect(); }
         }
-        if self.bookmarks_open {
+        if expanded {
             for bookmark in &self.bookmarks {
                 let author_id =
                     format!("project-tree.bookmark.{}", stable_part(&bookmark.block_id));
@@ -861,7 +845,6 @@ impl ProjectTree {
             node.set_label("Project tree".to_owned());
         });
 
-        self.cabinet.take_navigation_changes();
         event
     }
 
@@ -871,20 +854,23 @@ impl ProjectTree {
         ui: &mut egui::Ui,
         label: &str,
         slug: &str,
-        open: &mut bool,
         count: usize,
         colors: ProjectTreeColors,
         cabinet: &mut cabinet_host::State,
-    ) -> bool {
+    ) -> (bool, bool) {
         let author_id = format!("project-tree.group.{slug}");
         let id = egui::Id::new(&author_id);
-        let chevron = if *open { "\u{25BE}" } else { "\u{25B8}" }; // ▾ / ▸
-        let text = format!("{chevron} {label} ({count})");
+        let was_expanded = cabinet.model().is_some_and(|model| model.expanded(&author_id));
+        let header_text = |expanded| {
+            let chevron = if expanded { "\u{25BE}" } else { "\u{25B8}" };
+            format!("{chevron} {label} ({count})")
+        };
+        let mut text = header_text(was_expanded);
 
         let font = egui::FontId::proportional(13.0);
-        let galley = ui
+        let mut galley = ui
             .painter()
-            .layout_no_wrap(text.clone(), font, colors.group_text);
+            .layout_no_wrap(text.clone(), font.clone(), colors.group_text);
         let pad = 4.0;
         let (rect, _) = ui.allocate_exact_size(
             egui::vec2(galley.size().x + pad * 2.0, 20.0),
@@ -892,6 +878,23 @@ impl ProjectTree {
         );
         let resp = ui.interact(rect, id, egui::Sense::click());
         cabinet.row_navigation(ui, &resp, &author_id);
+        let mut expanded = cabinet
+            .take_navigation_changes()
+            .into_iter()
+            .find_map(|(id, expanded)| (id == author_id).then_some(expanded))
+            .unwrap_or(was_expanded);
+        if resp.clicked() {
+            resp.request_focus();
+            let _ = cabinet.select(&author_id, cabinet::SelectionModifiers::default());
+            if cabinet.projection_expand(&author_id, !expanded).is_ok() {
+                expanded = !expanded;
+            }
+        }
+        let changed = expanded != was_expanded;
+        if changed {
+            text = header_text(expanded);
+            galley = ui.painter().layout_no_wrap(text.clone(), font, colors.group_text);
+        }
         if ui.is_rect_visible(rect) {
             ui.painter().galley(
                 egui::pos2(rect.left() + pad, rect.center().y - galley.size().y * 0.5),
@@ -899,6 +902,7 @@ impl ProjectTree {
                 colors.group_text,
             );
         }
+        let selected = cabinet.model().is_some_and(|model| model.is_selected(&author_id));
         // AccessKit: a TreeItem with a click action (expand/collapse).
         resp.widget_info(|| {
             egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &text)
@@ -907,19 +911,12 @@ impl ProjectTree {
             node.set_role(accesskit::Role::TreeItem);
             node.set_author_id(author_id.clone());
             node.set_label(format!("{label} group"));
-            node.set_expanded(*open);
+            node.set_expanded(expanded);
+            node.set_selected(selected);
         });
 
-        let mut changed = false;
-        if resp.clicked() {
-            resp.request_focus();
-            let _ = cabinet.select(&author_id, cabinet::SelectionModifiers::default());
-            *open = !*open;
-            changed = true;
-        }
-        let selected = cabinet.model().is_some_and(|model| model.is_selected(&author_id));
         paint_tree_state(ui, &resp, selected, colors);
-        changed
+        (expanded, changed)
     }
 }
 
@@ -1393,6 +1390,91 @@ async fn fetch_summaries(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cabinet_project_groups_render_keyboard_and_pointer_expansion_immediately() {
+        use egui_kittest::{kittest::{NodeT, Queryable}, Harness};
+
+        let seed = |tree: &mut ProjectTree| {
+            tree.set_content_with_bookmarks(
+                vec![DocumentSummary::new("d1", "Cabinet document")],
+                vec![CanvasSummary::new("c1", "Cabinet canvas")],
+                vec![BookmarkSummary::new("b1", "Cabinet bookmark", "document", Some("d1".to_owned()))],
+            );
+        };
+        let mut tree = ProjectTree::new();
+        seed(&mut tree);
+        let colors = ProjectTreeColors {
+            row_bg: egui::Color32::BLACK,
+            row_hover_bg: egui::Color32::DARK_GRAY,
+            row_text: egui::Color32::WHITE,
+            group_text: egui::Color32::WHITE,
+            muted_text: egui::Color32::GRAY,
+            error: egui::Color32::RED,
+        };
+        let mut harness = Harness::builder().with_size(egui::vec2(500.0, 600.0))
+            .build_ui_state(|ui, tree| assert!(tree.show(ui, colors).is_none()), tree);
+        harness.step();
+
+        for (group, row) in [
+            ("Documents group", "Cabinet document"),
+            ("Canvases group", "Cabinet canvas"),
+            ("Bookmarks group", "Cabinet bookmark  [document]"),
+        ] {
+            assert_eq!(harness.get_by_label(group).accesskit_node().data().is_expanded(), Some(true));
+            assert!(harness.query_by_label(row).is_some());
+            let header = harness.get_by_label(group);
+            let target = header.accesskit_node().id();
+            let position = header.rect().center();
+            harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+                action: accesskit::Action::Focus, target, data: None,
+            }));
+            harness.step();
+            assert!(harness.get_by_label(group).is_focused());
+            assert_eq!(harness.get_by_label(group).accesskit_node().data().is_selected(), Some(false));
+            for (key, expanded) in [(egui::Key::ArrowLeft, false), (egui::Key::ArrowRight, true)] {
+                harness.event(egui::Event::Key {
+                    key, physical_key: None, pressed: true, repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                harness.step();
+                assert_eq!(harness.get_by_label(group).accesskit_node().data().is_expanded(), Some(expanded));
+                assert_eq!(harness.query_by_label(row).is_some(), expanded);
+                assert_eq!(harness.get_by_label(group).accesskit_node().data().is_selected(), Some(true));
+                harness.event(egui::Event::Key {
+                    key, physical_key: None, pressed: false, repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                harness.step();
+            }
+            for pressed in [true, false] {
+                harness.event(egui::Event::Key {
+                    key: egui::Key::ArrowDown, physical_key: None, pressed, repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                harness.step();
+            }
+            assert_eq!(harness.get_by_label(group).accesskit_node().data().is_selected(), Some(false));
+            assert_eq!(harness.get_by_label(row).accesskit_node().data().is_selected(), Some(true));
+            for expanded in [false, true] {
+                harness.event(egui::Event::PointerMoved(position));
+                for pressed in [true, false] {
+                    harness.event(egui::Event::PointerButton {
+                        pos: position, button: egui::PointerButton::Primary, pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    });
+                    harness.step();
+                }
+                assert_eq!(harness.get_by_label(group).accesskit_node().data().is_expanded(), Some(expanded));
+                assert_eq!(harness.query_by_label(row).is_some(), expanded);
+                assert_eq!(harness.get_by_label(group).accesskit_node().data().is_selected(), Some(true));
+                seed(harness.state_mut());
+                harness.step();
+                assert_eq!(harness.get_by_label(group).accesskit_node().data().is_expanded(), Some(expanded));
+                assert_eq!(harness.query_by_label(row).is_some(), expanded);
+            }
+        }
+    }
 
     #[test]
     fn cabinet_project_rename_waits_for_current_terminal_and_canonical_poll() {

@@ -3878,11 +3878,10 @@ struct AtelierPanelState {
     ingest_contact_include_labels: bool,
     ingest_contact_thumbnail_fit: String,
     ingest_contact_output_path: String,
-    ingest_contact_export_pending: bool,
     ingest_contact_export_request_seq: u64,
-    ingest_active_contact_export_request: Option<u64>,
+    ingest_active_contact_export_request: Option<(u64, String)>,
     ingest_last_contact_sheet: Option<ContactSheetExportSnapshot>,
-    ingest_contact_sheet_receipt: String,
+    ingest_contact_sheet_error: Option<(String, String)>,
     ingest_facial_profile: String,
     ingest_facial_analysis_pending: bool,
     ingest_facial_analysis_request_seq: u64,
@@ -4345,11 +4344,10 @@ impl Default for AtelierPanelState {
             ingest_contact_include_labels: true,
             ingest_contact_thumbnail_fit: "contain".to_owned(),
             ingest_contact_output_path: "artifact://atelier/contact-sheets/latest.svg".to_owned(),
-            ingest_contact_export_pending: false,
             ingest_contact_export_request_seq: 0,
             ingest_active_contact_export_request: None,
             ingest_last_contact_sheet: None,
-            ingest_contact_sheet_receipt: "No contact sheet export yet.".to_owned(),
+            ingest_contact_sheet_error: None,
             ingest_facial_profile: "quality+dedupe+identity".to_owned(),
             ingest_facial_analysis_pending: false,
             ingest_facial_analysis_request_seq: 0,
@@ -7024,13 +7022,12 @@ fn contact_sheet_export_preview(snapshot: &ContactSheetExportSnapshot) -> String
     )
 }
 
-fn contact_sheet_visual_preview(snapshot: Option<&ContactSheetExportSnapshot>) -> String {
-    let Some(snapshot) = snapshot else {
-        return "contact_sheet_preview=<none>".to_owned();
-    };
+fn contact_sheet_visual_preview(snapshot: &ContactSheetExportSnapshot) -> String {
     let output_path = snapshot.output_path.as_deref().unwrap_or("<none>");
     format!(
-        "contact_sheet_preview=grid rows={} columns={} dpi={} include_labels={} thumbnail_fit={} output_path={} rendered_item_count={} omitted_item_count={} source_items={} svg_ref={}",
+        "contact_sheet_preview=grid source_kind={} source_ref={} rows={} columns={} dpi={} include_labels={} thumbnail_fit={} output_path={} rendered_item_count={} omitted_item_count={} source_items={} svg_ref={}",
+        snapshot.source_kind,
+        snapshot.source_ref,
         snapshot.rows,
         snapshot.columns,
         snapshot.dpi,
@@ -10515,36 +10512,34 @@ impl AtelierPanelRuntime {
             .and_then(|mut slot| slot.take());
         if let Some((request_id, result)) = export_result {
             if let Ok(mut state) = self.state.lock() {
-                if state.ingest_active_contact_export_request != Some(request_id) {
-                    state.ingest_contact_sheet_receipt = format!(
-                        "ignored_stale_contact_sheet=true request_seq={request_id} expected_request_seq={:?}",
-                        state.ingest_active_contact_export_request
-                    );
+                let Some((_, batch_id)) = state
+                    .ingest_active_contact_export_request
+                    .take_if(|(expected_id, _)| *expected_id == request_id)
+                else {
                     return;
-                }
-                state.ingest_contact_export_pending = false;
-                state.ingest_active_contact_export_request = None;
+                };
+                let result = result.and_then(|row| {
+                    if row.source_kind != "ingest_batch" || row.source_ref != batch_id {
+                        return Err(
+                            "Backend returned a contact sheet for a different source.".to_owned()
+                        );
+                    }
+                    Ok(row)
+                });
                 match result {
                     Ok(row) => {
                         let snapshot = contact_sheet_snapshot_from_backend(row);
-                        state.ingest_contact_sheet_receipt =
-                            contact_sheet_export_preview(&snapshot);
                         state.ingest_status = format!(
-                            "Exported backend contact sheet: {}x{}@{}dpi rendered_item_count={} omitted_item_count={} svg_artifact_ref={} receipt_ref={}",
-                            snapshot.rows,
-                            snapshot.columns,
-                            snapshot.dpi,
-                            snapshot.rendered_item_count,
-                            snapshot.omitted_item_count,
-                            snapshot.svg_artifact_ref,
-                            snapshot.receipt_ref
+                            "Exported backend contact sheet for {} {}.",
+                            snapshot.source_kind, snapshot.source_ref
                         );
                         state.ingest_last_contact_sheet = Some(snapshot);
                     }
                     Err(err) => {
-                        state.ingest_contact_sheet_receipt =
-                            format!("contact_sheet_export_error={err}");
-                        state.ingest_status = format!("Contact sheet export failed: {err}");
+                        state.ingest_status =
+                            format!("Contact sheet export failed for batch {batch_id}: {err}");
+                        state.ingest_contact_sheet_error =
+                            Some((batch_id, format!("contact_sheet_export_error={err}")));
                     }
                 }
             }
@@ -17545,17 +17540,15 @@ impl AtelierPanelRuntime {
                 "Contact sheet output path or artifact ref",
                 &state.ingest_contact_output_path,
             );
-            let export = ui.add_enabled(
-                !state.ingest_contact_export_pending,
-                egui::Button::new("Export contact sheet"),
-            );
+            let export_pending = state.ingest_active_contact_export_request.is_some();
+            let export = ui.add_enabled(!export_pending, egui::Button::new("Export contact sheet"));
             emit_node(
                 ui.ctx(),
                 export.id,
                 accesskit::Role::Button,
                 ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
                 "Export a native Atelier contact sheet SVG and receipt for the expanded intake batch",
-                state.ingest_contact_export_pending,
+                export_pending,
             );
             if export.clicked() {
                 if let Some((batch_id, items)) = expanded_items.as_ref() {
@@ -17582,16 +17575,19 @@ impl AtelierPanelRuntime {
                             Err(err) => {
                                 state.ingest_status =
                                     format!("Contact sheet export blocked: {err}");
-                                state.ingest_contact_sheet_receipt =
-                                    "contact_sheet_export_blocked=model_ops_context".to_owned();
+                                state.ingest_contact_sheet_error = Some((
+                                    batch_id.clone(),
+                                    format!("contact_sheet_export_blocked=model_ops_context: {err}"),
+                                ));
                                 return;
                             }
                         };
                         state.ingest_contact_export_request_seq =
                             state.ingest_contact_export_request_seq.saturating_add(1);
                         let request_seq = state.ingest_contact_export_request_seq;
-                        state.ingest_contact_export_pending = true;
-                        state.ingest_active_contact_export_request = Some(request_seq);
+                        state.ingest_contact_sheet_error = None;
+                        state.ingest_active_contact_export_request =
+                            Some((request_seq, batch_id.clone()));
                         state.ingest_status = format!(
                             "Dispatching contact sheet export to backend actor {actor_id}: batch_id={batch_id} rows={rows} columns={columns} dpi={dpi} cells={cells} labels={} thumbnail_fit={} output_path={} item_count={}",
                             state.ingest_contact_include_labels,
@@ -17628,25 +17624,15 @@ impl AtelierPanelRuntime {
                             &thumbnail_fit,
                             ingest_optional_string(&state.ingest_contact_output_path),
                         );
-                        state.ingest_contact_sheet_receipt =
-                            contact_sheet_export_preview(&snapshot);
-                        state.ingest_status = format!(
-                            "Local contact sheet preview: {rows}x{columns}@{dpi}dpi labels={} thumbnail_fit={} rendered_item_count={} omitted_item_count={} svg_artifact_ref={} receipt_ref={}",
-                            snapshot.include_labels,
-                            snapshot.thumbnail_fit,
-                            snapshot.rendered_item_count,
-                            snapshot.omitted_item_count,
-                            snapshot.svg_artifact_ref,
-                            snapshot.receipt_ref
-                        );
+                        state.ingest_contact_sheet_error = None;
+                        state.ingest_status =
+                            format!("Local contact sheet preview for batch {batch_id}.");
                         state.ingest_last_contact_sheet = Some(snapshot);
                     }
                 } else {
                     state.ingest_status = format!(
                         "Contact sheet export needs an expanded intake batch; settings staged locally: {rows}x{columns}@{dpi}dpi cells={cells}"
                     );
-                    state.ingest_contact_sheet_receipt =
-                        "contact_sheet_export_blocked=missing_expanded_batch".to_owned();
                 }
             }
         });
@@ -17719,11 +17705,31 @@ impl AtelierPanelRuntime {
             "Ingest status",
             &ingest_status,
         );
-        let contact_preview =
-            contact_sheet_visual_preview(state.ingest_last_contact_sheet.as_ref());
-        let contact_preview_visible = compact_visual_cell(&contact_preview, 96);
+        let expanded_batch = expanded_items.as_ref().map(|(batch_id, _)| batch_id.as_str());
+        let contact_snapshot = state.ingest_last_contact_sheet.as_ref().filter(|snapshot| {
+            snapshot.source_kind == "ingest_batch"
+                && Some(snapshot.source_ref.as_str()) == expanded_batch
+        });
+        let no_contact_sheet = if expanded_batch.is_some() {
+            "No contact sheet for this batch."
+        } else {
+            "Expand an intake batch to see its contact sheet."
+        };
+        let (contact_preview_visible, contact_preview) = match contact_snapshot {
+            Some(snapshot) => (
+                format!(
+                    "Last contact sheet for batch {}. {} by {} at {} DPI.",
+                    snapshot.source_ref, snapshot.rows, snapshot.columns, snapshot.dpi
+                ),
+                contact_sheet_visual_preview(snapshot),
+            ),
+            None => (no_contact_sheet.to_owned(), no_contact_sheet.to_owned()),
+        };
         let preview = ui
-            .label(egui::RichText::new(&contact_preview_visible).color(palette.text_subtle))
+            .add(
+                egui::Label::new(egui::RichText::new(&contact_preview_visible).color(palette.text_subtle))
+                    .wrap(),
+            )
             .on_hover_text(&contact_preview);
         emit_value_node(
             ui.ctx(),
@@ -17760,7 +17766,24 @@ impl AtelierPanelRuntime {
             "Last Ingest backend apply receipt",
             &last_apply_receipt,
         );
-        let contact_sheet_receipt = state.ingest_contact_sheet_receipt.clone();
+        let contact_sheet_receipt = match expanded_batch {
+            Some(batch_id)
+                if state
+                    .ingest_active_contact_export_request
+                    .as_ref()
+                    .is_some_and(|(_, pending_batch)| pending_batch == batch_id) =>
+            {
+                "Contact sheet export pending for this batch.".to_owned()
+            }
+            Some(batch_id) => state
+                .ingest_contact_sheet_error
+                .as_ref()
+                .filter(|(error_batch, _)| error_batch == batch_id)
+                .map(|(_, error)| error.clone())
+                .or_else(|| contact_snapshot.map(contact_sheet_export_preview))
+                .unwrap_or_else(|| no_contact_sheet.to_owned()),
+            None => no_contact_sheet.to_owned(),
+        };
         let contact_sheet_receipt_visible = compact_visual_cell(&contact_sheet_receipt, 96);
         let contact_receipt = ui
             .label(egui::RichText::new(&contact_sheet_receipt_visible).color(palette.text_subtle))
@@ -19360,6 +19383,201 @@ fn emit_pose_slider_node(
 mod ingest_contact_sheet_tests {
     use super::*;
     use egui_kittest::{Harness, kittest::NodeT};
+
+    #[test]
+    fn ingest_contact_sheet_readouts_follow_the_expanded_batch() {
+        use crate::atelier_side_panel::batch_author_id;
+        use crate::backend_client::AtelierBatchRow;
+
+        let batches = ["batch-a", "batch-b"]
+            .into_iter()
+            .map(|batch_id| AtelierBatchRow {
+                batch_id: batch_id.to_owned(),
+                source_label: batch_id.to_owned(),
+                status: "open".to_owned(),
+            })
+            .collect();
+        let runtime = Arc::new(AtelierPanelRuntime::with_client(
+            Arc::new(Mutex::new(AtelierSidePanel::with_rows(
+                batches,
+                vec![],
+                Some(("batch-a".to_owned(), vec![AtelierItemRow {
+                    item_id: "image-a".to_owned(),
+                    file_name: "image-a.png".to_owned(),
+                    source_path: "image-a.png".to_owned(),
+                    lane: "accept".to_owned(),
+                    loom_block_id: None,
+                }])),
+            ))),
+            None,
+        ));
+        let for_ui = runtime.clone();
+        let palette = crate::theme::HsTheme::Dark.palette();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1000.0, 1000.0))
+            .build_ui(move |ui| for_ui.show_ingest(ui, &palette));
+
+        harness.run();
+        harness.root().children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID))
+            .expect("contact sheet export")
+            .click();
+        harness.run();
+        let readouts = |harness: &Harness<'_, _>| {
+            [ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID, ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID]
+                .map(|author| harness.root().children_recursive()
+                    .find(|node| node.accesskit_node().author_id() == Some(author))
+                    .expect("contact sheet readout")
+                    .accesskit_node().value().expect("readout value"))
+        };
+        let [preview_a, receipt_a] = readouts(&harness);
+        assert!(preview_a.contains("source_kind=ingest_batch source_ref=batch-a "));
+        assert!(preview_a.contains("source_items=image-a=image-a.png"));
+        assert!(receipt_a.contains("\nsource_ref=batch-a\n"));
+        assert!(receipt_a.contains("\nreceipt_ref=preview://"));
+
+        let batch_b = batch_author_id("batch-b");
+        let batch_a = batch_author_id("batch-a");
+        for (batch, expected) in [
+            (&batch_b, "No contact sheet for this batch."),
+            (&batch_b, "Expand an intake batch to see its contact sheet."),
+            (&batch_a, ""),
+        ] {
+            harness.root().children_recursive()
+                .find(|node| node.accesskit_node().author_id() == Some(batch.as_str()))
+                .expect("intake batch")
+                .click_accesskit();
+            harness.run();
+            let [preview, receipt] = readouts(&harness);
+            if batch == &batch_a {
+                assert_eq!((preview, receipt), (preview_a.clone(), receipt_a.clone()));
+            } else {
+                assert_eq!(preview, expected);
+                assert_eq!(receipt, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn ingest_rejects_contact_sheet_replies_for_a_different_source() {
+        use crate::backend_client::AtelierContactSheetArtifactRow;
+
+        let artifact = |artifact_ref: &str, mime: &str, file_name: &str| {
+            AtelierContactSheetArtifactRow {
+                artifact_ref: artifact_ref.to_owned(),
+                manifest_ref: format!("{artifact_ref}/manifest"),
+                content_hash: "test-hash".to_owned(),
+                byte_len: 1,
+                mime: mime.to_owned(),
+                file_name: file_name.to_owned(),
+            }
+        };
+        let reply = |source_kind: &str, source_ref: &str| AtelierContactSheetExportRow {
+            schema_id: "hsk.atelier.contact_sheet_export@1".to_owned(),
+            source_kind: source_kind.to_owned(),
+            source_ref: source_ref.to_owned(),
+            thumbnail_fit: "contain".to_owned(),
+            output_path: None,
+            layout: serde_json::json!({"rows": 1, "columns": 1, "dpi": 300, "cell_count": 1}),
+            source_items: Vec::new(),
+            item_count: 0,
+            rendered_item_count: 0,
+            omitted_item_count: 0,
+            include_labels: false,
+            svg_sha256: "svg-test-hash".to_owned(),
+            receipt_sha256: "receipt-test-hash".to_owned(),
+            content_hash: "export-test-hash".to_owned(),
+            receipt_ref: "artifact://reply/receipt".to_owned(),
+            svg_artifact: artifact("artifact://reply/svg", "image/svg+xml", "sheet.svg"),
+            receipt_artifact: artifact("artifact://reply/receipt", "application/json", "receipt.json"),
+        };
+        let side_panel = Arc::new(Mutex::new(AtelierSidePanel::with_rows(
+            vec![],
+            vec![],
+            Some(("batch-a".to_owned(), vec![])),
+        )));
+        let runtime = AtelierPanelRuntime::with_client(side_panel.clone(), None);
+        let palette = crate::theme::HsTheme::Dark.palette();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1000.0, 1000.0))
+            .build_ui(|ui| runtime.show_ingest(ui, &palette));
+        let receipt_value = |harness: &Harness<'_, ()>| {
+            harness
+                .root()
+                .children_recursive()
+                .find(|node| {
+                    node.accesskit_node().author_id() == Some(ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID)
+                })
+                .expect("contact sheet receipt")
+                .accesskit_node()
+                .value()
+                .expect("receipt value")
+        };
+
+        let saved = contact_sheet_local_snapshot("batch-a", &[], 2, 2, 300, false, "contain", None);
+        let saved_receipt = contact_sheet_export_preview(&saved);
+        runtime.state.lock().unwrap().ingest_last_contact_sheet = Some(saved);
+        for (request_id, (source_kind, source_ref)) in [
+            (1, ("ingest_batch", "batch-b")),
+            (2, ("ckc_album", "batch-a")),
+        ] {
+            {
+                let mut state = runtime.state.lock().unwrap();
+                state.ingest_active_contact_export_request = Some((request_id, "batch-a".to_owned()));
+                state.ingest_contact_sheet_error = None;
+            }
+            side_panel.lock().unwrap().seed_rows(
+                vec![], vec![], Some(("batch-a".to_owned(), vec![])),
+            );
+            harness.run();
+            assert_eq!(receipt_value(&harness), "Contact sheet export pending for this batch.");
+
+            side_panel.lock().unwrap().seed_rows(
+                vec![], vec![], Some(("batch-b".to_owned(), vec![])),
+            );
+            harness.run();
+            assert_eq!(receipt_value(&harness), "No contact sheet for this batch.");
+
+            *runtime.ingest_contact_export_cell.lock().unwrap() =
+                Some((request_id, Ok(reply(source_kind, source_ref))));
+            harness.run();
+            assert_eq!(receipt_value(&harness), "No contact sheet for this batch.");
+            {
+                let state = runtime.state.lock().unwrap();
+                assert!(state.ingest_active_contact_export_request.is_none());
+                assert_eq!(state.ingest_contact_sheet_error.as_ref().unwrap().0, "batch-a");
+                assert_eq!(
+                    contact_sheet_export_preview(state.ingest_last_contact_sheet.as_ref().unwrap()),
+                    saved_receipt
+                );
+            }
+
+            side_panel.lock().unwrap().seed_rows(
+                vec![], vec![], Some(("batch-a".to_owned(), vec![])),
+            );
+            harness.run();
+            assert_eq!(
+                receipt_value(&harness),
+                "contact_sheet_export_error=Backend returned a contact sheet for a different source."
+            );
+        }
+
+        {
+            let mut state = runtime.state.lock().unwrap();
+            state.ingest_active_contact_export_request = Some((3, "batch-a".to_owned()));
+            state.ingest_contact_sheet_error = None;
+        }
+        *runtime.ingest_contact_export_cell.lock().unwrap() =
+            Some((3, Ok(reply("ingest_batch", "batch-a"))));
+        harness.run();
+        let receipt = receipt_value(&harness);
+        assert!(receipt.contains("
+source_ref=batch-a
+"));
+        assert!(receipt.contains("
+receipt_ref=artifact://reply/receipt
+"));
+    }
 
     #[test]
     fn ingest_shows_effective_contact_sheet_layout_only_for_adjusted_inputs() {

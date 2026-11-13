@@ -713,6 +713,9 @@ draft text, including unsaved edits, and is non-persistent.\n\n\
 CKC contact sheets: open CKC (module-ckc) > Ingest (atelier-tab-ingest) > Dataset intake and expand an intake batch. \
 Set rows, columns and DPI under Contact sheet. If Contact sheet will use ... appears beside Export contact sheet, \
 it shows the layout export will use. The fields keep your typed values. Edit them to use a different layout. \
+The preview (atelier-ingest-contact-preview) and receipt (atelier-ingest-contact-receipt) follow the expanded intake batch. \
+Switching or collapsing the batch hides its refs. Reopen it to see the preview if it is still the latest result. \
+The receipt shows pending or failure only for the batch that started the export. \
 After export, wait for Exported backend contact sheet and check the SVG and source-item receipt refs \
 in atelier-ingest-contact-receipt. If export is blocked or fails, check the Ingest status and resolve the issue before retrying. \
 Local preview produces no backend artifacts.\n\n\
