@@ -1,0 +1,237 @@
+{
+ "schema": "scratch.wave_next_args@1",
+ "note": "wave-next-2 (4 lanes) prepared 2026-11-13 at origin 89f27330. wave_from_scope.py reads S/research/scope-20261107-<area>.json (the prefix is fixed at tools/lead/wave_from_scope.py:45): copy each scope-20261113-<area>.json from this folder to S/research/scope-20261107-<area>.json before running the command. Each tree was clean, its tip an ancestor of 89f27330, its last lane READY_FOR_VALIDATION with the tip on origin, and its target's .studio-workspace-root names that tree (read-only checks).",
+ "base": "89f27330",
+ "hold": "ONE HOLD PER PHASE (wave-next-2, 2026-11-13): the four lanes share the D: lock with each other and with SMB-FIX-LAYER-RECORD-PRUNE-1; run every lock-needing step of a phase inside one outer hold (wave-parity-2-common ONE HOLD PER PHASE and CARGO DISCIPLINE). Lanes land one at a time on the lead's release, in the landing order above.",
+ "areas": [
+  "prototype-play-cancel-1",
+  "pr-timeline-fixes-1",
+  "motion-implied-values-1",
+  "gui-gesture-gate-1"
+ ],
+ "command": "python tools/lead/wave_from_scope.py --base 89f27330 --hold \"<hold>\" prototype-play-cancel-1 pr-timeline-fixes-1 motion-implied-values-1 gui-gesture-gate-1",
+ "trees": {
+  "prototype-play-cancel-1": {
+   "lane": "SMB-PROTOTYPE-PLAY-CANCEL-1",
+   "tree": "smb-ai-distort-effects-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/target",
+   "tree_head": "2c6fd52c",
+   "previous_lane": "SMB-FIX-CAPTURE-ADMISSION-1 (READY_FOR_VALIDATION at 2c6fd52c; built harness-view [viewer] prototype paths and the harness capture tests on this target)",
+   "target_size_gib": 57.9,
+   "crates": "harness-view"
+  },
+  "pr-timeline-fixes-1": {
+   "lane": "SMB-PR-TIMELINE-FIXES-1",
+   "tree": "smb-folio-angle-unbounded-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/target",
+   "tree_head": "a77c4ee4",
+   "previous_lane": "SMB-FIX-EXPORT-ADMISSION-1 (READY_FOR_VALIDATION at a77c4ee4; built harness-view [viewer], harness-core and the harness batch tests on this target)",
+   "target_size_gib": 112.9,
+   "crates": "pulse, harness-view"
+  },
+  "motion-implied-values-1": {
+   "lane": "SMB-MOTION-IMPLIED-VALUES-1",
+   "tree": "smb-pr-sequence-session-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/target",
+   "tree_head": "ae14cef8",
+   "previous_lane": "SMB-FIX-ANIMATION-VALUES-1 (READY_FOR_VALIDATION at ae14cef8; built folio, composite, harness-core and the harness motion tests on this target)",
+   "target_size_gib": 57.02,
+   "crates": "harness-core, composite"
+  },
+  "gui-gesture-gate-1": {
+   "lane": "SMB-GUI-GESTURE-GATE-1",
+   "tree": "smb-r53-followups-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/target",
+   "tree_head": "89f27330",
+   "previous_lane": "SMB-FIX-MENU-CATALOG-COVERAGE-1 (READY_FOR_VALIDATION at 89f27330; landing ran native-host [document] and harness-view [viewer] whole suites on this target)",
+   "target_size_gib": 127.05,
+   "crates": "native-host, kumihimo-ui"
+  }
+ },
+ "landing_order": [
+  "SMB-PROTOTYPE-PLAY-CANCEL-1",
+  "SMB-PR-TIMELINE-FIXES-1",
+  "SMB-MOTION-IMPLIED-VALUES-1",
+  "SMB-GUI-GESTURE-GATE-1"
+ ],
+ "launch_prompts": [
+  "scratchpad/lead/wave2-launch/SMB-PROTOTYPE-PLAY-CANCEL-1.txt",
+  "scratchpad/lead/wave2-launch/SMB-PR-TIMELINE-FIXES-1.txt",
+  "scratchpad/lead/wave2-launch/SMB-MOTION-IMPLIED-VALUES-1.txt",
+  "scratchpad/lead/wave2-launch/SMB-GUI-GESTURE-GATE-1.txt"
+ ],
+ "skipped": [
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY write-before-admission (RecipeTargets, batch.rs)",
+   "why": "done: SMB-FIX-EXPORT-ADMISSION-1 READY_FOR_VALIDATION at a77c4ee4 (on origin)"
+  },
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY prototype.capture_frame admission",
+   "why": "done: SMB-FIX-CAPTURE-ADMISSION-1 READY_FOR_VALIDATION at 2c6fd52c"
+  },
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY enable_animation / disable_animation values",
+   "why": "done: SMB-FIX-ANIMATION-VALUES-1 READY_FOR_VALIDATION at ae14cef8; its accepted limit is wave-next-2 SMB-MOTION-IMPLIED-VALUES-1"
+  },
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY negative space_before and overset",
+   "why": "done: SMB-FIX-NEGATIVE-SPACE-1 READY_FOR_VALIDATION at cdd31aff"
+  },
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY F-R60-22 native-host terminal observe frame",
+   "why": "done: SMB-FIX-HOST-TERMINAL-FRAME-1 READY_FOR_VALIDATION at 0860c7b1"
+  },
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY diag_sink abort flake (and 2026-11-11T10:39:51Z)",
+   "why": "done: SMB-FIX-DIAG-SINK-ABORT-1 READY_FOR_VALIDATION at 86ee4e57"
+  },
+  {
+   "candidate": "2026-11-13T13:38:07Z PRIORITY central prune of layer-keyed records; 2026-11-13T13:55:09Z board node story and path records",
+   "why": "active lane SMB-FIX-LAYER-RECORD-PRUNE-1"
+  },
+  {
+   "candidate": "2026-11-13T11:28:13Z PRIORITY component sync and duplicate beyond the chronicle patch budget",
+   "why": "overlaps the active prune lane's paths (view/design/component.rs, design/instance.rs) and pairs with SMB-LAYER-ID-STABILITY-1 and the (layer, instance) design-state key; next after the prune lands"
+  },
+  {
+   "candidate": "2026-11-13T16:46:23Z Disable All Effects -> effect.toggle",
+   "why": "needs a run_catalog arm through Viewer::run_command (harness-view view/commands.rs, the active prune lane's file); next after the prune lands"
+  },
+  {
+   "candidate": "2026-11-13T16:46:23Z New Board -> board.add",
+   "why": "tier 2 menu leaf; menu_tree.rs is free again but the board-container gate and board files sit next to the prune lane's board/write.rs; small, next wave"
+  },
+  {
+   "candidate": "2026-11-13T07:59:45Z / 11:28:13Z atomic layout plus entry history step (harness-core harness.rs)",
+   "why": "the active prune lane may add a Run hook in harness.rs (its paths); next after the prune lands"
+  },
+  {
+   "candidate": "2026-11-07T17:49:57Z Viewer::run_command layer.set_visible; 2026-11-13T09:27:50Z drive.rs menu rows",
+   "why": "view/commands.rs (active prune lane)"
+  },
+  {
+   "candidate": "2026-11-13T13:38:07Z raster/photo items (raster_effects, place.rs)",
+   "why": "place.rs is in the active prune lane's paths"
+  },
+  {
+   "candidate": "2026-11-13T13:55:09Z board node resize; convert board node to vector",
+   "why": "board/write.rs is in the active prune lane's paths"
+  },
+  {
+   "candidate": "2026-11-07T12:31:03Z export_svg DuplicateIdentity after path operations",
+   "why": "the path-operation replacement sites (view/vector.rs) are in the active prune lane's paths"
+  },
+  {
+   "candidate": "2026-11-11T10:39:51Z, 2026-11-11T12:51:10Z, 2026-11-12T17:43:00Z page.delete, threaded frame delete, frame_to_content, group delete",
+   "why": "done: SMB-LAYOUT-DELETE-CASCADE-1 READY_FOR_VALIDATION (capabilities_done lists each)"
+  },
+  {
+   "candidate": "2026-11-06T11:29:15Z F-R57-5 FramePort source_grid (and 2026-11-06T03:46:46Z)",
+   "why": "done at 89f27330: FramePort source_grid exists (harness-view view/media.rs:493, monitor.rs:113, pulse retime.rs:341)"
+  },
+  {
+   "candidate": "2026-11-07T08:33:24Z reel/src/export.rs fixed .vtt.partial temp name",
+   "why": "done at 89f27330: unique temp `.<name>.partial-<pid>-<n>` (reel export.rs:785-789)"
+  },
+  {
+   "candidate": "2026-11-11T11:09:18Z, 2026-11-12T15:08:00Z change-link-site-wide, Action::Read",
+   "why": "done: SMB-WEB-SITE-2 READY_FOR_VALIDATION (capabilities_done)"
+  },
+  {
+   "candidate": "2026-11-05T14:24:14Z F-R56-10 EDL ignores the retime record",
+   "why": "low value now: export_cmx3600 has no product caller (only the interop-media example and its tests)"
+  },
+  {
+   "candidate": "2026-11-13T12:15:38Z V4-06 class D layout alternate.rs and TOC/index into_story overrides",
+   "why": "low value now: update_linked_stories, update_table_of_contents and generate_index_contract have no host caller outside layout and interop-layout tests"
+  },
+  {
+   "candidate": "2026-11-07T07:57:24Z multicam clips never play their active angle",
+   "why": "high value but a larger harness-view monitor, mix and export wiring lane; a later video lane"
+  },
+  {
+   "candidate": "2026-11-13T12:15:38Z STU-TYP-158..161, 155 type decorations, hyperlinks and glyph transforms in the layout PDF",
+   "why": "tier-3 parity (harness-view layout_export plus press-write; no PDF link-annotation writer found in press); next wave"
+  }
+ ],
+ "next_after": [
+  "SMB-LAYER-ID-STABILITY-1 (candidate 2026-11-13T13:38:07Z): after SMB-FIX-LAYER-RECORD-PRUNE-1 lands (cross-lane mint sites and chronicle)",
+  "PS-FILTER layer id scheme (never-reuse mint reverted in 432a543c, lead decision 2026-11-13): after SMB-LAYER-ID-STABILITY-1",
+  "component sync segmentation (2026-11-13T11:28:13Z PRIORITY) and native binding states keyed by (layer, instance): after the prune, with or after ID stability",
+  "Disable All Effects -> effect.toggle (2026-11-13T16:46:23Z): after the prune frees view/commands.rs",
+  "atomic multi-entry history step (harness.rs): after the prune lane's Run hook decision",
+  "layout_ui id mint avoiding history ids (2026-11-13T07:59:45Z): with ID stability",
+  "scrollbar drag, keyboard row focus, F6 region cycle, command palette: after SMB-GUI-GESTURE-GATE-1 (the spine gate opens panel fan-out)"
+ ],
+ "unused_reuse_pairs": [
+  {
+   "tree": "smb-pr-entry-references-1",
+   "head": "0860c7b1",
+   "last_lane": "SMB-FIX-HOST-TERMINAL-FRAME-1 READY",
+   "target_bound": true
+  },
+  {
+   "tree": "smb-pr-edit-footprint-1",
+   "head": "86ee4e57",
+   "last_lane": "SMB-FIX-DIAG-SINK-ABORT-1 READY",
+   "target_bound": true
+  },
+  {
+   "tree": "smb-pr-retime-hold-1",
+   "head": "cdd31aff",
+   "last_lane": "SMB-FIX-NEGATIVE-SPACE-1 READY",
+   "target_bound": true
+  },
+  {
+   "tree": "smb-id-toc-persist-1",
+   "head": "87f331f9",
+   "last_lane": "SMB-LAYOUT-PLACE-1 READY",
+   "target_bound": true
+  },
+  {
+   "tree": "smb-layout-composer-depth-1",
+   "head": "27365b81",
+   "last_lane": "SMB-PARSER-HOSTILE-1 READY (built on C:)",
+   "target_bound": true
+  },
+  {
+   "tree": "smb-ps-mode-convert-1",
+   "head": "5341e561",
+   "last_lane": "SMB-PIGMENT-FILTER-KERNELS-1 READY",
+   "target_bound": true
+  },
+  {
+   "tree": "smb-pr-nudge-1",
+   "head": "1e652818",
+   "last_lane": "SMB-AI-LIVE-EFFECTS-1 READY",
+   "target_bound": false,
+   "note": "no D: target"
+  }
+ ],
+ "target_inspection": {
+  "tool": "tools/lead/target_report.py --disk d (read-only, 2026-11-13; nothing deleted)",
+  "mapped": {
+   "smb-ai-distort-effects-1": {
+    "gib": 57.9,
+    "older_binary_variants_gib": 19.87,
+    "newest_file_utc": "2026-11-13T15:08Z"
+   },
+   "smb-folio-angle-unbounded-1": {
+    "gib": 112.9,
+    "older_binary_variants_gib": 69.6,
+    "newest_file_utc": "2026-11-13T16:22Z"
+   },
+   "smb-pr-sequence-session-1": {
+    "gib": 57.02,
+    "older_binary_variants_gib": 15.62,
+    "newest_file_utc": "2026-11-13T15:34Z"
+   },
+   "smb-r53-followups-1": {
+    "gib": 127.05,
+    "older_binary_variants_gib": 77.6,
+    "newest_file_utc": "2026-11-13T16:45Z"
+   }
+  },
+  "note": "older_binary_variants_gib are prune candidates under CARGO DISCIPLINE item 5 (lead, tools/lead/target_prune.py select older_copies, after each lane lands READY; Operator approval of the exact list under HSK-ART-005). A proposal, not an approval."
+ }
+}
