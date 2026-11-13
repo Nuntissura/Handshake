@@ -2,8 +2,8 @@
  "round": 60,
  "round_id": "STUDIO-R60",
  "round_opened": false,
- "attempt": 2,
- "status": "NOT_OPENED (attempt 2: canary stopped by the lead's decision, C: cap projection, infrastructure; attempt 1: canary step 0 registry drift)",
+ "attempt": 3,
+ "status": "NOT_OPENED (attempt 3: canary stopped by the 368 GiB C: guard at 08:25:35Z (lead decision, inside the 400 GB grant) after 18 of 164 test units (plus the fixture and 3 prebuilds), all exit 0; attempt 2: canary stopped on the C: cap projection; attempt 1: canary step 0 registry drift)",
  "decision_basis": "CX-VAL-005 + CX-VAL-010: the canary runs first through the checked-in entrypoint and a canary failure is infrastructure: no round opens, no union build or test run, no lane or MT verdict; CX-VAL-006: an infrastructure failure changes no status (R23 and R53 attempt 1 precedent: statuses unchanged, re-open list recorded); CX-VAL-007: no environment, flag or wrapper added to get past step 0; CX-VAL-001: the candidate stays frozen at cede5958",
  "rule_refs": [
   "CX-VAL-001",
@@ -875,6 +875,15 @@
    "opened": false,
    "status": "NOT_OPENED (canary stopped by the lead's decision: C: cap projection, infrastructure)",
    "result": "canary R60-canary-2: step 0 green; 11 of 164 test units and the fixture done, all exit 0; stopped at the lead's decision 09:22Z (SIGTERM 09:22:39Z), run exit 130; C: tree 307.915 GiB after the stop (studio-round 96.155 + studio-team-dev 211.76); no union, no verdict"
+  },
+  {
+   "attempt": 3,
+   "candidate": "b57c82d1445f8c0858f73f0fd670c8c08b637b18",
+   "frozen_at": "2026-11-13T05:30:52Z",
+   "completed_at": "2026-11-13T08:29:40Z",
+   "opened": false,
+   "status": "NOT_OPENED (canary stopped by the 368 GiB C: guard at 08:25:35Z (lead decision, inside the 400 GB grant) after 18 of 164 test units (plus the fixture and 3 prebuilds), all exit 0)",
+   "result": "canary R60-canary-3: step 0 green; 18 of 164 test units, the fixture and 3 prebuilds done (0 nonzero); canary stopped by the 368 GiB C: guard at 08:25:35Z (lead decision, inside the 400 GB grant) after 18 of 164 test units (plus the fixture and 3 prebuilds), all exit 0"
   }
  ],
  "record_form": "round-R60.json extended in place (no new round id, lead dispatch): attempt 1's keys unchanged except attempt and status (attempt 1's status kept in attempts[0]); attempt 2 under attempt_2, its probe results under attempt_2_probes",
@@ -2340,5 +2349,3425 @@
    "severity": "MEDIUM"
   },
   "not_probed_leads": "the MEDIUM/LOW leads of the PASS-candidate claims (findings_leads in attempt_2) were read in code, not run"
+ },
+ "attempt_3": {
+  "attempt": 3,
+  "round_opened": false,
+  "status": "NOT_OPENED (canary stopped by the 368 GiB C: guard at 08:25:35Z (lead decision, inside the 400 GB grant) after 18 of 164 test units (plus the fixture and 3 prebuilds), all exit 0)",
+  "decision_basis": "CX-VAL-005 / CX-VAL-010: a canary stop or failure is infrastructure, opens no round and gives no verdict; CX-VAL-006: an infrastructure failure changes no status; CX-VAL-007: nothing added to the entrypoint; CX-VAL-001: the candidate stayed frozen at b57c82d1; CX-SAFE-001: only this session's processes stopped, by PID",
+  "candidate": "b57c82d1445f8c0858f73f0fd670c8c08b637b18",
+  "tree": "7310b2f6b80ed4c217f44ca5696f543d5cebaaa1",
+  "frozen_at": "2026-11-13T05:30:52Z",
+  "candidate_note": "lead dispatch (attempt 3): freeze exactly b57c82d1, the origin tip at dispatch; fetch 2026-11-13T05:30:52Z: origin ref, FETCH_HEAD and ls-remote agree on b57c82d1445f8c08; c4d06841 (R59) and 35c50d3b (attempt 2) ancestors, linear history (0 merges); 308 commits since c4d06841 and 188 since 35c50d3b (the lead's counts hold); 306 owned by the 36 READY claims by lane id in the subject (validator-R60-a3/claims.json; 42e9e5a4 the compose hook is SMB-VK-UI-PASS-1's per its claim), 2 trunk commits without a claim range: 5d020939 (steward sync F-R60-1) and 89e9a2ac (SMB-ARTBOARD-EXPORT-1 follow-up, tests only, outside every claimed range); none unowned; root inputs re-derived from c4d06841..b57c82d1 (setup.out): attempt 2's list plus 35c50d3b..b57c82d1's Cargo.lock, crates/hsk-studio-vulkan/Cargo.toml, spv-build/{Cargo.toml,Cargo.lock,src/main.rs}, shaders/{ui.wgsl,ui.vs_main.spv,ui.fs_main.spv,manifest.json} and tools/workspace-probe.rs (SMB-VK-UI-PASS-1 503f6874, 980685f4: the lead's list holds); no .config file changed after 35c50d3b",
+  "export": {
+   "refresh": "export-refresh: b57c82d1445f8c0858f73f0fd670c8c08b637b18 files=2766 added=98 changed=154 unchanged=2514 deleted=0 blob_mismatch=0",
+   "file_count": 2766,
+   "manifest_sha256": "ccaa7d376d668cc57ad68084d37b717eb14ca4ee38f187cc4406123aef54f8f6",
+   "git_blob_equal": true
+  },
+  "oracle_corpus": {
+   "at_freeze": {
+    "at": "2026-11-13T05:31:58Z",
+    "file_count": 1503,
+    "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+   },
+   "before_canary-3": {
+    "at": "2026-11-13T05:38:28Z",
+    "file_count": 1503,
+    "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+   },
+   "end": {
+    "at": "2026-11-13T08:26:39Z",
+    "file_count": 1503,
+    "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+   }
+  },
+  "selection": {
+   "tool": "gov tools/round-select.py (self-test 27 checks OK)",
+   "args": [
+    "--all"
+   ],
+   "full": true,
+   "full_reasons": [
+    "every third round: 2 rounds since the last full union",
+    "round entry script or its configuration changed: ['.config/nextest.toml', '.config/round-features.toml', 'tools/registry-sync.py', 'tools/run-round.sh']"
+   ],
+   "changed_crates": [
+    "composite",
+    "controls",
+    "develop",
+    "folio",
+    "harness",
+    "harness-core",
+    "harness-view",
+    "interop-fig",
+    "interop-fig-native",
+    "interop-layout",
+    "interop-psd",
+    "interop-tiff",
+    "interop-vector-core",
+    "interop-vector-svg",
+    "layout",
+    "native-host",
+    "nib",
+    "observe",
+    "package",
+    "pigment",
+    "press",
+    "press-read",
+    "press-write",
+    "pulse",
+    "reel",
+    "render-cpu",
+    "render-gpu",
+    "score",
+    "session",
+    "ui-text",
+    "vulkan",
+    "kumihimo-ui"
+   ],
+   "selected": 60,
+   "plan": "run-round --print-plan --all: default 1 + features 49 + ignored 5 + doctest 109 = 164 test units, 3 prebuilds, 1 fixture"
+  },
+  "reopen_list": {
+   "counts": {
+    "ready": 36,
+    "reopened": 407,
+    "other": 53,
+    "closure": 60
+   },
+   "ref": "validator-R60-a3/reopen.json",
+   "written": "no: no round opened"
+  },
+  "canary": {
+   "argv": "bash tools/run-round.sh --canary --all --results <studio-round>/results/R60-canary-3 --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (cwd export; no caller env, flags or wrappers)",
+   "identity": {
+    "msys_pid": 6181,
+    "win_pid": 68884,
+    "win_start_time_utc": "2026-11-13T05:38:32.616Z",
+    "win_command_line": "\"C:\\Program Files\\Git\\usr\\bin\\bash.exe\" tools/run-round.sh --canary --all --results \"/d/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R60-canary-3\" --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target"
+   },
+   "started_at": "2026-11-13T05:38:36Z",
+   "ended_at": "2026-11-13T08:25:39Z",
+   "exit": 130,
+   "complete": false,
+   "reason": "interrupted",
+   "step0": "passed: Cargo.lock in sync; registry no drift; policy clean",
+   "units_done": 22,
+   "units_done_detail": [
+    {
+     "unit": "default",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "fixture:score-plugin/clap-gain",
+     "build_exit": "0",
+     "run_exit": "-"
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-controls+egui",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "build_exit": "0",
+     "run_exit": "-"
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "build_exit": "0",
+     "run_exit": "-"
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "build_exit": "0",
+     "run_exit": "0"
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "build_exit": "0",
+     "run_exit": "-"
+    }
+   ],
+   "units_nonzero": [],
+   "hashes": {
+    "round.json": "13c1a12d7bec29a6f4e5a3ec70e5a98d1f3668980901c1812aaaa029e729e9db",
+    "units.tsv": "e17e8041516ea0b02b5a6d7738976909014aeeab9c2c1197195a63faea7c917d",
+    "step0.registry.txt": "35747768c9f5e0012df988d53c8bd77217fdfb424de4bcd1d0f750ec7a841390"
+   },
+   "resume_note": "the completed units' identities stay in the warm C: round target for a resume (nothing deleted)"
+  },
+  "stop": {
+   "failure_kind": "infrastructure",
+   "failure_class": "c-cap-368-canary-cold-harness-identities",
+   "reason": "canary stopped by the 368 GiB C: guard at 08:25:35Z (lead decision, inside the 400 GB grant) after 18 of 164 test units (plus the fixture and 3 prebuilds), all exit 0",
+   "guard_lines": [
+    "2026-11-13T07:31:25Z GUARD_REPLACED: SIGTERM to this session's old guard msys 6291 (bash a3_capguard.sh R60C3 R60-canary-3.console.txt R60-canary-3 6181 68884 ) after the 368 GiB guards started (lead decision)",
+    "2026-11-13T07:31:25Z GUARD_REPLACED: SIGTERM to this session's old guard msys 6295 (bash a3_fastguard.sh R60C3 R60-canary-3.console.txt 6181 68884 ) after the 368 GiB guards started (lead decision)",
+    "2026-11-13T07:59:55Z ALERT_330 tree=331.815 GiB (message the lead)",
+    "2026-11-13T08:18:09Z REPORT_360 tree=360.355 GiB (message the lead)",
+    "2026-11-13T08:25:36Z SIGTERM sent msys 6181 win 68884 at tree=368.449 GiB (> 368)",
+    "2026-11-13T08:25:39Z STOP_SENT running unit tree win 109320 ended (taskkill /T /F)",
+    "2026-11-13T07:31:25Z GUARD_REPLACED: SIGTERM to this session's old guard msys 6291 (bash a3_capguard.sh R60C3 R60-canary-3.console.txt R60-canary-3 6181 68884 ) after the 368 GiB guards started (lead decision)",
+    "2026-11-13T07:31:25Z GUARD_REPLACED: SIGTERM to this session's old guard msys 6295 (bash a3_fastguard.sh R60C3 R60-canary-3.console.txt 6181 68884 ) after the 368 GiB guards started (lead decision)",
+    "2026-11-13T07:59:39Z FAST_ALERT_330 tree=331.549 GiB",
+    "2026-11-13T08:18:42Z FAST_REPORT_360 tree=360.697 GiB",
+    "2026-11-13T08:25:35Z FAST_SIGTERM msys 6181 win 68884 at tree=368.001 GiB (> 368)",
+    "2026-11-13T08:25:39Z FAST_STOP_SENT unit tree win 109320"
+   ],
+   "lead_decision": "LEAD DECISION 2026-11-13 ~07:28Z (message to this validator): move the clean-stop threshold from 355 GiB to 368 GiB, inside the Operator grant of 400 GB (about 372.5 GiB; CX-984-014; ledger direction.resume_20261108.c_cap_20261111; studio-env.sh STUDIO_SSD_CAP_GB note \"default 360 of the 400 GB\"), a 4.5 GiB margin; keep the 330 alert; report at 330 and 360; delete nothing; at 368 stop cleanly as infrastructure with no verdict and record the units completed for a resume"
+  },
+  "c_tree": {
+   "freeze": {
+    "label": "at_freeze",
+    "started": "2026-11-13T05:34:54Z",
+    "ended": "2026-11-13T05:35:01Z",
+    "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+    "kib": 243970811,
+    "gib": 232.669,
+    "cap_gib": 360,
+    "children_kib": {
+     "studio-round": 100825368,
+     "studio-team-dev": 143145443
+    },
+    "c_free_kib": 459430500
+   },
+   "samples_fast": 79,
+   "peak_fast": [
+    "2026-11-13T08:25:34Z",
+    368.001
+   ],
+   "last_fast": [
+    "2026-11-13T08:25:34Z",
+    368.001
+   ],
+   "full_samples": [
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:40:38Z",
+     "ended": "2026-11-13T05:40:45Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 243902866,
+     "gib": 232.604,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 100788650,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 459388796
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:42:46Z",
+     "ended": "2026-11-13T05:42:54Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244142289,
+     "gib": 232.832,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 100989390,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458934976
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:44:58Z",
+     "ended": "2026-11-13T05:45:04Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244258203,
+     "gib": 232.943,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101109726,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458819480
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:47:05Z",
+     "ended": "2026-11-13T05:47:12Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244259373,
+     "gib": 232.944,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101158569,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458771000
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:49:15Z",
+     "ended": "2026-11-13T05:49:23Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244443484,
+     "gib": 233.119,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101287742,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458588288
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:51:26Z",
+     "ended": "2026-11-13T05:51:32Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244539337,
+     "gib": 233.211,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101396105,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458521376
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:53:33Z",
+     "ended": "2026-11-13T05:53:42Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244773974,
+     "gib": 233.435,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101619197,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458288424
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T05:53:39Z",
+     "ended": "2026-11-13T05:53:46Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244767633,
+     "gib": 233.429,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101640571,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458251148
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:55:44Z",
+     "ended": "2026-11-13T05:55:50Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244819691,
+     "gib": 233.478,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101674248,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458238376
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T05:57:52Z",
+     "ended": "2026-11-13T05:57:59Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244819691,
+     "gib": 233.478,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101674248,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458219608
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:00:00Z",
+     "ended": "2026-11-13T06:00:07Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244819691,
+     "gib": 233.478,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101674248,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458217324
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:02:09Z",
+     "ended": "2026-11-13T06:02:17Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245024331,
+     "gib": 233.673,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101843701,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458108008
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:04:19Z",
+     "ended": "2026-11-13T06:04:26Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 244946448,
+     "gib": 233.599,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101623918,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 458283856
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:06:27Z",
+     "ended": "2026-11-13T06:06:32Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245079041,
+     "gib": 233.726,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 101943390,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457963744
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:08:35Z",
+     "ended": "2026-11-13T06:08:43Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245257333,
+     "gib": 233.896,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102111891,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457796848
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T06:08:47Z",
+     "ended": "2026-11-13T06:08:54Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245263448,
+     "gib": 233.901,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102097866,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457807740
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:10:46Z",
+     "ended": "2026-11-13T06:10:57Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245519592,
+     "gib": 234.146,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102359588,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457582176
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:12:58Z",
+     "ended": "2026-11-13T06:13:07Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245762543,
+     "gib": 234.377,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102608320,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457349024
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:15:11Z",
+     "ended": "2026-11-13T06:15:22Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245884422,
+     "gib": 234.494,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102744499,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457185168
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:17:25Z",
+     "ended": "2026-11-13T06:17:44Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245986220,
+     "gib": 234.591,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102801176,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 457120068
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:19:46Z",
+     "ended": "2026-11-13T06:19:55Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 245951328,
+     "gib": 234.557,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 102805874,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 456877212
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:21:59Z",
+     "ended": "2026-11-13T06:22:04Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 247231925,
+     "gib": 235.779,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 104086482,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 455545696
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T06:23:56Z",
+     "ended": "2026-11-13T06:24:04Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 247682548,
+     "gib": 236.208,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 104535715,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 455163200
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:24:07Z",
+     "ended": "2026-11-13T06:24:14Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 247679723,
+     "gib": 236.206,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 104534280,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 455164396
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:26:17Z",
+     "ended": "2026-11-13T06:26:24Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 248723452,
+     "gib": 237.201,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 105578009,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 454140632
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:28:51Z",
+     "ended": "2026-11-13T06:29:03Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 248728531,
+     "gib": 237.206,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 105583088,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 454139136
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:31:08Z",
+     "ended": "2026-11-13T06:31:16Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 249460391,
+     "gib": 237.904,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 106317656,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 453446132
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:33:17Z",
+     "ended": "2026-11-13T06:33:26Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 249858355,
+     "gib": 238.283,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 106712912,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 453051332
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:35:28Z",
+     "ended": "2026-11-13T06:35:36Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 250305054,
+     "gib": 238.71,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 107159611,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 452605944
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:37:37Z",
+     "ended": "2026-11-13T06:37:46Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 250700401,
+     "gib": 239.087,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 107554958,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 451376396
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T06:39:05Z",
+     "ended": "2026-11-13T06:39:15Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 250888412,
+     "gib": 239.266,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 107742969,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 451595340
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:39:49Z",
+     "ended": "2026-11-13T06:39:58Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 251317819,
+     "gib": 239.675,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 108752878,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 450970832
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:42:00Z",
+     "ended": "2026-11-13T06:42:10Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 252383118,
+     "gib": 240.691,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 109236409,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 450542160
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:44:11Z",
+     "ended": "2026-11-13T06:44:19Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 252815620,
+     "gib": 241.104,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 109670177,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 449872156
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:46:20Z",
+     "ended": "2026-11-13T06:46:27Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 253477727,
+     "gib": 241.735,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 110332284,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 449122960
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:48:29Z",
+     "ended": "2026-11-13T06:48:38Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 253515023,
+     "gib": 241.771,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 110369580,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 449190408
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:50:40Z",
+     "ended": "2026-11-13T06:50:53Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 253906721,
+     "gib": 242.144,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 110663237,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 448526464
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:52:54Z",
+     "ended": "2026-11-13T06:53:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 254714948,
+     "gib": 242.915,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 111569505,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 447980656
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T06:54:15Z",
+     "ended": "2026-11-13T06:54:23Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 254943220,
+     "gib": 243.133,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 111817822,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 447763788
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:55:06Z",
+     "ended": "2026-11-13T06:55:13Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 254787936,
+     "gib": 242.985,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 111642493,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 448254956
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:57:15Z",
+     "ended": "2026-11-13T06:57:24Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 255697494,
+     "gib": 243.852,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 112550662,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 446997380
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T06:59:25Z",
+     "ended": "2026-11-13T06:59:34Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 257120400,
+     "gib": 245.209,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 113974958,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 445576408
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:01:35Z",
+     "ended": "2026-11-13T07:01:41Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 257003882,
+     "gib": 245.098,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 113734042,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 445724436
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:03:43Z",
+     "ended": "2026-11-13T07:04:09Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 258942229,
+     "gib": 246.947,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 114942765,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 444383360
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:06:12Z",
+     "ended": "2026-11-13T07:06:19Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 258116727,
+     "gib": 246.159,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 114971285,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 444352100
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:08:21Z",
+     "ended": "2026-11-13T07:08:33Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 261489186,
+     "gib": 249.376,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 118346350,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 440592132
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T07:09:28Z",
+     "ended": "2026-11-13T07:09:39Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 265515272,
+     "gib": 253.215,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 122369829,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 436941728
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:10:38Z",
+     "ended": "2026-11-13T07:11:16Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 268288665,
+     "gib": 255.86,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 124722453,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 434593228
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:12:17Z",
+     "ended": "2026-11-13T07:12:34Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 270125919,
+     "gib": 257.612,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 128340679,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 430787300
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:13:42Z",
+     "ended": "2026-11-13T07:14:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 273528893,
+     "gib": 260.857,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 130643561,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 428647604
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:15:07Z",
+     "ended": "2026-11-13T07:15:14Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 275744210,
+     "gib": 262.97,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 132598767,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 426722548
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:16:16Z",
+     "ended": "2026-11-13T07:17:07Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 277725681,
+     "gib": 264.86,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 136980400,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 422560920
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:18:10Z",
+     "ended": "2026-11-13T07:18:32Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 282473410,
+     "gib": 269.388,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 139327967,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 419759320
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:19:33Z",
+     "ended": "2026-11-13T07:19:40Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 282473410,
+     "gib": 269.388,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 139327967,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 419752936
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:20:42Z",
+     "ended": "2026-11-13T07:20:51Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 284719795,
+     "gib": 271.53,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 141575424,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 417498296
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:21:54Z",
+     "ended": "2026-11-13T07:22:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 287162185,
+     "gib": 273.859,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 143641249,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 415441852
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:23:14Z",
+     "ended": "2026-11-13T07:23:23Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 288843829,
+     "gib": 275.463,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 145698386,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 413377740
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:24:33Z",
+     "ended": "2026-11-13T07:24:42Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 291371159,
+     "gib": 277.873,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 148381296,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 410694632
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T07:24:39Z",
+     "ended": "2026-11-13T07:24:45Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 291526739,
+     "gib": 278.022,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 148381296,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 410381884
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:25:53Z",
+     "ended": "2026-11-13T07:26:12Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 295774291,
+     "gib": 282.072,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 152767264,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 406056372
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:27:13Z",
+     "ended": "2026-11-13T07:27:41Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 297684849,
+     "gib": 283.894,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 154556315,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 402514540
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:28:52Z",
+     "ended": "2026-11-13T07:30:19Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 300144706,
+     "gib": 286.24,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 157000307,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 401833832
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:31:23Z",
+     "ended": "2026-11-13T07:31:32Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 301764472,
+     "gib": 287.785,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 158619029,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 399385200
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:33:02Z",
+     "ended": "2026-11-13T07:33:08Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 303321842,
+     "gib": 289.27,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 160176399,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 397992376
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:34:09Z",
+     "ended": "2026-11-13T07:34:22Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 305284560,
+     "gib": 291.142,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 163577450,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 394586828
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:35:56Z",
+     "ended": "2026-11-13T07:36:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 308138918,
+     "gib": 293.864,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 164993475,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 393171904
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:37:11Z",
+     "ended": "2026-11-13T07:37:22Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 311741094,
+     "gib": 297.299,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 168671368,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 389099360
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:38:22Z",
+     "ended": "2026-11-13T07:38:30Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 311996933,
+     "gib": 297.543,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 168851490,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 389080300
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:39:37Z",
+     "ended": "2026-11-13T07:39:49Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 314764161,
+     "gib": 300.182,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 171627113,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 385882024
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T07:39:46Z",
+     "ended": "2026-11-13T07:39:54Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 314773290,
+     "gib": 300.191,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 171964659,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 384945820
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:40:57Z",
+     "ended": "2026-11-13T07:41:36Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 317929226,
+     "gib": 303.201,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 175282044,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 382932936
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:42:38Z",
+     "ended": "2026-11-13T07:42:56Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 320717599,
+     "gib": 305.86,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 177577495,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 380373916
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:43:58Z",
+     "ended": "2026-11-13T07:44:06Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 322852303,
+     "gib": 307.896,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 179706861,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 378238232
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:45:08Z",
+     "ended": "2026-11-13T07:45:15Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 325566676,
+     "gib": 310.485,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 182421233,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 375545696
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:46:17Z",
+     "ended": "2026-11-13T07:46:26Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 327110081,
+     "gib": 311.956,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 183964638,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 373993448
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:47:27Z",
+     "ended": "2026-11-13T07:47:42Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 328922118,
+     "gib": 313.685,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 185802208,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 372156564
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:48:43Z",
+     "ended": "2026-11-13T07:48:49Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 329753667,
+     "gib": 314.478,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 186608224,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 371121488
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:49:50Z",
+     "ended": "2026-11-13T07:49:57Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 329730811,
+     "gib": 314.456,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 186585379,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 371131528
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:51:12Z",
+     "ended": "2026-11-13T07:51:25Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 330752386,
+     "gib": 315.43,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 187606838,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 370026004
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:52:26Z",
+     "ended": "2026-11-13T07:52:35Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 330921891,
+     "gib": 315.592,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 187776449,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 369854180
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:53:45Z",
+     "ended": "2026-11-13T07:53:55Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 334506658,
+     "gib": 319.01,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 191361215,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 365930628
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:54:57Z",
+     "ended": "2026-11-13T07:55:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 336403586,
+     "gib": 320.819,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 193335050,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 363893776
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T07:54:55Z",
+     "ended": "2026-11-13T07:55:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 336320523,
+     "gib": 320.74,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 193335050,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 363811912
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:55:38Z",
+     "ended": "2026-11-13T07:56:13Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 337768631,
+     "gib": 322.121,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 194878336,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 362500708
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:57:14Z",
+     "ended": "2026-11-13T07:57:25Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 340116975,
+     "gib": 324.361,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 196987660,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 360498188
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:58:15Z",
+     "ended": "2026-11-13T07:58:28Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 342767541,
+     "gib": 326.889,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 199572372,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 357916536
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:59:02Z",
+     "ended": "2026-11-13T07:59:13Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 345417751,
+     "gib": 329.416,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 202339037,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 354116976
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T07:59:47Z",
+     "ended": "2026-11-13T07:59:53Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 347933338,
+     "gib": 331.815,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 204787895,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 352751920
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:00:38Z",
+     "ended": "2026-11-13T08:01:22Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 349382482,
+     "gib": 333.197,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 206237039,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 350855280
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:02:02Z",
+     "ended": "2026-11-13T08:03:08Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 353846423,
+     "gib": 337.454,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 210543126,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 346553436
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:03:43Z",
+     "ended": "2026-11-13T08:03:49Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 355004286,
+     "gib": 338.558,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 211858843,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 345430144
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:04:20Z",
+     "ended": "2026-11-13T08:04:26Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 355004286,
+     "gib": 338.558,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 211858843,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 345432284
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:04:58Z",
+     "ended": "2026-11-13T08:05:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 355004708,
+     "gib": 338.559,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 211856107,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 345198112
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:05:38Z",
+     "ended": "2026-11-13T08:06:33Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 357049795,
+     "gib": 340.509,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 214917700,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 342140756
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:06:52Z",
+     "ended": "2026-11-13T08:07:00Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 359242864,
+     "gib": 342.601,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 216483816,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 340572164
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:07:18Z",
+     "ended": "2026-11-13T08:07:28Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 360277576,
+     "gib": 343.587,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 217007150,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 339819080
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:08:21Z",
+     "ended": "2026-11-13T08:08:33Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 361195745,
+     "gib": 344.463,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 218053062,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 338764960
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:08:49Z",
+     "ended": "2026-11-13T08:08:54Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 361198496,
+     "gib": 344.466,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 218053053,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 338768172
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:09:23Z",
+     "ended": "2026-11-13T08:09:30Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 361224687,
+     "gib": 344.491,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 218079244,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 338741608
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:09:51Z",
+     "ended": "2026-11-13T08:10:16Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 362673260,
+     "gib": 345.872,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 220291739,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 336528676
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T08:10:09Z",
+     "ended": "2026-11-13T08:10:15Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 363234491,
+     "gib": 346.407,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 220291739,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 336528676
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:10:35Z",
+     "ended": "2026-11-13T08:10:44Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 363007682,
+     "gib": 346.191,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 220633925,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 335427688
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:11:01Z",
+     "ended": "2026-11-13T08:11:42Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 365559864,
+     "gib": 348.625,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 221928578,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 334893960
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:12:30Z",
+     "ended": "2026-11-13T08:12:57Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 367301852,
+     "gib": 350.286,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 224181557,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 331509512
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:13:15Z",
+     "ended": "2026-11-13T08:13:25Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 368862412,
+     "gib": 351.775,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 226247977,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 330578244
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:13:47Z",
+     "ended": "2026-11-13T08:13:55Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 369239258,
+     "gib": 352.134,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 226117406,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 330276408
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:14:15Z",
+     "ended": "2026-11-13T08:14:24Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 370799657,
+     "gib": 353.622,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 227691005,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 329136176
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:14:41Z",
+     "ended": "2026-11-13T08:15:10Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 372066827,
+     "gib": 354.831,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 228921384,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 328358952
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:15:35Z",
+     "ended": "2026-11-13T08:16:05Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 373575477,
+     "gib": 356.269,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 230797608,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 325797040
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:16:22Z",
+     "ended": "2026-11-13T08:16:28Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 373817097,
+     "gib": 356.5,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 230671654,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 325924024
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:16:51Z",
+     "ended": "2026-11-13T08:17:31Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 377079879,
+     "gib": 359.611,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 233227531,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 323365796
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:17:48Z",
+     "ended": "2026-11-13T08:18:09Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 377859557,
+     "gib": 360.355,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 235072590,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 321518040
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:18:28Z",
+     "ended": "2026-11-13T08:18:40Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 378218035,
+     "gib": 360.697,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 235072594,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 321519096
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:18:56Z",
+     "ended": "2026-11-13T08:19:25Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 378816279,
+     "gib": 361.267,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236207969,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320379292
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:19:42Z",
+     "ended": "2026-11-13T08:19:47Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 379353417,
+     "gib": 361.78,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236207974,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320399748
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:20:04Z",
+     "ended": "2026-11-13T08:20:10Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 379353417,
+     "gib": 361.78,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236207974,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320416864
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:20:26Z",
+     "ended": "2026-11-13T08:20:36Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 379353417,
+     "gib": 361.78,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236207974,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320388072
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:20:53Z",
+     "ended": "2026-11-13T08:21:01Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 379341357,
+     "gib": 361.768,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236205634,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320382168
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:21:18Z",
+     "ended": "2026-11-13T08:21:28Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 379354602,
+     "gib": 361.781,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236209159,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320348140
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:21:45Z",
+     "ended": "2026-11-13T08:21:58Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 379513915,
+     "gib": 361.933,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 236374695,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 320161896
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:22:22Z",
+     "ended": "2026-11-13T08:23:02Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 381723134,
+     "gib": 364.04,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 238576938,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 317946720
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:23:19Z",
+     "ended": "2026-11-13T08:23:29Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 381748213,
+     "gib": 364.063,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 238912808,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 316849724
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:23:45Z",
+     "ended": "2026-11-13T08:23:55Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 383873618,
+     "gib": 366.09,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 240727230,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 315792716
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:24:22Z",
+     "ended": "2026-11-13T08:24:33Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 383896923,
+     "gib": 366.113,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 241245865,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 314807052
+    },
+    {
+     "label": "cap_guard",
+     "started": "2026-11-13T08:24:52Z",
+     "ended": "2026-11-13T08:25:35Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 386346369,
+     "gib": 368.449,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 242731410,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 313795960
+    },
+    {
+     "label": "during_r60c3",
+     "started": "2026-11-13T08:25:29Z",
+     "ended": "2026-11-13T08:25:37Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 385876852,
+     "gib": 368.001,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 242731411,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 313797716
+    },
+    {
+     "label": "end",
+     "started": "2026-11-13T08:26:30Z",
+     "ended": "2026-11-13T08:26:37Z",
+     "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+     "kib": 385876854,
+     "gib": 368.001,
+     "cap_gib": 360,
+     "children_kib": {
+      "studio-round": 242731411,
+      "studio-team-dev": 143145443
+     },
+     "c_free_kib": 313811864
+    }
+   ]
+  },
+  "growth": {
+   "method": "studio-round GiB from a3_fastguard samples (60 s from 300 GiB, 180 s below; tree = studio-round + studio-team-dev 136.514, constant) at each unit's completion (result-file mtimes); growth = difference to the previous completed unit; the in-flight unit's growth is the last sample minus the last completion",
+   "freeze": {
+    "at": "05:34:54Z",
+    "tree_gib": 232.669,
+    "studio_round_gib": 96.155
+   },
+   "per_unit": [
+    {
+     "unit": "default",
+     "completed": "06:00:36Z",
+     "studio_round_gib": 96.964,
+     "tree_gib": 233.478,
+     "growth_gib": 0.8,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "fixture:score-plugin/clap-gain",
+     "completed": null,
+     "growth_gib": null,
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "completed": "06:04:03Z",
+     "studio_round_gib": 97.147,
+     "tree_gib": 233.661,
+     "growth_gib": 0.2,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-controls+egui",
+     "completed": "06:04:20Z",
+     "studio_round_gib": 97.147,
+     "tree_gib": 233.661,
+     "growth_gib": 0.0,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "completed": "06:07:35Z",
+     "studio_round_gib": 97.132,
+     "tree_gib": 233.646,
+     "growth_gib": -0.0,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "completed": "06:09:34Z",
+     "studio_round_gib": 97.462,
+     "tree_gib": 233.976,
+     "growth_gib": 0.3,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "completed": "06:11:37Z",
+     "studio_round_gib": 97.462,
+     "tree_gib": 233.976,
+     "growth_gib": 0.0,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "completed": "06:13:40Z",
+     "studio_round_gib": 97.706,
+     "tree_gib": 234.22,
+     "growth_gib": 0.2,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "completed": "06:16:38Z",
+     "studio_round_gib": 97.995,
+     "tree_gib": 234.509,
+     "growth_gib": 0.3,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "completed": "06:19:32Z",
+     "studio_round_gib": 98.149,
+     "tree_gib": 234.663,
+     "growth_gib": 0.2,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "completed": "06:33:52Z",
+     "studio_round_gib": 101.58,
+     "tree_gib": 238.094,
+     "growth_gib": 3.4,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "completed": "06:49:08Z",
+     "studio_round_gib": 105.333,
+     "tree_gib": 241.847,
+     "growth_gib": 3.8,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "completed": "07:06:16Z",
+     "studio_round_gib": 109.618,
+     "tree_gib": 246.132,
+     "growth_gib": 4.3,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "warm (built by attempt 2's canary, kept in the round target)"
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "completed": null,
+     "growth_gib": null,
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "completed": "07:19:36Z",
+     "studio_round_gib": 130.198,
+     "tree_gib": 266.713,
+     "growth_gib": 20.6,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "completed": "07:33:26Z",
+     "studio_round_gib": 150.588,
+     "tree_gib": 287.103,
+     "growth_gib": 20.4,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "completed": "07:49:44Z",
+     "studio_round_gib": 177.963,
+     "tree_gib": 314.478,
+     "growth_gib": 27.4,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "completed": "07:51:46Z",
+     "studio_round_gib": 178.916,
+     "tree_gib": 315.43,
+     "growth_gib": 1.0,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "completed": "08:04:31Z",
+     "studio_round_gib": 202.044,
+     "tree_gib": 338.558,
+     "growth_gib": 23.1,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "completed": null,
+     "growth_gib": null,
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "completed": "08:20:42Z",
+     "studio_round_gib": 225.265,
+     "tree_gib": 361.78,
+     "growth_gib": 23.2,
+     "build_exit": "0",
+     "run_exit": "0",
+     "identities": "cold (no identity in the round target before this attempt)"
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "completed": null,
+     "growth_gib": null,
+     "identities": "cold (no identity in the round target before this attempt)"
+    }
+   ],
+   "in_flight": {
+    "since": null,
+    "growth_gib": 6.2,
+    "last_sample": "08:25:34Z",
+    "tree_gib": 368.001
+   },
+   "heavy_harness_units_measured_gib": [
+    20.6,
+    20.4,
+    27.4,
+    23.1,
+    23.2
+   ],
+   "heavy_harness_mean_gib": 22.9,
+   "cold_harness_units_under_5_gib": [
+    [
+     "features:hsk-studio-harness+layout-ui",
+     1.0
+    ]
+   ],
+   "remaining": {
+    "harness_feature_units": [
+     "features:hsk-studio-harness+audio-plugin",
+     "features:hsk-studio-harness+audio-batch+audio-device",
+     "features:hsk-studio-harness+import-affinity"
+    ],
+    "harness_view_core_units": [
+     "features:hsk-studio-harness-core+import-tiff",
+     "features:hsk-studio-harness-view+viewer",
+     "features:hsk-studio-harness-view+audio-batch+desktop"
+    ],
+    "other_feature_units": 26,
+    "ignored_prebuild_fixture": [
+     "ignored:hsk-studio-develop",
+     "ignored:hsk-studio-harness+import-psd+import-raw",
+     "ignored:hsk-studio-harness+import-affinity",
+     "ignored:hsk-studio-interop-raster",
+     "ignored:hsk-studio-interop-tiff"
+    ],
+    "doctest_units": 109
+   },
+   "projection_full_canary_gib": {
+    "low": 457.2,
+    "mid": 498.2,
+    "high": 584.0,
+    "basis": "UNVERIFIED projection: remaining hsk-studio-harness feature units at the min / mean / max of this attempt's cold harness units (each relinks every harness test binary under a new identity); harness-view and harness-core units 5 / 10 / 20 GiB (not measured); other feature units 0.5 / 1 / 2 GiB; doctest units 0 / 0.05 / 0.2 GiB; the union then rebuilds the same identities in place (R57 warm union growth 5.9 GiB)"
+   },
+   "grant": {
+    "operator_grant_gib": 372.5,
+    "steward_cap_gib": 360,
+    "lead_stop_gib": 368
+   }
+  },
+  "deps_split": {
+   "since_canary_start_gib": {
+    ".pdb": 119.76,
+    ".exe": 35.87,
+    ".rlib": 3.6,
+    ".rmeta": 0.43,
+    ".dll": 0.0,
+    ".d": 0.0,
+    ".lib": 0.0,
+    ".exp": 0.0
+   },
+   "files": {
+    ".d": 2482,
+    ".pdb": 2302,
+    ".exe": 2300,
+    ".rlib": 180,
+    ".rmeta": 180,
+    ".dll": 2,
+    ".exp": 2,
+    ".lib": 2
+   },
+   "older_gib": {
+    ".pdb": 7.72,
+    ".rlib": 6.03,
+    ".exe": 2.3,
+    ".rmeta": 1.12,
+    ".dll": 0.08,
+    ".lib": 0.03
+   },
+   "scan_s": 0
+  },
+  "lead_decisions": [
+   "2026-11-13 ~07:28Z: clean stop moved from 355 to 368 GiB inside the Operator grant of 400 GB (about 372.5 GiB, CX-984-014; ledger direction.resume_20261108.c_cap_20261111); alert 330, report 360; delete nothing",
+   "2026-11-13 ~07:55Z: proceed; stop cleanly at 368 as infrastructure with no verdict; keep the round target intact so a resume reuses the completed units; do not move the round to D: tonight (it would block the 8 wave builders on the D: lock); record the growth per unit and the projection for the Operator's morning choice between more C: room, a round on D: during a builder pause, and a test-profile debuginfo reduction first"
+  ],
+  "memory": "commit free 123.4 GB at the freeze (limit 191.0), min 103.6, 127.5 last; Chrome private 0.0 to 19.4 GB; 20 samples; no build failed on memory; end sample 127.5 GB commit free, Chrome private 8.5 GB",
+  "union": "not run (no round)",
+  "verdicts": "none: no round opened; all 36 READY claims stay READY_FOR_VALIDATION, PASS lanes keep their status, no MT written",
+  "claim_commits": {
+   "SMB-PR-ROUTING-REPAIR-1": [
+    "04a9b1193fdd1220e1a273c41112596a652649f7 folio, session, pulse and harness-view tests, red: F-R57-2 bus, F-R57-3 takeover, id mints, option A",
+    "099923bf71652802b2c1f79f2db7f5f2c1883a32 folio and harness-view tests, red: the viewer fixture's layer, and a cheaper budget search",
+    "7b0e41beabc6b367f74fef86bd1cad14660b806d folio, pulse, F-R57-2: an output or send target naming an absent bus is inert",
+    "82ce2eb1fec25339c512b3001f5ce118143ed70b session, F-R57-3: the commit reports a new sequence that takes a stored routing",
+    "c33adc6f1f2e217d338e2a4087c2b11b6ce09bda session, F-R57-2 option A: no commit that changes sequences may invalidate valid multicam records",
+    "1dc981f122a5ff621419a973e0ff6a6aa0a3b839 session: indent",
+    "e76bfe0f216e9df97813e14b631c5a5cc8fda90f harness-view, F-R57-3, V4-06: every Viewer mint of a clip, track or sequence id skips what entries name",
+    "e296bdd93300a3a2e37d397b2630be06af72a26b session, review F1, F2: a cancel in the multicam guard is a cancel; DESCRIPTOR on angle_order",
+    "2ae24210b89a166465ad11879a6a61448103c892 harness-view, review F3, lead ruling: a mixer edit cannot author a target the sequence does not hold"
+   ],
+   "SMB-SESSION-WRITE-SAFETY-1": [
+    "d9d2e2afcdba92897c3625e783aecde0bcaad974 session write safety, SMB-SESSION-WRITE-SAFETY-1: red, saves from separate OS processes and shared temp names",
+    "96d7e6dca82b120aa78f2044ada5bea3ece55a33 session write safety, SMB-SESSION-WRITE-SAFETY-1: wip compare, lock, unique temps, CLI",
+    "ae716b3b49016bbbe61c51bcb7c53627346807b5 session write safety, SMB-SESSION-WRITE-SAFETY-1: wip compare, lock, unique temps, CLI",
+    "ab8a8e92e80668f63b2294596bba84d400bc4e1b session write safety, SMB-SESSION-WRITE-SAFETY-1: a save compares its destination under an OS lock; unique temp names",
+    "ba5867c2810b544bd2a56fde12892123f597de4d session write safety, SMB-SESSION-WRITE-SAFETY-1: review findings on 6127d99b",
+    "570173aff9198ff95ee9f41d6b96912e6d93a7e1 session write safety, SMB-SESSION-WRITE-SAFETY-1: first bundled run's two failures"
+   ],
+   "SMB-HARNESS-DRIVE-1": [
+    "13d830b535103a7cea5d4a0f3b2d2003f7421aba harness, DRIVE-1 red: state, command, undo and the stdin session through the real process; the window classifier",
+    "4fdc95fb37b1a267844f9dca8a658f6a5c0d6ad0 harness, DRIVE-1: a model drives Studio as a process, no window",
+    "b954d4c51d9256573b5a35cf234bf6de26475e7d harness, DRIVE-1: review fixes: no file replaced unasked, the viewer owns the timeline, a panic is one refusal"
+   ],
+   "SMB-OBSERVE-DIAG-SINK-1": [
+    "5e24e678f40fd71ab5bf562a2259780543efbcc8 observe, red DIAG-SINK-1: Observe::emit* reaches the thread's RingProducerPort; ring_wired tests, emit cost measure, stub bind",
+    "6eba836f4d4b474a42e4d4358bc7dd4fc0609d49 observe, DIAG-SINK-1: Observe::emit* offers its record to the thread's RingProducerPort",
+    "e81c09d63b205c3c415b8d63e7b4c9229793b9bf harness, red DIAG-SINK-1: what ran survives the process; sink, panic record, health and default-dir tests over a stub",
+    "b3e2659bd4c9c76c39674b0ce51b486aaf9357a7 harness, DIAG-SINK-1: what ran survives the process; JSONL sink, FrameSink forwards, panic record, studio-harness health",
+    "8ceef11163305f91cc5cceacf4270448a80e8681 harness, DIAG-SINK-1: review of 3c4811ed, F1-F3: an unlistable dir gets no file, health survives a non-UTF-8 dir, no leading zeros",
+    "aa1da6f0644cc1589c1761d36b33d33a528210d6 harness, DIAG-SINK-1: the test helper's leading-zero check took segment \"0.jsonl\" for a foreign name",
+    "dfac350784cda5ca15205cf700c644b790a82a49 harness, DIAG-SINK-1: seq is the order of the lines across a rotation",
+    "1374cc256f205c8f68c8afb2e6c578e6167dee11 harness, DIAG-SINK-1: state, command and undo leave what they ran; test children get no console"
+   ],
+   "SMB-CONTROLS-EGUI-GATE-1": [
+    "474eb2a791dd9dd3fa2a39eebe916d639f3ca8c1 SMB-CONTROLS-EGUI-GATE-1 RED: workspace-probe toolkit gate fixtures, gate stubbed",
+    "c7698b62d78bc6f1c4904ca754e72a618f0e0319 SMB-CONTROLS-EGUI-GATE-1: workspace-probe toolkit quarantine gate (D1, D7)",
+    "2fa227ae97821b37bb8edc5716eb0e6bf2973c44 SMB-CONTROLS-EGUI-GATE-1: gate allow list holds one consumer forward (harness-view)",
+    "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee SMB-CONTROLS-EGUI-GATE-1: hsk-studio-controls builds without egui (feature egui, default off)"
+   ],
+   "SMB-PIGMENT-FILTER-KERNELS-1": [
+    "3ca4467f2e5ce21eb1538c6b856bab3c82cff45f pigment filter kernels, red: the kernel kinds of the smart filter record are refused on the wire",
+    "10a3536e0cbbfa9fced3d2c8682d851ef9ed5f40 pigment filter kernels, red: Folio kernel kinds, StackFilter::Kernel plumbing and the render-gpu refusal arm; every kernel refused at render (stub), kernel tests fail",
+    "2637ebf7725b8bba1d23b4ea21dc6dc3f7658cf0 pigment filter kernels: nineteen raster kernel kinds (box, motion, radial, find edges reuse; 5x5 convolution with sharpen, sharpen more, basic blur, blur more; Sobel-gated sharpen edges and despeckle; emboss, solarize, mosaic; maximum and minimum; dust and scratches, surface and bilateral blur), Sobel magnitude extracted from find_edges_window, filter_kernels DESCRIPTOR, stale smart_filter docs corrected",
+    "0ee78ea0d9a8a5e7c6df2bc5fa63e0b1126a6dad pigment filter kernels: maximum and minimum unpremultiply in place, so the roundness peak matches its 32 bytes a pixel charge (review F1)",
+    "5341e561e00352209dfc37b4c960fab7b6df6629 pigment filter kernels: morph_square loops over the four channels by array, clippy needless_range_loop"
+   ],
+   "SMB-DOC-NEW-1": [
+    "b721f142026c42d5f09ea30ebc9905d5b20d57d3 harness, DOC-NEW-1 red: a blank document through `new`, its refusals and the catalog rows",
+    "220ce7e3706fbd430eb4894b7c737259db8e5246 session, DOC-NEW-1: a new document is a written package; one artboard or page edit is one step",
+    "6830f7500f78598d101941f0c688ac9d0384ca76 harness-core, DOC-NEW-1: document.new and the artboard and page commands of Run",
+    "ccbd44c6a75241884785295f458235fa23be4f7b harness-view, DOC-NEW-1: the viewer creates documents, edits artboards and pages, frames the one chosen",
+    "047afaefe8fd3ffb2f2292aa63173dea2a7600c8 harness, DOC-NEW-1: the new verb and the drive routes; the scenarios' first steps",
+    "6156801174f83232b1d67128f96e9636710c9b6a harness, DOC-NEW-1: new writes through save_new, or save_replacing with --overwrite",
+    "7200761275eeab81415ad31682efcbfabddb5c31 harness, DOC-NEW-1, review F1-F3 of 368e1080: no reused ids, every read-back framed, catalog keys equal drive keys",
+    "6b06379fdfaf07387247fe98781442c6cb3982a0 harness, DOC-NEW-1: the key-equality test skips the menu id, which has no catalog row",
+    "cf6788d68cb5cea826386d211cb575c5a3c9c6b0 harness-view, DOC-NEW-1: a new document closes the audio out device too (integration with AUDIO-OUT-MIX-1)"
+   ],
+   "SMB-MOTION-COMMANDS-1": [
+    "e26ba0958f56cf40215742fabc71087a425056ac harness-core, MOTION-COMMANDS-1 red: the typed motion rows and their tests, every command refuses",
+    "2b54bbc8982b91834b185d00a2f54ed37549a691 harness-core, MOTION-COMMANDS-1: typed composition, layer, property, keyframe and expression commands",
+    "ac2ca33556b24f20a2d46f2cad87e5cabfbd9895 harness, MOTION-COMMANDS-1: the drive session test reads the open and end lines and the refusal exit",
+    "912cb86f099b2ac96eb9efb4f944d85bb11cef22 harness-core, MOTION-COMMANDS-1: review fixes F1 to F4"
+   ],
+   "SMB-GUI-STEWARD-1": [
+    "7ab918bf7b02333ed87ce012a2c4770b71b5c89a SMB-GUI-STEWARD-1: red: probe self-test fixtures for the new crates, kumihimo rule, winit entry",
+    "7879e7e974121079e5ac1708a6a1835d064d7465 SMB-GUI-STEWARD-1: skeleton crates, locked pins, gate rules, GPU predicates, round config"
+   ],
+   "SMB-COMMAND-SURFACE-1": [
+    "95ee277458b18fc333ba3fb8bc6231291ec10172 harness-core, COMMAND-SURFACE-1: RUN_COMMANDS split per domain",
+    "243c588f55706c18fb8ad5c6a1010a2ecb7484c3 harness, COMMAND-SURFACE-1 red: typed commands through the real process",
+    "1a39dc7ae4d2e5103ad677ec99569d02516a03bf harness, COMMAND-SURFACE-1: one catalog and typed rows for layout, panel, proof, vector, design, photo",
+    "fdd1710e1120777f44e00244daf716110348cf23 harness, COMMAND-SURFACE-1: review fixes F1-F5, engine defects pinned by name",
+    "150db07160018b3fa9aaa29918e20bcf54abfdd3 harness, COMMAND-SURFACE-1: the defect test's text is an escaped newline",
+    "98e4099c742721e7635f576c5cc88ef6654d23f4 harness, COMMAND-SURFACE-1: typed tests reselect before the last swap and let Folio judge a spot value"
+   ],
+   "SMB-VK-HOST-1": [
+    "177f618334875d9b00f67cf7b6b954b3badc4b59 SMB-VK-HOST-1: hsk-studio-vulkan transient owner, panes, Win32 presenter, swapchain state machine",
+    "045bb059fbd3492f4ece8942827faef42c364eef SMB-VK-HOST-1: hsk-studio-native-host offscreen capture, quiet window, CPU buffer present, document feature",
+    "0ab6596ae1bf8656abc2888c59c96931c35c1f18 SMB-VK-HOST-1: review fixes F1-F4 (quiet style after show, surface-loss bound, retired oldSwapchain, poisoned submits)",
+    "672a18040ecb343eb4c98a1cc1f453a3f04ea389 SMB-VK-HOST-1: window deadline counts from a ready presenter; startup timings and failure counters"
+   ],
+   "SMB-UI-TREE-1": [
+    "85b675126a2c80ac751197376283f3503b192c29 SMB-UI-TREE-1: red: kumihimo-ui core and text adapter tests against stubs",
+    "ac4e57349aedd58050d7d4f4d71a33c9d5be2de0 SMB-UI-TREE-1: kumihimo-ui toolkit core and the hsk-studio-ui-text adapter",
+    "50b5cdacd78f2086f34f1b69f38d2b5e56d4ecac SMB-UI-TREE-1: clippy: allow the 8-argument label helper, two test lints",
+    "c62469a35f2c62e0e40d278e4d73aba645873a91 SMB-UI-TREE-1: review fixes F1-F9 (review-smb-ui-tree-1-44ab8e16)",
+    "12133fdfcf9ce0627d2c5915b3b0157b4a4f8452 SMB-UI-TREE-1: untrack a Python bytecode cache committed by mistake"
+   ],
+   "SMB-AUDIO-OUT-MIX-1": [
+    "4c649dbb1ac7155afc2fdcea7930a440ef8825af harness-view, AUDIO-OUT-MIX-1: audio out hosted, routed mixdown with WAV, stems with a sum check, repaired audio in the mix",
+    "87c71f80c272356425b57f68b4cdc55624e2c92e harness-view, AUDIO-OUT-MIX-1: a type alias for the repaired source list (clippy type_complexity)",
+    "bae43a73f10a4e6587f5b733c97ac604e22c9a96 harness-view, AUDIO-OUT-MIX-1: review fixes on 812b8ebb (close frees the device, open order, stem names, quantized sum check, unmatched repairs, stem replace)",
+    "b799193005bd5cc318d9770822d0638cfd7db1c5 harness tests, AUDIO-OUT-MIX-1: the audio_import oracle covers the WAV mix formats",
+    "28de83ac0b236ac09b6dab2731355a8b05314ab2 harness, AUDIO-OUT-MIX-1: audio.* typed rows through Viewer::run_command and the process"
+   ],
+   "SMB-DOC-EXPORT-1": [
+    "4e66b91b5a438ee2b2f694225998fc775703cd23 doc export, SMB-DOC-EXPORT-1: layered PSD writer, linear render, no-clobber export write, batch exporter port",
+    "381330edfa9218d58843468dce5cc269822e8244 doc export, SMB-DOC-EXPORT-1: red: document export recipe, CLI, drive row, batch targets, tests",
+    "c9a3410632430e07f7e33f02aef49b73ff1eac8a doc export, SMB-DOC-EXPORT-1: green: the recipe pipeline runs; batch test input is a native package",
+    "73107f5a6e81106f3253c07305dcd8a8b1c1e68d doc export, SMB-DOC-EXPORT-1: review F1-F3 on 82950f9c",
+    "bbe5626300aa98b740355e1d781afb1662b7d152 doc export, SMB-DOC-EXPORT-1: review F4: export_document is a photo command",
+    "e85e1440e240161bab08edeb9c36431fc24ad35e doc export, SMB-DOC-EXPORT-1: Run::record_host_outcome gets its RUN_COMMANDS row"
+   ],
+   "SMB-LAYOUT-PDF-HOST-1": [
+    "92227383c404fa994d997f67833e86b377685539 harness, LAYOUT-PDF-HOST-1 red: typed layout output rows, drive rows and tests; every method refuses",
+    "cde132727d54f9f5140340582271c9459f974cc5 harness-view, LAYOUT-PDF-HOST-1: the live layout reaches PDF and IDML; preflight before export; sized pages",
+    "14522e343b3abe1fb42424eb2b740dc5adcd3504 harness-view, LAYOUT-PDF-HOST-1: review F2-F4 of eee4ff70",
+    "3972c165ae14b3aa18559282916a048a4b6fca34 harness, LAYOUT-PDF-HOST-1: render_pdf_page is a typed row only (duplicate author id)"
+   ],
+   "SMB-PROJECT-BIN-1": [
+    "64214f585684d088f2355bf9f112cd79ef2ac79c folio, SMB-PROJECT-BIN-1: project bin record, bin commands, sequence from preset, add tracks, place clip",
+    "633881c1eeb6acfbb103e91ad6b6a17fef3ff7a6 session, SMB-PROJECT-BIN-1: the project_bin document entry",
+    "af872f3d217533eb8f730cc976fe64ea7035eaf7 harness-core, SMB-PROJECT-BIN-1: Run project_bin_command, new_sequence, add_tracks, place_clip",
+    "57949d29dcd99ef294cc537b4d2ff71ed697a560 harness-view, harness, SMB-PROJECT-BIN-1 red: project methods, drive rows, tests; New Sequence refuses not_built",
+    "caef41a7950e59f1bf33d192e3ddee06edfaa2d7 harness-view, SMB-PROJECT-BIN-1: New Sequence from preset (green)",
+    "43a6eb2eed39f9d53273c61dc2f19e3a274ba451 SMB-PROJECT-BIN-1: review F1, F5, F6, F7 of f3200e74",
+    "9ab80eddf2cad339b4333273a15d041514fcce10 harness-core, SMB-PROJECT-BIN-1: project_place_item tick parameters are integer rows"
+   ],
+   "SMB-LAYOUT-PERSIST-1": [
+    "d119ff754944698fae71f8a6cb9677006ef98c2d session, harness, red LAYOUT-PERSIST-1: layout edits as document steps; layout_records entry, LayoutStep, Run::submit_layout",
+    "ab2e0ebd2d56d94f767890e94a924d617315608b harness-view, LAYOUT-PERSIST-1: Viewer::layout_apply commits each layout edit to the document",
+    "89709cdb44eb3d4c4cf9f27bc1ccf42995046642 harness-view, LAYOUT-PERSIST-1: layout.* commands commit to the document; spreads in the document unit",
+    "906df1eb879ee65b1620b8b418ae4b007c0e54bc session, harness, LAYOUT-PERSIST-1: review fixes F1-F4 and Q2 of b21616b7",
+    "a32151614e46913c8f6e5cb77aca956a02b5b530 harness-view, LAYOUT-PERSIST-1: a sized layout.open commits to the open document; exports read the document's layout"
+   ],
+   "SMB-WEB-HOST-1": [
+    "2731d49baef249b22815adc6eabde9779f0abb2f harness, WEB-HOST-1: red web host tests, the web rows and a refusing host",
+    "6fc3a7d66c098b8bb392ac7e7353a124a10c86f6 harness-core, WEB-HOST-1: the web crates' first host",
+    "aa68164c5731e20bc77e7794cc5be2bc69cc6e56 harness-core, WEB-HOST-1: review fixes F1 to F7"
+   ],
+   "SMB-GUI-SPINE-1": [
+    "3ce0915ecb2a61957bc649990a2cb9e28bd225a3 gui spine, SMB-GUI-SPINE-1: red: GUI frame API skeleton, typed input, layered .handshake fixture, tests",
+    "788465ff88a3f5d3f338890fd32faed6df06455d gui spine, SMB-GUI-SPINE-1: typed input: the scripted step queue",
+    "2ef46468e3ee9d20d76077ac47c96511a068c656 gui spine, SMB-GUI-SPINE-1: an open refusal keeps the viewer's code",
+    "4a06b937c80754f6f4d2acc09ef82ea9f7f3c8c1 gui spine, SMB-GUI-SPINE-1: kumihimo-ui passive scrollbar",
+    "2fc402066757f67688a4fc29dc427f8b7feda3c9 gui spine, SMB-GUI-SPINE-1: the GUI frame and the Layers panel",
+    "4e2f9591bc95f00e69989f056cf12c01053f6c77 gui spine, SMB-GUI-SPINE-1: window and offscreen GUI mode, README",
+    "cede59587eed0189edce18ed93f60486bc6af520 gui spine, SMB-GUI-SPINE-1: review F1-F6 on 5e882c1d"
+   ],
+   "SMB-PR-EXPORT-RECIPE-1": [
+    "9e0cd70d674fc199fc413b358ec89e802278f918 reel, SMB-PR-EXPORT-RECIPE-1: red export publish-safety tests",
+    "a2bcf6799fb5ca6dce1f6f502e617d77f3ecd9da reel, SMB-PR-EXPORT-RECIPE-1: export publish safety",
+    "a6a1adaa0ac9fd38cd22af5d381279e44e542760 reel, SMB-PR-EXPORT-RECIPE-1: pin the six preset recipes before the change",
+    "54ca1b949a335f2690e4b1f4b646a9d2d35fdc0b reel, SMB-PR-EXPORT-RECIPE-1: export parameter dictionary, StudioExportRecipe, container declaration",
+    "6146bbd96f9d033c96464af11680d36563252861 reel, SMB-PR-EXPORT-RECIPE-1: red tests for review F1 and F2",
+    "ce22ae45f48eceae4dcd537ff1b78eb24ab589bf reel, SMB-PR-EXPORT-RECIPE-1: review F1, refuse a .vtt output with a sidecar",
+    "3f275bd0aabbbcbfc04173894088bbf0a40bc79d reel, SMB-PR-EXPORT-RECIPE-1: review F2, caption receipt when only the media is published",
+    "270b12d6cdc6d979951dc591b121c28ef104dfc5 reel, SMB-PR-EXPORT-RECIPE-1: review F3, no-clobber publish by hard link",
+    "8712fa2366e8117f430a2160ced3afd0d9a77e64 reel, SMB-PR-EXPORT-RECIPE-1: collapse the sidecar publish if (clippy collapsible_if)"
+   ],
+   "SMB-ARTBOARD-EXPORT-1": [
+    "bd96542012e90cd2c06c3cb288a82deb3814f567 harness-view, SMB-ARTBOARD-EXPORT-1 red: the SVG of a board off the origin frames that board",
+    "2b884024d9b31896ea3af04392a7904f2f579be9 vector-core, vector-svg, harness-view, SMB-ARTBOARD-EXPORT-1: the vector exports frame a named board",
+    "605964fc5f21b458bde16dfba0d4336b06a4bb64 folio, session, harness-core, harness-view, SMB-ARTBOARD-EXPORT-1 red: node export settings and export.run",
+    "c91fc814a1f692d27c2e651ae77fa4d31384e0d3 harness-view, SMB-ARTBOARD-EXPORT-1: export.run writes every node's named files at its constraints",
+    "5e3a77a114367cc6a8000568f81f29a70f035c86 folio, harness-core, harness-view, SMB-ARTBOARD-EXPORT-1 red: review F2 to F6 on 9db105fc",
+    "fd247ec83e65d0c5fcaef86fdc97c5b1c2ae5185 folio, harness-core, harness-view, SMB-ARTBOARD-EXPORT-1: review F2 to F6 on 9db105fc",
+    "35c50d3ba928be27a980443230cbe351f7644982 harness-view, SMB-ARTBOARD-EXPORT-1: drop the export slot with take (unused_assignments warning)"
+   ],
+   "SMB-DRIVE-TYPED-2": [
+    "fbb0297f36dc44be2ec2f8b14fa86f86508ebeb1 harness, DRIVE-TYPED-2 red: typed rows for audio post, the monitors and product design; every row refuses",
+    "1b7f80b20877bb1ae20385a1bc5d9db9f1b18fe4 harness-core, DRIVE-TYPED-2: SMB-DOC-NEW-1's rows mark optional parameters, and their viewer rows are document rows",
+    "576c4d5e99c58b8a387e93d94b39c168aa0bcf16 harness-view, DRIVE-TYPED-2: mixer, multitrack, waveform, spectral, monitor, prototype and design instance rows through Viewer::run_command",
+    "09fca718997d47fa2eb251937a7047ba38690c5f harness, DRIVE-TYPED-2: the tests read the engines' undo labels and give the program monitor a clip",
+    "6264725c3d0392ddcc57a93bce671657f2fada21 harness, DRIVE-TYPED-2 red: review F1-F4, F6, F7 on 2bbe2207",
+    "08b372af2f91cc78e9efcceae1658b84e38ae1c7 harness-view, DRIVE-TYPED-2: review F1-F3, F6, F7 on 2bbe2207"
+   ],
+   "SMB-PLACE-ASSET-1": [
+    "d026e892a13422d6afd4a2d25575edf06cf4bfcd harness, red PLACE-ASSET-1: place, link and transform rows, the raster_records entry, refusing engine",
+    "65b84031ffe253209cda286dbda5a716201a506e harness-view, PLACE-ASSET-1: place embedded or linked, link states, Update All Links, Embed Link, Move and Free Transform",
+    "0b4a2c49107d1c6480cf61b87609ebc6371f1239 harness, red PLACE-ASSET-1: review F1-F4 of 9d83222c",
+    "86cf9cfab77c5016075cdfc9215a76b8a1be839a harness-view, PLACE-ASSET-1: review F1-F4 of 9d83222c in view/place.rs",
+    "0a733db83766263c23ea1978a7f1c53a1974c7b5 harness-view, PLACE-ASSET-1: F4 float sources decode unclipped (lead ruling 2026-11-08)"
+   ],
+   "SMB-GUI-FRAME-1": [
+    "5eba6890df249bfed49be9eede8bc63e85f39e3a gui frame, SMB-GUI-FRAME-1: red tests for the static raster frame (item 1)",
+    "54d7aca5b88aba68b10e5ed3c303629869455deb gui frame, SMB-GUI-FRAME-1: kumihimo-ui core for the frame (item 2)",
+    "03879f78d2ecb36c759c4ec5a9124f6477808c3b gui frame, SMB-GUI-FRAME-1: frame widgets and the contact sheet (item 3)",
+    "d088da7475c4a2d6a12b66137bb7c857ad4844f4 gui frame, SMB-GUI-FRAME-1: the designer's icons as CPU two-tint masks (item 4)",
+    "49521401c73ed3d6a1ba6b62142dbc8c48829e34 gui frame, SMB-GUI-FRAME-1: frame layout and fit ladder (item 5)",
+    "708caba671efdc7429e38c6c571e2e347cc8aeb0 gui frame, SMB-GUI-FRAME-1: the raster frame, command table, observability, receipts (items 6 to 8)",
+    "a58b11770129d6e700cf6f57b890368820b1d443 gui frame, SMB-GUI-FRAME-1: capture matrix test and README (item 9)",
+    "ef7287bf3ca0bc9144bfe5bfd1f84141dd3c57f0 gui frame, SMB-GUI-FRAME-1: focused-run fixes (dropdown reason, one window per test, fit memo)",
+    "7079908c6e486233452260a0087ab6141d5a45f3 gui frame, SMB-GUI-FRAME-1: cache ellipsis results; bound the step-cap storm",
+    "d5909aabb34d507f458fb3b96ec6d4503fbc4bd2 gui frame, SMB-GUI-FRAME-1: storm bound counts the five panels a batch touches",
+    "0f137c5ba6935e18a82a793bae3ff8ec402459e5 gui frame, SMB-GUI-FRAME-1: red tests for the review findings of 4c0103f0",
+    "9b782f0ef16e88807cfbbd48993e9877c44e2043 gui frame, SMB-GUI-FRAME-1: kumihimo-ui review fixes (availability as data, rotated ruler labels, tinted eye)",
+    "31040078ee36db3df14fdc6f03172841dd6eeccd gui frame, SMB-GUI-FRAME-1: native-host review fixes (findings of 4c0103f0 and ba592e46)",
+    "ff428b11d574e491cd30f52bcc56738b8bab198e gui frame, SMB-GUI-FRAME-1: capture matrix adds 2560x1440 (FIT-L1) and 1024x640 window captures",
+    "eb17fad6f4564435aed3122df1291de1791bd638 gui frame, SMB-GUI-FRAME-1: clear the lane's clippy warnings"
+   ],
+   "SMB-VK-UI-PASS-1": [
+    "42e9e5a4e7d8148c16ac695eeafbf8d5321188c2 vk ui pass, SMB-VK-UI-PASS-1: the compose hook",
+    "e221ddd812a0435780911136a6764db878697dee vk ui pass, SMB-VK-UI-PASS-1: item V red (validation layer on, errors counted)",
+    "920e2efb9636f1dd5e82552e8ef0ebe5c31ba15d vk ui pass, SMB-VK-UI-PASS-1: item V, the validation layer on and counted",
+    "503f6874f759c05c3d2339c9aaf1f095c7e1e892 vk ui pass, SMB-VK-UI-PASS-1: item 1 red (UI pass API skeleton and tests)",
+    "980685f424bb08068430d5923654f97644443c38 vk ui pass, SMB-VK-UI-PASS-1: item 2, offline SPIR-V (O3)",
+    "ff7dd3463221090f556d5673c5263fddf523361b vk ui pass, SMB-VK-UI-PASS-1: items 3 to 6, device, pipeline, atlases, every class",
+    "def127d7b86867e9ae1ea9c0d9efade501b62773 vk ui pass, SMB-VK-UI-PASS-1: item 7 red (--chrome vulkan host hook)",
+    "6da0ed31c40dade015e30a7c685d805e4c74e00b vk ui pass, SMB-VK-UI-PASS-1: item 7, --chrome vulkan in the host",
+    "c12067376d062c78eb700acecb4ca5e8997e6656 vk ui pass, SMB-VK-UI-PASS-1: item 8, README",
+    "c25384799f9e8415c77440ca715340ac36e5e8f5 vk ui pass, SMB-VK-UI-PASS-1: review F1 to F4 red",
+    "0a2577135f7198cdaa1328498fe858245541f188 vk ui pass, SMB-VK-UI-PASS-1: review F1 to F6",
+    "88b5500c90b212e2c13702b3732816f19a6b42c3 vk ui pass, SMB-VK-UI-PASS-1: full-frame parity on SMB-GUI-FRAME-1's frame"
+   ],
+   "SMB-AI-LIVE-EFFECTS-1": [
+    "06f5fa57987a26ba43c74be6f844d5d43d21ad50 live effects, SMB-AI-LIVE-EFFECTS-1: red pins for the STU-VEC-157 step-repeat rows",
+    "cece12ad404f6142527ca77f173ff82b390bbe7a live effects, SMB-AI-LIVE-EFFECTS-1: step-repeat rows from STU-VEC-157, key randomize",
+    "b7a9e55637c0e71c861db49fbafac9193f1bdba2 live effects, SMB-AI-LIVE-EFFECTS-1: red composite tests for live filter stacks",
+    "c6195587b9b801c041bfc719ba9021d428dd76bf live effects, SMB-AI-LIVE-EFFECTS-1: red Folio tests for the live_filters member",
+    "5961b9f1f7db97d74e4f4912f5c6a504bd5def47 live effects, SMB-AI-LIVE-EFFECTS-1: Folio live_filters member (StudioLiveFilter stacks)",
+    "304e5491bc9e66be33763fe3c93920cb24170cb7 live effects, SMB-AI-LIVE-EFFECTS-1: composite evaluates vector live filter stacks",
+    "47f7ac7e97d8c2d1674e8303c11446000363d1a2 live effects, SMB-AI-LIVE-EFFECTS-1: red Viewer tests through the drive path",
+    "8c75ded419cafcbecbfb179a1258fadea95ebc4f live effects, SMB-AI-LIVE-EFFECTS-1: Viewer typed live-effect commands, rows and decoders",
+    "c419c728c822e05267a8a6bb969d1d5269217f10 live effects, SMB-AI-LIVE-EFFECTS-1: red tests for review F1, F2, F4, F5, F6",
+    "bebab80a533587640fcad1e89290974f4fecac93 live effects, SMB-AI-LIVE-EFFECTS-1: review fixes F1, F2, F4, F6",
+    "6e46553c02c47a64c7ee235dd1a5da5726669402 live effects, SMB-AI-LIVE-EFFECTS-1: clippy notes in the two live filter test files",
+    "26d577b77c7fc0c162d03e4cca579b9a706adeaf live effects, SMB-AI-LIVE-EFFECTS-1: red tests for the exporter loss lines (item 5)",
+    "1e6528182cd089889cd570a85d566720a7150005 live effects, SMB-AI-LIVE-EFFECTS-1: live filter and envelope loss lines in the record exporters"
+   ],
+   "SMB-PARSER-HOSTILE-1": [
+    "497a43202367f669e57422d4cca5eacff7feffd6 parser hostile, SMB-PARSER-HOSTILE-1 item 1 (red): XML nesting reaches roxmltree's recursion",
+    "7dd205dd5620143980f77f359d32bc4247460feb parser hostile, SMB-PARSER-HOSTILE-1 item 2: no element recursion past XML_MAX_NESTING",
+    "163d870349ab55d40785e1d242c503de7e335e4d parser hostile, SMB-PARSER-HOSTILE-1 item 3 (red): the unguarded hayro reader routes",
+    "bb2614455080e885913bac75ccc4f9c42cd8ba19 parser hostile, SMB-PARSER-HOSTILE-1 item 4: bound the reader before hayro sees a byte",
+    "58d2552fdc83dec9df1ef8c642bf95ad8c4974f6 parser hostile, SMB-PARSER-HOSTILE-1 item 2: an empty element counts its own level",
+    "3de6bd2dcbbd04e9ab19d7dcb2129fa809a2ea4b parser hostile, SMB-PARSER-HOSTILE-1 item 5: the deterministic mutator, its self-test and the TIFF target",
+    "333a5d4af4ed455435748b3a3f8e3314dbbe0d05 parser hostile, SMB-PARSER-HOSTILE-1 item 6: SVG, IDML, PDF, PSD and RAW mutation targets",
+    "ebab86a76ed750f34098c1f2d136398a2e0146a6 parser hostile, SMB-PARSER-HOSTILE-1 items 6 and 8: the .fig target and the depth pin",
+    "6535df4c6b29346b23ad3a7a92a33a581758b7c1 parser hostile, SMB-PARSER-HOSTILE-1 lead ruling 1 (red): the cap from 1 and 2 MiB callers",
+    "0d32f221c74668c4a2dcce16123e7f9e1b2a3187 parser hostile, SMB-PARSER-HOSTILE-1 lead ruling 1: every guarded XML parse on a fixed 8 MiB stack",
+    "a2931ce7b3bb1bfc56479ec60eca10b8b2016961 parser hostile, SMB-PARSER-HOSTILE-1 review FIX_FIRST F3-F7: retune the reader-bounds pass for print files",
+    "6647926b945d5ae827a05ba8775a2c76d0c2fb1c parser hostile, SMB-PARSER-HOSTILE-1 review F1 and F4-F7: red tests for the retuned reader pass",
+    "9a041e31da90adf8a11828fd469192ffaf0e5964 parser hostile, SMB-PARSER-HOSTILE-1 ruling F2: name the cap row through the caller-thread walk",
+    "ce2203b49abb7eaef25e9633201b23aca308bd9c parser hostile, SMB-PARSER-HOSTILE-1 lead ruling limits (red): bad Flate tail warning, 1 KiB bomb, A2 RGB JPEG, CIDSet and halftone rows",
+    "4ef03bd0adaed2120114fcc1f7ac9c739d9493de parser hostile, SMB-PARSER-HOSTILE-1 lead ruling limits (red rows): build the 1 KiB bomb with chained Flate stages",
+    "a6b5b77e1cd4f63a68f6fd8333383161674f31f6 parser hostile, SMB-PARSER-HOSTILE-1 lead ruling limits: a bad Flate tail keeps base behaviour with a warning",
+    "738c26f78606ce3a96dd645a0c1a8c0b490106b7 parser hostile, SMB-PARSER-HOSTILE-1 F7 row: the flate_bomb input is past the 1024 ratio (two Flate stages, checked)",
+    "27365b811f18a1a00fa2f80c92ca578891d56ada parser hostile, SMB-PARSER-HOSTILE-1 lead release: DESCRIPTOR names pdf_stream_tail_damaged; clippy too_many_arguments (documented allow) and manual_clamp in render_bounds"
+   ],
+   "SMB-LAYOUT-PLACE-1": [
+    "e2e28244f8c279b4537b097b8d70c1ef845a5f59 layout place, SMB-LAYOUT-PLACE-1: red tests for pictures in layout frames",
+    "53be74083b4a35172897f4cb0ff20dace35a378d layout place, SMB-LAYOUT-PLACE-1: one Run step for a layout edit and an entry; asset.fit row",
+    "eedd8c6b6551e4fa201bb57b9dd81d4b7edbe285 layout place, SMB-LAYOUT-PLACE-1: place into a layout graphic frame, fit, links, transform refusals",
+    "60b07f35a5d989e1849a003a53f20bc075ac4b7b layout place, SMB-LAYOUT-PLACE-1: the layout PDF draws graphic frames through a host resolver",
+    "e0da53238feeec0fa711545b49765d68ef634c5b layout place, SMB-LAYOUT-PLACE-1: red tests for the fbf7f0cd review rulings",
+    "9a121e30d067f2a46add522f25cc1f1b8b8f1e69 layout place, SMB-LAYOUT-PLACE-1: frame records follow their layers; link gate per source",
+    "8f75d56366a0c735b88723045651ef1a39e69401 layout place, SMB-LAYOUT-PLACE-1: paint colours resolve no profile in the layout PDF",
+    "87f331f9790ac714bb97299d05dff854c6b92855 layout place, SMB-LAYOUT-PLACE-1: the link gate runs right after preflight"
+   ],
+   "SMB-DEVELOP-COMMANDS-1": [
+    "ab28e323d7f875681c5f38ecf6651df4aa4900b5 harness, SMB-DEVELOP-COMMANDS-1: red, typed develop rows equal the direct develop_op call",
+    "1809f8c23dffa39efa769f3be99c62b0ec8e2844 harness-core, harness-view, SMB-DEVELOP-COMMANDS-1: typed rows for every DevelopOp and FamilyOp",
+    "264051cac658024b457615dbe252b5fd92420e34 harness, SMB-DEVELOP-COMMANDS-1: red, group enables, point curves, crop, snapshots and preset save",
+    "a2ed6feb95acb46671838d758d5c5d23bc20aa73 harness-core, harness-view, SMB-DEVELOP-COMMANDS-1: group enables, point curves, crop, snapshots, preset save",
+    "363e1ce8e8e728bb5dcb1de4d88689f285118917 harness, SMB-DEVELOP-COMMANDS-1: new-op differentials, red for the R60 photo.info probe",
+    "93d93a546c3c6a08a2bc04c4741b04068f095583 harness-core, SMB-DEVELOP-COMMANDS-1: photo.info rows declare they mutate (R60 probe)",
+    "7be876a06f740020d2c35a67bbc36e3bc6d6d9b7 harness-view, SMB-DEVELOP-COMMANDS-1: one crop JSON for the entry and the state; entry indentation",
+    "99c3cb224c0cad70baf0c4f10f8b07682cbcfe2b harness, harness-view, SMB-DEVELOP-COMMANDS-1: clippy bool assert in the lane test; entry blank line",
+    "5162f5d8b53c67544d55428e23d3a8e64a2852a0 harness, SMB-DEVELOP-COMMANDS-1: red, document export of a cropped develop names develop_crop_not_applied",
+    "44e0fdded9111e5d3ecf33653917c5b75e3fc931 harness-view, SMB-DEVELOP-COMMANDS-1: document export names develop_crop_not_applied for a stored develop crop",
+    "1c034bb3e14f2d28d375db95e3c0009a4213c09f harness, SMB-DEVELOP-COMMANDS-1: red for review 945406d9 F1-F4",
+    "4506a6cf76a8a6f69a338045bd10d448da9edf35 harness-view, SMB-DEVELOP-COMMANDS-1: review 945406d9 F1-F4"
+   ],
+   "SMB-SCORE-EFFECTS-6": [
+    "b69b11845ae75c2105ddbde128e3f513dc5a0b13 score effects 6, SMB-SCORE-EFFECTS-6: red tests and refusing stubs",
+    "2437c80f77a6e951108570cf7b1b0826b3728431 score effects 6, SMB-SCORE-EFFECTS-6: graphic equalizer kernel (10/20/30 bands)",
+    "8bfe64cec93c65f30f83059ddd939b07930398c9 score effects 6, SMB-SCORE-EFFECTS-6: spec parameter records and graphic EQ rows",
+    "6436eccc379a867ec4798279185b824784dbbdb4 score effects 6, SMB-SCORE-EFFECTS-6: filter-kind table",
+    "06573650ade95f8a63e4def2733867437f085681 score effects 6, SMB-SCORE-EFFECTS-6: document reach of the filter-kind table",
+    "fad3db9cac92dc8c2ec6812126d1e25286c9589a score effects 6, SMB-SCORE-EFFECTS-6: noise reduction on a waveform selection",
+    "473fee8ef94a89e82198a3a5c414db0969041283 score effects 6, SMB-SCORE-EFFECTS-6: red tests for review F3 and F4",
+    "1ae606c137afcd3bcfe8f60494c91f5c4e2ec806 score effects 6, SMB-SCORE-EFFECTS-6: review F3, a noise-print digest is a cache check",
+    "aa5d789e2b18c2bc6116889ed51f9de82aaec71c score effects 6, SMB-SCORE-EFFECTS-6: review F4, one aggregate effect-state budget",
+    "e852141642355541fda4c71957e0fe900b9facf1 score effects 6, SMB-SCORE-EFFECTS-6: review F1 and F5",
+    "7d67dbf47ed58859bf151e27d0b793ce8a952b2e score effects 6, SMB-SCORE-EFFECTS-6: red tests for the lead's gap rulings",
+    "cc7378784fc62bd038fadcece4cd579f38521562 score effects 6, SMB-SCORE-EFFECTS-6: gap rulings, one budget for every bus graph builder",
+    "cfaeddd0f2970f60c9379d82d872e9ecfba4870d score effects 6, SMB-SCORE-EFFECTS-6: last gap, playback and Export Media record recomputes",
+    "501f5190894dbf11fea676bd14a493d3b3a11816 score effects 6, SMB-SCORE-EFFECTS-6: red test for the last gap ruling",
+    "7b922af3bafd04e96e8b76c178a7fc2fb4f38bf5 score effects 6, SMB-SCORE-EFFECTS-6: red tests for review F2",
+    "9dbbd4ad3967d2334f32e54a4eb4cf789ac7d8e5 score effects 6, SMB-SCORE-EFFECTS-6: review F2, drive template lists and noise_reduce rows",
+    "733789d6a5c37f680453cab8cc4acae23d2b4b88 score effects 6, SMB-SCORE-EFFECTS-6: waveform.noise_reduce in the drive slice rows"
+   ],
+   "SMB-TYPE-INDENT-SPACING-1": [
+    "72eb4c2955836b74cae6a93258a8de18e7df95ff folio typestyle, SMB-TYPE-INDENT-SPACING-1 (red): STU-TYP-185 indent and spacing fields on StudioCompositionSettings, red tests for points-only finite validation",
+    "e55b6104ae213f9a0ba1cc49a3cee2634c232d75 folio typestyle, SMB-TYPE-INDENT-SPACING-1: indents and spacing validate as finite points; STU-TYP-185 table as data",
+    "6c74a63cd01b008b3a058f7cc9cb8561552c4c54 layout, SMB-TYPE-INDENT-SPACING-1 (red): ParagraphGeometry plumbing and red composition tests for STU-TYP-185",
+    "84d6da9ad61168c6a470b357c73c4976872b797f layout, SMB-TYPE-INDENT-SPACING-1: paragraph indents and spacing composed by every composer (STU-TYP-185)",
+    "a31292eb254ffc88d3ca8433c19e416e5ee71ccd layout textflow + harness-view, SMB-TYPE-INDENT-SPACING-1 (red): shift_paragraph_records skeleton, StylePatch.composition, drive decoder key; red tests",
+    "debc3952b111f0807757b654fe108ded53680695 layout textflow, SMB-TYPE-INDENT-SPACING-1: shift_paragraph_records moves, drops and dedupes paragraph-keyed records (V4-06 class C)",
+    "fd1bc5183d11b0b2de3f80a07b773ff21f05814d harness-view layout styles, SMB-TYPE-INDENT-SPACING-1: EditStyle sets and clears a paragraph style's composition settings",
+    "e3ae0bc660685df9124d4522d13b9aac30e6fe8c interop-layout, SMB-TYPE-INDENT-SPACING-1 (red): IDML indent/spacing import and export-loss tests; type_style_composition_loss stub",
+    "27c238e14970f2b7a033aa1f6b5a476192f64a38 interop-layout, SMB-TYPE-INDENT-SPACING-1: IDML indents and spacing import as points; typed loss for composition settings IDML export does not write",
+    "cd73e506e22269241a20e6bde08b4c2748bf6d08 SMB-TYPE-INDENT-SPACING-1: clippy clean-up (boxed StylePatch.composition) and the ignored last-line re-break measurement",
+    "fb66200596e93d121dfbb41269638c90c4f5c858 SMB-TYPE-INDENT-SPACING-1 (red): lead rulings 2026-11-08 red tests; class C siblings as skeletons",
+    "ae4ca376d9df60a5afb0854662a98d9491218616 SMB-TYPE-INDENT-SPACING-1: lead rulings 2026-11-08 1, 2, 4 (unbuilt: C: held)",
+    "c1c1410c75c7c67430c4e57144909673273177eb layout textflow, SMB-TYPE-INDENT-SPACING-1: text inserted at byte 0 of a non-empty story joins the first paragraph (unbuilt)",
+    "b4f5336c7929c0bebe3254af4f43a002a9a58ea0 SMB-TYPE-INDENT-SPACING-1 (red, unbuilt): review F1, F2, F3, F4, F6 red tests",
+    "472c8249b09b66f6bf66f0d85a0d9e9757f6d6df SMB-TYPE-INDENT-SPACING-1 (unbuilt): review fixes F1, F2, F3, F4, F6",
+    "b423ceec1d1fc721f1f9dd72c27b6658b1f7ed48 SMB-TYPE-INDENT-SPACING-1 (red): lead ruling 2026-11-11 AdobeParagraph last-line re-break red tests",
+    "dc444c8e39f87fee6049c2a8bedbe84c30a56490 layout, SMB-TYPE-INDENT-SPACING-1: AdobeParagraph last-line re-break as a local tail composed for the paragraph's end",
+    "76523dc86e641ab71bee0e12c20d734554762b2b SMB-TYPE-INDENT-SPACING-1 (red): lead ruling 2026-11-11 (second) last-line re-break red tests for FirstFit, Knuth-Plass and AdobeSingleLine",
+    "153a410df8e9de4fa073349bdb6d63c5a9b848ce layout, SMB-TYPE-INDENT-SPACING-1: FirstFit, Knuth-Plass and AdobeSingleLine narrow the line that ends the paragraph"
+   ],
+   "SMB-MOTION-COMMANDS-2": [
+    "8ccf56d64a60e1ae833654fbf47049f74aaf41a2 motion commands 2, SMB-MOTION-COMMANDS-2: red tests (folio solid and adjustment records, composite adjustment effects, harness rows)",
+    "3e08e1f7eeaf38c46b6f2e11f0ad77cbe8bb5e14 motion commands 2, SMB-MOTION-COMMANDS-2: red test for the R60 attempt-2 probe (add at current takes no caller value; set_parent states its choice)",
+    "332fc11e0ffb73f7f46862d11fca39af03b34227 motion commands 2, SMB-MOTION-COMMANDS-2: folio solid layer records and the group-payload adjustment layer",
+    "4ef81ec05c888868ade42dad46585c2bd81900e4 motion commands 2, SMB-MOTION-COMMANDS-2: composite solids and composition adjustment-layer effect stacks (STU-CMP-015)",
+    "9d0b9999302d7516aca2c4402d22423c17f49529 motion commands 2, SMB-MOTION-COMMANDS-2: add or toggle at current never takes a caller value; set_parent states its choice",
+    "acb3582312212d582bc7cb5f8a513a8f5c065cb9 motion commands 2, SMB-MOTION-COMMANDS-2: solid and adjustment kinds, keyframe selection, clipboard, shift, ease and hold as typed commands",
+    "46e1913eb5572d6a6c392f43f5ba083bf50aed60 motion commands 2, SMB-MOTION-COMMANDS-2: red tests for review F1 to F7 (lead rulings 2026-11-11)",
+    "04301f37ecdd774764d0f43f71ab2c69454898ac motion commands 2, SMB-MOTION-COMMANDS-2: red tests F4 and F7 fail for their own reason",
+    "37e5fa90d238e158ea2e49cd614ea4a8d0ae8ed5 motion commands 2, SMB-MOTION-COMMANDS-2: review F2 and F4 (composite)",
+    "d9fca9b1a7170a2e2ce1b63e0eca03d4827600e8 motion commands 2, SMB-MOTION-COMMANDS-2: review F1, F3, F5, F6 (harness-core)",
+    "4b77ae3d9d36a731630675fefea97ed0567bdd8c motion commands 2, SMB-MOTION-COMMANDS-2: review F7, PSD export records a composition adjustment layer as a typed loss",
+    "793edf9ee7f9b2dd7ab850b94f061ae318f83fa1 motion commands 2, SMB-MOTION-COMMANDS-2: clippy type_complexity on selection_groups (a Groups alias)",
+    "b68e1259a2ac7a13de10328b8b068f7a6a1a145f motion commands 2, SMB-MOTION-COMMANDS-2: F2 and F7 tests match what the bundled run found",
+    "03894fdd4ced6123e673324d94b7244bdfdbf20d motion commands 2, SMB-MOTION-COMMANDS-2: clippy single-element loop in the F2 test"
+   ],
+   "SMB-WEB-SITE-1": [
+    "ba26fd47c71d10ded7b090f801de12232e271c00 web site, SMB-WEB-SITE-1: red tests for the site link graph (report, document-set export, move, lock, page-link warning)",
+    "78097680ad78bce3832bfcfc29d3c11b1979ca5d web site, SMB-WEB-SITE-1: red test without a drive-letter literal (step 0)",
+    "b07a996d7f9a5e4b0a5fc3b44bb004a60d704ab9 web site, SMB-WEB-SITE-1: the site as one link graph",
+    "aa595320b2d04f957f1db59f295e9a47907cf812 web site, SMB-WEB-SITE-1: red tests, web jobs through the viewer's job port (R60 probe j3) and the opened package never moved",
+    "ff565837ba5da02955ed4030cf98c93e477fa848 web site, SMB-WEB-SITE-1: web jobs through the viewer's bound job port with the open package as resource; move_open_package",
+    "96b9117ac83c9975e0f467d16eebb63ff207cef5 web site, SMB-WEB-SITE-1: red tests, web jobs with no package open still ask the bound job port (R60 probe j3, resource-less admission not accepted)",
+    "895c489f812390a7900b01e3138332f6ee9bee2c web site, SMB-WEB-SITE-1: red test helpers that do not assume a frame with no package open",
+    "47d14bb1f093d592b8a8ae2c2f11d3d14756133d web site, SMB-WEB-SITE-1: web jobs are never resource-less; with no package open the site's derived id addresses the job (R60 probe j3)",
+    "5df7142fe02988c2ec5465d44ff196f81a18dbe0 web site, SMB-WEB-SITE-1: red tests for review e3fc0e89 (F1 to F8, Q1 to Q4)",
+    "87f7382f4a4752277f7030c1d6742be708eff86f web site, SMB-WEB-SITE-1: review e3fc0e89 fixes F1 to F9, Q1 to Q4",
+    "54b9c895356f9933c79f92265baf6f2a777fc669 web site, SMB-WEB-SITE-1: clippy explicit_auto_deref in the move's verification"
+   ],
+   "SMB-DELIVERY-QUEUE-1": [
+    "612e3ccd90becd6707bfaa2951e771bdaa0d5039 harness, SMB-DELIVERY-QUEUE-1: red tests for the delivery queue, user recipes and PNG sequences",
+    "feab46d400412e85db374317918a0afc78647b41 session, SMB-DELIVERY-QUEUE-1: document entry token export_recipes (user export recipes)",
+    "65a5a1149a722e20d7c9eb1c4e37f803285a74cb harness-core, SMB-DELIVERY-QUEUE-1: delivery and recipe rows, render queue reorder, duplicate, templates",
+    "0632a48628a267eb45ababb35b0d15ec396039f0 harness-view, folio, SMB-DELIVERY-QUEUE-1: one delivery queue, user recipes, PNG sequence with alpha",
+    "ea3b02341c9c5e3adb6d3193c3353c5dec21552f harness, SMB-DELIVERY-QUEUE-1: deliver CLI verb; delivery_queue tests completed",
+    "f4766ba00924d56314f3743a62dd18bad6ccad71 harness, SMB-DELIVERY-QUEUE-1: red tests for review 44da1364 F1-F6",
+    "c3d2e6d7369592dab944d7c6fa743b6c02c3880c harness-core, SMB-DELIVERY-QUEUE-1: review 44da1364 F2 store bound, F4 template, sRGB PNG default",
+    "ddc44a6ede5892fb212de39f9f519430a3416165 harness-view, SMB-DELIVERY-QUEUE-1: review 44da1364 F1-F7 (lead rulings 2026-11-11)",
+    "aa033c05e068b38ca8bea1a6602fd62731b13c32 harness, SMB-DELIVERY-QUEUE-1: deliver verb outside the export-sequence manual scan"
+   ],
+   "SMB-R60-FOLLOWUPS-1": [
+    "de2a9ce7511acd6f3716aeb25cbd9569d3bbd4c6 r60 followups, SMB-R60-FOLLOWUPS-1: red tests for items 1, 2, 4 to 8",
+    "fb2c9be8f630cff2143a94bfcd73e7110303fd85 r60 followups, SMB-R60-FOLLOWUPS-1: items 7 and 8, kumihimo-ui checks",
+    "974bb2275a79edda719c226ac64c0f6340538531 r60 followups, SMB-R60-FOLLOWUPS-1: item 5, reel .vtt output names as Windows resolves them",
+    "571ab2ecfe1f0a73b4c9d8081fdb4235e45f4b22 r60 followups, SMB-R60-FOLLOWUPS-1: items 4 and 6, page mint and page delete with layout records",
+    "a50831a5dc93a7b403ba74a974220d5c6e3045d7 r60 followups, SMB-R60-FOLLOWUPS-1: items 1 and 2, document export and export.run admitted through the JobPort",
+    "c694349ee746772682359a4ddde1166d70bf9e45 r60 followups, SMB-R60-FOLLOWUPS-1: item 6, a page a text frame sits on refuses page_not_empty",
+    "4eedd6babd93feb396c6d438e30ba2d974a8b39e r60 followups, SMB-R60-FOLLOWUPS-1: red tests for the item 1 and item 4 remainders (lead ruling 2026-11-11)",
+    "96070423e4549d0d529f34180869d2bcf31646a6 r60 followups, SMB-R60-FOLLOWUPS-1: red tests for review c43f2d90 rulings",
+    "66d5fefbc43c5c7315e7a68208b568e50c4b2ad1 r60 followups, SMB-R60-FOLLOWUPS-1: the F1 drive red test opens the harness fixture",
+    "822ddfbcc80567b23fd8ba2f2da404b96efa33e8 r60 followups, SMB-R60-FOLLOWUPS-1: page mint reads id fields only and takes the lowest free number; named page.delete refusals",
+    "d0a769e6225ef90870b37734ba0b40d40b32fa20 r60 followups, SMB-R60-FOLLOWUPS-1: export routes and the batch admit through the bound JobPort",
+    "95b2e08cf88dbe4507f78825a0cffd6c2d7a5616 r60 followups, SMB-R60-FOLLOWUPS-1: the drive names the undo step of a layout row whose result has none (review F1)",
+    "61aa8bf5193fca0e9f287d5332f1365d8c38d191 r60 followups, SMB-R60-FOLLOWUPS-1: red test, a threaded text-frame layer delete refuses layer_bound_by_layout_records",
+    "31e5e362131e0266807fd40315bd79b74db46a82 r60 followups, SMB-R60-FOLLOWUPS-1: red tests for items 3a, 3b and export_audio",
+    "392fadd793a1ab46bd8ab603aa38fafc6c181f14 r60 followups, SMB-R60-FOLLOWUPS-1: items 3a, 3b and export_audio admit through the bound JobPort",
+    "84716f186daf2353d5e4fde5cff1871ecd8efe24 r60 followups, SMB-R60-FOLLOWUPS-1: a text-frame layer a thread or flow record names refuses layer_bound_by_layout_records",
+    "e29d933a3742a1ab046b30b6123448c1859e1ba2 r60 followups, SMB-R60-FOLLOWUPS-1: an open audio file's export asks the bound port through a derived resource"
+   ],
+   "SMB-DS-COMPONENTS-AUTHOR-1": [
+    "18823ad66b0fb003dfb8548f9e6d6c7483d06b23 design components, SMB-DS-COMPONENTS-AUTHOR-1: red tests for component, variant set, property and instance authoring",
+    "f89f02754b66df1c2b6e7177c2978afc2f9c51df design components, SMB-DS-COMPONENTS-AUTHOR-1: component, variant set, property and instance authoring commands",
+    "7db0976f4201c059f1c03c22523f9a0937172261 design components, SMB-DS-COMPONENTS-AUTHOR-1: red tests for review fa15c84d F1, F2, F4 to F8, F10 and the prune on open",
+    "01e6017c34552b25a9c47f58229d64e22c1a6a62 design components, SMB-DS-COMPONENTS-AUTHOR-1: red F2 test drives 257 instances (redraws of one instance reuse its layer ids)",
+    "da54f76899edb67e4381bfd4da2ed642d7c19dba design components, SMB-DS-COMPONENTS-AUTHOR-1: review fa15c84d F1 to F10 per the lead rulings of 2026-11-11",
+    "685d9072ee9f24fd77dfe4b4760b47f981905366 design components, SMB-DS-COMPONENTS-AUTHOR-1: a new binding is checked alone, not with another instance's state of a reused layer id",
+    "b9306cbaaf19c03ec737a7dc3e660187c38dcb4e design components, SMB-DS-COMPONENTS-AUTHOR-1: red tests for lead rulings R1 (no compaction an undo can reach), R2 (prune superseded states on open), R3 (F9 code, F10 design file refusal)",
+    "68575b77f0213cb3bdde33018b4b1b435fa2bb79 design components, SMB-DS-COMPONENTS-AUTHOR-1: lead rulings R1 and R2: no text compaction an undo can reach (text_layer_over_cap in a session, copy records compacted on open), superseded design states pruned on open",
+    "fee4212b38fafe0f1539c0a02e6c81f610912890 design components, SMB-DS-COMPONENTS-AUTHOR-1: red R2 test as 1040 create and delete cycles (the drawn-shape form passed nextest's 120 s limit)",
+    "2ad326ab22b95be8042e89426d26903d1c122319 design components, SMB-DS-COMPONENTS-AUTHOR-1: R2: on open with no history, states of instances whose record is gone are pruned too",
+    "7f30d16542833b6a9ae974b76955cccf94745f75 design components, SMB-DS-COMPONENTS-AUTHOR-1: R2 test as 1040 create and undo cycles (the delete form passed nextest's 120 s limit: its copy paths stay in the vector entry)",
+    "b57c82d1445f8c0858f73f0fd670c8c08b637b18 design components, SMB-DS-COMPONENTS-AUTHOR-1: R2 prune on open covers authored instances only; a design file instance's states reopen as saved (viewer_fig_edit_persist pins byte-identical entries)"
+   ]
+  },
+  "commits": {
+   "since_r59": 308,
+   "since_attempt2": 188,
+   "owned": 306,
+   "unowned": [],
+   "trunk_no_claim": {
+    "5d020939": "steward sync F-R60-1 (registry pins, probe APPROVED, two lead-approved edges); no claim",
+    "89e9a2ac": "SMB-ARTBOARD-EXPORT-1 follow-up (drive tests give the SVG export an artboard), outside every claimed range; by subject SMB-ARTBOARD-EXPORT-1's (lead_flagged in attempt 2)"
+   }
+  },
+  "matrix_cut": "not in the candidate: git diff 35c50d3b..b57c82d1 -- .config is empty (setup.out) and .config/round-features.toml is unchanged since 7879e7e9, keeping all 18 hsk-studio-harness feature sets; the steward's cut of the 5 strict-subset units was not landed, so the matrix ran as it stands (49 feature units, 164 test units); R59's matrix_cut_no_objection stands for a later landing",
+  "vulkan_loader": "vulkaninfoSDK --summary: Vulkan Instance Version 1.4.363; VK_LAYER_KHRONOS_validation 1.4.363; NVIDIA GeForce RTX 3090, discrete, driver 621.1.0.0, apiVersion 1.4.357 (validator-R60-a3/vulkaninfo-summary.txt); VULKAN_SDK and VK_SDK_PATH in the inherited machine environment, read by no product file",
+  "probes": {
+   "rule": "validator probes on a scratch tree at b57c82d1 (not round runs; CX-VAL-007 untouched): product failures confirmed by run, leads for the next attempt and the builders; no verdict because no round opened (CX-VAL-005)",
+   "failures": {
+    "SMB-R60-FOLLOWUPS-1": [
+     {
+      "test": "hsk-studio-harness::r60a3_e_first_byte_probe r60a3_e1_batch_target_writes_nothing_in_the_destination_before_admission",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "batch-target-bytes-before-admission",
+      "severity": "HIGH",
+      "file_line": "crates/hsk-studio-harness-view/src/view/doc_export.rs:1013-1025 (RecipeTargets::write: checkpoint temp :1015-1017 before export_document admits at :1025)",
+      "evidence": "port bound with RecipeTargets::with_job_port lists the destination folder when asked: asks 1, at admission the folder already held .hsk-77112-0.batch-src.handshake (the whole input document, written by create_unique_sibling + write_all + sync_all), then refused overloaded and the temp was removed",
+      "repair_direction": "ask the bound port before the checkpoint temp is written (or keep the temp out of the destination); one admission per target",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-e1.log (sha256 9806fd66fcc304b23a235553ceea1cb3d1b80c391036395f3f203035fba2b40a)"
+     },
+     {
+      "test": "hsk-studio-harness::r60a3_e_batch_port_probe probe_e2_batch_with_the_callers_port_on_runner_and_exporter",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "batch-double-admission-self-starvation",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/batch.rs:957-967 with crates/hsk-studio-harness-view/src/view/doc_export.rs:1021-1023",
+      "evidence": "one-slot port bound as BatchPorts.jobs and RecipeTargets::with_job_port (the caller's port): the runner holds the input's ticket, the target export asks the same port again and is refused overloaded (receipt error code overloaded, stage output, outcome failed); no PNG",
+      "repair_direction": "admit a batch target once: the runner's ticket covers its exporter, or only the exporter asks the bound port",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-e2.log (sha256 e6f36bba82cf10bca15f29c4688d88fa1095db8d8faab1e4ed69e91a89a1c428)"
+     }
+    ],
+    "SMB-DOC-EXPORT-1": [
+     {
+      "test": "hsk-studio-harness::r60a3_e_first_byte_probe r60a3_e1_batch_target_writes_nothing_in_the_destination_before_admission",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "batch-target-bytes-before-admission",
+      "severity": "HIGH",
+      "file_line": "crates/hsk-studio-harness-view/src/view/doc_export.rs:1013-1025 (RecipeTargets::write: checkpoint temp :1015-1017 before export_document admits at :1025)",
+      "evidence": "port bound with RecipeTargets::with_job_port lists the destination folder when asked: asks 1, at admission the folder already held .hsk-77112-0.batch-src.handshake (the whole input document, written by create_unique_sibling + write_all + sync_all), then refused overloaded and the temp was removed",
+      "repair_direction": "ask the bound port before the checkpoint temp is written (or keep the temp out of the destination); one admission per target",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-e1.log (sha256 9806fd66fcc304b23a235553ceea1cb3d1b80c391036395f3f203035fba2b40a)"
+     }
+    ],
+    "SMB-DOC-NEW-1": [
+     {
+      "test": "hsk-studio-harness::r60a3_f_doc_probe r60a3_f_p4_artboard_options_never_outgrow_their_own_reader",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "artboard-options-entry-outgrows-its-reader",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/harness/containers.rs:658-672 (writes rows, never prunes inert ones) with src/document_new.rs:533-561 (parse_options refuses > 2 x MAX_ARTBOARDS rows; options_bytes writes any count)",
+      "evidence": "2001 add / set_options / delete cycles, all Ok; then artboard.set_options on the document's live artboard refuses artboard_options_invalid: the product wrote an entry its own reader refuses, and every later read or write of artboard options refuses (no undo after reopen)",
+      "repair_direction": "prune inert rows (artboards the document no longer holds) or bound rows at write as parse_options does; never write what the reader refuses",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-f4.log (sha256 19d2e721bf417aa65da3e3dcd8dea552f32d2ca4bcad307c9d58d76d170fc189)"
+     }
+    ],
+    "SMB-MOTION-COMMANDS-1": [
+     {
+      "test": "hsk-studio-harness::r60a3g_motion_values r60a3g_enable_animation_keys_the_current_value",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness (default features)",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "motion-row-takes-the-callers-value",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/motion_commands.rs:874-884 (enable_animation keys value.unwrap_or(static))",
+      "evidence": "opacity static 40; property.enable_animation with value [90] at 1 s keys 90, property.read at 3 s gives [90]: enabling animation changed the render (STU-MOT-038: animation starts from the current value; same class as attempt 2's add_at_current probe)",
+      "repair_direction": "property.enable_animation keys the current evaluated value; refuse or ignore a caller value",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-g1.log (sha256 b2f4a77a64beef46a50e8b82757e91268c58ca2f12f59c7dc0f298b6b89b42dc)"
+     },
+     {
+      "test": "hsk-studio-harness::r60a3g_motion_values r60a3g_disable_animation_returns_an_absent_anchor",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness (default features)",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "motion-row-takes-the-callers-value",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/motion_commands.rs:1811-1818 (keyframe.set seeds the new stream's static value from the caller) and :885-890 (disable_animation only clears keys)",
+      "evidence": "no anchor stream; keyframe.set anchor [37, 11] at 0 then property.disable_animation leaves an anchor stream whose static value is the caller's [37, 11]: disabling does not return the prior static value (STU-MOT-020b)",
+      "repair_direction": "a stream created by a keyframe keeps the prior (implied) static value; disable_animation restores it",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-g1.log (sha256 b2f4a77a64beef46a50e8b82757e91268c58ca2f12f59c7dc0f298b6b89b42dc)"
+     }
+    ],
+    "SMB-WEB-SITE-1": [
+     {
+      "test": "hsk-studio-harness::r60a3_h_p1_probe r60a3_h_p1_a_move_never_leaves_a_denied_reference_to_from",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness (default features)",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "move-leaves-a-reference-to-from-broken",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/web_site.rs:1410 (move verified only over rewritable references; Reach::place ignores the rename for a Denied reference, :285, :1277)",
+      "evidence": "index.html with <base href=\"/\"> links thanks.html; web.move_file thanks.html -> pages/thanks.html is accepted, receipt complete:true, changed [] : index.html still names thanks.html, now missing",
+      "repair_direction": "a move that leaves any reference to `from` unrewritten refuses typed before the first write, or rewrites it",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-h1.log (sha256 cb9c667fa92d940b7ef553f69dcd0b7abc9fe1f1371db54cafcff00e954181fc)"
+     },
+     {
+      "test": "hsk-studio-harness::r60a3_h_p2_probe r60a3_h_p2_a_moved_entry_document_survives_undo_and_redo",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness (default features)",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "recipe-file-follow-not-a-history-step",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/web_site.rs:1387 (recipe.file updated in memory only)",
+      "evidence": "export_recipe file thanks.html; web.move_file to pages/thanks.html; web.undo then web.redo of the recipe step brings back file thanks.html (web_state recipe.file), so the next web.export refuses entry_document_missing",
+      "repair_direction": "record the recipe.file follow as part of the move's history step (and the saved sidecar)",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-h2.log (sha256 1b3a596095d11c3220f5a2a30a8e68b143e859c0b4da76da5111509a49d5874b)"
+     },
+     {
+      "test": "hsk-studio-harness::r60a3_h_p4_probe r60a3_h_p4_a_move_never_skips_a_document_of_the_site",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness (default features)",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "site-graph-skips-non-portable-names",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-core/src/web_site.rs:488 (the walk skips documents with a space or non-ASCII name)",
+      "evidence": "site with index.html and 'about us.html' both linking img/hero.png; web.move_file img/hero.png -> img/h2.png accepted, receipt complete:true, only index.html rewritten; 'about us.html' keeps img/hero.png, now missing",
+      "repair_direction": "a document the walk cannot address refuses the move typed (fail closed as for unparsed files) or is rewritten",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-h4.log (sha256 c608498cf4ba9949019681b3a03ea7473022fd099e686d66afd83eef19d6263f)"
+     },
+     {
+      "test": "hsk-studio-harness::r60a3_h_p3_probe r60a3_h_p3_a_save_never_leaves_a_stale_site_lock",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness (default features)",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "save-over-the-site-lock-file",
+      "severity": "LOW",
+      "file_line": "crates/hsk-studio-harness-core/src/web_site.rs (web.save inside local_root does not reserve .studio-site.lock)",
+      "evidence": "web.save of a document to <root>/.studio-site.lock is accepted; web.site_report then refuses site_locked held by '?' with the manual step 'delete the lock file by hand'",
+      "repair_direction": "refuse a save to the reserved lock name",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-h3.log (sha256 3578a625788f268a31c27a252d79a7d16f329f8e41b1e78a0eb32e54a3215d7a)"
+     }
+    ],
+    "SMB-DRIVE-TYPED-2": [
+     {
+      "test": "hsk-studio-harness::r60a3_j2_capture_probe r60a3_j2_prototype_capture_frame_asks_the_bound_job_port_before_writing",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "export-job-not-admitted-jobport",
+      "severity": "HIGH",
+      "file_line": "crates/hsk-studio-harness-view/src/view/commands/prototype.rs:121-131 with :45-55 (write_png -> export::write_atomic, 576c4d5e)",
+      "evidence": "Viewer::set_job_port(saturated port refusing every admit); prototype.start_session on fig-prototype-pages.fig Ok; prototype.capture_frame with a path -> Ok, port asks 0, frame.png written (attempt 2's class: every new export job admits through the session JobPort before its first byte)",
+      "repair_direction": "admit capture_frame's file write through the viewer JobPort (admit_export_job) before rendering it to disk; settle once",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h4-j2.log (sha256 40e84111198ba8317effa78873dc1a53f9105e037484bb182086f72a64b8d550)"
+     }
+    ],
+    "SMB-TYPE-INDENT-SPACING-1": [
+     {
+      "test": "hsk-studio-layout::probe_r60a3_i_layout probe_negative_space_before_places_lines_above_the_frame",
+      "unit": "validator probe (scratch tree at b57c82d1; copy of tests/indent_spacing.rs plus the probe; D:), -p hsk-studio-layout",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "negative-space-places-lines-outside-the-frame",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-layout/src/threaded_reflow.rs:1147 (space before applied as a signed offset) with :373 and next_slot (bottom-only fit check)",
+      "evidence": "40 one-line paragraphs, paragraph 2 with space_before -1000 pt, frame 120 x 100 pt, FirstFit: 40 lines placed, min baseline -966 against the first line's 10, overset None: lines are placed above the frame and the story reports that everything fits",
+      "repair_direction": "keep lines inside the frame for a negative space (clamp at the frame top, or refuse it) and count what does not fit as overset",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-i34.log (sha256 f367796c6263676f9445921f5c5ca2b5d771d69a4689b2b76822aac9b6ca7f07)"
+     }
+    ]
+   },
+   "controls": [
+    {
+     "test": "r60a3_f_p1_a_parent_item_frame_delete_never_locks_the_layout",
+     "status": "passed",
+     "evidence": "NOT_PROVEN (reviewer lead R60-a3-F-1): delete_layer of a drawn layout text frame refuses 'not in a layer stack', so the parent-item path is not reachable this way; layout still editable",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-f1.log (sha256 03747df2eb909ba7eb0a7abe36179b8a958fa674c1620d0ec7bfe908d7245202)"
+    },
+    {
+     "test": "r60a3_f_p3_an_export_never_silently_drops_unreadable_layout_records",
+     "status": "passed",
+     "evidence": "NOT_PROVEN (R60-a3-F-2): same precondition not reached",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-f1.log (sha256 03747df2eb909ba7eb0a7abe36179b8a958fa674c1620d0ec7bfe908d7245202)"
+    },
+    {
+     "test": "r60a3_f_p2_a_group_delete_of_a_placed_picture_never_locks_the_layout",
+     "status": "not_proven",
+     "evidence": "NOT_PROVEN (R60-a3-F-7): group_layers refuses the graphic frame layer ('not in a layer stack')",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-f2.log (sha256 201f80c3c265500301f88910f3524e3be9b802582f0a835d663c16145d3f7e63)"
+    },
+    {
+     "test": "probe_e4_group_holding_a_threaded_frame_is_refused",
+     "status": "not_proven",
+     "evidence": "NOT_PROVEN (R60-a3-E-4): a drawn text frame cannot be grouped ('not in a layer stack')",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-e4.log (sha256 f68bd788701b3a1aa283bc2bbb9f8e4d5f9c277cc7b26dd23a201fef8cfbd0b6)"
+    },
+    {
+     "test": "probe_e13_export_audio_never_replaces_the_opened_file_spelled_otherwise",
+     "status": "passed",
+     "evidence": "passed (R60-a3-E-13 not reproduced): export_audio over dir/./tone.wav refuses and the opened file keeps its bytes",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-e13.log (sha256 61f66c2fce40d07a0faaf26f74feb7fbf523498be3ed49c323b0315745e28d48)"
+    },
+    {
+     "test": "tools/workspace-probe.rs --self-test (b57c82d1, rustc 1.97.1 --edition=2024 -O)",
+     "status": "passed",
+     "evidence": "{\"schema\":\"hsk.studio.workspace-probe-self-test@1\",\"status\":\"ok\",\"cases\":81}",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-gate.log (sha256 bd030cb85b288f2a5e79f686b89149cd20f3720034a07f9ed8d5e7a4c108d85d)"
+    },
+    {
+     "test": "vector_pages_route",
+     "status": "passed",
+     "evidence": "passed (R60-a3-J-7 HIGH not reproduced): the ASCII85 'z'-in-group page of 1.4 M '[[[' groups is a typed refusal Malformed(reader_input) on read_vector_pages, no abort",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-j7.log (sha256 cd70df2fb92f504d2b40ad3f935221e93390ec3bb824b391c12cfbd06f654d3b)"
+    },
+    {
+     "test": "vector_document_route",
+     "status": "passed",
+     "evidence": "passed (R60-a3-J-7 not reproduced): read_vector_document refuses Malformed(reader_input) in 5.3 s, no abort",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-j7.log (sha256 cd70df2fb92f504d2b40ad3f935221e93390ec3bb824b391c12cfbd06f654d3b)"
+    },
+    {
+     "test": "r60c_p1_cpu_chrome_2560x1440_validation_clean",
+     "status": "passed",
+     "evidence": "passed: validation on (VK_LAYER_KHRONOS_validation 1.4.363), errors 0, warnings 0 on the 2560x1440 CPU-chrome swapchain, swapchain hash equal to offscreen, focus_changes 0 (R60-a3-C-13: these paths count no validation in the round's own tests, now proven clean once)",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-c1.log (sha256 de7e6ad6092ffb84514b7f708b27195796d4f88830ea54f9d6e310fec6709a50)"
+    },
+    {
+     "test": "r60c_p2_vulkan_chrome_1920x1080_exercise_validation_clean",
+     "status": "passed",
+     "evidence": "passed: validation on, errors 0, warnings 0 on the 1920x1080 Vulkan-chrome exercise",
+     "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-c1.log (sha256 de7e6ad6092ffb84514b7f708b27195796d4f88830ea54f9d6e310fec6709a50)"
+    }
+   ],
+   "findings_probes": {
+    "SMB-AI-LIVE-EFFECTS-1": [
+     {
+      "test": "hsk-studio-harness::r60a3g_live_filter_codes r60a3g_live_filter_refusals_carry_their_typed_code",
+      "unit": "validator probe (scratch tree at b57c82d1 + probe test file; D:, owner validator-r54-probe), -p hsk-studio-harness --features viewer",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "drive-refusal-code-command_refused",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-view/src/view/commands.rs:70-73 (method_refusal), :170 (vector domain)",
+      "evidence": "vector.live_filter_apply with an unknown effect: CommandRefusal.code command_refused, detail.message 'live_filter_apply: vector_effect_unknown_effect' (the typed code reaches the driving model only as text)",
+      "repair_direction": "map vector-domain Viewer refusals to their typed code (engine_refusal) as the other domains do",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-g3.log (sha256 61dbd4b18acb1b433cd41f671399dab455f7b64cbe8ef17764d8cc9002f84bbf)"
+     }
+    ],
+    "SMB-MOTION-COMMANDS-2": [
+     {
+      "test": "hsk-studio-harness::r60a3g_adjustment_export r60a3g_a_removed_composition_adjustment_layer_does_not_block_document_export",
+      "unit": "validator probe (scratch tree at b57c82d1; D:), -p hsk-studio-harness --features media",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "removed-adjustment-layer-blocks-document-export",
+      "severity": "LOW",
+      "file_line": "crates/hsk-studio-harness-core/src/motion_commands.rs:1342, :1403-1425 (remove_layer keeps the document layer)",
+      "evidence": "composition.add_layer kind adjustment, then composition.remove_layer: the document layer stays and export_document refuses composite Unavailable(<layer>/source/out:unsupported_payload); recovery is hide or delete the layer (typed, named); the visible-layer refusal itself is the lead's F7 ruling",
+      "repair_direction": "remove the document layer an adjustment add created, or name the orphan in the remove reply",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-g4.log (sha256 7eae9c3adbd6fcca8e8e7fd1a80119789d3ff04c59f7c6ac0c08bdfa4783c70e)"
+     }
+    ],
+    "SMB-DELIVERY-QUEUE-1": [
+     {
+      "test": "hsk-studio-harness::r60a3_h_p5_probe r60a3_h_p5_a_png_module_bounds_its_frame_size_before_the_first_frame",
+      "unit": "validator probe (scratch tree at b57c82d1; D:), -p hsk-studio-harness --features media",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "png-module-frame-size-unbounded-before-encode",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-harness-view/src/view/timeline_export/composition.rs:876-900 (check) with :523 (encode allocates w*h*16 bytes)",
+      "evidence": "PngModule::check(1) accepts resize 30000 x 30000 RGBA16; encode would reserve about 14 GB of floats per frame before interop-raster's 1 GiB encode limit refuses (allocation not run)",
+      "repair_direction": "bound the output frame (bytes) in PngModule::check before the first frame",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-h5.log (sha256 40b7f5132397f252827b860afdd1296ae8c2d5f49bc26195dc71c019175f6eeb)"
+     }
+    ],
+    "SMB-TYPE-INDENT-SPACING-1": [
+     {
+      "test": "hsk-studio-layout::probe_r60a3_i_layout probe_deleting_a_whole_paragraph_keeps_the_next_paragraphs_override",
+      "unit": "validator probe (scratch tree at b57c82d1; D:), -p hsk-studio-layout",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "whole-paragraph-delete-moves-its-override-to-the-next",
+      "severity": "MEDIUM",
+      "file_line": "crates/hsk-studio-layout/src/textflow.rs:240 (the first touched paragraph owns the result), :134 vs :263-266 (split tail)",
+      "evidence": "story aa / bb / cc with overrides at 3 (2.0) and 6 (3.0); deleting bb with its return leaves cc at 3 with bb's 2.0, cc's own 3.0 dropped; the lane pins this rule by test (indent_spacing.rs shift_paragraph_records_moves_drops_and_keeps_the_first); InDesign parity UNVERIFIED (D5)",
+      "repair_direction": "the paragraph whose return survives keeps its own override (owner rule from the paragraph mark), or record the reading as an SD item",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-i34.log (sha256 f367796c6263676f9445921f5c5ca2b5d771d69a4689b2b76822aac9b6ca7f07)"
+     }
+    ],
+    "SMB-UI-TREE-1": [
+     {
+      "test": "kumihimo-ui::r60a3_d_p1 r60a3_d_p1_a_refused_label_is_not_silent",
+      "unit": "validator probe (scratch tree at b57c82d1; D:), -p kumihimo-ui",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "shaping-refusal-is-silent",
+      "severity": "MEDIUM",
+      "file_line": "crates/kumihimo-ui/src/emit.rs:267 (a refused label emits nothing), src/text.rs:203 (measures 0)",
+      "evidence": "a TextPort that refuses one label: the panel paints nothing for it, PaintStats glyph_refusals 0, clipped_labels (AC-TEXT-01) empty; the refusal is invisible to the painter, the counters and the acceptance check",
+      "repair_direction": "count shaping refusals (a refusals counter or a typed placeholder) so AC checks and receipts see them",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-d1.log (sha256 08ec41b20fc953afb77073f86c0c280cab0f0aa44daded6e6711cfe793c616fe)"
+     },
+     {
+      "test": "kumihimo-ui::r60a3_d_p3 r60a3_d_p3_label_pushed_out_at_the_left_is_reported",
+      "unit": "validator probe (scratch tree at b57c82d1; D:), -p kumihimo-ui",
+      "status": "failed",
+      "failure_kind": "product",
+      "failure_class": "ac-text-01-misses-a-label-cut-at-the-left",
+      "severity": "LOW",
+      "file_line": "crates/kumihimo-ui/src/checks.rs:68-73 (ancestors_overflow compares x1 only)",
+      "evidence": "a 40 px clipping column with cross End and a 200 px row: the label lies wholly left of the column (x1 <= 0) and clipped_labels reports nothing; AC-TEXT-01's literal rule compares the label to its own box, so this is a gap beside the rule, not a breach of it",
+      "repair_direction": "compare both edges of a label against every clipping ancestor",
+      "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-d1.log (sha256 08ec41b20fc953afb77073f86c0c280cab0f0aa44daded6e6711cfe793c616fe)"
+     }
+    ]
+   },
+   "files_sha256": {
+    "hsk-studio-harness/tests/r60a3_e_audio_alias_probe.rs": "d297943a07b121e26d0143f85df160a62d7720be9e90122fa824051bbf392f33",
+    "hsk-studio-harness/tests/r60a3_e_batch_port_probe.rs": "ea97864331815a8f1ade4f66f4cf7b3f89fb0aec5c42d6291d772d7b097da067",
+    "hsk-studio-harness/tests/r60a3_e_first_byte_probe.rs": "0c2fbe4f6ca9670860c90149f0125450014a0d3b95b91a03d8447401dbfecac0",
+    "hsk-studio-harness/tests/r60a3_e_group_thread_probe.rs": "5fbd03d6fc03a9e690bf1fa9d89d20338544361399d4a12e9c852d21408fb99a",
+    "hsk-studio-harness/tests/r60a3_f_doc_probe.rs": "7fc8c2c1bee7650cbe15acc1e4cccf6db884e6c8f9aa6160348904da58d9cc54",
+    "hsk-studio-harness/tests/r60a3_f_place_probe.rs": "12fe0545b22f5a0770e789e1ccebe57c57aa3472c7b6e0d4e5deb7937be3a24d",
+    "hsk-studio-harness/tests/r60a3_f_probe.rs": "f0758b24b9f19cb437e10f72188d92c1b115cae9f0d363b96df4bdcd4eb6c596",
+    "hsk-studio-harness/tests/r60a3_h_p1_probe.rs": "dc34fbe14e941a9f0374573b57bf01d18a564b358fe73deb7840888799aaba5d",
+    "hsk-studio-harness/tests/r60a3_h_p2_probe.rs": "68052d5e9b7404adb52326e33ee23f094ba533a0f73e9746ff2f3230d5ef2479",
+    "hsk-studio-harness/tests/r60a3_h_p3_probe.rs": "58eac8e87ce4ff03d622ff32cf5c7089e4b69939e4967aa0ea088626197f9a2a",
+    "hsk-studio-harness/tests/r60a3_h_p4_probe.rs": "88725328744177324dda0cc7ba2f7ea167d66fac116b16847536be1e2d6801e2",
+    "hsk-studio-harness/tests/r60a3_h_p5_probe.rs": "f0b431306536156f4b78197fdfdb9b1051838bba1f96970c8740022cc3657b17",
+    "hsk-studio-harness/tests/r60a3_j2_capture_probe.rs": "17f64273d19dda629e9c4364f93f62aa1561a4e5cb4843214b1f5eedd3bac7c2",
+    "hsk-studio-harness/tests/r60a3g_adjustment_export.rs": "c7c390d6b8c0b9d98cea362f04eee2eef8ff64a9c5eb19b7edba02cdfcc85c7a",
+    "hsk-studio-harness/tests/r60a3g_live_filter_codes.rs": "813ab52d363c453c40c525194fa6ab0fb33b0749563fbb3b885e23fee4f9d54f",
+    "hsk-studio-harness/tests/r60a3g_motion_values.rs": "26e62183cc26530ba29e821aca0309cd705d05c2d30e4fb0c576a84839945ce2",
+    "hsk-studio-layout/tests/probe_r60a3_i_layout.rs": "7e8869b656ebd06d6fdd2cf69e155ac8fd60f1024a389617b6ad0428bd329083",
+    "hsk-studio-native-host/tests/r60c_probe.rs": "94cb20323c1cb997bec179788075944c347e5f5d816b9240f8a1304039641f4a",
+    "hsk-studio-press/tests/r60a3_j_ascii85.rs": "dcd5979998bd8206263228dbf38f35f7eae41f359a00ceb4e776868c7f92c11b",
+    "kumihimo-ui/tests/r60a3_d_p1.rs": "919fea1621be748ce71b233986769f1017729dd8e4d7894670caf6cec119dc58",
+    "kumihimo-ui/tests/r60a3_d_p3.rs": "3aef8081d37d705c297c37973c09bfd5e511c0cf05ed7bd938505149b146fa3e"
+   },
+   "logs_sha256": {
+    "h1-e1.log": "9806fd66fcc304b23a235553ceea1cb3d1b80c391036395f3f203035fba2b40a",
+    "h1-e2.log": "e6f36bba82cf10bca15f29c4688d88fa1095db8d8faab1e4ed69e91a89a1c428",
+    "h1-e4.log": "f68bd788701b3a1aa283bc2bbb9f8e4d5f9c277cc7b26dd23a201fef8cfbd0b6",
+    "h1-f1.log": "03747df2eb909ba7eb0a7abe36179b8a958fa674c1620d0ec7bfe908d7245202",
+    "h1-f2.log": "201f80c3c265500301f88910f3524e3be9b802582f0a835d663c16145d3f7e63",
+    "h1-f4.log": "19d2e721bf417aa65da3e3dcd8dea552f32d2ca4bcad307c9d58d76d170fc189",
+    "h1-g3.log": "61dbd4b18acb1b433cd41f671399dab455f7b64cbe8ef17764d8cc9002f84bbf",
+    "h1-gate.log": "bd030cb85b288f2a5e79f686b89149cd20f3720034a07f9ed8d5e7a4c108d85d",
+    "h2-e13.log": "61f66c2fce40d07a0faaf26f74feb7fbf523498be3ed49c323b0315745e28d48",
+    "h2-g1.log": "b2f4a77a64beef46a50e8b82757e91268c58ca2f12f59c7dc0f298b6b89b42dc",
+    "h2-g4.log": "7eae9c3adbd6fcca8e8e7fd1a80119789d3ff04c59f7c6ac0c08bdfa4783c70e",
+    "h2-h1.log": "cb9c667fa92d940b7ef553f69dcd0b7abc9fe1f1371db54cafcff00e954181fc",
+    "h2-h2.log": "1b3a596095d11c3220f5a2a30a8e68b143e859c0b4da76da5111509a49d5874b",
+    "h2-h3.log": "3578a625788f268a31c27a252d79a7d16f329f8e41b1e78a0eb32e54a3215d7a",
+    "h2-h4.log": "c608498cf4ba9949019681b3a03ea7473022fd099e686d66afd83eef19d6263f",
+    "h2-h5.log": "40b7f5132397f252827b860afdd1296ae8c2d5f49bc26195dc71c019175f6eeb",
+    "h3-c1.log": "de7e6ad6092ffb84514b7f708b27195796d4f88830ea54f9d6e310fec6709a50",
+    "h3-d1.log": "08ec41b20fc953afb77073f86c0c280cab0f0aa44daded6e6711cfe793c616fe",
+    "h3-i34.log": "f367796c6263676f9445921f5c5ca2b5d771d69a4689b2b76822aac9b6ca7f07",
+    "h3-j7.log": "cd70df2fb92f504d2b40ad3f935221e93390ec3bb824b391c12cfbd06f654d3b",
+    "h4-j2.log": "40e84111198ba8317effa78873dc1a53f9105e037484bb182086f72a64b8d550"
+   }
+  },
+  "host_integration_readings": {
+   "SMB-PR-EXPORT-RECIPE-1": "PASS",
+   "SMB-PR-ROUTING-REPAIR-1": "PASS",
+   "SMB-SESSION-WRITE-SAFETY-1": "PASS",
+   "SMB-PROJECT-BIN-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS, 5 observe, no text",
+   "SMB-HARNESS-DRIVE-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS, 5 observe, no text",
+   "SMB-OBSERVE-DIAG-SINK-1": "PASS",
+   "SMB-COMMAND-SURFACE-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS",
+   "SMB-DEVELOP-COMMANDS-1": "PASS",
+   "SMB-CONTROLS-EGUI-GATE-1": "PASS",
+   "SMB-GUI-STEWARD-1": "PASS",
+   "SMB-VK-HOST-1": "PASS with recorded GAP 5 observe, no text",
+   "SMB-VK-UI-PASS-1": "PASS with recorded GAP 5 observe, no text",
+   "SMB-UI-TREE-1": "PASS",
+   "SMB-GUI-SPINE-1": "PASS with recorded GAP 5 observe, no text",
+   "SMB-GUI-FRAME-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS, 5 observe, no text",
+   "SMB-R60-FOLLOWUPS-1": "FAIL rows 6 jobs",
+   "SMB-DOC-EXPORT-1": "FAIL rows 6 jobs",
+   "SMB-ARTBOARD-EXPORT-1": "PASS",
+   "SMB-AUDIO-OUT-MIX-1": "PASS",
+   "SMB-LAYOUT-PDF-HOST-1": "PASS",
+   "SMB-LAYOUT-PERSIST-1": "PASS",
+   "SMB-LAYOUT-PLACE-1": "PASS",
+   "SMB-DOC-NEW-1": "PASS",
+   "SMB-MOTION-COMMANDS-1": "PASS",
+   "SMB-MOTION-COMMANDS-2": "PASS",
+   "SMB-PIGMENT-FILTER-KERNELS-1": "PASS",
+   "SMB-AI-LIVE-EFFECTS-1": "PASS",
+   "SMB-WEB-HOST-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS",
+   "SMB-WEB-SITE-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS",
+   "SMB-DELIVERY-QUEUE-1": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS, 7 host_integration block before READY",
+   "SMB-SCORE-EFFECTS-6": "PASS with recorded GAP 3 controls registry and RUN_COMMANDS",
+   "SMB-TYPE-INDENT-SPACING-1": "PASS",
+   "SMB-DRIVE-TYPED-2": "FAIL rows 6 jobs",
+   "SMB-PLACE-ASSET-1": "PASS",
+   "SMB-PARSER-HOSTILE-1": "PASS",
+   "SMB-DS-COMPONENTS-AUTHOR-1": "PASS"
+  },
+  "findings_leads": [
+   {
+    "id": "F-R60-22",
+    "lane": "SMB-VK-HOST-1, SMB-GUI-FRAME-1, SMB-GUI-SPINE-1, SMB-VK-UI-PASS-1",
+    "severity": "MEDIUM",
+    "kind": "HOST INTEGRATION (5) GAP, validator code read (reviewer R60-a3-C-8 rated HIGH; attempt 1 R60-H-3 MEDIUM, unchanged)",
+    "finding": "No run path emits the host's terminal observe frame: diag::emit_terminal is called only by tests/cli_and_observe.rs:90; studio-vk, offscreen::run and window::run return their result and emit nothing, so the lane block's 'producer_through_observe: typed frames for device, swapchain state and refusals' and GUI-FRAME-1's 'the host keeps its terminal frame' describe a helper, not an emission",
+    "file_line": "crates/hsk-studio-native-host/src/diag.rs:24; src/bin/studio-vk.rs",
+    "evidence_ref": "git grep emit_terminal b57c82d1 (one test caller)",
+    "repair_direction": "emit the terminal frame from studio-vk's run paths through the caller's sink (actor, resource, correlation from the host)"
+   },
+   {
+    "id": "F-R60-23",
+    "lane": "SMB-AI-LIVE-EFFECTS-1 (mapping owned by the command surface)",
+    "severity": "MEDIUM",
+    "kind": "product, probe (not a claimed behaviour of the lane)",
+    "finding": "A refused vector.live_filter_* drive row answers code command_refused; the typed vector_effect_* code reaches a driving model only inside detail.message (vector-domain rows use method_refusal, which takes a code only from a run op)",
+    "file_line": "crates/hsk-studio-harness-view/src/view/commands.rs:70-73, :170",
+    "evidence_ref": "probe r60a3g_live_filter_refusals_carry_their_typed_code failed: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h1-g3.log (sha256 61dbd4b18acb1b433cd41f671399dab455f7b64cbe8ef17764d8cc9002f84bbf)",
+    "repair_direction": "route vector-domain Viewer refusals through engine_refusal (the text's own code) as the other domains do"
+   },
+   {
+    "id": "F-R60-24",
+    "lane": "SMB-MOTION-COMMANDS-2",
+    "severity": "LOW",
+    "kind": "product, probe",
+    "finding": "composition.add_layer kind adjustment creates a document layer; composition.remove_layer keeps it, and the document's own export keeps refusing composite unsupported_payload until the layer is hidden or deleted (typed and named; the visible-layer refusal itself is the lead's F7 ruling)",
+    "file_line": "crates/hsk-studio-harness-core/src/motion_commands.rs:1342, :1403-1425",
+    "evidence_ref": "probe r60a3g_a_removed_composition_adjustment_layer_does_not_block_document_export failed: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-g4.log (sha256 7eae9c3adbd6fcca8e8e7fd1a80119789d3ff04c59f7c6ac0c08bdfa4783c70e)",
+    "repair_direction": "remove the document layer an adjustment add created with the composition layer, or name it in the remove reply"
+   },
+   {
+    "id": "F-R60-25",
+    "lane": "SMB-DELIVERY-QUEUE-1",
+    "severity": "MEDIUM",
+    "kind": "product, probe (V4-02 class; allocation not run)",
+    "finding": "PngModule::check accepts a 30000 x 30000 RGBA16 output (OutputPost's 1..=30000); encode then reserves w*h*16 bytes of floats (about 14 GB) per frame before interop-raster's 1 GiB encode limit refuses; the recipe can come from a document's export_recipes entry",
+    "file_line": "crates/hsk-studio-harness-view/src/view/timeline_export/composition.rs:876-900, :523",
+    "evidence_ref": "probe r60a3_h_p5_a_png_module_bounds_its_frame_size_before_the_first_frame failed: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h2-h5.log (sha256 40b7f5132397f252827b860afdd1296ae8c2d5f49bc26195dc71c019175f6eeb)",
+    "repair_direction": "bound the PNG frame bytes in PngModule::check before the first frame"
+   },
+   {
+    "id": "F-R60-26",
+    "lane": "SMB-DELIVERY-QUEUE-1",
+    "severity": "MEDIUM",
+    "kind": "claim scope, validator code read (reviewer R60-a3-H-9)",
+    "finding": "A RUNNING delivery item can be canceled only through the Rust DeliveryCancel handle: delivery_run and delivery_cancel both take &mut self, so the typed delivery.cancel row, the drive and the CLI reach queued items only; 'per-item receipts and cancel' holds for queued items",
+    "file_line": "crates/hsk-studio-harness-view/src/view/delivery.rs:428",
+    "evidence_ref": "code read",
+    "repair_direction": "expose the running item's cancel token to the host (a cancel port) or name the limit in the lane's cut list"
+   },
+   {
+    "id": "F-R60-27",
+    "lane": "SMB-TYPE-INDENT-SPACING-1",
+    "severity": "MEDIUM",
+    "kind": "product, probe (a pinned rule; InDesign parity UNVERIFIED, D5)",
+    "finding": "Deleting a whole paragraph (text and return) gives the next paragraph the deleted one's override and drops its own (the lane's 'first touched paragraph owns the result' rule, pinned by its own test); splitting gives the tail the style but not the local override or span/split record (reviewer R60-a3-I-6, code read)",
+    "file_line": "crates/hsk-studio-layout/src/textflow.rs:240, :134 vs :263-266",
+    "evidence_ref": "probe probe_deleting_a_whole_paragraph_keeps_the_next_paragraphs_override failed: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-i34.log (sha256 f367796c6263676f9445921f5c5ca2b5d771d69a4689b2b76822aac9b6ca7f07)",
+    "repair_direction": "decide the owner rule from the paragraph mark (SD item) and test delete and split against it"
+   },
+   {
+    "id": "F-R60-28",
+    "lane": "SMB-UI-TREE-1",
+    "severity": "MEDIUM",
+    "kind": "product, probe",
+    "finding": "A label whose shaping the TextPort refuses draws nothing, measures 0 and counts nowhere: PaintStats.glyph_refusals 0 and AC-TEXT-01 (clipped_labels) clean; a second probe shows AC-TEXT-01 misses a label a clipping ancestor cuts wholly at the left (ancestors_overflow compares x1 only; LOW, beside the rule's literal text)",
+    "file_line": "crates/kumihimo-ui/src/emit.rs:267, src/text.rs:203, src/checks.rs:68-73",
+    "evidence_ref": "probe r60a3_d_p1_a_refused_label_is_not_silent failed: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-d1.log (sha256 08ec41b20fc953afb77073f86c0c280cab0f0aa44daded6e6711cfe793c616fe); probe r60a3_d_p3_label_pushed_out_at_the_left_is_reported failed: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a3/probe/logs/h3-d1.log (sha256 08ec41b20fc953afb77073f86c0c280cab0f0aa44daded6e6711cfe793c616fe)",
+    "repair_direction": "count shaping refusals visibly (counter or typed placeholder); check both edges against every clipping ancestor"
+   },
+   {
+    "id": "F-R60-29",
+    "lane": "SMB-SCORE-EFFECTS-6",
+    "severity": "MEDIUM",
+    "kind": "claim reading, validator code read (reviewer R60-a3-I-1, I-2)",
+    "finding": "The 256 MiB effect-state budget is checked per graph: a stems export holds every stem graph plus the print at once (N+1 graphs, each under the budget), and the batch chain (up to 64 filter-kind stages, audio_batch.rs:585) checks no state budget at all; 'one aggregate budget across every bus-graph builder' holds per builder call, not per export",
+    "file_line": "crates/hsk-studio-harness-view/src/view/audio_session.rs:553, :701; src/view/audio_batch.rs:585",
+    "evidence_ref": "code read",
+    "repair_direction": "charge the stems export's graphs to one budget; give the batch chain EffectSpec::state_bytes checks"
+   },
+   {
+    "id": "F-R60-30",
+    "lane": "SMB-COMMAND-SURFACE-1",
+    "severity": "MEDIUM",
+    "kind": "claim proof, validator code read (reviewer R60-a3-B-6, B-7)",
+    "finding": "panel.vector_export.export_svg is a typed row whose only process proofs require it to fail (svg_export: folio DuplicateIdentity, an engine defect pinned by name in fdd1710e); most photo, design, vector and panel rows are proven only by 'not parameter_invalid' or ok plus an undo name, so a decoder that swaps or drops a field still passes (only develop rows compare row against the direct call)",
+    "file_line": "crates/hsk-studio-harness/tests/harness_drive_typed.rs:213-215, :333-361, :434",
+    "evidence_ref": "code read",
+    "repair_direction": "row-versus-direct differentials for every typed row family, as the develop rows have"
+   },
+   {
+    "id": "F-R60-31",
+    "lane": "SMB-CONTROLS-EGUI-GATE-1",
+    "severity": "MEDIUM",
+    "kind": "gate coverage, validator code read (reviewer R60-a3-C-1, C-2)",
+    "finding": "The toolkit gate checks only feature names containing a toolkit token, so hsk-studio-native-host[document] gains egui and wgpu through hsk-studio-harness-view/viewer unseen; no round unit compiles or runs the gate (the validator compiled tools/workspace-probe.rs and ran --self-test: status ok, 81 cases)",
+    "file_line": "tools/workspace-probe.rs:636-642; tools/run-round.sh:583-594",
+    "evidence_ref": "probe/gate/selftest-a3.json; code read",
+    "repair_direction": "follow feature edges into Studio crates' features in the gate; run the self-test in step 0 or a unit"
+   },
+   {
+    "id": "F-R60-32",
+    "lane": "SMB-VK-UI-PASS-1",
+    "severity": "MEDIUM",
+    "kind": "proof coverage, validator code read and probe (reviewer R60-a3-C-13, C-14)",
+    "finding": "No round test proves the shipped ui.vs_main.spv and ui.fs_main.spv equal spv-build's output (the hash test checks them against a manifest committed with them; spv-build --check runs in no unit); five native-host GUI frame tests open an owner and a window without a validation check, so 'every GPU test asserts zero errors when on' is not true of the suite (the validator's probe ran two of those paths with the layer on: errors 0, warnings 0)",
+    "file_line": "crates/hsk-studio-vulkan/tests/ui_shaders.rs:34-54; crates/hsk-studio-native-host/tests/gui_window.rs:153-249",
+    "evidence_ref": "code read; probe r60c_probe (validation on, 0/0)",
+    "repair_direction": "a unit that runs spv-build --check offline; assert the validation report in every GPU and window test"
+   },
+   {
+    "id": "F-R60-33",
+    "lane": "SMB-PR-EXPORT-RECIPE-1",
+    "severity": "MEDIUM",
+    "kind": "UNVERIFIED by run (reviewer R60-a3-A-1; D: build roots create no 8.3 names, C: does)",
+    "finding": "The .vtt alias fix (974bb227) folds case and trailing dots and spaces but not 8.3 short names: an output named abcdef~1.vttx can have the short name ABCDEF~1.VTT, the sidecar's path, so with overwrite the sidecar rename may replace the media under a Complete receipt",
+    "file_line": "crates/hsk-studio-reel/src/export.rs:928-933, :955-957",
+    "evidence_ref": "code read; dir /x shows 8.3 names on C:, none on D:",
+    "repair_direction": "compare the output and sidecar by file identity (same file id after open) rather than by spelling"
+   },
+   {
+    "id": "F-R60-34",
+    "lane": "SMB-PROJECT-BIN-1",
+    "severity": "MEDIUM",
+    "kind": "HOST INTEGRATION (5) GAP, validator code read (reviewer R60-a3-A-9)",
+    "finding": "Viewer-side refusals of New Sequence and Place (unknown_preset, track_kind_mismatch, source_window and others) and every project_bind outcome emit no observe frame; only the Run-backed steps do",
+    "file_line": "crates/hsk-studio-harness-view/src/view/project.rs:174-175, :226-238, :455-540",
+    "evidence_ref": "code read",
+    "repair_direction": "emit a command outcome frame for Viewer-side refusals and project_bind"
+   },
+   {
+    "id": "F-R60-35",
+    "lane": "SMB-DRIVE-TYPED-2",
+    "severity": "MEDIUM",
+    "kind": "product, validator code read (reviewer R60-a3-J-1)",
+    "finding": "A refused multitrack.open replaces the mixer that was open (the F2 restore covers mixer.open and spectral.open only)",
+    "file_line": "crates/hsk-studio-harness-view/src/view/commands/mixer.rs:162-167; view/mixer.rs:226",
+    "evidence_ref": "code read",
+    "repair_direction": "restore the open mixer on a refused multitrack.open as F2 does for mixer.open"
+   },
+   {
+    "id": "F-R60-36",
+    "lane": "SMB-PLACE-ASSET-1",
+    "severity": "MEDIUM",
+    "kind": "named by the lead, still present (reviewer R60-a3-J-5)",
+    "finding": "Layers > Duplicate of a placed layer yields a plain canvas-clipped pixel layer without its raster record: the copy loses its link and the source pixels outside the canvas, and a Free Transform resamples it a second time; nothing refuses or names the loss",
+    "file_line": "crates/hsk-studio-harness-view/src/view/layers.rs:123-185; place.rs:684-689",
+    "evidence_ref": "code read",
+    "repair_direction": "duplicate the raster record with the layer, or refuse typed"
+   },
+   {
+    "id": "F-R60-37",
+    "lane": "SMB-DS-COMPONENTS-AUTHOR-1",
+    "severity": "MEDIUM",
+    "kind": "validator code read (reviewer R60-a3-J-11, J-12 UNVERIFIED, J-13)",
+    "finding": "A refused binding-state write is rolled back with run.undo(), which leaves the redraw on the redo stack, so a later redo replays it without the state; the prune on open drops every saved state when the import receipt is missing, unreadable or in error (trigger frequency UNVERIFIED); undo and redo are untested for 7 of the 12 mutating rows",
+    "file_line": "crates/hsk-studio-harness-view/src/view/design/instance.rs:1061, :1176-1181; component.rs:913; design/persist.rs:322-333; harness-core harness.rs:2298",
+    "evidence_ref": "code read",
+    "repair_direction": "roll back without a redo entry (discard the step); prune only on a readable receipt; undo/redo tests per row"
+   },
+   {
+    "id": "F-R60-38",
+    "lane": "SMB-LAYOUT-PERSIST-1, SMB-LAYOUT-PLACE-1, SMB-R60-FOLLOWUPS-1",
+    "severity": "LOW",
+    "kind": "reviewer HIGH R60-a3-F-1 not reproduced by run",
+    "finding": "delete_layer guards only a text frame's own id against thread and flow records; a parent-page item, a group holding a frame, or a story an anchor names are not checked. The validator's probes could not reach these paths: drawn layout frames are not in a layer stack (delete_layer and group_layers refuse 'not in a layer stack'), so the stale-layout lockout stays code-read only for frames that are in a stack (imported documents); exports fall back silently to the text entry when stored records do not read (R60-a3-F-2, code read)",
+    "file_line": "crates/hsk-studio-harness-view/src/view/layers.rs:188-221; view/shell.rs:1490-1506",
+    "evidence_ref": "probes r60a3_f_probe, r60a3_f_place_probe, r60a3_e_group_thread_probe: NOT_PROVEN",
+    "repair_direction": "scheduled lane SMB-LAYOUT-DELETE-CASCADE-1: guard every record kind and descendant; refuse an export over unreadable records"
+   },
+   {
+    "id": "F-R60-39",
+    "lane": "SMB-R60-FOLLOWUPS-1",
+    "severity": "MEDIUM",
+    "kind": "validator code read (reviewer R60-a3-E-3)",
+    "finding": "The text-route exports (Viewer::export, export_vector_svg, export_vector_pdf, export_audio) refuse with a String, not a typed code, and a mid-export cancel settles failed, not canceled (settle_export_text); the drive turns the text into command_refused",
+    "file_line": "crates/hsk-studio-harness-view/src/view/doc_export.rs:903-909",
+    "evidence_ref": "code read",
+    "repair_direction": "typed refusals for the text routes and a canceled settlement"
+   },
+   {
+    "id": "F-R60-40",
+    "lane": "SMB-AUDIO-OUT-MIX-1",
+    "severity": "MEDIUM",
+    "kind": "validator code read (reviewer R60-a3-E-12); E-13 not reproduced",
+    "finding": "The stem sum check runs after every stem file is already replaced: its failure or a cancel there returns code mixdown and settles failed, though the docs list mixdown among refusals before anything is written; the alias case (dir/./tone.wav over the opened file) refuses correctly (probe passed)",
+    "file_line": "crates/hsk-studio-harness-view/src/view/audio_session.rs:594-634",
+    "evidence_ref": "code read; probe r60a3_e_audio_alias_probe passed",
+    "repair_direction": "check the sum before replacing, or name the late failure and keep the replaced stems' receipt"
+   },
+   {
+    "id": "F-R60-41",
+    "lane": "SMB-PIGMENT-FILTER-KERNELS-1",
+    "severity": "MEDIUM",
+    "kind": "validator code read (reviewer R60-a3-G-10; R60-F lead re-confirmed)",
+    "finding": "The convolution-family kinds keep the source alpha and divide the premultiplied neighbourhood sum by the centre alpha, so transparent edges saturate or ring",
+    "file_line": "crates/hsk-studio-pigment/src/filter_kernels.rs:437-439",
+    "evidence_ref": "code read",
+    "repair_direction": "convolve premultiplied colour and alpha together, then unpremultiply by the convolved alpha"
+   },
+   {
+    "id": "F-R60-42",
+    "lane": "SMB-MOTION-COMMANDS-1",
+    "severity": "MEDIUM",
+    "kind": "claim scope, validator code read (reviewer R60-a3-G-2, G-3)",
+    "finding": "set_parent offers one behaviour (reports transform_compensated false), where STU-MOT-008 rule 2 asks both as typed variants; MT-33884, MT-34030 and MT-34217 are listed in mts_proved but each is only partly met",
+    "file_line": "crates/hsk-studio-harness-core/src/motion_commands.rs:742-750; src/action/commands/motion.rs:47-112",
+    "evidence_ref": "code read",
+    "repair_direction": "both set_parent variants; list partly met MTs as candidates"
+   },
+   {
+    "id": "F-R60-43",
+    "lane": "SMB-GUI-SPINE-1 (process note for the lead)",
+    "severity": "LOW",
+    "kind": "gate reading (blocker decision spine_gate)",
+    "finding": "Of the 8 spine gate tests (STU-SHL-109 #1-#7 plus the AC-BEHAV-05 byte-identical reselect), only #8 exists (native-host tests/gui_frame.rs:293, unit features:hsk-studio-native-host+document); #1-#7 exist in no unit, so a GATE_CHECK cannot pass at b57c82d1",
+    "file_line": "crates/hsk-studio-native-host/tests/gui_frame.rs:293",
+    "evidence_ref": "reviewer R60-a3-D read; validator unit list (plan-union.txt)",
+    "repair_direction": "write the 7 missing tests before a GATE_CHECK"
+   },
+   {
+    "id": "F-R60-44",
+    "lane": "SMB-PARSER-HOSTILE-1",
+    "severity": "LOW",
+    "kind": "reviewer HIGH R60-a3-J-7 refuted by run",
+    "finding": "The lenient chain keeps a failed ASCII85 stage's encoded bytes for the reader pass (code read), but the hostile page (a 'z' inside a group, 1.4 M '[[[' groups) is a typed refusal Malformed(reader_input) on both vector routes, no abort; remaining LOW leads: the reader pass holds every decoded stream at once (up to its 4 GiB budget), the mutator self-test's panic check passes with no panic recorded, a failed parse-thread spawn reads as malformed input",
+    "file_line": "crates/hsk-studio-press-read/src/filters.rs:193-203; render_bounds.rs:617, :739",
+    "evidence_ref": "probe r60a3_j_ascii85 passed",
+    "repair_direction": "keep the leniency to the damaged Flate tail the ruling names"
+   }
+  ],
+  "adversarial_review": {
+   "reviewer_files_sha256": {
+    "validator-R60-a3/review-R60-a3-A.json": "ae84134eeb4618cac72cffc22cfe99788a1da35674acb947098a24a59e3744ad",
+    "validator-R60-a3/review-R60-a3-B.json": "5119177ebadc191d51bed070f2bc0ac8e1a8440bf17f2fd961f128b71b67396e",
+    "validator-R60-a3/review-R60-a3-C.json": "cb3862b3dd3603222cff63991209a3f5485348914bb9ef675f0b789e83d63718",
+    "validator-R60-a3/review-R60-a3-D.json": "71c09436351c795de549a4bddbad536676beab9f5601260f94c9cd63cea0c1e5",
+    "validator-R60-a3/review-R60-a3-E.json": "c71db65d01c30a5d33312ee1dcd69e12ea3ae910e49e0f9159f01ba80a5f9669",
+    "validator-R60-a3/review-R60-a3-F.json": "8e3529ac83cbea8ddbc74f19e11f41aa8e0431c744a36cf61359521b526413f5",
+    "validator-R60-a3/review-R60-a3-G.json": "1e852c688e517efe76bde6829701d084d880b3a6d28e5639d0cce7fc6a1553c6",
+    "validator-R60-a3/review-R60-a3-H.json": "e7af0bc9a8df018952eb1d028b5a896c196336349cb76714ca216da7a0a79045",
+    "validator-R60-a3/review-R60-a3-I.json": "8afe8dc7aa4409e59dcbf92553f9ebeaeab98abec08454e3c8b76ef123559c67",
+    "validator-R60-a3/review-R60-a3-J.json": "5bdd9ae3138e905b90097208ffd99c67948d4270a5b3b44c7d5f6f00af0653f8"
+   }
+  },
+  "validator_checks": [
+   "workspace-probe --self-test at b57c82d1: status ok, 81 cases",
+   "licence gate on the b57c82d1 export: LICENSE_GATE OK"
+  ],
+  "by": "wp_validator STUDIO-R60 (attempt 3)",
+  "recorded_at": "2026-11-13T08:29:40Z",
+  "df": {
+   "start": [
+    "C:              7.3T  6.9T  439G  95% /c",
+    "D:               15T   11T  3.9T  74% /d"
+   ],
+   "end": [
+    "C:              7.3T  7.0T  300G  96% /c",
+    "D:               15T   11T  3.9T  74% /d"
+   ]
+  },
+  "c_tree_end": {
+   "label": "end",
+   "started": "2026-11-13T08:26:30Z",
+   "ended": "2026-11-13T08:26:37Z",
+   "tree": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+   "kib": 385876854,
+   "gib": 368.001,
+   "cap_gib": 360,
+   "children_kib": {
+    "studio-round": 242731411,
+    "studio-team-dev": 143145443
+   },
+   "c_free_kib": 313811864
+  },
+  "time": "canary 2026-11-13T05:38:36Z..08:25:39Z (2 h 47 m) for 18 of 164 test units (plus the fixture and 3 prebuilds) (default build 16 m 20 s; cold harness feature units 13 to 16 min each); no union, so no comparison with R57 (FULL, 160 units, 3 h 48) or R59 (50 units, 3 h 02); other building: the eight D: wave builders throughout, the validator probes on D: in four holds",
+  "origin_during_attempt": "b57c82d1 at the freeze; origin 81de18b9 at 08:28Z, 8 commits later (SMB-LAYOUT-DELETE-CASCADE-1 c7aa6123..81de18b9); the candidate stayed frozen (CX-VAL-001)",
+  "inventory": "worktrees 108 at the freeze and at the end; branches 223 -> 225: two new local branches refs/heads/red/smb-type-character-attributes-1 and red/smb-type-character-attributes-1-folio, not created by this validator and not listed in direction.workflow_20261107.lane_branches (the lead to check them under CX-GIT-001A); validator-R60-a3/worktrees-*.txt, branches-*.txt",
+  "other_holders": "C: lock: only this run-round (class round) held it; no builder on C:. D: lock: the 2026-11-13 wave builders (smb-pr-entry-references-1/GUI-MENU-1, smb-pr-retime-hold-1/TYPE-CHARACTER-ATTRIBUTES-1, smb-r53-followups-1/WEB-CODE-1, smb-pr-edit-footprint-1/LAYOUT-DELETE-CASCADE-1, smb-sentinels-native-1/BOARD-1, smb-ai-distort-effects-1/DS-VARIABLES-AUTHOR-1, smb-folio-angle-unbounded-1/PS-FILTER-ADJUST-COMMANDS-1 and others); the validator probes queued as owner validator-r54-probe",
+  "processes": "stopped only this session own processes: the canary run-round (msys 6181 / win 68884) by SIGTERM and its running unit tree (win 109320) by taskkill /T /F from the 368 guard; the two 355 guards (msys 6291, 6295) after the 368 guards started; Chrome and every other process left alone"
  }
 }
