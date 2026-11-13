@@ -29,7 +29,7 @@ Facts:
 - The only populated MenuBar is the egui test shell's 7 titles (`harness-view/src/view/shell.rs:1071`): read it, do not edit it.
 - `harness-core/src/action/ui_seed.rs:19` `ui_seed()` returns the UiCatalog seeded by SMB-COMMAND-SURFACE-1; RUN_COMMANDS is the typed command table.
 - kumihimo-ui has `MenuTitle` (`widgets.rs:287`) and `menu_title_row` (:357); no popup, menu item or tooltip widget exists (git grep).
-Depends on: SMB-GUI-FRAME-1 and SMB-VK-UI-PASS-1 (READY, on origin, not yet judged). One GUI line of work before B9 (build-order `parallel_from`): no other GUI lane runs beside this one. Host binary runs take the GPU lock; run Vulkan tests with VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation and go READY only validation-clean (direction.lead_rulings_20261108.vk_ui_pass_1).
+Depends on: SMB-GUI-FRAME-1 and SMB-VK-UI-PASS-1 (READY, on origin, not yet judged). One GUI line of work before B9 (build-order `parallel_from`): no other GUI lane runs beside this one. Host binary runs take the GPU lock; run Vulkan tests in a debug build, which enables validation itself, and set no layer variable (research/lead-rulings-20261108-by-lane.json common rule VULKAN VALIDATION, 2026-11-13), and go READY only validation-clean (direction.lead_rulings_20261108.vk_ui_pass_1).
 
 How to work:
 1. Read the code first. Use the spec's names and cite clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`). Use only names already in the spec, MTs or code.

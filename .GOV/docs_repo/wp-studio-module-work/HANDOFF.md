@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-11-07T05:14:28Z
+updated_at: 2026-11-13T07:58:00Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh (this file is a projection; they win on conflict)
 previous_version: handoff-archive/HANDOFF-20261101.md
@@ -359,6 +359,19 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 <topic id="state" status="active" updated_at="2026-11-08T05:40:01Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
 
+## Overnight 2026-11-13
+
+- **Wave of 8 lanes** (dispatched 05:13:41Z on base b57c82d1, reused D: trees), landing one at a time on the lead's RELEASED in the order 5, 8, 6, 7, 2, 4, 1, 3. State per lane file (status, phase), read at about 07:55Z:
+  - 5 SMB-LAYOUT-DELETE-CASCADE-1 (smb-pr-edit-footprint-1): BUNDLED_ONE_FLAKY, bundled at 81de18b9; its one failure is the diag_sink flake, which passed alone at 81de18b9.
+  - 8 SMB-WEB-SITE-2 (smb-pr-sequence-session-1): none, build; idle until the review of dccc57b2 is ruled.
+  - 6 SMB-DS-VARIABLES-AUTHOR-1 (smb-ai-distort-effects-1), 7 SMB-PS-FILTER-ADJUST-COMMANDS-1 (smb-folio-angle-unbounded-1), 2 SMB-TYPE-CHARACTER-ATTRIBUTES-1 (smb-pr-retime-hold-1), 4 SMB-WEB-CODE-1 (smb-r53-followups-1): none, review (9ccbcca8, d05d2699 plus cb807859/9eac2562, 83cb89b8, c1e077d9).
+  - 1 SMB-GUI-MENU-1 (smb-pr-entry-references-1): none, build (e2855863 reviewed). 3 SMB-BOARD-1 (smb-sentinels-native-1): REVIEW_READY, review (e4d033aa, no review yet).
+  - Reviews of 7 lanes are FIX_FIRST (`research/review-smb-<lane>-<sha>.json`); only the layout lane has fixed its findings so far.
+- **Rulings:** the lane files' rulings as of tonight and five common rulings (undo names are catalog ids; red tests are never rewritten to pass; no lane-history rewriting; the diag_sink flake rule; no Vulkan layer variable, debug builds validate themselves) are in `research/lead-rulings-20261108-by-lane.json`.
+- **R60 attempt 3** (full with canary) runs at b57c82d1 on C: (target `C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target`; canary spawned 05:38:32Z). Lead decision about 07:28Z: clean-stop raised from 355 to 368 GiB inside the Operator's 400 GB grant (about 372.5 GiB); alert 330, reports at 330 and 360, nothing deleted, at 368 a clean infrastructure stop with no verdict. Tree 287.1 GiB at 07:31Z, 15 of 164 canary units done. Record: `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R60.jsonl`, kind guard_change.
+- **Plan W PROPOSED** (`research/cargo-cleanup-plan-20261113-W.json`), 262.21 GiB: D: 188.64 (48.62 now, W-D12..W-D22, whole unused targets of 11 validated lanes; 139.74 older copies on the 8 wave trees, W-D01..W-D08, each after its lane is READY with its tip on origin and a fresh re-inspection) and C: 73.57 (W-C01..W-C03, after the round, on a fresh WOULD_REMOVE dry run). Waiting for the Operator's "Approve plan W".
+- **Cargo discipline** (Operator 2026-11-13, `builders/briefs/wave-parity-2-common.md` topic cargo-discipline): build and test only the touched crates and test binaries, no `--workspace` outside the one bundled lane-check; no `--release` unless the brief requires it; never a new CARGO_TARGET_DIR; reuse the example binary when its features match; the lead prunes older copies after READY and builders delete nothing; one hold per phase.
+
 ## PAUSED 2026-11-12T18:16:44Z (Operator: pause when the active agents finish, continue later tonight)
 
 All 8 lanes resumed on 2026-11-12 have landed; origin codex/handshake-studio-assets is b57c82d1 and 36 lanes are READY_FOR_VALIDATION. No lane agent and no Studio build is running; nothing is dispatched. Resume from `research/prep-20261112/resume-20261112.json`: (1) R60 attempt 3, full with canary, at the origin tip; first commit the attempt-3 generator (`research/prep-20261112/round-R60-a3/dispatch_r60_attempt3.py`), because `tools/lead/dispatch_r60.py` is hard-coded for attempt 2; (2) the next-wave proposal of 8 lanes (`research/prep-20261112/wave-next/`), with two open rulings (DNG XMP crop path, spine gate reading); (3) land the wave one lane at a time. SD decisions for the landings are in kernel f0066096 (SD-80..82); plan T is fully EXECUTED (kernel 4c0cfc5c).
@@ -411,7 +424,7 @@ Disk state: C: Studio tree about 344 GiB after plan T T-C04 (19.47) and plan U (
 
 **Waiting width lanes:** SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1, SMB-SCORE-EFFECTS-6 (re-scope first), SMB-PARSER-HOSTILE-1, and a filter-commands slice for the 19 new kernels (not scoped).
 
-**Open with the Operator (2026-11-08):** nothing. **The Vulkan validation layer is here.** The Vulkan SDK 1.4.363.1 core package is installed in `C:\Program Files\VulkanSDK\1.4.363.1` (04:41Z, on the Operator's retry of the admin prompt). The loader lists VK_LAYER_KHRONOS_validation 1.4.363 machine-wide (HKLM ExplicitLayers) on the RTX 3090, and spirv-val v2026.4 runs (`direction.lead_rulings_20261108.vulkan_sdk.proof`). Lanes turn the layer on with `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation`, and receipts say validation: on, not absent. O7 and SMB-VK-UI-PASS-1 go READY only validation-clean. The P3 reading, the three vendor tooltip sentences (ship as the spec has them; STU-IO-106 forbids inventing labels) and the GUI scope leanings are now lead rulings in `direction.lead_rulings_20261108`, not Operator questions.
+**Open with the Operator (2026-11-08):** nothing. **The Vulkan validation layer is here.** The Vulkan SDK 1.4.363.1 core package is installed in `C:\Program Files\VulkanSDK\1.4.363.1` (04:41Z, on the Operator's retry of the admin prompt). The loader lists VK_LAYER_KHRONOS_validation 1.4.363 machine-wide (HKLM ExplicitLayers) on the RTX 3090, and spirv-val v2026.4 runs (`direction.lead_rulings_20261108.vulkan_sdk.proof`). Lanes set no layer variable: debug builds turn the layer on themselves (research/lead-rulings-20261108-by-lane.json common rule VULKAN VALIDATION, 2026-11-13), and receipts say validation: on, not absent. O7 and SMB-VK-UI-PASS-1 go READY only validation-clean. The P3 reading, the three vendor tooltip sentences (ship as the spec has them; STU-IO-106 forbids inventing labels) and the GUI scope leanings are now lead rulings in `direction.lead_rulings_20261108`, not Operator questions.
 
 **Still true:** stash a06b4ea6 stays in the shared stash list (a builder's; left as instructed). The C: trees of the five lanes moved to D: are idle and untouched. Lane worktrees stay until their lanes PASS, then `tools/lead/lane_close.sh`.
 
