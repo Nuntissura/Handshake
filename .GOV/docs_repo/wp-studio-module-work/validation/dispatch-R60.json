@@ -1,0 +1,219 @@
+{
+ "schema": "hsk.studio.round_dispatch@1",
+ "round": "STUDIO-R60",
+ "attempt": 4,
+ "generated_at": "2026-11-13T17:14:31Z",
+ "generator": "tools/lead/dispatch_r60.py",
+ "mode": "write",
+ "decision_ref": "research/decision-20261113-r60-round-fit.json (option d)",
+ "candidate": {
+  "sha": "198f6dc41f806b7f11da04f3a516d8a72f3a7fed",
+  "commits_since": {
+   "c4d06841": 451,
+   "35c50d3b": 331,
+   "b57c82d1": 143
+  },
+  "ancestors": {
+   "c4d06841": true,
+   "35c50d3b": true,
+   "b57c82d1": true,
+   "89f27330": true
+  },
+  "trunk_repair": "89f27330",
+  "root_inputs_since_b57c82d1": [
+   "Cargo.lock",
+   "Cargo.toml",
+   "crates/hsk-studio-harness-view/Cargo.toml",
+   "crates/hsk-studio-native-host/README.md",
+   "crates/hsk-studio-web-core/NOTICE"
+  ],
+  "config_changed_since_b57c82d1": [],
+  "object_source": "wt-studio-assets"
+ },
+ "artifact_root": {
+  "resolved_by": "discovery: <kernel parent>/Handshake_Artifacts",
+  "path_at_generation": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+ },
+ "round_slot": {
+  "dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round",
+  "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target",
+  "volume": "D:",
+  "export_workspace": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets",
+  "binding_ok": true,
+  "class": "artifact-root",
+  "tmp": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/tmp",
+  "removal": "none (no deletion; stale libraries stay; HSK-ART-005)"
+ },
+ "locks": {
+  "disk": {
+   "class": "round",
+   "slice_s": 300,
+   "path": "Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock",
+   "exists": true,
+   "holder": null,
+   "queued": []
+  },
+  "gpu": {
+   "class": "round",
+   "path": "Handshake_Artifacts/WP-KERNEL-STUDIO/.gpu-test-lock",
+   "exists": true,
+   "holder": null,
+   "queued": []
+  },
+  "c_disk": "no hold: the C: round target is not used"
+ },
+ "entrypoint": {
+  "cwd": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets",
+  "canary_argv": [
+   "bash",
+   "tools/run-round.sh",
+   "--canary",
+   "--all",
+   "--results",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R60-canary-4",
+   "--target-dir",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target"
+  ],
+  "union_argv": [
+   "bash",
+   "tools/run-round.sh",
+   "--all",
+   "--results",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R60-union-4",
+   "--target-dir",
+   "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target"
+  ],
+  "env_added": [],
+  "profile": "run-round.sh sets CARGO_PROFILE_{DEV,TEST}_DEBUG=line-tables-only and CARGO_INCREMENTAL=0 (CX-984-014); unchanged"
+ },
+ "results": {
+  "canary": "R60-canary-4",
+  "union": "R60-union-4",
+  "consoles": [
+   "R60-canary-4.console.txt",
+   "R60-union-4.console.txt"
+  ],
+  "working_dir": "validator-R60-a4",
+  "running_record": "RUNNING-R60.jsonl",
+  "already_present": []
+ },
+ "guard": {
+  "script": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/validator-R60-a4/a4_dguard.sh",
+  "sha256": "db903fcda2e14922e61af0c99412914055c7382d654ff30b9cef04558b8b8c5b",
+  "volume": "D:",
+  "sample_s": 60,
+  "alert_below_free_gib": 1000,
+  "stop_below_free_gib": 500,
+  "failure_class_on_stop": "d-free-floor-500",
+  "rationale": "500 GiB is the decision's upper projection for this whole round (about 456 GiB: canary about 450 plus union about 6, UNVERIFIED) rounded up, so at the floor D: can still take one more round-sized writer without filling; it is 3.4% of the 14902.0 GiB volume. From 3575.7 GiB free at generation the round alone should end near 3120 GiB free, so the floor trips only if other writers take about 2620 GiB more: a backstop, not an expected stop. Between two 60 s samples at most about 15 GiB is written (UNVERIFIED: about 250 MB/s HDD sequential write), so a stop lands far above zero. The alert at 1000 GiB (decision value) gives about one more round of warning.",
+  "tags": [
+   "R60C4",
+   "R60U4"
+  ]
+ },
+ "c_tree": {
+  "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+  "c_round_target": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+  "use": "not used, not touched; measured at the freeze and the end only"
+ },
+ "pre_freeze": {
+  "at": "2026-11-13T17:14:31Z",
+  "free_gib": {
+   "D:": 3575.7,
+   "C:": 298.9
+  },
+  "volume_total_gib": {
+   "D:": 14902.0
+  },
+  "commit_free_gb": 126.5,
+  "slot_target": {
+   "gib": 21.52,
+   "parts_gib": {
+    "workspace_libraries": 16.04,
+    "third_party_libraries": 3.99,
+    "other:examples": 0.86,
+    "build_scripts": 0.21,
+    "test_and_binary_outputs": 0.19,
+    "other:tmp": 0.15,
+    "fingerprints": 0.05,
+    "other:fixtures": 0.02,
+    "dep_info_and_other": 0.01,
+    "other:nextest": 0.0
+   },
+   "older_binary_variants_gib": 0.12,
+   "newest_file_utc": "2026-10-24T05:58Z",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\studio-round\\src\\handshake-studio-assets\\Cargo.toml"
+  },
+  "disk_lock": {
+   "path": "Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock",
+   "exists": true,
+   "holder": null,
+   "queued": []
+  },
+  "gpu_lock": {
+   "path": "Handshake_Artifacts/WP-KERNEL-STUDIO/.gpu-test-lock",
+   "exists": true,
+   "holder": null,
+   "queued": []
+  },
+  "export_identity_sha": "b57c82d1445f8c0858f73f0fd670c8c08b637b18"
+ },
+ "ready_claims": [
+  "SMB-PR-ROUTING-REPAIR-1",
+  "SMB-SESSION-WRITE-SAFETY-1",
+  "SMB-HARNESS-DRIVE-1",
+  "SMB-OBSERVE-DIAG-SINK-1",
+  "SMB-CONTROLS-EGUI-GATE-1",
+  "SMB-PIGMENT-FILTER-KERNELS-1",
+  "SMB-DOC-NEW-1",
+  "SMB-MOTION-COMMANDS-1",
+  "SMB-GUI-STEWARD-1",
+  "SMB-COMMAND-SURFACE-1",
+  "SMB-VK-HOST-1",
+  "SMB-UI-TREE-1",
+  "SMB-AUDIO-OUT-MIX-1",
+  "SMB-DOC-EXPORT-1",
+  "SMB-LAYOUT-PDF-HOST-1",
+  "SMB-PROJECT-BIN-1",
+  "SMB-LAYOUT-PERSIST-1",
+  "SMB-WEB-HOST-1",
+  "SMB-GUI-SPINE-1",
+  "SMB-ARTBOARD-EXPORT-1",
+  "SMB-PLACE-ASSET-1",
+  "SMB-PR-EXPORT-RECIPE-1",
+  "SMB-DRIVE-TYPED-2",
+  "SMB-GUI-FRAME-1",
+  "SMB-VK-UI-PASS-1",
+  "SMB-AI-LIVE-EFFECTS-1",
+  "SMB-TYPE-INDENT-SPACING-1",
+  "SMB-PARSER-HOSTILE-1",
+  "SMB-SCORE-EFFECTS-6",
+  "SMB-LAYOUT-PLACE-1",
+  "SMB-WEB-SITE-1",
+  "SMB-DS-COMPONENTS-AUTHOR-1",
+  "SMB-DEVELOP-COMMANDS-1",
+  "SMB-MOTION-COMMANDS-2",
+  "SMB-DELIVERY-QUEUE-1",
+  "SMB-R60-FOLLOWUPS-1",
+  "SMB-GUI-MENU-1",
+  "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
+  "SMB-BOARD-1",
+  "SMB-WEB-CODE-1",
+  "SMB-LAYOUT-DELETE-CASCADE-1",
+  "SMB-DS-VARIABLES-AUTHOR-1",
+  "SMB-PS-FILTER-ADJUST-COMMANDS-1",
+  "SMB-WEB-SITE-2",
+  "SMB-FIX-DIAG-SINK-ABORT-1",
+  "SMB-FIX-NEGATIVE-SPACE-1",
+  "SMB-FIX-HOST-TERMINAL-FRAME-1",
+  "SMB-FIX-ANIMATION-VALUES-1",
+  "SMB-FIX-CAPTURE-ADMISSION-1",
+  "SMB-FIX-EXPORT-ADMISSION-1",
+  "SMB-FIX-LAYER-RECORD-PRUNE-1",
+  "SMB-FIX-MENU-CATALOG-COVERAGE-1"
+ ],
+ "prompt": {
+  "path": "validation/dispatch-prompt-R60.txt",
+  "sha256": "26778d1415dd1e6bd791eaf52b33260c408ecef56784e9cc96fc2e7d66e4109c"
+ }
+}
