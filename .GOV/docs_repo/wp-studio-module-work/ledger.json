@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T15:23:18Z",
+ "updated_at": "2026-11-13T15:35:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20252,8 +20252,8 @@
   },
   {
    "lane_id": "SMB-FIX-ANIMATION-VALUES-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core (motion_commands.rs enable and disable animation; action/commands/motion.rs enable_animation row only if the lead agrees)",
    "lane_file": "builders/lanes/hsk-studio-fix-animation-values-1.json",
    "brief": "builders/briefs/lane-smb-fix-animation-values-1.md",
@@ -20261,11 +20261,12 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T15:35:24Z",
    "closes": [
     "validation/round-R60.json attempt_3.probes.failures SMB-MOTION-COMMANDS-1 motion-row-takes-the-callers-value (2)",
     "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY enable_animation and disable_animation values"
-   ]
+   ],
+   "claim": "cdd31aff..ae14cef8"
   },
   {
    "lane_id": "SMB-FIX-CAPTURE-ADMISSION-1",
@@ -22992,6 +22993,26 @@
     "added_at": "2026-11-13T15:08:59Z",
     "item": "one shared derived-resource helper for the three SDOC-from-hash copies (audio_import audio_file_resource, harness-core web_site site_resource, commands/prototype prototype_resource)",
     "owner": "a later host-integration lane"
+   },
+   {
+    "added_at": "2026-11-13T15:35:24Z",
+    "item": "PRIORITY: enable_animation and toggle-on of an absent anchor or position: evaluate the implied value through the composite evaluator and key it, so new layers can enable anchor and position animation (STU-MOT-038; review aa4a35e3 F2, accepted limit in SMB-FIX-ANIMATION-VALUES-1)",
+    "owner": "harness-core motion_commands.rs (enable_animation, toggle_at_current, current_slot) with the composite evaluator"
+   },
+   {
+    "added_at": "2026-11-13T15:35:24Z",
+    "item": "camera and light point_of_interest: keyframe.set or paste on an absent point_of_interest creates it from the caller's value, and disable leaves a two-node camera or light (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)",
+    "owner": "harness-core motion_commands.rs member() at camera/light point_of_interest"
+   },
+   {
+    "added_at": "2026-11-13T15:35:24Z",
+    "item": "text animator params: keyframe.set or paste on a param absent from the animator creates the stream from the caller's value (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)",
+    "owner": "harness-core motion_commands.rs text_slot"
+   },
+   {
+    "added_at": "2026-11-13T15:35:24Z",
+    "item": "composite track_apply put(): a missing position, rotation or scale stream gets the first key's value as its static value, so disabling afterwards keeps it (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)",
+    "owner": "composite track_apply.rs:199-206"
    }
   ],
   "pause_20261103": {

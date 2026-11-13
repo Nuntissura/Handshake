@@ -1,19 +1,87 @@
 {
   "crate": "hsk-studio-harness-core (motion_commands.rs enable and disable animation; action/commands/motion.rs enable_animation row only if the lead agrees)",
   "lane": "SMB-FIX-ANIMATION-VALUES-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
   "base": "c8fca900",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "38ab7ac6",
+      "pre_rebase": "d45614fd",
+      "kind": "red",
+      "what": "r60a3g probes ported unchanged into harness/tests/fix_animation_values.rs",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/red-proof-smb-fix-animation-values-1-d45614fd.log",
+      "result": "2 run, 0 passed, 2 failed, exit 100"
+    },
+    {
+      "sha": "e586ad0f",
+      "pre_rebase": "c3a233af",
+      "kind": "fix",
+      "what": "property.enable_animation keys the current evaluated value; row KEY_AT_CURRENT (caller value parameter_unknown)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/focus-smb-fix-animation-values-1-c3a233af.log",
+      "result": "14 run, 13 passed, 1 failed (anchor probe, still red), exit 100"
+    },
+    {
+      "sha": "78e8308b",
+      "pre_rebase": "aa4a35e3",
+      "kind": "fix",
+      "what": "folio StudioPropertyStream.static_implied + validate_stream; harness-core key_slot, implied_return, property.read static_implied; composite static_implied: false literals",
+      "red_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/red-proof-anchor-smb-fix-animation-values-1-c3a233af.log (6 run, 2 passed, 4 failed, exit 100)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/bundled-smb-fix-animation-values-1-aa4a35e3.log"
+    },
+    {
+      "sha": "ae14cef8",
+      "pre_rebase": "24b442dd",
+      "kind": "fix",
+      "what": "review aa4a35e3 F1 module docs, F3 paste dimension check before seeding an absent anchor or position (paste_property_mismatch), Q1 property.read static_value null when static_implied",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/land-smb-fix-animation-values-1-24b442dd.log",
+      "not_proven": "the F3 test was not run red"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
-  "verdicts": [],
+  "tests": {
+    "bundled": {
+      "sha": "aa4a35e3",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/bundled-smb-fix-animation-values-1-aa4a35e3.log",
+      "step0": "clean, registry in sync",
+      "clippy": "folio, composite, package, harness-core + 21 direct dependents: exit 0",
+      "suites_default": "folio, composite, package, harness-core: 567 run, 567 passed",
+      "composite_motion": "239 run, 239 passed",
+      "harness": "motion_commands, motion_commands_2, fix_animation_values: 28 run, 28 passed",
+      "exit": 0
+    },
+    "focused_review_fix": {
+      "sha": "24b442dd",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/land-smb-fix-animation-values-1-24b442dd.log",
+      "clippy": "harness-core --tests, harness --test fix_animation_values: exit 0",
+      "harness_core": "79 run, 79 passed",
+      "harness": "motion_commands, motion_commands_2, fix_animation_values: 29 run, 29 passed",
+      "exit": 0
+    },
+    "landing": {
+      "origin_before": "cdd31aff",
+      "tip": "ae14cef8",
+      "touched_by_landed": "hsk-studio-harness only",
+      "rerun": "harness motion_commands, motion_commands_2, fix_animation_values: 29 run, 29 passed",
+      "per_sha": "PER_SHA_RESULT OK shas=1 range=78e8308b..ae14cef8 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/per-sha-ae14cef8/, Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-animation-values-1/per-sha-smb-fix-animation-values-1-ae14cef8.log)",
+      "push": "cdd31aff..ae14cef8 fast-forward"
+    }
+  },
+  "verdicts": [
+    {
+      "at": "2026-11-13T15:35:04Z",
+      "by": "review",
+      "ref": "research/review-smb-fix-animation-values-1-aa4a35e3.json",
+      "verdict": "SAFE_TO_JUDGE",
+      "findings": "3 low: F1 fixed, F3 fixed, Q1 applied (ae14cef8); F2 accepted limit, PRIORITY next-lane candidate"
+    }
+  ],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge ae14cef8 (claim cdd31aff..ae14cef8)",
+  "updated_at": "2026-11-13T15:35:04Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +107,58 @@
       "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY enable_animation and disable_animation values"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+    "reuses_tree_and_target": "smb-pr-sequence-session-1",
+    "beyond_brief_paths": [
+      "crates/hsk-studio-harness-core/src/action/commands/motion.rs property.enable_animation row KEY_AT -> KEY_AT_CURRENT (lead approval given in advance 2026-11-13)",
+      "crates/hsk-studio-folio/src/composition.rs StudioPropertyStream.static_implied and validate_stream (lead 2026-11-13 option A)",
+      "crates/hsk-studio-composite/src/camera_solve.rs:608,609,643 static_implied: false (lead 2026-11-13)",
+      "crates/hsk-studio-composite/src/clip_finishing.rs:984,1011 static_implied: false (lead 2026-11-13)",
+      "crates/hsk-studio-composite/src/temporal/composition.rs:310,396,412 static_implied: false (lead 2026-11-13)",
+      "crates/hsk-studio-composite/src/temporal/motion_records.rs:55 static_implied: false (lead 2026-11-13)",
+      "crates/hsk-studio-composite/src/track_apply.rs:204 static_implied: false (lead 2026-11-13)",
+      "crates/hsk-studio-composite/tests/track_apply.rs:87,99 static_implied: false (lead 2026-11-13)"
+    ],
+    "spec_basis": [
+      "STU-MOT-038 (spec module 14 :27695-27705): enable animation creates the first keyframe at the current time; adding captures the current evaluated value; disable converts back to static with the retained static value of STU-MOT-020b",
+      "STU-MOT-020b (:27569-27571): disabling every keyframe returns exactly the prior static value"
+    ],
+    "lead_rulings": [
+      "2026-11-13 option A approved: StudioPropertyStream.static_implied (serde default, skipped when false; folio validate_stream only on anchor or position with keyframes); harness-core sets it on keyframe.set/keyframe.paste-created anchor or position streams; disable, last-key delete and toggle remove the stream; paths approved below; bundled adds folio, composite, package suites",
+      "2026-11-13 review aa4a35e3 (research/review-smb-fix-animation-values-1-aa4a35e3.json, SAFE_TO_JUDGE, 3 low): F1 module docs; F3 paste dimension check before creating an absent anchor or position, paste_property_mismatch, test; Q1 property.read static_value null when static_implied; F2 accepted as a limit, PRIORITY next-lane candidate; one new commit, focused tests, then land"
+    ],
+    "v4_06": {
+      "class": "a key-creating command seeds a missing stream static value with the caller key value, or a key-at-current command takes the caller value (motion-row-takes-the-callers-value)",
+      "regex": "slot\\(e, [^)]*Some\\(|default\\.or\\(hint\\)|hint\\.map|value\\.unwrap_or",
+      "sites": [
+        "harness-core motion_commands.rs property.enable_animation (was slot with value hint, value.unwrap_or): fixed c3a233af (KEY_AT_CURRENT, current_slot)",
+        "harness-core motion_commands.rs key_set (slot Some(&value)): fixed aa4a35e3 (key_slot, static_implied)",
+        "harness-core motion_commands.rs key_paste (slot hint = first pasted key): fixed aa4a35e3 (key_slot)",
+        "harness-core motion_commands.rs seeded_slot layer stream default.or(hint): fixed aa4a35e3 (anchor/position keyed creation is static_implied; scale/rotation/opacity create from their default: n/a)",
+        "harness-core motion_commands.rs property_set (slot Some(&value)): n/a, an explicit set value is the static value",
+        "harness-core motion_commands.rs member() default.or(hint) for camera and light point_of_interest (default None): NOT fixed, next-lane candidate; three_d and mask members have defaults: n/a",
+        "harness-core motion_commands.rs text_slot hint.map (text animator param absent from the animator): NOT fixed, next-lane candidate",
+        "composite track_apply.rs put() static_value fallback = first key on a missing stream: NOT fixed (outside the crate), next-lane candidate",
+        "composite camera_solve.rs:608-609 static first key on a new solved camera layer: n/a (a new layer, no prior static value)"
+      ]
+    },
+    "next_lane_candidates": [
+      "PRIORITY (review aa4a35e3 F2, lead 2026-11-13): enable_animation and toggle-on of an absent anchor or position: evaluate the implied value through the composite evaluator and key it, so new layers can enable anchor and position animation (STU-MOT-038; today property_default_unknown, and a toggle-off of the last key of an implied stream is not undone by a second toggle at the same time)",
+      "camera and light point_of_interest: keyframe.set/paste on an absent point_of_interest creates it from the caller value; disable leaves a two-node camera or light (harness-core motion_commands.rs member() at the camera/light point_of_interest addresses); STU-MOT-020b",
+      "text animator params: keyframe.set/paste on a param absent from the animator creates the stream from the caller value (harness-core motion_commands.rs text_slot hint); STU-MOT-020b",
+      "composite track_apply put() (track_apply.rs:199-206): a missing position/rotation/scale stream gets the first key value as static, so disable afterwards keeps it; STU-MOT-020b"
+    ],
+    "cut": "enable_animation and toggle-on on an absent anchor or position stay property_default_unknown (their current value derives from the content, not knowable in harness-core): accepted limit, review F2, PRIORITY next-lane candidate; siblings point_of_interest, text animator params and composite track_apply put() named, not fixed",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T15:35:24Z",
+        "on": "paths beyond the brief",
+        "decision": "approved 2026-11-13: action/commands/motion.rs property.enable_animation row KEY_AT -> KEY_AT_CURRENT; folio composition.rs StudioPropertyStream.static_implied and validate_stream (option A); composite static_implied: false literals at camera_solve.rs:608,609,643, clip_finishing.rs:984,1011, temporal/composition.rs:310,396,412, temporal/motion_records.rs:55, track_apply.rs:204, tests/track_apply.rs:87,99"
+      },
+      {
+        "at": "2026-11-13T15:35:24Z",
+        "on": "review aa4a35e3 F2",
+        "decision": "accepted as a limit for this lane; PRIORITY next-lane candidate"
+      }
+    ]
   }
 }
