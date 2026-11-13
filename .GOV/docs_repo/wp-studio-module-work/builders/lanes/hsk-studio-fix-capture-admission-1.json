@@ -1,19 +1,82 @@
 {
   "crate": "hsk-studio-harness-view (view/commands/prototype.rs capture_frame)",
   "lane": "SMB-FIX-CAPTURE-ADMISSION-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "c8fca900",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "e47bf4ab",
+      "kind": "red",
+      "what": "harness tests/fix_capture_admission.rs (probe r60a3_j2 ported + cheap-check order, pathless, resource); red at base c8fca900: 4 of 5 failed (pathless passes by design)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-red-c8fca900.log"
+    },
+    {
+      "sha": "b9074096",
+      "kind": "fix",
+      "what": "harness-view commands/prototype.rs capture_frame: cheap checks, admit through the bound JobPort, render+write, settle once",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-focused-e47bf4ab.log"
+    },
+    {
+      "sha": "6fd024f2",
+      "kind": "red",
+      "what": "review F1-F4 tests of b9074096: fix_capture_admission.rs F1 (file created inside admit never replaced) and F2 (write failure after admission settles once failed, nothing left); commands/prototype.rs tests module F3 (distinct/stable derived ids, job_resource_invalid) and F4 (canceled at admission; cancel after admission settles canceled). Red at b9074096: F1 and F4b failed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-red2-b9074096.log"
+    },
+    {
+      "sha": "2c6fd52c",
+      "kind": "fix",
+      "what": "review F1: write_new when overwrite is false (destination_exists answered overwrite_required); F4: the viewer token checked after render+encode, before the write (canceled settles canceled)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-focused2-6fd024f2.log"
+    }
+  ],
+  "capabilities_done": [
+    "prototype.capture_frame with a path admitted through the viewer's bound JobPort before the first byte (typed overloaded/canceled/stale_revision), settled once; job resource = open document, else the play session's derived SDOC resource"
+  ],
+  "tests": {
+    "red_at_base": {
+      "sha": "c8fca900+test",
+      "test": "hsk-studio-harness --features viewer --test fix_capture_admission",
+      "result": "5 run: 1 passed, 4 failed (exit 100)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-red-c8fca900.log"
+    },
+    "focused": {
+      "sha": "e47bf4ab+fix (= b9074096 tree)",
+      "test": "clippy -p hsk-studio-harness-view --features viewer --lib; nextest -p hsk-studio-harness --features viewer --test fix_capture_admission",
+      "result": "clippy exit 0; 5 run: 5 passed (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-focused-e47bf4ab.log"
+    },
+    "bundled": {
+      "sha": "2c6fd52c",
+      "run": "one outer D: hold: cargo build -p hsk-studio-harness --features viewer --example studio-harness (fresh); lane-check --owner smb-ai-distort-effects-1 --disk d (step 0, clippy harness-view [viewer] + dependents harness, native-host) -- nextest -p hsk-studio-harness-view --features viewer (whole suite); lane-check (step 0, clippy harness [viewer]) -- nextest -p hsk-studio-harness --features viewer --test harness_drive_audio --test fix_capture_admission",
+      "result": "example build exit 0; harness-view [viewer] 191 run: 191 passed, 1 skipped (exit 0); harness [viewer] 12 run: 12 passed, 0 skipped (exit 0); bundled exit 0",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-bundled-2c6fd52c.log"
+    },
+    "red2_at_b9074096": {
+      "sha": "b9074096+tests",
+      "result": "harness-view lib commands::prototype::tests 4 run: 3 passed, 1 failed (exit 100); harness fix_capture_admission 7 run: 6 passed, 1 failed (exit 100)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-red2-b9074096.log"
+    },
+    "focused2": {
+      "sha": "6fd024f2+fix (= 2c6fd52c tree)",
+      "result": "clippy harness-view [viewer] lib+tests exit 0; commands::prototype::tests 4 passed; fix_capture_admission 7 passed (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-focused2-6fd024f2.log"
+    },
+    "landing": {
+      "sha": "2c6fd52c",
+      "run": "one outer D: hold: fetch, rebase onto origin c8fca900 (up to date, no newly landed commits: suites not rerun), lane-check --per-sha HEAD~1, guarded push",
+      "result": "PER_SHA_RESULT OK shas=1 range=6fd024f2..2c6fd52c; pushed c8fca900..2c6fd52c -> codex/handshake-studio-assets (fast-forward, attempt 1)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-capture-admission-1/smb-fix-capture-admission-1-landing-2c6fd52c.log",
+      "per_sha_logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/per-sha-2c6fd52c/"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge at 2c6fd52c (origin codex/handshake-studio-assets); claim covers e47bf4ab, b9074096, 6fd024f2, 2c6fd52c",
+  "updated_at": "2026-11-13T15:08:46Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +102,65 @@
       "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY prototype.capture_frame admission"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+    "reuses_tree_and_target": "smb-ai-distort-effects-1",
+    "spec_basis": [
+      "STU-PRO-138: prototype.capture_frame (render the current prototype viewport to bytes)",
+      "STU-PRO-139: model-steerability of the running prototype (dispatch_trigger + capture_frame)",
+      "STU-ARC-008: every importer, decoder, render, export, preview, model and plugin job MUST enter bounded admission by actor/document/resource",
+      "STU-ARC-013: committed edits, exports and recording MUST NOT silently drop"
+    ],
+    "fix": "commands/prototype.rs capture_frame with a path: parameter_conflict, then the path (no file name: export_path), overwrite_required, then admit (admit_export_job with a document open, else admit_export_job_with(job_admission_of(prototype_resource))), then render + PNG write (write_atomic as before), then settle_export_job once; reply carries job (settlement). A refusal at admission writes and renders nothing. Review of b9074096 (2c6fd52c): without overwrite the PNG is written by write_new (destination_exists answered overwrite_required), so a file that appears after the cheap check is never replaced (F1); the viewer's token is checked after render+encode and before the write, so a cancel after admission settles canceled (F4).",
+    "derived_resource": "prototype_resource: SDOC id in the UUIDv7 shape from SHA-256 of 'hsk.studio.prototype.fig\u0000' + FigDocument::source_sha256 (content of the .fig), same pattern as audio_import audio_file_resource and web_site site_resource; None only for a play session without a source digest (a decoded tree; the viewer opens sessions from bytes only) -> typed job_resource_invalid, never resource-less",
+    "reading_pathless_capture": "ACCEPTED by the lead (2026-11-13T14:28:10Z): a pathless capture is NOT admitted (it writes nothing; a bounded render, MAX_SCREEN_PIXELS, as the play panel draws). Pinned by a_capture_without_a_path_writes_nothing_and_asks_nothing (asks 0, no job key).",
+    "reading_open_document_resource": "ACCEPTED by the lead (2026-11-13T14:28:10Z): with a document open the capture names the open document (admit_export_job; bound and head = its revision), the export_audio pattern; with none open, the derived prototype resource.",
+    "v4_06": {
+      "class": "a file-writing prototype/play route not admitted through the bound JobPort before its first byte",
+      "regex": "write_atomic|write_new|write_atomically|fs::write|File::create|OpenOptions",
+      "searched": "harness-view view/prototype.rs, view/commands/prototype.rs, view/shell.rs, view/hosted.rs; harness-core action/commands/prototype.rs; components player.rs, prototype.rs",
+      "sites": [
+        {
+          "site": "harness-view view/commands/prototype.rs:55 (base) write_png -> write_atomic",
+          "status": "fixed (b9074096: render_and_write after admission)"
+        }
+      ],
+      "count": 1
+    },
+    "cut": [
+      "post-admission refusal detail shapes: png encode and write failures now carry {message} instead of {stage}/{path} (codes unchanged)"
+    ],
+    "beyond_brief_paths": [],
+    "not_proven": [
+      "a cancel raised during the render itself is not observed: PrototypePlay renders under its own CancellationToken (harness-view view/prototype.rs, not this lane's path); the viewer's token is checked at admission (test a_canceled_token_refuses_the_capture_at_admission) and after the render and encode, before the write (test a_cancel_after_admission_settles_canceled_before_the_write)",
+      "stale_revision admission outcome of capture_frame: from the shared admit_export_job_with helper (bound = head at admission); not driven here"
+    ],
+    "review_b9074096": {
+      "file": "research/review-smb-fix-capture-admission-1-b9074096.json (kernel 3b6b65e5), FIX_FIRST 1 medium 3 low",
+      "F1": "fixed 2c6fd52c (write_new on !overwrite); red 6fd024f2 test a_file_that_appears_after_the_check_is_never_replaced_without_overwrite",
+      "F2": "test 6fd024f2 a_write_failure_after_admission_settles_once_failed_and_leaves_nothing (passes at b9074096 by design: the gap was the proof)",
+      "F3": "tests 6fd024f2 commands::prototype::tests the_derived_resource_follows_the_fig_digest, a_session_without_a_source_digest_is_refused_job_resource_invalid",
+      "F4": "test a_canceled_token_refuses_the_capture_at_admission (6fd024f2); cancel after render before write fixed 2c6fd52c, red test a_cancel_after_admission_settles_canceled_before_the_write; cancel during the render stays not_proven"
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T15:08:59Z",
+        "on": "reading (a) pathless capture",
+        "decision": "accepted: a pathless capture is not admitted (writes nothing, bounded render); pinned by the asks-0 test"
+      },
+      {
+        "at": "2026-11-13T15:08:59Z",
+        "on": "reading (b) open-document resource",
+        "decision": "accepted: with a document open the capture names that document (export_audio pattern)"
+      },
+      {
+        "at": "2026-11-13T15:08:59Z",
+        "on": "review b9074096 F1-F4",
+        "decision": "F1 write_new on !overwrite with a red test; F2 write-failure test; F3 in-crate derived-id and job_resource_invalid tests; F4 cancel tests and a cancel check after the render, before the write; a cancel during the render stays not_proven"
+      },
+      {
+        "at": "2026-11-13T15:08:59Z",
+        "on": "landing",
+        "decision": "RELEASED at 2c6fd52c; fix lanes land in whatever order they turn green"
+      }
+    ]
   }
 }

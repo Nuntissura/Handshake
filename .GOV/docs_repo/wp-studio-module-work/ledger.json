@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T14:09:33Z",
+ "updated_at": "2026-11-13T15:08:59Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20268,8 +20268,8 @@
   },
   {
    "lane_id": "SMB-FIX-CAPTURE-ADMISSION-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (view/commands/prototype.rs capture_frame)",
    "lane_file": "builders/lanes/hsk-studio-fix-capture-admission-1.json",
    "brief": "builders/briefs/lane-smb-fix-capture-admission-1.md",
@@ -20277,11 +20277,12 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T15:08:59Z",
    "closes": [
     "validation/round-R60.json attempt_3.probes.failures SMB-DRIVE-TYPED-2 export-job-not-admitted-jobport",
     "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY prototype.capture_frame admission"
-   ]
+   ],
+   "claim": "prototype.capture_frame with a path admits its PNG write through the viewer's bound JobPort before the first byte at 2c6fd52c: cheap checks (parameter_conflict, export_path, overwrite_required) first, then admission (typed overloaded, canceled, stale_revision; the open document, else the play session's derived SDOC resource from the .fig digest, never resource-less), then render, a cancel check and the write (write_new without overwrite, so no file is ever replaced), settled once; pathless capture not admitted (lead reading); review b9074096 F1-F4 fixed; closes R60-a3 probe r60a3_j2 (export-job-not-admitted-jobport)"
   },
   {
    "lane_id": "SMB-FIX-EXPORT-ADMISSION-1",
@@ -22980,6 +22981,16 @@
     "added_at": "2026-11-13T13:55:09Z",
     "item": "under the PRIORITY central-prune candidate: a deleted board node's path records stay in the vector entry",
     "owner": "the central-prune lane"
+   },
+   {
+    "added_at": "2026-11-13T15:08:59Z",
+    "item": "prototype play renders under the viewer's cancel token (PrototypePlay::render uses its own token), so a cancel raised during a capture's render is honored (SMB-FIX-CAPTURE-ADMISSION-1 not_proven)",
+    "owner": "a later prototype lane (harness-view view/prototype.rs)"
+   },
+   {
+    "added_at": "2026-11-13T15:08:59Z",
+    "item": "one shared derived-resource helper for the three SDOC-from-hash copies (audio_import audio_file_resource, harness-core web_site site_resource, commands/prototype prototype_resource)",
+    "owner": "a later host-integration lane"
    }
   ],
   "pause_20261103": {
