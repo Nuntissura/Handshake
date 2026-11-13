@@ -1,19 +1,84 @@
 {
   "crate": "hsk-studio-harness-core (tests/diag_sink.rs run_child; src/diag_sink.rs only if the measured cause is there)",
   "lane": "SMB-FIX-DIAG-SINK-ABORT-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
   "base": "c8fca900",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "83fa63fa756636cfc56a9ec22a729c2066d66358",
+      "kind": "red",
+      "summary": "run_child takes deadline and per-step delay; children report steps (entered, lines_written, ending) with wall clock and error mode; parent prints each child's timeline; red test a_child_slow_in_every_step_is_not_taken_for_a_hang",
+      "prelanding_sha": "b4d5854e78387050e31ab9b9c3d086a02179cb34"
+    },
+    {
+      "sha": "7e028811d9e20b7132be69269f73b5e0f8062a7b",
+      "kind": "fix",
+      "summary": "children set SEM_NOGPFAULTERRORBOX and clear the C runtime abort report fault; the abort child aborts through the C runtime abort on Windows (exit 3, no crash reporter); the guard counts from the last new step; hang test",
+      "prelanding_sha": "3ea45cddcba292ffda1d6b2fa48f591fd2c2289e"
+    },
+    {
+      "sha": "86ee4e5728d059477d6da82f099bd6bcd81e319d",
+      "kind": "review-fix",
+      "summary": "review F1: Windows abort child ends with TerminateProcess(GetCurrentProcess(), 3) (no ExitProcess, atexit or DLL detach; no WER); F2: Hang carries exit status and run time, hang test asserts a reaped non-success status (Windows code 1) and deadline < run < deadline + 5 s",
+      "prelanding_sha": "a3376e997a744636a02d1812c02b4a2a08218766"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_at_b4d5854e": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/red-smb-fix-diag-sink-abort-1-b4d5854e.log",
+      "result": "FAIL as intended, exit 100: child abort did not end in 5s: entered=+30ms lines_written=+3030ms killed=+5000ms"
+    },
+    "focused_at_3ea45cdd": {
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focused1-smb-fix-diag-sink-abort-1-3ea45cdd.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focused2-smb-fix-diag-sink-abort-1-3ea45cdd.log"
+      ],
+      "result": "harness-core --test diag_sink whole binary, serial (--no-capture), twice: 18 run, 18 passed, exit 0 each"
+    },
+    "clippy_at_3ea45cdd": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/build-smb-fix-diag-sink-abort-1-fix-b4d5854e-dirty.log",
+      "result": "cargo clippy -p hsk-studio-harness-core --tests exit 0, no warning in tests/diag_sink.rs"
+    },
+    "bundled": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-smb-fix-diag-sink-abort-1-a3376e99.log",
+      "timelines": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-timelines-smb-fix-diag-sink-abort-1-a3376e99.log",
+      "result": "lane-check --owner smb-pr-edit-footprint-1 --disk d: step 0 clean, registry in sync, clippy harness-core + dependents [hsk-studio-harness hsk-studio-harness-view] --tests clean (no diag_sink.rs hit), nextest -p hsk-studio-harness-core --test diag_sink: 18 run, 18 passed, 0 skipped, LANECHECK_EXIT 0"
+    },
+    "mutations_at_a3376e99": {
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/mutation-no-kill-smb-fix-diag-sink-abort-1-a3376e99.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/mutation-no-wait-join-smb-fix-diag-sink-abort-1-a3376e99.log"
+      ],
+      "result": "no-kill (child.kill() removed): hang test TIMEOUT at 120.1 s, exit 100; no-wait-join (wait replaced by None, reader.join removed): FAIL in 5.1 s, the guard left the child unreaped, exit 100; both reverted with git apply -R, tree clean, no diag_sink process left"
+    },
+    "focused_at_a3376e99": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focused-smb-fix-diag-sink-abort-1-a3376e99.log",
+      "wer_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/wer-smb-fix-diag-sink-abort-1-a3376e99.log",
+      "result": "diag_sink whole binary serial: 18 run, 18 passed, exit 0; no WerFault process"
+    },
+    "nonwin_check": {
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/nonwin-check-smb-fix-diag-sink-abort-1-3ea45cdd.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/nonwin-check-smb-fix-diag-sink-abort-1-a3376e99.log"
+      ],
+      "result": "cargo check --offline -p hsk-studio-harness-core --test diag_sink --target x86_64-unknown-linux-musl: exit 0 at 3ea45cdd and at a3376e99, no warning in tests/diag_sink.rs (compile only; not run)"
+    },
+    "landing": {
+      "pushed": "86ee4e5728d059477d6da82f099bd6bcd81e319d",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/land-smb-fix-diag-sink-abort-1-86ee4e57.log",
+      "per_sha_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/per-sha-run-smb-fix-diag-sink-abort-1-86ee4e57.log",
+      "result": "rebased on origin/codex/handshake-studio-assets (landed commits touch no harness-core path), lane-check --per-sha HEAD~1 PER_SHA_RESULT OK, guarded push"
+    }
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 745,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge SMB-FIX-DIAG-SINK-ABORT-1 at 86ee4e57",
+  "updated_at": "2026-11-13T15:42:01Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +104,106 @@
       "research/lead-rulings-20261108-by-lane.json common DIAG_SINK FLAKE (2026-11-13)"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1",
+    "spec_basis": [
+      "STU-QUIET-004 PROCESS/TERMINAL HYGIENE: headless harness processes are hidden, owner-tagged, and reclaimed on completion/failure/staleness (HBR-QUIET-003): the guard kills a child that stops showing steps",
+      "STU-PAR-005 PROCESS OWNERSHIP: no orphan processes after a run"
+    ],
+    "measurement": {
+      "method": "every child writes its steps on stderr with the Unix wall clock in us and its error mode (GetErrorMode); the parent prints `child timeline` (spawn, steps, exit or kill, code); WerFault.exe processes logged with start/end and command line (-p <child pid>) by a read-only watcher during the runs",
+      "base_alone_b4d5854e": {
+        "logs": [
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/measure1-alone-smb-fix-diag-sink-abort-1-b4d5854e.log",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/measure2-alone-smb-fix-diag-sink-abort-1-b4d5854e.log",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/wer-smb-fix-diag-sink-abort-1-b4d5854e.log"
+        ],
+        "clean": "entered +32/+30 ms, lines_written +32/+30, ending +32/+30, exit +49/+50 ms, code 0, error_mode 0x3",
+        "overflow": "entered +31/+30, lines_written +31/+30, ending +31/+30, exit +50/+50 ms, code 0xC00000FD, error_mode 0x3, no WerFault",
+        "abort": "entered +33/+30, lines_written +34/+30, ending (abort called) +34/+30, exit +4294/+3255 ms, code 0xC0000409, error_mode 0x3; `WerFault.exe -u -p 53792` and `-u -p 152360` (the two abort children) seen"
+      },
+      "parent_error_mode_probe": {
+        "how": "pwsh parent with SetErrorMode(0) then 0x3 spawning the b4d5854e test binary as child directly (children reported the inherited mode)",
+        "mode_0": "overflow held 9.9 s and abort 9.4 s, each with `WerFault.exe -u -p <child>`",
+        "mode_0x3": "overflow exit 0.7 s, no WerFault; abort 6.2 s with `WerFault.exe -u -p <child>`"
+      },
+      "earlier_evidence": "alone at 81de18b9 13.1 s (smb-layout-delete-cascade-1-diag-sink-alone-81de18b9.log); bundled 60.76 s timeout at 81de18b9 while clean/panic/overflow passed in 0.28/0.79/0.42 s; SMB-SCORE-EFFECTS-6 run 2 9.8 s",
+      "after_fix_alone_3ea45cdd": {
+        "logs": [
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focused1-smb-fix-diag-sink-abort-1-3ea45cdd.log",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focused2-smb-fix-diag-sink-abort-1-3ea45cdd.log",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/wer-smb-fix-diag-sink-abort-1-3ea45cdd.log"
+        ],
+        "abort": "ending +364/+184 ms, exit +378/+202 ms (ending to exit 14/18 ms), code 3",
+        "overflow": "ending +40/+193, exit +53/+213 ms, code 0xC00000FD",
+        "slow_abort_red_test": "lines_written +3029/+3030, ending +6030/+6031, exit +6035/+6042 ms, code 3",
+        "hang_test": "killed one deadline after `ending` (5.25/5.09 s test time)",
+        "wer": "no WerFault process during either run"
+      },
+      "bundled": "a3376e99 bundled (junit): abort ending +190 ms exit +191 ms code 3; overflow exit +204 ms; clean +212 ms; panic +50 ms; hang killed +5065 ms code 1; slow abort ending +6033 exit +6038 code 3",
+      "after_review_fix_a3376e99": "focused: abort ending +32 ms, exit +50 ms, code 3 (TerminateProcess); hang killed +5066 ms, code 1; no WerFault process"
+    },
+    "cause": "MEASURED: std::process::abort on Windows is a fast fail (exit 0xC0000409); Windows hands every fast fail to Windows Error Reporting, and `WerFault.exe -u -p <child>` holds the dying child until its report is done: 3.2-13.1 s alone, past 60 s under load. The process error mode does not stop it for a fast fail (child at 0x3 still held). SEM_NOGPFAULTERRORBOX does keep the overflow's unhandled exception out, but the children only had it by inheritance from the shell. The child's own work (start to abort call) took 30-34 ms. Not in src/diag_sink.rs; src untouched.",
+    "v4_06": {
+      "class": "a test child whose death Windows hands to Windows Error Reporting (fast fail, or an unhandled exception without SEM_NOGPFAULTERRORBOX) under a wall-clock guard counted from spawn",
+      "regex": "process::abort\\(\\)|__fastfail|SetErrorMode|harden_worker_process\\(\\)|Instant::now\\(\\) \\+ Duration|did not end in",
+      "sites": [
+        "harness-core tests/diag_sink.rs child_entry abort: fixed (3ea45cdd C runtime abort; superseded by the review-fix commit: TerminateProcess(GetCurrentProcess(), 3) on Windows, review F1)",
+        "harness-core tests/diag_sink.rs child_entry overflow: fixed (the child sets SEM_NOGPFAULTERRORBOX itself; was safe only by inheritance)",
+        "harness-core tests/diag_sink.rs run_child deadline from spawn: fixed (guard from the last new step)",
+        "hsk-studio-worker src/job.rs harden_worker_process: covers C abort() (clears _CALL_REPORTFAULT) and unhandled exceptions (SEM_NOGPFAULTERRORBOX); Rust fast fail (int 0x29: std::process::abort, rtabort!, double panic, panic in a no-unwind frame) in a worker is not covered and waits on WER (measured class of this lane): named, out of scope, next-lane candidate",
+        "hsk-studio-motion-js src/quickjs_worker.rs:624 and hsk-studio-interop-vector-core src/eps_worker.rs:421: call harden_worker_process, so the same: C abort and unhandled exceptions covered, Rust fast fail not covered (named, out of scope, next-lane candidate); reachability UNVERIFIED",
+        "hsk-studio-worker src/caps.rs:43: non-Windows no-op stub (not applicable)",
+        "hsk-studio-harness tests/diag_sink_process.rs: no aborting or overflowing child (:331 is manual text) (not applicable)"
+      ]
+    },
+    "not_proven": "non-Windows: compiled (x86_64-unknown-linux-musl check) but not run; Linux/macOS abort path std::process::abort unchanged",
+    "cut": "no src/diag_sink.rs change; no WER registry or service change; no change to worker crates (F3 is a candidate lane)",
+    "rejected": [
+      "SetErrorMode alone: measured ineffective for the fast fail",
+      "raising the 60 s deadline: still load-dependent (brief)",
+      "reusing hsk_studio_worker::harden_worker_process: would add a harness-core -> worker dev edge and Cargo.toml/Cargo.lock changes (steward-owned); two declarations in the test instead",
+      "parent as debugger of the child, or WER exclusion: heavy or a persistent machine change"
+    ],
+    "beyond_brief_paths": [],
+    "reading": {
+      "at": "2026-11-13T14:44:26Z",
+      "by": "lead reply to REVIEW READY at 3ea45cdd",
+      "decision": "accepted: on Windows the abort child aborts through the C runtime abort (exit 3, report fault off), as hsk-studio-worker harden_worker_process does for production workers; the behaviour asserted (lines written, no end of run after an abrupt termination) is unchanged; no machine-wide WER change",
+      "cause": "measured, accepted: Windows Error Reporting (WerFault.exe -u -p <child>) holds Rust std::process::abort fast fail (exit 0xC0000409); no per-process setting prevents it (a child at error mode 0x3 was still held)",
+      "guard": "accepted: the guard counts from the last new step, with a_child_that_hangs_is_killed_and_named_by_the_guard proving the hang guard",
+      "measurements": "notes.measurement (base alone b4d5854e, parent error-mode probe, after fix 3ea45cdd; bundled pending)",
+      "next": "cfg(not(windows)) compile check (x86_64-unknown-linux-musl installed), read-only review of 3ea45cdd, then the bundled hold",
+      "review": "research/review-smb-fix-diag-sink-abort-1-3ea45cdd.json (kernel e32dcb84): FIX_FIRST, 3 low; core confirmed (guard bounded at 4 deadlines = 240 s, FFI confined to the child)",
+      "f1_ruling": "lead: on Windows the abort child ends with TerminateProcess(GetCurrentProcess(), 3): an abrupt death with no ExitProcess, atexit or DLL detach, closer to a real crash (the fast fail of std::process::abort), and Windows Error Reporting does not hold it; exit code 3 and the written lines stay asserted. Supersedes the C runtime abort of 3ea45cdd (whose _exit(3) is an ExitProcess death)",
+      "f2_ruling": "lead: Hang carries the exit status (from the guard wait) and the run time; the hang test asserts a reaped non-success status (no orphan; Windows kill code 1) and a run time over the deadline and under deadline + 5 s; mutations removing child.kill() or the wait/join must fail the test (proved, then reverted)",
+      "f3_ruling": "lead: record the next-lane candidate below; v4_06 worker sites corrected"
+    },
+    "decision_for_lead_resolved": "accepted by the lead 2026-11-13 (see reading); F1 changed the Windows abort path to TerminateProcess",
+    "next_lane_candidates": [
+      "worker processes: Rust fast fail (int 0x29) waits on WER on Windows despite harden_worker_process; consider WerAddExcludedApplication, WerSetFlags or a custom abort path; reachability UNVERIFIED"
+    ],
+    "ready_at": "2026-11-13T15:42:01Z",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T15:42:01Z",
+        "on": "SMB-FIX-DIAG-SINK-ABORT-1 REVIEW READY 3ea45cdd",
+        "decision": "accepted: measured cause (WER holds Rust's fast-fail abort on Windows, no per-process setting prevents it); no machine-wide WER change; the guard counting from the last new step accepted with the hang test"
+      },
+      {
+        "at": "2026-11-13T15:42:01Z",
+        "on": "SMB-FIX-DIAG-SINK-ABORT-1 review 3ea45cdd F1",
+        "decision": "on Windows the abort child ends with TerminateProcess(GetCurrentProcess(), 3): no ExitProcess, atexit or DLL detach, no WER hold; exit code 3 and the written lines asserted"
+      },
+      {
+        "at": "2026-11-13T15:42:01Z",
+        "on": "SMB-FIX-DIAG-SINK-ABORT-1 review 3ea45cdd F2",
+        "decision": "Hang carries exit status and run time; the hang test asserts a reaped non-success status and deadline < run < deadline + 5 s; removing child.kill() or the wait/join fails it (mutation logs)"
+      },
+      {
+        "at": "2026-11-13T15:42:01Z",
+        "on": "SMB-FIX-DIAG-SINK-ABORT-1 non-Windows",
+        "decision": "x86_64-unknown-linux-musl cargo check of the diag_sink test compiled, not run: not_proven"
+      }
+    ]
   }
 }

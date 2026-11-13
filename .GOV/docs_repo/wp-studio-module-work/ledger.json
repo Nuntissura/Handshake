@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T15:35:24Z",
+ "updated_at": "2026-11-13T15:42:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20200,8 +20200,8 @@
   },
   {
    "lane_id": "SMB-FIX-DIAG-SINK-ABORT-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core (tests/diag_sink.rs run_child; src/diag_sink.rs only if the measured cause is there)",
    "lane_file": "builders/lanes/hsk-studio-fix-diag-sink-abort-1.json",
    "brief": "builders/briefs/lane-smb-fix-diag-sink-abort-1.md",
@@ -20209,11 +20209,12 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T15:42:01Z",
    "closes": [
     "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY diag_sink abort test load flake",
     "research/lead-rulings-20261108-by-lane.json common DIAG_SINK FLAKE (2026-11-13)"
-   ]
+   ],
+   "claim": "hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run deterministic under load at 86ee4e57: measured cause Windows Error Reporting (WerFault -u -p <child>) holding the fast fail of std::process::abort (3.2-13.1 s alone, past 60 s loaded; error mode does not prevent it); on Windows the abort child ends with TerminateProcess(GetCurrentProcess(), 3) and every child sets SEM_NOGPFAULTERRORBOX; the guard counts from the child's last new step (red test a_child_slow_in_every_step_is_not_taken_for_a_hang) and still kills and reaps a hung child (a_child_that_hangs_is_killed_and_named_by_the_guard, mutation-proved); every listed assertion kept; tests/diag_sink.rs only"
   },
   {
    "lane_id": "SMB-FIX-NEGATIVE-SPACE-1",
@@ -23013,6 +23014,11 @@
     "added_at": "2026-11-13T15:35:24Z",
     "item": "composite track_apply put(): a missing position, rotation or scale stream gets the first key's value as its static value, so disabling afterwards keeps it (STU-MOT-020b; sibling of SMB-FIX-ANIMATION-VALUES-1)",
     "owner": "composite track_apply.rs:199-206"
+   },
+   {
+    "added_at": "2026-11-13T15:42:01Z",
+    "item": "worker processes: Rust fast fail (int 0x29) waits on WER on Windows despite harden_worker_process; consider WerAddExcludedApplication, WerSetFlags or a custom abort path; reachability UNVERIFIED",
+    "owner": "a later worker lane"
    }
   ],
   "pause_20261103": {
