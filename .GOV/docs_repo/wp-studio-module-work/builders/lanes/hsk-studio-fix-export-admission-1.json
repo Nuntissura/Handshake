@@ -1,19 +1,99 @@
 {
   "crate": "hsk-studio-harness-view (view/doc_export.rs RecipeTargets and the export admission helpers), hsk-studio-harness-core (batch.rs process admission and the TargetExporter contract)",
   "lane": "SMB-FIX-EXPORT-ADMISSION-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
   "base": "c8fca900",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
-  "verdicts": [],
+  "commits": [
+    {
+      "sha": "10f34280",
+      "kind": "red",
+      "summary": "harness tests/fix_export_admission.rs: probes e1 and e2 ported, ask counts as assertions, folder made / folder existed cases; red at c8fca900, 5 of 5 failing on their own assertions",
+      "landed_sha": "116efa3b"
+    },
+    {
+      "sha": "8982f120",
+      "kind": "fix",
+      "summary": "doc_export.rs RecipeTargets::write asks once before run.checkpoint and the temp, no second ask (private export_document_for_admitted_target), settles once; batch.rs input Slot lent before TargetExporter::write, asked again only before a later native target; make_folders / remove_made",
+      "landed_sha": "3a1cfe78"
+    },
+    {
+      "sha": "54bc63fd",
+      "kind": "focused",
+      "summary": "post-ask failure settles once with no temp; refused second runner ask fails the native target typed before its folder is made",
+      "landed_sha": "fb4aa4de"
+    },
+    {
+      "sha": "c1ac733c",
+      "kind": "red",
+      "summary": "review F1-F3 red tests: runner-port-only write under the runner's slot, target job charged the input's bytes, contention cannot fail a later native target, cancel while lending and cancel after the target's ask; red at 54bc63fd, 5 of 5 new failing on their own assertions",
+      "landed_sha": "756c3440"
+    },
+    {
+      "sha": "287e172f",
+      "kind": "fix",
+      "summary": "F1 lend only to an exporter asking the runner's own port (TargetExporter::job_port, Arc::ptr_eq), target job charged the input's bytes (TargetExporter::bind_input); F2 native targets first, receipts in declared order, no second runner ask; F3 Slot::hold refuses canceled without asking, export viewer on the batch's token; F4 export_admitted_target and export_document_inner take the AdmittedJob, doctest dropped; RecipeTargets::failed; lead-approved test changes (count 3->2, retired re-ask test)",
+      "landed_sha": "028625d2"
+    },
+    {
+      "sha": "71856655",
+      "kind": "focused",
+      "summary": "F5: data-loss guard pinned (mutation remove_dir -> remove_dir_all caught), failed target settles explicitly failed, not abandoned",
+      "landed_sha": "a77c4ee4"
+    }
+  ],
+  "capabilities_done": [
+    "batch target admitted once, before the first byte reaches the destination (checkpoint temp included); refusal typed overloaded/canceled/stale_revision with nothing written",
+    "one port bound as BatchPorts.jobs and the exporter's port: the runner and a target never hold two slots; a one-slot port completes the batch",
+    "a refused exporter target removes the destination folders the runner made for it (while empty), never one that existed"
+  ],
+  "tests": {
+    "red": {
+      "sha": "c8fca900 + 10f34280 test file",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-export-admission-1/smb-fix-export-admission-1-red-c8fca900.log",
+      "result": "5 run, 0 passed, 5 failed, rc 100"
+    },
+    "focused": {
+      "sha": "10f34280 + uncommitted 8982f120/54bc63fd content",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-export-admission-1/smb-fix-export-admission-1-focused-10f34280.log",
+      "result": "7 run, 7 passed, rc 0"
+    },
+    "red2": {
+      "sha": "54bc63fd + c1ac733c test file",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-export-admission-1/smb-fix-export-admission-1-red2-54bc63fd.log",
+      "result": "12 run, 7 passed, 5 failed (the 5 new), rc 100"
+    },
+    "focused2": {
+      "sha": "c1ac733c + uncommitted 287e172f/71856655 content",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-export-admission-1/smb-fix-export-admission-1-focused2-c1ac733c.log",
+      "result": "fix_export_admission 13 run, 13 passed; harness-core batch::tests 1 passed; mutation proof rc 100 (caught), batch.rs restored hash-equal; rc 0"
+    },
+    "bundled": {
+      "sha": "71856655",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-export-admission-1/smb-fix-export-admission-1-bundled-71856655.log",
+      "result": "rc 0: step 0 clean twice, clippy clean for the lane's files; harness-core 80 run 80 passed; harness-view [viewer] 187 run 187 passed 1 skipped (pre-existing #[ignore] atomic_writer_processes child entry); harness [viewer] fix_export_admission + doc_export + harness_batch_cli 24 run 24 passed"
+    },
+    "landing": {
+      "sha": "a77c4ee4",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-export-admission-1/smb-fix-export-admission-1-land-a77c4ee4.log",
+      "result": "rebased onto origin 0860c7b1 (6 commits, only the lane's 3 paths); harness-core 82 run 82 passed; harness-view [viewer] 191 run 191 passed 1 skipped (pre-existing #[ignore]); harness [viewer] fix_export_admission + doc_export + harness_batch_cli 24 run 24 passed; lane-check --per-sha HEAD~1 PER_SHA_RESULT OK; pushed a77c4ee4 (origin fast-forward), rc 0"
+    }
+  },
+  "verdicts": [
+    {
+      "by": "lead review",
+      "sha": "54bc63fd",
+      "verdict": "FIX_FIRST",
+      "ref": "research/review-smb-fix-export-admission-1-54bc63fd.json (kernel 12b56182)",
+      "findings": "F1 medium, F2-F5 low; rulings 2026-11-13 addressed at 287e172f and 71856655"
+    }
+  ],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge at a77c4ee4",
+  "updated_at": "2026-11-13T16:23:11Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +120,46 @@
       "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY write-before-admission (one fix lane)"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-folio-angle-unbounded-1"
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1",
+    "spec_basis": [
+      "STU-ARC-008 bounded swarm admission: every export job enters bounded admission with overload outcomes and stale-revision rejection",
+      "STU-AUT-126 batch job executes on the kernel Job Runtime as a headless, bounded, quiet job",
+      "STU-AUT-129 output-target record: each target produces its own artifact"
+    ],
+    "design": "lead go 2026-11-13 as sent; open point decided: create_dir_all stays in the runner (make_folders), a refused target removes the folders the run made while empty, never one that existed; review F1-F5 of 54bc63fd (lead rulings 2026-11-13): lend only to an exporter asking the runner's own port, else hold through the write; target job costs the input's bytes; native targets first (no second runner ask); Slot::hold and the export viewer on the batch's cancel token; type-level admission (AdmittedJob parameter) in place of the compile_fail doctest",
+    "asks": "per input 1 runner ask; per exporter target 1, before any byte (none when the batch is canceled). e1 1, e2 2, native-png-native 2, runner-port-only exporter 1 on the host port (the target asks the export viewer's asset-local port), r60_j1 saturated 1 / open 2 with 2 releases, action_batch costs 2 and (1,1) unchanged",
+    "no_admission_variant": "type-level (review F4): Viewer::export_admitted_target and Viewer::export_document_inner take the export's AdmittedJob, which only JobLifecycle::admit makes (session crate, private fields, no Clone); the compile_fail doctest is dropped",
+    "v4_06": {
+      "class_1": "batch-target-bytes-before-admission; regex create_unique_sibling\\(|\\.checkpoint\\(\\) over hsk-studio-harness{,-core,-view}/src",
+      "class_1_sites": [
+        "harness-view view/doc_export.rs RecipeTargets::write (write_admitted_target create_unique_sibling + run.checkpoint): fixed, after the target's ask",
+        "harness-view view/export.rs:187 and :207 (write_atomic / write_new helpers): not applicable, write only for routes that admitted first (export_document_inner, F3 routes of SMB-R60-FOLLOWUPS-1)",
+        "harness-view view/audio_import.rs:825 export_audio partial temp: not this lane (lead ruling F3: export_audio with SMB-R60-FOLLOWUPS-1 items 3a/3b)",
+        "harness-view view/audio_session.rs:569 partial temp: not this lane (SMB-R60-FOLLOWUPS-1 items 3a/3b)",
+        "harness src/cli.rs:923 and :1620 run.checkpoint(): not applicable, in-memory reopen, no destination",
+        "harness src/cli.rs:664 RecipeTargets::new without a port and BatchPorts without jobs: unchanged, the export viewer's asset-local port answers the target's one ask"
+      ],
+      "class_2": "batch-double-admission-self-starvation; regex \\.admit\\( in harness-core batch.rs and RecipeTargets",
+      "class_2_sites": [
+        "harness-core batch.rs Slot::hold (the runner's only ask, once per input after a cancel check): fixed; lent before TargetExporter::write only when TargetExporter::job_port is the runner's port",
+        "harness-view doc_export.rs Viewer::admit_target_export (the target's only ask, the input's bytes, the batch's token): fixed; the export takes the AdmittedJob, no second ask",
+        "harness-view hosted.rs AudioBatchQueue with_jobs: not applicable, one admission per item, no runner ticket"
+      ],
+      "count": "class 1: 6 sites (1 fixed, 5 named); class 2: 3 sites (2 fixed, 1 not applicable)"
+    },
+    "cut": "native target write failure leaves the folder it made, as before (only exporter target failures remove made folders, per the ruling); Viewer::with_context leaks one Harness and token per target and target_viewer one more token clone (pre-existing pattern, not this defect); a panic inside export_admitted_target skips the temp removal (pre-existing, review answers.settle_once)",
+    "beyond_brief_paths": [],
+    "test_changes_approved": [
+      "lead 2026-11-13 (F2 ruling, rule 4a design change): a_native_target_after_an_exporter_target_asks_the_runner_slot_again (10f34280) keeps its name and all-written assertion, count (3,0,3) -> (2,0,2) at 287e172f",
+      "lead 2026-11-13: a_refused_second_runner_ask_fails_the_native_target_before_its_folder_is_made (54bc63fd) retired at 287e172f, replaced by f2_contention_cannot_fail_a_native_target_declared_after_an_exporter_target (c1ac733c)"
+    ],
+    "not_red_able": "batch.rs unit test a_canceled_slot_hold_refuses_canceled_without_asking lands with 287e172f: Slot is private and gains the cancel parameter there; end to end, a pre-set token fails the open before the runner's ask. F5 tests are pins of correct behaviour (green on arrival); the data-loss pin is proven by a recorded mutation run",
+    "ready": {
+      "pushed": "a77c4ee4",
+      "origin_before": "0860c7b1",
+      "at": "2026-11-13T16:23:11Z",
+      "released_by": "lead RELEASED at 71856655 (landing 6 of 7)",
+      "landing_note": "the first landing hold stopped on the builder's own foreign-path check (git diff --name-only printed repo-root paths); the rebase was already done and the diff held only the lane's 3 files; the check was fixed (--relative) and the hold rerun"
+    }
   }
 }

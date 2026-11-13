@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T15:54:30Z",
+ "updated_at": "2026-11-13T16:23:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20290,8 +20290,8 @@
   },
   {
    "lane_id": "SMB-FIX-EXPORT-ADMISSION-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (view/doc_export.rs RecipeTargets and the export admission helpers), hsk-studio-harness-core (batch.rs process admission and the TargetExporter contract)",
    "lane_file": "builders/lanes/hsk-studio-fix-export-admission-1.json",
    "brief": "builders/briefs/lane-smb-fix-export-admission-1.md",
@@ -20299,12 +20299,13 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T16:23:17Z",
    "closes": [
     "validation/round-R60.json attempt_3.probes.failures SMB-R60-FOLLOWUPS-1 batch-target-bytes-before-admission and batch-double-admission-self-starvation",
     "validation/round-R60.json attempt_3.probes.failures SMB-DOC-EXPORT-1 batch-target-bytes-before-admission",
     "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY write-before-admission (one fix lane)"
-   ]
+   ],
+   "claim": "batch per-target export admitted before the first byte at a77c4ee4: RecipeTargets::write asks once per target (Action::Export of the run's document at the run's revision, the input's bytes, the batch's cancel token) before run.checkpoint and the checkpoint temp, refusal typed overloaded/canceled/stale_revision with nothing written; the export takes the AdmittedJob only admission makes (no second ask) and settles once (report job, or RecipeTargets::failed); the runner holds one slot per input, writes native targets first, lends the slot only to an exporter asking its own port (TargetExporter::job_port), so one port bound as runner and exporter never holds two slots; a refused exporter target removes only the empty folders the run made; review 54bc63fd F1-F5 fixed; closes R60-a3 probes e1 (batch-target-bytes-before-admission) and e2 (batch-double-admission-self-starvation)"
   },
   {
    "lane_id": "SMB-FIX-LAYER-RECORD-PRUNE-1",
