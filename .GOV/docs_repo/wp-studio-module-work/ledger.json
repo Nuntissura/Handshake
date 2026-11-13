@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T10:32:17Z",
+ "updated_at": "2026-11-13T11:28:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20138,8 +20138,8 @@
   },
   {
    "lane_id": "SMB-DS-VARIABLES-AUTHOR-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (vector entry design member, view/design/*, view/design/persist.rs), hsk-studio-harness-core (design command rows), hsk-studio-components (read)",
    "lane_file": "builders/lanes/hsk-studio-ds-variables-author-1.json",
    "brief": "builders/briefs/lane-smb-ds-variables-author-1.md",
@@ -20147,13 +20147,14 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T11:28:13Z",
    "closes": [
     "research/width-plan-20261108-raster-vector-design.json rank 3",
     "research/spec-coverage-20261111-g8-designsystems-automation-assets.json STU-DS variables rows",
     "ledger direction.next_lane_candidates 2026-11-12T17:58:12Z text-record compaction",
     "ledger direction.next_lane_candidates 2026-11-12T17:58:12Z .fig prune at save"
-   ]
+   ],
+   "claim": "READY_FOR_VALIDATION at 3fb489ab (origin codex/handshake-studio-assets): design variables as typed commands (STU-DS-132/133: variable_collection.*, variable.*, node.*_explicit_variable_mode_for_collection; resolve_for_consumer with explicit modes, scope and cycle refusals, STUDIO_VARIABLE_SET under each catalog id), component sync text compaction recorded in the undo step (P2), design states pruned at save from a copy (P3, review F1 rule), review 9ccbcca8 F1-F8 fixed under rulings Q1-Q8; bundled-smb-ds-variables-author-1-4d8e3a8e.log (462/462, 129/129), land-smb-ds-variables-author-1-3fb489ab.log, persha-smb-ds-variables-author-1-3fb489ab.log"
   },
   {
    "lane_id": "SMB-PS-FILTER-ADJUST-COMMANDS-1",
@@ -22701,6 +22702,26 @@
     "added_at": "2026-11-13T10:32:17Z",
     "item": "moving a template or library item rewrites the marker paths that name it (now refused move_template_or_library_item)",
     "owner": "web site (harness-core web_site.rs)"
+   },
+   {
+    "added_at": "2026-11-13T11:28:13Z",
+    "item": "PRIORITY component sync and duplicate beyond the chronicle patch budget: segment large syncs into budget-sized patches inside one undo group, so components with hundreds of instances work",
+    "owner": "a next harness-view / harness-core lane"
+   },
+   {
+    "added_at": "2026-11-13T11:28:13Z",
+    "item": "native binding states keyed by (layer, instance), since the record lives in the vector entry, plus in-step design-state compaction; lifts the 512-instance first-sync bound",
+    "owner": "a next design-system lane"
+   },
+   {
+    "added_at": "2026-11-13T11:28:13Z",
+    "item": "atomic multi-entry history step: no ignored rollback refusal, no split group (review F4; also the layout_and_entry_step issue)",
+    "owner": "a next harness-core lane"
+   },
+   {
+    "added_at": "2026-11-13T11:28:13Z",
+    "item": ".fig redraws in the step: vector, text and design entries (ends R1 for design files)",
+    "owner": "a next design-system lane"
    }
   ],
   "pause_20261103": {

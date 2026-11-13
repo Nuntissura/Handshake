@@ -1,19 +1,53 @@
 {
   "crate": "hsk-studio-harness-view (vector entry design member, view/design/*, view/design/persist.rs), hsk-studio-harness-core (design command rows), hsk-studio-components (read)",
   "lane": "SMB-DS-VARIABLES-AUTHOR-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "b57c82d1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "cf3dbc24 red tests (pushed)",
+    "9cf63e24 P2 text compaction recorded in the undo step (pushed)",
+    "a2a09564 variables typed commands (pushed)",
+    "0eef168f P3 design states pruned at save from a copy (pushed)",
+    "305d677a red tests for review 9ccbcca8 (pushed)",
+    "e4d47fc6 review fixes F1-F8 under lead rulings Q1-Q8 (pushed)",
+    "3fb489ab RUN_COMMANDS rows name the new Run methods (pushed, tip; origin codex/handshake-studio-assets = 3fb489ab)"
+  ],
+  "capabilities_done": [
+    "STU-DS-133 typed commands: variable_collection.create/add_mode/rename_mode/remove_mode/remove, variable.create/remove/set_value_for_mode/set_code_syntax/remove_code_syntax/create_alias/resolve_for_consumer; each mutating row one entry-only undo step with the caller's attribution, records in the vector entry design member (save and reopen)",
+    "STU-DS-132 node.set_explicit_variable_mode_for_collection and node.clear_explicit_variable_mode_for_collection on group layers, artboards and page spreads; resolve_for_consumer honours the nearest explicit mode, default mode at the root",
+    "STU-DS-123 default mode `Mode 1`, hard_min 1 (mode_remove_last), advisory above VARIABLE_VALUE_ADVISORY stored values (results and state_json design.variables)",
+    "STU-DS-125/126/128/129 closed enumerations refused typed (parameter_invalid, variable_scope_unknown, variable_value_type)",
+    "STU-DS-175 variable_alias_cycle names the cycle in resolution order; STU-DS-177 variable_scope_violation names variable, scopes and property (model command surface only)",
+    "ledger P2: component sync text compaction recorded in the undo step (Run::restructure_and_entries); 300 syncs never refuse text_layer_over_cap",
+    "ledger P3 (review F1, lead Q2): a save leaves out only the states that name a layer the document no longer holds, built from a copy (Session::save_to_with_entry; session clean after it, Q3); reopen byte-identical; a state whose children all still exist survives save and open",
+    "review F3: each variable row commits under its catalog id (record, attribution, undo name) with STUDIO_VARIABLE_SET (Run::set_entry_step); kernel-bindings no longer lists VARIABLE_SET as not produced",
+    "review F2 (lead option b): room for a sync's states counted net of replaced states, checked before the step; refused design_state_over_cap changes nothing",
+    "review F5: a state refused after a sync commits rolls back with no redo entry and the states written so far put back (Run::rollback_newest_step; also design_command and duplicate_instances)",
+    "review F6: explicit modes dropped in an artboard or page delete's step (Run::entries_into_newest_step), kept on duplicate, moved to the replacing copy by a sync",
+    "review F7: advisory on every mutating result; STU-DS-123 threshold and the sync bound in the manual (DRIVE_LIMITS); alias cycle walk bounded and cancelable"
+  ],
+  "tests": {
+    "red_4c63e772": "harness [viewer] viewer_design_variables, viewer_design_history, harness_drive_typed variable_authoring: 13 run, 1 passed (a_failed_save_leaves_the_session_entry_unchanged, a regression guard that passes on old code), 12 failed on their own assertions (unknown_command; text records of undrawn layers; superseded state saved), exit 100 (red-smb-ds-variables-author-1-4c63e772.log)",
+    "focused_1": "working tree = 400c2ec2..9ccbcca8 content: check session, harness-core, harness-view+harness [viewer] --tests exit 0; example exit 0; harness-view lib design units + viewer_fig_edit_persist 16/16; harness design targets 32/34 (2 failed on a test helper comparing the layer array order, fixed: compare by id and placement); session 2/3 (fixture max_entry_bytes too small to open, fixed) (focused-smb-ds-variables-author-1-4c63e772-1.log)",
+    "focused_2": "session save_to_with_entry 2/2 exit 0; viewer_design_history 6/6 exit 0 (focused-smb-ds-variables-author-1-03b2d109-2.log)",
+    "not_run": "doctests (none added); harness [viewer] test targets outside the landing list were not run at landing",
+    "red_review_6bf2b12e": "session save_to_with_entry 1/2 (Q3 red), kernel-bindings 3/4 (VARIABLE_SET listed), harness-view fig_edit_persist 5/5 (rewritten expectation), harness 26 run: 11 passed, 13 failed on their own assertions, 2 timed out (probes as first written) (red-review-smb-ds-variables-author-1-6bf2b12e.log)",
+    "focused_3": "working tree over 6bf2b12e: check exit 0, session 3/3, kernel-bindings 4/4, harness-view 18/19 (fig_edit_persist expectation, fixed), harness 46/47 (probe bound assertion, fixed) (focused-smb-ds-variables-author-1-6bf2b12e-3.log); probes with output (probe-smb-ds-variables-author-1-6bf2b12e.log)",
+    "focused_4_1329c419": "harness viewer_design_history + viewer_design_variables 26/26 exit 0, probe output kept (focused-smb-ds-variables-author-1-1329c419-4.log)",
+    "bundled_1329c419": "FAILED once: lane-check 1 (session, harness-core, harness-view [viewer], kernel-bindings + dependents harness, interop-lrcat, native-host): 462 run, 461 passed, 1 failed (action_records corpus_lists_every_run_operation_with_recordability: new mutating Run methods without a RUN_COMMANDS run_method), exit 100; lane-check 2 harness [viewer] 11 targets 129/129 exit 0 (bundled-smb-ds-variables-author-1-1329c419.log); fixed by 4d8e3a8e",
+    "bundled_4d8e3a8e": "ONE bundled run at 4d8e3a8e (dirty=0): fresh studio-harness example exit 0; lane-check 1 (step 0 clean, registry in sync; clippy session, harness-core, harness-view [viewer], kernel-bindings + dependents harness, interop-lrcat, native-host; nextest whole suites): 462 run, 462 passed, 4 skipped, exit 0; lane-check 2 harness [viewer] harness_drive, harness_drive_audio, harness_drive_typed, viewer_design_auto_layout, viewer_design_components, viewer_design_variables, viewer_design_history, viewer_vector_live_filters, viewer_layers, layout_place, document_new: 129 run, 129 passed, exit 0 (bundled-smb-ds-variables-author-1-4d8e3a8e.log; pre-check action_records 6/6, focused-smb-ds-variables-author-1-4d8e3a8e-5.log)",
+    "land_3fb489ab": "land-smb-ds-variables-author-1-3fb489ab.log: fresh example exit 0; land 1 (session, harness-core, harness-view [viewer], kernel-bindings whole suites, clippy + dependents) 472/472, 4 skipped; land 2 (harness [viewer] 18 targets incl. web_host, web_site, web_site_depth) 218/218; pushed 3e087001..3fb489ab",
+    "persha_3fb489ab": "persha-smb-ds-variables-author-1-3fb489ab.log: PER_SHA_RESULT OK shas=1 range=e4d47fc6..3fb489ab",
+    "land_eb65156a": "land-smb-ds-variables-author-1-eb65156a.log: land 1 252/252, land 2 162/162, per-sha OK (persha-smb-ds-variables-author-1-eb65156a.log); push rejected non-fast-forward (SMB-WEB-SITE-2 landed 3e087001 first)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: judge READY at 3fb489ab",
+  "updated_at": "2026-11-13T11:27:51Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -41,6 +75,142 @@
       "ledger direction.next_lane_candidates 2026-11-12T17:58:12Z .fig prune at save"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+    "reuses_tree_and_target": "smb-ai-distort-effects-1",
+    "spec_basis": [
+      "STU-DS-121/122 record fields; STU-DS-123 mode-count contract and advisory; STU-DS-125/126/127/128/129 enumerations and value record; STU-DS-132 explicit mode assignment; STU-DS-133 variable API surface; STU-DS-162 command surface; STU-DS-164 determinism; STU-DS-175 variable_alias_cycle; STU-DS-177 variable_scope_violation (spec module 14, v02.229)"
+    ],
+    "mts_read": [
+      "MT-33077",
+      "MT-33078",
+      "MT-33079",
+      "MT-33081",
+      "MT-33082",
+      "MT-33083",
+      "MT-33084",
+      "MT-33085",
+      "MT-33088",
+      "MT-33089",
+      "MT-33120",
+      "MT-33126",
+      "MT-33128",
+      "MT-33172",
+      "MT-33174",
+      "MT-33175",
+      "MT-33176",
+      "MT-348",
+      "MT-351",
+      "MT-352"
+    ],
+    "mt_rows_proposed": {
+      "MT-33088 STU-DS-132": "PARTIAL->command: set/clear commands exist; re-resolution of bound properties is vacuous (no bindings)",
+      "MT-33089 STU-DS-133": "MISSING->PARTIAL: 11 of 15 variable and collection commands; extend/values_by_mode_for_collection/remove_override_for_mode, binding commands and async read forms cut",
+      "MT-33079 STU-DS-123": "PARTIAL: default `Mode 1`, hard_min 1, advisory; threshold not yet stated in the UserManual (manual.rs not owned)",
+      "MT-33084/MT-33174 STU-DS-128/025": "scope admission enforced in variable.resolve_for_consumer (model surface); no picker exists",
+      "MT-33085 STU-DS-129": "fourth platform refused typed at the command surface",
+      "MT-33126 STU-DS-175": "cycle diagnostic names every variable on the cycle in resolution order (set_value_for_mode)",
+      "MT-33128 STU-DS-177": "model command surface only (resolve_for_consumer scope); picker side has no surface"
+    },
+    "lead_rulings_20261113": [
+      "P1 approved: view/commands.rs `mod variable;` + one run_row arm; new view/commands/variable.rs; view/design.rs `pub mod variables;`",
+      "P2 approved (compaction recorded in the undo step; do not cut): harness.rs Run::restructure_and_entries; r1_reopen refused_at assertion updated; four red tests required",
+      "P3 approved with change: build the pruned form on a copy, never mutate and restore the session entry; option A: session.rs Session::save_to_with_entry, harness.rs Run::save_to_with_entry, view/mod.rs save call line, viewer_fig_edit_persist.rs :214",
+      "Lead overrides 2026-11-13: no wait for cargo phase 1; R60 attempt 3 on the C: lock; never delete build output; never force push"
+    ],
+    "beyond_brief_paths": [
+      "hsk-studio-harness-view/src/view/commands.rs: `mod variable;` + one run_row arm (lead P1)",
+      "hsk-studio-harness-view/src/view/commands/variable.rs: new decoder file (lead P1)",
+      "hsk-studio-harness-view/src/view/design.rs: `pub mod variables;` (lead P1)",
+      "hsk-studio-harness-core/src/harness.rs: Run::restructure_and_entries (lead P2; implemented as a group step of the restructure_and_entry step and entry-only steps, the motion-command pattern, not an EntryRestore chain: no HistoryStep/EntryRestore struct change), Run::save_to_with_entry and a generic save_op_with behind the unchanged save_op (lead P3)",
+      "hsk-studio-harness/tests/viewer_design_components.rs: r1_reopen_compacts_unreachable_copy_text_and_redraws_run_again assertions (lead P2)",
+      "hsk-studio-session/src/session.rs: Session::save_to_with_entry, save_inner delegating to save_inner_with(held: Option<&[Quarantined]>) (existing callers pass None: behaviour unchanged) (lead P3)",
+      "hsk-studio-session/tests/session_contract.rs: two tests for save_to_with_entry (lead P3 required tests)",
+      "hsk-studio-harness-view/src/view/mod.rs: Viewer::save calls self.save_run(path) instead of self.run.save_to(path) (lead P3)",
+      "hsk-studio-harness-view/tests/viewer_fig_edit_persist.rs: :214 compares the reopened entry with the pruned saved bytes and checks the session entry unchanged (lead P3)",
+      "hsk-studio-harness/tests/harness_drive_typed.rs: one new process test variable_authoring_runs_through_the_process (hsk-studio-harness/tests owned; existing file)",
+      "hsk-studio-harness-view/src/view/document_new.rs: delete_artboard and delete_page call container_records_into_step (review F6, lead ruling)",
+      "hsk-studio-harness-core/src/harness.rs (approved P2/P3) extended: Run::entries_into_newest_step, Run::rollback_newest_step, Run::set_entry_step, shared group_entries_with_newest (review F3, F5, F6 rulings)",
+      "hsk-studio-harness-core/src/manual.rs: two DRIVE_LIMITS lines (STU-DS-123 threshold; the measured sync bound) (review F2, F7 rulings)",
+      "hsk-studio-harness-core/src/action/commands/layer.rs, document.rs, history.rs: run_method lists name the new Run methods (action_records corpus coverage; no new command id)",
+      "hsk-studio-kernel-bindings/src/business_event.rs NOT_PRODUCED_ASSET_LOCALLY (13 -> 12), src/lib.rs DESCRIPTOR not_produced entry, tests/business_events.rs list (review F3, lead Q5)"
+    ],
+    "declared_readings": [
+      "mode ids `mode-<n>` minted past the collection's highest; a new mode takes each variable's default-mode value; a removed default mode moves the default to the first remaining mode (UNVERIFIED Figma, D5)",
+      "variable names unique within their collection, mode names unique within their collection (Studio reading, UNVERIFIED)",
+      "a variable another variable aliases is not removed (variable_aliased); removing a collection whose variables are aliased from outside is refused the same way",
+      "scope admission: ALL_SCOPES admits every scope, ALL_FILLS the three fills, an empty list none; whether a scope is legal for a resolved type is not stated (STU-DS-128) and not enforced",
+      "explicit modes on group layers, artboards (stand-in for design pages) and page spreads; a leaf is node_not_container",
+      "rebound is always 0: no property binding has a Folio home (STU-DS-130 out of scope)",
+      "the design file's receipt variables are read-only (variable_not_authored); resolution reads the document's authored records only",
+      "STU-DS-123 advisory threshold VARIABLE_VALUE_ADVISORY = 16384 stored values (variables x modes, Studio-declared); hostile-input caps MAX_ENTRY_COLLECTIONS 256, MAX_ENTRY_VARIABLES 4096, MAX_ENTRY_VARIABLE_VALUES 65536 (not plan-gated), modes per collection under Folio MAX_MODES 1024",
+      "variable and collection ids are minted max+1 over the current records and the design file's ids; an id an undone or removed record gave up can be minted again (no persistent counter)",
+      "P2 undo: layers re-created by undo sit at another index of the document's layer array (stack placement equal); test compares by id and placement"
+    ],
+    "v4_06_sweep": {
+      "class 1 variable records refused at decode (regex `variable_collections|variables`) style.rs validate_entry_styles": "fixed",
+      "class 1 view/commands/prototype.rs read_runtime_variables": "not applicable: player runtime state; whether the prototype player reads authored variables (STU-DS-028) NOT_INSPECTED",
+      "class 1 view/design/fig_import.rs receipt variables": "not applicable: design file records stay in the receipt, read-only here",
+      "class 2 deleted object's records in the same step (explicit modes) layers.rs delete_layer via records_after_delete": "fixed",
+      "class 2 instance redraw deleting copies (native_redraw drops deleted node entries)": "already in-step",
+      "class 2 artboard and page delete (containers path)": "fixed (review F6): node records of absent artboards and spreads dropped in the delete's step",
+      "class 3 text entry written outside history by a step that deletes copies (regex `set_document_entry\\(.*text::ENTRY`) instance.rs native_redraw": "fixed (in step, compacted)",
+      "class 3 instance.rs redraw (design file instances)": "NOT fixed: append-only outside history (R1 kept); next-lane candidate",
+      "class 3 text.rs place_text, vector.rs 1461/1709/1744": "not applicable: append records before a layer-creating step, never remove",
+      "class 4 save writes states no reopen can reach (regex `\\.save_to\\(|save_new|save_replacing`) view/mod.rs Viewer::save": "fixed (save_run)",
+      "class 4 harness cli.rs 1150/1152/1601, harness-core batch.rs 1056/1057": "not applicable: Run-level CLI saves of sessions with no viewer design commands",
+      "class 2 duplicate_layer of a container with explicit modes": "fixed (review F6): the copies carry the source's explicit modes in the duplicate's step",
+      "class 2 sync deleting a copy that carries an explicit mode": "fixed (review F6): moved to the replacing copy (matched by position, else kind and name; else named loss explicit_modes_not_carried)",
+      "class 5 rollback undo leaving a redo entry (regex `self\\.run\\.undo\\(\\)` in view/design)": "fixed in native_redraw, design_command and duplicate_instances (Run::rollback_newest_step)"
+    },
+    "not_done": [
+      "variable_collection.extend, variable.values_by_mode_for_collection, variable.remove_override_for_mode (STU-DS-124; Folio refuses is_extension)",
+      "EXPRESSION values and STU-DS-131 expression functions (no Folio home)",
+      "binding commands and STU-DS-130 bindable fields (no Folio home); tokens export follows them",
+      "library-loading asynchronous read forms (STU-DS-133)",
+      "STU-DS-123 threshold not stated in the UserManual (harness-core manual.rs not in owned paths)",
+      "design file instance redraws keep their copies' text records until save and reopen",
+      "styles versus variables rows STU-DS-024..034: only the variable side moved; a variable inside a style is out",
+      "a sync of more than about 64 instances is refused budget_exceeded by the chronicle patch budget (measured 96); a 513-instance first sync cannot be built in a test (NOT_PROVEN marker)",
+      "mode_over_cap (Folio MAX_MODES) has no test (1024 add_mode commands); the three entry caps are unit-tested",
+      "a save failure after the temp write (verify or rename) and a cancel during streaming are not tested (no fault hook)",
+      "an alias to a design file variable: not available here (variable_not_authored); no fixture with variables inspected"
+    ],
+    "round_features": "harness [viewer] and harness-view [viewer] units exist in .config/round-features.toml; session runs in the default unit: no change needed (rule 4e)",
+    "measured_probes": [
+      "2 instances: 300 syncs, none refused, 6 design states held",
+      "16 label instances: 300 syncs, none refused, 48 states held",
+      "grown one by one: 1, 2, 4, 8, 16 instances 3 syncs each; 32, 48, 64 instances 1 sync each, none refused (states 3, 8, 18, 38, 78, 126, 190, 270); 96 instances: the sync refused budget_exceeded (chronicle patch budget), nothing changed",
+      "a duplicate of 32 instances refused budget_exceeded; at the review commit a 341-instance sync was refused budget_exceeded",
+      "a 513-instance component cannot be built in a test (one by one passes the 120 s cap; duplicates hit the patch budget): NOT_PROVEN marker; the design_state_over_cap refusal path is proven with a preloaded 1024-state entry (a_sync_with_no_room_for_its_states_is_refused_whole) and persist room_is_counted_net_of_replaced_states"
+    ],
+    "lead_rulings_20261113_review": [
+      "F1/Q2: prune only states that name a layer no longer in the document, at save and for native states at open; never because children differ (native record-gone rule R2 kept)",
+      "F2/Q1: no in-step design-state compaction in this lane; option (b): room_for counts held minus replaced plus new; bound in the manual with a measured probe",
+      "Q3: a pruned save leaves the session clean",
+      "F3/Q5/Q6: STUDIO_VARIABLE_SET mapped; kernel-bindings DESCRIPTOR entry approved; undo name = catalog id",
+      "F4/Q4: accepted under the motion-command precedent; refusal-before-write test added",
+      "F5, F6, F7, F8, F9 as ruled"
+    ],
+    "next_lane_candidates": [
+      "PRIORITY: component sync and duplicate beyond the chronicle patch budget: segment large syncs into budget-sized patches inside one undo group, so components with hundreds of instances work",
+      "native binding states keyed by (layer, instance), since the record lives in the vector entry, plus in-step design-state compaction; lifts the 512-instance first-sync bound (lead option c)",
+      "atomic multi-entry history step: no ignored rollback refusal, no split group (review F4; also covers the layout_and_entry_step issue)",
+      ".fig (design file) redraws in the step: vector, text and design entries (ends R1 for design files)",
+      "component sync of more than about 64 instances: the chronicle structure patch budget refuses it (measured 96: budget_exceeded)"
+    ],
+    "rebased_onto": "origin 3e087001: first onto 580f44b2 (SMB-LAYOUT-DELETE-CASCADE-1, SMB-GUI-MENU-1 landed): conflicts in view/commands.rs (both dispatch arms kept) and view/document_new.rs delete_page (cascade's place_sync and layout_sync kept, F6 container_records_into_step added); then onto 3e087001 (SMB-WEB-SITE-2 landed): conflict in kernel-bindings src/lib.rs DESCRIPTOR (upstream line kept, the not_produced_asset_locally entry reapplied: 12 listed, VARIABLE_SET produced)",
+    "not_proven": [
+      "mode_over_cap (Folio MAX_MODES, 1024 add_mode commands) has no test",
+      "a save that fails after the temp file is written (verify or rename) and a cancel during streaming: no fault hook, not tested",
+      "an alias to a design file variable: not available here (variable_not_authored); no fixture with variables inspected",
+      "a 513-instance component's first sync: cannot be built in a test (NOT_PROVEN marker test)",
+      "page.delete now also deletes the page's layers (SMB-LAYOUT-DELETE-CASCADE-1): explicit modes of container layers on a deleted page are not dropped in that step (artboard and spread records are); named, not inspected further"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T11:27:51Z",
+        "on": "landing",
+        "decision": "RELEASED at 4d8e3a8e; measured limits accepted as typed refusals that change nothing (sync budget_exceeded above 64 instances, duplicate refused at 32, 513 case NOT_PROVEN); corpus fix through existing rows accepted"
+      }
+    ]
   }
 }
