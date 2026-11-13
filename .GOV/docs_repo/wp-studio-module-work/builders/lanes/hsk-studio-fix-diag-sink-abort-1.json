@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-harness-core (tests/diag_sink.rs run_child; src/diag_sink.rs only if the measured cause is there)",
+  "lane": "SMB-FIX-DIAG-SINK-ABORT-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+  "base": "c8fca900",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T14:09:33Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none new: test harness only; diag_sink's own frames unchanged",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not_applicable: no document mutation (test harness)",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T14:09:33Z",
+    "disk": "D",
+    "closes": [
+      "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY diag_sink abort test load flake",
+      "research/lead-rulings-20261108-by-lane.json common DIAG_SINK FLAKE (2026-11-13)"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+  }
+}

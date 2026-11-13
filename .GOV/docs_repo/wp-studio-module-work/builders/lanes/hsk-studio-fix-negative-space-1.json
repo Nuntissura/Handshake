@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-layout (threaded_reflow.rs paragraph space and overset)",
+  "lane": "SMB-FIX-NEGATIVE-SPACE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
+  "base": "c8fca900",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T14:09:33Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: pure layout engine; typed overset and refusal outcomes only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not_applicable: no document mutation (layout engine)",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T14:09:33Z",
+    "disk": "D",
+    "closes": [
+      "validation/round-R60.json attempt_3.probes.failures SMB-TYPE-INDENT-SPACING-1 negative-space-places-lines-outside-the-frame",
+      "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY negative space_before and overset"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+  }
+}

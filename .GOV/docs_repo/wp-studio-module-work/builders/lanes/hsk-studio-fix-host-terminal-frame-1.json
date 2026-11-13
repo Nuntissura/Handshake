@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-native-host (diag.rs, offscreen and window run entries, bin/studio-vk.rs)",
+  "lane": "SMB-FIX-HOST-TERMINAL-FRAME-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+  "base": "c8fca900",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T14:09:33Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: one terminal frame per host run (device open, window run or offscreen capture), codes and counters only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: the host run's actor, resource and correlation come from the caller; never a default actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T14:09:33Z",
+    "disk": "D",
+    "closes": [
+      "validation/round-R60.json attempt_3.findings_leads F-R60-22",
+      "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY F-R60-22 native-host terminal observe frame"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-pr-entry-references-1"
+  }
+}

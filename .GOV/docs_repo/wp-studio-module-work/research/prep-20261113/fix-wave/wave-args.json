@@ -1,0 +1,16 @@
+{
+ "schema": "scratch.wave_next_args@1",
+ "note": "R60 attempt 3 fix wave. wave_from_scope.py reads S/research/scope-20261107-<area>.json; the scope files are copied there from this folder.",
+ "base": "c8fca900",
+ "hold": "NO CARGO PHASE 1 WAIT (fix wave 2026-11-13): the validation round is stopped (C: is at the grant limit), so no round holds or queues for the lock; the fix lanes share the D: lock only with each other. Run every lock-needing step of a phase inside one outer hold (wave-parity-2-common ONE HOLD PER PHASE). Lanes land one at a time on the lead's release (HANDOFF workflow item 16), in the landing order above.",
+ "areas": [
+  "fix-diag-sink-abort-1",
+  "fix-negative-space-1",
+  "fix-host-terminal-frame-1",
+  "fix-animation-values-1",
+  "fix-capture-admission-1",
+  "fix-export-admission-1",
+  "fix-layer-record-prune-1"
+ ],
+ "command": "python tools/lead/wave_from_scope.py --base c8fca900 --hold \"<hold>\" fix-diag-sink-abort-1 fix-negative-space-1 fix-host-terminal-frame-1 fix-animation-values-1 fix-capture-admission-1 fix-export-admission-1 fix-layer-record-prune-1"
+}

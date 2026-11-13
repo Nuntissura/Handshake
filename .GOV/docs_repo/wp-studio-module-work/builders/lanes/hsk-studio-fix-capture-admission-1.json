@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-harness-view (view/commands/prototype.rs capture_frame)",
+  "lane": "SMB-FIX-CAPTURE-ADMISSION-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+  "base": "c8fca900",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T14:09:33Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: the job settlement frame of the admitted capture (completed, canceled or failed), codes and counters only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T14:09:33Z",
+    "disk": "D",
+    "closes": [
+      "validation/round-R60.json attempt_3.probes.failures SMB-DRIVE-TYPED-2 export-job-not-admitted-jobport",
+      "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY prototype.capture_frame admission"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+  }
+}
