@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T15:44:59Z",
+ "updated_at": "2026-11-13T15:54:30Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20236,8 +20236,8 @@
   },
   {
    "lane_id": "SMB-FIX-HOST-TERMINAL-FRAME-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-native-host (diag.rs, offscreen and window run entries, bin/studio-vk.rs)",
    "lane_file": "builders/lanes/hsk-studio-fix-host-terminal-frame-1.json",
    "brief": "builders/briefs/lane-smb-fix-host-terminal-frame-1.md",
@@ -20245,11 +20245,12 @@
    "base": "c8fca900",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T14:09:33Z",
+   "updated_at": "2026-11-13T15:54:30Z",
    "closes": [
     "validation/round-R60.json attempt_3.findings_leads F-R60-22",
     "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY F-R60-22 native-host terminal observe frame"
-   ]
+   ],
+   "claim": "hsk-studio-native-host at 0860c7b1 (F-R60-22): every host run sends exactly one terminal observe frame through the caller's sink. offscreen::run and window::run take the caller's diag::HostRun and send one frame on every exit path (usage, Vulkan, document and gui refusals, success; a panic sends Failure(Unavailable), SD-89, then resumes unwinding); a HostRun carries one run (host_run_reused before any work). studio-vk: --actor/--session/--resource, all three or none (none = the asset-local fixed context with resource SDOC-00000000-0000-7000-8000-000000000000, caller_default true); --observe JSONL sink, stderr fallback with observe_unavailable <code>; every refusal, argument_encoding included, sends a Failure(Validation) frame; one correlation per run; failed stderr writes change neither exit code nor receipt; foreground Watch stops and joins on Drop. Review fc7f4215 F1-F5 fixed red first."
   },
   {
    "lane_id": "SMB-FIX-ANIMATION-VALUES-1",
@@ -23035,6 +23036,11 @@
     "added_at": "2026-11-13T15:42:01Z",
     "item": "worker processes: Rust fast fail (int 0x29) waits on WER on Windows despite harden_worker_process; consider WerAddExcludedApplication, WerSetFlags or a custom abort path; reachability UNVERIFIED",
     "owner": "a later worker lane"
+   },
+   {
+    "added_at": "2026-11-13T15:54:30Z",
+    "item": "native-host document scene (document.rs:49 Viewer::new) and gui scene (GuiFrame::open via open_viewer): the Viewer runs on the fixed asset-local-test-host context, so the caller of a host run (HostRun actor) does not reach the viewer; named V4-06 site of SMB-FIX-HOST-TERMINAL-FRAME-1",
+    "owner": "a native-host lane"
    }
   ],
   "pause_20261103": {

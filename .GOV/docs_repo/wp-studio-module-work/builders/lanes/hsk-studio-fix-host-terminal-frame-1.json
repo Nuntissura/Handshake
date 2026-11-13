@@ -1,19 +1,117 @@
 {
   "crate": "hsk-studio-native-host (diag.rs, offscreen and window run entries, bin/studio-vk.rs)",
   "lane": "SMB-FIX-HOST-TERMINAL-FRAME-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
   "base": "c8fca900",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "dda2483b",
+      "kind": "red",
+      "summary": "HostRun, caller flags, LineSink; entries take &mut HostRun but send nothing; red test file; 18 call sites through observed()",
+      "pre_rebase": "a9b19b85"
+    },
+    {
+      "sha": "521f4553",
+      "kind": "fix",
+      "summary": "entries wrap their bodies in diag::observed (one terminal frame on every exit path, panic = Failure(Unavailable) then resume); studio-vk sends refusal frames; call-site helpers assert one terminal frame",
+      "pre_rebase": "d5057764"
+    },
+    {
+      "sha": "59d30a72",
+      "kind": "docs",
+      "summary": "README run lines, outputs, failure rows; DESCRIPTOR binary and observe members",
+      "pre_rebase": "d5fea93e"
+    },
+    {
+      "sha": "83d97c73",
+      "kind": "lint",
+      "summary": "lint only (lead 2026-11-13): err_expect in tests/fix_host_terminal_frame.rs:121, expect_err, every assertion unchanged",
+      "pre_rebase": "1b859281"
+    },
+    {
+      "sha": "4b28e3b4",
+      "kind": "docs",
+      "summary": "README and DESCRIPTOR name the default resource SDOC-00000000-0000-7000-8000-000000000000 (cli::ASSET_LOCAL_RESOURCE, lead-confirmed)",
+      "pre_rebase": "8eff13c1"
+    },
+    {
+      "sha": "448ed28b",
+      "kind": "lint",
+      "summary": "lint only (lead 2026-11-13): window.rs type_complexity (PresentReport alias, App.report) and collapsible_if (resumed let chain); no behaviour change",
+      "pre_rebase": "fc7f4215"
+    },
+    {
+      "sha": "e1e0658a",
+      "kind": "red",
+      "summary": "red 2: review fc7f4215 F1, F2 (x2), F3, F5 (window.rs unit test), per-run correlation, --observe that does not open; F4 CREATE_NO_WINDOW in the spawn helper",
+      "pre_rebase": "d51afacc"
+    },
+    {
+      "sha": "0603e8a0",
+      "kind": "fix",
+      "summary": "green 2: args_os + argument_encoding, fallible stderr writes and receipt before the note, host_run_reused, Watch Drop stops and joins, per-run correlation from the process birth, --observe fallback to stderr with observe_unavailable <code>",
+      "pre_rebase": "49fe57d8"
+    },
+    {
+      "sha": "0860c7b1",
+      "kind": "docs",
+      "summary": "README and DESCRIPTOR: argument_encoding, host_run_reused, observe_unavailable, per-run correlation",
+      "pre_rebase": "9a63175d"
+    }
+  ],
+  "capabilities_done": [
+    "offscreen::run and window::run take the caller's diag::HostRun and send exactly one terminal frame on every exit path (usage, Vulkan, document and gui refusals, success, panic)",
+    "studio-vk: --actor/--session/--resource (all three or none; none = asset-local fixed context, caller_default) and --observe JSONL sink (stderr fallback); its own usage refusals send a Failure(Validation) frame",
+    "review fc7f4215 F1-F5 and the lead's correlation and --observe questions fixed (red 2 d51afacc, green 2 49fe57d8)"
+  ],
+  "tests": {
+    "red": {
+      "sha": "a9b19b85",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/red-proof-smb-fix-host-terminal-frame-1-a9b19b85.log",
+      "result": "11 run: 2 passed, 9 failed (0 frames / empty observe files), nextest exit 100"
+    },
+    "focused": {
+      "sha": "d5fea93e",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/focused-smb-fix-host-terminal-frame-1-d5fea93e.log",
+      "default": "12 run: 12 passed (lib + fix_host_terminal_frame), exit 0",
+      "document": "13 run: 13 passed, exit 0"
+    },
+    "bundled": {
+      "sha": "9a63175d",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-fix-host-terminal-frame-1-9a63175d.log",
+      "default": "lane-check step 0 clean, clippy, native-host whole suite: 26 run, 26 passed, exit 0",
+      "document": "lane-check step 0 clean, clippy, native-host whole suite: 99 run, 98 passed, 1 failed (gui_menu every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home: 79 catalog commands have neither a leaf nor a palette_only reason), exit 100",
+      "base_proof": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/base-gui-menu-smb-fix-host-terminal-frame-1-c8fca900.log: the same test at base c8fca900 (detached in this lane's tree, then back to 9a63175d): 1 run, 0 passed, 1 failed, same 79 count, exit 100; pre-existing, not this lane"
+    },
+    "red_2": {
+      "sha": "d51afacc",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/red-proof-2-smb-fix-host-terminal-frame-1-d51afacc.log",
+      "result": "19 run: 12 passed, 7 failed (the 7 new tests), nextest exit 100"
+    },
+    "focused_2": {
+      "sha": "9a63175d",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/focused-2-smb-fix-host-terminal-frame-1-9a63175d.log",
+      "default": "19 run: 19 passed, exit 0",
+      "document": "20 run: 20 passed, exit 0"
+    },
+    "landing": {
+      "sha": "0860c7b1",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/land-smb-fix-host-terminal-frame-1-0860c7b1.log",
+      "rebase": "onto origin 86ee4e57 (9 commits); origin moved composite, folio, harness, harness-core, harness-view, layout since c8fca900, none in native-host's default closure (native-host, vulkan, accord, observe, kumihimo-ui)",
+      "document": "native-host [document] whole suite: 99 run, 98 passed, 1 failed (the accepted base failure gui_menu every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home), exit 100",
+      "default": "not rerun: its closure did not move (the bundled run at 9a63175d: 26/26, exit 0)",
+      "per_sha": "PER_SHA_RESULT OK shas=1 range=0603e8a0..0860c7b1",
+      "push": "0860c7b108bf43cb9ab01f84857c91b73423fd56 to origin/codex/handshake-studio-assets (guarded form, attempt 1)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T14:09:33Z",
+  "next": "validator: judge F-R60-22 at 0860c7b1",
+  "updated_at": "2026-11-13T15:54:22Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +137,80 @@
       "ledger direction.next_lane_candidates 2026-11-13T08:33:54Z PRIORITY F-R60-22 native-host terminal observe frame"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-entry-references-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1",
+    "spec_basis": [
+      "STU-ARC-026: map Studio terminal outcomes to the closed internal_diagnostics event-code set; event code, counters and opaque ids only, never text",
+      "STU-ARC-015: every render/import error and unavailable device/provider MUST return typed loss/failure"
+    ],
+    "facts_checked_at_base": "c8fca900: diag::emit_terminal (diag.rs:24) has one caller, tests/cli_and_observe.rs:90; offscreen::run (offscreen.rs:43), window::run (window.rs:280) and bin/studio-vk.rs main emit no frame; offscreen::run/window::run have 18 call sites in tests/document_window.rs, gui_vulkan.rs, gui_window.rs, host_vulkan.rs",
+    "beyond_brief_paths": [
+      "hsk-studio-native-host/tests/document_window.rs, tests/gui_vulkan.rs, tests/gui_window.rs, tests/host_vulkan.rs: the 18 offscreen::run/window::run call sites through a local observed() helper (asset-local caller, asserts one terminal frame) (lead approval 2026-11-13, option A)",
+      "hsk-studio-native-host/README.md and src/lib.rs DESCRIPTOR binary and observe members (lead approval 2026-11-13, point 8)",
+      "hsk-studio-native-host/src/window.rs beyond the run entry: lint-only type alias and let chain (lead 2026-11-13)"
+    ],
+    "design_decisions": [
+      "lead 2026-11-13 point 5: caller flags are optional; absent = the asset-local test host's fixed context (actor equal to harness-core asset_local_test_context, pinned by the_default_caller_is_the_viewers_asset_local_context under [document]) with resource cli::ASSET_LOCAL_RESOURCE SDOC-00000000-0000-7000-8000-000000000000 (lead-confirmed 2026-11-13 as the documented default resource; README and DESCRIPTOR state it); invalid flags are usage exit 2 with a Failure(Validation) frame on the default context",
+      "panic: catch_unwind around the inner run (sound: winit 0.30.13 windows event_loop.rs:423-425 resumes callback panics out of run_app); observe's FailureCode set has no Internal, so a panic sends Failure(Unavailable) (the code outcome() gives window, io and timeout), then resume_unwind; panic=abort builds leave no frame (named); lead-confirmed 2026-11-13; SD-89 PROPOSED (spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json open_items_for_spec_owner: an Internal failure code in observe), recorded uncommitted for the lead",
+      "studio-vk mints the run's correlation from accord TransientCorrelation (as the harness CLI context_of); every studio-vk process uses correlation 1",
+      "studio-vk invocations checked before coding: none in tools/run-round.sh, builders/studio-env.sh, kernel tools/ or product tests/tools (README and records only)"
+    ],
+    "v4_06": {
+      "class": "a host run path returns without a terminal observe frame",
+      "regex": "pub fn run\\(|fn main\\(|emit_terminal|Viewer::new|open_viewer",
+      "sites": [
+        "src/offscreen.rs pub fn run: fixed (diag::observed)",
+        "src/window.rs pub fn run: fixed (diag::observed)",
+        "src/bin/studio-vk.rs fn main: fixed (entries send; parse and caller refusals finish on the host)",
+        "src/diag.rs emit_terminal: not applicable (helper kept; its caller is tests/cli_and_observe.rs)",
+        "src/document.rs:49 Viewer::new and gui/mod.rs:585 GuiFrame::open via open_viewer: named, not fixed (the viewer runs on the fixed asset-local-test-host context; viewer attribution and GUI behaviour out of scope)",
+        "panic = abort build: named (no unwinding, no frame)"
+      ]
+    },
+    "clippy": "native-host clippy [document] --tests: no new warning in src; pre-existing scene.rs:161 manual_is_multiple_of x2, window.rs type_complexity and collapsible_if; the red test file's err_expect (fix_host_terminal_frame.rs:121) fixed in lint-only commit 1b859281 (lead 2026-11-13), assertions unchanged; window.rs (lane file) pre-existing type_complexity :268 and collapsible_if :811 fixed in lint-only commit fc7f4215 (lead 2026-11-13); scene.rs:161 not a lane file, left",
+    "commit_count": "9 commits (lead 2026-11-13: extra commits fine): red, fix, docs, lint, docs, lint, red 2, green 2, docs",
+    "sd_proposals": [
+      "SD-89 PROPOSED: Internal failure code in observe (spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json); the lead commits it in the kernel"
+    ],
+    "review_fc7f4215": {
+      "verdict": "FIX_FIRST, 5 low (research/review-smb-fix-host-terminal-frame-1-fc7f4215.json)",
+      "F1": "fixed 49fe57d8: args_os, argument_encoding refusal with a frame on the default context; script::read and parse read: bounded, indexes guarded by the arm's length (by reading)",
+      "F2": "fixed 49fe57d8: every studio-vk stderr write is fallible and ignored; receipt printed before the note; tested with a stderr pipe whose reader is closed (refusal exit 2; offscreen clear in the child exit 0 with its receipt)",
+      "F3": "fixed 49fe57d8: host_run_reused before any run work",
+      "F4": "fixed d51afacc: CREATE_NO_WINDOW on the test's studio-vk spawns (pin by reading)",
+      "F5": "fixed 49fe57d8: Watch Drop stops and joins (window.rs unit test)",
+      "correlation": "fixed 49fe57d8: per run from the process birth through TransientCorrelation::starting_at (test: two runs differ)",
+      "observe_unopenable": "fixed 49fe57d8: line to stderr after observe_unavailable <code> (diag::open_reason), exit code the run's"
+    },
+    "origin_moved": "origin/codex/handshake-studio-assets at 2c6fd52c (SMB-FIX-CAPTURE-ADMISSION-1: harness-view commands/prototype.rs and harness tests), touching a dependency of native-host [document], not native-host",
+    "accepted_failure": {
+      "test": "hsk-studio-native-host::gui_menu every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home (79 catalog commands have neither a leaf nor a palette_only reason, STU-SHL-013)",
+      "ruling": "lead 2026-11-13 RELEASED: accepted as outside this lane; it fails at base c8fca900 because lanes landed after SMB-GUI-MENU-1 added catalog commands without menu entries; a separate trunk-repair lane fixes harness-view menu_tree",
+      "base_proof_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/base-gui-menu-smb-fix-host-terminal-frame-1-c8fca900.log (1 run, 0 passed, 1 failed, 79, exit 100)",
+      "bundled_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-fix-host-terminal-frame-1-9a63175d.log (default 26/26 exit 0; [document] 98/99 exit 100, the same failure only)",
+      "landing_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/land-smb-fix-host-terminal-frame-1-0860c7b1.log ([document] 98/99, the same failure only)"
+    },
+    "not_proven": [
+      "panic=abort builds and a panic inside a Drop during unwinding leave no frame (named)",
+      "the Viewer of the document and gui scenes still runs on the fixed asset-local-test-host context (named V4-06 site, out of scope)",
+      "F4 CREATE_NO_WINDOW is a pin by reading (no console-less runner was used)"
+    ],
+    "mt_rows_moved": "none (no MT file edited)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T15:54:30Z",
+        "on": "caller flags",
+        "decision": "optional; absent = the asset-local fixed context with the documented default resource SDOC-00000000-0000-7000-8000-000000000000; invalid = usage exit 2 with a Failure(Validation) frame"
+      },
+      {
+        "at": "2026-11-13T15:54:30Z",
+        "on": "panic outcome",
+        "decision": "Failure(Unavailable) until observe has an Internal code (SD-89)"
+      },
+      {
+        "at": "2026-11-13T15:54:30Z",
+        "on": "gui_menu every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home",
+        "decision": "accepted base failure (fails at c8fca900); a separate trunk-repair lane fixes harness-view menu_tree"
+      }
+    ]
   }
 }
