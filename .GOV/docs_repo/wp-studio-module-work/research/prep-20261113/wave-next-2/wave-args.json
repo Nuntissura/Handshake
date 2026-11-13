@@ -2,7 +2,7 @@
  "schema": "scratch.wave_next_args@1",
  "note": "wave-next-2 (4 lanes) prepared 2026-11-13 at origin 89f27330. wave_from_scope.py reads S/research/scope-20261107-<area>.json (the prefix is fixed at tools/lead/wave_from_scope.py:45): copy each scope-20261113-<area>.json from this folder to S/research/scope-20261107-<area>.json before running the command. Each tree was clean, its tip an ancestor of 89f27330, its last lane READY_FOR_VALIDATION with the tip on origin, and its target's .studio-workspace-root names that tree (read-only checks).",
  "base": "89f27330",
- "hold": "ONE HOLD PER PHASE (wave-next-2, 2026-11-13): the four lanes share the D: lock with each other and with SMB-FIX-LAYER-RECORD-PRUNE-1; run every lock-needing step of a phase inside one outer hold (wave-parity-2-common ONE HOLD PER PHASE and CARGO DISCIPLINE). Lanes land one at a time on the lead's release, in the landing order above.",
+ "hold": "ROUND PAUSE (research/decision-20261113-r60-round-fit.json, option d): while STUDIO-R60 attempt 4 runs on the D: round slot, builders start no new lane-check or cargo hold and no lane is dispatched; dispatch this wave after the round's final message. ONE HOLD PER PHASE (wave-next-2, 2026-11-13): the four lanes share the D: lock with each other and with SMB-FIX-LAYER-RECORD-PRUNE-1; run every lock-needing step of a phase inside one outer hold (wave-parity-2-common ONE HOLD PER PHASE and CARGO DISCIPLINE). Lanes land one at a time on the lead's release, in the landing order above.",
  "areas": [
   "prototype-play-cancel-1",
   "pr-timeline-fixes-1",
