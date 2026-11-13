@@ -2,10 +2,10 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261113-W",
  "generated_at": "2026-11-13T06:04:00Z",
- "status": "PROPOSED (dry run re-run 2026-11-13T06:14:53Z after target_prune.py N4): 'Approve plan W' now removes 48.62 GiB right away, the whole unused targets of 11 validated lanes on D: (W-D12..W-D22, 187,114 files); W-D01..W-D08 (139.74 GiB older copies on the 8 wave trees) then run one by one, each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection; W-D09..W-D11 (0.29 GiB) stay skipped (REFUSED_PATH, SKIPPED_STATUS)",
+ "status": "PROPOSED (dry run re-run 2026-11-13T06:14:53Z after target_prune.py N4; C: candidates added and dry-run 2026-11-13T07:38:05Z): 'Approve plan W' removes 48.62 GiB on D: right away, the whole unused targets of 11 validated lanes (W-D12..W-D22, 187,114 files); W-D01..W-D08 (139.74 GiB older copies on the 8 wave trees) then run one by one, each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection; W-D09..W-D11 (0.29 GiB) stay skipped (REFUSED_PATH, SKIPPED_STATUS). C: W-C01..W-C03, 73.57 GiB whole (3 PASS lanes' C: targets whose later lanes moved to D:), dry run SKIPPED_IN_USE_BY_LANE (old_tree_idle and pre-move ledger worktrees; wrong in fact, see tool_refusal_assessment) and next SKIPPED_LOCK while R60 holds the C: disk build lock: 0 GiB on C: until the round ends and their 5 READY users PASS or tool change N5 is approved",
  "authority": "HSK-ART-003 (P2), HSK-ART-005 (inspection-based exact list; Operator approves the exact list under CX-107). Prepared as a proposal with a dry run only; nothing removed.",
  "why": "Operator 2026-11-12 night: manage cargo better and stop leaving unneeded old cargo on disk. Older copies of test and binary outputs grew again on the trees that landed lanes since plan V; targets of validated lanes that nothing uses still hold full builds.",
- "inspection": "Read-only Python scandir walk of every Studio cargo target under the two WP-KERNEL-STUDIO roots (D: 2026-11-13T06:02:03Z, C: 2026-11-13T05:15:46Z); older copies computed by importing target_prune.py's own older_copies()/HASHED rule (not re-implemented), totals and newest file by mtime in the tool's format. target_report.py not run (slow), as plan V. Ledger read from the kernel working tree, which already holds the 8 wave lanes (status unset) another agent is generating tonight.",
+ "inspection": "Read-only Python scandir walk of every Studio cargo target under the two WP-KERNEL-STUDIO roots (D: 2026-11-13T06:02:03Z, C: 2026-11-13T05:15:46Z); older copies computed by importing target_prune.py's own older_copies()/HASHED rule (not re-implemented), totals and newest file by mtime in the tool's format. target_report.py not run (slow), as plan V. Ledger read from the kernel working tree, which already holds the 8 wave lanes (status unset) another agent is generating tonight. C: 2026-11-13T07:33:40Z: every lane target under C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev (studio-round excluded) walked by importing target_prune.py's own whole_contents() and newest() (read-only, 29 s): 6 targets, 136.51 GiB; studio-team-dev/target holds only lanes/ and 3 top-level files. Ledger, lane files, the bound trees' git HEAD/status (read-only), build processes and the Studio lock folders read 2026-11-13T07:28Z..07:38Z.",
  "exclusions": [
   "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round (R60 validation round tonight) and the D: studio-round target",
   "the cargo registry caches (cargo-home/registry under MT-* folders)",
@@ -16,7 +16,8 @@
   "a": "older copies on the 8 wave trees (resume-20261112.json next_wave)",
   "b": "older copies on every other live Studio target",
   "c": "whole removal of targets whose owner lane is PASS/SUPERSEDED/LOST/DONE and that no READY, active or wave lane uses",
-  "d": "stray Studio cargo targets reported by stray_cargo.py"
+  "d": "stray Studio cargo targets reported by stray_cargo.py",
+  "e": "whole removal of C: lane targets whose owner lane is PASS and whose later users all moved their builds to D: trees (no lane builds in the tree or writes the target)"
  },
  "candidates": [
   {
@@ -775,20 +776,205 @@
    },
    "skipped_by_dry_run": false,
    "unblock": "none: tool change N4 added; WOULD_REMOVE"
+  },
+  {
+   "id": "W-C01",
+   "group": "e",
+   "disk": "C",
+   "owner": "smb-pr-retime-output-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-retime-output-1",
+   "kind": "whole",
+   "gib": 38.07,
+   "target_total_gib": 38.07,
+   "older_copies_gib": 0.0,
+   "files": 34403,
+   "subdirs": 5868,
+   "lane_status": "PASS_V3",
+   "status": "PASS_V3",
+   "used_by": [],
+   "named_by": [
+    {
+     "lane": "SMB-AUDIO-OUT-MIX-1",
+     "lane_status": "READY_FOR_VALIDATION",
+     "names_c_tree_in": [
+      "ledger.json direction.workflow_20261107.target_reuse.SMB-AUDIO-OUT-MIX-1.old_tree_idle",
+      "ledger.json lanes[SMB-AUDIO-OUT-MIX-1].worktree (pre-move value)",
+      "builders/lanes/hsk-studio-audio-out-mix-1.json notes.old_tree_idle"
+     ],
+     "builds_on": "D: tree smb-r53-followups-1 since 2026-11-07T12:35:56Z (target_reuse.tree; lane file worktree wt-studio-lanes/smb-r53-followups-1; D: target bound to that tree)"
+    },
+    {
+     "lane": "SMB-SCORE-EFFECTS-6",
+     "lane_status": "READY_FOR_VALIDATION",
+     "names_c_tree_in": [
+      "ledger.json direction.workflow_20261107.target_reuse.SMB-SCORE-EFFECTS-6.old_tree_idle",
+      "ledger.json lanes[SMB-SCORE-EFFECTS-6].worktree (pre-move value)",
+      "builders/lanes/hsk-studio-score-effects-6.json notes.moves[0].from_tree, notes.tree_move"
+     ],
+     "builds_on": "D: tree smb-pr-entry-references-1 since 2026-11-11T10:14:09Z (research/decision-20261111-c-cap-placement.json; target_reuse.tree; lane file worktree and notes.reuses_tree_and_target; D: target bound to that tree)"
+    }
+   ],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-retime-output-1/handshake-studio-assets/Cargo.toml",
+   "bound_tree_head": "lane/smb-score-effects-6 at 04eb03d9 (SMB-SCORE-EFFECTS-6 moved_tip), clean",
+   "newest_file_utc": "2026-11-11T08:49Z",
+   "inspected_newest_file_utc": "2026-11-11T08:49Z",
+   "inspected_at": "2026-11-13T07:33:40Z",
+   "why_safe": "Owner lane SMB-PR-RETIME-OUTPUT-1 is PASS_V3 (STUDIO-R59 PASS_V3 @c4d06841). Every later lane that used this C: tree moved its builds to a D: tree and target: SMB-AUDIO-OUT-MIX-1 (READY_FOR_VALIDATION) builds on D: tree smb-r53-followups-1 since 2026-11-07T12:35:56Z; SMB-SCORE-EFFECTS-6 (READY_FOR_VALIDATION) builds on D: tree smb-pr-entry-references-1 since 2026-11-11T10:14:09Z. No lane builds in this tree or writes this target: no target_reuse 'tree', no lane file 'worktree' and no reuses_tree_and_target names it; the READY lanes name it only as the idle tree they left (old_tree_idle) and in their ledger lane row's pre-move worktree. The tree has not moved since: lane/smb-score-effects-6 at 04eb03d9 (SMB-SCORE-EFFECTS-6 moved_tip), clean; the target's newest file 2026-11-11T08:49Z is before the last of those moves. No cargo, rustc, link or test process names the target, the owner or the bound tree (2026-11-13T07:37Z). T-C02 removed its older copies 2026-11-12T12:53Z (52.1 GiB); 0.0 GiB older copies left; the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, tmp; debug has .cargo-artifact-lock, .cargo-build-lock, .cargo-lock, .fingerprint, build, deps, examples, incremental; listed 2026-11-13T07:33Z), no worktree, registry, logs or results folder; the lane worktree and its branch are not touched.",
+   "dry_run": {
+    "at": "2026-11-13T07:38:05Z",
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "used_by": [
+     "SMB-AUDIO-OUT-MIX-1",
+     "SMB-SCORE-EFFECTS-6"
+    ],
+    "tool_reason": "tree_users() counts a lane short of PASS_V/ABANDONED that names the tree in target_reuse 'tree' or 'old_tree_idle', in a ledger lane row's worktree or in a lane file's worktree; here only old_tree_idle and the pre-move ledger worktree name it",
+    "later_checks_read_only": {
+     "at": "2026-11-13T07:38:27Z",
+     "how": "target_prune.py's own whole_basis(), command_lines(), lock_files()/lock_hits() and newest() imported read-only (tool unchanged)",
+     "settled_by": "PASS_V3",
+     "process": "none names the target, owner or bound tree",
+     "newest_now": "2026-11-11T08:49Z",
+     "next_refusal": "SKIPPED_LOCK: C:/HandshakeBuild/.disk-build-lock held by a round on drive c: (R60 attempt 3, run-round studio-round, class=round, acquired 2026-11-13T07:19:37Z)"
+    }
+   },
+   "skipped_by_dry_run": true,
+   "tool_refusal_assessment": "SKIPPED_IN_USE_BY_LANE is wrong in fact for this target: the lanes it names (SMB-AUDIO-OUT-MIX-1, SMB-SCORE-EFFECTS-6) build on D: trees and D: targets (target_reuse.tree, lane file worktree); the tool's C: rule P2 reason, 'a FAIL in the round sends the lane back to its tree and target', points them at their D: tree, not here. The tool reads old_tree_idle as use and the ledger lane row's worktree, which the moves did not update. Not changed here (needs_tool_change.N5_c_whole_moved_lanes). SKIPPED_LOCK, the next check, is right: plan W before_execution and plan T 'never during a round'.",
+   "unblock": "R60 attempt 3 releases the C: disk build lock, and either the lanes SMB-AUDIO-OUT-MIX-1, SMB-SCORE-EFFECTS-6 reach PASS_V (the tool's lane check then clears with no change) or the Operator approves tool change N5",
+   "run_condition": "Only after R60 attempt 3 has released C:/HandshakeBuild/.disk-build-lock (never during a round), and only after a fresh dry run of this candidate says WOULD_REMOVE (fresh lane check, process check, lock check, newest file 2026-11-11T08:49Z and size 38.07 GiB within 5%); then target_prune.py --execute --approve W-C01 with plan W marked APPROVED."
+  },
+  {
+   "id": "W-C02",
+   "group": "e",
+   "disk": "C",
+   "owner": "smb-r54-followups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r54-followups-1",
+   "kind": "whole",
+   "gib": 35.3,
+   "target_total_gib": 35.3,
+   "older_copies_gib": 0.0,
+   "files": 37692,
+   "subdirs": 6460,
+   "lane_status": "PASS_V5",
+   "status": "PASS_V5",
+   "used_by": [],
+   "named_by": [
+    {
+     "lane": "SMB-PROJECT-BIN-1",
+     "lane_status": "READY_FOR_VALIDATION",
+     "names_c_tree_in": [
+      "ledger.json direction.workflow_20261107.target_reuse.SMB-PROJECT-BIN-1.old_tree_idle",
+      "ledger.json lanes[SMB-PROJECT-BIN-1].worktree (pre-move value)",
+      "builders/lanes/hsk-studio-project-bin-1.json notes.old_tree_idle"
+     ],
+     "builds_on": "D: tree smb-folio-angle-unbounded-1 since 2026-11-07T12:35:56Z (target_reuse.tree; lane file worktree wt-studio-lanes/smb-folio-angle-unbounded-1; D: target bound to that tree)"
+    },
+    {
+     "lane": "SMB-TYPE-INDENT-SPACING-1",
+     "lane_status": "READY_FOR_VALIDATION",
+     "names_c_tree_in": [
+      "ledger.json direction.workflow_20261107.target_reuse.SMB-TYPE-INDENT-SPACING-1.old_tree_idle",
+      "ledger.json lanes[SMB-TYPE-INDENT-SPACING-1].worktree (pre-move value)",
+      "builders/lanes/hsk-studio-type-indent-spacing-1.json notes.moves[0].from_tree"
+     ],
+     "builds_on": "D: tree smb-pr-retime-hold-1 since 2026-11-11T10:14:09Z (research/decision-20261111-c-cap-placement.json; target_reuse.tree; lane file worktree and notes.reuses_tree_and_target; D: target bound to that tree)"
+    }
+   ],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-r54-followups-1/handshake-studio-assets/Cargo.toml",
+   "bound_tree_head": "lane/smb-type-indent-spacing-1 at 5f3112a4 (SMB-TYPE-INDENT-SPACING-1 moved_tip), clean",
+   "newest_file_utc": "2026-11-11T09:22Z",
+   "inspected_newest_file_utc": "2026-11-11T09:22Z",
+   "inspected_at": "2026-11-13T07:33:40Z",
+   "why_safe": "Owner lane SMB-R54-FOLLOWUPS-1 is PASS_V5 (STUDIO-R59 PASS_V5 @c4d06841). Every later lane that used this C: tree moved its builds to a D: tree and target: SMB-PROJECT-BIN-1 (READY_FOR_VALIDATION) builds on D: tree smb-folio-angle-unbounded-1 since 2026-11-07T12:35:56Z; SMB-TYPE-INDENT-SPACING-1 (READY_FOR_VALIDATION) builds on D: tree smb-pr-retime-hold-1 since 2026-11-11T10:14:09Z. No lane builds in this tree or writes this target: no target_reuse 'tree', no lane file 'worktree' and no reuses_tree_and_target names it; the READY lanes name it only as the idle tree they left (old_tree_idle) and in their ledger lane row's pre-move worktree. The tree has not moved since: lane/smb-type-indent-spacing-1 at 5f3112a4 (SMB-TYPE-INDENT-SPACING-1 moved_tip), clean; the target's newest file 2026-11-11T09:22Z is before the last of those moves. No cargo, rustc, link or test process names the target, the owner or the bound tree (2026-11-13T07:37Z). T-C01 removed its older copies 2026-11-12T12:53Z (59.16 GiB); 0.0 GiB older copies left; the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, tmp, release; debug has .cargo-artifact-lock, .cargo-build-lock, .cargo-lock, .fingerprint, build, deps, examples, incremental; listed 2026-11-13T07:33Z), no worktree, registry, logs or results folder; the lane worktree and its branch are not touched.",
+   "dry_run": {
+    "at": "2026-11-13T07:38:05Z",
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "used_by": [
+     "SMB-PROJECT-BIN-1",
+     "SMB-TYPE-INDENT-SPACING-1"
+    ],
+    "tool_reason": "tree_users() counts a lane short of PASS_V/ABANDONED that names the tree in target_reuse 'tree' or 'old_tree_idle', in a ledger lane row's worktree or in a lane file's worktree; here only old_tree_idle and the pre-move ledger worktree name it",
+    "later_checks_read_only": {
+     "at": "2026-11-13T07:38:27Z",
+     "how": "target_prune.py's own whole_basis(), command_lines(), lock_files()/lock_hits() and newest() imported read-only (tool unchanged)",
+     "settled_by": "PASS_V5",
+     "process": "none names the target, owner or bound tree",
+     "newest_now": "2026-11-11T09:22Z",
+     "next_refusal": "SKIPPED_LOCK: C:/HandshakeBuild/.disk-build-lock held by a round on drive c: (R60 attempt 3, run-round studio-round, class=round, acquired 2026-11-13T07:19:37Z)"
+    }
+   },
+   "skipped_by_dry_run": true,
+   "tool_refusal_assessment": "SKIPPED_IN_USE_BY_LANE is wrong in fact for this target: the lanes it names (SMB-PROJECT-BIN-1, SMB-TYPE-INDENT-SPACING-1) build on D: trees and D: targets (target_reuse.tree, lane file worktree); the tool's C: rule P2 reason, 'a FAIL in the round sends the lane back to its tree and target', points them at their D: tree, not here. The tool reads old_tree_idle as use and the ledger lane row's worktree, which the moves did not update. Not changed here (needs_tool_change.N5_c_whole_moved_lanes). SKIPPED_LOCK, the next check, is right: plan W before_execution and plan T 'never during a round'.",
+   "unblock": "R60 attempt 3 releases the C: disk build lock, and either the lanes SMB-PROJECT-BIN-1, SMB-TYPE-INDENT-SPACING-1 reach PASS_V (the tool's lane check then clears with no change) or the Operator approves tool change N5",
+   "run_condition": "Only after R60 attempt 3 has released C:/HandshakeBuild/.disk-build-lock (never during a round), and only after a fresh dry run of this candidate says WOULD_REMOVE (fresh lane check, process check, lock check, newest file 2026-11-11T09:22Z and size 35.3 GiB within 5%); then target_prune.py --execute --approve W-C02 with plan W marked APPROVED."
+  },
+  {
+   "id": "W-C03",
+   "group": "e",
+   "disk": "C",
+   "owner": "smb-type-sentinels-registry-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-type-sentinels-registry-1",
+   "kind": "whole",
+   "gib": 0.2,
+   "target_total_gib": 0.2,
+   "older_copies_gib": 0.0,
+   "files": 761,
+   "subdirs": 131,
+   "lane_status": "PASS_V6",
+   "status": "PASS_V6",
+   "used_by": [],
+   "named_by": [
+    {
+     "lane": "SMB-UI-TREE-1",
+     "lane_status": "READY_FOR_VALIDATION",
+     "names_c_tree_in": [
+      "ledger.json direction.workflow_20261107.target_reuse.SMB-UI-TREE-1.old_tree_idle",
+      "ledger.json lanes[SMB-UI-TREE-1].worktree (pre-move value)",
+      "builders/lanes/hsk-studio-ui-tree-1.json notes.old_tree_idle"
+     ],
+     "builds_on": "D: tree smb-pr-retime-hold-1 since 2026-11-07T12:35:56Z (target_reuse.tree; lane file worktree wt-studio-lanes/smb-pr-retime-hold-1; D: target bound to that tree)"
+    }
+   ],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-type-sentinels-registry-1/handshake-studio-assets/Cargo.toml",
+   "bound_tree_head": "lane/smb-ui-tree-1 at 5873c04e (SMB-UI-TREE-1 moved_tip); one untracked kumihimo-ui/tools/__pycache__, not touched",
+   "newest_file_utc": "2026-11-07T12:24Z",
+   "inspected_newest_file_utc": "2026-11-07T12:24Z",
+   "inspected_at": "2026-11-13T07:33:40Z",
+   "why_safe": "Owner lane SMB-TYPE-SENTINELS-REGISTRY-1 is PASS_V6 (ledger PASS_V6). Every later lane that used this C: tree moved its builds to a D: tree and target: SMB-UI-TREE-1 (READY_FOR_VALIDATION) builds on D: tree smb-pr-retime-hold-1 since 2026-11-07T12:35:56Z. No lane builds in this tree or writes this target: no target_reuse 'tree', no lane file 'worktree' and no reuses_tree_and_target names it; the READY lanes name it only as the idle tree they left (old_tree_idle) and in their ledger lane row's pre-move worktree. The tree has not moved since: lane/smb-ui-tree-1 at 5873c04e (SMB-UI-TREE-1 moved_tip); one untracked kumihimo-ui/tools/__pycache__, not touched; the target's newest file 2026-11-07T12:24Z is before the last of those moves. No cargo, rustc, link or test process names the target, the owner or the bound tree (2026-11-13T07:37Z). 0.0 GiB older copies; the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, tmp; debug has .cargo-artifact-lock, .cargo-build-lock, .cargo-lock, .fingerprint, build, deps, examples, incremental; listed 2026-11-13T07:33Z), no worktree, registry, logs or results folder; the lane worktree and its branch are not touched.",
+   "dry_run": {
+    "at": "2026-11-13T07:38:05Z",
+    "status": "SKIPPED_IN_USE_BY_LANE",
+    "used_by": [
+     "SMB-UI-TREE-1"
+    ],
+    "tool_reason": "tree_users() counts a lane short of PASS_V/ABANDONED that names the tree in target_reuse 'tree' or 'old_tree_idle', in a ledger lane row's worktree or in a lane file's worktree; here only old_tree_idle and the pre-move ledger worktree name it",
+    "later_checks_read_only": {
+     "at": "2026-11-13T07:38:27Z",
+     "how": "target_prune.py's own whole_basis(), command_lines(), lock_files()/lock_hits() and newest() imported read-only (tool unchanged)",
+     "settled_by": "PASS_V6",
+     "process": "none names the target, owner or bound tree",
+     "newest_now": "2026-11-07T12:24Z",
+     "next_refusal": "SKIPPED_LOCK: C:/HandshakeBuild/.disk-build-lock held by a round on drive c: (R60 attempt 3, run-round studio-round, class=round, acquired 2026-11-13T07:19:37Z)"
+    }
+   },
+   "skipped_by_dry_run": true,
+   "tool_refusal_assessment": "SKIPPED_IN_USE_BY_LANE is wrong in fact for this target: the lanes it names (SMB-UI-TREE-1) build on D: trees and D: targets (target_reuse.tree, lane file worktree); the tool's C: rule P2 reason, 'a FAIL in the round sends the lane back to its tree and target', points them at their D: tree, not here. The tool reads old_tree_idle as use and the ledger lane row's worktree, which the moves did not update. Not changed here (needs_tool_change.N5_c_whole_moved_lanes). SKIPPED_LOCK, the next check, is right: plan W before_execution and plan T 'never during a round'.",
+   "unblock": "R60 attempt 3 releases the C: disk build lock, and either the lanes SMB-UI-TREE-1 reach PASS_V (the tool's lane check then clears with no change) or the Operator approves tool change N5",
+   "run_condition": "Only after R60 attempt 3 has released C:/HandshakeBuild/.disk-build-lock (never during a round), and only after a fresh dry run of this candidate says WOULD_REMOVE (fresh lane check, process check, lock check, newest file 2026-11-07T12:24Z and size 0.2 GiB within 5%); then target_prune.py --execute --approve W-C03 with plan W marked APPROVED."
   }
  ],
- "total_gib": 188.64,
+ "total_gib": 262.21,
  "total_by_disk_gib": {
   "D": 188.64,
-  "C": 0
+  "C": 73.57
  },
  "totals_gib": {
   "a_partial_D": 139.74,
   "b_partial_D": 0.29,
-  "c_whole_D": 48.61
+  "c_whole_D": 48.61,
+  "e_whole_C": 73.57
  },
  "group_d_stray": "none: stray_cargo.py (read-only, 2026-11-13) reported no repo-local target, no stray Handshake_Artifacts folder and no stray cargo process",
- "reuse_considered": "HSK-ART-005 puts reuse first. The 8 wave trees keep their targets (partial only). The 11 group (c) targets are PASS lanes' targets that nothing names; the wave already took over 8 READY trees, and the resume plan gives a post-R60 fix lane a C: tree (smb-pr-nudge-1 or smb-layout-composer-depth-1), so none of the 11 is reserved for reuse; their bases are 2026-11-01..05.",
+ "reuse_considered": "HSK-ART-005 puts reuse first. The 8 wave trees keep their targets (partial only). The 11 group (c) targets are PASS lanes' targets that nothing names; the wave already took over 8 READY trees, and the resume plan gives a post-R60 fix lane a C: tree (smb-pr-nudge-1 or smb-layout-composer-depth-1), so none of the 11 is reserved for reuse; their bases are 2026-11-01..05. C: research/decision-20261111-c-cap-placement.json decision.2_p3.remediation_tree named the C: trees smb-r54-followups-1 and smb-pr-retime-output-1 (warm PASS-owner targets) as first take-over candidates for an R60 remediation; the later resume plan (research/prep-20261112/resume-20261112.json) names smb-pr-nudge-1 or smb-layout-composer-depth-1 for a post-R60 fix lane, and both stay. Removing W-C01/W-C02 gives up that warm reuse: a lane taking one of those two trees later rebuilds a full target (about 35 to 38 GiB). Partial removal is used up: T-C01/T-C02 took their older copies on 2026-11-12.",
  "not_listed": [
   "smb-id-toc-persist-1 (D:): older copies 0.0 GiB, target 33.48 GiB; lane PASS_V8; used by ['SMB-LAYOUT-PERSIST-1', 'SMB-LAYOUT-PLACE-1']",
   "smb-layout-composer-depth-1 (D:): older copies 0.0 GiB, target 0.38 GiB; lane PASS_V2; used by ['SMB-LAYOUT-PDF-HOST-1', 'SMB-PARSER-HOSTILE-1']",
@@ -800,24 +986,25 @@
   "validator-r53-probe (D:): older copies 0.0 GiB, target 0.36 GiB; lane no ledger row; used by none",
   "smb-layout-composer-depth-1 (C:): older copies 0.0 GiB, target 28.42 GiB; lane PASS_V2; used by ['SMB-LAYOUT-PDF-HOST-1', 'SMB-PARSER-HOSTILE-1']",
   "smb-pr-nudge-1 (C:): older copies 0.0 GiB, target 34.24 GiB; lane PASS_V3; used by ['SMB-AI-LIVE-EFFECTS-1', 'SMB-DOC-EXPORT-1']",
-  "smb-pr-retime-output-1 (C:): older copies 0.0 GiB, target 38.07 GiB; lane PASS_V3; used by ['SMB-AUDIO-OUT-MIX-1', 'SMB-SCORE-EFFECTS-6']",
+  "smb-pr-retime-output-1 (C:): older copies 0.0 GiB (T-C02 took 52.1 GiB on 2026-11-12); listed whole as W-C01 (38.07 GiB)",
   "smb-pr-sequence-presets-1-red (C:): older copies 0.0 GiB, target 0.28 GiB; lane no ledger row; used by none",
-  "smb-r54-followups-1 (C:): older copies 0.0 GiB, target 35.3 GiB; lane PASS_V5; used by ['SMB-PROJECT-BIN-1', 'SMB-TYPE-INDENT-SPACING-1']",
-  "smb-type-sentinels-registry-1 (C:): older copies 0.0 GiB, target 0.2 GiB; lane PASS_V6; used by ['SMB-UI-TREE-1']",
+  "smb-r54-followups-1 (C:): older copies 0.0 GiB (T-C01 took 59.16 GiB on 2026-11-12); listed whole as W-C02 (35.3 GiB)",
+  "smb-type-sentinels-registry-1 (C:): older copies 0.0 GiB; listed whole as W-C03 (0.2 GiB)",
   "cargo output inside the Studio roots that is not a lane target (no .studio-workspace-root), tool REFUSED_PATH territory, 0.16 GiB in all: MT-35536/studio-assets-validator/type-reference-producer/cargo-target 0.08, studio-team-dev/steward/sccache-probe/tiny-t1 0.02, studio-team-dev/steward/sccache-probe/tiny-t2 0.02, studio-team-dev/steward/scratch/wd-target 0.0, studio-team-dev/steward-export/tmp/fxrepro/t1 0.01, studio-team-dev/steward-export/tmp/fxrepro/t2 0.01, studio-team-dev/steward-export/tmp/fxrepro/t3 0.01, studio-team-dev/steward-export/tmp/fxrepro/t4 0.01",
   "whole removal of smb-sentinels-native-1-red (D:, 0.73 GiB) and smb-type-sentinels-registry-1-red (D:, 0.21 GiB): no ledger row and the bound tree still exists (red-tree-f28efc16; the held scratch worktree smb-type-sentinels-registry-1/rw)",
-  "whole removal of C: lanes/smb-pr-sequence-presets-1-red (0.28 GiB): no ledger row and its bound tree (another session's scratchpad red-tree) still exists; same as plan U's withdrawn U-C06",
-  "whole removal of the C: lane targets smb-layout-composer-depth-1, smb-pr-nudge-1, smb-pr-retime-output-1, smb-r54-followups-1 and smb-type-sentinels-registry-1: READY_FOR_VALIDATION lanes name each tree (target_reuse tree or old_tree_idle); rule P2 lists them at PASS",
+  "whole removal of C: lanes/smb-pr-sequence-presets-1-red (0.28 GiB): no ledger row and its bound tree (another session's scratchpad red-tree) still exists; same as plan U's withdrawn U-C06. Re-verified 2026-11-13T07:30Z: the bound tree C:/Users/Ilja Smets/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-pr-sequence-presets-1/red-tree exists (Cargo.toml, no .git, dated 2026-11-02); no ledger row, so the owner-status rule cannot pass (tool: SKIPPED_STATUS); no lane binds it; target 0.28 GiB, 394 files, newest 2026-11-02T14:47Z; lane file hsk-studio-pr-sequence-presets-1.json notes.cleanup_for_steward lists it for Operator cleanup",
+  "whole removal of the C: lane targets smb-pr-nudge-1 (34.24 GiB) and smb-layout-composer-depth-1 (28.42 GiB): a READY lane builds in each. SMB-AI-LIVE-EFFECTS-1: ledger target_reuse tree smb-pr-nudge-1 disk C, ledger lane row worktree, builders/lanes/hsk-studio-ai-live-effects-1.json worktree and notes.reuses_tree_and_target; tree on lane/smb-ai-live-effects-1 at 1e652818; target newest 2026-11-11T06:45Z. SMB-PARSER-HOSTILE-1: target_reuse tree smb-layout-composer-depth-1 disk C, ledger lane row worktree, builders/lanes/hsk-studio-parser-hostile-1.json worktree and notes.reuses_tree_and_target; tree on lane/smb-parser-hostile-1 at 27365b81; target newest 2026-11-11T09:40Z. A FAIL in R60 sends them back there, and resume-20261112 keeps these two as the C: trees for a post-R60 fix lane; listable at PASS (rule P2). (Revised 2026-11-13T07:40Z: this note also named smb-pr-retime-output-1, smb-r54-followups-1 and smb-type-sentinels-registry-1; their READY users moved their builds to D:, so they are W-C01..W-C03.)",
   "whole removal of validator-r53-probe/target (0.36 GiB) and validator-r54-probe/target (7.73 GiB): no owner lane; the probe trees are on the HANDOFF cleanup list held by the hard rule",
   "studio-round on C: and D:, cargo registry caches, logs, results, fixtures, downloads, oracle corpora, and everything outside the WP-KERNEL-STUDIO roots"
  ],
  "needs_tool_change": {
   "N4_whole_on_D": "DONE 2026-11-13: target_prune.py N4 (commit 'Studio: target_prune N4 (whole on the D: Studio root); plan W dry run re-run') allows whole on D_ROOT/<owner>/target (artifact root resolved as the tool resolves it; never studio-round, studio-team-dev, MT-*, registry, cargo-home or outside the root) with the C: checks: owner ledger row PASS_*/SUPERSEDED/LOST/DONE; no READY, active, blocked or paused lane naming the owner tree or the tree bound in .studio-workspace-root; no link on the way or inside; no process naming target, owner or bound tree; no held lock or queued ticket naming them and no round holding the target drive's disk lock; real target (.studio-workspace-root, debug/.fingerprint); newest file and 5% size. Dry run 2026-11-13T06:14:53Z: W-D12..W-D22 WOULD_REMOVE 48.62 GiB.",
   "wave_trees": "No tool change: W-D01..W-D08 stay SKIPPED_IN_USE_BY_LANE while their wave lane builds (guard unchanged). Each runs after its wave lane is READY_FOR_VALIDATION with its tip on origin, after a fresh re-inspection (candidate run_condition), as builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13).",
-  "group_b_rest": "smb-fig-grid-3 (lane PAUSED: SKIPPED_STATUS), studio-team-dev/sync-export/target (REFUSED_PATH, not a lane target) and validator-r54-probe/target (no lane row: SKIPPED_STATUS) are listed for completeness, 0.29 GiB in all; dropping them costs nothing."
+  "group_b_rest": "smb-fig-grid-3 (lane PAUSED: SKIPPED_STATUS), studio-team-dev/sync-export/target (REFUSED_PATH, not a lane target) and validator-r54-probe/target (no lane row: SKIPPED_STATUS) are listed for completeness, 0.29 GiB in all; dropping them costs nothing.",
+  "N5_c_whole_moved_lanes": "PROPOSED, not built (this agent was told not to change the tool): for a whole candidate on C_LANES, a lane that names the owner tree only as target_reuse 'old_tree_idle' while its target_reuse 'tree' is another tree, and whose ledger lane row worktree is that old tree only because the move did not update it (lane file worktree = target_reuse.tree), would not count as a user. Without N5, W-C01..W-C03 clear only when SMB-AUDIO-OUT-MIX-1, SMB-SCORE-EFFECTS-6, SMB-PROJECT-BIN-1, SMB-TYPE-INDENT-SPACING-1 and SMB-UI-TREE-1 reach PASS_V. The lock check stays as is."
  },
- "before_execution": "Operator approves this exact list in chat (or a named subset). Right away: W-D12..W-D22, after a fresh dry run of them all WOULD_REMOVE (the tool re-checks status, lanes, processes, locks, newest file and size), then target_prune.py --execute --approve W-D12,...,W-D22. Later, per lane: W-D01..W-D08 each only per its run_condition (wave lane READY_FOR_VALIDATION with its tip on origin, fresh re-inspection and dry run). No execution while a round holds the disk build lock of the target's drive (the tool refuses: SKIPPED_LOCK).",
- "operator_question": "Approve plan W: remove now the whole old build caches of 11 validated lanes on D: (48.62 GiB, W-D12..W-D22), and later the older copies on the 8 next-wave Studio build caches (139.74 GiB, W-D01..W-D08), each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection.",
+ "before_execution": "Operator approves this exact list in chat (or a named subset). Right away: W-D12..W-D22, after a fresh dry run of them all WOULD_REMOVE (the tool re-checks status, lanes, processes, locks, newest file and size), then target_prune.py --execute --approve W-D12,...,W-D22. Later, per lane: W-D01..W-D08 each only per its run_condition (wave lane READY_FOR_VALIDATION with its tip on origin, fresh re-inspection and dry run). No execution while a round holds the disk build lock of the target's drive (the tool refuses: SKIPPED_LOCK). C: W-C01..W-C03 only after R60 attempt 3 has released the C: disk build lock (the tool refuses SKIPPED_LOCK while a round holds it, as plan T 'never during a round'), and only after a fresh dry run of each says WOULD_REMOVE; that needs their READY users at PASS_V or tool change N5.",
+ "operator_question": "Approve plan W: remove now the whole old build caches of 11 validated lanes on D: (48.62 GiB, W-D12..W-D22); later the older copies on the 8 next-wave Studio build caches (139.74 GiB, W-D01..W-D08), each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection; and on C:, after R60 attempt 3, the whole old build caches of 3 validated lanes whose later lanes moved to D: (73.57 GiB, W-C01..W-C03), once a fresh dry run says WOULD_REMOVE.",
  "dry_run": {
   "at": "2026-11-13T06:14:53Z",
   "tool_commit": "target_prune.py with N4 (commit 'Studio: target_prune N4 (whole on the D: Studio root); plan W dry run re-run')",
@@ -840,7 +1027,16 @@
    "W-D07",
    "W-D08"
   ],
-  "previous": "2026-11-13T06:04:02Z at 234bc442 (target_prune N3): all 22 skipped, 0.0 GiB (W-D12..W-D22 REFUSED_PATH: whole only on C:)"
+  "previous": "2026-11-13T06:04:02Z at 234bc442 (target_prune N3): all 22 skipped, 0.0 GiB (W-D12..W-D22 REFUSED_PATH: whole only on C:)",
+  "c_dry_run": {
+   "at": "2026-11-13T07:38:05Z",
+   "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261113-W.json --approve W-C01,W-C02,W-C03 (no --execute)",
+   "file": "research/cargo-cleanup-dryrun-20261113-W-C.json",
+   "would_remove_gib": 0.0,
+   "result": "3 SKIPPED_IN_USE_BY_LANE: W-C01 used_by SMB-AUDIO-OUT-MIX-1, SMB-SCORE-EFFECTS-6; W-C02 SMB-PROJECT-BIN-1, SMB-TYPE-INDENT-SPACING-1; W-C03 SMB-UI-TREE-1 (all READY_FOR_VALIDATION, all building on D:). Read-only check of the tool's later checks (07:38:27Z): owner PASS, no process, newest file unchanged, then SKIPPED_LOCK: C:/HandshakeBuild/.disk-build-lock held by a round on drive c: (R60 attempt 3, run-round studio-round, class=round, acquired 2026-11-13T07:19:37Z).",
+   "c_files": 72856,
+   "c_gib_when_clear": 73.57
+  }
  },
- "revised_at": "2026-11-13T06:14:53Z"
+ "revised_at": "2026-11-13T07:40:00Z"
 }

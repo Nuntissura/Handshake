@@ -1,0 +1,44 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261113-W",
+ "execute": false,
+ "at": "2026-11-13T07:38:05Z",
+ "total_gib": 0.0,
+ "results": [
+  {
+   "id": "W-C01",
+   "owner": "smb-pr-retime-output-1",
+   "planned_gib": 38.07,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-retime-output-1\\handshake-studio-assets\\Cargo.toml",
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "used_by": [
+    "SMB-AUDIO-OUT-MIX-1",
+    "SMB-SCORE-EFFECTS-6"
+   ]
+  },
+  {
+   "id": "W-C02",
+   "owner": "smb-r54-followups-1",
+   "planned_gib": 35.3,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-r54-followups-1\\handshake-studio-assets\\Cargo.toml",
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "used_by": [
+    "SMB-PROJECT-BIN-1",
+    "SMB-TYPE-INDENT-SPACING-1"
+   ]
+  },
+  {
+   "id": "W-C03",
+   "owner": "smb-type-sentinels-registry-1",
+   "planned_gib": 0.2,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-type-sentinels-registry-1\\handshake-studio-assets\\Cargo.toml",
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "used_by": [
+    "SMB-UI-TREE-1"
+   ]
+  }
+ ]
+}
