@@ -5,15 +5,38 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "86ee4e57",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "c0e87947",
+      "slice": "menu_tree.rs: 79 catalog commands palette_only with a typed reason (16 no_menu_home, 63 menu_path_pending), DOMAIN_HOMES for adjustment, board, effect, node, variable, variable_collection; Unreached doc names the noun-query reading"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "trunk_check": {
+      "sha": "86ee4e57 (origin tip, clean)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-menu-catalog-coverage-1/smb-fix-menu-catalog-coverage-1-trunk-86ee4e57.log",
+      "command": "one D: hold: cargo build -p hsk-studio-harness --example studio-harness --features viewer (EXAMPLE_EXIT=0), then lane-check --owner smb-r53-followups-1 --disk d -- cargo nextest run -p hsk-studio-native-host -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-native-host/document,hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --no-fail-fast",
+      "result": "833 run, 832 passed, 1 failed, 22 skipped, LANECHECK_EXIT=100; the one failure is native-host gui_menu every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home (gui_menu.rs:707, 79 catalog commands, and 6 homeless domains printed); no other trunk-red test in the three suites; clippy of the three crates passed (no dependents)"
+    },
+    "red": {
+      "sha": "86ee4e57",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-menu-catalog-coverage-1/smb-fix-menu-catalog-coverage-1-trunk-86ee4e57.log",
+      "result": "the existing MENU-INV-1 test, red at the tip: '79 catalog commands have neither a leaf nor a palette_only reason (STU-SHL-013)'; its printed list equals the 79 ids added in c0e87947"
+    },
+    "bundled": {
+      "sha": "c0e87947",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-menu-catalog-coverage-1/smb-fix-menu-catalog-coverage-1-bundled-c0e87947.log",
+      "command": "one D: hold: focused cargo nextest run -p hsk-studio-native-host --features document --test gui_menu (23 run, 23 passed, FOCUSED_EXIT=0), then lane-check --owner smb-r53-followups-1 --disk d -- cargo nextest run -p hsk-studio-native-host -p hsk-studio-harness-view --features hsk-studio-native-host/document,hsk-studio-harness-view/viewer --no-fail-fast",
+      "result": "BUNDLED GREEN: 270 run, 270 passed, 1 skipped, LANECHECK_EXIT=0; step 0 and registry check clean; clippy over native-host [document], harness-view [viewer] and dependent harness: no hit in menu_tree.rs; MENU-INV-1 test passes"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T15:44:59Z",
+  "next": "lead: BUNDLED GREEN reported; builder waits for RELEASED, then rebase, --per-sha HEAD~1, guarded push",
+  "updated_at": "2026-11-13T16:14:16Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +61,19 @@
       "lead 2026-11-13: trunk-red native-host [document] gui_menu MENU-INV-1 (79 catalog commands without a leaf or a palette_only reason)"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-r53-followups-1"
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "readings": [
+      "Real leaves: none added. A LEAVES row runs only through run_catalog (CATALOG_COMMANDS, parameters built from the menu state by a Rule); none of the 79 runs from menu state without a dialog through that executor: web.* rows run on the web host (Surface::Run, key/offset/caret not in MenuState), board/variable/layout/adjustment rows need ids, text, positions or records. GUI-MENU-1's precedent: artboard.add etc. stay menu_path_pending although DOCUMENT > Artboards designs their homes.",
+      "Two candidates for the lead: (1) EFFECTS > Effect Stack > Disable All Effects -> effect.toggle {layer: selected, enabled: false} (no instance: the whole stack; STU-FX-011a: no separate smart filter concept) needs a run_catalog arm through Viewer::run_command and a Rule; the label-to-command mapping is a reading, not spec-given. (2) DOCUMENT > Boards > New Board -> board.add (all parameters optional) needs a gate: Profile::of never derives the board container, so container:board would grey it in every document, and no gate shows it available where board commands refuse not_whiteboard_document.",
+      "Reasons by what the command does (Unreached::NoMenuHome = reads, records, catalog and state queries): no_menu_home 16 = board.node.read, board.read, effect.parameters, effect.read, layout.character_attributes, variable.create_alias (the alias value record, a read), variable.resolve_for_consumer, web.code_hints, web.code_navigator, web.css_properties, web.document_types, web.media_records, web.regions, web.snippets, web.tag_vocabulary, web.template_regions. The test's verb heuristic gave 4 (the read/resolve ids); the other 12 are queries named by a noun. Everything else (63) authors, edits, exports or runs an on-demand action: menu_path_pending.",
+      "Designed homes of the menu_path_pending ones (next menu-path lane): INSERT > Layer > Adjustment Layer… (adjustment.create); EFFECTS > Apply Effect / Effect Stack (effect.apply, .remove, .reorder, .toggle); DOCUMENT > Boards > New Board and INSERT > Whiteboard Object > Sticky Note, Connector, Section (board.*); COLOR > Colour Variables (variable.*, variable_collection.*, node.*_explicit_variable_mode_for_collection); TYPE > Character, Language… (layout.set_character_attributes, layout.set_language); CODE > Source Formatting (web.format_source, .indent, .outdent, .balance_braces), CODE > Edit Code (web.apply_comment, .remove_comment, .collapse_selection), CODE > Validate (web.validate, web.lint), SELECT > Navigate Selection > Select Parent Tag, FILE > Site Management > Change Link Sitewide…, INSERT > Snippet & Sample (web.snippet, web.snippet_insert).",
+      "DOMAIN_HOMES (MENU-INV-3): adjustment -> studio.effect.adjustment, effect -> studio.effect.apply (expansions), board -> studio.document.boards, variable, variable_collection and node -> studio.color.colour_variables (submenus)."
+    ],
+    "not_proven": [
+      "the per-command palette_only split stays a reading (as GUI-MENU-1's); MENU-INV-6 palette parity not built"
+    ],
+    "cut": [
+      "real leaves for effect.toggle and board.add (see readings: lead decides)"
+    ]
   }
 }
