@@ -1,0 +1,274 @@
+{
+ "schema": "hsk.studio.lead_deliberation@1",
+ "file_id": "DELIBERATION-20261113-GUI-GESTURE-GATE",
+ "updated_at": "2026-11-13T18:30:00Z",
+ "lane": "SMB-GUI-GESTURE-GATE-1",
+ "role": "GUI-architecture reviewer for the master dev lead (read-only except this file; recommendations, not rulings)",
+ "base": "lane/smb-gui-gesture-gate-1 at 89f27330, tree wt-studio-lanes/smb-r53-followups-1/handshake-studio-assets (git status clean, read 2026-11-13)",
+ "method": "READ only: no build, no test run, no commit. Every file:line below was opened at 89f27330 (product) or in the kernel; winit 0.30.13 (Apache-2.0) and cursor-icon 1.2.0 (MIT OR Apache-2.0 OR Zlib) read in the local cargo registry. No GPL, LGPL or MPL source read.",
+ "inputs_read": [
+  "builders/briefs/lane-smb-gui-gesture-gate-1.md",
+  "research/scope-20261107-gui-gesture-gate-1.json",
+  "builders/lanes/hsk-studio-gui-gesture-gate-1.json (blockers: SHAPE 2026-11-13T17:21:19Z, asks A1-A6)",
+  "builders/briefs/wave-parity-2-common.md (HOST INTEGRATION (1)-(7), rule 4a)",
+  "research/lead-rulings-20261108-by-lane.json (common list; SMB-GUI-MENU-1)",
+  "HANDOFF.md:44, :271-288",
+  "ledger.json direction.blocker_decisions_20261107 (O3, O4, window_layer, spine_gate)",
+  "spec module 14 STU-SHL-100..109 (:32298-32324), STU-SHL-185..196 (:33232-33254), STU-SHL-235 (:33452-33458)",
+  "gui-design/tools/mock_raster.py, components.json scrub_value, layouts.json",
+  "lane briefs and lane files of SMB-PROTOTYPE-PLAY-CANCEL-1, SMB-PR-TIMELINE-FIXES-1, SMB-MOTION-IMPLIED-VALUES-1, SMB-FIX-LAYER-RECORD-PRUNE-1"
+ ],
+ "verified_facts": {
+  "D1_D7": "D1 (2026-10-30): 'Drop egui'; existing egui is asset-local test host only, no new egui (HANDOFF.md:278). D7 (2026-10-31): pure Vulkan, no wgpu; render-gpu wgpu code quarantined, RF-12 (HANDOFF.md:280); O3 adds that D7 removes wgpu and runtime naga/WGSL, offline WGSL stays allowed (ledger blocker_decisions_20261107.O3). Neither decision names winit. The winit word in the ban comes from lead text (HANDOFF.md:44: 'unless direction.blocker_decisions_20261107 ... says otherwise'), and that ledger entry says otherwise: window_layer = 'winit =0.30.13 with windows-sys in hsk-studio-native-host only ... No Operator word bans winit; the ban was lead text'. HOST INTEGRATION (1) bans winit types only in NEW public signatures of harness-view, harness-core, controls or render-gpu (wave-parity-2-common.md:22). The brief narrows it to 'winit stays where it is (event.rs, window.rs)'.",
+  "harness_view_reexport_precedent": "Precedent exists for harness-view re-exporting a dependency crate's items for native-host: view/menu_tree.rs:46 `pub use hsk_studio_controls::menu as descriptors;`, consumed by native-host gui/mod.rs:39. Others: audio_import.rs:39, layout_export.rs:107, monitor.rs:50, source_monitor.rs:42. NOT in render.rs (no pub use) and NOT in view/mod.rs (mod.rs:131 `use hsk_studio_harness_core::RunContext;` is private). harness-view lib.rs:7-9 imports harness-core privately. hsk-studio-harness lib.rs:30-31 re-exports RunContext at its root.",
+  "run_context_construction": "RunContext::new(actor, ClientSessionId, Arc<dyn CorrelationSource>) (harness-core context.rs:29). ClientSessionId (accord command.rs:21), TransientCorrelation (command.rs:99-105) and ActorContext::session_id (accord lib.rs:514) are accord items, and native-host already depends on accord. harness cli/drive.rs:73-83 context_of builds it this way. Viewer::with_context(prefer, DeviceOptions, RunContext) is not feature-gated (harness-view view/mod.rs:344); Viewer::new and with_gpu_options are gated on asset-local-test-host (:330-341). DeviceOptions implements Default (render-gpu device.rs:108), so `Default::default()` is inferred without naming the type.",
+  "native_host_deps": "native-host depends on vulkan, accord, observe, harness-view (optional), kumihimo-ui, ui-text, winit =0.30.13 (features rwh_06), windows-sys, png, sha2 (Cargo.toml [dependencies]). There is no harness-core, controls or render-gpu edge.",
+  "gui_chrome_pins": "tests/gui_chrome.rs:66-82 pins the exact semantic root list ending with \"studio.dock.state\", \"studio.tool.active\" (:79-80). tests/gui_chrome.rs:154-157 pins studio.panel.properties.empty with value NIY at open. tests/gui_frame.rs:154-156 checks root ORDER by position only (not broken by an extra root).",
+  "gui_frame_391_416": "tests/gui_frame.rs:387-416 wheel_scrolls_the_list_and_the_scrollbar_shows pins the Layers body at 99 px at 800x324 (Properties and Colour collapsed), 'rows 1-4 of 4', the overflow scrollbar and the per-notch scroll arithmetic. A strip above Layers moves all of these.",
+  "guiframe_open_calls": "Production callers: 2 (src/offscreen.rs:72, src/window.rs:315). Test lines containing `GuiFrame::open(`: 20 across gui_chrome 3, gui_compose 2, gui_frame 4, gui_menu 3, gui_vulkan 5, gui_window 3. studio-vk.rs calls window::run/offscreen::run, not GuiFrame::open (:81-82).",
+  "window_rs_winit_use": "window.rs uses winit for the event loop, window attributes, set_visible, request_inner_size, inner_size, scale_factor, primary/available monitors (:29-35, :324-328, :398-421, :434, :494). No cursor call exists. ControlFlow::Wait for the Operator window (:474, :614, :628), Poll otherwise, WaitUntil(+15 ms) only after a skipped frame (:636). It never calls GuiFrame::advance; App::advance(Phase) at :499 is the exercise script's own phase advance. Modifiers are stored in App.mods only and NOT forwarded to the frame (:868); Focus is counted, not forwarded (:858-860); only PointerLeft, Button, Wheel and Key reach g.apply (:871-878). Scripted steps land one per loop iteration on a settled frame (:584-591). A run exits when presented >= frames and steps are empty (:629-633). A non-document stub `enum GuiFrame {}` with method stubs lives at :52-91.",
+  "winit_cursor_semantics_windows": "winit 0.30.13 Windows: set_cursor_position = ClientToScreen + SetCursorPos, an OS cursor warp (platform_impl/windows/window.rs:476-489). set_cursor_visible sets CursorFlags::HIDDEN (:452-467); hidden without a grab does not clip, so the OS pointer still stops at the physical screen edge. CursorGrabMode::Locked clips the cursor to a 1x1 rect at its current position while focused (window_state.rs:486-497), with no SetCursorPos. The press calls SetCapture (event_loop.rs:978-981, :1781-1786), so moves outside the client area arrive while the button is held, up to the screen edge only. Raw DeviceEvent::MouseMotion exists (event_loop.rs:2525, :2590). CursorIcon::ColResize maps to IDC_SIZEWE, the SAME OS cursor as EwResize (platform_impl/windows/util.rs:162-175).",
+  "opacity_spec": "harness-core panel.rs:96-101: opacity is NumberSpec::slider(1, (0,100), (0,100)) with unit %. controls descriptor.rs:111-124: precision 1 gives step 10^-1 = 0.1. STU-SHL-191 (:33244): max(q, soft/200) = max(0.1, 0.5) = 0.5 %/px. The builder's number is right. No public path from native-host reaches the panel spec: harness-view keeps `panel` private (lib.rs:7-9) and Viewer::properties_ui is private (view/mod.rs:1189-1215).",
+  "commit_path": "Viewer::set_opacity (harness-view view/edit.rs:638-642) calls Run::set_opacity(layer, percent, None). The third argument is expected_revision, not a name (harness-core harness.rs:1284). It goes to property_edit with command CMD_SET_OPACITY = 'layer.set_opacity' (harness.rs:1285; action/commands/layer.rs:8). The step's ctx comes from begin_at(command) (:1227); its label is format!(\"{op} {field} {layer_id}\") = 'set_opacity opacity <layer>' (:1248). The step is pushed only when applied.changed (:1245). history() projects labels as 'undo' and attribution (label, actor, client_session, command_id, revision, correlation) as 'undo_steps' (:2439-2445, :391-397). harness drive reports undo_name = the newest history 'undo' label (cli/drive.rs:308-312).",
+  "catalog_step": "Run::catalog_step(command_id, f) groups f's steps into ONE step labelled command_id (harness.rs:1618-1655). It calls note_unrecordable(command_id), which adds a recordable_false entry while a recording runs (:724-733). layer.set_opacity is a recordable row (Run::set_opacity records it, :1286-1288). The only caller today is view/board/write.rs:195. Viewer exposes run(&self) only (view/mod.rs:901), so native-host cannot call catalog_step.",
+  "properties_vs_layers": "Inspect Dock groups (gui/preset.rs:127-130): group 0 = Properties first (share 0.3), group 2 = Layers (0.46). Properties is the active tab at open (gui_chrome.rs:148-151), and its body is an empty state today (gui/chrome.rs:371-375). No layer is selected at open (gui/mod.rs:607 selected: None). The designer's raster mock carries Opacity BOTH in Properties > Appearance (gui-design/tools/mock_raster.py:55-57) and in the Layers header strip beside the blend dropdown (mock_raster.py:95). The egui Viewer hosts the layer descriptor panel, opacity included, in its Properties panel (harness-view view/mod.rs:1189-1215). ScrubValue author_id grammar: studio.panel.<panel>.<param-path> (gui-design/components.json scrub_value author_id).",
+  "dwell_frame_proof": "tests/gui_menu.rs:1009-1031 tooltips_l0_and_l1_read_the_same_record proves L0 at 400 ms and L1 at 900 ms through GuiFrame::advance, plus suppression after a click. GuiFrame::advance doc (gui/mod.rs:2528-2531): 'no script step calls it, so an agent-driven session never sees a dwell tip, STU-SHL-235 rule 5'.",
+  "hostrun": "diag.rs:51-57 HostRun holds observe, correlation_id, cancel, sink and terminal, with no actor. The actor goes into Observe::new (:67), and Observe keeps it private with no getter (observe lib.rs:799-806; public: new, state, emit, emit_detail, emit_resource). ActorContext is Clone (accord lib.rs:458). offscreen::run(args, host) calls observed(host, || run_scene(args)), then gui_run(args, path) (offscreen.rs:45-51, :67-72), and the non-document stub gui_run is at :124.",
+  "common_ruling_10": "The brief counts the common list from 0. Index 10 (the 11th entry) reads verbatim: 'UNDO NAMES (lead 2026-11-13): an undo name is the catalog id, and every committed undo name is a catalog row.' Counted from 1, entry 10 is ONE HOLD PER PHASE. The brief's 11 (red tests) and 12 (lane history) follow the same 0-based count."
+ },
+ "rulings": [
+  {
+   "item": "placement (P vs L)",
+   "ruling": "APPROVE P: studio.panel.properties.opacity in the Properties body, shown only while a layer is selected.",
+   "reasons": [
+    "P fills an existing empty slot (gui/chrome.rs:371-375) of a group that is visible and active at open (preset.rs:128). The test 1 path (press in the field, cross the group tab strips and the group or dock splitters, release) runs from the top of the Inspect Dock.",
+    "P keeps every Layers pin (gui_frame.rs:387-416 body 99 px, rows, scroll). L moves them, and with them likely the row-geometry tests that follow.",
+    "P keeps gui_chrome.rs:154-157, since no layer is selected at open (gui/mod.rs:607).",
+    "Design backing: the raster mock has Opacity under Properties > Appearance (mock_raster.py:55-57). The egui Viewer already hosts layer opacity in its Properties panel (view/mod.rs:1189-1215). The id fits the components.json grammar.",
+    "Parity (UNVERIFIED, from general product knowledge, no source opened): Photoshop and Affinity show Opacity in the Layers panel header; Figma shows layer opacity in the right Design panel, which is P-like; After Effects shows it under Timeline > Transform. The mock also has the Layers-strip instance (mock_raster.py:95). L is therefore the later, second instance of the same field with the same arbiter, built in the lane that builds the Layers header strip (blend dropdown, opacity, lock row). It is not a replacement."
+   ],
+   "conditions": [
+    "The field's grab rect keeps STU-SHL-196 geometry: at least 72x24, inset 8 px from any splitter hit strip (STU-SHL-103), and outside the 10 px dense-panel scroll lane (STU-SHL-105).",
+    "Paint the 2 px hover gutter tint (STU-SHL-186; components.json scrub_value states.hover). It is the cue that tests can observe, because quiet and offscreen runs have no OS cursor.",
+    "Tests run at a size where the Properties body is not collapsed (1920x1080). At 800x324 the group collapses to its header (gui_frame.rs:389-390).",
+    "The CPU painter and the Vulkan pass draw the field through the same compose call. The gui_vulkan parity and gui_window offscreen-vs-quiet tests stay green (the gui_window session selects Green, so the field shows in both)."
+   ],
+   "unverified": [
+    "Vendor placement and parity claims (no source).",
+    "Whether any other test compares a frame after a selection against a fixed expectation. A grep for pinned 64-hex hashes in native-host tests found none; byte-for-byte parity tests compare two live paths."
+   ]
+  },
+  {
+   "item": "1 gesture arbiter",
+   "ruling": "APPROVE with amendments.",
+   "reasons": [
+    "Native-host gui/gesture.rs is allowed by the brief ('native-host gui, or kumihimo-ui only if it must be shared') and avoids a kumihimo-ui suite and asset publish. O4 (ledger blocker_decisions_20261107) assigns gestures to the toolkit, so this is a host-first placement.",
+    "delta = dx - dy (STU-SHL-188) and step 0.5 %/px (STU-SHL-191) are verified above. Shift x10, Ctrl /10, Shift+Ctrl x100, and Alt never a magnitude (STU-SHL-106, -190).",
+    "The scrub owns the pointer. Wheel and keys other than Escape are ignored: an accelerator cannot fire under an owned gesture (STU-SHL-106), and no other consumer runs (STU-SHL-101, -104). Escape aborts (STU-SHL-104).",
+    "Value `<author_id> scrub`, or `none` when idle, uses the closed kind set (STU-SHL-108). Adding the node in chrome::observe beside dock.state and tool.active (gui/chrome.rs:506-509) makes it a root, hence A4."
+   ],
+   "conditions": [
+    "Modifiers are sampled continuously (STU-SHL-106). Window.rs must forward HostEvent::Modifiers to the frame, landing the pending move first as :874-876 does. Today :868 only stores App.mods. Shift and Ctrl presses are not Key events (event.rs maps no modifier keys), so in the Operator window Shift or Ctrl mid-drag never reach the frame without this.",
+    "Window.rs forwards Focus{gained:false} to the frame. Focus loss finalizes an open drag or wheel transaction (STU-SHL-107, -194). Today :858-860 only counts focus gains.",
+    "PointerLeft during an owned drag is ignored, because the drag leaves the window (STU-SHL-104). PointerLeft during a wheel transaction closes it (STU-SHL-107).",
+    "Clamp at each sample keeps the clamped value, not the overshoot, so dragging back returns at once (STU-SHL-192). Keep fractional accumulation in value space (STU-SHL-191). The drag and SetValue (test 6) share ONE clamp-and-quantize function at precision 1.",
+    "A press and release with zero net change, Escape, and a refused commit write no history entry and call no Viewer::set_opacity (STU-SHL-104 forbids committing a no-op). The receipt counts gestures, aborts and refusals (the diag block of the brief).",
+    "The step constant is a NAMED deviation from STU-SHL-185 (no literal range at a call site). Hold hard (0,100), soft (0,100), precision 1 and unit % in one const record citing harness-core panel.rs:96-101 and controls descriptor.rs:111-124. Next-lane candidate: a harness-view accessor for the selected layer's NumberSpec, so the field reads the spec.",
+    "Keep gesture.rs free of winit, Viewer and window types (HostEvent in, typed requests and a commit intent out), so moving it into kumihimo-ui later (O4) is a file move. Do not reuse hsk-studio-controls store.rs GesturePhase (:58), because that would be a new crate edge.",
+    "Name the cuts in the report: click-to-type (STU-SHL-187), double-click reset (STU-SHL-195), soft-bound resistance (soft equals hard for opacity), and tab, panel, splitter and pan kinds beyond the rule-2 refusal."
+   ],
+   "unverified": [
+    "After Effects and Photoshop modifier and cursor behaviour during a scrub (no source).",
+    "kumihimo-ui widgets::slider sets semantic Numeric step 1.0 (widgets.rs:139). If the field reuses it, the accessible step reads 1.0 while the scrub step is 0.5 and the quantum 0.1. Not inspected further."
+   ]
+  },
+  {
+   "item": "3 commit and undo name",
+   "ruling": "AMEND. APPROVE one Viewer::set_opacity per gesture, carrying the viewer's (caller's) actor. Read literally, ruling 10 is NOT met by the label: lead decision needed. Recommended: accept it as a named gap in this lane, with no harness-core or harness-view edit for naming.",
+   "reasons": [
+    "Ruling 10 verbatim: 'an undo name is the catalog id, and every committed undo name is a catalog row'. The undo name is the history label (drive.rs:308-312 reads history 'undo'). Viewer::set_opacity's label is 'set_opacity opacity <layer>' (harness.rs:1248). That is not a catalog id, so the ruling, read literally, requires a change.",
+    "The step's attribution does carry the catalog id. undo_steps[].command_id = 'layer.set_opacity' (harness.rs:391-397, :1227, :1285), so a host can map the step to its row. That was the substance of review F3 of SMB-BOARD-1, where the command was also wrong. Here it is not.",
+    "The label is built in harness-core property_edit and shared by every layer property row (rename, set_visible, set_opacity, set_blend_mode). Changing it there leaves the lane's crates and changes existing drive undo names.",
+    "Wrapping edit.rs:640 in Run::catalog_step would give the label 'layer.set_opacity', but catalog_step calls note_unrecordable (harness.rs:1624, :724-733). That adds a false recordable_false report for a recordable row while recording. It would also edit view/edit.rs, where SMB-MOTION-IMPLIED-VALUES-1 asked for a hunk at Viewer::motion_command (edit.rs:664-667). Reject that route.",
+    "The scope risk 'Run::set_opacity's third argument is None at view/edit.rs:640' misreads the code: that argument is expected_revision, not a name."
+   ],
+   "conditions": [
+    "The test asserts history()['undo_steps'].last().command_id == 'layer.set_opacity' and its actor == the HostRun actor (see item 6). It does not pin the label string.",
+    "Record under notes a pre-existing gap and next-lane candidate: 'property_edit undo names {op} {field} {layer} (harness-core harness.rs:1248) are not catalog ids for layer.set_opacity, set_blend_mode, rename and set_visible; fix once in harness-core (label = command id) with the harness drive and harness-view suites'.",
+    "Spec note: STU-SHL-107 also wants the entry to name the parameter and its before and after values. Neither the current label nor a catalog-id label carries the values; the inverse carries the old value (harness.rs:1246-1248). Not in this lane."
+   ],
+   "unverified": [
+    "Whether any test or receipt elsewhere pins the 'set_opacity opacity' label: `git grep` for that string in crates/ found no match."
+   ]
+  },
+  {
+   "item": "4 canvas updates at release only",
+   "ruling": "APPROVE as a stated limit, NOT_PROVEN against STU-SHL-194.",
+   "reasons": [
+    "STU-SHL-194 (:33250) requires a private live preview during the gesture. harness-view has no non-committing appearance preview: preview_gate.rs only gates stale frames, and Viewer exposes no preview setter.",
+    "Committing per sample breaks one entry per gesture and emits a LayerMutated business event per sample (harness.rs:1241-1244). Compositing the preview in the host is wrong for blend modes and groups. Both are rejected.",
+    "Working-GUI and parity cost (UNVERIFIED, no source): Photoshop and After Effects update the canvas live during a scrub. This is the top usability follow-up."
+   ],
+   "conditions": [
+    "The field shows the in-gesture value. The receipt and the report name 'canvas preview at release only (STU-SHL-194 private draft NOT_PROVEN)'.",
+    "Next-lane candidate: a Viewer non-committing layer-appearance draft through the render path, plus discard on Escape. This is a harness-view lane."
+   ],
+   "unverified": []
+  },
+  {
+   "item": "5 host clock",
+   "ruling": "AMEND.",
+   "reasons": [
+    "The Operator window needs a timed wake. With ControlFlow::Wait (:474, :614, :628), a resting pointer produces no events, so the dwell and the 400 ms wheel idle never fire without WaitUntil(next deadline).",
+    "Wall-clock time in a quiet scripted run is load-dependent. Steps land one per iteration on a settled frame (:584-591), and startup and presents have taken seconds under load (window.rs:288-290). A gap over 400 ms between scripted notches would split them into two entries, so the '5 notches = commits 1' proof would flake.",
+    "A quiet run exits as soon as presented >= frames and steps are empty (:629-633). The run would exit with the wheel transaction still open, giving commits 0, not 1.",
+    "The brief line 'a window run feeds GuiFrame::advance (a dwell tip appears without show_tip)' conflicts with STU-SHL-235 rule 5 (:33458; no tip in a headless or agent-driven session). An agent can run only quiet windows (quiet needs frames, :301-302). The Operator window cannot be run without taking the foreground."
+   ],
+   "conditions": [
+    "Operator window: feed elapsed wall-clock time to GuiFrame::advance on each loop pass. Use WaitUntil(the frame's next deadline) when one is pending, otherwise Wait. No polling.",
+    "Agent mode, set by the host for quiet windows and offscreen runs: dwell tips are suppressed and advance drives only gesture timers. Add a frame test proving that agent mode shows no tip after advance(1000).",
+    "Quiet run: the clock does not run while scripted steps remain, because scripted events are instantaneous. After the last step, elapsed time feeds advance. The exit condition also waits until no gesture timer is pending, within the deadline.",
+    "Offscreen drive (gui::drive in gui/mod.rs, an owned path) settles pending gesture timers at the end of the script, the same idle rule, so offscreen and quiet captures stay equal for scripts that end in wheel notches.",
+    "ACCEPT the substitute proof. A quiet window run wheeling 5 notches over the field gives commits 1 and revision +1, which proves window.rs feeds advance. Dwell stays proven at frame level (gui_menu.rs:1009-1031). Dwell in the Operator window is UNVERIFIED by run. The lane notes record the brief deviation for lead acceptance.",
+    "Large gaps after system sleep are harmless: advance saturates (gui/mod.rs:2533)."
+   ],
+   "unverified": [
+    "Dwell and wheel idle in the Operator window (no agent run possible)."
+   ]
+  },
+  {
+   "item": "6 caller context",
+   "ruling": "APPROVE with conditions.",
+   "reasons": [
+    "This is the same construction as harness drive.rs:73-83: RunContext::new(actor.clone(), ClientSessionId::parse(actor.session_id()), Arc::new(TransientCorrelation::new())). All of these except RunContext are accord items native-host already has.",
+    "Keeping GuiFrame::open as the asset-local test constructor avoids touching 20 test lines in 6 binaries. Only 2 production callers exist (offscreen.rs:72, window.rs:315).",
+    "This also fixes the existing eye-toggle commit, which shares the same Viewer (a V4-06 sibling)."
+   ],
+   "conditions": [
+    "A ClientSessionId parse failure is a typed refusal, never a panic.",
+    "The actor test uses an actor that is NOT the asset-local one (cli.rs:50-56) and asserts the undo_steps actor and command_id, so it can fail (review F3 lesson of SMB-BOARD-1).",
+    "GuiFrame::open's doc says 'asset-local test context, not for host runs'.",
+    "document.rs:49/:59 (document scene render(), Viewer::new) stays and is NAMED as a V4-06 sibling that mutates nothing, or is fixed. It must be named either way (brief How to work 4).",
+    "Window.rs's non-document `enum GuiFrame {}` stub (:52-91) gains the new methods so the default-features suite compiles."
+   ],
+   "unverified": []
+  },
+  {
+   "item": "A1 harness-view re-export",
+   "ruling": "AMEND: ONE line, RunContext only, preferably in harness-view src/lib.rs root next to the existing harness-core import (:7-9); render.rs is acceptable. Drop DeviceOptions.",
+   "reasons": [
+    "Native-host must name RunContext to call RunContext::new. No public producer exists in harness-view, and the alternative (a native-host -> harness-core edge) is a new crate edge (the brief forbids it) plus a Cargo.lock change.",
+    "DeviceOptions is not needed: Viewer::with_context(Prefer::Cpu, Default::default(), ctx) infers it (render-gpu device.rs:108). Re-exporting a render-gpu type into native-host's reach widens the D7-quarantined crate's surface for no gain.",
+    "Root placement mirrors hsk-studio-harness lib.rs:30-31. render.rs is about pixels. view/mod.rs belongs to SMB-FIX-LAYER-RECORD-PRUNE-1. No active lane touches lib.rs or render.rs.",
+    "RunContext is not an egui, winit or wgpu type, so HOST INTEGRATION (1) holds."
+   ],
+   "conditions": [
+    "Record it under notes.beyond_brief_paths (common ruling 7, 0-based).",
+    "Rule 4a: harness-view becomes a changed crate, so its WHOLE suite enters the bundled run. After rebasing onto lanes 1-3 (which all move harness-view), the brief's 'touched one of your crates' rule applies. Lead decision: waive 4a's harness-view whole suite for a purely additive re-export (it changes no behaviour and no test input; the native-host [document] build compiles it), or accept the cost."
+   ],
+   "unverified": []
+  },
+  {
+   "item": "A2 HostRun actor",
+   "ruling": "APPROVE.",
+   "reasons": [
+    "Observe keeps the actor private with no getter (observe lib.rs:799-806). A cloned ActorContext field plus getter on HostRun (diag.rs:51-69) is smaller than changing window::run and offscreen::run signatures and their callers."
+   ],
+   "conditions": [
+    "Record diag.rs under notes.beyond_brief_paths."
+   ],
+   "unverified": []
+  },
+  {
+   "item": "A3 offscreen open_as",
+   "ruling": "APPROVE, scope corrected.",
+   "reasons": [
+    "This is not a 2-line change. The actor must be threaded from run (offscreen.rs:45-46) through run_scene and gui_run (:51, :67-72) and the non-document stub gui_run (:124). Take the clone before `observed(host, ...)` borrows host. Window.rs needs the same: run (:296-297), then run_window, then :315."
+   ],
+   "conditions": [
+    "Record offscreen.rs under notes.beyond_brief_paths."
+   ],
+   "unverified": []
+  },
+  {
+   "item": "A4 gui_chrome re-pin",
+   "ruling": "APPROVE.",
+   "reasons": [
+    "gui_chrome.rs:66-82 is the only exact root-list pin. gui_frame.rs:154-156 is position-based. The edit appends one id after studio.tool.active, and rule 4a already runs the whole native-host suite."
+   ],
+   "conditions": [
+    "Make no other edit to the existing assertions. With P, no Layers re-pin (gui_frame.rs:391-416) is needed."
+   ],
+   "unverified": []
+  },
+  {
+   "item": "A5 test 7",
+   "ruling": "AMEND: split into 7a now and 7b deferred. Do not write a test that can only stay red.",
+   "reasons": [
+    "STU-SHL-109 #7 needs untimed equivalents 'reachable from the menu and the palette'. The palette (STU-SHL-041..044) is cut (SMB-GUI-MENU-1 accepted cut (2)), so the full #7 cannot pass in this host, and common ruling 11 forbids rewriting a red test to pass.",
+    "Partial correction of the builder: the designed tree does carry HELP > Studio Manual > Help for This Command/Panel/Tool (harness-view menu_tree.rs:3161-3163, flag d = derived id), which is the STU-SHL-233 menu path. Whether those leaves run in native-host was NOT_INSPECTED. They are L2 manual paths, not L0/L1 tips."
+   ],
+   "conditions": [
+    "7a, in this lane: the frame exposes its timed gestures as data (at least dwell L0, dwell L1 and the wheel idle commit). The test enumerates that list, not a hand list, and asserts each has an untimed path the inspector can drive now (show_tip for the tips; SetValue or invoke for the value).",
+    "7b (menu and palette reachability) goes to the palette lane, named NOT_PROVEN.",
+    "Lead awareness: the spine GATE_CHECK needs all 8 tests (spine_gate), so it stays blocked on 7b after this lane lands."
+   ],
+   "unverified": [
+    "Whether the Help-for-This leaves resolve in native-host."
+   ]
+  },
+  {
+   "item": "A6 winit cursor calls",
+   "ruling": "AMEND: new winit calls in window.rs are ALLOWED. APPROVE set_cursor(ColResize). REJECT set_cursor_position. DEFER set_cursor_visible.",
+   "reasons": [
+    "Allowed: D1 and D7 do not cover winit. The ledger window_layer decision places winit in native-host. HOST INTEGRATION (1) limits winit only in public signatures of other crates. The calls are core API (no winit feature, no Cargo.toml or Cargo.lock change) and stay in window.rs as the brief says.",
+    "set_cursor_position is SetCursorPos (winit windows/window.rs:476-489), an OS cursor warp. STU-SHL-104 (:32306) says 'Cursor warping is forbidden', and test 2 asserts 'no OS cursor warp occurred'.",
+    "set_cursor_visible without a grab hides the pointer, but the OS pointer still stops at the physical screen edge, so the value stops there too. At release the cursor reappears wherever the hidden pointer went, not at the press point. That is worse for the Operator than a visible cursor.",
+    "ColResize is IDC_SIZEWE on Windows, identical to EwResize (util.rs:162-175). STU-SHL-103 requires the ScrubValue cursor to stay distinct from a splitter's. No splitter sets a cursor in this host today (window.rs has no cursor call), so it is distinct for now."
+   ],
+   "conditions": [
+    "Apply cursor requests ONLY in the Operator window (operator_window(), window.rs:377-379), never in quiet runs. An agent run must not change the Operator's pointer (HBR-QUIET).",
+    "The typed request stream (field cursor, Hide, Show at the press point) is frame-tested by test 2, with no warp request at any point. Applying Hide and Show in window.rs is UNVERIFIED and goes to a next-lane candidate: CursorGrabMode::Locked plus set_cursor_visible(false) at press (a 1x1 ClipCursor at the press point, window_state.rs:486-497, with no SetCursorPos) and raw DeviceEvent::MouseMotion deltas. That gives both accumulation past the screen edge and restore at the press point without a warp.",
+    "Next-lane candidate: a custom scrub cursor (winit CustomCursor, event_loop.rs:320) before any splitter lane sets EwResize (STU-SHL-103)."
+   ],
+   "unverified": [
+    "All Operator-window cursor behaviour (no agent run possible).",
+    "Photoshop and After Effects screen-edge behaviour (no source)."
+   ]
+  }
+ ],
+ "lane_conflicts": {
+  "SMB-PROTOTYPE-PLAY-CANCEL-1": "Owns harness-view view/prototype.rs, view/commands/prototype.rs and a harness test. No shared file. It lands first and moves harness-view, which matters only if A1 makes harness-view this lane's crate.",
+  "SMB-PR-TIMELINE-FIXES-1": "Owns pulse annotate.rs, merge_sync.rs, timeline_edit.rs and harness-view view/timeline.rs plus timeline/nest.rs. No shared file. It also moves harness-view.",
+  "SMB-MOTION-IMPLIED-VALUES-1": "Owns harness-core motion_commands.rs, action/commands/motion.rs and composite track_apply.rs. It asked (seam ruling pending, lane file 2026-11-13T17:18:21Z) for harness-view view/edit.rs and view/delivery.rs. edit.rs:664-667 is Viewer::motion_command, next to Viewer::set_opacity at :638-642. The recommended item 3 leaves edit.rs untouched, so there is no conflict. A catalog_step wrap at :640 would put both lanes in the same function block, and this lane lands after it and would rebase onto it. If it changes catalog rows, it runs native-host gui_menu MENU-INV-1, which is not a file overlap.",
+  "SMB-FIX-LAYER-RECORD-PRUNE-1": "READY_FOR_VALIDATION; the lead may interleave it. It owns harness-view view/mod.rs (a Viewer field and its initializer). That is why A1 must not go in mod.rs; lib.rs and render.rs are free.",
+  "render_rs_edit_rs": "render.rs: no active lane. edit.rs: only MOTION-IMPLIED-VALUES' pending ask. harness-view lib.rs: no active lane."
+ },
+ "wrong_or_corrected_facts": [
+  "A1: two re-export lines are not needed. DeviceOptions is inferred through Default (render-gpu device.rs:108), so one line, RunContext, is enough.",
+  "A3: 'a 2-line call' understates it. The actor must be threaded through offscreen run, run_scene and gui_run plus the stub, and through window run and run_window plus the window.rs GuiFrame stub.",
+  "A6: set_cursor_position is an OS warp (SetCursorPos), which the spec forbids. ColResize equals EwResize on Windows.",
+  "'No new winit line (D1, D7)': neither D1 nor D7 mentions winit. That clause is lead text superseded by ledger window_layer; the binding limit is 'winit stays in event.rs and window.rs'.",
+  "Scope risk: Run::set_opacity's third argument (edit.rs:640) is expected_revision, not an undo name. The label comes from harness-core harness.rs:1248.",
+  "The proposal misses that window.rs forwards neither Modifiers (:868) nor Focus (:858-860) to the frame. Shift and Ctrl mid-drag and the focus-loss commit would be frame-only.",
+  "The proposed quiet proof needs a changed exit condition, because a quiet run exits before the 400 ms idle commit (window.rs:629-633).",
+  "'Common ruling 10' is the 0-based index (UNDO NAMES). Counted from 1, it is entry 11.",
+  "Builder: 'no menu leaf shows a tip' is right for L0/L1, but Help-for-This leaves exist in the designed tree (menu_tree.rs:3161-3163), and whether they run is NOT_INSPECTED."
+ ],
+ "next_lane_candidates": [
+  "Viewer non-committing layer-appearance draft for a live canvas preview during a scrub (STU-SHL-194).",
+  "property_edit undo names as catalog ids in harness-core (harness.rs:1248), for every layer property row.",
+  "Operator-window scrub cursor: CursorGrabMode::Locked plus raw DeviceEvent::MouseMotion, with Hide and Show applied and no SetCursorPos (STU-SHL-104).",
+  "A custom ScrubValue cursor distinct from EwResize on Windows (STU-SHL-103).",
+  "A harness-view accessor for the selected layer's NumberSpec, so the field reads the spec (STU-SHL-185).",
+  "Test 7b (menu and palette reachability) with the palette lane (STU-SHL-041..044). The spine GATE_CHECK waits on it.",
+  "The opacity field in the Layers header strip (mock_raster.py:95), as a second instance on the same arbiter.",
+  "Move the arbiter's pure state machine into kumihimo-ui when a second consumer appears (O4)."
+ ],
+ "unverified": [
+  "Every Photoshop, After Effects, Affinity and Figma parity claim (general knowledge, no source opened).",
+  "Operator-window behaviour of dwell, the wheel idle wake, cursor icon and modifier forwarding (no agent run possible; by reading only).",
+  "Whether HELP > Studio Manual > Help for This ... leaves resolve in native-host.",
+  "Build and test outcomes of any recommendation (nothing was built or run)."
+ ]
+}
