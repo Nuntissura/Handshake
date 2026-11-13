@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T16:23:17Z",
+ "updated_at": "2026-11-13T16:28:39Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20337,7 +20337,8 @@
    "updated_at": "2026-11-13T15:44:59Z",
    "closes": [
     "lead 2026-11-13: trunk-red native-host [document] gui_menu MENU-INV-1 (79 catalog commands without a leaf or a palette_only reason)"
-   ]
+   ],
+   "note": "Trunk repair (2026-11-13T16:28:39Z, from the lane file at 16:14:16Z): trunk check at origin 86ee4e57 832/833, the one failure gui_menu MENU-INV-1 (79 catalog commands, 6 homeless domains); c0e87947 adds 79 palette_only entries (16 no_menu_home, 63 menu_path_pending) and DOMAIN_HOMES for 6 domains; BUNDLED GREEN 270/270 (kernel dd97edb0); waits for RELEASED, then rebase, --per-sha and push. New common rule MENU COVERAGE (lead 2026-11-13; research/lead-rulings-20261108-by-lane.json common, builders/briefs/wave-parity-2-common.md): a lane adding or renaming catalog commands runs the native-host [document] gui_menu test (MENU-INV-1) green at landing, or adds the matching menu_tree.rs leaf or palette_only entries in the same lane; its review and landing reports say which."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

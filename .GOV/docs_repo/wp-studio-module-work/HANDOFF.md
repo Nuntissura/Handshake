@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-11-13T07:58:00Z
+updated_at: 2026-11-13T16:28:39Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh (this file is a projection; they win on conflict)
 previous_version: handoff-archive/HANDOFF-20261101.md
@@ -357,7 +357,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 </topic>
 
-<topic id="state" status="active" updated_at="2026-11-08T05:40:01Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
+<topic id="state" status="active" updated_at="2026-11-13T16:28:39Z" summary="RUNNING again from 2026-11-08 05:30Z on the Operator's word; R60 FULL on C:, six lanes on D:; older sections kept for history">
 
 ## Overnight 2026-11-13
 
@@ -375,6 +375,17 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 - **Why it stopped:** each cold hsk-studio-harness feature unit added 20.4 to 27.4 GiB (every harness test binary relinked under a new identity); .pdb is about 3/4 of the new bytes (119.8 of 159.7 GiB in deps since the canary start); the full canary projects to about 457 to 584 GiB (UNVERIFIED projection).
 - **Probe leads at b57c82d1 (leads, not verdicts; lanes stay READY) assigned tonight:** SMB-DOC-NEW-1 artboard options entry outgrows its reader after 2001 cycles -> SMB-BOARD-1; SMB-WEB-SITE-1 move_file with base href, space or non-ASCII names, undo/redo of recipe.file, save over the site lock file -> SMB-WEB-SITE-2.
 - **Probe leads queued** as PRIORITY in ledger `direction.next_lane_candidates` (2026-11-13T08:33:54Z): SMB-R60-FOLLOWUPS-1 + SMB-DOC-EXPORT-1 write-before-admission (one fix lane; RecipeTargets::write from 381330ed), SMB-DRIVE-TYPED-2 capture_frame PNG without the bound port, SMB-MOTION-COMMANDS-1 enable/disable_animation take the caller's value (STU-MOT-038, STU-MOT-020b), SMB-TYPE-INDENT-SPACING-1 negative space_before and no overset, F-R60-22 (MEDIUM: native-host terminal observe frame never sent; VK-HOST, GUI-FRAME, GUI-SPINE, VK-UI-PASS), spine gate tests 1 to 7 missing (GATE_CHECK cannot pass at this tip); plus the diag_sink abort load flake (seen twice).
+- **R60-a3 fix wave** (7 lanes generated 14:10Z, kernel 03bd2790, base c8fca900, D:) plus one trunk repair lane. State from the lane files at about 16:27Z; product origin `codex/handshake-studio-assets` is a77c4ee4 (ls-remote 16:26:50Z), and all six landed shas below are on it:
+  - SMB-FIX-CAPTURE-ADMISSION-1: READY_FOR_VALIDATION, landed 2c6fd52c, kernel 02b961d3.
+  - SMB-FIX-NEGATIVE-SPACE-1: READY_FOR_VALIDATION, landed cdd31aff, kernel a988f01c.
+  - SMB-FIX-ANIMATION-VALUES-1: READY_FOR_VALIDATION, landed ae14cef8, kernel 678a178d.
+  - SMB-FIX-DIAG-SINK-ABORT-1: READY_FOR_VALIDATION, landed 86ee4e57, kernel be0af2d2.
+  - SMB-FIX-HOST-TERMINAL-FRAME-1: READY_FOR_VALIDATION, landed 0860c7b1, kernel 1f9a9247.
+  - SMB-FIX-EXPORT-ADMISSION-1: READY_FOR_VALIDATION, landed a77c4ee4, kernel 533f6b30.
+  - SMB-FIX-MENU-CATALOG-COVERAGE-1 (trunk repair, base 86ee4e57; lane kernel ee15db44): BUNDLED GREEN at c0e87947, kernel dd97edb0. Landing now per the lead; its lane file (16:14:16Z) still says it waits for RELEASED, then rebase, --per-sha and push. c0e87947 was not on origin at 16:26:50Z.
+  - SMB-FIX-LAYER-RECORD-PRUNE-1: status none, phase build, rebased onto cdd31aff. Its review of 95460d11 is FIX_FIRST with 8 findings (kernel 19a535be). The review fixes are in its tree with a focused run green (fix_layer_record_prune 15/15). Next is the bundled run on D:, per its uncommitted lane file (16:08:31Z).
+- **Trunk red (gui_menu MENU-INV-1):** the repair lane's trunk check at origin 86ee4e57 (native-host, harness-view and harness suites) passed 832 of 833. The one failure was native-host [document] gui_menu MENU-INV-1 (`every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home`): 79 catalog commands had neither a menu leaf nor a palette_only reason, and 6 domains had no home, because several lanes added catalog commands without menu entries. The repair lane SMB-FIX-MENU-CATALOG-COVERAGE-1 adds 79 palette_only entries to menu_tree.rs (16 no_menu_home, 63 menu_path_pending) and DOMAIN_HOMES for the 6 domains. Its bundled run passed 270 of 270, MENU-INV-1 included. Until c0e87947 lands, origin still carries the red test (UNVERIFIED by a run at a77c4ee4).
+- **New common rule MENU COVERAGE** (lead 2026-11-13; `builders/briefs/wave-parity-2-common.md` common topic, and the common list in `research/lead-rulings-20261108-by-lane.json`): a lane that adds or renames catalog commands must do one of two things at landing. Either it runs the native-host `[document]` gui_menu test (MENU-INV-1) and the test passes, or it adds the matching menu_tree.rs entries in the same lane (a real menu leaf or a palette_only entry). Its review and landing reports state which of the two it did.
 - **Operator decisions needed in the morning:**
   - (a) "Approve plan W" (262 GiB: 48.6 D: now, 139.7 D: per lane after READY, 73.6 C: when no round holds C:; `research/cargo-cleanup-plan-20261113-W.json`).
   - (b) How the round fits: a product lane reducing dev/test debuginfo (recommended; `research/measure-20261113-debuginfo.json`, 65% of lane deps are .pdb), more C: room, or the round on D: during a builder pause.

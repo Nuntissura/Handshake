@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio.lead_rulings_by_lane@1",
  "file_id": "LEAD-RULINGS-20261108-BY-LANE",
- "updated_at": "2026-11-13T07:56:35Z",
+ "updated_at": "2026-11-13T16:28:39Z",
  "why": "On 2026-11-08 about 10:10Z every agent stopped on the account's weekly usage limit. Several lead rulings existed only in messages to those agents. They are written here so a fresh builder can take a lane over from its tree, its lane file and this file. A ruling here is binding for that lane; where it and the lane file disagree, this file wins (it is newer), unless the lane file records a later lead ruling.",
  "common": [
   "NO GIT STASH and SCRATCH HYGIENE: S/builders/briefs/wave-parity-2-common.md.",
@@ -18,7 +18,8 @@
   "RED TESTS (lead 2026-11-13): a red test may never be rewritten so that it passes; the code gets fixed.",
   "LANE HISTORY (lead 2026-11-13): do not rewrite lane history (no commit-tree or update-ref folding); red commits stay reachable.",
   "DIAG_SINK FLAKE (lead 2026-11-13): hsk-studio-harness-core::diag_sink an_abort_leaves_the_lines_written_and_no_end_of_run is a known load-dependent flake. It is accepted when it passes alone at the same sha, and it is raised to a priority next-lane candidate.",
-  "VULKAN VALIDATION (lead 2026-11-13): do not set VK_INSTANCE_LAYERS in lanes or rounds; debug builds enable validation themselves (hsk-studio-vulkan owner.rs:716)."
+  "VULKAN VALIDATION (lead 2026-11-13): do not set VK_INSTANCE_LAYERS in lanes or rounds; debug builds enable validation themselves (hsk-studio-vulkan owner.rs:716).",
+  "MENU COVERAGE (lead 2026-11-13): a lane that adds or renames catalog commands, at landing, either runs the native-host [document] gui_menu test (MENU-INV-1, every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home) and has it pass, or adds the matching harness-view src/view/menu_tree.rs entries in the same lane (a real menu leaf or a palette_only entry with its typed reason, plus a DOMAIN_HOMES entry for a new command domain); its review and landing reports state which of the two it did. From the trunk-red at 86ee4e57 (79 catalog commands without a menu entry), repaired by SMB-FIX-MENU-CATALOG-COVERAGE-1; S/builders/briefs/wave-parity-2-common.md, MENU COVERAGE."
  ],
  "lanes": {
   "SMB-AI-LIVE-EFFECTS-1": [
