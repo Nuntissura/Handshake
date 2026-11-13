@@ -196,13 +196,6 @@ pub struct SurvivorRecord {
 pub const SURVIVOR_SCHEMA_VERSION: &str = "hsk.palmistry.survivor@0.1";
 pub const MAX_SURVIVOR_EVENTS: usize = 64;
 
-fn survivable_ordinary_event(event: &DiagEvent) -> bool {
-    matches!(event.event_code, 0..=11 | 65535)
-        && event.phase_marker <= 4
-        && event.severity <= 2
-        && event._reserved == [0; 4]
-}
-
 impl SurvivorRecord {
     /// Build a FREEZE survivor record from the MT-091 [`FreezeReport`] + the session/process facts +
     /// the last-event count + the hung-window probe result. `forwarded` starts `false`.
@@ -307,7 +300,7 @@ impl SurvivorRecord {
         self.last_events = events
             .iter()
             .copied()
-            .filter(survivable_ordinary_event)
+            .filter(DiagEvent::is_survivable_ordinary)
             .take(MAX_SURVIVOR_EVENTS)
             .collect();
         self
@@ -360,7 +353,7 @@ impl SurvivorRecord {
 /// the type system.
 pub fn assert_typed_allowlist(record: &SurvivorRecord) -> Result<(), String> {
     if record.last_events.len() > MAX_SURVIVOR_EVENTS
-        || record.last_events.iter().any(|event| !survivable_ordinary_event(event))
+        || record.last_events.iter().any(|event| !event.is_survivable_ordinary())
     {
         return Err("survivor ordinary-event snapshot violates its bounded numeric allowlist".to_owned());
     }

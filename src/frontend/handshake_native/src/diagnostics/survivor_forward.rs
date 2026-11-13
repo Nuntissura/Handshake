@@ -165,12 +165,7 @@ where
             const MAX_SURVIVOR_EVENTS: usize = 64;
             let mut events = Vec::new();
             while let Some(event) = sequence.next_element::<DiagEvent>()? {
-                if events.len() < MAX_SURVIVOR_EVENTS
-                    && matches!(event.event_code, 0..=11 | 65535)
-                    && event.phase_marker <= 4
-                    && event.severity <= 2
-                    && event._reserved == [0; 4]
-                {
+                if events.len() < MAX_SURVIVOR_EVENTS && event.is_survivable_ordinary() {
                     events.push(event);
                 }
             }

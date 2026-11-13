@@ -614,6 +614,8 @@ pub fn event_code_label(code: u16) -> String {
         "Shutdown".to_owned()
     } else if named(DiagEventCode::StalledOperation) {
         "StalledOperation".to_owned()
+    } else if named(DiagEventCode::VulkanDeviceLost) {
+        "Vulkan device lost".to_owned()
     } else if named(DiagEventCode::Other) {
         "Other".to_owned()
     } else {
@@ -723,6 +725,7 @@ mod tests {
             (DiagEventCode::PalmistryHandshake, "PalmistryHandshake"),
             (DiagEventCode::Shutdown, "Shutdown"),
             (DiagEventCode::StalledOperation, "StalledOperation"),
+            (DiagEventCode::VulkanDeviceLost, "Vulkan device lost"),
             (DiagEventCode::Other, "Other"),
         ] {
             assert_eq!(event_code_label(code.as_u16()), expected);

@@ -954,9 +954,7 @@ async fn dispatch_with_session(
                             "owner_association": owner,
                             "last_events": crate::diagnostics::snapshot_last_n(64)
                                 .into_iter()
-                                .filter(|event| matches!(event.event_code, 0..=11 | 65535)
-                                    && event.phase_marker <= 4 && event.severity <= 2
-                                    && event._reserved == [0; 4])
+                                .filter(handshake_diag_ring::DiagEvent::is_survivable_ordinary)
                                 .collect::<Vec<_>>(),
                             "dropped_count": crate::diagnostics::dropped_count(),
                         }));

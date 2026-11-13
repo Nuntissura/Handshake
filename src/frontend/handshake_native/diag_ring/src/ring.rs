@@ -511,7 +511,7 @@ fn v2_event_matches(event: &crate::schema::DiagEventV2, nonce: &[u8; 16]) -> boo
             && event.event.metric_micros == 0
             && event.event.timestamp_nanos == 0
     } else {
-        (event.event.event_code <= 11 || event.event.event_code == 65535)
+        crate::schema::DiagEventCode::is_ordinary_code(event.event.event_code)
             && event.observation_heartbeat_counter == 0
             && event.observed_at_unix_ms == 0
             && event.launch_nonce == [0; 16]

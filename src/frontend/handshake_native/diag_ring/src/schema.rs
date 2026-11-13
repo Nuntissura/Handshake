@@ -83,12 +83,18 @@ pub enum DiagEventCode {
     StalledOperation = 11,
     /// Authenticated model-lane behavior digest, available only in the v2 record layout.
     ModelLaneBehaviorObservation = 12,
+    /// The owning renderer observed Vulkan device loss.
+    VulkanDeviceLost = 13,
     /// Escape hatch for an event that does not fit a named code. Still carries NO text — only the
     /// numeric counters — so it cannot become a free-text smuggling channel.
     Other = 65535,
 }
 
 impl DiagEventCode {
+    pub(crate) const fn is_ordinary_code(code: u16) -> bool {
+        matches!(code, 0..=11 | 65535) || code == Self::VulkanDeviceLost.as_u16()
+    }
+
     /// Raw `u16` discriminant as stored in the POD record's `event_code` field.
     #[inline]
     pub const fn as_u16(self) -> u16 {
@@ -190,6 +196,29 @@ const _: () = assert!(core::mem::size_of::<DiagEvent>() == DIAG_EVENT_SIZE);
 const _: () = assert!(core::mem::align_of::<DiagEvent>() == 8);
 
 impl DiagEvent {
+    /// Whether the record belongs in a durable Palmistry survivor snapshot.
+    pub fn is_survivable_ordinary(&self) -> bool {
+        DiagEventCode::is_ordinary_code(self.event_code)
+            && self.phase_marker <= DiagPhase::Degraded.as_u8()
+            && self.severity <= DiagSeverity::Error.as_u8()
+            && self._reserved == [0; 4]
+    }
+
+    /// Vulkan device loss with a recorder sequence and monotonic timestamp.
+    pub fn vulkan_device_lost(thread_id: u64, sequence_id: u64, timestamp_nanos: u64) -> Self {
+        Self::new(
+            DiagEventCode::VulkanDeviceLost,
+            DiagPhase::Degraded,
+            DiagSeverity::Error,
+            thread_id,
+            sequence_id,
+            0,
+            0,
+            0,
+            timestamp_nanos,
+        )
+    }
+
     /// Construct a fully-typed event from its parts. Internal helper used by the named constructors;
     /// keeps the `_reserved` padding zeroed in one place.
     #[inline]

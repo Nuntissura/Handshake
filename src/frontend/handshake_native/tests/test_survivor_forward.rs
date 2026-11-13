@@ -138,8 +138,11 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
     let _g = DirGuard(dir.clone());
 
     let mut store = SurvivorStore::open(&dir).expect("open the REAL palmistry survivor store");
-    let ordinary_events: Vec<_> = (0..70)
-        .map(|offset| DiagEvent::heartbeat(17, u64::MAX - offset, offset, u64::MAX - offset))
+    let device_loss = DiagEvent::vulkan_device_lost(17, u64::MAX, u64::MAX);
+    let ordinary_events: Vec<_> = std::iter::once(device_loss)
+        .chain((1..70).map(|offset| {
+            DiagEvent::heartbeat(17, u64::MAX - offset, offset, u64::MAX - offset)
+        }))
         .collect();
     let mut nonordinary = ordinary_events[0];
     nonordinary.event_code = 12;
@@ -223,6 +226,7 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
     );
     assert_eq!(json["forwarded"], true, "mark_forwarded persisted durably");
     assert_eq!(json["last_events"].as_array().unwrap().len(), 64);
+    assert_eq!(json["last_events"][0]["event_code"].as_u64(), Some(13));
     assert_eq!(json["last_events"][0]["sequence_id"].as_u64(), Some(u64::MAX));
     assert_eq!(json["last_events"][0]["timestamp_nanos"].as_u64(), Some(u64::MAX));
 
@@ -283,7 +287,7 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
 
     // Adversarial parser fixture bypasses the producer's filtering, not a runtime capture.
     let mut invalid_code = ordinary_events[0];
-    invalid_code.event_code = 13;
+    invalid_code.event_code = u16::MAX - 1;
     let mut raw_events = vec![invalid_code];
     raw_events.extend_from_slice(&snapshot);
     let mut parser_record = json.clone();

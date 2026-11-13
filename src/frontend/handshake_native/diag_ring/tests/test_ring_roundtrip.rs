@@ -169,6 +169,18 @@ fn additive_v2_roundtrip_preserves_v1_and_refuses_mixed_layouts() {
         4, 14, 24, [0x56; 16], [0xaa; 32]
     )));
     assert_eq!(reader.read_last_n(1)[0].event.sequence_id, 3);
+    let device_loss = DiagEvent::vulkan_device_lost(5, 4, 30);
+    assert_eq!(device_loss.event_code, 13);
+    let ordinary = DiagEventV2::ordinary(device_loss).unwrap();
+    assert!(writer.write(ordinary));
+    assert!(reader.read_last_n(1).as_slice() == [ordinary]);
+    let mut model_behavior = device_loss;
+    model_behavior.event_code = 12;
+    assert!(DiagEventV2::ordinary(model_behavior).is_none());
+    let mut unknown = ordinary;
+    unknown.event.event_code = u16::MAX - 1;
+    assert!(!writer.write(unknown));
+
     writer.write_heartbeat(100, 200);
     let heartbeat = reader.read_heartbeat().unwrap();
     assert_eq!(heartbeat.counter, 100);
@@ -184,4 +196,6 @@ fn additive_v2_roundtrip_preserves_v1_and_refuses_mixed_layouts() {
     let v1reader = DiagRingReader::open(&v1path).unwrap();
     v1writer.write(DiagEvent::heartbeat(1, 2, 3, 4));
     assert_eq!(v1reader.read_last_n(1)[0].counter_a, 3);
+    v1writer.write(device_loss);
+    assert_eq!(v1reader.read_last_n(1), vec![device_loss]);
 }
