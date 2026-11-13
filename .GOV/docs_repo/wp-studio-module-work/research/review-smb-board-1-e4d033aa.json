@@ -1,0 +1,185 @@
+{
+ "lane": "SMB-BOARD-1",
+ "tip": "e4d033aa",
+ "base": "b57c82d1",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "Based on reading only: no build and no tests were run. The core claims hold as built. There is no new Payload variant or NodeKind. Folio accepts exactly the four kinds sticky, shape_with_text, connector and section, and only with Payload::Vector, at the two kind-string sites (folio lib.rs:804 and :914). Any other payload falls through to PayloadMismatch, and the other eight kinds are still refused. The exporters (vector PDF, fig-native PDF, PSD loss) and composite dispatch on the payload, so they draw board nodes as vector paths, and the vector PDF draws the area text through prepare_vectors. There are 16 rows. A move with reroute and a delete are each one step, which swaps the layers and the whole vector entry, so undo and redo are exact for those two. A broken connector keeps its last route and reports connector_endpoint_node_unresolvable as a warning. The export is admitted through the shared JobPort helper. Two defects should be fixed before the bundled run. F1 (high): the layer delete row leaves a board record behind, and the vector tools mint ids without looking at the vector entry. So viewer.delete_layer on a sticky followed by viewer.draw_shape gives a 'vector' layer the sticky's id. After that, VectorEntry::decode fails with PayloadMismatch: every vector and board command and the canvas render fail, and the saved package carries the bad entry. F2 (high, partly declared): every text write mints a new story outside the history, and every redraw, move and reroute mints new path records. Nothing reclaims either one. A board therefore stops taking text after 256 text writes over its life (undone ones included), and stops taking all vector edits after 4096 path records. Neither limit is in the manual. F3-F6 (medium): undo names and record ids are not catalog ids (same class as DS-VARIABLES F3). `new --profile board` from the CLI writes a document that is not in whiteboard mode. A connector whose route collapses to one point makes its end nodes unmovable. Generic layer operations named by STU-WB-102 (pathfinder, outlines, arrange) drop board records or leave text behind without saying so. F7-F13 are low; F8 is the one visual defect: the ERD 'zero' ring draws as a solid dot. Visual capture: the PNG shows what the lane claims (section and label, square and wide stickies, rectangle, ellipse, diamond and cylinder with centred readable text, straight and elbowed connectors attached at the named sides, caps ARROW_EQUILATERAL, CIRCLE_FILLED, ERD_ONE, ERD_ZERO_OR_MORE and ARROW_LINES). No text overlaps. The one exception is F8.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ (mechanism); not run. The lane notes themselves state that the layer delete leaves the record ('a generic layer delete (layers.rs) ... leaves the record dormant'). The re-mint follows from mint_layer_id (lowest free id at or above the salt doc.layers.len()), which board_layer_id and create_vector_layer share. UNVERIFIED: whether Viewer::open then refuses the package or opens it without vector content.",
+   "severity": "high (an ordinary pair of drive rows makes the whole document's vector content unrenderable and every vector or board command refuse, and the saved package keeps the bad entry)",
+   "where": "crates/hsk-studio-harness-view/src/view/layers.rs:51-62 (mint_layer_id), :188-245 (delete_layer: records_after_delete at :238-245 returns None for a document with no design records, crates/hsk-studio-harness-view/src/view/design/component.rs:816-822, so a board delete is a plain structure step that leaves board_nodes and area_texts); crates/hsk-studio-harness-view/src/view/vector.rs:1896-1915 (create_vector_layer mints with plain mint_layer_id at :1900, no entry check; store_entry :1884-1893 validates nothing against the new layer), :2665-2711 (pathfinder, same), :1584-1609 (free_layer_ids checks area/path texts but not board_nodes); crates/hsk-studio-harness-view/src/view/vector.rs:553 and :672-673 (VectorEntry::decode runs validate_records against the document); crates/hsk-studio-folio/src/board.rs:415-419 (a present layer whose kind differs from its record is PayloadMismatch); crates/hsk-studio-harness/src/cli/drive_viewer.rs:245 (delete_layer) and :390 (draw_shape) are drive rows",
+   "what": "Board records are keyed by layer id and live in the vector entry. The lane's own creates avoid ids that a board record still names (write.rs:87-106). The layer delete row keeps the record, and the vector tools' id minting ignores board records. Once a non-board layer takes a recorded id, validate_board_records refuses the whole record set. VectorEntry::decode then fails, which takes down vector_entry(), prepared_vectors (render), every vector and board edit, and board.read. Variant: duplicate_layer of another sticky can re-mint a deleted sticky's id. The copy (kind sticky) then silently adopts the old record and its old text binding.",
+   "scenario": "Board document (no layers). board.sticky.create {x:0,y:0,text:'A'} mints SLYR-...-7ede-9000-000000000000. viewer.delete_layer on it: layers empty, record and area text kept. viewer.draw_shape {kind: rectangle}: mint_layer_id(doc, 0) returns the same id with kind 'vector'. Next board.read or any vector command fails with vector_entry_vector_records: PayloadMismatch; the canvas refuses; document.save writes the entry.",
+   "fix": "(1) Extend records_after_delete (or a board twin called from delete_layer) to drop the deleted layers' board_nodes and their area_texts in the delete's own step. Connectors naming them then read broken, as designed, and undo brings the records back through the entry swap. Give duplicate_layer a decision too: copy the record under the new id, or declare. (2) Route every layer-id mint through one helper that avoids every id the vector and text entries name (free_layer_ids plus board_nodes), and use it in create_vector_layer, pathfinder and copy_subtree. (3) Lead question 1: should VectorEntry::decode report a record-kind mismatch as an issue instead of refusing the whole entry?",
+   "test": "tests/board.rs, new test a_layer_delete_then_a_drawn_shape_keeps_the_board_readable: sticky.create, viewer.delete_layer, viewer.draw_shape. Then assert board.read ok, a render ok, save and reopen ok, and no board_nodes record for the deleted id. Undo of the delete returns the record."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ; not run. The 256-story cap is declared in the lane notes (sibling_gaps). That it is a lifetime cap (undone and replaced stories count), and the path-record cap, are not declared.",
+   "severity": "high (a whiteboard stops taking any text after 256 text writes in its life, and stops taking any vector or board edit after 4096 path records; both hold after save and reopen; the manual names neither)",
+   "where": "crates/hsk-studio-harness-view/src/view/board/write.rs:38-73 (board_story: a new story and two new styles per call; cap check :39-41), :131-134 (text entry written before and outside the step), :166 and :355-361 (every create and every set_text or section rename mints a story), :109-116 (board_path: a new SVPT per drawn path), :269-285, :313, :447-459 (redraw, reroute and move mint new paths; old ones stay); crates/hsk-studio-harness-view/src/view/text.rs:44 and :88 (MAX_TEXT_LAYERS 256 on stories); crates/hsk-studio-harness-view/src/view/vector.rs:61 (MAX_PATHS 4096) and :737-755 (to_bytes writes every path; no prune at save or decode); crates/hsk-studio-harness-core/src/manual.rs:370-385 (DRIVE_LIMITS: neither cap)",
+   "what": "Stories: delete_node and undo never remove a story, and nothing prunes unbound stories, so the text entry only grows. With 100 stickies each edited once, the board is at 200 stories. The 257th text write anywhere in the document, including a plain text layer, refuses text_entry_over_budget, forever. Paths: the vector tools use the same new-path-per-edit scheme (arrange.rs:170-196), but a board makes it routine, because each move also redraws every attached connector. One node with 3 connectors moved 1000 times adds 4000 records, and then every board and vector edit refuses vector_entry_over_budget. Folio's MAX_BOARD_NODES 65,536 can never be reached.",
+   "scenario": "board.sticky.create once, then board.node.set_text on that sticky 300 times: call 256 refuses text_entry_over_budget, and so does every later board text command, also after save and reopen.",
+   "fix": "(1) After the rebase over SMB-DS-VARIABLES-AUTHOR-1 (it lands before this lane and adds the multi-entry step, harness.rs +82 lines), write the text entry inside the board step. Rewrite the node's own story in place under a stable id per node: undo then swaps the text back, and no orphan stays (this also closes F7). (2) At save, drop stories that no text layer, area text or path text names, and path records that no layer payload, live, network or record names. The history is not in the package (DRIVE_LIMITS line 2), so nothing can return to them. Do the same at open for older files. (3) State the remaining caps in DRIVE_LIMITS. Lead question 2.",
+   "test": "tests/board.rs: three_hundred_text_edits_keep_the_board_editable (300 set_text, then sticky.create ok, then stories in the text entry at most the live text nodes plus the history the step can return to); a_thousand_moves_keep_the_vector_entry_bounded (or: save and reopen gives a path count equal to the live paths); undo_and_redo_of_set_text_restore_the_text_entry_byte_for_byte."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ; not run",
+   "severity": "medium (HOST INTEGRATION (3)-(5): records, history steps and undo names of every board edit name layer.* rows; same class as review F3 of SMB-DS-VARIABLES-AUTHOR-1)",
+   "where": "crates/hsk-studio-harness-view/src/view/board/write.rs:121-137 (board_commit); crates/hsk-studio-harness-core/src/harness.rs:1494-1497 and :1447-1462 (restructure_and_entry: command id 'layer.restructure_and_entry', label '{op} {first layer}'), :1315-1319 and :1383 with :329 (set_vector_paths_and_entry: 'layer.set_vector_paths_and_entry', label '{op} vector_paths'); crates/hsk-studio-harness-core/src/harness/containers.rs:342-344 (board.add records artboard.add, label add_artboard); crates/hsk-studio-harness/src/cli/drive.rs:302-309 (undo_name is the step label); tests/board.rs:461-464",
+   "what": "Take board.node.move. Its undo name is 'board_node_move vector_paths' and its step's command is layer.set_vector_paths_and_entry. board.sticky.create gives 'board_sticky_create SLYR-...' under layer.restructure_and_entry, and board.add gives artboard.add. None of these is the catalog id, so a host cannot map the step back to its RUN_COMMANDS row. The test checks only that undo_name is a string. Its attribution check reads reply.attribution, which drive builds from the Run context (drive.rs:125): it is the same for every reply, so it cannot fail.",
+   "scenario": "Over drive: board.node.move. Then reply.detail.undo_name == 'board_node_move vector_paths', and history.undo_steps[-1].command_id == 'layer.set_vector_paths_and_entry'.",
+   "fix": "Apply the fix the lead picks for DS-VARIABLES F3 here too: a command-id parameter on restructure_and_entry and set_vector_paths_and_entry (or a Run wrapper), with the row id as the command and 'catalog id + target' as the label. board.add passes board.add to container_edit. Lead question 3.",
+   "test": "In the_workshop_board_steps_run_through_the_jsonl_loop, assert undo_name == 'board.node.move <node>' (or the adopted form), assert history().undo_steps[-1] command_id and actor for each step, and drop the reply.attribution assertion."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ; not run. The lane's own test states it (tests/board.rs:444-447)",
+   "severity": "medium (the same profile gives two different documents; the CLI form is not in whiteboard mode)",
+   "where": "crates/hsk-studio-harness-core/src/document_new.rs:303-331 (blank_document writes the artboard only; :322-330 board default); crates/hsk-studio-harness-view/src/view/board.rs:283-285 (whiteboard mode = vector entry boards non-empty), :546-556 (register_new_board, viewer only) and view/document_new.rs:39-42; crates/hsk-studio-harness-core/src/manual.rs:23 ('the viewer lists it as the first board'); tests/board.rs:444-447 (the test runs document.new inside the session to get around this)",
+   "what": "`hsk-studio-harness new OUT --profile board` writes a document whose vector entry lists no board. When it is opened, board.read gives whiteboard_mode false, and board.add refuses not_a_board_document until a node exists. STU-WB-001 makes whiteboard mode a property of the document the profile creates. Also, with no --size and --unit mm or in, the board is 1920 by 1080 in that unit (document_new.rs:322-326).",
+   "scenario": "new start.handshake --profile board --actor a --session s; command start.handshake --stdin; board.add {name: Plan} refuses not_a_board_document.",
+   "fix": "Make the mode a fact that both paths write. Either harness-core writes the vector entry's vector_records {boards: [first artboard]} for the board profile, or the mode lives in an entry harness-core already writes (the artboard options entry, document_new.rs:44). Size the default board in px (or points) whatever the unit, or require --size with mm and in. Lead question 4.",
+   "test": "tests/document_new.rs: new_board_document_is_in_whiteboard_mode (CLI new --profile board, open in a Viewer, board.read whiteboard_mode true, board.add ok); remove the document.new workaround from the JSONL test."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ; not run (computed by hand from anchor, route, simplify and connector_drawing)",
+   "severity": "medium (ordinary layouts make a node unmovable: two connected stickies placed edge to edge)",
+   "where": "crates/hsk-studio-composite/src/board.rs:109-118 (AUTO), :131-159 and :162-178 (route and simplify collapse coincident ends to one point), :509-512 (connector_drawing refuses fewer than 2 points); crates/hsk-studio-harness-view/src/view/board/write.rs:308-312 (reroute skips only connector_endpoint_node_unresolvable and returns any other error), :460-461 (move), :365-369 (resize by set_text or sticky.set)",
+   "what": "Suppose a node moves or grows so that both ends of an attached connector resolve to the same point. The reroute then refuses board_geometry_invalid, and so does the whole command. The node can be moved only after the connector is changed or deleted. board.read already has a state for this ('unroutable', board.rs:641-645), but the write path refuses instead of using it.",
+   "scenario": "Sticky A at (0,0), sticky B at (600,0) (both 240 by 240), connector AUTO to AUTO. board.node.move B to (240,0): both ends resolve to (240,120), the route is [(240,120)], and the move refuses board_geometry_invalid. Same when B moves onto A's place: equal centres pick RIGHT at both ends.",
+   "fix": "A connector that cannot be drawn after a move keeps its last drawing and route, and reads 'unroutable' (warning). The move goes ahead. Or draw a zero-length connector as its caps only. A self connector to the same magnet may keep its typed refusal at create. Lead question 5.",
+   "test": "tests/board.rs: moving_a_node_against_its_connected_neighbour_is_not_refused (the scenario above: move ok, connector state 'unroutable' or a drawn route, undo exact; then moving B away reroutes it to attached)."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ; not run. UNVERIFIED render detail: after an arrange transform the text draws at the old place (composite resolves the container by path id, and the old path record stays in the entry).",
+   "severity": "medium (STU-WB-102: board nodes share the transform and history surfaces of every layer; several generic operations now drop board semantics without a refusal; the V4-06 regex covered kind-string checks only)",
+   "where": "crates/hsk-studio-harness-view/src/view/vector.rs:2665-2711 (pathfinder: board-node operands become 'vector' layers and the node layers are deleted; the records stay and connectors break with no board.node.delete report); vector.rs:1780-1795 (Create Outlines of a board node's area text deletes the container layer); crates/hsk-studio-harness-view/src/view/vector/arrange.rs:170-211 (align, distribute, transform: new path ids, area_texts.container_id not rebound, no reroute); crates/hsk-studio-composite/src/vector_text.rs:257 (container looked up by path id); crates/hsk-studio-harness-core/src/harness/containers.rs (artboard.delete leaves nodes whose board_id names no artboard; board.read with that board and board.export_png refuse board_unknown); lane file notes.v4_06_class and sibling_gaps",
+   "what": "The lane names layer delete, duplicate and 'a vector-tool move does not reroute'. It does not name pathfinder or outlines, which delete board nodes without the broken-connector report. It does not name arrange either, which also leaves the node's text binding on the old path. Nor does it name artboard.delete, which strands the nodes of a deleted board.",
+   "scenario": "pathfinder unite of a sticky and a rectangle: one 'vector' layer, the sticky's record and text binding stay, and its connectors read broken. arrange move of a shape_with_text by 100 px: the outline moves; by reading, the text stays where it was.",
+   "fix": "Add these sites to the V4-06 sweep with fixed or not-fixed. For this slice: pathfinder, outlines and expand on a board kind either refuse typed (e.g. board_node_not_vector_editable) or drop the record in the same step. arrange rebinds area_texts to the new path ids (shared with plain area text, which predates this lane) and reroutes or marks attached connectors. Declare artboard.delete. Lead question 6.",
+   "test": "tests/board.rs: pathfinder_on_a_board_node_is_refused_or_keeps_the_board_consistent; an_arranged_shape_keeps_its_text (area_texts container_id is among the layer's path ids after a transform)."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ; not run. The holes need a refusal after the text write: a cancel, a commit-port or admission refusal, or the entry budget.",
+   "severity": "low (atomicity and proof gap; the main cost is F2)",
+   "where": "crates/hsk-studio-harness-view/src/view/board/write.rs:131-135 (text entry set, then the step); tests/board.rs:48-51 (snapshot = layers + vector entry only), :339-342",
+   "what": "A command refused after the text write still leaves a new story in the text entry, so 'a typed refusal changes nothing' fails for that path. Undo of a create or of set_text is not byte-exact for the text entry. The tests cannot see either, because the snapshot leaves the text entry out.",
+   "scenario": "Cancel the run between the text write and restructure_and_entry: the reply is 'canceled', the text entry holds the new story, and the document is dirty.",
+   "fix": "Same as F2 (1). Add the text entry to snapshot().",
+   "test": "snapshot() includes document_entry('text'); a cfg(test) refusal after the text write leaves it unchanged."
+  },
+  {
+   "id": "F8",
+   "certainty": "SEEN in smb-board-1-visual-e4d033aa.png (the Share end of the Visit-Share connector) and computed from the code",
+   "severity": "low (visual: the ERD 'zero' reads as a filled dot, so ERD_ZERO_OR_MORE and ERD_ZERO_OR_ONE do not read as their ERD symbols)",
+   "where": "crates/hsk-studio-composite/src/board.rs:470-476 (ring: r = 0.3 s, inner = max(r - width, 0.4 r)), :449-451 (cap_size); crates/hsk-studio-harness-view/src/view/board/write.rs:251 (connector style fills and strokes in one colour)",
+   "what": "At width 2: s = 12, r = 3.6, inner = 1.6. The even-odd annulus plus a 2 px stroke on both circles covers radii 0.6 to 4.6, leaving a 0.6 px hole: the ring renders solid. At width 1 the hole is 0.9 px. The other caps in the PNG read as intended. So do the attachments: sticky bottom to Discover top, Discover right to Visit left, Visit right to Share left (elbowed), Share top to Store bottom (elbowed).",
+   "scenario": "board.connector.create with connector_end_stroke_cap ERD_ZERO_OR_MORE at the default width, then export: the 'O' is a dot.",
+   "fix": "Draw the ring as a stroked circle in a separate path record with no fill, or keep a hole of at least about 2 px: r = max(0.35 s, 2 width + 2) and inner = r - width.",
+   "test": "Export a connector with ERD_ZERO_OR_MORE at width 2 and sample the pixel at the ring centre: it is the background colour."
+  },
+  {
+   "id": "F9",
+   "certainty": "READ; the per-reply time is measured from the lane logs (29.75 s for 13 replies, green log :4759)",
+   "severity": "low (bounded but super-linear work per read with no cancel point)",
+   "where": "crates/hsk-studio-harness-view/src/view/board.rs:610-654 (node_json: c.rects() per connector at :625), :288-302 (rects: exact bounds of every vector layer), :657-670 (section_members per section), :605-607 (text_overset prepares every vector layer and shapes every story per read); board/write.rs:374 (and again after each edit_node_text)",
+   "what": "A board.read costs connectors times vector layers path-bound conversions, plus one full vector-text preparation, with no cancel.check. With 1000 connectors and 2000 nodes (under the path cap) that is about 2 million conversions per read.",
+   "scenario": "A board with 1000 connectors: board.read runs for seconds (release) or minutes (debug) and cannot be cancelled.",
+   "fix": "Compute rects once per read and pass them to node_json and section_members; one cancel.check per node; compute the overset map once per command.",
+   "test": "A unit test that counts rect computations per board.read (or a timing bound on a 500-connector board) and a cancel test that refuses 'canceled'."
+  },
+  {
+   "id": "F10",
+   "certainty": "MEASURED from the lane logs; the round contention factor is UNVERIFIED",
+   "severity": "low (flake risk against the 120 s cap; doubled exposure)",
+   "where": "tests/board.rs:422-482 (13 drive replies), :401 (per-reply recv_timeout 120 s); crates/hsk-studio-harness/src/cli/drive.rs:120-125 (each reply renders the document on the CPU path); .config/nextest.toml:12 (30 s period x 4 = 120 s); .config/round-features.toml:34 (hsk-studio-harness runs in ['viewer'] and ['desktop','viewer']: this test runs twice per round); logs smb-board-1-green-board-e4d033aa.log:4759 (29.75 s, 7 tests), smb-board-1-focused-70099d29.log:9416-9417 (SLOW at 30 s, 47.24 s with 21 tests)",
+   "what": "Contention among 21 sibling tests already slowed the test 1.6x. A round slowdown of 2.5x puts it at about 118 s. The whole design JSONL test takes 1.6 s, while each board reply takes 2.3 to 3.6 s (render plus vector-text preparation, F9). The in-test 120 s reply timeout can never fire before nextest kills the test, so a hang shows as TIMEOUT with no step named.",
+   "scenario": "A loaded round: TIMEOUT at 120 s in one of the two harness units; the lane FAILs with no product defect.",
+   "fix": "Keep on the wire only what needs the wire (new, one create per kind, connector, move, save, export_png) and assert the rest in-process. Find the per-reply cost (F9; render_if_dirty of a section that is larger than the board). Set the reply timeout to 30 s with the step name in the message, and print each reply's elapsed time.",
+   "test": "The test itself under 10 s in debug; its log prints the per-reply times."
+  },
+  {
+   "id": "F11",
+   "certainty": "READ the tests and the lane file",
+   "severity": "low (tests prove less than the claims; V4-07)",
+   "where": "tests/board.rs:462-463 (undo_name is_string; reply attribution is the Run context), :48-51 (snapshot without the text entry), :298-303 (overset asserted for 6 of the 12 native shapes); lane file notes.text_fit ('text_overset 0 for all 12 studio_declared shapes')",
+   "what": "Several tests cannot fail on the defects they name. The overset claim covers 12 shapes, but only rectangle, ellipse, diamond, cylinder, terminator and hexagon are asserted; the others are printed. Untested paths: a broken connector through save and reopen; dev_status through reopen; the degenerate reroute (F5); the dormant record (F1); the 257th story (F2); a nested section moved.",
+   "scenario": "n/a (proof gaps)",
+   "fix": "Assert exact undo names and the step's attribution (F3). Include the text entry in snapshot (F7). Assert overset 0 for all 12 native shapes, or narrow the claim to the 6. Add the missing tests listed under F1, F2 and F5, and a save and reopen of a broken connector.",
+   "test": "As listed under fix."
+  },
+  {
+   "id": "F12",
+   "certainty": "READ against spec v02.229 module 14 (STU-WB-104, 106, 108, 115, 143)",
+   "severity": "low (spec readings not declared as cuts)",
+   "where": "crates/hsk-studio-harness-view/src/view/board.rs:619 with board/write.rs:251 (a connector read reports 'fill'); crates/hsk-studio-harness-view/src/view/commands/board.rs:35-39 (magnet refusal names the key, not the connector); crates/hsk-studio-folio/src/board.rs:133-144 (a stored unknown magnet is InvalidJson for the whole entry); board/write.rs:344-348 (a shape only grows), :180 (layer name kept from creation); board.rs:160-165 (text_ok: one line), :664 (a section moves stickies and shapes only)",
+   "what": "(a) STU-WB-106 says a connector carries no fill, but its read reports one. (b) STU-WB-143 says the diagnostic names the connector; board.connector.set's refusal does not, and a stored unknown magnet refuses the vector entry as InvalidJson rather than the typed code. (c) No resize for shapes or sections: there is no width or height on .set, and a shape's size ratchets up with its text. (d) The layer name stays the creation text after set_text or a section rename. (e) A connector's stroke colour and width are fixed after creation. (f) A moved section leaves nested sections behind while their members move. (g) Sticky text is one line, though STU-WB-104 makes it an ordinary story.",
+   "scenario": "board.section.create, then board.section.set name: board.node.read name stays the old label while text is the new one.",
+   "fix": "Fix (a), (b) and (d) cheaply. Declare (c), (e), (f) and (g) in the lane's cuts and in the manual.",
+   "test": "A read of a connector has fill null; board.connector.set with magnet NORTH names the node; renaming a section renames its layer."
+  },
+  {
+   "id": "F13",
+   "certainty": "READ; not run",
+   "severity": "low (HOST INTEGRATION (6) outcome detail; export limits)",
+   "where": "crates/hsk-studio-harness-view/src/view/doc_export.rs:902-907 (settle_export_text: every failure is Failed(code), never Canceled); board/write.rs:499-501, :518-535 (no job settlement in the result; the region is content bounds plus the margin, with no scale, so content wider than MAX_VIEW_PIXELS refuses as board_export_render, render.rs:496)",
+   "what": "A cancelled board export settles its job as failed('board_export_failed'), not canceled. The result does not carry the settlement, unlike settle_export_job. A board whose content is spread wide cannot be exported at any scale. The refusal is typed, but nothing in the manual says so.",
+   "scenario": "Cancel during the render: the job ledger says failed. Two stickies 1e6 apart: board.export_png refuses.",
+   "fix": "Use settle_export_job (or a text twin that maps 'canceled'), report job in the result, and add a scale or max-side parameter, or name the limit in the manual.",
+   "test": "A cancelled export settles canceled; an over-wide board refuses with a code the manual lists."
+  }
+ ],
+ "answers": {
+  "payload_reuse_consumers": "By reading, nothing breaks at the payload level. Exporters (vector PDF pdf_export.rs:287-290, fig-native export.rs:452-465, PSD doc_export.rs:742-750 as typed loss), composite and hit testing dispatch on Payload::Vector, so board nodes draw and export as vector paths; the vector PDF draws their area text. Kind-string sites: folio lib.rs:707 (initial_binding, board kinds pass), :804 and :914 (fixed), fig-base graph.rs:165 (import side, n/a). The V4-06 sites named not fixed are hosted.rs:1235, vector.rs:1526 and :2531. Semantic breaks come from operations that create, delete or replace layers without the board records (F1, F6), not from the kind strings.",
+  "folio_kind_acceptance": "Tight. Only the 4 bound kinds, only with Payload::Vector. Anything else falls to PayloadMismatch, and the other 8 kinds are still refused (unit test). The record-to-layer check (board.rs:415-419) is strict enough to make F1 fatal.",
+  "older_readers": "A board document cannot be read by builds before this lane. StudioVectorRecords is deny_unknown_fields (folio vector.rs:454), so boards and board_nodes are InvalidJson, and validate refuses kind 'sticky' as PayloadMismatch. Schema ids stay @1. This follows the precedent of earlier record members (lead question 7).",
+  "undo_redo": "Move with reroute: one set_vector_paths_and_entry step (layers' path ids plus the whole vector entry), so it is exact. Delete: one restructure_and_entry step, exact for layers and the vector entry; the connector records are untouched and come back attached. Not exact: the text entry, which is written outside the step (F7, F2). Undo names: F3.",
+  "degenerate_connectors": "Zero length (two equal positions) and the same node with the same magnet or AUTO on both ends: refused at create as board_geometry_invalid (typed). Self-reference to the connector itself: connector_endpoint_self. Connector to connector: not_attachable. The same node with different magnets (TOP to BOTTOM) draws a straight line through the node. Overlapping magnets of different connectors are fine. A route that later becomes degenerate blocks the move (F5).",
+  "text_binding": "board.* resizes rebind area_texts.container_id to the new outline and reset the first baseline (write.rs:269-285). A move rebinds per path (:453-455). A delete removes the binding in the step. Vector-tool transforms do not rebind (F6).",
+  "persistence": "boards and board_nodes ride the vector entry. The save and reopen test compares board.read nodes, and the JSONL test reopens 5 nodes. Not covered: a broken connector or dev_status through reopen (F11). Records left by the layer delete persist and can poison the entry (F1).",
+  "caps": "Folio caps (1000 boards, 65,536 node records, 64 route points, 256-byte author name) are charged before the walk. The binding limits are the 256-story text entry and the 4096 path records, both over the document's life (F2), and neither is in the manual.",
+  "host_integration": "Typed refusals: yes; codes come from 'board: <code> (...)' through engine_refusal, and helper errors are coded tokens. Attribution: commits run in the caller's Run context; author_name defaults to the actor's account id. One record per mutating command, but it names layer.* (F3). Reads emit one command_outcome frame. JobPort: admitted through the shared helper; cancel maps to failed (F13).",
+  "visual": "Readable text, no overlaps. Connectors are attached at the named or AUTO sides. Caps appear at both ends where set. The section frame and label are visible (label small and light grey, but readable). Defect: the ERD zero ring is solid (F8). The capture shows 5 of the 12 caps and 4 of the 12 native shapes, so it proves no more than that; the shapes test proves only that every native shape renders without a refusal."
+ },
+ "lead_questions": [
+  "F1: fix in this lane by extending records_after_delete to board_nodes and area_texts plus one id-mint helper that avoids every entry-named id? Should VectorEntry::decode keep refusing the whole entry on a record-kind mismatch, or report it?",
+  "F2: after the rebase over SMB-DS-VARIABLES-AUTHOR-1, put the text entry into the board step with a stable story per node? Who owns the save-time prune of unbound stories and unreferenced path records, given that the vector tools share the path scheme?",
+  "F3: apply the DS-VARIABLES F3 decision (catalog id as the step's command and label) to the board rows in this lane?",
+  "F4: where does whiteboard mode live, so that CLI new and document.new agree: the vector entry (viewer-only writer, as built) or a fact harness-core writes? Should making a board node in a vector or design document switch that document into whiteboard mode (as built and tested)?",
+  "F5: when a reroute cannot draw, refuse the move (as built), keep the last drawing marked unroutable, or draw caps only?",
+  "F6: STU-WB-102 says board nodes share transform and history surfaces. Which generic operations (layer delete, duplicate, pathfinder, outlines, arrange, artboard.delete) must keep board records in this slice, and which become declared cuts?",
+  "Older readers: accept that a board document is refused (InvalidJson or PayloadMismatch) by every build before this lane, under unchanged @1 schema ids?",
+  "F10: keep the 13-reply JSONL test (it runs in two harness feature units per round at 30-47 s), or trim it to the wire-only steps?"
+ ],
+ "checked": [
+  "git diff b57c82d1..e4d033aa: 17 files, 10 commits (bd8d8c3b, cf8d25b3, 2ddfbca3, 97c51273 red, 70099d29, d9fc2176 red, d039cecc, a61209ca red, afd18841, e4d033aa); commit messages",
+  "folio board.rs (whole), lib.rs validate arms :700-720, :790-870, :900-930, vector.rs StudioVectorRecords (:452-575, deny_unknown_fields)",
+  "composite board.rs (whole), vector_text.rs :250-350",
+  "harness-view view/board.rs and board/write.rs (whole), commands/board.rs (whole), commands.rs run_command and run_row, document_new.rs; vector.rs decode, validate_records, to_bytes, vector_entry, free_layer_ids, store_entry, create_vector_layer, pathfinder_inner, replacement and outlines; vector/arrange.rs transform and commit_paths; layers.rs mint_layer_id, duplicate_layer, delete_layer; design/component.rs records_after_delete; text.rs caps; doc_export.rs admit and settle helpers; render.rs size refusal",
+  "harness-core harness.rs (set_vector_paths_and_entry, layers_and_entry_step, restructure_inner, restructure_and_entry, set_document_entry, command_outcome, own_op), containers.rs add_artboard, document_new.rs diff, manual.rs DRIVE_REFUSALS and DRIVE_LIMITS, action/commands/board.rs",
+  "harness cli/drive.rs reply and undo_name, drive_viewer.rs delete_layer and draw_shape rows, cli.rs diff, tests/board.rs (whole), tests/document_new.rs diff",
+  "Exporters' layer dispatch: fig-native export.rs, harness-view vector/pdf_export.rs walk, doc_export.rs PSD emit; fig-base graph.rs (import side)",
+  "Spec v02.229 module 14: STU-WB-001, 002, 102-109, 115, 120, 127, 129, 134, 135, 142, 143",
+  "Brief lane-smb-board-1.md, lane file hsk-studio-board-1.json (uncommitted edit in the kernel tree at review time), wave-parity-2-common.md, DISPATCH_TEMPLATES v4-rules and validator, lead-rulings-20261108-by-lane.json (landing order only for this lane), review precedents for DS-VARIABLES-AUTHOR-1 and WEB-CODE-1",
+  "Logs: green e4d033aa (7/7, JSONL 29.75 s), focused 70099d29 (21/21, JSONL 47.24 s SLOW), red logs listed; .config/nextest.toml and round-features.toml",
+  "PNG smb-board-1-visual-e4d033aa.png opened and judged (whole image; no zoom tool available, so the cap detail is computed)"
+ ],
+ "not_checked": [
+  "No cargo build, clippy or test run (method). Green status comes from the builder's focused logs.",
+  "F1 end to end: the exact re-minted id, and whether Viewer::open refuses the package or opens it without vector content.",
+  "F6 render detail: that the text stays at the old place after an arrange transform.",
+  "Whether Session::set_document_entry emits an observe frame of its own (that would be a second, unattributed frame per text-writing board command).",
+  "The hsk-studio-package suite under rule 4b (externals classification of the new record fields): not yet run by the lane.",
+  "hsk-studio-controls Registry entries for the 16 rows (HOST INTEGRATION (3)).",
+  "FigJam parity of sizes, AUTO choice, routes, cap drawings and section semantics (D5, UNVERIFIED as the lane declares).",
+  "Undo-stack memory: every board step holds a whole vector-entry snapshot."
+ ],
+ "rebase_note": "The lane lands last (8 of 8). Earlier lanes touch the same files. SMB-LAYOUT-DELETE-CASCADE-1 (81de18b9): view/commands.rs, view/document_new.rs (this lane's register_new_board call) and view/layers.rs (the delete path that F1 fixes). SMB-PS-FILTER-ADJUST-COMMANDS-1 (aa376f88): view/commands.rs, view/layers.rs, view/mod.rs. SMB-DS-VARIABLES-AUTHOR-1 (9ccbcca8): view/commands.rs, view/mod.rs, and harness-core harness.rs (+82 lines: the multi-entry step that F2 and F7 should use). SMB-GUI-MENU-1 (e2855863): view/mod.rs. Expect textual conflicts at the dispatch arm and the pub mod lines. After the rebase, re-check F1 against the cascade's new delete path."
+}
