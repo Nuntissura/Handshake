@@ -725,6 +725,14 @@
    "lead_reading": "whiteboard mode stored in the document-level artboard_options entry, not a StudioDocument field",
    "source": "lane SMB-BOARD-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-89",
+   "gap": "observe's closed terminal failure set (hsk-studio-observe FailureCode: Validation, Unavailable, Loss, Unsupported) has no internal-error code; STU-ARC-026 maps Studio terminal outcomes to the closed internal_diagnostics event-code set but no code names a run that panicked",
+   "needs": "an Internal failure code in observe's closed FailureCode set (wire value, receipt and ring mapping) and its internal_diagnostics event code (Section 5.8), so a host run that panicked is told apart from an unavailable device, window or file",
+   "lead_reading": "lead 2026-11-13: until then a panicking native-host run (offscreen::run, window::run) sends Failure(Unavailable) (hsk-studio-native-host diag::PANIC_OUTCOME) and then resumes unwinding",
+   "source": "lane SMB-FIX-HOST-TERMINAL-FRAME-1 (F-R60-22), v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -1314,5 +1322,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-05T04:03:12Z"
+ "updated_at": "2026-11-13T14:39:06Z"
 }
