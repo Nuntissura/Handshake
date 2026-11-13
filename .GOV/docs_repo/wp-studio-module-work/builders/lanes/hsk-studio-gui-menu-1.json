@@ -1,19 +1,90 @@
 {
   "crate": "hsk-studio-native-host (feature document: menu popups, availability, tooltips), kumihimo-ui (additive menu_popup, menu_item, tooltip widgets), hsk-studio-harness-view (one new egui-free menu tree module), hsk-studio-controls (read; additive only)",
   "lane": "SMB-GUI-MENU-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
   "base": "b57c82d1",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "27b1e14d",
+      "slice": "kumihimo-ui: Menu and Tooltip roles, availability node properties (STU-SHL-019), menu popup, menu item, menu titles with state, L0/L1 tooltip widgets",
+      "was": "e51729e6"
+    },
+    {
+      "sha": "402d02eb",
+      "slice": "harness-view view/menu_tree.rs: designed tree STU-SHL-023..037 (1647 nodes), 12 closed requires clauses, grow-only profile with signature and named shape, one predicate, remedies, leaves run as catalog commands",
+      "was": "87c4893f"
+    },
+    {
+      "sha": "c1d12ece",
+      "slice": "native-host RED: tests/gui_menu.rs (13 tests); frame keeps B5 behaviour; red run 1 passed 12 failed",
+      "was": "d9ad6c1d"
+    },
+    {
+      "sha": "45e270cf",
+      "slice": "native-host GREEN: titles open popups, cascades, chevron list, greyed rows answer reasons, remedy rows, leaves run commands, WORKSPACE > Panels, Layers context menu, L0/L1 tips, receipt frame.menu; B5 tests that pinned static titles updated",
+      "was": "e2855863"
+    },
+    {
+      "sha": "50060aa8",
+      "slice": "remediation RED: tests for review F1-F11 and rulings 1-5, Q2-Q7 (gui_menu 23 tests, gui_chrome F9, harness tests/harness_drive_menu.rs, viewer_shell Redo); product code with each fix inert",
+      "was": "53c22c24"
+    },
+    {
+      "sha": "580f44b2",
+      "slice": "remediation GREEN: Viewer::studio_menu one evaluation (indexed), remedy only when it makes its node available, aliases, run_catalog shared with drive.rs, drive runs designed leaves, New Timeline preset at 24 fps, NEEDS_TOOL / NOT_IN_THIS_HOST, PALETTE_ONLY and DOMAIN_HOMES; native panels, keyboard, safe triangle, scroll lane, greyed highlight, check-box toggles, descriptor summaries, tips that never swallow clicks",
+      "was": "c930907f"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red": {
+      "sha": "d9ad6c1d",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-red-d9ad6c1d.log",
+      "result": "gui_menu 13 run: 1 passed (requires clauses, harness-view item landed in 87c4893f), 12 failed, exit 100"
+    },
+    "focused": {
+      "sha": "8702ac57 (amended into e2855863: one Vulkan assertion pinned)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-focused-8702ac57-062748.log",
+      "result": "gui_menu, gui_chrome, gui_compose, gui_frame, gui_layout: 46 run, 46 passed, exit 0"
+    },
+    "vulkan": {
+      "sha": "c930907f (bundled run)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-bundled-c930907f.log",
+      "env": "VK_INSTANCE_LAYERS unset (debug builds enable the validation layer themselves); 8702ac57 run WITH VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation: FAIL, validation on, errors 0, warnings 2, both loader notes 'env var VK_INSTANCE_LAYERS defined and adding layers' (smb-gui-menu-1-vk-validation-8702ac57.log); e2855863 run without it: PASS (smb-gui-menu-1-vk-e2855863.log)",
+      "result": "open OBJECT > Layer cascade with a greyed row and an L1 tip: popup and tip pixels differ from the closed frame (asserted), UI pass vs CPU painter max 0; captures Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/captures-c930907f/"
+    },
+    "clippy": "lane-check clippy over native-host [document], kumihimo-ui, harness-view [viewer], controls, harness [viewer] --tests and dependents: see bundled log; no warning in this lane's files at c930907f (focused clippy)",
+    "red2": {
+      "sha": "53c22c24",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-red2-53c22c24.log",
+      "result": "gui_menu + gui_chrome (hostile_scales skipped): 34 run, 17 passed, 17 failed, each on its fix (audit remedy_not_available, NOT_IN_THIS_HOST, 0 px highlight, tip swallows the click, alias record, 578 undeclared commands, no Left/Right, no F10, no safe triangle, no hosted tab, no NEEDS_TOOL, New Timeline needs an artboard, no descriptor summary); harness: viewer_shell Redo remedy and harness_drive_menu (drive: unknown_command) fail; exit 100"
+    },
+    "focused2": {
+      "sha": "c930907f tree before commit (logs show the base e2855863 with dirty=16)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-focused2-dirty-req03.log, Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-focused2-dirty-req04.log",
+      "result": "gui_menu + gui_chrome 35 run, 34 passed (the worked example then moved to a carried PDF plus page.add: req04 1 run 1 passed); harness_drive_menu 1 passed; hostile_scales 79 s (146 s at 8702ac57: studio_menu now indexes the shell records once)"
+    },
+    "bundled": {
+      "sha": "c930907f",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-bundled-c930907f.log",
+      "command": "lane-check --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-native-host -p kumihimo-ui -p hsk-studio-harness-view -p hsk-studio-controls -p hsk-studio-harness --features hsk-studio-native-host/document,hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --lib --bins --test <every test of native-host, kumihimo-ui, harness-view, controls> --test harness_drive --test harness_drive_typed --test harness_drive_menu --test harness_headless --test viewer_shell --no-fail-fast (studio-harness example rebuilt at c930907f before the run)",
+      "result": "363 run, 363 passed, 1 skipped (a drive unit test's long-line case), exit 0; clippy over the five crates and dependents [hsk-studio-harness-core, hsk-studio-ui-text, hsk-studio-vulkan] clean in this lane's files; step 0 clean; captures inspected: OBJECT > Layer cascade with scroll lanes, greyed rows with reason lines, remedy rows, L1 tip beside the cascade"
+    },
+    "landing": {
+      "sha": "580f44b2",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-menu-1/smb-gui-menu-1-landing-580f44b2.log",
+      "base": "81de18b9 (SMB-LAYOUT-DELETE-CASCADE-1)",
+      "result": "harness-view [viewer] suite, harness drive targets (harness_drive, harness_drive_typed, harness_drive_menu, harness_headless, viewer_shell) and native-host gui_menu with a fresh example: 242 run, 242 passed, 1 skipped; per-sha 50060aa8..580f44b2 PER_SHA_RESULT OK (default + 21 feature units)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-13T05:13:41Z",
+  "next": "validator: independent verdict on 580f44b2",
+  "updated_at": "2026-11-13T09:27:42Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +111,232 @@
       "ledger direction.next_lane_candidates 2026-11-07T17:49:57Z menus"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-entry-references-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1",
+    "spec_basis": [
+      "STU-SHL-011/012: nineteen titles in the closed order; abbreviate then chevron, every title in the tree",
+      "STU-SHL-013..021: menu tree is the index; context menus reference leaf ids; one record per node from ONE evaluation (Viewer::studio_menu) read by the native menu, state.shell.menu (the shell's own leaves) and the drive surface; invariant checks here: MENU-INV-1 (every ui_seed command has a leaf or a typed palette_only reason), MENU-INV-2 (alias_of, one primary per command), MENU-INV-3 (every registry domain has a designed home), MENU-INV-4, MENU-INV-5; never hide; reason on tooltip, node and command path; a remedy only when it makes its node available; depth cap",
+      "STU-SHL-046..055: one predicate per context change; profile of container kinds and flags derived from the document (persists through save and reopen); twelve closed clause kinds; three states; twelve codes plus two host codes (SD); per-surface rendering; profile signature; presets cannot gate",
+      "STU-SHL-230..235: L0 name chip with chord resolved at render, L1 with summary, reason and one-click remedy, anti-annoyance rules; a tip never covers its control, never swallows a click, goes on a pointer move off its control, Escape and the next action",
+      "STU-SHL-240..245: the tooltip summary is the UiDescriptor's (ui_catalog), never prose in UI source; shortcuts resolved never baked"
+    ],
+    "beyond_brief_paths": [
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/mod.rs",
+        "line": "after `pub mod place;` (about :121)",
+        "why": "one `pub mod menu_tree;` line: the brief's new egui-free module needs its declaration",
+        "approved": "lead 2026-11-13T06:34:00Z: approved (rule 4a for the B5 test edits)"
+      },
+      {
+        "path": "crates/kumihimo-ui/src/tree.rs",
+        "line": "Role enum (:57) and Node (:219)",
+        "why": "components.json roles Menu and Tooltip; availability as node properties (ledger candidate 2026-11-07T13:35:06Z); additive variants and one Option field",
+        "approved": "lead 2026-11-13T06:34:00Z: approved (rule 4a for the B5 test edits)"
+      },
+      {
+        "path": "crates/kumihimo-ui/src/semantic.rs",
+        "line": "SemanticNode (:9), node_json (:144)",
+        "why": "STU-SHL-019 availability_state, reason_code, reason_text, remedy_command_id on the semantic node; emitted only when present (old trees keep their bytes)",
+        "approved": "lead 2026-11-13T06:34:00Z: approved (rule 4a for the B5 test edits)"
+      },
+      {
+        "path": "crates/hsk-studio-native-host/tests/gui_chrome.rs",
+        "line": ":101-103, :180-189, :527-533, :331",
+        "why": "B5 tests pinned menu titles and the menu chevron as not_implemented_yet; B6 makes them open menus (rule 4a: the whole native-host suite runs)",
+        "approved": "lead 2026-11-13T06:34:00Z: approved (rule 4a for the B5 test edits)"
+      },
+      {
+        "path": "crates/hsk-studio-native-host/tests/gui_window.rs",
+        "line": ":216-231",
+        "why": "same: the edge-state script clicked FILE expecting not_implemented_yet; it now clicks an unbuilt control",
+        "approved": "lead 2026-11-13T06:34:00Z: approved (rule 4a for the B5 test edits)"
+      },
+      {
+        "path": "crates/hsk-studio-controls/src/menu.rs",
+        "line": "ReasonCode (:104), MenuNode.alias_of (:264), agent_json (:509)",
+        "why": "ReasonCode::NeedsTool and NotInThisHost (HOST_EXTRA; ALL stays the spec's twelve), MenuNode.alias_of and alias() (MENU-INV-2)",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): Q7 NeedsTool, ruling 2 NotInThisHost, F7 alias_of"
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/shell.rs",
+        "line": "menu_bar Redo (:987)",
+        "why": "Redo names no remedy",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): ruling 1 / Q3"
+      },
+      {
+        "path": "crates/hsk-studio-harness/src/cli/drive.rs",
+        "line": "imports (:22), run_row layer.set_visible (:192), viewer_method (:336), shell -> menu_leaf (:347-:390), catalog_refusal (:404)",
+        "why": "drive runs the layer and video rows through menu_tree::run_catalog and designed leaves through Viewer::run_menu_leaf (one evaluation)",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): F1+F3, ruling 5"
+      },
+      {
+        "path": "crates/hsk-studio-harness/src/cli/drive_viewer.rs",
+        "line": "layer and project arms",
+        "why": "the arms the shared executor runs are removed (no dead arms)",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): ruling 5"
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/viewer_shell.rs",
+        "line": ":749-:754",
+        "why": "Redo assertion: NOT_IN_THIS_DOCUMENT with no remedy",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): ruling 1"
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/harness_drive_menu.rs",
+        "line": "new file",
+        "why": "process-level equality: drive vs the native menu path, per leaf undo name, command, params, availability, selection, history",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): ruling 5"
+      },
+      {
+        "path": "crates/hsk-studio-native-host/src/event.rs",
+        "line": "Key (:24), from_name (:61), winit mapping",
+        "why": "Key::Left, Right, F10, ContextMenu (window.rs not touched: the mapping lives in event.rs)",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): ruling 3"
+      },
+      {
+        "path": "crates/hsk-studio-native-host/src/lib.rs, crates/kumihimo-ui/src/lib.rs",
+        "line": "DESCRIPTOR",
+        "why": "crate descriptors say menus open (F7d)",
+        "approved": "lead 2026-11-13 (rulings on review e2855863, kernel 8bcd2401): F7"
+      }
+    ],
+    "v4_06": {
+      "class": "a menu node or frame control that is unavailable without a machine-readable reason, or a menu surface with its own gating",
+      "regex": "\\.reason\\(REASON\\)|menu_title_row\\(|hidden_value\\(|NIY",
+      "sites": [
+        {
+          "site": "chrome.rs menu_bar titles (was menu_title_row(..., REASON))",
+          "status": "fixed: per-title availability record, greyed shell titles with reason"
+        },
+        {
+          "site": "chrome.rs menu chevron (was hidden_value NIY)",
+          "status": "fixed: opens the list of hidden titles"
+        },
+        {
+          "site": "chrome.rs B5 static controls with .reason(REASON) (module switch, presence chip, document tab and close, new tab, search, layout preset, panel layout, identity chip, tool preset, family browse, colour proxy, rail buttons, group disclosure and panel menu)",
+          "status": "not applicable: B7/B8/B9 controls, not menus; they keep the reason as data and their L1 tip says not built"
+        },
+        {
+          "site": "chrome.rs tool_rail chevron hidden_value",
+          "status": "not applicable: Tool Rail is B8"
+        },
+        {
+          "site": "harness-view shell.rs menu_bar (:942-:1073): the egui shell's records",
+          "status": "fixed: Viewer::studio_menu reads them for the shell's own leaves; no second gating (one evaluation, MENU-INV-4)"
+        },
+        {
+          "site": "harness drive.rs shell / menu_leaf (:347-:390)",
+          "status": "fixed: designed leaves gate on Viewer::studio_menu and run through run_menu_leaf; shell leaves keep Viewer::shell_command, whose gate is the same record"
+        }
+      ]
+    },
+    "cut": [
+      "STU-SHL-039 / MENU-INV-7: see not_proven",
+      "STU-SHL-041..044: see not_proven",
+      "STU-SHL-233, 236, 234: see not_proven",
+      "STU-SHL-245..247: see not_proven",
+      "drive.rs menu rows: see not_proven",
+      "tip clock: see not_proven"
+    ],
+    "mts_read": [
+      "MT-34433 (STU-SHL-012)",
+      "MT-34651 (STU-SHL-019 node properties)",
+      "MT-34441 (STU-SHL-020)",
+      "MT-34482 (STU-SHL-048)",
+      "MT-34483 (STU-SHL-049)",
+      "MT-34480 (STU-SHL-046, partial)",
+      "MT-35101 (STU-SHL-231/235/242)",
+      "MT-35102 (STU-SHL-232, no numeric or temporal lines)",
+      "MT-34435 (STU-SHL-014, Layers context menu only)",
+      "MT-34486 (STU-SHL-051 codes used)"
+    ],
+    "not_proven": [
+      "STU-SHL-039 / MENU-INV-7: WORKSPACE > Tools > family > tool: the 362-tool registry and its 22 families are not in this host; the expansion ships empty with NOT_IMPLEMENTED_YET (PARTIAL, lead 2026-11-13T06:34:00Z)",
+      "STU-SHL-041..044: command palette with menu_path breadcrumb and shared fuzzy matcher, shortcut resolution ranks, shipped shortcut sets, Shortcut Conflict Report; only the Undo and Redo chords (PROVISIONAL Studio Default) resolve at render (PARTIAL, lead 2026-11-13T06:34:00Z)",
+      "STU-SHL-233, 236, 234: L2 side sheet, L3 looping demo, L-status hintline from the gesture map (PARTIAL, lead 2026-11-13T06:34:00Z)",
+      "STU-SHL-245..247: generated id enum and the one descriptor-driven tooltip helper taking it, localisation by descriptor set, the shell hover-text migration (PARTIAL, lead 2026-11-13T06:34:00Z)",
+      "tip clock: window.rs does not feed GuiFrame::advance, so dwell tooltips appear only through a host clock or GuiFrame::show_tip (PARTIAL, lead 2026-11-13T06:34:00Z)",
+      "drive.rs menu rows: designed leaves run through the drive surface (studio.* ids, same evaluation); there is no drive row for the menu tree itself or for tooltips; state.shell.menu lists the egui shell's leaves only (PARTIAL)",
+      "F11 constant predicate inputs: granted capabilities, capability flags, read-only mode and task scope are constants in MenuState::of (no host feed yet); no node in the bound set reads them",
+      "Spectral Display's multi-hop remedy (Waveform Editor first) is the shell's record; the one-step rule is enforced for catalog leaves and designed nodes only",
+      "MENU-INV-1 per-command reasons: the menu_path_pending / no_menu_home split of the 578 palette_only commands is by verb and not reviewed per command; MENU-INV-6 (palette parity) is not built",
+      "Real-window hover tips: window.rs does not feed GuiFrame::advance; tips appear through GuiFrame::show_tip (the accessibility request) and a host clock"
+    ],
+    "next_lane_candidates": [
+      {
+        "added_at": "2026-11-13T06:34:00Z",
+        "item": "STU-SHL-039 / MENU-INV-7: WORKSPACE > Tools > family > tool: the 362-tool registry and its 22 families are not in this host; the expansion ships empty with NOT_IMPLEMENTED_YET",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T06:34:00Z",
+        "item": "STU-SHL-041..044: command palette with menu_path breadcrumb and shared fuzzy matcher, shortcut resolution ranks, shipped shortcut sets, Shortcut Conflict Report; only the Undo and Redo chords (PROVISIONAL Studio Default) resolve at render",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T06:34:00Z",
+        "item": "STU-SHL-233, 236, 234: L2 side sheet, L3 looping demo, L-status hintline from the gesture map",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T06:34:00Z",
+        "item": "STU-SHL-245..247: generated id enum and the one descriptor-driven tooltip helper taking it, localisation by descriptor set, the shell hover-text migration",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T06:34:00Z",
+        "item": "drive.rs menu rows: no Viewer::run_command / JSONL drive rows for menu tree, menu run or tooltip; the native host's model path is invoke by author id plus GuiFrame::menu_json",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T06:34:00Z",
+        "item": "tip clock: window.rs does not feed GuiFrame::advance, so dwell tooltips appear only through a host clock or GuiFrame::show_tip",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T09:06:55Z",
+        "item": "video.project_new_sequence width, height and fps parameters (exact document-size sequences for New Timeline)",
+        "owner": "a later video or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T09:06:55Z",
+        "item": "menu paths for the 544 menu_path_pending catalog commands (STU-SHL-013), per-command review of the palette_only split, MENU-INV-6 palette",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T09:06:55Z",
+        "item": "host-fed predicate inputs: capability flags (device, decoders), grants, read-only, task scope (F11)",
+        "owner": "a later GUI or session lane"
+      },
+      {
+        "added_at": "2026-11-13T09:06:55Z",
+        "item": "a designed-tree projection beside state.shell.menu so a process client can list every studio.* leaf the drive surface runs",
+        "owner": "a later harness lane"
+      }
+    ],
+    "readings": [
+      "Q2: STU-SHL-052 wins for menu titles: GO, RUN, EDITORS, OPERATOR are greyed NOT_IMPLEMENTED_YET (titles included); D-F1 'no frame control drawn disabled' holds for every other control (gui_chrome asserts exactly these four).",
+      "Q5 / ruling 4: New Timeline runs video.project_new_sequence {name: Timeline, preset_id: the first shipped preset at 24 fps (menu_tree::NEW_TIMELINE_FPS), square pixels, progressive, whose frame size is the document's (first artboard, else first page spread, else the rendered frame), else the first at the spec default 1920 x 1080}; the parameters are in the receipt's frame.menu.last_run. Add Track... stays unbound (dialog pending).",
+      "Q6 (SD): the designed tree follows the spec's listing (1,665 nodes with four shell titles); the spec header's counts (1,533 / 203 / 375) differ from its own listing.",
+      "Q7 (SD): an unmet tool: clause is NEEDS_TOOL with remedy studio.workspace.tool.<tool>; NEEDS_TOOL is a host code outside STU-SHL-051's twelve (ReasonCode::HOST_EXTRA).",
+      "Ruling 2 (SD): NOT_IN_THIS_HOST 'not shown in this window' greys a shell command or panel the host does not show; host code outside the twelve. The native window hosts Undo, Redo, Create Outlines and the panels Layers, Properties, Info, Swatches, Masks, Brushes (tab pick); the other 19 panels and the other shell leaves (Open, Save, Save As, Close, zoom, proof, help) are NOT_IN_THIS_HOST there whenever the shell would run them, else they keep the shell's own reason.",
+      "Profile persistence (F11): the profile is derived from the document's own content (artboards, page spreads, sequences, layer kinds), so it persists through save and reopen; an undo that removes the container removes it explicitly (STU-SHL-048 'never silently'); session document entry tokens are a closed list, so no stored profile record is written.",
+      "F6 / ruling 1: a remedy is offered only when the remedy leaf is available now (one step); the shell's own records keep their remedies when the host can run them (Develop and Save keep Open in the egui shell; in the native window Open is NOT_IN_THIS_HOST, so those nodes are NOT_IN_THIS_DOCUMENT without a remedy).",
+      "F2 test document: a one-page PDF opens carried (empty document) and page.add gives it one US Letter spread: profile signature [page_spread], named shape layout. document.new profile layout needs a harness-core type the native-host tests do not link.",
+      "F9: the static count of the 1920 x 1080 frame is pinned at 31 (B5's > 40 counted the nineteen titles).",
+      "MENU-INV-1 reasons: 578 ui_seed commands are palette_only; 34 no_menu_home (reads, records, entries, submits, catalog and state queries), 544 menu_path_pending; the split is by verb (heuristic, see not_proven)."
+    ],
+    "landing": "2026-11-13T09:27:42Z: rebased onto origin/codex/handshake-studio-assets 81de18b9; the three catalog commands that lane added (layer.delete_layout_layers, layout.autoflow, layout.smart_reflow) declared palette_only menu_path_pending in the green commit (MENU-INV-1 test); pushed 580f44b2",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T09:27:50Z",
+        "on": "review e2855863 (FIX_FIRST)",
+        "decision": "rulings 1-5 and Q2-Q7 applied; RELEASED at c930907f after bundled 363/363 and the inspected capture"
+      },
+      {
+        "at": "2026-11-13T09:27:50Z",
+        "on": "c930907f acceptance",
+        "decision": "accepted: boxed MenuRefusal, shell-record lookup once per evaluation, the F2 test document via page.add, the legacy-arri preset reading, the F9 pin at 31, the MENU-INV-1 palette_only split as not_proven"
+      }
+    ]
   }
 }

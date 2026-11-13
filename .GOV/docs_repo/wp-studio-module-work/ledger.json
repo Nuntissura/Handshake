@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T07:59:45Z",
+ "updated_at": "2026-11-13T09:27:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20049,8 +20049,8 @@
   },
   {
    "lane_id": "SMB-GUI-MENU-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-native-host (feature document: menu popups, availability, tooltips), kumihimo-ui (additive menu_popup, menu_item, tooltip widgets), hsk-studio-harness-view (one new egui-free menu tree module), hsk-studio-controls (read; additive only)",
    "lane_file": "builders/lanes/hsk-studio-gui-menu-1.json",
    "brief": "builders/briefs/lane-smb-gui-menu-1.md",
@@ -20058,12 +20058,13 @@
    "base": "b57c82d1",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T05:13:41Z",
+   "updated_at": "2026-11-13T09:27:50Z",
    "closes": [
     "research/spec-coverage-20261111-g7-shell-manual-misc.json STU-SHL menu, availability, tooltip, UiDescriptor rows",
     "gui-design/build-order.json B6",
     "ledger direction.next_lane_candidates 2026-11-07T17:49:57Z menus"
-   ]
+   ],
+   "claim": "27b1e14d..580f44b2: B6 menus in the native window. The nineteen titles open the designed tree (1,665 nodes) from ONE evaluation (Viewer::studio_menu) shared with state.shell.menu's records and the drive surface; greyed rows carry their record and reason, a remedy only when it makes its node available (STU-SHL-020 worked example in a page-layout document), leaves run the shell command or the shared catalog executor menu_tree::run_catalog (drive.rs runs the same rows), aliases (MENU-INV-2), palette_only and domain homes (STU-SHL-013, MENU-INV-1, MENU-INV-3), WORKSPACE > Panels, the Layers context menu, keyboard (Left/Right, type-ahead, F10, Alt, Shift+F10, Menu key), safe triangle, scroll lane, L0/L1 tooltips; review e2855863 F1-F11 fixed per lead rulings; landing log smb-gui-menu-1-landing-580f44b2.log: harness-view [viewer] suite, harness drive targets (harness_drive, harness_drive_typed, harness_drive_menu, harness_headless, viewer_shell) and native-host gui_menu with a fresh example: 242 run, 242 passed, 1 skipped; per-sha 50060aa8..580f44b2 PER_SHA_RESULT OK (default + 21 feature units)"
   },
   {
    "lane_id": "SMB-TYPE-CHARACTER-ATTRIBUTES-1",
@@ -22634,6 +22635,56 @@
     "added_at": "2026-11-13T08:33:54Z",
     "item": "PRIORITY: diag_sink abort test load flake (seen twice; ledger 2026-11-11T10:39:51Z)",
     "owner": "harness-core diag sink (SMB-OBSERVE-DIAG-SINK-1 area)"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "STU-SHL-039 / MENU-INV-7: WORKSPACE > Tools > family > tool: the 362-tool registry and its 22 families are not in this host; the expansion ships empty with NOT_IMPLEMENTED_YET",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "STU-SHL-041..044: command palette with menu_path breadcrumb and shared fuzzy matcher, shortcut resolution ranks, shipped shortcut sets, Shortcut Conflict Report; only the Undo and Redo chords (PROVISIONAL Studio Default) resolve at render",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "STU-SHL-233, 236, 234: L2 side sheet, L3 looping demo, L-status hintline from the gesture map",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "STU-SHL-245..247: generated id enum and the one descriptor-driven tooltip helper taking it, localisation by descriptor set, the shell hover-text migration",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "drive.rs menu rows: no Viewer::run_command / JSONL drive rows for menu tree, menu run or tooltip; the native host's model path is invoke by author id plus GuiFrame::menu_json",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "tip clock: window.rs does not feed GuiFrame::advance, so dwell tooltips appear only through a host clock or GuiFrame::show_tip",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "video.project_new_sequence width, height and fps parameters (exact document-size sequences for New Timeline)",
+    "owner": "a later video or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "menu paths for the 544 menu_path_pending catalog commands (STU-SHL-013), per-command review of the palette_only split, MENU-INV-6 palette",
+    "owner": "a later GUI or command-surface lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "host-fed predicate inputs: capability flags (device, decoders), grants, read-only, task scope (F11)",
+    "owner": "a later GUI or session lane"
+   },
+   {
+    "added_at": "2026-11-13T09:27:50Z",
+    "item": "a designed-tree projection beside state.shell.menu so a process client can list every studio.* leaf the drive surface runs",
+    "owner": "a later harness lane"
    }
   ],
   "pause_20261103": {

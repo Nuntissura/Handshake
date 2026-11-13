@@ -677,6 +677,30 @@
    "lead_reading": "2026-11-12T18:03:24Z: the delivery queue is per Viewer and not saved; composition items persist as StudioRenderQueueItem, sequence items are re-added after reopen; saving them needs a new record.",
    "source": "lane SMB-DELIVERY-QUEUE-1 notes.sd_items_to_propose, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-83",
+   "gap": "STU-SHL-051 closes the reason codes at twelve; an unmet tool: clause (STU-SHL-049) has no code of its own",
+   "needs": "Spec owner adds NEEDS_TOOL (remedy: select the tool) or names the code a tool: clause gives",
+   "lead_reading": "2026-11-13 ruling Q7: NEEDS_TOOL as a host code outside the twelve (ReasonCode::HOST_EXTRA), remedy studio.workspace.tool.<tool>",
+   "source": "lane SMB-GUI-MENU-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-84",
+   "gap": "STU-SHL-051 has no code for a command or panel the host showing the menu cannot show (a window with no place for a panel)",
+   "needs": "Spec owner adds NOT_IN_THIS_HOST or states how a host greys elements it does not host",
+   "lead_reading": "2026-11-13 ruling 2: NOT_IN_THIS_HOST 'not shown in this window' as a host code outside the twelve; hosted panels pick their tab",
+   "source": "lane SMB-GUI-MENU-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-85",
+   "gap": "The STU-SHL-023..037 header counts (1,533 nodes, 203, 375) differ from the spec's own node listing (1,665 nodes with four shell titles)",
+   "needs": "Spec owner corrects the header counts or the listing",
+   "lead_reading": "2026-11-13 ruling Q6: the listing is the source",
+   "source": "lane SMB-GUI-MENU-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
