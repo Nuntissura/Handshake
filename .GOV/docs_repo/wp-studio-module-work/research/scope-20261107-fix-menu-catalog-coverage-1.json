@@ -1,0 +1,20 @@
+{
+ "id": "SMB-FIX-MENU-CATALOG-COVERAGE-1",
+ "file": "hsk-studio-fix-menu-catalog-coverage-1",
+ "brief": "lane-smb-fix-menu-catalog-coverage-1",
+ "crate": "hsk-studio-harness-view (src/view/menu_tree.rs only: LEAVES, PALETTE_ONLY, DOMAIN_HOMES coverage of the catalog commands added after SMB-GUI-MENU-1)",
+ "crates_head": "harness-view",
+ "summary": "Trunk repair: every catalog command has a menu leaf or a typed palette_only reason again (MENU-INV-1), with the invariant test unchanged",
+ "target": "Trunk repair: hsk-studio-native-host [document] tests/gui_menu.rs every_catalog_command_has_a_leaf_or_a_palette_reason_and_every_domain_a_home fails on origin/codex/handshake-studio-assets with '79 catalog commands have neither a leaf nor a palette_only reason (STU-SHL-013)'.\n\nWhy this lane: SMB-GUI-MENU-1 (landed 580f44b2) added the invariant MENU-INV-1 (STU-SHL-013..021). Lanes that landed after it added catalog commands without menu entries, and their landing runs did not run native-host's gui_menu (lead 2026-11-13).\n\nFacts read by the builder at origin 86ee4e57 (claims, check them):\n- `crates/hsk-studio-native-host/tests/gui_menu.rs:683` the invariant test; on failure it prints one `PALETTE (\"<command>\", Unreached::...)` line per missing command with a verb heuristic.\n- `crates/hsk-studio-harness-view/src/view/menu_tree.rs:521` LEAVES (14 designed leaves that run catalog commands through `run_catalog`, `CATALOG_COMMANDS` :669), `:540` ALIASES, `:770` PALETTE_ONLY (typed reasons `Unreached::MenuPathPending` / `Unreached::NoMenuHome`, split by verb as SMB-GUI-MENU-1 did: reads, records, entries, submits, catalog and state queries are no_menu_home), `:1356` DOMAIN_HOMES (MENU-INV-3), `:3401` reached_commands.\n\nWork:\n1. TRUNK CHECK FIRST, in one D: hold (`lane-check --owner smb-r53-followups-1 --disk d`): the whole native-host [document] suite, the harness-view [viewer] suite and the harness [viewer] suite at the origin tip with a fresh example; list EVERY failing test (trunk-red from cross-lane integration); keep the log.\n2. Red proof: the existing MENU-INV-1 test, already red at the tip (that log). Fix in menu_tree.rs: each of the 79 commands gets a real menu leaf where the designed tree (STU-SHL-023..037) has an obvious home, else a palette_only entry with the correct reason (no_menu_home, or menu_path_pending split by verb as SMB-GUI-MENU-1 did). Prefer real leaves where the spec gives a home. Do NOT weaken the invariant test. Any domain new to the catalog gets a DOMAIN_HOMES row (MENU-INV-3).\n3. Other trunk-red tests found in step 1 are NOT fixed here: report them with test names and failure lines; the lead decides.\n4. Focused gui_menu run, then ONE bundled lane-check: native-host [document] whole suite and harness-view [viewer] suite. Report BUNDLED GREEN with the trunk-check failure list; wait for RELEASED before landing.\n\nOut of scope: gui_menu.rs (the invariant stays as is), any other crate, any other failing test, menu paths for the existing 544 menu_path_pending commands (next-lane candidate of SMB-GUI-MENU-1).",
+ "diag": "none new: menu tree data only; menu open, run and refusal outcomes keep GUI-MENU-1's frame.menu codes",
+ "attr": "required where a new leaf runs a mutating command: the leaf runs through the existing run_catalog / run_menu_leaf path with the caller's context; never a default actor",
+ "exposure": "low",
+ "paths": "crates/hsk-studio-harness-view/src/view/menu_tree.rs only",
+ "suites": "trunk check at the origin tip: native-host [document] whole suite, harness-view [viewer] suite, harness [viewer] suite (fresh example); after the fix: focused gui_menu, then native-host [document] whole suite and harness-view [viewer] suite in one bundled run",
+ "closes": [
+  "lead 2026-11-13: trunk-red native-host [document] gui_menu MENU-INV-1 (79 catalog commands without a leaf or a palette_only reason)"
+ ],
+ "mts": [],
+ "tree": "smb-r53-followups-1",
+ "disk": "d"
+}

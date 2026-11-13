@@ -1,0 +1,43 @@
+{
+  "crate": "hsk-studio-harness-view (src/view/menu_tree.rs only: LEAVES, PALETTE_ONLY, DOMAIN_HOMES coverage of the catalog commands added after SMB-GUI-MENU-1)",
+  "lane": "SMB-FIX-MENU-CATALOG-COVERAGE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-r53-followups-1",
+  "base": "86ee4e57",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-13T15:44:59Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none new: menu tree data only; menu open, run and refusal outcomes keep GUI-MENU-1's frame.menu codes",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required where a new leaf runs a mutating command: the leaf runs through the existing run_catalog / run_menu_leaf path with the caller's context; never a default actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-13T15:44:59Z",
+    "disk": "D",
+    "closes": [
+      "lead 2026-11-13: trunk-red native-host [document] gui_menu MENU-INV-1 (79 catalog commands without a leaf or a palette_only reason)"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-r53-followups-1"
+  }
+}
