@@ -26,6 +26,18 @@ cargo registry, logs, results, fixtures, a worktree or anything outside the cand
   For (a) and (b) the process check also refuses a running process that names the owner (tree name) or the bound
   workspace. A candidate without newest_file_utc (plan V was inspected with WizTree, not target_report.py) is checked
   by size only: the newest file is reported (newest_now) but not compared; the 5% size check applies unchanged.
+- N4 (plan W, 2026-11-13): whole also on the Studio artifact root, the directory D_ROOT/<owner>/target and nothing else
+  (D_ROOT resolved as above, never written out; <owner>/tmp and the rest of <owner> stay). Same path rules as C: (equal
+  after normalisation, no link on the way or inside), never studio-round, studio-team-dev, an MT-* folder, the cargo
+  registry or cargo-home. The owner needs a ledger lane row with status PASS_*, SUPERSEDED, LOST or DONE (no 'no ledger
+  row' basis on D:), and no lane outside that set (READY, active, blocked or paused) may name the owner tree or the tree
+  bound in .studio-workspace-root; a bound workspace outside wt-studio-lanes must no longer exist. Process, newest-file,
+  5% size and real-target (.studio-workspace-root, debug/.fingerprint) checks are the C: ones.
+  For every whole candidate, C: and D:: no lane may name the bound tree (as for the owner tree), no running process may
+  name the bound tree, no held lock or queued ticket under the Studio lock roots (D_ROOT, the C: Studio root and its
+  parent: .disk-build-lock, .gpu-test-lock; STUDIO_DISK_BUILD_LOCK_DIR) may name the target, owner, bound tree or bound
+  workspace (SKIPPED_LOCK; an unreadable held lock counts), and no round may hold the disk build lock of the target's
+  drive (plan W before_execution). Paused lanes in ledger direction.pause_* records count as naming their tree.
 """
 import argparse
 import datetime
@@ -53,10 +65,27 @@ REPARSE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 OWNER = re.compile(r"[a-z0-9][a-z0-9_.-]*")
 NEVER_UNDER = ("studio-round", "registry", "logs", "results", "fixtures")
 STEWARD_CANARY = D_ROOT + "/studio-team-dev/steward-export/target"  # N3 (a)
+LANES_ROOT = os.path.join(WORKTREES, "wt-studio-lanes").replace("\\", "/")
+C_STUDIO = C_LANES.split("/studio-team-dev/")[0]
+LOCK_PARENTS = (D_ROOT, C_STUDIO, os.path.dirname(C_STUDIO))  # N4: the lock roots .disk-build-lock and .gpu-test-lock
+NOT_D_OWNER = ("studio-round", "studio-team-dev", "cargo-home", "registry")  # N4
 
 
 def norm(p):
     return os.path.normcase(os.path.normpath(p))
+
+
+def msys(text):
+    """Lowercase, / separators, MSYS /d/... paths as d:/... (lock files and Git Bash command lines use that form)."""
+    return re.sub(r"(?<![a-z0-9_.:-])/([a-z])/", r"\1:/", text.replace("\r", "").replace("\\", "/").lower())
+
+
+def named(text, name):
+    return re.search(r"(?<![a-z0-9_.-])" + re.escape(name.lower()) + r"(?![a-z0-9_.-])", text) is not None
+
+
+def on_d_root(p):
+    return norm(p).startswith(norm(D_ROOT) + os.sep)
 
 
 def steward_canary(p):
@@ -137,14 +166,22 @@ def is_link(st):
 
 
 def whole_path(owner, path):
-    """The one directory a whole candidate may remove, C_LANES/<owner>, or None when the plan path is anything else."""
+    """The one directory a whole candidate may remove, C_LANES/<owner> or (N4) D_ROOT/<owner>/target, or None when the
+    plan path is anything else."""
     if not OWNER.fullmatch(owner) or ".." in owner:
         return None
-    target = C_LANES + "/" + owner
-    parts = target.split("/")
-    if parts[0].upper() != "C:" or any(x.lower() in NEVER_UNDER for x in parts):
-        return None
-    norm = lambda p: os.path.normcase(os.path.normpath(p))
+    if on_d_root(path):  # N4
+        if owner.lower() in NOT_D_OWNER or owner.lower().startswith("mt-"):
+            return None
+        target = D_ROOT + "/" + owner + "/target"
+        parts = target.split("/")
+        if any(x.lower() in NEVER_UNDER + NOT_D_OWNER for x in parts):
+            return None
+    else:
+        target = C_LANES + "/" + owner
+        parts = target.split("/")
+        if parts[0].upper() != "C:" or any(x.lower() in NEVER_UNDER for x in parts):
+            return None
     if norm(path) != norm(target) or norm(os.path.realpath(target)) != norm(target):
         return None
     for i in range(1, len(parts) + 1):  # no symlink or junction on the way, the target itself included
@@ -178,6 +215,59 @@ def settled_whole(status):
     return s.startswith("PASS_V") or s.upper() == "ABANDONED"
 
 
+def settled_n4(status):
+    # N4 (plan W group c): a D: owner lane, or a lane that names a D: candidate's tree, is settled at PASS_*,
+    # SUPERSEDED, LOST or DONE; READY_FOR_VALIDATION, unset (active), BLOCKED, PAUSED and anything else is not.
+    s = str(status or "").upper()
+    return s.startswith("PASS_") or s in ("SUPERSEDED", "LOST", "DONE")
+
+
+def lane_tree(bound):
+    """The wt-studio-lanes tree a .studio-workspace-root path lies in, or None when it lies elsewhere."""
+    p = str(bound or "").replace("\\", "/")
+    if not os.path.isabs(p) or not norm(p).startswith(norm(LANES_ROOT) + os.sep):
+        return None
+    tree = os.path.relpath(p, LANES_ROOT).replace("\\", "/").split("/")[0]
+    return tree if OWNER.fullmatch(tree.lower()) else None
+
+
+def lock_files():
+    """N4: [(lock root, 'held' or 'queue', text)] for each held lock and queued ticket under the Studio lock roots; text
+    as msys() gives it, None for a held lock whose owner file cannot be read."""
+    roots = {r.replace("\\", "/") for d in LOCK_PARENTS for r in glob.glob(os.path.join(d, ".*-lock")) if os.path.isdir(r)}
+    if os.environ.get("STUDIO_DISK_BUILD_LOCK_DIR"):
+        roots.add(os.environ["STUDIO_DISK_BUILD_LOCK_DIR"].replace("\\", "/"))
+    out = []
+    for r in sorted(roots):
+        files = [(r + "/held/owner", "held")] if os.path.lexists(r + "/held") else []
+        files += [(f, "queue") for f in sorted(glob.glob(os.path.join(r, "queue", "*")))]
+        for f, kind in files:
+            try:
+                with open(f, encoding="utf-8", errors="replace") as h:
+                    out.append((r, kind, msys(h.read())))
+            except OSError:
+                if kind == "held" and os.path.lexists(r + "/held"):
+                    out.append((r, kind, None))
+    return out
+
+
+def lock_hits(locks, paths, names, drive):
+    """N4: why a held lock or queued ticket stops a whole candidate: it names one of paths or names, a held owner file
+    is unreadable, or a round holds the disk build lock of the target's drive. [] when none."""
+    hits = []
+    for root, kind, text in locks:
+        if text is None:
+            hits.append(f"{root} held: owner file unreadable")
+            continue
+        said = [p for p in paths if p and msys(p) in text] + [n for n in names if n and named(text, n)]
+        if said:
+            hits.append(f"{root} {kind} ({' '.join(re.findall(r'^(?:class|owner)=.*$', text, re.M))}) names {', '.join(said)}")
+        elif (kind == "held" and os.path.basename(root) == ".disk-build-lock" and re.search(r"^class=round$", text, re.M)
+              and os.path.splitdrive(root)[0].lower() == drive):
+            hits.append(f"{root} held by a round on drive {drive}")
+    return hits
+
+
 def tree_of(field):
     """The tree a ledger or lane-file field names: 'wt-studio-lanes/<tree> ...', '<tree> (...)' or a path ending in it."""
     t = str(field or "").replace("\\", "/").strip()
@@ -185,17 +275,23 @@ def tree_of(field):
     return m.group(1) if m else os.path.basename(t.rstrip("/")) or None
 
 
-def tree_users(led, statuses):
-    """{tree: lane ids} of lanes short of PASS_V or ABANDONED that name the tree in the ledger or their lane file."""
+def tree_users(led, statuses, settled=settled_whole):
+    """{tree: lane ids} of lanes short of settled (C: PASS_V or ABANDONED; N4 settled_n4) that name the tree in the
+    ledger (target_reuse, lane rows, N4: direction.pause_* lanes) or their lane file."""
     users = {}
 
     def add(tree, lane, status):
-        if tree and not settled_whole(status):
+        if tree and not settled(status):
             users.setdefault(tree, set()).add(str(lane))
 
     for k, v in led["direction"].get("workflow_20261107", {}).get("target_reuse", {}).items():
         for field in ("tree", "old_tree_idle"):
             add(tree_of(v.get(field)), k, statuses.get(k.lower()))
+    for key, rec in led["direction"].items():  # N4: a paused lane names the tree it was paused on
+        lanes = rec.get("lanes") if key.startswith("pause_") and isinstance(rec, dict) else None
+        for k, v in (lanes.items() if isinstance(lanes, dict) else ()):
+            if isinstance(v, dict) and v.get("tree"):
+                add(tree_of(v["tree"]), k, statuses.get(str(k).lower()))
     for x in led["lanes"]:
         if x.get("worktree"):
             add(tree_of(x["worktree"]), x.get("lane_id"), x.get("status"))
@@ -210,9 +306,12 @@ def tree_users(led, statuses):
     return users
 
 
-def whole_basis(c, statuses, bound):
-    """Why the owner lane is settled for whole removal, or None."""
+def whole_basis(c, statuses, bound, d_root=False):
+    """Why the owner lane is settled for whole removal, or None. N4 (d_root): only a ledger row in settled_n4."""
     no_row = str(c.get("status", "")).startswith("no ledger row")
+    if d_root:
+        s = statuses.get(c["owner"].lower())
+        return str(s) if c["owner"].lower() in statuses and settled_n4(s) and not no_row else None
     if c["owner"] in statuses:
         s = statuses[c["owner"]]
         return str(s) if settled_whole(s) and not no_row else None
@@ -226,7 +325,7 @@ def command_lines():
     out = subprocess.run(["powershell", "-NoProfile", "-Command",
                           "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.Name -in 'cargo.exe','rustc.exe','link.exe','rust-lld.exe','cargo-nextest.exe' -or $_.Name -like '*test*' } | ForEach-Object { $_.CommandLine }"],
                          capture_output=True, text=True)
-    return out.stdout.replace("\\", "/").lower()
+    return msys(out.stdout)
 
 
 def main():
@@ -261,6 +360,9 @@ def main():
     paused = {str(k).lower(): v for k, v in led["direction"].get("pause_20261111", {}).get("lanes", {}).items()}  # N3 (b)
     wants_whole = any(c["id"] in approved and c.get("kind") == "whole" for c in plan["candidates"])
     users = tree_users(led, statuses) if wants_whole else {}
+    users_c = {k.lower(): v for k, v in users.items()}
+    users_d = {k.lower(): v for k, v in tree_users(led, statuses, settled_n4).items()} if wants_whole else {}  # N4
+    locks = lock_files() if wants_whole else []
     procs = command_lines()
     results = []
     total = 0
@@ -275,8 +377,11 @@ def main():
         canary = older_d and steward_canary(path) is not None
         if canary:
             path = STEWARD_CANARY
+        d_whole = whole and on_d_root(path)  # N4
         if whole:
             row["kind"] = "whole"
+            if d_whole:
+                row["n4"] = True
             path = whole_path(c["owner"], path)
             if path is None:
                 row["status"] = "REFUSED_PATH"
@@ -290,20 +395,36 @@ def main():
         if whole:
             bound = open(os.path.join(path, ".studio-workspace-root"), encoding="utf-8").read().strip()
             row["bound_to"] = bound
-            if c["owner"] in users:
+            if d_whole and c["owner"].lower() in users_d:  # N4: lanes outside settled_n4
+                row.update(status="SKIPPED_IN_USE_BY_LANE", used_by=sorted(users_d[c["owner"].lower()]))
+                continue
+            if not d_whole and c["owner"] in users:
                 row.update(status="SKIPPED_IN_USE_BY_LANE", used_by=sorted(users[c["owner"]]))
                 continue
-            basis = whole_basis(c, statuses, bound)
+            bt = lane_tree(bound)  # N4, every whole candidate: the tree bound in .studio-workspace-root
+            bt_users = (users_d if d_whole else users_c).get(bt.lower()) if bt else None
+            if bt_users:
+                row.update(status="SKIPPED_IN_USE_BY_LANE", used_by=sorted(bt_users), via_bound_tree=bt)
+                continue
             tree = os.path.dirname(bound) if os.path.isabs(bound) else ""
+            if d_whole and not bt and (not tree or os.path.lexists(tree)):  # N4: a bound workspace outside the lane trees
+                row.update(status="SKIPPED_BOUND_TREE", bound_tree_exists=os.path.lexists(tree) if tree else None)
+                continue
+            basis = whole_basis(c, statuses, bound, d_whole)
             if basis is None:
-                row.update(status="SKIPPED_STATUS", lane_status=statuses.get(c["owner"], "no ledger row"))
-                if c["owner"] not in statuses:
+                row.update(status="SKIPPED_STATUS", lane_status=statuses.get(c["owner"].lower() if d_whole else c["owner"], "no ledger row"))
+                if not d_whole and c["owner"] not in statuses:
                     row["bound_tree_exists"] = os.path.lexists(tree) if tree else None
                 continue
             row["settled_by"] = basis
-            tree = tree.replace("\\", "/").lower()
-            if path.lower() in procs or (tree and tree in procs) or re.search(r"(?<![a-z0-9_.-])" + re.escape(c["owner"].lower()) + r"(?![a-z0-9_.-])", procs):
+            tree = msys(tree)
+            names = [c["owner"]] + ([bt] if bt and bt.lower() != c["owner"].lower() else [])
+            if path.lower() in procs or (tree and tree in procs) or any(named(procs, n) for n in names):
                 row["status"] = "SKIPPED_PROCESS"
+                continue
+            hits = lock_hits(locks, [path, tree], names, os.path.splitdrive(path)[0].lower())  # N4
+            if hits:
+                row.update(status="SKIPPED_LOCK", locks=hits)
                 continue
         else:
             if c["owner"] in in_use:

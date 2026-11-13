@@ -2,81 +2,9 @@
  "schema": "hsk.studio.cleanup_result@1",
  "plan": "CARGO-CLEANUP-PLAN-20261113-W",
  "execute": false,
- "at": "2026-11-13T06:04:02Z",
- "total_gib": 0.0,
+ "at": "2026-11-13T06:14:53Z",
+ "total_gib": 48.62,
  "results": [
-  {
-   "id": "W-D01",
-   "owner": "smb-pr-retime-hold-1",
-   "planned_gib": 54.3,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-TYPE-CHARACTER-ATTRIBUTES-1"
-   ]
-  },
-  {
-   "id": "W-D02",
-   "owner": "smb-pr-entry-references-1",
-   "planned_gib": 33.65,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-GUI-MENU-1"
-   ]
-  },
-  {
-   "id": "W-D03",
-   "owner": "smb-r53-followups-1",
-   "planned_gib": 30.62,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-WEB-CODE-1"
-   ]
-  },
-  {
-   "id": "W-D04",
-   "owner": "smb-pr-edit-footprint-1",
-   "planned_gib": 9.67,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-LAYOUT-DELETE-CASCADE-1"
-   ]
-  },
-  {
-   "id": "W-D05",
-   "owner": "smb-pr-sequence-session-1",
-   "planned_gib": 9.52,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-WEB-SITE-2"
-   ]
-  },
-  {
-   "id": "W-D06",
-   "owner": "smb-ai-distort-effects-1",
-   "planned_gib": 1.53,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-DS-VARIABLES-AUTHOR-1"
-   ]
-  },
-  {
-   "id": "W-D07",
-   "owner": "smb-sentinels-native-1",
-   "planned_gib": 0.36,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-BOARD-1"
-   ]
-  },
-  {
-   "id": "W-D08",
-   "owner": "smb-folio-angle-unbounded-1",
-   "planned_gib": 0.09,
-   "status": "SKIPPED_IN_USE_BY_LANE",
-   "not_paused": [
-    "SMB-PS-FILTER-ADJUST-COMMANDS-1"
-   ]
-  },
   {
    "id": "W-D09",
    "owner": "sync-export",
@@ -100,77 +28,176 @@
    "owner": "smb-type-authored-token-1",
    "planned_gib": 24.7,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-type-authored-token-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V3",
+   "files": 29347,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/target"
+   ],
+   "gib": 24.7,
+   "subdirs": 4933,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D13",
    "owner": "smb-pr-track-display-1",
    "planned_gib": 3.18,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-track-display-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V2",
+   "files": 21216,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/target"
+   ],
+   "gib": 3.18,
+   "subdirs": 3590,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D14",
    "owner": "smb-r52-followups-1",
    "planned_gib": 2.98,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-r52-followups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "files": 15256,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/target"
+   ],
+   "gib": 2.98,
+   "subdirs": 2563,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D15",
    "owner": "smb-layout-marker-lookups-1",
    "planned_gib": 2.8,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-marker-lookups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "files": 14651,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-marker-lookups-1/target"
+   ],
+   "gib": 2.8,
+   "subdirs": 2480,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D16",
    "owner": "smb-col-swatch-groups-1",
    "planned_gib": 2.72,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-col-swatch-groups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "files": 29400,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-col-swatch-groups-1/target"
+   ],
+   "gib": 2.72,
+   "subdirs": 4949,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D17",
    "owner": "smb-layout-entry-text-1",
    "planned_gib": 2.69,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-entry-text-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V3",
+   "files": 14879,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/target"
+   ],
+   "gib": 2.69,
+   "subdirs": 2523,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D18",
    "owner": "smb-tiff-channels-1",
    "planned_gib": 2.69,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-tiff-channels-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V7",
+   "files": 16632,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-tiff-channels-1/target"
+   ],
+   "gib": 2.69,
+   "subdirs": 2831,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D19",
    "owner": "smb-press-ink-manager-1",
    "planned_gib": 2.42,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-press-ink-manager-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "files": 15996,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-manager-1/target"
+   ],
+   "gib": 2.42,
+   "subdirs": 2710,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D20",
    "owner": "smb-pr-merge-sync-1",
    "planned_gib": 1.9,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-merge-sync-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "files": 14866,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-merge-sync-1/target"
+   ],
+   "gib": 1.9,
+   "subdirs": 2524,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D21",
    "owner": "smb-press-ink-coverage-1",
    "planned_gib": 1.73,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-press-ink-coverage-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "files": 14179,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-coverage-1/target"
+   ],
+   "gib": 1.73,
+   "subdirs": 2417,
+   "status": "WOULD_REMOVE"
   },
   {
    "id": "W-D22",
    "owner": "smb-layout-blank-line-lookups-1",
    "planned_gib": 0.8,
    "kind": "whole",
-   "status": "REFUSED_PATH"
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-blank-line-lookups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V2",
+   "files": 692,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/target"
+   ],
+   "gib": 0.8,
+   "subdirs": 128,
+   "status": "WOULD_REMOVE"
   }
  ]
 }

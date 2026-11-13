@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261113-W",
  "generated_at": "2026-11-13T06:04:00Z",
- "status": "PROPOSED",
+ "status": "PROPOSED (dry run re-run 2026-11-13T06:14:53Z after target_prune.py N4): 'Approve plan W' now removes 48.62 GiB right away, the whole unused targets of 11 validated lanes on D: (W-D12..W-D22, 187,114 files); W-D01..W-D08 (139.74 GiB older copies on the 8 wave trees) then run one by one, each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection; W-D09..W-D11 (0.29 GiB) stay skipped (REFUSED_PATH, SKIPPED_STATUS)",
  "authority": "HSK-ART-003 (P2), HSK-ART-005 (inspection-based exact list; Operator approves the exact list under CX-107). Prepared as a proposal with a dry run only; nothing removed.",
  "why": "Operator 2026-11-12 night: manage cargo better and stop leaving unneeded old cargo on disk. Older copies of test and binary outputs grew again on the trees that landed lanes since plan V; targets of validated lanes that nothing uses still hold full builds.",
  "inspection": "Read-only Python scandir walk of every Studio cargo target under the two WP-KERNEL-STUDIO roots (D: 2026-11-13T06:02:03Z, C: 2026-11-13T05:15:46Z); older copies computed by importing target_prune.py's own older_copies()/HASHED rule (not re-implemented), totals and newest file by mtime in the tool's format. target_report.py not run (slow), as plan V. Ledger read from the kernel working tree, which already holds the 8 wave lanes (status unset) another agent is generating tonight.",
@@ -56,10 +56,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-TYPE-CHARACTER-ATTRIBUTES-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-TYPE-CHARACTER-ATTRIBUTES-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-TYPE-CHARACTER-ATTRIBUTES-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-TYPE-CHARACTER-ATTRIBUTES-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D01. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D02",
@@ -98,10 +100,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-GUI-MENU-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-GUI-MENU-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-GUI-MENU-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-GUI-MENU-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D02. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D03",
@@ -139,10 +143,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-WEB-CODE-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-WEB-CODE-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-WEB-CODE-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-WEB-CODE-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D03. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D04",
@@ -181,10 +187,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-LAYOUT-DELETE-CASCADE-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-LAYOUT-DELETE-CASCADE-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-LAYOUT-DELETE-CASCADE-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-LAYOUT-DELETE-CASCADE-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D04. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D05",
@@ -222,10 +230,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-WEB-SITE-2"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-WEB-SITE-2 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-WEB-SITE-2 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-WEB-SITE-2 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D05. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D06",
@@ -262,10 +272,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-DS-VARIABLES-AUTHOR-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-DS-VARIABLES-AUTHOR-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-DS-VARIABLES-AUTHOR-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-DS-VARIABLES-AUTHOR-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D06. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D07",
@@ -301,10 +313,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-BOARD-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-BOARD-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-BOARD-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-BOARD-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D07. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D08",
@@ -341,10 +355,12 @@
     "status": "SKIPPED_IN_USE_BY_LANE",
     "not_paused": [
      "SMB-PS-FILTER-ADJUST-COMMANDS-1"
-    ]
+    ],
+    "at": "2026-11-13T06:04:02Z (not re-run at 2026-11-13T06:14:53Z: runs per lane after READY)"
    },
    "skipped_by_dry_run": true,
-   "unblock": "SMB-PS-FILTER-ADJUST-COMMANDS-1 reaches READY_FOR_VALIDATION (rule N1), or a pause record for it plus an N3(b) extension; then a fresh size and dry run"
+   "unblock": "SMB-PS-FILTER-ADJUST-COMMANDS-1 READY_FOR_VALIDATION with its tip on origin; then the fresh re-inspection and dry run in run_condition",
+   "run_condition": "Runs only after wave lane SMB-PS-FILTER-ADJUST-COMMANDS-1 is READY_FOR_VALIDATION with its tip on origin (record_ready.py checks the tip on origin before it writes READY; rule N1 then settles the tree), and only after a fresh re-inspection then: fresh size and newest file, no cargo/rustc/link/test process naming the tree, and a dry run of this candidate alone saying WOULD_REMOVE; then target_prune.py --execute --approve W-D08. Matches builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13). The SKIPPED_IN_USE_BY_LANE guard stays unchanged until then."
   },
   {
    "id": "W-D09",
@@ -371,6 +387,7 @@
    "inspected_newest_file_utc": "2026-11-02T09:44Z",
    "why_safe": "Partial only: the newest copy of every test/binary and all libraries stay, so any lane on this tree only relinks an older identity it needs. Owner lane no ledger row; tree used by no unsettled lane.",
    "dry_run": {
+    "at": "2026-11-13T06:14:53Z",
     "status": "REFUSED_PATH"
    },
    "skipped_by_dry_run": true,
@@ -401,6 +418,7 @@
    "inspected_newest_file_utc": "2026-11-08T08:37Z",
    "why_safe": "Partial only: the newest copy of every test/binary and all libraries stay, so any lane on this tree only relinks an older identity it needs. Owner lane no ledger row; tree used by no unsettled lane.",
    "dry_run": {
+    "at": "2026-11-13T06:14:53Z",
     "status": "SKIPPED_STATUS"
    },
    "skipped_by_dry_run": true,
@@ -433,6 +451,7 @@
    "inspected_newest_file_utc": "2026-10-30T18:08Z",
    "why_safe": "Partial only: the newest copy of every test/binary and all libraries stay, so any lane on this tree only relinks an older identity it needs. Owner lane PAUSED; tree used by SMB-FIG-GRID-3.",
    "dry_run": {
+    "at": "2026-11-13T06:14:53Z",
     "status": "SKIPPED_STATUS"
    },
    "skipped_by_dry_run": true,
@@ -456,10 +475,16 @@
    "inspected_newest_file_utc": "2026-11-05T17:53Z",
    "why_safe": "Owner lane SMB-TYPE-AUTHORED-TOKEN-1 is PASS_V3; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 24.7,
+    "files": 29347,
+    "subdirs": 4933,
+    "settled_by": "PASS_V3",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D13",
@@ -479,10 +504,16 @@
    "inspected_newest_file_utc": "2026-11-05T15:13Z",
    "why_safe": "Owner lane SMB-PR-TRACK-DISPLAY-1 is PASS_V2; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 3.18,
+    "files": 21216,
+    "subdirs": 3590,
+    "settled_by": "PASS_V2",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D14",
@@ -502,10 +533,16 @@
    "inspected_newest_file_utc": "2026-11-01T13:43Z",
    "why_safe": "Owner lane SMB-R52-FOLLOWUPS-1 is PASS_V6; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 2.98,
+    "files": 15256,
+    "subdirs": 2563,
+    "settled_by": "PASS_V6",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D15",
@@ -525,10 +562,16 @@
    "inspected_newest_file_utc": "2026-11-05T04:31Z",
    "why_safe": "Owner lane SMB-LAYOUT-MARKER-LOOKUPS-1 is PASS_V4; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 2.8,
+    "files": 14651,
+    "subdirs": 2480,
+    "settled_by": "PASS_V4",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D16",
@@ -548,10 +591,16 @@
    "inspected_newest_file_utc": "2026-11-01T13:32Z",
    "why_safe": "Owner lane SMB-COL-SWATCH-GROUPS-1 is PASS_V6; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 2.72,
+    "files": 29400,
+    "subdirs": 4949,
+    "settled_by": "PASS_V6",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D17",
@@ -571,10 +620,16 @@
    "inspected_newest_file_utc": "2026-11-05T11:36Z",
    "why_safe": "Owner lane SMB-LAYOUT-ENTRY-TEXT-1 is PASS_V3; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 2.69,
+    "files": 14879,
+    "subdirs": 2523,
+    "settled_by": "PASS_V3",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D18",
@@ -594,10 +649,16 @@
    "inspected_newest_file_utc": "2026-11-01T14:17Z",
    "why_safe": "Owner lane SMB-TIFF-CHANNELS-1 is PASS_V7; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 2.69,
+    "files": 16632,
+    "subdirs": 2831,
+    "settled_by": "PASS_V7",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D19",
@@ -617,10 +678,16 @@
    "inspected_newest_file_utc": "2026-11-01T13:04Z",
    "why_safe": "Owner lane SMB-PRESS-INK-MANAGER-1 is PASS_V6; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 2.42,
+    "files": 15996,
+    "subdirs": 2710,
+    "settled_by": "PASS_V6",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D20",
@@ -640,10 +707,16 @@
    "inspected_newest_file_utc": "2026-11-05T10:00Z",
    "why_safe": "Owner lane SMB-PR-MERGE-SYNC-1 is PASS_V4; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 1.9,
+    "files": 14866,
+    "subdirs": 2524,
+    "settled_by": "PASS_V4",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D21",
@@ -663,10 +736,16 @@
    "inspected_newest_file_utc": "2026-11-01T04:32Z",
    "why_safe": "Owner lane SMB-PRESS-INK-COVERAGE-1 is PASS_V4; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 1.73,
+    "files": 14179,
+    "subdirs": 2417,
+    "settled_by": "PASS_V4",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   },
   {
    "id": "W-D22",
@@ -686,10 +765,16 @@
    "inspected_newest_file_utc": "2026-11-05T15:20Z",
    "why_safe": "Owner lane SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 is PASS_V2; no READY_FOR_VALIDATION lane, active lane or wave lane names the tree (ledger target_reuse tree/old_tree_idle, lane rows, lane files); the target directory holds only build output (top level .rustc_info.json, .studio-nextest-store.toml, .studio-workspace-root, debug, nextest store, tmp; debug has .fingerprint, build, deps, examples, incremental; listed 2026-11-13), no worktree, registry, logs or results folder; the lane worktree is not touched.",
    "dry_run": {
-    "status": "REFUSED_PATH"
+    "at": "2026-11-13T06:14:53Z",
+    "status": "WOULD_REMOVE",
+    "gib": 0.8,
+    "files": 692,
+    "subdirs": 128,
+    "settled_by": "PASS_V2",
+    "previous": "REFUSED_PATH at 2026-11-13T06:04:02Z (before N4)"
    },
-   "skipped_by_dry_run": true,
-   "unblock": "tool change N4 (whole kind on D_ROOT/<owner>/target with the N2 checks)"
+   "skipped_by_dry_run": false,
+   "unblock": "none: tool change N4 added; WOULD_REMOVE"
   }
  ],
  "total_gib": 188.64,
@@ -727,20 +812,25 @@
   "studio-round on C: and D:, cargo registry caches, logs, results, fixtures, downloads, oracle corpora, and everything outside the WP-KERNEL-STUDIO roots"
  ],
  "needs_tool_change": {
-  "N4_whole_on_D": "group (c) is whole removal on D:; target_prune.py allows whole only for C_LANES/<owner> and REFUSES_PATH on D:. N4 would allow D_ROOT/<owner>/target with the N2 checks unchanged (PASS_V or ABANDONED owner, no unsettled lane naming the tree, no link, process, newest and 5% checks).",
-  "wave_trees": "group (a) is SKIPPED_IN_USE_BY_LANE while a wave lane short of READY_FOR_VALIDATION names the tree (N1); N3(b) accepts only lanes in direction.pause_20261111. Executable without a tool change once each wave lane is READY_FOR_VALIDATION, or with a pause record for the wave lanes and an N3(b) extension to it.",
+  "N4_whole_on_D": "DONE 2026-11-13: target_prune.py N4 (commit 'Studio: target_prune N4 (whole on the D: Studio root); plan W dry run re-run') allows whole on D_ROOT/<owner>/target (artifact root resolved as the tool resolves it; never studio-round, studio-team-dev, MT-*, registry, cargo-home or outside the root) with the C: checks: owner ledger row PASS_*/SUPERSEDED/LOST/DONE; no READY, active, blocked or paused lane naming the owner tree or the tree bound in .studio-workspace-root; no link on the way or inside; no process naming target, owner or bound tree; no held lock or queued ticket naming them and no round holding the target drive's disk lock; real target (.studio-workspace-root, debug/.fingerprint); newest file and 5% size. Dry run 2026-11-13T06:14:53Z: W-D12..W-D22 WOULD_REMOVE 48.62 GiB.",
+  "wave_trees": "No tool change: W-D01..W-D08 stay SKIPPED_IN_USE_BY_LANE while their wave lane builds (guard unchanged). Each runs after its wave lane is READY_FOR_VALIDATION with its tip on origin, after a fresh re-inspection (candidate run_condition), as builders/briefs/wave-parity-2-common.md CARGO DISCIPLINE rule 5 (Operator 2026-11-13).",
   "group_b_rest": "smb-fig-grid-3 (lane PAUSED: SKIPPED_STATUS), studio-team-dev/sync-export/target (REFUSED_PATH, not a lane target) and validator-r54-probe/target (no lane row: SKIPPED_STATUS) are listed for completeness, 0.29 GiB in all; dropping them costs nothing."
  },
- "before_execution": "Operator approves this exact list in chat (or a named subset); fresh size of each approved target (the wave trees will have changed); no cargo, rustc, link or test process naming a tree; dry run all WOULD_REMOVE; then target_prune.py --execute. No execution while the R60 round holds a lock on the tree's disk.",
- "operator_question": "Approve plan W: remove older copies from the 8 next-wave Studio build caches and whole old caches of 11 validated lanes on D:, about 188.64 GiB.",
+ "before_execution": "Operator approves this exact list in chat (or a named subset). Right away: W-D12..W-D22, after a fresh dry run of them all WOULD_REMOVE (the tool re-checks status, lanes, processes, locks, newest file and size), then target_prune.py --execute --approve W-D12,...,W-D22. Later, per lane: W-D01..W-D08 each only per its run_condition (wave lane READY_FOR_VALIDATION with its tip on origin, fresh re-inspection and dry run). No execution while a round holds the disk build lock of the target's drive (the tool refuses: SKIPPED_LOCK).",
+ "operator_question": "Approve plan W: remove now the whole old build caches of 11 validated lanes on D: (48.62 GiB, W-D12..W-D22), and later the older copies on the 8 next-wave Studio build caches (139.74 GiB, W-D01..W-D08), each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection.",
  "dry_run": {
-  "at": "2026-11-13T06:04:02Z",
-  "tool_commit": "234bc442 (target_prune.py N3), unchanged",
-  "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261113-W.json --approve W-D01..W-D22 (no --execute)",
+  "at": "2026-11-13T06:14:53Z",
+  "tool_commit": "target_prune.py with N4 (commit 'Studio: target_prune N4 (whole on the D: Studio root); plan W dry run re-run')",
+  "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261113-W.json --approve W-D09..W-D22 (no --execute)",
   "file": "research/cargo-cleanup-dryrun-20261113-W.json",
-  "would_remove_gib": 0.0,
-  "result": "all 22 skipped, 0.0 GiB WOULD_REMOVE: W-D01..W-D08 SKIPPED_IN_USE_BY_LANE (each names its unsettled wave lane), W-D09 REFUSED_PATH, W-D10 and W-D11 SKIPPED_STATUS, W-D12..W-D22 REFUSED_PATH (whole on D:). Every candidate stopped before the tool's process and size checks; a separate read-only process listing during inspection showed no cargo, rustc, link or nextest process.",
+  "would_remove_gib": 48.62,
+  "result": "11 WOULD_REMOVE, 48.62 GiB, 187,114 files: W-D12..W-D22 (whole on D:, every owner PASS_V*, no lane naming the owner or bound tree, no process, no lock naming them, newest file and size as planned). W-D09 REFUSED_PATH (studio-team-dev/sync-export is not a lane target), W-D10 and W-D11 SKIPPED_STATUS (no ledger row; PAUSED). Locks at the run: the R60 round held the C: disk lock, a wave builder the D: lock, neither naming a W-D12..W-D22 target. W-D01..W-D08 not re-run: they run per lane after READY (run_condition).",
   "skipped": [
+   "W-D09",
+   "W-D10",
+   "W-D11"
+  ],
+  "not_rerun": [
    "W-D01",
    "W-D02",
    "W-D03",
@@ -748,21 +838,9 @@
    "W-D05",
    "W-D06",
    "W-D07",
-   "W-D08",
-   "W-D09",
-   "W-D10",
-   "W-D11",
-   "W-D12",
-   "W-D13",
-   "W-D14",
-   "W-D15",
-   "W-D16",
-   "W-D17",
-   "W-D18",
-   "W-D19",
-   "W-D20",
-   "W-D21",
-   "W-D22"
-  ]
- }
+   "W-D08"
+  ],
+  "previous": "2026-11-13T06:04:02Z at 234bc442 (target_prune N3): all 22 skipped, 0.0 GiB (W-D12..W-D22 REFUSED_PATH: whole only on C:)"
+ },
+ "revised_at": "2026-11-13T06:14:53Z"
 }
