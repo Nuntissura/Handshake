@@ -1,0 +1,40 @@
+{
+ "schema": "hsk.studio.measure@1",
+ "id": "MEASURE-20261113-DEBUGINFO",
+ "at": "2026-11-13T07:49:36Z",
+ "why": "R60 attempt 3 canary grows 13-27 GiB per harness feature unit on C: (each relinks every harness test binary); the Studio C: tree will reach the 368 GiB clean stop inside the 400 GB grant before the canary ends",
+ "method": "read-only os.scandir of target/debug/deps, sizes by extension, 2026-11-13",
+ "samples": [
+  {
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/target/debug/deps",
+   "total_gib": 49.6,
+   "pdb_gib": 32.3,
+   "pdb_pct": 65.1,
+   "exe_gib": 9.7,
+   "exe_pct": 19.5,
+   "rlib_gib": 5.4,
+   "rmeta_gib": 2.2
+  },
+  {
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/target/debug/deps",
+   "total_gib": 36.7,
+   "pdb_gib": 23.8,
+   "pdb_pct": 64.8,
+   "exe_gib": 7.1,
+   "exe_pct": 19.4,
+   "rlib_gib": 3.7,
+   "rmeta_gib": 2.0
+  }
+ ],
+ "round_unit_growth_gib": {
+  "viewer": 20,
+  "desktop+viewer": 27,
+  "media": 16,
+  "media-native": 13,
+  "audio-device": 4,
+  "audio-batch": "23+ (still building at report)"
+ },
+ "reading": "About 65% of deps is .pdb debug symbols and about 19% .exe; a reduced test/dev debuginfo profile (e.g. line-tables-only, or no debuginfo for third-party packages) would cut the largest share of every lane target and of each round unit. UNVERIFIED: exact savings until measured on one lane after the change.",
+ "proposal_for_operator": "Product build-config change in the product repo (a lane, not lead tools): reduce debuginfo for dev/test profiles. Cost: one full rebuild per target and a full canary (root input change). Benefit: smaller targets for all lanes and rounds, letting the full canary fit the C: grant. Alternatives: more C: room, or the round on D: during a builder pause.",
+ "status": "PROPOSED"
+}
