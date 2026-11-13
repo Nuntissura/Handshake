@@ -1,14 +1,15 @@
 {
   "crate": "hsk-studio-harness-view (src/view/menu_tree.rs only: LEAVES, PALETTE_ONLY, DOMAIN_HOMES coverage of the catalog commands added after SMB-GUI-MENU-1)",
   "lane": "SMB-FIX-MENU-CATALOG-COVERAGE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "86ee4e57",
   "commits": [
     {
-      "sha": "c0e87947",
-      "slice": "menu_tree.rs: 79 catalog commands palette_only with a typed reason (16 no_menu_home, 63 menu_path_pending), DOMAIN_HOMES for adjustment, board, effect, node, variable, variable_collection; Unreached doc names the noun-query reading"
+      "sha": "89f27330",
+      "slice": "menu_tree.rs: 79 catalog commands palette_only with a typed reason (16 no_menu_home, 63 menu_path_pending), DOMAIN_HOMES for adjustment, board, effect, node, variable, variable_collection; Unreached doc names the noun-query reading",
+      "was": "c0e87947"
     }
   ],
   "capabilities_done": [],
@@ -29,14 +30,20 @@
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-menu-catalog-coverage-1/smb-fix-menu-catalog-coverage-1-bundled-c0e87947.log",
       "command": "one D: hold: focused cargo nextest run -p hsk-studio-native-host --features document --test gui_menu (23 run, 23 passed, FOCUSED_EXIT=0), then lane-check --owner smb-r53-followups-1 --disk d -- cargo nextest run -p hsk-studio-native-host -p hsk-studio-harness-view --features hsk-studio-native-host/document,hsk-studio-harness-view/viewer --no-fail-fast",
       "result": "BUNDLED GREEN: 270 run, 270 passed, 1 skipped, LANECHECK_EXIT=0; step 0 and registry check clean; clippy over native-host [document], harness-view [viewer] and dependent harness: no hit in menu_tree.rs; MENU-INV-1 test passes"
+    },
+    "landing": {
+      "sha": "89f27330",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fix-menu-catalog-coverage-1/smb-fix-menu-catalog-coverage-1-land-89f27330.log",
+      "base": "a77c4ee4",
+      "result": "rebased onto a77c4ee4 (EXPORT-ADMISSION landed: batch.rs, doc_export.rs, no catalog rows) inside the one D: hold; native-host [document] + harness-view [viewer] whole suites 290 run, 290 passed, 1 skipped (gui_menu MENU-INV-1 passes); per-sha HEAD~1 PER_SHA_RESULT OK range a77c4ee4..89f27330; guarded push a77c4ee4..89f27330"
     }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "lead: BUNDLED GREEN reported; builder waits for RELEASED, then rebase, --per-sha HEAD~1, guarded push",
-  "updated_at": "2026-11-13T16:14:16Z",
+  "next": "validator: independent verdict on 89f27330",
+  "updated_at": "2026-11-13T16:46:17Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -73,7 +80,27 @@
       "the per-command palette_only split stays a reading (as GUI-MENU-1's); MENU-INV-6 palette parity not built"
     ],
     "cut": [
-      "real leaves for effect.toggle and board.add (see readings: lead decides)"
+      "real leaves for effect.toggle and board.add: lead 2026-11-13 ruling, not in this lane; next-lane candidates"
+    ],
+    "next_lane_candidates": [
+      {
+        "added_at": "2026-11-13T16:46:17Z",
+        "item": "EFFECTS > Effect Stack > Disable All Effects -> effect.toggle {layer: selected, enabled: false} (no instance: the whole stack): needs a run_catalog arm through Viewer::run_command and a Rule; the label-to-command mapping is a reading (STU-FX-011a), not spec-given",
+        "owner": "a later GUI or command-surface lane"
+      },
+      {
+        "added_at": "2026-11-13T16:46:17Z",
+        "item": "DOCUMENT > Boards > New Board -> board.add (all parameters optional): needs a board-container gate in Profile::of (whiteboard mode derives the board container) so the leaf is available only where board commands run",
+        "owner": "a later GUI or command-surface lane"
+      }
+    ],
+    "landing": "2026-11-13T16:46:17Z: rebased onto origin/codex/handshake-studio-assets a77c4ee4; native-host [document] whole suite and --per-sha HEAD~1 in one D: hold; pushed 89f27330 (guarded, no force)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-13T16:46:23Z",
+        "on": "c0e87947 BUNDLED GREEN",
+        "decision": "RELEASED; palette_only split accepted incl. the 12 noun-named queries as no_menu_home; DOMAIN_HOMES accepted; the two leaf candidates are not in this lane (next-lane candidates); trunk log recorded as the red proof"
+      }
     ]
   }
 }
