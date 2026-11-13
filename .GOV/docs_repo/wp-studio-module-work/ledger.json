@@ -22599,6 +22599,41 @@
     "added_at": "2026-11-13T07:59:45Z",
     "item": "layout_ui id mint avoids ids named by the undo/redo history's layout documents and by stored records, as harness-core's page mint does (review answers.id_reuse of acd73bc7)",
     "owner": "layout_ui.rs owner"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY R60-a3 lead: SMB-R60-FOLLOWUPS-1 and SMB-DOC-EXPORT-1 write-before-admission (one fix lane): the batch per-target export (RecipeTargets::write, harness-view doc_export.rs:1013-1025, from 381330ed) writes the whole input document as the checkpoint temp in the destination before the bound JobPort is asked, so a one-slot port refuses it as overloaded (HIGH batch-target-bytes-before-admission); same path: the batch runner and the target exporter both ask the caller's port (MEDIUM batch-double-admission-self-starvation, harness-core batch.rs:957-967); repair: ask the port before the temp is written, one admission per target (round-R60.json attempt_3.probes)",
+    "owner": "next fix lane (harness-view doc_export.rs, harness-core batch.rs)"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY R60-a3 lead: SMB-DRIVE-TYPED-2 prototype.capture_frame writes a PNG without asking the bound JobPort (HIGH export-job-not-admitted-jobport; harness-view commands/prototype.rs:121-131 with :45-55, write_png -> export::write_atomic, 576c4d5e): a saturated port is asked 0 times and frame.png is written; repair: admit through admit_export_job before the first byte, settle once (round-R60.json attempt_3.probes)",
+    "owner": "next lane (harness-view prototype.rs)"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY R60-a3 lead: SMB-MOTION-COMMANDS-1 property.enable_animation keys the caller's value instead of the current evaluated value (against STU-MOT-038; harness-core motion_commands.rs:874-884), and property.disable_animation keeps the caller's anchor static value seeded by keyframe.set instead of the prior static value (against STU-MOT-020b; :1811-1818, :885-890); both MEDIUM motion-row-takes-the-callers-value (round-R60.json attempt_3.probes)",
+    "owner": "next lane (harness-core motion_commands.rs)"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY R60-a3 lead: SMB-TYPE-INDENT-SPACING-1 a negative space_before places lines above the frame (min baseline -966 pt), and 40 lines in a 100 pt frame report no overset (MEDIUM negative-space-places-lines-outside-the-frame; hsk-studio-layout threaded_reflow.rs:1147 with :373 and next_slot); repair: clamp at the frame top or refuse, and count what does not fit as overset (round-R60.json attempt_3.probes)",
+    "owner": "next lane (hsk-studio-layout threaded_reflow.rs)"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY R60-a3 lead: F-R60-22 (MEDIUM, HOST INTEGRATION (5) gap) the native-host terminal observe frame is never sent on any run path: diag::emit_terminal (native-host src/diag.rs:24) has one test caller; studio-vk, offscreen::run and window::run emit nothing; touches SMB-VK-HOST-1, SMB-GUI-FRAME-1, SMB-GUI-SPINE-1 and SMB-VK-UI-PASS-1; repair: emit the terminal frame from studio-vk's run paths through the caller's sink (round-R60.json attempt_3.findings_leads)",
+    "owner": "next native-host / GUI lane (hsk-studio-native-host studio-vk)"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY R60-a3 lead: SMB-GUI-SPINE-1 spine gate tests 1 to 7 (STU-SHL-109 #1-#7) do not exist in any unit; only #8 (AC-BEHAV-05 byte-identical reselect, native-host tests/gui_frame.rs:293) exists, so GATE_CHECK cannot pass at b57c82d1; write the 7 tests before a GATE_CHECK (F-R60-43, round-R60.json attempt_3.findings_leads)",
+    "owner": "next GUI lane (spine gate; lead blocker decision spine_gate)"
+   },
+   {
+    "added_at": "2026-11-13T08:33:54Z",
+    "item": "PRIORITY: diag_sink abort test load flake (seen twice; ledger 2026-11-11T10:39:51Z)",
+    "owner": "harness-core diag sink (SMB-OBSERVE-DIAG-SINK-1 area)"
    }
   ],
   "pause_20261103": {
