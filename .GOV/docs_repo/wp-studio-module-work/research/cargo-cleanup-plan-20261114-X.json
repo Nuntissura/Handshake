@@ -1,0 +1,245 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261114-X",
+ "generated_at": "2026-11-14T03:14:00Z",
+ "status": "PROPOSED (C: inspection 2026-11-14, read-only; dry run 2026-11-14, see dry_run). What remains on C: after plan W's C: part (W-C01..W-C03, 73.57 GiB, excluded here). 'Approve plan X' removes 218.13 GiB on C: right away: X-C01, every test and binary output of the idle C: round target (5,432 .exe/.pdb files), keeping its libraries. X-C02 (the 13.36 GiB rest of that target, whole) needs tool change N6 and the Operator's ruling that rounds stay on D:. X-C03 (0.28 GiB) stays skipped. Two more C: lane targets (62.66 GiB) are deferred, not proposed: their READY lanes build in them.",
+ "authority": "HSK-ART-003 (P2, fixed slot studio-round), HSK-ART-004, HSK-ART-005 (inspection-based exact list; Operator approves the exact list under CX-107). Prepared as a proposal with a dry run only; nothing removed, no build, no process stopped.",
+ "why": "Operator 2026-11-14: 'you should manage cargo on c better, inpspect with an agent what cargo can be removed.' Validation rounds moved to the D: round slot with R60 attempt 4 (research/decision-20261113-r60-round-fit.json, option d); the C: round target has been idle since 2026-11-13T08:25Z and is 63% of the C: Studio tree.",
+ "inspection": "2026-11-14T02:40Z..03:14Z, read-only. tools/lead/stray_cargo.py (full report: no local target, no stray Handshake_Artifacts folder, no stray process). tools/lead/target_report.py --disk c (6 lane targets, 136.51 GiB, 97 s) and its inspect_target() on both round targets. tools/lead/target_prune.py's own select(), older_copies(), whole_contents(), newest(), command_lines() and lock_files() imported read-only for the round target. A read-only scandir walk of every C: Studio target for size by extension and by folder (.pdb share). Ledger (lanes, direction.workflow_20261107.target_reuse, c_cap_20261107, pause_20261113, round_R60), builders/lanes/*.json, the bound trees' git HEAD and status, the C: and D: disk build lock folders, studio-round/RUNNING-R60.jsonl, builders/studio-env.sh, tools/lead/dispatch_r60.py, tools/lead/lanegen.py and the export's tools/run-round.sh and .config/disk-build-lock.toml at 198f6dc4. Kernel at f32d2544 (after merge of origin/gov_kernel).",
+ "exclusions": [
+  "plan W's C: part: W-C01 lanes/smb-pr-retime-output-1 (38.07 GiB), W-C02 lanes/smb-r54-followups-1 (35.30 GiB), W-C03 lanes/smb-type-sentinels-registry-1 (0.20 GiB); still on disk at this inspection, unchanged in size and newest file",
+  "everything on D:, including the D: round slot (376.02 GiB, in use by R60 union 4b now)",
+  "the cargo registry and git caches (never removable): C:/Users/<user>/.cargo",
+  "the Rust toolchains (C:/Users/<user>/.rustup), worktrees, logs, results, fixtures outside a target, and anything outside C:/HandshakeBuild"
+ ],
+ "groups": {
+  "f": "the idle C: round target: partial removal that keeps compile reuse (libraries, build scripts, fingerprints)",
+  "g": "the rest of the idle C: round target, whole; only if the Operator rules that rounds stay on D:",
+  "h": "C: lane target with no ledger row"
+ },
+ "candidates": [
+  {
+   "id": "X-C01",
+   "group": "f",
+   "disk": "C",
+   "owner": "studio-round",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+   "kind": "partial",
+   "select": "all_binaries (the tool's built-in rule for owner studio-round when 'select' is not older_copies: every .exe and .pdb in debug/deps and in debug, plus debug/incremental, which is empty here)",
+   "remove": [
+    "every .exe and .pdb file directly in debug/deps and directly in debug (target_prune.py select() -> all_binaries), 5,432 files, 218.13 GiB",
+    "debug/incremental (0 bytes; CARGO_INCREMENTAL=0)"
+   ],
+   "keep": [
+    "all libraries (.rlib 10.04 GiB, .rmeta 1.58 GiB), build scripts (0.21), fingerprints (0.02), examples (1.14), fixtures, tmp, .studio-workspace-root, .rustc_info.json: 13.36 GiB"
+   ],
+   "gib": 218.13,
+   "files": 5432,
+   "target_total_gib": 231.49,
+   "older_copies_gib": 180.01,
+   "parts_gib": {"test_and_binary_outputs": 217.73, "workspace_libraries": 8.41, "third_party_libraries": 3.21, "examples": 1.14, "dep_info_and_other": 0.51, "tmp": 0.24, "build_scripts": 0.21, "fingerprints": 0.02, "fixtures": 0.01, "incremental": 0.0},
+   "by_ext_gib": {".pdb": 168.59, ".exe": 50.87, ".rlib": 10.04, ".rmeta": 1.58, ".wav": 0.24, ".dll": 0.08},
+   "pdb_share_pct": 72.8,
+   "lane_status": "no ledger row (fixed slot, HSK-ART-003)",
+   "status": "no ledger row (fixed slot, HSK-ART-003)",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-13T08:25Z",
+   "inspected_newest_file_utc": "2026-11-13T08:25Z",
+   "inspected_at": "2026-11-14T03:05Z",
+   "last_writer": "R60 attempt 3 canary at b57c82d1, stopped 2026-11-13T08:25:35Z at the 368 GiB C: guard (ledger round_R60)",
+   "rule_tool": "HSK-ART-005 partial removal; target_prune.py partial on C_ROUND (allowed_path), plan S precedent",
+   "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261114-X.json --approve X-C01 --execute   (after the plan is marked APPROVED; the same line without --execute is the dry run)",
+   "why_safe": "Nothing builds in or reads this target. R60 attempt 4 runs on the D: round slot: the running union's argv names --target-dir <artifact root>/WP-KERNEL-STUDIO/studio-round/target (RUNNING-R60.jsonl, 2026-11-14T03:04Z; D: lock queue). The attempt-4 dispatch says of the C: target 'NOT used: do not build in it and do not touch it' (tools/lead/dispatch_r60.py:283, validation/dispatch-R60.json c_tree). No process names the C: target or C:/HandshakeBuild (target_prune command_lines(), 03:10Z). The C: disk build lock has no holder and an empty queue. Newest file 2026-11-13T08:25Z, unchanged since attempt 3 stopped. The test binaries are identities of b57c82d1; the round candidate is now 198f6dc4, where the 10 viewer-family harness units and the 2 harness-view units have new identities (decision F5, F6: UNVERIFIED by a build), so most of these binaries would not be reused even by a C: round. The .exe/.pdb files are link outputs only: no library, build script or fingerprint is removed.",
+   "what_rebuilds": "Nothing, while rounds stay on D:. If a round ever returns to this C: target, cargo relinks every test binary it needs (it finds the fingerprint but not the output and relinks; libraries are reused where their identities still match the candidate). At the current tip the heavy harness units relink anyway (new identities).",
+   "risk": "Low. If the Operator wants the option of resuming a C: round at exactly b57c82d1 (decision option x, rejected as stale and not fitting), that warm state is lost. Removal is permanent.",
+   "reuse_considered": "HSK-ART-005: the target has no tree to hand to a lane (bound to the round export, which the D: slot shares). The partial keeps everything a later C: round could reuse for compilation."
+  },
+  {
+   "id": "X-C02",
+   "group": "g",
+   "disk": "C",
+   "owner": "studio-round",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+   "kind": "whole",
+   "gib": 13.36,
+   "gib_note": "the rest after X-C01 (231.49 - 218.13); if X-C01 has not run, the whole is 231.49 GiB, 36,635 files, 6,133 subfolders",
+   "target_total_gib": 231.49,
+   "lane_status": "no ledger row (fixed slot, HSK-ART-003)",
+   "status": "no ledger row (fixed slot, HSK-ART-003)",
+   "used_by": [],
+   "bound_to": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets/Cargo.toml",
+   "newest_file_utc": "2026-11-13T08:25Z",
+   "inspected_newest_file_utc": "2026-11-13T08:25Z",
+   "rule_tool": "HSK-ART-005 whole removal when nothing will reuse the target; target_prune.py refuses it today (whole_path: studio-round is in NEVER_UNDER): needs tool change N6",
+   "command": "none today. After N6: python -I -B tools/lead/target_prune.py --plan <plan> --approve X-C02 --execute",
+   "why_safe": "As X-C01. Whole removal is right only if no round will use the C: slot again: then the 13.36 GiB of libraries built at b57c82d1 have no user.",
+   "what_rebuilds": "A later C: round would compile the whole workspace cold: third-party and workspace libraries, about 12 GiB of output, on top of the relink in X-C01. Attempt 3 measured 16 min 20 s for the default build on the C: SSD.",
+   "risk": "Low for disk, but it closes the C: slot: run-round creates and binds a new target dir when given the path again (run-round.sh:562-566), so nothing breaks; the cost is the cold compile. Depends on the Operator's ruling 'rounds stay on D:'.",
+   "run_condition": "Only after (1) the Operator rules that rounds stay on D:, (2) tool change N6 is built and reviewed, (3) a fresh dry run says WOULD_REMOVE."
+  },
+  {
+   "id": "X-C03",
+   "group": "h",
+   "disk": "C",
+   "owner": "smb-pr-sequence-presets-1-red",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1-red",
+   "kind": "whole",
+   "gib": 0.28,
+   "files": 394,
+   "target_total_gib": 0.28,
+   "older_copies_gib": 0.0,
+   "pdb_share_pct": 12.3,
+   "lane_status": "no ledger row",
+   "status": "no ledger row",
+   "used_by": [],
+   "bound_to": "C:/Users/Ilja Smets/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-pr-sequence-presets-1/red-tree/Cargo.toml",
+   "bound_tree_exists": true,
+   "newest_file_utc": "2026-11-02T14:47Z",
+   "inspected_newest_file_utc": "2026-11-02T14:47Z",
+   "rule_tool": "HSK-ART-003 P2; target_prune.py whole on C_LANES, 'no ledger row' basis needs the bound tree gone",
+   "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261114-X.json --approve X-C03 --execute (refused while the bound red-tree exists)",
+   "why_safe": "A red-proof target of SMB-PR-SEQUENCE-PRESETS-1, which is PASS_V4. Its bound tree is another session's scratchpad copy (Cargo.toml dated 2026-11-02, no .git), last written 2026-11-02. No process names it.",
+   "what_rebuilds": "Nothing: the red proof is recorded; the lane is PASS_V4.",
+   "risk": "None in fact; the tool refuses while the scratchpad red-tree exists (same as plans U and W). Listed for completeness: 0.28 GiB."
+  }
+ ],
+ "deferred_not_proposed": [
+  {
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-nudge-1",
+   "gib": 34.24,
+   "files": 24694,
+   "older_copies_gib": 0.0,
+   "pdb_share_pct": 64.9,
+   "parts_gib": {"test_and_binary_outputs": 28.35, "workspace_libraries": 3.37, "third_party_libraries": 1.84},
+   "owner_status": "SMB-PR-NUDGE-1 PASS_V3",
+   "bound_to": "wt-studio-lanes/smb-pr-nudge-1/handshake-studio-assets/Cargo.toml",
+   "bound_tree_head": "lane/smb-ai-live-effects-1 at 1e652818, clean",
+   "newest_file_utc": "2026-11-11T06:45Z",
+   "users": "SMB-AI-LIVE-EFFECTS-1 READY_FOR_VALIDATION builds here (target_reuse tree smb-pr-nudge-1, disk C; lane file worktree wt-studio-lanes/smb-pr-nudge-1). SMB-DOC-EXPORT-1 READY names it only as old_tree_idle (moved to D: 2026-11-07).",
+   "why_not_now": "Rule P2: READY_FOR_VALIDATION is not enough. SMB-AI-LIVE-EFFECTS-1 is an unjudged R60 claim; a FAIL sends it back to this tree and target. No partial is left: older copies 0.0 GiB (plan T).",
+   "when": "After SMB-AI-LIVE-EFFECTS-1 is PASS_V (R60 verdicts) and no new lane has taken the tree: whole, 34.24 GiB. A FAIL keeps it for the fix.",
+   "what_rebuilds": "A lane that takes this tree later builds a full target, about 34 GiB; better to give that lane a D: tree and target (recommendation R2)."
+  },
+  {
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-composer-depth-1",
+   "gib": 28.42,
+   "files": 40011,
+   "older_copies_gib": 0.0,
+   "pdb_share_pct": 61.4,
+   "parts_gib": {"test_and_binary_outputs": 21.99, "workspace_libraries": 3.85, "third_party_libraries": 1.75, "release": 0.32},
+   "owner_status": "SMB-LAYOUT-COMPOSER-DEPTH-1 PASS_V2",
+   "bound_to": "wt-studio-lanes/smb-layout-composer-depth-1/handshake-studio-assets/Cargo.toml",
+   "bound_tree_head": "lane/smb-parser-hostile-1 at 27365b81, clean",
+   "newest_file_utc": "2026-11-11T09:40Z",
+   "users": "SMB-PARSER-HOSTILE-1 READY_FOR_VALIDATION builds here (target_reuse tree smb-layout-composer-depth-1, disk C; lane file worktree). SMB-LAYOUT-PDF-HOST-1 READY names it only as old_tree_idle (moved to D: 2026-11-07).",
+   "why_not_now": "Rule P2, as above: SMB-PARSER-HOSTILE-1 is an unjudged R60 claim. Older copies 0.0 GiB.",
+   "when": "After SMB-PARSER-HOSTILE-1 is PASS_V: whole, 28.42 GiB.",
+   "what_rebuilds": "As above, about 28 GiB for a lane that takes this tree later."
+  }
+ ],
+ "total_gib": 231.77,
+ "total_by_disk_gib": {"C": 231.77, "D": 0.0},
+ "totals_gib": {
+  "f_partial_C_now": 218.13,
+  "g_whole_C_after_ruling_and_N6": 13.36,
+  "h_whole_C_skipped": 0.28,
+  "deferred_after_R60_PASS_not_in_total": 62.66
+ },
+ "c_round_target_answer": {
+  "still_needed": "No. Nothing references it for a build. Rounds run on the D: slot since R60 attempt 4; the round runner takes the target only from --target-dir (run-round.sh:129, 139), and the only generator (tools/lead/dispatch_r60.py:74-83) resolves the slot under the sole artifact root on D: and creates no target. builders/studio-env.sh puts only SSD lane owners and owner studio-team-dev on C:, never a round. lanegen.py defaults new lanes to disk d.",
+  "remaining_references": [
+   "HANDOFF.md:603 still says 'The union runs on C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target' and that lane-check's default disk is ssd: a stale instruction a later lead could follow; correct it when the ruling is made (recommendation R1)",
+   "HANDOFF.md:386 lists 'keep or remove the idle C: round target' as an open Operator item: this plan answers it",
+   "builders/lanes/workspace-steward.json:123 describes the C: round target class 'ssd' (run-round support, descriptive)",
+   "tools/lead/target_prune.py:60 C_ROUND (cleanup path only)",
+   "validation/dispatch-R60.json c_tree.c_round_target: 'not used, not touched; measured at the freeze and the end only': the R60 validator records the C: tree size at the end of the round. Removing during the round changes that end sample; tell the round agent, or run X-C01 after the union ends."
+  ],
+  "whole_removal_safe": "Yes for every running and planned build. Cost later: only if a FULL round returns to C:, which the decision file shows does not fit the 400 GB grant at the current tip in any case (c_empty_grant_full_set: UNVERIFIED projection 320.7 / 361.7 / 447.5 GiB against 372.53). Measured since: the D: slot holds 376.02 GiB after the attempt-4 canary and the start of the union, above the whole C: grant.",
+  "proposed": "X-C01 now (218.13 GiB, tool supports it, keeps libraries). X-C02 (13.36 GiB) once the Operator rules that rounds stay on D:."
+ },
+ "c_free_gib": {
+  "now": 295.07,
+  "measured": "python shutil.disk_usage C:/ 2026-11-14T03:13:49Z (C: 7450.8 GiB total; D: 3210.89 GiB free)",
+  "after_W_c_part": 368.64,
+  "after_W_and_X_C01": 586.77,
+  "after_W_and_X_C01_C02": 600.13,
+  "after_W_and_all_X": 600.41,
+  "after_deferred_too": 663.07,
+  "note": "arithmetic on measured sizes; file-system slack not counted"
+ },
+ "c_studio_tree_gib": {
+  "now": 368.0,
+  "parts_now": {"studio-round/target": 231.49, "studio-team-dev/target/lanes": 136.51},
+  "after_W_c_part": 294.43,
+  "after_W_and_X_C01": 76.3,
+  "after_W_and_X_C01_C02": 62.94,
+  "after_deferred_too": 0.28,
+  "cap_and_grant": "steward cap STUDIO_SSD_CAP_GB 360 (now exceeded by 8.0: studio-env refuses SSD lane builds, exit 77); grant 372.53 GiB (CX-984-014)"
+ },
+ "reported_not_proposed": {
+  "cargo_registry_cache": "C:/Users/<user>/.cargo 4.53 GiB, 153,564 files: registry 1.70 (src 1.41, cache 0.19, index 0.10), git 2.70, bin 0.10. Never removable (HSK-ART-005). studio-env.sh sets no CARGO_HOME, so this is the registry the Studio builds use.",
+  "rust_toolchains": "C:/Users/<user>/.rustup 5.78 GiB, 150,081 files. Not cargo output; not proposed.",
+  "sccache": "C:/Users/<user>/AppData/Local/Mozilla/sccache 0.79 GiB (a steward probe's cache; UNVERIFIED which run wrote it). Not proposed.",
+  "claude_temp": "C:/Users/<user>/AppData/Local/Temp/claude 11.92 GiB, 70,370 files: session scratchpads (largest 7.38 GiB under session ea580572, 1.80 GiB under 78736d01). No cargo target inside (no .fingerprint folder found). Holds the red-tree that X-C03's target is bound to and the paused lanes' hold scripts. Not proposed here.",
+  "studio_team_dev_target_top": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target holds lanes/ and 3 small top-level files only (the shared edit-tree target was emptied earlier).",
+  "non_cargo_large": "C: is 7450.8 GiB with 295.07 free: the Studio cargo tree (368 GiB) is about 5% of what is used. C:/LLM measures 163.60 GiB (81,961 files). Other top-level folders (ComfyUI_windows_portable, Users, video and game folders, pagefile/hiberfil) were NOT_INSPECTED: outside this task and no whole-disk walk was made.",
+  "d_round_slot": "D: studio-round/target 376.02 GiB (older binary copies 317.14), newest 2026-11-13T19:36Z, in use by the R60 union now. Not C:, not proposed; a partial older-copies candidate for a later plan once R60 has its verdicts (CX-VAL-005)."
+ },
+ "standing_recommendations": [
+  {
+   "id": "R1",
+   "what": "Rounds stay on the D: slot. Record the ruling and correct HANDOFF.md:603 (and the lane-check default-disk sentence there).",
+   "evidence": "A FULL round does not fit C:: attempt 2 and attempt 3 both stopped on the C: cap; the D: slot is at 376.02 GiB mid-round, already above the 372.53 GiB grant; decision file c_empty_grant_full_set. The generator already resolves D:."
+  },
+  {
+   "id": "R2",
+   "what": "No new lane target on C:. New lanes and fix lanes take a D: tree and target (lanegen default disk d). Let the two remaining C: lane targets drain: remove each when its READY lane is PASS_V, and do not hand those two trees to a new lane.",
+   "evidence": "Every C: lane since 2026-11-07 was moved to D: by the cap (ledger c_cap_20261107: five lanes; decision-20261111-c-cap-placement: two more); the tree is 8 GiB over the 360 cap now, so studio-env refuses SSD lane builds anyway; resume-20261112 names smb-pr-nudge-1 or smb-layout-composer-depth-1 for a post-R60 fix lane, which would pin 28 to 34 GiB on C: again."
+  },
+  {
+   "id": "R3",
+   "what": "If C: is to stay a build disk at all, name a small set: at most 2 lane targets, each pruned of older copies at every READY, and lower STUDIO_SSD_CAP_GB from 360 to about 100. Otherwise retire the C: grant for Studio and keep C:/HandshakeBuild empty.",
+   "evidence": "Lane targets measure 28 to 38 GiB after an older-copies prune (four C: targets, 2026-11-14); two fit in 100 GiB with headroom. The 360 cap let the tree sit at 368 GiB with 231 GiB idle."
+  },
+  {
+   "id": "R4",
+   "what": "Prune older copies as part of the lane close and of the round end, not as a separate plan weeks later: at READY (plan T rule N1 already allows it) and after a round's verdicts (CX-VAL-005).",
+   "evidence": "Older copies were 180.01 of 231.49 GiB in the C: round target and are 317.14 of 376.02 GiB in the D: slot; plan T took 111.26 GiB of older copies from two C: lane targets."
+  },
+  {
+   "id": "R5",
+   "what": "Tool change N5 (plan W) so that W-C01..W-C03 clear without waiting for five READY lanes to PASS; tool change N6 for X-C02.",
+   "evidence": "Plan W's C: dry run: 3 SKIPPED_IN_USE_BY_LANE on old_tree_idle only. X-C02 dry run: REFUSED_PATH."
+  },
+  {
+   "id": "R6",
+   "what": "The lasting lever is the size of test binaries: .pdb is 72.8% of the C: round target and 61 to 68% of each full lane target, at line-tables-only. Carry the decision file's later_items (fewer harness test binaries; the 5-unit matrix cut; debug = none measured on one lane, needing a Codex CX-984-014 change).",
+   "evidence": "by_ext_gib in this plan; decision F4, F7, F8. Savings UNVERIFIED until measured on one lane."
+  }
+ ],
+ "needs_tool_change": {
+  "N6_whole_round_target_on_C": "PROPOSED, not built (this agent changes no tool): allow kind whole on exactly C_ROUND when the plan entry carries the Operator ruling reference, no process names the target, no round holds the C: disk build lock, no queued ticket names it, and the newest-file and 5% size checks pass. Today whole_path() returns None for any path with a studio-round segment (NEVER_UNDER), so X-C02 is REFUSED_PATH.",
+  "N5": "see plan W needs_tool_change.N5_c_whole_moved_lanes (unchanged)"
+ },
+ "before_execution": "Operator approves this exact list in chat (or a named subset); the plan status is then set to APPROVED. X-C01: a fresh dry run saying WOULD_REMOVE (the tool re-checks the path, the process list, the newest file and the size within 5%), then --execute --approve X-C01. Tell the R60 round agent first, or wait for the union to end, because its end-of-round record samples the C: tree size (it was told the C: target is not touched). No C: round or C: lane build may be queued. X-C02 and X-C03 per their run_condition and dry-run status.",
+ "operator_question": "Approve plan X: remove now every test and binary output of the idle C: round build cache (218.13 GiB, X-C01), keeping its libraries? And rule whether validation rounds stay on D:, in which case the 13.36 GiB rest (X-C02) goes too after tool change N6.",
+ "dry_run": {
+  "at": "2026-11-14T03:15:39Z",
+  "tool_commit": "target_prune.py as in the kernel at f32d2544 (N4, unchanged)",
+  "command": "python -I -B tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261114-X.json --approve X-C01,X-C02,X-C03 (no --execute)",
+  "file": "research/cargo-cleanup-dryrun-20261114-X.json",
+  "would_remove_gib": 218.13,
+  "result": "X-C01 WOULD_REMOVE 218.13 GiB, 5,432 files plus the empty debug/incremental folder (path allowed, real target, no process naming it, newest file 2026-11-13T08:25Z as planned, size as planned). X-C02 REFUSED_PATH (whole is never allowed on studio-round: needs N6). X-C03 SKIPPED_STATUS (no ledger row and the bound red-tree still exists).",
+  "skipped": ["X-C02", "X-C03"],
+  "c_free_gib_after_dry_run": 295.08,
+  "locks_at_run": "C: disk build lock: no holder, empty queue. D: lock: held by builder smb-ai-distort-effects-1 (smb-prototype-play-cancel-1), queue: run-round studio-round (R60 union, class round) and three builders; none names a C: path."
+ },
+ "unverified": [
+  "That the 198f6dc4 candidate gives the viewer-family harness units new identities relative to the C: target (decision F5/F6; not observed by a build).",
+  "Projections of a FULL round's size on C: (decision file).",
+  "Which run wrote the 0.79 GiB sccache folder.",
+  "Sizes of C: top-level folders other than those measured here (NOT_INSPECTED).",
+  "Whether plan W's executor has begun its C: part: at 03:05Z the three W-C targets were unchanged on disk and plan W's file status was still PROPOSED in the kernel at f32d2544."
+ ]
+}

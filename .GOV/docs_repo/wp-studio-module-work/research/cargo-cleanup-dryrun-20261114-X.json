@@ -1,0 +1,37 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261114-X",
+ "execute": false,
+ "at": "2026-11-14T03:15:39Z",
+ "total_gib": 218.13,
+ "results": [
+  {
+   "id": "X-C01",
+   "owner": "studio-round",
+   "planned_gib": 218.13,
+   "files": 5432,
+   "dirs": [
+    "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/incremental"
+   ],
+   "gib": 218.13,
+   "status": "WOULD_REMOVE"
+  },
+  {
+   "id": "X-C02",
+   "owner": "studio-round",
+   "planned_gib": 13.36,
+   "kind": "whole",
+   "status": "REFUSED_PATH"
+  },
+  {
+   "id": "X-C03",
+   "owner": "smb-pr-sequence-presets-1-red",
+   "planned_gib": 0.28,
+   "kind": "whole",
+   "bound_to": "C:\\Users\\Ilja Smets\\AppData\\Local\\Temp\\claude\\D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel\\78736d01-8cca-4de4-921a-e3cf98762f72\\scratchpad\\smb-pr-sequence-presets-1\\red-tree\\Cargo.toml",
+   "status": "SKIPPED_STATUS",
+   "lane_status": "no ledger row",
+   "bound_tree_exists": true
+  }
+ ]
+}
