@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-13T18:36:00Z",
+ "updated_at": "2026-11-14T07:44:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20344,8 +20344,8 @@
   },
   {
    "lane_id": "SMB-PROTOTYPE-PLAY-CANCEL-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view (view/prototype.rs PrototypePlay cancel token; view/commands/prototype.rs capture render)",
    "lane_file": "builders/lanes/hsk-studio-prototype-play-cancel-1.json",
    "brief": "builders/briefs/lane-smb-prototype-play-cancel-1.md",
@@ -20353,11 +20353,12 @@
    "base": "89f27330",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-13T17:08:44Z",
+   "updated_at": "2026-11-14T07:44:47Z",
    "closes": [
     "ledger direction.next_lane_candidates 2026-11-13T15:08:59Z prototype play renders under the viewer's cancel token",
     "MT-33254 (STU-PRO-138; read, no claim)"
-   ]
+   ],
+   "claim": "a prototype play imports and renders under its caller's cancel token: prototype.capture_frame (with and without a path) renders under the viewer's token per call (PrototypePlay::render_with), so a cancel raised after admission is refused canceled by the render with nothing written and the job settled canceled once; prototype.start_session and the open dialog import under the viewer's token (Viewer::open_prototype -> PrototypePlay::open_with); a cancel seen by an interop-fig, Folio validation or press step is typed canceled with the step code as detail; the write half's pre-write check is proven on its own (write_frame). Not proven: the Folio-validation cancel window on a real cross-thread path (mapping test only); the shell dialog route cancel. Tests: harness-view [viewer] lib view::prototype::tests and view::commands::prototype::tests. No catalog command added or renamed. MT-33254 read, no claim."
   },
   {
    "lane_id": "SMB-PR-TIMELINE-FIXES-1",
@@ -23152,6 +23153,11 @@
     "added_at": "2026-11-13T17:13:35Z",
     "item": "F4 (SMB-FIX-LAYER-RECORD-PRUNE-1): exact-boundary id matching in the layer-record reference scan (today a substring hit keeps the id, which only keeps more)",
     "owner": "lead follow-up"
+   },
+   {
+    "added_at": "2026-11-14T07:44:47Z",
+    "item": "F5 (review 2adb7501 of SMB-PROTOTYPE-PLAY-CANCEL-1): harness-view view/commands.rs:143 run_command records every refusal as command_refused, so a canceled command (prototype.start_session, a no-path capture) is recorded as a validation failure; pass Err(\"canceled\") when the refusal code is canceled (pre-existing)",
+    "owner": "a later lane that owns harness-view view/commands.rs"
    }
   ],
   "pause_20261103": {

@@ -1,30 +1,34 @@
 {
   "crate": "hsk-studio-harness-view (view/prototype.rs PrototypePlay cancel token; view/commands/prototype.rs capture render)",
   "lane": "SMB-PROTOTYPE-PLAY-CANCEL-1",
-  "status": "PAUSED",
-  "phase": "paused",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "89f27330",
   "commits": [
     {
-      "sha": "e530a74c",
+      "sha": "41fd5977",
       "kind": "red",
-      "summary": "red tests: capture render-stage cancel, no-path capture cancel, start_session import cancel, play render refuses canceled before rendering"
+      "summary": "red tests: capture render-stage cancel, no-path capture cancel, start_session import cancel, play render refuses canceled before rendering",
+      "pre_rebase_sha": "e530a74c"
     },
     {
-      "sha": "2adb7501",
+      "sha": "4a3a54f7",
       "kind": "fix",
-      "summary": "PrototypePlay::render_with / open_with / open_document_with take the caller's token; cancels typed canceled; commands/prototype.rs passes the viewer's token per call"
+      "summary": "PrototypePlay::render_with / open_with / open_document_with take the caller's token; cancels typed canceled; commands/prototype.rs passes the viewer's token per call",
+      "pre_rebase_sha": "2adb7501"
     },
     {
-      "sha": "9e49e051",
+      "sha": "47303273",
       "kind": "red",
-      "summary": "review 2adb7501 F1 red test (NativeRejected(Code::Canceled)) and F3 real press render-back test; red run NOT done (hold cancelled at the pause)"
+      "summary": "review 2adb7501 F1 red test (NativeRejected(Code::Canceled)) and F3 real press render-back test; ran red 2026-11-14 (only the F1 test fails)",
+      "pre_rebase_sha": "9e49e051"
     },
     {
-      "sha": "6a50c9b3",
+      "sha": "5655345b",
       "kind": "fix",
-      "summary": "F1 arm, F2 write_frame split + test, Q1 view/mod.rs open_with(self.cancel) and start_session via v.open_prototype, Q2 harness-core capture row run_method render_with, F6 docs; committed before the pause, focused run NOT done"
+      "summary": "F1 arm, F2 write_frame split + test, Q1 view/mod.rs open_with(self.cancel) and start_session via v.open_prototype, Q2 harness-core capture row run_method render_with, F6 docs; focused run green 2026-11-14",
+      "pre_rebase_sha": "6a50c9b3"
     }
   ],
   "capabilities_done": [
@@ -51,14 +55,47 @@
         "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused-process-2adb7501.log"
       ]
     },
-    "bundled": null
+    "bundled": {
+      "sha": "6a50c9b3",
+      "run": "one outer D: hold (hold-bundled.sh 6a50c9b3): studio-harness example build; lane-check harness-view [viewer] whole suite; lane-check harness [viewer] fix_capture_admission viewer_prototype harness_drive_audio viewer_panels viewer_shell; lane-check harness-core whole suite",
+      "result": "example build exit 0; harness-view [viewer] 202 run: 202 passed, 1 skipped (exit 0); harness [viewer] 45 run: 45 passed, 0 skipped (exit 0); harness-core 82 run: 82 passed, 0 skipped (exit 0); BUNDLED_RESULT example=0 harness_view=0 harness=0 harness_core=0, hold exit 0, finished 2026-11-14T05:02:30Z",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-bundled-6a50c9b3.log"
+    },
+    "red_review": {
+      "sha": "9e49e051",
+      "test": "cargo nextest run -p hsk-studio-harness-view --features viewer --lib --no-fail-fast",
+      "result": "50 run: 49 passed, 1 failed (a_cancel_seen_by_the_folio_validations_of_to_native_is_typed_canceled: left (smart_native_refused, native_rejected)), exit 100",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-red2-9e49e051.log"
+    },
+    "focused_review": {
+      "sha": "6a50c9b3",
+      "run": "one outer D: hold (hold-review.sh 9e49e051 6a50c9b3), after the red run",
+      "result": "harness-view [viewer] lib 51 run: 51 passed (exit 0); harness-core --lib --test action_records 25 run: 25 passed (exit 0); harness [viewer] fix_capture_admission + viewer_prototype 13 run: 13 passed (exit 0); studio-harness example build exit 0; harness_drive_audio 2 run: 2 passed, 3 skipped by filter (exit 0)",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused2-view-6a50c9b3.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused2-core-6a50c9b3.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused2-harness-6a50c9b3.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-example2-6a50c9b3.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-focused2-process-6a50c9b3.log"
+      ]
+    },
+    "landing": {
+      "sha": "5655345b",
+      "pushed": "5655345b9ebd4c5e8ca58c9ed3beaef0efe87efd to origin/codex/handshake-studio-assets (198f6dc4..5655345b, guarded, no force)",
+      "run": "one outer D: hold (hold-landing.sh 6a50c9b3): fetch, rebase onto origin 198f6dc4 (clean, 4 commits), diff against origin = the 4 lane files, studio-harness example build, harness-view [viewer] whole suite, harness [viewer] fix_capture_admission viewer_prototype harness_drive_audio viewer_panels viewer_shell, harness-core whole suite, lane-check --per-sha HEAD~1, push",
+      "result": "example build exit 0; harness-view [viewer] 207 run: 207 passed, 1 skipped (exit 0); harness [viewer] 45 run: 45 passed, 0 skipped (exit 0); harness-core 82 run: 82 passed, 0 skipped (exit 0); PER_SHA_RESULT OK shas=1 range=47303273..5655345b (23 units ok)",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-landing-5655345b.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prototype-play-cancel-1/smb-prototype-play-cancel-1-per-sha-5655345b.log"
+      ]
+    }
   },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 878,
+  "lock_wait_s": 14131,
   "bg_pids": [],
-  "next": "RESUME (Operator pause 2026-11-13T18:08Z): the queued review-fix hold was cancelled before it took the D: lock (nothing ran). Resume step: from the lane tree (clean, branch at 6a50c9b3), one outer D: hold running scratchpad smb-prototype-play-cancel-1/hold-review.sh 9e49e051 6a50c9b3: red at 9e49e051 (harness-view [viewer] --lib, expect only a_cancel_seen_by_the_folio_validations_of_to_native_is_typed_canceled to fail), then at 6a50c9b3: harness-view [viewer] --lib, harness-core --lib --test action_records, harness [viewer] fix_capture_admission + viewer_prototype, fresh studio-harness example, the 2 harness_drive_audio prototype process tests. Then message the lead the tip for a re-check before the bundled run (hold-bundled.sh, now also the harness-core suite).",
-  "updated_at": "2026-11-13T18:08:28Z",
+  "next": "Landed: 5655345b pushed to origin/codex/handshake-studio-assets 2026-11-14; READY_FOR_VALIDATION, waiting for the validator. Never claim PASS.",
+  "updated_at": "2026-11-14T07:44:18Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -178,7 +215,8 @@
       "file": "research/review-smb-prototype-play-cancel-1-2adb7501.json",
       "verdict": "FIX_FIRST",
       "rulings": "F1 fix (red first); F2 fix (write half split + unit test); F3 fix (real press value); F4/Q1 approved; Q2 approved narrowed to the capture row (:19); F5 not here (next-lane candidate); F6 doc line",
-      "status": "F1, F2, F3, F4/Q1, Q2, F6 committed (9e49e051 red, 6a50c9b3 fix); red and focused runs pending (paused)"
+      "status": "F1, F2, F3, F4/Q1, Q2, F6 committed (9e49e051 red, 6a50c9b3 fix); red and focused runs done 2026-11-14; lead RE-CHECK PASSED at 6a50c9b3 (2026-11-14)",
+      "recheck_rulings": "lead 2026-11-14: the hand-built ExportRefused(\"canceled\") assertion removed in 9e49e051 from a_cancel_seen_by_a_step_is_typed_canceled_with_the_step_as_detail is ACCEPTED (a green test from 2adb7501, not a red test; the F3 real-value test covers it; ruling 11 does not apply)"
     },
     "next_lane_candidates": [
       "review F5 of 2adb7501: view/commands.rs:143 run_command records every refusal as command_refused, so a canceled command (prototype.start_session, a no-path capture) is recorded as a validation failure; pass Err(\"canceled\") when the refusal code is canceled (pre-existing, owner of view/commands.rs)"
