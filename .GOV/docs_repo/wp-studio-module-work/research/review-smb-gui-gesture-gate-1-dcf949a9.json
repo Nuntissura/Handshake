@@ -1,0 +1,138 @@
+{
+ "lane": "SMB-GUI-GESTURE-GATE-1",
+ "tip": "dcf949a9",
+ "also_reviewed": [
+  "2817e7c5 (red: tests/gui_gesture_gate.rs new, typed stubs in diag.rs, event.rs, gui/mod.rs)",
+  "3b785d66 (actor context: document.rs open_viewer_as, GuiFrame::open_as, offscreen.rs and window.rs threading, harness-view lib.rs pub use RunContext; host clock)",
+  "3b980c3d (gui/gesture.rs arbiter, gui/chrome.rs properties_body and studio.gesture.active, gui/mod.rs apply arms, tests/gui_chrome.rs:79-81 re-pin)",
+  "57f9d8d0 (window.rs: feed_clock before input reaches the frame)",
+  "dcf949a9 (gui/mod.rs gesture_receipt canvas_preview release_only)"
+ ],
+ "base": "89f27330",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "From reading only: no build, no cargo, no test run. Line anchors are at dcf949a9. The arbiter, the actor threading, the winit limits and the test discipline hold: 13 of 13 red at 2817e7c5 (red log Summary), tests/gui_gesture_gate.rs is byte-identical between 2817e7c5 and the tip, the reflog shows five plain commits and no rewrite, no Cargo.toml or Cargo.lock change, harness-view changes by one pub use line, and the only winit call added is Window::set_cursor in the Operator window. FIX_FIRST is small: the line-447 correction (lead ruling, recommended yes), F1 (timer that does not converge), F2 (stale DESCRIPTOR). The rest are low and may be accepted or named.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ; not run, not reproduced. gui/mod.rs dwell_pending_ms (in the new impl block, 'fn dwell_pending_ms'), GuiFrame::advance (the dwell part after 'if self.agent { return; }'), dwell_reset (:2895-2917), panel_at (:907-924), window.rs wait_flow and gui_settled.",
+   "severity": "medium (Operator window only; a periodic no-op wake, at worst every 1 ms; a non-quiet framed run can end in Timeout)",
+   "where": "hsk-studio-native-host/src/gui/mod.rs dwell_pending_ms; src/window.rs wait_flow (ControlFlow::WaitUntil) and gui_settled",
+   "what": "dwell_pending_ms does not use the same conditions as advance. It reads menu.dwell_ms without checking that the hovered control is menu.dwell_target, and it does not know dwell_reset's on_tip early return. When an L0 tip of control A shows and the pointer moves into the tip rect over another control B (panel_at gives the band under a tip, so hovered = B), dwell_reset returns at on_tip: dwell_target stays A and dwell_ms stays frozen in [400, 900). dwell_pending_ms then answers Some(900 - dwell_ms) for B on every call. advance does not add to dwell_ms (hovered != dwell_target), so if B has no tip record or no place (tip_record or tip_place None) nothing changes and the same deadline is returned again.",
+   "failure_scenario": "Operator rests the pointer inside a shown L0 tip over a control without a tip: the window wakes every (900 - dwell_ms) ms, between 1 ms and 500 ms, for as long as the pointer rests there, each wake running gui_tick. A non-quiet window run with --frames whose script leaves the pointer there never reaches gui_settled and exits 6 (Timeout).",
+   "fix": "Make dwell_pending_ms answer None when hovered != menu.dwell_target or when the pointer is inside a shown tip's rect, and None when tip_record or tip_place of the wanted level is None. Add a frame test (CPU, cheap): after advance(next_timer_ms()) the pending time is None or strictly smaller, looped at most 4 times, for a pointer on a control with a tip, without a tip, and inside a tip rect."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ. src/lib.rs:38 DESCRIPTOR at dcf949a9; tests/descriptor.rs:5-6 checks only the braces and the crate key.",
+   "severity": "low (false statement in the crate's model-facing descriptor)",
+   "where": "hsk-studio-native-host/src/lib.rs:38",
+   "what": "DESCRIPTOR still says 'L0 and L1 tooltips (GuiFrame::show_tip; the window does not feed the dwell clock yet)' and its gui scene text names no opacity field, no studio.gesture.active and no host clock. After 3b785d66 and 57f9d8d0 the window does feed the clock.",
+   "failure_scenario": "A no-context model reads the descriptor and concludes that dwell tips and the wheel idle need show_tip or cannot work in a window; it writes tests or workarounds for a gap that no longer exists.",
+   "fix": "Recommend the lane fixes it: one phrase in lib.rs:38 ('the Operator window feeds the host clock; quiet and offscreen runs are agent-driven: no dwell tip; opacity ScrubValue studio.panel.properties.opacity, studio.gesture.active'). lib.rs is outside the owned paths, so the lead approves and it goes under notes.beyond_brief_paths. No test pins the text."
+  },
+  {
+   "id": "F3",
+   "certainty": "READ. gesture.rs:57-77 (step, settle), :185-209 (motion), tests/gui_gesture_gate.rs:244-262 and :292-318.",
+   "severity": "low",
+   "where": "hsk-studio-native-host/src/gui/gesture.rs:70-72, :197-199; tests/gui_gesture_gate.rs:255-260",
+   "what": "Accumulation is exact for plain and Shift steps (multiples of 0.5). Under Ctrl the per-px step is 0.05, which f64 cannot hold, and settle rounds at 0.1: a value that lands on a half quantum (99.95, 99.85) rounds up or down by accumulated error, so the same net displacement can commit values 0.1 apart depending on the sample count, and a drag and SetValue of the same literal can differ by 0.1. Test 4 does not pin the value after 500 samples: it compares the document to the field's own shown value (want = shown(&f)), so drift would pass. Test 6 compares only plain-step drags.",
+   "failure_scenario": "Ctrl-drag 3 px in one sample versus three samples: 99.85 by two paths, one commits 99.9 and one 99.8.",
+   "fix": "Accumulate in integer units of step/10 quanta (or keep the logical-px sum and multiply once), then settle. A new test in a new commit: after the 500 samples of test 4 the value is 74.5 (net dx -49, dy +2); a Ctrl drag of N px in 1 sample and in N samples commits the same value. Do not edit test 4 (ruling 11)."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ. gesture.rs:51-55; harness-core panel.rs:96-101 (`let percent = || NumberSpec::slider(1, (0.0, 100.0), (0.0, 100.0));` at :96, the OPACITY control with unit % at :97-101); controls descriptor.rs:111-125 (slider :111-121, step :123-125).",
+   "severity": "low (named deviation, accepted by the lead; no drift test)",
+   "where": "hsk-studio-native-host/src/gui/gesture.rs:55",
+   "what": "The citation is right. No test compares gesture::OPACITY with the harness-core spec, and native-host has no path to it (harness-view keeps panel private). If panel.rs changes the precision or range, the field keeps 0.1 and 0..100: it shows and commits values the panel descriptor would not accept or would round, and the egui Properties panel and the native field disagree.",
+   "failure_scenario": "panel.rs moves opacity to precision 0: the field commits 81.5 through Viewer::set_opacity while the descriptor path accepts whole percents only; nothing fails in any suite.",
+   "fix": "Keep the constant in this lane. The next-lane accessor (selected layer's NumberSpec through harness-view) is the fix; until then a harness-view test that pins panel.rs's opacity spec to the same four values with a comment naming gesture.rs:55 would catch drift, in the accessor lane."
+  },
+  {
+   "id": "F5",
+   "certainty": "READ. git log -- window.rs; tests/gui_gesture_gate.rs:464-504; window.rs feed_clock.",
+   "severity": "low (a fix commit with no test that can fail without it)",
+   "where": "hsk-studio-native-host/src/window.rs feed_clock and the Focus, Modifiers and input arms of window_event",
+   "what": "57f9d8d0 (clock fed before input) changes Operator-window behaviour only: in a quiet run the clock is None while steps remain, so the order of feed and input cannot matter there. The quiet-window test passed before and after it. Forwarding of Modifiers and Focus to the frame is also unproven by run (frame-level tests cover the frame half only).",
+   "failure_scenario": "A later edit moves feed_clock after g.apply: after a 2 s rest the first wheel notch closes its own idle window (one entry per notch) and a pointer arriving on a control shows its tip at once; no test fails.",
+   "fix": "Cheap proof without a window: move the clock arithmetic into a small pure helper (elapsed since the last feed, stopped while steps remain) or drive App-free: a frame test that calls advance(2000) and then one notch and asserts the timer is 400 and no entry exists already holds the frame half (agent_mode test :395-396 covers it); name the window half UNVERIFIED in the lane notes."
+  },
+  {
+   "id": "F6",
+   "certainty": "READ. gui/mod.rs commit and set_value in the new impl block; tests/gui_gesture_gate.rs.",
+   "severity": "low",
+   "where": "hsk-studio-native-host/src/gui/mod.rs fn commit (refusals counter); document.rs open_viewer_as (actor_invalid)",
+   "what": "Two refusal paths have no test: a commit the Viewer refuses (counters.refusals, no entry, the field back at the document value) and a session id accord refuses (HostError::Usage(\"actor_invalid\")). By reading both are right: a refused commit goes through the closed gesture, so the field reads the document value again; ClientSessionId::parse failure maps to a typed refusal with no panic.",
+   "failure_scenario": "A refactor makes a refused commit keep the in-gesture value on screen or count it as a commit; nothing fails.",
+   "fix": "Name both as not proven, or add two small CPU tests in a new commit if a refusing layer state is reachable from the fixture."
+  },
+  {
+   "id": "F7",
+   "certainty": "READ. gui/chrome.rs:350; grep of Action::Increment in native-host src: no handler.",
+   "severity": "low",
+   "where": "hsk-studio-native-host/src/gui/chrome.rs:350",
+   "what": "The field's node advertises Focus, Increment, Decrement and SetValue. Only SetValue has a path (GuiFrame::set_value). kumihimo-ui widgets.rs:151 lists the same four, so it follows the toolkit's convention, but an inspector that calls Increment gets nothing.",
+   "failure_scenario": "An accessibility client or the inspector sends Increment on studio.panel.properties.opacity and the value does not move.",
+   "fix": "Either drop Increment, Decrement and Focus from the node until they exist, or name them in the lane's cuts beside click-to-type."
+  },
+  {
+   "id": "F8",
+   "certainty": "READ. gesture.rs:200-207, :305-317; gui/mod.rs Right-button release arm (:1042-1052).",
+   "severity": "low (doc and edge notes)",
+   "where": "hsk-studio-native-host/src/gui/gesture.rs:200; gui/mod.rs:1042",
+   "what": "(a) The comment at gesture.rs:200 says a non-finite step leaves the value where it was; the code sets it to the hard minimum or maximum. (b) After Escape the request stays Hidden until release (moved is true); not applied by window.rs today, but the typed stream says hidden for an aborted drag. (c) A right-button release during an open wheel transaction opens the context menu without closing the transaction (STU-SHL-107 lists a modal opening as a close); the next key or press closes it, so nothing is lost. (d) The wheel over the field steps it while a menu popup is open elsewhere.",
+   "failure_scenario": "(c) wheel two notches, right-click a row: the menu is open while the field still shows an uncommitted value.",
+   "fix": "(a) correct the comment. (b) answer ColumnResize or Default after an abort. (c) close the wheel transaction in the Right-release arm before context_at. (d) leave, or refuse the wheel while menu.open is not empty."
+  }
+ ],
+ "line_447": {
+  "recommendation": "ALLOW the one-word correction (`layer.set_visible` to `layer.panel_set`) at tests/gui_gesture_gate.rs:447 in a NEW commit. It is a test-error correction, not a red test bent to pass.",
+  "evidence": [
+   "Both ids are real catalog rows: harness-core action/commands/layer.rs:7 CMD_SET_VISIBLE and :10 CMD_PANEL_SET, rows at :25 and :30.",
+   "The eye toggle dispatches gui/mod.rs:1276 Cmd::SetVisible -> Viewer::set_visible (harness-view view/mod.rs:692-694) -> self.commit(layer, panel::VISIBLE, ..) -> Run::panel_set (view/mod.rs:702-703) -> property_edit(.., action::CMD_PANEL_SET) (harness-core harness.rs:1213). The history step's command_id is therefore layer.panel_set. Run::set_visible (harness.rs:1158-1160, CMD_SET_VISIBLE) is reached by the drive surface and the Hide Selection menu leaf (menu_tree.rs:531, :727), not by the Layers panel eye.",
+   "tests/gui_frame.rs:263 and :269 (base 89f27330, another lane's test, green in the focused log line 4687) pin both facts for the same click: the frame Outcome names layer.set_visible and undo_steps.last().command_id is layer.panel_set. Line 447 as written contradicts :269; both cannot pass.",
+   "Making the code give layer.set_visible needs an edit of harness-view view/mod.rs:692-694 (owned by SMB-FIX-LAYER-RECORD-PRUNE-1, outside this lane) and a re-pin of gui_frame.rs:269, which the lead did not approve.",
+   "The test's purpose is the actor: lines 444 and 447 compare account_id gate-actor and client_session gate-session, and :445 asserts the asset-local actor differs. With the corrected id the eye-toggle half still proves the V4-06 sibling (the same viewer, the caller's actor) and can still fail. Focused log :4727-4728: left (layer.panel_set, gate-actor, gate-session), right (layer.set_visible, gate-actor, gate-session): the actor and session already match.",
+   "At 2817e7c5 the corrected test is still red (open_as was a stub), so the red proof is not weakened."
+  ],
+  "conditions": [
+   "A new commit, no amend; only that one string changes; the message cites gui_frame.rs:269 and view/mod.rs:692-694.",
+   "The lane notes record it as a lead-ruled correction of a wrong expectation under common ruling 11.",
+   "Next-lane candidate to record: the eye toggle's undo step is layer.panel_set while the frame Outcome (gui/mod.rs:1276), README.md:77 and the Hide Selection leaf say layer.set_visible: one user action, two catalog ids."
+  ]
+ },
+ "answers": {
+  "arbiter": "Pointer capture: wheel, every key but Escape, every other button, invoke (pointer_owned) and set_value (pointer_owned) are refused or ignored while a drag owns the pointer; PointerLeft is ignored during a drag. Outside the client area the raw position still drives motion (pointer None, raw kept). Modifiers are read from the frame's mods at each sample; window.rs lands the pending move before a Modifiers event. Clamp at each sample (gesture.rs:201-207). Escape: value back, pointer held to release, no commit. Focus loss COMMITS a drag or wheel transaction once (finalize), as the deliberation and STU-SHL-194 say; it does not abort. A refused commit writes no step and the field shows the document value. A click without movement and a zero net change count `unchanged` and commit nothing. One commit per gesture by construction (take() on release, finalize and close_wheel). Selection cannot change during a drag; during a wheel transaction every route that changes selection (press, key, invoke, pointer leaving the field) closes the transaction on the captured target first.",
+  "step_constant": "Citation right (F4). No drift test.",
+  "host_clock": "Order fix is right by reading. Quiet runs: set_agent_driven(args.quiet) and offscreen set_agent_driven(true); advance returns before the dwell in agent mode; frame test agent_mode_has_no_dwell_tip covers it. Exit and capture wait on gui_settled within the deadline (tick :694 Timeout), so a run cannot exit with a gesture timer pending and cannot wait unbounded. The Operator window uses Wait or WaitUntil(next timer), never Poll. A quiet run keeps its existing Poll and presents during the up to 400 ms idle wait (bounded). Offscreen settles at script end, so both end in the same committed frame; the gui_window and gui_vulkan tests that compare them were not in the focused run.",
+  "actor_sites": "Production GuiFrame open sites: offscreen.rs:75 and window.rs:344, both open_as with host.actor(). GuiFrame::open is pub, test-only by its doc, with no production caller. Still on the asset-local context: document.rs:76 render() of the document scene through open_viewer (named in the module doc as mutating nothing). Default caller by design: cli.rs:118 (no --actor) and studio-vk.rs:45 (the failure frame after a caller-argument refusal).",
+  "winit": "One new call: win.set_cursor(ColResize or Default) at window.rs gui_tick, guarded by !quiet && frames == 0 (the same condition as operator_window(), written out). No set_cursor_position, no set_cursor_visible, no grab, no focus or visibility call added. Quiet-run test asserts focus_changes 0 (:500).",
+  "forbidden_lines": "No added line names egui, eframe, wgpu, naga or WGSL. No Cargo.toml or Cargo.lock in the diff. harness-view: lib.rs +3 (one pub use, two doc lines).",
+  "other_pins": "Only tests/gui_chrome.rs:80-81 changed (the approved root-list append). No other existing test file is in the diff.",
+  "test_500": "Keep it unchanged in this lane (ruling 11; STU-SHL-109 #4 names 500 samples). The 99 s is 500 CPU paints at 1920x1080 through the ev() helper, not the arbiter. If the lead wants it shorter, a later commit may paint every 25th sample (f.apply for the rest); the count of samples must stay 500. A nextest slow-timeout override for this test is the cheaper option.",
+  "cheap_proofs": "F1 timer convergence (frame test); 500-sample exact value and Ctrl path independence (F3); refused commit and actor_invalid (F6); cursor request never ShowAt or Hidden mapped to a position call (a source test like gui_frame native_host_source_calls_no_focus_or_input_api that greps window.rs for set_cursor_position, set_cursor_visible and set_cursor_grab); a quiet-window run with Modifiers in the script to prove the window forwards them."
+ },
+ "lead_questions": [
+  "Line 447: allow the one-word correction in a new commit? Recommendation: yes (see line_447).",
+  "F1: fix in this lane with a red frame test first? Recommendation: yes; it is in owned gui/mod.rs.",
+  "F2: approve the lib.rs:38 DESCRIPTOR phrase as a beyond-brief path? Recommendation: yes.",
+  "F3 to F8: fix or name? Recommendation: F8a (comment) and F8c fix now; F3 fix with a new test or name as a known gap; F4, F5, F6, F7 name.",
+  "Focus loss commits (does not abort) a drag: confirm this is the lead's intent, as the deliberation item 1 condition 2 says."
+ ],
+ "checked": [
+  "git log, git diff --stat 89f27330..dcf949a9 (11 files, +1450/-54); git diff 2817e7c5..dcf949a9 on tests (only gui_chrome.rs); reflog of the lane branch (five commits, no rewrite); lane tree clean",
+  "gui/gesture.rs whole file; tests/gui_gesture_gate.rs whole file; the gui/mod.rs, gui/chrome.rs, window.rs, offscreen.rs, document.rs, diag.rs, event.rs and harness-view lib.rs hunks; gui/mod.rs advance, dwell_reset, hover, panel_at, the release arms; window.rs tick and window_event",
+  "harness-core action/commands/layer.rs:1-36, harness.rs set_visible and panel_set anchors, panel.rs:88-101; controls descriptor.rs:108-126; harness-view view/mod.rs:685-705; tests/gui_frame.rs:251-285",
+  "Logs: red 2817e7c5 (13 run, 13 failed), focused dcf949a9 (62 run, 61 passed, 1 failed at :447, t4 99.0 s), hold1 summary (both cargo checks rc 0)",
+  "Spec module 14: STU-SHL-104, -105, -107, -188, -189, -194 text",
+  "The deliberation file, the brief and the lane file notes (beyond_brief_paths, known_gaps)"
+ ],
+ "not_checked": [
+  "No cargo build, clippy or test run (method). F1 and F3 are derived from the code and were not reproduced.",
+  "UNVERIFIED: the GPU test group (gui_window, gui_vulkan, gui_compose) at the tip. gui::drive and drive_chrome now add one frame and one upload or draw at the end of every script; any pinned upload or pass counter there was not inspected.",
+  "UNVERIFIED: every Operator-window behaviour: dwell tips and the wheel idle through WaitUntil, the ColResize cursor, Modifiers and Focus forwarding, capture outside the client area, the value stopping at the physical screen edge.",
+  "UNVERIFIED: whether a hovered control without a tip record exists inside a reachable tip rect (the F1 trigger); kumihimo-ui Interaction internals (that pointer_move ignores hover while pressed) were taken from the comment and from test 1's hover assert.",
+  "UNVERIFIED: the per-sha compile of 2817e7c5 for the default-features suite; the bundled run.",
+  "NOT_INSPECTED: common rulings file text beyond what the deliberation quotes; MT files; README.md beyond line 77."
+ ]
+}
