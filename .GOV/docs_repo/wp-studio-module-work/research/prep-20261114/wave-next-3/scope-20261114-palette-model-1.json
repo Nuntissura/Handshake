@@ -1,0 +1,88 @@
+{
+ "id": "SMB-PALETTE-MODEL-1",
+ "file": "hsk-studio-palette-model-1",
+ "brief": "lane-smb-palette-model-1",
+ "crate": "hsk-studio-harness-view (view/palette.rs, new: the command palette's egui-free model over the menu tree and the catalog)",
+ "crates_head": "harness-view",
+ "summary": "The command palette's model: every catalog command and menu leaf as a row with its menu_path breadcrumb, one availability evaluation shared with the menu, and the fuzzy matcher with a once-built index (STU-SHL-041, MENU-INV-6); first slice of the palette lane",
+ "target": "The command palette's model in the egui-free Viewer state: rows, breadcrumb, shared availability, fuzzy matcher and index (hsk-studio-harness-view view/palette.rs, new)\n\nWhy this lane: it is the first slice of the palette lane that unblocks gesture test 7b and the spine GATE_CHECK. Ledger candidate 2026-11-13T09:27:50Z, verbatim: \"STU-SHL-041..044: command palette with menu_path breadcrumb and shared fuzzy matcher, shortcut resolution ranks, shipped shortcut sets, Shortcut Conflict Report; only the Undo and Redo chords (PROVISIONAL Studio Default) resolve at render\". Ledger candidate 2026-11-13T09:27:50Z, verbatim: \"menu paths for the 544 menu_path_pending catalog commands (STU-SHL-013), per-command review of the palette_only split, MENU-INV-6 palette\" (only its MENU-INV-6 part). SMB-GUI-GESTURE-GATE-1 lane notes, verbatim: \"Test 7b: untimed equivalents reachable from the menu and the palette, with the palette lane (STU-SHL-109 #7, STU-SHL-041..044); the spine GATE_CHECK waits on it\". The whole palette (STU-SHL-041..044) is more than one lane: this slice is the model only; the palette surface in native-host src/gui and test 7b follow after SMB-GUI-GESTURE-GATE-1 lands (its files are active now), shortcuts and the conflict report (STU-SHL-042..044) after that.\n\nFacts are READ by the wave-next-3 planner at origin 5655345b (read-only, not run). Treat them as claims and check them.\n- Spec: [STU-SHL-041] (:31859) the palette renders each row's menu_path as a breadcrumb; both projections read ONE availability evaluation and show the same reason code; the matcher is subsequence matching with contiguity and word-boundary bonuses; a prefix/trigram index is built once in the same OnceLock that holds the command set; the semantic match predicate stays the definition and the index is its accelerator. MENU-INV-6 (:31542): the palette never invents a command the menu lacks, and the menu never contains a leaf the palette cannot find. [STU-SHL-013] (:31525) palette_only with a typed reason. [STU-SHL-109] (:32316) test #7.\n- No fuzzy or subsequence matcher exists in the product tree (git grep -i 'fuzzy|subsequence' over crates at 5655345b: only Make Subsequence names). The spec's \"existing symbol palette\" is not in this repository (UNVERIFIED where it lives; ask the lead before copying any matcher).\n- `harness-view/src/view/menu_tree.rs`: `template()` (:3246) holds the designed tree in a OnceLock; `LEAVES` (:520-535) the catalog leaves; `ALIASES` (:539); `PALETTE_ONLY` (:771) every catalog command no leaf runs, with `Unreached` (:752) MenuPathPending or NoMenuHome; `reached_commands()` (:3487); `Viewer::studio_menu(&MenuContext)` (:3297) answers (MenuBar, MenuState) with each node's Availability; `evaluate` (:462) and `MenuState::of` (:384) are the one availability evaluation; `run_menu_leaf` (:3404) and `run_menu_leaf_in` (:3412) run a leaf; `run_catalog` (:683). menu_tree.rs belongs to SMB-MENU-EFFECT-BOARD-LEAVES-1 in this wave: READ ONLY here.\n- The catalog: harness-core `action::ui_seed()` (harness-view view/commands/seed.rs:22) and `action::command(id)` (view/commands.rs:135).\n- native-host src/gui/mod.rs:1741 `GuiFrame::menu_json` is the host's menu projection (SMB-GUI-GESTURE-GATE-1's files: read only).\n\nRed tests (must fail first):\ncrates/hsk-studio-harness-view/tests/viewer_palette.rs (new, `#![cfg(feature = \"viewer\")]`): (1) MENU-INV-6 both ways: every enabled-or-disabled menu leaf that runs a command has exactly one palette row, and every palette row is a menu leaf or a PALETTE_ONLY command with its typed reason; no row for an id outside the catalog and the tree; (2) a leaf's row carries its menu_path joined as a breadcrumb equal to the tree's path of that node (for example Object > Layer > Duplicate Layer); a palette_only row carries its reason code instead of a path; (3) a row's availability and reason code are byte-equal to the menu node's for the same Viewer state (an empty document, a document with a selection); (4) the matcher: a subsequence matches, a non-subsequence does not, a contiguous hit outranks a scattered one, a word-boundary hit outranks a mid-word one, ties are stable (tree order), the empty query lists everything in tree order; (5) the indexed search answers exactly what the plain predicate answers over the whole row set for a fixed query list (the index is an accelerator); (6) hostile query: longer than the cap, control characters and non-ASCII refuse typed or match nothing without a panic, bounded work. They fail at the base (no palette module).\n\nFix contract:\n- FIRST: send the lead the shape before coding (the row type, where the OnceLock index lives, the query cap, the scoring rule and its tie-break, how a row is run: by its leaf through run_menu_leaf_in, a palette_only command is listed and not run in this slice) and your asks. Wait for the reply.\n- New file `view/palette.rs` plus ONE `mod palette;` line (and a `pub use` if needed) in `view/mod.rs`. A crate-root re-export in src/lib.rs is SMB-GUI-GESTURE-GATE-1's file: ask the lead, naming the line.\n- The palette reads the menu's availability evaluation; it never evaluates `requires` a second way.\n- No new catalog command, no drive row, no menu_tree.rs edit in this slice (a `Viewer` query method and, if the lead approves it, a `state_json` projection). No egui, eframe, winit or wgpu type or line.\n- 1 to 3 commits after the red commit.\n\nHow to work:\n1. Read the code at the file:line above first. Cite spec clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`); use only names already in the spec, MTs or code.\n2. Red first: the red tests above, committed compiling and run red at that COMMITTED tip. A red test is never rewritten so that it passes; the code gets fixed (common ruling 11). No history rewriting (common ruling 12).\n3. Then the fix, committed, and the focused tests run at that committed tip. Run the focused hold on COMMITTED tips: commit the red tests, run them red, commit the fix, run focused at that tip; do not run on uncommitted work and commit afterwards.\n4. A mutating step stays one undo step named by its catalog id (common ruling 10) and carries the caller's context.\n5. V4-06: the sibling sites named above, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n6. Small and focused: these items only. State what you cut. MTs: name any your fix proves in your report; do not edit MT files.\n\nCargo (wave-parity-2-common topic cargo-discipline, Operator 2026-11-13 and 2026-11-14 \"avoid large cargo builds, reuse targets\"): build and test only the touched crates and test binaries (`-p <crate> --test <name>`); no --workspace outside the one bundled lane-check; no --release; never a new CARGO_TARGET_DIR: the mapped target only (`--owner smb-ai-distort-effects-1 --disk d`). ONE HOLD PER PHASE. Focused: `cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_palette` and `cargo nextest run -p hsk-studio-harness-view --features viewer --lib` when you add unit tests. Bundled: the harness-view [viewer] suite (send the test-binary list with REVIEW READY).\nMENU COVERAGE: this lane adds or renames no catalog command; say so in the reports.\n\nOut of scope: the palette surface and keyboard handling in native-host src/gui (after SMB-GUI-GESTURE-GATE-1), test 7b itself, shortcut ranks, shipped sets and the conflict report (STU-SHL-042..044), running palette_only commands with parameters, WORKSPACE > Tools (STU-SHL-039), menu paths for the menu_path_pending commands, harness-view view/menu_tree.rs and view/commands.rs (SMB-MENU-EFFECT-BOARD-LEAVES-1), view/layer_records.rs (SMB-LAYER-RECORD-PRUNE-2), any Cargo.lock change without asking.\n\nLanding: one lane at a time on the lead's RELEASED, order 1 SMB-PALETTE-MODEL-1, 2 SMB-MENU-EFFECT-BOARD-LEAVES-1, 3 SMB-ID-STABILITY-REVISIONS-1, 4 SMB-LAYER-RECORD-PRUNE-2. This lane lands 1 of 4.",
+ "diag": "none new: a pure query over the catalog and the menu tree; no job, no mutation",
+ "attr": "not applicable: no mutating op in this slice (a row is run by its menu leaf, which carries the caller's context already)",
+ "exposure": "low",
+ "paths": "hsk-studio-harness-view/src/view/palette.rs (new); hsk-studio-harness-view/src/view/mod.rs (the `mod palette;` line and a re-export only); hsk-studio-harness-view/tests/viewer_palette.rs (new)",
+ "suites": "harness-view [viewer] suite (list the test binaries with REVIEW READY)",
+ "closes": [
+  "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z STU-SHL-041 palette model (the breadcrumb, the shared availability and the matcher; STU-SHL-042..044 and the surface stay open)",
+  "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z MENU-INV-6 palette (model level)"
+ ],
+ "mts": [
+  "none read at prep (UNVERIFIED): grep the STU-SHL-041 MT rows; read, no claim"
+ ],
+ "tree": "smb-ai-distort-effects-1",
+ "disk": "d",
+ "candidates_verbatim": [
+  {
+   "added_at": "2026-11-13T09:27:50Z",
+   "item": "STU-SHL-041..044: command palette with menu_path breadcrumb and shared fuzzy matcher, shortcut resolution ranks, shipped shortcut sets, Shortcut Conflict Report; only the Undo and Redo chords (PROVISIONAL Studio Default) resolve at render",
+   "owner": "a later GUI or command-surface lane"
+  },
+  {
+   "added_at": "2026-11-13T09:27:50Z",
+   "item": "menu paths for the 544 menu_path_pending catalog commands (STU-SHL-013), per-command review of the palette_only split, MENU-INV-6 palette",
+   "owner": "a later GUI or command-surface lane"
+  },
+  {
+   "source": "builders/lanes/hsk-studio-gui-gesture-gate-1.json notes.next_lane_candidates",
+   "item": "Test 7b: untimed equivalents reachable from the menu and the palette, with the palette lane (STU-SHL-109 #7, STU-SHL-041..044); the spine GATE_CHECK waits on it"
+  }
+ ],
+ "anchors": {
+  "spec": [
+   "STU-SHL-041 (:31859)",
+   "MENU-INV-6 (:31542)",
+   "STU-SHL-013 (:31525)",
+   "STU-SHL-109 (:32316)"
+  ],
+  "mts": [],
+  "lead": [
+   "research/deliberation-20261113-gui-gesture-gate.json item A5 (7a now, 7b with the palette lane)",
+   "builders/lanes/hsk-studio-gui-gesture-gate-1.json notes (Spine GATE_CHECK stays blocked on test 7b)"
+  ]
+ },
+ "red_tests": [
+  "hsk-studio-harness-view/tests/viewer_palette.rs (new): MENU-INV-6 both ways, breadcrumb equals the tree path, availability byte-equal to the menu's, matcher ranking, index equals the plain predicate, hostile query"
+ ],
+ "touched_crates": [
+  "hsk-studio-harness-view (feature viewer)"
+ ],
+ "focused_commands": [
+  "cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_palette",
+  "cargo nextest run -p hsk-studio-harness-view --features viewer --lib"
+ ],
+ "reuse": {
+  "tree": "smb-ai-distort-effects-1",
+  "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+  "workspace": "wt-studio-lanes/smb-ai-distort-effects-1/handshake-studio-assets",
+  "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/target",
+  "studio_workspace_root": "wt-studio-lanes/smb-ai-distort-effects-1/handshake-studio-assets/Cargo.toml (read 2026-11-14; matches the tree)",
+  "previous_lane": "SMB-PROTOTYPE-PLAY-CANCEL-1 (READY_FOR_VALIDATION at 5655345b; built harness-view [viewer] and the harness prototype tests on this target)",
+  "previous_lane_status": "READY_FOR_VALIDATION in ledger.json; tree HEAD 5655345b is an ancestor of 5655345b and is contained in origin/codex/handshake-studio-assets (git merge-base --is-ancestor, git branch -r --contains; read 2026-11-14)",
+  "tree_head": "5655345b",
+  "git_status_porcelain": "clean (0 lines, exit 0, read 2026-11-14)",
+  "target_size_gib": "NOT_MEASURED (target_report.py did not finish during prep; UNVERIFIED)",
+  "target_parts_gib": {},
+  "older_binary_variants_gib": null,
+  "target_newest_file_utc": null,
+  "target_workspace_crates_built": [],
+  "measured_by": "not measured",
+  "note": "the one tree the lead named free",
+  "last_known": "57.9 GiB on 2026-11-13 (wave-next-2 prep, target_report.py); plan W dry run 2026-11-14: skipped, in use by a lane"
+ },
+ "risks": [
+  "The spec asks for the matcher EXTRACTED from the existing symbol palette; none exists in this repository. A new matcher here may be a second implementation against the host's: the lead rules before coding (FIRST).",
+  "Third harness-view lane of the wave (with SMB-MENU-EFFECT-BOARD-LEAVES-1 and SMB-LAYER-RECORD-PRUNE-2): each pays one harness-view [viewer] bundled run. Files are disjoint; the lead may bundle the three runs' landings back to back.",
+  "It reads menu_tree.rs while SMB-MENU-EFFECT-BOARD-LEAVES-1 adds two leaves: tests must enumerate LEAVES and PALETTE_ONLY, never pin a count.",
+  "view/mod.rs: one line only; SMB-LAYER-RECORD-PRUNE-2 must ask the lead before any view/mod.rs line.",
+  "Per-frame cost: the index is built once; a test must show the search does not rebuild it per call (a counter or pointer equality), not a timing assertion."
+ ]
+}

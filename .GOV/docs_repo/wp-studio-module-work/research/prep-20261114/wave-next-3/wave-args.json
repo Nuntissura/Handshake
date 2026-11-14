@@ -1,0 +1,185 @@
+{
+ "schema": "scratch.wave_next_args@1",
+ "note": "wave-next-3 (4 lanes) prepared 2026-11-14 at origin 5655345b (git ls-remote origin codex/handshake-studio-assets). wave_from_scope.py reads S/research/scope-20261107-<area>.json (the prefix is fixed at tools/lead/wave_from_scope.py:45): copy each scope-20261114-<area>.json from this folder to S/research/scope-20261107-<area>.json before running the command. Not run at prep: no worktree, branch, build or deletion. Each mapped tree's last lane is READY_FOR_VALIDATION in ledger.json, its HEAD is an ancestor of 5655345b and on origin, and its D: target's .studio-workspace-root names that tree (read-only checks, 2026-11-14); git status results are in trees.<area>.git_status_porcelain.",
+ "base": "5655345b",
+ "hold": "ROUND (research/decision-20261113-r60-round-fit.json, option d): round STUDIO-R60 attempt 4 runs on the D: round slot at candidate 198f6dc4 and holds the D: lock with priority (class round); every lane hold queues behind it, which is expected: start the hold in the background and wait to be notified, never poll in a loop, never run cargo outside a hold, never work around the lock. ONE HOLD PER PHASE (wave-next-3, 2026-11-14): the four lanes share the D: lock with each other and with the three active wave-next-2 lanes (SMB-PR-TIMELINE-FIXES-1, SMB-MOTION-IMPLIED-VALUES-1, SMB-GUI-GESTURE-GATE-1); run every lock-needing step of a phase inside one outer hold (wave-parity-2-common ONE HOLD PER PHASE and CARGO DISCIPLINE). Run the focused hold on COMMITTED tips: commit the red tests, run them red, commit the fix, run focused at that tip. Lanes land one at a time on the lead's release, in the landing order above.",
+ "areas": [
+  "palette-model-1",
+  "menu-effect-board-leaves-1",
+  "id-stability-revisions-1",
+  "layer-record-prune-2"
+ ],
+ "command": "python tools/lead/wave_from_scope.py --base 5655345b --hold \"<hold>\" palette-model-1 menu-effect-board-leaves-1 id-stability-revisions-1 layer-record-prune-2",
+ "trees": {
+  "palette-model-1": {
+   "lane": "SMB-PALETTE-MODEL-1",
+   "tree": "smb-ai-distort-effects-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/target",
+   "tree_head": "5655345b",
+   "previous_lane": "SMB-PROTOTYPE-PLAY-CANCEL-1 (READY_FOR_VALIDATION at 5655345b; built harness-view [viewer] and the harness prototype tests on this target)",
+   "git_status_porcelain": "clean (0 lines, exit 0, read 2026-11-14)",
+   "target_size_gib": "NOT_MEASURED (target_report.py did not finish during prep; UNVERIFIED)",
+   "last_known": "57.9 GiB on 2026-11-13 (wave-next-2 prep, target_report.py); plan W dry run 2026-11-14: skipped, in use by a lane",
+   "older_binary_variants_gib": null,
+   "crates": "hsk-studio-harness-view (feature viewer)"
+  },
+  "menu-effect-board-leaves-1": {
+   "lane": "SMB-MENU-EFFECT-BOARD-LEAVES-1",
+   "tree": "smb-pr-entry-references-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target",
+   "tree_head": "0860c7b1",
+   "previous_lane": "SMB-FIX-HOST-TERMINAL-FRAME-1 (READY_FOR_VALIDATION at 0860c7b1); before it SMB-GUI-MENU-1 built menu_tree.rs, native-host [document] gui_menu and harness_drive_menu on this target (ledger target_reuse)",
+   "git_status_porcelain": "clean (0 lines, exit 0, read 2026-11-14)",
+   "target_size_gib": "NOT_MEASURED (target_report.py did not finish during prep; UNVERIFIED)",
+   "last_known": "total not measured; older binary copies 57.08 GiB in 656 files (research/cargo-cleanup-dryrun-20261114-W.json W-D02, 2026-11-14)",
+   "older_binary_variants_gib": null,
+   "crates": "hsk-studio-harness-view (feature viewer), hsk-studio-harness (tests only), hsk-studio-native-host (run only: gui_menu)"
+  },
+  "id-stability-revisions-1": {
+   "lane": "SMB-ID-STABILITY-REVISIONS-1",
+   "tree": "smb-pr-edit-footprint-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/target",
+   "tree_head": "86ee4e57",
+   "previous_lane": "SMB-FIX-DIAG-SINK-ABORT-1 (READY_FOR_VALIDATION at 86ee4e57; harness-core lane; before it SMB-LAYOUT-DELETE-CASCADE-1 and SMB-R60-FOLLOWUPS-1 built session, harness-core and harness-view on this target per ledger target_reuse)",
+   "git_status_porcelain": "clean (0 lines, exit 0, read 2026-11-14)",
+   "target_size_gib": "NOT_MEASURED (target_report.py did not finish during prep; UNVERIFIED)",
+   "last_known": "total not measured; older binary copies 17.94 GiB in 400 files (research/cargo-cleanup-dryrun-20261114-W.json W-D04, 2026-11-14)",
+   "older_binary_variants_gib": null,
+   "crates": "hsk-studio-session, hsk-studio-chronicle (only if the lead approves a budget-rule change)"
+  },
+  "layer-record-prune-2": {
+   "lane": "SMB-LAYER-RECORD-PRUNE-2",
+   "tree": "smb-sentinels-native-1",
+   "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/target",
+   "tree_head": "198f6dc4",
+   "previous_lane": "SMB-FIX-LAYER-RECORD-PRUNE-1 (READY_FOR_VALIDATION at 198f6dc4; built harness-view [viewer], the layer_records unit tests and harness fix_layer_record_prune on this target)",
+   "git_status_porcelain": "clean (0 lines, exit 0, read 2026-11-14)",
+   "target_size_gib": "NOT_MEASURED (target_report.py did not finish during prep; UNVERIFIED)",
+   "last_known": "total not measured; older binary copies 77.95 GiB in 859 files (research/cargo-cleanup-dryrun-20261114-W.json W-D07, 2026-11-14)",
+   "older_binary_variants_gib": null,
+   "crates": "hsk-studio-harness-core, hsk-studio-harness-view (feature viewer), hsk-studio-harness (tests only)"
+  }
+ },
+ "landing_order": [
+  "SMB-PALETTE-MODEL-1",
+  "SMB-MENU-EFFECT-BOARD-LEAVES-1",
+  "SMB-ID-STABILITY-REVISIONS-1",
+  "SMB-LAYER-RECORD-PRUNE-2"
+ ],
+ "launch_prompts": [
+  "scratchpad/lead/wave3-launch/SMB-PALETTE-MODEL-1.txt",
+  "scratchpad/lead/wave3-launch/SMB-MENU-EFFECT-BOARD-LEAVES-1.txt",
+  "scratchpad/lead/wave3-launch/SMB-ID-STABILITY-REVISIONS-1.txt",
+  "scratchpad/lead/wave3-launch/SMB-LAYER-RECORD-PRUNE-2.txt"
+ ],
+ "file_overlap_check": {
+  "active_lanes": {
+   "SMB-PR-TIMELINE-FIXES-1": "pulse annotate.rs, timeline_edit.rs, merge_sync.rs; harness-view view/timeline.rs, view/timeline/nest.rs",
+   "SMB-MOTION-IMPLIED-VALUES-1": "harness-core motion_commands.rs; composite temporal/composition.rs, track_apply.rs; harness-view view/delivery.rs, view/edit.rs",
+   "SMB-GUI-GESTURE-GATE-1": "native-host src/gui/*, window.rs, offscreen.rs, diag.rs, lib.rs, document.rs; harness-view lib.rs one line"
+  },
+  "wave_next_3": {
+   "SMB-PALETTE-MODEL-1": "hsk-studio-harness-view/src/view/palette.rs (new); hsk-studio-harness-view/src/view/mod.rs (the `mod palette;` line and a re-export only); hsk-studio-harness-view/tests/viewer_palette.rs (new)",
+   "SMB-MENU-EFFECT-BOARD-LEAVES-1": "hsk-studio-harness-view/src/view/menu_tree.rs (Rule, LEAVES, leaf_params, CATALOG_COMMANDS, declared, run_catalog, PALETTE_ONLY, Profile::of); hsk-studio-harness-view/src/view/commands.rs (run_command outcome code only); hsk-studio-harness/tests/menu_effect_board_leaves.rs (new)",
+   "SMB-ID-STABILITY-REVISIONS-1": "hsk-studio-session/src/session.rs (the revision vector: publish, propose slot matching, a retirement step); hsk-studio-session/tests/revision_retirement.rs (new); hsk-studio-chronicle/src/lib.rs only with the lead's approval (budget rule)",
+   "SMB-LAYER-RECORD-PRUNE-2": "hsk-studio-harness-core/src/harness.rs (play_action restructure step and the hook); hsk-studio-harness-core/src/batch.rs (only if the automation must pass the hook); hsk-studio-harness-view/src/view/layer_records.rs (hook body, occurring boundaries); hsk-studio-harness/tests/layer_record_prune_2.rs (new) or tests/fix_layer_record_prune.rs (added tests only)"
+  },
+  "result": "no path of a wave-next-3 lane is in an active lane's list or in another wave-next-3 lane's list. Shared crates with disjoint files: harness-view (three wave-3 lanes and three active lanes), harness-core (SMB-LAYER-RECORD-PRUNE-2 harness.rs and batch.rs against the active motion_commands.rs). Guards written into the scopes: view/mod.rs is SMB-PALETTE-MODEL-1's (one line), src/lib.rs stays SMB-GUI-GESTURE-GATE-1's, native-host is run-only for SMB-MENU-EFFECT-BOARD-LEAVES-1."
+ },
+ "tree_mapping_note": "The lead named one free tree (smb-ai-distort-effects-1, mapped to lane 1). Three more trees meet the stated test (last lane READY_FOR_VALIDATION with its tip on origin, target present and bound to the tree, not one of the three active trees) and are mapped to lanes 2 to 4. If the lead holds any of them back, that lane takes the next free tree in the landing order of the active lanes (smb-folio-angle-unbounded-1 after SMB-PR-TIMELINE-FIXES-1, smb-pr-sequence-session-1 after SMB-MOTION-IMPLIED-VALUES-1, smb-r53-followups-1 after SMB-GUI-GESTURE-GATE-1) with `--tree AREA=TREE`.",
+ "skipped": [
+  {
+   "candidate": "2026-11-13T13:38:07Z SMB-LAYER-ID-STABILITY-1 (whole)",
+   "why": "cross-lane and too large for one lane; its first slice (finding 3, the revision vector) is SMB-ID-STABILITY-REVISIONS-1. Mint sites, (layer, instance) design-state keys, stable copy ids and no-op sync semantics wait for that slice"
+  },
+  {
+   "candidate": "PS-FILTER layer id scheme (never-reuse mint reverted in 432a543c)",
+   "why": "not unblocked: it needs never-reuse ids, which need the revision-vector slice first (wave-next-2 next_after: after SMB-LAYER-ID-STABILITY-1)"
+  },
+  {
+   "candidate": "2026-11-13T11:28:13Z PRIORITY component sync and duplicate beyond the chronicle patch budget (segmentation); native binding states keyed by (layer, instance)",
+   "why": "unblocked from the prune lane's files, but it needs budget-sized patches inside ONE undo group, which is the atomic multi-entry history step (harness-core harness.rs, candidate 2026-11-13T11:28:13Z), and it pairs with the (layer, instance) key of ID stability; a medium harness-view design lane. Next wave, after SMB-LAYER-RECORD-PRUNE-2 frees harness.rs. The dependency on the atomic step is this planner's reading of the two candidates (UNVERIFIED by code)"
+  },
+  {
+   "candidate": "2026-11-13T07:59:45Z and 11:28:13Z atomic layout plus entry / multi-entry history step (harness-core harness.rs)",
+   "why": "same file as SMB-LAYER-RECORD-PRUNE-2 (harness.rs); next wave, first"
+  },
+  {
+   "candidate": "2026-11-13T17:13:35Z Q2 carry clips, masks and area/path text over to the pieces of a knife, shape builder, blob brush or pathfinder",
+   "why": "a capability, not a defect (today a typed refusal); harness-view view/vector.rs lane; next wave"
+  },
+  {
+   "candidate": "2026-11-13T08:33:54Z PRIORITY spine gate tests 1 to 7 (F-R60-43)",
+   "why": "active: SMB-GUI-GESTURE-GATE-1 writes tests 1 to 7a; 7b needs the palette (SMB-PALETTE-MODEL-1 is its first slice)"
+  },
+  {
+   "candidate": "STU-SHL-042..044 shortcut ranks, shipped sets, Shortcut Conflict Report; the palette surface; test 7b",
+   "why": "after SMB-PALETTE-MODEL-1 and after SMB-GUI-GESTURE-GATE-1 frees native-host src/gui"
+  },
+  {
+   "candidate": "gesture-gate candidates: property_edit undo names as catalog ids (harness-core harness.rs:1248), NumberSpec accessor, opacity field in the Layers header, custom scrub cursor",
+   "why": "harness.rs is SMB-LAYER-RECORD-PRUNE-2's file in this wave; the rest are native-host src/gui (active lane)"
+  },
+  {
+   "candidate": "2026-11-13T15:35:24Z camera and light point_of_interest; text animator params; composite track_apply put()",
+   "why": "harness-core motion_commands.rs and composite track_apply.rs are SMB-MOTION-IMPLIED-VALUES-1's files (active; its review accepted F1 camera/light there)"
+  },
+  {
+   "candidate": "SMB-PR-TIMELINE-FIXES-1 next candidates F2 (transition handle), F4 (NestGrids), F7 (marker navigation)",
+   "why": "pulse and harness-view view/timeline files of the active lane"
+  },
+  {
+   "candidate": "2026-11-13T15:54:30Z native-host document and gui scene run on the fixed asset-local-test-host context",
+   "why": "native-host document.rs and src/gui are SMB-GUI-GESTURE-GATE-1's files (its brief covers GuiFrame::open with the caller's context)"
+  },
+  {
+   "candidate": "2026-11-13T09:27:50Z tip clock: window.rs does not feed GuiFrame::advance",
+   "why": "in SMB-GUI-GESTURE-GATE-1 (active)"
+  },
+  {
+   "candidate": "2026-11-13T09:27:50Z drive.rs menu rows; WORKSPACE > Tools registry (STU-SHL-039); 544 menu paths; tooltip helper and localisation (STU-SHL-245..247); L2/L3 help (STU-SHL-233..236)",
+   "why": "larger GUI or command-surface work; drive rows would touch menu_tree.rs and the drive files next to SMB-MENU-EFFECT-BOARD-LEAVES-1; later waves"
+  },
+  {
+   "candidate": "2026-11-13T07:59:45Z Folio longdoc story-id check; layout_ui id mint; smart-reflow controls record",
+   "why": "tier 3; the longdoc check is the best small spare lane (folio or session layout records, clear red test) if a fifth tree is free; layout_ui id mint goes with ID stability"
+  },
+  {
+   "candidate": "2026-11-13T13:55:09Z StudioDocument Default over 48 struct-literal sites",
+   "why": "touches every crate (rebase conflicts with all seven running lanes); between waves only"
+  },
+  {
+   "candidate": "2026-11-13T13:38:07Z raster/photo items (effect mask edit, bake, adjustment members, presets, DNG crs keys); 2026-11-13T13:55:09Z board node resize, convert to vector",
+   "why": "tier 3 parity capabilities, larger than a fix lane; place.rs and board/write.rs are free again: next wave"
+  },
+  {
+   "candidate": "2026-11-13T10:32:17Z web site record, two-way synchronize, template move; 2026-11-13T11:42:08Z web vocabulary, palette themes, lint provider",
+   "why": "tier 3 parity; harness-core web_site.rs and web-core; later"
+  },
+  {
+   "candidate": "2026-11-13T12:15:38Z STU-TYP-113/155/158..161 type decorations, RTL, hyperlinks; V4-06 class D alternate.rs",
+   "why": "as wave-next-2: tier 3 parity, and class D has no host caller"
+  },
+  {
+   "candidate": "2026-11-13T15:08:59Z shared derived-resource helper; 2026-11-13T15:42:01Z worker WER fast fail; 2026-11-13T09:27:50Z video.project_new_sequence size parameters; host-fed predicate inputs",
+   "why": "tier 3, no red test of a defect (refactor, reachability UNVERIFIED, or a parameter addition); later"
+  },
+  {
+   "candidate": "2026-11-13T15:08:59Z prototype play cancel token; 2026-11-13T15:35:24Z enable_animation implied values; candidates of the fix wave (2026-11-13T08:33:54Z PRIORITY rows)",
+   "why": "done or active: SMB-PROTOTYPE-PLAY-CANCEL-1 READY at 5655345b; SMB-MOTION-IMPLIED-VALUES-1 active; the fix-wave lanes are READY (wave-next-2 wave-args.json skipped)"
+  }
+ ],
+ "next_after": [
+  "atomic multi-entry history step (harness.rs), then component sync segmentation and (layer, instance) design-state keys",
+  "SMB-LAYER-ID-STABILITY-1 slice 2: never-reuse mint at the harness-view mint sites and the PS-FILTER id scheme, after SMB-ID-STABILITY-REVISIONS-1",
+  "palette surface in native-host src/gui plus test 7b, then the spine GATE_CHECK; after SMB-GUI-GESTURE-GATE-1 and SMB-PALETTE-MODEL-1",
+  "Q2 vector pieces keep clips, masks and text; Folio longdoc story-id check; property_edit undo names as catalog ids"
+ ],
+ "unverified": [
+  "No test or cargo command was run at prep; every red test is a claim that it fails at the base.",
+  "Spec clause and MT row ids for SMB-ID-STABILITY-REVISIONS-1 and SMB-LAYER-RECORD-PRUNE-2 were not read.",
+  "Where the host's existing symbol palette matcher lives (STU-SHL-041).",
+  "Whether a Viewer path reaches Run::play_action (only harness-core batch.rs callers were found).",
+  "The cause of finding (3) of SMB-LAYER-ID-STABILITY-1 (inferred by its author; the session code read at prep is consistent with it)."
+ ]
+}
