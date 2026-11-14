@@ -1,0 +1,114 @@
+{
+ "lane": "SMB-MOTION-IMPLIED-VALUES-1",
+ "tip": "f6b041c2",
+ "also_reviewed": [
+  "0a09b69e (red: harness tests/motion_implied_values.rs new; composite tests/track_apply.rs created_streams_keep_the_layers_prior_value_never_the_first_key; harness-core motion_commands.rs no-op port signature)",
+  "d4b9fe0e (fix: harness-core motion_commands.rs: ImpliedValues, Run::motion_command_with, current_slot/implied_value, explicit-only point of interest and fill, text_base neutral values)",
+  "f6b041c2 (fix: composite temporal/composition.rs layer_anchor_position, track_apply.rs put(), tests/composition_adapter.rs; harness-view view/delivery.rs ImpliedFromComposite + layer_alone, view/edit.rs media branch)"
+ ],
+ "base": "89f27330",
+ "verdict": "FIX_FIRST",
+ "verdict_note": "From reading only: no build, no clippy, no test run. Line anchors are at f6b041c2. The mechanism holds for every layer that has content or is a plain null: the port is lazy, typed, cancel-aware, one undo step, and the layer-alone evaluation is value-equal to the whole-composition one (see answers.layer_alone). One high defect: for a CAMERA or LIGHT layer the renderer does not use transform_parts for an absent position (it uses the composition centre), so the port keys [0,0] and the key moves the camera or light (F1). The fix is one refusal in an owned path plus one test. F2 to F6 are low or notes.",
+ "findings": [
+  {
+   "id": "F1",
+   "certainty": "READ; not run. composite temporal/composition.rs:1752-1753 (camera_at: absent position stream -> [comp.width/2, comp.height/2]) and :2022-2023 (lights_at: the same); :1339-1349 transform_parts (Content::None -> anchor [0,0], position [0,0]); :945-991 read (a camera or light is a Group document layer, harness-core motion_commands.rs:1422-1430 NewLayer::Group with streams: Vec::new() at :1393, so Content::None and new() succeeds); :1440 layer_anchor_position; harness-core motion_commands.rs:2160-2166 implied_property (a bare anchor or position on ANY layer) and :2211-2250.",
+   "severity": "high (the lane's own target path keys a value that changes the render, against STU-MOT-038; before this lane the command refused property_default_unknown, which was safe)",
+   "where": "hsk-studio-harness-core/src/motion_commands.rs:2225-2250 implied_value (no camera or light guard); hsk-studio-composite/src/temporal/composition.rs:1431-1442 layer_anchor_position (doc: 'the transform group every frame of this source draws the layer with' is false for a camera or light); harness-core module docs :84-98 ('so the render does not change')",
+   "what": "The implied position of a camera or light is not transform_parts' value. camera_at and lights_at read l.streams.position themselves and default an absent stream to the composition centre. transform_parts gives a Content::None layer position [0,0]. The port returns ([0,0],[0,0]) for a camera or light, harness-core creates a static_implied position stream keyed [0,0], and from then on camera_at / lights_at sample [0,0] instead of the centre.",
+   "scenario": "Media Viewer, composition 1920x1080 with one 3D raster layer. composition.add_layer kind camera (no position stream). property.enable_animation {layer_id: camera, property: position, time: T} (or keyframe.add_at_current / toggle_at_current). Accepted; the stream holds one key [0,0]. The active camera moves from (960, 540, -zoom) to (0, 0, -zoom): every 3D layer of the composition shifts in every frame. The same for a light: its position moves from the centre to the corner and the shading changes. Undo restores it; disable restores it (static_implied), but the command itself changed the render.",
+   "fix": "In implied_value (owned path), before the port: refuse property_default_unknown when the layer is a camera or a light (l.camera.is_some() || l.light.is_some()) and the property is position. Simplest: refuse both anchor and position for such a layer (the anchor is not read by camera_at or lights_at). State it in the module docs and in layer_anchor_position's doc ('not for a camera or light layer'). Not recommended here: returning the composition centre, because the renderer is not consistent for a camera or light that is a PARENT (F2), so no single value is right.",
+   "test": "Red first, default features, in harness tests/motion_implied_values.rs: with a counting test port, property.enable_animation, keyframe.add_at_current and keyframe.toggle_at_current on a camera's and a light's absent position are refused property_default_unknown with zero port calls and unchanged entries. It fails at f6b041c2 (the port is called and the command is accepted). Optional media check: Viewer::motion_command on a camera position is refused."
+  },
+  {
+   "id": "F2",
+   "certainty": "READ; pre-existing, outside the lane's paths. composition.rs:1664-1682 parent_3d -> :1641-1659 own_3d -> transform_parts; :1752-1753, :2022-2023.",
+   "severity": "low (renderer inconsistency, not introduced by this lane; it is why F1's fix is a refusal)",
+   "where": "hsk-studio-composite/src/temporal/composition.rs:1674 (own_3d(parent)) versus :1752-1753",
+   "what": "A camera or light without a position stream stands at the composition centre when it is drawn, but when it is the PARENT of another layer, parent_3d uses own_3d(parent), which takes transform_parts' position [0,0]. So the same absent stream has two implied values.",
+   "scenario": "A 3D layer parented to a new camera: the child's chain uses the camera at (0,0), the view uses the camera at the centre. Keying either value changes one of the two.",
+   "fix": "Name it as a next-lane candidate (one implied camera/light position rule in composite). No change in this lane.",
+   "test": "none in this lane"
+  },
+  {
+   "id": "F3",
+   "certainty": "READ. delivery.rs:340-386; deliberation recommended_ruling.port_conditions item 5 ('builds CompositionTemporalSource::new with the LAYER'S OWN composition as root ... DocumentTiles::of and Resolved (the render-queue reading)').",
+   "severity": "low (a deviation from the binding ruling that needs the lead's explicit acceptance; the code is value-equal, see answers.layer_alone)",
+   "where": "hsk-studio-harness-view/src/view/delivery.rs:375-386 layer_alone; :347-348 evaluate",
+   "what": "The port does not build the layer's composition as stored. It builds a reduced record set: that composition with the one layer (parent and track_matte cleared) and, for a precomposition layer, the nested composition with layers: Vec::new(). The ruling's reading was the whole composition, with whole-composition refusals as a named limit. The reduction removes that limit. No test pins that the reduced value equals the whole-composition value for a layer WITH a parent or a matte: the media tests have neither.",
+   "scenario": "A later change makes Content bounds depend on a sibling (for example a clip base or a matte-cropped extent). The alone value would silently differ from the renderer and every current test stays green.",
+   "fix": "Lead ruling: accept the layer-alone reading (recommended). Record it in the lane notes as beyond the deliberation. Add one media assertion: for a raster layer with a parent and a track matte, the key equals CompositionTemporalSource::layer_anchor_position of the FULL records (the test already builds that source in matrices()).",
+   "test": "In renderer::enable_keys_the_renderers_implied_value...: parent the paper layer to the null and give it a matte, then compare the keyed value with the full source's layer_anchor_position, and keep the scene matrix comparison."
+  },
+  {
+   "id": "F4",
+   "certainty": "READ; not run. tests/motion_implied_values.rs:393-418, :448-455. Whether a null layer appears in scene_at().layers is UNVERIFIED (composition.rs:1594 treats Content::None as no content).",
+   "severity": "low (proof gap)",
+   "where": "hsk-studio-harness/tests/motion_implied_values.rs:398 (only the raster is asserted to draw), :400",
+   "what": "The 'render does not change' proof compares scene layer matrices. Only the raster layer is asserted to be in the scene. The null's [0,0] is checked against a hard-coded expectation, not against a render: nothing is parented to it. The precomposition's nested composition is empty in the test, so 'nested composition without its layers' is not distinguished from the real one by a test (the code does not read the nested layers, composition.rs:951-960). No camera or light is exercised (F1).",
+   "scenario": "A wrong implied value for a null would move its children; the test would not see it.",
+   "fix": "Parent the raster to the null before taking 'want' (covers the null through the child's matrix); put one raster layer into 'inner'. Both are small edits to the fix-side test set; do not rewrite the red assertions, add to them.",
+   "test": "as above"
+  },
+  {
+   "id": "F5",
+   "certainty": "READ in the focused log :24352-24369 (two warnings, clippy::needless_borrows_for_generic_args, machine-applicable).",
+   "severity": "low",
+   "where": "hsk-studio-harness/tests/motion_implied_values.rs:363 (columns 42 and 95)",
+   "what": "serde_json::to_value(&tiles[0].width.unit) and (&tiles[0].height.unit): the borrow is needless. Both warnings are the lane's own new code. lane-check runs clippy without -D warnings (tools/lane-check.sh:387-388), so it does not fail the bundled run.",
+   "scenario": "Warning noise grows in a file the lane created; a later -D warnings policy fails the unit.",
+   "fix": "Recommend FIX: drop the two '&' as clippy suggests, in the same commit as F1's test. It does not touch a red assertion's meaning (line 363 is in a media helper).",
+   "test": "the focused clippy step shows zero warnings for test motion_implied_values"
+  },
+  {
+   "id": "F6",
+   "certainty": "READ. delivery.rs:347-348, :364-367; composition.rs:558-574 (static_content clones the document, validates, lowers and evaluates the whole document for a static-path layer); delivery.rs:247-265 (no cancel check in DocumentTiles::of; bounded by MAX_DOCUMENT_TILE_BYTES); motion_commands.rs:2242-2244.",
+   "severity": "note",
+   "where": "hsk-studio-harness-view/src/view/delivery.rs:347; hsk-studio-harness-core/src/motion_commands.rs:2242",
+   "what": "Cost per command: the layer's own tiles are copied and hashed (bounded 1 GiB, no cancel check inside that loop), then new() over one layer. For a static-path layer (an enabled mask) static_content evaluates the whole document once, under the cancel token and Budget::default(). This is less than the ruled whole-composition build. Separately, every port failure becomes property_default_unknown with no detail, so document_tiles_over_budget, temporal_unsupported and composition_layer_not_found are indistinguishable in the op record (the ruling asked for exactly this code; the reason is lost).",
+   "scenario": "An operator enables animation on a masked layer in a very large document: one whole-document evaluation, then either a key or property_default_unknown with no reason.",
+   "fix": "None required. Optional: a detail field with the port's code on the refusal, if the op record has a place for it (UNVERIFIED).",
+   "test": "none"
+  },
+  {
+   "id": "F7",
+   "certainty": "READ. composite camera_solve.rs:598-609, :643; track_apply.rs:208-213.",
+   "severity": "note (V4-06 sibling outside the lane's paths)",
+   "where": "hsk-studio-composite/src/camera_solve.rs:608-609",
+   "what": "camera_solve builds a new layer whose position and rotation streams take the first key as static_value with static_implied false: disabling those keys keeps the first solved value, the same class put() just fixed. It is a new layer, so there is no prior value to lose, but for the position the implied value would be the camera rule of F1/F2. put()'s Opacity arm (track_apply.rs:212) is unreachable from apply_track and stabilize; harmless.",
+   "scenario": "Disable animation on a solved camera's position: it stays at the first solved frame instead of returning to an implied value.",
+   "fix": "Name as a next-lane candidate with F2.",
+   "test": "none"
+  }
+ ],
+ "lead_questions": [
+  "Ruling needed on F1: fix in this lane, red first? Recommendation: yes; one refusal in motion_commands.rs implied_value and one default-feature test.",
+  "Ruling needed on F3: accept the layer-alone reading over the deliberation's whole-composition reading? Recommendation: accept; it is value-equal for every layer the port can build, and it removes the whole-composition refusals. Ask for the one equality assertion.",
+  "F5: fix the two clippy borrows with the F1 commit (recommended) or leave."
+ ],
+ "answers": {
+  "layer_alone": "EQUAL for every layer kind except camera and light layers (F1), where the difference is not caused by the alone evaluation: the whole-composition accessor would return the same wrong [0,0]. Dependencies of transform_parts (composition.rs:1334-1364): only l.content (bounds, origin) and l.streams (anchor, position, scale, rotation), sampled at the composition tick. It does not read parent, matte, clipped, mode, timing, pin, masks, three_d, effects, collapse, motion records or any sibling; there is no auto-orient in this file. The parent chain is applied afterwards in matrix() (:1392-1416) and parent_3d (:1664), on top of the stored position, so position is in the parent's space and does not depend on the parent. l.content is built in read() (:945-1017) from: (1) raster tiles: the layer's own tile rects (bounds_of); (2) precomposition: Rect(0,0,nested.width,nested.height) from the nested composition HEADER (:951-960), never from its layers, so an empty nested copy gives the same centre; collapse_transformations changes how the nested layers are spliced, not the bounds or transform_parts; (3) static path (enabled mask, or with prepared inputs text/vector/records): static_content (:514-681) lowers and evaluates the DOCUMENT snapshot rooted at the layer's graph operation, with the same RenderInputs::default() the render queue uses (render_queue.rs:576); the composition enters only as Rect(0,0,comp.width,comp.height) for an unlinked vector mask, and the header is kept; DocumentTiles holds the layer's own tiles, which is all a subtree rooted at that layer names; (4) group, null, composition adjustment, empty raster (solid or shape host): Content::None, [0,0] and [0,0], and the solid's motion content is drawn with that same matrix. So siblings, parent, mattes, the nested layers, collapse and auto-orient do not enter the stored anchor or position. The only composition renderer in the product (render_queue.rs:565-580) uses the same inputs, so there is no second reading to disagree with. What the alone build changes is refusals only: a sibling the reading cannot build, a matte or adjustment rule (:1035-1047), or a dangling parent no longer refuses this layer's value. UNVERIFIED: a layer effect that references another composition layer could make the alone records fail validation (a refusal, never a wrong value).",
+  "claims_verified": "Port call sites: implied_value is called only from current_slot (:2215), which only the three rows call (:951, :966, :971); only when implied_property matches a bare anchor or position and no stream exists; property_keys' probe passes implied None (:2447). Position under a keyed anchor is refused before the port (:2231-2233; test with zero calls). Root = the layer's own composition (:2237; delivery.rs:355, :385); accessor uses find() (composition.rs:1437); no with_motion_records, no glyphs. New streams static_implied true (:2216); an existing explicit static stream is never marked implied (the push is under is_none()). Cancel -> canceled (:2239-2241; delivery.rs:365); other failures and non-finite values -> property_default_unknown (:2242-2248); u64 time outside i64 -> parameter_invalid before the port. Undo: plan-before-commit on a copy, one step, label by catalog id (tests :127-132, :164-172); a refusal leaves entries and history unchanged (refused_by). The four property_default_unknown pin files are not in the diff. git diff --stat 89f27330..f6b041c2 names 8 files: no Cargo.toml, Cargo.lock, folio, harness.rs or catalog file. track_apply put(): rotation [0] and scale [100,100] match the renderer defaults (composition.rs:1350-1357); anchor and position static_implied with non-empty keys (MotionTrack::new :109); existing streams keep their static; stabilize's four put() calls and apply_track's three are the only callers. Text animator neutral values match text_animator.rs:503-529 exactly (position adds am*0, scale and opacity multiply by (100+am*0)/100, rotation and tracking add am*0); fill mixes toward its colour when am>0, so no neutral value: correct to refuse.",
+  "red_tests_prove_the_claim": "Yes. Red log (base 89f27330 + uncommitted red): default harness 5 of 6 fail, composite track_apply 1 of 6 fails, media harness 7 of 8 fail, each on its own assertion: keys create a point of interest (:82 'was accepted'), the no-op port still refuses (:57), text param static is the caller's key (:252/:254), put() static_implied (track_apply.rs:245), Viewer enable refused property_default_unknown (:343). The one passing test is an_absent_position_under_a_keyed_anchor_is_refused_before_the_port, which passes at the base because the command refused anyway: it pins the order (zero port calls) only at the tip. git diff 0a09b69e..f6b041c2 does not touch harness tests/motion_implied_values.rs or composite tests/track_apply.rs: red tests not rewritten. composition_adapter.rs layer_anchor_position test is new with the fix (it cannot compile before the accessor).",
+  "log_matches_commits": "The focused log header says HEAD 0a09b69e + uncommitted fix and lists six modified files; git diff --stat 0a09b69e..f6b041c2 names exactly those six files. History is linear (89f27330 -> 0a09b69e -> d4b9fe0e -> f6b041c2), no rewrite. The lane tree is clean at f6b041c2. The log cannot show the uncommitted content, so byte equality of what ran and what was committed is UNVERIFIED. Focused results in the log: harness-core 82/82, harness default 35/35, composite 15/15, harness media 25/25.",
+  "common_rules": "No egui, eframe, winit, wgpu line in the diff. Doc comments: three statements are false for camera and light layers (F1); delivery.rs:409-418 and layer_alone's doc match the code. 3 commits (2 to 5 allowed). MENU COVERAGE: no catalog row changed."
+ },
+ "checked": [
+  "git log, git diff 89f27330..f6b041c2 (8 files, +774/-37), git diff 0a09b69e..f6b041c2 (6 files); lane tree clean on f6b041c2",
+  "composite temporal/composition.rs: Content, bounds, origin (:178-212), needs_static and static_content (:490-681), new and read (:807-1176), find, graph_layer, transform_parts, local, matrix, layer_anchor_position (:1278-1442), scene_of, own_3d, parent_3d, plane, camera_at (:1504-1779), lights_at (:2004-2054), motion content and solid_rect use (:2380-2395)",
+  "composite track_apply.rs :90-329; camera_solve.rs :598-609; clip_finishing.rs :972-1014; motion text_animator.rs :484-533",
+  "harness-core motion_commands.rs: module docs :59-104, Edit, ImpliedValues, run_with, plan (:449-570), apply rows (:944-999), add_layer (:1387-1441), seeded_slot (:1858-1960), text_slot and text_base (:2063-2126), property_read, implied_*, property_set, current_slot, implied_value (:2138-2258), property_keys probe",
+  "harness-view view/delivery.rs :225-386 (DocumentTiles, Resolved, ImpliedFromComposite, layer_alone); view/edit.rs :651-686; timeline_export/render_queue.rs :565-584; grep for every CompositionInput / CompositionTemporalSource::new / RenderInputs site in harness-view, harness and native-host src",
+  "harness tests/motion_implied_values.rs in full; composite tests/composition_adapter.rs new test; folio StudioCompositionRecords and StudioComposition fields",
+  "red-proof-...-89f27330-wt.log and focused-...-0a09b69e-wt.log headers, failure lines, clippy warnings and summaries; brief, lane file notes, deliberation-20261113-motion-implied-seam.json in full; tools/lane-check.sh clippy lines"
+ ],
+ "not_checked": [
+  "No cargo build, clippy or test run (method). F1 is derived from the code path and was not reproduced.",
+  "UNVERIFIED: byte equality of the focused run's uncommitted fix and commits d4b9fe0e + f6b041c2 (the log lists file names only).",
+  "UNVERIFIED: the per-sha check of 0a09b69e and of the tip; the bundled lane-check has not run.",
+  "UNVERIFIED: whether a null layer appears in scene_at().layers (F4); whether Folio validation of the reduced records can fail for a layer effect that references another layer; the document-layer kind add_layer gives a camera (read as Group, :1423).",
+  "UNVERIFIED: the static extent of a masked raster layer versus its tile union (same in both readings, so it does not affect the layer-alone answer).",
+  "Not read: common rules wave-parity-2-common.md and lead-rulings-20261108-by-lane.json common beyond what the brief and the deliberation restate; common/mod.rs test helpers; folio validate_composition_records body.",
+  "Not checked: After Effects behaviour for any implied value (the port keys what Studio's renderer draws)."
+ ]
+}
