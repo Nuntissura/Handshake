@@ -1,0 +1,285 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261113-W",
+ "execute": false,
+ "at": "2026-11-14T03:31:22Z",
+ "total_gib": 0.0,
+ "results": [
+  {
+   "id": "W-D01",
+   "owner": "smb-pr-retime-hold-1",
+   "planned_gib": 54.3,
+   "newest_now": "2026-11-13T15:22Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 1998,
+   "dirs": [],
+   "gib": 115.13,
+   "status": "SKIPPED_DIFFERS_FROM_PLAN"
+  },
+  {
+   "id": "W-D02",
+   "owner": "smb-pr-entry-references-1",
+   "planned_gib": 33.65,
+   "newest_now": "2026-11-13T15:53Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 656,
+   "dirs": [],
+   "gib": 57.08,
+   "status": "SKIPPED_DIFFERS_FROM_PLAN"
+  },
+  {
+   "id": "W-D03",
+   "owner": "smb-r53-followups-1",
+   "planned_gib": 30.62,
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "not_paused": [
+    "SMB-GUI-GESTURE-GATE-1"
+   ]
+  },
+  {
+   "id": "W-D04",
+   "owner": "smb-pr-edit-footprint-1",
+   "planned_gib": 9.67,
+   "newest_now": "2026-11-13T15:41Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 400,
+   "dirs": [],
+   "gib": 17.94,
+   "status": "SKIPPED_DIFFERS_FROM_PLAN"
+  },
+  {
+   "id": "W-D05",
+   "owner": "smb-pr-sequence-session-1",
+   "planned_gib": 9.52,
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "not_paused": [
+    "SMB-MOTION-IMPLIED-VALUES-1"
+   ]
+  },
+  {
+   "id": "W-D06",
+   "owner": "smb-ai-distort-effects-1",
+   "planned_gib": 1.53,
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "not_paused": [
+    "SMB-PROTOTYPE-PLAY-CANCEL-1"
+   ]
+  },
+  {
+   "id": "W-D07",
+   "owner": "smb-sentinels-native-1",
+   "planned_gib": 0.36,
+   "newest_now": "2026-11-13T17:08Z",
+   "newest_check": "size only (plan has no newest_file_utc)",
+   "files": 859,
+   "dirs": [],
+   "gib": 77.95,
+   "status": "SKIPPED_DIFFERS_FROM_PLAN"
+  },
+  {
+   "id": "W-D08",
+   "owner": "smb-folio-angle-unbounded-1",
+   "planned_gib": 0.09,
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "not_paused": [
+    "SMB-PR-TIMELINE-FIXES-1"
+   ]
+  },
+  {
+   "id": "W-D09",
+   "owner": "sync-export",
+   "planned_gib": 0.13,
+   "status": "REFUSED_PATH"
+  },
+  {
+   "id": "W-D10",
+   "owner": "validator-r54-probe",
+   "planned_gib": 0.09,
+   "status": "SKIPPED_STATUS"
+  },
+  {
+   "id": "W-D11",
+   "owner": "smb-fig-grid-3",
+   "planned_gib": 0.07,
+   "status": "SKIPPED_STATUS"
+  },
+  {
+   "id": "W-D12",
+   "owner": "smb-type-authored-token-1",
+   "planned_gib": 24.7,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-type-authored-token-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V3",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D13",
+   "owner": "smb-pr-track-display-1",
+   "planned_gib": 3.18,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-track-display-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V2",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D14",
+   "owner": "smb-r52-followups-1",
+   "planned_gib": 2.98,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-r52-followups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D15",
+   "owner": "smb-layout-marker-lookups-1",
+   "planned_gib": 2.8,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-marker-lookups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D16",
+   "owner": "smb-col-swatch-groups-1",
+   "planned_gib": 2.72,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-col-swatch-groups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D17",
+   "owner": "smb-layout-entry-text-1",
+   "planned_gib": 2.69,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-entry-text-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V3",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D18",
+   "owner": "smb-tiff-channels-1",
+   "planned_gib": 2.69,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-tiff-channels-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V7",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D19",
+   "owner": "smb-press-ink-manager-1",
+   "planned_gib": 2.42,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-press-ink-manager-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V6",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D20",
+   "owner": "smb-pr-merge-sync-1",
+   "planned_gib": 1.9,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-merge-sync-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D21",
+   "owner": "smb-press-ink-coverage-1",
+   "planned_gib": 1.73,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-press-ink-coverage-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V4",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-D22",
+   "owner": "smb-layout-blank-line-lookups-1",
+   "planned_gib": 0.8,
+   "kind": "whole",
+   "n4": true,
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-layout-blank-line-lookups-1\\handshake-studio-assets\\Cargo.toml",
+   "settled_by": "PASS_V2",
+   "status": "SKIPPED_LOCK",
+   "locks": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock held by a round on drive d:"
+   ]
+  },
+  {
+   "id": "W-C01",
+   "owner": "smb-pr-retime-output-1",
+   "planned_gib": 38.07,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-pr-retime-output-1\\handshake-studio-assets\\Cargo.toml",
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "used_by": [
+    "SMB-AUDIO-OUT-MIX-1",
+    "SMB-SCORE-EFFECTS-6"
+   ]
+  },
+  {
+   "id": "W-C02",
+   "owner": "smb-r54-followups-1",
+   "planned_gib": 35.3,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-r54-followups-1\\handshake-studio-assets\\Cargo.toml",
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "used_by": [
+    "SMB-PROJECT-BIN-1",
+    "SMB-TYPE-INDENT-SPACING-1"
+   ]
+  },
+  {
+   "id": "W-C03",
+   "owner": "smb-type-sentinels-registry-1",
+   "planned_gib": 0.2,
+   "kind": "whole",
+   "bound_to": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-studio-lanes\\smb-type-sentinels-registry-1\\handshake-studio-assets\\Cargo.toml",
+   "status": "SKIPPED_IN_USE_BY_LANE",
+   "used_by": [
+    "SMB-UI-TREE-1"
+   ]
+  }
+ ]
+}

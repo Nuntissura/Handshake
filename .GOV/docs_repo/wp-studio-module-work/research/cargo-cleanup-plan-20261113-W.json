@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261113-W",
  "generated_at": "2026-11-13T06:04:00Z",
- "status": "PROPOSED (dry run re-run 2026-11-13T06:14:53Z after target_prune.py N4; C: candidates added and dry-run 2026-11-13T07:38:05Z): 'Approve plan W' removes 48.62 GiB on D: right away, the whole unused targets of 11 validated lanes (W-D12..W-D22, 187,114 files); W-D01..W-D08 (139.74 GiB older copies on the 8 wave trees) then run one by one, each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection; W-D09..W-D11 (0.29 GiB) stay skipped (REFUSED_PATH, SKIPPED_STATUS). C: W-C01..W-C03, 73.57 GiB whole (3 PASS lanes' C: targets whose later lanes moved to D:), dry run SKIPPED_IN_USE_BY_LANE (old_tree_idle and pre-move ledger worktrees; wrong in fact, see tool_refusal_assessment) and next SKIPPED_LOCK while R60 holds the C: disk build lock: 0 GiB on C: until the round ends and their 5 READY users PASS or tool change N5 is approved",
+ "status": "APPROVED 2026-11-14, NOT EXECUTED (0 of 25): Operator 2026-11-14 'Approve plan W, then continue, you should manage cargo on c better, inpspect with an agent what cargo can be removed.'. Fresh dry run 2026-11-14T03:31:22Z removed nothing and --execute was not run: W-D12..W-D22 SKIPPED_LOCK (R60-union-4b holds the D: lock); W-D01, W-D02, W-D04, W-D07 SKIPPED_DIFFERS_FROM_PLAN (grew to 268.1 GiB against 97.98 planned, needs a refreshed list); W-D03, W-D05, W-D06, W-D08 SKIPPED_IN_USE_BY_LANE (4 new lanes on the trees); W-D09..W-D11 as before; W-C01..W-C03 SKIPPED_IN_USE_BY_LANE (needs PASS_V of 5 READY lanes or tool change N5). Result research/cargo-cleanup-result-20261114-W.json. Before: PROPOSED (dry run re-run 2026-11-13T06:14:53Z after target_prune.py N4; C: candidates added and dry-run 2026-11-13T07:38:05Z): 'Approve plan W' removes 48.62 GiB on D: right away, the whole unused targets of 11 validated lanes (W-D12..W-D22, 187,114 files); W-D01..W-D08 (139.74 GiB older copies on the 8 wave trees) then run one by one, each only after its wave lane is READY_FOR_VALIDATION with its tip on origin and a fresh re-inspection; W-D09..W-D11 (0.29 GiB) stay skipped (REFUSED_PATH, SKIPPED_STATUS). C: W-C01..W-C03, 73.57 GiB whole (3 PASS lanes' C: targets whose later lanes moved to D:), dry run SKIPPED_IN_USE_BY_LANE (old_tree_idle and pre-move ledger worktrees; wrong in fact, see tool_refusal_assessment) and next SKIPPED_LOCK while R60 holds the C: disk build lock: 0 GiB on C: until the round ends and their 5 READY users PASS or tool change N5 is approved",
  "authority": "HSK-ART-003 (P2), HSK-ART-005 (inspection-based exact list; Operator approves the exact list under CX-107). Prepared as a proposal with a dry run only; nothing removed.",
  "why": "Operator 2026-11-12 night: manage cargo better and stop leaving unneeded old cargo on disk. Older copies of test and binary outputs grew again on the trees that landed lanes since plan V; targets of validated lanes that nothing uses still hold full builds.",
  "inspection": "Read-only Python scandir walk of every Studio cargo target under the two WP-KERNEL-STUDIO roots (D: 2026-11-13T06:02:03Z, C: 2026-11-13T05:15:46Z); older copies computed by importing target_prune.py's own older_copies()/HASHED rule (not re-implemented), totals and newest file by mtime in the tool's format. target_report.py not run (slow), as plan V. Ledger read from the kernel working tree, which already holds the 8 wave lanes (status unset) another agent is generating tonight. C: 2026-11-13T07:33:40Z: every lane target under C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev (studio-round excluded) walked by importing target_prune.py's own whole_contents() and newest() (read-only, 29 s): 6 targets, 136.51 GiB; studio-team-dev/target holds only lanes/ and 3 top-level files. Ledger, lane files, the bound trees' git HEAD/status (read-only), build processes and the Studio lock folders read 2026-11-13T07:28Z..07:38Z.",
@@ -1038,5 +1038,20 @@
    "c_gib_when_clear": 73.57
   }
  },
- "revised_at": "2026-11-13T07:40:00Z"
+ "revised_at": "2026-11-13T07:40:00Z",
+ "operator_approval": {
+  "at": "2026-11-14",
+  "quote": "Approve plan W, then continue, you should manage cargo on c better, inpspect with an agent what cargo can be removed.",
+  "scope": "plan W as written; no tool change N5, no widened or substituted item"
+ },
+ "executions": [
+  {
+   "at": "2026-11-14T03:31:22Z",
+   "ids": [],
+   "removed_gib": 0.0,
+   "status": "nothing removed; all 25 skipped by the fresh dry run",
+   "dry_run": "research/cargo-cleanup-dryrun-20261114-W.json",
+   "result": "research/cargo-cleanup-result-20261114-W.json"
+  }
+ ]
 }
