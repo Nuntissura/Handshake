@@ -1,0 +1,124 @@
+{
+  "lane": "SMB-PR-TIMELINE-FIXES-1",
+  "tip": "06485ee9",
+  "also_reviewed": ["2a7c2177", "85b147dd", "6ef0f282"],
+  "base": "89f27330",
+  "verdict": "FIX_FIRST",
+  "verdict_note": "From reading only: no build, no cargo, no test run by the reviewer. Line anchors are at 06485ee9. The three fixes do what the findings ask and the red tests are honest. One small defect (F1) makes two new doc comments false and keeps a transition the code can prove short; it is a few lines in timeline_edit.rs keep_unchanged_cuts plus one test row. F2 to F6 are low and can be named or folded in. Nothing here is a REJECT.",
+  "findings": [
+    {
+      "id": "F1",
+      "certainty": "READ; not run.",
+      "severity": "medium (small fix; false docs today)",
+      "where": "hsk-studio-pulse/src/timeline_edit.rs keep_unchanged_cuts (match on check_at, Err(SourceExtentUnknown) arm) with src/transition.rs:259-264 check_at; docs at timeline_edit.rs keep_unchanged_cuts ('A known shortfall ... still ends it') and merge_sync.rs plan_move_clips ('a known shortfall it already had still ends it')",
+      "what": "check_at answers SourceExtentUnknown as soon as EITHER side is unknown ((None,_) | (_,None)), before it looks at the other side. keep_unchanged_cuts restores the transition on that answer alone. So a cut with one unknown handle and one KNOWN-SHORT handle is kept. This is the everyday case, not an exotic one: for two forward clips the outgoing tail handle needs the source length (unknown) and the incoming head handle is source_in (always known, transition.rs:201-210). An incoming clip that starts at source_in 0 under a centred dissolve is known-short by half the transition. The m7 test does not cover it: its incoming clip has source_in 2F against 1F needed.",
+      "failure_scenario": "Unknown source lengths (the viewer with no frame source bound). Clip A [0,10F) with a 2F centred dissolve onto clip B whose source_in is 0. Group-move A and B by 5F. Before the lane: tr dropped and listed. After: tr kept, though B provably has no head handle; the two doc comments say a known shortfall ends it.",
+      "fix": "In the SourceExtentUnknown arm also read crate::transition::transition_handles(edited, outgoing clip id, ctx.extents) (already pub) and keep only when every side with Some(available) has required <= available. Add one m7 row: extent None, incoming source_in 0, expect dropped ['tr-1']. Or, if the lead rules the brief's 'whatever the extents' literally (an unchanged cut is never ended by an edit), then correct the two doc comments instead; one of the two must change."
+    },
+    {
+      "id": "F2",
+      "certainty": "READ; not run.",
+      "severity": "low to medium (for the lead's ruling; not a regression in what plays)",
+      "where": "hsk-studio-pulse/src/transition.rs:310-325 clip_source_at (unknown length: limit = source_out) and :366-367 transition_frame; harness-view view/timeline.rs:1589-1595 (edits and the monitor share m.extents)",
+      "what": "A transition kept under an unknown source length is one the same extents cannot play past the cut: transition_frame calls clip_source_at(out, tick, extents, hold=false), and for tick > cut the outgoing position is past source_out, the limit for an unknown length, so it answers insufficient_handle and frame_layers fails for those frames. The viewer plans edits with the monitor's extents, so there the kept transition is unplayable in its after-cut half. It was equally unplayable before the edit, so the lane adds no new failure; what it removes is the old side effect that any carrying edit cleared such transitions (listed as dropped).",
+      "failure_scenario": "Viewer, no frame source bound, a document opened with a dissolve. Before: the first edit anywhere drops it with a note and the monitor plays through the cut. After: an edit that leaves the cut alone keeps it, and the monitor keeps refusing the frames after the cut (frame_layers insufficient_handle) until an edit touches that cut.",
+      "fix": "No code change required by the brief. Lead ruling wanted: accept (F-R56-12 asks for exactly this) and record the playback refusal as a known candidate, or ask for a ledger candidate 'a transition with an unknown outgoing length cannot be shown after its cut'."
+    },
+    {
+      "id": "F3",
+      "certainty": "READ; not run.",
+      "severity": "low",
+      "where": "hsk-studio-pulse/src/timeline_edit.rs overlaps_a_neighbour and keep_unchanged_cuts vs src/transition.rs:384-412 prune_transitions",
+      "what": "Tie-break differs from pruning. prune_transitions keeps the earlier of two overlapping transitions and removes the later. keep_unchanged_cuts restores an unchanged transition only if it overlaps no neighbour that stayed, so when the neighbour is the LATER one (cut c+1, kept by prune because the unknown one at c was already out) the earlier, unchanged one loses.",
+      "failure_scenario": "Unknown outgoing length at cut c (unchanged), and the same edit lengthens or sets a known-length transition at cut c+1 so the two spans overlap inside clip c+1. With known lengths prune keeps c and drops c+1; with the unknown length at c the lane keeps c+1 and drops c. Both are listed, nothing is lost silently.",
+      "fix": "Name it in the doc of keep_unchanged_cuts ('the one that stayed wins'), or leave. No test needed."
+    },
+    {
+      "id": "F4",
+      "certainty": "READ.",
+      "severity": "low (drift risk, test gap)",
+      "where": "hsk-studio-harness-view/src/view/timeline/nest.rs:53-61 NestedGrid; pulse src/nest.rs:731-747 NestGrids; tests/viewer_timeline_fixes.rs:84-93 (outer and inner both ticks_per_frame F)",
+      "what": "NestedGrid is a second copy of the Sequence arm of pulse NestGrids (private). Today the two are the same rule for the one layer Open Nested reads. The red test cannot see a drift: its outer and inner sequences have the same frame rate, so the nested grid equals the sequence grid and the rule is not exercised. For media sources NestedGrid answers None (the sequence's grid) where the monitor uses PortGrids; that only matters if another layer of the frame errors under one grid and not the other, in which case Open Nested silently takes the clip_source_at mapping (the pre-lane one-frame-off value for a reversed clip).",
+      "failure_scenario": "A later change to NestGrids (say a nested sequence read on the parent's grid) leaves nest.rs behind: Open Nested lands off the monitor's frame for a nested sequence of another rate, and no test fails.",
+      "fix": "Add one row to r58_v1 with an inner sequence of another frame rate (24 inside 30). Follow-up outside this lane's paths: pulse exports the nested entry tick (a pub fn beside frame_layers_nested_on_grids, or pub NestGrids) and nest.rs calls it. frame_layers_nested_on_grids itself cannot serve: it replaces the Sequence layer by the inner layers and does not return the tick it entered at."
+    },
+    {
+      "id": "F5",
+      "certainty": "READ.",
+      "severity": "low (not a regression)",
+      "where": "hsk-studio-harness-view/src/view/timeline/nest.rs:403-417 nested_tick_shown, last line unwrap_or(Ticks::new(0))",
+      "what": "Three silent steps: frame_layers_on_grids error -> .ok() -> clip_source_at -> 0. The base had the same 'else 0'. Opening at 0 is only reached when clip_source_at(hold=true) fails, which is a frame-held clip past a known source end or an arithmetic overflow. It is view state, so a wrong frame costs a scrub, not data. The middle step is the one that matters: a monitor refusal for ANY layer of the parent frame (another track) sends a reversed nested video clip back to the continuous mapping, one frame past the picture, which is F-R58-6 again in that corner.",
+      "failure_scenario": "Parent frame where a second video track's clip fails layer_frame (past a known source end). The monitor shows no picture there; Open Nested on the reversed nested clip lands on the pre-lane tick.",
+      "fix": "Accept for this lane. If tightened: on Err from frame_layers_on_grids call pulse layer_frame for the one clip (not pub today), or note 'open nested: monitor refused the frame, opened at the continuous tick' through self.say."
+    },
+    {
+      "id": "F6",
+      "certainty": "READ.",
+      "severity": "low (doc)",
+      "where": "hsk-studio-pulse/src/annotate.rs landing doc; next_marker doc",
+      "what": "(a) 'a sequence with no frame grid answers the clamped tick' is not what the code does: with no accord rate it floors on the stored sequence.frame_rate.ticks_per_frame; the clamped tick is returned only when that is 0 or the multiply overflows. (b) next_marker's doc does not say it now refuses an invalid work area (TickRange::new error through play_range), a new error path for a public fn.",
+      "failure_scenario": "A reader trusts the doc and expects an off-grid answer for a non-canonical rate.",
+      "fix": "Two doc lines."
+    },
+    {
+      "id": "F7",
+      "certainty": "READ.",
+      "severity": "low (pre-existing, named for V4-06)",
+      "where": "hsk-studio-harness-view/src/view/timeline.rs:1472-1484 and :1543-1546 timeline_scrub",
+      "what": "When the program monitor shows another sequence than the timeline, the dispatch compares on play_range(timeline sequence) but timeline_scrub still scrubs the monitor's scheduler, which clamps into the other sequence's range, and 'here' is that monitor's playhead. A press can then leave the playhead where it was. Base behaviour was the same; the lane's fallback arm keeps it.",
+      "failure_scenario": "Monitor on sequence B (range 0..10F), timeline on sequence A with a marker at 50F, playhead 9F: next answers 50F, scrub clamps to 9F, the playhead stays.",
+      "fix": "Out of this lane unless cheap: in the fallback arm refuse 'no_program_monitor' when the monitor shows another sequence. Otherwise a ledger candidate."
+    }
+  ],
+  "recommendations": {
+    "1_propose_wide_keep": {
+      "recommendation": "ACCEPT the placement in propose. The wider behaviour is correct for every carrying caller, by reading.",
+      "untouched_means": "unchanged_cuts (timeline_edit.rs): same transition record (tail == Some(tr), so a transition set or changed by the edit is not 'unchanged'), outgoing and incoming with the same clip_id, source_ref, source_in, source_out, duration, speed and retime as before, incoming still right after outgoing, abutting before and after, track of the same kind, same sequence frame rate. Timeline position and track index are NOT compared, on purpose. Handles (transition.rs:201-230) read only source_in, source_out, speed, the source extent and the placement, and the placement (placement_at) reads only the two durations, the abutment, the track kind, the rate and the record: every input is in the comparison, so an unchanged cut has the same handles and placement as before.",
+      "callers": "propose with carry=true: timeline_edit.rs:1456 plan_timeline_edit (trim, ripple, roll, slip, slide, razor, lift, extract and the rest of TimelineEdit); assemble.rs:195 (insert, overwrite); retime.rs:589; rate.rs:237 (rate stretch); nudge.rs:247; merge_sync.rs:312, :452 plan_move_clips, :684 (carry passed in); annotate.rs:259 (marker edits). carry=false (no pruning, unaffected): timeline_edit.rs:1480 plan_timeline_revert, merge_sync.rs:343.",
+      "no_wrong_caller_found": "Every edit that changes a handle, a duration or the adjacency of either clip changes one of the compared fields: trim, ripple, roll, slide change source_in/source_out/duration; slip changes the window; rate stretch and retime change speed or retime; razor, insert, overwrite, lift and extract inside either clip shorten the piece that keeps the id. A clip moved away breaks the abutment (tests viewer_timeline_move_keeps a_moved_clip_loses_its_transition, viewer_timeline_nudge a_transition_that_stops_playing_is_noted still expect the drop and still get it, by reading).",
+      "caveats": "F1 (mixed known-short side), F2 (kept transition is not playable past the cut under the same unknown length), F3 (tie-break)."
+    },
+    "2_keep_rule_mixed_handles": {
+      "recommendation": "DEFECT, small: fix as F1 (require every known side sufficient) or change the two doc comments. I recommend the code fix: it matches the builder's own stated rule and costs one call to transition_handles.",
+      "premiere": "UNVERIFIED (from memory, no source read): Premiere Pro does not remove a transition for short handles; it applies it with repeated frames after an 'Insufficient media' notice and marks it with diagonal bars, and moving both clips keeps it. Under that reading even the known-short case would stay; Studio's rule (repeat_end_frame must be declared on the record) is stricter by design, so the stricter fix fits Studio."
+    },
+    "3_next_prev_marker_meaning": {
+      "recommendation": "ACCEPT. The changed meaning is what F-PR59-2 asks for (brief: 'marker navigation compares on the presented frame grid').",
+      "callers": "Workspace callers of next_marker / prev_marker (git grep at 06485ee9, all crates): none in src outside pulse; harness-view now calls next_marker_in / prev_marker_in only. Tests: pulse tests/editing.rs:737-740, tests/marker_track_kind.rs:218-219, tests/media_markers.rs:235-238, tests/timeline_fixes.rs. All four binaries are in the focused log and pass (78 of 78). harness-view tests/viewer_timeline.rs:531-536 uses frame-aligned markers inside the range; unchanged by reading, not in the focused run. harness cli/drive.rs:462 maps marker_next to the same TimelineCommand.",
+      "checks": "landing equals PlaybackScheduler::scrub (playback.rs:536-545): clamp to [start, end-1], floor to the frame, max(start). ticks_per_frame is an integer for every rate, so there is no rounding at non-integer frame rates. landing is monotone in the marker start, so find / rfind over the sorted spans is right. Viewer: the range is the scheduler's (active_range while playing, else range), the same one scrub clamps into, so a press moves or refuses. Playing: 'here' is the master clock, off the grid; Next skips a marker on the frame being shown; Previous returns to the start of that frame, as the base did.",
+      "new_refusal": "next_marker / prev_marker now answer the TickRange error for an invalid work area. Folio validation should already refuse such a document; name it in the doc (F6)."
+    },
+    "4_open_nested_local_grid": {
+      "recommendation": "ACCEPT for this lane with one added test row (F4); record a follow-up to export the rule from pulse.",
+      "second_copy": "Yes, NestedGrid duplicates the Sequence arm of pulse NestGrids. Same rule today; the test cannot catch drift (same rate inside and outside).",
+      "call_pulse_instead": "Not with today's API and not inside the lane's paths: frame_layers_nested_on_grids flattens the nested layer away and NestGrids is private; pulse src/nest.rs is not an owned path. A pub helper in pulse is the clean form.",
+      "fallback_to_zero": "Not a new wrong-frame bug: the base had the same 'else 0', and it is view state. The middle fallback (monitor refusal -> clip_source_at) is the corner that can still be one frame off (F5). A typed refusal would stop the user opening a nested sequence the monitor cannot draw, which is worse than opening it at a near frame; a status note is the better tightening."
+    }
+  },
+  "per_sha_compile": {
+    "answer": "6ef0f282 should compile, by reading (UNVERIFIED by build). The commit only adds to pulse: annotate.rs keeps pub next_marker and prev_marker with the same signatures and adds next_marker_in, prev_marker_in and a private landing; timeline_edit.rs adds private items and changes the body of pub(crate) propose with the same signature; merge_sync.rs is a doc change. Nothing public is removed or renamed. harness-view at 6ef0f282 is the base source plus the red test file from 2a7c2177, and imports next_marker, prev_marker (still exported through pub use annotate::*). No unused import or dead code appears in pulse at that commit (every new fn is used).",
+    "note": "At 6ef0f282 the harness-view red test r58_v1 still fails (its fix is 06485ee9). That is the red commit's own test, allowed by the proof rule. The brief's push step runs --per-sha HEAD~1, the tip only."
+  },
+  "bundled_scope": {
+    "answer": "The pulse suite plus the harness-view [viewer] suite is enough for the changed behaviour, with ONE harness binary to add or name: hsk-studio-harness tests/harness_drive.rs, the only harness test file that drives TimelineCommand (git grep TimelineCommand::, timeline_command, plan_* in crates/hsk-studio-harness/tests). It contains no marker_next or open_nested row (git grep), so it proves compile and routing only.",
+    "dependents": "Crates depending on hsk-studio-pulse (Cargo.toml grep): hsk-studio-harness-view, hsk-studio-harness, hsk-studio-interop-media. interop-media uses only PulseError (src/error.rs:4). No reel, harness-core or native-host dependency on the changed functions; harness-core src/manual.rs only names the commands in text.",
+    "binaries_that_exercise_the_change": "pulse: timeline_fixes, merge_sync, media_markers, editing, marker_track_kind, edit_footprint, track_nudge (all in the focused log), plus the rest of the pulse suite for propose (timeline_edit, nest, transitions and any test with a tail transition under an unknown length: not read one by one). harness-view [viewer]: viewer_timeline_fixes, viewer_timeline_nest, viewer_timeline_nest_2 (focused), viewer_timeline (Shift+M rows :531-536), viewer_timeline_move_keeps (:281), viewer_timeline_nudge (:449), viewer_timeline_trim, viewer_timeline_rate, viewer_timeline_audio*, viewer_retime_output."
+  },
+  "claims_verified": [
+    "Red tests failed on their own assertions: red log 89f27330 shows r58_v1 panicking at viewer_timeline_fixes.rs:196 with the one-frame-past rows; red2 log 2a7c2177 shows r59_c5 at timeline_fixes.rs:257 (five stuck rows) and r56_m7 at :193 ('both moved, extent None: dropped [tr-1]').",
+    "Red tests not rewritten: git diff 85b147dd..06485ee9 on pulse tests is empty; git diff 2a7c2177..06485ee9 on harness-view tests is +97 lines, no removed line (the Viewer marker test).",
+    "Focused log smb-pr-timeline-fixes-1-focused-85b147dd.log: FOCUSED_RESULT clippy=0 pulse=0 harness_view=0; 78 of 78 pulse tests in 7 binaries, 7 of 7 harness-view tests in 3 binaries; the three ported tests PASS.",
+    "Paths: the diff 89f27330..06485ee9 touches only harness-view src/view/timeline.rs, src/view/timeline/nest.rs, tests/viewer_timeline_fixes.rs and pulse src/annotate.rs, src/merge_sync.rs (doc only), src/timeline_edit.rs, tests/timeline_fixes.rs. view/mod.rs and view/commands.rs untouched. No Cargo.toml or Cargo.lock change. No added line names egui, eframe, winit, wgpu or naga except test doc comments saying the port is egui-free. No catalog command added or renamed (menu_tree.rs untouched).",
+    "The two fix commits split by crate as stated: 6ef0f282 pulse src only, 06485ee9 harness-view src and test only.",
+    "Undo: Open Nested, Back to Parent and Next/Previous Marker add no history step or revision (asserted in viewer_timeline_fixes.rs). The group move is still one propose transaction; a refused edit returns Err before any snapshot is built; keep_unchanged_cuts runs before validation and the inverse is built from old against edited, so undo restores (asserted by undo_restores in m7).",
+    "Frame boundaries: ticks_per_frame is an integer for every rate (accord FrameRate::ticks_per_frame, Ticks::checked_frames), so landing has no rounding; the range end is exclusive and clamped to end-1 as in scrub; an empty range answers its start.",
+    "Bounded work: unchanged_cuts is one pass over the old and edited clips with a map keyed by transition id; keep_unchanged_cuts is one check_at per dropped id; both check cancel; indices stay valid because pruning removes no clip."
+  ],
+  "unverified": [
+    "Nothing was built or run by the reviewer; every 'compiles' and 'passes' beyond the builder's logs is by reading.",
+    "That the fix commits hold the same content as the uncommitted fix the focused run used: the log is named for 85b147dd and cannot show it. The bundled run and --per-sha on the tip settle it.",
+    "The rest of the pulse suite and the harness-view [viewer] suite against the wider keep rule: read only for the tests that assert 'dropped transitions' (edit_footprint ran green; viewer_timeline_move_keeps:281 and viewer_timeline_nudge:449 still expect a drop and should get it). Other pulse tests holding a tail transition under an unknown length were not read one by one.",
+    "Premiere behaviour (recommendation 2): from memory, no source.",
+    "Whether Folio validation refuses an inverted work area and overlapping transitions (F3, F6 rest on it being so)."
+  ]
+}
