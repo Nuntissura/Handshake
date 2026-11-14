@@ -1,0 +1,47 @@
+{
+  "crate": "hsk-studio-harness-view (view/menu_tree.rs leaves, rules, run_catalog arms and the board container in Profile::of; view/commands.rs run_command outcome)",
+  "lane": "SMB-MENU-EFFECT-BOARD-LEAVES-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+  "base": "5655345b",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-14T08:35:55Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: the commands' existing settlements; F5 changes one outcome code (canceled) of Run::command_outcome, codes only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: both leaves run existing commands that carry the caller's context; no new mutating op",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-14T08:35:55Z",
+    "disk": "D",
+    "closes": [
+      "ledger direction.next_lane_candidates 2026-11-13T16:46:23Z Disable All Effects -> effect.toggle",
+      "ledger direction.next_lane_candidates 2026-11-13T16:46:23Z New Board -> board.add with the board-container gate",
+      "ledger direction.next_lane_candidates 2026-11-14T07:44:47Z F5 run_command canceled outcome"
+    ],
+    "closes_candidates": [
+      "none read at prep (UNVERIFIED): grep the STU-SHL-013, STU-FX-011a and board MT rows; read, no claim"
+    ],
+    "reuses_tree_and_target": "smb-pr-entry-references-1"
+  }
+}

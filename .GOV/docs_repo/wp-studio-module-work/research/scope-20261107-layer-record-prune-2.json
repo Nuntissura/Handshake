@@ -1,0 +1,83 @@
+{
+ "id": "SMB-LAYER-RECORD-PRUNE-2",
+ "file": "hsk-studio-layer-record-prune-2",
+ "brief": "lane-smb-layer-record-prune-2",
+ "crate": "hsk-studio-harness-core (harness.rs Run::play_action restructure, batch.rs action automation) and hsk-studio-harness-view (view/layer_records.rs reference scan)",
+ "crates_head": "harness-core, harness-view",
+ "summary": "A played action's restructure prunes the records of the layers it removes like every other structure step, and the layer-record reference scan matches ids at exact boundaries",
+ "target": "A played action's restructure prunes the records of the layers it removes, in the same step, and the reference scan matches ids at exact boundaries (hsk-studio-harness-core harness.rs, batch.rs; hsk-studio-harness-view view/layer_records.rs)\n\nWhy this lane: ledger candidate 2026-11-13T17:13:35Z, verbatim: \"F2 (SMB-FIX-LAYER-RECORD-PRUNE-1): a harness-core Run hook so Run::play_action's restructure (harness.rs:879; batch.rs:971, :985) prunes layer records like Viewer::structure_step\". Ledger candidate 2026-11-13T17:13:35Z, verbatim: \"F4 (SMB-FIX-LAYER-RECORD-PRUNE-1): exact-boundary id matching in the layer-record reference scan (today a substring hit keeps the id, which only keeps more)\". Both are the accepted follow-ups of SMB-FIX-LAYER-RECORD-PRUNE-1 (lane notes next_lane_candidates_accepted: \"lead 2026-11-13: all three on the follow-up list\"), which is READY_FOR_VALIDATION at 198f6dc4. F2 is the one V4-06 site that lane named and could not fix: a correctness defect (records of a layer an action deletes outlive it, so a reused id can inherit them in-session).\n\nFacts are READ by the wave-next-3 planner at origin 5655345b (read-only, not run). Treat them as claims and check them.\n- `harness-core/src/harness.rs`: `Run::play_action` (:805); its step loop runs `Call::Restructure { op, writes } => self.restructure(&op, &writes)` (:879) with no record prune; rollback on a fault follows (:887-). `restructure` (:1439), `restructure_inner` (:1450), `restructure_and_entry` (:1497), `restructure_and_entries` (:1512), `restructure_and_entry_step` (:1697).\n- `harness-core/src/batch.rs`: the automation calls `run.play_action(a, PlayMode::Headless)` at :1014 and :1028 (the candidate's :971 and :985 are these two sites at an older tip). The catalog row `action.play` (harness-core action/commands/automation.rs:6) is PALETTE_ONLY MenuPathPending (menu_tree.rs:772); no harness-view caller of play_action was found by git grep (check how a Viewer reaches it, if at all).\n- `harness-view/src/view/layer_records.rs`: `Viewer::before_structure` (:215), `structure_step` (:226-243), `prune_removed` (:245); the prune joins the newest step only when the structure step pushed exactly one, else `prune_skipped:no_step` (lead ruling F6); warnings go to `Viewer::prune_warnings`. `occurring` (:87-130) is the reference scan: \"a substring match: an occurrence glued to other id bytes counts\"; MAX_SCAN_BYTES (:74); callers at :317, :378, :435, :443, :501.\n- harness-core cannot reach `Viewer::structure_step` (harness-view depends on harness-core): the prune lane's notes name \"a Run hook for the prune\" as the repair.\n- Existing tests: harness tests/fix_layer_record_prune.rs (15 tests), layer_records lib tests (5; one at :617), harness-core tests/action_record_replay.rs (:82-195), tests/business_events_run.rs:204.\n\nRed tests (must fail first):\n(a) crates/hsk-studio-harness/tests/layer_record_prune_2.rs (new, [viewer]) or an added test in fix_layer_record_prune.rs: an action whose step deletes a layer that holds raster, vector or text records is played on a document; after the play the records of the deleted layer are gone in the same history step (one undo restores layer and records, redo removes both), a bystander's records are byte-identical, and a faulted action's rollback leaves every record as it was. (b) in the same file or the layer_records unit tests: a candidate id that occurs only as a strict part of a longer id (for example LAY-12 inside LAY-123, and a prefix, a suffix and a middle case) is NOT counted as referenced, so its record is pruned; an id at an exact boundary (quoted JSON string, list element, start and end of a part) IS counted; a hostile part (no delimiters, 0 bytes, non-UTF-8) neither panics nor passes the byte budget. They fail at the base (no prune on play; a substring hit keeps the id).\n\nFix contract:\n- FIRST: send the lead the shape before coding and wait: the hook's type and owner (a typed callback or port the Run holds, set by the Viewer; never a harness-view type in harness-core), when it runs inside play_action (per restructure step, before and after, like before_structure and prune_removed), how its entry writes join the action's history step and its rollback, what a headless batch Run without a Viewer does (no hook: today's behavior, named), and for F4 which bytes are id boundaries in each entry format you scan.\n- The prune stays ONE implementation (layer_records.rs); the hook calls it. No copy of the prune in harness-core.\n- A bound, a cancel or an unprunable entry keeps today's ruling: the step commits and carries prune_skipped:<entry>.\n- F4 only narrows what counts as a reference; where a boundary cannot be decided, keep the id (keeping more is safe, dropping a referenced record is not).\n- Any line in harness-view view/mod.rs needs the lead (SMB-PALETTE-MODEL-1 adds one line there): name it.\n- 1 to 4 commits after the red commit.\n\nHow to work:\n1. Read the code at the file:line above first. Cite spec clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`); use only names already in the spec, MTs or code.\n2. Red first: the red tests above, committed compiling and run red at that COMMITTED tip. A red test is never rewritten so that it passes; the code gets fixed (common ruling 11). No history rewriting (common ruling 12).\n3. Then the fix, committed, and the focused tests run at that committed tip. Run the focused hold on COMMITTED tips: commit the red tests, run them red, commit the fix, run focused at that tip; do not run on uncommitted work and commit afterwards.\n4. A mutating step stays one undo step named by its catalog id (common ruling 10) and carries the caller's context.\n5. V4-06: the sibling sites named above, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n6. Small and focused: these items only. State what you cut. MTs: name any your fix proves in your report; do not edit MT files.\n\nCargo (wave-parity-2-common topic cargo-discipline, Operator 2026-11-13 and 2026-11-14 \"avoid large cargo builds, reuse targets\"): build and test only the touched crates and test binaries (`-p <crate> --test <name>`); no --workspace outside the one bundled lane-check; no --release; never a new CARGO_TARGET_DIR: the mapped target only (`--owner smb-sentinels-native-1 --disk d`). ONE HOLD PER PHASE. Focused: `cargo nextest run -p hsk-studio-harness --features viewer --test layer_record_prune_2 --test fix_layer_record_prune`, `cargo nextest run -p hsk-studio-harness-core --test action_record_replay --test business_events_run`, and `cargo nextest run -p hsk-studio-harness-view --features viewer --lib` for the layer_records unit tests. Bundled: the harness-core suite, the harness-view [viewer] suite, and the harness [viewer] binaries that play actions or prune records (git grep play_action and structure_step users in crates/hsk-studio-harness/tests; send the list with REVIEW READY).\nMENU COVERAGE: this lane adds or renames no catalog command; say so in the reports.\n\nOut of scope: Q2 of the prune lane (carrying clips, masks and text over to pieces), the atomic multi-entry history step (candidates 2026-11-13T07:59:45Z and 11:28:13Z; if the hook cannot join the action's step without it, STOP and report), property_edit undo names (gesture-gate candidate), layer id stability, harness-core motion_commands.rs (SMB-MOTION-IMPLIED-VALUES-1, active), harness-view view/menu_tree.rs and view/commands.rs (SMB-MENU-EFFECT-BOARD-LEAVES-1), view/palette.rs and view/mod.rs (SMB-PALETTE-MODEL-1), hsk-studio-session (SMB-ID-STABILITY-REVISIONS-1), any Cargo.lock change without asking.\n\nLanding: one lane at a time on the lead's RELEASED, order 1 SMB-PALETTE-MODEL-1, 2 SMB-MENU-EFFECT-BOARD-LEAVES-1, 3 SMB-ID-STABILITY-REVISIONS-1, 4 SMB-LAYER-RECORD-PRUNE-2. This lane lands 4 of 4.",
+ "diag": "producer_through_observe: the existing prune warnings (prune_skipped:<entry>) on the played action's result, codes only",
+ "attr": "required: the prune's entry writes join the action's step under the action's caller context; no default actor",
+ "exposure": "medium (harness-core Run::play_action is on the batch path; the hook is absent by default)",
+ "paths": "hsk-studio-harness-core/src/harness.rs (play_action restructure step and the hook); hsk-studio-harness-core/src/batch.rs (only if the automation must pass the hook); hsk-studio-harness-view/src/view/layer_records.rs (hook body, occurring boundaries); hsk-studio-harness/tests/layer_record_prune_2.rs (new) or tests/fix_layer_record_prune.rs (added tests only)",
+ "suites": "harness-core suite; harness-view [viewer] suite; harness [viewer] action and prune test binaries (list them with REVIEW READY)",
+ "closes": [
+  "ledger direction.next_lane_candidates 2026-11-13T17:13:35Z F2 harness-core Run hook for the prune",
+  "ledger direction.next_lane_candidates 2026-11-13T17:13:35Z F4 exact-boundary id matching"
+ ],
+ "mts": [
+  "none read at prep (UNVERIFIED): read, no claim"
+ ],
+ "tree": "smb-sentinels-native-1",
+ "disk": "d",
+ "candidates_verbatim": [
+  {
+   "added_at": "2026-11-13T17:13:35Z",
+   "item": "F2 (SMB-FIX-LAYER-RECORD-PRUNE-1): a harness-core Run hook so Run::play_action's restructure (harness.rs:879; batch.rs:971, :985) prunes layer records like Viewer::structure_step",
+   "owner": "a later harness-core lane"
+  },
+  {
+   "added_at": "2026-11-13T17:13:35Z",
+   "item": "F4 (SMB-FIX-LAYER-RECORD-PRUNE-1): exact-boundary id matching in the layer-record reference scan (today a substring hit keeps the id, which only keeps more)",
+   "owner": "lead follow-up"
+  }
+ ],
+ "anchors": {
+  "spec": [
+   "no Studio clause read at prep (UNVERIFIED): quote the clauses SMB-FIX-LAYER-RECORD-PRUNE-1 cited (its brief and lane file) as spec_basis"
+  ],
+  "mts": [],
+  "lead": [
+   "builders/lanes/hsk-studio-fix-layer-record-prune-1.json notes.v4_06.sites (harness.rs:879 named, not fixable there), notes.review_rulings_95460d11 (Q4_F2, F4, F6), notes.lead_rulings.F4_scan_interpretation"
+  ]
+ },
+ "red_tests": [
+  "hsk-studio-harness/tests/layer_record_prune_2.rs (new) or added tests in fix_layer_record_prune.rs: a played action's delete prunes the layer's records in the same step with undo, redo and rollback; an id that is only part of a longer id is not a reference, an exact-boundary id is"
+ ],
+ "touched_crates": [
+  "hsk-studio-harness-core",
+  "hsk-studio-harness-view (feature viewer)",
+  "hsk-studio-harness (tests only)"
+ ],
+ "focused_commands": [
+  "cargo nextest run -p hsk-studio-harness --features viewer --test layer_record_prune_2 --test fix_layer_record_prune",
+  "cargo nextest run -p hsk-studio-harness-core --test action_record_replay --test business_events_run",
+  "cargo nextest run -p hsk-studio-harness-view --features viewer --lib"
+ ],
+ "reuse": {
+  "tree": "smb-sentinels-native-1",
+  "worktree": "wt-studio-lanes/smb-sentinels-native-1",
+  "workspace": "wt-studio-lanes/smb-sentinels-native-1/handshake-studio-assets",
+  "target": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/target",
+  "studio_workspace_root": "wt-studio-lanes/smb-sentinels-native-1/handshake-studio-assets/Cargo.toml (read 2026-11-14; matches the tree)",
+  "previous_lane": "SMB-FIX-LAYER-RECORD-PRUNE-1 (READY_FOR_VALIDATION at 198f6dc4; built harness-view [viewer], the layer_records unit tests and harness fix_layer_record_prune on this target)",
+  "previous_lane_status": "READY_FOR_VALIDATION in ledger.json; tree HEAD 198f6dc4 is an ancestor of 5655345b and is contained in origin/codex/handshake-studio-assets (git merge-base --is-ancestor, git branch -r --contains; read 2026-11-14)",
+  "tree_head": "198f6dc4",
+  "git_status_porcelain": "clean (0 lines, exit 0, read 2026-11-14)",
+  "target_size_gib": "NOT_MEASURED (target_report.py did not finish during prep; UNVERIFIED)",
+  "target_parts_gib": {},
+  "older_binary_variants_gib": null,
+  "target_newest_file_utc": null,
+  "target_workspace_crates_built": [],
+  "measured_by": "not measured",
+  "note": "same code area as the previous lane on this tree, one landing behind 5655345b (SMB-PROTOTYPE-PLAY-CANCEL-1): the most reuse of the four",
+  "last_known": "total not measured; older binary copies 77.95 GiB in 859 files (research/cargo-cleanup-dryrun-20261114-W.json W-D07, 2026-11-14)"
+ },
+ "risks": [
+  "Largest lane of the wave: two crates and a cross-crate hook. If the shape message shows the hook needs the atomic multi-entry history step, the lead may cut the lane to F4 alone (layer_records.rs only).",
+  "harness-core is under every harness crate: the bundled run pays the harness-core suite and the harness-view [viewer] suite.",
+  "Reachability: no Viewer caller of play_action was found at prep; if only the headless batch Run plays actions, the red test (a) must go through the path that exists, and the batch Run has no Viewer to prune with. Name what is then fixed and what is only named.",
+  "F4 boundaries differ per entry format (JSON text, binary parts): a wrong boundary rule would drop a referenced record. Keep-on-doubt is the rule; the red test pins both directions.",
+  "harness.rs is also where the gesture-gate candidate (property_edit undo names, harness.rs:1248) and the atomic step sit: not in this lane."
+ ]
+}

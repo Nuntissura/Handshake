@@ -1,0 +1,46 @@
+{
+  "crate": "hsk-studio-harness-view (view/palette.rs, new: the command palette's egui-free model over the menu tree and the catalog)",
+  "lane": "SMB-PALETTE-MODEL-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+  "base": "5655345b",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-14T08:35:55Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none new: a pure query over the catalog and the menu tree; no job, no mutation",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not applicable: no mutating op in this slice (a row is run by its menu leaf, which carries the caller's context already)",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-14T08:35:55Z",
+    "disk": "D",
+    "closes": [
+      "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z STU-SHL-041 palette model (the breadcrumb, the shared availability and the matcher; STU-SHL-042..044 and the surface stay open)",
+      "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z MENU-INV-6 palette (model level)"
+    ],
+    "closes_candidates": [
+      "none read at prep (UNVERIFIED): grep the STU-SHL-041 MT rows; read, no claim"
+    ],
+    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+  }
+}

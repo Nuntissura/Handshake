@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-14T07:44:47Z",
+ "updated_at": "2026-11-14T08:35:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20424,6 +20424,78 @@
     "MT-34650 (STU-MDL-106 studio.gesture.active; candidate)",
     "MT-35106 (STU-SHL-235 tooltip clock; read, no claim)"
    ]
+  },
+  {
+   "lane_id": "SMB-PALETTE-MODEL-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (view/palette.rs, new: the command palette's egui-free model over the menu tree and the catalog)",
+   "lane_file": "builders/lanes/hsk-studio-palette-model-1.json",
+   "brief": "builders/briefs/lane-smb-palette-model-1.md",
+   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "base": "5655345b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-14T08:35:55Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z STU-SHL-041 palette model (the breadcrumb, the shared availability and the matcher; STU-SHL-042..044 and the surface stay open)",
+    "ledger direction.next_lane_candidates 2026-11-13T09:27:50Z MENU-INV-6 palette (model level)",
+    "none read at prep (UNVERIFIED): grep the STU-SHL-041 MT rows; read, no claim"
+   ]
+  },
+  {
+   "lane_id": "SMB-MENU-EFFECT-BOARD-LEAVES-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view (view/menu_tree.rs leaves, rules, run_catalog arms and the board container in Profile::of; view/commands.rs run_command outcome)",
+   "lane_file": "builders/lanes/hsk-studio-menu-effect-board-leaves-1.json",
+   "brief": "builders/briefs/lane-smb-menu-effect-board-leaves-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+   "base": "5655345b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-14T08:35:55Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-13T16:46:23Z Disable All Effects -> effect.toggle",
+    "ledger direction.next_lane_candidates 2026-11-13T16:46:23Z New Board -> board.add with the board-container gate",
+    "ledger direction.next_lane_candidates 2026-11-14T07:44:47Z F5 run_command canceled outcome",
+    "none read at prep (UNVERIFIED): grep the STU-SHL-013, STU-FX-011a and board MT rows; read, no claim"
+   ]
+  },
+  {
+   "lane_id": "SMB-ID-STABILITY-REVISIONS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-session (session.rs revision vector: addresses of layers that left the document); hsk-studio-chronicle only if the budget rule needs it",
+   "lane_file": "builders/lanes/hsk-studio-id-stability-revisions-1.json",
+   "brief": "builders/briefs/lane-smb-id-stability-revisions-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "base": "5655345b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-14T08:35:55Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-13T13:38:07Z SMB-LAYER-ID-STABILITY-1, finding (3) only: chronicle retired-address pruning (Budget.revisions); the rest stays open",
+    "none read at prep (UNVERIFIED): grep the chronicle and session MT rows; read, no claim"
+   ]
+  },
+  {
+   "lane_id": "SMB-LAYER-RECORD-PRUNE-2",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (harness.rs Run::play_action restructure, batch.rs action automation) and hsk-studio-harness-view (view/layer_records.rs reference scan)",
+   "lane_file": "builders/lanes/hsk-studio-layer-record-prune-2.json",
+   "brief": "builders/briefs/lane-smb-layer-record-prune-2.md",
+   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
+   "base": "5655345b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-14T08:35:55Z",
+   "closes": [
+    "ledger direction.next_lane_candidates 2026-11-13T17:13:35Z F2 harness-core Run hook for the prune",
+    "ledger direction.next_lane_candidates 2026-11-13T17:13:35Z F4 exact-boundary id matching",
+    "none read at prep (UNVERIFIED): read, no claim"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -23532,7 +23604,11 @@
     "lane/smb-prototype-play-cancel-1",
     "lane/smb-pr-timeline-fixes-1",
     "lane/smb-motion-implied-values-1",
-    "lane/smb-gui-gesture-gate-1"
+    "lane/smb-gui-gesture-gate-1",
+    "lane/smb-palette-model-1",
+    "lane/smb-menu-effect-board-leaves-1",
+    "lane/smb-id-stability-revisions-1",
+    "lane/smb-layer-record-prune-2"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -23853,6 +23929,26 @@
      "tree": "smb-r53-followups-1",
      "branch": "lane/smb-gui-gesture-gate-1",
      "previous_branch": "lane/smb-fix-menu-catalog-coverage-1"
+    },
+    "SMB-PALETTE-MODEL-1": {
+     "tree": "smb-ai-distort-effects-1",
+     "branch": "lane/smb-palette-model-1",
+     "previous_branch": "lane/smb-prototype-play-cancel-1"
+    },
+    "SMB-MENU-EFFECT-BOARD-LEAVES-1": {
+     "tree": "smb-pr-entry-references-1",
+     "branch": "lane/smb-menu-effect-board-leaves-1",
+     "previous_branch": "lane/smb-fix-host-terminal-frame-1"
+    },
+    "SMB-ID-STABILITY-REVISIONS-1": {
+     "tree": "smb-pr-edit-footprint-1",
+     "branch": "lane/smb-id-stability-revisions-1",
+     "previous_branch": "lane/smb-fix-diag-sink-abort-1"
+    },
+    "SMB-LAYER-RECORD-PRUNE-2": {
+     "tree": "smb-sentinels-native-1",
+     "branch": "lane/smb-layer-record-prune-2",
+     "previous_branch": "lane/smb-fix-layer-record-prune-1"
     }
    },
    "why": {
