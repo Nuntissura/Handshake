@@ -62,7 +62,7 @@ log = spec["log"] + (f" {', '.join(sds)} PROPOSED." if sds else "")
 with open(S + "/START_LOG.md", "a", encoding="utf-8", newline="\n") as f:
     f.write(f"- {now} lead: {log}\n")
 
-msg = spec["commit_msg"] + (f"; {', '.join(sds)}" if sds else "") + "\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n"
+msg = spec["commit_msg"] + (f"; {', '.join(sds)}" if sds else "") + "\n\nCo-Authored-By: " + os.environ.get("STUDIO_COAUTHOR", "Claude Fable 5.2 <noreply@anthropic.com>") + "\n"
 tmp = os.path.abspath(sys.argv[1] + ".msg.txt")
 open(tmp, "w", encoding="utf-8", newline="\n").write(msg)
 run("git", "add", "--", *paths)
