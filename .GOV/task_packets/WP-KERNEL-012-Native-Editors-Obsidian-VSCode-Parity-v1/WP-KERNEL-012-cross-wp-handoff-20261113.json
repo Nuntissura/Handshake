@@ -1,0 +1,1545 @@
+{
+  "file_id": "WP-KERNEL-012-CROSS-WP-HANDOFF-20261113",
+  "file_kind": "cross_wp_status_handoff",
+  "as_of_utc": "2026-11-20T11:09:46Z",
+  "authority_effect": "Continuation evidence only. Use the selected handoff and original acceptance contracts for authority and status.",
+  "authority": {
+    "previous_status": "WP-KERNEL-012-cross-wp-handoff-20261112.json",
+    "selected_handoff": "WP-KERNEL-012-phase02-successor-handoff-v8.json",
+    "packet": "packet.json",
+    "master_spec": "../../spec/SPEC_CURRENT.md",
+    "master_spec_version": "v02.229"
+  },
+  "snapshot": {
+    "governance_branch": "gov_kernel",
+    "governance_head": "41cb854704b8a2a4f01a95d4c367c6bfa0ebe1a6",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_head_and_origin": "723454bc5491c14adbfc53abba1681b8c0de25d8",
+    "product_tree": "d52bab90e765b2623f6e00534d536764fbf18a56",
+    "artifact_ref_base": "Handshake_Artifacts/WP-KERNEL-012 under the project worktrees parent"
+  },
+  "current_evidence": {
+    "mt203": {
+      "scope": "The settled Ring, Native panel and Palmistry store roundtrip results cover diagnostics components. Production Vulkan device-loss emission and independent Palmistry crash survival remain open.",
+      "compile_only": {
+        "ref": "MT-203/device-loss-native-dual-codegen-20261113-01/result.json",
+        "sha256": "f8748cef390c82bee3473f56a80153c414c4817b4b1c86abbfbdbca8142bee4c"
+      },
+      "components": [
+        {
+          "case": "Ring roundtrip",
+          "ref": "MT-203/device-loss-ring-runtime-20261113-01/result.json",
+          "sha256": "bea05c430fd8939c4a9942d3bc1b2893873a11017352ad2308db9027f149d8b9"
+        },
+        {
+          "case": "Native diagnostics panel label",
+          "ref": "MT-203/device-loss-native-runtime-prep-20261113-01/device-loss-native-runtime-case01-independent-terminal-review-01.json",
+          "sha256": "9f5033d71a5b243e4d52489eb2c08d783ad13430fc2d6682a2a1d20b21edbd2f"
+        },
+        {
+          "case": "Palmistry writer to Native reader",
+          "ref": "MT-203/device-loss-native-runtime-prep-20261113-01/device-loss-native-runtime-case02-independent-terminal-review-01.json",
+          "sha256": "d5ff2975d25c47d8088ea60233812849d8eef1db72852349011160551dc2ea9e"
+        }
+      ]
+    },
+    "mt172_pt003": {
+      "state": "Authenticated Workspace Create remains unproven. The signed-in owner could read the receipt row, and the strict check excluded it. The run rolled back.",
+      "ref": "MT-212/mt172-pt003-receipt-read-mode-prep-20261113-01/s171-07-independent-negative-runtime-review-01.json",
+      "sha256": "020e2dbb4fdbbc1ebd0ba06836b9cffe1dd82cf2110eb9e511fb0a3974f75e61",
+      "execution": "Hold the isolated dependency observer after Codeleader's automated cybersecurity restriction. The tool did not name the denied action. Preserve the private material and unreviewed adapter. No metadata, build, or authenticated replay ran with that observer.",
+      "sequencing": "Codeleader advanced MT172 to PT006 while PT003 is held. PT014 reuses PT006's run. The first producer exited before Cargo because its module remained dormant. The corrected cold invocation emitted the executable, but its capture failed live scan limits. The original Job emptied naturally. The separately admitted warm compile passed independent review with unchanged V11 and the exact retained executable and dep-info. Codeleader then admitted one serial run of all 11 cases after independent binding review and fresh Primary admission.",
+      "outbox_pre_cargo_failure": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-custody-20261113-01/coding-direct-core-outbox-integration-wait-01.json",
+        "sha256": "484171b1ce81036272c4ef779c225310b83b618e5cb05b15fd962d6d04457e23"
+      },
+      "outbox_corrected_cargo_start": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-20261113-02/cargo-started.json",
+        "sha256": "da827c65ed51f66d9ed575f571b739b569ea79ae656e090a40e86273d55f00f1"
+      },
+      "outbox_corrected_unqualified_result": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-20261113-02/result.json",
+        "sha256": "73104e63f76faffe97eb638c22d2adf46a8eeff8398b027c369e07b70fc1479c"
+      },
+      "outbox_alternate_basis": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-integration-independent-cold-alternate-basis-review-01.json",
+        "sha256": "1caba87d66fc0f649a47a5c4f88793c6a8b26560e062411a2b0c9b40185a65e3"
+      },
+      "outbox_warm_compile_only": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-warm-20261113-01/result.json",
+        "sha256": "272b11fb9d7d60c00df1eda2fe79d711cdf03a251624182bb0c6e3f5d1ca5e12"
+      },
+      "outbox_independent_acquisition": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-integration-warm-acquisition-independent-review-01.json",
+        "sha256": "9903d8bb3e91fe856e9d0d6111de179bf1664e8b013cbcb1fca300d8e4130b97"
+      }
+    },
+    "mt172_pt006_pt014_runtime": {
+      "state": "All 11 selected tests ran. Two passed and nine failed on the same SurrealDB ledger insert. The schema requires an array in kernel_event_ledger.wsids and the outbox insert omitted the field. The resource guard qualified, the owned Job drained naturally and Primary took custody back. The original failed capture and store fixtures are retained.",
+      "next_action": "Primary applied the independently reviewed two-file repair and verified both postimages. The insert now uses the bound workspace ID and the existing scope probe checks the exact singleton. Use fresh Core compile and all 11 original cases. Codeleader sequenced Core before the compatible Native ProjectTree operation in the same serial compiler window, subject to current resource admission and capture settlement.",
+      "applied_candidate": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/outbox-ledger-workspace-attribution-candidate-01.json",
+        "sha256": "bb321de7d26adad69fe6255312fed999038a41b980fc96987e981325575fb73b"
+      },
+      "changed_compile": {
+        "state": "Cargo PID 41904 exited 0 and recorded one new Outbox test artifact. The resource capture remains unqualified after both scan-budget failures. The original Job drained naturally, the final scan completed, and the resource guard recorded 115 valid live target samples with no measured stop. The independent observer confirmed producer exit 1 and checked handle closure. Native ProjectTree stays dormant and the repaired Outbox runtime has not run.",
+        "next_action": "Primary returned physical custody, held and read the exact new executable and sibling dependency record, then closed both handles. Codecheck verified those bytes against the changed source and original settled capture. The separate warm acquisition qualified with that exact tuple. Preserve the original negative capture.",
+        "admission": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/mt172-outbox-custody-admission-attribution-01.json",
+          "sha256": "38663ec32807df40d26fd5f773e253355009401259663fbb8fb10a12781e7ba7"
+        },
+        "cargo_started": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-20261113-01/cargo-started.json",
+          "sha256": "1a6e695304b3d19d40cebbc1beb4022225bb31714d3bc3e47abc902fae27adb7"
+        },
+        "cargo_exit": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-20261113-01/cargo-exit.json",
+          "sha256": "c4510a74e9a4c3a596f57c67a798cccb4b64d07634f760648541797f8c25fd20"
+        },
+        "terminal_result": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-20261113-01/result.json",
+          "sha256": "dded1ffb24671dbd5391017fd7cb3d521c2673275d67fb2b958e2ff422345808"
+        },
+        "checked_release": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-20261113-01/released.json",
+          "sha256": "cb267e78d8c515b1efc36a2e44298b71cd0fe86972ef12d1753d7d6623999174"
+        },
+        "observer_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-custody-20261113-01/coding-direct-core-outbox-integration-wait-01.json",
+          "sha256": "9ed26b6d125da56127edaaff3f47ebdd96174058398cf06b195e39a248a58ebf"
+        },
+        "retained_artifact_readback": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-attribution-retained-pe-dep-info-owner-readback-01.json",
+          "sha256": "6b601a3f5674d40a361997c1b7f43dd4484447d98a646d0bfee39000f1c1b54b"
+        },
+        "alternate_basis_preparation": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-attribution-alternate-basis-preparation-dormant-02.json",
+          "sha256": "12d4636b9d355eb12df5496ec988b4afcf54672796ca0e8bcdea75c3346102d3"
+        }
+      },
+      "qualified_warm_compile": {
+        "state": "The separate warm capture qualified with Cargo exit 0, one live target sample and a complete final scan. It reused all 837 Cargo artifacts and the exact repaired executable. Primary confirmed checked handback. Codecheck sealed the exact current working-source and acquisition evidence. No test ran in the compile capture.",
+        "result": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-warm-20261113-01/result.json",
+          "sha256": "cff406bc1a536a238d23a8ebc5f2e9bdfd574fb2f0d92e881b09955a8b21c019"
+        },
+        "manifest": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-warm-20261113-01/codegen-artifact.json",
+          "sha256": "16c86c102749bbc1f192559f1f70ec8d12b8018be7673ffa136171868ad9b7e2"
+        },
+        "release": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-warm-20261113-01/released.json",
+          "sha256": "1d65644eea996d13bdbefc42e1f8896b58698a1e76f517f897a41f51e1917e37"
+        },
+        "observer_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-attribution-warm-custody-20261113-01/coding-direct-core-outbox-integration-wait-01.json",
+          "sha256": "47827e97f392973fdd03b4230fc868c35b588234ed71f2f7e4e71ed5a7bce279"
+        },
+        "independent_acquisition": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-attribution-warm-acquisition-independent-review-01.json",
+          "sha256": "3f6472e71442bd9bd12e872306997b08d5b7af1fdb2c70ff4820a9620d22ecc8"
+        }
+      },
+      "repaired_runtime_fixture_failure": {
+        "state": "All 11 original test bodies entered and failed before Outbox behavior. Windows rejected the RocksDB embedded/archive path. The protected temp root was 148 UTF-16 units and the failing archive path 250. The earlier setup reached actual test behavior with a 136-unit temp root and 238-unit archive path. The new candidate temp root is 124 units. Libtest exited 101, the resource guard qualified, the Job settled and Primary returned custody. Keep both failed runs distinct.",
+        "next_action": "The separately admitted shorter WP-owned fixture opened successfully. Preserve this setup failure separately from the following behavior result.",
+        "result": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-runtime-attribution-20261113-01/result.json",
+          "sha256": "245dcc9e5ddd626f9c49b06499903868b16bfde8f3ad1e9d0f52e20a99b88648"
+        },
+        "raw_stdout": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-runtime-attribution-20261113-01/test.stdout.txt",
+          "sha256": "c2ac3e000aa57affb99a52c4c227e581612debf3dc75dbb1aac70e76c92abe20"
+        },
+        "checked_release": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-runtime-attribution-20261113-01/released.json",
+          "sha256": "a874f73a4725f4c7000c09269d5adbaab0b08fe2fdf5cafe099bd93566d07309"
+        },
+        "observer_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-runtime-attribution-pair-20261113-01/producer-observer-terminal.json",
+          "sha256": "38a2e62f1700c1bbebb5c7f41580d35467fa364a2e2f164df637ba73f238edca"
+        }
+      },
+      "short_fixture_runtime": {
+        "state": "The shorter protected fixture removed the Windows path failures. All 11 tests reached behavior and finished 2 passed and 9 failed. Three report created_at missing from the queue SELECT projection. Two report the catalog contains the two Outbox tables beyond its shared-only expectation. Three drain assertions and one live retry deadline also failed. No missing wsids error recurred. The resource guard qualified and the original Job settled naturally. Primary explicitly returned physical custody.",
+        "next_action": "The v03 short-fixture run passed all 11 cases with exit 0, resource qualification and checked natural release. Independent post-release review qualified the exact local PT006/PT014 Outbox component. Primary published the four-file source checkpoint at 723454bc5491c14adbfc53abba1681b8c0de25d8. Independent remote reread verified all four blobs. The published Core dependency closure excludes the local Workspace Create diagnostic overlay included in the test build, so the runtime verdict applies only to the tested working tree. Codeleader selected read-only PT041 event-ID proof binding next. Workspace Create remains on hold.",
+        "published_source_checkpoint": {
+          "commit": "723454bc5491c14adbfc53abba1681b8c0de25d8",
+          "tree": "d52bab90e765b2623f6e00534d536764fbf18a56",
+          "parent": "256327bb446e225ffa41f3064dbe831ced563b53",
+          "proof_transfer": "Working-tree component proof only. The compiled Core dep-info includes the excluded local src/backend/handshake_core/src/storage/surreal/workspaces.rs diagnostic overlay."
+        },
+        "independent_source_publication_review": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-source-publication-independent-review-01.json",
+          "sha256": "ca397cd82cd26f3faadc7d446170ea391cee6ff02f4a4633a78c453018e7123d"
+        },
+        "result": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-02/result.json",
+          "sha256": "08dee367bf9655ac7059ce83c9418292506f9727a76c11e10d81b8922c61ef32"
+        },
+        "raw_stdout": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-02/test.stdout.txt",
+          "sha256": "bae72ec6a7001d1fd449bbb81a7083a732e096b293ac19b528108cefdd9ecb58"
+        },
+        "checked_release": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-02/released.json",
+          "sha256": "bf6e54966eb104e406f3adb13bc4bcbd258f0acb4c6f65cf888a62f9d966ea03"
+        },
+        "observer_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-pair-20261113-02/producer-observer-terminal.json",
+          "sha256": "f598459c53ace311c2858a12490fc0d2c78402fba295e37541b9d85351e802c7"
+        },
+        "external_source_repair": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/outbox-order-bootstrap-readiness-candidate-03.json",
+          "sha256": "d1eb0099f7030c40ac08ee84415f30528a427a4364f5cbe2f812844fbc7034e5"
+        },
+        "applied_raw_input_map": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/outbox-order-bootstrap-readiness-current-raw-input-map-01.json",
+          "sha256": "13150918f90b17b639c52536d2d26f26e7ab01ae266b95487dc18a5ee5130442"
+        },
+        "changed_compile_admission": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/mt172-outbox-custody-admission-order-bootstrap-readiness-01.json",
+          "sha256": "e4de5349181ce6936d6d4d1ce2c840e5e144e679f9b57bf32fd800258cae36f9"
+        },
+        "changed_compile_started": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-20261113-01/cargo-started.json",
+          "sha256": "92ca79850e6cadbc31d1db2b9578ad22567d1cd9ce20eeb5669f29098d441b44"
+        },
+        "changed_compile_cargo_exit": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-20261113-01/cargo-exit.json",
+          "sha256": "cc5ac1697b2c30d2c32e54088364b01816a7cce6058aa3436fbefc549b62780d"
+        },
+        "changed_compile_raw_cargo_stdout": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-20261113-01/cargo.stdout.jsonl",
+          "sha256": "5ae7defdc4cd33bd5ebe0c07aafaa022051cd61e29d9767cec671d36f152de1e"
+        },
+        "changed_compile_result": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-20261113-01/result.json",
+          "sha256": "e4739277b78ba5dbc86a110adf3ea73b231bab72f86128a363e8a46f212aa806"
+        },
+        "changed_compile_release": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-20261113-01/released.json",
+          "sha256": "1aa1050e4dc24ddbc0f63d4739cc4a30736bbef47d17ea8fd67e97b188add549"
+        },
+        "changed_compile_observer_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-custody-20261113-01/coding-direct-core-outbox-integration-wait-01.json",
+          "sha256": "1db992b0db2e09e90f2d4c991e8ad06cfe346bb9c1d60d9a9bb32a004c9bd646"
+        },
+        "retained_executable_and_dep_info_owner_readback": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-retained-pe-dep-info-owner-readback-01.json",
+          "sha256": "0541788169e7250cd83259cac0d188a7262d4cfa1957c0490f8b1df2e2ed55f0"
+        },
+        "independent_alternate_basis": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-independent-cold-alternate-basis-review-01.json",
+          "sha256": "89b109b0f2e465fffd1f8c2e3db4f764074f0ee0ed7bc82ea0d8b68a5fbf8f3e"
+        },
+        "independent_warm_changed_only_review": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-warm-changed-only-independent-review-01.json",
+          "sha256": "7dc32071412ec764342bed569355a63fc28b83b4b70ff5ea3d1bff148359e769"
+        },
+        "warm_compile_result": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-warm-20261113-01/result.json",
+          "sha256": "147600a73b56fe4e6fab188f8965b4c9bdafde5d244551ee4a2e0e5bf209e787"
+        },
+        "warm_compile_artifact": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-warm-20261113-01/codegen-artifact.json",
+          "sha256": "8ca8562a80a019a2027fe376588fdc5cdc389be35e889ed3b3a6ec99415b9bb8"
+        },
+        "warm_compile_release": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-warm-20261113-01/released.json",
+          "sha256": "d161f7c9d4a3a96ba4ab6c6aa7d829d560e87842263237f0acbb734b2b1f4e04"
+        },
+        "warm_compile_independent_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-codegen-order-bootstrap-warm-custody-20261113-01/coding-direct-core-outbox-integration-wait-01.json",
+          "sha256": "96a8d10af1fbc8e15c8ff898558aad37fa56dad369a1d07c7bc47f04ceb79053"
+        },
+        "independent_working_source": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-working-source-independent-review-01.json",
+          "sha256": "a97e73ca4b2d554f7aa7d853d9212478b1aa2b24f37f3eb344e1e3d32ade2ead"
+        },
+        "independent_warm_acquisition": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-warm-acquisition-independent-review-01.json",
+          "sha256": "02672a1309eb34909e767d4d8c4b8730e5a2c58d27aebfb0c0291282361e0975"
+        },
+        "independent_runtime_adoption": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-runtime-adoption-review-01.json",
+          "sha256": "3ae1233d816b003e904744129eb0eb5fddf126edc6b7de2cc39d5d34383414b7"
+        },
+        "runtime_v03_pair_admission": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-integration-runtime-attribution-producer-pair-admission-03.json",
+          "sha256": "655e8b30ba8950ce654af6c0ab39c7fb699a621caad7cc8088a0ca5fdd26fc18"
+        },
+        "runtime_v03_stdout": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-03/test.stdout.txt",
+          "sha256": "b87a2c5ae80df896074a17891fcb1b2a8dba62d35b91e0511de82074eda7fa68"
+        },
+        "runtime_v03_case_completion": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-03/case-completion.json",
+          "sha256": "5d2d4eb480eafd347811d1d3b981011a6baa0d2c31b105fd516363755c85ab81"
+        },
+        "runtime_v03_producer_result": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-03/result.json",
+          "sha256": "e11fb2bca1e6e28343d8c1778cee853a55c66e052ee258d0c73eeb04cc897d19"
+        },
+        "runtime_v03_checked_release": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-20261113-03/released.json",
+          "sha256": "42949204c6fc29535305a54e9160212b0fe98da8396164ff64bd48e7e8e6a2fc"
+        },
+        "runtime_v03_observer_terminal": {
+          "ref": "MT-172/pt006-pt014-outbox-runtime-pair-20261113-03/producer-observer-terminal.json",
+          "sha256": "da007397323b77f524b9d2cb107781b87488956895dd33f92f4d57f6031ce8a3"
+        },
+        "runtime_v03_independent_verdict": {
+          "ref": "MT-172/pt006-pt014-outbox-integration-codegen-prep-20261113-01/core-outbox-order-bootstrap-runtime-independent-terminal-review-01.json",
+          "sha256": "356798d6684976088499b6b7c9e60df9848dc4b31d353f92ef1ebae0c7994879"
+        }
+      },
+      "result": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-runtime-20261113-01/result.json",
+        "sha256": "3e1c35fcf24d74105d212dbfe208a644c85ee18fa3167956e8275c46883ebf04"
+      },
+      "owner_release": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-runtime-20261113-01/released.json",
+        "sha256": "108d40727b35ddccd62936d9898ba1104e71a24c70201fd4ff4ef70c147386c1"
+      },
+      "observer_terminal": {
+        "ref": "MT-172/pt006-pt014-outbox-integration-runtime-pair-20261113-01/producer-observer-terminal.json",
+        "sha256": "d585e521370c82b15d9ce64db40b54f39ff02d53e110b639fe4d995fd270e75e"
+      }
+    },
+    "mt202": {
+      "state": "The dormant Native v03 delta passes the original one-second seed deadline to the two-recipient handoff and rejects late ACKs before writing. A failed handoff closes only stdin and preserves the original watcher. The independently reviewed capture join binds each actor to its own verified handle for that same watcher through close and settlement. Codeleader confirmed the retained authors found no connected transport provider. The existing runtime parent must identify the actual two capture controllers and production connection for the existing role inputs. The connected sender and transport must enforce the earlier of selection expiry and the original seed deadline throughout post-spawn I/O. Connected startup, normal shutdown and independent crash survival remain open.",
+      "launcher_product_path": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "launcher_raw_sha256": "769d87035e0fec2b07db4de8300c1e95d2924918d053dffb2fbed3a27d233ea7",
+      "reviewed_spawn_draft": {
+        "ref": "MT-202/mt094-mt202-palmistry-spawn-custody-20261113-01/palmistry-signed-spawn-custody-01.patch",
+        "sha256": "74c3dd9ac346926b1a459350c77a2118da29187013b8a26e4ad3581da760c9a9"
+      },
+      "reviewed_dormant_recipient": {
+        "ref": "MT-202/mt202-native-palmistry-shutdown-custody-recipient-20261113-01/candidate.v2.json",
+        "sha256": "4716ce6044333c14f8fcb8b4d54e4ff5a19b70a1bae142831c2aaca8d1f36b09"
+      },
+      "external_recipient_endpoint": {
+        "ref": "MT-202/mt202-native-palmistry-shutdown-custody-recipient-20261113-01/candidate.endpoint.v2.json",
+        "sha256": "c4dab380506487c1271bb0e6b033afac4e1085ce19ee449da414fa354e726d05"
+      },
+      "external_native_reservation_context": {
+        "ref": "MT-202/mt094-mt202-palmistry-spawn-custody-20261113-01/palmistry-signed-spawn-custody-02.patch",
+        "sha256": "6c7e6d4553903bb9d6365a46422fabef721ef1a0d832dce17688a60d9fd7fcbf"
+      },
+      "dormant_native_deadline_delta": {
+        "ref": "MT-202/mt094-mt202-palmistry-spawn-custody-20261113-01/palmistry-signed-spawn-custody-03.patch",
+        "sha256": "d9c9fdace1b83035d68eddf567d010563f71ff61f2ab23d8a02a65f73b1cc0cd"
+      },
+      "dormant_capture_pair_binding": {
+        "ref": "MT-202/mt202-native-palmistry-shutdown-custody-recipient-20261113-01/candidate.capture-pair.v2.json",
+        "sha256": "c0d5ef91e26d1d080d315f53ba0d00636c6ae8ac066ce87b0f92d2a2ad22c56f"
+      },
+      "dormant_capture_pair_helper": {
+        "ref": "MT-202/mt202-native-palmistry-shutdown-custody-recipient-20261113-01/watcher-custody-capture-pair-dormant-01.py",
+        "sha256": "62e594e9f536e2c285fd0f81a6f2b664c598415f48ffd73397ee376a1a219133"
+      },
+      "reviewed_capture": {
+        "ref": "MT-202/mt202-native-palmistry-shutdown-capture-binding-20261113-02/candidate.v2.json",
+        "sha256": "438a29852fac35be64bb823358337d8fd576285dadb914ea01c52bed47040735"
+      }
+    },
+    "cabinet_leaf_navigation": {
+      "state": "Primary published Cabinet v3 at 869269bd with the CKC notice and Manual update. The focused regression passed with pointer, AccessKit and fresh Enter after refresh. The original authenticated Cabinet workflow remains open.",
+      "candidate": {
+        "ref": "MT-212/gui-cabinet-leaf-navigation-20261113-01/cabinet-leaf-navigation-v3.patch",
+        "sha256": "0e0bc3eb78f770a277270e3a8bebf91ff2948e24a351722fb19dda4b62bbce65"
+      }
+    },
+    "ckc_contact_sheet_notice": {
+      "state": "Primary published the exact five Cabinet, CKC and UserManual files at 869269bd. One Native Cargo build supplied all three independently passed component tests. Codecheck independently verified the remote commit and each of the five blobs against the tested source. The original runtime acceptance remains open.",
+      "source_binding": {
+        "ref": "MT-212/gui-cabinet-ckc-native-codegen-bound-20261113-01/cabinet-ckc-native-codegen-binding-source-bound-01.json",
+        "sha256": "ca36e4212b9b4e082866c09140a6114805b6bae07107f5191ff059311df52e6f"
+      },
+      "compile_only": {
+        "ref": "MT-212/gui-cabinet-ckc-native-codegen-20261113-01/result.json",
+        "sha256": "93fb5ea392a776160e7e20ec48a8db72adae8b8083ced9ad52005aff9caf4017"
+      },
+      "library_run": {
+        "ref": "MT-212/gui-cabinet-ckc-native-runtime-prep-20261113-01/cabinet-ckc-native-runtime-case01-independent-terminal-review-01.json",
+        "sha256": "42cfa9e6f2fad72a466720c26bef9611053e9839a9b47d32277c026e65877fdd"
+      },
+      "manual_run": {
+        "ref": "MT-212/gui-cabinet-ckc-native-runtime-prep-20261113-01/cabinet-ckc-native-runtime-case02-independent-terminal-review-01.json",
+        "sha256": "18021a4e06af150ffeeab5f1b2278b4b59569933a132117ea4416dcfe85f189a"
+      }
+    },
+    "cabinet_project_group_expansion": {
+      "state": "Primary published ProjectTree v02 at 256327bb. It consumes Cabinet expansion and selection in the same frame for Documents, Canvases and Bookmarks. The independent focused keyboard and pointer component passed. The original authenticated mounted workflow remains open.",
+      "applied_product_path": "src/frontend/handshake_native/src/project_tree.rs",
+      "applied_file_sha256": "f2418271d7af6f111e5143303e2295ed8918eab59683bfdf16469e4fcc1b8921",
+      "focused_selector": "project_tree::tests::cabinet_project_groups_render_keyboard_and_pointer_expansion_immediately",
+      "candidate": {
+        "ref": "MT-212/gui-cabinet-project-group-expansion-20261113-01/cabinet-project-group-expansion-02.patch",
+        "sha256": "b5f77b9c14d5656adc97d687d8c1e242e453da6350f6316e89e337e664b47090"
+      }
+    },
+    "ckc_contact_sheet_batch_preview": {
+      "state": "Primary published the exact three-file reviewed bundle with ProjectTree at 256327bb. The preview and receipt use the active intake batch and keep stable Argus IDs. A mismatched reply fails its originating request and keeps the prior success. Both focused CKC components and the User Manual 2.0.32 consistency check independently passed. The mounted intake export route and authenticated Vulkan and Argus proof remain open.",
+      "pico": "MT-212.json#/picotask_plan/items/17",
+      "candidate": {
+        "ref": "MT-212/gui-ckc-contact-sheet-source-preview-20261113-02/binding.json",
+        "sha256": "067808853de630c6e0c0cc1ad1fb0b88b451cd5ad086ec40403e30d317320ca7"
+      },
+      "manual_candidate": {
+        "ref": "MT-212/gui-ckc-contact-sheet-source-preview-manual-20261113-02/binding.json",
+        "sha256": "5b7217a58d8bb0f7b90009ce297e088cfa0c9bce59154a0cf275e7cc9165d280"
+      },
+      "joined_review": {
+        "ref": "MT-212/gui-ckc-contact-sheet-source-preview-joined-20261113-01/binding.json",
+        "sha256": "8ad332ead6808376990701e82a2c91f147071cb424621d2988faeb366e65bac9"
+      }
+    },
+    "native_project_tree_ckc_compile": {
+      "state": "The admitted Native compile qualified with Cargo exit 0 and both newly built test executables. The three Native selectors and the one User Manual selector independently passed in separate admitted component captures. Both Jobs drained and Primary explicitly returned custody. Codeleader sequenced exact four-path publication and then the changed-input PT006 v03 work.",
+      "admission": {
+        "ref": "MT-212/gui-project-tree-ckc-native-codegen-prep-20261113-01/mt212-custody-admission-project-tree-ckc-native-01.json",
+        "sha256": "2fdb954b1185c4fd58fa9689b03dd942120562803e9362fb3ec0fecbfd3286fa"
+      },
+      "cargo_started": {
+        "ref": "MT-212/gui-project-tree-ckc-native-codegen-20261113-01/cargo-started.json",
+        "sha256": "4d3958b6518bb2679d5ca401dc56ede580ca6ff9574071ff63d1cb30d46a5a37"
+      },
+      "cargo_exit": {
+        "ref": "MT-212/gui-project-tree-ckc-native-codegen-20261113-01/cargo-exit.json",
+        "sha256": "972535ea92c6d2374a6da362a90701082f2a54c7f2844e2dd64220f615ab5945"
+      },
+      "qualified_compile": {
+        "ref": "MT-212/gui-project-tree-ckc-native-codegen-20261113-01/result.json",
+        "sha256": "47edb3d9b9cf8b9132eecbaa8816c02e13ab1d0769a1808b93f89c0ad4d13218"
+      },
+      "executable_manifest": {
+        "ref": "MT-212/gui-project-tree-ckc-native-codegen-20261113-01/codegen-artifact.json",
+        "sha256": "f2d5d1d669e1f0dee663295978fd4204fa9c4faf1481a77fab34e29b463c0068"
+      },
+      "checked_release": {
+        "ref": "MT-212/gui-project-tree-ckc-native-codegen-20261113-01/released.json",
+        "sha256": "264cf928ec74f436a35139f19ba119f60248994975747a40cfddbb6d645bb453"
+      },
+      "independent_executable_acquisition": {
+        "ref": "MT-212/gui-project-tree-ckc-native-runtime-prep-20261113-01/project-tree-ckc-native-dual-independent-compile-pe-review-01.json",
+        "sha256": "74dc4bac77f058c73a2a7892ff928fa8e6563087d0fa4592db591fbc4e062a4c"
+      },
+      "independent_native_component_verdict": {
+        "ref": "MT-212/gui-project-tree-ckc-native-runtime-prep-20261113-01/project-tree-ckc-native-runtime-case01-independent-terminal-review-01.json",
+        "sha256": "6a03760cef7620dfcccbae7fa88abd29e8f42ed834b5f69137036952ec6e7ca9"
+      },
+      "independent_manual_component_verdict": {
+        "ref": "MT-212/gui-project-tree-ckc-native-runtime-prep-20261113-01/project-tree-ckc-native-runtime-case02-independent-terminal-review-01.json",
+        "sha256": "a6a6f362ecc979641c492ad0c795d6f86ba27430c26efc8b0ebaf8231482fc65"
+      },
+      "independent_publication_readback": {
+        "ref": "MT-212/gui-project-tree-ckc-native-runtime-prep-20261113-01/project-tree-ckc-native-component-publication-review-01.json",
+        "sha256": "b874f62d0fb5e30406e49dd92c4cdb1556202e427bcce1de7a31af8ace7b86dd"
+      }
+    },
+    "rf12": {
+      "state": "Studio confirmed the portable client extraction has no allocated writer at 198f6dc41f806b7f11da04f3a516d8a72f3a7fed. Preserve DeviceLease and both plan_sink.rs consumers. Native uses the pinned eframe wgpu adapter configured for Vulkan. Native, Core and the canonical asset owner accepted design scopes for direct Vulkan startup and settlement, the trusted issuer and aggregate quota port, and the reusable renderer adapter. The Native proposal keeps device and queue custody before renderer startup and across account reset. It verifies queue completion separately from presentation release. Production ownership, source paths, the live issuer, quota port and exact asset pin remain open. Publish and independently reread canonical source before exact pinned host wiring.",
+      "studio_owner_turn": "01a1d624-acd7-7b61-b6ff-9238c3502802",
+      "canonical_renderer_dependency": "At canonical 100d762c3635, kumihimo-vulkan has the decorative transition source and no presenter or GPU effect callers. The separate managed eframe candidate depends on RendererQueueCustody and PreparedRendererAttachment found only in the held Studio candidate. The next reusable renderer change needs the owning Studio UI-pass and custody release plus the Handshake GPU owner's direct Vulkan admission and settlement binding. The committed Handshake registry also lacks device.gpu.shell. Core independently passed the revised Native design for joining the exact published registry entry before renderer startup. Obtain the real MT174 extraction and publication through its owner before issuing authority.",
+      "direct_vulkan_owner_readback": "The canonical asset owner checked revision 8eadc5b57dc20d96bf29340f835505ad8ff7cbc8 and confirmed the direct Vulkan source contains the decorative transition state. The workspace has no direct Vulkan window/panel package. The next asset input is the independently validated immutable Studio UiPass/Presenter and matching inputs from SMB-VK-UI-PASS-1, currently 88b5500c with no validator verdict, together with Handshake production GPU admission/settlement. Preserve the Studio pause.",
+      "shell_capability_extraction": "Product HEAD 723454bc5 declares device.gpu.shell in capabilities.rs and deliberately rejects generic grants. The generated registry still lacks the entry. Independent Codecheck verified the current v02.229 spec and schema/engine inputs for the existing MT174 governed extraction, review and publication workflow. Codeleader received the owning input handoff. The old extraction approval binds a different candidate. Source declaration alone does not supply the registered publication or actual process-bound issuer.",
+      "reviewed_native_registry_join_design": {
+        "ref": "MT-203/mt203-native-process-root-issuer-design-handback-20261113-02.json",
+        "sha256": "9b438ecd02fab5c489904d92869ec5a96cd283872f810218aec4cccf492b0737"
+      },
+      "wp012_owner_contract": "MT-203.json#/gpu_contract_result/canonical_owner",
+      "independent_design_review": "Native v02 passed changed-only design review. It binds resource release to the original operation, queue, swapchain generation, image and synchronization sequence. A retired swapchain with no future acquire requires operation-specific release evidence or bounded retention. The focused child build unit, separate startup and parent manifest handoffs, and Primary-only lockfile fit the current rules. AC203-1 remains open on production allocation, actual Core issuer and atomic quota, and canonical adapter release and immutable pin. WP-KUM-023 shared clipping is published at 3b3494f8. Studio confirmed that read_pane frees staging storage after a fence timeout following successful submission at both 88b5500c and 198f6dc4. Hold offscreen adoption for a fixed independently qualified Studio release with its full dependency closure. The Studio source lane remains paused apart from R60 attempt 4.",
+      "native_startup_design": {
+        "ref": "MT-203/mt203-native-renderer-startup-owner-design-20261113-02/binding.json",
+        "sha256": "376cacc285c417b1f0e347242d82d022da03148622fd8f58dfdf571cd635c6a5"
+      }
+    },
+    "settings_search_empty": {
+      "corrected_case01_admission": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-02/settings-search-native-runtime-case01-binding-admitted-02.json",
+        "sha256": "2462d44d98087a088789a062ccc3438c1d6f582a53598a72ae23dc22b4952a80"
+      },
+      "corrected_case01_result": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-20261113-02-case01/result.json",
+        "sha256": "48cf39aa3cac853c68aa2cddab4ca97ebb24f555648f07a9e688e3272760806d"
+      },
+      "corrected_case01_observer": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-02/settings-search-native-runtime-terminal-observation-01.json",
+        "sha256": "4b1528c257d51d761dfac269d293e08471b81005c7b0db7d3e33f57cd8c247d0"
+      },
+      "corrected_case01_checked_release": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-20261113-02-case01/released.json",
+        "sha256": "baa0a01a7295a4dfc49840647dd9cc7689cce7c20b54313d725e94de5afce6a3"
+      },
+      "corrected_case01_independent_terminal": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-02/settings-search-native-runtime-case01-independent-terminal-review-02.json",
+        "sha256": "386c5c0e151ae84835c50bc62ea45afafd80ddbe4f45004b491ca0a5820783a5"
+      },
+      "corrected_case02_independent_terminal": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-02/settings-search-native-runtime-case02-independent-terminal-review-03.json",
+        "sha256": "39236415987344a2777aea7fce15f3be7515c18686fd9af1b8dd903dd29b2416"
+      },
+      "state": "The two Settings and User Manual executables qualified in the original compile and independent exact-source review. Original Case01 passed the test, but its observer missed the controller because the controller used six arguments, including -B. Corrected Case01 and its Case02 successor each passed the exact one selected component test on the existing qualified binary, with separate live five-token observers, unchanged inputs, qualified V11 and checked handback. Both independent terminal seals are complete. The rendered Manual sentence, Core Manual 2.0.33 read, and mounted Vulkan and Argus proof remain open.",
+      "corrected_settings_case01_binding": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-02/settings-search-native-runtime-case01-binding-dormant-02.json",
+        "sha256": "b5bd3bcae8fb8e1dd03990700a3d1b7c05a02d331cf218a5f39129e60620bcd3"
+      },
+      "corrected_manual_case02_binding": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-02/settings-search-native-runtime-case02-binding-dormant-02.json",
+        "sha256": "a9061a5f36d77e7584ae3c34bfed2bbabf33a52ac637f69d94b9e5f508a67ded"
+      },
+      "settings_candidate": {
+        "ref": "MT-212/gui-settings-search-empty-20261113-02/binding.json",
+        "sha256": "126f553f69f6876c19b0bedf6ea564f2f3c06d2e814b1c36e5335f48c73a6160"
+      },
+      "current_checkpoint_binding": {
+        "ref": "MT-212/gui-settings-motion-checkpoint-723454bc-20261113-01.json",
+        "sha256": "3fede999ebe11d96babafafce15387949371050cdd942e60d4e188e574e564c1"
+      },
+      "dormant_codegen_controller": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-prep-20261113-01/settings-search-native-codegen-candidate-01.py",
+        "sha256": "ca2601838a7494bb1f79c047470de80576c2217b7473a715f77e1cd6b7c489ef"
+      },
+      "dormant_codegen_custody": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-prep-20261113-01/settings-search-native-codegen-custody-dormant-01.py",
+        "sha256": "0db21a2dcf584710949bda499b732759d4d845ce76dcda755de0476e2bb8ba1a"
+      },
+      "dormant_codegen_binding": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-prep-20261113-01/settings-search-native-codegen-binding-dormant-01.json",
+        "sha256": "f3c41e9192d6154a2aa320205ffc0863883b38aa75265c7e3fd8b43cabe46853"
+      },
+      "applied_current_input_map": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-prep-20261113-01/settings-search-native-current-input-map-01.json",
+        "sha256": "827a2f8c7e20927c23f8a77e6517f2fa03aa65c82fb691c458a2ea6678b3d340"
+      },
+      "independently_reviewed_source_binding": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-prep-20261113-01/settings-search-native-codegen-binding-source-bound-01.json",
+        "sha256": "d9dc1ba76701e5b8e0c1ac5724120b57785081146d37eb9fa687c4862ff7b9ab"
+      },
+      "current_compile_admission": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-prep-20261113-01/settings-search-native-custody-admission-01.json",
+        "sha256": "5724b655323b6009994b12c80d2317c744b8ee515ee0454d55df39683689acb7"
+      },
+      "actual_cargo_started": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01/cargo-started.json",
+        "sha256": "44ad1eec092a5340fc544d66d01cf5f06244845200f2bf0615ee186c8c5d87eb"
+      },
+      "actual_cargo_exit": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01/cargo-exit.json",
+        "sha256": "13b3eeb7125e053385b6326bf665b700ebd9d25ffa34021d904fa23deb31eff8"
+      },
+      "owned_drain_started": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01/owned-drain-started.json",
+        "sha256": "6e703dbb3721a9d1a2b817f4fadafb298d2e65847812cde2a915f18d8195e947"
+      },
+      "qualified_compile_result": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01/result.json",
+        "sha256": "4c38c6c068bdbed8108f2e20edc30a4ee563556584e4905bf90bd461ec4b90df"
+      },
+      "qualified_compile_manifest": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01/codegen-artifact.json",
+        "sha256": "0546e7e710a17d96e7ce509dc6f79fb9a31ae87433014ef7e76eb905252e5d75"
+      },
+      "compile_checked_release": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01/released.json",
+        "sha256": "c6f391b2b6da2320221d89c6a066d9342f26dfe2be13c4276904d68bb17aa422"
+      },
+      "compile_observer_terminal": {
+        "ref": "MT-212/gui-settings-search-empty-native-codegen-20261113-01-custody/native-lane-diagnostics-producer-wait-01.json",
+        "sha256": "a8d866a77b189d235f0a1c2741fa5140f23b11ca9aa2f38fe9e61e9846d633d0"
+      },
+      "independent_compile_acquisition": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-01/settings-search-native-dual-independent-compile-pe-review-01.json",
+        "sha256": "da4792427a09fbc5af8e10ac4944a12e7856274255e7f7d735ec9481dbf54459"
+      },
+      "settings_case_current_review_bound": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-01/settings-search-native-runtime-case01-binding-review-bound-01.json",
+        "sha256": "f79c4aed976cad5811eb27f5339d97c95c3bce54cf65f20fe1b0dae82e816950"
+      },
+      "original_settings_case01_admitted_binding": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-01/settings-search-native-runtime-case01-binding-admitted-01.json",
+        "sha256": "fc482ce16c81a5e178bd1e52a7879a5f19b2a42d18e2c637605353b26f3f5fd9"
+      },
+      "original_settings_case01_owner_result": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-20261113-01-case01/result.json",
+        "sha256": "395cd9c24620942a527b40349da8f8aa1d0c2948d4315bb0607b7565b130ce9e"
+      },
+      "original_settings_case01_owner_release": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-20261113-01-case01/released.json",
+        "sha256": "7ad1cc181023af071b7554531b2832f2014e02e5977e8ce4f973a5a7512a2afa"
+      },
+      "focused_runtime_case_delta": {
+        "ref": "MT-212/gui-settings-search-empty-runtime-case-delta-20261113-01.json",
+        "sha256": "7f6d7d8bccd13358a89b1cbbe2aaa40215584587d97bb97d8a7cc84c8e23d51f"
+      },
+      "reviewed_dormant_settings_case": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-01/settings-search-native-runtime-case01-binding-dormant-01.json",
+        "sha256": "d3bc150e7a584b247c965a059bf9362cd42d6e29a95491995a4cd231566e4f54"
+      },
+      "reviewed_dormant_manual_case": {
+        "ref": "MT-212/gui-settings-search-empty-native-runtime-prep-20261113-01/settings-search-native-runtime-case02-binding-dormant-01.json",
+        "sha256": "ebf03f284c9501688cc647dbd822023720ef4855619c80326d24bb08262b4bfe"
+      },
+      "mounted_settings_and_manual_proof_inputs": {
+        "ref": "MT-212/gui-settings-search-empty-mounted-manual-proof-inputs-20261113-01.json",
+        "sha256": "2523735d4140bd2482cfb0294e532588af76b673ee01c4f2dd67d010afe1d558"
+      },
+      "mounted_input_readback": {
+        "ref": "MT-212/gui-settings-search-empty-mounted-input-readback-20261114-01.json",
+        "sha256": "d29de1b4a2a3bc9e8a943ebebbb7db8e8553d843a9e24ae7478ba75ce6c6cc20"
+      },
+      "native_manual_candidate": {
+        "ref": "MT-212/gui-settings-search-empty-manual-20261113-02/binding.json",
+        "sha256": "0e9abbf65abdbb9845cb5623524bd5e1c00ae68a24187e838641f90623879642"
+      },
+      "core_manual_candidate": {
+        "ref": "MT-212/gui-settings-search-core-manual-version-20261113-01/core-user-manual-version-2-0-33-binding-01.json",
+        "sha256": "2350e330b797c08587d3ecec2af5777fafe9bf6aaf1c1c0dc5637beb80ead47f"
+      },
+      "joined_external_binding": {
+        "ref": "MT-212/gui-settings-search-empty-joined-20261113-01/binding.json",
+        "sha256": "1b5fc5c4e8acc86debae29b7c728c0f5dbe5f814fcd933578fb105bf6126cf5c"
+      },
+      "focused_native_proof_inputs": {
+        "ref": "MT-212/gui-settings-search-empty-native-proof-inputs-20261113-01/binding.json",
+        "sha256": "d5c3a1c334917ed2d36f5a924fc719e5532a2cf5c596cd90e36b3949ace676aa"
+      }
+    },
+    "mt172_pt041": {
+      "state": "The original PT041 selector proof is complete. The retained three owning-crate tests and both exact Core tests independently passed. Original Core Cargo produced the selected executable and closed naturally, but that cold capture remains unqualified because of the live target-scan deadline. The exact retained PE and dep-info independently qualified through the separate all-fresh warm acquisition. Both Core tests then ran once on the warm executable with V11 qualification, unchanged inputs, independent controller exit and checked handback. The Core verdict applies to the bound working source with held overlays. MT172 acceptance stays open. Codeleader moved the next read-only proof binding to PT018 ProcessLedger durable writer, overflow and reopen assertions.",
+      "contract": "MT-172.json#/picotask_plan/items/40",
+      "leaf_manifest_sha256": "e8b1b09a75fdba7d18d9b65e9ae30d0b542cf08e0d6a855bc0c4932e68a3bd78",
+      "leaf_source_sha256": "8a769e7674af48949df7a80989e1eea15ddba2d1bd543b9edeb52fc3fe4f1998",
+      "core_bridge_source_sha256": "e1490a99a112e3d2c9f5e15a2708e9062a34d3519b26bd1d021b81660f22a86f",
+      "dormant_leaf_controller": {
+        "ref": "MT-172/pt041-event-ids-leaf-proof-prep-20261113-01/pt041-event-ids-leaf-proof-controller-dormant-01.py",
+        "sha256": "11d8075a9b4f91d1e95124690fb09e44f3652d044d96c0024ee06042c69d9739"
+      },
+      "dormant_leaf_binding": {
+        "ref": "MT-172/pt041-event-ids-leaf-proof-prep-20261113-01/pt041-event-ids-leaf-proof-binding-dormant-01.json",
+        "sha256": "05e675feb6c4792a5f434df7bfa47b5730d60813679593f90466d0c93cf40db9"
+      },
+      "actual_leaf_admission": {
+        "ref": "MT-172/pt041-event-ids-leaf-proof-prep-20261113-01/pt041-event-ids-leaf-proof-binding-admitted-01.json",
+        "sha256": "236ef469d45e5fdfdf166b7dbb6a1e6dd2f1556478dbf06612f70d5c6686f580"
+      },
+      "leaf_result": {
+        "ref": "MT-172/pt041-event-ids-leaf-proof-20261113-01/result.json",
+        "sha256": "45d66267865e3446728c6ca0005501ca08467b766cb3815b78f439120b22c6fc"
+      },
+      "leaf_stdout": {
+        "ref": "MT-172/pt041-event-ids-leaf-proof-20261113-01/test.stdout.txt",
+        "sha256": "167adfe6b95b8ad5b1a0daeb26c37d04f0bce5103341acece149b5ff72f98b76"
+      },
+      "independent_leaf_terminal_review": {
+        "ref": "MT-172/pt041-event-ids-leaf-proof-prep-20261113-01/pt041-event-ids-leaf-proof-independent-terminal-review-01.json",
+        "sha256": "ecbacce4938c7c0a603f9a27690b86cafa7a6947286010371eabf520444b1724"
+      },
+      "reviewed_core_compile_binding": {
+        "ref": "MT-172/pt041-event-ids-core-lib-proof-prep-20261113-01/pt041-core-lib-codegen-binding-dormant-01.json",
+        "sha256": "1803617fc678757ac53bef87d4878da55fc7871c6bf84edfeedaf58d29071d08"
+      },
+      "reviewed_core_current_source_binding": {
+        "ref": "MT-172/pt041-event-ids-core-lib-proof-prep-20261113-01/pt041-core-lib-codegen-binding-source-bound-01.json",
+        "sha256": "922a5633d4d12c71a4b3b74b001031ced1d10c1e177bdf844a9d27a168701c97"
+      },
+      "actual_core_compile_admission": {
+        "ref": "MT-172/pt041-event-ids-core-lib-proof-prep-20261113-01/pt041-core-lib-custody-admission-01.json",
+        "sha256": "e4b1dff3b81ac49348db9109aa50517d20b1fd5dbec44d7cc221171ac861838b"
+      },
+      "actual_core_cargo_start": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-20261113-01/cargo-started.json",
+        "sha256": "23328f19c93c110232e50aee48b9a481660d9d4f2adb99a62afe0dac4ec740c8"
+      },
+      "actual_core_cargo_exit": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-20261113-01/cargo-exit.json",
+        "sha256": "d546698766213a7aa8e5994108c6e73a61d6c6e74d276a1c510113b3f79b5604"
+      },
+      "core_cargo_raw_stdout": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-20261113-01/cargo.stdout.jsonl",
+        "sha256": "478615de02c100573c077c5d251397b4c253b3cce14d92bd4b5b4372f1cf4b30"
+      },
+      "original_core_drain_started": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-20261113-01/owned-drain-started.json",
+        "sha256": "a981995c42d0c8485ba56df1839bffc4913ef725cf5f79b07a4f9838a6777eaf"
+      },
+      "original_core_result": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-20261113-01/result.json",
+        "sha256": "5b4ea020ae4b0abf64117c0e2a8d5bb3568c47de82c9cb1f19e4e0363b6cc3b3"
+      },
+      "original_core_checked_release": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-20261113-01/released.json",
+        "sha256": "2c1909c544d1df01a861abcbc0834869f4d717570b1acc12b5dc58fd0c89995e"
+      },
+      "original_core_observer_terminal": {
+        "ref": "MT-172/pt041-event-ids-core-lib-codegen-custody-20261113-01/pt041-core-lib-producer-wait-01.json",
+        "sha256": "c0fb07ec1d32649a001df3c2503c86927913804af3648dad598a1efaa90c8cdd"
+      },
+      "qualified_warm_compile": {
+        "state": "The exact warm run acquired the original executable with 819 of 819 reused compiler artifacts, Cargo exit 0, complete live and final V11 observations, unchanged inputs and no test bodies. The same Job closed naturally and the distinct observer confirmed producer exit 0. Primary checked physical handback and exact retained PE and dep-info. The independent compile acquisition is sealed. The two exact bridge tests still need changed-only review and fresh admission for the runtime binding to this warm lineage.",
+        "independent_pe_acquisition": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-prep-20261114-01/pt041-core-lib-warm-independent-compile-pe-review-01.json",
+          "sha256": "d300df43a9ea50bb4dff999ad130bf16f398e6caa9f4b255c7d6f2b981326b74"
+        },
+        "result": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-20261114-01/result.json",
+          "sha256": "df3367d1cf459a168585493181da8149a658732e19330411d8a879e28f93af60"
+        },
+        "manifest": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-20261114-01/codegen-artifact.json",
+          "sha256": "589f068562a2838b63d02d8fd8f5a7e23c1208b7dad802727e7412004f7c33ba"
+        },
+        "checked_release": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-20261114-01/released.json",
+          "sha256": "b59449c3dc095f6a86e8cd32e6d0ad1ebeae4f9ed21a5196f7bb647077521f88"
+        },
+        "observer_terminal": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-custody-20261114-01/pt041-core-lib-producer-wait-01.json",
+          "sha256": "ce4e3b967317056ac867c339fc40a75112f3ce3890049f7d2a94afc29037a926"
+        }
+      },
+      "reviewed_dormant_core_runtime_binding": {
+        "ref": "MT-172/pt041-event-ids-core-lib-runtime-prep-20261113-01/pt041-core-lib-runtime-binding-dormant-01.json",
+        "sha256": "322d3a315b0d0e1da80fe460b05f5865fb24eada5ac2375dbea043f952cd3740"
+      },
+      "warm_bound_dormant_core_runtime_binding": {
+        "ref": "MT-172/pt041-event-ids-core-lib-runtime-prep-20261113-01/pt041-core-lib-runtime-binding-dormant-02.json",
+        "sha256": "b591007fbb0ba3a8d4f917abbfd01fa2e85636bed63d32c195bef0e3d99a93d9"
+      },
+      "core_runtime_independent_terminal": {
+        "ref": "MT-172/pt041-event-ids-core-lib-runtime-prep-20261113-01/pt041-core-lib-runtime-independent-terminal-review-02.json",
+        "sha256": "d63f7680e8e07c93723abfbdfeac1c7c41813b2325f4c7a9fce4559fc2689d6d"
+      },
+      "dormant_warm_basis": {
+        "state": "The raw original stream contains one fresh:false Core libtest row and one successful build-finished, with no Cargo errors. The original capture is settled and its deadline failure stays adverse. Primary sealed the PE and dep-info readback and Codecheck matched all 820 selected dependencies to the exact working source. The independent alternate basis permits consideration of one all-fresh compile only. Warm v02 still needs the final exact-bound observer and fresh admission, separately after the selected Settings Case01.",
+        "independent_cold_basis": {
+          "ref": "MT-172/pt041-event-ids-core-lib-proof-prep-20261113-01/pt041-core-lib-independent-cold-alternate-basis-review-01.json",
+          "sha256": "384daf364323b75a0d85fff764786f61443260383f783151148e41263af5e12f"
+        },
+        "binding": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-prep-20261114-01/pt041-core-lib-codegen-warm-binding-dormant-02.json",
+          "sha256": "300322b1326876483b4606d838c0f144685395fc6cd21ade9aeb1a25df528e05"
+        },
+        "controller": {
+          "ref": "MT-172/pt041-event-ids-core-lib-codegen-warm-prep-20261114-01/pt041-core-lib-codegen-warm-candidate-02.py",
+          "sha256": "d8e74afb88d174ddf3662e7fd6c488a1869e1b36a3456b3eee8e35eacd873da1"
+        }
+      }
+    },
+    "mt172_pt018": {
+      "contract": "MT-172.json#/picotask_plan/items/17",
+      "superseded_test_candidate": {
+        "ref": "MT-172/pt018-surreal-saturation-20261114-01/binding.json",
+        "sha256": "e3a4521075f2b097795dd94e9fa2f328e89b375143afd4a99fa486dca9f03dc4"
+      },
+      "applied_test_candidate": {
+        "ref": "MT-172/pt018-surreal-saturation-20261114-02/binding.json",
+        "sha256": "e8e8e10386a691aa7276719eb1b79f2cc0fbf2dba3bc7762ed3c6740ad816e4c"
+      },
+      "superseded_dormant_compile_binding": {
+        "ref": "MT-172/pt018-process-ledger-codegen-prep-20261114-01/pt018-process-ledger-codegen-binding-dormant-01.json",
+        "sha256": "7a1329094cad43c6b0fdcd374957458c2410ed715dd5f0c836620015b96be586"
+      },
+      "corrected_dormant_compile_binding": {
+        "ref": "MT-172/pt018-process-ledger-codegen-prep-20261114-01/pt018-process-ledger-codegen-binding-dormant-02.json",
+        "sha256": "9aacf2deb849b65ba500b0b4246a9fcdf7e60a6f13351dd759b0a48ec6f5fbf0"
+      },
+      "compile_start": {
+        "ref": "MT-172/pt018-process-ledger-codegen-20261114-01/cargo-started.json",
+        "sha256": "dc39de62963b6609b50ef76dbc7223831f8dccf9636f15e44cb35701de1ab0d2",
+        "scope": "Primary's one compile-only admission launched Cargo PID 31228 at 01:17:12.333083Z. The independent observer retains the original capture. Runtime selectors require separate proof."
+      },
+      "compile_cargo_exit": {
+        "ref": "MT-172/pt018-process-ledger-codegen-20261114-01/cargo-exit.json",
+        "sha256": "db7041af3e3a5758831e9cd314ce27353935c80d0d35179a6eca9c5f254bb75b",
+        "scope": "The retained handle reported Cargo exit 0 at 03:03:52.074416Z. The raw Cargo stream emitted a single selected fresh:false executable and successful build-finished. ProcessLedger test bodies did not run."
+      },
+      "compile_terminal": {
+        "ref": "MT-172/pt018-process-ledger-codegen-20261114-01/result.json",
+        "sha256": "b3a4ac1716dcabb4d37328ef61b669339ac1c7f67100552ed2c09968e37cf037",
+        "scope": "The original capture remains unqualified after live target-scan failures. Unchanged guarded inputs, zero measured stops, and no test bodies."
+      },
+      "compile_release": {
+        "ref": "MT-172/pt018-process-ledger-codegen-20261114-01/released.json",
+        "sha256": "8446060614bc5d3ebdd42aa7a2912292b4f83c547227e360b1edb515eba2dd0a",
+        "scope": "The same Windows Job drained naturally to zero members. All retained file and native handles closed."
+      },
+      "compile_observer_handback": {
+        "ref": "MT-172/pt018-process-ledger-codegen-custody-20261114-01/pt018-process-ledger-producer-wait-01.json",
+        "sha256": "f587453984d2216582e80c53baf3f83a314018434c8155fd1402c831457d1f8c",
+        "scope": "The independent observer recorded the original producer exit 1 on the retained handle and closed it successfully. Primary verifies physical custody before reassigning the slot."
+      },
+      "compile_primary_readback": {
+        "ref": "MT-172/pt018-process-ledger-codegen-prep-20261114-01/pt018-retained-pe-dep-info-owner-readback-01.json",
+        "sha256": "160869b28afa5c98b350ae9fe7b7b2eb25a6c86b19baac5c6db3b655330e8eb8",
+        "scope": "Primary recorded the exact executable and selected dep-info, confirmed checked handle closure and released the physical slot at 03:20:16.589460Z."
+      },
+      "runtime_binding_dormant": {
+        "ref": "MT-172/pt018-process-ledger-runtime-prep-20261114-01/pt018-process-ledger-runtime-binding-dormant-02.json",
+        "sha256": "768d90be84d30a0ce181536d8ad7e614fc7f4bf48debbaea469c263b09e1c779",
+        "scope": "The retained nonauthor cleared the fixture-empty correction and exact observer pin. Real executable, dep-info, independent acquisition and runtime admission remain required."
+      },
+      "warm_producer_dormant": {
+        "ref": "MT-172/pt018-process-ledger-warm-producer-prep-20261114-01/pt018-process-ledger-warm-binding-basis-bound-01.json",
+        "sha256": "4e87eef3ebecc4dba8d8431eb4bd75339f1128748fff595cdf55e9d6cd4bab2f",
+        "scope": "Primary bound the independently reviewed alternate basis in the dormant warm producer. Observer and physical admission remain separate. Native has first compiler allocation."
+      },
+      "warm_verifier_dormant": {
+        "ref": "MT-172/pt018-process-ledger-all-fresh-verifier-prep-20261114-04/dormant-binding.json",
+        "sha256": "e149d91e35f42414b9c8e6579cb1105fd4d6dfba97c08ba780f49be9a3107694",
+        "scope": "Independent changed-only review cleared the revised verifier. The reviewer ran the extracted startup and operation checks against the real prior PT018 startup records. The separate warm capture and runtime proof remain open."
+      },
+      "warm_admission_prep": {
+        "ref": "MT-172/pt018-process-ledger-warm-producer-prep-20261114-01/pt018-process-ledger-warm-custody-admission-01.json",
+        "sha256": "66879696a7bd4304d21d5d73d6c7eb5c2dd1a65f292dcedf291ee8ed408cc71e",
+        "scope": "Primary admitted one same-command all-fresh compile after checked Native handback. The existing Eval is the sole active observer. Runtime remains separate."
+      },
+      "warm_compile_start": {
+        "ref": "MT-172/pt018-process-ledger-all-fresh-20261114-01/cargo-started.json",
+        "sha256": "8169a2b2b02605200c2d6c4334093aa72f92bcc90fdbc97137dd96fe7293f1cc",
+        "scope": "Real Cargo PID 5928, birth FILETIME 134391033738909119, started 04:16:13.982832Z under producer PID 29524. The independent observer retains this one run. No test bodies in the compile admission."
+      },
+      "warm_compile_terminal": {
+        "ref": "MT-172/pt018-process-ledger-all-fresh-20261114-01/result.json",
+        "sha256": "b7c18012fd22e9cc433baa49a5669c04c4b78f4ce03d6ba43ef2432b9aa827fe",
+        "scope": "Cargo exit 101. Rust could not rewrite the selected dep-info because the warm capture held it read-shared only. No selected executable or test result. The resource guard independently logged 14 scan deadlines."
+      },
+      "warm_compile_release": {
+        "ref": "MT-172/pt018-process-ledger-all-fresh-20261114-01/released.json",
+        "sha256": "96addda08f7c60097e2ccb911ec0166d72779f847c48b5d8003049ea5a5cdfca",
+        "scope": "The original Job settled naturally with 14 total, zero active and zero terminated. All 7677 file handles and three native handles closed."
+      },
+      "warm_compile_observer_handback": {
+        "ref": "MT-172/pt018-process-ledger-all-fresh-custody-20261114-01/pt018-process-ledger-warm-producer-wait-01.json",
+        "sha256": "d928db2d115457af70e5fc102e29f57e0a4c8b96b11db0be280328a381643a51",
+        "scope": "Independent Eval checked the original producer's terminal identity and closed its retained handle. Primary independently confirmed the original capture released the compiler and source custody on its checked natural drain, resource verdict and retained observer closure."
+      },
+      "selected_rebuild_requirements": {
+        "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/capture-requirements.json",
+        "sha256": "3a8176f6a12dfa7b7fd3dcbedd7b0275050e4264ccf1107d28bffa32747b91e0",
+        "scope": "Review-only. Original capture author resumed one dormant selected-rebuild candidate against the 7627-path Native join, leaving selected outputs writable through Cargo and binding the actual generated MT013 manifest. Primary confirmed both compile-only assignments. Native single-bin rebind follows author handback, with PT018 first when both are ready. No Cargo admission or runtime."
+      },
+      "selected_rebuild_review": {
+        "binding": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/pt018-selected-rebuild-binding-dormant-01.json",
+          "sha256": "bfd8aca1968052168e1c8f296215816bb19d88b71a10fd368fd2098ec181f0eb"
+        },
+        "archive_verifier": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/verify-pt018-selected-rebuild-archive-02.py",
+          "sha256": "331ba0c0640863fa13aad12a943475208b276cf03f2058714bdd5243c2ae2a87"
+        },
+        "independent_mt013_expected": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/independent-mt013-expected-worktree-01.json",
+          "sha256": "b6ded4c13b73f51b6fdaf1a26ce63477f4f8812a6cc83b5fc1486ed9be9030ff"
+        },
+        "scope": "Codecheck cleared the producer for its one compile-only action. Codeleader obtained Coding agreement and issued the exact disposition. Eval confirmed prior checked closure and readiness. Primary owns the fresh measured admission. Before reusing any resulting PE, independent terminal review must join held native file identity to the selected row and confirm bound Core target, OUT_DIR, source HEAD/root and actual Cargo cwd. Runtime admission is separate."
+      },
+      "selected_rebuild_pre_cargo_failure": {
+        "producer_log": {
+          "ref": "MT-172/pt018-selected-rebuild-custody-20261114-01/producer.log",
+          "sha256": "538437d9d2a4af4bd8c84cf62d7b7ffae612c9b5fb424d329fed0749e0c76401"
+        },
+        "terminal": {
+          "ref": "MT-172/pt018-selected-rebuild-custody-20261114-01/pt018-selected-rebuild-producer-wait-01.json",
+          "sha256": "50eba3a16b087f72fdccd9b13a24b3a3d6a67446234a745e58c6cab4827c6e30"
+        },
+        "state": "The admission pinned the dormant controller. The controller exited 1 before its startup acknowledgement or Cargo. Eval checked the original producer and launcher exits plus observer closure. Primary explicitly verified physical settlement and the compiler slot. The invocation is consumed. The original author owns the off-tree adoption correction and exact pin preflight."
+      },
+      "selected_rebuild_adoption_successor": {
+        "independent_source_review": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/pt018-selected-rebuild-independent-binding-review-02.json",
+          "sha256": "e2d438e70ca2c577a1a3e6a9ab792a518e16332a6e7a7bd887b39253a54385d6"
+        },
+        "independent_adoption_transition": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/pt018-selected-rebuild-independent-adoption-transition-02.json",
+          "sha256": "3fdc8451b2c3a576e29f844595ed41f3ff48e044e07cd0fef5ab3bde67651f12"
+        },
+        "cargo_start": {
+          "ref": "MT-172/pt018-selected-rebuild-codegen-20261114-02/cargo-started.json",
+          "sha256": "15e97acb6af579e66a3360f7ac98d5a81f802c9eb2ff887adf981b072f3b3525"
+        },
+        "cargo_exit": {
+          "ref": "MT-172/pt018-selected-rebuild-codegen-20261114-02/cargo-exit.json",
+          "sha256": "280ecb0d7e07390808a4f0efa7dc260900d216127a850b95d5d872f4e0333600"
+        },
+        "result": {
+          "ref": "MT-172/pt018-selected-rebuild-codegen-20261114-02/result.json",
+          "sha256": "25994e9fef79dad10e1709a898bd0826e231c96ab1a81f2b5a51f61b1ca74e93"
+        },
+        "checked_release": {
+          "ref": "MT-172/pt018-selected-rebuild-codegen-20261114-02/released.json",
+          "sha256": "2ea33a59d28611a42668f5e4d1d44318f9bf65cf78c6c091ea880be15bb80794"
+        },
+        "observer_terminal": {
+          "ref": "MT-172/pt018-selected-rebuild-custody-20261114-02/pt018-selected-rebuild-producer-wait-01.json",
+          "sha256": "d6df712f6987ab34b6517b66bcbb7972c4425857ef0c1bee881f9809db8ff394"
+        },
+        "post_release_owner_readback": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/pt018-selected-rebuild-post-release-owner-readback-02.json",
+          "sha256": "260f246e1eb03bfadba0772e80d6184bee458e76cfb679cab6f3404deab078ef"
+        },
+        "post_release_readback_supplement": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/pt018-selected-rebuild-post-release-readback-supplement-02.json",
+          "sha256": "403559dee4f8e6e10652c99e2aaf9e873477bc18ddf7cb3f6ff926a81d9d42b4"
+        },
+        "state": "Cargo emitted the selected rebuilt executable and exited 0. V11 reported 29 deadline and 2 entry-limit scan failures, with no measured stop or qualified artifact manifest. The same Job emptied naturally and all recorded handles closed. Primary's timed reread matched the prior PE, dep-info and MT013 identities, verified AMD64 and exact dep-info tokens. The original readback lacks timestamps and continuous writer exclusion. Independent alternate reuse remains on hold on that gap and the distinct mixed V11 failure. Test execution remains open."
+      },
+      "production_overflow_source_gap": "Both Core startup paths install NoopOverflowSink. MT172 Coding owns the downstream mount with Core as sponsor. Spec §5.7.3 requires the overflow receipt and Diagnostics flag. §5.9 requires protected attribution for both ledgers. The writer's System label supplies provenance only. The internal recorder mirrors terminal commands only, the existing MT109 service has a different grant, and the protected EventLedger CREATE predicate has no overflow case. The owner still needs scoped issuance and rotation, durable typed append, same-ID reconciliation, and a scoped status reader. Any new capability follows §11.1.6 capability_registry_build and the MT174 round36 registry producer and publication workflow for the actual diff.",
+      "overflow_registration_review": {"status":"INDEPENDENTLY_REVIEWED_FOR_OPERATOR_DECISION","proposal_sha256":"80bd1090e5449778007627d65172783343fa4e02d9c9292fab2b7672ab69418c","bytes":5717,"encoding":"UTF-8 sorted-key compact JSON of proposed_overflow_registration, literal non-ASCII, no trailing newline","decision_owner":"Codeleader presented the single concrete enrichment question to the Operator. No approval recorded here."},
+      "nov20_implementation_review": {
+        "composed_v2": {"ref":"MT-172/pt018-full-source-v2/binding.json","sha256":"2415e712a18b33e26742deb8b1ad9b7e21d3e3287f513a60e93a09230aed0429","scope":"Independent review matched the 17-file composition and confirmed the observer wakeup correction. Coding received five remaining findings. Use the committed owner-bearing START identity for teardown. Record STOP after actual termination. Preserve the owning adapter's detached reconciliation. Retain cleanup ownership across cold binds and warm persistence. Reconcile the durable snapshot reference when compensation deletes its bytes. The source is detached and runtime proof remains open."},
+        "composed_v1": {"ref":"MT-172/pt018-full-source-v1/binding.json","sha256":"13059b0e71abe19fe74e8c3c094f4125a4a3999c77a996da4d7b3982308b42f2","scope":"The independent review matched all 16 Product base files. Coding owns three corrections. Reserve durable STOP delivery across the lifetime of an admitted process. Distinguish pre-spawn rejection from post-effect warm-VM cleanup in the fixtures. Prevent a missed wakeup when observer creation fails and its join handle is returned. Engine recovery measurements, service issuance and runtime proof remain open."},
+        "schema_installer_v7": {"ref":"MT-172/pt018-owner-schema-installer-v7/binding.json","sha256":"b66691b8204734d93d36a84dd8e461e7a78a4a2b8d8502a049574739a8b3093a","scope":"Independent review traced the receiptless and pending-receipt paths. The pending path now validates the whole catalog and exact receipt before creating an index. The five recovery cases still require independent engine measurements of BASE, FINAL, revision prefixes and the pre-index states."},
+        "writer_shutdown_v8": {"ref":"MT-172/pt018-writer-runtime-custody-v8/candidate.json","sha256":"b2e6101783946c432bd26e41b54d3c7808e093429246a1e6046549cb1d17a720","scope":"Review found ordinary producer entrypoints that bypass the shutdown seal. If the OS cannot start the join observer, an existing owner can also lose its route to the retained outcome. Coding has the caller paths and preserves completion of work already admitted. No runtime verdict."},
+        "writer_shutdown_v5": {"ref":"MT-172/pt018-writer-runtime-custody-v5/checkpoint.json","sha256":"4015861ce11608ede3cbabb250fda84acbfb1a1fa4dfd9cfc0ef558cd62fd60a","scope":"Independent source review confirmed that sealing the shared writer prevents late reservations. Cancellation or overlapping drains can still consume the only join handle and let a later caller treat an unfinished or failed flush as complete. Concurrent producers can also reject each other with spare queue capacity, including when overflow ingress is unmounted. Coding is repairing both paths. Durable overflow, shutdown and reopen still require runtime proof."},
+        "schema_installer": {"ref":"MT-172/pt018-owner-schema-installer-v3/binding.json","sha256":"538c4033566ede9ecd111816c9e5f38502a25ff22c0f43e3b23a0cfd0a768ff6","scope":"Source review found legitimate rev171 and rev172 interruption points that recovery cannot recognize. Conversely, checking table names before replay can overwrite a divergent Owner field. Verify legitimate prefixes and reject drift before mutation. Engine BASE/FINAL measurements and the independent partial171 reference remain open."},
+        "writer_shutdown": {"ref":"MT-172/pt018-writer-runtime-custody-v4/checkpoint.json","sha256":"4e838e3ebdea79cbf36d03935984318141dc25c75d1c787e3cf3292dd948b433","scope":"A cloned writer may reserve after shutdown observes zero reservations and before or after lease release. Coordinate closure with in-flight reservation commit/drop and verify the real interleaving. Historical rejections remain separate from pending custody. Both findings have been returned to the owning authors."}
+      },
+      "proposed_overflow_registration": {
+        "status": "SPEC_ENRICHMENT_PROPOSAL_ONLY",
+        "owner": "Master/Spec with MT172 Coding and the Core sponsor; Primary retains physical Product and Git custody.",
+        "scope_decision": "packet.json#/operator_scope_expansion_20261023_02",
+        "target_sections": ["2.3.13.12", "5.7.3", "5.9", "10.12.5", "11.1.6"],
+        "proposed_registry_entry": {"capability_id":"fr.ingest.process_ledger_overflow","kind":"runtime","display_name":"ProcessLedger overflow receipt","section_ref":"5.7.3","required_capabilities":[],"default_governance_mode":"gov_standard","risk_class":"high","tags":["capability","observability"]},
+        "proposed_units": [
+          {"id":"PROCESS-LEDGER-OVERFLOW-REG-001","text":"Register fr.ingest.process_ledger_overflow with the proposed entry fields above. Only the proposed service profile ProcessLedgerOverflowWriter may carry it. Bind its audience and grants to the exact writer resource, account, Principal, session, Space and workspace. The service may append the typed FR-EVT-LEDGER-OVERFLOW receipt for a witnessed saturated writer. Registration alone confers no grant or read authority."},
+          {"id":"PROCESS-LEDGER-OVERFLOW-REG-002","text":"Only a currently authenticated installation Owner may enable, rotate or disable the service. Preserve the Owner path's workspace fs.write/Update and fs.read/Read checks and original provisioning-operation digest. Owner reconciliation confirms that operation's revision. Service issuance separately requires a real service Principal, RecordUser session, current delegation, scoped grants and runtime generation in normal and recovery-only startup."},
+          {"id":"PROCESS-LEDGER-OVERFLOW-REG-003","text":"Before append, validate the current service authority, generation and original witness. Bind the receipt to a stable event ID with original attribution and an immutable settlement digest. Keep its diagnostic payload bounded to typed cause, count and capacity. Only Full establishes saturation. Keep Closed and Undersized distinct. Exclude sampled lifecycle metadata and capability snapshots."},
+          {"id":"PROCESS-LEDGER-OVERFLOW-REG-004","text":"Grant the service separate Read and Reconcile actions limited to its exact original overflow receipt. Current authorized reconciliation may confirm an old-generation receipt by exact ID, original scope and immutable digest. Expired authority cannot append. Missing, ambiguous or conflicting readback retains the accepted item. General listing, ledger reads and Owner provisioning revisions cannot settle it."},
+          {"id":"PROCESS-LEDGER-OVERFLOW-REG-005","text":"Signed-in Settings > Diagnostics must surface the authorized degraded state. Require a separately authorized installation-level status Read for the signed-in operator and scope-filter any displayed status or counts. A workspace Diagnostics grant alone is insufficient. Service append or same-ID confirmation confers no status-reader authority."}
+        ],
+        "activation": "Draft only. CX-105 and KB-SPEC-001 require approval of this concrete enrichment before copy-first Master Spec publication. Scope expansion authorizes preparing the dependency. Rebind extraction to the activated spec; actual generated-diff approval is separate. No service, grant, schema installation or runtime was created.",
+        "managed_input_predecessor": "The extraction preparation identifies 23 source payload hashes. All 23 source Artifact UUIDs, the configuration Artifact UUID and the authenticated workspace remain unbound. Stage capture uses a separate store. Existing readable managed publications could supply these inputs. Otherwise an authorized Product import and an explicit child grant are missing. Ordinary Artifact creation requires creator_grant_id=NONE; the field is immutable, and mt120_creator_grant excludes Artifact. The server must also bind a genuine non-Cloud model.",
+        "proposed_registry_input_scope": [
+          {"id":"REGISTRY-INPUT-IMPORT-001","text":"Under the governed registry workflow only, allow an authenticated caller with current Workspace/Create fs.write authority to publish one authorized input per stable operation UUID. Bind the first immutable payload and manifest hashes, canonical child Artifact, creator, parent workspace, account, Space and operation receipt. Reject collisions and foreign scope. Cancelling the requester cannot undo a committed publication. Report a commit only on an exact authorized canonical receipt. An uncommitted cancellation records no success; unknown settlement remains pending."},
+          {"id":"REGISTRY-INPUT-IMPORT-002","text":"Require a separate, explicitly authorized and receipted grant-issuing operation if an exact child read grant is missing. Limit the grant to Read/artifact.read on the canonical child just published for the same authenticated creator. Revalidate the issuer's authority to issue that grant, current session/Principal, workspace Read, subject artifact.read eligibility, original publication, applicable source restrictions, epoch, policy, expiry and revocation. Workspace creation and storage alone confer no read grant. Preserve default privacy for all other artifacts and principals."},
+          {"id":"REGISTRY-INPUT-IMPORT-003","text":"Keep the Operator-authorized parent job. Only an independently authenticated issuer already authorized to delegate the exact child reads may issue the extraction reader credential. Bind its verified delegation chain, account, Principal, session, Space, workspace, extraction-job audience, exact enrolled input set and expiry. Recheck current policy, revocation, reader eligibility and each persisted child grant at use. An Operator lacking artifact.read cannot delegate it. If an eligible issuer, credential or grant is absent, the extraction must fail closed. Ordinary Operator sessions and unrelated jobs gain no read capability."}
+        ]
+      },
+      "isolated_current_input_disposition": "The four isolated durable-Surreal tests can run without the production installer. The saturation case reopens the same store and checks all 128 accepted identities and the test-only overflow receipts. Prior Cargo exited 0 but V11 disqualified the capture and no codegen manifest was emitted. The Notes worktree map changes MT013 membership from 7,627 to 7,658 even though Core, test and dependency paths are unchanged. Current-map exact PE, dep-info and MT013 capture with qualified V11 are required before separate short-fixture component runtime. Codeleader received this narrower execution dependency. Production Flight Recorder and status remain distinct acceptance.",
+      "current_mt013_expectation": {
+        "ref": "MT-172/pt018-selected-rebuild-prep-20261114-01/independent-mt013-expected-worktree-02.json",
+        "sha256": "7ba38935eeec3e9b34f01ce234180595f76c02cd4b9bfb7d83f583fa66302402",
+        "scope": "Independent held projection returned checked custody to Primary. Expected MT013 has 7,658 present members and SHA-256 058e0e45c4bc30ee2ae4fc34c9ab3709fa2e939d710582cdc0fdc79f3e6ddbc2. This is the independent expected source manifest. The new compile must generate the actual sidecar."
+      },
+      "current_dormant_capture": {
+        "ref": "MT-172/pt018-selected-rebuild-prep-20261114-03/pt018-selected-rebuild-binding-mt013-bound-dormant-03.json",
+        "sha256": "33a9c160db60fe4e61427b119db599a68679446c0e7b7cc85a46e92033b6e76d",
+        "scope": "Independent Codecheck cleared the current producer and terminal verifier. Codeleader and the independent partner concurred on one compile-only acquisition on the changed map after Notes handback. Primary issued exact resource and custody admission and independent review sealed the transition. The original Eval retained the producer before acknowledgement. Cargo started once. Terminal qualification and component tests remain open.",
+        "verifier": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-03/verify-pt018-selected-rebuild-archive-04.py",
+          "sha256": "38514c4fead0680136d60d5298d98a89401756bf4e2606eba41c2bfe2376577d"
+        },
+        "candidate_adoption_binding": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-03/pt018-selected-rebuild-binding-admitted-03.json",
+          "sha256": "6681276cd6ba318e747d6937f2a453feea1a6999ccfe9b4af3392295d2316f59"
+        },
+        "independent_binding_review": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-03/pt018-selected-rebuild-independent-binding-review-03.json",
+          "sha256": "6a6a3cd3b25a334a3d453fcb9525c776908511aab639a552cbd95638c4d41d59",
+          "scope": "Clears the exact final binding, producer and observer."
+        },
+        "independent_adoption_transition": {
+          "ref": "MT-172/pt018-selected-rebuild-prep-20261114-03/pt018-selected-rebuild-independent-adoption-transition-03.json",
+          "sha256": "6f7df1f5f8b0810b8bfd4587e2c62ede6b5f2d271a285c2c1ee1779a22869459"
+        },
+        "actual_cargo_start": {
+          "ref": "MT-172/pt018-selected-rebuild-codegen-20261114-03/cargo-started.json",
+          "sha256": "211305f5a4feb8de222d24db58ba6b200b769d54a158798ccbe31c26cb63ceaa",
+          "scope": "Cargo PID 17316 started at 12:03:32 UTC. The independent Eval retains the original pre-ACK producer. Only the ProcessLedger integration test executable is selected. V11 recorded 18 deadline failures and one entry-limit failure by 12:47 UTC. The first deadline occurred at 189,795 visits with no reconciliation. The entry-limit failure counted 900,001 visits and eight reconciled directories. This capture cannot qualify. Cargo, rustc and the producer remained live at 12:47:13 UTC. Await numeric exit and checked handback."
+        }
+      },
+      "current_dormant_runtime": {
+        "ref": "MT-172/pt018-process-ledger-runtime-prep-20261114-01/pt018-process-ledger-runtime-binding-dormant-04.json",
+        "sha256": "3fa0f4e8bdf004a41ab1b335e21f75a3420d174ab6acf84f3f0acfc126d709a8",
+        "controller": {
+          "ref": "MT-172/pt018-process-ledger-runtime-prep-20261114-01/pt018-process-ledger-runtime-capture-dormant-04.py",
+          "sha256": "295f7654f22ff1001b85eac0214508cc4b0c14e8b993d37eb57428713fc2a51a"
+        },
+        "scope": "Independent changed-only source fit on the current compile lineage. Exact four serial Surreal tests remain dormant. The current live scan failure disqualifies this compile capture. Tests require separately qualified acquisition, checked handback, exact PE and dep-info, a fresh protected short fixture, observer and case admission."
+      },
+      "owner_provisioning_candidate": {
+        "ref": "MT-172/pt018-owner-overflow-authority-v5/binding.json",
+        "sha256": "818a93a946e7b2fc5e7230e98c90f4615731b7d5984f57349d2efa97e99f03a1",
+        "scope": "Independent source review verified all five postimages and the v4 lineage. A currently authorized installation Owner can reconcile the exact committed original operation across session rotation using its immutable settlement digest. An absent, invalid or nonunique receipt keeps the fence. Production schema installation, append and same-ID event readback, startup wiring and status remain open. No Product application or test."
+      },
+      "original_overflow_witness_candidate": {
+        "ref": "MT-172/pt018-original-witness-v6/binding.json",
+        "sha256": "431fa2f523cd727d3c722af89e180b727adbbb15e9f3ca31dedb66a65ff6cd89",
+        "scope": "Independent source review verified all six postimages and the reservation delta. The accepted slot retains its exact original witness and receipt, while an unaccepted reservation releases on drop. Reads do not consume the receipt. Draining accepted slots after verified settlement, generation shutdown and the production status reader remain open. The owner must compose both reviewed storage/surreal.rs deltas before application."
+      },
+      "owner_witness_storage_composition": {
+        "ref": "MT-172/pt018-owner-witness-storage-composition-v1/binding.json",
+        "sha256": "6bf2341eb550f84d2aa894e8f17214af33b5a1abd1160b8ef0eb978c2b1e1e4f",
+        "scope": "Independent replay reproduced the exact 285,264-byte postimage from both reviewed source deltas on their common base. Product application, compile and runtime remain open."
+      },
+      "post_release_artifact_readback": {
+        "ref": "MT-172/pt018-selected-rebuild-prep-20261114-03/pt018-post-release-owner-acquisition-20261120-01.json",
+        "sha256": "02d3b0e25634efa6b55cc40d3e0b9f29ef9ffa370ced9348983615ed99d7b3ac",
+        "scope": "Primary verified the executable, dep-info, generated MT013, index and all 7,658 source files on Nov 20 before Notes application, then closed all 7,663 read handles. The map and generated manifest matched. The six-day interval after natural release lacks continuous writer-exclusion evidence. Original capture qualification failed. Runtime requires separate qualified acquisition on its actual inputs."
+      },
+      "v11_disposable_diagnostic": {
+        "terminal": {
+          "ref": "MT-172/pt018-v11-offline-timing-prep-20261114-01/v11-offline-scan-timing-fixture-scope-02/terminal.json",
+          "sha256": "b105f310731039c4541b8faa833938fd2cef4471c4066ee47d27c9c96968da00"
+        },
+        "result": {
+          "ref": "MT-172/pt018-v11-offline-timing-prep-20261114-01/v11-offline-scan-timing-fixture-scope-02/stdout.json",
+          "sha256": "4f539e39718fdb85ce7111ef83d80760853a2231c625143a31776b68d6a35ebc"
+        },
+        "state": "One admitted disposable diagnostic exited 0 after checked closure. All twelve scripted cases matched; both NTFS scans counted 16384 bytes over 2064 visits. The one sparse fixed-order pair does not establish a live root cause. No production qualification or retry."
+      },
+      "mechanical_overflow_ingress_candidate": {
+        "ref": "MT-172/pt018-mechanical-overflow-ingress-v1/binding.json",
+        "sha256": "c24515e8432a8a24d0dc86b28af959d5efa57379b88ed149b3c8d87ee669231d",
+        "scope": "Independent source fit for the unmounted bounded queue primitive only. Its mechanical projection excludes sampled payloads. Admission differs from confirmed durability; failure and uncertainty retain the head. Both focused tests remain unrun. Production requires an authorized typed append, stable receipt identity, duplicate handling, reconciliation after an uncertain append, and checked drain."
+      },
+      "selected_rebuild_03_terminal": {
+        "result": {"ref": "MT-172/pt018-selected-rebuild-codegen-20261114-03/result.json", "sha256": "45cfcd2c74853c548fd62e54938bc3cae1709c1be27976e49c670c1e16e187de"},
+        "release": {"ref": "MT-172/pt018-selected-rebuild-codegen-20261114-03/released.json", "sha256": "d5ddf6d8a921fa7e3674dde15c1d59944f05f0ba95f1368e06c08cc3e4aaeefa"},
+        "observer": {"ref": "MT-172/pt018-selected-rebuild-custody-20261114-03/pt018-selected-rebuild-producer-wait-01.json", "sha256": "d75b44e4cb6feb29bab4af20913c126ad5f08e2c51d40ed65fcd18af7fa55e36"}
+      },
+      "state": "On Nov 14 Cargo exited 0. Its output records the Core OUT_DIR at line 843, the rebuilt ProcessLedger executable at 1507 and build success at 1523. The independent observer recorded producer exit 1. The Job drained naturally, with all 46 processes settled and all owned handles closed. V11 recorded 38 live scan deadline failures and one entry-limit failure. The final complete scan took 2.766 seconds over 195,160 entries. The capture remains unqualified and no test ran. Primary completed the Nov 20 readback before the two Notes source files changed. Codecheck requires a fresh current-source acquisition of process_ledger_surreal_tests with independently expected MT013, same-OUT_DIR evidence, actual executable and dep-info, and qualified live and final V11 observations before the four runtime cases."
+    },
+    "mt172_pt019": {
+      "external_proof_candidate": {
+        "ref": "MT-172/pt019-reopen-context-source-v2/binding.json",
+        "sha256": "535910ffaf2d79633b3c882f1bb6ede60b535493386697930acdaf4e3c8d2d4d"
+      },
+      "state": "Independent Codecheck cleared the unrun v2 test. It checks the same store after reopening before recovery and again before readback, requires one applied event at sequence one, and verifies the untouched queue row's identity and lifecycle. Both base files remain frozen by PT018. Original live child/crash, lease/takeover and cancellation proof remain open."
+    },
+    "engine_profiles": {
+      "mounted_proof_inputs": {
+        "ref": "MT-212/settings-profile-create-mounted-proof-inputs-20261114-01.json",
+        "sha256": "a267a94c878337c86250cebc7536a4f390204ea7c05cfe895fb543bf26928abc"
+      },
+      "superseded_exhaustion_test_candidate": {
+        "ref": "MT-212/settings-profile-create-exhaustion-20261114-01.patch",
+        "sha256": "8e91bfd0da9a63dc6101f72e7e96810d152166277752402a841d90db0f5d707a"
+      },
+      "reviewed_exhaustion_test_candidate": {
+        "ref": "MT-212/settings-profile-create-exhaustion-20261114-02.patch",
+        "sha256": "393b5a73f73fb59d8c330144bd7bbbf3d3c79ced30e763dabf7a7d3c5c7f05ab"
+      },
+      "exhaustion_joined_source_handback": {
+        "ref": "MT-212/settings-profile-exhaustion-joined-native-handback-20261114-01.json",
+        "sha256": "5702beac81f00ac51a9e516dc0ba91b8eda494b24d6bf5bb577cd3ac180d4a5b",
+        "scope": "The Settings author released the exact file with no pending hunks. The GUI owner verified the focused test composes with divider witness v04 and dispatcher v02 without changes to the three shared Argus functions. Primary can bind the combined source after PT018 handback."
+      },
+      "mounted_assertion_joins": {
+        "ref": "MT-212/settings-profile-mounted-assertion-joins-20261114-01.json",
+        "sha256": "3179945ac30baf29e8e58e0fb93277fa700731cb887617427f0f93fb8b5e49e6",
+        "scope": "Offline assertion checker prepared. Actual signed-in Create and full-profile dispatch remain open. The checker expects exact HTTP exchange fields, which existing Argus output does not expose."
+      },
+      "existing_dispatch_witness": {
+        "contract_ref": "MT-196.json#/scope/acceptance_criteria",
+        "native_source": "src/frontend/handshake_native/src/operator_chat_pane.rs:783",
+        "core_route": "src/backend/handshake_core/src/api/operator_chat.rs:1169",
+        "scoped_audit": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs:2757",
+        "existing_scoped_proof_target": "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs:689",
+        "scope": "Core checks the complete authenticated registry head. Native reports accepted Argus launch IDs only after exact equality with the complete typed reply. One observed launch can prove dispatch for that profile; AC196-2 requires same-model distinct profiles. GUI and Codecheck found no existing mounted readback joining the accepted run to the full selection audit, persisted run and lane, and linked ModelSession profile. The existing Core test target reauthorizes Read on the same Surreal store and replays its own actual returned run, but its current case has no profile and is not mounted. Codeleader received the exact reuse point. The runtime owner must prove same-run/store linkage for mounted readback or keep that join open while adding separate changed-behavior assertions in the existing target. Checker unchanged."
+      },
+      "state": "The published Settings Create acknowledgment has prior qualified static proof. A retained component run carried the complete profile through the repaired Operator Chat route on a recording backend. The GUI owner verified the independently reviewed Settings exhaustion test is applied in the frozen joined Native source. The exact library selector remains uncompiled and unrun, pending the next compatible library batch after handback. Mounted Create needs an applied receipt and a later same-window empty revision-1 draft with registry and active profile unchanged. Actual mounted dispatch still must match the selected immutable profile, request, scoped Surreal registry and response."
+    },
+    "motion_visual_acceptance": {
+      "native_joined_source_map": {
+        "ref": "MT-212/wp025-native-joined-source-map-20261114-01.json",
+        "sha256": "0b3ef83e223bd2fb642fea2acf534a3352817ed87ecc3e0456a9ae5de5120842",
+        "scope": "Primary applied and verified divider witness v04, dispatcher v02 and Settings exhaustion v02, in order. All six final Product path hashes independently match the 7627-path map. Core PUT observer and inline Handpick were outside this application. Build and mounted runtime remain open."
+      },
+      "mounted_divider_observation": {
+        "ref": "MT-212/motion-visual-observation-delta-20261113-01.json",
+        "sha256": "deda0235be159110e7ae163d463cec4ad54efbb930504833307be7d0aa2d229c"
+      },
+      "dormant_native_divider_candidate": {
+        "ref": "MT-212/gui-native-wp025-live-divider-host-20261114-02/binding.json",
+        "sha256": "5e66891abb215b3c2627b6a8c65902d54acea12466f9c0cf82156a2866c9a2e5"
+      },
+       "reviewed_exact_pin_candidate": {
+         "ref": "MT-212/gui-native-wp025-live-divider-host-20261114-03/binding.json",
+         "sha256": "b94cfc4fab103282b129376a7f923482c9ec058861a9f801be4b3229e63d2f0d",
+         "scope": "Codecheck cleared the joined eight-file candidate. After PT018 handback, all eight applied Product files independently matched the candidate postimages. Both locks bind the published asset revision. Locked graph checks and authenticated mounted Vulkan and Argus proof remain open."
+       },
+        "locked_materialization_recipe": {
+          "ref": "MT-212/gui-native-wp025-live-divider-host-20261114-03/wp025-locked-materialization-recipe-02.json",
+          "sha256": "aefd8504d08576fbde2af5f94d37c5705d5aa81f3d9d0362f234f11db16b6730",
+          "scope": "Primary observed the scoped fetch process exit; a PowerShell wrapper exception left the numeric exit unrecorded. Primary verified the exact asset object in the owned Cargo home and both locked offline metadata runs exited 0 with all seven exact source pins. Preserve the fetch observation gap and reuse the verified graphs. No GUI compile or mounted runtime yet."
+        },
+      "divider_mounted_inputs": {
+        "ref": "MT-212/gui-native-wp025-live-divider-mounted-inputs-20261114-01.json",
+        "sha256": "bea0f7b0d2377fafa0c42af8c266110ecdb639f3be67d307d3739c8d012367ff"
+      },
+      "native_compile_inputs": {
+        "ref": "MT-212/gui-native-wp025-live-divider-host-20261114-03/wp025-native-current-input-map-01.json",
+        "sha256": "542f57c7a276c83941dc4fe662ba02b0919e75eec60e19c02f8f7f496a99402c",
+        "scope": "Primary froze the Native source map. The same map remains bound to Codeleader's corrected explicit bin-root compile."
+      },
+      "native_compile_capture": {
+        "ref": "MT-212/gui-native-wp025-production-pe-codegen-prep-20261114-02/wp025-native-production-pe-binding-dormant-02.json",
+        "sha256": "339f854ca09cb13e315b1d1567944123e330092f97fb3b19d04aad9d757f330c",
+        "scope": "The explicit locked, offline handshake-native bin-root capture passed independent source review. It holds the exact production executable and validates canonical Cargo dep-info, including the case where Cargo preserves the identical dependency list. The test-driven v01 capture is held. Reuse existing lib and Manual results."
+      },
+      "native_compile_start": {
+        "ref": "MT-212/gui-native-wp025-production-pe-codegen-20261114-02/cargo-started.json",
+        "sha256": "14c454e155580c511427c48c7656629a1271fd0297174c2491d643bfb0841d81",
+        "scope": "The distinct Eval launched Primary's one admission. Real Cargo PID 12808 with birth FILETIME 134391020127225001 started at 03:53:32.809466Z; producer PID 9692. The original observer stays with the capture until checked release. No test bodies or mounted GUI work are included."
+      },
+      "native_compile_cargo_exit": {
+        "ref": "MT-212/gui-native-wp025-production-pe-codegen-20261114-02/cargo-exit.json",
+        "sha256": "29259adf8584bdcd60490b9c8afba87e744ab634f973365e226a45458afc39e6",
+        "scope": "Cargo exited 0 at 03:55:45.781448Z. The raw stream reports one rebuilt production executable and successful build-finished."
+      },
+      "native_compile_terminal": {
+        "ref": "MT-212/gui-native-wp025-production-pe-codegen-20261114-02/result.json",
+        "sha256": "110cee2b1b2410d9d5f0d60a6f35add3ba196c36c0e0e60af30ab5a37d8d6cf4",
+        "scope": "Qualified under the unchanged V11 resource guard. The original Job drained naturally to zero members. Producer and launcher exited 0, all checked handles closed and independent observer handback completed. Primary verified physical release. No tests ran."
+      },
+      "native_production_artifact": {
+        "ref": "MT-212/gui-native-wp025-production-pe-codegen-20261114-02/codegen-artifact.json",
+        "sha256": "b92cd71e04b65f44cca5e6d6e1ec9165f116ec7c44ded8b0af987155dc83c162",
+        "scope": "Independent terminal archive review verified the production Native executable and canonical dep-info, with the actual changed dep-info written inside the owned Cargo interval. The mounted witness remains external to this executable."
+      },
+      "native_owner_readback": {
+        "ref": "MT-212/gui-native-wp025-production-pe-codegen-prep-20261114-02/wp025-native-bin-root-owner-readback-01.json",
+        "sha256": "d48eb78e7b55ec9640a75238e747c589546859614ef1dc9a80286b23e8253d7e",
+        "scope": "Historical v02 readback. Primary and Codecheck verified the executable, dep-info and handle closure before the v03 rebuild."
+      },
+      "native_production_v03": {
+        "result": {
+          "ref": "MT-212/gui-native-wp025-production-pe-codegen-20261114-03/result.json",
+          "sha256": "4e39c75807c04b72edcd2ff325c6afa653f165a63109dec602a177b6e1bd0270"
+        },
+        "artifact": {
+          "ref": "MT-212/gui-native-wp025-production-pe-codegen-20261114-03/codegen-artifact.json",
+          "sha256": "d88dbbfa3c8ebf420738a4d56fa920b173fa1ab10fb6a7a43324f1203535ac07"
+        },
+        "release_and_readback": {
+          "ref": "MT-212/gui-native-wp025-production-pe-codegen-prep-20261114-03/wp025-native-bin-root-owner-readback-03.json",
+          "sha256": "3f07e27637ef802ba5bbb0dfb8bf3c98acfbbb23e06df95b408672368c821fb2"
+        },
+        "state": "Cargo and the original observer exited 0. The one production executable qualified with four live target samples and a complete final sample. The original Job emptied naturally, verified handles closed, and Primary released the slot after rereading the exact executable and dep-info. No test bodies or app ran. Bind a compatible scoped Core and signed-in fixture for mounted proof."
+      },
+      "mounted_core_inputs": {
+        "ref": "MT-212/gui-mounted-manual-core-bin-prep-20261114-01/core-manual-bin-codegen-binding-dormant-02.json",
+        "sha256": "e0ea4d158ddf528ab67959d119b980fb9863da561dbae32317e14be6900298b3",
+        "scope": "Historical dormant Core basis. The earlier review cleared this exact source map before six Native test and witness files changed."
+      },
+      "mounted_core_rebind": {
+        "ref": "MT-212/gui-mounted-manual-core-bin-prep-20261114-01/core-manual-bin-codegen-binding-dormant-03.json",
+        "sha256": "0e3f06b27930307798a7f069dc8fd124c0b8691357f39b2f7df0d7700c78718b",
+        "scope": "The original author rebound the ordinary app-runtime Core compile to the joined Native source map. Codecheck cleared the rebind and Primary's final runnable tuple. Six unique guard files remain in the input set."
+      },
+      "mounted_core_started": {
+        "ref": "MT-212/gui-mounted-manual-core-bin-codegen-20261114-01/cargo-started.json",
+        "sha256": "840937dc91823d58a4719a48304b8f4d5a0c737ea62e4a60f711cafa5e23e1f9",
+        "scope": "The designated observer retained the original producer after Cargo started at 08:45:54 UTC. V11 recorded scan deadline and entry-limit failures before exit."
+      },
+      "mounted_core_cargo_exit": {
+        "ref": "MT-212/gui-mounted-manual-core-bin-codegen-20261114-01/cargo-exit.json",
+        "sha256": "3a677186d9be859e9ef9ce760a8284661a7be4ce70c6b6f513798e16ba970c28",
+        "scope": "Original Cargo exited 0 at 09:54:05 UTC and emitted the rebuilt app-runtime Core executable. The resource failures disqualify this capture. The original Job entered drain with one live MSVC helper and still holds physical custody."
+      },
+      "mounted_core_drain_start": {
+        "ref": "MT-212/gui-mounted-manual-core-bin-codegen-20261114-01/owned-drain-started.json",
+        "sha256": "95ebeeca54f7d966691c8bffdff20055df57415b57c7f8ab39055a100a09714e",
+        "scope": "This record marks the start of the original Job drain."
+      },
+      "mounted_core_terminal_v03": {
+        "result": {
+          "ref": "MT-212/gui-mounted-manual-core-bin-codegen-20261114-01/result.json",
+          "sha256": "4c79a8eb4f6694eac9959c35244bad7d30ee0ee20b772f9d0c42f7f829950d0a"
+        },
+        "capture_release": {
+          "ref": "MT-212/gui-mounted-manual-core-bin-codegen-20261114-01/released.json",
+          "sha256": "6752f0b271a17c69b2b281fcfbc23b022fb22d91008ee355ea82cc5423369f3f"
+        },
+        "observer": {
+          "ref": "MT-212/gui-mounted-manual-core-bin-codegen-custody-20261114-01/core-manual-bin-producer-wait-01.json",
+          "sha256": "5bccf15914b4b1ee45c89649cfaba3362536ae9b651442bc932035a2066ab37c"
+        },
+        "state": "The original Job drained naturally to zero active members. The producer exited 1, the observer checked closure, and all 7658 tracked handles closed. Cargo exited 0, but live scan failures make the capture unqualified. Primary confirmed physical release. No test, app runtime or admitted retry."
+      },
+      "mounted_manual_divider_binding": {
+        "ref": "MT-212/wp025-native-manual-divider-mounted-input-20261114-01.json",
+        "sha256": "f7aae2321822a268d276b7c71d0df96a000d8f14433fd3823f80306030182877",
+        "scope": "GUI bound the qualified v03 Native executable. Manual needs a compatible Core executable serving 2.0.33 and a current signed-in fixture. The divider also needs the shared Argus newline reader, the received-layout-PUT witness and a mounted tester."
+      },
+      "mounted_manual_trace_verifier": {
+        "ref": "MT-212/gui-manual-editor-settings-mounted-assertions-20261114-01/verify_manual_argus_trace_v2.py",
+        "sha256": "0f65b655ad6219140565c64ed870ad441d7f3561dd2b4bdeae42b6b037537082",
+        "scope": "Prepared offline for the selected Editor Settings route. It checks the Native process birth, one Argus participant and window epoch, and the recovery sentence in the selected topic body. The existing signed-in fixture and distinct tester are still missing."
+      },
+      "divider_witness_source_candidates": {
+        "ref": "MT-212/wp025-native-divider-exact-witness-inputs-20261114-03.json",
+        "sha256": "2f1f47b9d8a2a8d741754cd57ccbdef56da09a748e820ff916c7efdd8eed4bd9",
+        "scope": "Reviewed external Native frame correlation and Core received-PUT candidates. Reuse the current Kumihimo readback and the layout EventLedger commit witness. Neither candidate entered the qualified Native compile."
+      },
+      "divider_witness_integration": {
+        "ref": "MT-212/wp025-native-divider-witness-integration-20261114-04/binding.json",
+        "sha256": "1e9d1b3fc42c7a84b9a3cb4454342d1c1f91cc12eb3d1853742cce3cda79d435",
+        "scope": "The four-file v04 Native integration passed independent source review. It captures the geometry of the GPU frame for which present returned. Vulkan enqueue, physical display and the signed-in mounted verdict remain unproven."
+      },
+      "divider_witness_dispatcher": {
+        "ref": "MT-212/wp025-native-divider-witness-dispatcher-20261114-02/binding.json",
+        "sha256": "0b663e09fff570afbc347e2d38d6c31dd609205dc910acbbefbb19ff71b25e8c",
+        "scope": "MT199 returned exact server.rs custody and the retained author produced the dispatcher v02. Later independent source CLEAR is recorded in the GUI owner chat. After v04, apply v02 under Primary at the first compatible source boundary. It binds arm and finish to the same authenticated connection and keeps the original deadline through the final reply. Runtime awaits compilation and a signed-in mounted test."
+      },
+      "asset_focused_batch": {
+         "state": "The retained nonauthor cleared the original eight-selector adapter_contracts batch. It covered both axes on first draw, reversal, zero SetLayout attempts during drag, exactly one accepted release, Escape and capture loss, and unclaimed navigation in live mode. Primary admitted the batch on the existing asset target with cache off. Cargo 33920 exited 101 before tests ran. E0618 in chrome.rs came from the preview parameter shadowing the preview function. The asset owner corrected the name collision and three related event-handling findings and verified the corrected hashes against the retained review. Primary observed VCTIP PID 42364 exit naturally on the retained handle at 00:50:20.1183883Z, closed the handle and returned the slot. The helper's ancestry remains unverified. Codeleader's one changed-input retry concurrence is conditional on Primary's current checks and distinct admission. Asset publication and Host pin are pending.",
+         "asset_local_capture": ".local/wp025-cargo-proof-01 under the canonical asset checkout",
+         "terminal_sha256": "c90f23d94c06e0fac20df56b51c2af2dddf1bbee1647edc892d8411494a9b901",
+         "stderr_sha256": "a7aa27ccb050973d877bc179fbb94697a1e91ebc12fae9096ca0b0af4e446610",
+        "input_source_sha256": "a9d92b30b335d85e19cf80dd00ee6b61951260a70665f2474cc37ec93afa40d7",
+        "adapter_contracts_sha256": "35976b2ed52d64701f62d82bb92e27369fa207e1c996405e6be8dadfdd7d1a33"
+      },
+       "asset_changed_input_result": {
+         "asset_local_capture": ".local/wp025-cargo-proof-02 under the canonical asset checkout",
+         "terminal_sha256": "1d2dadc434af7bf8065b4ad5ad64aa76a4736abe2d731f095d1fc8a11e04b476",
+         "stdout_sha256": "ec2a7183cffff5472203dfd0aa7511a742d9d3e65af57828f1af917ff5bff46c",
+         "stderr_sha256": "898de0bde08e413fe35ff9adbc8e3d745ac256d069c8434c9ce49a65e864f86a",
+         "state": "Cargo exited 0 and all eight named tests passed. Primary retained the exact MSVC helper handle through natural exit 0 at 01:08:23.2637991Z and returned the slot. The retained nonauthor qualified the eight results."
+       },
+       "asset_publication": {
+         "commit": "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8",
+         "tree": "e7c30da9586a44db09f9028e1c73b80e4aac8c06",
+         "source_binding_sha256": "050a76edf9fe6112c392541a81e33abe806e93208f1d95ef887ae6ae1597859d",
+         "state": "Independent origin readback verified nine scoped blobs including all six tested Product files. The GUI lead is preparing distinct exact-pinned Handshake adoption."
+       },
+       "divider_source_dependency": "The published WP-KUM-025 API projects both pane edges during drag and commits once on release. The applied Native candidate preserves keyboard and AccessKit controls. The next proof binds the exact Native and compatible Core executables and exercises the existing authenticated workspace on actual Vulkan with Argus.",
+      "state": "The reviewed Native motion_preference package is applied with valid focused component evidence. The next mounted proof checks reversal, reduced-motion snap in root and detached Settings, immediate Cabinet interaction, stable focus and hit targets, and the shared divider. WP-KUM-024 private transition state passed all three focused tests and independent review. Its source was published and independently reread at 100d762c3635c5180414f21a4ebb32d125eadf7c. Presenter integration, exact host adoption and direct Vulkan proof remain open. Primary observed residual MSVC helper PID 4516 reach natural exit 0 at 2026-11-13T21:26:36.672287Z on the retained exact handle and checked closure. It remains unattributed. Native Settings proceeds through fresh admission.",
+      "canonical_source_candidate": {
+        "asset_path": "Kumihimo/product/kumihimo-vulkan/src/decorative_transition.rs",
+        "published_commit": "100d762c3635c5180414f21a4ebb32d125eadf7c",
+        "published_tree": "140aba13c2c58f9e724f0e9a6315de68bd84f16b",
+        "local_source_sha256": "8694e82e2671b0cb9928b24a3ee6ddcb554317c5373e8af96a05a9e745e439bb",
+        "proof_path_from_artifacts_root": "WP-KUM-024/decorative-transition-rustc-proof-20261113-01",
+        "test_stdout_sha256": "d457b091b139ce752c62f1d7632e30947359a8f7901231a3e022ba47907aefdb",
+        "test_executable_sha256": "07398dcb27303c139dd8f85c7885655d62a522d09d94cf75d59c7f73c692148b"
+      },
+      "native_proof_inputs": {
+        "ref": "MT-212/motion-visual-acceptance-inputs-20261113-01.json",
+        "sha256": "c662140e546d438045ed8304e1a836143e0aab35d29114f5ce0778b724d1809b"
+      }
+    },
+    "divider_witness_transport": {
+      "ref": "MT-212/wp025-native-divider-witness-caller-20261114-03/binding.json",
+      "sha256": "9222a9d9b4b4b291b7c2aad566e33ecdcbc2a0f2dfb39b2ab8e1a0f0129fc293",
+      "scope": "Independent source review cleared the off-tree helper. It rejects reuse of the control participant and preserves correlated frame identity and PNG digest. Mounted acceptance still needs the physical held-input sequence, matching seam geometry and pixels, zero layout writes before release and one after, and a compatible signed-in Native/Core pair.",
+      "delimited_reader": {
+        "ref": "MT-212/wp025-native-divider-delimited-reader-20261114-01/binding.json",
+        "sha256": "f5992ebde666ac2386b7c79327a7ac70e96e31f59350ea4ffc76a3485dcb479f",
+        "scope": "Codecheck cleared the detached strict reader and helper repin. It requires a final newline, drops the connection on truncated EOF and preserves ordinary framing."
+      },
+      "delimited_reader_focused_tests": {
+        "ref": "MT-212/wp025-native-divider-delimited-reader-20261114-04/binding.json",
+        "sha256": "be14a9793176bb86d6651539403711f0f97bd8ac48502b5e41330178856b515a",
+        "scope": "After the original Core Job settled, Primary applied the exact reviewed reader and framing tests to three Product paths, with two replacements and one addition. Independent Codecheck matched all three postimages and verified the manifests, locks, index and preexisting source were preserved. The existing Argus live-surfaces integration target owns the three unrun test cases. The TagHub join stays separate."
+      },
+      "focused_test_source_map": {
+        "ref": "MT-212/wp025-native-divider-test-input-map-20261114-01.json",
+        "sha256": "cf4fa8d06a4d140cf362adee549b03d6fa39ab20d99137aff7d6074d4542c809",
+        "scope": "Primary froze the 7628-path successor map. The earlier qualified compile supplies the same target and warm configuration."
+      },
+      "focused_test_dormant_acquisition": {
+        "ref": "MT-212/gui-native-divider-framing-codegen-prep-20261114-01/native-divider-framing-codegen-binding-dormant-01.json",
+        "sha256": "cc84526a9df0c47f2fe0364def5ea23d7bbff432957bc59efb1c993bcf0af5c9",
+        "scope": "Codecheck cleared the dormant compile-only binding and the final exact Primary admission for the live-surfaces integration target."
+      },
+      "focused_test_cargo_start": {
+        "ref": "MT-212/gui-native-divider-framing-codegen-20261114-01/cargo-started.json",
+        "sha256": "5c1eb5174ae2db1867ddd4608b6f06dba4f50003848abd4088811f540670701d",
+        "scope": "The designated independent observer retained the original producer. Cargo started once at 10:31:49 UTC with the exact owning target and --no-run. The local outer date parser emitted a nonterminating error. The pinned observer validated the admitted window, and the retained start evidence is within it."
+      },
+      "focused_test_cargo_exit": {
+        "ref": "MT-212/gui-native-divider-framing-codegen-20261114-01/cargo-exit.json",
+        "sha256": "7beee3a5196923a3ec881fed6c99d95a8ad022edea1801e3b945ddba337af285",
+        "scope": "Cargo exited 0 and emitted the selected test executable. It also rebuilt the unselected production binary. Primary verified the shared production path changed from 5d6e8c66 to ed9196a5, so any mounted use needs current evidence for that binary."
+      },
+      "focused_test_compile_terminal": {
+        "result": {
+          "ref": "MT-212/gui-native-divider-framing-codegen-20261114-01/result.json",
+          "sha256": "6def66e71c1457d1544cb72f8b187d93f6c14aa10428305073f24a870c5e6998"
+        },
+        "artifact": {
+          "ref": "MT-212/gui-native-divider-framing-codegen-20261114-01/codegen-artifact.json",
+          "sha256": "0caedf4d11ddd8b331d68bb07f60b8e00c2b491af75aaf2b126254d5d1ef9a21"
+        },
+        "observer": {
+          "ref": "MT-212/gui-native-divider-framing-codegen-custody-20261114-01/core-manual-bin-producer-wait-01.json",
+          "sha256": "fac08953898d43d6aa1a68011bd648a2eba148a79bc7d400e960f38a9e718a11"
+        },
+        "owner_readback": {
+          "ref": "MT-212/gui-native-divider-framing-codegen-prep-20261114-01/native-divider-framing-owner-readback-01.json",
+          "sha256": "eda4177a11bc826313edce8bb4f466957cf6ccdd5ffd7bc73a26bdf9dba434bd"
+        },
+        "state": "The compile-only capture qualified. The same Job drained naturally and all tracked handles closed. Primary released physical custody. Independent Codecheck verified the exact held selected executable and archived dependency record."
+      },
+      "focused_test_runtime_inputs": {
+        "ref": "MT-212/gui-native-divider-framing-runtime-input-20261114-01.json",
+        "sha256": "1c5b4e12fa23d3d2ae5264eb263ae492736d14c59006736be753156f89fe28ed",
+        "scope": "Three exact selectors in one serial private loopback child after independent compile qualification and release. The admitted runtime binding is recorded with the result below."
+      },
+      "focused_test_runtime_terminal": {
+        "verdict": "QUALIFIED_EXACT_MT212_NATIVE_DIVIDER_FRAMING_COMPONENT_ONLY",
+        "binding": {
+          "ref": "MT-212/gui-native-divider-framing-runtime-prep-20261114-01/native-divider-framing-runtime-binding-admitted-01.json",
+          "sha256": "cf4dc65aaafec1fd3dcb3cf420f8fe177778a5f09f8b0a63e5be3a895226e6ab"
+        },
+        "result": {
+          "ref": "MT-212/gui-native-divider-framing-runtime-20261114-01-case01/result.json",
+          "sha256": "d1a9a981b57c537f7f30c469551abd801e7f4c1691c02eed4c596db630a128ab"
+        },
+        "stdout": {
+          "ref": "MT-212/gui-native-divider-framing-runtime-20261114-01-case01/test.stdout.txt",
+          "sha256": "6a075ed771315355387fc9605c2238490982b8b8f3dc10d4b87981e47454f52b"
+        },
+        "observer": {
+          "ref": "MT-212/gui-native-divider-framing-runtime-prep-20261114-01/native-divider-framing-runtime-terminal-observation-01.json",
+          "sha256": "b3cc420aafd6c0e6c3d6eb9ffb1ae20ef992f4f314424a3043aae8bdc39c5df0"
+        },
+        "release": {
+          "ref": "MT-212/gui-native-divider-framing-runtime-20261114-01-case01/released.json",
+          "sha256": "a32ba60c7f28af075c45a8b771df75ac605907addd5fe4f7b61464173f6e3261"
+        },
+        "scope": "All three exact selectors passed in one admitted run. Independent Codecheck joined the actual controller and child exits, unchanged inputs, complete V11 observations and natural Job closure. Primary explicitly released the source, target and runtime. Mounted acceptance remains open."
+      }
+    },
+    "handpick_inline_notes": {
+      "ref": "MT-212/gui-handpick-dependency-closed-host-20261112-01/candidate.v1.json",
+      "sha256": "ae59982625b39066880591ce3be91b69031c5a1290ace4ea9691625e07577243",
+      "retained_app_join": {
+        "ref": "MT-212/handpick-inline-notes-app-join-20261114-01/binding.json",
+        "sha256": "7021657a11624a55b7e802cbe7b53e36ceb28949c896083a9d48d4e70c917317",
+        "scope": "Independent changed review matched the merged app.rs and all unchanged package preimages or expected absences. The old four-pin patch must be adapted to retain the newer Kumihimo pin. Three app-host test constructors and one inline-tag match still use the old TagActivated fields; the existing GUI owner has the exact external repair. Both lock graphs, compile and runtime remain open."
+      },
+      "mounted_keyboard_inputs": {
+        "ref": "MT-212/handpick-mounted-keyboard-acceptance-20261114-01.json",
+        "sha256": "d854f7e5378b13b645e82624a6d15d2876960af86e473fb93d89bd799163535f",
+        "scope": "The retained GUI owner prepared the same-window Notes selection, Alt+Enter, stable result selection and Escape return case. Existing Argus snapshots omit focus, selected row and editor range, which need direct mounted UI evidence. The real fixture and keyboard owner remain separate and the case is unrun."
+      },
+      "typed_tag_caller_successor": {
+        "ref": "MT-212/handpick-typed-tag-activation-test-callers-20261114-02/binding.json",
+        "sha256": "9c801a7a8f47f7a93374b65f4fef153f5dbf4b18b4f417b33e5ce7897c6f3924",
+        "scope": "Codecheck cleared the four migrated typed tag call sites and attach-only case. The live case still needs the admitted private Core, an already-issued workspace and an independently verified expected hub."
+      },
+      "dependency_graph": {
+        "ref": "MT-212/handpick-notes-native-graph-20261114-01/binding.json",
+        "sha256": "21747bc2989b9b85e4dccc8b6f72d2e2adc1ec84187fbf2ddb7fe6d36c689b5e",
+        "scope": "Independent Codecheck cleared both exact successor locks and the four-pin manifest after locked offline Cargo metadata. Native, Wiki and Formatting converge on the same Notes model revision. The original Native Unicode conflict and composition lock mismatch are retained. Primary applied the Native manifest and two locks. Independent Codecheck matched all three actual Product hashes, the preserved composition manifest, six retained source witnesses, four kernel guards and the original index. No build or runtime ran on the new graph.",
+        "isolated_delta": {
+          "ref": "MT-212/handpick-notes-native-lock-resolution-20261114-01/prospective-lock-graph-delta-01.json",
+          "sha256": "1e7300593129fdc1ca412cdaa532467d599a9b46d703c6d3769b1a1fae249f6b"
+        },
+        "primary_readback": {
+          "ref": "MT-212/handpick-notes-native-lock-resolution-20261114-01/primary-graph-readback-01.json",
+          "sha256": "d0007c35dcb92b14ce144aef14afb4491026495e1cc9e2c58765abda8c26b5bf"
+        }
+      },
+      "source_handback": {
+        "ref": "MT-212/handpick-notes-native-source-handback-20261114-01/binding.json",
+        "sha256": "f8a07eabc25182fbd30680d7b1760b81c6af908022de215276f59f89dca417e7",
+        "scope": "Primary applied the 46 reviewed Notes and Handpick source files after the independent divider component verdict and checked handback. Codecheck independently matched all 46 live postimages, 7,658 expected paths, the retained divider files, protected overlays, index, and all four pre-application manifest and lock inputs. The subsequent graph adoption has its own readback.",
+        "primary_readback": {
+          "ref": "MT-212/handpick-notes-native-source-handback-20261114-01/primary-source-readback-01.json",
+          "sha256": "f926fe75e4a61db033b0e9eb171bc6bc709792ec926883bbf34d63ad09e34c81"
+        }
+      },
+      "focused_proof_selection": {
+        "ref": "MT-212/handpick-notes-native-proof-selection-20261114-01.json",
+        "sha256": "32a2ddcb7be738ce977ff0b94b5779197a7f3d53e6616c6d26978d8b6e18336a",
+        "scope": "The final09 compile on the shared target qualified as implementer feedback for the Native library, app host mount and inline tags. The selected test cases still require runtime proof. See corrected_runtime_selection.ime_compile for the exact artifact and release. Authenticated mounted tests stay separate.",
+        "input_map": {
+          "ref": "MT-212/handpick-notes-native-lock-resolution-20261114-01/handpick-notes-native-current-input-map-20261114-01.json",
+          "sha256": "0ab8cbf7c26f49edb2512fd4ddbb24daf35974084b214794c2651656f6437948"
+        },
+        "reviewed_dormant_binding": {
+          "ref": "MT-212/handpick-notes-native-codegen-prep-20261114-01/handpick-notes-native-codegen-binding-dormant-02.json",
+          "sha256": "5c4dd2c01568651f4e615e9d18ee4a7e2ae7731c5f44942e124b454bed593cb7",
+          "scope": "Independent review cleared the three-target producer, custody launcher and detached Eval observer."
+        },
+        "codegen_admission": {
+          "ref": "MT-212/handpick-notes-native-codegen-prep-20261114-01/handpick-notes-native-codegen-custody-admission-02.json",
+          "sha256": "a6a71777aef35efe6236050d87b935ffe789e460d5503daed130d3f3bff8a40e",
+          "scope": "Primary issued one compile-only operation with the final independently checked binding and sole retained Eval observer. The observer retained producer PID 29944 before acknowledgement. Cargo PID 19896 started once within the window and returned 101."
+        },
+        "codegen_exit": {
+          "ref": "MT-212/handpick-notes-native-codegen-20261114-01/cargo-exit.json",
+          "sha256": "83e2ff7e4b4af77d844334f8ab03f813a9317cad25c8a3a9a5c147927c85ba8a",
+          "scope": "Two Notes operation IDs collide with Cabinet and Swarm IDs, and both export walkers omit HsEmbed. Codeleader assigned the existing GUI lead one off-tree two-file repair after the original authors were unavailable. No Notes retry or test body ran."
+        },
+        "failed_codegen_terminal": {
+          "ref": "MT-212/handpick-notes-native-codegen-20261114-01/result.json",
+          "sha256": "f2853cf1b2fe3b842f296e97c93f7f8bdf49425cf82deb5d717ae5cc948df245",
+          "release": {
+            "ref": "MT-212/handpick-notes-native-codegen-20261114-01/released.json",
+            "sha256": "f9934bdd2e1178e5e1cf1a4145d06fe1cd721a46da54c4a56348d8e04e232661"
+          },
+          "observer": {
+            "ref": "MT-212/handpick-notes-native-codegen-custody-20261114-01/handpick-notes-native-codegen-producer-wait-01.json",
+            "sha256": "e132827d97d812e2e516c51094c9902def10b3ae2ae4fc78f092146c8674bdf8"
+          },
+          "scope": "Cargo exited 101. The original Job naturally reached 14 total, zero active and zero terminated. Producer and independent Eval recorded numeric exit and checked closure. The resource guard completed without trip or stop. No test executable qualified. Primary explicitly returned the compiler, target and source. PT018 is sequenced next on the unchanged map."
+        },
+        "compiler_repair_candidate": {
+          "ref": "MT-212/handpick-notes-native-compiler-repair-20261114-01/binding-v04.json",
+          "sha256": "607663bdfd5679a25bd520d64c34aed34c02547d2d5c6a19e950c8959f78ce0c",
+          "scope": "Primary applied the independently reviewed diagnostic IDs and HsEmbed export repair. Master compared both physical Product files with the reviewed v04 postimages. The original 10 selectors and four new export cases remain unrun on the repair. Typed HTML import remains separately open under WP012 MT020 and original WP009 MT244.",
+          "application": {"ref": "MT-212/handpick-notes-native-compiler-repair-20261114-01/primary-application-readback-20261120-01.json", "sha256": "a86d21d7d2d04c32783cab47790ede951a593e8a83402d5767d2c35898be4c47"}
+        },
+        "corrected_runtime_selection": {
+          "runtime_preparation": {
+            "ref": "MT-212/handpick-notes-native-runtime-prep-20261120-01/runtime-preparation-handoff-02.json",
+            "sha256": "38979c77eb819f2fc697cb4a49bf37c26b7274b596cbd173ca4e2a5f35269ef0",
+            "scope": "The archive comparison accepts the qualified executables and all six binding inputs. The 11+2+1 cases and their discovery listings remain unrun. The author owns five corrections for interrupted resume, Job assignment and settlement, observer handle and terminal publication, observed process image, and natural-drain counters. Preserve the existing V11 live observation requirement.",
+            "mount_bodies": "The existing app-host executable can expose its actual CAPTURED or DEFERRED screenshot outcome through libtest --show-output on the two-case body command. Keep discovery unchanged. Qualify the test-specific output, both canonical Argus JSON files, and the PNG on capture. A deferred headless render leaves the mounted screenshot requirement open. Primary owns the coordinated writer window and its binding-specific admission."
+          },
+          "ime_compile": {
+            "result_ref": "MT-212/handpick-notes-native-codegen-20261120-03/result.json",
+            "result_sha256": "83f19e1d9b7f4945703520b40cfc3e52edf7485470d27bd3b31a545c573ae554",
+            "artifact_ref": "MT-212/handpick-notes-native-codegen-20261120-03/codegen-artifact.json",
+            "artifact_sha256": "e42deea9c78a056bac37ae5a91f2426c9ae72864a356cfcbb53d7210dbd2beba",
+            "outer_release_ref": "MT-212/handpick-notes-native-codegen-prep-20261120-01/primary-outer-released-09.json",
+            "outer_release_sha256": "fd4bd641007a0bdd6b5f36974d8e9182ad971e2b6dea2cfdf3b8de6a14e90594",
+            "scope": "Independent Eval qualified compile feedback against source map a842795c. Cargo and the observed producer exited 0. The three AMD64 test executable identities match raw Cargo lines 565, 542 and 543. The private Job drained naturally and all 7692 outer file handles closed after unchanged postguards. No test bodies ran. Bind the runtime template to a842795c, acquire the three executable identities, verify each actual libtest listing and preserve the fixed Argus output paths for the mount cases. Run the separately admitted 11 library, 2 mount and 1 inline-tag cases. The detached 44-file Notes adoption requires its own proof."
+          },
+          "nov20_pre_cargo_failure": {
+            "status": "ONE_ADMITTED_ACTION_CONSUMED_BEFORE_CARGO",
+            "admitted_binding_sha256": "b993720dce44c9077b6612c19bbbcb631ab1d8a16167ec96ada095728a448e7e",
+            "failure": "The corrected environment digest passed. The existing resource guard rejected a null top-level target_cap_bytes before Cargo because the admission and nested resource requirements specify 210000000000. The owned producer exited 1. No Cargo or test ran. All 7686 outer handles closed. The outer controller expected released.json from a build output that was never created; its held postguards did not run. Fresh post-release readback is separate.",
+            "producer_log": {"ref":"MT-212/handpick-notes-native-codegen-custody-20261120-01/producer.log","sha256":"39adc8b45e274bd3b0892537e3c39d9182eae746c7051bf04bb61d4a405937fa"},
+            "observer": {"ref":"MT-212/handpick-notes-native-codegen-custody-20261120-01/handpick-notes-native-codegen-producer-wait-01.json","sha256":"292c12fd0e187b20c246e913f1ad5a87313a12c77db233d2b1bf8af2a87751ac"},
+            "pre_cargo_outer_release": {"ref":"MT-212/handpick-notes-native-codegen-prep-20261120-01/primary-outer-released-02.json","sha256":"f747c5823ca30d418c314e4fc6f02875839fe178ee6b511f539dad834b2fdc9d"},
+            "fresh_read": {"ref":"MT-212/handpick-notes-native-codegen-prep-20261120-01/primary-postrelease-current-readback-02.json","sha256":"58bcac418dbe2220552a7bae282a47cc68d55e5baf1e7eb7614371ca72ac265a"},
+            "policy_loader_reproduction": {"ref":"MT-212/handpick-notes-native-codegen-prep-20261120-01/target-cap-correction-policy-check-03.json","sha256":"8481d11b073bda095d00870b44df612027a9ac59de4d7d5c5fc23c4de4ac1a3e","scope":"The unchanged policy loader reproduced the original rejection and accepted the 210000000000-byte cap on a validation-only tuple. Its output paths were already used. A fresh binding and actual admission remain necessary."},
+            "successor_binding": {"ref":"MT-212/handpick-notes-native-codegen-prep-20261120-01/dispatch-successor-handoff-04.json","sha256":"ab7fb8a2c23016db7d933c270e84b4791d5bf6a4240b295f47be8babf818e368","scope":"Codecheck verified fresh output paths, matching resource limits, the ordered environment and the same three compile-only targets."},
+            "outer_caller": {"ref":"MT-212/handpick-notes-native-codegen-prep-20261120-01/primary-outer-caller-candidate-03.py","sha256":"19b013aca41656704efc595ab9d05ba357c569784c3cef4cb612c70e326dc7d8","scope":"Eval cleared the integrated caller in source. It checks both actual parsers before readiness and retains the same input handles through malformed terminal evidence. A real capture must still prove terminal settlement and before-close postguards."},
+            "next_attempt": {"ref":"MT-212/handpick-notes-native-codegen-20261120-02/cargo-exit.json","sha256":"a855f198f3a48b137726dea4cfa7ce2a2557a3d74184709801adc14b94476fc7","admitted_binding_sha256":"38db9bd1f34618f2e0b7129f95989e6a196f84c70e845355ac3c509e8747f840","scope":"After both final parsers accepted, Cargo started once under the new decision and exited 101. Its only reported error was E0603 in note_reference_navigation/tests.rs:70. No test ran. Cargo exit did not release the private Job or the 7692 outer holds."},
+            "ime_repair": {"ref":"MT-212/handpick-notes-native-ime-path-repair-20261120-01/manifest.json","sha256":"3415499318c6eece7c110ae63e723c182e83c7ac604db75fe93f954868ba894b","scope":"Codecheck verified the single import changes from selection::DocPosition to the public position::DocPosition at the pinned dependency. The IME and navigation assertions are preserved. Primary has source-only application authority after actual release."},
+            "terminal": {"ref":"MT-212/handpick-notes-native-codegen-20261120-02/result.json","sha256":"cc6d1ceed109ef3bb3f09e0e73fa8ccecea4ee28a53a9a34d372fcc8414a8aff","scope":"Cargo exited 101. The original Job emptied naturally, and Eval witnessed the producer exit and close. The original outer postguards found zero changed inputs before Primary closed all 7692 handles without errors."},
+            "outer_release": {"ref":"MT-212/handpick-notes-native-codegen-prep-20261120-01/primary-outer-released-05.json","sha256":"cf5987ce02f923f4caabf7b537442ad99d2ce00bbb8cc77bf16c07b98fc484ba"},
+            "ime_application": {"ref":"MT-212/handpick-notes-native-ime-path-repair-20261120-01/primary-application-readback-01.json","sha256":"0a09e452039b27655a1daebbe45f08aa123ed8668b78ac839484ae65751b703b","scope":"Primary applied the reviewed repair after release and closed the writer. Master independently reread the 5980-byte Product file and matched the exact frozen postimage 215a994691045e031f9bce3004d5c7971f082df3aade203768abe297a0f86b1f at 09:35:01Z. Compile and runtime remain open."},
+            "next": "The IME source map was used by final09. Continue from ime_compile and preserve these failed attempts."
+          },
+          "post_repair_preparation": {"ref": "MT-212/handpick-notes-native-codegen-prep-20261120-01/handpick-notes-native-proof-selection-20261120-01.json", "sha256": "535ed1174c59fbb53eda2188f3171dafaa9757e7f244e0e9778a2f74830de0e1", "scope": "The GUI author rebound fourteen component selectors across the same three targets to the source map containing the two v04 changes. Compile and runtime remain pending."},
+          "ref": "MT-212/handpick-notes-native-runtime-input-20261114-02.json",
+          "sha256": "1206282cae818442a776fc50baba84acfc4dcd68a2b601d30ede5706b9119b12",
+          "scope": "Preserves the ten original selectors with the actual Handpick module correction and adds four export cases. The three executable identities are recorded in ime_compile. Runtime admission and case results remain open."
+        },
+        "typed_html_import_dependency": {
+          "standalone_proof_selection": {
+            "asset_local_ref": ".assets/.local/notes-html-proof-20261120-03/handoff.json",
+            "sha256": "9541f3d9d45faad07d6ece1fff2e783a4d1cf064a8681d50f816f8371d9b4eb9",
+            "source_manifest_sha256": "6f12c762dc0edd8a5d28dc8910f090ce481918e6b60aeb094634df238565babd",
+            "capture_review": {
+              "asset_local_ref": ".assets/.local/notes-html-proof-20261120-03/adapter-binding-06.json",
+              "sha256": "23ff71646efa01e53d07f1b6efcef5d8f3e400c2c6bfaa0282fd5d40b3a203df",
+              "next": "The data mapping is verified. The original capture author owns four remaining failure paths in the inherited adapter05 behavior: establish stdin ownership before an interruption, finish all releases after a close error, recognize an already exited child before retrying cleanup, and protect journal acquisition and count input handles whose validation and close both fail. Reuse the existing test batch after the affected review and admission."
+            },
+            "scope": "Codeleader selected the reviewed 34-file source for the existing unrun two-operation batch. Eval verified all 11 integration target files and the six fixture/mode pairs. Run default library and integration tests first, then the HTML suite after successful exit and drain. Bind the six actual exports and their source revision for the original WP009 importer. The capture repair, reviewed data rebind and fresh Primary admission precede execution. Preserve the unrun predecessor. The later history-range and HTML-option changes are outside this batch."
+          },
+          "interaction_bus_history_range": {
+            "composed_source": {"asset_local_ref":".assets/.local/notes-model-composed-successor-20261120-02/source-manifest.json","sha256":"f854e23b29402e2df7fe2e9ba721ac974056750bf146f7e452420d1a73846caf","scope":"Independent byte reconstruction matched the 35-file package, combining the reviewed history ranges with full-document Replace All. The earlier 34-file test batch remains selected. Guarded Notes refusal must preserve the undo entry. Terminal callbacks for a permanently dropped Code Editor or Graph pane must permit access to the next action."},
+            "native_undo_review": {"ref":"MT-212/notes-native-legacy-adoption-20261120-01/local-sync-undo-03/manifest.json","sha256":"3ca0f77d5c2a3dc31d11d78d35beca4cabce9e8b697fe91c649bfd7ec30e3a5a","scope":"Independent source review confirmed that a terminal dropped pane discards only its own callback in either direction. A retryable refusal keeps both histories intact. Product integration, the authored tests and mounted IME/history proof remain open."},
+            "asset_local_ref": ".assets/.local/notes-model-history-range-successor-20261120-02/source-manifest.json",
+            "sha256": "4f7a0fa9679a4e9b62bd8192d4ef4ee03bc9dc93d8b121f5e61ea6898b9e9be9",
+            "scope": "Independent source review verified that each receipt binds its finalized selection. Independently finalized clones refuse cross-history undo and redo before mutation. Host adoption must preserve the undo ring after refusal and publish the restored selection after the actual edit commits. Runtime remains open."
+          },
+          "formatter_edit_targets": {"asset_local_ref":".assets/.local/notes-formatting-successor-20261120-05/source-manifest.json","sha256":"49278382fb94b57963025e03108d3fc14e89f5f828f3360fdcdc07116aaa118f","scope":"Source review cleared the five targeted editing cases, including quote/merge caret restoration and refusal of unresolved selections without losing redo. If a different sibling occupies a deleted row's address, the host needs revision or path-lineage evidence. Runtime and adoption remain open."},
+          "full_replace_and_history": {"asset_local_ref":".assets/.local/notes-model-composed-successor-20261120-01/source-manifest.json","sha256":"6f12c762dc0edd8a5d28dc8910f090ce481918e6b60aeb094634df238565babd","scope":"Independent review cleared the whole-document Replace All builder, and readback verified all 34 files in its composition with the corrected selection-history model. Only find_scan.rs, the new regression target and the reviewed README section changed from the history candidate. Six Replace All cases, including 1303 original matches and one undo, remain unrun. Standalone proof, publication and mounted adoption are separate."},
+          "native_adoption_review": {"ref":"MT-212/notes-native-legacy-adoption-20261120-01/combined-01/handoff.json","sha256":"e931f3a425003dff2ebf35af39276521e83f7810d469bcb46de9b69b69c870e2","scope":"The detached 44-file candidate needs corrections to split-pane IME, atomic save, selection restoration, caret geometry, export fidelity, whole-document replacement and repeated search on repaint. The canonical model and formatter must pass their owning proofs and be published before exact host adoption."},
+          "history_selection": {"asset_local_ref":".assets/.local/notes-model-history-successor-20261120-02/source-manifest.json","sha256":"a3ab0e31fce88bb0c57e96e2aae27c7a1918149cede4d80495e880cf5397d6db","scope":"Independent source review cleared receipt-bound undo/redo selection, recovery of a surviving text-range endpoint and repair of text-leaf selections. Rust tests, formatter and mounted Native adoption remain open. This increment is separate from the frozen standalone HTML proof."},
+          "native_model_review": {"asset_local_ref":".assets/.local/notes-html-native-successor-20261120-04/source-manifest.json","sha256":"ae32c486054a4d410dd79dbb3c9d5247e05cba91a8263da84103e165a70487f8","scope":"The 32-file model candidate is source-fit for the three captured WP009 inputs in both export modes. It preserves code-block identity and unaffected leaf selections, and reconciles equivalent nested mark wrappers without changing the stored mark order. Run the six actual Rust exports through the pinned original importer, then the separately required standalone browser and host proofs. WP009 inline-code exclusions, link defaults and allowed schemes bound any broader compatibility claim."},
+          "original_exporter_fixture": {"ref":"MT-212/mt020-original-exporter-capture-20261120-01/compatibility-handoff.json","sha256":"1a8b96230c25d241a53d88782b9566e435a33422e26547934696ed082b6e2ab6","scope":"The original WP009 exporter at cbfc0c3b2 ran against the original test document, a minimal Monaco/task input and a derived nested-task input. Each normalized expected JSON was saved before export. All three expected JSON and three HTML files in the detached Notes successor match the original exporter capture byte for byte. Rust importer compatibility, browser and publication verdicts remain pending."},
+          "reviewed_media_successor": {"src_html_sha256": "4bf1babc1a9621927ca91545ce94fb5df1755caa51508eddeeffc16a474601d8", "tests_html_sha256": "88c893a869716a702354441ba4adf510f23594e87bc99eddb0ab417362839fc0", "scope": "Independent source review cleared bounded inline rasters and type reconciliation. In either export mode unavailable media or an explicit image/video mismatch produces a visible placeholder without a URL or raster and preserves surrounding text. The 32-case matrix has been reviewed in source. Standalone tests, exact legacy compatibility, zero-network browser acceptance, publication and host adoption remain open."},
+          "ref": "MT-212/mt020-typed-html-codec-handoff-20261114-01.json",
+          "sha256": "f7a0831528d0ebb1a40a077a7186b99f72380278857599a21afe22f9439ab181",
+          "scope": "The canonical Notes owner retains source and publication custody in the preexisting isolated checkout. Independent source review cleared the structural codec through bounded real HTML5 parsing, typed metadata validation, and tree-shape preservation. The reviewed html.rs hash is 81f4d3ddb7caa531349d4d601731fdb52c22034be5b151ee766043aa088fd261 and tests/html.rs is 42c09d502d93e42a81989bb28985c0f9e3c51854bfa16da8e2a6ed8e2004d974. Legacy Monaco/task-list, mode media, build, runtime and publication remain open. The Native export repair stays separate.",
+          "media_acceptance_design": {
+            "ref": "MT-212/mt020-typed-html-host-adoption-media-acceptance-20261114-01.json",
+            "sha256": "194191a5bc7ea52ec2b6f15c8bf3f8b2bcf4a411a718645bfa23f34c7b256bd8",
+            "scope": "Preserve the MT020 oversize fallback and original zero-network standalone proof. The detached design separates bounded structural input from authorized media budgets and keeps a visible inert failure marker with an explicit stable reference. The existing active img src assertion remains a tracked reconciliation item."
+          }
+        }
+      },
+      "taghub_test_candidates": {
+        "ref": "MT-212/handpick-taghub-proof-20261114-01/binding.json",
+        "sha256": "eeaa201b48c70e4264957f8611b6380ff86cc1677bfd4d4f7f2623e8c52a4911",
+        "mounted_navigation": {
+          "ref": "MT-212/handpick-taghub-argus-20261114-02/binding.json",
+          "sha256": "ffaaafbb46ceb1f2bb4e06ae1a6c9e9f42cdabd65a53f2b8484ed1a6201db520",
+          "scope": "Independent Codecheck cleared the exact v03 test patch. It addresses the two stable controls, verifies the selected block ID and full active title in the same Loom pane before and after a verified Native frame, and retains actual Argus receipt status. The scoped owner must supply two independently reread TagHubs from the same admitted private Core, keep the workspace through checked GUI/process release, and bind the exact qualified Native PE. Genuine mounted keyboard input remains a separate acceptance gap."
+        },
+        "scope": "Independent source review cleared both exact artifacts after hash reread and in-memory inline replay. Persistent egui/AccessKit case uses real scoped HTTP and the current pin. Inline delivery case depends on separate Notes adoption. Unissued scope denial is covered by the persistent candidate; existing-workspace denial for a second principal is separate. Bind permitted signed-in fixture setup before execution. Compile, execution and independent direct Vulkan/Argus proof remain open."
+      },
+      "scope": "The applied Native app postimage 640f11fd605b814ed49236dea7443255fbd7f0753bf00a3fee5b43cdff79d5e7 preserves the reviewed shared divider. The four dependency changes preserve Kumihimo and converge on one Notes model. The three selected test targets compiled. Mounted runtime and live Vulkan acceptance remain open."
+    },
+    "handpick_source_entry": {
+      "recorder_success_boundary_review": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/recorder-success-boundary-owner-review-20261114-01.json",
+        "sha256": "33bc4d1092aff1f8a0ba446d8f09348b6f0948107f74e009993b4f79d1a80b2d"
+      },
+      "state": "The reviewed Core candidate defines local review, explicit confirmation and initiating-scope receipts. The external successor adds dormant reservation and settlement guards and drafts the schema. Activation still needs full authenticated identity and grant rederivation inside the transaction, reconciliation, schema proof, and the scoped Flight Recorder event. The owner is considering an attributed Surreal outbox committed with the source and receipt, followed by idempotent projection to the existing DuckDB recorder. Native keeps Add Source unavailable and preserves the literal draft while those joins are open.",
+      "dependency": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/binding.json",
+        "sha256": "d194a3ad5549f3a75188e74c93d23e00fb69aee56850e8b05d29403d2c7efdc8"
+      },
+      "external_core_contract": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/contract-candidate.json",
+        "sha256": "bbe5b4035c2ab87d99b2f32b73d755c320cc7b40c300cb9335cc46c5385300c1"
+      },
+      "native_consumer_review": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/native-consumer-review-01.json",
+        "sha256": "7db8440aefe33678dcfce899b2d62eac4bf66883698c66450a56c7d30ffe5d21"
+      },
+      "external_core_source": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/core-source-candidate-01/binding.json",
+        "sha256": "ff2cb049475d174a3e7033ed28cbf31976192e70ecbf6f68445ff087c1f5de0a"
+      },
+      "external_core_source_successor": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/core-source-candidate-02/binding.json",
+        "sha256": "3f4408b492336c797a3c8d3ebd888dcc9a004c4b3d8ec1f84dee819351bf7df1"
+      },
+      "native_wiring_boundary": {
+        "ref": "MT-212/gui-handpick-add-source-backend-handoff-20261113-01/native-consumer-wire-boundary-01.json",
+        "sha256": "af0233e9b6d806c3af6019d64643f6450a7278f3657786ec2eb260597f8837b0"
+      }
+    }
+  },
+  "continuation": {
+    "do": [
+      "Reuse the settled Ring and Native component evidence for unchanged inputs. Continue the dependency-ready GUI work under the existing scope. Use one compiler slot and retain the warm target while it has current proof or reuse value.",
+      "Continue the single MT172 picotask sequence with PT018 after the independent PT041 verdict. Route the changed test through Codeleader and the production overflow dependency through its actual owner. Preserve the original failed Workspace Create attempt and the restriction on the observer. Leave all original WP012, WP-CKC and WP-1 acceptance in their owning contracts.",
+      "For a future Kumihimo redock animation, interpolate only the committed pane geometry. With reduced motion, show the committed layout on the next frame. Preserve the same pane identity, shared divider, hit targets, focus and content redraw deadlines."
+    ],
+    "do_not": [
+      "Do not use component results as live Vulkan or Palmistry crash-survival verdicts.",
+      "Do not execute the held observer, stop foreign processes, delete retained Cargo artifacts, or rerun valid proof on unchanged inputs."
+    ],
+    "motion_references": [
+      "Handshake Portal product/handpick/web/handpick.css lines 75–78. The expanded composer reveals top to bottom over 200 ms and fades from 0.65 opacity. Reduced motion skips the animation. Verify the Native composer against that behavior with stable hit targets, focus and draft in the mounted Vulkan app.",
+      "https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/motion",
+      "https://learn.microsoft.com/en-us/windows/apps/develop/performance/optimize-animations-and-media",
+      "https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions"
+    ],
+    "observed_time_sinks_and_proposals": [
+      {
+        "observed": "The eight Native adoption files changed after the cold PT018 capture. Core build.rs includes all tracked and nonignored worktree files in its MT013 reproducibility manifest, so the unchanged Cargo dependency graph did not preserve the Core build-script input.",
+        "proposal": "Finish reuse acquisition against the sealed whole-worktree inputs before applying unrelated GUI changes. Keep other source work external while the capture holds those inputs. When the next Core and Native proofs genuinely use the same reviewed snapshot, apply compatible changes once before rebinding their builds."
+      },
+      {
+        "observed": "The Native dual Cargo command finished in about four minutes. The owned VCTIP helper kept the same Job open for another 900.55 seconds before exiting naturally.",
+        "proposal": "Keep the observer on the original Job and use the drain window for disjoint source work. Reuse both executable identities from the same settled capture."
+      },
+      {
+        "observed": "The first panel binding sorted ordered environment keys. Its observer waited three minutes without a controller. The corrected binding reused the same one-case admission.",
+        "proposal": "Run the existing environment, resource-policy and launcher plan parsers against the final held inputs. Bind the actual refreshed observer before acquiring file holds. Verify the transport expiry on the PowerShell value returned by ConvertFrom-Json. These checks catch the specific prelaunch failures seen on Nov 20 and reuse the original compile and controls."
+      },
+      {
+        "observed": "The current Outbox capture hit both a cumulative directory-entry cap during reconciliation and scan deadlines on passes with no reconciliations. The monitor counted repeated directory visits. Neither failure measured a capacity breach.",
+        "proposal": "Preserve the original failed capture and use the independently qualified artifact-reuse path only after exact handback. Keep the current full traversal. Early restart can miss a transient reparse entry in a skipped sibling that the current sweep would reject."
+      }
+    ]
+  }
+}
