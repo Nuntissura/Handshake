@@ -68,17 +68,29 @@ pub fn is_tag_link(link: &HsLinkNode) -> bool {
 /// the wikilink/embed/code-ref atoms use.
 pub const TAG_REF_KIND: &str = "tag";
 
-/// Reconstruct the [`Tag`] an inline-tag `hsLink` atom represents. The display name is recovered from
-/// the chip label (`"#name"` -> `name`) when present, else from the `ref_value` (the canonical
-/// identity). Used by the host to build the [`TagActivated`] event from a clicked chip.
-pub fn tag_from_link(link: &HsLinkNode) -> Tag {
-    let display = link
-        .label
-        .strip_prefix('#')
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_owned())
-        .unwrap_or_else(|| link.ref_value.clone());
-    Tag::new(display)
+/// Expose the raw display name only for an explicitly named legacy tag.
+pub fn tag_from_link(link: &HsLinkNode) -> Option<Tag> {
+    match link.tag_reference() {
+        Some(crate::rich_editor::document_model::TagReference::NormalizedName { raw_label, .. }) =>
+            Some(Tag { name: raw_label.to_owned() }),
+        _ => None,
+    }
+}
+
+pub fn collect_tag_references(document: &crate::rich_editor::document_model::BlockNode) -> Vec<HsLinkNode> {
+    fn walk(node: &crate::rich_editor::document_model::BlockNode, output: &mut Vec<HsLinkNode>) {
+        for child in &node.children {
+            match child {
+                crate::rich_editor::document_model::Child::HsLink(link) if link.tag_reference().is_some() =>
+                    output.push(link.clone()),
+                crate::rich_editor::document_model::Child::Block(block) => walk(block, output),
+                _ => {}
+            }
+        }
+    }
+    let mut references = Vec::new();
+    walk(document, &mut references);
+    references
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -132,6 +144,9 @@ pub struct TagEdgeIntent {
     pub doc_version: u64,
     /// The deduped inline+property tag union (one edge per distinct canonical — AC-005/MC-004).
     pub payload: TagEdgePayload,
+    /// Exact inline references from the admitted save snapshot. Hub IDs and
+    /// Unclassified refs must not be normalized into names by a future consumer.
+    pub inline_references: Vec<HsLinkNode>,
     /// The typed blocker key gating the live POST ([`TAG_EDGE_DISPATCH_BLOCKER`]).
     pub dispatch_blocked_on: &'static str,
 }
@@ -193,6 +208,31 @@ where
                 display
             };
             edges.push(TagEdge { canonical, display });
+        }
+    }
+    TagEdgePayload { edges }
+}
+
+/// Keep an explicitly persisted name independent of its display label. Hub IDs and
+/// unclassified references remain in `TagEdgeIntent::inline_references` for typed resolution.
+pub fn build_tag_reference_edge_payload<P>(references: &[HsLinkNode], property_tags: P) -> TagEdgePayload
+where
+    P: IntoIterator,
+    P::Item: AsRef<str>,
+{
+    use crate::rich_editor::document_model::TagReference;
+    let mut edges = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for reference in references {
+        if let Some(TagReference::NormalizedName { canonical_name, raw_label }) = reference.tag_reference() {
+            if seen.insert(canonical_name.to_owned()) {
+                edges.push(TagEdge { canonical: canonical_name.to_owned(), display: raw_label.to_owned() });
+            }
+        }
+    }
+    for edge in build_tag_edge_payload(std::iter::empty::<&str>(), property_tags).edges {
+        if seen.insert(edge.canonical.clone()) {
+            edges.push(edge);
         }
     }
     TagEdgePayload { edges }
@@ -395,7 +435,7 @@ mod tests {
             link.ref_value, "rust",
             "ref_value is the canonical identity"
         );
-        let recovered = tag_from_link(&link);
+        let recovered = tag_from_link(&link).unwrap();
         assert_eq!(
             recovered.name, "Rust",
             "the display name is recovered from the chip label"

@@ -7059,6 +7059,41 @@ use crate::graph::tags_panel::{AddTagCandidate, HubMember, TagEntry};
 pub type TagListDelivery = (String, u64, u64, Result<Vec<TagEntry>, String>);
 pub type TagListCell = Arc<Mutex<VecDeque<TagListDelivery>>>;
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum TagNameResolution {
+    Missing,
+    Resolved { block_id: String },
+    Ambiguous { block_ids: Vec<String> },
+}
+
+pub struct TagNameResolutionDelivery {
+    pub workspace_id: String,
+    pub workspace_epoch: u64,
+    pub canonical_name: String,
+    pub sequence: u64,
+    pub account: AccountContext,
+    pub result: Result<TagNameResolution, String>,
+}
+
+pub type TagNameResolutionCell = Arc<Mutex<VecDeque<TagNameResolutionDelivery>>>;
+
+fn parse_tag_name_resolution(value: serde_json::Value) -> Result<TagNameResolution, AppError> {
+    let result: TagNameResolution = serde_json::from_value(value)
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    let valid = match &result {
+        TagNameResolution::Missing => true,
+        TagNameResolution::Resolved { block_id } => !block_id.is_empty(),
+        TagNameResolution::Ambiguous { block_ids } => block_ids.len() >= 2
+            && block_ids.iter().all(|id| !id.is_empty())
+            && block_ids.windows(2).all(|pair| pair[0] < pair[1]),
+    };
+    if !valid {
+        return Err(AppError::Parse("Invalid canonical tag-name resolution".to_owned()));
+    }
+    Ok(result)
+}
+
 /// The externally-meaningful result of a hub-detail fetch: `(title, members)` for the hub page. `Ok`
 /// carries the resolved title + member list; `Err(msg)` a failure the hub page surfaces. The workspace +
 /// hub id + request sequence tuple lets the host reject stale responses from an older hub/page request.
@@ -7170,6 +7205,49 @@ impl LoomTagClient {
         }
     }
 
+    pub fn resolve_tag_name_request(
+        &self,
+        workspace_id: &str,
+        canonical_name: &str,
+    ) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/resolve-name", self.tags_url(workspace_id)),
+            query: vec![("canonical_name".to_owned(), canonical_name.to_owned())],
+        }
+    }
+
+    pub fn resolve_tag_name_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        canonical_name: &str,
+        sequence: u64,
+        cell: TagNameResolutionCell,
+    ) {
+        let spec = self.resolve_tag_name_request(workspace_id, canonical_name);
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        let workspace_id = workspace_id.to_owned();
+        let canonical_name = canonical_name.to_owned();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, account.clone(), &spec.url, &spec.query)
+                .await
+                .and_then(parse_tag_name_resolution)
+                .map_err(|error| error.to_string());
+            if let Ok(mut deliveries) = cell.lock() {
+                deliveries.push_back(TagNameResolutionDelivery {
+                    workspace_id,
+                    workspace_epoch,
+                    canonical_name,
+                    sequence,
+                    account,
+                    result,
+                });
+            }
+        });
+    }
+
     /// Pure request builder for the hub-detail fetch: `GET /loom/tags/{id}`.
     pub fn tag_detail_request(&self, workspace_id: &str, tag_block_id: &str) -> GetRequestSpec {
         GetRequestSpec {
@@ -7220,6 +7298,11 @@ impl LoomTagClient {
                 "created_by": "user",
             })),
         }
+    }
+
+    pub(crate) async fn completion_tags(&self, workspace_id: &str) -> Result<Vec<TagEntry>, AppError> {
+        fetch_all_tag_entries(&self.client, self.authenticated_context.clone(),
+            &self.tags_url(workspace_id)).await
     }
 
     /// Fetch the workspace's tag-hub list off the UI thread, delivering the parsed entries into `cell`
@@ -11784,6 +11867,7 @@ impl WorkspaceSearchClient {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RichDocBody {
     pub document_id: String,
+    pub block_id: Option<String>,
     pub workspace_id: String,
     pub doc_version: u64,
     pub title: String,
@@ -12207,6 +12291,7 @@ impl RichDocClient {
         let doc = &resp.document;
         Ok(RichDocBody {
             document_id: required_doc_string(doc, "rich_document_id")?,
+            block_id: optional_doc_string(doc, "block_id")?,
             workspace_id: required_doc_string(doc, "workspace_id")?,
             doc_version: required_doc_u64(doc, "doc_version")?,
             title: required_doc_string(doc, "title")?,
@@ -14729,6 +14814,118 @@ mod tests {
     }
 
     // ── LoomTagClient: tag-list and add-tag parsers (verified backend response shapes) ────────────────
+
+    #[test]
+    fn tag_name_request_preserves_the_complete_canonical_key() {
+        let runtime = rt();
+        let client = LoomTagClient::new(BASE, runtime.handle().clone());
+        let request = client.resolve_tag_name_request("ws1", "area/rust");
+        assert_eq!(request.url, format!("{BASE}/workspaces/ws1/loom/tags/resolve-name"));
+        assert_eq!(request.query, vec![("canonical_name".to_owned(), "area/rust".to_owned())]);
+        let invalid = client.resolve_tag_name_request("ws1", " #Rüst & exact ");
+        assert_eq!(invalid.query[0].1, " #Rüst & exact ", "the server validates; the client never repairs identity");
+    }
+
+    #[test]
+    fn tag_name_resolution_parser_preserves_outcomes_and_rejects_malformed_identity() {
+        assert_eq!(parse_tag_name_resolution(serde_json::json!({"status":"missing"})).unwrap(),
+            TagNameResolution::Missing);
+        assert_eq!(parse_tag_name_resolution(serde_json::json!({"status":"resolved","block_id":"exact-id"})).unwrap(),
+            TagNameResolution::Resolved { block_id: "exact-id".into() });
+        assert_eq!(parse_tag_name_resolution(serde_json::json!({"status":"ambiguous","block_ids":["a","b"]})).unwrap(),
+            TagNameResolution::Ambiguous { block_ids: vec!["a".into(), "b".into()] });
+        for malformed in [
+            serde_json::json!({"status":"resolved","block_id":""}),
+            serde_json::json!({"status":"resolved","title":"Rust"}),
+            serde_json::json!({"status":"missing","block_id":"hidden-id"}),
+            serde_json::json!({"status":"ambiguous","block_ids":["a"]}),
+            serde_json::json!({"status":"ambiguous","block_ids":["a","a"]}),
+            serde_json::json!({"status":"ambiguous","block_ids":["b","a"]}),
+            serde_json::json!({"status":"denied"}),
+        ] { assert!(parse_tag_name_resolution(malformed).is_err()); }
+    }
+
+    #[test]
+    fn tag_name_transport_without_account_delivers_error_without_network() {
+        let runtime = rt();
+        let client = LoomTagClient::new(BASE, runtime.handle().clone());
+        let cell: TagNameResolutionCell = Arc::new(Mutex::new(VecDeque::new()));
+        client.resolve_tag_name_with_identity("ws1", 7, "rust", 9, cell.clone());
+        runtime.block_on(async {
+            for _ in 0..20 {
+                if !cell.lock().unwrap().is_empty() { break; }
+                tokio::task::yield_now().await;
+            }
+        });
+        let delivery = cell.lock().unwrap().pop_front().expect("attributed login failure");
+        assert_eq!((delivery.workspace_id.as_str(), delivery.workspace_epoch,
+            delivery.canonical_name.as_str(), delivery.sequence), ("ws1", 7, "rust", 9));
+        assert!(delivery.account.is_none());
+        assert!(delivery.result.unwrap_err().contains("Account login required"));
+    }
+
+    #[test]
+    fn tag_name_transport_preserves_exact_identity_and_http_denial() {
+        use std::io::{Read, Write};
+        for denied in [false, true] {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let server = std::thread::spawn(move || {
+                let deadline = std::time::Instant::now() + Duration::from_secs(3);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(std::time::Instant::now() < deadline, "tag-name request never arrived");
+                            std::thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("tag-name accept: {error}"),
+                    }
+                };
+                stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+                let mut request = Vec::new();
+                let mut buffer = [0; 1024];
+                while !request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                    let count = stream.read(&mut buffer).unwrap();
+                    assert!(count > 0 && request.len() < 8192);
+                    request.extend_from_slice(&buffer[..count]);
+                }
+                let body = if denied { "{}" } else { r#"{"status":"resolved","block_id":"canonical-id"}"# };
+                let status = if denied { "403 Forbidden" } else { "200 OK" };
+                write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+                String::from_utf8(request).unwrap()
+            });
+            let runtime = rt();
+            let account = crate::local_account::mock_account_context(&base);
+            let client = LoomTagClient::new(&base, runtime.handle().clone())
+                .with_authenticated_context(Some(account.clone()));
+            let cell: TagNameResolutionCell = Arc::new(Mutex::new(VecDeque::new()));
+            client.resolve_tag_name_with_identity("ws1", 17, "area/rust", 23, cell.clone());
+            runtime.block_on(async {
+                for _ in 0..300 {
+                    if !cell.lock().unwrap().is_empty() { break; }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            });
+            let request = server.join().expect("owned tag-name peer joins");
+            let target = request.lines().next().unwrap().split_whitespace().nth(1).unwrap();
+            let url = reqwest::Url::parse(&format!("{base}{target}")).unwrap();
+            assert_eq!(url.path(), "/workspaces/ws1/loom/tags/resolve-name");
+            assert_eq!(url.query_pairs().map(|(key, value)| (key.into_owned(), value.into_owned())).collect::<Vec<_>>(),
+                vec![("canonical_name".to_owned(), "area/rust".to_owned())]);
+            assert!(request.to_ascii_lowercase().contains("x-hsk-session-token:"));
+            let delivery = cell.lock().unwrap().pop_front().expect("tag-name result delivered");
+            assert_eq!((delivery.workspace_id.as_str(), delivery.workspace_epoch,
+                delivery.canonical_name.as_str(), delivery.sequence), ("ws1", 17, "area/rust", 23));
+            assert!(Arc::ptr_eq(delivery.account.as_ref().unwrap(), &account));
+            if denied {
+                assert!(delivery.result.unwrap_err().contains("403"), "denial never becomes missing");
+            } else {
+                assert_eq!(delivery.result.unwrap(), TagNameResolution::Resolved { block_id: "canonical-id".into() });
+            }
+        }
+    }
 
     fn valid_tag_test_block(id: &str, title: &str, content_type: &str) -> serde_json::Value {
         serde_json::json!({

@@ -112,11 +112,11 @@ diag-test-seams = []
 cabinet = { git = "https://github.com/Nuntissura/assets.git", rev = "c56cc9500243d9ad027e20cc291c71352c936a3a", version = "=0.1.0", default-features = false }
 cabinet_host = { path = "../cabinet_host" }
 motion_preference = { path = "motion_preference" }
-handpick = { git = "https://github.com/Nuntissura/assets.git", rev = "6f24d9b16f7675f2193115935ea35ae844828735" }
-kumihimo-core = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.3.0", default-features = false }
-kumihimo-content = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.2.0", default-features = false }
-kumihimo-layout-json = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.1.0", default-features = false }
-kumihimo-egui = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.2.0", default-features = false, features = ["native-eframe"] }
+handpick = { git = "https://github.com/Nuntissura/assets.git", rev = "944a306ff436e1aa53d67ac17f0680c423e7597a" }
+kumihimo-core = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.3.0", default-features = false }
+kumihimo-content = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.2.0", default-features = false }
+kumihimo-layout-json = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.1.0", default-features = false }
+kumihimo-egui = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.2.0", default-features = false, features = ["native-eframe"] }
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
 handshake_folder_tree = { path = "../handshake_folder_tree" }
 handshake_code_structure = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
@@ -126,9 +126,9 @@ handshake_rename = { git = "https://github.com/Nuntissura/assets.git", rev = "ff
 handshake_gutter = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
 handshake_lsp_wire = { git = "https://github.com/Nuntissura/assets.git", rev = "61d2481b1a01d7f1d400633e983e3244662db436" }
 handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance" }
-handshake_rich_document_model = { git = "https://github.com/Nuntissura/assets.git", rev = "a118e58a2afaad6009567e046422828c99277aa0" }
-handshake_wikilink_semantics = { path = "../handshake_wikilink_semantics" }
-handshake_rich_formatting = { git = "https://github.com/Nuntissura/assets.git", rev = "7511afa4059905a747b61b72876b6fda605fc904" }
+handshake_rich_document_model = { git = "https://github.com/Nuntissura/assets.git", rev = "e75e34ff69ef799c805b8c3f65fbc103953318aa" }
+handshake_wikilink_semantics = { git = "https://github.com/Nuntissura/assets.git", rev = "21279c68ba618fa4c387bf30344f96b6cefc96c7" }
+handshake_rich_formatting = { git = "https://github.com/Nuntissura/assets.git", rev = "a4e8825d91eb07fab1db73adbf4bc36cd6adf934" }
 handshake_text_mechanics = { git = "https://github.com/Nuntissura/assets.git", rev = "9339227c05a813600db1fa4cdb71b9b9988d5992" }
 handshake_asset_resolver = { path = "../handshake_asset_resolver" }
 handshake_embed_views = { path = "../handshake_embed_views" }
@@ -517,6 +517,6 @@ harness = true
 # NativeCaptureHandle and owned native surface receipts come from this exact SDK revision.
 # Cargo ignores dependency-workspace patches, so the host root adopts all three explicitly.
 [patch.crates-io]
-eframe = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.33.3" }
-egui-wgpu = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.33.3" }
-accesskit_windows = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.29.2" }
+eframe = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.33.3" }
+egui-wgpu = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.33.3" }
+accesskit_windows = { git = "https://github.com/Nuntissura/assets.git", rev = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8", version = "=0.29.2" }

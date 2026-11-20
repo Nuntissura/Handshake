@@ -8,6 +8,8 @@ use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagSeverity};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u64)]
 pub enum GuiDiagnosticOperation {
+    NoteEmbedPreview = 0x4755_4900_0000_0011,
+    NoteEmbedAction = 0x4755_4900_0000_0012,
     SettingsTab = 0x4755_4900_0000_0001,
     SettingsOutcome = 0x4755_4900_0000_0002,
     EngineProfileRefresh = 0x4755_4900_0000_0003,

@@ -43,6 +43,10 @@ use crate::theme::HsPalette;
 /// so they survive being parked across frames.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EditorEvent {
+    NoteEmbedActivated {
+        embed: serde_json::Value,
+        context: crate::rich_editor::document_owner::EditorSaveContext,
+    },
     /// WP-KERNEL-012 MT-043: the operator or an AccessKit agent selected one exact rich-note code
     /// block for editing in the native code editor. `block_path` is the stable document-model path
     /// captured from the rendered block; the shell binds that exact path and original text to the
@@ -72,6 +76,8 @@ pub enum EditorEvent {
         /// shell can show a "cannot resolve" toast rather than silently doing nothing).
         resolved: bool,
     },
+    /// A persisted block or heading reference retains its full typed identity.
+    NoteReferenceActivated { reference: HsLinkNode },
     /// A backlink entry was clicked. The shell navigates to `source_document_id`.
     BacklinkActivated {
         /// The document that links to the current one (the navigation target).
@@ -94,13 +100,11 @@ pub enum EditorEvent {
     /// WP-KERNEL-012 MT-058: an inline `#tag` chip was clicked. The shell routes the tag onto the
     /// WP-011 navigation/command bus (`command_registry` + `event_bus`) so the MT-023 tag hub for the
     /// tag opens — the chip NEVER opens the hub directly (RISK-005 / MC-005, mirroring the wikilink
-    /// navigation-request pattern). Carries the tag's CANONICAL identity (the hub-resolution key, the
-    /// same normalized identity property tags converge on) and the original-case display name.
+    /// navigation-request pattern). Carries the persisted hub ID, or a legacy typed-tag name,
+    /// and the original display name.
     TagActivated {
-        /// The tag's canonical (normalized) identity — the hub-resolution + convergence key.
-        canonical: String,
-        /// The original-case display name (without the leading `#`), for the hub title / display.
-        display: String,
+        /// Preserve the typed discriminator and exact persisted value/label across frames.
+        reference: HsLinkNode,
     },
 }
 
@@ -340,6 +344,9 @@ pub fn code_ref_short_name(symbol_key_or_label: &str) -> String {
 /// deleted -> a 404 marked it `resolved=false`) shows `unresolved` text + the `?` prefix, greyed (the
 /// caller's `chip_colors` gives it the error affordance), without crashing (AC-4 / RISK pt(e)).
 pub fn chip_label(link: &HsLinkNode) -> String {
+    if let Some(reference) = link.tag_reference() {
+        return reference.display_label().into_owned();
+    }
     if is_code_ref(link) {
         let name = if link.label.trim().is_empty() {
             code_ref_short_name(&link.ref_value)
@@ -555,6 +562,9 @@ mod tests {
             label: "Seven".into(),
             resolved: true,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         assert_eq!(chip_label(&with_label), "Seven");
         let no_label = HsLinkNode {
@@ -563,6 +573,9 @@ mod tests {
             label: String::new(),
             resolved: true,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         assert_eq!(
             chip_label(&no_label),
@@ -582,6 +595,9 @@ mod tests {
             label: String::new(),
             resolved: true,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         assert!(is_code_ref(&link));
         let wp = HsLinkNode {
@@ -590,6 +606,9 @@ mod tests {
             label: String::new(),
             resolved: true,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         assert!(!is_code_ref(&wp));
     }
@@ -613,6 +632,9 @@ mod tests {
             label: "src/main.rs#MyStruct".into(),
             resolved: true,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         let lbl = chip_label(&resolved);
         assert!(
@@ -626,6 +648,9 @@ mod tests {
             label: "src/gone.rs#Gone".into(),
             resolved: false,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         let ul = chip_label(&unresolved);
         assert!(
@@ -647,6 +672,9 @@ mod tests {
             label: String::new(),
             resolved: false,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         assert_eq!(
             chip_label(&unknown),
@@ -664,6 +692,9 @@ mod tests {
             label: String::new(),
             resolved: true,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         let (bg, fg) = chip_colors(&resolved, &pal);
         assert_eq!(bg, pal.accent_soft);
@@ -674,6 +705,9 @@ mod tests {
             label: String::new(),
             resolved: false,
             provenance: None,
+            target_kind: None,
+            target_block_id: None,
+            tag_ref_kind: None,
         };
         let (bg2, fg2) = chip_colors(&unresolved, &pal);
         assert_eq!(

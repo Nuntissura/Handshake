@@ -9,6 +9,11 @@ struct MotionPreference {
     normal_dark: f32,
 }
 
+pub fn is_reduced_motion(ctx: &Context) -> bool {
+    ctx.data(|data| data.get_temp::<MotionPreference>(egui::Id::new("handshake.motion-preference")))
+        .is_some_and(|state| state.reduced)
+}
+
 pub fn apply_motion_preference(ctx: &Context, reduced: bool) {
     let id = egui::Id::new("handshake.motion-preference");
     let previous = ctx.data(|data| data.get_temp::<MotionPreference>(id));
@@ -75,6 +80,25 @@ pub fn theme_toggle(ui: &mut egui::Ui, id: egui::Id, label: &str) -> egui::Respo
 #[cfg(test)]
 mod motion_tests {
     use super::*;
+
+    #[test]
+    fn preference_read_is_context_local_and_independent_of_theme_timing() {
+        let root = Context::default();
+        let detached = Context::default();
+        root.all_styles_mut(|style| style.animation_time = 0.0);
+        assert!(!is_reduced_motion(&root));
+        apply_motion_preference(&root, true);
+        assert!(is_reduced_motion(&root));
+        assert!(!is_reduced_motion(&detached));
+        root.set_theme(egui::ThemePreference::Light);
+        assert!(is_reduced_motion(&root));
+        apply_motion_preference(&root, false);
+        assert!(!is_reduced_motion(&root));
+        apply_motion_preference(&detached, true);
+        assert!(is_reduced_motion(&detached));
+        detached.data_mut(|data| data.clear());
+        assert!(!is_reduced_motion(&detached));
+    }
 
     #[test]
     fn reduce_motion_updates_both_themes_and_restores_each_duration() {

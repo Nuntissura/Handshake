@@ -19,6 +19,11 @@
 //! editor mounts through the EXISTING `pane_registry` / `split_layout` host
 //! (`PaneHostWidget`) — the same seam the code editor uses, no shell fork.
 
+pub(crate) mod handpick_completion;
+mod reference_scroll;
+mod hs_embed_actions;
+mod paragraph_layout;
+
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
@@ -161,6 +166,8 @@ pub struct RichEditorState {
     document_owner: crate::rich_editor::document_owner::DocumentEditOwner,
     /// The current selection (caret = collapsed).
     pub selection: Selection,
+    pub(crate) handpick_template_open: bool,
+    pub(crate) handpick_inline_open: bool,
     /// In-progress IME composition overlay.
     pub preedit: PreeditState,
     /// Active theme (resolved to a palette each frame).
@@ -191,6 +198,7 @@ pub struct RichEditorState {
     /// cancellation), the autocomplete search runtime, and the off-thread delivery cells. Owned HERE
     /// so resolved transclusions/backlinks + popup state persist across frames.
     pub wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime,
+    hs_embed_cache: crate::rich_editor::hs_embeds::Cache,
     /// MT-015 active wikilink autocomplete popup (`Some` while the operator is typing a `[[` trigger).
     pub wikilink_autocomplete:
         Option<crate::rich_editor::wikilinks::autocomplete::AutocompleteState>,
@@ -289,13 +297,15 @@ pub struct RichEditorState {
         RegistrationHandle,
     )>,
     /// WP-KERNEL-012 MT-056 (E2 — outline/TOC): a pending scroll target requested by the outline panel
-    /// (or any caller of [`RichEditorWidget::scroll_to_block`]). Holds the top-level block path (`[idx]`)
+    /// (or any caller of [`RichEditorWidget::scroll_to_block`]). Holds the exact model block path
     /// the next render pass must bring into view. The block renderer ([`RichEditorWidget::render_blocks`])
     /// consumes it on the next frame by calling `ui.scroll_to_rect` over that block's painted rect, then
     /// clears it (a one-shot request — egui only needs one frame to bring the rect into view). `None`
     /// between requests so steady-state frames do no scroll work. This is the editor's EXISTING scroll
     /// surface (the `rich-editor-scroll` ScrollArea), NOT a second scroll mechanism (RISK-002 / MC-002).
     pub pending_scroll_block: Option<Vec<usize>>,
+    reference_scroll_context: Option<crate::rich_editor::document_owner::EditorSaveContext>,
+    paragraph_layout: paragraph_layout::ParagraphLayout,
     /// Last scroll target consumed by the mounted renderer. Retained as structured diagnostic state so
     /// tests/models can prove an Outline click reached the exact editor even after the one-shot clears.
     pub last_consumed_scroll_block: Option<Vec<usize>>,
@@ -573,6 +583,8 @@ impl RichEditorState {
             document_owner: crate::rich_editor::document_owner::DocumentEditOwner::new(doc),
             selection: Selection::caret(DocPosition::new(vec![0, 0], 0)),
             preedit: PreeditState::default(),
+            handpick_template_open: false,
+            handpick_inline_open: false,
             theme: HsTheme::Dark,
             editor_focus_pending: false,
             editor_font_size: super::line_layout::BASE_FONT_SIZE,
@@ -582,6 +594,7 @@ impl RichEditorState {
             accessibility_namespace: None,
             embeds,
             wikilinks,
+            hs_embed_cache: Default::default(),
             wikilink_autocomplete: None,
             pending_events: Vec::new(),
             slash_menu: None,
@@ -605,6 +618,8 @@ impl RichEditorState {
             undo_batch_before: None,
             editor_actions: None,
             pending_scroll_block: None,
+            reference_scroll_context: None,
+            paragraph_layout: paragraph_layout::ParagraphLayout::default(),
             last_consumed_scroll_block: None,
             pending_bus_undo: Vec::new(),
             pending_tag_edge_intent: None,
@@ -711,7 +726,9 @@ impl RichEditorState {
             for child in &block.children {
                 match child {
                     Child::HsLink(link) if crate::rich_editor::inline_tags::is_tag_link(link) => {
-                        out.push(crate::rich_editor::inline_tags::tag_from_link(link).name);
+                        if let Some(tag) = crate::rich_editor::inline_tags::tag_from_link(link) {
+                            out.push(tag.name);
+                        }
                     }
                     Child::Block(b) => walk(b, out),
                     _ => {}
@@ -734,13 +751,17 @@ impl RichEditorState {
     pub fn build_tag_edge_payload_for_save(
         &self,
     ) -> crate::rich_editor::inline_tags::TagEdgePayload {
-        let inline = self.collect_inline_tags();
-        let property: Vec<String> = self
-            .properties
-            .as_ref()
-            .map(|p| p.tags.clone())
-            .unwrap_or_default();
-        crate::rich_editor::inline_tags::build_tag_edge_payload(inline, property)
+        let document = self.document_snapshot().expect("live rich document");
+        let references = crate::rich_editor::inline_tags::inline_chip::collect_tag_references(&document);
+        self.tag_edge_payload_for_references(&references)
+    }
+
+    fn tag_edge_payload_for_references(
+        &self,
+        references: &[crate::rich_editor::document_model::node::HsLinkNode],
+    ) -> crate::rich_editor::inline_tags::TagEdgePayload {
+        let property = self.properties.as_ref().map(|p| p.tags.clone()).unwrap_or_default();
+        crate::rich_editor::inline_tags::inline_chip::build_tag_reference_edge_payload(references, property)
     }
 
     /// WP-KERNEL-012 MT-041 (E7): install the shared [`EditorActionRegistry`] this rich pane registers
@@ -917,7 +938,12 @@ impl RichEditorState {
             Ok(snapshot) => snapshot,
             Err(error) => { self.interop_error = Some(error.to_string()); return false; }
         };
-        let tag_payload = self.build_tag_edge_payload_for_save();
+        let document = match crate::rich_editor::document_model::from_json_value(snapshot.content_json()) {
+            Ok(document) => document,
+            Err(error) => { self.interop_error = Some(error.to_string()); return false; }
+        };
+        let inline_references = crate::rich_editor::inline_tags::inline_chip::collect_tag_references(&document);
+        let tag_payload = self.tag_edge_payload_for_references(&inline_references);
         let Some(save) = self.save.as_mut() else {
             self.deferred_shared_save_request = true;
             return false;
@@ -927,7 +953,7 @@ impl RichEditorState {
         let attempt = owner.with_save_gate(|gate| save.request_save(snapshot, gate));
         if let Some(attempt) = attempt {
             self.pending_tag_edge_intent = Some(crate::rich_editor::inline_tags::TagEdgeIntent {
-                document_id, doc_version, payload: tag_payload,
+                document_id, doc_version, payload: tag_payload, inline_references,
                 dispatch_blocked_on: crate::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER,
             });
             crate::rich_editor::save::save_manager::SaveManager::launch_admitted(attempt);
@@ -996,6 +1022,7 @@ impl RichEditorState {
         if unchanged {
             return;
         }
+        self.hs_embed_cache.clear();
         self.authenticated_context = context.clone();
         self.owner_backend_url = base_url.to_owned();
         self.wikilinks.invalidate_context();
@@ -1666,6 +1693,7 @@ impl RichEditorWidget {
         }
         if let Some(path) = state.block_path_from_id(block_id) {
             state.pending_scroll_block = Some(path);
+            state.reference_scroll_context = None;
         }
     }
 
@@ -2164,7 +2192,7 @@ impl RichEditorWidget {
         // the focus gate: egui may release editor focus on Escape in the SAME frame the key arrives,
         // so gating the popup's Escape on `has_focus` would swallow it and leave the popup stuck open.
         // The claimed key events are removed from the event list before the normal editing path runs.
-        if state.wikilink_autocomplete.is_some() {
+        if !state.handpick_inline_open && state.wikilink_autocomplete.is_some() {
             events = Self::handle_autocomplete_keys(state, events);
         }
 
@@ -2174,7 +2202,7 @@ impl RichEditorWidget {
         // selected command instead of splitting the paragraph; Escape closes + leaves the `/`). Like
         // the autocomplete claim, this runs BEFORE the focus gate so Escape is not swallowed when egui
         // releases focus in the same frame. The claimed keys are removed before the editing path runs.
-        if state.wikilink_autocomplete.is_none()
+        if !state.handpick_inline_open && state.wikilink_autocomplete.is_none()
             && state
                 .slash_menu
                 .as_ref()
@@ -2188,7 +2216,7 @@ impl RichEditorWidget {
         // commits the selected/free-typed tag as a chip instead of splitting the paragraph; Escape
         // closes + removes the `#` trigger). Runs BEFORE the focus gate like the other inline popups so
         // Escape is not swallowed when egui releases focus in the same frame.
-        if state.wikilink_autocomplete.is_none()
+        if !state.handpick_inline_open && state.wikilink_autocomplete.is_none()
             && state.slash_menu.is_none()
             && state.tag_autocomplete.is_some()
         {
@@ -2354,14 +2382,14 @@ impl RichEditorWidget {
         // MT-015: after applying input, re-detect the `[[` autocomplete trigger from the caret's
         // text-before-caret. Typing `[[` opens the popup; typing more refines the query (bumping the
         // debounce + generation); typing/moving past `]]` (or out of the token) closes it.
-        Self::refresh_autocomplete_trigger(state);
+        if !state.handpick_inline_open { Self::refresh_autocomplete_trigger(state); }
 
         // MT-016: re-detect the `/` slash-command trigger from the caret's text-before-caret. Typing
         // `/` at the start of a blank line or after whitespace opens the menu; typing more refines the
         // filter; backspacing the `/`, typing a space, or moving out of the token closes it (AC-1/AC-2/
         // AC-5). Skipped while a prompt modal is active (the prompt owns the input) or the autocomplete
         // is open (mutually exclusive surfaces).
-        if state.wikilink_autocomplete.is_none()
+        if !state.handpick_inline_open && !state.handpick_template_open && state.wikilink_autocomplete.is_none()
             && !state.slash_menu.as_ref().is_some_and(|m| m.prompt_active())
         {
             Self::refresh_slash_trigger(state);
@@ -2372,9 +2400,9 @@ impl RichEditorWidget {
         // typing the body refines the live filter; a space / non-tag char after the body, deleting the
         // `#`, or moving out of the token closes it (AC-001). Mutually exclusive with the wikilink
         // autocomplete + the slash menu (those surfaces own the input when open).
-        if state.wikilink_autocomplete.is_none() && state.slash_menu.is_none() {
+        if !state.handpick_inline_open && state.wikilink_autocomplete.is_none() && state.slash_menu.is_none() {
             Self::refresh_tag_trigger(state);
-        } else {
+        } else if !state.handpick_inline_open {
             state.tag_autocomplete = None;
         }
 
@@ -3786,7 +3814,8 @@ impl RichEditorWidget {
             return None;
         };
         let (leaf_idx, block_path) = head.path.split_last()?;
-        let mut node = &state.document_snapshot().expect("live rich document");
+        let document = state.document_snapshot().ok()?;
+        let mut node = &document;
         for &idx in block_path {
             node = node.children.get(idx)?.as_block()?;
         }
@@ -4070,7 +4099,18 @@ impl RichEditorWidget {
         state: &mut RichEditorState,
         inserted_child: crate::rich_editor::document_model::node::Child,
     ) -> bool {
-        let document = match state.document_snapshot() { Ok(document) => document, Err(_) => return false };
+        let Ok(expected) = state.document_owner.current_context() else { return false };
+        Self::insert_inline_child_at_selection_at(state, inserted_child, expected)
+    }
+
+    fn insert_inline_child_at_selection_at(
+        state: &mut RichEditorState,
+        inserted_child: crate::rich_editor::document_model::node::Child,
+        expected: crate::rich_editor::document_owner::EditorSaveContext,
+    ) -> bool {
+        let owner = state.document_owner();
+        let mut candidate = match owner.prepare_edit() { Ok(candidate) if candidate.context() == expected => candidate, _ => return false };
+        let document = candidate.parts_mut().0.clone();
         use crate::rich_editor::document_model::node::{Child, TextLeaf};
         use crate::rich_editor::document_model::position::DocPosition;
         use crate::rich_editor::document_model::transform::{
@@ -4463,17 +4503,14 @@ impl RichEditorWidget {
 
         // Apply atomically + record on BOTH undo authorities: the model-level UndoManager receipt and the
         // MT-035 unified bus snapshot pair (drained at frame end through `record_rich_edit_undo`).
-        let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
+        let before = crate::rich_editor::document_model::doc_json::to_content_json_value(&document);
         let tx = Transaction::new(steps, ActorKind::Operator, state.actor_id.as_str());
-        match state.edit_document(|doc, history| {
-            let receipt = apply_transaction(doc, tx)?;
-            history.push(receipt);
-            Ok::<_, crate::rich_editor::document_model::transform::TransformError>(())
-        }) {
+        let (doc, history) = candidate.parts_mut();
+        let Ok(receipt) = apply_transaction(doc, tx) else { return false };
+        history.push(receipt);
+        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(doc);
+        match owner.commit_edit(candidate) {
             Ok(_) => {
-                let after =
-                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
                 state.pending_bus_undo.push((before, after));
                 // Mark the document dirty so the embed is persisted on the next save (AC-2 round-trip).
                 state.mark_document_dirty();
@@ -4698,9 +4735,13 @@ impl RichEditorWidget {
             return;
         }
 
+        let Ok(document) = state.document_snapshot() else {
+            state.slash_menu = None;
+            return;
+        };
         // The caret's leaf text + the caret's char offset within it.
         let (Some((leaf_path, leaf_text)), Some(caret_char)) = (
-            caret_leaf_text(&state.document_snapshot().expect("live rich document"), &state.selection),
+            caret_leaf_text(&document, &state.selection),
             caret_char_offset(&state.selection),
         ) else {
             state.slash_menu = None; // no text caret -> no menu.
@@ -4839,9 +4880,7 @@ impl RichEditorWidget {
         let is_tag = crate::rich_editor::inline_tags::is_tag_link(&spec.link);
         let is_code_reference = is_code_ref(&spec.link);
         let base_author = if is_tag {
-            crate::rich_editor::inline_tags::inline_tag_author_id(
-                &crate::rich_editor::inline_tags::tag_from_link(&spec.link),
-            )
+            format!("inline-tag-{}", spec.link.ref_value)
         } else if is_code_reference {
             code_ref_chip_author_id(&spec.link.ref_value)
         } else if is_locus_ref(&spec.link) {
@@ -5002,11 +5041,11 @@ impl RichEditorWidget {
             // the chip never opens the hub directly (RISK-005 / MC-005). Carries the canonical identity
             // (the hub-resolution key) + the original-case display name.
             if is_tag {
-                let tag = crate::rich_editor::inline_tags::tag_from_link(&spec.link);
                 Some(EditorEvent::TagActivated {
-                    canonical: tag.canonical(),
-                    display: tag.name,
+                    reference: spec.link.clone(),
                 })
+            } else if crate::rich_editor::block_identity::references::structural_link(&spec.link) {
+                Some(EditorEvent::NoteReferenceActivated { reference: spec.link.clone() })
             } else {
                 Some(EditorEvent::WikilinkActivated {
                     ref_kind: spec.link.ref_kind.clone(),
@@ -5255,6 +5294,7 @@ impl RichEditorWidget {
         // search results into their caches BEFORE rendering, with generation-counter cancellation
         // (MC-004). Then, while a popup is open, issue the debounced search (MC-002).
         let mut wikilink_applied = state.wikilinks.observe_backlinks_invalidation(ui.ctx());
+        if wikilink_applied { state.hs_embed_cache.clear(); }
         if state.wikilinks.drain() {
             wikilink_applied = true;
         }
@@ -5335,8 +5375,14 @@ impl RichEditorWidget {
         };
 
         let measure_content = std::mem::take(&mut state.measure_content_next_render);
+        state.validate_reference_scroll();
         state.measured_content_extent = None;
         let measurement_context = state.document_owner.current_context().ok();
+        let embed_document = state.document_snapshot().expect("live rich document");
+        let mut embed_frame = state.hs_embed_cache.frame(&state.document_owner,
+            state.authenticated_context.clone(), &state.owner_backend_url, &embed_document,
+            ui.spacing().interact_size.y);
+        let mut embed_actions = Vec::new();
         let caret_galley_out = egui::ScrollArea::vertical()
             .id_salt("rich-editor-scroll")
             .auto_shrink([false, false])
@@ -5369,39 +5415,34 @@ impl RichEditorWidget {
                 // Counts and highlights use the same canonical snapshot as this paint pass,
                 // including when focus belongs to the find input rather than the editor surface.
                 let document = state.document_snapshot().expect("live rich document");
+                state.paragraph_layout.prepare(ui.ctx(), measurement_context, content_width,
+                    base_font_size, read_only, document.children.len());
                 if let Some(panel) = state.find_replace.as_mut() {
                     panel.rescan(&document);
                 }
                 for (idx, child) in document.children.iter().enumerate() {
                     let Some(block) = child.as_block() else { continue };
 
-                    // Virtualize the common large-document case before invoking the expensive
-                    // text shaper. Plain text paragraphs have a deterministic single-line extent;
-                    // reserve that extent for off-screen blocks and paint only the clip window. This
-                    // keeps scroll frames bounded while richer blocks (links, tables, embeds, code)
-                    // continue through the canonical renderer so their interaction/accessibility
-                    // semantics remain unchanged.
+                    // Cull only a measured paragraph under the exact current model/font/layout inputs.
+                    // Unknown extents use the existing painter once, including wrapped offscreen text.
                     let virtualizable = matches!(block.kind, NodeKind::Paragraph)
                         && block
                             .children
                             .iter()
                             .all(|child| matches!(child, Child::Text(_)));
                     if virtualizable && !measure_content {
-                        let estimated_height = base_font_size + super::line_layout::BLOCK_GAP_PTS;
-                        let block_rect = egui::Rect::from_min_size(
-                            top,
-                            egui::vec2(content_width, estimated_height),
-                        );
-                        let clip = ui.clip_rect();
-                        let offscreen = block_rect.max.y < clip.min.y || block_rect.min.y > clip.max.y;
-                        if offscreen {
-                            if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
-                                ui.scroll_to_rect(block_rect, Some(egui::Align::TOP));
-                                state.last_consumed_scroll_block = state.pending_scroll_block.take();
-                                ui.ctx().request_repaint();
+                        if let Some(height) = state.paragraph_layout.height(idx) {
+                            let block_rect = egui::Rect::from_min_size(top, egui::vec2(content_width,
+                                (height - super::line_layout::BLOCK_GAP_PTS).max(1.0)));
+                            let clip = ui.clip_rect();
+                            let offscreen = block_rect.max.y < clip.min.y || block_rect.min.y > clip.max.y;
+                            if offscreen {
+                                if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
+                                    state.consume_painted_scroll(ui, Some(block_rect));
+                                }
+                                top.y += height + extra_block_gap;
+                                continue;
                             }
-                            top.y += estimated_height;
-                            continue;
                         }
                     }
 
@@ -5422,6 +5463,9 @@ impl RichEditorWidget {
                         );
                         embed_block_renderer::render_embed(&mut child, &link, &mut state.embeds, palette);
                         let used = child.min_rect().height().max(base_font_size);
+                        if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
+                            state.consume_painted_scroll(ui, Some(egui::Rect::from_min_size(top, egui::vec2(content_width, used))));
+                        }
                         top.y += used + super::line_layout::BLOCK_GAP_PTS + extra_block_gap;
                         continue;
                     }
@@ -5505,6 +5549,9 @@ impl RichEditorWidget {
                             ui.ctx().request_repaint();
                         }
                         let used = child.min_rect().height().max(base_font_size);
+                        if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
+                            state.consume_painted_scroll(ui, Some(egui::Rect::from_min_size(top, egui::vec2(content_width, used))));
+                        }
                         top.y += used + super::line_layout::BLOCK_GAP_PTS + extra_block_gap;
                         continue;
                     }
@@ -5517,7 +5564,9 @@ impl RichEditorWidget {
                     } else {
                         None
                     };
-                    let bp = super::block_renderer::paint_block_with_base(
+                    let requested_path = state.pending_scroll_block.clone();
+                    let relative_target = requested_path.as_deref().and_then(|path| path.strip_prefix(&[idx]));
+                    let painted = super::block_renderer::paint_block_with_embeds(
                         &painter,
                         block,
                         top,
@@ -5526,7 +5575,13 @@ impl RichEditorWidget {
                         caret_offset,
                         bold_available,
                         base_font_size,
+                        super::line_layout::AtomPaint::ChipCovered,
+                        (caret_block == Some(idx)).then(|| &caret.head.path[1..]),
+                        relative_target,
+                        Some(&mut embed_frame),
                     );
+                    let bp = painted.paint;
+                    if virtualizable { state.paragraph_layout.record(idx, bp.height); }
                     if let Some(g) = bp.caret_galley {
                         caret_galley = Some(g.clone());
                     }
@@ -5592,18 +5647,8 @@ impl RichEditorWidget {
                         }
                     }
 
-                    // WP-KERNEL-012 MT-056 (E2 — outline/TOC): if the outline requested a scroll to THIS
-                    // top-level block, bring its painted rect into view through the EXISTING scroll area
-                    // (RISK-002 / MC-002 — `ui.scroll_to_rect` on the SAME `rich-editor-scroll` ScrollArea,
-                    // not a second scroll mechanism). One-shot: the pending target is cleared once consumed
-                    // so steady-state frames do no scroll work, and a repaint is scheduled so the scroll
-                    // offset settles. The block is painted with the absolute `painter` at `top`, so its
-                    // rect is `[top, content_width x bp.height]`.
-                    if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
-                        let block_rect = egui::Rect::from_min_size(top, egui::vec2(content_width, bp.height));
-                        ui.scroll_to_rect(block_rect, Some(egui::Align::TOP));
-                        state.last_consumed_scroll_block = state.pending_scroll_block.take();
-                        ui.ctx().request_repaint();
+                    if relative_target.is_some() {
+                        state.consume_painted_scroll(ui, painted.target_rect);
                     }
 
                     // MT-015: overlay the inline wikilink CHIPs on this paragraph's hsLink atoms. We
@@ -5734,6 +5779,9 @@ impl RichEditorWidget {
                     top.y += bp.height + extra_block_gap;
                 }
 
+                embed_actions = embed_frame.interact(ui, read_only || state.preedit.is_active());
+                state.finish_reference_scroll(ui);
+
                 // Reserve the painted vertical extent so the scroll area sizes correctly. The reading
                 // column's left margin is included so the scroll content is sized to the centered column.
                 let used_height = (top.y - ui.cursor().min.y).max(0.0);
@@ -5775,6 +5823,11 @@ impl RichEditorWidget {
             })
             .inner;
 
+        state.hs_embed_cache.dispatch_visible(&embed_frame, state.wikilinks.runtime.as_ref(), ui.ctx());
+        for action in embed_actions {
+            state.apply_hs_embed_action(action, embed_frame.context, read_only);
+        }
+
         // WP-KERNEL-012 MT-055: the backlinks panel + the caret-anchored autocomplete / slash-command /
         // code-ref popups are EDITING/knowledge surfaces (they author links, insert blocks, or list
         // backlinks). In reading mode they are SKIPPED — a clean read-only presentation has no editing
@@ -5796,7 +5849,7 @@ impl RichEditorWidget {
 
             // MT-015: the autocomplete popup anchored at the CARET pixel (impl note: caret position, NOT
             // mouse, so keyboard-only typing positions it). Resolved from the caret block's galley.
-            if state.wikilink_autocomplete.is_some() {
+            if !state.handpick_inline_open && state.wikilink_autocomplete.is_some() {
                 let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
                     let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
                     let local = galley.pos_from_cursor(cursor);
@@ -5808,7 +5861,7 @@ impl RichEditorWidget {
             // MT-016: the slash-command menu popup (list) or its active prompt modal, anchored at the caret
             // pixel (same caret-galley resolution as the autocomplete popup). Rendered AFTER the content so
             // it sits above the blocks. The widget returns an outcome the host applies to the editor state.
-            if state.slash_menu.is_some() {
+            if !state.handpick_inline_open && state.slash_menu.is_some() {
                 let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
                     let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
                     let local = galley.pos_from_cursor(cursor);
@@ -5821,7 +5874,7 @@ impl RichEditorWidget {
             // (same caret-galley resolution as the wikilink/slash popups). Rendered AFTER the content so
             // it sits above the blocks. Reuses the same in-process egui popup pattern (HBR-QUIET — no OS
             // window, no focus theft). A clicked row commits the tag as a chip.
-            if state.tag_autocomplete.is_some() {
+            if !state.handpick_inline_open && state.tag_autocomplete.is_some() {
                 let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
                     let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
                     let local = galley.pos_from_cursor(cursor);
@@ -6513,7 +6566,8 @@ fn wikilink_chip_specs(
                 // ref — it is NEVER a create-from-unresolved-note candidate even when greyed (the greyed
                 // state means the record/endpoint is unavailable, not "create a note named WP-KERNEL-012").
                 let (create_title, ambiguity_matches) =
-                    if link.resolved || is_code_ref(link) || is_locus_ref(link) {
+                    if link.resolved || is_code_ref(link) || is_locus_ref(link)
+                        || crate::rich_editor::block_identity::references::structural_link(link) {
                         (None, None)
                     } else {
                         match resolve_wikilink(resolver_index, &link.ref_value) {

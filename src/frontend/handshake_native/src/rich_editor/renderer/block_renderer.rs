@@ -13,8 +13,10 @@
 //! [`epaint::Galley::pos_from_cursor`] (research #1 de-risk: no hand-rolled glyph
 //! advance). Colors come from the theme [`HsPalette`] (CONTROL-4: no hardcoded hex
 //! outside theme/*). The vertical-slice scope (contract) is paragraph + bold/italic +
-//! heading + caret + code_block + blockquote + list + a basic table; full table text
-//! wrap and nested-list depth are later passes.
+//! heading + caret + code_block + blockquote + list + table. Container children
+//! retain their model paths through the same host painters.
+
+mod containers;
 
 use std::sync::Arc;
 
@@ -80,8 +82,71 @@ pub fn paint_block_with_base(
     bold_available: bool,
     base_font_size: f32,
 ) -> BlockPaint {
+    paint_block_with_target(painter, block, top_left, content_width, palette, caret_offset,
+        bold_available, base_font_size, line_layout::AtomPaint::ChipCovered, None, None).paint
+}
+
+pub(super) struct TargetedBlockPaint {
+    pub paint: BlockPaint,
+    pub target_rect: Option<Rect>,
+}
+
+/// Paths are model child indices relative to this block, never flattened display indices.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn paint_block_with_target(
+    painter: &egui::Painter,
+    block: &BlockNode,
+    top_left: egui::Pos2,
+    content_width: f32,
+    palette: &HsPalette,
+    caret_offset: Option<usize>,
+    bold_available: bool,
+    base_font_size: f32,
+    atom_paint: line_layout::AtomPaint,
+    caret_path: Option<&[usize]>,
+    target_path: Option<&[usize]>,
+) -> TargetedBlockPaint {
+    paint_block_with_embeds(painter,block,top_left,content_width,palette,caret_offset,
+        bold_available,base_font_size,atom_paint,caret_path,target_path,None)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn paint_block_with_embeds(
+    painter: &egui::Painter,
+    block: &BlockNode,
+    top_left: egui::Pos2,
+    content_width: f32,
+    palette: &HsPalette,
+    caret_offset: Option<usize>,
+    bold_available: bool,
+    base_font_size: f32,
+    atom_paint: line_layout::AtomPaint,
+    caret_path: Option<&[usize]>,
+    target_path: Option<&[usize]>,
+    mut embeds: Option<&mut crate::rich_editor::hs_embeds::Frame>,
+) -> TargetedBlockPaint {
     let base_font_size = line_layout::resolved_base_font_size(base_font_size);
-    match block.kind {
+    if matches!(block.kind, NodeKind::Blockquote) {
+        return paint_blockquote_with_target(painter, block, top_left, content_width, palette,
+            caret_offset, bold_available, base_font_size, caret_path, target_path, embeds.as_deref_mut());
+    }
+    if matches!(block.kind, NodeKind::BulletList | NodeKind::OrderedList | NodeKind::ListItem | NodeKind::TaskItem) {
+        return containers::paint_list(painter, block, top_left, content_width, palette,
+            caret_offset, bold_available, base_font_size, caret_path, target_path, embeds.as_deref_mut());
+    }
+    if matches!(block.kind, NodeKind::Table | NodeKind::TableRow | NodeKind::TableCell | NodeKind::TableHeader) {
+        return containers::paint_table(painter, block, top_left, content_width, palette,
+            caret_offset, bold_available, base_font_size, caret_path, target_path, embeds.as_deref_mut());
+    }
+    if matches!(block.kind,NodeKind::HsEmbed) {
+        if let Some(embeds)=embeds.as_deref_mut() {
+            let height=embeds.paint(painter,block,top_left,content_width,palette,base_font_size);
+            let target_rect=(target_path==Some(&[][..])).then(||Rect::from_min_size(top_left,
+                Vec2::new(content_width,(height-BLOCK_GAP_PTS).max(1.0))));
+            return TargetedBlockPaint { paint:BlockPaint { height,caret_galley:None },target_rect };
+        }
+    }
+    let paint = match block.kind {
         NodeKind::Paragraph | NodeKind::Heading(_) => paint_inline_block(
             painter,
             block,
@@ -92,16 +157,7 @@ pub fn paint_block_with_base(
             0.0,
             bold_available,
             base_font_size,
-        ),
-        NodeKind::Blockquote => paint_blockquote(
-            painter,
-            block,
-            top_left,
-            content_width,
-            palette,
-            caret_offset,
-            bold_available,
-            base_font_size,
+            atom_paint,
         ),
         NodeKind::CodeBlock => paint_code_block(
             painter,
@@ -113,34 +169,25 @@ pub fn paint_block_with_base(
             bold_available,
             base_font_size,
         ),
-        NodeKind::BulletList | NodeKind::OrderedList => paint_list(
-            painter,
-            block,
-            top_left,
-            content_width,
-            palette,
-            bold_available,
-            base_font_size,
-        ),
-        NodeKind::Table => paint_table(
-            painter,
-            block,
-            top_left,
-            content_width,
-            palette,
-            bold_available,
-            base_font_size,
-        ),
         NodeKind::HorizontalRule => {
             paint_horizontal_rule(painter, top_left, content_width, palette, base_font_size)
         }
-        // Atoms / structural-only kinds that are not a top-level paint target in the
-        // vertical slice render nothing and consume a single gap so layout stays sane.
+        NodeKind::HardBreak => BlockPaint {
+            height: painter.fonts_mut(|fonts| fonts.row_height(&FontId::proportional(base_font_size)))
+                + BLOCK_GAP_PTS,
+            caret_galley: None,
+        },
+        // HsEmbed needs the authenticated host preview path; do not invent its geometry.
         _ => BlockPaint {
             height: BLOCK_GAP_PTS,
             caret_galley: None,
         },
-    }
+    };
+    let visible = matches!(block.kind, NodeKind::Paragraph | NodeKind::Heading(_) | NodeKind::CodeBlock
+        | NodeKind::BulletList | NodeKind::OrderedList | NodeKind::Table | NodeKind::HorizontalRule | NodeKind::HardBreak);
+    let target_rect = (target_path == Some(&[][..]) && visible && paint.height > BLOCK_GAP_PTS).then(||
+        Rect::from_min_size(top_left, Vec2::new(content_width, (paint.height - BLOCK_GAP_PTS).max(1.0))));
+    TargetedBlockPaint { paint, target_rect }
 }
 
 /// MT-014 embed dispatch seam: if `block` is a paragraph whose inline content is (only) a
@@ -241,6 +288,7 @@ fn paint_inline_block(
     indent: f32,
     bold_available: bool,
     base_font_size: f32,
+    atom_paint: line_layout::AtomPaint,
 ) -> BlockPaint {
     let origin = egui::pos2(top_left.x + indent, top_left.y);
     let wrap_width = (content_width - indent).max(1.0);
@@ -266,7 +314,7 @@ fn paint_inline_block(
             palette,
             wrap_width,
             bold_available,
-            line_layout::AtomPaint::ChipCovered,
+            atom_paint,
             base_font_size,
         );
         let galley = painter.layout_job(layout.job);
@@ -339,12 +387,9 @@ fn paint_inline_block(
     }
 }
 
-/// Paint a blockquote: a left accent bar + a tinted background, content indented. The
-/// inner content is the block's first inline paragraph child (vertical-slice scope: a
-/// blockquote wraps a paragraph). Falls back to treating the blockquote's own inline
-/// children as text if it directly holds text (defensive).
+/// Paint every blockquote child through its existing block painter and retain exact target geometry.
 #[allow(clippy::too_many_arguments)]
-fn paint_blockquote(
+fn paint_blockquote_with_target(
     painter: &egui::Painter,
     block: &BlockNode,
     top_left: egui::Pos2,
@@ -353,39 +398,41 @@ fn paint_blockquote(
     caret_offset: Option<usize>,
     bold_available: bool,
     base_font_size: f32,
-) -> BlockPaint {
-    // Resolve the inner inline block to render (first block child), else the quote itself.
-    let inner = block
-        .children
-        .iter()
-        .find_map(Child::as_block)
-        .unwrap_or(block);
+    caret_path: Option<&[usize]>,
+    target_path: Option<&[usize]>,
+    mut embeds: Option<&mut crate::rich_editor::hs_embeds::Frame>,
+) -> TargetedBlockPaint {
+    let background = painter.add(egui::Shape::Noop);
+    let bar = painter.add(egui::Shape::Noop);
     let wrap_width = (content_width - BLOCKQUOTE_INDENT_PTS).max(1.0);
-    let layout = line_layout::layout_block_with_base(
-        inner,
-        palette,
-        wrap_width,
-        bold_available,
-        base_font_size,
-    );
-    let galley = painter.layout_job(layout.job);
-    let text_height = galley.rect.height().max(base_font_size);
-
-    // Tinted background behind the whole quote (theme accent_soft — a real theme token).
-    let bg_rect = Rect::from_min_size(top_left, Vec2::new(content_width, text_height));
-    painter.rect_filled(bg_rect, 2.0, palette.accent_soft);
-    // The 3px left bar in the accent color (contract step 2).
-    let bar_rect = Rect::from_min_size(top_left, Vec2::new(BLOCKQUOTE_BAR_WIDTH_PTS, text_height));
-    painter.rect_filled(bar_rect, 0.0, palette.accent);
-
-    let origin = egui::pos2(top_left.x + BLOCKQUOTE_INDENT_PTS, top_left.y);
-    painter.galley(origin, Arc::clone(&galley), palette.text);
-
-    let caret_galley = caret_offset.map(|_| (Arc::clone(&galley), origin));
-    BlockPaint {
-        height: text_height + BLOCK_GAP_PTS,
-        caret_galley,
+    let mut y = top_left.y;
+    let mut caret_galley = None;
+    let mut target_rect = None;
+    let mut first = true;
+    for (index, child) in block.children.iter().enumerate() {
+        let Some(child) = child.as_block() else { continue };
+        let child_caret_path = caret_path.and_then(|path| path.strip_prefix(&[index]));
+        let child_caret = if caret_path.is_some() {
+            child_caret_path.and(caret_offset)
+        } else if first { caret_offset } else { None };
+        first = false;
+        let child_target = target_path.and_then(|path| path.strip_prefix(&[index]));
+        let painted = paint_block_with_embeds(painter, child,
+            egui::pos2(top_left.x + BLOCKQUOTE_INDENT_PTS, y), wrap_width, palette,
+            child_caret, bold_available, base_font_size, line_layout::AtomPaint::Visible, child_caret_path, child_target, embeds.as_deref_mut());
+        y += painted.paint.height;
+        if painted.paint.caret_galley.is_some() { caret_galley = painted.paint.caret_galley; }
+        if painted.target_rect.is_some() { target_rect = painted.target_rect; }
     }
+    let height = (y - top_left.y).max(base_font_size + BLOCK_GAP_PTS);
+    let content_height = (height - BLOCK_GAP_PTS).max(base_font_size);
+    let rect = Rect::from_min_size(top_left, Vec2::new(content_width, content_height));
+    painter.set(background, egui::Shape::rect_filled(rect, 2.0, palette.accent_soft));
+    painter.set(bar, egui::Shape::rect_filled(
+        Rect::from_min_size(top_left, Vec2::new(BLOCKQUOTE_BAR_WIDTH_PTS, content_height)),
+        0.0, palette.accent));
+    if target_path == Some(&[][..]) { target_rect = Some(rect); }
+    TargetedBlockPaint { paint: BlockPaint { height, caret_galley }, target_rect }
 }
 
 /// Paint a code block: a rounded tinted rect (theme `surface` over the editor `bg`) with
@@ -431,132 +478,6 @@ fn paint_code_block(
     BlockPaint {
         height: box_height + BLOCK_GAP_PTS,
         caret_galley,
-    }
-}
-
-/// Paint a list (bullet/ordered): each list item gets a `•` or `N.` prefix, then its
-/// first inline paragraph's content, indented. Vertical-slice scope: flat single-level
-/// list of paragraph items (nested-list depth is a later pass). The caret is not resolved
-/// inside list items in this slice (caret lives in top-level paragraphs/headings); a list
-/// item caret is a later structural-editing pass.
-fn paint_list(
-    painter: &egui::Painter,
-    block: &BlockNode,
-    top_left: egui::Pos2,
-    content_width: f32,
-    palette: &HsPalette,
-    bold_available: bool,
-    base_font_size: f32,
-) -> BlockPaint {
-    let ordered = matches!(block.kind, NodeKind::OrderedList);
-    let mut y = top_left.y;
-    for (number, item) in (1usize..).zip(block.children.iter().filter_map(Child::as_block)) {
-        let prefix = if ordered {
-            format!("{number}.")
-        } else {
-            "\u{2022}".to_string() // bullet •
-        };
-        // Paint the prefix in the subtle text color.
-        let prefix_pos = egui::pos2(top_left.x + LIST_INDENT_PTS * 0.25, y);
-        painter.text(
-            prefix_pos,
-            egui::Align2::LEFT_TOP,
-            &prefix,
-            FontId::proportional(base_font_size),
-            palette.text_subtle,
-        );
-        // Paint the item content (its first inline child block, else the item itself).
-        let inner = item
-            .children
-            .iter()
-            .find_map(Child::as_block)
-            .unwrap_or(item);
-        let wrap_width = (content_width - LIST_INDENT_PTS).max(1.0);
-        let layout = line_layout::layout_block_with_base(
-            inner,
-            palette,
-            wrap_width,
-            bold_available,
-            base_font_size,
-        );
-        let galley = painter.layout_job(layout.job);
-        let h = galley.rect.height().max(base_font_size);
-        let origin = egui::pos2(top_left.x + LIST_INDENT_PTS, y);
-        painter.galley(origin, galley, palette.text);
-        y += h;
-    }
-    let height = (y - top_left.y).max(base_font_size);
-    BlockPaint {
-        height: height + BLOCK_GAP_PTS,
-        caret_galley: None,
-    }
-}
-
-/// Paint a table: a grid of cells. Column widths are equal (content_width / cols);
-/// borders are stroked; each cell's text is CLIPPED to its rect (red-team RISK-6 /
-/// MC-006: a long cell never paints over its neighbor). Vertical-slice scope: single-line
-/// cells, equal columns; auto-sizing is a later pass.
-fn paint_table(
-    painter: &egui::Painter,
-    block: &BlockNode,
-    top_left: egui::Pos2,
-    content_width: f32,
-    palette: &HsPalette,
-    bold_available: bool,
-    base_font_size: f32,
-) -> BlockPaint {
-    let rows: Vec<&BlockNode> = block.children.iter().filter_map(Child::as_block).collect();
-    if rows.is_empty() {
-        return BlockPaint {
-            height: BLOCK_GAP_PTS,
-            caret_galley: None,
-        };
-    }
-    let cols = rows
-        .iter()
-        .map(|r| r.children.iter().filter_map(Child::as_block).count())
-        .max()
-        .unwrap_or(1)
-        .max(1);
-    let col_w = content_width / cols as f32;
-    let row_h = base_font_size + 8.0;
-    let mut y = top_left.y;
-    for row in &rows {
-        let cells: Vec<&BlockNode> = row.children.iter().filter_map(Child::as_block).collect();
-        for (c, cell) in cells.iter().enumerate() {
-            let x = top_left.x + c as f32 * col_w;
-            let cell_rect = Rect::from_min_size(egui::pos2(x, y), Vec2::new(col_w, row_h));
-            // Cell border.
-            painter.rect_stroke(
-                cell_rect,
-                0.0,
-                Stroke::new(1.0_f32, palette.border),
-                egui::StrokeKind::Inside,
-            );
-            // CLIP cell content to its rect so long text cannot overflow into the
-            // neighbor (MC-006). A child painter with the cell clip rect bounds the paint.
-            let cell_painter = painter.with_clip_rect(cell_rect);
-            let inner = cell
-                .children
-                .iter()
-                .find_map(Child::as_block)
-                .unwrap_or(cell);
-            let layout = line_layout::layout_block_with_base(
-                inner,
-                palette,
-                col_w - 6.0,
-                bold_available,
-                base_font_size,
-            );
-            let galley = cell_painter.layout_job(layout.job);
-            cell_painter.galley(egui::pos2(x + 3.0, y + 4.0), galley, palette.text);
-        }
-        y += row_h;
-    }
-    let height = (y - top_left.y).max(row_h);
-    BlockPaint {
-        height: height + BLOCK_GAP_PTS,
-        caret_galley: None,
     }
 }
 
@@ -1063,3 +984,9 @@ mod tests {
         });
     }
 }
+
+#[cfg(test)]
+mod nested_targets;
+
+#[cfg(test)]
+mod hs_embed_tests;

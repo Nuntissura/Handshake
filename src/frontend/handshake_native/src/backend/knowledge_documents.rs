@@ -698,6 +698,18 @@ impl KnowledgeDocumentsClient {
         format!("{}{}", self.base_url, path)
     }
 
+    fn document_load_url(&self, document_id: &str) -> DocResult<reqwest::Url> {
+        if document_id.trim().is_empty() || matches!(document_id, "." | "..") {
+            return Err(KnowledgeDocumentsError::Parse("Invalid document identity".into()));
+        }
+        let mut url = reqwest::Url::parse(&self.base_url)
+            .map_err(|error| KnowledgeDocumentsError::Parse(error.to_string()))?;
+        url.path_segments_mut()
+            .map_err(|_| KnowledgeDocumentsError::Parse("Backend URL cannot contain path segments".into()))?
+            .pop_if_empty().extend(["knowledge", "documents", document_id]);
+        Ok(url)
+    }
+
     /// Calls `GET /knowledge/documents?workspace_id=...` and returns the live RichDocument rows used
     /// by explorer navigation/rename. This must not fall back to legacy workspace documents.
     pub async fn list_documents(
@@ -748,9 +760,7 @@ impl KnowledgeDocumentsClient {
         headers: &HskDocumentHeaders,
         document_id: &str,
     ) -> DocResult<DocumentLoadResponse> {
-        let builder = self
-            .client
-            .get(self.url(&format!("/knowledge/documents/{document_id}")));
+        let builder = self.client.get(self.document_load_url(document_id)?);
         self.send_json(headers.apply(builder)).await
     }
 
@@ -1433,5 +1443,34 @@ mod tests {
                 "expected_updated_at": "2026-07-16T10:20:30Z",
             })
         );
+    }
+}
+
+#[cfg(test)]
+mod document_load_url_tests {
+    use super::*;
+
+    #[test]
+    fn load_identity_is_one_encoded_segment_with_endpoint_prefix_and_query_preserved() {
+        let client = KnowledgeDocumentsClient::with_base_url("https://example.invalid/api/v1/?tenant=one");
+        for (id, encoded) in [("note-123", "note-123"), ("a/b", "a%2Fb"),
+            ("a?view=all#part", "a%3Fview=all%23part"), ("a%2Fb", "a%252Fb"),
+            ("a\\b", "a%5Cb"), ("模型", "%E6%A8%A1%E5%9E%8B")] {
+            let url = client.document_load_url(id).unwrap();
+            assert_eq!(url.path(), format!("/api/v1/knowledge/documents/{encoded}"));
+            assert_eq!(url.query(), Some("tenant=one"));
+            assert_eq!(url.fragment(), None);
+            assert_eq!(url.host_str(), Some("example.invalid"));
+        }
+    }
+
+    #[test]
+    fn normal_origin_and_invalid_identity_do_not_turn_into_other_endpoints() {
+        let client = KnowledgeDocumentsClient::with_base_url("https://example.invalid");
+        assert_eq!(client.document_load_url("note").unwrap().as_str(),
+            "https://example.invalid/knowledge/documents/note");
+        for id in ["", " ", ".", ".."] { assert!(client.document_load_url(id).is_err()); }
+        assert!(KnowledgeDocumentsClient::with_base_url("mailto:reader@example.invalid")
+            .document_load_url("note").is_err());
     }
 }

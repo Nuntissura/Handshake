@@ -78,13 +78,7 @@ impl Tag {
 /// by ref_kind" gate). A tag whose canonical identity is empty (a bare `#`) is never committed, so this
 /// always produces a valid atom.
 pub fn tag_to_hs_link(tag: &Tag) -> HsLinkNode {
-    HsLinkNode {
-        ref_kind: "tag".to_owned(),
-        ref_value: tag.canonical(),
-        label: tag.display_label(),
-        resolved: true,
-        provenance: None,
-    }
+    HsLinkNode::tag_normalized_name(tag.canonical(), tag.name.clone())
 }
 
 /// The canonical normalization for an inline tag identity (RISK-001 / MC-001). This is the SINGLE shared
@@ -356,7 +350,7 @@ mod tests {
 
     #[test]
     fn tag_to_hs_link_is_a_tag_ref_kind_atom() {
-        // The Tag -> hsLink atom round-trips content_json: ref_kind=tag, ref_value=canonical, label=#name.
+        // The Tag -> hsLink atom round-trips content_json: ref_kind=tag, ref_value=canonical, raw label=name.
         let link = tag_to_hs_link(&Tag::new("Rust"));
         assert_eq!(link.ref_kind, "tag");
         assert_eq!(
@@ -364,8 +358,8 @@ mod tests {
             "ref_value is the canonical identity (property-tag convergence key)"
         );
         assert_eq!(
-            link.label, "#Rust",
-            "the chip label is #Name with the author's case"
+            link.label, "Rust",
+            "marked tag labels retain the raw name"
         );
         assert!(
             link.resolved,

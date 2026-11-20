@@ -97,7 +97,7 @@ dependencies = [
 [[package]]
 name = "accesskit_windows"
 version = "0.29.2"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "accesskit",
  "accesskit_consumer 0.31.0",
@@ -2431,7 +2431,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.33.3"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2486,7 +2486,7 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.33.3"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -3419,9 +3419,10 @@ dependencies = [
 [[package]]
 name = "handpick"
 version = "0.1.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=6f24d9b16f7675f2193115935ea35ae844828735#6f24d9b16f7675f2193115935ea35ae844828735"
+source = "git+https://github.com/Nuntissura/assets.git?rev=944a306ff436e1aa53d67ac17f0680c423e7597a#944a306ff436e1aa53d67ac17f0680c423e7597a"
 dependencies = [
  "serde",
+ "unicode-normalization",
  "url",
 ]
 
@@ -3963,7 +3964,7 @@ dependencies = [
 [[package]]
 name = "handshake_rich_document_model"
 version = "0.1.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=a118e58a2afaad6009567e046422828c99277aa0#a118e58a2afaad6009567e046422828c99277aa0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=e75e34ff69ef799c805b8c3f65fbc103953318aa#e75e34ff69ef799c805b8c3f65fbc103953318aa"
 dependencies = [
  "regex",
  "ropey",
@@ -3975,7 +3976,7 @@ dependencies = [
 [[package]]
 name = "handshake_rich_formatting"
 version = "0.1.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=7511afa4059905a747b61b72876b6fda605fc904#7511afa4059905a747b61b72876b6fda605fc904"
+source = "git+https://github.com/Nuntissura/assets.git?rev=a4e8825d91eb07fab1db73adbf4bc36cd6adf934#a4e8825d91eb07fab1db73adbf4bc36cd6adf934"
 dependencies = [
  "handshake_rich_document_model",
  "serde_json",
@@ -4079,6 +4080,7 @@ dependencies = [
 [[package]]
 name = "handshake_wikilink_semantics"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=21279c68ba618fa4c387bf30344f96b6cefc96c7#21279c68ba618fa4c387bf30344f96b6cefc96c7"
 dependencies = [
  "handshake_rich_document_model",
  "regex",
@@ -4984,7 +4986,7 @@ dependencies = [
 [[package]]
 name = "kumihimo-content"
 version = "0.2.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "kumihimo-core",
 ]
@@ -4992,7 +4994,7 @@ dependencies = [
 [[package]]
 name = "kumihimo-core"
 version = "0.3.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "serde",
 ]
@@ -5000,7 +5002,7 @@ dependencies = [
 [[package]]
 name = "kumihimo-egui"
 version = "0.2.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "eframe",
  "egui",
@@ -5020,7 +5022,7 @@ dependencies = [
 [[package]]
 name = "kumihimo-layout-json"
 version = "0.1.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8eadc5b57dc20d96bf29340f835505ad8ff7cbc8#8eadc5b57dc20d96bf29340f835505ad8ff7cbc8"
 dependencies = [
  "kumihimo-core",
  "serde",

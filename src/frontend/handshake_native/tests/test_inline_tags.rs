@@ -27,6 +27,7 @@ mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, NodeKind, TextLeaf};
+use handshake_native::rich_editor::document_model::TagReference;
 use handshake_native::rich_editor::inline_tags::{
     build_tag_edge_payload, inline_tag_author_id, parse_inline_tags, tag_menu_items,
     tag_to_hs_link, Tag,
@@ -68,7 +69,7 @@ fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
 
 /// A doc with one paragraph carrying a leading text run + a committed inline-tag hsLink atom (the
 /// chip). The tag atom is built via the production `tag_to_hs_link` so the test exercises the real
-/// node shape (ref_kind="tag", ref_value=canonical, label="#name").
+/// normalized-name tag reference and its raw label.
 fn doc_with_tag_chip(name: &str) -> BlockNode {
     let link = tag_to_hs_link(&Tag::new(name));
     BlockNode::doc(vec![BlockNode::with_children(
@@ -334,18 +335,24 @@ fn pt003_inline_tag_chip_click_emits_tag_activated_ac003() {
     harness.run();
     harness.run();
 
-    // AC-003 / MC-005: the click emits a TagActivated{canonical:'rust'} event onto the LIVE bus (NOT a
-    // WikilinkActivated, and NOT a direct hub-window open).
+    // AC-003 / MC-005: the click emits the typed tag reference on the editor bus.
     let events = state.lock().unwrap().pending_events.clone();
     let found = events.iter().any(|e| {
         matches!(
             e,
-            EditorEvent::TagActivated { canonical, .. } if canonical == "rust"
+            EditorEvent::TagActivated { reference }
+                if matches!(
+                    reference.tag_reference(),
+                    Some(TagReference::NormalizedName {
+                        canonical_name: "rust",
+                        raw_label: "rust",
+                    })
+                )
         )
     });
     assert!(
         found,
-        "AC-003: clicking the chip emits TagActivated{{canonical:'rust'}} (got {events:?})"
+        "AC-003: clicking the chip emits the exact normalized-name tag reference (got {events:?})"
     );
     // RISK-005 / MC-005: it is NOT a WikilinkActivated event (the tag is not routed as a wikilink).
     let is_wikilink = events

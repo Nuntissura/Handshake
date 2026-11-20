@@ -41,7 +41,10 @@ use serde_json::{json, Value as JsonValue};
 use crate::rich_editor::document_model::doc_json::{
     to_content_json_value, RICH_DOCUMENT_SCHEMA_VERSION,
 };
-use crate::rich_editor::document_model::node::{BlockNode, Child, Mark, NodeKind, TextLeaf};
+use crate::rich_editor::document_model::node::{
+    BlockNode, Child, Mark, NodeKind, ReferenceTargetKind, TextLeaf,
+};
+use crate::rich_editor::document_model::schema::validate_node;
 
 use base64::Engine as _;
 
@@ -247,8 +250,8 @@ pub fn slugify(title: &str) -> String {
 // ──────────────────────────────────────────────────────────────────────────────────────────────
 
 /// Concatenate every text leaf's content, separating top-level blocks (and recursively, list
-/// items / table rows / quote bodies) by newlines. An inline hsLink/transclusion atom contributes
-/// its short reference label so the text reads sensibly.
+/// items / table rows / quote bodies) by newlines. Reference atoms contribute a short label
+/// or their destination.
 pub fn export_plain_text(doc: &BlockNode) -> String {
     let mut blocks: Vec<String> = Vec::new();
     for child in &doc.children {
@@ -264,6 +267,9 @@ pub fn export_plain_text(doc: &BlockNode) -> String {
 /// The plain text of one block (recursing into container children). Inline leaves concatenate;
 /// block children are newline-joined.
 fn block_plain_text(node: &BlockNode) -> String {
+    if node.kind == NodeKind::HsEmbed {
+        return note_embed_text(node);
+    }
     if node.kind.is_atom() {
         return String::new();
     }
@@ -297,6 +303,83 @@ fn hs_link_text(l: &crate::rich_editor::document_model::node::HsLinkNode) -> Str
         format!("{}:{}", l.ref_kind, l.ref_value)
     } else {
         l.label.clone()
+    }
+}
+
+const INVALID_NOTE_EMBED: &str = "Unavailable note embed";
+
+struct NoteEmbed<'a> {
+    note: &'a str,
+    target_kind: ReferenceTargetKind,
+    target_block_id: &'a str,
+    label: &'a str,
+    resolved: bool,
+    occurrence_id: Option<&'a str>,
+}
+
+impl<'a> NoteEmbed<'a> {
+    fn from_block(node: &'a BlockNode) -> Option<Self> {
+        validate_node(node).ok()?;
+        let attribute = |name: &str| node.attrs.get(name).and_then(JsonValue::as_str);
+        let identifier = |name: &str| {
+            attribute(name).filter(|value| {
+                !value.trim().is_empty() && !value.chars().any(char::is_control)
+            })
+        };
+        if attribute("refKind") != Some("note") {
+            return None;
+        }
+        let target_kind = ReferenceTargetKind::from_json_type(attribute("target_kind")?)?;
+        if !matches!(target_kind, ReferenceTargetKind::Heading | ReferenceTargetKind::Block) {
+            return None;
+        }
+        let label = match node.attrs.get("label") {
+            None | Some(JsonValue::Null) => "",
+            Some(value) => value.as_str()?,
+        };
+        let resolved = match node.attrs.get("resolved") {
+            None => true,
+            Some(value) => value.as_bool()?,
+        };
+        let occurrence_id = match node.attrs.get("block_id") {
+            None | Some(JsonValue::Null) => None,
+            Some(_) => Some(identifier("block_id")?),
+        };
+        Some(Self {
+            note: identifier("refValue")?,
+            target_kind,
+            target_block_id: identifier("target_block_id")?,
+            label,
+            resolved,
+            occurrence_id,
+        })
+    }
+
+    fn text(&self) -> String {
+        let prefix = if self.resolved {
+            "Note embed"
+        } else {
+            "Unresolved note embed"
+        };
+        if self.label.trim().is_empty() {
+            format!("{prefix}: {}#{}", self.note, self.target_block_id)
+        } else {
+            format!("{prefix}: {}", self.label)
+        }
+    }
+}
+
+fn note_embed_text(node: &BlockNode) -> String {
+    NoteEmbed::from_block(node).map_or_else(|| INVALID_NOTE_EMBED.to_owned(), |embed| embed.text())
+}
+
+fn visit_note_embeds(node: &BlockNode, visit: &mut impl FnMut(&BlockNode)) {
+    if node.kind == NodeKind::HsEmbed {
+        visit(node);
+    } else {
+        for child in node.children.iter().filter_map(Child::as_block) {
+            visit_note_embeds(child, visit);
+        }
     }
 }
 
@@ -334,14 +417,19 @@ pub fn export_markdown(doc: &BlockNode) -> String {
     let mut out = String::new();
     for child in &doc.children {
         if let Child::Block(b) = child {
-            md_block(&mut out, b, 0);
+            md_block(&mut out, b, 0, false);
         }
     }
     out
 }
 
 /// Append the markdown for one block to `out`. `list_depth` tracks nested-list indentation.
-fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
+fn md_block(
+    out: &mut String,
+    node: &BlockNode,
+    list_depth: usize,
+    preserve_list_order: bool,
+) {
     match node.kind {
         NodeKind::Paragraph => {
             out.push_str(&md_inline(node));
@@ -360,7 +448,7 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
             let mut inner = String::new();
             for child in &node.children {
                 if let Child::Block(b) = child {
-                    md_block(&mut inner, b, list_depth);
+                    md_block(&mut inner, b, list_depth, preserve_list_order);
                 }
             }
             for line in inner.trim_end_matches('\n').lines() {
@@ -403,6 +491,11 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
                     } else {
                         ""
                     };
+                    if preserve_list_order {
+                        md_ordered_item(out, item, &indent, &marker, checkbox);
+                        n += 1;
+                        continue;
+                    }
                     out.push_str(&indent);
                     out.push_str(&marker);
                     out.push_str(checkbox);
@@ -414,7 +507,7 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
                             Child::Block(b) if b.kind.holds_inline_content() => {
                                 item_text.push_str(&md_inline(b));
                             }
-                            Child::Block(b) => md_block(&mut nested, b, list_depth + 1),
+                            Child::Block(b) => md_block(&mut nested, b, list_depth + 1, false),
                             Child::Text(t) => item_text.push_str(&t.text.to_string()),
                             Child::HsLink(l) => item_text.push_str(&hs_link_text(l)),
                             Child::Transclusion(t) => {
@@ -431,17 +524,15 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
             out.push('\n');
         }
         NodeKind::TaskItem => {
-            // A bare task item not under a list (defensive): render as a single checkbox line.
-            let checkbox = if node.task_checked() {
-                "- [x] "
-            } else {
-                "- [ ] "
-            };
-            out.push_str(checkbox);
-            out.push_str(&md_inline(node));
-            out.push_str("\n\n");
+            let checkbox = if node.task_checked() { "[x] " } else { "[ ] " };
+            md_ordered_item(out, node, &"  ".repeat(list_depth), "- ", checkbox);
+            out.push('\n');
         }
         NodeKind::Table => md_table(out, node),
+        NodeKind::HsEmbed => {
+            write_note_embed_markdown(out, node);
+            out.push_str("\n\n");
+        }
         NodeKind::HorizontalRule => out.push_str("---\n\n"),
         NodeKind::HardBreak => out.push('\n'),
         // Doc never appears as a child; rows/cells/headers are handled inside md_table. Anything
@@ -456,6 +547,69 @@ fn md_block(out: &mut String, node: &BlockNode, list_depth: usize) {
                 node.kind.to_json_type()
             ));
         }
+    }
+}
+
+/// Render a task or one of its nested list items in child order. The marker starts
+/// the first line and subsequent blocks are indented to the item's content column.
+fn md_ordered_item(
+    out: &mut String,
+    node: &BlockNode,
+    indent: &str,
+    marker: &str,
+    checkbox: &str,
+) {
+    out.push_str(indent);
+    out.push_str(marker);
+    out.push_str(checkbox);
+    let continuation = format!("{indent}{}", " ".repeat(marker.len()));
+    let mut line_open = true;
+    let mut line_has_content = false;
+    for child in &node.children {
+        let text = match child {
+            Child::Block(block) if block.kind == NodeKind::Paragraph => md_inline(block),
+            Child::Block(block) if block.kind == NodeKind::HsEmbed => {
+                let mut text = String::new();
+                write_note_embed_markdown(&mut text, block);
+                text
+            }
+            Child::Block(block) => {
+                if line_open {
+                    out.push_str("\n\n");
+                }
+                let mut nested = String::new();
+                md_block(&mut nested, block, 0, true);
+                for line in nested.trim_end_matches('\n').split('\n') {
+                    if !line.is_empty() {
+                        out.push_str(&continuation);
+                        out.push_str(line);
+                    }
+                    out.push('\n');
+                }
+                out.push('\n');
+                line_open = false;
+                line_has_content = false;
+                continue;
+            }
+            Child::Text(text) => md_text_run(text),
+            Child::HsLink(link) => hs_link_text(link),
+            Child::Transclusion(reference) => format!("[[{}]]", reference.ref_value),
+        };
+        if text.is_empty() {
+            continue;
+        }
+        if !line_open {
+            out.push_str(&continuation);
+            line_open = true;
+        }
+        if line_has_content {
+            out.push(' ');
+        }
+        out.push_str(&text);
+        line_has_content = true;
+    }
+    if line_open {
+        out.push('\n');
     }
 }
 
@@ -521,10 +675,46 @@ fn md_inline(node: &BlockNode) -> String {
                 }
             }
             Child::Transclusion(t) => s.push_str(&format!("[[{}]]", t.ref_value)),
-            Child::Block(_) => {}
+            Child::Block(block) => visit_note_embeds(block, &mut |embed| {
+                if !s.is_empty() {
+                    s.push(' ');
+                }
+                write_note_embed_markdown(&mut s, embed);
+            }),
         }
     }
     s
+}
+
+fn write_note_embed_markdown(out: &mut String, node: &BlockNode) {
+    let Some(embed) = NoteEmbed::from_block(node) else {
+        out.push_str(INVALID_NOTE_EMBED);
+        return;
+    };
+    let mut reference = embed.text();
+    if !embed.label.trim().is_empty() {
+        use std::fmt::Write as _;
+        let _ = write!(reference, " ({}#{})", embed.note, embed.target_block_id);
+    }
+    // Keep the reference to one line so it cannot become list, table, or block syntax.
+    for (index, word) in reference.split_whitespace().enumerate() {
+        if index > 0 {
+            out.push(' ');
+        }
+        for ch in word.chars() {
+            match ch {
+                '&' => out.push_str("&amp;"),
+                '<' => out.push_str("&lt;"),
+                '>' => out.push_str("&gt;"),
+                '|' => out.push_str("&#124;"),
+                '\\' | '[' | ']' | '*' | '_' | '`' | '~' => {
+                    out.push('\\');
+                    out.push(ch);
+                }
+                _ => out.push(ch),
+            }
+        }
+    }
 }
 
 /// Render a single marked text run to markdown. A code-marked run uses backticks (and is NOT
@@ -653,18 +843,7 @@ fn walk_node_to_html(out: &mut String, node: &BlockNode, ctx: &mut HtmlExportCtx
             for child in &node.children {
                 if let Child::Block(item) = child {
                     out.push_str("<li>");
-                    // Inline content directly, nested blocks recursively.
-                    for ic in &item.children {
-                        match ic {
-                            Child::Block(b) if b.kind.holds_inline_content() => html_inline(out, b),
-                            Child::Block(b) => walk_node_to_html(out, b, ctx),
-                            Child::Text(t) => out.push_str(&html_escape_text(&t.text.to_string())),
-                            Child::HsLink(l) => write_hs_link_html(out, l),
-                            Child::Transclusion(t) => {
-                                out.push_str(&html_escape_text(&format!("[[{}]]", t.ref_value)))
-                            }
-                        }
-                    }
+                    write_list_item_children_html(out, item, ctx);
                     out.push_str("</li>\n");
                 }
             }
@@ -711,6 +890,16 @@ fn walk_node_to_html(out: &mut String, node: &BlockNode, ctx: &mut HtmlExportCtx
             }
             out.push_str("</table>\n");
         }
+        NodeKind::HsEmbed => write_note_embed_html(out, node),
+        NodeKind::TaskItem => {
+            out.push_str("<ul>\n<li><input type=\"checkbox\" disabled");
+            if node.task_checked() {
+                out.push_str(" checked");
+            }
+            out.push_str("> ");
+            write_list_item_children_html(out, node, ctx);
+            out.push_str("</li>\n</ul>\n");
+        }
         NodeKind::HorizontalRule => out.push_str("<hr>\n"),
         NodeKind::HardBreak => out.push_str("<br>\n"),
         // Rows/cells/items are handled inside their parents; a doc is never a child. Anything
@@ -719,14 +908,57 @@ fn walk_node_to_html(out: &mut String, node: &BlockNode, ctx: &mut HtmlExportCtx
         | NodeKind::TableRow
         | NodeKind::TableCell
         | NodeKind::TableHeader
-        | NodeKind::ListItem
-        | NodeKind::TaskItem => {
+        | NodeKind::ListItem => {
             out.push_str(&format!(
                 "<!-- unsupported-block: {} -->\n",
                 node.kind.to_json_type()
             ));
         }
     }
+}
+
+fn write_list_item_children_html(out: &mut String, item: &BlockNode, ctx: &mut HtmlExportCtx<'_>) {
+    for ic in &item.children {
+        match ic {
+            Child::Block(b) if b.kind.holds_inline_content() => html_inline(out, b),
+            Child::Block(b) => walk_node_to_html(out, b, ctx),
+            Child::Text(t) => out.push_str(&html_escape_text(&t.text.to_string())),
+            Child::HsLink(l) => write_hs_link_html(out, l),
+            Child::Transclusion(t) => {
+                out.push_str(&html_escape_text(&format!("[[{}]]", t.ref_value)))
+            }
+        }
+    }
+}
+
+fn write_note_embed_html(out: &mut String, node: &BlockNode) {
+    let Some(embed) = NoteEmbed::from_block(node) else {
+        out.push_str("<p>");
+        out.push_str(INVALID_NOTE_EMBED);
+        out.push_str("</p>\n");
+        return;
+    };
+    out.push_str("<div data-hs-node=\"hsEmbed\" data-hs-ref-kind=\"note\"");
+    let attrs = [
+        ("data-hs-ref-value", Some(embed.note)),
+        ("data-hs-target-kind", Some(embed.target_kind.as_str())),
+        ("data-hs-target-block-id", Some(embed.target_block_id)),
+        ("data-hs-label", Some(embed.label)),
+        ("data-hs-resolved", Some(if embed.resolved { "true" } else { "false" })),
+        ("data-hs-block-id", embed.occurrence_id),
+    ];
+    for (name, value) in attrs {
+        if let Some(value) = value {
+            out.push(' ');
+            out.push_str(name);
+            out.push_str("=\"");
+            out.push_str(&html_escape_attr(value));
+            out.push('"');
+        }
+    }
+    out.push('>');
+    out.push_str(&html_escape_text(&embed.text()));
+    out.push_str("</div>\n");
 }
 
 /// Write an inline-content block's children as inline HTML (marked text runs -> `<strong>` /
@@ -998,6 +1230,159 @@ mod tests {
         );
         assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
         assert!(!html.contains("<script>"), "raw <script> must never appear");
+    }
+
+    fn note_embed() -> BlockNode {
+        let mut node = BlockNode::new(NodeKind::HsEmbed);
+        node.attrs.extend([
+            ("refKind".into(), json!("note")),
+            ("refValue".into(), json!("note\"<&'")),
+            ("target_kind".into(), json!("heading")),
+            ("target_block_id".into(), json!("heading\"<&'")),
+            ("block_id".into(), json!("occurrence\"<&'")),
+            ("label".into(), json!("<script>& \"' [x](x) | **\nnext")),
+            ("resolved".into(), json!(true)),
+        ]);
+        node
+    }
+
+    #[test]
+    fn note_embed_exports_escaped_typed_html_and_lossy_text() {
+        let doc = BlockNode::doc(vec![note_embed()]);
+        let assets = AssetByteSource::new();
+        for mode in [
+            HtmlMediaMode::SelfContained { assets: &assets },
+            HtmlMediaMode::ReferenceLinked,
+        ] {
+            let html = export_html(&doc, mode, "ws", "https://example.invalid", "Test");
+            assert!(html.contains(concat!(
+                "<div data-hs-node=\"hsEmbed\" data-hs-ref-kind=\"note\"",
+                " data-hs-ref-value=\"note&quot;&lt;&amp;&#39;\"",
+                " data-hs-target-kind=\"heading\"",
+                " data-hs-target-block-id=\"heading&quot;&lt;&amp;&#39;\"",
+                " data-hs-label=\"&lt;script&gt;&amp; &quot;&#39; [x](x) | **\nnext\"",
+                " data-hs-resolved=\"true\"",
+                " data-hs-block-id=\"occurrence&quot;&lt;&amp;&#39;\"",
+                ">Note embed: &lt;script&gt;&amp; \"' [x](x) | **\nnext</div>",
+            )));
+            assert!(!html.contains("<script>"));
+            assert!(!html.contains("href="));
+        }
+        assert_eq!(
+            export_markdown(&doc),
+            concat!(
+                "Note embed: &lt;script&gt;&amp; \"' \\[x\\](x) &#124; \\*\\* next",
+                " (note\"&lt;&amp;'#heading\"&lt;&amp;')\n\n",
+            )
+        );
+        assert_eq!(export_plain_text(&doc), "Note embed: <script>& \"' [x](x) | **\nnext");
+    }
+
+    #[test]
+    fn invalid_note_embed_exports_placeholder_without_target_data() {
+        let mut missing = note_embed();
+        missing.attrs.remove("target_block_id");
+        let mut bad_kind = note_embed();
+        bad_kind.attrs.insert("target_kind".into(), json!("<script>"));
+        let mut bad_resolution = note_embed();
+        bad_resolution.attrs.insert("resolved".into(), json!("true"));
+        let mut with_children = note_embed();
+        with_children.children.push(Child::Text(TextLeaf::new("unexpected payload")));
+        for embed in [missing, bad_kind, bad_resolution, with_children] {
+            let doc = BlockNode::doc(vec![embed]);
+            let html = export_html(&doc, HtmlMediaMode::ReferenceLinked, "ws", "", "Test");
+            assert!(html.contains("<p>Unavailable note embed</p>"));
+            assert!(!html.contains("data-hs-node=\"hsEmbed\""));
+            assert!(!html.contains("unexpected payload"));
+            assert_eq!(export_markdown(&doc), "Unavailable note embed\n\n");
+            assert_eq!(export_plain_text(&doc), "Unavailable note embed");
+        }
+    }
+
+    #[test]
+    fn note_embed_preserves_table_and_checked_task_content() {
+        let mut embed = note_embed();
+        embed.attrs.remove("label");
+        embed.attrs.remove("block_id");
+        embed.attrs.insert("refValue".into(), json!("note-7"));
+        embed.attrs.insert("target_block_id".into(), json!("heading-2"));
+        embed.attrs.insert("resolved".into(), json!(false));
+        let mut cell = BlockNode::new(NodeKind::TableHeader);
+        cell.children.push(Child::Block(embed.clone()));
+        let mut row = BlockNode::new(NodeKind::TableRow);
+        row.children.push(Child::Block(cell));
+        let mut table = BlockNode::new(NodeKind::Table);
+        table.children.push(Child::Block(row));
+        let mut task = BlockNode::new(NodeKind::TaskItem);
+        task.attrs.insert("checked".into(), json!(true));
+        task.children = vec![
+            Child::Block(BlockNode::paragraph("Before & one")),
+            Child::Block(embed),
+            Child::Block(BlockNode::paragraph("After & two")),
+        ];
+        let doc = BlockNode::doc(vec![table, task]);
+        let markdown = export_markdown(&doc);
+        assert!(markdown.contains("| Unresolved note embed: note-7#heading-2 |"));
+        assert!(markdown.contains(
+            "- [x] Before & one Unresolved note embed: note-7#heading-2 After & two"
+        ));
+        let html = export_html(&doc, HtmlMediaMode::ReferenceLinked, "ws", "", "Test");
+        assert!(html.contains(concat!(
+            "<ul>\n<li><input type=\"checkbox\" disabled checked> Before &amp; one",
+            "<div data-hs-node=\"hsEmbed\" data-hs-ref-kind=\"note\"",
+            " data-hs-ref-value=\"note-7\" data-hs-target-kind=\"heading\"",
+            " data-hs-target-block-id=\"heading-2\" data-hs-label=\"\"",
+            " data-hs-resolved=\"false\">Unresolved note embed: note-7#heading-2</div>\n",
+            "After &amp; two</li>\n</ul>\n",
+        )));
+        assert_eq!(html.matches("data-hs-resolved=\"false\"").count(), 2);
+        assert!(!html.contains("data-hs-block-id="));
+    }
+
+    #[test]
+    fn standalone_task_markdown_preserves_nested_block_order_and_check_state() {
+        let mut embed = note_embed();
+        embed.attrs.remove("label");
+        embed.attrs.insert("refValue".into(), json!("note-7"));
+        embed.attrs.insert("target_block_id".into(), json!("heading-2"));
+
+        let mut quote = BlockNode::new(NodeKind::Blockquote);
+        quote.children = vec![
+            Child::Block(BlockNode::paragraph("quoted before")),
+            Child::Block(embed),
+            Child::Block(BlockNode::paragraph("quoted after")),
+        ];
+        let mut nested = BlockNode::new(NodeKind::TaskItem);
+        nested.attrs.insert("checked".into(), json!(true));
+        nested.children = vec![
+            Child::Block(BlockNode::paragraph("nested before")),
+            Child::Block(quote),
+            Child::Block(BlockNode::paragraph("nested after")),
+        ];
+        let mut list = BlockNode::new(NodeKind::BulletList);
+        list.children.push(Child::Block(nested));
+        let mut task = BlockNode::new(NodeKind::TaskItem);
+        task.children = vec![
+            Child::Block(BlockNode::paragraph("outer before")),
+            Child::Block(list),
+            Child::Block(BlockNode::paragraph("outer after")),
+        ];
+        let doc = BlockNode::doc(vec![task]);
+        crate::rich_editor::document_model::schema::validate_tree(&doc).unwrap();
+        assert_eq!(
+            export_markdown(&doc),
+            concat!(
+                "- [ ] outer before\n\n",
+                "  - [x] nested before\n\n",
+                "    > quoted before\n",
+                "    > \n",
+                "    > Note embed: note-7#heading-2\n",
+                "    > \n",
+                "    > quoted after\n\n",
+                "    nested after\n\n",
+                "  outer after\n\n",
+            ),
+        );
     }
 
     fn doc_with_image(asset_id: &str) -> BlockNode {

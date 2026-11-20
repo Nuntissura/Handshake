@@ -1,5 +1,8 @@
 //! Handpick presentation over actual mounted Notes editor handles.
 //! Notes retains document identity, transactions, completion, save and draft recovery.
+mod completion_provider;
+mod native_completion;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -32,6 +35,7 @@ struct WritingSearchInput {
 #[derive(Default)]
 pub(super) struct MountedNotes {
     core: Option<handpick::WritingSession>,
+    completion: native_completion::NativeCompletion,
     editors: HashMap<handpick::EditorId, NoteHandle>,
     composition: Option<handpick::CompositionToken>,
     presented: Option<(handpick::EditorId, u64, String)>,
@@ -93,6 +97,7 @@ impl MountedNotes {
         self.released.extend(self.retained_bindings());
         if let Some(core) = &mut self.core { core.revoke(); }
         self.core = None;
+        self.completion = native_completion::NativeCompletion::default();
         self.editors.clear();
         self.composition = None;
         self.presented = None;
@@ -198,11 +203,11 @@ impl MountedNotes {
             .unwrap_or_else(|| handpick::EditorId::new(uuid::Uuid::new_v4().to_string()))
             .map_err(str::to_owned)?;
         if self.core.is_none() {
-            self.core = Some(handpick::WritingSession::new(
+            self.core = Some(handpick::WritingSession::with_limits(
                 handpick::ContextId::new(account.session_id.clone()).map_err(str::to_owned)?,
                 handpick::SessionId::new(uuid::Uuid::new_v4().to_string())
                     .map_err(str::to_owned)?,
-                8,
+                completion_provider::writing_limits(),
             ));
         }
         let core = self.core.as_mut().ok_or("Notes session unavailable")?;
@@ -670,7 +675,7 @@ impl MountedNotes {
     }
 
     pub(super) fn completion_open(&self) -> bool {
-        self.active().is_some_and(|handle| handle.editor.lock().is_ok_and(|state|
+        self.completion.is_open() || self.active().is_some_and(|handle| handle.editor.lock().is_ok_and(|state|
             state.wikilink_autocomplete.is_some() || state.tag_autocomplete.is_some() || state.slash_menu.is_some()))
     }
 
@@ -798,6 +803,7 @@ impl MountedNotes {
             }
         }
         if let Err(error) = self.synchronize() { self.error = Some(error); }
+        self.render_completion(ui);
         self.prune_released();
     }
 }

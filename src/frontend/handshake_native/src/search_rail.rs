@@ -1373,11 +1373,11 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
         notes_store, runtime, observations);
     let input_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
     let native_popup_open = egui::Popup::is_any_open(ctx);
-    let notes_completion_open = host.notes.completion_open();
     let composing = ctx.data_mut(|data| data.get_temp::<RailUiState>(state_id()))
         .is_some_and(|state| state.composing)
         || host.notes.composing()
         || ctx.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
+    host.notes.completion_before_input(ctx, workspace, host.account.as_ref(), base, runtime, composing);
     if host.open && !native_popup_open && !composing && ctx.memory(|memory| memory.has_focus(input_id)) {
         for (key, delta) in [(egui::Key::ArrowDown, 1), (egui::Key::ArrowUp, -1)] {
             if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, key)) { host.picker.move_selection(delta); }
@@ -1452,6 +1452,8 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
             }
             field.inner
         });
+    host.notes.completion_after_input(ctx, workspace, host.account.as_ref(), base, runtime, composing);
+    let notes_completion_open = host.notes.completion_open();
     let popup_anchor = egui::pos2(header.inner.anchor.left(), header.response.rect.bottom());
     let mut frame = header.inner;
     frame.composing |= composing;

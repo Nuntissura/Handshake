@@ -19,6 +19,7 @@
 //! `split_layout`, `theme/*`, `accessibility/*`, `backend_client`) rather than
 //! re-creating shell infrastructure.
 
+pub(crate) mod block_identity;
 pub mod daily_notes;
 pub use handshake_rich_document_model as document_model;
 pub mod document_owner;
@@ -567,3 +568,5 @@ pub mod interop_adapter {
         UndoAction::sync(description, undo_fn, redo_fn)
     }
 }
+
+pub(crate) mod hs_embeds;

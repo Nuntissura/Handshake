@@ -413,39 +413,84 @@ fn rich_pending_events_drain_while_document_is_loading() {
 }
 
 #[test]
+#[ignore = "requires a separately admitted attach-only Core and an already-issued Rust TagHub workspace"]
 fn mounted_tag_event_resolves_canonical_name_to_real_hub_id() {
-    use handshake_native::graph::tags_panel::TagEntry;
+    use handshake_native::rich_editor::document_model::HsLinkNode;
     use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
 
-    let (app, _rt) = editor_shell();
-    app.mounted_tags_panel_for_test()
-        .lock()
-        .unwrap()
-        .set_tags(vec![TagEntry::new("tag-hub-rust", "Rust", Some(2))]);
+    let workspace_id = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID")
+        .expect("bind the already-issued workspace");
+    assert!(!workspace_id.trim().is_empty());
+    let base = std::env::var("HSK_TEST_BASE").expect("bind an attach-only private Core");
+    assert!(
+        !base.trim().is_empty() && base != backend_proof_support::DEFAULT_BASE,
+        "the fixture can start its own Core at the default origin"
+    );
+    assert!(
+        std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_none(),
+        "the fixture must not be forced into owned mode"
+    );
+    assert!(
+        handshake_native::event_emitter::flight_recorder_session_token().is_ok(),
+        "the admitted native channel binding must already exist"
+    );
+    let mut backend = backend_proof_support::require_reachable_backend();
+    assert_eq!(backend.base, base);
+    assert!(backend.workspace_id.is_empty(), "the fixture must not own a workspace");
+
+    let resolved = backend.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/tags/resolve-name?canonical_name=rust"
+    ));
+    assert_eq!(resolved["status"], "resolved");
+    let hub_id = resolved["block_id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .expect("the authorized resolver returned an exact hub ID");
+    let detail = backend.get_json(&format!("/workspaces/{workspace_id}/loom/tags/{hub_id}"));
+    assert_eq!(detail["block"]["block_id"], hub_id);
+    let title = detail["block"]["title"].as_str().expect("the reserved hub has a title");
+
+    let (mut app, runtime) = editor_shell();
+    backend.bind_app_account(&mut app);
+    app.bind_active_project_for_integration_test(&workspace_id);
+    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
+    app.set_tags_backend_base_url_for_test(&backend.base);
     let rich_state = app.mounted_rich_state();
     let tags_hub = app.mounted_tags_hub_for_test();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
     rich_state
         .lock()
         .unwrap()
         .pending_events
         .push(EditorEvent::TagActivated {
-            canonical: "rust".to_owned(),
-            display: "#Rust".to_owned(),
+            reference: HsLinkNode::tag_normalized_name("rust", "#Rust"),
         });
-    harness.run_steps(4);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        harness.run_steps(1);
+        if tags_hub.lock().unwrap().as_ref().is_some_and(|hub| {
+            hub.workspace_id == workspace_id
+                && hub.block_id == hub_id
+                && !hub.loading
+                && hub.error.is_none()
+                && hub.title == title
+        }) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the authorized name resolution must open and load the exact hub {hub_id}; status: {:?}",
+            harness.state().quick_switcher_nav_status()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
     assert!(rich_state.lock().unwrap().pending_events.is_empty());
-    assert_eq!(
-        tags_hub
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map(|hub| hub.block_id.as_str()),
-        Some("tag-hub-rust"),
-        "mounted TagActivated resolves canonical text through the tag list before opening a hub"
-    );
+    drop(harness);
+    drop(runtime);
+    backend.assert_cleanup();
 }
 
 // ── WP-KERNEL-012 W3 / MT-070+MT-057: the code pane's 'Create note from link' HOST drain ───────────────
@@ -3814,8 +3859,10 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         );
         state.pending_events.push(
             handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::TagActivated {
-                canonical: "mt079-argus-tag".into(),
-                display: "#mt079-argus-tag".into(),
+                reference: handshake_native::rich_editor::document_model::HsLinkNode::tag_normalized_name(
+                    "mt079-argus-tag",
+                    "#mt079-argus-tag",
+                ),
             },
         );
         state.pending_events.push(
@@ -3844,7 +3891,7 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         .any(|bar| bar.tabs.iter().any(|tab| tab.pane_type.label() == "Tags"));
     assert!(
         tag_pane_open,
-        "AC-079-5: the drained TagActivated event routed to the mounted Tags hub surface"
+        "AC-079-5: the drained TagActivated event routed to the mounted Tags pane"
     );
 
     // ── ACTION 8 — FOCUS CODE: bring the mounted code pane back as the active work surface ─────────
@@ -4630,6 +4677,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
 /// and the exactly-once guarantee are all proven against authoritative live product state.
 #[test]
 fn mt079_rich_pending_events_canonical_argus() {
+    use handshake_native::rich_editor::document_model::HsLinkNode;
     use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
     use handshake_native::tab_bar::tab_author_id;
 
@@ -4776,8 +4824,7 @@ fn mt079_rich_pending_events_canonical_argus() {
         rows.push(mt079_action_row(round.action, &round.steer_target, &argus));
     }
 
-    // ── TAG routing, bound separately: a tag is NOT a Loom block id, so the host resolves the
-    // canonical name through the mounted Tags hub rather than opening a block by that text.
+    // The tag event drains into the Tags pane. Exact hub resolution has its own live case.
     let tag_target = tab_author_id("pane-b", 0);
     let tag_observation = argus.click_and_reinspect(&mut harness, &tag_target);
     harness.run_steps(2);
@@ -4786,15 +4833,14 @@ fn mt079_rich_pending_events_canonical_argus() {
         let mut state = tag_state.lock().expect("mounted rich state");
         state.pending_events.clear();
         state.pending_events.push(EditorEvent::TagActivated {
-            canonical: "mt079-argus-tag".into(),
-            display: "#mt079-argus-tag".into(),
+            reference: HsLinkNode::tag_normalized_name("mt079-argus-tag", "#mt079-argus-tag"),
         });
     }
     harness.run_steps(8);
     let detached_probe = detached_tabs_before.clone();
     argus.assert_latest_terminal_predicate_with_app_evidence(
         &mut harness,
-        "mt079.rich-events.tag-activated-drains-once-and-opens-the-tag-hub",
+        "mt079.rich-events.tag-activated-drains-once-and-opens-the-tags-pane",
         serde_json::json!({
             "action": "tag-activated",
             "steer_target": tag_target.clone(),
@@ -4809,7 +4855,7 @@ fn mt079_rich_pending_events_canonical_argus() {
                 .lock()
                 .map(|state| state.pending_events.is_empty())
                 .unwrap_or(false);
-            // The Tags hub surface is mounted EXACTLY once (no duplicate activation) ...
+            // The Tags pane is mounted EXACTLY once (no duplicate activation) ...
             let tag_panes: usize = app
                 .tab_bar_states()
                 .values()

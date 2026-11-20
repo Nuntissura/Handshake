@@ -3,6 +3,8 @@
 //! a central work-surface placeholder. Render logic lives in `ui()` (no eframe::Frame) so it is
 //! driveable headlessly by egui_kittest.
 
+mod note_reference_navigation;
+
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::io::Write as _;
 use std::sync::{Arc, Mutex};
@@ -43,7 +45,7 @@ use crate::project_tabs::{
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::rich_editor::renderer::rich_editor_widget::RichEditorState;
 use crate::split_layout::{
-    DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights, TabCloseRequest,
+    SplitLayoutWidget, SplitWeights, TabCloseRequest,
 };
 use crate::stage_pane::{StageContent, StagePane};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
@@ -6025,6 +6027,7 @@ pub struct HandshakeApp {
     rich_doc_workspace_id: String,
     /// Independent load/save-version/failure state per concrete pane/document view.
     rich_doc_loads: HashMap<RichDocumentViewKey, RichDocumentLoadState>,
+    pending_note_references: HashMap<RichDocumentViewKey, note_reference_navigation::PendingReference>,
     /// FIFO delivery queue for runtime file reads initiated by cross-file code navigation.
     code_document_load_cell: Arc<Mutex<VecDeque<CodeDocumentLoadResult>>>,
     /// Monotonic generation invalidating older file reads when a newer navigation starts.
@@ -6110,10 +6113,6 @@ pub struct HandshakeApp {
     split_weights: SplitWeights,
     /// One arrangement/controller owner shared by the root and actual native pane viewports.
     kumihimo_host: Option<Arc<Mutex<crate::kumihimo::NativeHost>>>,
-    /// Per-frame pointer-drag state for the dividers (MT-006). Deliberately separate from
-    /// `split_weights` so transient drag flags are never serialized into a layout snapshot
-    /// (red-team RISK-5).
-    split_drag: SplitDragState,
     /// The pane the operator last clicked. `None` until a pane is activated; later MTs use it to
     /// highlight the focused pane / route operator actions.
     active_pane: Option<PaneId>,
@@ -7199,9 +7198,11 @@ struct SecondaryMountHandles {
     tags_panel: Arc<Mutex<crate::graph::tags_panel::LoomTagsPanel>>,
     tags_hub: Arc<Mutex<Option<crate::graph::tags_panel::LoomTagHubPanel>>>,
     tags_events: Arc<Mutex<Vec<crate::editor_pane_factories::TagsPaneEvent>>>,
-    /// Canonical inline-tag name waiting for the authoritative tag-hub list to resolve it to a block
-    /// id. A tag chip never opens the canonical text as if it were a Loom block id.
-    pending_inline_tag_open: Mutex<Option<String>>,
+    /// Exact stored tag reference awaiting its authorized identity lookup.
+    pending_inline_tag_open: Mutex<Option<crate::rich_editor::document_model::HsLinkNode>>,
+    tag_name_cell: crate::backend_client::TagNameResolutionCell,
+    tag_name_seq: std::sync::atomic::AtomicU64,
+    tag_name_in_flight: std::sync::atomic::AtomicBool,
     tags_fetched: std::sync::atomic::AtomicBool,
     /// Monotonic workspace binding generation. Incremented on every workspace transition even while
     /// the Tags pane is hidden, so an A -> B -> A completion cannot be mistaken for current A work.
@@ -7340,6 +7341,16 @@ struct SecondaryMountHandles {
     /// pane (canvas / graph / block collections).
     _knowledge_registry:
         Arc<Mutex<crate::accessibility::knowledge_action_registry::KnowledgeActionRegistry>>,
+}
+
+impl SecondaryMountHandles {
+    fn retire_inline_tag_resolution(&self) {
+        next_async_sequence(&self.tag_name_seq);
+        self.tag_name_in_flight.store(false, std::sync::atomic::Ordering::Relaxed);
+        if let Ok(mut pending) = self.pending_inline_tag_open.lock() {
+            *pending = None;
+        }
+    }
 }
 
 fn next_async_sequence(counter: &std::sync::atomic::AtomicU64) -> u64 {
@@ -7868,6 +7879,9 @@ fn install_secondary_mounts(
         tags_hub,
         tags_events,
         pending_inline_tag_open: Mutex::new(None),
+        tag_name_cell: Arc::new(Mutex::new(VecDeque::new())),
+        tag_name_seq: std::sync::atomic::AtomicU64::new(0),
+        tag_name_in_flight: std::sync::atomic::AtomicBool::new(false),
         tags_fetched: std::sync::atomic::AtomicBool::new(false),
         tags_workspace_epoch: std::sync::atomic::AtomicU64::new(0),
         tags_backend_base_url: Arc::new(Mutex::new(None)),
@@ -8434,6 +8448,7 @@ impl HandshakeApp {
             rich_doc_load_generation: 0,
             rich_doc_workspace_id: String::new(),
             rich_doc_loads: HashMap::new(),
+            pending_note_references: HashMap::new(),
             code_document_load_cell: Arc::new(Mutex::new(VecDeque::new())),
             code_document_load_generation: 0,
             code_document_context_epoch: 0,
@@ -8462,7 +8477,6 @@ impl HandshakeApp {
             export_save_sink: None,
             kumihimo_host: None,
             split_weights: SplitWeights::default(),
-            split_drag: SplitDragState::default(),
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
@@ -13481,6 +13495,7 @@ impl HandshakeApp {
             rich_doc_load_generation: 0,
             rich_doc_workspace_id: String::new(),
             rich_doc_loads: HashMap::new(),
+            pending_note_references: HashMap::new(),
             code_document_load_cell: Arc::new(Mutex::new(VecDeque::new())),
             code_document_load_generation: 0,
             code_document_context_epoch: 0,
@@ -13509,7 +13524,6 @@ impl HandshakeApp {
             export_save_sink: None,
             kumihimo_host: None,
             split_weights: SplitWeights::default(),
-            split_drag: SplitDragState::default(),
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
@@ -16099,6 +16113,7 @@ impl HandshakeApp {
         self.rich_doc_workspace_id = self.active_project_id.clone();
         self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
         self.rich_doc_loads.clear();
+        self.pending_note_references.clear();
         self.rich_code_block_bindings.clear();
         self.pending_rich_code_block_saves.clear();
         self.rich_doc_load_cell
@@ -16733,6 +16748,7 @@ impl HandshakeApp {
     /// Invalidate one exact split-pane Notes view without disturbing another ready/dirty view of the
     /// same document. Ordinary open/reopen and Retry always use this path.
     fn invalidate_rich_document_view_load(&mut self, pane_id: &str, document_id: &str) {
+        self.pending_note_references.remove(&(pane_id.to_owned(), document_id.to_owned()));
         self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
         self.rich_doc_loads
             .remove(&(pane_id.to_owned(), document_id.to_owned()));
@@ -17090,7 +17106,10 @@ impl HandshakeApp {
         let document_id = token.document_id().to_owned();
         let view_key = (token.pane_id().to_owned(), document_id.clone());
         let loads = &mut self.rich_doc_loads;
+        let pending = &mut self.pending_note_references;
+        let status = &mut self.quick_switcher_nav_status;
         self.editor_mounts.rich_documents.try_admit_load_failure(token, |_state, _gate| {
+            if pending.remove(&view_key).is_some() { *status = Some(message.clone()); }
             let load = loads.entry(view_key).or_default();
             load.workspace_id = workspace_id;
             load.loading_generation = None;
@@ -17167,6 +17186,8 @@ impl HandshakeApp {
                 };
             }
         };
+        let reference_target = self.pending_note_references.get(&(pane_id.to_owned(), document_id.clone()))
+            .map(|pending| pending.validate_loaded(&doc, &parsed));
         if parsed.children.is_empty() {
             parsed.children.push(crate::rich_editor::document_model::node::Child::Block(
                 crate::rich_editor::document_model::node::BlockNode::paragraph(""),
@@ -17274,11 +17295,12 @@ impl HandshakeApp {
             self.outgoing_links_index_watermark = None;
         }
         self.editor_mounts.rich_documents.mark_view_ready(&document_id, pane_id);
-        let load = self.rich_doc_loads.entry((pane_id.to_owned(), document_id)).or_default();
+        let load = self.rich_doc_loads.entry((pane_id.to_owned(), document_id.clone())).or_default();
         load.workspace_id = self.active_project_id.clone();
         load.loaded_version = Some(doc_version);
         load.loading_generation = None;
         load.failure = None;
+        self.finish_note_reference(pane_id, &document_id, reference_target);
         Ok(true)
     }
 
@@ -19206,6 +19228,18 @@ impl HandshakeApp {
         }
     }
 
+    pub fn tag_name_request_sequence_for_test(&self) -> u64 {
+        self.editor_mounts.secondary.tag_name_seq.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn deliver_tag_name_resolution_for_test(
+        &self,
+        delivery: crate::backend_client::TagNameResolutionDelivery,
+    ) {
+        self.editor_mounts.secondary.tag_name_cell.lock().expect("tag-name deliveries")
+            .push_back(delivery);
+    }
+
     pub fn tag_hub_request_sequence_for_test(&self) -> u64 {
         self.editor_mounts
             .secondary
@@ -20622,6 +20656,7 @@ impl HandshakeApp {
         }
         self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
         self.rich_doc_loads.clear();
+        self.pending_note_references.clear();
         self.left_rail
             .project_tree
             .bind_authenticated_context(self.local_account.context.clone());
@@ -28143,6 +28178,18 @@ impl HandshakeApp {
                     }
                     ctx.request_repaint();
                 }
+                EditorEvent::NoteEmbedActivated { embed, context } => {
+                    let result = self.open_note_embed(origin_rich_view, embed, context);
+                    use crate::diagnostics::gui_events::{record_gui_observation, GuiDiagnosticOperation, GuiDiagnosticPhase};
+                    let _ = record_gui_observation(GuiDiagnosticOperation::NoteEmbedAction,
+                        if result.is_ok() { GuiDiagnosticPhase::Pending } else { GuiDiagnosticPhase::Rejected });
+                    self.quick_switcher_nav_status = result.err();
+                    ctx.request_repaint();
+                }
+                EditorEvent::NoteReferenceActivated { reference } => {
+                    self.quick_switcher_nav_status = self.open_note_reference(origin_rich_view, reference).err();
+                    ctx.request_repaint();
+                }
                 EditorEvent::WikilinkActivated {
                     ref_kind,
                     ref_value,
@@ -28277,14 +28324,13 @@ impl HandshakeApp {
                     self.surface_nav_outcome(&outcome);
                     ctx.request_repaint();
                 }
-                EditorEvent::TagActivated { canonical, .. } => {
-                    // Resolve the canonical name through the authoritative tag-hub list before opening:
-                    // canonical text is NOT a Loom block id. Opening the Tags pane activates its normal
-                    // list fetch; drive_tags_pane consumes the pending name once it has the block id.
+                EditorEvent::TagActivated { reference } => {
+                    self.editor_mounts.secondary.retire_inline_tag_resolution();
+                    self.quick_switcher_nav_status = None;
                     if let Ok(mut pending) =
                         self.editor_mounts.secondary.pending_inline_tag_open.lock()
                     {
-                        *pending = Some(canonical);
+                        *pending = Some(reference);
                     }
                     let tags_pane = crate::editor_pane_factories::placeholder_pane_type(
                         crate::editor_pane_factories::TAGS_PANE_LABEL,
@@ -29432,8 +29478,9 @@ impl HandshakeApp {
             if let Ok(mut events) = sec.tags_events.lock() {
                 events.clear();
             }
-            if let Ok(mut pending) = sec.pending_inline_tag_open.lock() {
-                *pending = None;
+            sec.retire_inline_tag_resolution();
+            if let Ok(mut cell) = sec.tag_name_cell.lock() {
+                cell.clear();
             }
             if let Ok(mut latest) = sec.tag_hub_latest.lock() {
                 latest.clear();
@@ -29538,56 +29585,113 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
-        // A rich-editor tag chip carries a canonical tag name, while hub navigation requires the
-        // backend block id. Resolve only after the current workspace's authoritative list settles.
-        let pending_tag = sec
-            .pending_inline_tag_open
-            .lock()
-            .ok()
-            .and_then(|pending| pending.clone());
-        if let Some(canonical) = pending_tag {
-            let normalized = canonical.trim().trim_start_matches('#').to_lowercase();
-            let resolved = sec.tags_panel.lock().ok().and_then(|panel| {
-                panel
-                    .tags
-                    .iter()
-                    .find(|tag| {
-                        tag.title
-                            .trim()
-                            .trim_start_matches('#')
-                            .eq_ignore_ascii_case(&normalized)
-                    })
-                    .map(|tag| tag.block_id.clone())
+        let explicit_tag_navigation = sec.tags_events.lock().map(|events| events.iter().any(|event| {
+            matches!(event,
+                TagsPaneEvent::Panel(TagsPanelEvent::OpenTag { .. } | TagsPanelEvent::FilterTag { .. })
+                    | TagsPaneEvent::BackToList)
+        })).unwrap_or(false);
+        if explicit_tag_navigation {
+            sec.retire_inline_tag_resolution();
+            self.quick_switcher_nav_status = None;
+        }
+        let name_deliveries: Vec<_> = sec.tag_name_cell.lock()
+            .map(|mut deliveries| deliveries.drain(..).collect()).unwrap_or_default();
+        for delivery in name_deliveries {
+            let same_account = match (&delivery.account, &tag_account) {
+                (Some(captured), Some(current)) => Arc::ptr_eq(captured, current)
+                    && captured.is_active(),
+                _ => false,
+            };
+            let same_name = sec.pending_inline_tag_open.lock().ok().is_some_and(|pending| {
+                pending.as_ref().is_some_and(|reference| matches!(reference.tag_reference(),
+                    Some(crate::rich_editor::document_model::TagReference::NormalizedName { canonical_name, .. })
+                        if canonical_name == delivery.canonical_name))
             });
-            if let Some(block_id) = resolved {
-                if let Ok(mut events) = sec.tags_events.lock() {
-                    events.push(crate::editor_pane_factories::TagsPaneEvent::Panel(
-                        crate::graph::tags_panel::TagsPanelEvent::OpenTag {
-                            block_id,
-                            action_generation: None,
-                        },
-                    ));
-                }
-                if let Ok(mut pending) = sec.pending_inline_tag_open.lock() {
-                    *pending = None;
-                }
-            } else {
-                let settled_without_match = sec
-                    .tags_panel
-                    .lock()
-                    .map(|panel| {
-                        sec.tags_fetched.load(std::sync::atomic::Ordering::Relaxed)
-                            && !panel.loading
-                            && panel.error.is_none()
-                    })
-                    .unwrap_or(false);
-                if settled_without_match {
-                    self.quick_switcher_nav_status =
-                        Some(format!("Tag hub '#{normalized}' was not found"));
-                    if let Ok(mut pending) = sec.pending_inline_tag_open.lock() {
-                        *pending = None;
+            if delivery.workspace_id != workspace || delivery.workspace_epoch != workspace_epoch
+                || delivery.sequence != sec.tag_name_seq.load(std::sync::atomic::Ordering::Relaxed)
+                || !same_account || !same_name
+            {
+                continue;
+            }
+            sec.retire_inline_tag_resolution();
+            use crate::backend_client::TagNameResolution;
+            match delivery.result {
+                Ok(TagNameResolution::Resolved { block_id }) => {
+                    self.quick_switcher_nav_status = None;
+                    if let Ok(mut events) = sec.tags_events.lock() {
+                        events.push(TagsPaneEvent::Panel(TagsPanelEvent::OpenTag {
+                            block_id, action_generation: None,
+                        }));
                     }
                 }
+                Ok(TagNameResolution::Missing) => {
+                    self.quick_switcher_nav_status = Some(format!(
+                        "Tag '{}' was not found; the reference is unchanged", delivery.canonical_name));
+                }
+                Ok(TagNameResolution::Ambiguous { .. }) => {
+                    self.quick_switcher_nav_status = Some(format!(
+                        "Tag '{}' matches multiple hubs; choose a hub explicitly. The reference is unchanged",
+                        delivery.canonical_name));
+                }
+                Err(error) => {
+                    self.quick_switcher_nav_status = Some(format!(
+                        "Tag resolution failed: {error}. The reference is unchanged"));
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        let pending_tag = sec.pending_inline_tag_open.lock().ok().and_then(|pending| pending.clone());
+        if let Some(reference) = pending_tag {
+            use crate::rich_editor::document_model::TagReference;
+            if let Some(TagReference::NormalizedName { canonical_name, raw_label }) = reference.tag_reference() {
+                if !tag_account.as_ref().is_some_and(|account| account.is_active()) {
+                    self.quick_switcher_nav_status = Some("Account login required; the tag reference is unchanged".into());
+                    sec.retire_inline_tag_resolution();
+                } else if let Some(runtime) = self.runtime_handle.clone() {
+                    if !sec.tag_name_in_flight.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                        let sequence = sec.tag_name_seq.load(std::sync::atomic::Ordering::Relaxed);
+                        tag_client(runtime).resolve_tag_name_with_identity(
+                            workspace, workspace_epoch, canonical_name, sequence, Arc::clone(&sec.tag_name_cell));
+                        self.quick_switcher_nav_status = Some(format!("Resolving tag '{raw_label}'..."));
+                    }
+                    ctx.request_repaint_after(std::time::Duration::from_millis(50));
+                } else {
+                    self.quick_switcher_nav_status = Some("Runtime unavailable; the tag reference is unchanged".into());
+                    sec.retire_inline_tag_resolution();
+                }
+            } else {
+                let resolved = match reference.tag_reference() {
+                    Some(TagReference::HubId { id, .. }) => sec.tags_panel.lock().ok()
+                        .and_then(|panel| panel.tags.iter().find(|tag| tag.block_id == id)
+                            .map(|tag| tag.block_id.clone())),
+                    _ => None,
+                };
+                let settled = sec.tags_panel.lock().map(|panel| {
+                    sec.tags_fetched.load(std::sync::atomic::Ordering::Relaxed)
+                        && !panel.loading && panel.error.is_none()
+                }).unwrap_or(false);
+                let terminal = if let Some(block_id) = resolved {
+                    sec.tags_events.lock().map(|mut events| {
+                        events.push(TagsPaneEvent::Panel(TagsPanelEvent::OpenTag {
+                            block_id, action_generation: None,
+                        }));
+                    }).is_ok()
+                } else {
+                    let message = match reference.tag_reference() {
+                        Some(TagReference::HubId { id, .. }) if settled =>
+                            Some(format!("Tag hub '{id}' was not found")),
+                        Some(TagReference::HubId { .. }) => None,
+                        Some(TagReference::Unclassified { .. }) =>
+                            Some("This tag reference needs explicit resolution; the stored value and label are unchanged".into()),
+                        _ => Some("This reference is not a tag".into()),
+                    };
+                    if let Some(message) = message {
+                        self.quick_switcher_nav_status = Some(message);
+                        true
+                    } else { false }
+                };
+                if terminal { sec.retire_inline_tag_resolution(); }
             }
         }
         // Count-only deliveries update list badges and nothing else. They have separate sequence
@@ -29797,6 +29901,12 @@ impl HandshakeApp {
             .map(|mut q| std::mem::take(&mut *q))
             .unwrap_or_default();
         for event in events {
+            if matches!(&event,
+                TagsPaneEvent::Panel(TagsPanelEvent::OpenTag { .. } | TagsPanelEvent::FilterTag { .. })
+                    | TagsPaneEvent::BackToList)
+            {
+                self.editor_mounts.secondary.retire_inline_tag_resolution();
+            }
             match event {
                 TagsPaneEvent::Panel(TagsPanelEvent::OpenTag {
                     block_id,
@@ -39150,7 +39260,6 @@ impl HandshakeApp {
         let registry = &self.pane_registry;
         let factories = &self.factories;
         let split_weights = &mut self.split_weights;
-        let split_drag = &mut self.split_drag;
         let active_pane = &mut self.active_pane;
         let tab_bar_states = &mut self.tab_bar_states;
         // Catch-all factory for any PaneType without a dedicated entry: the empty-label Placeholder
@@ -39173,17 +39282,7 @@ impl HandshakeApp {
         let mut tab_close_requests: Vec<TabCloseRequest> = Vec::new();
         let active_module = self.module_switcher.active();
 
-        // Divider colors come from the active theme's MT-003 tokens (idle/hover/grab), so the
-        // dividers are themed and flip dark<->light with the rest of the shell (MT-006 contract).
         let palette = self.current_theme.palette();
-        let divider_colors = DividerColors {
-            idle: palette.divider_idle,
-            hover: palette.divider_hover,
-            grab: palette.divider_grab,
-        };
-        // Tab-bar colors come from the same MT-003 theme tokens so the tab strip is themed and flips
-        // dark<->light with the rest of the shell (mirrors the divider token wiring above): the active
-        // tab uses the accent-soft fill, inactive tabs use the surface fill, glyphs/dots use accent.
         let tab_colors = TabBarColors {
             active_bg: palette.accent_soft,
             inactive_bg: palette.surface,
@@ -39231,10 +39330,8 @@ impl HandshakeApp {
             SplitLayoutWidget::show(
                 ui,
                 split_weights,
-                split_drag,
                 active_pane,
                 registry,
-                divider_colors,
                 tab_bar_states,
                 tab_colors,
                 active_module,
@@ -42550,6 +42647,11 @@ impl eframe::App for HandshakeApp {
     /// `raw_input_hook` is eframe's supported pre-frame seam; pushing `AccessKitActionRequest` / `Text`
     /// events here is exactly the path the in-process steering test proves.
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        if raw_input.viewport_id == egui::ViewportId::ROOT {
+            let windows = self.mcp_window_registry();
+            windows.install_output_plugin(ctx);
+            if windows.divider_witness.is_active() { ctx.enable_accesskit(); }
+        }
         let operator_mutation_in_frame = raw_input_contains_operator_mutation(raw_input);
         let fresh_snapshot = match self.mcp_snapshot.lock() {
             Ok(snapshot) => snapshot.clone(),
@@ -42631,6 +42733,11 @@ impl eframe::App for HandshakeApp {
             }
         }
         let windows = self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).clone();
+        if ctx.viewport_id() == egui::ViewportId::ROOT {
+            use crate::mcp::screenshot::divider_frame::WitnessPass;
+            let pass = windows.divider_witness.begin_pass(ctx, _frame.native_capture_handle());
+            WitnessPass::start(ctx, pass);
+        }
         crate::mcp::screenshot::update_live_frame_capture(
             &windows, crate::mcp::MAIN_WINDOW_ID, ctx,
         );
