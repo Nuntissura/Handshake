@@ -1,4 +1,5 @@
-//! Strict physical-device selection without a GPU: hardware Vulkan or a typed refusal, never a fallback.
+//! Strict physical-device selection without a GPU: hardware Vulkan or a typed refusal, never a fallback. And what the
+//! unit says of itself: its refusals, its closure and where a heap's memory is.
 
 mod support;
 
@@ -6,7 +7,10 @@ use handshake_vulkan_renderer::select::{
     evaluate, meets_baseline, pick, CandidateFacts, Rejection, DRIVER_ID_DOZEN, DRIVER_ID_LLVMPIPE,
     DRIVER_ID_SWIFTSHADER,
 };
-use handshake_vulkan_renderer::{DeviceClass, Unavailable, BASELINE_API_VERSION};
+use handshake_vulkan_renderer::{
+    DeviceClass, MemoryPlacement, Unavailable, BASELINE_API_VERSION, DESCRIPTOR,
+};
+use std::collections::BTreeSet;
 use support::{KEY, OTHER_KEY};
 
 fn gpu(class: DeviceClass) -> CandidateFacts {
@@ -132,4 +136,48 @@ fn a_rebind_takes_its_own_adapter_or_none() {
         pick(&[other, own_broken], Some(KEY)),
         Err(Unavailable::NoSuitableDevice)
     );
+}
+
+#[test]
+fn only_a_discrete_device_has_memory_that_is_known_to_be_its_own() {
+    use DeviceClass::{Cpu, Discrete, Integrated, Other, Virtual};
+    assert_eq!(
+        MemoryPlacement::of(Discrete, true),
+        MemoryPlacement::Dedicated
+    );
+    for class in [Integrated, Virtual, Cpu, Other] {
+        assert_eq!(MemoryPlacement::of(class, true), MemoryPlacement::Unknown);
+    }
+    for class in [Discrete, Integrated, Virtual, Cpu, Other] {
+        assert_eq!(MemoryPlacement::of(class, false), MemoryPlacement::Shared);
+    }
+}
+
+/// The strings of the one `"name":[...]` list of the descriptor.
+fn listed(name: &str) -> BTreeSet<&'static str> {
+    let start = format!("\"{name}\":[");
+    let (_, rest) = DESCRIPTOR.split_once(&start).expect("listed");
+    let (list, _) = rest.split_once(']').expect("ends");
+    list.split(',').map(|item| item.trim_matches('"')).collect()
+}
+
+#[test]
+fn the_descriptor_lists_what_the_code_and_the_lock_have() {
+    let reasons: BTreeSet<_> = Unavailable::ALL.iter().map(|reason| reason.key()).collect();
+    assert_eq!(listed("unavailable"), reasons);
+    let mut numbers: Vec<_> = Unavailable::ALL
+        .iter()
+        .map(|reason| reason.number())
+        .collect();
+    numbers.sort_unstable();
+    assert_eq!(numbers, (1..=14).collect::<Vec<u16>>());
+
+    let locked: BTreeSet<_> = include_str!("../Cargo.lock")
+        .lines()
+        .filter_map(|line| line.strip_prefix("name = \"")?.strip_suffix('"'))
+        .collect();
+    assert_eq!(listed("locked_crates"), locked);
+    for forbidden in ["wgpu", "wgpu-core", "wgpu-hal", "egui", "eframe", "winit"] {
+        assert!(!locked.contains(forbidden), "{forbidden}");
+    }
 }

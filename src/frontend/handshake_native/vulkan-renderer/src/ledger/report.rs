@@ -1,4 +1,5 @@
-//! Read-only views of the ledger: totals, per-module attribution and counters (GUI-DESKTOP-039).
+//! Read-only views of the ledger: totals, per-module attribution and counters (GUI-DESKTOP-039). They are the
+//! owner's: a client handle has none of them (GPU-QUOTA-015).
 
 use super::{ClaimLedger, ClaimState};
 use crate::ids::ModuleId;
@@ -20,11 +21,20 @@ impl ClaimLedger {
             revoked_claims: 0,
             in_flight: 0,
             leases: 0,
+            attached_clients: u64::try_from(state.seats.len()).unwrap_or(u64::MAX),
+            abandoned_claims: 0,
+            leaked_claims: 0,
             device: state.device,
             admission_open: state.admission_open,
         };
         for record in state.live.values() {
-            usage.leases = usage.leases.saturating_add(u64::from(record.leases()));
+            usage.leases = usage.leases.saturating_add(u64::from(record.leases));
+            usage.abandoned_claims = usage
+                .abandoned_claims
+                .saturating_add(u64::from(record.abandoned));
+            usage.leaked_claims = usage
+                .leaked_claims
+                .saturating_add(u64::from(record.leak_reported));
             match record.state {
                 ClaimState::Open => {
                     usage.open_claims = usage.open_claims.saturating_add(1);

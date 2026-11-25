@@ -5,33 +5,44 @@
 //! Opening the device claims no positive quota: with `QuotaPolicy::Unavailable` every admission is denied
 //! (GPU-QUOTA-012).
 //!
+//! Two capabilities, never one handle for both. [`GpuOwner`] is the host's: policy, clients, recovery and shutdown.
+//! [`GpuClient`] is what the host hands to one module client: it carries that client's identity and reaches only its
+//! own claims. A client cannot raise the quota, act for another client, revoke one, rebind the device or close the
+//! owner.
+//!
 //! The owner does nothing on its own: no thread, no timer and no call per frame. A host that draws only on
-//! damage may leave it untouched for as long as it is idle.
+//! damage may leave it untouched for as long as it is idle. What ended meanwhile is noticed at the next call that
+//! asks the device, [`GpuOwner::poll`] being the one that does only that.
+//!
+//! No wait for the device runs with a lock of the owner held that a client's call needs.
 //!
 //! Not in this unit: the kernel issuer that authorizes the renderer-only shell and protected work
 //! (NATIVE-RENDER-BOOT-002/007, GPU-QUOTA-011), the installation-wide persisted quota ledger
 //! (GPU-QUOTA-006..010), windows, surfaces, swapchains and any drawing.
 
+mod client;
+#[cfg(test)]
+mod fault_tests;
+mod lifecycle;
+#[cfg(test)]
+mod pending_tests;
 mod queue;
 
+pub use client::GpuClient;
+pub use lifecycle::MAX_HELD_LOST_DEVICES;
 pub use queue::MAX_WAIT;
 
 use crate::device::{DeviceIdentity, DeviceLease, MemorySnapshot};
 use crate::diag::{OwnerDiagnostics, OwnerEvent, OwnerPhase};
 use crate::ids::{ClientId, ModuleId};
-use crate::ledger::Claim;
-use crate::outcome::{
-    AdmissionDenial, AuthorizeRefusal, ChargeRefusal, DeviceFault, DeviceRebindRefusal,
-    RebindRefusal, SettleRefusal, Unavailable,
-};
+use crate::outcome::{AttachRefusal, DeviceFault, DeviceHealth, DeviceRebindRefusal, Unavailable};
 use crate::owner_core::{OwnerCore, ShutdownReport};
 use crate::process::ProcessClaim;
-use crate::records::{
-    ChargeClass, ClaimRequest, DeviceBinding, LedgerCounters, LedgerUsage, ModuleUsage,
-    QuotaPolicy, ReleaseReceipt, SettleReceipt, Settlement,
-};
-use crate::vulkan::{QueueFault, VulkanGeneration};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use crate::records::{DeviceBinding, LedgerCounters, LedgerUsage, ModuleUsage, QuotaPolicy};
+use crate::vulkan::VulkanGeneration;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
+use std::time::Duration;
 
 /// The bound generation and its number.
 struct Live {
@@ -41,35 +52,55 @@ struct Live {
 
 struct Slot {
     live: Option<Live>,
+    /// Lost devices that clients still hold.
+    set_aside: Vec<Weak<VulkanGeneration>>,
     /// The adapter as its latest generation reported it.
     identity: DeviceIdentity,
     /// Released at close; a device that clients still hold keeps its own share.
     process: Option<Arc<ProcessClaim>>,
 }
 
-/// See the module documentation.
+/// What the owner and the handles it issued share.
 ///
 /// Lock order: `closed`, then `slot`, then the locks inside the ledger and the generation. The client's recording
-/// call and bounded waits run with none of them held.
-pub struct GpuOwner {
-    core: OwnerCore,
+/// call, every wait for the device and the creation of one run with neither `slot` nor a lock inside held. Only the
+/// draining in a close, which is bounded, runs with `closed` held.
+struct OwnerShared {
+    core: Arc<OwnerCore>,
     slot: Mutex<Slot>,
     closed: Mutex<Option<ShutdownReport>>,
+    rebinding: AtomicBool,
+}
+
+impl OwnerShared {
+    /// A poisoned lock is taken over: what it guards stays consistent at every step that can panic.
+    fn lock_slot(&self) -> MutexGuard<'_, Slot> {
+        self.slot.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn lock_closed(&self) -> MutexGuard<'_, Option<ShutdownReport>> {
+        self.closed.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn identity(&self) -> DeviceIdentity {
+        self.lock_slot().identity.clone()
+    }
+}
+
+/// The host's authority over the GPU owner. Not `Clone`: it stays with the host that opened it, and modules get
+/// [`GpuClient`] handles from it.
+///
+/// Dropping it closes the owner.
+pub struct GpuOwner {
+    shared: Arc<OwnerShared>,
 }
 
 const _: fn() = || {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<GpuOwner>();
+    assert_send_sync::<GpuClient>();
     assert_send_sync::<DeviceLease>();
 };
-
-fn fault_of(fault: QueueFault, generation: u64) -> DeviceFault {
-    match fault {
-        QueueFault::Lost => DeviceFault::Lost { generation },
-        QueueFault::OutOfMemory => DeviceFault::OutOfMemory,
-        QueueFault::Driver(raw) => DeviceFault::Driver(raw),
-    }
-}
 
 impl GpuOwner {
     /// Open the process's one GPU owner on a real hardware Vulkan device.
@@ -92,7 +123,7 @@ impl GpuOwner {
             phase: OwnerPhase::Opening,
             generation: 0,
         });
-        let core = OwnerCore::new(policy, diagnostics);
+        let core = Arc::new(OwnerCore::new(policy, diagnostics));
         match VulkanGeneration::open(Arc::clone(&process), None) {
             Ok(generation) => {
                 let identity = generation.identity().clone();
@@ -102,13 +133,17 @@ impl GpuOwner {
                     vulkan: Arc::new(generation),
                 };
                 Ok(Self {
-                    core,
-                    slot: Mutex::new(Slot {
-                        live: Some(live),
-                        identity,
-                        process: Some(process),
+                    shared: Arc::new(OwnerShared {
+                        core,
+                        slot: Mutex::new(Slot {
+                            live: Some(live),
+                            set_aside: Vec::new(),
+                            identity,
+                            process: Some(process),
+                        }),
+                        closed: Mutex::new(None),
+                        rebinding: AtomicBool::new(false),
                     }),
-                    closed: Mutex::new(None),
                 })
             }
             Err(reason) => {
@@ -118,275 +153,100 @@ impl GpuOwner {
         }
     }
 
-    /// A poisoned lock is taken over: what it guards stays consistent at every step that can panic.
-    fn lock_slot(&self) -> MutexGuard<'_, Slot> {
-        self.slot.lock().unwrap_or_else(PoisonError::into_inner)
+    /// Issue the handle of one module client. Its identity is what the host says here, and the handle cannot change
+    /// it. A client that already has a live handle gets no second one.
+    pub fn attach_client(
+        &self,
+        module: ModuleId,
+        client: ClientId,
+    ) -> Result<GpuClient, AttachRefusal> {
+        let ledger = self.shared.core.attach(module, client)?;
+        Ok(GpuClient::new(Arc::clone(&self.shared), ledger))
     }
 
-    fn lock_closed(&self) -> MutexGuard<'_, Option<ShutdownReport>> {
-        self.closed.lock().unwrap_or_else(PoisonError::into_inner)
+    /// Revoke a client (logout, lost grant, detach). Its handle is never admitted again and its claims stop
+    /// submitting; they keep their charge and still settle once. Only [`Self::attach_client`] lets that client in
+    /// again, with a new handle. Other clients are not touched. Returns how many claims were revoked.
+    pub fn revoke_client(&self, module: ModuleId, client: ClientId) -> u64 {
+        self.shared.core.ledger().revoke_client(module, client)
+    }
+
+    /// Replace the quota policy. Existing claims keep their charge, bounds and original revision.
+    pub fn set_policy(&self, policy: QuotaPolicy) {
+        self.shared.core.ledger().set_policy(policy);
     }
 
     /// The adapter this owner runs on, as its latest generation reported it. The adapter stays the same across
     /// generations; its driver version may not.
     pub fn identity(&self) -> DeviceIdentity {
-        self.lock_slot().identity.clone()
+        self.shared.identity()
     }
 
     /// The current device binding: generation number and whether it is lost.
     pub fn device(&self) -> Option<DeviceBinding> {
-        self.core.device()
-    }
-
-    /// Replace the quota policy. Existing claims keep their charge, bounds and original revision.
-    pub fn set_policy(&self, policy: QuotaPolicy) {
-        self.core.set_policy(policy);
-    }
-
-    pub fn admit(&self, request: &ClaimRequest) -> Result<Claim, AdmissionDenial> {
-        self.core.admit(request)
-    }
-
-    pub fn authorize(&self, claim: &Claim) -> Result<(), AuthorizeRefusal> {
-        self.core.authorize(claim)
-    }
-
-    pub fn charge(
-        &self,
-        claim: &Claim,
-        class: ChargeClass,
-        bytes: u64,
-    ) -> Result<(), ChargeRefusal> {
-        self.core.charge(claim, class, bytes)
-    }
-
-    pub fn discharge(
-        &self,
-        claim: &Claim,
-        class: ChargeClass,
-        bytes: u64,
-    ) -> Result<(), ChargeRefusal> {
-        self.core.discharge(claim, class, bytes)
-    }
-
-    pub fn settle(
-        &self,
-        claim: &Claim,
-        settlement: Settlement,
-    ) -> Result<SettleReceipt, SettleRefusal> {
-        self.core.settle(claim, settlement)
-    }
-
-    pub fn release_retained(&self, claim: &Claim) -> Result<ReleaseReceipt, SettleRefusal> {
-        self.core.release_retained(claim)
-    }
-
-    /// Move `claim` to the current generation after a device loss.
-    pub fn rebind_claim(&self, claim: &Claim) -> Result<Claim, RebindRefusal> {
-        self.core.rebind(claim)
-    }
-
-    pub fn revoke_client(&self, module: ModuleId, client: ClientId) -> u64 {
-        self.core.revoke_client(module, client)
+        self.shared.core.ledger().device()
     }
 
     pub fn usage(&self) -> LedgerUsage {
-        self.core.usage()
+        self.shared.core.ledger().usage()
     }
 
     pub fn usage_by_module(&self) -> Vec<ModuleUsage> {
-        self.core.usage_by_module()
+        self.shared.core.ledger().usage_by_module()
     }
 
     pub fn counters(&self) -> LedgerCounters {
-        self.core.counters()
-    }
-
-    /// The device hand-over for an authorized claim. See [`DeviceLease`] for what its holder must keep to.
-    pub fn lease(&self, claim: &Claim) -> Result<DeviceLease, AuthorizeRefusal> {
-        // Locked before the claim is authorized, so the handles belong to the generation it was authorized on.
-        let slot = self.lock_slot();
-        let hold = self.core.hold(claim)?;
-        match slot.live.as_ref() {
-            Some(live) if live.number == claim.generation() => Ok(DeviceLease::new(
-                live.vulkan.handles(live.number),
-                claim.id(),
-                Arc::clone(&live.vulkan),
-                hold,
-            )),
-            _ => Err(AuthorizeRefusal::DeviceUnavailable),
-        }
+        self.shared.core.ledger().counters()
     }
 
     /// The device's own memory view (per-heap size, and budget and usage estimates when the device
     /// offers them).
     pub fn memory_snapshot(&self) -> Result<MemorySnapshot, DeviceFault> {
-        match self.lock_slot().live.as_ref() {
+        match self.shared.lock_slot().live.as_ref() {
             Some(live) => Ok(live.vulkan.memory(live.number)),
             None => Err(DeviceFault::NoDevice),
         }
     }
 
-    /// The device of `live` answered with a fault. Only device loss marks the generation lost; it also ends the
-    /// submissions of that generation once the device confirms that none of them is still in use.
-    fn device_failed(&self, live: &Live, fault: QueueFault) -> DeviceFault {
-        let typed = fault_of(fault, live.number);
-        if fault == QueueFault::Lost {
-            self.core.device_lost(live.number);
-            if live.vulkan.quiesce().is_some() {
-                self.core.resolve_lost(live.number);
-            }
-        } else {
-            self.core.device_fault(live.number, typed);
-        }
-        typed
+    /// Ask the device, without waiting, how far its work got: end what finished, reclaim what was dropped and
+    /// finished, and notice a loss.
+    pub fn poll(&self) -> Result<(), DeviceFault> {
+        self.shared.poll()
     }
 
-    /// [`Self::device_failed`] for generation `number`, when that is still the bound one.
-    fn generation_failed(&self, number: u64, fault: QueueFault) -> DeviceFault {
-        let slot = self.lock_slot();
-        match slot.live.as_ref() {
-            Some(live) if live.number == number => self.device_failed(live, fault),
-            _ => fault_of(fault, number),
-        }
-    }
-
-    /// Wait for the device to go idle and report its health. This is the owner's own observation of
-    /// device loss: a client that sees `VK_ERROR_DEVICE_LOST` asks for a probe, and the owner marks the
-    /// generation lost only from what it observes itself. Loss is reported once per generation through
-    /// the diagnostics port.
-    pub fn probe(&self) -> Result<(), DeviceFault> {
-        let slot = self.lock_slot();
-        let Some(live) = slot.live.as_ref() else {
-            return Err(DeviceFault::NoDevice);
-        };
-        if matches!(self.core.device(), Some(device) if device.lost) {
-            // Known already; this only ends submissions an earlier observation could not.
-            return Err(self.device_failed(live, QueueFault::Lost));
-        }
-        match live.vulkan.wait_idle().and_then(|()| live.vulkan.advance()) {
-            Ok(value) => {
-                self.core.resolve_through(live.number, value);
-                Ok(())
-            }
-            Err(fault) => Err(self.device_failed(live, fault)),
-        }
+    /// [`Self::poll`], after waiting at most `timeout`, and never longer than [`MAX_WAIT`], for the device to go
+    /// idle. Other calls are not blocked by the wait.
+    ///
+    /// This is the owner's own observation of device loss: a client that sees `VK_ERROR_DEVICE_LOST` says so with
+    /// [`GpuClient::poll`], and the owner marks the generation lost only from what it observes itself. Loss is
+    /// reported once per generation through the diagnostics port.
+    pub fn probe(&self, timeout: Duration) -> Result<DeviceHealth, DeviceFault> {
+        self.shared.probe(timeout)
     }
 
     /// Replace a lost generation with a new one on the same adapter and return its number.
     ///
-    /// The lost device is destroyed first, which is the owner's evidence that nothing submitted on it can
-    /// still run. It is not destroyed under a client: while leases are out the rebind is refused. Claims are
-    /// not touched: each keeps its charge and is moved by its holder with [`Self::rebind_claim`]. A different
-    /// adapter is never taken instead; when the adapter is gone the owner stays without a device and this may
-    /// be called again.
+    /// The lost device first has to confirm that its work has ended; it is asked for at most [`MAX_WAIT`], and then
+    /// with the one wait that Vulkan promises to end on a lost device. Then it is destroyed. While clients still hold
+    /// it, it is set aside instead and destroyed with its last holder: recovery does not wait for them, and their
+    /// next call on the lease tells them of the loss. At most [`MAX_HELD_LOST_DEVICES`] devices are set aside.
+    ///
+    /// Claims are not touched: each keeps its charge and is moved by its holder with [`GpuClient::rebind_claim`]. A
+    /// different adapter is never taken instead; when the adapter is gone the owner stays without a device and this
+    /// may be called again.
     pub fn rebind_device(&self) -> Result<u64, DeviceRebindRefusal> {
-        let result = self.replace_device();
-        if let Err(refusal) = &result {
-            self.core.device_rebind_refused(*refusal);
-        }
-        result
+        self.shared.rebind_device()
     }
 
-    fn replace_device(&self) -> Result<u64, DeviceRebindRefusal> {
-        // Held for the whole rebind, so a concurrent `close` cannot finish between the check and the new device.
-        let closed = self.lock_closed();
-        if closed.is_some() {
-            return Err(DeviceRebindRefusal::Closed);
-        }
-        let mut slot = self.lock_slot();
-        if matches!(self.core.device(), Some(device) if !device.lost) {
-            return Err(DeviceRebindRefusal::NotLost);
-        }
-        let Some(process) = slot.process.clone() else {
-            return Err(DeviceRebindRefusal::Closed);
-        };
-        if let Some(Live { number, vulkan }) = slot.live.take() {
-            // Nothing is submitted meanwhile: every submission needs the slot lock.
-            let Some(evidence) = vulkan.quiesce() else {
-                slot.live = Some(Live { number, vulkan });
-                return Err(DeviceRebindRefusal::NotQuiescent);
-            };
-            match Arc::try_unwrap(vulkan) {
-                Ok(generation) => {
-                    self.core.device_rebinding(number);
-                    generation.destroy(evidence);
-                    self.core.generation_retired(number);
-                }
-                Err(vulkan) => {
-                    let holders = Arc::strong_count(&vulkan).saturating_sub(1);
-                    slot.live = Some(Live { number, vulkan });
-                    return Err(DeviceRebindRefusal::DeviceHeld {
-                        holders: u32::try_from(holders).unwrap_or(u32::MAX),
-                    });
-                }
-            }
-        }
-        match VulkanGeneration::open(process, Some(slot.identity.key)) {
-            Ok(generation) => {
-                slot.identity = generation.identity().clone();
-                let number = self.core.device_bound(slot.identity.key);
-                slot.live = Some(Live {
-                    number,
-                    vulkan: Arc::new(generation),
-                });
-                Ok(number)
-            }
-            Err(reason) => {
-                self.core.device_unavailable(reason);
-                Err(DeviceRebindRefusal::Unavailable(reason))
-            }
-        }
-    }
-
-    /// Stop admitting, let the queue drain, destroy the device generation and report what was still held.
-    /// Idempotent: later calls return the first report.
+    /// Stop admitting and attaching, wait at most [`MAX_WAIT`] for the queue to drain, destroy the device generation
+    /// and report what was still held. Idempotent: later calls return the first report.
     ///
     /// Claims that were not settled stay recorded as held; closing never reports them as settled
     /// (GUI-DESKTOP-035). A device that clients still lease is not destroyed under them: the report says so, and
-    /// it is destroyed when the last lease is dropped.
+    /// it is destroyed, and reported, when the last lease is dropped. Nor is a device destroyed that did not confirm
+    /// in time that its work has ended.
     pub fn close(&self) -> ShutdownReport {
-        let mut closed = self.lock_closed();
-        if let Some(report) = *closed {
-            return report;
-        }
-        self.core.begin_shutdown();
-        let mut slot = self.lock_slot();
-        let retained_by = match slot.live.take() {
-            None => None,
-            Some(Live { number, vulkan }) => {
-                let evidence = vulkan.quiesce();
-                if evidence.is_some() {
-                    match vulkan.advance() {
-                        Ok(value) => {
-                            self.core.resolve_through(number, value);
-                        }
-                        Err(QueueFault::Lost) => {
-                            self.core.device_lost(number);
-                            self.core.resolve_lost(number);
-                        }
-                        // Not observed: the submissions end with the device below, or stay in flight.
-                        Err(_) => {}
-                    }
-                }
-                match (Arc::try_unwrap(vulkan), evidence) {
-                    (Ok(generation), Some(evidence)) => {
-                        generation.destroy(evidence);
-                        None
-                    }
-                    // Asks the device once more, and leaves it alive when it still cannot say.
-                    (Ok(generation), None) => (!generation.dispose()).then_some(0),
-                    (Err(vulkan), _) => {
-                        let holders = Arc::strong_count(&vulkan).saturating_sub(1);
-                        Some(u64::try_from(holders).unwrap_or(u64::MAX))
-                    }
-                }
-            }
-        };
-        slot.process = None;
-        let report = self.core.finish_shutdown(retained_by);
-        *closed = Some(report);
-        report
+        self.shared.close()
     }
 }
 

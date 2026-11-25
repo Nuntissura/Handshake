@@ -1,6 +1,8 @@
 //! Typed outcomes. Every refusal is a closed code; none carries driver text or content, and none is ever
 //! answered with a CPU, Direct3D or OpenGL substitute (GUI-DESKTOP-020/023/026, HBR-HOST-003).
 
+use crate::records::WorkObserved;
+
 /// Why no Vulkan generation exists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unavailable {
@@ -35,6 +37,24 @@ pub enum Unavailable {
 }
 
 impl Unavailable {
+    /// Every reason once, `Driver` with a placeholder result.
+    pub const ALL: [Self; 14] = [
+        Self::LoaderMissing,
+        Self::InstanceRefused,
+        Self::ApiBelowBaseline,
+        Self::NoPhysicalDevice,
+        Self::SoftwareDeviceRefused,
+        Self::LayeredDriverRefused,
+        Self::NoSuitableDevice,
+        Self::RequiredDeviceMissing,
+        Self::DeviceCreationRefused,
+        Self::PhysicalDeviceLost,
+        Self::OutOfMemory,
+        Self::OwnerAlreadyOpen,
+        Self::Driver(0),
+        Self::FeatureMissing,
+    ];
+
     pub const fn key(self) -> &'static str {
         match self {
             Self::LoaderMissing => "vulkan_loader_missing",
@@ -108,6 +128,31 @@ impl DeviceFault {
     }
 }
 
+/// Why the host does not get a client handle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttachRefusal {
+    /// This module and client already have a live handle. Use it, or revoke the client first.
+    AlreadyAttached,
+    /// The owner stopped admitting (shutdown).
+    Closed,
+}
+
+impl AttachRefusal {
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::AlreadyAttached => "client_already_attached",
+            Self::Closed => "owner_closed",
+        }
+    }
+
+    pub const fn number(self) -> u16 {
+        match self {
+            Self::AlreadyAttached => 1,
+            Self::Closed => 2,
+        }
+    }
+}
+
 /// Why an admission is refused. Nothing is charged by a refused admission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdmissionDenial {
@@ -126,6 +171,8 @@ pub enum AdmissionDenial {
     DeviceUnavailable,
     /// The owner stopped admitting (shutdown).
     AdmissionClosed,
+    /// The host revoked this client. Only a new handle from the host is admitted again.
+    ClientDetached,
 }
 
 impl AdmissionDenial {
@@ -137,6 +184,7 @@ impl AdmissionDenial {
             Self::DeviceLost { .. } => "device_lost",
             Self::DeviceUnavailable => "device_unavailable",
             Self::AdmissionClosed => "admission_closed",
+            Self::ClientDetached => "client_detached",
         }
     }
 
@@ -148,6 +196,7 @@ impl AdmissionDenial {
             Self::DeviceUnavailable => 4,
             Self::AdmissionClosed => 5,
             Self::ClaimLimit { .. } => 6,
+            Self::ClientDetached => 7,
         }
     }
 }
@@ -163,7 +212,7 @@ pub enum AuthorizeRefusal {
     Settled,
     /// No generation is bound.
     DeviceUnavailable,
-    /// The claim was not issued by this ledger.
+    /// The claim was not issued by this owner to this client.
     Unknown,
     /// The claim already has as many submissions in flight as its policy allows. Submit again once one of
     /// them is observed finished.
@@ -236,7 +285,7 @@ pub enum SettleRefusal {
     DoubleRelease,
     /// The owner already closed the claim when it was rebound to a successor.
     LateRelease,
-    /// The claim was not issued by this ledger.
+    /// The claim was not issued by this owner to this client.
     StaleClaim,
     /// Work under the claim may still run; settle again once it has finished.
     InFlight { in_flight: u32 },
@@ -258,6 +307,9 @@ pub enum SettleRefusal {
     NotSettled,
     /// The claim's work is already settled; only a retained release remains.
     AlreadySettled,
+    /// The reported outcome is not what the owner observed: `Completed` needs work that completed and none that was
+    /// lost, `NoEffect` that nothing ran, `Lost` a loss.
+    OutcomeContradicted { observed: WorkObserved },
 }
 
 impl SettleRefusal {
@@ -272,6 +324,7 @@ impl SettleRefusal {
             Self::RetainedBelowCharged { .. } => "retained_below_charged",
             Self::NotSettled => "not_settled",
             Self::AlreadySettled => "already_settled",
+            Self::OutcomeContradicted { .. } => "outcome_contradicted",
         }
     }
 
@@ -286,6 +339,7 @@ impl SettleRefusal {
             Self::AlreadySettled => 7,
             Self::LeaseOutstanding { .. } => 8,
             Self::RetainedBelowCharged { .. } => 9,
+            Self::OutcomeContradicted { .. } => 10,
         }
     }
 }
@@ -308,7 +362,10 @@ pub enum RebindRefusal {
     InFlight { in_flight: u32 },
     /// The claim still holds leases on its lost generation. Drop them, then rebind.
     LeaseOutstanding { leases: u32 },
-    /// The claim was not issued by this ledger.
+    /// The lost device still exists and the claim reports memory on it. Free and discharge it, or wait until the
+    /// device is destroyed, then rebind.
+    MemoryHeld { bytes: u64 },
+    /// The claim was not issued by this owner to this client.
     Unknown,
 }
 
@@ -322,6 +379,7 @@ impl RebindRefusal {
             Self::NotOpen => "claim_not_open",
             Self::InFlight { .. } => "rebind_in_flight",
             Self::LeaseOutstanding { .. } => "rebind_lease_outstanding",
+            Self::MemoryHeld { .. } => "rebind_memory_held",
             Self::Unknown => "claim_unknown",
         }
     }
@@ -336,6 +394,7 @@ impl RebindRefusal {
             Self::Unknown => 6,
             Self::InFlight { .. } => 7,
             Self::LeaseOutstanding { .. } => 8,
+            Self::MemoryHeld { .. } => 9,
         }
     }
 }
@@ -345,7 +404,7 @@ impl RebindRefusal {
 pub enum SubmissionRefusal {
     /// It is already resolved; its outcome is in [`crate::Submission::state`].
     AlreadyResolved,
-    /// The submission was not issued by this ledger.
+    /// The submission was not issued by this owner to this client.
     Unknown,
     /// The device did not answer; the submission stays pending.
     Device(DeviceFault),
@@ -372,6 +431,15 @@ impl SubmissionRefusal {
 /// The client gave up recording: nothing is submitted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RecordAborted;
+
+/// What a bounded look at the device found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeviceHealth {
+    /// Everything submitted has completed.
+    Idle,
+    /// Submitted work was still running when the bound passed. That is neither a loss nor a fault.
+    Busy,
+}
 
 /// Why no submission ticket was returned.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -409,13 +477,17 @@ pub enum DeviceRebindRefusal {
     NotLost,
     /// The owner is closed.
     Closed,
-    /// Clients still hold the lost device (leases, or a recording or wait in progress). It is never destroyed
-    /// under them: they drop what they hold, then the host rebinds again.
+    /// Clients hold the lost device (leases, or a recording or wait in progress), and
+    /// [`crate::MAX_HELD_LOST_DEVICES`] earlier lost devices are still held as well. Below that bound a held device
+    /// is set aside and recovery goes on without its holders. No device is destroyed under a client: once one of
+    /// the held devices is returned, the host rebinds again.
     DeviceHeld { holders: u32 },
     /// The lost device did not confirm that its work has ended, so it is not destroyed. Rebind again later.
     NotQuiescent,
     /// No successor generation could be created. The owner stays without a device.
     Unavailable(Unavailable),
+    /// Another call is replacing the device right now.
+    InProgress,
 }
 
 impl DeviceRebindRefusal {
@@ -426,6 +498,7 @@ impl DeviceRebindRefusal {
             Self::DeviceHeld { .. } => "device_held",
             Self::NotQuiescent => "device_not_quiescent",
             Self::Unavailable(reason) => reason.key(),
+            Self::InProgress => "rebind_in_progress",
         }
     }
 
@@ -436,6 +509,7 @@ impl DeviceRebindRefusal {
             Self::DeviceHeld { .. } => 3,
             Self::NotQuiescent => 4,
             Self::Unavailable(_) => 5,
+            Self::InProgress => 6,
         }
     }
 }

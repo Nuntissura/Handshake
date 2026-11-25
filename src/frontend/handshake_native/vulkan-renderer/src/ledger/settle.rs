@@ -1,11 +1,40 @@
 //! Settlement and the release of retained memory: each reservation ends exactly once, and only on evidence.
 
-use super::{bump, Claim, ClaimLedger, ClaimState, Located, State, TOMB_CLOSED};
+use super::{bump, Claim, ClaimState, LedgerClient, Located, Record, State, TOMB_CLOSED};
+use crate::diag::{OwnerEvent, Subject};
 use crate::outcome::SettleRefusal;
-use crate::records::{ByteQuantity, ClaimDisposition, ReleaseReceipt, SettleReceipt, Settlement};
+use crate::records::{
+    ByteQuantity, ClaimDisposition, ReleaseReceipt, SettleOutcome, SettleReceipt, Settlement,
+    WorkObserved,
+};
 use std::sync::atomic::Ordering;
 
-impl ClaimLedger {
+/// Whether `outcome` says something else than the owner observed of the work under `record`.
+///
+/// `Canceled`, `Failed` and `Abandoned` say how the client's operation ended, which the owner does not observe; the
+/// receipt carries what it did observe.
+fn contradicts(record: &Record, outcome: SettleOutcome) -> bool {
+    let work = record.work;
+    let total = record.prior.plus(work);
+    match outcome {
+        SettleOutcome::Completed => {
+            // Memory work with no submission at all may complete: it took a lease or charged memory, and its
+            // device is still there.
+            let without_submission = total == WorkObserved::default()
+                && record.touched
+                && !record.device_lost
+                && !record.rebound;
+            work.lost > 0
+                || (record.prior.lost > 0 && work.completed == 0)
+                || (total.completed == 0 && !without_submission)
+        }
+        SettleOutcome::NoEffect => total.completed > 0 || total.lost > 0,
+        SettleOutcome::Lost => total.lost == 0 && !record.device_lost && !record.rebound,
+        SettleOutcome::Canceled | SettleOutcome::Failed | SettleOutcome::Abandoned => false,
+    }
+}
+
+impl LedgerClient {
     fn settle_locked(
         &self,
         state: &mut State,
@@ -31,9 +60,15 @@ impl ClaimLedger {
         if in_flight > 0 {
             return Err(SettleRefusal::InFlight { in_flight });
         }
+        // So does its own observation: no receipt says something else than what happened on the device
+        // (GPU-QUOTA-014).
+        let observed = record.prior.plus(record.work);
+        if contradicts(record, settlement.outcome) {
+            return Err(SettleRefusal::OutcomeContradicted { observed });
+        }
         // Closing says nothing is left on the device; objects made from a lease may be. A retaining
         // settlement keeps its leases until the retained memory is released.
-        let leases = record.leases();
+        let leases = record.leases;
         if leases > 0 && settlement.retained == ByteQuantity::Measured(0) {
             return Err(SettleRefusal::LeaseOutstanding { leases });
         }
@@ -79,41 +114,78 @@ impl ClaimLedger {
         Ok(SettleReceipt {
             claim: info,
             settlement,
+            observed,
             disposition,
             released_bytes,
         })
     }
 
-    /// Settle the work of `claim` exactly once. Refused while anything is in flight, and as closing while a
-    /// device lease is out.
+    /// Settle the work of `claim` exactly once. Refused while anything is in flight, when the outcome contradicts
+    /// what the owner observed, and as closing while a device lease is out.
     pub fn settle(
         &self,
         claim: &Claim,
         settlement: Settlement,
     ) -> Result<SettleReceipt, SettleRefusal> {
-        let mut state = self.lock();
-        let result = self.settle_locked(&mut state, claim, settlement);
-        match &result {
-            Ok(receipt) => {
-                bump(&mut state.counters.settled);
-                if matches!(receipt.disposition, ClaimDisposition::Retained { .. }) {
-                    bump(&mut state.counters.settled_retaining);
+        let result = {
+            let mut guard = self.shared.lock();
+            let state = &mut *guard;
+            let result = self.settle_locked(state, claim, settlement);
+            match &result {
+                Ok(receipt) => {
+                    bump(&mut state.counters.settled);
+                    if matches!(receipt.disposition, ClaimDisposition::Retained { .. }) {
+                        bump(&mut state.counters.settled_retaining);
+                    }
                 }
+                Err(refusal) => count_refusal(state, *refusal),
             }
-            Err(refusal) => count_refusal(&mut state, *refusal),
-        }
+            result
+        };
+        let event = match &result {
+            Ok(receipt) => OwnerEvent::Settled {
+                subject: Subject::claim(&receipt.claim),
+                outcome: receipt.settlement.outcome.number(),
+                released_bytes: receipt.released_bytes,
+                retained_bytes: match receipt.disposition {
+                    ClaimDisposition::Closed => 0,
+                    ClaimDisposition::Retained { charged_bytes } => charged_bytes,
+                },
+            },
+            Err(refusal) => self.settle_refused(claim, *refusal),
+        };
+        self.shared.emit(event);
         result
+    }
+
+    fn settle_refused(&self, claim: &Claim, refusal: SettleRefusal) -> OwnerEvent {
+        OwnerEvent::SettleRefused {
+            subject: self.subject(&claim.info),
+            reason: refusal.number(),
+        }
     }
 
     /// Release the retained memory of a settled claim exactly once. Refused before settlement and while a
     /// device lease is out.
     pub fn release_retained(&self, claim: &Claim) -> Result<ReleaseReceipt, SettleRefusal> {
-        let mut state = self.lock();
-        let result = self.release_locked(&mut state, claim);
-        match &result {
-            Ok(_) => bump(&mut state.counters.retained_released),
-            Err(refusal) => count_refusal(&mut state, *refusal),
-        }
+        let result = {
+            let mut guard = self.shared.lock();
+            let state = &mut *guard;
+            let result = self.release_locked(state, claim);
+            match &result {
+                Ok(_) => bump(&mut state.counters.retained_released),
+                Err(refusal) => count_refusal(state, *refusal),
+            }
+            result
+        };
+        let event = match &result {
+            Ok(receipt) => OwnerEvent::RetainedReleased {
+                subject: Subject::claim(&receipt.claim),
+                released_bytes: receipt.released_bytes,
+            },
+            Err(refusal) => self.settle_refused(claim, *refusal),
+        };
+        self.shared.emit(event);
         result
     }
 
@@ -134,9 +206,9 @@ impl ClaimLedger {
             Some(record) if record.state == ClaimState::Open => {
                 return Err(SettleRefusal::NotSettled)
             }
-            Some(record) if record.leases() > 0 => {
+            Some(record) if record.leases > 0 => {
                 return Err(SettleRefusal::LeaseOutstanding {
-                    leases: record.leases(),
+                    leases: record.leases,
                 })
             }
             Some(_) => {}

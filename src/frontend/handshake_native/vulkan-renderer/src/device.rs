@@ -3,6 +3,7 @@
 
 use crate::ids::{ClaimId, DeviceKey};
 use crate::ledger::ClaimHold;
+use crate::outcome::AuthorizeRefusal;
 use crate::records::ByteQuantity;
 use crate::select::DeviceClass;
 use crate::vulkan::VulkanGeneration;
@@ -41,15 +42,46 @@ pub enum MemoryBudgetSource {
     Unavailable,
 }
 
+/// Where a heap's memory is, as far as the device says so.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MemoryPlacement {
+    /// The device's own memory.
+    Dedicated,
+    /// Host memory the device shares with the rest of the system.
+    Shared,
+    /// The device does not say. An integrated or virtual device reports memory as device-local whether it is carved
+    /// out for it or ordinary system memory, so its device-local heaps are attributed to neither.
+    Unknown,
+}
+
+impl MemoryPlacement {
+    pub const fn of(class: DeviceClass, device_local: bool) -> Self {
+        match (class, device_local) {
+            (_, false) => Self::Shared,
+            (DeviceClass::Discrete, true) => Self::Dedicated,
+            (_, true) => Self::Unknown,
+        }
+    }
+
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Dedicated => "dedicated",
+            Self::Shared => "shared",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 /// One memory heap of the device.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HeapSample {
     pub index: u32,
     /// Heap size as the device reports it.
     pub size_bytes: u64,
-    /// `VK_MEMORY_HEAP_DEVICE_LOCAL_BIT`: device-local memory. Without it the heap is host memory the
-    /// device shares with the rest of the system.
+    /// `VK_MEMORY_HEAP_DEVICE_LOCAL_BIT`, as the device reports it. It says nothing about shared or dedicated memory
+    /// on its own; [`Self::placement`] does.
     pub device_local: bool,
+    pub placement: MemoryPlacement,
     /// What this process may use from the heap before allocations may fail (an estimate, or unknown).
     pub budget: ByteQuantity,
     /// What this process uses from the heap (an estimate, or unknown).
@@ -88,14 +120,17 @@ pub struct DeviceHandles {
 /// The device hand-over for a renderer that takes a host-supplied device.
 ///
 /// While a lease exists the owner does not destroy its device, and the claim it was taken under neither closes
-/// nor rebinds. Dropping it is the return. It is not `Clone`.
+/// nor rebinds. Dropping it is the return. It is not `Clone`. A lease of a lost device does not keep the owner from
+/// recovering: the lost device is set aside for it, and [`Self::handles`] says that it is lost.
 ///
 /// What whoever uses the handles must keep to:
+/// - They are asked for with [`Self::handles`] before each use, not kept: that call is what tells an idle holder of a
+///   loss, a revocation or a closed owner.
 /// - Objects created from them are destroyed before the lease is dropped, and not while a submission that uses
 ///   them is [`crate::SubmissionState::Pending`].
-/// - Memory allocated with them is charged to the claim ([`crate::GpuOwner::charge`]) before it is allocated.
+/// - Memory allocated with them is charged to the claim ([`crate::GpuClient::charge`]) before it is allocated.
 /// - The lease carries no queue right. The queue is the owner's: work reaches it only through
-///   [`crate::GpuOwner::submit`]. Submitting to it, or waiting on it or on the whole device, through these
+///   [`crate::GpuClient::submit`]. Submitting to it, or waiting on it or on the whole device, through these
 ///   handles would race the owner and is not allowed.
 #[derive(Debug)]
 pub struct DeviceLease {
@@ -103,7 +138,7 @@ pub struct DeviceLease {
     claim: ClaimId,
     // Released before the hold, so a claim that may settle never still keeps the device.
     _device: Arc<VulkanGeneration>,
-    _hold: ClaimHold,
+    hold: ClaimHold,
 }
 
 impl DeviceLease {
@@ -117,11 +152,20 @@ impl DeviceLease {
             handles,
             claim,
             _device: device,
-            _hold: hold,
+            hold,
         }
     }
 
-    pub fn handles(&self) -> &DeviceHandles {
+    /// The handles, when the claim may use its device now. Otherwise why not: the device is lost, the client was
+    /// revoked, the claim is settled, or the owner closed.
+    pub fn handles(&self) -> Result<&DeviceHandles, AuthorizeRefusal> {
+        self.hold.standing()?;
+        Ok(&self.handles)
+    }
+
+    /// The handles for one purpose only: destroying the objects made from them before the lease is dropped. The
+    /// device exists as long as the lease does, also when it is lost or its owner closed.
+    pub fn handles_to_release(&self) -> &DeviceHandles {
         &self.handles
     }
 
@@ -135,7 +179,7 @@ impl DeviceLease {
     }
 }
 
-/// What a client records into, inside [`crate::GpuOwner::submit`].
+/// What a client records into, inside [`crate::GpuClient::submit`].
 ///
 /// The command buffer is the owner's: primary, for the owner's queue family, begun for one submission. The client
 /// only records commands into it, only during the recording call, and leaves it in the recording state; the owner

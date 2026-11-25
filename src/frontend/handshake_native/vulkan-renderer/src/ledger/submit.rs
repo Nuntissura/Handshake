@@ -6,7 +6,10 @@
 //! of them are the owner's: its fence value was reached, its device was observed lost and quiescent, its device
 //! was destroyed, or it never reached the queue.
 
-use super::{bump, Claim, ClaimLedger, State};
+use super::client::has_flight_room;
+use super::reclaim::reclaim;
+use super::{bump, Claim, ClaimLedger, LedgerClient, State};
+use crate::diag::OwnerEvent;
 use crate::ids::ClaimId;
 use crate::outcome::{AuthorizeRefusal, SubmissionRefusal};
 use crate::records::{ClaimInfo, SubmissionObservation, SubmissionState};
@@ -38,6 +41,7 @@ pub(super) struct Flight {
 pub struct Submission {
     claim: ClaimInfo,
     ledger_key: u64,
+    seat: u64,
     sequence: u64,
     outcome: Arc<AtomicU8>,
 }
@@ -72,20 +76,32 @@ impl Submission {
     }
 }
 
-/// End the flight at `key`. `false` when nothing is in flight there.
-fn resolve(state: &mut State, key: (u64, u64), observation: SubmissionObservation) -> bool {
+/// End the flight at `key`, and with it an abandoned claim that has nothing else left. `false` when nothing is in
+/// flight there.
+fn resolve(
+    state: &mut State,
+    key: (u64, u64),
+    observation: SubmissionObservation,
+    events: &mut Vec<OwnerEvent>,
+) -> bool {
     let Some(flight) = state.flights.remove(&key) else {
         return false;
     };
     flight.outcome.store(code(observation), Ordering::Release);
     if let Some(record) = state.live.get_mut(&flight.claim) {
         record.in_flight = record.in_flight.saturating_sub(1);
+        match observation {
+            SubmissionObservation::Completed => bump(&mut record.work.completed),
+            SubmissionObservation::DeviceLost => bump(&mut record.work.lost),
+            SubmissionObservation::NoEffect => bump(&mut record.work.no_effect),
+        }
     }
     match observation {
         SubmissionObservation::Completed => bump(&mut state.counters.completed),
         SubmissionObservation::DeviceLost => bump(&mut state.counters.completed_lost),
         SubmissionObservation::NoEffect => bump(&mut state.counters.completed_no_effect),
     }
+    reclaim(state, flight.claim, events);
     true
 }
 
@@ -95,6 +111,7 @@ fn resolve_range(
     generation: u64,
     last: u64,
     observation: SubmissionObservation,
+    events: &mut Vec<OwnerEvent>,
 ) -> u64 {
     let keys: Vec<(u64, u64)> = state
         .flights
@@ -103,130 +120,164 @@ fn resolve_range(
         .collect();
     let mut resolved: u64 = 0;
     for key in keys {
-        if resolve(state, key, observation) {
+        if resolve(state, key, observation, events) {
             bump(&mut resolved);
         }
     }
     resolved
 }
 
-/// Whether `generation` is bound and healthy: its work may still run.
-fn is_running(state: &State, generation: u64) -> bool {
-    matches!(state.device, Some(device) if device.generation == generation && !device.lost)
-}
-
-impl ClaimLedger {
+impl LedgerClient {
     /// Authorize one submission under `claim` and count it in flight.
     pub fn begin_submission(&self, claim: &Claim) -> Result<Submission, AuthorizeRefusal> {
-        let mut guard = self.lock();
-        let state = &mut *guard;
-        if let Err(refusal) = self.authorize_locked(state, claim) {
-            bump(&mut state.counters.authorize_refused);
-            return Err(refusal);
-        }
-        let id = claim.info.id.0;
-        match state.live.get_mut(&id) {
-            None => return Err(AuthorizeRefusal::Unknown),
-            Some(record) if record.in_flight >= record.max_in_flight => {
-                let max_in_flight = record.max_in_flight;
+        let result = {
+            let mut guard = self.shared.lock();
+            let state = &mut *guard;
+            let result = self.begin_locked(state, claim);
+            if result.is_err() {
                 bump(&mut state.counters.authorize_refused);
-                return Err(AuthorizeRefusal::InFlightLimit { max_in_flight });
             }
-            // Cannot overflow: it is below a `u32` bound.
-            Some(record) => record.in_flight = record.in_flight.saturating_add(1),
-        }
+            result
+        };
+        self.report_authorize(claim, result)
+    }
+
+    fn begin_locked(
+        &self,
+        state: &mut State,
+        claim: &Claim,
+    ) -> Result<Submission, AuthorizeRefusal> {
+        let record = self.authorized(state, claim)?;
+        has_flight_room(record)?;
+        // Cannot overflow: it is below a `u32` bound.
+        record.in_flight = record.in_flight.saturating_add(1);
         let sequence = state.next_sequence;
         state.next_sequence = sequence.saturating_add(1);
         let outcome = Arc::new(AtomicU8::new(PENDING));
         state.flights.insert(
             (claim.info.generation, sequence),
             Flight {
-                claim: id,
+                claim: claim.info.id.0,
                 outcome: Arc::clone(&outcome),
             },
         );
         bump(&mut state.counters.submitted);
         Ok(Submission {
             claim: claim.info,
-            ledger_key: self.key,
+            ledger_key: self.shared.key,
+            seat: self.seat,
             sequence,
             outcome,
         })
     }
 
-    /// Whether this ledger issued `submission`.
-    pub fn issued(&self, submission: &Submission) -> bool {
-        submission.ledger_key == self.key
+    /// Whether this client's work is what `submission` stands for.
+    pub fn owns(&self, submission: &Submission) -> bool {
+        submission.ledger_key == self.shared.key && submission.seat == self.seat
     }
+}
 
+impl ClaimLedger {
     /// `submission` never reached the queue: nothing was invoked on the device.
     pub fn submission_no_effect(&self, submission: &Submission) -> Result<(), SubmissionRefusal> {
-        let mut state = self.lock();
-        let result = if submission.ledger_key != self.key {
-            Err(SubmissionRefusal::Unknown)
-        } else {
+        let mut events = Vec::new();
+        let result = {
+            let mut guard = self.lock();
+            let state = &mut *guard;
             let key = (submission.claim.generation, submission.sequence);
-            if resolve(&mut state, key, SubmissionObservation::NoEffect) {
+            let result = if submission.ledger_key != self.shared.key {
+                Err(SubmissionRefusal::Unknown)
+            } else if resolve(state, key, SubmissionObservation::NoEffect, &mut events) {
                 Ok(())
             } else {
                 Err(SubmissionRefusal::AlreadyResolved)
+            };
+            if result.is_err() {
+                bump(&mut state.counters.submission_refused);
             }
+            result
         };
-        if result.is_err() {
-            bump(&mut state.counters.submission_refused);
-        }
+        self.shared.emit_all(events);
         result
     }
 
     /// The owner observed the fence of `generation` at `value`: every submission up to it completed. Returns how
     /// many submissions that resolved.
     pub fn resolve_through(&self, generation: u64, value: u64) -> u64 {
-        resolve_range(
+        let mut events = Vec::new();
+        let resolved = resolve_range(
             &mut self.lock(),
             generation,
             value,
             SubmissionObservation::Completed,
-        )
+            &mut events,
+        );
+        self.shared.emit_all(events);
+        resolved
     }
 
     /// The owner observed the loss of `generation` and that nothing submitted on it is still in use by the
     /// device. Resolves its submissions as lost and returns how many. Resolves nothing for a healthy generation.
     pub fn resolve_lost(&self, generation: u64) -> u64 {
-        let mut state = self.lock();
-        if is_running(&state, generation) {
-            return 0;
-        }
-        resolve_range(
-            &mut state,
-            generation,
-            u64::MAX,
-            SubmissionObservation::DeviceLost,
-        )
+        let mut events = Vec::new();
+        let resolved = {
+            let mut guard = self.lock();
+            let state = &mut *guard;
+            if state.is_running(generation) {
+                return 0;
+            }
+            resolve_range(
+                state,
+                generation,
+                u64::MAX,
+                SubmissionObservation::DeviceLost,
+                &mut events,
+            )
+        };
+        self.shared.emit_all(events);
+        resolved
     }
 
     /// The owner destroyed the device of `generation`: nothing submitted on it can run and the memory on it is
-    /// gone. Resolves its submissions, clears the memory its open claims reported, and returns how many
-    /// submissions that resolved. Every reservation stays charged. Does nothing for a healthy generation.
+    /// gone. Resolves its submissions, clears the memory its open claims reported, closes its abandoned claims, and
+    /// returns how many submissions that resolved. Every other reservation stays charged. Does nothing for a
+    /// healthy generation.
     pub fn generation_retired(&self, generation: u64) -> u64 {
-        let mut guard = self.lock();
-        let state = &mut *guard;
-        if is_running(state, generation) {
-            return 0;
-        }
-        let resolved = resolve_range(
-            state,
-            generation,
-            u64::MAX,
-            SubmissionObservation::DeviceLost,
-        );
-        for record in state.live.values_mut() {
-            if record.info.generation == generation {
-                record.committed_bytes = 0;
-                record.staging_bytes = 0;
+        let mut events = Vec::new();
+        let resolved = {
+            let mut guard = self.lock();
+            let state = &mut *guard;
+            if state.is_running(generation) {
+                return 0;
             }
-        }
-        state.counters.retired_in_flight =
-            state.counters.retired_in_flight.saturating_add(resolved);
+            for record in state.live.values_mut() {
+                if record.info.generation == generation {
+                    record.device_gone = true;
+                    record.committed_bytes = 0;
+                    record.staging_bytes = 0;
+                }
+            }
+            let resolved = resolve_range(
+                state,
+                generation,
+                u64::MAX,
+                SubmissionObservation::DeviceLost,
+                &mut events,
+            );
+            state.counters.retired_in_flight =
+                state.counters.retired_in_flight.saturating_add(resolved);
+            let abandoned: Vec<u64> = state
+                .live
+                .iter()
+                .filter(|(_, record)| record.abandoned && record.info.generation == generation)
+                .map(|(id, _)| *id)
+                .collect();
+            for id in abandoned {
+                reclaim(state, id, &mut events);
+            }
+            resolved
+        };
+        self.shared.emit_all(events);
         resolved
     }
 }

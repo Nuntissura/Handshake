@@ -4,21 +4,34 @@
 mod support;
 
 use handshake_vulkan_renderer::{
-    AdmissionDenial, AuthorizeRefusal, ChargeClass, DeviceFault, DeviceRebindRefusal, OwnerCore,
-    OwnerEvent, OwnerPhase, QuotaPolicy, RebindRefusal, SettleOutcome, SettleRefusal, Settlement,
-    SubmissionObservation, SubmissionState, SubmitRefusal, Unavailable, DESCRIPTOR,
+    AdmissionDenial, AuthorizeRefusal, ChargeClass, ClientId, DeviceFate, DeviceFault,
+    DeviceRebindRefusal, LedgerClient, ModuleId, OwnerCore, OwnerEvent, OwnerPhase, QuotaPolicy,
+    RebindRefusal, SettleOutcome, SettleRefusal, Settlement, SubmissionObservation,
+    SubmissionRefusal, SubmissionState, SubmitRefusal, Unavailable, WorkObserved,
 };
 use std::sync::Arc;
-use support::{claim, ledger, policy, request, EventLog, KEY, OTHER_KEY};
+use support::{bench, claim_subject, client_subject, policy, request, EventLog, KEY, OTHER_KEY};
+
+const DEVICE_LOST: SubmissionState = SubmissionState::Finished(SubmissionObservation::DeviceLost);
+
+fn lost() -> Settlement {
+    Settlement::clean(SettleOutcome::Lost)
+}
+
+fn attach(core: &OwnerCore) -> LedgerClient {
+    core.attach(ModuleId(1), ClientId(1)).expect("free")
+}
 
 #[test]
 fn a_loss_is_counted_once_and_refunds_nothing() {
-    let ledger = ledger(policy(100));
-    let held = claim(&ledger, 60);
-    ledger
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let held = bench.claim(60);
+    client
         .charge(&held, ChargeClass::Committed, 50)
         .expect("fits");
-    let running = ledger.begin_submission(&held).expect("authorized");
+    let hold = client.hold(&held).expect("authorized");
+    let running = client.begin_submission(&held).expect("authorized");
 
     assert!(
         !ledger.mark_device_lost(2),
@@ -33,16 +46,16 @@ fn a_loss_is_counted_once_and_refunds_nothing() {
         (usage.charged_bytes, usage.committed_bytes, usage.in_flight),
         (60, 50, 1)
     );
+    let refused = AuthorizeRefusal::Lost { generation: 1 };
+    assert_eq!(client.authorize(&held), Err(refused));
+    // The holder of an idle lease learns of it as well.
+    assert_eq!(hold.standing(), Err(refused));
+    assert!(client.begin_submission(&held).is_err());
+    assert!(client.hold(&held).is_err());
+    assert!(client.charge(&held, ChargeClass::Committed, 1).is_err());
+    assert_eq!(client.discharge(&held, ChargeClass::Committed, 10), Ok(()));
     assert_eq!(
-        ledger.authorize(&held),
-        Err(AuthorizeRefusal::Lost { generation: 1 })
-    );
-    assert!(ledger.begin_submission(&held).is_err());
-    assert!(ledger.hold(&held).is_err());
-    assert!(ledger.charge(&held, ChargeClass::Committed, 1).is_err());
-    assert_eq!(ledger.discharge(&held, ChargeClass::Committed, 10), Ok(()));
-    assert_eq!(
-        ledger.admit(&request(1, 2, 1)).expect_err("lost"),
+        client.admit(&request(1)).expect_err("lost"),
         AdmissionDenial::DeviceLost { generation: 1 }
     );
     assert_eq!(
@@ -51,68 +64,120 @@ fn a_loss_is_counted_once_and_refunds_nothing() {
         "a loss alone ends no submission"
     );
     assert_eq!(
-        ledger.settle(&held, Settlement::clean(SettleOutcome::Lost)),
+        client.settle(&held, lost()),
         Err(SettleRefusal::InFlight { in_flight: 1 })
     );
 }
 
 #[test]
 fn a_healthy_generation_is_neither_lost_nor_retired() {
-    let ledger = ledger(policy(100));
-    let held = claim(&ledger, 10);
-    ledger
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let held = bench.claim(10);
+    client
         .charge(&held, ChargeClass::Committed, 10)
         .expect("fits");
-    let running = ledger.begin_submission(&held).expect("authorized");
+    let running = client.begin_submission(&held).expect("authorized");
+    let hold = client.hold(&held).expect("authorized");
     assert_eq!(ledger.resolve_lost(1), 0);
     assert_eq!(ledger.generation_retired(1), 0);
     assert_eq!(running.state(), SubmissionState::Pending);
     assert_eq!(ledger.usage().committed_bytes, 10);
+    // Not asked to wait for a loss that never came, nor to return its lease for it.
     assert_eq!(
-        ledger.rebind(&held).expect_err("healthy"),
+        client.rebind(&held).expect_err("healthy"),
         RebindRefusal::NotLost
     );
+    ledger.resolve_through(1, 1);
+    assert_eq!(
+        client.rebind(&held).expect_err("healthy"),
+        RebindRefusal::NotLost
+    );
+    assert_eq!(hold.standing(), Ok(()));
 }
 
 #[test]
 fn a_quiescent_loss_ends_the_submissions_of_that_generation_only() {
-    let ledger = ledger(policy(100));
-    let held = claim(&ledger, 10);
-    let running = ledger.begin_submission(&held).expect("authorized");
+    let bench = bench(policy(100));
+    let held = bench.claim(10);
+    let running = bench.client.begin_submission(&held).expect("authorized");
+    bench.ledger.mark_device_lost(1);
+    assert_eq!(bench.ledger.resolve_lost(2), 0);
+    assert_eq!(running.state(), SubmissionState::Pending);
+    assert_eq!(bench.ledger.resolve_lost(1), 1);
+    assert_eq!(bench.ledger.resolve_lost(1), 0);
+    assert_eq!(running.state(), DEVICE_LOST);
+    assert!(bench.client.settle(&held, lost()).is_ok());
+}
+
+#[test]
+fn lost_work_settles_neither_as_completed_nor_as_no_effect() {
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let held = bench.claim(10);
+    let _first = client.begin_submission(&held).expect("authorized");
+    let _second = client.begin_submission(&held).expect("authorized");
+    assert_eq!(ledger.resolve_through(1, 1), 1);
     ledger.mark_device_lost(1);
-    assert_eq!(ledger.resolve_lost(2), 0);
-    assert_eq!(ledger.resolve_lost(1), 1);
-    assert_eq!(ledger.resolve_lost(1), 0);
-    assert_eq!(
-        running.state(),
-        SubmissionState::Finished(SubmissionObservation::DeviceLost)
-    );
-    assert!(ledger
-        .settle(&held, Settlement::clean(SettleOutcome::Lost))
-        .is_ok());
+    ledger.resolve_lost(1);
+    let observed = WorkObserved {
+        completed: 1,
+        lost: 1,
+        no_effect: 0,
+    };
+    for outcome in [SettleOutcome::Completed, SettleOutcome::NoEffect] {
+        assert_eq!(
+            client.settle(&held, Settlement::clean(outcome)),
+            Err(SettleRefusal::OutcomeContradicted { observed })
+        );
+    }
+    assert_eq!(ledger.usage().charged_bytes, 10);
+    let receipt = client.settle(&held, lost()).expect("settles");
+    assert_eq!(receipt.observed, observed);
+}
+
+#[test]
+fn work_that_completed_before_the_loss_stays_completed() {
+    let bench = bench(policy(100));
+    let held = bench.claim(10);
+    let idle = bench.claim(10);
+    drop(bench.client.hold(&idle).expect("authorized"));
+    let _done = bench.client.begin_submission(&held).expect("authorized");
+    bench.ledger.resolve_through(1, 1);
+    bench.ledger.mark_device_lost(1);
+    bench.ledger.resolve_lost(1);
+    let completed = Settlement::clean(SettleOutcome::Completed);
+    assert!(bench.client.settle(&held, completed).is_ok());
+    // Memory work on a device that is lost did not complete.
+    assert!(matches!(
+        bench.client.settle(&idle, completed),
+        Err(SettleRefusal::OutcomeContradicted { .. })
+    ));
+    assert!(bench.client.settle(&idle, lost()).is_ok());
 }
 
 #[test]
 fn a_rebind_moves_the_charge_once_and_closes_the_old_claim() {
-    let ledger = ledger(policy(100));
-    let old = claim(&ledger, 60);
-    ledger
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let old = bench.claim(60);
+    client
         .charge(&old, ChargeClass::Committed, 60)
         .expect("fits");
-    let running = ledger.begin_submission(&old).expect("authorized");
+    let running = client.begin_submission(&old).expect("authorized");
     ledger.mark_device_lost(1);
     assert_eq!(
-        ledger.rebind(&old).expect_err("work unresolved"),
+        client.rebind(&old).expect_err("work unresolved"),
         RebindRefusal::InFlight { in_flight: 1 }
     );
     ledger.resolve_lost(1);
     assert_eq!(
-        ledger.rebind(&old).expect_err("no successor device"),
+        client.rebind(&old).expect_err("no successor device"),
         RebindRefusal::Lost { generation: 1 }
     );
     ledger.unbind_device();
     assert_eq!(
-        ledger.rebind(&old).expect_err("no device"),
+        client.rebind(&old).expect_err("no device"),
         RebindRefusal::DeviceUnavailable
     );
     assert_eq!(
@@ -132,170 +197,248 @@ fn a_rebind_moves_the_charge_once_and_closes_the_old_claim() {
     );
 
     assert_eq!(ledger.bind_device(KEY), 2);
-    assert_eq!(
-        ledger.authorize(&old),
-        Err(AuthorizeRefusal::Lost { generation: 1 })
-    );
-    let successor = ledger.rebind(&old).expect("moves");
+    let stale = AuthorizeRefusal::Lost { generation: 1 };
+    assert_eq!(client.authorize(&old), Err(stale));
+    let successor = client.rebind(&old).expect("moves");
     assert_eq!(
         (successor.generation(), successor.reserved_bytes()),
         (2, 60)
     );
     assert_eq!(successor.info().module, old.info().module);
     assert_eq!(successor.info().operation_id, old.info().operation_id);
-    assert_eq!(ledger.usage().charged_bytes, 60);
-    assert_eq!(ledger.usage().open_claims, 1);
-
-    let clean = Settlement::clean(SettleOutcome::Lost);
-    assert_eq!(ledger.settle(&old, clean), Err(SettleRefusal::LateRelease));
     assert_eq!(
-        ledger.release_retained(&old),
+        (ledger.usage().charged_bytes, ledger.usage().open_claims),
+        (60, 1)
+    );
+    assert_eq!(
+        bench.log.count(OwnerEvent::ClaimRebound {
+            subject: claim_subject(successor.info()),
+            superseded: old.id()
+        }),
+        1
+    );
+
+    assert_eq!(client.settle(&old, lost()), Err(SettleRefusal::LateRelease));
+    assert_eq!(
+        client.release_retained(&old),
         Err(SettleRefusal::LateRelease)
     );
     assert_eq!(
-        ledger.rebind(&old).expect_err("superseded"),
+        client.rebind(&old).expect_err("superseded"),
         RebindRefusal::NotOpen
     );
+    assert_eq!(client.authorize(&old), Err(stale));
     assert_eq!(
-        ledger.authorize(&old),
-        Err(AuthorizeRefusal::Lost { generation: 1 })
-    );
-    assert_eq!(
-        ledger.rebind(&successor).expect_err("current"),
+        client.rebind(&successor).expect_err("current"),
         RebindRefusal::NotLost
     );
 
     // The successor's fence starts over; the old generation's values say nothing about it.
-    let next = ledger.begin_submission(&successor).expect("authorized");
+    let next = client.begin_submission(&successor).expect("authorized");
     assert_eq!((next.generation(), next.sequence()), (2, 1));
     assert_eq!(ledger.resolve_through(1, u64::MAX), 0);
     assert_eq!(next.state(), SubmissionState::Pending);
-    assert_eq!(
-        running.state(),
-        SubmissionState::Finished(SubmissionObservation::DeviceLost)
-    );
+    assert_eq!(running.state(), DEVICE_LOST);
     ledger.resolve_through(2, 1);
-    assert_eq!(
-        ledger
-            .settle(&successor, Settlement::clean(SettleOutcome::Completed))
-            .expect("settles")
-            .released_bytes,
-        60
-    );
+    let receipt = client
+        .settle(&successor, Settlement::clean(SettleOutcome::Completed))
+        .expect("its work was done again and completed");
+    assert_eq!(receipt.released_bytes, 60);
+    assert_eq!((receipt.observed.completed, receipt.observed.lost), (1, 1));
     assert_eq!(ledger.usage().charged_bytes, 0);
 }
 
 #[test]
-fn a_claim_is_not_rebound_under_a_hold_or_onto_another_adapter() {
-    let ledger = ledger(policy(100));
-    let held = claim(&ledger, 10);
-    let hold = ledger.hold(&held).expect("authorized");
+fn a_successor_does_not_hide_the_work_its_predecessor_lost() {
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let old = bench.claim(10);
+    let _running = client.begin_submission(&old).expect("authorized");
     ledger.mark_device_lost(1);
-    ledger.unbind_device();
-    ledger.bind_device(OTHER_KEY);
+    ledger.resolve_lost(1);
+    ledger.bind_device(KEY);
+    let successor = client.rebind(&old).expect("moves");
+    for outcome in [SettleOutcome::Completed, SettleOutcome::NoEffect] {
+        assert!(matches!(
+            client.settle(&successor, Settlement::clean(outcome)),
+            Err(SettleRefusal::OutcomeContradicted { .. })
+        ));
+    }
+    assert!(client.settle(&successor, lost()).is_ok());
+}
+
+#[test]
+fn a_claim_is_not_rebound_under_a_hold_or_onto_another_adapter() {
+    let bench = bench(policy(100));
+    let held = bench.claim(10);
+    let hold = bench.client.hold(&held).expect("authorized");
+    bench.ledger.mark_device_lost(1);
+    bench.ledger.bind_device(OTHER_KEY);
     assert_eq!(
-        ledger.rebind(&held).expect_err("held"),
+        bench.client.rebind(&held).expect_err("held"),
         RebindRefusal::LeaseOutstanding { leases: 1 }
     );
     drop(hold);
     assert_eq!(
-        ledger.rebind(&held).expect_err("other adapter"),
+        bench.client.rebind(&held).expect_err("other adapter"),
         RebindRefusal::DeviceChanged
     );
-    assert_eq!(ledger.usage().charged_bytes, 10);
-    ledger.revoke_client(held.info().module, held.info().client);
+    assert_eq!(bench.ledger.usage().charged_bytes, 10);
+    bench
+        .ledger
+        .revoke_client(held.info().module, held.info().client);
     assert_eq!(
-        ledger.rebind(&held).expect_err("revoked"),
+        bench.client.rebind(&held).expect_err("revoked"),
         RebindRefusal::NotOpen
     );
 }
 
+/// The lost device may live on for another client: memory on it is not gone by the loss.
+#[test]
+fn a_claim_is_not_rebound_while_it_reports_memory_on_the_lost_device() {
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let frees = bench.claim(10);
+    let waits = bench.claim(10);
+    for claim in [&frees, &waits] {
+        client
+            .charge(claim, ChargeClass::Committed, 4)
+            .expect("fits");
+    }
+    ledger.mark_device_lost(1);
+    ledger.bind_device(KEY);
+    for claim in [&frees, &waits] {
+        assert_eq!(
+            client.rebind(claim).expect_err("holds memory"),
+            RebindRefusal::MemoryHeld { bytes: 4 }
+        );
+    }
+    client
+        .discharge(&frees, ChargeClass::Committed, 4)
+        .expect("charged");
+    let moved = client.rebind(&frees).expect("freed it");
+    ledger.generation_retired(1);
+    let moved_too = client.rebind(&waits).expect("gone with the device");
+    assert_eq!((moved.generation(), moved_too.generation()), (2, 2));
+    assert_eq!(ledger.usage().charged_bytes, 20);
+}
+
 #[test]
 fn a_destroyed_device_ends_what_was_in_flight_on_it() {
-    let ledger = ledger(policy(100));
-    let held = claim(&ledger, 30);
-    ledger
+    let bench = bench(policy(100));
+    let (ledger, client) = (&bench.ledger, &bench.client);
+    let held = bench.claim(30);
+    client
         .charge(&held, ChargeClass::Staging, 30)
         .expect("fits");
-    let running = ledger.begin_submission(&held).expect("authorized");
+    let running = client.begin_submission(&held).expect("authorized");
     ledger.mark_device_lost(1);
     assert_eq!(ledger.generation_retired(1), 1);
-    assert_eq!(
-        running.state(),
-        SubmissionState::Finished(SubmissionObservation::DeviceLost)
-    );
+    assert_eq!(running.state(), DEVICE_LOST);
     let counters = ledger.counters();
     assert_eq!(
         (counters.retired_in_flight, counters.completed_lost),
         (1, 1)
     );
     assert_eq!(ledger.usage().charged_bytes, 30);
-    assert!(ledger
-        .settle(&held, Settlement::clean(SettleOutcome::Lost))
-        .is_ok());
+    assert!(client.settle(&held, lost()).is_ok());
 }
 
 #[test]
-fn the_owner_reports_a_loss_once_and_every_refusal() {
+fn the_owner_reports_a_loss_once_and_every_refusal_with_whom_it_concerns() {
     let log = Arc::new(EventLog::default());
     let core = OwnerCore::new(QuotaPolicy::Unavailable, log.clone());
-    assert!(core.admit(&request(1, 1, 1)).is_err());
+    let client = attach(&core);
+    assert!(client.admit(&request(1)).is_err());
     core.device_unavailable(Unavailable::Driver(-13));
     let generation = core.device_bound(KEY);
-    assert!(core.admit(&request(1, 1, 1)).is_err());
-    core.set_policy(policy(100));
-    let held = core.admit(&request(1, 1, 20)).expect("fits");
+    assert!(client.admit(&request(1)).is_err());
+    core.ledger().set_policy(policy(100));
+    let held = client.admit(&request(20)).expect("fits");
+    let submission = client.begin_submission(&held).expect("authorized");
     assert!(core.device_lost(generation));
     assert!(!core.device_lost(generation));
-    assert!(core.begin_submission(&held).is_err());
-    core.submit_refused(SubmitRefusal::RecordAborted);
+    assert!(client.begin_submission(&held).is_err());
+    client.submit_refused(&held, SubmitRefusal::RecordAborted);
+    client.submission_refused(&submission, SubmissionRefusal::Unknown);
     core.device_fault(generation, DeviceFault::Driver(-13));
     core.device_rebind_refused(DeviceRebindRefusal::DeviceHeld { holders: 1 });
-    assert_eq!(core.generation_retired(generation), 0);
-    let no_device = AdmissionDenial::DeviceUnavailable.number();
-    let no_quota = AdmissionDenial::HostQuotaUnavailable.number();
-    let lost = AuthorizeRefusal::Lost { generation }.number();
-    let held_back = DeviceRebindRefusal::DeviceHeld { holders: 1 }.number();
+    core.lost_device_set_aside(generation, 1);
+    assert!(client.charge(&held, ChargeClass::Staging, 1).is_err());
+    assert!(client.settle(&held, lost()).is_err());
+    assert!(client.rebind(&held).is_err());
+    core.retained_device_ended(generation, true);
+    core.retained_device_ended(generation, false);
+    let of_client = client_subject(1, 1);
+    let asked = handshake_vulkan_renderer::Subject {
+        operation_id: Some(request(1).operation_id),
+        ..of_client
+    };
+    let subject = claim_subject(held.info());
+    let phase = |phase, generation| OwnerEvent::Phase { phase, generation };
+    let lost = AuthorizeRefusal::Lost { generation };
     assert_eq!(
         log.events(),
         vec![
-            OwnerEvent::AdmissionDenied { reason: no_device },
+            OwnerEvent::ClientAttached { subject: of_client },
+            OwnerEvent::AdmissionDenied {
+                subject: asked,
+                reason: AdmissionDenial::DeviceUnavailable.number()
+            },
             OwnerEvent::Unavailable {
                 reason: 13,
                 vk_result: -13
             },
-            OwnerEvent::Phase {
-                phase: OwnerPhase::Unavailable,
-                generation: 0
+            phase(OwnerPhase::Unavailable, 0),
+            phase(OwnerPhase::Open, generation),
+            OwnerEvent::AdmissionDenied {
+                subject: asked,
+                reason: AdmissionDenial::HostQuotaUnavailable.number()
             },
-            OwnerEvent::Phase {
-                phase: OwnerPhase::Open,
-                generation
-            },
-            OwnerEvent::AdmissionDenied { reason: no_quota },
             OwnerEvent::Admitted {
-                generation,
+                subject,
                 reserved_bytes: 20
             },
             OwnerEvent::VulkanDeviceLost { generation },
-            OwnerEvent::Phase {
-                phase: OwnerPhase::DeviceLost,
-                generation
+            phase(OwnerPhase::DeviceLost, generation),
+            OwnerEvent::AuthorizeRefused {
+                subject,
+                reason: lost.number()
             },
-            OwnerEvent::AuthorizeRefused { reason: lost },
             OwnerEvent::SubmitRefused {
+                subject,
                 reason: SubmitRefusal::RecordAborted.number()
+            },
+            OwnerEvent::SubmissionRefused {
+                subject,
+                reason: SubmissionRefusal::Unknown.number()
             },
             OwnerEvent::DeviceFault {
                 generation,
                 fault: 4,
                 vk_result: -13
             },
-            OwnerEvent::DeviceRebindRefused { reason: held_back },
-            OwnerEvent::GenerationRetired {
-                generation,
-                resolved: 0
+            OwnerEvent::DeviceRebindRefused {
+                reason: DeviceRebindRefusal::DeviceHeld { holders: 1 }.number()
             },
+            OwnerEvent::LostDeviceSetAside {
+                generation,
+                holders: 1
+            },
+            OwnerEvent::ChargeRefused { subject, reason: 1 },
+            OwnerEvent::SettleRefused {
+                subject,
+                reason: SettleRefusal::InFlight { in_flight: 1 }.number()
+            },
+            OwnerEvent::ClaimRebindRefused {
+                subject,
+                reason: RebindRefusal::InFlight { in_flight: 1 }.number()
+            },
+            OwnerEvent::RetainedDeviceDestroyed {
+                generation,
+                resolved: 1
+            },
+            OwnerEvent::DeviceLeaked { generation },
         ]
     );
 }
@@ -304,12 +447,13 @@ fn the_owner_reports_a_loss_once_and_every_refusal() {
 fn ordinary_work_emits_no_event_per_submission() {
     let log = Arc::new(EventLog::default());
     let core = OwnerCore::new(policy(100), log.clone());
+    let client = attach(&core);
     let generation = core.device_bound(KEY);
-    let held = core.admit(&request(1, 1, 20)).expect("fits");
+    let held = client.admit(&request(20)).expect("fits");
     let before = log.events().len();
     for value in 1..=3 {
-        core.begin_submission(&held).expect("authorized");
-        assert_eq!(core.resolve_through(generation, value), 1);
+        client.begin_submission(&held).expect("authorized");
+        assert_eq!(core.ledger().resolve_through(generation, value), 1);
     }
     assert_eq!(log.events().len(), before);
 }
@@ -318,17 +462,22 @@ fn ordinary_work_emits_no_event_per_submission() {
 fn shutdown_reports_what_was_still_held_and_keeps_it_settleable() {
     let log = Arc::new(EventLog::default());
     let core = OwnerCore::new(policy(100), log.clone());
+    let client = attach(&core);
     core.device_bound(KEY);
-    let held = core.admit(&request(1, 1, 20)).expect("fits");
-    let _running = core.begin_submission(&held).expect("authorized");
+    let held = client.admit(&request(20)).expect("fits");
+    let running = client.begin_submission(&held).expect("authorized");
     core.begin_shutdown();
     assert_eq!(
-        core.admit(&request(1, 1, 1)).expect_err("closing"),
+        client.admit(&request(1)).expect_err("closing"),
         AdmissionDenial::AdmissionClosed
     );
-    let report = core.finish_shutdown(None);
+    assert!(core.attach(ModuleId(2), ClientId(2)).is_err());
+    let report = core.finish_shutdown(DeviceFate::Destroyed, 0);
     assert_eq!((report.open_claims, report.charged_bytes), (1, 20));
-    assert_eq!((report.in_flight, report.device_retained), (0, false));
+    assert_eq!(
+        (report.in_flight, report.device),
+        (0, DeviceFate::Destroyed)
+    );
     assert!(!report.is_settled());
     assert_eq!(
         log.count(OwnerEvent::ShutdownOutstanding {
@@ -345,56 +494,90 @@ fn shutdown_reports_what_was_still_held_and_keeps_it_settleable() {
         }),
         1
     );
+    assert_eq!(running.state(), DEVICE_LOST);
     assert_eq!(
-        core.authorize(&held),
+        client.authorize(&held),
         Err(AuthorizeRefusal::DeviceUnavailable)
     );
-    assert!(core
-        .settle(&held, Settlement::clean(SettleOutcome::Lost))
-        .is_ok());
-    assert_eq!(core.usage().charged_bytes, 0);
+    assert!(client.settle(&held, lost()).is_ok());
+    assert_eq!(core.ledger().usage().charged_bytes, 0);
 }
 
 #[test]
 fn shutdown_with_a_device_that_stays_alive_ends_no_submission() {
+    for (fate, event) in [
+        (
+            DeviceFate::Held { holders: 2 },
+            OwnerEvent::DeviceRetainedAtClose {
+                generation: 1,
+                holders: 2,
+            },
+        ),
+        (
+            DeviceFate::Unconfirmed,
+            OwnerEvent::DeviceLeaked { generation: 1 },
+        ),
+    ] {
+        let log = Arc::new(EventLog::default());
+        let core = OwnerCore::new(policy(100), log.clone());
+        let client = attach(&core);
+        core.device_bound(KEY);
+        let held = client.admit(&request(20)).expect("fits");
+        let running = client.begin_submission(&held).expect("authorized");
+        core.begin_shutdown();
+        let report = core.finish_shutdown(fate, 0);
+        assert_eq!((report.device, report.in_flight), (fate, 1));
+        assert!(!report.is_settled());
+        assert_eq!(running.state(), SubmissionState::Pending);
+        assert_eq!(log.count(event), 1);
+        assert_eq!(
+            log.count_like(OwnerEvent::GenerationRetired {
+                generation: 1,
+                resolved: 0
+            }),
+            0
+        );
+        assert_eq!(
+            client.settle(&held, lost()),
+            Err(SettleRefusal::InFlight { in_flight: 1 })
+        );
+    }
+}
+
+#[test]
+fn a_device_left_alive_reports_the_claims_nobody_holds_as_leaked() {
     let log = Arc::new(EventLog::default());
     let core = OwnerCore::new(policy(100), log.clone());
+    let client = attach(&core);
     core.device_bound(KEY);
-    let held = core.admit(&request(1, 1, 20)).expect("fits");
-    let running = core.begin_submission(&held).expect("authorized");
+    let kept = client.admit(&request(1)).expect("fits");
+    let dropped = client.admit(&request(20)).expect("fits");
+    let leaked = OwnerEvent::ClaimLeaked {
+        subject: claim_subject(dropped.info()),
+        leaked_bytes: 20,
+    };
+    drop(client.begin_submission(&dropped).expect("authorized"));
+    drop(dropped);
+    assert_eq!(log.count(leaked), 0);
     core.begin_shutdown();
-    let report = core.finish_shutdown(Some(2));
-    assert!(report.device_retained && !report.is_settled());
-    assert_eq!(report.in_flight, 1);
-    assert_eq!(running.state(), SubmissionState::Pending);
-    assert_eq!(
-        log.count(OwnerEvent::DeviceRetainedAtClose {
-            generation: 1,
-            holders: 2
-        }),
-        1
-    );
-    assert_eq!(
-        core.settle(&held, Settlement::clean(SettleOutcome::Lost)),
-        Err(SettleRefusal::InFlight { in_flight: 1 })
-    );
+    core.finish_shutdown(DeviceFate::Unconfirmed, 0);
+    assert_eq!((log.count(leaked), log.count_like(leaked)), (1, 1));
+    assert!(client
+        .settle(&kept, Settlement::clean(SettleOutcome::NoEffect))
+        .is_ok());
 }
 
 #[test]
-fn an_idle_shutdown_is_settled() {
-    let core = OwnerCore::new(policy(100), Arc::new(EventLog::default()));
-    core.device_bound(KEY);
-    core.begin_shutdown();
-    assert!(core.finish_shutdown(None).is_settled());
-}
-
-#[test]
-fn the_descriptor_names_what_is_not_here() {
-    for needle in [
-        "\"slice\":1",
-        "closure excludes wgpu, egui, eframe, winit",
-        "GpuClientPort",
-    ] {
-        assert!(DESCRIPTOR.contains(needle), "{needle}");
-    }
+fn only_a_shutdown_without_anything_left_is_settled() {
+    let closed = |fate, lost_devices_held| {
+        let core = OwnerCore::new(policy(100), Arc::new(EventLog::default()));
+        core.device_bound(KEY);
+        core.begin_shutdown();
+        core.finish_shutdown(fate, lost_devices_held).is_settled()
+    };
+    assert!(closed(DeviceFate::Destroyed, 0));
+    assert!(closed(DeviceFate::NoDevice, 0));
+    assert!(!closed(DeviceFate::Destroyed, 1));
+    assert!(!closed(DeviceFate::Held { holders: 1 }, 0));
+    assert!(!closed(DeviceFate::Unconfirmed, 0));
 }

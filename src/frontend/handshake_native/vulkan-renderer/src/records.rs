@@ -62,11 +62,10 @@ pub enum QuotaPolicy {
     },
 }
 
-/// One admission request: the attribution every byte of the claim carries (GUI-DESKTOP-029).
+/// One admission request. Who asks is not part of it: module and client are fixed in the handle the host issued
+/// ([`crate::GpuClient`]), so a client cannot ask in the name of another one (GUI-DESKTOP-029).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ClaimRequest {
-    pub module: ModuleId,
-    pub client: ClientId,
     pub operation: OperationKind,
     pub operation_id: OperationId,
     /// Bytes reserved against the quota from admission until the claim closes.
@@ -168,6 +167,27 @@ impl Settlement {
     }
 }
 
+/// What the owner itself observed of the submissions under one claim, its predecessors before a rebind included.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WorkObserved {
+    /// Submissions whose fence value was reached.
+    pub completed: u64,
+    /// Submissions that ended with the loss or destruction of their device.
+    pub lost: u64,
+    /// Submissions the queue never took.
+    pub no_effect: u64,
+}
+
+impl WorkObserved {
+    pub(crate) const fn plus(self, other: Self) -> Self {
+        Self {
+            completed: self.completed.saturating_add(other.completed),
+            lost: self.lost.saturating_add(other.lost),
+            no_effect: self.no_effect.saturating_add(other.no_effect),
+        }
+    }
+}
+
 /// How one submission ended. The owner decides this from its own queue, never from what a client reports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubmissionObservation {
@@ -201,6 +221,8 @@ pub enum ClaimDisposition {
 pub struct SettleReceipt {
     pub claim: ClaimInfo,
     pub settlement: Settlement,
+    /// What the owner observed. The settled outcome does not contradict it.
+    pub observed: WorkObserved,
     pub disposition: ClaimDisposition,
     /// Bytes returned to the quota by this settlement.
     pub released_bytes: u64,
@@ -211,6 +233,21 @@ pub struct SettleReceipt {
 pub struct ReleaseReceipt {
     pub claim: ClaimInfo,
     pub released_bytes: u64,
+}
+
+/// What became of the device when its owner closed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeviceFate {
+    /// There was no device.
+    NoDevice,
+    Destroyed,
+    /// Clients hold it: `holders` leases, recordings or waits, never 0. It ends when the last of them is gone, and
+    /// that is reported as [`crate::OwnerEvent::RetainedDeviceDestroyed`] or [`crate::OwnerEvent::DeviceLeaked`].
+    Held {
+        holders: u64,
+    },
+    /// Nobody holds it, but it did not confirm in time that its work has ended. It was left alive.
+    Unconfirmed,
 }
 
 /// The device generation the ledger admits on.
@@ -243,6 +280,12 @@ pub struct LedgerUsage {
     pub in_flight: u64,
     /// Device leases clients still hold.
     pub leases: u64,
+    /// Clients the host attached and did not revoke, and whose handle still exists.
+    pub attached_clients: u64,
+    /// Claims whose handle was dropped and that the owner has not reclaimed yet.
+    pub abandoned_claims: u64,
+    /// Part of `abandoned_claims`: their work ended, but the memory they reported is not known to be freed.
+    pub leaked_claims: u64,
     pub device: Option<DeviceBinding>,
     pub admission_open: bool,
 }
@@ -270,7 +313,15 @@ pub struct LedgerCounters {
     pub double_release: u64,
     pub rebound: u64,
     pub rebind_refused: u64,
+    /// Client handles issued.
+    pub attached: u64,
     pub revoked: u64,
+    /// Claims whose handle was dropped without a settlement.
+    pub abandoned: u64,
+    /// Abandoned claims the owner closed after it observed the end of their work.
+    pub reclaimed: u64,
+    /// Abandoned claims reported as leaked.
+    pub leaked: u64,
     pub device_losses: u64,
     pub generations: u64,
     pub submitted: u64,

@@ -1,10 +1,13 @@
 //! The owner's queue: record, submit and observe, with one timeline semaphore as the fence of every submission.
 //!
 //! The queue, the last signalled value and the command pools of work that may still run sit behind one lock, which
-//! is the queue's external synchronization. Nothing outside this module touches the queue.
+//! is the queue's external synchronization. Nothing outside this module touches the queue. No wait for the device
+//! runs with that lock held.
 
+use super::fault::Call;
 use super::VulkanGeneration;
 use ash::vk::{self, Handle};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, MutexGuard, PoisonError};
 
 /// A fault of the device, before the owner attaches the generation number.
@@ -28,7 +31,7 @@ impl QueueFault {
     }
 }
 
-/// See [`VulkanGeneration::quiesce`]. It holds for what was submitted before it was taken.
+/// Evidence that the queue takes nothing more and that nothing it took is still in use by the device.
 pub(crate) struct Quiescent {
     _private: (),
 }
@@ -44,6 +47,10 @@ pub(super) struct QueueState {
     last_signal: u64,
     /// Work whose fence value has not been observed, in signal order.
     pending: Vec<PendingWork>,
+    /// Nothing is submitted any more.
+    sealed: bool,
+    /// Sealed, and observed to be no longer in use by the device. Both are for good.
+    drained: bool,
 }
 
 impl QueueState {
@@ -52,6 +59,8 @@ impl QueueState {
             queue,
             last_signal: 0,
             pending: Vec::new(),
+            sealed: false,
+            drained: false,
         }
     }
 }
@@ -129,6 +138,10 @@ impl RecordedWork {
         // that breaks the recording rule of `Recording` does so through its own `unsafe` calls.
         unsafe { device.end_command_buffer(self.commands) }.map_err(QueueFault::of)?;
         let mut state = self.generation.lock_queue();
+        if state.sealed {
+            // Only a lost generation is sealed while work can still be brought to it.
+            return Err(QueueFault::Lost);
+        }
         if signal <= state.last_signal {
             // The owner hands out values in order; a value out of order is never put on the fence.
             return Err(QueueFault::Driver(vk::Result::ERROR_UNKNOWN.as_raw()));
@@ -136,16 +149,27 @@ impl RecordedWork {
         let buffers = [self.commands];
         let semaphores = [self.generation.timeline];
         let values = [signal];
-        let mut timeline =
-            vk::TimelineSemaphoreSubmitInfo::default().signal_semaphore_values(&values);
+        // Waits for nothing outside unit tests.
+        let gate = self.generation.faults.gate();
+        let waits = gate.as_slice();
+        let wait_values = &[1u64][..waits.len()];
+        let wait_stages = &[vk::PipelineStageFlags::ALL_COMMANDS][..waits.len()];
+        let mut timeline = vk::TimelineSemaphoreSubmitInfo::default()
+            .wait_semaphore_values(wait_values)
+            .signal_semaphore_values(&values);
         let submit = vk::SubmitInfo::default()
+            .wait_semaphores(waits)
+            .wait_dst_stage_mask(wait_stages)
             .command_buffers(&buffers)
             .signal_semaphores(&semaphores)
             .push_next(&mut timeline);
-        // SAFETY: the buffer is executable, primary, of the queue's family and never submitted before; the fence
-        // value is above every earlier one; the queue lock is held, so access to the queue is synchronized; all
-        // referenced arrays outlive the call.
-        let result = unsafe { device.queue_submit(state.queue, &[submit], vk::Fence::null()) };
+        let result = match self.generation.faults.answer(Call::Submit) {
+            Some(result) => Err(result),
+            // SAFETY: the buffer is executable, primary, of the queue's family and never submitted before; the
+            // fence value is above every earlier one; the queue lock is held, so access to the queue is
+            // synchronized; all referenced arrays outlive the call.
+            None => unsafe { device.queue_submit(state.queue, &[submit], vk::Fence::null()) },
+        };
         match result {
             Err(error) if error != vk::Result::ERROR_DEVICE_LOST => Err(QueueFault::of(error)),
             accepted => {
@@ -184,18 +208,31 @@ impl VulkanGeneration {
             .collect()
     }
 
+    fn counter(&self) -> Result<u64, QueueFault> {
+        match self.faults.answer(Call::Counter) {
+            Some(result) => Err(result),
+            // SAFETY: valid device and timeline semaphore; the query needs no external synchronization.
+            None => unsafe { self.device.get_semaphore_counter_value(self.timeline) },
+        }
+        .map_err(QueueFault::of)
+    }
+
+    /// Highest value a submission of this generation signals.
+    pub(crate) fn last_signal(&self) -> u64 {
+        self.lock_queue().last_signal
+    }
+
     /// Read the fence without blocking and free the command pools of finished work. Returns the value up to which
     /// every submission completed.
     pub(crate) fn advance(&self) -> Result<u64, QueueFault> {
         let mut state = self.lock_queue();
-        // SAFETY: valid device and timeline semaphore; the query needs no external synchronization.
-        let value = unsafe { self.device.get_semaphore_counter_value(self.timeline) }
-            .map_err(QueueFault::of)?;
+        let value = self.counter()?;
         if value > state.last_signal {
             // No submission signals such a value, so it says nothing about what finished. Report device loss when
             // that is why; otherwise nothing is observed and everything stays pending.
-            // SAFETY: the queue lock is held, so access to the queue is synchronized.
-            unsafe { self.device.device_wait_idle() }.map_err(QueueFault::of)?;
+            let last = state.last_signal;
+            drop(state);
+            self.wait_for(last, 0)?;
             return Err(QueueFault::Driver(vk::Result::ERROR_UNKNOWN.as_raw()));
         }
         let (finished, running): (Vec<PendingWork>, Vec<PendingWork>) =
@@ -212,37 +249,100 @@ impl VulkanGeneration {
         Ok(value)
     }
 
-    /// Wait until the fence reaches `value` or `timeout_ns` passed. `false` on timeout.
+    /// Wait until the fence reaches `value` or `timeout_ns` passed. `false` on timeout. With 0 it does not block.
     pub(crate) fn wait_for(&self, value: u64, timeout_ns: u64) -> Result<bool, QueueFault> {
         let semaphores = [self.timeline];
         let values = [value];
         let wait = vk::SemaphoreWaitInfo::default()
             .semaphores(&semaphores)
             .values(&values);
-        // SAFETY: valid device and timeline semaphore; the referenced arrays outlive the call; the wait needs no
-        // external synchronization.
-        match unsafe { self.device.wait_semaphores(&wait, timeout_ns) } {
+        let result = match self.faults.answer(Call::Wait) {
+            Some(result) => Err(result),
+            // SAFETY: valid device and timeline semaphore; the referenced arrays outlive the call; the wait needs
+            // no external synchronization.
+            None => unsafe { self.device.wait_semaphores(&wait, timeout_ns) },
+        };
+        match result {
             Ok(()) => Ok(true),
             Err(vk::Result::TIMEOUT) => Ok(false),
             Err(error) => Err(QueueFault::of(error)),
         }
     }
 
-    /// Wait until the device is idle. This is how the owner itself observes a lost device.
-    pub(crate) fn wait_idle(&self) -> Result<(), QueueFault> {
-        let _queue = self.lock_queue();
-        // SAFETY: valid device; the queue lock is held, so access to the device's one queue is synchronized. The
-        // wait returns in finite time even on a lost device (Vulkan "Lost Device").
-        unsafe { self.device.device_wait_idle() }.map_err(QueueFault::of)
+    /// Take nothing more. For good.
+    pub(crate) fn seal(&self) {
+        self.lock_queue().sealed = true;
     }
 
-    /// Evidence that nothing submitted so far is still in use by the device, or `None` when the device did not
-    /// say so. Device loss is such evidence: for this question `VK_ERROR_DEVICE_LOST` is equivalent to success
-    /// (Vulkan "Lost Device").
-    pub(crate) fn quiesce(&self) -> Option<Quiescent> {
-        match self.wait_idle() {
-            Ok(()) | Err(QueueFault::Lost) => Some(Quiescent { _private: () }),
-            Err(_) => None,
+    /// Evidence that nothing the sealed queue took is still in use by the device.
+    pub(crate) fn evidence(&self) -> Option<Quiescent> {
+        let state = self.lock_queue();
+        (state.sealed && state.drained).then_some(Quiescent { _private: () })
+    }
+
+    pub(crate) fn is_drained(&self) -> bool {
+        self.evidence().is_some()
+    }
+
+    fn mark_drained(&self) {
+        let mut state = self.lock_queue();
+        state.drained = state.sealed;
+    }
+
+    /// Wait at most `timeout_ns`, with no lock held, for everything the sealed queue took. With 0 it does not block.
+    ///
+    /// Every submission signals the fence, so its last value stands for all of them. A lost device is drained as
+    /// well: for the question whether work is still in use by the device, `VK_ERROR_DEVICE_LOST` is equivalent to
+    /// success (Vulkan "Lost Device").
+    pub(crate) fn drain(&self, timeout_ns: u64) -> Result<bool, QueueFault> {
+        let last = {
+            let state = self.lock_queue();
+            if !state.sealed {
+                return Ok(false);
+            }
+            if state.drained {
+                return Ok(true);
+            }
+            state.last_signal
+        };
+        let result = self.wait_for(last, timeout_ns);
+        if matches!(result, Ok(true) | Err(QueueFault::Lost)) {
+            self.mark_drained();
         }
+        result
+    }
+
+    /// Seal and drain a generation that was observed lost, with no lock held. Whether it is drained.
+    ///
+    /// A bounded wait on the fence comes first. Vulkan does not promise that such a wait ends on a lost device; it
+    /// does promise that a wait for idleness does, so that one follows when the fence stays silent.
+    pub(crate) fn drain_lost(&self, timeout_ns: u64) -> bool {
+        self.seal();
+        // The result is in the drained mark.
+        let _ = self.drain(timeout_ns);
+        self.is_drained() || self.wait_idle_of_lost()
+    }
+
+    fn wait_idle_of_lost(&self) -> bool {
+        if self.idling.swap(true, Ordering::AcqRel) {
+            // Another thread asks already; its answer counts when it has one.
+            return self.is_drained();
+        }
+        let result = match self.faults.answer(Call::Idle) {
+            Some(result) => Err(result),
+            // SAFETY: valid device. Access to its one queue is synchronized without the queue lock: the queue is
+            // sealed under that lock, so no thread submits to it any more, and `idling` lets one thread wait at a
+            // time. The caller holds the generation, so it is not destroyed meanwhile. The wait returns in finite
+            // time on a lost device (Vulkan "Lost Device").
+            None => unsafe { self.device.device_wait_idle() },
+        };
+        self.idling.store(false, Ordering::Release);
+        if matches!(
+            result.map_err(QueueFault::of),
+            Ok(()) | Err(QueueFault::Lost)
+        ) {
+            self.mark_drained();
+        }
+        self.is_drained()
     }
 }

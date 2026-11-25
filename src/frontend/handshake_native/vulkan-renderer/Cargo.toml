@@ -26,6 +26,11 @@ path = "src/lib.rs"
 [dependencies]
 ash = { version = "=0.38.0", default-features = false, features = ["loaded", "std"] }
 
+# Already in the closure through `ash`: named here to load the Vulkan loader from the system directory only. Adds no
+# crate to the lock.
+[target.'cfg(windows)'.dependencies]
+libloading = "=0.8.9"
+
 [profile.dev]
 debug = "line-tables-only"
 incremental = false
