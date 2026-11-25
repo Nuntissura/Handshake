@@ -34,7 +34,8 @@ use crate::model_runtime::{
     WarmVmSnapshotResourceScope,
 };
 use crate::sandbox::{
-    AdapterId, DetachedProcessIdentity, ImageRef, NetPolicy, ProcessHandle, ProcessSpec,
+    AdapterId, DetachedProcessIdentity, DetachedReclaimOutcome, ImageRef, NetPolicy,
+    ProcessHandle, ProcessSpec,
     ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, TrustClass,
     SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
 };
@@ -957,7 +958,13 @@ impl WorktreeVmRegistry {
                         state.signal_future = Some(Box::pin(async move {
                             let native = async move {
                                 match original_detached {
-                                    Some(identity) => original_adapter.reclaim_detached_observed(&identity, Signal::Term).await,
+                                    Some(identity) => original_adapter
+                                        .reclaim_detached_observed(&identity, Signal::Term).await
+                                        .map(|outcome| match outcome {
+                                            DetachedReclaimOutcome::Observed(status) => Some(status),
+                                            DetachedReclaimOutcome::AlreadyAbsent => None,
+                                        })
+                                        .map_err(SandboxAdapterError::from),
                                     None => original_adapter.kill(&original_handle, Signal::Term).await.map(|()| None),
                                 }
                             };

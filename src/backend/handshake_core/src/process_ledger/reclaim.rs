@@ -41,6 +41,9 @@ const RECLAIM_CLAIM_STOP_REASON: &str = "reclaim_claimed";
 const RECLAIM_KILLED_STOP_REASON: &str = "reclaim_killed";
 const SURREAL_CLAIM_MAX_ATTEMPTS: usize = 10;
 const SURREAL_CLAIM_BACKOFF_CAP_MS: u64 = 32;
+/// Master Spec 5.7.5 exit code of a reclaim STOP. It is recorded only when the
+/// owner proved that the process ended but no exit status could be read.
+const RECLAIM_STOP_EXIT_CODE: i32 = -1;
 static RECLAIM_BOOT_OWNER_ID: OnceLock<Uuid> = OnceLock::new();
 
 fn reclaim_boot_owner_id() -> Uuid {
@@ -365,19 +368,25 @@ pub(crate) enum ScopedReclaimTerminal {
 }
 
 impl ScopedReclaimTerminal {
+    /// `None` is the owner's proof that the process ended without a readable
+    /// exit status; see [`ScopedSandboxKill::kill_observed`].
     fn from_observed(
         process: &ScopedReclaimableProcess,
-        status: crate::sandbox::ProcessStatus,
-    ) -> Result<Self, ProcessLedgerError> {
+        status: Option<crate::sandbox::ProcessStatus>,
+    ) -> Result<Self, KillError> {
         match status {
-            crate::sandbox::ProcessStatus::Exited { code } => Ok(Self::Exited { code }),
-            crate::sandbox::ProcessStatus::Killed { by_signal }
+            None => Ok(Self::Exited { code: RECLAIM_STOP_EXIT_CODE }),
+            Some(crate::sandbox::ProcessStatus::Exited { code }) => Ok(Self::Exited { code }),
+            Some(crate::sandbox::ProcessStatus::Killed { by_signal })
                 if process.sandbox_adapter_id.as_deref()
                     == Some(crate::sandbox::cloud_hypervisor::CLOUD_HYPERVISOR_ADAPTER_ID) =>
                 Ok(Self::Killed { by_signal }),
-            _ => Err(ProcessLedgerError::Store(
-                "original reclaim has no supported observed terminal outcome; original operation, claim and STOP permit retained".into(),
-            )),
+            // Other owners report a signalled end without a numeric code.
+            Some(crate::sandbox::ProcessStatus::Killed { .. }) =>
+                Ok(Self::Exited { code: RECLAIM_STOP_EXIT_CODE }),
+            Some(status) => Err(KillError::new(format!(
+                "owning adapter returned no terminal status: {status:?}",
+            ))),
         }
     }
 
@@ -648,7 +657,14 @@ struct ReclaimPriorState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum KillFailureKind { Uncertain, BeforeAdapterInvocation }
+enum KillFailureKind {
+    /// The kill returned without proof that the process ended.
+    Uncertain,
+    /// The owning provider refused before it touched the process.
+    BeforeAdapterInvocation,
+    /// The observation window closed while the original kill still runs.
+    StillRunning,
+}
 
 #[derive(Debug, Clone, Error)]
 #[error("{message}")]
@@ -692,6 +708,22 @@ impl KillError {
         Self {
             message: message.into(), kind: KillFailureKind::BeforeAdapterInvocation,
             identity_lookup_cause: None,
+        }
+    }
+
+    fn still_running(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(), kind: KillFailureKind::StillRunning,
+            identity_lookup_cause: None,
+        }
+    }
+
+    fn from_detached_reclaim(error: crate::sandbox::DetachedReclaimError) -> Self {
+        match error {
+            crate::sandbox::DetachedReclaimError::BeforeInvocation(error) =>
+                Self::before_adapter_invocation(error.to_string()),
+            crate::sandbox::DetachedReclaimError::AfterInvocation(error) =>
+                Self::new(error.to_string()),
         }
     }
 
@@ -1035,7 +1067,8 @@ pub enum ScopedKillRecoveryObservation {
 #[async_trait]
 pub trait ScopedSandboxKill: Send + Sync + 'static {
     /// Execute or coalesce one stable kill operation. Implementations must use
-    /// `kill_operation_uuid` as their idempotency key across retries.
+    /// `kill_operation_uuid` as their idempotency key across retries. `Ok`
+    /// asserts that the process has ended; an unproven end is an error.
     async fn kill(
         &self,
         resource_scope: &ReclaimResourceScope,
@@ -1043,6 +1076,8 @@ pub trait ScopedSandboxKill: Send + Sync + 'static {
         kill_operation_uuid: Uuid,
     ) -> Result<(), KillError>;
 
+    /// [`Self::kill`] with the terminal status the owner observed. `Ok(None)`
+    /// asserts that the process has ended while no exit status can be read.
     async fn kill_observed(
         &self, resource_scope: &ReclaimResourceScope,
         process_uuid: Uuid, kill_operation_uuid: Uuid,
@@ -1065,25 +1100,15 @@ pub trait ScopedSandboxKill: Send + Sync + 'static {
         process_uuid: Uuid, kill_operation_uuid: Uuid,
     ) -> Result<ScopedKillRecoveryObservation, KillError> {
         Ok(match self.kill_operation_status(resource_scope, process_uuid, kill_operation_uuid).await? {
+            // The owner's record proves the end of the process, not its exit code.
             ReclaimKillOperationStatus::Succeeded => ScopedKillRecoveryObservation::Succeeded {
-                code: self.terminal_exit_code(resource_scope, process_uuid, kill_operation_uuid).await?,
+                code: RECLAIM_STOP_EXIT_CODE,
             },
             ReclaimKillOperationStatus::Failed => ScopedKillRecoveryObservation::Failed,
             ReclaimKillOperationStatus::NotStarted => ScopedKillRecoveryObservation::NotStarted,
             ReclaimKillOperationStatus::InProgress => ScopedKillRecoveryObservation::InProgress,
             ReclaimKillOperationStatus::Unknown => ScopedKillRecoveryObservation::Unknown,
         })
-    }
-
-    /// Observe a genuine terminal code for this exact original detached
-    /// operation. An ACK or enum-only success is insufficient for STOP.
-    async fn terminal_exit_code(
-        &self,
-        _resource_scope: &ReclaimResourceScope,
-        _process_uuid: Uuid,
-        _kill_operation_uuid: Uuid,
-    ) -> Result<i32, KillError> {
-        Err(KillError::new("owning detached terminal code is unavailable"))
     }
 
     /// Query the adapter's authoritative idempotency record for crash recovery.
@@ -1105,6 +1130,7 @@ const RECLAIM_KILL_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct ProductionSandboxKill {
     storage: SurrealStorage,
     sandbox_registry: Arc<crate::sandbox::SandboxAdapterRegistry>,
+    host_scope_id: Option<String>,
 }
 
 impl ProductionSandboxKill {
@@ -1125,7 +1151,15 @@ impl ProductionSandboxKill {
         Self {
             storage,
             sandbox_registry,
+            host_scope_id: None,
         }
+    }
+
+    /// Name the host this killer runs on. Only a process recorded by the same
+    /// host can be proven absent here; without a host scope no absence counts.
+    pub(crate) fn with_host_scope(mut self, host_scope_id: impl Into<String>) -> Self {
+        self.host_scope_id = Some(host_scope_id.into());
+        self
     }
 
     async fn identity(
@@ -1186,6 +1220,7 @@ impl ProductionSandboxKill {
 #[derive(Debug, Clone)]
 struct ProductionKillIdentity {
     stopped: bool,
+    owner_host_scope_id: Option<String>,
     detached: crate::sandbox::DetachedProcessIdentity,
     kill_operation_uuid: Option<Uuid>,
 }
@@ -1211,12 +1246,14 @@ struct ProductionKillIdentityRow {
     stopped_at: Option<DateTime<Utc>>,
     sandbox_adapter_id: Option<String>,
     sandbox_internal_id: Option<String>,
+    owner_host_scope_id: Option<String>,
     metadata: Value,
 }
 
 const LOAD_PRODUCTION_KILL_IDENTITY: &str = r#"
 SELECT process_uuid, os_pid, started_at, stopped_at, sandbox_adapter_id,
-    sandbox_internal_id, metadata, stop_reason, reclaim_state, reclaim_kill_operation_uuid
+    sandbox_internal_id, owner_host_scope_id, metadata, stop_reason, reclaim_state,
+    reclaim_kill_operation_uuid
 FROM ONLY $record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
@@ -1322,6 +1359,7 @@ async fn load_production_kill_identity(
         .unwrap_or_else(|| process_uuid.to_string());
     Ok(ProductionKillIdentity {
         stopped: row.stopped_at.is_some(),
+        owner_host_scope_id: row.owner_host_scope_id,
         detached: crate::sandbox::DetachedProcessIdentity {
             process_uuid,
             handle: crate::sandbox::ProcessHandle {
@@ -1368,7 +1406,9 @@ impl ScopedSandboxKill for ProductionSandboxKill {
             return Err(KillError::before_adapter_invocation("detached result does not match the original reclaim operation"));
         }
         if identity.stopped {
-            return Ok(None); // A ledger row is not a new native observation.
+            return Err(KillError::before_adapter_invocation(
+                "process already has a durable STOP; nothing was signalled",
+            ));
         }
         let adapter = self.owning_adapter(&identity)
             .map_err(|error| KillError::before_adapter_invocation(error.message().to_owned()))?;
@@ -1378,9 +1418,20 @@ impl ScopedSandboxKill for ProductionSandboxKill {
             ));
         }
         dispatch.mark_possible_effect()?;
-        adapter.reclaim_detached_observed(
+        match adapter.reclaim_detached_observed(
             &identity.detached, crate::sandbox::Signal::Kill,
-        ).await.map_err(|error| KillError::new(error.to_string()))
+        ).await.map_err(KillError::from_detached_reclaim)? {
+            crate::sandbox::DetachedReclaimOutcome::Observed(status) => Ok(Some(status)),
+            // The owner found no such process. That ends the recorded process
+            // only when the row was recorded by this host.
+            crate::sandbox::DetachedReclaimOutcome::AlreadyAbsent
+                if self.host_scope_id.is_some()
+                    && identity.owner_host_scope_id == self.host_scope_id => Ok(None),
+            crate::sandbox::DetachedReclaimOutcome::AlreadyAbsent =>
+                Err(KillError::before_adapter_invocation(format!(
+                    "PROCESS_ABSENT_HOST_UNPROVEN: process {process_uuid} does not exist on this host, which is not proven to be its recorded host",
+                ))),
+        }
     }
 
     async fn recovery_observation(
@@ -1429,63 +1480,13 @@ impl ScopedSandboxKill for ProductionSandboxKill {
         }
     }
 
-    async fn terminal_exit_code(
-        &self, resource_scope: &ReclaimResourceScope,
-        process_uuid: Uuid, kill_operation_uuid: Uuid,
-    ) -> Result<i32, KillError> {
-        let identity = self.identity(resource_scope, process_uuid).await?;
-        if identity.kill_operation_uuid != Some(kill_operation_uuid) {
-            return Err(KillError::new("terminal observation does not match the original reclaim operation"));
-        }
-        let adapter_id = &identity.detached.handle.adapter_id;
-        if identity.stopped
-            || (adapter_id != &crate::sandbox::AdapterId::new(crate::sandbox::HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID)
-                && adapter_id != &crate::sandbox::AdapterId::new(
-                    crate::sandbox::palmistry_watcher::PALMISTRY_WATCHER_ADAPTER_ID))
-        {
-            return Err(KillError::new("fresh terminal-code recovery is supported only by an open native/Palmistry original identity"));
-        }
-        let adapter = self.owning_adapter(&identity)?;
-        let status = tokio::time::timeout(
-            Duration::from_secs(10), adapter.detached_status(&identity.detached),
-        ).await.map_err(|_| KillError::new("owning detached terminal observation timed out"))?
-            .map_err(|error| KillError::new(error.to_string()))?;
-        match status {
-            crate::sandbox::ProcessStatus::Exited { code } => Ok(code),
-            _ => Err(KillError::new(
-                "owning detached process has no positively observed terminal numeric code")),
-        }
-    }
-
     async fn kill(
         &self,
         resource_scope: &ReclaimResourceScope,
         process_uuid: Uuid,
         kill_operation_uuid: Uuid,
     ) -> Result<(), KillError> {
-        let context = Self::current_identity_context()?;
-        let deadline = context.deadline;
-        let identity = self.identity_with_context(resource_scope, process_uuid, context).await
-            .map_err(KillError::proved_before_adapter)?;
-        if identity.stopped {
-            return Ok(());
-        }
-        if identity.kill_operation_uuid != Some(kill_operation_uuid) {
-            return Err(KillError::before_adapter_invocation(format!(
-                "process {process_uuid} kill operation does not match the durable reclaim fence"
-            )));
-        }
-        let adapter = self.owning_adapter(&identity)
-            .map_err(|error| KillError::before_adapter_invocation(error.message().to_owned()))?;
-        if std::time::Instant::now() >= deadline {
-            return Err(KillError::before_adapter_invocation(
-                "production reclaim original deadline expired before adapter effect",
-            ));
-        }
-        adapter
-            .reclaim_detached(&identity.detached, crate::sandbox::Signal::Kill)
-            .await
-            .map_err(|error| KillError::new(error.to_string()))
+        self.kill_observed(resource_scope, process_uuid, kill_operation_uuid).await.map(|_| ())
     }
 
     async fn kill_operation_status(
@@ -2395,6 +2396,13 @@ impl ScopedReclaim {
         self
     }
 
+    /// Bound each kill observation inside the caller's own budget, so that one
+    /// process that does not end is a reported failure and not a boot timeout.
+    pub(crate) fn with_kill_observation_budget(mut self, budget: Duration) -> Self {
+        self.kill_timeout = self.kill_timeout.min(budget / 2);
+        self
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "test-utils")]
     pub fn with_reclaim_timings_for_test(
@@ -2736,11 +2744,8 @@ impl ScopedReclaim {
                     self.kill_with_claim_renewal(&process, kill_fence, owns_kill).await?;
                 process.reclaim_claim = renewed_claim;
                 process.sync_reclaim_claim_metadata()?;
-                match kill {
+                match kill.and_then(|status| ScopedReclaimTerminal::from_observed(&process, status)) {
                     Ok(terminal) => {
-                        let terminal = terminal.ok_or_else(|| ProcessLedgerError::Store(
-                            "original reclaim returned no observed terminal outcome; original operation, claim and STOP permit retained".into(),
-                        )).and_then(|status| ScopedReclaimTerminal::from_observed(&process, status))?;
                         let stop = {
                             let mut progress = kill_fence.claim_progress.lock()
                                 .unwrap_or_else(|error| error.into_inner());
@@ -2819,12 +2824,9 @@ impl ScopedReclaim {
                                 }
                             }
                         } else {
+                            // MT-019 F3: a kill failure is reported and counted, it
+                            // never aborts the pass, not even at boot.
                             diagnostic = format!("{diagnostic}; original possible-effect operation, claim and STOP permit retained");
-                            if policy == RestartOrphanReconcileErrorPolicy::AbortOnFirstError {
-                                return Err(ProcessLedgerError::Store(format!(
-                                    "original reclaim operation remains unresolved: {diagnostic}",
-                                )));
-                            }
                         }
                         (ScopedKillOutcome::Failed { error: diagnostic }, None)
                     }
@@ -3335,14 +3337,11 @@ impl ScopedReclaim {
             } else { None };
             if let Some(retained) = retained {
                 let result = match retained {
-                    RetainedKillOutcome::NotInvoked(error) => return Err(ProcessLedgerError::Store(
-                        format!("original reclaim was not invoked; canonical recovery remains required: {error}"),
-                    )),
+                    RetainedKillOutcome::NotInvoked(error) =>
+                        Err(KillError::before_adapter_invocation(error.message().to_owned())),
                     RetainedKillOutcome::Completed(result) => result,
                     RetainedKillOutcome::Uncertain(error)
-                    | RetainedKillOutcome::JoinedWithoutResult(error) => return Err(ProcessLedgerError::Store(format!(
-                        "original reclaim operation remains unresolved: {error}",
-                    ))),
+                    | RetainedKillOutcome::JoinedWithoutResult(error) => Err(error),
                 };
                 let claim = {
                     let progress = kill_fence.claim_progress.lock()
@@ -3358,10 +3357,12 @@ impl ScopedReclaim {
             }
             if deadline_reached {
                 let observer = if owns_kill { "initial" } else { "coalesced" };
-                return Err(ProcessLedgerError::Store(format!(
-                    "{observer} reclaim observation for process {} remains pending after {}ms; original task, claim and STOP permit retained",
+                let claim = kill_fence.claim_progress.lock()
+                    .unwrap_or_else(|error| error.into_inner()).acknowledged_claim.clone();
+                return Ok((Err(KillError::still_running(format!(
+                    "{observer} reclaim observation for process {} remains pending after {}ms",
                     process.process_uuid, kill_timeout.as_millis(),
-                )));
+                ))), claim, Arc::clone(&kill_fence)));
             }
             tokio::select! {
                 biased;
@@ -3465,8 +3466,8 @@ impl ScopedReclaim {
             ).await? {
                 ScopedKillRecoveryObservation::Succeeded { code } => ScopedReclaimTerminal::Exited { code },
                 ScopedKillRecoveryObservation::SucceededBySignal { by_signal } =>
-                    ScopedReclaimTerminal::from_observed(process, crate::sandbox::ProcessStatus::Killed { by_signal })
-                        .map_err(|error| KillError::new(error.to_string()))?,
+                    ScopedReclaimTerminal::from_observed(
+                        process, Some(crate::sandbox::ProcessStatus::Killed { by_signal }))?,
                 ScopedKillRecoveryObservation::Failed => return Ok(ReclaimKillOperationStatus::Failed),
                 ScopedKillRecoveryObservation::NotStarted => return Ok(ReclaimKillOperationStatus::NotStarted),
                 ScopedKillRecoveryObservation::InProgress => return Ok(ReclaimKillOperationStatus::InProgress),
@@ -3514,14 +3515,9 @@ impl ScopedReclaim {
             Some(RetainedKillOutcome::Completed(Err(error)))
                 if error.kind == KillFailureKind::BeforeAdapterInvocation =>
                     return Ok(ReclaimKillOperationStatus::NotStarted),
-            Some(RetainedKillOutcome::Completed(Ok(Some(crate::sandbox::ProcessStatus::Exited { code })))) =>
-                ScopedReclaimTerminal::Exited { code },
-            Some(RetainedKillOutcome::Completed(Ok(Some(crate::sandbox::ProcessStatus::Killed { by_signal }))))
-                if process.sandbox_adapter_id.as_deref()
-                    == Some(crate::sandbox::cloud_hypervisor::CLOUD_HYPERVISOR_ADAPTER_ID) =>
-                ScopedReclaimTerminal::Killed { by_signal },
-            Some(RetainedKillOutcome::Completed(Ok(_)))
-            | Some(RetainedKillOutcome::Completed(Err(_)))
+            Some(RetainedKillOutcome::Completed(Ok(status))) =>
+                ScopedReclaimTerminal::from_observed(process, status)?,
+            Some(RetainedKillOutcome::Completed(Err(_)))
             | Some(RetainedKillOutcome::JoinedWithoutResult(_)) => {
                 let retained_terminal = {
                     let progress = owner.claim_progress.lock()
@@ -3540,8 +3536,8 @@ impl ScopedReclaim {
                     ).await? {
                         ScopedKillRecoveryObservation::Succeeded { code } => ScopedReclaimTerminal::Exited { code },
                         ScopedKillRecoveryObservation::SucceededBySignal { by_signal } =>
-                            ScopedReclaimTerminal::from_observed(process, crate::sandbox::ProcessStatus::Killed { by_signal })
-                                .map_err(|error| KillError::new(error.to_string()))?,
+                            ScopedReclaimTerminal::from_observed(
+                                process, Some(crate::sandbox::ProcessStatus::Killed { by_signal }))?,
                         _ => return Ok(ReclaimKillOperationStatus::Unknown),
                     },
                 }

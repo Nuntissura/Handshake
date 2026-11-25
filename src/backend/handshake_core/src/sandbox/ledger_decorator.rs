@@ -628,17 +628,9 @@ impl SandboxAdapter for LedgerDecorator {
         self.inner.cleanup_terminal(handle).await
     }
 
-    async fn reclaim_detached(
-        &self,
-        identity: &super::adapter::DetachedProcessIdentity,
-        signal: Signal,
-    ) -> Result<(), SandboxAdapterError> {
-        self.inner.reclaim_detached(identity, signal).await
-    }
-
     async fn reclaim_detached_observed(
         &self, identity: &super::adapter::DetachedProcessIdentity, signal: Signal,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+    ) -> Result<super::adapter::DetachedReclaimOutcome, super::adapter::DetachedReclaimError> {
         self.inner.reclaim_detached_observed(identity, signal).await
     }
 

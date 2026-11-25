@@ -2016,10 +2016,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
 
     async fn reclaim_detached_observed(
         &self, identity: &crate::sandbox::DetachedProcessIdentity, _signal: Signal,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
+        use crate::sandbox::{DetachedReclaimError, DetachedReclaimOutcome};
         let handle = &identity.handle;
-        self.ensure_handle(handle)?;
-        let vm = {
+        let owned_vm = || {
+            self.ensure_handle(handle)?;
             let handles = self.handles.lock()
                 .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
             let state = handles.get(&handle.id).ok_or(SandboxAdapterError::ProcessHandleStale {
@@ -2029,9 +2030,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
             }
             state.persistent.clone()
-                .ok_or_else(|| spawn_failed("observed detached result requires the original persistent VM owner"))?
+                .ok_or_else(|| spawn_failed("observed detached result requires the original persistent VM owner"))
         };
-        self.kill_persistent_observed(handle, &vm).await.map(Some)
+        let vm = owned_vm().map_err(DetachedReclaimError::BeforeInvocation)?;
+        self.kill_persistent_observed(handle, &vm).await
+            .map(DetachedReclaimOutcome::Observed)
+            .map_err(DetachedReclaimError::AfterInvocation)
     }
 
     async fn cleanup_terminal(

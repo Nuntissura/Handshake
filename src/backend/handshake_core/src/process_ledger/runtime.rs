@@ -171,12 +171,12 @@ impl ProcessReclaimRuntime {
         let killer = Arc::new(ProductionSandboxKill::with_registry(
             storage.clone(),
             Arc::clone(&registry),
-        ));
+        ).with_host_scope(runtime_instance.host_scope_id.clone()));
         let reclaim = Arc::new(ScopedReclaim::new(
             process_store,
             killer,
             Arc::new(ledger.ledger()),
-        ).with_owning_runtime(owning_runtime));
+        ).with_owning_runtime(owning_runtime).with_kill_observation_budget(startup_timeout));
         let stale_source: Arc<dyn StaleSessionSource> = Arc::new(
             SurrealModelLaneStaleSessionSource::new(storage.clone(), runtime_instance.clone()),
         );

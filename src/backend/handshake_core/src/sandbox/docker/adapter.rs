@@ -605,8 +605,14 @@ impl SandboxAdapter for DockerAdapter {
 
     async fn reclaim_detached_observed(
         &self, identity: &crate::sandbox::DetachedProcessIdentity, signal: Signal,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
-        self.kill_observed(&identity.handle, signal).await
+    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
+        match self.kill_observed(&identity.handle, signal).await {
+            Ok(Some(status)) => Ok(crate::sandbox::DetachedReclaimOutcome::Observed(status)),
+            Ok(None) => Err(crate::sandbox::DetachedReclaimError::AfterInvocation(spawn_failed(
+                "docker signal was acknowledged while the container still runs",
+            ))),
+            Err(error) => Err(crate::sandbox::DetachedReclaimError::AfterInvocation(error)),
+        }
     }
 
     async fn cleanup_terminal(
