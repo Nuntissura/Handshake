@@ -14955,5 +14955,31 @@
       "note": "host_integration blocks in the WP012, CKC and WP-1 contracts cite the Operator's 2026-11-25 instruction in direction_ref; this object is the governance record of that instruction in this WP. Direction_ref strings in those blocks are a quote of it and are not rewritten."
     },
     "applies_here": "The Vulkan GUI refactor has its own packets (Q1) and every MT of WP-KERNEL-012, WP-CKC and WP-1 is to carry the Vulkan work it needs (Q12). New MTs: MT-213 to MT-221. Wording dispositions: MT-199.json#/toolkit_wording_disposition_20261125. Hash note: MT-212.json#/host_integration_repin_20261125."
+  },
+  "operator_takeover_direction_20261125": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-25",
+    "source": "Operator chat goal, 2026-11-25",
+    "operator_sentences": [
+      "you will take over wp kernel 012",
+      "i expect you to use sub agent to carry out work and want you to orchestrate and steer your sub agents.",
+      "from now on no more teams. you will manage your subagent * one coding agent, * one code checker and dependency agent, * one gui agent * onespecialist agents depending on mt content * one eval agent.",
+      "you wil focus one a single pico task at a time with the coding agent. the gui agent works asynchronous and in parallel. reuse cargo when possible, clean up cargo that is stale. refresh sub agents after each cargo build cycle",
+      "resolve questions, failures and blockers on your own without operator input by using a specialised agent team if needed. research online, research master spec, research product code, research mt,wp adjecent wp if needed. do not guess, do not decide on your own. use at least one adversarial agent when deliberating on blockers and failures and questions.",
+      "manage cargo with an agent that cleans up old stale cargo but it needs to inspect first what can be removed."
+    ],
+    "later_answers": [
+      {
+        "question": "Raise the builder target cap from 180 GB to 210 GB so the MT-172 compile can start now?",
+        "answer": "Raise to 210 GB"
+      },
+      {
+        "instruction": "do an commit with dirt of the wp kernel 012 worktree and gov kernel, but expect friction with gov kernel because my desktop pc is pushing to the same branch for its paperwork for wp studio"
+      },
+      {
+        "instruction": "also be aware you environment is a arm windows tablet but handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "does_not_grant": "file removal (CX-107, HSK-ART-005), spec or Codex edits (CX-105), process stops, or scope additions outside the contracts; those stay separate Operator approvals"
   }
 }

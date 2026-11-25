@@ -843,5 +843,53 @@
       "mt_ref": "MT-198.json",
       "when": "S4 text runs and roles: Kumihimo semantic tree contract at the pinned revision"
     }
-  ]
+  ],
+  "slice1_implementation_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-25",
+    "slice": "S1 handshake_shell_window",
+    "commit": "9788406857d7821e43e1d590a85e78764fd26a2c",
+    "paths": "src/frontend/handshake_shell/**",
+    "implementer_checks": {
+      "check --locked --offline --tests -j 2": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "doc": "clean",
+      "closure": "winit 0.30.13 private, windows-sys, bitflags, cursor-icon, dpi, raw-window-handle, smol_str, tracing, unicode-segmentation; no wgpu, egui, eframe, glow"
+    },
+    "tests": "73 written (54 unit, 19 integration), none run; no window created yet",
+    "ac214": {
+      "AC214-1": "this crate",
+      "AC214-12": "this crate",
+      "AC214-2": "written, runtime open",
+      "AC214-4": "damage and event-driven part",
+      "AC214-5": "origin and time on events, no injection",
+      "AC214-8": "partial",
+      "AC214-11": "partial",
+      "untouched": [
+        "AC214-3",
+        "AC214-6",
+        "AC214-7",
+        "AC214-9",
+        "AC214-10"
+      ]
+    },
+    "mt215_conditions": {
+      "F1": "accepted wake re-posts until dispatched",
+      "F2": "no wake before LoopStarted",
+      "HB-3": "finish refused before begin_shutdown",
+      "HB-4": "FrameProgress::waiting; S2 reports presents",
+      "HB-7": "DispatchedWake made only by the loop"
+    },
+    "known_gaps": [
+      "no drag hover",
+      "a stray WM_DEADCHAR panics winit",
+      "OS clipboard code untested",
+      "a clipboard read can wait on another program",
+      "host commands carry no actor, commands no revision",
+      "diagnostics counted, not wired",
+      "UserManual pending",
+      "ARM64 and other systems not compiled"
+    ],
+    "next": "independent eval, then S2 (needs MT-203 present support) or S3"
+  }
 }
