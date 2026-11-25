@@ -1,0 +1,20 @@
+# WP-KERNEL-012 MT-215 S1 — the UI-thread heartbeat port.
+#
+# Proves that a host's event loop is being serviced, without drawing, and writes that proof into the existing
+# heartbeat slot of the existing diagnostics ring (Master Spec 5.8.2, 6.13.5; GUI-DESKTOP-051). The watcher and its
+# thresholds are unchanged.
+[package]
+name = "ui_heartbeat"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Toolkit-free UI-thread heartbeat port: event-loop wake round trips written to the existing diagnostics ring."
+
+[dependencies]
+# The ring and its typed heartbeat writer. Same crate both processes already link.
+handshake-diag-ring = { path = "../../handshake_native/diag_ring" }
+
+[dev-dependencies]
+# The real watcher library: its ring reader and freeze decision run in the tests, not copies of them. Tests only;
+# no GUI toolkit in its closure. handshake_native uses the same dev-only edge for the same reason.
+palmistry = { path = "../../palmistry" }
