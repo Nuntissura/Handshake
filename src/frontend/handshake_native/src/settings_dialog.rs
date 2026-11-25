@@ -1097,10 +1097,13 @@ fn show_host(
                     .max_height(if detached || mounted { ui.available_height() } else { ui.available_height().min(440.0) }.max(1.0))
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
+                        let mut rendered_features = false;
                         if matches!(view.engine_profiles.tab, EngineProfilesTab::General | EngineProfilesTab::SharedFeature)
                             && view.engine_profiles.section.is_none()
                         {
-                            render_registered_features(ui, view.registered_features, &query, view.engine_profiles);
+                            rendered_features = render_registered_features(
+                                ui, view.registered_features, &query, view.engine_profiles,
+                            );
                         }
                         match view.engine_profiles.tab {
                             EngineProfilesTab::General => {
@@ -1108,10 +1111,16 @@ fn show_host(
                                     ui.label("Showing the selected section.");
                                 }
                                 let section_query = if view.engine_profiles.section.is_some() { "" } else { query.as_str() };
-                                outcome = render_sections(
+                                let (section_outcome, rendered_sections) = render_sections(
                                     ui, section_query, &mut state, &mut view,
                                     &mut editor_section, outcome.clone(),
                                 );
+                                outcome = section_outcome;
+                                if !section_query.is_empty() && !rendered_features && !rendered_sections {
+                                    let label = "No matching settings.";
+                                    let response = ui.label(label);
+                                    set_author_id_and_label(ui, response.id, "settings.search.empty", label);
+                                }
                             }
                             EngineProfilesTab::EngineProfiles if outcome == SettingsOutcome::None => {
                                 outcome = render_engine_profiles_tab(ui, view.engine_profiles);
@@ -1264,12 +1273,19 @@ pub fn registered_feature_author_id(feature: &PaneType) -> String {
     }
 }
 
-fn render_registered_features(ui: &mut egui::Ui, registered: &[PaneType], query: &str, state: &mut EngineProfilesSettingsState) {
+fn render_registered_features(
+    ui: &mut egui::Ui,
+    registered: &[PaneType],
+    query: &str,
+    state: &mut EngineProfilesSettingsState,
+) -> bool {
     let matches: Vec<_> = registered.iter().filter(|feature| {
         let assigned = MODULE_DEFINITIONS.iter().any(|module| module.tabs.contains(feature));
         if query.is_empty() { !assigned } else { feature.label().to_lowercase().contains(query) }
     }).collect();
-    if matches.is_empty() { return; }
+    if matches.is_empty() {
+        return false;
+    }
     let header = egui::CollapsingHeader::new("Features")
         .default_open(false)
         .open((!query.is_empty() || state.tab == EngineProfilesTab::SharedFeature).then_some(true))
@@ -1299,6 +1315,7 @@ fn render_registered_features(ui: &mut egui::Ui, registered: &[PaneType], query:
         record_settings_navigation(ui, true);
         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), "settings.features.shared");
     }
+    true
 }
 
 fn render_module_settings(ui: &mut egui::Ui, module: ModuleId, state: &mut EngineProfilesSettingsState) -> SettingsOutcome {
@@ -1412,7 +1429,7 @@ pub fn prime_query(ctx: &egui::Context, open_count: u64, query: impl Into<String
 }
 
 /// Render every settings section in order, threading `outcome` so the first interaction this frame wins
-/// (we never overwrite a Close already chosen in the header). Returns the (possibly updated) outcome.
+/// (we never overwrite a Close already chosen in the header). Also reports whether any section rendered.
 fn render_sections(
     ui: &mut egui::Ui,
     query: &str,
@@ -1420,9 +1437,10 @@ fn render_sections(
     view: &mut SettingsView<'_>,
     editor_section: &mut crate::settings_editor_section::EditorSettingsSection,
     mut outcome: SettingsOutcome,
-) -> SettingsOutcome {
+) -> (SettingsOutcome, bool) {
     let settings = view.settings;
     let selected_section = view.engine_profiles.section;
+    let mut rendered = false;
 
     // MT-072: the read-only editor view the three new sections render from (the live settings + the
     // surfaced auto-save interval label).
@@ -1446,6 +1464,7 @@ fn render_sections(
             "consent",
         ],
     ) {
+        rendered = true;
         let header = egui::CollapsingHeader::new("Cloud Models")
             .default_open(true)
             .open((!query.is_empty() || selected_section.is_some()).then_some(true))
@@ -1488,6 +1507,7 @@ fn render_sections(
         &["appearance", "calendar", "timezone", "iana", "tzid"],
     );
     if section_visible(selected_section, "appearance") && show_appearance {
+        rendered = true;
         let appearance_header = egui::CollapsingHeader::new("Appearance")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -1603,6 +1623,7 @@ fn render_sections(
             &["keybinding", "keybindings", "shortcut", "shortcuts"],
         );
     if section_visible(selected_section, "keybindings") && show_keybindings {
+        rendered = true;
         let keybindings_header = egui::CollapsingHeader::new("Keybindings")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -1747,6 +1768,7 @@ fn render_sections(
         ],
     );
     if section_visible(selected_section, "swarm") && show_swarm {
+        rendered = true;
         let swarm_header = egui::CollapsingHeader::new("Swarm")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -1872,6 +1894,7 @@ fn render_sections(
     let show_terminal =
         setting_matches_query(query, &["terminal", "shell", "scrollback", "logging"]);
     if section_visible(selected_section, "terminal") && show_terminal {
+        rendered = true;
         let terminal_header = egui::CollapsingHeader::new("Terminal")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -1890,6 +1913,7 @@ fn render_sections(
     // ── [5] Layout (wired Reset panes & drawers button) ────────────────────────────────────────────
     let show_layout = setting_matches_query(query, &["layout", "reset", "panes", "drawers"]);
     if section_visible(selected_section, "layout") && show_layout {
+        rendered = true;
         let layout_header = egui::CollapsingHeader::new("Layout")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -1923,6 +1947,7 @@ fn render_sections(
         &["model", "session", "launch", "local", "cloud", "wrapper"],
     );
     if section_visible(selected_section, "model-session") && show_model_session {
+        rendered = true;
         let model_header = egui::CollapsingHeader::new("Model Session")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -2010,6 +2035,7 @@ fn render_sections(
         ],
     );
     if section_visible(selected_section, "editor") && show_editor {
+        rendered = true;
         // FORCE open while a search query is active (`.open(Some(true))` overrides egui's persisted
         // collapsed state — `default_open` would be ignored after the user manually closed it). With
         // no query, leave egui's own open/close state alone (`.open(None)`) so that choice sticks.
@@ -2049,6 +2075,7 @@ fn render_sections(
         ],
     );
     if section_visible(selected_section, "syntax") && show_syntax {
+        rendered = true;
         let force_open = (!query.is_empty() || selected_section.is_some()).then_some(true);
         let syntax_header = egui::CollapsingHeader::new("Syntax")
             .default_open(true)
@@ -2071,6 +2098,7 @@ fn render_sections(
     // BEFORE them). Section content + author_id are unchanged — this is an ordering-only move.
     let show_about = setting_matches_query(query, &["about", "app", "version"]);
     if section_visible(selected_section, "about") && show_about {
+        rendered = true;
         let about_header = egui::CollapsingHeader::new("About")
             .default_open(true)
             .open(selected_section.map(|_| true))
@@ -2108,6 +2136,7 @@ fn render_sections(
         crate::settings_diagnostics_section::DIAGNOSTICS_SEARCH_KEYWORDS,
     );
     if section_visible(selected_section, "diagnostics") && show_diagnostics {
+        rendered = true;
         let force_open = (!query.is_empty() || selected_section.is_some() || view.diagnostics_force_open).then_some(true);
         let diagnostics_header = egui::CollapsingHeader::new("Diagnostics")
             .default_open(false)
@@ -2132,7 +2161,7 @@ fn render_sections(
         );
     }
 
-    outcome
+    (outcome, rendered)
 }
 
 /// MT-072: map an [`crate::settings_editor_section::EditorSectionOutcome`] from the editor sections onto
@@ -2724,6 +2753,231 @@ mod tests {
         assert_ne!(SETTINGS_DIALOG_NODE_ID, SETTINGS_SEARCH_NODE_ID);
         assert_ne!(SETTINGS_SEARCH_NODE_ID, SETTINGS_LIST_NODE_ID);
         assert_ne!(SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_NODE_ID);
+    }
+
+    #[test]
+    fn settings_search_reports_empty_only_for_active_unmatched_queries() {
+        use egui_kittest::kittest::{AccessKitNode, NodeT, Queryable};
+        use egui_kittest::Harness;
+
+        let settings = crate::workspace_settings::default_workspace_settings_state();
+        let registered = [PaneType::FontManager];
+        let swarm_model_sessions = SwarmModelSessionsSettingsState::default();
+        let diagnostics = crate::diagnostics::DiagnosticsView::default();
+        let palette = crate::theme::HsTheme::Dark.palette();
+        let preference_provenance = crate::settings_editor_section::EditorPreferenceProvenance::default();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(900.0, 760.0))
+            .build_ui_state(
+                |ui, (engine_profiles, cloud)| {
+                    show_in_ui(
+                        ui,
+                        SettingsView {
+                            engine_profiles,
+                            registered_features: &registered,
+                            cloud,
+                            swarm_model_sessions: &swarm_model_sessions,
+                            open_count: 1,
+                            settings: &settings,
+                            persist_error: None,
+                            persist_retry_operation: None,
+                            diagnostics: &diagnostics,
+                            diagnostics_force_open: false,
+                            palette: &palette,
+                            worksurface_inspector_last_dump: None,
+                            preference_provenance: &preference_provenance,
+                        },
+                        false,
+                    );
+                },
+                (EngineProfilesSettingsState::default(), CloudModelsSettingsState::default()),
+            );
+
+        let is_search = |node: &AccessKitNode<'_>| node.author_id() == Some(SETTINGS_SEARCH_AUTHOR_ID);
+        let empty = "No matching settings.";
+        assert!(harness.query_by_label(empty).is_none());
+        harness.get_by(is_search).focus();
+        harness.run_steps(3);
+        let search = harness.get_by(is_search);
+        assert!(search.is_focused());
+        search.type_text("no-such-settings-9876");
+        harness.run_steps(3);
+        assert_eq!(
+            harness.get_by_label(empty).accesskit_node().author_id(),
+            Some("settings.search.empty"),
+        );
+
+        harness.get_by_label("CKC").click();
+        harness.run_steps(3);
+        assert!(harness.query_by_label(empty).is_none());
+        assert!(harness.query_by_label(
+            "Search paused. Edit Search settings or select General to search all settings."
+        ).is_some());
+
+        harness.get_by_label("General").click();
+        harness.run_steps(3);
+        assert!(harness.query_by_label(empty).is_some());
+
+        harness.get_by(is_search).focus();
+        harness.run_steps(3);
+        assert!(harness.get_by(is_search).is_focused());
+        harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        harness.get_by(is_search).type_text("Font Manager");
+        harness.run_steps(3);
+        assert!(harness.query_by_label("Font Manager").is_some());
+        assert!(harness.query_by_label("Appearance").is_none());
+        assert!(harness.query_by_label(empty).is_none());
+
+        assert!(harness.get_by(is_search).is_focused());
+        harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        harness.get_by(is_search).type_text("appearance");
+        harness.run_steps(3);
+        assert!(harness.query_by_label("Appearance").is_some());
+        assert!(harness.query_by_label("Font Manager").is_none());
+        assert!(harness.query_by_label(empty).is_none());
+
+        assert!(harness.get_by(is_search).is_focused());
+        harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        harness.key_press(egui::Key::Backspace);
+        harness.run_steps(3);
+        assert!(harness.query_by_label("Keybindings").is_some());
+        assert!(harness.query_by_label(empty).is_none());
+    }
+
+    #[test]
+    fn engine_profile_create_at_generation_limit_preserves_draft_without_effect() {
+        use crate::mcp::argus::register_action_effect;
+        use std::time::{Duration, Instant};
+
+        const RECEIPT_ID: u64 = 1;
+        const DRAFT_ID: &str = "retained-profile-draft";
+        const DRAFT_AUTHOR: &str = "settings.engine-profiles.draft.id";
+        const SAVE_AUTHOR: &str = "settings.engine-profiles.draft.save";
+        const REOPEN_MESSAGE: &str = "Close and reopen Settings to continue editing profiles.";
+
+        fn authored_node<'a>(
+            tree: &'a accesskit::TreeUpdate,
+            author: &str,
+        ) -> &'a (accesskit::NodeId, accesskit::Node) {
+            tree.nodes
+                .iter()
+                .find(|(_, node)| node.author_id() == Some(author))
+                .unwrap_or_else(|| panic!("missing Settings control {author}"))
+        }
+
+        let registry = EngineProfileRegistryV1 {
+            registry_generation: 0,
+            profiles: Vec::new(),
+            active_generation: 0,
+            active: None,
+        };
+        let mut draft = EngineProfileEditor::create(&registry);
+        draft.profile.id = DRAFT_ID.to_owned();
+        draft.profile.model = Model {
+            id: "component-model".to_owned(),
+            format: ModelFormat::GgufQ4_0,
+            content_sha256: "1".repeat(64),
+            compiled_context: None,
+        };
+        draft.profile.engine = Engine::GenieXLlamaCpp;
+        draft.profile.device = Device::Cpu;
+        draft.profile.preset = Preset {
+            name: "component-preset".to_owned(),
+            context_limit: 2048,
+            max_tokens: 128,
+            sampling: Sampling::LlamaCpp {
+                temperature: 0.7,
+                top_k: 40,
+                top_p: 0.95,
+                min_p: 0.05,
+            },
+        };
+        let mut state = EngineProfilesSettingsState {
+            scope: Some(EngineProfilesScope {
+                account_id: "account".to_owned(),
+                principal_id: "principal".to_owned(),
+                session_id: "session".to_owned(),
+                access_space_id: "space".to_owned(),
+                workspace_id: "workspace".to_owned(),
+            }),
+            editor_generation: u64::MAX,
+            registry: Some(registry),
+            editor: Some(draft),
+            ..Default::default()
+        };
+
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let draw = |state: &mut EngineProfilesSettingsState, events| {
+            ctx.run(
+                egui::RawInput {
+                    events,
+                    focused: true,
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(900.0, 900.0),
+                    )),
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        assert_eq!(render_engine_profiles_tab(ui, state), SettingsOutcome::None);
+                    });
+                },
+            )
+        };
+
+        let before = draw(&mut state, Vec::new());
+        let tree = before.platform_output.accesskit_update.as_ref().unwrap();
+        let (target, create) = authored_node(tree, ENGINE_PROFILE_CREATE_AUTHOR_ID);
+        assert!(!create.is_disabled());
+        assert!(create.supports_action(accesskit::Action::Click));
+        let (_, save) = authored_node(tree, SAVE_AUTHOR);
+        assert!(!save.is_disabled());
+        assert!(save.supports_action(accesskit::Action::Click));
+        assert_eq!(authored_node(tree, DRAFT_AUTHOR).1.value(), Some(DRAFT_ID));
+        let original_draft = state.editor.as_ref().expect("draft before Create").clone();
+        let request = accesskit::ActionRequest {
+            action: accesskit::Action::Click,
+            target: *target,
+            data: None,
+        };
+        let dispatch_frame = ctx.cumulative_frame_nr_for(egui::ViewportId::ROOT);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let ticket = register_action_effect(
+            &ctx,
+            egui::ViewportId::ROOT,
+            RECEIPT_ID,
+            ENGINE_PROFILE_CREATE_AUTHOR_ID,
+            &request,
+            deadline,
+        )
+        .expect("register the exact Create click");
+
+        let _ = draw(&mut state, vec![egui::Event::AccessKitActionRequest(request)]);
+        let later = draw(&mut state, Vec::new());
+        assert!(ctx.cumulative_frame_nr_for(egui::ViewportId::ROOT) > dispatch_frame);
+        assert!(Instant::now() < deadline, "the effect ticket must not have expired");
+        assert!(!ticket.acknowledged_after_frame(&ctx, RECEIPT_ID));
+        ticket.release();
+
+        let retained = state.editor.as_ref().expect("draft after exhaustion");
+        assert_eq!(retained.profile, original_draft.profile);
+        assert_eq!(retained.expected, original_draft.expected);
+        assert_eq!(retained.expected_head_generation, original_draft.expected_head_generation);
+        assert_eq!(retained.registry_generation, original_draft.registry_generation);
+        assert_eq!(retained.active_generation, original_draft.active_generation);
+        assert_eq!(retained.inspect_only, original_draft.inspect_only);
+        assert_eq!(state.editor_generation, u64::MAX);
+
+        let tree = later.platform_output.accesskit_update.as_ref().unwrap();
+        assert_eq!(authored_node(tree, DRAFT_AUTHOR).1.value(), Some(DRAFT_ID));
+        assert!(authored_node(tree, ENGINE_PROFILE_CREATE_AUTHOR_ID).1.is_disabled());
+        assert!(authored_node(tree, SAVE_AUTHOR).1.is_disabled());
+        assert!(later.shapes.iter().any(|shape| matches!(
+            &shape.shape,
+            egui::epaint::Shape::Text(text) if text.galley.job.text == REOPEN_MESSAGE
+        )));
     }
 
     /// The author_ids are stable kebab-case keys.

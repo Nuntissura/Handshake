@@ -3,7 +3,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use async_trait::async_trait;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde_json::{json, Value};
 use surrealdb::types::{RecordId, SurrealValue};
@@ -1346,50 +1345,98 @@ async fn orphan_receipt_without_lifecycle_rejects_identical_retries_atomically_a
 
 #[tokio::test]
 async fn saturation_emits_overflow_receipts_and_clears_degraded_after_drain() {
-    let store = InMemoryProcessLedgerStore::default();
+    const CAPACITY: usize = 128;
+    const ATTEMPTS: usize = 10_000;
+    let mut fixture = SurrealFixture::open().await;
+    let namespace = fixture.allocator.namespace().to_owned();
+    let database = fixture.allocator.database().to_owned();
     let overflow = InMemoryOverflowSink::default();
     let (writer, drain) =
-        ProcessLedgerWriter::new_manual(128, Arc::new(overflow.clone())).expect("manual writer");
+        ProcessLedgerWriter::new_manual(CAPACITY, Arc::new(overflow.clone())).expect("manual writer");
 
+    let mut accepted = Vec::with_capacity(CAPACITY);
+    let mut dropped = Vec::with_capacity(ATTEMPTS - CAPACITY);
     let mut worst_append = Duration::ZERO;
-    for index in 0..10_000 {
+    for index in 0..ATTEMPTS {
         let start = ProcessStart::new(
             ProcessEngineKind::MechanicalJob,
             format!("owner-{index}"),
             Some("WP-KERNEL-004".to_string()),
-        );
+        ).with_metadata_jsonb(scope_metadata(&fixture.scope));
+        let process_uuid = start.process_uuid;
         let started = Instant::now();
-        writer
-            .append_start(start)
-            .expect("append never blocks on store");
+        let result = writer.append_start_lossless(start);
         worst_append = worst_append.max(started.elapsed());
+        if index < CAPACITY {
+            result.expect("available queue slot");
+            accepted.push(process_uuid);
+        } else {
+            let error = result.expect_err("full queue must reject the producer");
+            assert!(matches!(
+                error,
+                ProcessLedgerError::EnqueueDropped(ref message)
+                    if message.contains("ledger writer queue is full")
+                        && message.contains(&process_uuid.to_string())
+                        && message.contains("capacity 128")
+            ), "unexpected overflow error: {error:?}");
+            dropped.push(process_uuid);
+        }
     }
-
-    assert!(
-        worst_append < Duration::from_millis(10),
-        "append path waited too long: {worst_append:?}"
-    );
+    assert!(worst_append < Duration::from_millis(10), "append path waited too long: {worst_append:?}");
     assert!(writer.is_degraded());
     assert!(is_degraded());
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, 0, "no drain has run");
 
     let overflow_events = overflow.events();
-    assert_eq!(overflow_events.len(), 10_000 - 128);
-    assert_eq!(
-        overflow_events.last().unwrap().overflow_count,
-        (10_000 - 128) as u64
-    );
-    assert_eq!(
-        overflow_events.last().unwrap().dropped_event_kind,
-        LedgerEventKind::Start
-    );
+    assert_eq!(overflow_events.len(), ATTEMPTS - CAPACITY);
+    for (index, (event, process_uuid)) in overflow_events.iter().zip(&dropped).enumerate() {
+        assert_eq!(event.overflow_count, (index + 1) as u64);
+        assert_eq!(event.capacity, CAPACITY);
+        assert_eq!(event.dropped_event_kind, LedgerEventKind::Start);
+        let typed = event.to_kernel_event().expect("typed overflow event");
+        assert_eq!(typed.event_type, KernelEventType::FrEvtLedgerOverflow);
+        assert_eq!(typed.payload["sampled_event_payload"]["process_uuid"], process_uuid.to_string());
+    }
 
-    drain
-        .drain_available_to(Arc::new(store.clone()))
-        .await
-        .unwrap();
-    assert_eq!(store.events().len(), 128);
+    drain.drain_available_to(fixture.store.clone()).await.expect("drain into embedded Surreal");
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, CAPACITY as i64);
     assert!(!writer.is_degraded());
     assert!(!is_degraded());
+    drop(drain);
+    drop(writer);
+
+    drop(fixture.store);
+    drop(fixture.storage);
+    fixture.allocator.reopen().await.expect("close and reopen the same embedded store");
+    assert_eq!(fixture.allocator.namespace(), namespace);
+    assert_eq!(fixture.allocator.database(), database);
+    fixture.storage = fixture.allocator.storage().clone();
+    fixture.store = Arc::new(SurrealProcessLedgerStore::open(fixture.storage.clone())
+        .await.expect("open ProcessLedger in the reopened database"));
+
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, CAPACITY as i64);
+    for &process_uuid in &accepted {
+        assert!(fixture.lifecycle(process_uuid, &fixture.scope).await.is_some());
+        assert!(fixture.event(process_uuid, LedgerEventKind::Start, &fixture.scope).await.is_some());
+    }
+    let bindings = ScopeOnlyBindings::new(&fixture.scope);
+    let lifecycle_ids = fixture.storage.with_data_operation(|database| Box::pin(async move {
+        database.query_values::<Uuid, _>(r#"
+            SELECT VALUE process_uuid FROM kernel_process_lifecycle
+            WHERE owner_account_id = $owner_account_id
+                AND actor_principal_id = $actor_principal_id
+                AND authenticated_session_id = $authenticated_session_id
+                AND access_space_id = $access_space_id
+                AND workspace_id = $workspace_id;
+        "#, bindings).await
+    })).await.expect("read all exact-scope lifecycle identities");
+    assert_eq!(lifecycle_ids.len(), CAPACITY);
+    assert_eq!(lifecycle_ids.into_iter().collect::<std::collections::BTreeSet<_>>(), accepted.iter().copied().collect());
+    for process_uuid in [dropped[0], dropped[dropped.len() - 1]] {
+        assert!(fixture.lifecycle(process_uuid, &fixture.scope).await.is_none());
+        assert!(fixture.event(process_uuid, LedgerEventKind::Start, &fixture.scope).await.is_none());
+    }
+    fixture.close().await;
 }
 
 #[test]
@@ -1853,25 +1900,6 @@ WHERE owner_account_id = $owner_account_id
     AND payload.metadata_jsonb.access_space_id = $access_space_id
     AND payload.metadata_jsonb.workspace_id = $workspace_id;
 "#;
-
-#[derive(Clone, Default)]
-struct InMemoryProcessLedgerStore {
-    events: Arc<Mutex<Vec<LedgerEvent>>>,
-}
-
-impl InMemoryProcessLedgerStore {
-    fn events(&self) -> Vec<LedgerEvent> {
-        self.events.lock().unwrap().clone()
-    }
-}
-
-#[async_trait]
-impl ProcessLedgerStore for InMemoryProcessLedgerStore {
-    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
-        self.events.lock().unwrap().extend(events);
-        Ok(())
-    }
-}
 
 #[derive(Clone, Default)]
 struct InMemoryOverflowSink {

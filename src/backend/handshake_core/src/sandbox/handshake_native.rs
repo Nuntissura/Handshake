@@ -129,6 +129,10 @@ impl HandshakeNativeSandboxAdapter {
 
 #[async_trait]
 impl SandboxAdapter for HandshakeNativeSandboxAdapter {
+    fn validate_spawn_acquisition(&self) -> Result<(), SandboxAdapterError> {
+        Err(Self::unsupported("spawn"))
+    }
+
     async fn spawn(&self, _spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
         Err(Self::unsupported("spawn"))
     }
@@ -250,6 +254,22 @@ impl SandboxAdapter for HandshakeNativeSandboxAdapter {
             Err(Self::unavailable(
                 "crash-detached Handshake-native reclaim is implemented only on Windows",
             ))
+        }
+    }
+
+    async fn reclaim_detached_observed(
+        &self, identity: &DetachedProcessIdentity, _signal: Signal,
+    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+        #[cfg(target_os = "windows")]
+        {
+            reclaim_verified_detached_process_observed(
+                identity, HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID,
+            ).await.map(Some)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = identity;
+            Err(Self::unavailable("crash-detached Handshake-native reclaim is implemented only on Windows"))
         }
     }
 
@@ -383,13 +403,10 @@ fn open_verified_detached_process(
     };
     if handle.is_null() {
         let error = io::Error::last_os_error();
-        return match error.raw_os_error() {
-            Some(87) => Ok(None),
-            _ => Err(detached_identity_error(
-                identity,
-                format!("cannot open pid {pid}: {error}"),
-            )),
-        };
+        return Err(detached_identity_error(
+            identity,
+            format!("cannot open and verify pid {pid}; absence is not terminal proof: {error}"),
+        ));
     }
     let process = VerifiedDetachedProcessHandle(handle);
     let mut creation = FILETIME::default();
@@ -445,18 +462,52 @@ fn open_verified_detached_process(
 }
 
 #[cfg(target_os = "windows")]
+fn observe_verified_detached_process(
+    identity: &DetachedProcessIdentity,
+    process: &VerifiedDetachedProcessHandle,
+) -> Result<ProcessStatus, SandboxAdapterError> {
+    use windows_sys::Win32::{
+        Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT},
+        System::Threading::{GetExitCodeProcess, WaitForSingleObject},
+    };
+
+    match unsafe { WaitForSingleObject(process.0, 0) } {
+        WAIT_TIMEOUT => Ok(ProcessStatus::Running),
+        WAIT_OBJECT_0 => {
+            let mut code = 0u32;
+            if unsafe { GetExitCodeProcess(process.0, &mut code) } == 0 {
+                return Err(detached_identity_error(
+                    identity,
+                    format!("verified process is signaled but exit code is unavailable: {}",
+                        io::Error::last_os_error()),
+                ));
+            }
+            // Preserve the actual Windows exit-code bits in the existing i32 API.
+            Ok(ProcessStatus::Exited { code: code as i32 })
+        }
+        result => Err(detached_identity_error(
+            identity, format!("verified process state is unobserved; wait result {result}"),
+        )),
+    }
+}
+
+#[cfg(target_os = "windows")]
 fn terminate_verified_detached_process(
     identity: &DetachedProcessIdentity,
     expected_adapter_id: &str,
-) -> Result<(), SandboxAdapterError> {
+) -> Result<ProcessStatus, SandboxAdapterError> {
     use windows_sys::Win32::{
         Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT},
         System::Threading::{TerminateProcess, WaitForSingleObject},
     };
 
     let Some(process) = open_verified_detached_process(identity, expected_adapter_id)? else {
-        return Ok(());
+        return Err(detached_identity_error(identity, "original verified process handle is unavailable"));
     };
+    let observed = observe_verified_detached_process(identity, &process)?;
+    if matches!(observed, ProcessStatus::Exited { .. }) {
+        return Ok(observed);
+    }
     if unsafe { TerminateProcess(process.0, 1) } == 0 {
         return Err(detached_identity_error(
             identity,
@@ -464,7 +515,10 @@ fn terminate_verified_detached_process(
         ));
     }
     match unsafe { WaitForSingleObject(process.0, 5_000) } {
-        WAIT_OBJECT_0 => Ok(()),
+        WAIT_OBJECT_0 => match observe_verified_detached_process(identity, &process)? {
+            status @ ProcessStatus::Exited { .. } => Ok(status),
+            _ => Err(detached_identity_error(identity, "terminal process observation changed")),
+        },
         WAIT_TIMEOUT => Err(detached_identity_error(
             identity,
             "process did not terminate within 5000ms",
@@ -486,6 +540,14 @@ pub(crate) async fn reclaim_verified_detached_process(
     identity: &DetachedProcessIdentity,
     expected_adapter_id: &'static str,
 ) -> Result<(), SandboxAdapterError> {
+    reclaim_verified_detached_process_observed(identity, expected_adapter_id).await.map(|_| ())
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) async fn reclaim_verified_detached_process_observed(
+    identity: &DetachedProcessIdentity,
+    expected_adapter_id: &'static str,
+) -> Result<ProcessStatus, SandboxAdapterError> {
     let identity = identity.clone();
     tokio::task::spawn_blocking(move || {
         terminate_verified_detached_process(&identity, expected_adapter_id)
@@ -503,19 +565,16 @@ pub(crate) async fn verified_detached_process_status(
     expected_adapter_id: &'static str,
 ) -> Result<ProcessStatus, SandboxAdapterError> {
     let identity = identity.clone();
-    let running = tokio::task::spawn_blocking(move || {
-        open_verified_detached_process(&identity, expected_adapter_id)
-            .map(|process| process.is_some())
+    tokio::task::spawn_blocking(move || {
+        let process = open_verified_detached_process(&identity, expected_adapter_id)?
+            .ok_or_else(|| detached_identity_error(&identity, "original verified process handle is unavailable"))?;
+        observe_verified_detached_process(&identity, &process)
     })
     .await
     .map_err(|error| SandboxAdapterError::SpawnFailed {
         adapter_id: identity_adapter_id(expected_adapter_id),
         reason: format!("detached status worker failed to join: {error}"),
-    })??;
-    match running {
-        true => Ok(ProcessStatus::Running),
-        false => Ok(ProcessStatus::Exited { code: 0 }),
-    }
+    })?
 }
 
 #[cfg(target_os = "windows")]

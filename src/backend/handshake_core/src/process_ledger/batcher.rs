@@ -144,6 +144,10 @@ impl LedgerBatcher {
             })
     }
 
+    pub(crate) fn try_reserve_fresh_reclaim_stop(&self) -> Result<ReservedProcessStop, ProcessLedgerError> {
+        self.writer.try_reserve_fresh_reclaim_stop()
+    }
+
     pub fn try_reserve_reclaim_stop(&self) -> Result<ReservedProcessStop, ProcessLedgerError> {
         self.writer.try_reserve_reclaim_stop()
     }
@@ -165,6 +169,10 @@ impl LedgerBatcher {
     /// terminate so its `JoinHandle` resolves. Callable from any clone. Pair with
     /// [`drain_and_join_ledger_writer`] (or await the `JoinHandle` directly) to
     /// bound the flush.
+    pub(crate) fn has_pending_start_admissions(&self) -> bool {
+        self.writer.has_pending_start_admissions()
+    }
+
     pub fn begin_close(&self) {
         self.writer.begin_close();
     }
@@ -177,7 +185,7 @@ pub struct RetainedLedgerBatcher {
 
 struct RetainedLedgerBatcherInner {
     ledger: LedgerBatcher,
-    writer_join: Mutex<Option<JoinHandle<Result<(), ProcessLedgerError>>>>,
+    writer_join: Arc<tokio::sync::Mutex<RetainedWriterJoin>>,
 }
 
 impl RetainedLedgerBatcher {
@@ -190,7 +198,7 @@ impl RetainedLedgerBatcher {
         Self {
             inner: Arc::new(RetainedLedgerBatcherInner {
                 ledger,
-                writer_join: Mutex::new(Some(writer_join)),
+                writer_join: Arc::new(tokio::sync::Mutex::new(RetainedWriterJoin::new(writer_join))),
             }),
         }
     }
@@ -206,7 +214,7 @@ impl RetainedLedgerBatcher {
         Self {
             inner: Arc::new(RetainedLedgerBatcherInner {
                 ledger,
-                writer_join: Mutex::new(Some(writer_join)),
+                writer_join: Arc::new(tokio::sync::Mutex::new(RetainedWriterJoin::new(writer_join))),
             }),
         }
     }
@@ -216,78 +224,200 @@ impl RetainedLedgerBatcher {
     }
 
     pub async fn drain_and_join(&self, timeout: Duration) -> LedgerDrainJoinOutcome {
-        let writer_join = self
-            .inner
-            .writer_join
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take();
-        let Some(writer_join) = writer_join else {
-            return LedgerDrainJoinOutcome::AlreadyDrained;
-        };
-        drain_and_join_ledger_writer(&self.inner.ledger, writer_join, timeout).await
+        let caller_deadline = tokio::time::Instant::now() + timeout;
+        let mut owns_grace = false;
+        self.inner.ledger.begin_close();
+        loop {
+            let Ok(mut state) = tokio::time::timeout_at(caller_deadline, self.inner.writer_join.lock()).await else {
+                return LedgerDrainJoinOutcome::Pending;
+            };
+            state.recover_failed_handoff();
+            let grace_deadline = if state.abort_requested {
+                state.deadline.unwrap_or(caller_deadline)
+            } else {
+                if state.deadline.is_none() {
+                    state.deadline = Some(caller_deadline);
+                    owns_grace = true;
+                }
+                state.deadline.expect("original graceful deadline")
+            };
+            if let Some(outcome) = &state.terminal {
+                return match outcome {
+                    RetainedWriterOutcome::Flushed => LedgerDrainJoinOutcome::AlreadyDrained,
+                    other => other.public_outcome(),
+                };
+            }
+            if state.handle.is_none() {
+                let changed = Arc::clone(&state.changed);
+                let notified = changed.notified();
+                tokio::pin!(notified);
+                notified.as_mut().enable();
+                // Failure is published outside this mutex. Recheck AFTER the
+                // waiter is enabled so a failure before registration cannot
+                // consume the only wake and strand a recoverable handle.
+                state.recover_failed_handoff();
+                if state.handle.is_some() || state.terminal.is_some() { continue; }
+                drop(state);
+                if tokio::time::timeout_at(caller_deadline, notified).await.is_err() {
+                    return LedgerDrainJoinOutcome::Pending;
+                }
+                continue;
+            }
+            let observation_deadline = if state.abort_requested {
+                caller_deadline
+            } else {
+                caller_deadline.min(grace_deadline)
+            };
+            let join = state.handle.as_mut().expect("retained writer handle");
+            let result = tokio::time::timeout_at(observation_deadline, join).await;
+            let outcome = match result {
+                Ok(result) => writer_join_outcome(result, state.timed_out),
+                Err(_) => {
+                    let mut settlement_deadline = caller_deadline;
+                    if !state.abort_requested {
+                        if tokio::time::Instant::now() < grace_deadline {
+                            // This observer's shorter budget expired without
+                            // exhausting the original graceful phase.
+                            return LedgerDrainJoinOutcome::Pending;
+                        }
+                        state.timed_out = true;
+                        state.handle.as_ref().expect("retained writer handle").abort();
+                        state.abort_requested = true;
+                        if owns_grace {
+                            // Only the original grace observer gets its one
+                            // bounded post-abort terminal settlement allowance.
+                            settlement_deadline = tokio::time::Instant::now() + timeout;
+                        }
+                    }
+                    let join = state.handle.as_mut().expect("retained writer handle");
+                    match tokio::time::timeout_at(settlement_deadline, join).await {
+                        Ok(result) => writer_join_outcome(result, state.timed_out),
+                        Err(_) => return LedgerDrainJoinOutcome::Pending,
+                    }
+                }
+            };
+            state.handle.take();
+            state.terminal = Some(outcome.clone());
+            state.changed.notify_waiters();
+            return outcome.public_outcome();
+        }
     }
 
-    /// Emergency synchronous teardown for constructor-failure and implicit-Drop
-    /// paths. Tokio `JoinHandle::abort` is not completion: the cancelled task may
-    /// still be running until its next yield. Move the handle to a plain helper
-    /// thread, abort it, and observe its terminal state for a bounded interval.
-    /// A `false` result means the helper still owns the join handle and the
-    /// caller must retain any OS liveness lease that protects the writer.
     pub fn abort_and_join_blocking(&self, timeout: Duration) -> bool {
         self.inner.ledger.begin_close();
-        let writer_join = self
-            .inner
-            .writer_join
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take();
-        let Some(writer_join) = writer_join else {
-            return true;
-        };
-        writer_join.abort();
-        let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
-        let helper = std::thread::Builder::new()
-            .name("handshake-ledger-drop-join".to_string())
-            .spawn(move || {
-                let _ = futures::executor::block_on(writer_join);
-                let _ = completed_tx.send(());
-            });
-        let Ok(_helper) = helper else {
-            return false;
-        };
-        completed_rx.recv_timeout(timeout).is_ok()
+        abort_retained_writer(Arc::clone(&self.inner.writer_join), timeout)
     }
+
 }
 
 impl Drop for RetainedLedgerBatcherInner {
     fn drop(&mut self) {
         self.ledger.begin_close();
-        let writer_join = self
-            .writer_join
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take();
-        let Some(writer_join) = writer_join else {
-            return;
-        };
-        writer_join.abort();
-        // This is the last retained owner. Observe cancellation before the
-        // process-ledger store/pool can be torn down. The writer is an async
-        // Tokio task (not spawn_blocking), so abort reaches a yield boundary.
-        let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
-        let helper = std::thread::Builder::new()
-            .name("handshake-ledger-final-drop-join".to_string())
-            .spawn(move || {
-                let _ = futures::executor::block_on(writer_join);
-                let _ = completed_tx.send(());
-            });
-        if helper.is_ok() && completed_rx.recv_timeout(Duration::from_secs(2)).is_err() {
-            tracing::error!(
-                "process-ledger writer did not terminate within the bounded final-drop deadline"
-            );
+        if !abort_retained_writer(Arc::clone(&self.writer_join), Duration::from_secs(2)) {
+            tracing::error!("process-ledger writer shutdown remains pending or failed");
+            if self.writer_join.try_lock().map_or(true, |state| state.handle.is_some() || state.handoff_failed.load(std::sync::atomic::Ordering::Acquire)) {
+                std::mem::forget(Arc::clone(&self.writer_join));
+            }
         }
     }
+}
+
+#[derive(Clone)]
+enum RetainedWriterOutcome {
+    Flushed,
+    WriterError(Arc<ProcessLedgerError>),
+    JoinError,
+    TimedOut,
+}
+
+impl RetainedWriterOutcome {
+    fn public_outcome(&self) -> LedgerDrainJoinOutcome {
+        match self {
+            Self::Flushed => LedgerDrainJoinOutcome::Flushed,
+            Self::WriterError(error) => LedgerDrainJoinOutcome::RetainedWriterError(Arc::clone(error)),
+            Self::JoinError => LedgerDrainJoinOutcome::JoinError,
+            Self::TimedOut => LedgerDrainJoinOutcome::TimedOut,
+        }
+    }
+}
+
+struct RetainedWriterJoin {
+    handle: Option<JoinHandle<Result<(), ProcessLedgerError>>>,
+    terminal: Option<RetainedWriterOutcome>,
+    timed_out: bool,
+    abort_requested: bool,
+    deadline: Option<tokio::time::Instant>,
+    changed: Arc<tokio::sync::Notify>,
+    handoff_failed: Arc<std::sync::atomic::AtomicBool>,
+    handoff: Option<Arc<Mutex<Option<JoinHandle<Result<(), ProcessLedgerError>>>>>>,
+}
+
+impl RetainedWriterJoin {
+    fn new(handle: JoinHandle<Result<(), ProcessLedgerError>>) -> Self {
+        Self { handle: Some(handle), terminal: None, timed_out: false, abort_requested: false, deadline: None, handoff: None,
+            changed: Arc::new(tokio::sync::Notify::new()),
+            handoff_failed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
+    }
+    fn recover_failed_handoff(&mut self) {
+        if self.handoff_failed.swap(false, std::sync::atomic::Ordering::AcqRel) {
+            if let Some(packet) = self.handoff.take() {
+                self.handle = packet.lock().unwrap_or_else(|error| error.into_inner()).take();
+            }
+        }
+    }
+
+}
+
+fn writer_join_outcome(result: Result<Result<(), ProcessLedgerError>, tokio::task::JoinError>, timed_out: bool) -> RetainedWriterOutcome {
+    match result {
+        Ok(Ok(())) if timed_out => RetainedWriterOutcome::TimedOut,
+        Ok(Ok(())) => RetainedWriterOutcome::Flushed,
+        Ok(Err(error)) => RetainedWriterOutcome::WriterError(Arc::new(error)),
+        Err(error) if timed_out && error.is_cancelled() => RetainedWriterOutcome::TimedOut,
+        Err(_) => RetainedWriterOutcome::JoinError,
+    }
+}
+
+fn abort_retained_writer(owner: Arc<tokio::sync::Mutex<RetainedWriterJoin>>, timeout: Duration) -> bool {
+    let Ok(mut state) = owner.try_lock() else { return false; };
+    state.recover_failed_handoff();
+    if state.terminal.is_some() {
+        return true;
+    }
+    let Some(handle) = state.handle.take() else { return false; };
+    if !state.abort_requested {
+        handle.abort();
+        state.abort_requested = true;
+    }
+    let packet = Arc::new(Mutex::new(Some(handle)));
+    state.handoff = Some(Arc::clone(&packet));
+    let timed_out = state.timed_out;
+    let failed = Arc::clone(&state.handoff_failed);
+    let handoff_changed = Arc::clone(&state.changed);
+    drop(state);
+    let worker_owner = Arc::clone(&owner);
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    let worker = move || {
+        let handle = packet.lock().unwrap_or_else(|error| error.into_inner()).take();
+        let Some(handle) = handle else { return; };
+        let result = futures::executor::block_on(handle);
+        let outcome = writer_join_outcome(result, timed_out);
+        let mut state = worker_owner.blocking_lock();
+        state.terminal = Some(outcome);
+        state.handoff = None;
+        state.changed.notify_waiters();
+        drop(state);
+        let _ = tx.send(true);
+    };
+    let helper = std::thread::Builder::new().name("handshake-ledger-retained-join".into()).spawn(worker);
+    // A failed helper spawn leaves the aborted handle packet in retained state.
+    if helper.is_err() {
+        failed.store(true, std::sync::atomic::Ordering::Release);
+        handoff_changed.notify_waiters();
+        return false;
+    }
+    rx.recv_timeout(timeout).unwrap_or(false)
 }
 
 /// Outcome of the bounded graceful-shutdown drain-and-join for the process
@@ -300,13 +430,16 @@ pub enum LedgerDrainJoinOutcome {
     /// The writer terminated but its final flush surfaced a store error (rows may
     /// be recovered by the boot-time reclaim sweep on next start).
     WriterError(ProcessLedgerError),
+    /// The original typed failure retained by a shared writer owner.
+    RetainedWriterError(Arc<ProcessLedgerError>),
+    /// Terminal observation is incomplete; the retained owner still holds custody.
+    Pending,
     /// The writer task panicked or was cancelled.
     JoinError,
     /// The graceful-drain deadline elapsed. The writer was then aborted and its
     /// terminal join result observed, so no detached writer survives shutdown.
     TimedOut,
-    /// The retained writer handle was already consumed by an earlier bounded
-    /// drain call.
+    /// An earlier retained drain observed a successful flush and terminal join.
     AlreadyDrained,
 }
 

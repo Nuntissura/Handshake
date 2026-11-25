@@ -38,7 +38,8 @@
 //! side-by-side there).
 
 use std::collections::VecDeque;
-use std::io::{self, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
+use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{mpsc, Mutex, OnceLock};
@@ -1051,6 +1052,7 @@ pub enum ShutdownOutcome {
 pub struct PalmistryHandle {
     signed_expected: Option<(SignedWatcherIdentity, [u8; 32], [u8; 32])>,
     signed_ready: Option<SignedWatcherReady>,
+    signed_watcher_process: Option<SignedWatcherProcess>,
     adoption_operation_id: uuid::Uuid,
     adoption_operation: Option<crate::internal_diagnostics::OwnedPalmistryAdoption>,
     child: Child,
@@ -1068,6 +1070,134 @@ pub struct PalmistryHandle {
     shutdown_done: bool,
 }
 
+struct SignedWatcherProcess {
+    creation_time_100ns: NonZeroU64,
+    executable: PathBuf,
+    executable_sha256: String,
+    ring_path: PathBuf,
+}
+
+#[cfg(windows)]
+fn open_watcher_image(path: &Path) -> io::Result<std::fs::File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ;
+
+    std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(FILE_SHARE_READ)
+        .open(path)
+}
+
+#[cfg(windows)]
+fn watcher_image_file_id(file: &std::fs::File) -> io::Result<(u64, [u8; 16])> {
+    use windows_sys::Win32::Storage::FileSystem::{
+        FileIdInfo, GetFileInformationByHandleEx, FILE_ID_INFO,
+    };
+
+    let mut info = FILE_ID_INFO::default();
+    let ok = unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle(),
+            FileIdInfo,
+            std::ptr::from_mut(&mut info).cast(),
+            std::mem::size_of::<FILE_ID_INFO>() as u32,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok((info.VolumeSerialNumber, info.FileId.Identifier))
+}
+
+#[cfg(windows)]
+fn capture_signed_watcher_process(
+    child: &mut Child,
+    pinned_image: std::fs::File,
+    ring_path: &Path,
+) -> io::Result<SignedWatcherProcess> {
+    use sha2::{Digest, Sha256};
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::System::Threading::QueryFullProcessImageNameW;
+
+    let mut image = vec![0u16; 32_768];
+    let mut length = image.len() as u32;
+    let ok = unsafe {
+        QueryFullProcessImageNameW(child.as_raw_handle(), 0, image.as_mut_ptr(), &mut length)
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let executable = PathBuf::from(std::ffi::OsString::from_wide(&image[..length as usize]));
+    let launched_image = open_watcher_image(&executable)?;
+    if watcher_image_file_id(&pinned_image)? != watcher_image_file_id(&launched_image)? {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "Owned Palmistry child image differs from the pinned launch executable",
+        ));
+    }
+
+    let mut reader = BufReader::new(pinned_image);
+    let mut hash = Sha256::new();
+    loop {
+        let bytes = reader.fill_buf()?;
+        if bytes.is_empty() {
+            break;
+        }
+        hash.update(bytes);
+        let read = bytes.len();
+        reader.consume(read);
+    }
+
+    Ok(SignedWatcherProcess {
+        creation_time_100ns: live_watcher_creation_time_100ns(child)?,
+        executable,
+        executable_sha256: hex::encode(hash.finalize()),
+        ring_path: ring_path.to_path_buf(),
+    })
+}
+
+#[cfg(windows)]
+fn live_watcher_creation_time_100ns(child: &mut Child) -> io::Result<NonZeroU64> {
+    use windows_sys::Win32::{
+        Foundation::FILETIME,
+        System::Threading::GetProcessTimes,
+    };
+
+    let mut creation = FILETIME::default();
+    let mut exit = FILETIME::default();
+    let mut kernel = FILETIME::default();
+    let mut user = FILETIME::default();
+    // Child owns this process handle for the duration of the query.
+    let ok = unsafe {
+        GetProcessTimes(
+            child.as_raw_handle(),
+            &mut creation,
+            &mut exit,
+            &mut kernel,
+            &mut user,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if child.try_wait()?.is_some() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Owned Palmistry watcher has exited",
+        ));
+    }
+    NonZeroU64::new((u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime))
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Missing watcher creation FILETIME"))
+}
+
+#[cfg(not(windows))]
+fn live_watcher_creation_time_100ns(_child: &mut Child) -> io::Result<NonZeroU64> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Watcher creation FILETIME is available only on Windows",
+    ))
+}
+
 impl PalmistryHandle {
 
     pub fn adoption_operation_id(&self) -> uuid::Uuid {
@@ -1079,17 +1209,26 @@ impl PalmistryHandle {
         provenance: &crate::internal_diagnostics::AdoptedDiagnosticProvenance,
         account: std::sync::Arc<crate::local_account::AuthenticatedContext>,
         backend_base_url: &str,
-        request: serde_json::Value,
+        mut request: serde_json::Value,
     ) -> Result<uuid::Uuid, String> {
         if self.adoption_operation.is_some() {
             return Err("Palmistry adoption already retains its original operation".into());
         }
-        let ready = self.signed_ready.clone().ok_or("Owned watcher has no signed readiness")?;
-        if ready.identity.watcher_pid != self.child.id()
-            || self.child.try_wait().map_err(|_| "Owned watcher status is unavailable")?.is_some()
-        {
-            return Err("Original Palmistry child is no longer live".into());
-        }
+        let (ready, creation_time) = self.registration_ready()
+            .map(|(ready, creation_time)| (ready.clone(), creation_time))
+            .map_err(|error| error.to_string())?;
+        let process = self.signed_watcher_process.as_ref()
+            .ok_or("Missing retained Palmistry child image")?;
+        let wire = request.as_object_mut().ok_or("Palmistry adoption request is not an object")?;
+        wire.insert("ring".into(), serde_json::to_value(&process.ring_path)
+            .map_err(|_| "Original Palmistry ring path cannot be encoded")?);
+        let adopt = wire.get_mut("adopt_existing").and_then(serde_json::Value::as_object_mut)
+            .ok_or("Palmistry adoption requires the existing watcher wire evidence")?;
+        adopt.insert("os_creation_time_100ns".into(), creation_time.get().into());
+        adopt.insert("watcher_executable".into(), serde_json::to_value(&process.executable)
+            .map_err(|_| "Owned Palmistry executable path cannot be encoded")?);
+        adopt.insert("watcher_executable_sha256".into(), process.executable_sha256.clone().into());
+        adopt.insert("control_socket".into(), self.socket_name.clone().into());
         let operation = crate::internal_diagnostics::OwnedPalmistryAdoption::new(
             self.adoption_operation_id, ready, provenance.clone(), account,
             backend_base_url, request,
@@ -1132,6 +1271,27 @@ impl PalmistryHandle {
     pub fn signed_ready(&self) -> Option<&SignedWatcherReady> {
         self.signed_ready.as_ref()
     }
+
+    pub(crate) fn registration_ready(&mut self) -> io::Result<(&SignedWatcherReady, NonZeroU64)> {
+        let ready = self.signed_ready.as_ref().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::PermissionDenied, "Missing signed Palmistry readiness")
+        })?;
+        let creation_time = self.signed_watcher_process.as_ref()
+            .map(|process| process.creation_time_100ns)
+            .ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData, "Missing retained signed watcher process identity",
+            ))?;
+        if ready.identity.watcher_pid != self.child.id()
+            || live_watcher_creation_time_100ns(&mut self.child)? != creation_time
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "Owned Palmistry watcher generation differs from signed readiness",
+            ));
+        }
+        Ok((ready, creation_time))
+    }
+
     /// Whether the startup IPC handshake completed (Palmistry acked `HandshakeHello`). `true` is the
     /// AC-014-1 proof that a real handshake crossed the control socket.
     pub fn handshake_acked(&self) -> bool {
@@ -1570,6 +1730,15 @@ fn launch_palmistry_at_with_bootstrap(
             bootstrap.parent_os_creation_time_100ns,
         )
     });
+    // Hold the launch input against writes and deletion through the child identity readback.
+    #[cfg(windows)]
+    let pinned_image = bootstrap.as_ref().and_then(|_| match open_watcher_image(exe) {
+        Ok(file) => Some(file),
+        Err(error) => {
+            tracing::warn!(kind = ?error.kind(), "Palmistry launch image could not be pinned for adoption");
+            None
+        }
+    });
     let mut child = command.spawn()?;
     if let Some(bootstrap) = bootstrap {
         // Only 32 bytes into our own freshly created private pipe. Drop closes EOF; no CLI/env/log key.
@@ -1649,6 +1818,18 @@ fn launch_palmistry_at_with_bootstrap(
                 (None, None, Some(error.to_string()))
             },
         };
+        #[cfg(windows)]
+        let signed_watcher_process = pinned_image
+            .filter(|_| signed_ready.as_ref().is_some_and(|ready| ready.identity.watcher_pid == child.id()))
+            .and_then(|file| match capture_signed_watcher_process(&mut child, file, ring_path) {
+                Ok(process) => Some(process),
+                Err(error) => {
+                    tracing::warn!(kind = ?error.kind(), "Owned Palmistry child identity unavailable for adoption");
+                    None
+                }
+            });
+        #[cfg(not(windows))]
+        let signed_watcher_process = None;
         // Failure retains THIS actual Child and reaper, without presenting a legacy ACK as signed proof.
         return Ok(PalmistryHandle {
             signed_expected: Some((identity, verifier, transport_public_key)),
@@ -1657,6 +1838,7 @@ fn launch_palmistry_at_with_bootstrap(
             child,
             handshake_acked: signed_ready.is_some(),
             control,
+            signed_watcher_process,
             signed_ready,
             handshake_error,
             socket_name: control_socket.to_string(),
@@ -1734,6 +1916,7 @@ fn launch_palmistry_at_with_bootstrap(
 
     Ok(PalmistryHandle {
         signed_expected: None,
+        signed_watcher_process: None,
         signed_ready: None,
         adoption_operation_id: uuid::Uuid::new_v4(),
         adoption_operation: None,

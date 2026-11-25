@@ -300,6 +300,21 @@ impl WorkspaceActivationReadbackTicket {
 }
 
 impl WindowCaptureTicket {
+    pub(crate) fn cancel_divider_witness(&self, owner: &std::sync::Weak<Self>) {
+        self.registry.divider_witness.cancel(owner);
+    }
+
+    pub(crate) fn validate_main_window_epoch(&self, epoch: u64) -> Result<u64, String> {
+        if self.window.descriptor.window_id != MAIN_WINDOW_ID
+            || self.window.descriptor.viewport_id != egui::ViewportId::ROOT
+            || self.window.epoch != epoch
+            || self.account.is_none()
+        {
+            return Err("Divider capture requires the authenticated main window and matching epoch".to_owned());
+        }
+        self.validate()
+    }
+
     /// Returns an observed UI publication revision, not an exact renderer-image revision.
     pub(crate) fn validate(&self) -> Result<u64, String> {
         let generation = self.registry.capture_context.lock().unwrap_or_else(|e| e.into_inner());
@@ -335,6 +350,7 @@ pub struct WindowSnapshotRegistry {
     inner: Arc<Mutex<WindowRegistryState>>,
     next_revision: Arc<std::sync::atomic::AtomicU64>,
     capture_context: Arc<Mutex<CaptureContext>>,
+    pub(crate) divider_witness: Arc<super::screenshot::divider_frame::WitnessSlot>,
 }
 
 #[derive(Default)]
@@ -369,7 +385,23 @@ impl WindowSnapshotRegistry {
             epoch: 1, snapshot, channel, live: Arc::new(AtomicBool::new(true)),
             revision: Arc::new(std::sync::atomic::AtomicU64::new(0)), published: Arc::new(AtomicBool::new(false)), closing: Arc::new(AtomicBool::new(false)),
         };
-        Self { inner: Arc::new(Mutex::new(WindowRegistryState { windows: std::collections::HashMap::from([(MAIN_WINDOW_ID.to_owned(), root)]), next_epoch: 2 })), next_revision: Arc::new(std::sync::atomic::AtomicU64::new(1)), capture_context: Arc::new(Mutex::new(CaptureContext::default())) }
+        Self { inner: Arc::new(Mutex::new(WindowRegistryState { windows: std::collections::HashMap::from([(MAIN_WINDOW_ID.to_owned(), root)]), next_epoch: 2 })), next_revision: Arc::new(std::sync::atomic::AtomicU64::new(1)), capture_context: Arc::new(Mutex::new(CaptureContext::default())), divider_witness: Arc::default() }
+    }
+
+    /// Called by the authenticated Argus owner after its existing transport authorization.
+    /// Return readiness to that same owner before it sends the controlled pointer gesture.
+    pub(crate) fn arm_divider_witness(
+        &self,
+        epoch: u64,
+        expected_revision: u64,
+        axis: super::screenshot::divider_frame::DividerAxis,
+        live_root: &egui::Context,
+    ) -> Result<super::screenshot::divider_frame::DividerWitness, String> {
+        let window = self.get(MAIN_WINDOW_ID)?;
+        let privacy = self.admit_capture(&window, expected_revision)?;
+        let witness = self.divider_witness.arm(privacy, epoch, axis)?;
+        live_root.request_repaint_of(egui::ViewportId::ROOT);
+        Ok(witness)
     }
 
     pub(crate) fn admit_capture(&self, window: &RegisteredWindow, expected_revision: u64) -> Result<WindowCaptureTicket, String> {
@@ -596,7 +628,7 @@ impl WindowSnapshotRegistry {
 
 pub struct ArgusOutputPlugin {
     windows: WindowSnapshotRegistry,
-    passes: Vec<(egui::ViewportId, Option<(egui::Context, crate::accessibility::SnapshotViewport)>)>,
+        passes: Vec<(egui::ViewportId, Option<(egui::Context, crate::accessibility::SnapshotViewport, bool)>)>,
 }
 
 impl egui::Plugin for ArgusOutputPlugin {
@@ -609,14 +641,19 @@ impl egui::Plugin for ArgusOutputPlugin {
                 if rect.is_finite() && rect.width() > 0.0 && rect.height() > 0.0 {
                     *context = Some((ctx.clone(), crate::accessibility::SnapshotViewport {
                         x: rect.min.x, y: rect.min.y, w: rect.width(), h: rect.height(), source: crate::accessibility::ViewportSource::LiveWindow,
-                    }));
+                    }, ctx.will_discard()));
                 }
             }
         }
     }
     fn output_hook(&mut self, output: &mut egui::FullOutput) {
-        let Some((viewport, Some((ctx, measured_viewport)))) = self.passes.pop() else { return; };
-        if viewport == egui::ViewportId::ROOT { return; }
+        let Some((viewport, Some((ctx, measured_viewport, discarded)))) = self.passes.pop() else { return; };
+        if viewport == egui::ViewportId::ROOT {
+            if let Some(pass) = super::screenshot::divider_frame::WitnessPass::take(&ctx) {
+                self.windows.divider_witness.output(&ctx, output, measured_viewport, discarded, pass);
+            }
+            return;
+        }
         let Some(window) = self.windows.by_viewport(viewport) else { return; };
         if !window.live.load(Ordering::Acquire) { return; }
         let Some(update) = output.platform_output.accesskit_update.as_ref() else { return; };

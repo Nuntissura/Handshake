@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex};
 use kumihimo_content::{Controller, ContentLimits};
 use kumihimo_core::{self as core, Command, EntityId, FrameId, WorkspaceId};
 use crate::pane_registry::PaneId;
-use crate::split_layout::{SplitWeights, DIVIDER_HIT_THICKNESS};
+use crate::split_layout::{SplitWeights, DIVIDER_HIT_THICKNESS, SPLIT_MAX, SPLIT_MIN};
+use kumihimo_egui::input::{DividerId, DividerRange};
 use crate::tab_bar::TabBarState;
 
 type Result<T> = std::result::Result<T, String>;
@@ -234,6 +235,7 @@ impl NativeHost {
             bounds:kumihimo_egui::from_egui(area).map_err(|error|error.to_string())?,pixels_per_point:1.0};
         let mut no_paint=|_:&mut egui::Ui,_:&PaneId,_:egui::Rect|{};
         let mut bridge=PaintBridge {operation:&mut self.operation,frames:BTreeMap::new(),paint:&mut no_paint,
+            legacy_dividers: [None, None],
             policy:kumihimo_egui::HostPolicy {settings:kumihimo_egui::AdapterSettings {
                 profile:kumihimo_egui::ChromeProfile::Hidden,..Default::default()},..Default::default()}};
         let projected=kumihimo_egui::workspace::project_with_chrome(self.controller.as_mut().unwrap(),surface,&mut bridge,&window.chrome)
@@ -428,16 +430,17 @@ impl NativeHost {
 
     pub fn render(&mut self, ui: &mut egui::Ui, panes: &[PaneId], weights: &mut SplitWeights,
                   palette: &crate::theme::HsPalette,
-                  mut paint: impl FnMut(&mut egui::Ui, &PaneId, egui::Rect)) -> Result<PaneProjection> {
+                  mut paint: impl FnMut(&mut egui::Ui, &PaneId, egui::Rect)) -> Result<(PaneProjection, Option<String>)> {
         let viewport=ui.ctx().viewport_id();
         self.render_at(viewport,viewport,true,ui,panes,weights,palette,&mut paint)
     }
 
     fn render_at(&mut self,viewport:egui::ViewportId,binding_viewport:egui::ViewportId,interactive:bool,
         ui:&mut egui::Ui,panes:&[PaneId],weights:&mut SplitWeights,palette:&crate::theme::HsPalette,
-        mut paint:impl FnMut(&mut egui::Ui,&PaneId,egui::Rect))->Result<PaneProjection> {
+        mut paint:impl FnMut(&mut egui::Ui,&PaneId,egui::Rect))->Result<(PaneProjection, Option<String>)> {
         let area = ui.available_rect_before_wrap();
-        let projection = self.project(viewport, panes, area, *weights)?;
+        let committed_host = self.project(viewport, panes, area, *weights)?;
+        let shape = self.legacy_shape(viewport);
         let window = self.windows.get_mut(&viewport).ok_or("Kumihimo window disappeared")?;
         let surface = kumihimo_egui::SurfaceBinding { root: window.root, viewport:binding_viewport, epoch: window.epoch,
             bounds: kumihimo_egui::from_egui(area).map_err(|error| error.to_string())?,
@@ -447,7 +450,11 @@ impl NativeHost {
         let mut input = std::mem::take(&mut window.input);
         let mut controller = self.controller.take().ok_or("Kumihimo owner has shut down")?;
         let generation = controller.snapshot().generation;
+        let legacy_dividers = shape
+            .zip(controller.snapshot().layouts[&surface.root].root)
+            .map_or([None, None], |(shape, root)| legacy_divider_ids(surface.root, root, shape));
         let mut bridge = PaintBridge { operation: &mut self.operation, frames: frame_panes,
+            legacy_dividers,
             paint: &mut paint, policy: kumihimo_egui::HostPolicy {
                 theme_tokens: Some(kumihimo_egui::chrome::ThemeTokens {
                     preview_stroke: palette.accent, resize_handle_stroke: palette.accent,
@@ -456,14 +463,42 @@ impl NativeHost {
                 settings: kumihimo_egui::AdapterSettings { profile: kumihimo_egui::ChromeProfile::Hidden,
                     ..Default::default() }, ..Default::default()
             } };
-        let result = (|| -> Result<()> {
-            let projected = kumihimo_egui::workspace::project_with_chrome(&mut controller, surface, &mut bridge, &chrome)
+        let result = (|| -> Result<(PaneProjection, Option<String>)> {
+            let committed = kumihimo_egui::workspace::project_with_chrome(&mut controller, surface, &mut bridge, &chrome)
                 .map_err(|error| error.to_string())?;
             let mut report = kumihimo_egui::FrameReport { generation: controller.snapshot().generation,
                 epoch: surface.epoch, control_limit: bridge.policy.max_regions * bridge.policy.tab_page_size,
                 ..Default::default() };
-            kumihimo_egui::chrome::draw(ui.ctx(), &mut controller, &projected, surface, &mut bridge, &mut chrome, &mut report);
+            let observe_witness = interactive && crate::mcp::screenshot::divider_frame::collecting(ui.ctx());
+            let mut resize_press = None;
+            let mut witness_panes = Vec::new();
+            let projected = if interactive {
+                let frame = kumihimo_egui::input::prepare_live_resize(
+                    ui.ctx(), &mut controller, committed, surface, &mut bridge, &chrome, &mut input, &mut report,
+                ).map_err(|error| error.to_string())?;
+                if observe_witness {
+                    resize_press = input.active_capture().filter(|capture| {
+                        capture.pointer == 1 && capture.source == kumihimo_egui::input::PointerSource::Mouse
+                            && capture.epoch == surface.epoch
+                    }).map(|capture| (capture.press, capture.pressed_at.to_bits()));
+                }
+                kumihimo_egui::chrome::draw_live_resize(
+                    ui.ctx(), &mut controller, &frame, surface, &mut bridge, &mut chrome, &mut report,
+                );
+                frame.projection
+            } else {
+                kumihimo_egui::chrome::draw(
+                    ui.ctx(), &mut controller, &committed, surface, &mut bridge, &mut chrome, &mut report,
+                );
+                committed
+            };
             kumihimo_egui::content::draw(ui.ctx(), &mut controller, &projected, surface, &mut bridge, &mut report);
+            if observe_witness {
+                witness_panes.extend(report.slots.iter().filter_map(|slot| {
+                    let pane = bridge.frames.get(&slot.frame)?;
+                    Some((pane.clone(), kumihimo_egui::to_egui(slot.bounds)))
+                }));
+            }
             for frame in &projected.frames {
                 if controller.snapshot().frames[&frame.frame].selected_view.is_none() {
                     let pane = bridge.frames.get(&frame.frame).ok_or("Kumihimo empty pane binding missing")?;
@@ -472,6 +507,7 @@ impl NativeHost {
                         .max_rect(rect).layer_id(frame.layer()));
                     child.set_clip_rect(kumihimo_egui::to_egui(frame.clip));
                     (bridge.paint)(&mut child,pane,rect);
+                    if observe_witness { witness_panes.push((pane.clone(), rect)); }
                 }
             }
             // A host-provided grip retains the existing header widgets while using the asset's
@@ -493,8 +529,39 @@ impl NativeHost {
             }
             }
             if interactive {kumihimo_egui::input::process(ui.ctx(), &mut controller, &projected, surface, &mut bridge, &mut input, &mut report);}
-            if let Some(error) = projected.rejected.first().or_else(||report.rejected.first()) { return Err(error.clone()); }
-            Ok(())
+            let diagnostic = projected.rejected.first().or_else(|| report.rejected.first()).cloned();
+            let [horizontal, vertical] = legacy_dividers.map(|divider| {
+                divider.and_then(|divider| rendered_divider_bounds(&report, divider))
+            });
+            let panes: Vec<_> = projected.frames.iter().filter_map(|frame| {
+                let pane = bridge.frames.get(&frame.frame)?;
+                Some((pane.clone(), kumihimo_egui::to_egui(frame.bounds)))
+            }).collect();
+            if observe_witness {
+                witness_panes.sort_by(|a, b| a.0.cmp(&b.0));
+                let paint_complete = diagnostic.is_none()
+                    && witness_panes.len() == panes.len()
+                    && !witness_panes.windows(2).any(|pair| pair[0].0 == pair[1].0)
+                    && controller.snapshot().generation == generation;
+                let hits = [horizontal, vertical];
+                let committed_hits = [committed_host.horizontal, committed_host.vertical];
+                let computed = std::array::from_fn(|axis| {
+                    let center = |rect: egui::Rect| if axis == 0 { rect.center().y } else { rect.center().x };
+                    hits[axis].zip(committed_hits[axis])
+                        .is_some_and(|(live, committed)| (center(live) - center(committed)).abs() > 0.01)
+                });
+                crate::mcp::screenshot::divider_frame::store_live_geometry(ui.ctx(),
+                    crate::mcp::screenshot::divider_frame::LiveGeometry {
+                        surface_incarnation: surface.epoch,
+                        pane_rects: witness_panes,
+                        hits,
+                        committed_hits,
+                        resize_press,
+                        computed,
+                        paint_complete,
+                    });
+            }
+            Ok((PaneProjection { panes, horizontal, vertical }, diagnostic))
         })();
         self.controller = Some(controller);
         let window = self.windows.get_mut(&viewport).unwrap();
@@ -509,9 +576,10 @@ impl NativeHost {
             export_legacy_weights(&self.controller.as_ref().unwrap().snapshot().layouts[&window.root],shape,weights);
         }
         self.windows.get_mut(&viewport).unwrap().imported = Some(*weights);
-        if result.is_err() {observe(HostEvent::Rejected);}
-        result?;
-        Ok(projection)
+        if !matches!(&result, Ok((_, None))) {
+            observe(HostEvent::Rejected);
+        }
+        result
     }
 
     /// Mount the real Settings body in its own ephemeral canonical root. No native pane record,
@@ -539,9 +607,9 @@ impl NativeHost {
                 pinned:false,unsaved:false})?;
             owner.command(Command::SelectView {view})?;
         }
-        owner.render_at(egui::ViewportId::ROOT,settings_viewport(),false,ui,&[id],&mut weights,palette,
+        let (_, diagnostic) = owner.render_at(egui::ViewportId::ROOT,settings_viewport(),false,ui,&[id],&mut weights,palette,
             |ui,_,_|paint(ui))?;
-        Ok(())
+        diagnostic.map_or(Ok(()), Err)
     }
 
     pub fn retire_settings(&mut self) {
@@ -564,10 +632,18 @@ impl NativeHost {
 struct PaintBridge<'a,F> {
     operation: &'a mut u64,
     frames: BTreeMap<FrameId,PaneId>,
+    legacy_dividers: [Option<DividerId>; 2],
     paint: &'a mut F,
     policy: kumihimo_egui::HostPolicy,
 }
 impl<F: FnMut(&mut egui::Ui,&PaneId,egui::Rect)> kumihimo_egui::DesktopHost for PaintBridge<'_,F> {
+    fn live_divider_range(&self, divider: &DividerId) -> Option<DividerRange> {
+        if !self.legacy_dividers.contains(&Some(*divider)) {
+            return None;
+        }
+        DividerRange::new(core::Scalar::new(SPLIT_MIN.into()).ok()?, core::Scalar::new(SPLIT_MAX.into()).ok()?).ok()
+    }
+
     fn policy(&self)->kumihimo_egui::HostPolicy { self.policy.clone() }
     fn dispatch(&mut self,controller:&mut Controller,command:Command)->kumihimo_egui::Result<core::Response> {
         let operation=self.operation.checked_add(1).ok_or(kumihimo_egui::AdapterError::Budget("host operation sequence"))?;
@@ -661,6 +737,27 @@ fn export_legacy_weights(plan:&core::LayoutPlan,shape:LegacyShape,weights:&mut S
         _=>(),
     }
 }
+fn legacy_divider_ids(workspace: WorkspaceId, root: core::NodeId, shape: LegacyShape) -> [Option<DividerId>; 2] {
+    let divider = |node, axis, index| Some(DividerId { workspace, node, axis, index });
+    use core::Axis::{Horizontal, Vertical};
+    match shape {
+        LegacyShape::Split { axis: Horizontal, count } => [None, divider(root, Horizontal, count - 2)],
+        LegacyShape::Split { axis: Vertical, count } => [divider(root, Vertical, count - 2), None],
+        LegacyShape::Grid => [divider(root, Vertical, 0), divider(root, Horizontal, 0)],
+        LegacyShape::PrimaryAndStack { stack } => [divider(stack, Vertical, 0), divider(root, Horizontal, 0)],
+    }
+}
+
+fn rendered_divider_bounds(report: &kumihimo_egui::FrameReport, divider: DividerId) -> Option<egui::Rect> {
+    let axis = match divider.axis {
+        core::Axis::Horizontal => "x",
+        core::Axis::Vertical => "y",
+    };
+    let key = format!("resize/{}/{}/{axis}/{}", divider.workspace.raw(), divider.node.0, divider.index);
+    report.controls.iter().find(|control| control.enabled && control.id == key)
+        .map(|control| kumihimo_egui::to_egui(control.bounds))
+}
+
 fn legacy_hits(plan:&core::LayoutPlan,geometry:&core::GeometryOutput,shape:LegacyShape)
     ->Result<(Option<egui::Rect>,Option<egui::Rect>)> {
     let root=plan.root.ok_or("Canonical divider root is missing")?;

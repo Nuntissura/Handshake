@@ -990,45 +990,61 @@ mod tests {
             host.due = Some(std::time::Instant::now() + std::time::Duration::from_secs(60));
             let due = host.due;
             let delivery = host.delivery.clone();
+            let mut diagnostic_frames = Vec::new();
+            ctx.data_mut(|data| data.insert_temp(super::super::header_close_diagnostic_id(), true));
             for pressed in [true, false] {
                 let mut events = vec![egui::Event::PointerMoved(close), egui::Event::PointerButton {
                     pos: close, button: egui::PointerButton::Primary, pressed,
                     modifiers: egui::Modifiers::NONE,
                 }];
                 if ime { events.push(egui::Event::Ime(egui::ImeEvent::Preedit("preedit".into()))); }
+                let input_seen_before_draw = host.input_seen;
+                let delivery_retained_before_draw = Arc::ptr_eq(&delivery, &host.delivery);
+                ctx.data_mut(|data| data.remove::<Vec<Option<super::super::HeaderCloseDiagnostic>>>(super::super::header_close_diagnostic_id()));
                 let (frame, _) = draw(&mut host, events);
+                let delivery_retained_after_draw = Arc::ptr_eq(&delivery, &host.delivery);
+                let decision = ctx.data_mut(|data| data.get_temp::<Vec<Option<super::super::HeaderCloseDiagnostic>>>(
+                    super::super::header_close_diagnostic_id()))
+                    .map(|calls| format!("header_call_count={} calls_in_order={calls:#?} last_returned_frame_call_observation={:?}", calls.len(), calls.last()))
+                    .unwrap_or_else(|| "NOT_OBSERVED: no original show_header call was recorded for this draw".into());
+                let diagnostic_frame = format!("bookmarked={bookmarked} ime={ime} saving={saving} literal={literal:?} pressed={pressed} \
+                    input_seen_before_draw={input_seen_before_draw} frame.input_changed={} frame.composing={} \
+                    frame.outcome={:?} host.open={} host.lookup_from_notes={} delivery_identity_retained_before_draw={delivery_retained_before_draw} delivery_identity_retained_after_draw={delivery_retained_after_draw} \
+                    supplied_pointer_point={close:?} actual_header_call_observations={decision}", frame.input_changed, frame.composing,
+                    frame.outcome, host.open, host.lookup_from_notes);
+                diagnostic_frames.push(diagnostic_frame);
                 let state = ctx.data_mut(|data| data.get_temp::<RailUiState>(state_id())).unwrap();
-                assert_eq!(state.active_scope, SearchScope::Trace);
-                assert_eq!(frame.query.scope, SearchScope::Trace);
+                assert_eq!(state.active_scope, SearchScope::Trace, "{diagnostic_frames:#?}");
+                assert_eq!(frame.query.scope, SearchScope::Trace, "{diagnostic_frames:#?}");
                 if !pressed && bookmarked && !ime && !saving {
-                    assert!(matches!(frame.outcome, RailOutcome::Clear));
-                    assert!(frame.literal.is_empty() && state.query.is_empty());
-                    assert!(frame.input_changed && !frame.select_current);
-                    assert!(!host.open && !host.lookup_from_notes && host.due.is_none());
-                    assert!(host.rows.is_empty() && !Arc::ptr_eq(&delivery, &host.delivery));
-                    assert!(host.notes.core.as_ref().unwrap().editor().is_none());
+                    assert!(matches!(frame.outcome, RailOutcome::Clear), "{diagnostic_frames:#?}");
+                    assert!(frame.literal.is_empty() && state.query.is_empty(), "{diagnostic_frames:#?}");
+                    assert!(frame.input_changed && !frame.select_current, "{diagnostic_frames:#?}");
+                    assert!(!host.open && !host.lookup_from_notes && host.due.is_none(), "{diagnostic_frames:#?}");
+                    assert!(host.rows.is_empty() && !Arc::ptr_eq(&delivery, &host.delivery), "{diagnostic_frames:#?}");
+                    assert!(host.notes.core.as_ref().unwrap().editor().is_none(), "{diagnostic_frames:#?}");
                 } else {
-                    assert!(!matches!(frame.outcome, RailOutcome::Clear));
-                    assert_eq!(frame.literal, literal);
-                    assert_eq!(state.query, literal);
-                    assert!(host.open && host.lookup_from_notes);
-                    assert_eq!(host.rows.len(), 1);
-                    assert_eq!(host.due, due);
-                    assert!(Arc::ptr_eq(&delivery, &host.delivery));
-                    assert!(host.notes.core.as_ref().unwrap().editor().is_some());
+                    assert!(!matches!(frame.outcome, RailOutcome::Clear), "{diagnostic_frames:#?}");
+                    assert_eq!(frame.literal, literal, "{diagnostic_frames:#?}");
+                    assert_eq!(state.query, literal, "{diagnostic_frames:#?}");
+                    assert!(host.open && host.lookup_from_notes, "{diagnostic_frames:#?}");
+                    assert_eq!(host.rows.len(), 1, "{diagnostic_frames:#?}");
+                    assert_eq!(host.due, due, "{diagnostic_frames:#?}");
+                    assert!(Arc::ptr_eq(&delivery, &host.delivery), "{diagnostic_frames:#?}");
+                    assert!(host.notes.core.as_ref().unwrap().editor().is_some(), "{diagnostic_frames:#?}");
                 }
             }
             if !bookmarked {
-                assert_eq!(host.notes.error.as_deref(), Some("Save or bookmark the current edit before closing"));
+                assert_eq!(host.notes.error.as_deref(), Some("Save or bookmark the current edit before closing"), "{diagnostic_frames:#?}");
             } else if saving {
-                assert_eq!(host.notes.error.as_deref(), Some("Wait for the pending save or recover it before closing"));
-                assert!(editor.lock().unwrap().save.as_ref().unwrap().is_saving());
+                assert_eq!(host.notes.error.as_deref(), Some("Wait for the pending save or recover it before closing"), "{diagnostic_frames:#?}");
+                assert!(editor.lock().unwrap().save.as_ref().unwrap().is_saving(), "{diagnostic_frames:#?}");
             } else if ime {
-                assert!(host.notes.error.is_none());
+                assert!(host.notes.error.is_none(), "{diagnostic_frames:#?}");
             }
             if bookmarked {
-                assert_eq!(host.notes.core.as_ref().unwrap().bookmarks().len(), 1);
-                assert!(host.notes.editors.values().any(|handle| Arc::ptr_eq(&handle.editor, &editor)));
+                assert_eq!(host.notes.core.as_ref().unwrap().bookmarks().len(), 1, "{diagnostic_frames:#?}");
+                assert!(host.notes.editors.values().any(|handle| Arc::ptr_eq(&handle.editor, &editor)), "{diagnostic_frames:#?}");
             }
         }
     }

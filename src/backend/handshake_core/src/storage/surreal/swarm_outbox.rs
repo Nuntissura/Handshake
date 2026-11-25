@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
-use surrealdb::types::SurrealValue;
+use surrealdb::types::{RecordId, SurrealValue};
 use thiserror::Error;
 use tokio::sync::OnceCell;
 
@@ -19,9 +19,9 @@ const SCHEMA_REVISION: i64 = 1;
 const PERSIST_EVENT: &str = r#"
 BEGIN TRANSACTION;
 LET $existing = (
-    SELECT event_json_sha256 FROM type::record('swarm_terminal_event_outbox', $record_id)
-    WHERE event_id = $event_id
-      AND owner_account_id = $owner_account_id
+    SELECT id, event_id, event_json, event_json_sha256, event_ledger_event_id, storage_authority
+    FROM type::record('swarm_terminal_event_outbox', $record_id)
+    WHERE owner_account_id = $owner_account_id
       AND actor_principal_id = $actor_principal_id
       AND authenticated_session_id = $authenticated_session_id
       AND access_space_id = $access_space_id
@@ -29,11 +29,10 @@ LET $existing = (
     LIMIT 2
 );
 LET $prior = (
-    SELECT payload_hash FROM type::record('kernel_event_ledger', $ledger_record_id)
-    WHERE event_id = $ledger_record_id
-      AND idempotency_key = $idempotency_key
-      AND source_component = 'swarm_terminal_outbox'
-      AND owner_account_id = $owner_account_id
+    SELECT id, event_id, event_version, idempotency_key, source_component,
+        event_type, aggregate_type, aggregate_id, payload_hash, payload
+    FROM type::record('kernel_event_ledger', $ledger_record_id)
+    WHERE owner_account_id = $owner_account_id
       AND actor_principal_id = $actor_principal_id
       AND authenticated_session_id = $authenticated_session_id
       AND access_space_id = $access_space_id
@@ -50,10 +49,64 @@ LET $queued = (
 );
 IF array::len($existing) > 1 OR array::len($prior) > 1 {
     RETURN { outcome: 'corrupt' };
-} ELSE IF array::len($existing) = 1 {
-    RETURN { outcome: IF $existing[0].event_json_sha256 = $event_json_sha256 { 'already_queued' } ELSE { 'conflict' } };
-} ELSE IF array::len($prior) = 1 {
-    RETURN { outcome: IF $prior[0].payload_hash = $event_json_sha256 { 'already_committed' } ELSE { 'conflict' } };
+} ELSE IF array::len($existing) = 1 OR array::len($prior) = 1 {
+    IF array::len($prior) != 1 { RETURN { outcome: 'corrupt' }; };
+    LET $receipt = $prior[0];
+    IF !type::is_string($receipt.payload.event_json)
+        OR !type::is_string($receipt.payload_hash)
+    { RETURN { outcome: 'corrupt' }; };
+    IF $receipt.id != type::record('kernel_event_ledger', $ledger_record_id)
+        OR $receipt.event_id != $ledger_record_id
+        OR $receipt.event_version != 'kernel_event_v1'
+        OR $receipt.idempotency_key != $idempotency_key
+        OR $receipt.source_component != 'swarm_terminal_outbox'
+        OR $receipt.event_type != 'SWARM_TERMINAL_EVENT_ENQUEUED'
+        OR $receipt.aggregate_type != 'swarm_terminal_event'
+        OR $receipt.aggregate_id != $event_id
+        OR $receipt.payload != { event_id: $event_id, event_json: $receipt.payload.event_json }
+        OR $receipt.payload_hash != crypto::sha256($receipt.payload.event_json)
+    { RETURN { outcome: 'corrupt' }; };
+    IF array::len($existing) = 1 {
+        IF !type::is_string($existing[0].event_json)
+            OR !type::is_string($existing[0].event_json_sha256)
+        { RETURN { outcome: 'corrupt' }; };
+        IF $existing[0].id != type::record('swarm_terminal_event_outbox', $record_id)
+            OR $existing[0].event_id != $event_id
+            OR $existing[0].storage_authority != 'embedded_surrealdb'
+            OR $existing[0].event_ledger_event_id != $receipt.id
+            OR $existing[0].event_json != $receipt.payload.event_json
+            OR $existing[0].event_json_sha256 != crypto::sha256($existing[0].event_json)
+            OR $existing[0].event_json_sha256 != $receipt.payload_hash
+        { RETURN { outcome: 'corrupt' }; };
+        IF $stable_operation {
+            RETURN { outcome: 'already_queued', original_event_json: $receipt.payload.event_json };
+        };
+        RETURN { outcome: IF $existing[0].event_json_sha256 = $event_json_sha256
+            AND $existing[0].event_json = $event_json { 'already_queued' } ELSE { 'conflict' } };
+    };
+    IF !$unfiltered_owner { RETURN { outcome: 'corrupt' }; };
+    LET $canonical_occupancy = (
+        SELECT VALUE id FROM type::record('swarm_terminal_event_outbox', $record_id)
+    );
+    LET $other_event_occupancy = (
+        SELECT VALUE id FROM swarm_terminal_event_outbox
+        WHERE owner_account_id = $owner_account_id
+            AND actor_principal_id = $actor_principal_id
+            AND authenticated_session_id = $authenticated_session_id
+            AND access_space_id = $access_space_id
+            AND workspace_id = $workspace_id
+            AND event_id = $event_id
+            AND id != type::record('swarm_terminal_event_outbox', $record_id)
+        LIMIT 1
+    );
+    IF array::len($canonical_occupancy) != 0 OR array::len($other_event_occupancy) != 0 {
+        RETURN { outcome: 'corrupt' };
+    };
+    IF $stable_operation {
+        RETURN { outcome: 'already_committed', original_event_json: $receipt.payload.event_json };
+    };
+    RETURN { outcome: IF $receipt.payload_hash = $event_json_sha256
+        AND $receipt.payload.event_json = $event_json { 'already_committed' } ELSE { 'conflict' } };
 } ELSE IF array::len($queued) >= $capacity {
     RETURN { outcome: 'capacity' };
 } ELSE {
@@ -80,6 +133,9 @@ IF array::len($existing) > 1 OR array::len($prior) > 1 {
         access_space_id: $access_space_id,
         workspace_id: $workspace_id,
         created_at: time::now()
+    } RETURN VALUE id;
+    IF array::len($ledger) != 1 OR $ledger[0] != type::record('kernel_event_ledger', $ledger_record_id) {
+        THROW 'swarm outbox receipt creation was not confirmed';
     };
     LET $outbox = CREATE type::record('swarm_terminal_event_outbox', $record_id) CONTENT {
         event_id: $event_id,
@@ -96,11 +152,128 @@ IF array::len($existing) > 1 OR array::len($prior) > 1 {
         created_at: time::now(),
         last_attempt_at: NONE,
         storage_authority: 'embedded_surrealdb'
+    } RETURN VALUE id;
+    IF array::len($outbox) != 1 OR $outbox[0] != type::record('swarm_terminal_event_outbox', $record_id) {
+        THROW 'swarm outbox row creation was not confirmed';
     };
     RETURN { outcome: 'stored' };
 };
 COMMIT TRANSACTION;
 "#;
+
+const READ_PERSISTED_ENQUEUE: &str = r#"
+SELECT payload.event_json AS original_event_json, payload_hash AS original_event_json_sha256,
+    array::len((
+        SELECT VALUE id FROM type::record('swarm_terminal_event_outbox', $record_id)
+    )) AS canonical_count,
+    array::len((
+        SELECT VALUE id FROM swarm_terminal_event_outbox
+        WHERE owner_account_id = $owner_account_id
+            AND actor_principal_id = $actor_principal_id
+            AND authenticated_session_id = $authenticated_session_id
+            AND access_space_id = $access_space_id
+            AND workspace_id = $workspace_id
+            AND event_id = $event_id
+            AND id != type::record('swarm_terminal_event_outbox', $record_id)
+        LIMIT 1
+    )) AS other_event_count,
+    (SELECT id, event_id, event_json, event_json_sha256, event_ledger_event_id
+        FROM type::record('swarm_terminal_event_outbox', $record_id)
+        WHERE owner_account_id = $owner_account_id
+            AND actor_principal_id = $actor_principal_id
+            AND authenticated_session_id = $authenticated_session_id
+            AND access_space_id = $access_space_id
+            AND workspace_id = $workspace_id
+            AND event_id = $event_id
+            AND storage_authority = 'embedded_surrealdb'
+            AND event_ledger_event_id = type::record('kernel_event_ledger', $ledger_record_id)
+    ) AS queued
+FROM type::record('kernel_event_ledger', $ledger_record_id)
+WHERE id = type::record('kernel_event_ledger', $ledger_record_id)
+    AND event_id = $ledger_record_id
+    AND event_version = 'kernel_event_v1'
+    AND owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id
+    AND source_component = 'swarm_terminal_outbox'
+    AND event_type = 'SWARM_TERMINAL_EVENT_ENQUEUED'
+    AND aggregate_type = 'swarm_terminal_event'
+    AND aggregate_id = $event_id
+    AND idempotency_key = $idempotency_key
+    AND type::is_string(payload.event_json)
+    AND type::is_string(payload_hash)
+    AND payload = { event_id: $event_id, event_json: payload.event_json }
+    AND payload_hash = crypto::sha256(payload.event_json);
+"#;
+
+const CONFIRM_EXACT_FINALIZATION: &str = r#"
+SELECT VALUE true FROM type::record('kernel_event_ledger', $ledger_record_id)
+WHERE id = type::record('kernel_event_ledger', $ledger_record_id)
+    AND event_id = $ledger_record_id
+    AND event_version = 'kernel_event_v1'
+    AND owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id
+    AND source_component = 'swarm_terminal_outbox'
+    AND event_type = 'SWARM_TERMINAL_EVENT_ENQUEUED'
+    AND aggregate_type = 'swarm_terminal_event'
+    AND aggregate_id = $event_id
+    AND idempotency_key = $idempotency_key
+    AND payload_hash = $event_json_sha256
+    AND payload = { event_id: $event_id, event_json: $event_json }
+    AND array::len((
+        SELECT VALUE id FROM type::record('swarm_terminal_event_outbox', $record_id)
+    )) = 0
+    AND array::len((
+        SELECT VALUE id FROM swarm_terminal_event_outbox
+        WHERE owner_account_id = $owner_account_id
+            AND actor_principal_id = $actor_principal_id
+            AND authenticated_session_id = $authenticated_session_id
+            AND access_space_id = $access_space_id
+            AND workspace_id = $workspace_id
+            AND event_id = $event_id
+        LIMIT 1
+    )) = 0;
+"#;
+
+macro_rules! exact_outbox_cas {
+    ($operation:literal) => {
+        concat!(
+            $operation,
+            r#"
+                WHERE event_id = $event_id
+                  AND owner_account_id = $owner_account_id
+                  AND actor_principal_id = $actor_principal_id
+                  AND authenticated_session_id = $authenticated_session_id
+                  AND access_space_id = $access_space_id
+                  AND workspace_id = $workspace_id
+                  AND storage_authority = 'embedded_surrealdb'
+                  AND event_json = $event_json
+                  AND event_json_sha256 = $event_json_sha256
+                  AND event_ledger_event_id = type::record('kernel_event_ledger', $ledger_record_id)
+                  AND event_ledger_event_id.event_id = $ledger_record_id
+                  AND event_ledger_event_id.event_version = 'kernel_event_v1'
+                  AND event_ledger_event_id.owner_account_id = $owner_account_id
+                  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                  AND event_ledger_event_id.access_space_id = $access_space_id
+                  AND event_ledger_event_id.workspace_id = $workspace_id
+                  AND event_ledger_event_id.source_component = 'swarm_terminal_outbox'
+                  AND event_ledger_event_id.event_type = 'SWARM_TERMINAL_EVENT_ENQUEUED'
+                  AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event'
+                  AND event_ledger_event_id.aggregate_id = $event_id
+                  AND event_ledger_event_id.idempotency_key = $idempotency_key
+                  AND event_ledger_event_id.payload_hash = $event_json_sha256
+                  AND event_ledger_event_id.payload = { event_id: $event_id, event_json: $event_json }
+                RETURN VALUE id;
+            "#
+        )
+    };
+}
 
 #[derive(Debug, Error)]
 pub enum SurrealSwarmOutboxError {
@@ -151,8 +324,10 @@ struct SchemaStateBindings {
     schema_revision: i64,
 }
 
-#[derive(Debug, SurrealValue)]
+#[derive(Debug, Clone, SurrealValue)]
 struct PersistBindings {
+    stable_operation: bool,
+    unfiltered_owner: bool,
     record_id: String,
     ledger_record_id: String,
     event_id: String,
@@ -165,6 +340,22 @@ struct PersistBindings {
     authenticated_session_id: String,
     access_space_id: String,
     workspace_id: String,
+}
+
+#[derive(Debug, Clone, SurrealValue)]
+struct ExactEventBindings {
+    record_id: String,
+    ledger_record_id: String,
+    event_id: String,
+    event_json: String,
+    event_json_sha256: String,
+    idempotency_key: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    last_error: String,
 }
 
 #[derive(Debug, SurrealValue)]
@@ -191,12 +382,46 @@ struct ScopeBindings {
 #[derive(Debug, SurrealValue)]
 struct PersistResult {
     outcome: String,
+    original_event_json: Option<String>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PersistReadback {
+    original_event_json: String,
+    original_event_json_sha256: String,
+    canonical_count: i64,
+    other_event_count: i64,
+    queued: Vec<PersistQueuedReadback>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PersistQueuedReadback {
+    id: RecordId,
+    event_id: String,
+    event_json: String,
+    event_json_sha256: String,
+    event_ledger_event_id: RecordId,
 }
 
 #[derive(Debug, SurrealValue)]
 struct PendingRow {
+    id: RecordId,
     event_id: String,
     event_json: String,
+    event_json_sha256: Option<String>,
+    receipt: Option<PendingReceipt>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PendingReceipt {
+    receipt_record: Option<RecordId>,
+    receipt_event_id: Option<String>,
+    receipt_event_version: Option<String>,
+    receipt_idempotency_key: Option<String>,
+    receipt_aggregate_id: Option<String>,
+    receipt_event_type: Option<String>,
+    receipt_payload_hash: Option<String>,
+    receipt_payload: Option<serde_json::Value>,
 }
 
 // FINAL catalog reuse requires the owning durable receipt; this never installs DDL.
@@ -297,6 +522,27 @@ impl SurrealSwarmOutboxStore {
         event_json: String,
         capacity: usize,
     ) -> Result<SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxError> {
+        self.persist_inner(event_id, event_json, capacity, None).await
+    }
+
+    pub(crate) async fn persist_stable_terminal(
+        &self,
+        operation: &crate::swarm_orchestration::events::StableTerminalEvent,
+        capacity: usize,
+    ) -> Result<SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxError> {
+        let event = operation.event();
+        let event_json = serde_json::to_string(event)
+            .map_err(|_| SurrealSwarmOutboxError::InvalidEvent)?;
+        self.persist_inner(&event.event_id.to_string(), event_json, capacity, Some(operation)).await
+    }
+
+    async fn persist_inner(
+        &self,
+        event_id: &str,
+        event_json: String,
+        capacity: usize,
+        stable_operation: Option<&crate::swarm_orchestration::events::StableTerminalEvent>,
+    ) -> Result<SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxError> {
         self.prepare().await?;
         if event_id.trim().is_empty()
             || event_json.trim().is_empty()
@@ -307,7 +553,10 @@ impl SurrealSwarmOutboxStore {
         }
         let event_json_sha256 = sha256_hex(event_json.as_bytes());
         let identity = self.identity_hash(event_id);
+        let unfiltered_owner = super::current_record_user_scope().is_none();
         let bindings = PersistBindings {
+            stable_operation: stable_operation.is_some(),
+            unfiltered_owner,
             record_id: format!("swarm-outbox-{identity}"),
             ledger_record_id: format!("evt-swarm-terminal-{identity}"),
             event_id: event_id.to_owned(),
@@ -321,6 +570,7 @@ impl SurrealSwarmOutboxStore {
             access_space_id: self.scope.access_space_id.as_uuid().to_string(),
             workspace_id: self.scope.workspace_id.as_str().to_owned(),
         };
+        let readback = bindings.clone();
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -330,13 +580,34 @@ impl SurrealSwarmOutboxStore {
                         .await
                 })
             })
-            .await?;
-        let outcome = rows
-            .into_iter()
-            .next()
-            .ok_or(SurrealSwarmOutboxError::CorruptAuthority)?
-            .outcome;
-        match outcome.as_str() {
+            .await;
+        let rows = match rows {
+            Ok(rows) => rows,
+            Err(error) => {
+                let ambiguous = matches!(&error, SurrealStorageError::StatementTimeout { .. });
+                let original = SurrealSwarmOutboxError::Storage(error);
+                if ambiguous && unfiltered_owner && super::current_record_user_scope().is_none() {
+                    if let Some(outcome) = self.read_persisted_enqueue(readback, stable_operation).await {
+                        return Ok(outcome);
+                    }
+                }
+                return Err(original);
+            }
+        };
+        if rows.len() != 1 { return Err(SurrealSwarmOutboxError::CorruptAuthority); }
+        let result = rows.into_iter().next().ok_or(SurrealSwarmOutboxError::CorruptAuthority)?;
+        if let Some(operation) = stable_operation {
+            if matches!(result.outcome.as_str(), "already_queued" | "already_committed") {
+                let original = result.original_event_json.as_deref()
+                    .ok_or(SurrealSwarmOutboxError::CorruptAuthority)?;
+                if !operation.matches_original(original)
+                    .map_err(|_| SurrealSwarmOutboxError::CorruptAuthority)?
+                {
+                    return Err(SurrealSwarmOutboxError::IdempotencyConflict);
+                }
+            }
+        }
+        match result.outcome.as_str() {
             "stored" => Ok(SurrealSwarmOutboxPersistOutcome::Stored),
             "already_queued" => Ok(SurrealSwarmOutboxPersistOutcome::AlreadyQueued),
             "already_committed" => Ok(SurrealSwarmOutboxPersistOutcome::AlreadyCommitted),
@@ -346,6 +617,49 @@ impl SurrealSwarmOutboxStore {
         }
     }
 
+    async fn read_persisted_enqueue(
+        &self,
+        bindings: PersistBindings,
+        stable_operation: Option<&crate::swarm_orchestration::events::StableTerminalEvent>,
+    ) -> Option<SurrealSwarmOutboxPersistOutcome> {
+        let original = bindings.clone();
+        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<PersistReadback, _>(READ_PERSISTED_ENQUEUE, bindings).await
+        })).await.ok()?;
+        if rows.len() != 1 { return None; }
+        let row = rows.into_iter().next()?;
+        if let Some(operation) = stable_operation {
+            if !operation.matches_original(&row.original_event_json).ok()? { return None; }
+        } else if row.original_event_json != original.event_json
+            || row.original_event_json_sha256 != original.event_json_sha256
+        {
+            return None;
+        }
+        match (row.canonical_count, row.other_event_count, row.queued.as_slice()) {
+            (0, 0, []) => Some(SurrealSwarmOutboxPersistOutcome::AlreadyCommitted),
+            (1, 0, [queued])
+                if queued.id == RecordId::new("swarm_terminal_event_outbox", original.record_id.clone())
+                    && queued.event_id == original.event_id
+                    && queued.event_ledger_event_id == RecordId::new("kernel_event_ledger", original.ledger_record_id.clone())
+                    && queued.event_json == row.original_event_json
+                    && queued.event_json_sha256 == row.original_event_json_sha256 =>
+                Some(SurrealSwarmOutboxPersistOutcome::AlreadyQueued),
+            _ => None,
+        }
+    }
+
+    pub(crate) async fn has_scoped_rows(&self) -> Result<bool, SurrealSwarmOutboxError> {
+        self.prepare().await?;
+        let bindings = self.scope_bindings();
+        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<bool, _>(
+                "SELECT VALUE true FROM swarm_terminal_event_outbox WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 1;",
+                bindings,
+            ).await
+        })).await?;
+        Ok(!rows.is_empty())
+    }
+
     pub async fn next_pending(
         &self,
     ) -> Result<Option<SurrealSwarmOutboxEvent>, SurrealSwarmOutboxError> {
@@ -353,14 +667,158 @@ impl SurrealSwarmOutboxStore {
         let bindings = self.scope_bindings();
         let rows = self.storage.with_data_operation(|database| Box::pin(async move {
             database.query_values::<PendingRow, _>(
-                "SELECT event_id, event_json, created_at FROM swarm_terminal_event_outbox WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND storage_authority = 'embedded_surrealdb' AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'swarm_terminal_outbox' AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event' ORDER BY created_at ASC, event_id ASC LIMIT 1;",
+                r#"SELECT id, event_id, event_json, event_json_sha256,
+                    IF storage_authority = 'embedded_surrealdb'
+                        AND event_ledger_event_id.owner_account_id = $owner_account_id
+                        AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                        AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                        AND event_ledger_event_id.access_space_id = $access_space_id
+                        AND event_ledger_event_id.workspace_id = $workspace_id
+                        AND event_ledger_event_id.source_component = 'swarm_terminal_outbox'
+                        AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event'
+                    { {
+                        receipt_record: event_ledger_event_id,
+                        receipt_event_id: event_ledger_event_id.event_id,
+                        receipt_event_version: event_ledger_event_id.event_version,
+                        receipt_idempotency_key: event_ledger_event_id.idempotency_key,
+                        receipt_aggregate_id: event_ledger_event_id.aggregate_id,
+                        receipt_event_type: event_ledger_event_id.event_type,
+                        receipt_payload_hash: event_ledger_event_id.payload_hash,
+                        receipt_payload: event_ledger_event_id.payload
+                    } } ELSE { NONE } AS receipt
+                FROM (
+                    SELECT id, event_id, event_json, event_json_sha256, created_at,
+                        storage_authority, event_ledger_event_id
+                    FROM swarm_terminal_event_outbox
+                    WHERE owner_account_id = $owner_account_id
+                        AND actor_principal_id = $actor_principal_id
+                        AND authenticated_session_id = $authenticated_session_id
+                        AND access_space_id = $access_space_id
+                        AND workspace_id = $workspace_id
+                    ORDER BY created_at ASC, event_id ASC LIMIT 1
+                );"#,
                 bindings,
             ).await
         })).await?;
-        Ok(rows.into_iter().next().map(|row| SurrealSwarmOutboxEvent {
+        let Some(row) = rows.into_iter().next() else { return Ok(None); };
+        let receipt = row.receipt.as_ref().ok_or(SurrealSwarmOutboxError::CorruptAuthority)?;
+        let identity = self.identity_hash(&row.event_id);
+        let ledger_id = format!("evt-swarm-terminal-{identity}");
+        let idempotency_key = format!("swarm-terminal:{identity}");
+        let payload_hash = sha256_hex(row.event_json.as_bytes());
+        let expected_receipt_payload = serde_json::json!({
+            "event_id": &row.event_id, "event_json": &row.event_json,
+        });
+        if row.id != RecordId::new("swarm_terminal_event_outbox", format!("swarm-outbox-{identity}"))
+            || receipt.receipt_record.as_ref() != Some(&RecordId::new("kernel_event_ledger", ledger_id.clone()))
+            || receipt.receipt_event_id.as_deref() != Some(ledger_id.as_str())
+            || receipt.receipt_event_version.as_deref() != Some("kernel_event_v1")
+            || receipt.receipt_idempotency_key.as_deref() != Some(idempotency_key.as_str())
+            || receipt.receipt_aggregate_id.as_deref() != Some(row.event_id.as_str())
+            || receipt.receipt_event_type.as_deref() != Some("SWARM_TERMINAL_EVENT_ENQUEUED")
+            || row.event_json_sha256.as_deref() != Some(payload_hash.as_str())
+            || receipt.receipt_payload_hash.as_deref() != Some(payload_hash.as_str())
+            || receipt.receipt_payload.as_ref() != Some(&expected_receipt_payload)
+        {
+            return Err(SurrealSwarmOutboxError::CorruptAuthority);
+        }
+        Ok(Some(SurrealSwarmOutboxEvent {
             event_id: row.event_id,
             event_json: row.event_json,
         }))
+    }
+
+    fn exact_event_bindings(
+        &self,
+        event: &SurrealSwarmOutboxEvent,
+        last_error: String,
+    ) -> Result<(RecordId, ExactEventBindings), SurrealSwarmOutboxError> {
+        if event.event_id.trim().is_empty() || event.event_json.trim().is_empty() {
+            return Err(SurrealSwarmOutboxError::InvalidEvent);
+        }
+        let identity = self.identity_hash(&event.event_id);
+        let scope = self.scope_bindings();
+        let expected_id = RecordId::new(
+            "swarm_terminal_event_outbox", format!("swarm-outbox-{identity}"),
+        );
+        let bindings = ExactEventBindings {
+            record_id: format!("swarm-outbox-{identity}"),
+            ledger_record_id: format!("evt-swarm-terminal-{identity}"),
+            event_id: event.event_id.clone(),
+            event_json: event.event_json.clone(),
+            event_json_sha256: sha256_hex(event.event_json.as_bytes()),
+            idempotency_key: format!("swarm-terminal:{identity}"),
+            last_error,
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        };
+        Ok((expected_id, bindings))
+    }
+
+    pub(crate) async fn finalize_exact(
+        &self,
+        event: &SurrealSwarmOutboxEvent,
+    ) -> Result<(), SurrealSwarmOutboxError> {
+        self.prepare().await?;
+        let (expected_id, bindings) = self.exact_event_bindings(event, String::new())?;
+        let unfiltered_owner = super::current_record_user_scope().is_none();
+        let readback = bindings.clone();
+        let removed = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<surrealdb::types::Value, _>(
+                exact_outbox_cas!("DELETE type::record('swarm_terminal_event_outbox', $record_id)"),
+                bindings,
+            ).await
+        })).await;
+        let original_error = match removed {
+            Ok(mut rows) if rows.len() == 1 => {
+                let removed = RecordId::from_value(rows.remove(0))
+                    .map_err(|_| SurrealSwarmOutboxError::CorruptAuthority)?;
+                return if removed == expected_id { Ok(()) }
+                    else { Err(SurrealSwarmOutboxError::CorruptAuthority) };
+            }
+            Ok(rows) if !rows.is_empty() => return Err(SurrealSwarmOutboxError::CorruptAuthority),
+            Ok(_) => SurrealSwarmOutboxError::CorruptAuthority,
+            Err(error) => {
+                let ambiguous = matches!(&error, SurrealStorageError::StatementTimeout { .. });
+                let original = SurrealSwarmOutboxError::Storage(error);
+                if !ambiguous { return Err(original); }
+                original
+            }
+        };
+        if !unfiltered_owner || super::current_record_user_scope().is_some() {
+            return Err(original_error);
+        }
+        let verdict = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<bool, _>(CONFIRM_EXACT_FINALIZATION, readback).await
+        })).await;
+        match verdict {
+            Ok(rows) if rows.as_slice() == [true] => Ok(()),
+            _ => Err(original_error),
+        }
+    }
+
+    pub(crate) async fn record_failure_exact(
+        &self,
+        event: &SurrealSwarmOutboxEvent,
+        error: &str,
+    ) -> Result<(), SurrealSwarmOutboxError> {
+        self.prepare().await?;
+        let (expected_id, bindings) = self.exact_event_bindings(
+            event, error.chars().take(4096).collect(),
+        )?;
+        let updated = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<RecordId, _>(
+                exact_outbox_cas!("UPDATE type::record('swarm_terminal_event_outbox', $record_id) SET attempts += 1, last_error = $last_error, last_attempt_at = time::now()"),
+                bindings,
+            ).await
+        })).await?;
+        if updated.len() != 1 || updated[0] != expected_id {
+            return Err(SurrealSwarmOutboxError::CorruptAuthority);
+        }
+        Ok(())
     }
 
     pub async fn mark_delivered(&self, event_id: &str) -> Result<(), SurrealSwarmOutboxError> {
@@ -629,9 +1087,8 @@ mod tests {
             .await
             .expect("seed missing and foreign receipt links through test-only admin");
 
-        assert_eq!(
-            local.next_pending().await.expect("read local outbox"),
-            None,
+        assert!(
+            matches!(local.next_pending().await, Err(SurrealSwarmOutboxError::CorruptAuthority)),
             "neither unattributed durable row may be returned"
         );
         local

@@ -578,9 +578,18 @@ impl VerifiedWatcherChallenge {
     }
 }
 
-#[derive(Clone)]
 enum LaunchSlot {
     Launching(PalmistryLaunchRequest),
+    SettlingExit {
+        launch_nonce: Uuid,
+        process_uuid: Uuid,
+        owner: Arc<RetainedWatcherSettlement>,
+    },
+    WaitUnconfirmed {
+        launch_nonce: Uuid,
+        process_uuid: Uuid,
+        owner: Arc<RetainedWatcherSettlement>,
+    },
     Active {
         request: PalmistryLaunchRequest,
         receipt: PalmistryLaunchReceipt,
@@ -589,6 +598,18 @@ enum LaunchSlot {
         diagnostic_envelopes: std::collections::VecDeque<DiagnosticEnvelope>,
         lifecycle_ownership: WatcherLifecycleOwnership,
     },
+}
+
+struct RetainedWatcherSettlement {
+    state: Mutex<RetainedWatcherChild>,
+    lifecycle: ActiveProcessLifecycle,
+    verifier: SurrealPalmistryVerifier,
+}
+
+struct RetainedWatcherChild {
+    child: Option<Child>,
+    status: Option<std::process::ExitStatus>,
+    _original_wait_error: Option<std::io::Error>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -627,10 +648,12 @@ impl PalmistryLaunchAttempt {
             .expect("Palmistry child ownership transfers exactly once")
     }
 
-    fn terminate_and_wait(&mut self) -> Option<i32> {
-        let mut child = self.child.take()?;
+    fn terminate_and_wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
+        let mut child = self.child.take().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "Palmistry launch attempt has no owned child")
+        })?;
         let _ = child.kill();
-        child.wait().ok().and_then(|status| status.code())
+        child.wait()
     }
 }
 
@@ -959,16 +982,23 @@ fn adoption_outcome_receipt(
         PalmistryWatcherAdoptionResult::Uncertain { canonical_receipt, .. } => canonical_receipt.as_ref(),
     }
 }
-fn owned_adoption_response(owner: &OwnedWatcherAdoption) -> Result<Response, PalmistryLaunchError> {
+fn owned_adoption_response(
+    state: &PalmistryLaunchState, owner: &OwnedWatcherAdoption,
+    fresh_inspection: Option<&WatcherAdmissionInspection>,
+) -> Result<Response, PalmistryLaunchError> {
     use crate::storage::surreal::PalmistryWatcherAdoptionResult;
-    let outcome = owner.outcome.lock().unwrap_or_else(|e| e.into_inner());
-    let publication = owner.publication.lock().unwrap_or_else(|e| e.into_inner());
+    let outcome = owner.outcome.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let publication = owner.publication.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let status = outcome.as_ref().and_then(|result| match &**result {
         PalmistryWatcherAdoptionResult::Applied(_) => Some("APPLIED"),
         PalmistryWatcherAdoptionResult::AlreadyApplied(_) => Some("ALREADY_APPLIED"),
         PalmistryWatcherAdoptionResult::Uncertain { .. } => None,
     });
     let canonical = outcome.as_ref().and_then(|result| adoption_outcome_receipt(result));
+    let fresh_canonical = fresh_inspection.and_then(|inspection| match inspection {
+        WatcherAdmissionInspection::ExistingReadOnly(result) => adoption_outcome_receipt(result),
+        _ => None,
+    });
     if let (Some(status), Some((receipt, secret)), Some(canonical)) = (status, publication.as_ref(), canonical) {
         if Some(canonical.operation_id) != owner.request.adoption_operation_id
             || canonical.process_uuid != receipt.process_uuid
@@ -976,15 +1006,35 @@ fn owned_adoption_response(owner: &OwnedWatcherAdoption) -> Result<Response, Pal
         {
             return Err(PalmistryLaunchError::unavailable("admission response binding unavailable"));
         }
-        let sealed = launch_response(receipt.clone(), secret, &owner.request)?.0;
-        return Ok((StatusCode::OK, Json(json!({
-            "adoption_operation_id": canonical.operation_id,
-            "process_uuid": receipt.process_uuid, "adoption_status": status, "receipt": sealed,
-            "canonical_receipt": adoption_receipt_json(canonical),
-        }))).into_response());
+        let active = state.active.lock().unwrap_or_else(|e| e.into_inner());
+        if (fresh_inspection.is_none() || fresh_canonical == Some(canonical)) && matches!(
+            active.get(&owner.request.session_id),
+            Some(LaunchSlot::Active {
+                request, receipt: current, signing_secret,
+                lifecycle_ownership: WatcherLifecycleOwnership::DetachedReattached, ..
+            }) if same_launch_identity(request, &owner.request)
+                && current.session_id == receipt.session_id
+                && current.process_uuid == receipt.process_uuid
+                && current.os_pid == receipt.os_pid
+                && current.os_creation_time_100ns == receipt.os_creation_time_100ns
+                && current.sandbox_adapter_id == receipt.sandbox_adapter_id
+                && current.ledger_start_durable == receipt.ledger_start_durable
+                && Arc::ptr_eq(&signing_secret.0, &secret.0)
+        ) {
+            let sealed = launch_response(receipt.clone(), secret, &owner.request)?.0;
+            return Ok((StatusCode::OK, Json(json!({
+                "adoption_operation_id": canonical.operation_id,
+                "process_uuid": receipt.process_uuid, "adoption_status": status, "receipt": sealed,
+                "canonical_receipt": adoption_receipt_json(canonical),
+            }))).into_response());
+        }
     }
     let mut response = uncertain_adoption_value(&owner.request);
-    if let Some(canonical) = canonical {
+    if fresh_inspection.is_some() {
+        if let Some(canonical) = fresh_canonical {
+            response["canonical_receipt"] = adoption_receipt_json(canonical);
+        }
+    } else if let Some(canonical) = canonical {
         response["canonical_receipt"] = adoption_receipt_json(canonical);
     } else {
         let readback = owner.readback.lock().unwrap_or_else(|e| e.into_inner());
@@ -1023,8 +1073,7 @@ async fn read_owned_watcher_adoption(
         &read_authorization, request.adoption_operation_id.expect("validated operation"),
         WatcherAdmissionPurpose::Adopt,
     ).await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?;
-    *owner.readback.lock().unwrap_or_else(|e| e.into_inner()) = Some(inspection);
-    owned_adoption_response(&owner)
+    owned_adoption_response(state, &owner, Some(&inspection))
 }
 async fn prepare_owned_watcher_adoption(
     state: &PalmistryLaunchState, headers: &HeaderMap, request: PalmistryLaunchRequest,
@@ -1109,7 +1158,7 @@ async fn prepare_owned_watcher_adoption(
         }
     });
     *owner.task.lock().unwrap_or_else(|e| e.into_inner()) = Some(task);
-    owned_adoption_response(&owner)
+    owned_adoption_response(state, &owner, None)
 }
 
 async fn run_owned_watcher_admission(
@@ -1228,6 +1277,12 @@ async fn publish_owned_watcher_admission(
                 return Err("native publication verifier mismatch".to_owned());
             }
             let mut active = active.lock().unwrap_or_else(|e| e.into_inner());
+            if matches!(
+                active.get(&publish_owner.request.session_id),
+                Some(LaunchSlot::Launching(_) | LaunchSlot::SettlingExit { .. } | LaunchSlot::WaitUnconfirmed { .. })
+            ) {
+                return Err("diagnostics session launch or exit settlement is pending".to_owned());
+            }
             if let Some(LaunchSlot::Active { request, .. }) = active.get(&publish_owner.request.session_id) {
                 if !same_launch_identity(request, &publish_owner.request) {
                     return Err("diagnostics session already active for another identity".to_owned());
@@ -1292,6 +1347,12 @@ async fn launch(
                         "identical Palmistry launch is still starting",
                     ))
                 }
+                LaunchSlot::SettlingExit { .. } => Err(PalmistryLaunchError::unavailable(
+                    "Palmistry watcher exit is still settling",
+                )),
+                LaunchSlot::WaitUnconfirmed { .. } => Err(PalmistryLaunchError::unavailable(
+                    "Palmistry watcher wait remains unconfirmed",
+                )),
                 _ => Err(PalmistryLaunchError::bad_request(
                     "session_id is already bound to a different Palmistry launch identity",
                 )),
@@ -1323,6 +1384,20 @@ async fn launch(
         ))
     })?;
     let (receipt, signing_secret) = launch_result?;
+    let active = state.active.lock().unwrap_or_else(|e| e.into_inner());
+    if !matches!(
+        active.get(&request.session_id),
+        Some(LaunchSlot::Active {
+            request: current_request, receipt: current_receipt, signing_secret: current_secret, ..
+        }) if same_launch_identity(current_request, &request)
+            && current_receipt.session_id == receipt.session_id
+            && current_receipt.process_uuid == receipt.process_uuid
+            && Arc::ptr_eq(&current_secret.0, &signing_secret.0)
+    ) {
+        return Err(PalmistryLaunchError::unavailable(
+            "Palmistry launch is no longer active for the original owner",
+        ));
+    }
     launch_response(receipt, &signing_secret, &request).map(IntoResponse::into_response)
 }
 
@@ -1495,18 +1570,16 @@ async fn launch_validated(
     let (lifecycle, durable_start) = match reservation.begin_with_durable_ack(start) {
         Ok(value) => value,
         Err(error) => {
-            launch_attempt.terminate_and_wait();
+            let _ = launch_attempt.terminate_and_wait();
             return Err(PalmistryLaunchError::unavailable(error.to_string()));
         }
     };
     if let Err(error) = durable_start.wait(LEDGER_ACK_TIMEOUT).await {
         lifecycle.leave_open_for_reconciliation();
-        launch_attempt.terminate_and_wait();
+        let _ = launch_attempt.terminate_and_wait();
         return Err(PalmistryLaunchError::unavailable(error.to_string()));
     }
-    let register_verifier = state
-        .palmistry_store
-        .register(SurrealPalmistryVerifier {
+    let original_verifier = SurrealPalmistryVerifier {
             session_id: request.session_id,
             launch_nonce: request.launch_nonce,
             parent_pid: i64::from(request.parent_pid),
@@ -1519,11 +1592,11 @@ async fn launch_validated(
             process_uuid,
             executable_sha256: executable_sha256.clone(),
             verifying_key_hex: hex::encode(watcher_verifying_key),
-        })
-        .await;
+        };
+    let register_verifier = state.palmistry_store.register(original_verifier.clone()).await;
     if let Err(error) = register_verifier {
         lifecycle.leave_open_for_reconciliation();
-        launch_attempt.terminate_and_wait();
+        let _ = launch_attempt.terminate_and_wait();
         return Err(PalmistryLaunchError::unavailable(format!(
             "cannot durably register Palmistry public verifier: {error}"
         )));
@@ -1536,12 +1609,23 @@ async fn launch_validated(
     )
     .await
     {
-        let exit_code = launch_attempt.terminate_and_wait();
+        let status = match launch_attempt.terminate_and_wait() {
+            Ok(status) => status,
+            Err(_) => {
+                lifecycle.leave_open_for_reconciliation();
+                return Err(error);
+            }
+        };
         match lifecycle
-            .stop_with_durable_ack(exit_code, "palmistry-readiness-failed", LEDGER_ACK_TIMEOUT)
+            .stop_with_durable_ack(status.code(), "palmistry-readiness-failed", LEDGER_ACK_TIMEOUT)
             .await
         {
-            Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => {}
+            Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => {
+                let _ = state
+                    .palmistry_store
+                    .retire_exact(request.session_id, request.launch_nonce, process_uuid)
+                    .await;
+            }
             Ok(
                 StopRecordOutcome::LeftOpenForReconciliation
                 | StopRecordOutcome::DurabilityUnconfirmed,
@@ -1550,10 +1634,6 @@ async fn launch_validated(
                 lifecycle.leave_open_for_reconciliation();
             }
         }
-        let _ = state
-            .palmistry_store
-            .retire_exact(request.session_id, request.launch_nonce, process_uuid)
-            .await;
         return Err(error);
     }
 
@@ -1567,7 +1647,6 @@ async fn launch_validated(
     };
     let signing_secret = SessionSigningSecret::generate();
     let active = Arc::clone(&state.active);
-    let palmistry_store = state.palmistry_store.clone();
     let runtime_handle = tokio::runtime::Handle::current();
     let session_id = request.session_id;
     let launch_nonce = request.launch_nonce;
@@ -1581,52 +1660,73 @@ async fn launch_validated(
                 return;
             };
             let result = child.wait();
-            if finish_lifecycle(&runtime_handle, lifecycle, result) {
-                match runtime_handle.block_on(palmistry_store.retire_exact(
-                    session_id,
-                    launch_nonce,
-                    reaper_process_uuid,
-                )) {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        tracing::warn!(
-                            %session_id,
-                            %launch_nonce,
-                            process_uuid = %reaper_process_uuid,
-                            "Palmistry watcher STOP is durable but its exact verifier row is missing"
-                        );
-                    }
-                    Err(error) => {
-                        tracing::warn!(
-                            %session_id,
-                            %launch_nonce,
-                            process_uuid = %reaper_process_uuid,
-                            error = %error,
-                            "Palmistry watcher STOP is durable but verifier retirement needs reconciliation"
-                        );
-                    }
+            let status = result.as_ref().ok().cloned();
+            let owner = {
+                let mut slots = active.lock().unwrap_or_else(|e| e.into_inner());
+                if !matches!(
+                    slots.get(&session_id),
+                    Some(LaunchSlot::Active {
+                        request, receipt,
+                        lifecycle_ownership: WatcherLifecycleOwnership::AttachedReaper, ..
+                    }) if request.session_id == session_id
+                        && request.launch_nonce == launch_nonce
+                        && receipt.session_id == session_id
+                        && receipt.process_uuid == reaper_process_uuid
+                ) {
+                    return;
                 }
+                let owner = Arc::new(RetainedWatcherSettlement {
+                    state: Mutex::new(RetainedWatcherChild {
+                        child: Some(child), status: status.clone(), _original_wait_error: result.err(),
+                    }),
+                    lifecycle,
+                    verifier: original_verifier,
+                });
+                let slot = if status.is_some() {
+                    LaunchSlot::SettlingExit {
+                        launch_nonce, process_uuid: reaper_process_uuid, owner: Arc::clone(&owner),
+                    }
+                } else {
+                    LaunchSlot::WaitUnconfirmed {
+                        launch_nonce, process_uuid: reaper_process_uuid, owner: Arc::clone(&owner),
+                    }
+                };
+                slots.insert(session_id, slot);
+                owner
+            };
+            let Some(status) = status else { return; };
+            if finish_lifecycle(&runtime_handle, &owner.lifecycle, Ok(status)) {
+                owner.state.lock().unwrap_or_else(|error| error.into_inner()).child.take();
             }
-            // Child exit is authoritative for in-memory liveness even when the
-            // durable STOP/retirement path failed. Never keep serving a cached
-            // Active receipt for an exact watcher the reaper has joined.
-            remove_matching_active_slot(
-                &active,
-                session_id,
-                launch_nonce,
-                reaper_process_uuid,
-            );
         });
     if let Err(error) = reaper {
-        launch_attempt.terminate_and_wait();
+        let _ = launch_attempt.terminate_and_wait();
         lifecycle.leave_open_for_reconciliation();
         return Err(PalmistryLaunchError::unavailable(error.to_string()));
     }
-    state
-        .active
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(
+    {
+        let mut active = state.active.lock().unwrap_or_else(|e| e.into_inner());
+        if !matches!(
+            active.get(&session_id),
+            Some(LaunchSlot::Launching(existing)) if same_launch_identity(existing, request)
+        ) {
+            drop(active);
+            lifecycle.leave_open_for_reconciliation();
+            return Err(PalmistryLaunchError::unavailable(
+                "Palmistry launch slot changed before ownership transfer",
+            ));
+        }
+        if let Err(error) = reaper_tx.send((launch_attempt.take_child(), lifecycle)) {
+            drop(active);
+            let (mut child, lifecycle) = error.0;
+            let _ = child.kill();
+            let _ = child.wait();
+            lifecycle.leave_open_for_reconciliation();
+            return Err(PalmistryLaunchError::unavailable(
+                "Palmistry reaper stopped before ownership transfer",
+            ));
+        }
+        active.insert(
             session_id,
             LaunchSlot::Active {
                 request: request.clone(),
@@ -1637,30 +1737,16 @@ async fn launch_validated(
                 lifecycle_ownership: WatcherLifecycleOwnership::AttachedReaper,
             },
         );
-    if let Err(error) = reaper_tx.send((launch_attempt.take_child(), lifecycle)) {
-        let (mut child, lifecycle) = error.0;
-        let _ = child.kill();
-        let _ = child.wait();
-        lifecycle.leave_open_for_reconciliation();
-        state
-            .active
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(&session_id);
-        return Err(PalmistryLaunchError::unavailable(
-            "Palmistry reaper stopped before ownership transfer",
-        ));
     }
     Ok((receipt, signing_secret))
 }
 
 fn finish_lifecycle(
     runtime_handle: &tokio::runtime::Handle,
-    lifecycle: ActiveProcessLifecycle,
+    lifecycle: &ActiveProcessLifecycle,
     result: std::io::Result<std::process::ExitStatus>,
 ) -> bool {
     let Ok(status) = result else {
-        lifecycle.leave_open_for_reconciliation();
         return false;
     };
     let stop = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -1676,10 +1762,7 @@ fn finish_lifecycle(
             StopRecordOutcome::LeftOpenForReconciliation | StopRecordOutcome::DurabilityUnconfirmed,
         ))
         | Ok(Err(_))
-        | Err(_) => {
-            lifecycle.leave_open_for_reconciliation();
-            false
-        }
+        | Err(_) => false,
     }
 }
 
@@ -1690,14 +1773,15 @@ fn remove_matching_active_slot(
     process_uuid: Uuid,
 ) -> bool {
     let mut active = active.lock().unwrap_or_else(|error| error.into_inner());
-    let matches = matches!(
-        active.get(&session_id),
-        Some(LaunchSlot::Active {
-            request,
-            receipt,
-            ..
-        }) if request.launch_nonce == launch_nonce && receipt.process_uuid == process_uuid
-    );
+    let matches = match active.get(&session_id) {
+        Some(LaunchSlot::Active { request, receipt, .. }) => {
+            request.launch_nonce == launch_nonce && receipt.process_uuid == process_uuid
+        }
+        Some(LaunchSlot::SettlingExit { launch_nonce: current_nonce, process_uuid: current_process, .. }) => {
+            *current_nonce == launch_nonce && *current_process == process_uuid
+        }
+        _ => false,
+    };
     if matches {
         active.remove(&session_id);
     }
@@ -1870,13 +1954,19 @@ async fn recover_survivor(
                 )),
             }
         };
-        let cleanup_complete = shutdown_recovered_source(
-            &state,
-            &request,
-            &source_shutdown_signal,
-            Some(source_process_uuid),
-        )
-        .await;
+        let cleanup_complete = if matching_event.payload.get("source_retirement_only")
+            .and_then(serde_json::Value::as_bool) == Some(true)
+        {
+            source_shutdown_is_allowed(request.summary.source_session_id, request.current_session_id)
+        } else {
+            shutdown_recovered_source(
+                &state,
+                &request,
+                &source_shutdown_signal,
+                source_launch_nonce,
+                Some(source_process_uuid),
+            ).await
+        };
         if cleanup_complete {
             retire_recovered_source(
                 &state,
@@ -1905,7 +1995,9 @@ async fn recover_survivor(
             "source Palmistry verifier is missing or ambiguous",
         ));
     };
-    verify_durable_watcher_identity(&state, source_verifier).await?;
+    let retirement_only = recovery_source_is_retirement_only(
+        &state, source_verifier, request.current_session_id,
+    ).await?;
     let source_survivor_dir = diagnostics_root().join("survivors");
     let durable_summary = read_survivor_summary(
         &source_survivor_dir,
@@ -1918,7 +2010,7 @@ async fn recover_survivor(
             "recovery summary does not match the durable Palmistry survivor artifact",
         ));
     }
-    let payload = json!({
+    let mut payload = json!({
         "diagnostic_id": "palmistry.survivor_recovered",
         "type": "palmistry.survivor_recovered",
         "record_id": request.summary.record_id,
@@ -1933,6 +2025,9 @@ async fn recover_survivor(
         "source_process_uuid": source_verifier.process_uuid,
         "verified_recovery_summary_sha256": recovery_summary_digest(&request.summary),
     });
+    if retirement_only {
+        payload["source_retirement_only"] = json!(true);
+    }
     let mut event = FlightRecorderEvent::new(
         FlightRecorderEventType::Diagnostic,
         FlightRecorderActor::System,
@@ -1950,13 +2045,17 @@ async fn recover_survivor(
         "shutdown-{}.signal",
         request.summary.source_session_id
     ));
-    let cleanup_complete = shutdown_recovered_source(
-        &state,
-        &request,
-        &source_shutdown_signal,
-        Some(source_verifier.process_uuid),
-    )
-    .await;
+    let cleanup_complete = if retirement_only {
+        source_shutdown_is_allowed(request.summary.source_session_id, request.current_session_id)
+    } else {
+        shutdown_recovered_source(
+            &state,
+            &request,
+            &source_shutdown_signal,
+            source_verifier.launch_nonce,
+            Some(source_verifier.process_uuid),
+        ).await
+    };
     if cleanup_complete {
         retire_recovered_source(
             &state,
@@ -1971,6 +2070,59 @@ async fn recover_survivor(
         "idempotent": false,
         "cleanup_pending": !cleanup_complete
     })))
+}
+
+async fn recovery_source_is_retirement_only(
+    state: &PalmistryLaunchState,
+    source: &DurableWatcherVerifier,
+    current_session_id: Uuid,
+) -> Result<bool, PalmistryLaunchError> {
+    let verifier = SurrealPalmistryVerifier::from(source);
+    if state.palmistry_store.active_process_matches(&verifier).await
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?
+    {
+        return Ok(false);
+    }
+    if !source_shutdown_is_allowed(source.session_id, current_session_id) {
+        return Err(PalmistryLaunchError::unavailable("settled source cannot retire the current session"));
+    }
+    let owner = {
+        let active = state.active.lock().unwrap_or_else(|error| error.into_inner());
+        match active.get(&source.session_id) {
+            Some(LaunchSlot::SettlingExit { launch_nonce, process_uuid, owner }
+                | LaunchSlot::WaitUnconfirmed { launch_nonce, process_uuid, owner })
+                if *launch_nonce == source.launch_nonce
+                    && *process_uuid == source.process_uuid
+                    && owner.verifier == verifier => Arc::clone(owner),
+            _ => return Err(PalmistryLaunchError::unavailable("original settled source owner unavailable")),
+        }
+    };
+    if owner.state.lock().unwrap_or_else(|error| error.into_inner()).status.is_none() {
+        return Err(PalmistryLaunchError::unavailable("original source exit remains unconfirmed"));
+    }
+    if !matches!(
+        tokio::time::timeout(LEDGER_ACK_TIMEOUT, owner.lifecycle.observe_original_stop_receipt()).await,
+        Ok(Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped))
+    ) {
+        return Err(PalmistryLaunchError::unavailable("original source STOP receipt remains unconfirmed"));
+    }
+    owner.state.lock().unwrap_or_else(|error| error.into_inner()).child.take();
+    if !palmistry_stop_is_durable(state, source.process_uuid).await? {
+        return Err(PalmistryLaunchError::unavailable("original source durable STOP unavailable"));
+    }
+    let active = state.active.lock().unwrap_or_else(|error| error.into_inner());
+    if !matches!(
+        active.get(&source.session_id),
+        Some(LaunchSlot::SettlingExit { launch_nonce, process_uuid, owner: current }
+            | LaunchSlot::WaitUnconfirmed { launch_nonce, process_uuid, owner: current })
+            if *launch_nonce == source.launch_nonce
+                && *process_uuid == source.process_uuid
+                && Arc::ptr_eq(current, &owner)
+                && current.verifier == verifier
+    ) {
+        return Err(PalmistryLaunchError::unavailable("original settled source owner changed"));
+    }
+    Ok(true)
 }
 
 async fn verify_durable_watcher_identity(
@@ -1995,6 +2147,7 @@ async fn shutdown_recovered_source(
     state: &PalmistryLaunchState,
     request: &PalmistryRecoverRequest,
     source_shutdown_signal: &Path,
+    source_launch_nonce: Uuid,
     source_process_uuid: Option<Uuid>,
 ) -> bool {
     if !source_shutdown_is_allowed(
@@ -2005,19 +2158,54 @@ async fn shutdown_recovered_source(
         // verifier. A later freeze episode needs the same live signing identity.
         return false;
     }
-    let lifecycle_ownership = {
+    let (lifecycle_ownership, wait_owner) = {
         let active = state
             .active
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         match active.get(&request.summary.source_session_id) {
+            Some(LaunchSlot::SettlingExit { launch_nonce, process_uuid, owner }
+                | LaunchSlot::WaitUnconfirmed { launch_nonce, process_uuid, owner }) => {
+                if *launch_nonce != source_launch_nonce || Some(*process_uuid) != source_process_uuid {
+                    return false;
+                }
+                (None, Some(Arc::clone(owner)))
+            }
             Some(LaunchSlot::Active {
                 lifecycle_ownership,
                 ..
-            }) => Some(*lifecycle_ownership),
-            _ => None,
+            }) => (Some(*lifecycle_ownership), None),
+            _ => (None, None),
         }
     };
+    if let Some(owner) = wait_owner {
+        let status = {
+            let mut retained = owner.state.lock().unwrap_or_else(|error| error.into_inner());
+            match retained.status.as_ref().cloned() {
+                Some(status) => status,
+                None => match retained.child.as_mut() {
+                    Some(child) => match child.try_wait() {
+                        Ok(Some(status)) => {
+                            retained.status = Some(status.clone());
+                            status
+                        }
+                        Ok(None) | Err(_) => return false,
+                    },
+                    None => return false,
+                },
+            }
+        };
+        let stop_confirmed = matches!(
+            owner.lifecycle.stop_with_durable_ack(
+                status.code(), "palmistry-watcher-exited", LEDGER_ACK_TIMEOUT,
+            ).await,
+            Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped)
+        );
+        if stop_confirmed {
+            owner.state.lock().unwrap_or_else(|error| error.into_inner()).child.take();
+        }
+        return stop_confirmed;
+    }
     let has_attached_reaper = source_has_attached_reaper(lifecycle_ownership);
     let guarded_reclaim_allowed = source_allows_guarded_reclaim(lifecycle_ownership);
     let shutdown_signal_written = match fs::write(
@@ -2150,6 +2338,17 @@ async fn retire_recovered_source(
         ));
     }
     remove_matching_active_slot(&state.active, session_id, launch_nonce, process_uuid);
+    {
+        let mut active = state.active.lock().unwrap_or_else(|error| error.into_inner());
+        if matches!(
+            active.get(&session_id),
+            Some(LaunchSlot::WaitUnconfirmed {
+                launch_nonce: current_nonce, process_uuid: current_process, ..
+            }) if *current_nonce == launch_nonce && *current_process == process_uuid
+        ) {
+            active.remove(&session_id);
+        }
+    }
     Ok(())
 }
 

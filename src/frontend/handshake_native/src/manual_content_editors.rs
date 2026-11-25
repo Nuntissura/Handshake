@@ -2224,7 +2224,8 @@ disposition. Shared section links use settings.feature.section.{section-key}; or
 and controls retain their IDs. Editing Search settings shows global results from shared setting terms \
 and registered feature labels, including from a module or feature view. Direct navigation retains the text \
 and pauses filtering so the selected destination remains visible. Select General or edit the search to \
-resume global results. General > Features discovers actual registered capabilities outside module tabs; \
+resume global results. If you see No matching settings, edit or clear the search. \
+General > Features discovers actual registered capabilities outside module tabs; \
 searching also finds registered module features. Builtin shared IDs use settings.feature.shared.{pane-tab-id}; \
 named placeholder entries append their exact existing label after settings.feature.shared.placeholder. \
 The empty generic fallback is not a feature. Context-dependent/unassigned entries are view-only; console \

@@ -60,6 +60,9 @@ use handshake_native::settings_dialog::{
 #[path = "argus_socket_support/live_socket.rs"]
 mod live_socket;
 
+#[path = "argus_socket_support/divider_reply_framing_tests.rs"]
+mod divider_reply_framing_tests;
+
 use live_socket::{
     assert_bytes_exclude, assert_not_applied, collect_author_ids, contains_author_id,
     decode_verified_capture, node_by_author_id, node_is_disabled, node_supports, node_text,

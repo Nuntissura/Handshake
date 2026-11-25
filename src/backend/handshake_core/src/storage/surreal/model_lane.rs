@@ -5195,8 +5195,8 @@ impl SurrealModelLaneStore {
                     match provider.acquire_context_coordination(purpose, kind, &id, run.as_deref(), &scope).await {
                         Ok(guard) => guards.push(guard),
                         Err(error) => {
-                            if matches!(error, SurrealStorageError::TransactionSettlementPending { .. }) {
-                                provider.storage.retain_context_reconciliation(supervisor_id, guards);
+                            if let SurrealStorageError::TransactionSettlementPending { operation_id } = &error {
+                                provider.storage.retain_context_reconciliation(*operation_id, guards);
                             } else {
                                 provider.release_owned_guards(supervisor_id, guards).await;
                             }

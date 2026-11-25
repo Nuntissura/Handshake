@@ -147,6 +147,27 @@ async fn retain_failed_runtime(
     std::future::pending().await
 }
 
+async fn shutdown_after_startup_failure(
+    control_plane: &storage::ControlPlaneStorage,
+    terminal: &tokio::sync::watch::Sender<Option<Result<(), String>>>,
+    settled: &std::sync::atomic::AtomicBool,
+    stage: &str,
+    error: Box<dyn std::error::Error>,
+) -> Box<dyn std::error::Error> {
+    match control_plane.surreal.shutdown().await {
+        Ok(()) => {
+            settled.store(true, std::sync::atomic::Ordering::Release);
+            error
+        }
+        Err(shutdown_error) => {
+            retain_failed_runtime(
+                terminal,
+                &format!("{stage} failed: {error}; control-plane storage shutdown failed: {shutdown_error}"),
+            ).await
+        }
+    }
+}
+
 async fn retain_failed_runtime_with_consumer(
     terminal: &tokio::sync::watch::Sender<Option<Result<(), String>>>,
     retirement_reason: &str,
@@ -193,7 +214,7 @@ async fn run(
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // The database is EMBEDDED. `init_control_plane_storage_with_config` below
+    // The database is EMBEDDED. `open_control_plane_storage_with_config` below
     // opens Handshake's own in-process SurrealDB store, so there is no cluster
     // to start or adopt, no console window to suppress, no connection string to
     // resolve, and no operator step at all. The store is closed again at the end
@@ -205,7 +226,12 @@ async fn run(
         storage_mode = %storage_config.mode,
         "control-plane storage mode resolved"
     );
-    let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
+    let control_plane = storage::open_control_plane_storage_with_config(&storage_config).await?;
+    if let Err(error) = control_plane.database.run_migrations().await {
+        return Err(shutdown_after_startup_failure(
+            &control_plane, &terminal, &settled, "control-plane migrations", Box::new(error),
+        ).await);
+    }
     macro_rules! retain_on_error {
         ($result:expr) => {
             match $result {
@@ -245,7 +271,14 @@ async fn run(
         settled.store(true, std::sync::atomic::Ordering::Release);
         return report_result;
     }
-    let recorder = init_flight_recorder().await?;
+    let recorder = match init_flight_recorder().await {
+        Ok(recorder) => recorder,
+        Err(error) => {
+            return Err(shutdown_after_startup_failure(
+                &control_plane, &terminal, &settled, "flight recorder initialization", error,
+            ).await);
+        }
+    };
     let capability_registry = Arc::new(CapabilityRegistry::new());
     #[cfg(feature = "os-keychain")]
     let mut recipient_startup = member_recipient_startup::member_recipient_startup(control_plane.surreal.clone());

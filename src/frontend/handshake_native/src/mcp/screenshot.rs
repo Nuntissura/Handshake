@@ -83,6 +83,583 @@ pub fn capture_handshake_window() -> Result<ScreenshotResult, ScreenshotError> {
     capture_live_frame(super::argus::MAIN_WINDOW_ID, None)
 }
 
+/// Paint-bound capture for a pre-armed divider proof on the registered root viewport.
+pub(crate) mod divider_frame {
+    use eframe::egui_wgpu::{
+        Callback, CallbackResources, CallbackTrait, NativeCaptureFailure, NativeCaptureHandle,
+        NativeCaptureOutcome, NativeCaptureReceipt, NativeCaptureRequest,
+    };
+    use std::sync::{mpsc::SyncSender, Mutex};
+
+    use crate::accessibility::{UiNodeBounds, UiTreeSnapshot};
+    use crate::mcp::argus::WindowCaptureTicket;
+    use crate::split_layout::{DIVIDER_H_AUTHOR_ID, DIVIDER_V_AUTHOR_ID};
+
+
+use std::sync::{mpsc, Arc, Weak};
+
+    type PaneRects = Vec<(crate::pane_registry::PaneId, egui::Rect)>;
+    use std::time::{Duration, Instant};
+    use tokio::sync::oneshot;
+
+    const WITNESS_TIMEOUT: Duration = Duration::from_secs(12);
+    const MAX_PANES: usize = 4;
+
+    #[derive(Clone, Copy)]
+    pub(crate) enum DividerAxis {
+        Horizontal,
+        Vertical,
+    }
+
+    impl DividerAxis {
+        fn index(self) -> usize {
+            match self {
+                Self::Horizontal => 0,
+                Self::Vertical => 1,
+            }
+        }
+    }
+
+    pub(crate) struct DividerWitness {
+        privacy: Arc<WindowCaptureTicket>,
+        epoch: u64,
+        deadline: Instant,
+        ready: Option<oneshot::Receiver<()>>,
+        result: Option<oneshot::Receiver<Result<(FrameGeometry, NativeCaptureReceipt), String>>>,
+    }
+
+    impl Drop for DividerWitness {
+        fn drop(&mut self) {
+            self.privacy.cancel_divider_witness(&Arc::downgrade(&self.privacy));
+        }
+    }
+
+    impl DividerWitness {
+        pub(crate) fn deadline(&self) -> Instant {
+            self.deadline
+        }
+
+        pub(crate) async fn ready(&mut self) -> Result<(), String> {
+            let ready = self.ready.take().ok_or("Divider witness readiness already consumed")?;
+            tokio::time::timeout_at(self.deadline.into(), ready)
+                .await
+                .map_err(|_| "Divider witness readiness timed out")?
+                .map_err(|_| "Divider witness closed before readiness")?;
+            self.privacy.validate_main_window_epoch(self.epoch)?;
+            Ok(())
+        }
+
+        pub(crate) async fn finish(mut self) -> Result<WitnessResult, String> {
+            let (geometry, receipt) = tokio::time::timeout_at(self.deadline.into(), self.result.take().ok_or("Divider witness result already consumed")?)
+                .await
+                .map_err(|_| "Divider witness timed out")?
+                .map_err(|_| "Divider witness closed without a capture")??;
+            self.privacy.validate_main_window_epoch(self.epoch)?;
+            if Instant::now() >= self.deadline {
+                return Err("Divider witness expired before PNG encoding".to_owned());
+            }
+            let mut encoding = tokio::task::spawn_blocking(move || encode(geometry, receipt));
+            let response = match tokio::time::timeout_at(self.deadline.into(), &mut encoding).await {
+                Ok(result) => result.map_err(|error| error.to_string())??,
+                Err(_) => {
+                    encoding.abort();
+                    return Err("Divider witness PNG encoding timed out".to_owned());
+                }
+            };
+            if Instant::now() >= self.deadline {
+                return Err("Divider witness expired during PNG encoding".to_owned());
+            }
+            self.privacy.validate_main_window_epoch(self.epoch)?;
+            Ok(WitnessResult { privacy: self.privacy.clone(), epoch: self.epoch, deadline: self.deadline, response })
+        }
+    }
+
+    pub(crate) struct WitnessResult {
+        privacy: Arc<WindowCaptureTicket>,
+        epoch: u64,
+        deadline: Instant,
+        response: serde_json::Value,
+    }
+
+    impl WitnessResult {
+        /// Return the payload and its original deadline to the authenticated owner.
+        /// The owner must apply the deadline through serialization and the final write.
+        pub(crate) fn into_response(self) -> Result<(Instant, serde_json::Value), String> {
+            if Instant::now() >= self.deadline {
+                return Err("Divider witness expired before delivery".to_owned());
+            }
+            self.privacy.validate_main_window_epoch(self.epoch)?;
+            if Instant::now() >= self.deadline {
+                return Err("Divider witness expired during delivery validation".to_owned());
+            }
+            Ok((self.deadline, self.response))
+        }
+    }
+
+    fn encode(geometry: FrameGeometry, receipt: NativeCaptureReceipt) -> Result<serde_json::Value, String> {
+            let [width, height] = receipt.physical_dimensions();
+            let rgba = receipt.image().pixels.iter().flat_map(|pixel| pixel.to_array()).collect::<Vec<_>>();
+            let mut png = Vec::new();
+            use image::ImageEncoder;
+            image::codecs::png::PngEncoder::new(&mut png)
+                .write_image(&rgba, width, height, image::ExtendedColorType::Rgba8)
+                .map_err(|error| error.to_string())?;
+            let panes: Vec<_> = geometry.pane_rects.iter().map(|(id, rect)| {
+                serde_json::json!({
+                    "pane_id": id.as_ref(), "x": rect.min.x, "y": rect.min.y,
+                    "w": rect.width(), "h": rect.height(),
+                })
+            }).collect();
+            let response = serde_json::json!({
+                "screenshot": super::screenshot_from_png(&png, width, height).to_json(),
+                "window_id": super::super::argus::MAIN_WINDOW_ID,
+                "window_epoch": geometry.window_epoch,
+                "egui_frame": geometry.egui_frame,
+                "request_id": receipt.request_id(),
+                "submission_id": receipt.submission_id(),
+                "renderer_incarnation": receipt.renderer_incarnation(),
+                "surface_incarnation": receipt.surface_incarnation(),
+                "scale_factor": receipt.scale_factor(),
+                "splitters": { "horizontal": geometry.hits[0], "vertical": geometry.hits[1] },
+                "panes": panes,
+                "presentation": "gpu_readback_and_present_call_returned",
+            });
+            Ok(response)
+    }
+
+    #[derive(Default)]
+    pub(crate) struct WitnessSlot {
+        active: Mutex<Option<Witness>>,
+    }
+
+    struct Witness {
+        privacy: Weak<WindowCaptureTicket>,
+        epoch: u64,
+        deadline: Instant,
+        axis: DividerAxis,
+        ready: Option<oneshot::Sender<()>>,
+        result: oneshot::Sender<Result<(FrameGeometry, NativeCaptureReceipt), String>>,
+        stage: Stage,
+        surface_incarnation: Option<u64>,
+    }
+
+    enum Stage {
+        AwaitIdle,
+        Armed { ready_frame: u64 },
+        Pressed { capture: (egui::Pos2, u64) },
+        AwaitPaint(mpsc::Receiver<FrameReply>),
+        Pending(PendingFrame),
+    }
+
+    #[derive(Clone)]
+    pub(crate) struct LiveGeometry {
+        pub(crate) surface_incarnation: u64,
+        pub(crate) pane_rects: PaneRects,
+        pub(crate) hits: [Option<egui::Rect>; 2],
+        pub(crate) committed_hits: [Option<egui::Rect>; 2],
+        pub(crate) resize_press: Option<(egui::Pos2, u64)>,
+        pub(crate) computed: [bool; 2],
+        pub(crate) paint_complete: bool,
+    }
+
+    pub(crate) fn store_live_geometry(ctx: &egui::Context, geometry: LiveGeometry) {
+        if ctx.viewport_id() != egui::ViewportId::ROOT { return; }
+        if let Some(buffer) = ctx.data(|data| data.get_temp::<Arc<Mutex<Option<LiveGeometry>>>>(buffer_id())) {
+            *buffer.lock().unwrap_or_else(|error| error.into_inner()) = Some(geometry);
+        }
+    }
+
+    pub(crate) fn collecting(ctx: &egui::Context) -> bool {
+        ctx.viewport_id() == egui::ViewportId::ROOT
+            && ctx.data(|data| data.get_temp::<Arc<Mutex<Option<LiveGeometry>>>>(buffer_id()).is_some())
+    }
+
+    fn buffer_id() -> egui::Id {
+        egui::Id::new("argus-divider-witness-root")
+    }
+
+    #[derive(Clone)]
+    pub(crate) struct WitnessPass {
+        buffer: Arc<Mutex<Option<LiveGeometry>>>,
+        owner: Weak<WindowCaptureTicket>,
+        handle: NativeCaptureHandle,
+    }
+
+    impl WitnessPass {
+        pub(crate) fn start(ctx: &egui::Context, pass: Option<Self>) {
+            ctx.data_mut(|data| data.insert_temp(buffer_id().with("pass"), pass));
+        }
+
+        pub(crate) fn take(ctx: &egui::Context) -> Option<Self> {
+            ctx.data_mut(|data| data.remove_temp::<Option<Self>>(buffer_id().with("pass"))).flatten()
+        }
+    }
+
+    impl WitnessSlot {
+        pub(crate) fn arm(
+            &self,
+            privacy: WindowCaptureTicket,
+            epoch: u64,
+            axis: DividerAxis,
+        ) -> Result<DividerWitness, String> {
+            privacy.validate_main_window_epoch(epoch)?;
+            let mut slot = self.active.lock().unwrap_or_else(|error| error.into_inner());
+            if slot.as_ref().is_some_and(|witness| {
+                Instant::now() < witness.deadline && !witness.result.is_closed()
+            }) {
+                return Err("A divider witness already owns the root window".to_owned());
+            }
+            let privacy = Arc::new(privacy);
+            let deadline = Instant::now() + WITNESS_TIMEOUT;
+            let (ready, ready_reply) = oneshot::channel();
+            let (result, result_reply) = oneshot::channel();
+            *slot = Some(Witness {
+                privacy: Arc::downgrade(&privacy),
+                epoch, deadline, axis,
+                ready: Some(ready),
+                result,
+                stage: Stage::AwaitIdle,
+                surface_incarnation: None,
+            });
+            Ok(DividerWitness { privacy, epoch, deadline, ready: Some(ready_reply), result: Some(result_reply) })
+        }
+
+        pub(crate) fn cancel(&self, owner: &Weak<WindowCaptureTicket>) {
+            let mut slot = self.active.lock().unwrap_or_else(|error| error.into_inner());
+            if slot.as_ref().is_some_and(|witness| Weak::ptr_eq(owner, &witness.privacy)) {
+                *slot = None;
+            }
+        }
+
+        pub(crate) fn is_active(&self) -> bool {
+            self.active.lock().unwrap_or_else(|error| error.into_inner()).as_ref()
+                .is_some_and(|witness| Instant::now() < witness.deadline && !witness.result.is_closed())
+        }
+
+        pub(crate) fn begin_pass(
+            &self,
+            ctx: &egui::Context,
+            handle: Option<&NativeCaptureHandle>,
+        ) -> Option<WitnessPass> {
+            if ctx.viewport_id() != egui::ViewportId::ROOT {
+                return None;
+            }
+            ctx.data_mut(|data| data.remove::<Arc<Mutex<Option<LiveGeometry>>>>(buffer_id()));
+            let mut slot = self.active.lock().unwrap_or_else(|error| error.into_inner());
+            let witness = slot.as_mut()?;
+            let terminal = if witness.result.is_closed() {
+                Some(Err("Divider witness owner disconnected".to_owned()))
+            } else if Instant::now() >= witness.deadline {
+                Some(Err("Divider witness timed out".to_owned()))
+            } else if witness.privacy.upgrade().is_none_or(|ticket| {
+                ticket.validate_main_window_epoch(witness.epoch).is_err()
+            }) {
+                Some(Err("Divider witness privacy context retired".to_owned()))
+            } else {
+                match &mut witness.stage {
+                    Stage::AwaitPaint(receiver) => match receiver.try_recv() {
+                        Ok(Ok(pending)) => {
+                            witness.stage = Stage::Pending(pending);
+                            None
+                        }
+                        Ok(Err(error)) => Some(Err(error)),
+                        Err(mpsc::TryRecvError::Disconnected) => {
+                            Some(Err("First qualified divider output did not reach paint".to_owned()))
+                        }
+                        Err(mpsc::TryRecvError::Empty) => {
+                            Some(Err("First qualified divider paint is unaccounted for".to_owned()))
+                        }
+                    },
+                    Stage::Pending(pending) => match pending.poll() {
+                        Ok(None) => None,
+                        outcome => Some(outcome.and_then(|value| value.ok_or_else(|| "Divider readback missing".to_owned()))),
+                    },
+                    _ => None,
+                }
+            };
+            if let Some(result) = terminal {
+                if let Some(witness) = slot.take() {
+                    let _ = witness.result.send(result);
+                }
+                return None;
+            }
+            ctx.request_repaint_after(Duration::from_millis(25));
+            if matches!(witness.stage, Stage::AwaitPaint(_) | Stage::Pending(_)) {
+                return None;
+            }
+            let Some(handle) = handle else {
+                if let Some(witness) = slot.take() {
+                    let _ = witness.result.send(Err("Main renderer capture handle is unavailable".to_owned()));
+                }
+                return None;
+            };
+            let buffer = Arc::new(Mutex::new(None));
+            ctx.data_mut(|data| data.insert_temp(buffer_id(), buffer.clone()));
+            Some(WitnessPass { buffer, owner: witness.privacy.clone(), handle: handle.clone() })
+        }
+
+        pub(crate) fn output(
+            &self,
+            ctx: &egui::Context,
+            output: &mut egui::FullOutput,
+            viewport: crate::accessibility::SnapshotViewport,
+            discarded: bool,
+            pass: WitnessPass,
+        ) {
+            let geometry = pass.buffer.lock().unwrap_or_else(|error| error.into_inner()).take();
+            let mut slot = self.active.lock().unwrap_or_else(|error| error.into_inner());
+            let Some(witness) = slot.as_mut() else { return; };
+            if !Weak::ptr_eq(&pass.owner, &witness.privacy) || witness.result.is_closed() { return; }
+            let qualification = match geometry {
+                Some(geometry) => witness.observe(ctx, geometry, discarded),
+                None if matches!(witness.stage, Stage::AwaitIdle) => return,
+                None => Err("Divider layout did not produce geometry for the admitted gesture".to_owned()),
+            };
+            let error = match qualification {
+                Ok(None) => return,
+                Err(error) => error,
+                Ok(Some((surface_incarnation, pane_rects, expected_hits))) => {
+                    let actual_hits = output.platform_output.accesskit_update.as_ref().and_then(|update| {
+                        let tree = crate::accessibility::collect_ui_tree_snapshot_with_viewport(update, Some(viewport));
+                        hit_bounds(&tree)
+                    });
+                    match actual_hits {
+                        Some(hits) if hits.iter().zip(expected_hits).all(|(hit, rect)| {
+                            hit.w > 0.0 && hit.h > 0.0
+                                && (hit.x - rect.left()).abs() <= 0.01
+                                && (hit.y - rect.top()).abs() <= 0.01
+                                && (hit.w - rect.width()).abs() <= 0.01
+                                && (hit.h - rect.height()).abs() <= 0.01
+                        }) => {
+                            let (send, receive) = mpsc::sync_channel(1);
+                            let geometry = FrameGeometry {
+                                window_epoch: witness.epoch,
+                                surface_incarnation,
+                                egui_frame: ctx.cumulative_frame_nr(),
+                                hits,
+                                pane_rects,
+                            };
+                            attach(output, expected_hits[witness.axis.index()], pass.handle, witness.privacy.clone(),
+                                witness.deadline, geometry, send);
+                            witness.stage = Stage::AwaitPaint(receive);
+                            return;
+                        }
+                        _ => "First qualified paint has no matching live AccessKit splitter bounds".to_owned(),
+                    }
+                }
+            };
+            if let Some(witness) = slot.take() {
+                let _ = witness.result.send(Err(error));
+            }
+        }
+    }
+
+    impl Witness {
+        fn observe(
+            &mut self,
+            ctx: &egui::Context,
+            geometry: LiveGeometry,
+            discarded: bool,
+        ) -> Result<Option<(u64, PaneRects, [egui::Rect; 2])>, String> {
+            let (primary_down, first_press, duplicate_press, released, input_time) = ctx.input(|input| {
+                let mut first_press = None;
+                let mut duplicate_press = false;
+                let mut released = false;
+                for event in &input.events {
+                    if let egui::Event::PointerButton {
+                        pos, button: egui::PointerButton::Primary, pressed, ..
+                    } = event {
+                        if *pressed {
+                            duplicate_press |= first_press.replace(*pos).is_some();
+                        } else {
+                            released = true;
+                        }
+                    }
+                }
+                (input.pointer.primary_down(), first_press, duplicate_press, released, input.time.to_bits())
+            });
+            let cancelled = ctx.input(|input| {
+                !input.focused || input.key_pressed(egui::Key::Escape) || input.events.iter().any(|event| {
+                    matches!(event, egui::Event::PointerGone | egui::Event::WindowFocused(false) | egui::Event::Touch { .. })
+                })
+            });
+            if matches!(self.stage, Stage::AwaitIdle) {
+                if !primary_down && first_press.is_none() && !released && !cancelled
+                    && geometry.resize_press.is_none() && geometry.paint_complete
+                    && geometry.hits.iter().all(Option::is_some) && !discarded
+                    && geometry.pane_rects.len() >= 2 && geometry.pane_rects.len() <= MAX_PANES
+                {
+                    self.stage = Stage::Armed { ready_frame: ctx.cumulative_frame_nr() };
+                    self.surface_incarnation = Some(geometry.surface_incarnation);
+                    if let Some(ready) = self.ready.take() { let _ = ready.send(()); }
+                }
+                return Ok(None);
+            }
+            if self.surface_incarnation != Some(geometry.surface_incarnation) {
+                return Err("The admitted divider surface changed".to_owned());
+            }
+            if cancelled || released || duplicate_press {
+                return Err("The owned divider gesture was interrupted before a qualifying paint".to_owned());
+            }
+            match &self.stage {
+                Stage::Armed { .. } if !primary_down && first_press.is_none() => return Ok(None),
+                Stage::Armed { ready_frame } => {
+                    let Some(press) = first_press else {
+                        return Err("The first pointer press did not take the requested divider".to_owned());
+                    };
+                    let capture = (press, input_time);
+                    let matching_press = geometry.committed_hits[self.axis.index()]
+                        .is_some_and(|hit| hit.contains(press)
+                            && geometry.committed_hits[1 - self.axis.index()].is_none_or(|other| !other.contains(press)));
+                    if !primary_down || ctx.cumulative_frame_nr() <= *ready_frame
+                        || Some(capture) != geometry.resize_press || !matching_press
+                    {
+                        return Err("The first pointer press did not take the requested divider".to_owned());
+                    }
+                    self.stage = Stage::Pressed { capture };
+                }
+                Stage::Pressed { capture } => {
+                    if !primary_down || first_press.is_some() || geometry.resize_press != Some(*capture) {
+                        return Err("The admitted divider press no longer owns the capture".to_owned());
+                    }
+                }
+                _ => return Ok(None),
+            }
+            if discarded { return Ok(None); }
+            if !geometry.paint_complete {
+                return Err("The admitted gesture produced incomplete pane paint".to_owned());
+            }
+            if !geometry.computed[self.axis.index()] { return Ok(None); }
+            let [Some(horizontal), Some(vertical)] = geometry.hits else {
+                return Err("The qualifying divider frame lost its fixed controls".to_owned());
+            };
+            if geometry.pane_rects.len() < 2 || geometry.pane_rects.len() > MAX_PANES
+                || geometry.pane_rects.iter().any(|(_, rect)| !rect.is_finite() || !rect.is_positive())
+            {
+                return Err("The qualifying divider frame has invalid pane bounds".to_owned());
+            }
+            Ok(Some((geometry.surface_incarnation, geometry.pane_rects, [horizontal, vertical])))
+        }
+    }
+
+    /// Take both hit rectangles from the live AccessKit output that will be painted.
+    pub(crate) fn hit_bounds(tree: &UiTreeSnapshot) -> Option<[UiNodeBounds; 2]> {
+        Some([
+            tree.find_unique_by_author_id(DIVIDER_H_AUTHOR_ID)?.bounds?,
+            tree.find_unique_by_author_id(DIVIDER_V_AUTHOR_ID)?.bounds?,
+        ])
+    }
+
+    pub(crate) struct FrameGeometry {
+        pub window_epoch: u64,
+        pub surface_incarnation: u64,
+        pub egui_frame: u64,
+        pub hits: [UiNodeBounds; 2],
+        pub pane_rects: Vec<(crate::pane_registry::PaneId, egui::Rect)>,
+    }
+
+    pub(crate) struct PendingFrame {
+        handle: NativeCaptureHandle,
+        request: NativeCaptureRequest,
+        window_epoch: u64,
+        privacy: Weak<WindowCaptureTicket>,
+        geometry: Option<FrameGeometry>,
+    }
+
+    impl PendingFrame {
+        pub fn poll(&mut self) -> Result<Option<(FrameGeometry, NativeCaptureReceipt)>, String> {
+            let privacy = self.privacy.upgrade().ok_or("Divider witness owner disconnected")?;
+            privacy.validate_main_window_epoch(self.window_epoch)?;
+            let outcome = self.handle.poll(&self.request).map_err(|error| error.to_string())?;
+            privacy.validate_main_window_epoch(self.window_epoch)?;
+            match outcome {
+                None => Ok(None),
+                Some(NativeCaptureOutcome::Failed(error)) => Err(error.to_string()),
+                Some(NativeCaptureOutcome::Presented(receipt)) => {
+                    let target = self.request.target();
+                    if receipt.request_id() != self.request.request_id()
+                        || receipt.viewport_id() != target.viewport_id()
+                        || receipt.renderer_incarnation() != target.renderer_incarnation()
+                        || receipt.surface_incarnation() != target.surface_incarnation()
+                    {
+                        return Err("Divider capture came from a different paint target".to_owned());
+                    }
+                    let geometry = self.geometry.take().ok_or("Divider frame already consumed")?;
+                    Ok(Some((geometry, receipt)))
+                }
+            }
+        }
+    }
+
+    pub(crate) type FrameReply = Result<PendingFrame, String>;
+
+    struct ArmOnPaint {
+        handle: NativeCaptureHandle,
+        armed: Mutex<Option<(Weak<WindowCaptureTicket>, Instant, FrameGeometry, SyncSender<FrameReply>)>>,
+    }
+
+    impl CallbackTrait for ArmOnPaint {
+        fn paint(
+            &self,
+            _info: egui::epaint::PaintCallbackInfo,
+            _pass: &mut eframe::wgpu::RenderPass<'static>,
+            _resources: &CallbackResources,
+        ) {
+            let Some((privacy, deadline, geometry, reply)) =
+                self.armed.lock().unwrap_or_else(|lock| lock.into_inner()).take()
+            else {
+                return;
+            };
+            let frame = (|| {
+                if Instant::now() >= deadline { return Err("Divider paint missed its capture deadline".to_owned()); }
+                let privacy = privacy.upgrade().ok_or("Divider witness owner disconnected")?;
+                privacy.validate_main_window_epoch(geometry.window_epoch)?;
+                let request = self.handle.request(egui::ViewportId::ROOT)
+                    .map_err(|error: NativeCaptureFailure| error.to_string())?;
+                if request.target().surface_incarnation() != geometry.surface_incarnation {
+                    return Err("Divider paint surface no longer matches the admitted gesture".to_owned());
+                }
+                Ok(PendingFrame {
+                    handle: self.handle.clone(),
+                    request,
+                    window_epoch: geometry.window_epoch,
+                    privacy: Arc::downgrade(&privacy),
+                    geometry: Some(geometry),
+                })
+            })();
+            let _ = reply.try_send(frame);
+        }
+    }
+
+    /// Attach only to output carrying the actual held-drag geometry and its live hit rectangles.
+    /// On multipass frames newer output must replace this shape and use the same arm.
+    pub(crate) fn attach(
+        output: &mut egui::FullOutput,
+        paint_rect: egui::Rect,
+        handle: NativeCaptureHandle,
+        privacy: Weak<WindowCaptureTicket>,
+        deadline: Instant,
+        geometry: FrameGeometry,
+        reply: SyncSender<FrameReply>,
+    ) {
+        if !paint_rect.is_finite() || !paint_rect.is_positive() {
+            let _ = reply.try_send(Err("Divider paint rectangle is unavailable".to_owned()));
+            return;
+        }
+        let callback = Callback::new_paint_callback(
+            paint_rect,
+            ArmOnPaint {
+                handle,
+                armed: Mutex::new(Some((privacy, deadline, geometry, reply))),
+            },
+        );
+        output.shapes.push(egui::epaint::ClippedShape {
+            clip_rect: paint_rect,
+            shape: callback.into(),
+        });
+    }
+}
+
 #[derive(Clone)]
 struct LiveFrameWindow {
     window: super::argus::RegisteredWindow,
@@ -145,6 +722,33 @@ pub(crate) fn update_live_frame_capture(
             }
         }
     });
+}
+
+/// Borrow the root context only from the exact registered live renderer.
+pub(crate) fn divider_live_root_context(
+    expected: &super::argus::RegisteredWindow,
+) -> Result<egui::Context, String> {
+    use std::sync::{atomic::Ordering, Arc};
+
+    if expected.descriptor.window_id != super::argus::MAIN_WINDOW_ID
+        || expected.descriptor.viewport_id != egui::ViewportId::ROOT
+    {
+        return Err("Divider witness requires the registered main renderer".to_owned());
+    }
+    let frames = LIVE_FRAMES.get_or_init(Default::default)
+        .lock().unwrap_or_else(|error| error.into_inner());
+    let entry = frames.windows.get(super::argus::MAIN_WINDOW_ID)
+        .ok_or("Argus main window has no registered live renderer")?;
+    if entry.window.epoch != expected.epoch
+        || entry.window.descriptor.viewport_id != egui::ViewportId::ROOT
+        || entry.window.descriptor.title != expected.descriptor.title
+        || !Arc::ptr_eq(&entry.window.live, &expected.live)
+        || !Arc::ptr_eq(&entry.window.snapshot, &expected.snapshot)
+        || !entry.window.live.load(Ordering::Acquire)
+    {
+        return Err("Argus main renderer registration changed".to_owned());
+    }
+    Ok(entry.context.clone())
 }
 
 fn capture_live_frame(

@@ -1355,6 +1355,29 @@ impl HandpickHost {
     }
 }
 
+#[cfg(test)]
+#[derive(Clone, Debug)]
+struct HeaderCloseDiagnostic {
+    pointer_position: Option<egui::Pos2>,
+    predicate_pointer_position: egui::Pos2,
+    pointer_any_pressed: bool,
+    pointer_primary_clicked: bool,
+    popup_rect: egui::Rect,
+    popup_contains_pointer: bool,
+    input_rect: egui::Rect,
+    input_contains_predicate_pointer: bool,
+    notes_close_rect: Option<egui::Rect>,
+    close_contains_predicate_pointer: bool,
+    open_before_outside_decision: bool,
+    lookup_before_outside_decision: bool,
+    outside_dismissal_entered: bool,
+}
+
+#[cfg(test)]
+fn header_close_diagnostic_id() -> egui::Id {
+    egui::Id::new("handpick.header-close.diagnostic")
+}
+
 /// Mount the persistent field and attached grouped dropdown without owning native Notes drafts.
 pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     workspace: &str, account: Option<Arc<crate::local_account::AuthenticatedContext>>,
@@ -1362,6 +1385,14 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     current_note: Option<Arc<Mutex<crate::rich_editor::renderer::rich_editor_widget::RichEditorState>>>,
     notes_store: &crate::editor_pane_factories::RichEditorDocumentStore,
     notes_mount: &crate::editor_pane_factories::RichEditorPaneMount) -> (RailFrame, Option<Hit>) {
+    #[cfg(test)]
+    ctx.data_mut(|data| {
+        if data.get_temp::<bool>(header_close_diagnostic_id()) == Some(true) {
+            let mut calls = data.get_temp::<Vec<Option<HeaderCloseDiagnostic>>>(header_close_diagnostic_id()).unwrap_or_default();
+            calls.push(None);
+            data.insert_temp(header_close_diagnostic_id(), calls);
+        }
+    });
     host.observations = observations;
     host.bind(ctx, workspace, account, base);
     let results_were_presented = host.results_presentation.take().is_some_and(|(context, viewport, frame)|
@@ -1658,10 +1689,44 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                     });
                 results_presented = ui.is_rect_visible(ui.min_rect());
             })).response;
+        #[cfg(test)]
+        {
+            if ctx.data_mut(|data| data.get_temp::<bool>(header_close_diagnostic_id())) == Some(true) {
+                let pointer_position = ctx.input(|input| input.pointer.interact_pos());
+                let predicate_pointer_position = pointer_position.unwrap_or(egui::Pos2::ZERO);
+                let observation = HeaderCloseDiagnostic {
+                    pointer_position,
+                    predicate_pointer_position,
+                    pointer_any_pressed: ctx.input(|input| input.pointer.any_pressed()),
+                    pointer_primary_clicked: ctx.input(|input| input.pointer.button_clicked(egui::PointerButton::Primary)),
+                    popup_rect: popup.rect,
+                    popup_contains_pointer: popup.contains_pointer(),
+                    input_rect: frame.anchor,
+                    input_contains_predicate_pointer: frame.anchor.contains(predicate_pointer_position),
+                    notes_close_rect,
+                    close_contains_predicate_pointer: notes_close_rect.is_some_and(|rect| rect.contains(predicate_pointer_position)),
+                    open_before_outside_decision: host.open,
+                    lookup_before_outside_decision: host.lookup_from_notes,
+                    outside_dismissal_entered: false,
+                };
+                ctx.data_mut(|data| {
+                    let mut observations = data.get_temp::<Vec<Option<HeaderCloseDiagnostic>>>(header_close_diagnostic_id()).unwrap_or_default();
+                    if let Some(slot) = observations.last_mut() { *slot = Some(observation); }
+                    data.insert_temp(header_close_diagnostic_id(), observations);
+                });
+            }
+        }
         if ctx.input(|input| input.pointer.any_pressed()) && !popup.contains_pointer()
             && !frame.anchor.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO)))
             && !notes_close_rect.is_some_and(|rect|
                 rect.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO)))) {
+            #[cfg(test)]
+            ctx.data_mut(|data| {
+                if let Some(mut observations) = data.get_temp::<Vec<Option<HeaderCloseDiagnostic>>>(header_close_diagnostic_id()) {
+                    if let Some(Some(observation)) = observations.last_mut() { observation.outside_dismissal_entered = true; }
+                    data.insert_temp(header_close_diagnostic_id(), observations);
+                }
+            });
             host.open = false;
             host.lookup_from_notes = false;
         }

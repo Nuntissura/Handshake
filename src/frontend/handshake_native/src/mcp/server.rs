@@ -548,11 +548,13 @@ where
     };
 
     let mut line = String::new();
+    let mut divider_witness: Option<ConnectionDividerWitness> = None;
     loop {
         line.clear();
         let n = tokio::select! {
             biased;
             _ = wait_for_shutdown(&mut shutdown_rx) => break,
+            _ = wait_for_divider_deadline(divider_witness.as_ref().map(|w| w.capture.deadline())) => break,
             result = read_line_bounded(&mut reader, &mut line, MAX_LINE_BYTES) => result?,
         };
         if n == 0 {
@@ -566,7 +568,27 @@ where
             continue;
         }
 
-        let response_json = handle_line(trimmed, &state, &session, &mut limiter).await;
+        let response = handle_connection_line(
+            trimmed,
+            &state,
+            &session,
+            &mut limiter,
+            &mut divider_witness,
+            &mut shutdown_rx,
+        )
+        .await?;
+        let response_json = match response {
+            ConnectionReply::Ordinary(_) if divider_witness.is_some() => break,
+            ConnectionReply::Ordinary(value) => value,
+            ConnectionReply::Divider(reply) => {
+                tokio::select! {
+                    biased;
+                    _ = wait_for_shutdown(&mut shutdown_rx) => break,
+                    result = write_divider_reply(&mut write_half, reply) => result?,
+                }
+                continue;
+            }
+        };
         let mut out = serde_json::to_string(&response_json).unwrap_or_else(|_| {
             "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"serialize failed\"}}".to_owned()
         });
@@ -581,29 +603,60 @@ where
 /// now AWAITS the per-widget lease (yielding the tokio worker instead of blocking it); the parse + rate
 /// limit path stays synchronous. Rate-limit and envelope-parse failures map to well-formed JSON-RPC
 /// errors. Tests `await` it on a current-thread runtime.
+#[cfg(test)]
 async fn handle_line(
     line: &str,
     state: &ServerState,
     session: &McpSession,
     limiter: &mut RateLimiter,
 ) -> serde_json::Value {
+    let (_shutdown, mut shutdown_rx) = watch::channel(false);
+    match handle_connection_line(line, state, session, limiter, &mut None, &mut shutdown_rx)
+        .await
+        .unwrap()
+    {
+        ConnectionReply::Ordinary(value) => value,
+        ConnectionReply::Divider(_) => panic!("Divider witness requires a live authenticated writer"),
+    }
+}
+
+enum ConnectionReply {
+    Ordinary(serde_json::Value),
+    Divider(DividerReply),
+}
+
+async fn wait_for_divider_deadline(deadline: Option<std::time::Instant>) {
+    match deadline {
+        Some(deadline) => tokio::time::sleep_until(deadline.into()).await,
+        None => std::future::pending::<()>().await,
+    }
+}
+
+async fn handle_connection_line(
+    line: &str,
+    state: &ServerState,
+    session: &McpSession,
+    limiter: &mut RateLimiter,
+    owned: &mut Option<ConnectionDividerWitness>,
+    shutdown_rx: &mut watch::Receiver<bool>,
+) -> std::io::Result<ConnectionReply> {
     // Rate limit BEFORE parsing/dispatch so a flood cannot even reach the auth/tool path.
     if !limiter.allow() {
-        return serde_json::json!({
+        return Ok(ConnectionReply::Ordinary(serde_json::json!({
             "jsonrpc": "2.0",
             "id": serde_json::Value::Null,
             "error": { "code": ERR_RATE_LIMITED, "message": "Rate limited" },
-        });
+        })));
     }
 
     let value: serde_json::Value = match serde_json::from_str(line) {
         Ok(v) => v,
         Err(e) => {
-            return serde_json::json!({
+            return Ok(ConnectionReply::Ordinary(serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": serde_json::Value::Null,
                 "error": { "code": ERR_INVALID_PARAMS, "message": format!("invalid JSON: {e}") },
-            });
+            })));
         }
     };
     let request = match McpRequest::from_json(&value) {
@@ -611,11 +664,11 @@ async fn handle_line(
         Err(e) => {
             // Preserve the request id if present so the client can correlate the error.
             let id = value.get("id").cloned().unwrap_or(serde_json::Value::Null);
-            return serde_json::json!({
+            return Ok(ConnectionReply::Ordinary(serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": id,
                 "error": { "code": e.code, "message": e.message },
-            });
+            })));
         }
     };
 
@@ -631,11 +684,11 @@ async fn handle_line(
             Some(state.safety.session_for_client(id))
         }
         Some(_) => {
-            return serde_json::json!({
+            return Ok(ConnectionReply::Ordinary(serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": request.id,
                 "error": { "code": ERR_INVALID_PARAMS, "message": "client_session_id must be 1..=64 ASCII letters, digits, '-', '_' or '.'" },
-            });
+            })));
         }
     };
 
@@ -646,11 +699,11 @@ async fn handle_line(
                 && label.bytes().all(|byte| byte.is_ascii_graphic()) => label.clone(),
         None if state.safety.windows.is_none() => String::new(),
         _ => {
-            return serde_json::json!({
+            return Ok(ConnectionReply::Ordinary(serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": request.id,
                 "error": { "code": ERR_INVALID_PARAMS, "message": "agent_label must be 1..=96 ASCII graphic characters" },
-            });
+            })));
         }
     };
     let labeled_session = attributed_session
@@ -658,13 +711,30 @@ async fn handle_line(
         .unwrap_or(session)
         .clone()
         .with_agent_label(agent_label);
-    dispatch_with_session(
-        &request,
-        &labeled_session,
-        state,
-    )
-    .await
-    .to_json()
+    if request.method == DIVIDER_WITNESS_METHOD {
+        let dispatched = tokio::select! {
+            biased;
+            _ = wait_for_shutdown(shutdown_rx) => {
+                return Err(divider_connection_error("Server shut down during divider witness"));
+            }
+            response = dispatch_divider_witness(&request, &labeled_session, state, owned) => response,
+        };
+        let response = match dispatched {
+            Ok(DividerDispatch::Rejected(error)) if owned.is_none() => {
+                return Ok(ConnectionReply::Ordinary(error.to_json()));
+            }
+            Ok(DividerDispatch::Rejected(_)) => {
+                return Err(divider_connection_error("An armed connection rejected a divider request"));
+            }
+            Ok(DividerDispatch::Reply(reply)) => ConnectionReply::Divider(reply),
+            Err(error) => return Err(error),
+        };
+        return Ok(response);
+    }
+    if owned.is_some() {
+        return Err(divider_connection_error("An armed connection accepts only the owning finish request"));
+    }
+    Ok(ConnectionReply::Ordinary(dispatch_with_session(&request, &labeled_session, state).await.to_json()))
 }
 
 /// Dispatch one request through `session` so MT-028 leasing + attribution are applied, taking each
@@ -974,6 +1044,212 @@ async fn dispatch_with_session(
             move || capture(),
         )
         .await
+}
+
+const DIVIDER_WITNESS_METHOD: &str = "argus.divider_witness";
+
+struct ConnectionDividerWitness {
+    id: uuid::Uuid,
+    agent_id: String,
+    agent_label: String,
+    epoch: u64,
+    revision: u64,
+    privacy: super::argus::WindowCaptureTicket,
+    capture: super::screenshot::divider_frame::DividerWitness,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "phase", rename_all = "snake_case", deny_unknown_fields)]
+enum DividerWitnessParams {
+    Arm {
+        window_id: String,
+        window_epoch: u64,
+        expected_revision: u64,
+        axis: String,
+    },
+    Finish {
+        window_id: String,
+        window_epoch: u64,
+        expected_revision: u64,
+        witness_id: uuid::Uuid,
+    },
+}
+
+struct DividerReply {
+    deadline: std::time::Instant,
+    epoch: u64,
+    privacy: super::argus::WindowCaptureTicket,
+    id: serde_json::Value,
+    result: serde_json::Value,
+}
+
+enum DividerDispatch {
+    Rejected(McpResponse),
+    Reply(DividerReply),
+}
+
+fn divider_expired() -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::TimedOut, "Divider witness deadline expired")
+}
+
+fn divider_connection_error(message: impl Into<String>) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::PermissionDenied, message.into())
+}
+
+fn validate_divider_delivery(
+    privacy: &super::argus::WindowCaptureTicket,
+    epoch: u64,
+    deadline: std::time::Instant,
+) -> std::io::Result<()> {
+    if std::time::Instant::now() >= deadline {
+        return Err(divider_expired());
+    }
+    privacy.validate_main_window_epoch(epoch).map_err(divider_connection_error)?;
+    if std::time::Instant::now() >= deadline {
+        return Err(divider_expired());
+    }
+    Ok(())
+}
+
+async fn dispatch_divider_witness(
+    request: &McpRequest,
+    session: &McpSession,
+    state: &ServerState,
+    owned: &mut Option<ConnectionDividerWitness>,
+) -> std::io::Result<DividerDispatch> {
+    use super::argus::MAIN_WINDOW_ID;
+    use super::screenshot::divider_frame::DividerAxis;
+    use super::tools::{McpError, ERR_UNAUTHORIZED};
+
+    let reject = |code, message: String| Ok(DividerDispatch::Rejected(McpResponse::error(
+        request.id.clone(), McpError::general(code, message),
+    )));
+    if !state.safety.token.matches(&request.session_token) {
+        return reject(ERR_UNAUTHORIZED, "Unauthorized".to_owned());
+    }
+    let Some(windows) = &state.safety.windows else {
+        return reject(ERR_INVALID_PARAMS, "Divider witness requires a registered live window".to_owned());
+    };
+    let params = match serde::Deserialize::deserialize(&request.params) {
+        Ok(params) => params,
+        Err(error) => return reject(ERR_INVALID_PARAMS, format!("Invalid divider witness selectors: {error}")),
+    };
+    match params {
+        DividerWitnessParams::Arm { window_id, window_epoch, expected_revision, axis } => {
+            if owned.is_some() {
+                return Err(divider_connection_error("This connection already owns a divider witness"));
+            }
+            if window_id != MAIN_WINDOW_ID {
+                return reject(ERR_INVALID_PARAMS, "Divider witness requires the explicit main window".to_owned());
+            }
+            let axis = match axis.as_str() {
+                "horizontal" => DividerAxis::Horizontal,
+                "vertical" => DividerAxis::Vertical,
+                _ => return reject(ERR_INVALID_PARAMS, "Divider axis must be horizontal or vertical".to_owned()),
+            };
+            let window = match windows.get(MAIN_WINDOW_ID) {
+                Ok(window) => window,
+                Err(error) => return reject(ERR_INVALID_PARAMS, error),
+            };
+            let privacy = match windows.admit_capture(&window, expected_revision) {
+                Ok(ticket) => ticket,
+                Err(error) => return reject(ERR_INVALID_PARAMS, error),
+            };
+            if let Err(error) = privacy.validate_main_window_epoch(window_epoch) {
+                return reject(ERR_INVALID_PARAMS, error);
+            }
+            let ctx = match super::screenshot::divider_live_root_context(&window) {
+                Ok(ctx) => ctx,
+                Err(error) => return reject(ERR_INVALID_PARAMS, error),
+            };
+            let mut capture = match windows.divider_witness.arm(privacy.clone(), window_epoch, axis) {
+                Ok(capture) => capture,
+                Err(error) => return reject(ERR_INVALID_PARAMS, error),
+            };
+            let deadline = capture.deadline();
+            ctx.request_repaint_of(egui::ViewportId::ROOT);
+            capture.ready().await.map_err(divider_connection_error)?;
+            validate_divider_delivery(&privacy, window_epoch, deadline)?;
+            let id = uuid::Uuid::new_v4();
+            let result = serde_json::json!({
+                "status": "ready", "window_id": MAIN_WINDOW_ID, "window_epoch": window_epoch,
+                "admitted_revision": expected_revision, "witness_id": id,
+            });
+            *owned = Some(ConnectionDividerWitness {
+                id, agent_id: session.agent_id().to_owned(), agent_label: session.agent_label().to_owned(),
+                epoch: window_epoch, revision: expected_revision, privacy: privacy.clone(), capture,
+            });
+            Ok(DividerDispatch::Reply(DividerReply { deadline, epoch: window_epoch, privacy, id: request.id.clone(), result }))
+        }
+        DividerWitnessParams::Finish { window_id, window_epoch, expected_revision, witness_id } => {
+            let Some(witness) = owned.take() else {
+                return reject(ERR_INVALID_PARAMS, "This connection has no armed divider witness".to_owned());
+            };
+            if window_id != MAIN_WINDOW_ID || witness.epoch != window_epoch
+                || witness.revision != expected_revision || witness.id != witness_id
+                || witness.agent_id != session.agent_id() || witness.agent_label != session.agent_label()
+            {
+                return Err(divider_connection_error("Divider witness owner or selectors changed"));
+            }
+            let deadline = witness.capture.deadline();
+            validate_divider_delivery(&witness.privacy, window_epoch, deadline)?;
+            let result = witness.capture.finish().await.map_err(divider_connection_error)?;
+            let (returned_deadline, value) = result.into_response().map_err(divider_connection_error)?;
+            if returned_deadline != deadline {
+                return Err(divider_connection_error("Divider witness deadline changed"));
+            }
+            Ok(DividerDispatch::Reply(DividerReply {
+                deadline, epoch: window_epoch, privacy: witness.privacy, id: request.id.clone(), result: value,
+            }))
+        }
+    }
+}
+
+async fn write_divider_reply<W: tokio::io::AsyncWrite + Unpin>(
+    writer: &mut W,
+    reply: DividerReply,
+) -> std::io::Result<()> {
+    use std::{future::poll_fn, pin::Pin, task::Poll};
+
+    let DividerReply { deadline, epoch, privacy, id, result } = reply;
+    validate_divider_delivery(&privacy, epoch, deadline)?;
+    let mut encoding = tokio::task::spawn_blocking(move || {
+        #[derive(serde::Serialize)]
+        struct Envelope { jsonrpc: &'static str, id: serde_json::Value, result: serde_json::Value }
+        let mut bytes = serde_json::to_vec(&Envelope { jsonrpc: "2.0", id, result })
+            .map_err(std::io::Error::other)?;
+        bytes.push(b'\n');
+        Ok::<_, std::io::Error>(bytes)
+    });
+    let bytes = match tokio::time::timeout_at(deadline.into(), &mut encoding).await {
+        Ok(result) => result.map_err(std::io::Error::other)??,
+        Err(_) => {
+            encoding.abort();
+            return Err(divider_expired());
+        }
+    };
+    tokio::time::timeout_at(deadline.into(), async {
+        let mut rest = bytes.as_slice();
+        while !rest.is_empty() {
+            let count = poll_fn(|cx| {
+                if let Err(error) = validate_divider_delivery(&privacy, epoch, deadline) {
+                    return Poll::Ready(Err(error));
+                }
+                Pin::new(&mut *writer).poll_write(cx, rest)
+            }).await?;
+            if count == 0 {
+                return Err(std::io::ErrorKind::WriteZero.into());
+            }
+            rest = &rest[count..];
+        }
+        poll_fn(|cx| {
+            if let Err(error) = validate_divider_delivery(&privacy, epoch, deadline) {
+                return Poll::Ready(Err(error));
+            }
+            Pin::new(&mut *writer).poll_flush(cx)
+        }).await?;
+        validate_divider_delivery(&privacy, epoch, deadline)
+    }).await.map_err(|_| divider_expired())?
 }
 
 /// Read one `\n`-terminated line into `buf`, but error out (rather than buffer unboundedly) once the

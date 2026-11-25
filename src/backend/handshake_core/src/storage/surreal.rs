@@ -1184,6 +1184,39 @@ pub(crate) fn current_record_user_scope() -> Option<resource_authority::RecordUs
     RECORD_USER_SCOPE.try_with(Clone::clone).ok()
 }
 
+#[derive(Clone)]
+pub(crate) struct ReclaimStorageContext {
+    record_user_scope: Option<resource_authority::RecordUserScope>,
+    pub(crate) deadline: Instant,
+}
+
+pub(crate) fn capture_reclaim_storage_context(deadline: Instant) -> Option<ReclaimStorageContext> {
+    if PROTECTED_TRANSACTION.try_with(|_| ()).is_ok() { return None; }
+    let deadline = OPERATION_DEADLINE.try_with(|original| deadline.min(*original))
+        .unwrap_or(deadline);
+    Some(ReclaimStorageContext { record_user_scope: current_record_user_scope(), deadline })
+}
+
+impl ReclaimStorageContext {
+    pub(crate) async fn scope<T>(
+        self,
+        operation: impl Future<Output = Result<T, crate::process_ledger::ProcessLedgerError>>,
+    ) -> Result<T, crate::process_ledger::ProcessLedgerError> {
+        if PROTECTED_TRANSACTION.try_with(|_| ()).is_ok()
+            || (self.record_user_scope.is_none() && current_record_user_scope().is_some())
+        {
+            return Err(crate::process_ledger::ProcessLedgerError::InvalidConfig(
+                "retained reclaim operation has an unexpected ambient storage authority".into(),
+            ));
+        }
+        let operation = OPERATION_DEADLINE.scope(self.deadline, operation);
+        match self.record_user_scope {
+            Some(scope) => RECORD_USER_SCOPE.scope(scope, operation).await,
+            None => operation.await,
+        }
+    }
+}
+
 pub(crate) struct ContextOperationCancellation {
     cancelled: AtomicBool,
     notification: tokio::sync::Notify,
@@ -1937,7 +1970,26 @@ impl SurrealAdminContext<'_> {
     }
 }
 
-type SharedShutdownResult = Result<(), Arc<str>>;
+#[derive(Clone)]
+enum SharedShutdownFailure {
+    Failure(Arc<str>),
+    DrainTimedOut { waited_ms: u128 },
+    EngineReleaseUnproven { waited_ms: u128 },
+}
+
+impl SharedShutdownFailure {
+    fn into_error(self) -> SurrealStorageError {
+        match self {
+            Self::Failure(error) => SurrealStorageError::Shutdown(error),
+            Self::DrainTimedOut { waited_ms } =>
+                SurrealStorageError::ShutdownStillInProgress { waited_ms },
+            Self::EngineReleaseUnproven { waited_ms } =>
+                SurrealStorageError::EngineReleaseUnproven { waited_ms },
+        }
+    }
+}
+
+type SharedShutdownResult = Result<(), SharedShutdownFailure>;
 
 enum ShutdownCoordinatorState {
     Open,
@@ -1946,7 +1998,7 @@ enum ShutdownCoordinatorState {
     },
     Closed,
     Failed {
-        error: Arc<str>,
+        error: SharedShutdownFailure,
     },
 }
 
@@ -1958,7 +2010,7 @@ enum ShutdownAttemptError {
     /// after the cancellation token fired. The sole client is still owned by
     /// the storage, admission stays stopped, cooperative work stays cancelled,
     /// and a later shutdown call retries the close.
-    DrainTimedOut(SurrealStorageError),
+    DrainTimedOut { waited_ms: u128 },
     /// The sole client was taken and dropped. Operations must remain closed even
     /// though the platform release proof could not be completed.
     Terminal(SurrealStorageError),
@@ -2448,6 +2500,12 @@ impl SurrealStorage {
         Ok(WatcherAdmissionBudget {
             limit, credential_not_after: credentials.not_after,
         })
+    }
+
+    pub(crate) fn capture_reclaim_renewal_context(
+        &self, observer_deadline: Instant,
+    ) -> Option<ReclaimStorageContext> {
+        capture_reclaim_storage_context(observer_deadline)
     }
 
     pub(crate) async fn with_record_user_scope<T>(
@@ -4640,7 +4698,7 @@ impl SurrealStorage {
             match &*coordinator {
                 ShutdownCoordinatorState::Closed => return Ok(()),
                 ShutdownCoordinatorState::Failed { error } => {
-                    return Err(SurrealStorageError::Shutdown(Arc::clone(error)));
+                    return Err(error.clone().into_error());
                 }
                 ShutdownCoordinatorState::Closing { receiver } => receiver.clone(),
                 ShutdownCoordinatorState::Open => {
@@ -4663,7 +4721,7 @@ impl SurrealStorage {
         let wait = async {
             loop {
                 if let Some(result) = receiver.borrow().clone() {
-                    return result.map_err(SurrealStorageError::Shutdown);
+                    return result.map_err(SharedShutdownFailure::into_error);
                 }
                 receiver.changed().await.map_err(|_| {
                     SurrealStorageError::Shutdown(Arc::from(
@@ -4685,47 +4743,43 @@ impl SurrealStorage {
         sender: watch::Sender<Option<SharedShutdownResult>>,
     ) {
         let attempt = SurrealStorage::perform_shutdown(&inner).await;
-        let terminal_failure = matches!(&attempt, Err(ShutdownAttemptError::Terminal(_)));
-        let drain_timed_out = matches!(&attempt, Err(ShutdownAttemptError::DrainTimedOut(_)));
-        let result = attempt.map_err(|failure| {
-            let error = match failure {
-                ShutdownAttemptError::Retryable(error)
-                | ShutdownAttemptError::DrainTimedOut(error)
-                | ShutdownAttemptError::Terminal(error) => error,
-            };
-            Arc::<str>::from(error.to_string())
-        });
-
         let mut coordinator = inner.shutdown.lock().await;
-        match &result {
+        let result = match attempt {
             Ok(()) => {
                 inner.lifecycle.store(LIFECYCLE_CLOSED, Ordering::Release);
                 *coordinator = ShutdownCoordinatorState::Closed;
+                Ok(())
             }
-            Err(_) if drain_timed_out => {
+            Err(ShutdownAttemptError::DrainTimedOut { waited_ms }) => {
                 // Admission stays stopped (lifecycle CLOSING) and cooperative
                 // work stays cancelled; the coordinator reopens so a later
                 // shutdown call retries the bounded close.
                 *coordinator = ShutdownCoordinatorState::Open;
+                Err(SharedShutdownFailure::DrainTimedOut { waited_ms })
             }
-            Err(error) if terminal_failure => {
+            Err(ShutdownAttemptError::Terminal(error)) => {
                 // The client has already been taken and dropped. Preserve that
                 // truth for operations and every subsequent shutdown caller;
                 // reopening this wrapper would claim ownership of a client that
                 // no longer exists.
-                inner.lifecycle.store(LIFECYCLE_CLOSED, Ordering::Release);
-                *coordinator = ShutdownCoordinatorState::Failed {
-                    error: Arc::clone(error),
+                let error = match error {
+                    SurrealStorageError::EngineReleaseUnproven { waited_ms } =>
+                        SharedShutdownFailure::EngineReleaseUnproven { waited_ms },
+                    error => SharedShutdownFailure::Failure(Arc::<str>::from(error.to_string())),
                 };
+                inner.lifecycle.store(LIFECYCLE_CLOSED, Ordering::Release);
+                *coordinator = ShutdownCoordinatorState::Failed { error: error.clone() };
+                Err(error)
             }
-            Err(_) => {
+            Err(ShutdownAttemptError::Retryable(error)) => {
                 // The flush barrier failed before the sole client was taken, so
                 // the wrapper still owns a usable client and shutdown may retry.
                 inner.reset_cancellation();
                 inner.lifecycle.store(LIFECYCLE_OPEN, Ordering::Release);
                 *coordinator = ShutdownCoordinatorState::Open;
+                Err(SharedShutdownFailure::Failure(Arc::<str>::from(error.to_string())))
             }
-        }
+        };
         let _ = sender.send(Some(result));
     }
 
@@ -4765,17 +4819,14 @@ impl SurrealStorage {
                     Err(_) => {
                         report.elapsed = started.elapsed();
                         inner.record_shutdown_report(report);
-                        return Err(ShutdownAttemptError::DrainTimedOut(
-                            SurrealStorageError::ShutdownStillInProgress {
-                                waited_ms: started.elapsed().as_millis(),
-                            },
-                        ));
+                        return Err(ShutdownAttemptError::DrainTimedOut {
+                            waited_ms: started.elapsed().as_millis(),
+                        });
                     }
                 }
             }
         };
-        let release_budget = budget.saturating_sub(started.elapsed());
-        let outcome = SurrealStorage::close_client(inner, guard, release_budget).await;
+        let outcome = SurrealStorage::close_client(inner, guard, started).await;
         report.elapsed = started.elapsed();
         inner.record_shutdown_report(report);
         outcome
@@ -4784,7 +4835,7 @@ impl SurrealStorage {
     async fn close_client(
         inner: &SurrealStorageInner,
         mut guard: RwLockWriteGuard<'_, Option<SurrealClient>>,
-        release_budget: Duration,
+        shutdown_started: Instant,
     ) -> Result<(), ShutdownAttemptError> {
         let Some(client) = guard.as_ref() else {
             return Ok(());
@@ -4800,6 +4851,7 @@ impl SurrealStorage {
         };
         drop(guard);
         drop(client);
+        let release_budget = inner.config.shutdown_wait.saturating_sub(shutdown_started.elapsed());
         wait_for_engine_release(&inner.config.path, release_budget)
             .await
             .map_err(ShutdownAttemptError::Terminal)?;

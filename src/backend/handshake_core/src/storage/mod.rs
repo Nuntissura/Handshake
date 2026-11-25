@@ -19,6 +19,13 @@ use crate::ai_ready_data::records::{
     SilverRecord,
 };
 
+/// The persisted enqueue or lease returned before a broker state transition.
+#[derive(Clone, Copy, Debug)]
+pub enum KernelSessionRunObservation<'a> {
+    Enqueued(&'a SessionRun),
+    Lease(&'a KernelSessionLease),
+}
+
 pub(crate) mod block_view_outbox;
 /// Embedded-SurrealDB persistence for the block-view outbox, and the reference
 /// pattern for porting the remaining outer modules onto the widened
@@ -2928,12 +2935,12 @@ pub trait Database: Send + Sync {
     ) -> StorageResult<Option<(KernelSessionLease, KernelEvent)>>;
     async fn update_kernel_session_run_state(
         &self,
-        session_run_id: &str,
+        observation: KernelSessionRunObservation<'_>,
         state: SessionRunState,
     ) -> StorageResult<KernelSessionLease>;
     async fn update_kernel_session_run_state_and_record_event(
         &self,
-        session_run_id: &str,
+        observation: KernelSessionRunObservation<'_>,
         state: SessionRunState,
         causation_id: Option<String>,
         correlation_id: String,
@@ -3308,6 +3315,14 @@ pub async fn init_control_plane_storage() -> Result<ControlPlaneStorage, Storage
 pub async fn init_control_plane_storage_with_config(
     config: &ControlPlaneStorageConfig,
 ) -> Result<ControlPlaneStorage, StorageError> {
+    let storage = open_control_plane_storage_with_config(config).await?;
+    storage.database.run_migrations().await?;
+    Ok(storage)
+}
+
+pub(crate) async fn open_control_plane_storage_with_config(
+    config: &ControlPlaneStorageConfig,
+) -> Result<ControlPlaneStorage, StorageError> {
     match config.mode {
         ControlPlaneStorageMode::SurrealEmbedded => {
             // The embedded store is opened and owned by this process: no
@@ -3318,7 +3333,6 @@ pub async fn init_control_plane_storage_with_config(
                 .await
                 .map_err(|err| StorageError::Database(err.to_string()))?;
             let db = surreal::SurrealDatabase::new(storage.clone());
-            db.run_migrations().await?;
             Ok(ControlPlaneStorage {
                 database: Arc::new(db),
                 surreal: storage,

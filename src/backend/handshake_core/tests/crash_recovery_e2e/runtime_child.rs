@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use handshake_core::api::account_scope::{
     ProductLocalResourceScope, PRODUCT_LOCAL_RESOURCE_SCOPE_ENV,
 };
-use handshake_core::process_ledger::ReclaimResourceScope;
+use handshake_core::process_ledger::{ReclaimResourceScope, HANDSHAKE_HOST_SCOPE_ID_ENV};
 use handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use handshake_core::{
     kernel::{KernelActor, KernelEventType, NewKernelEvent, SessionRun, SessionRunState},
@@ -19,7 +19,7 @@ use handshake_core::{
     session_checkpoint::{CheckpointStateKind, SessionCheckpoint},
     storage::{
         surreal::{bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig},
-        Database,
+        Database, KernelSessionRunObservation,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -571,13 +571,13 @@ pub async fn seed_closed_recovery_store(data_dir: &Path) -> SeededRecoveryEviden
         },
     )
     .await;
-    database
+    let claimed = database
         .claim_kernel_session_run(&session_run_id, "mt195-real-binary-seed", 300)
         .await
         .expect("claim real-binary recovery candidate")
         .expect("real-binary recovery candidate is claimable");
     database
-        .update_kernel_session_run_state(&session_run_id, SessionRunState::Running)
+        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&claimed), SessionRunState::Running)
         .await
         .expect("mark real-binary recovery candidate running");
     let replay_event = NewKernelEvent::builder(
@@ -633,6 +633,8 @@ pub fn run_real_handshake_core_startup_recovery(
     let mut command = Command::new(env!("CARGO_BIN_EXE_handshake_core"));
     command
         .env(PRODUCT_LOCAL_RESOURCE_SCOPE_ENV, handoff)
+        .env(HANDSHAKE_HOST_SCOPE_ID_ENV, "mt195-startup-recovery-host")
+        .env("HS_LOG_LEVEL", "info")
         .env("HANDSHAKE_DATA_DIR", data_dir)
         .env("HANDSHAKE_STARTUP_RECOVERY_ONLY", "1")
         .env("HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE", &report_file)
@@ -686,13 +688,13 @@ async fn run_child_entrypoint_from_env() {
         },
     )
     .await;
-    database
+    let claimed = database
         .claim_kernel_session_run(&session_run_id, "mt195-runtime-child", 300)
         .await
         .expect("claim MT-195 child session")
         .expect("queued MT-195 child session is claimable");
     database
-        .update_kernel_session_run_state(&session_run_id, SessionRunState::Running)
+        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&claimed), SessionRunState::Running)
         .await
         .expect("mark MT-195 child session running");
     let replay_event = NewKernelEvent::builder(

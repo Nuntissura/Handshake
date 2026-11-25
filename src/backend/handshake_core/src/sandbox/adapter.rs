@@ -438,6 +438,12 @@ pub struct DetachedProcessIdentity {
 
 #[async_trait]
 pub trait SandboxAdapter: Send + Sync {
+    /// Pure pre-effect rejection for adapters that do not expose ordinary spawn.
+    /// Success does not assert that a later acquisition error had no effect.
+    fn validate_spawn_acquisition(&self) -> Result<(), SandboxAdapterError> {
+        Ok(())
+    }
+
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError>;
 
     /// Spawn a live process whose stdout, stderr, tree-termination authority,
@@ -522,6 +528,16 @@ pub trait SandboxAdapter: Send + Sync {
     async fn kill(&self, handle: &ProcessHandle, signal: Signal)
         -> Result<(), SandboxAdapterError>;
 
+    /// Complete adapter-owned cleanup after an observed terminal process.
+    /// This is idempotent and must not signal the target process. Adapters
+    /// without extra terminal cleanup perform no work by default.
+    async fn cleanup_terminal(
+        &self,
+        _handle: &ProcessHandle,
+    ) -> Result<(), SandboxAdapterError> {
+        Ok(())
+    }
+
     /// Reclaim a crash-detached process through its owning adapter. Container
     /// and VM adapters can reconstruct their durable handle and use their
     /// normal kill path; host-attached adapters override this to verify exact
@@ -532,6 +548,15 @@ pub trait SandboxAdapter: Send + Sync {
         signal: Signal,
     ) -> Result<(), SandboxAdapterError> {
         self.kill(&identity.handle, signal).await
+    }
+
+    /// Return terminal evidence observed by the original detached reclaim
+    /// owner. Legacy ACK-only implementations report no proven outcome.
+    async fn reclaim_detached_observed(
+        &self, identity: &DetachedProcessIdentity, signal: Signal,
+    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+        self.reclaim_detached(identity, signal).await?;
+        Ok(None)
     }
 
     /// Reconcile a handle persisted by a previous backend boot.
@@ -560,6 +585,15 @@ pub trait SandboxAdapter: Send + Sync {
         identity: &DetachedProcessIdentity,
     ) -> Result<ProcessStatus, SandboxAdapterError> {
         self.status(&identity.handle).await
+    }
+
+    /// Return only a retained terminal outcome whose original detached owner completed cleanup.
+    fn cached_settled_detached_terminal(
+        &self,
+        identity: &DetachedProcessIdentity,
+    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+        let _ = identity;
+        Ok(None)
     }
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError>;

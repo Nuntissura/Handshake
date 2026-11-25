@@ -666,6 +666,7 @@ struct HandleState {
     /// `Some` for a persistent handle (snapshot/restore model); `None` for the
     /// ephemeral default model.
     persistent: Option<PersistentVm>,
+    original_persistent_handle: Option<ProcessHandle>,
     /// Idle auto-kill (§3.5.7 #6) configuration for a persistent handle: when
     /// `Some`, the idle reaper terminates the VM once `last_active` is older than
     /// this many ms. `None` disables auto-reap.
@@ -700,6 +701,7 @@ impl Default for HandleState {
             binds: Vec::new(),
             resource_limits: ResourceLimits::default(),
             persistent: None,
+            original_persistent_handle: None,
             idle_timeout_ms: None,
             last_active: Instant::now(),
             restored_from: None,
@@ -708,18 +710,35 @@ impl Default for HandleState {
     }
 }
 
-/// Live CH child processes for persistent handles, keyed by handle id. Kept out
-/// of [`HandleState`] (and thus out of `Debug`) because [`Child`] is not
-/// `Clone`/`Debug`. `kill_on_drop(true)` means dropping the [`Child`] also
-/// terminates the CH process, so removing an entry here tears down the VM.
-type PersistentChildren = Arc<tokio::sync::Mutex<HashMap<Uuid, Child>>>;
+/// Persistent children stay registered through observed exit and checked cleanup.
+/// Each child has its own lock so unrelated VMs remain independent.
+enum PersistentTermination {
+    NotAttempted,
+    Attempted,
+    Acknowledged,
+    Uncertain(String),
+}
+
+struct PersistentChildOwner {
+    child: Child,
+    termination: PersistentTermination,
+}
+
+impl PersistentChildOwner {
+    fn new(child: Child) -> Self {
+        Self { child, termination: PersistentTermination::NotAttempted }
+    }
+}
+
+type PersistentChildren =
+    Arc<tokio::sync::Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<PersistentChildOwner>>>>>;
 type PersistentExecLocks = Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<()>>>>>;
 type WarmAgentBridgeSlot = Arc<tokio::sync::Mutex<PersistentWarmSerialBridgeSlot>>;
 type WarmAgentBridges = Arc<Mutex<HashMap<Uuid, WarmAgentBridgeSlot>>>;
 
 #[derive(Default)]
 struct PersistentWarmSerialBridgeSlot {
-    bridge: Option<PersistentWarmSerialBridge>,
+    bridge: Option<RetainedWarmBridge>,
     closing: bool,
 }
 
@@ -1123,22 +1142,211 @@ impl CloudHypervisorAdapter {
             .clone())
     }
 
-    async fn kill_warm_agent_bridge_for(&self, handle_id: Uuid) {
-        let bridge = self
+    async fn kill_warm_agent_bridge_for(
+        &self,
+        handle_id: Uuid,
+    ) -> Result<(), SandboxAdapterError> {
+        let slot = self
             .warm_agent_bridges
             .lock()
-            .ok()
-            .and_then(|mut bridges| bridges.remove(&handle_id))
-            .map(|slot| async move {
-                let mut state = slot.lock().await;
-                state.closing = true;
-                state.bridge.take()
-            });
-        if let Some(bridge_future) = bridge {
-            if let Some(mut bridge) = bridge_future.await {
-                let _ = bridge.kill_and_stderr().await;
-            }
+            .map_err(|error| spawn_failed(format!("warm-agent bridge registry poisoned: {error}")))?
+            .get(&handle_id)
+            .cloned();
+        let Some(slot) = slot else {
+            return Ok(());
+        };
+        slot.lock().await.closing = true;
+        settle_warm_bridge_slot(&slot, PROBE_TIMEOUT_MS).await
+            .map_err(|error| spawn_failed(error.to_string()))
+    }
+
+    fn persistent_cleanup_complete(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<bool, SandboxAdapterError> {
+        let handles = self
+            .handles
+            .lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+        let state = handles.get(&handle.id).ok_or_else(|| {
+            spawn_failed("persistent handle disappeared during cleanup reconciliation")
+        })?;
+        if state.original_persistent_handle.as_ref() != Some(handle) || state.persistent.is_none() {
+            return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
         }
+        Ok(state.killed
+            && state.committed_memory_mib == 0
+            && matches!(
+                state.status,
+                ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }
+            ))
+    }
+
+    async fn cleanup_persistent_terminal(
+        &self,
+        handle: &ProcessHandle,
+        vm: &PersistentVm,
+        retained: &Arc<tokio::sync::Mutex<PersistentChildOwner>>,
+        child: &mut Child,
+    ) -> Result<(), SandboxAdapterError> {
+        // Callers hold this exact child's lock, including concurrent retries.
+        if self.persistent_cleanup_complete(handle)? {
+            return Ok(());
+        }
+        let exited = child
+            .try_wait()
+            .map_err(|error| spawn_failed(format!("persistent child exit observation failed: {error}")))?
+            .ok_or_else(|| spawn_failed("persistent cleanup requires an observed child exit"))?;
+        let exit_code = exited.code();
+        let status = if let Some(code) = exit_code {
+            ProcessStatus::Exited { code }
+        } else {
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::ExitStatusExt;
+                let by_signal = match exited.signal() {
+                    Some(2) => Signal::Int,
+                    Some(9) => Signal::Kill,
+                    Some(15) => Signal::Term,
+                    _ => return Err(spawn_failed(
+                        "persistent child exited without a representable terminal kind; custody retained",
+                    )),
+                };
+                ProcessStatus::Killed { by_signal }
+            }
+            #[cfg(not(unix))]
+            {
+                return Err(spawn_failed(
+                    "persistent child exited without a numeric code or terminal kind; custody retained",
+                ));
+            }
+        };
+        {
+            let mut handles = self
+                .handles
+                .lock()
+                .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+            let state = handles.get_mut(&handle.id).ok_or_else(|| {
+                spawn_failed("persistent handle disappeared before terminal observation")
+            })?;
+            if state.original_persistent_handle.as_ref() != Some(handle) || state.persistent.is_none() {
+                return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
+            }
+            state.status = status;
+            state.exit_code = exit_code;
+        }
+        self.kill_warm_agent_bridge_for(handle.id).await?;
+        if !remove_wsl_path(&self.config, &vm.api_socket).await {
+            return Err(spawn_failed(
+                "persistent API socket cleanup failed; child and memory custody retained",
+            ));
+        }
+        if !remove_wsl_path(&self.config, &vm.vm_root).await {
+            return Err(spawn_failed(
+                "persistent VM root cleanup failed; child and memory custody retained",
+            ));
+        }
+        self.persistent_exec_locks
+            .lock()
+            .map_err(|error| spawn_failed(format!("persistent exec registry poisoned: {error}")))?
+            .remove(&handle.id);
+        self.warm_agent_bridges
+            .lock()
+            .map_err(|error| spawn_failed(format!("warm-agent bridge registry poisoned: {error}")))?
+            .remove(&handle.id);
+        let mut children = self.persistent_children.lock().await;
+        let mut handles = self.handles.lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+        let state = handles.get_mut(&handle.id).ok_or_else(|| {
+            spawn_failed("persistent handle disappeared before cleanup acknowledgement")
+        })?;
+        if state.original_persistent_handle.as_ref() != Some(handle) || state.persistent.is_none() {
+            return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
+        }
+        let registered = children.get(&handle.id).ok_or_else(|| {
+            spawn_failed("original persistent child disappeared before cleanup acknowledgement")
+        })?;
+        if !Arc::ptr_eq(registered, retained) {
+            return Err(spawn_failed("persistent child owner changed before cleanup acknowledgement"));
+        }
+        self.release_committed_memory_mib(state.committed_memory_mib);
+        children.remove(&handle.id);
+        state.committed_memory_mib = 0;
+        state.killed = true;
+        Ok(())
+    }
+
+    fn settled_persistent_result(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
+        let handles = self.handles.lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+        let state = handles.get(&handle.id)
+            .ok_or_else(|| spawn_failed("original persistent terminal result is unavailable"))?;
+        if state.original_persistent_handle.as_ref() != Some(handle) || state.persistent.is_none() {
+            return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
+        }
+        if !state.killed || state.committed_memory_mib != 0
+            || !matches!(state.status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
+            return Err(spawn_failed("persistent terminal cleanup has not completed"));
+        }
+        Ok(state.status.clone())
+    }
+
+    async fn kill_persistent_observed(
+        &self, handle: &ProcessHandle, vm: &PersistentVm,
+    ) -> Result<ProcessStatus, SandboxAdapterError> {
+        if self.persistent_cleanup_complete(handle)? {
+            return self.settled_persistent_result(handle);
+        }
+            let retained = self
+                .persistent_children
+                .lock()
+                .await
+                .get(&handle.id)
+                .cloned();
+            let Some(retained) = retained else {
+                let complete = self.persistent_cleanup_complete(handle)?;
+                return if complete {
+                    self.settled_persistent_result(handle)
+                } else {
+                    Err(spawn_failed(
+                        "persistent child custody is missing without a completed observed exit",
+                    ))
+                };
+            };
+            let mut child = retained.lock().await;
+            if self.persistent_cleanup_complete(handle)? {
+                return self.settled_persistent_result(handle);
+            }
+            let _exited = match child.child.try_wait().map_err(|error| {
+                spawn_failed(format!("persistent child exit observation failed: {error}"))
+            })? {
+                Some(exited) => exited,
+                None => {
+                    if matches!(child.termination, PersistentTermination::NotAttempted) {
+                        child.termination = PersistentTermination::Attempted;
+                        match child.child.start_kill() {
+                            Ok(()) => child.termination = PersistentTermination::Acknowledged,
+                            Err(error) => {
+                                child.termination = PersistentTermination::Uncertain(error.to_string());
+                                return Err(spawn_failed(format!("persistent child kill request failed: {error}")));
+                            }
+                        }
+                    }
+                    // Retained attempted/acknowledged/uncertain requests are
+                    // observed again on this child, never signalled again.
+                    tokio::time::timeout(
+                        Duration::from_millis(PROBE_TIMEOUT_MS),
+                        child.child.wait(),
+                    )
+                    .await
+                    .map_err(|_| spawn_failed(
+                        "persistent child exit remains unconfirmed after timeout; custody retained",
+                    ))?
+                    .map_err(|error| spawn_failed(format!("persistent child wait failed: {error}")))?
+                }
+            };
+            self.cleanup_persistent_terminal(handle, vm, &retained, &mut child.child).await?;
+            self.settled_persistent_result(handle)
     }
 
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
@@ -1335,6 +1543,7 @@ impl CloudHypervisorAdapter {
         // adapter Arc drops.
         let mut hstate = HandleState::default();
         hstate.persistent = Some(vm);
+        hstate.original_persistent_handle = Some(handle.clone());
         hstate.idle_timeout_ms = idle_timeout_ms;
         hstate.resource_limits = resource_limits;
         hstate.binds = binds;
@@ -1346,7 +1555,7 @@ impl CloudHypervisorAdapter {
         self.persistent_children
             .lock()
             .await
-            .insert(handle.id, child);
+            .insert(handle.id, Arc::new(tokio::sync::Mutex::new(PersistentChildOwner::new(child))));
         memory_reservation.disarm();
 
         // Idle auto-kill (Master Spec v02.187 §3.5.7 #6): if an idle timeout was
@@ -1790,60 +1999,74 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     ) -> Result<(), SandboxAdapterError> {
         self.ensure_handle(handle)?;
 
-        // Persistent handle: terminate the live CH child and clean its socket +
-        // scratch root. For the ephemeral model there is no long-lived VM to
-        // signal between execs (any in-flight child is reaped by
-        // run_host_command's kill_on_drop once its exec future is dropped).
-        let persistent = self.handles.lock().ok().and_then(|map| {
-            map.get(&handle.id)
-                .and_then(|state| state.persistent.clone())
-        });
+        let persistent = self
+            .handles
+            .lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
+            .get(&handle.id)
+            .and_then(|state| state.persistent.clone());
         if let Some(vm) = persistent {
-            self.kill_warm_agent_bridge_for(handle.id).await;
-            // Dropping the Child terminates the CH process (kill_on_drop). Also
-            // issue an explicit kill so termination does not depend solely on
-            // drop ordering, then best-effort clean the socket + scratch root.
-            //
-            // Take the child OUT of the registry under a tight lock scope and
-            // wait OUTSIDE the lock with a bound: holding the async mutex across
-            // an unbounded `child.wait().await` would serialize every other
-            // persistent spawn/restore/kill on the same lock, and a wedged CH
-            // child would hold it forever, deadlocking the whole persistent path.
-            let child = self.persistent_children.lock().await.remove(&handle.id);
-            if let Some(mut child) = child {
-                let _ = child.start_kill();
-                // kill_on_drop(true) still reaps the process if the wait elapses.
-                let _ = tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), child.wait())
-                    .await;
-            }
-            let _ = remove_wsl_path(&self.config, &vm.api_socket).await;
-            let _ = remove_wsl_path(&self.config, &vm.vm_root).await;
+            return self.kill_persistent_observed(handle, &vm).await.map(|_| ());
         }
 
-        let committed_memory_to_release = if let Ok(mut map) = self.handles.lock() {
-            if let Some(state) = map.get_mut(&handle.id) {
-                let release_mib = (!state.killed)
-                    .then_some(state.committed_memory_mib)
-                    .filter(|mib| *mib > 0);
-                state.killed = true;
-                state.status = ProcessStatus::Killed { by_signal: _signal };
-                release_mib
-            } else {
-                None
+        Err(unavailable(
+            "ephemeral execution ownership is not adopted; handle kill cannot prove native settlement",
+        ))
+    }
+
+    async fn reclaim_detached_observed(
+        &self, identity: &crate::sandbox::DetachedProcessIdentity, _signal: Signal,
+    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+        let handle = &identity.handle;
+        self.ensure_handle(handle)?;
+        let vm = {
+            let handles = self.handles.lock()
+                .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+            let state = handles.get(&handle.id).ok_or(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            })?;
+            if state.original_persistent_handle.as_ref() != Some(handle) {
+                return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
             }
-        } else {
-            None
+            state.persistent.clone()
+                .ok_or_else(|| spawn_failed("observed detached result requires the original persistent VM owner"))?
         };
-        if let Some(memory_mib) = committed_memory_to_release {
-            self.release_committed_memory_mib(memory_mib);
-        }
-        if let Ok(mut locks) = self.persistent_exec_locks.lock() {
-            locks.remove(&handle.id);
-        }
-        if let Ok(mut bridges) = self.warm_agent_bridges.lock() {
-            bridges.remove(&handle.id);
-        }
-        Ok(())
+        self.kill_persistent_observed(handle, &vm).await.map(Some)
+    }
+
+    async fn cleanup_terminal(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<(), SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        let persistent = self
+            .handles
+            .lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
+            .get(&handle.id)
+            .and_then(|state| state.persistent.clone());
+        let Some(vm) = persistent else {
+            return Err(unavailable(
+                "ephemeral execution ownership is not adopted; per-exec status cannot prove handle cleanup",
+            ));
+        };
+        let retained = self
+            .persistent_children
+            .lock()
+            .await
+            .get(&handle.id)
+            .cloned();
+        let Some(retained) = retained else {
+            return if self.persistent_cleanup_complete(handle)? {
+                Ok(())
+            } else {
+                Err(spawn_failed(
+                    "terminal cleanup lacks the retained persistent child; custody unresolved",
+                ))
+            };
+        };
+        let mut child = retained.lock().await;
+        self.cleanup_persistent_terminal(handle, &vm, &retained, &mut child.child).await
     }
 
     async fn cleanup_after_restart(
@@ -1874,6 +2097,50 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         } else {
             RestartCleanupOutcome::Terminated
         })
+    }
+
+    async fn detached_status(
+        &self, identity: &crate::sandbox::DetachedProcessIdentity,
+    ) -> Result<ProcessStatus, SandboxAdapterError> {
+        let handle = &identity.handle;
+        let handles = self.handles.lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+        let state = handles.get(&handle.id).ok_or_else(|| unavailable(
+            "detached status requires the original in-memory persistent VM owner",
+        ))?;
+        if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID)
+            || state.persistent.is_none()
+            || state.original_persistent_handle.as_ref() != Some(handle) {
+            return Err(unavailable(
+                "detached status requires the exact original persistent handle; ephemeral execution ownership is not adopted",
+            ));
+        }
+        Ok(state.status.clone())
+    }
+
+    fn cached_settled_detached_terminal(
+        &self,
+        identity: &crate::sandbox::DetachedProcessIdentity,
+    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
+        let handle = &identity.handle;
+        if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
+            return Ok(None);
+        }
+        let handles = self.handles.lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+        let Some(state) = handles.get(&handle.id) else {
+            return Ok(None);
+        };
+        if state.original_persistent_handle.as_ref() != Some(handle)
+            || state.persistent.is_none() || !state.killed || state.committed_memory_mib != 0
+        {
+            return Ok(None);
+        }
+        match &state.status {
+            ProcessStatus::Exited { code } if state.exit_code == Some(*code) => Ok(Some(state.status.clone())),
+            ProcessStatus::Killed { .. } if state.exit_code.is_none() => Ok(Some(state.status.clone())),
+            _ => Ok(None),
+        }
     }
 
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
@@ -2317,6 +2584,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // live CH child without a reachable `handles` entry on a poisoned lock.
         let mut state = HandleState::default();
         state.persistent = Some(vm);
+        state.original_persistent_handle = Some(handle.clone());
         // Record the source snapshot so the clone-safety gate refuses a second
         // concurrent restore of the same snapshot; kill() flags this handle
         // `killed`, which releases the snapshot for a subsequent sequential restore.
@@ -2329,7 +2597,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         self.persistent_children
             .lock()
             .await
-            .insert(handle.id, child);
+            .insert(handle.id, Arc::new(tokio::sync::Mutex::new(PersistentChildOwner::new(child))));
         memory_reservation.disarm();
 
         Ok(handle)
@@ -2388,13 +2656,27 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 "Cloud Hypervisor warm-agent transport requires a persistent VM handle booted or restored with hsk.warm_agent",
             ));
         };
+        let (serial_lock, bridge) = {
+            let handles = self.handles.lock()
+                .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+            let state = handles.get(&handle.id).ok_or_else(||
+                spawn_failed("original persistent warm transport owner is unavailable")
+            )?;
+            if state.killed || !matches!(state.status, ProcessStatus::Running)
+                || state.original_persistent_handle.as_ref() != Some(handle) {
+                return Err(unavailable("persistent warm transport owner is not the original running VM"));
+            }
+            // Synchronous registration is fenced by the same Running guard
+            // that terminal cleanup changes before it closes/removes slots.
+            (self.persistent_exec_lock_for(handle.id)?, self.warm_agent_bridge_for(handle.id)?)
+        };
         Ok(Arc::new(CloudHypervisorSerialWarmAgentTransport {
             config: self.config.clone(),
             agent_socket: vm.agent_socket,
             vm_root: vm.vm_root,
             handle_id: handle.id,
-            serial_lock: self.persistent_exec_lock_for(handle.id)?,
-            bridge: self.warm_agent_bridge_for(handle.id)?,
+            serial_lock,
+            bridge,
         }))
     }
 
@@ -3324,35 +3606,14 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
                 self.handle_id
             ))
                 })?;
-        let mut bridge_guard = self.bridge.lock().await;
-        if bridge_guard.closing {
-            return Err(WarmVmTransportError::Transport(
-                "persistent warm-agent bridge is shutting down".to_string(),
-            ));
-        }
-        if bridge_guard
-            .bridge
-            .as_mut()
-            .is_some_and(PersistentWarmSerialBridge::has_exited)
-        {
-            bridge_guard.bridge = None;
-        }
-        if bridge_guard.bridge.is_none() {
-            bridge_guard.bridge = Some(
-                spawn_persistent_warm_serial_bridge(
-                    &self.config,
-                    &self.agent_socket,
-                    self.handle_id,
-                )
-                .await?,
-            );
-        }
-        let mut bridge = bridge_guard.bridge.take().ok_or_else(|| {
-            WarmVmTransportError::Transport("persistent warm-agent bridge missing".to_string())
-        })?;
-        drop(bridge_guard);
+        let owner = acquire_warm_bridge(
+            &self.bridge, &self.config, &self.agent_socket, self.handle_id,
+        ).await?;
+        let mut bridge = tokio::time::timeout(Duration::from_millis(timeout_ms), owner.lock()).await
+            .map_err(|_| WarmVmTransportError::Transport("persistent warm bridge remains owned".into()))?;
+        bridge.in_use = true;
         if let Err(error) = bridge.send_frame(Bytes::from(encoded)).await {
-            let _ = bridge.kill_and_stderr().await;
+            bridge.kill_and_stderr().await?;
             return Err(error);
         }
         let deadline = Instant::now() + Duration::from_millis(timeout_ms);
@@ -3364,14 +3625,14 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
                 if let Ok(frame) = encode_warm_agent_frame(&cancel) {
                     let _ = bridge.send_frame(Bytes::from(frame)).await;
                 }
-                let _ = bridge.kill_and_stderr().await;
+                bridge.kill_and_stderr().await?;
                 return Err(WarmVmTransportError::Transport(
                     "persistent warm-agent bridge is shutting down".to_string(),
                 ));
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
-                let stderr_text = bridge.kill_and_stderr().await;
+                let stderr_text = bridge.kill_and_stderr().await?;
                 return Err(WarmVmTransportError::Transport(format!(
                     "timed out waiting for persistent warm-agent load response for {request_id}{}",
                     warm_bridge_stderr_suffix(&stderr_text)
@@ -3385,14 +3646,14 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
             {
                 Ok(Ok(Some(line))) => line,
                 Ok(Ok(None)) => {
-                    let stderr_text = bridge.kill_and_stderr().await;
+                    let stderr_text = bridge.kill_and_stderr().await?;
                     return Err(WarmVmTransportError::Transport(format!(
                         "persistent warm-agent bridge closed before load response for {request_id}{}",
                         warm_bridge_stderr_suffix(&stderr_text)
                     )));
                 }
                 Ok(Err(error)) => {
-                    let _ = bridge.kill_and_stderr().await;
+                    bridge.kill_and_stderr().await?;
                     return Err(error);
                 }
                 Err(_) => continue,
@@ -3400,7 +3661,7 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
             let frame = match decode_first_warm_frame(&line) {
                 Ok(frame) => frame,
                 Err(error) => {
-                    let stderr_text = bridge.kill_and_stderr().await;
+                    let stderr_text = bridge.kill_and_stderr().await?;
                     return Err(WarmVmTransportError::Transport(format!(
                         "persistent warm-agent bridge protocol decode failed for load request {request_id}: {error}{}",
                         warm_bridge_stderr_suffix(&stderr_text)
@@ -3409,15 +3670,13 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
             };
             match &frame {
                 WarmAgentGuestFrame::Ready { .. } | WarmAgentGuestFrame::Error { .. } => {
-                    let mut bridge_guard = self.bridge.lock().await;
-                    if bridge_guard.closing {
-                        drop(bridge_guard);
-                        let _ = bridge.kill_and_stderr().await;
+                    if self.bridge.lock().await.closing {
+                        bridge.kill_and_stderr().await?;
                         return Err(WarmVmTransportError::Transport(
                             "persistent warm-agent bridge is shutting down".to_string(),
                         ));
                     }
-                    bridge_guard.bridge = Some(bridge);
+                    bridge.in_use = false;
                     return Ok(frame);
                 }
                 _ => continue,
@@ -3459,10 +3718,14 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
     }
 
     async fn cancel(&self, request_id: &str) -> Result<(), WarmVmTransportError> {
+        if self.bridge.lock().await.closing {
+            return Err(WarmVmTransportError::Transport(
+                "persistent warm-agent bridge is shutting down".into(),
+            ));
+        }
         let cancel_path = warm_agent_cancel_path(&self.vm_root, request_id);
         let script = format!(
-            "mkdir -p {root}; : > {path}",
-            root = sh_quote_wsl(&self.vm_root),
+            ": > {path}",
             path = sh_quote_wsl(&cancel_path)
         );
         let output = run_wsl_sh(&self.config, &script, PROBE_TIMEOUT_MS)
@@ -3479,31 +3742,15 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
     }
 
     async fn shutdown(&self) -> Result<(), WarmVmTransportError> {
-        let mut bridge_guard = self.bridge.lock().await;
-        bridge_guard.closing = true;
-        let idle_bridge = bridge_guard.bridge.take();
-        drop(bridge_guard);
-        if let Some(mut bridge) = idle_bridge {
-            let _ = bridge.kill_and_stderr().await;
-        }
+        self.bridge.lock().await.closing = true;
         let _serial_guard = tokio::time::timeout(
-            Duration::from_millis(self.config.command_timeout_ms()),
-            self.serial_lock.lock(),
-        )
-        .await
-        .map_err(|_| {
-            WarmVmTransportError::Transport(format!(
-                "timed out waiting for warm-agent serial channel shutdown for handle {}",
-                self.handle_id
-            ))
-        })?;
-        let mut bridge_guard = self.bridge.lock().await;
-        if let Some(mut bridge) = bridge_guard.bridge.take() {
-            drop(bridge_guard);
-            let _ = bridge.kill_and_stderr().await;
-        }
-        Ok(())
+            Duration::from_millis(self.config.command_timeout_ms()), self.serial_lock.lock(),
+        ).await.map_err(|_| WarmVmTransportError::Transport(format!(
+            "timed out waiting for warm-agent serial channel shutdown for handle {}", self.handle_id,
+        )))?;
+        settle_warm_bridge_slot(&self.bridge, self.config.command_timeout_ms()).await
     }
+
 }
 
 struct WarmSerialStreamTask {
@@ -3545,48 +3792,40 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
             return;
         }
     };
-    let mut bridge_guard = task.bridge.lock().await;
-    if bridge_guard.closing {
-        let _ = task.sender.send(Err(WarmVmTransportError::Transport(
-            "persistent warm-agent bridge is shutting down".to_string(),
-        )));
-        return;
-    }
-    if bridge_guard
-        .bridge
-        .as_mut()
-        .is_some_and(PersistentWarmSerialBridge::has_exited)
-    {
-        bridge_guard.bridge = None;
-    }
-    if bridge_guard.bridge.is_none() {
-        match spawn_persistent_warm_serial_bridge(&task.config, &task.agent_socket, task.handle_id)
-            .await
-        {
-            Ok(bridge) => bridge_guard.bridge = Some(bridge),
-            Err(error) => {
-                let _ = task.sender.send(Err(error));
-                return;
-            }
-        }
-    }
-    let Some(mut bridge) = bridge_guard.bridge.take() else {
-        let _ = task.sender.send(Err(WarmVmTransportError::Transport(
-            "persistent warm-agent bridge missing".to_string(),
-        )));
-        return;
+    let owner = match acquire_warm_bridge(
+        &task.bridge, &task.config, &task.agent_socket, task.handle_id,
+    ).await {
+        Ok(owner) => owner,
+        Err(error) => { let _ = task.sender.send(Err(error)); return; }
     };
-    drop(bridge_guard);
+    let mut bridge = match tokio::time::timeout(
+        Duration::from_millis(task.timeout_ms), owner.lock(),
+    ).await {
+        Ok(bridge) => bridge,
+        Err(_) => {
+            let _ = task.sender.send(Err(WarmVmTransportError::Transport(
+                "persistent warm bridge remains owned".into(),
+            )));
+            return;
+        }
+    };
+    bridge.in_use = true;
     if let Err(error) = bridge
         .set_cancel_path(&task.request_id, &task.cancel_path)
         .await
     {
-        let _ = bridge.kill_and_stderr().await;
+        if let Err(error) = bridge.kill_and_stderr().await {
+            let _ = task.sender.send(Err(error));
+            return;
+        }
         let _ = task.sender.send(Err(error));
         return;
     }
     if let Err(error) = bridge.send_frame(task.payload).await {
-        let _ = bridge.kill_and_stderr().await;
+        if let Err(error) = bridge.kill_and_stderr().await {
+            let _ = task.sender.send(Err(error));
+            return;
+        }
         let _ = task.sender.send(Err(error));
         return;
     }
@@ -3600,7 +3839,10 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
             if let Ok(frame) = encode_warm_agent_frame(&cancel) {
                 let _ = bridge.send_frame(Bytes::from(frame)).await;
             }
-            let _ = bridge.kill_and_stderr().await;
+            if let Err(error) = bridge.kill_and_stderr().await {
+                let _ = task.sender.send(Err(error));
+                return;
+            }
             let _ = task.sender.send(Err(WarmVmTransportError::Transport(
                 "persistent warm-agent bridge is shutting down".to_string(),
             )));
@@ -3613,12 +3855,18 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
             if let Ok(frame) = encode_warm_agent_frame(&cancel) {
                 let _ = bridge.send_frame(Bytes::from(frame)).await;
             }
-            let _ = bridge.kill_and_stderr().await;
+            if let Err(error) = bridge.kill_and_stderr().await {
+                let _ = task.sender.send(Err(error));
+                return;
+            }
             return;
         }
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            let stderr_text = bridge.kill_and_stderr().await;
+            let stderr_text = match bridge.kill_and_stderr().await {
+                Ok(text) => text,
+                Err(error) => { let _ = task.sender.send(Err(error)); return; }
+            };
             let _ = task
                 .sender
                 .send(Err(WarmVmTransportError::Transport(format!(
@@ -3636,7 +3884,10 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
         {
             Ok(Ok(Some(line))) => line,
             Ok(Ok(None)) => {
-                let stderr_text = bridge.kill_and_stderr().await;
+                let stderr_text = match bridge.kill_and_stderr().await {
+                    Ok(text) => text,
+                    Err(error) => { let _ = task.sender.send(Err(error)); return; }
+                };
                 let close_stage = if saw_guest_frame {
                     "terminal response"
                 } else {
@@ -3652,7 +3903,10 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
                 return;
             }
             Ok(Err(error)) => {
-                let _ = bridge.kill_and_stderr().await;
+                if let Err(error) = bridge.kill_and_stderr().await {
+                    let _ = task.sender.send(Err(error));
+                    return;
+                }
                 let _ = task.sender.send(Err(error));
                 return;
             }
@@ -3664,22 +3918,28 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
                 let terminal = matches!(frame, WarmAgentGuestFrame::Complete { .. })
                     || matches!(frame, WarmAgentGuestFrame::Error { .. });
                 if task.sender.send(Ok(frame)).is_err() {
-                    let _ = bridge.kill_and_stderr().await;
+                    if let Err(error) = bridge.kill_and_stderr().await {
+                        let _ = task.sender.send(Err(error));
+                        return;
+                    }
                     return;
                 }
                 if terminal {
-                    let mut bridge_guard = task.bridge.lock().await;
-                    if bridge_guard.closing {
-                        drop(bridge_guard);
-                        let _ = bridge.kill_and_stderr().await;
+                    if task.bridge.lock().await.closing {
+                        if let Err(error) = bridge.kill_and_stderr().await {
+                            let _ = task.sender.send(Err(error));
+                        }
                         return;
                     }
-                    bridge_guard.bridge = Some(bridge);
+                    bridge.in_use = false;
                     return;
                 }
             }
             Err(error) => {
-                let stderr_text = bridge.kill_and_stderr().await;
+                let stderr_text = match bridge.kill_and_stderr().await {
+                    Ok(text) => text,
+                    Err(error) => { let _ = task.sender.send(Err(error)); return; }
+                };
                 let _ = task
                     .sender
                     .send(Err(WarmVmTransportError::Transport(format!(
@@ -3900,24 +4160,29 @@ os._exit(0)
 "#;
 
 struct PersistentWarmSerialBridge {
+    owner_id: Uuid,
+    in_use: bool,
+    termination: PersistentTermination,
+    stderr_result: Option<String>,
+    stderr_error: Option<String>,
     child: Child,
-    stdin: ChildStdin,
-    stdout: Lines<BufReader<ChildStdout>>,
-    stderr_task: Option<tokio::task::JoinHandle<String>>,
+    setup_error: Option<String>,
+    stdin: Option<ChildStdin>,
+    stdout: Option<Lines<BufReader<ChildStdout>>>,
+    stderr_task: Option<tokio::task::JoinHandle<Result<String, std::io::Error>>>,
 }
 
 impl PersistentWarmSerialBridge {
-    fn has_exited(&mut self) -> bool {
-        self.child.try_wait().ok().flatten().is_some()
-    }
-
     async fn set_cancel_path(
         &mut self,
         request_id: &str,
         cancel_path: &str,
     ) -> Result<(), WarmVmTransportError> {
         let payload = encode_persistent_bridge_cancel_control(request_id, cancel_path)?;
-        self.stdin
+        let stdin = self.stdin.as_mut().ok_or_else(|| WarmVmTransportError::Transport(
+            "persistent warm bridge stdin setup is unresolved".into(),
+        ))?;
+        stdin
             .write_all(payload.as_bytes())
             .await
             .map_err(|error| {
@@ -3925,7 +4190,7 @@ impl PersistentWarmSerialBridge {
                     "persistent warm-agent bridge cancel-control write failed: {error}"
                 ))
             })?;
-        self.stdin.flush().await.map_err(|error| {
+        stdin.flush().await.map_err(|error| {
             WarmVmTransportError::Transport(format!(
                 "persistent warm-agent bridge cancel-control flush failed: {error}"
             ))
@@ -3933,12 +4198,15 @@ impl PersistentWarmSerialBridge {
     }
 
     async fn send_frame(&mut self, payload: Bytes) -> Result<(), WarmVmTransportError> {
-        self.stdin.write_all(&payload).await.map_err(|error| {
+        let stdin = self.stdin.as_mut().ok_or_else(|| WarmVmTransportError::Transport(
+            "persistent warm bridge stdin setup is unresolved".into(),
+        ))?;
+        stdin.write_all(&payload).await.map_err(|error| {
             WarmVmTransportError::Transport(format!(
                 "persistent warm-agent bridge stdin write failed: {error}"
             ))
         })?;
-        self.stdin.flush().await.map_err(|error| {
+        stdin.flush().await.map_err(|error| {
             WarmVmTransportError::Transport(format!(
                 "persistent warm-agent bridge stdin flush failed: {error}"
             ))
@@ -3946,33 +4214,64 @@ impl PersistentWarmSerialBridge {
     }
 
     async fn next_line(&mut self) -> Result<Option<String>, WarmVmTransportError> {
-        self.stdout.next_line().await.map_err(|error| {
+        self.stdout.as_mut().ok_or_else(|| WarmVmTransportError::Transport(
+            "persistent warm bridge stdout setup is unresolved".into(),
+        ))?.next_line().await.map_err(|error| {
             WarmVmTransportError::Transport(format!(
                 "persistent warm-agent bridge stdout read failed: {error}"
             ))
         })
     }
 
-    async fn kill_and_stderr(&mut self) -> String {
-        let _ = self.child.start_kill();
-        let _ =
-            tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), self.child.wait()).await;
-        let Some(task) = self.stderr_task.take() else {
-            return String::new();
-        };
-        tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), task)
-            .await
-            .ok()
-            .and_then(Result::ok)
-            .unwrap_or_default()
-            .trim()
-            .to_string()
-    }
-}
-
-impl Drop for PersistentWarmSerialBridge {
-    fn drop(&mut self) {
-        let _ = self.child.start_kill();
+    async fn kill_and_stderr(&mut self) -> Result<String, WarmVmTransportError> {
+        let transport = |reason| WarmVmTransportError::Transport(reason);
+        if let Some(error) = &self.stderr_error {
+            return Err(transport(error.clone()));
+        }
+        if self.child.try_wait().map_err(|error|
+            transport(format!("persistent bridge exit observation failed: {error}"))
+        )?.is_none() {
+            if matches!(self.termination, PersistentTermination::NotAttempted) {
+                self.termination = PersistentTermination::Attempted;
+                match self.child.start_kill() {
+                    Ok(()) => self.termination = PersistentTermination::Acknowledged,
+                    Err(error) => {
+                        self.termination = PersistentTermination::Uncertain(error.to_string());
+                        return Err(transport(format!("persistent bridge kill request failed: {error}")));
+                    }
+                }
+            }
+            tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), self.child.wait()).await
+                .map_err(|_| transport("persistent bridge exit remains pending; custody retained".into()))?
+                .map_err(|error| transport(format!("persistent bridge wait failed: {error}")))?;
+        }
+        if self.stderr_result.is_none() {
+            let task = self.stderr_task.as_mut().ok_or_else(||
+                transport("persistent bridge stderr owner is unavailable".into())
+            )?;
+            match tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), task).await {
+                Ok(Ok(Ok(text))) => {
+                    self.stderr_result = Some(text.trim().to_string());
+                    self.stderr_task.take();
+                }
+                Ok(Ok(Err(error))) => {
+                    let reason = format!("persistent bridge stderr read failed: {error}");
+                    self.stderr_error = Some(reason.clone());
+                    self.stderr_task.take();
+                    return Err(transport(reason));
+                }
+                Ok(Err(error)) => {
+                    let reason = format!("persistent bridge stderr task failed: {error}");
+                    self.stderr_error = Some(reason.clone());
+                    self.stderr_task.take();
+                    return Err(transport(reason));
+                }
+                Err(_) => return Err(transport("persistent bridge stderr settlement remains pending".into())),
+            }
+        }
+        RETAINED_WARM_BRIDGES.get_or_init(Default::default).lock()
+            .unwrap_or_else(|error| error.into_inner()).remove(&self.owner_id);
+        Ok(self.stderr_result.clone().expect("observed stderr settlement"))
     }
 }
 
@@ -4000,20 +4299,17 @@ fn encode_persistent_bridge_cancel_control(
     Ok(frame)
 }
 
-async fn read_bounded_text_tail<R>(reader: &mut R, max_bytes: usize) -> String
+async fn read_bounded_text_tail<R>(reader: &mut R, max_bytes: usize) -> Result<String, std::io::Error>
 where
     R: tokio::io::AsyncRead + Unpin,
 {
-    if max_bytes == 0 {
-        return String::new();
-    }
     let mut tail = Vec::new();
     let mut buf = [0_u8; 4096];
     loop {
         let read = match reader.read(&mut buf).await {
             Ok(0) => break,
             Ok(read) => read,
-            Err(_) => break,
+            Err(error) => return Err(error),
         };
         tail.extend_from_slice(&buf[..read]);
         if tail.len() > max_bytes {
@@ -4021,7 +4317,7 @@ where
             tail.drain(..excess);
         }
     }
-    String::from_utf8_lossy(&tail).into_owned()
+    Ok(String::from_utf8_lossy(&tail).into_owned())
 }
 
 async fn spawn_persistent_warm_serial_bridge(
@@ -4054,21 +4350,30 @@ async fn spawn_persistent_warm_serial_bridge(
             config.wsl_exe().to_string_lossy()
         ))
     })?;
-    let stdin = child.stdin.take().ok_or_else(|| {
-        WarmVmTransportError::Transport("persistent warm-agent bridge stdin missing".to_string())
-    })?;
-    let stdout = child.stdout.take().ok_or_else(|| {
-        WarmVmTransportError::Transport("persistent warm-agent bridge stdout missing".to_string())
-    })?;
+    let stdin = child.stdin.take();
+    let stdout = child.stdout.take().map(|stdout| BufReader::new(stdout).lines());
+    let setup_error = if stdin.is_none() {
+        Some("persistent warm-agent bridge stdin missing; original child retained".to_string())
+    } else if stdout.is_none() {
+        Some("persistent warm-agent bridge stdout missing; original child retained".to_string())
+    } else if child.stderr.is_none() {
+        Some("persistent warm-agent bridge stderr missing; original child retained".to_string())
+    } else { None };
     let stderr_task = child.stderr.take().map(|mut stderr| {
         tokio::spawn(async move {
             read_bounded_text_tail(&mut stderr, WARM_AGENT_BRIDGE_STDERR_TAIL_BYTES).await
         })
     });
     Ok(PersistentWarmSerialBridge {
+        owner_id: Uuid::now_v7(),
+        in_use: false,
+        termination: PersistentTermination::NotAttempted,
+        stderr_result: None,
+        stderr_error: None,
         child,
+        setup_error,
         stdin,
-        stdout: BufReader::new(stdout).lines(),
+        stdout,
         stderr_task,
     })
 }
@@ -4857,7 +5162,7 @@ done
     }
 
     #[tokio::test]
-    async fn kill_releases_persistent_committed_memory_reservation() {
+    async fn unobserved_logical_handle_does_not_release_committed_memory_reservation() {
         let mut adapter = CloudHypervisorAdapter::new_for_test();
         adapter.config = adapter
             .config
@@ -4881,15 +5186,20 @@ done
         state.committed_memory_mib = 512;
         adapter.handles.lock().unwrap().insert(handle.id, state);
 
-        adapter
-            .kill(&handle, Signal::Term)
-            .await
-            .expect("kill releases reservation");
-        assert_eq!(adapter.committed_memory_used_mib_for_test(), 0);
-
-        adapter
-            .reserve_committed_memory_mib(512)
-            .expect("released budget is reusable");
+        assert!(matches!(
+            adapter.kill(&handle, Signal::Term).await,
+            Err(SandboxAdapterError::AdapterUnavailable { .. })
+        ));
+        assert_eq!(adapter.committed_memory_used_mib_for_test(), 512);
+        assert!(adapter.reserve_committed_memory_mib(1).is_err());
+        {
+            let handles = adapter.handles.lock().unwrap();
+            let state = handles.get(&handle.id).unwrap();
+            assert!(!state.killed);
+            assert!(matches!(state.status, ProcessStatus::Running));
+        }
+        // Owning fixture teardown only; this is not a terminal receipt.
+        adapter.release_committed_memory_mib(512);
     }
 
     #[test]
@@ -6131,6 +6441,7 @@ done
             "hsk-ch-persistent-warm-command-handle",
         );
         let mut state = HandleState::default();
+        state.original_persistent_handle = Some(handle.clone());
         state.persistent = Some(PersistentVm {
             api_socket: "/work/persistent-test/api.sock".to_string(),
             agent_socket: "/work/persistent-test/agent.sock".to_string(),
@@ -6156,6 +6467,7 @@ done
             "hsk-ch-restored-warm-no-env",
         );
         let mut state = HandleState::default();
+        state.original_persistent_handle = Some(handle.clone());
         state.restored_from = Some("/work/snap-warm".to_string());
         state.persistent = Some(PersistentVm {
             api_socket: "/work/restored/ch.sock".to_string(),
@@ -6463,3 +6775,74 @@ done
         assert_eq!(config.balloon().size_mib(), None);
     }
 }
+
+
+type RetainedWarmBridge = Arc<tokio::sync::Mutex<PersistentWarmSerialBridge>>;
+static RETAINED_WARM_BRIDGES: OnceLock<Mutex<HashMap<Uuid, RetainedWarmBridge>>> = OnceLock::new();
+
+async fn settle_warm_bridge_slot(
+    slot: &WarmAgentBridgeSlot, timeout_ms: u64,
+) -> Result<(), WarmVmTransportError> {
+    let owner = slot.lock().await.bridge.clone();
+    let Some(owner) = owner else { return Ok(()); };
+    let mut bridge = tokio::time::timeout(Duration::from_millis(timeout_ms), owner.lock()).await
+        .map_err(|_| WarmVmTransportError::Transport("original warm bridge remains in use; custody retained".into()))?;
+    bridge.kill_and_stderr().await?;
+    drop(bridge);
+    let mut state = slot.lock().await;
+    if state.bridge.as_ref().is_some_and(|current| Arc::ptr_eq(current, &owner)) {
+        state.bridge = None;
+    }
+    Ok(())
+}
+
+async fn acquire_warm_bridge(
+    slot: &WarmAgentBridgeSlot, config: &CloudHypervisorConfig,
+    agent_socket: &str, handle_id: Uuid,
+) -> Result<RetainedWarmBridge, WarmVmTransportError> {
+    let existing = {
+        let state = slot.lock().await;
+        if state.closing {
+            return Err(WarmVmTransportError::Transport("persistent warm-agent bridge is shutting down".into()));
+        }
+        state.bridge.clone()
+    };
+    if let Some(owner) = existing {
+        let mut bridge = tokio::time::timeout(
+            Duration::from_millis(config.command_timeout_ms()), owner.lock(),
+        ).await.map_err(|_| WarmVmTransportError::Transport("original warm bridge is still owned".into()))?;
+        if let Some(error) = &bridge.setup_error {
+            return Err(WarmVmTransportError::Transport(error.clone()));
+        }
+        let exited = bridge.child.try_wait().map_err(|error|
+            WarmVmTransportError::Transport(format!("persistent warm bridge exit observation failed: {error}"))
+        )?.is_some();
+        if !exited && !bridge.in_use && matches!(bridge.termination, PersistentTermination::NotAttempted) {
+            drop(bridge);
+            return Ok(owner);
+        }
+        bridge.kill_and_stderr().await?;
+        drop(bridge);
+        let mut state = slot.lock().await;
+        if state.bridge.as_ref().is_some_and(|current| Arc::ptr_eq(current, &owner)) {
+            state.bridge = None;
+        }
+    }
+    let mut state = slot.lock().await;
+    if state.closing {
+        return Err(WarmVmTransportError::Transport("persistent warm-agent bridge is shutting down".into()));
+    }
+    if let Some(owner) = &state.bridge { return Ok(Arc::clone(owner)); }
+    let bridge = spawn_persistent_warm_serial_bridge(config, agent_socket, handle_id).await?;
+    let id = bridge.owner_id;
+    let setup_error = bridge.setup_error.clone();
+    let owner = Arc::new(tokio::sync::Mutex::new(bridge));
+    RETAINED_WARM_BRIDGES.get_or_init(Default::default).lock()
+        .unwrap_or_else(|error| error.into_inner()).insert(id, Arc::clone(&owner));
+    state.bridge = Some(Arc::clone(&owner));
+    if let Some(error) = setup_error {
+        return Err(WarmVmTransportError::Transport(error));
+    }
+    Ok(owner)
+}
+

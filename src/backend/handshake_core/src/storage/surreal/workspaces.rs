@@ -946,6 +946,73 @@ async fn observe_first_owner_workspace_receipt_query<R: surrealdb::types::Surrea
     })
 }
 
+#[cfg(test)]
+fn report_first_owner_workspace_receipt_cardinality(branch: &'static str, rows: usize) {
+    let reason = if rows == 0 { "empty" } else { "multiple" };
+    eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch={branch} check=row_cardinality reason={reason}");
+}
+
+#[cfg(test)]
+fn report_first_owner_workspace_receipt_read_probe<T>(
+    check: &'static str,
+    result: &Result<Vec<T>, SurrealStorageError>,
+) {
+    let reason = match result {
+        Ok(rows) => match rows.as_slice() {
+            [] => "empty",
+            [_] => "one",
+            _ => "multiple",
+        },
+        Err(SurrealStorageError::Database(error)) => {
+            let kind = first_owner_workspace_claim_error_kind(error);
+            eprintln!(
+                "HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check={check} reason=error kind={kind}"
+            );
+            return;
+        }
+        Err(_) => "storage_error",
+    };
+    eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check={check} reason={reason}");
+}
+
+#[cfg(test)]
+fn report_first_owner_workspace_original_mismatch(
+    actual: &surrealdb::types::Object,
+    expected: &surrealdb::types::Value,
+) {
+    use surrealdb::types::Value;
+
+    let Value::Object(expected) = expected else {
+        eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check=original_payload reason=expected_non_object");
+        return;
+    };
+    eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check=original_payload reason=raw_mismatch");
+    // Emit only fixed schema names and comparison classes, never observed keys or values.
+    for field in [
+        "account_session", "account", "principal", "space", "workspace", "external",
+        "name", "actor", "edit", "resource", "fr", "workspace_grant", "fr_grant",
+        "capabilities", "memory_surfaces", "operation_id", "channel_hash", "deadline",
+        "first_owner_workspace_receipt_read",
+    ] {
+        let reason = match (actual.get(field), expected.get(field)) {
+            (None, Some(_)) => "missing",
+            (Some(_), None) => "unexpected",
+            (Some(actual), Some(expected)) if actual != expected => {
+                if std::mem::discriminant(actual) != std::mem::discriminant(expected) {
+                    "type"
+                } else {
+                    "value"
+                }
+            }
+            _ => continue,
+        };
+        eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check=original_field field={field} reason={reason}");
+    }
+    if actual.keys().any(|key| !expected.contains_key(key)) {
+        eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check=original_payload reason=extra_keys");
+    }
+}
+
 pub(super) struct FirstOwnerWorkspaceFailure {
     phase: &'static str,
     error: ResourceAuthorityError,
@@ -1227,13 +1294,23 @@ impl SurrealStorage {
                         "unclaimed" if origin.first_workspace_original.is_none() => first_claim = true,
                         "created" => {
                             let stored = decode_workspace_original(origin.first_workspace_original.as_ref()
-                                .ok_or_else(|| FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt))?)
-                                .map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
+                                .ok_or_else(|| {
+                                    #[cfg(test)]
+                                    eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=prior_created check=stored_original reason=missing");
+                                    FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt)
+                                })?)
+                                .map_err(|error| {
+                                    #[cfg(test)]
+                                    eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=prior_created check=stored_original reason=rejected");
+                                    FirstOwnerWorkspaceFailure::at(transaction_receipt)(error)
+                                })?;
                             let prior = read_first_owner_workspace_transaction_receipt(
                                 &tx, stored.receipt_read(),
                                 #[cfg(test)] "prior_created",
                             ).await.map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
                             if prior.len() != 1 {
+                                #[cfg(test)]
+                                report_first_owner_workspace_receipt_cardinality("prior_created", prior.len());
                                 return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
                             }
                         }
@@ -1290,14 +1367,35 @@ impl SurrealStorage {
                         #[cfg(test)] "first_claim",
                     ).await.map_err(FirstOwnerWorkspaceFailure::at(transaction_receipt))?;
                     let [receipt] = receipts.as_slice() else {
+                        #[cfg(test)]
+                        report_first_owner_workspace_receipt_cardinality("first_claim", receipts.len());
+                        #[cfg(test)]
+                        if receipts.is_empty() {
+                            let actor_receipt = read_first_owner_workspace_transaction_receipt(
+                                &tx, write.clone(), "first_claim_actor_only",
+                            ).await;
+                            report_first_owner_workspace_receipt_read_probe("actor_receipt", &actor_receipt);
+                            if matches!(&actor_receipt, Ok(rows) if rows.is_empty()) {
+                                let origin_state: Result<Vec<FirstOwnerWorkspaceOriginState>, SurrealStorageError> =
+                                    tx.query_values_at(FIRST_OWNER_WORKSPACE_ORIGIN_STATE, write.clone(), 0).await;
+                                report_first_owner_workspace_receipt_read_probe("origin_state", &origin_state);
+                            }
+                        }
                         return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
                     };
-                    if receipt.first_workspace_original.clone().into_value() != write.clone().into_value() {
+                    let expected_original = write.clone().into_value();
+                    if receipt.first_workspace_original.clone().into_value() != expected_original {
+                        #[cfg(test)]
+                        report_first_owner_workspace_original_mismatch(&receipt.first_workspace_original, &expected_original);
                         return Err(FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt));
                     }
                     Some(receipt.clone())
                 } else { None };
-                captured.expected.set(expected).map_err(|_| FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt))?;
+                captured.expected.set(expected).map_err(|_| {
+                    #[cfg(test)]
+                    eprintln!("HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=transaction check=expected_slot reason=already_set");
+                    FirstOwnerWorkspaceFailure::invalid_input(transaction_receipt)
+                })?;
                 Ok(())
             }),
         ).await?;

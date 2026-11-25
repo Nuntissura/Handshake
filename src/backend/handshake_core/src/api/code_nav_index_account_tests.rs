@@ -1,10 +1,11 @@
 //! Mounted production indexing, source-scoped navigation and owned cleanup.
 #![cfg(all(feature = "duckdb-flight-recorder", feature = "os-keychain"))]
 
-use std::sync::Arc;
-use axum::{body::{to_bytes, Body}, http::{HeaderMap, Request, StatusCode}, Router};
+use std::{panic::AssertUnwindSafe, sync::Arc};
+use axum::{body::{to_bytes, Body}, http::{HeaderMap, HeaderValue, Request, StatusCode}, response::Response, Router};
+use futures::FutureExt;
 use serde_json::{json, Value};
-use surrealdb::types::SurrealValue;
+use surrealdb::types::{RecordId, SurrealValue};
 use crate::storage::knowledge::{KnowledgeEdgeType, KnowledgeStore};
 use crate::api::MountedRequestExt;
 use crate::AppState;
@@ -35,12 +36,17 @@ impl Drop for Binding {
 }
 
 async fn request(router: &Router, method: &str, uri: &str, headers: &HeaderMap, body: Value) -> (StatusCode, Value) {
-    let mut request = Request::builder().method(method).uri(uri).header("content-type", "application/json");
-    for (name, value) in headers { request = request.header(name, value); }
-    let response = router.clone().oneshot(request.body(Body::from(serde_json::to_vec(&body).unwrap())).unwrap()).await.unwrap();
+    let response = mounted_response(router, method, uri, headers, body).await;
     let status = response.status();
     let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024).await.unwrap();
     (status, if bytes.is_empty() { Value::Null } else { serde_json::from_slice(&bytes).unwrap() })
+}
+
+async fn mounted_response(router: &Router, method: &str, uri: &str, headers: &HeaderMap, body: Value) -> Response {
+    let mut request = Request::builder().method(method).uri(uri).header("content-type", "application/json");
+    for (name, value) in headers { request = request.header(name, value); }
+
+    router.clone().oneshot(request.body(Body::from(serde_json::to_vec(&body).unwrap())).unwrap()).await.unwrap()
 }
 
 struct MountedIndexAccountFixture {
@@ -60,6 +66,14 @@ async fn mounted_index_account_fixture(compute_only: bool) -> MountedIndexAccoun
         crate::storage::tests::embedded_test_backend().await
     }
     .unwrap();
+    let (state, router) = mount_index_account(&backend);
+    let mut headers = index_account_channel_headers(&binding);
+    let session = issue_index_account_session(&router, &mut headers).await
+        .unwrap_or_else(|phase| panic!("mounted index account fixture phase={phase}"));
+    MountedIndexAccountFixture { _binding: binding, backend, state, router, headers, session }
+}
+
+fn mount_index_account(backend: &crate::storage::tests::EmbeddedTestBackend) -> (AppState, Router) {
     let recorder = Arc::new(crate::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7).unwrap());
     let state = AppState {
         storage: backend.database.clone(), surreal: backend.storage.clone(),
@@ -72,23 +86,51 @@ async fn mounted_index_account_fixture(compute_only: bool) -> MountedIndexAccoun
         .merge(crate::api::workspaces::routes(state.clone()))
         .merge(super::routes(state.clone()))
         .merge(crate::api::knowledge_code_nav::routes(state.clone()));
+    (state, router)
+}
+
+fn index_account_channel_headers(binding: &Binding) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert("x-hsk-channel-binding-token", binding.channel.parse().unwrap());
+    let mut channel: HeaderValue = binding.channel.parse().unwrap();
+    channel.set_sensitive(true);
+    headers.insert("x-hsk-channel-binding-token", channel);
+    headers
+}
+
+async fn issue_index_account_session(router: &Router, headers: &mut HeaderMap) -> Result<Value, &'static str> {
     let password = json!({"account_name":"Index owner", "password":"index owner password for runtime proof"});
-    assert_eq!(request(&router,"POST","/authority/setup",&headers,password.clone()).await.0,StatusCode::OK);
-    let (status, credential) = request(&router,"POST","/authority/login",&headers,password).await;
-    assert_eq!(status,StatusCode::OK,"real account login failed");
-    let (status, session) = request(&router,"POST","/authority/session",&headers,json!({
+    if request(router, "POST", "/authority/setup", headers, password.clone()).await.0 != StatusCode::OK {
+        return Err("fixture_setup_denied");
+    }
+    let (status, credential) = request(router, "POST", "/authority/login", headers, password).await;
+    if status != StatusCode::OK {
+        return Err("fixture_login_denied");
+    }
+    let response = mounted_response(router, "POST", "/authority/session", headers, json!({
         "account_id":credential["account_id"],"principal_id":credential["principal_id"],
         "access_space_id":credential["access_space_id"],"authentication_token":credential["token"]
     })).await;
-    assert_eq!(status,StatusCode::OK,"real session exchange failed");
-    headers.insert("x-hsk-session-token",session["session_token"].as_str().unwrap().parse().unwrap());
-    headers.insert("x-hsk-actor-id",session["principal_id"].as_str().unwrap().parse().unwrap());
-    headers.insert("x-hsk-actor-kind","operator".parse().unwrap());
-    headers.insert("x-hsk-kernel-task-run-id","mounted-index-proof".parse().unwrap());
-    headers.insert("x-hsk-session-run-id","mounted-index-proof".parse().unwrap());
-    MountedIndexAccountFixture { _binding: binding, backend, state, router, headers, session }
+    if response.status() != StatusCode::OK {
+        return Err("session_exchange_unconfirmed");
+    }
+    let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024).await
+        .map_err(|_| "session_exchange_body_unconfirmed")?;
+    let mut session: Value = serde_json::from_slice(&bytes)
+        .map_err(|_| "session_exchange_body_unconfirmed")?;
+    let token = session.get_mut("session_token").map(Value::take)
+        .ok_or("session_exchange_token_unconfirmed")?;
+    let mut token: HeaderValue = token.as_str().and_then(|value| value.parse().ok())
+        .ok_or("session_exchange_token_unconfirmed")?;
+    token.set_sensitive(true);
+    // Retain the issued credential before validating other response fields.
+    headers.insert("x-hsk-session-token", token);
+    let actor = session["principal_id"].as_str().and_then(|value| value.parse::<HeaderValue>().ok())
+        .ok_or("fixture_principal")?;
+    headers.insert("x-hsk-actor-id", actor);
+    headers.insert("x-hsk-actor-kind", HeaderValue::from_static("operator"));
+    headers.insert("x-hsk-kernel-task-run-id", HeaderValue::from_static("mounted-index-proof"));
+    headers.insert("x-hsk-session-run-id", HeaderValue::from_static("mounted-index-proof"));
+    Ok(session)
 }
 
 async fn first_owner_workspace_receipt_scalar_outcome(compute_only: bool) -> &'static str {
@@ -145,6 +187,174 @@ async fn first_owner_workspace_receipt_compute_only_observes_rollback() {
     let outcome = first_owner_workspace_receipt_scalar_outcome(true).await;
     // This compares the fixed outcome with the archived default-planner run.
     assert_eq!(outcome, "one_visible", "receipt compute-only scalar probe after checked rollback");
+}
+
+#[derive(PartialEq, SurrealValue)]
+struct MountedFirstOwnerReceipt {
+    setup_operation_id: String,
+    operation_id: String,
+    workspace: RecordId,
+    resource: RecordId,
+    creator_grant: RecordId,
+}
+
+async fn read_mounted_fixture_rows<R: SurrealValue + Send + 'static>(
+    storage: &crate::storage::surreal::SurrealStorage,
+    statement: &'static str,
+    bindings: &Value,
+) -> Result<Vec<R>, crate::storage::surreal::SurrealStorageError> {
+    let bindings = bindings.clone();
+    storage.with_data_operation(move |database| {
+        Box::pin(async move { database.query_values(statement, bindings).await })
+    }).await
+}
+
+async fn read_mounted_first_owner_receipt(
+    storage: &crate::storage::surreal::SurrealStorage,
+    bindings: &Value,
+) -> Result<MountedFirstOwnerReceipt, &'static str> {
+    let rows: Vec<MountedFirstOwnerReceipt> = read_mounted_fixture_rows(storage, r#"
+        SELECT setup_operation_id, first_workspace_operation_id AS operation_id,
+            first_workspace AS workspace, first_workspace_resource AS resource,
+            first_workspace_grant AS creator_grant
+        FROM first_owner_administration_origins:primary
+        WHERE account = type::record('local_accounts', $proof_account)
+          AND operator_principal = type::record('principals', $proof_principal)
+          AND space = type::record('access_spaces', $proof_space)
+          AND first_workspace_state = 'created' AND first_workspace_receipt_nonce = 1
+          AND first_workspace_operation_id = $proof_workspace
+          AND first_workspace = type::record('workspaces', $proof_workspace)
+          AND first_workspace_session = type::record('authenticated_sessions', $proof_session)
+          AND first_workspace_channel_hash = $proof_channel AND first_workspace_name = $proof_name
+          AND first_workspace_original.operation_id = first_workspace_operation_id
+          AND first_workspace_original.account = account
+          AND first_workspace_original.principal = operator_principal
+          AND first_workspace_original.space = space
+          AND first_workspace_original.account_session = first_workspace_session
+          AND first_workspace_original.workspace = first_workspace
+          AND first_workspace_original.external = $proof_workspace
+          AND first_workspace_original.resource = first_workspace_resource
+          AND first_workspace_original.workspace_grant = first_workspace_grant
+          AND first_workspace_original.channel_hash = $proof_channel
+          AND first_workspace_original.name = $proof_name
+          AND first_workspace_original.first_owner_workspace_receipt_read = false
+          AND record::exists(first_workspace) AND first_workspace.name = $proof_name
+          AND first_workspace.created_in_session_id = first_workspace_session
+          AND record::exists(first_workspace_resource)
+          AND first_workspace_resource.resource_kind = 'workspace'
+          AND first_workspace_resource.external_resource_id = $proof_workspace
+          AND first_workspace_resource.owner_account_id = account
+          AND first_workspace_resource.created_by_principal_id = operator_principal
+          AND first_workspace_resource.access_space_id = space
+          AND first_workspace_resource.created_in_session_id = first_workspace_session
+          AND first_workspace_resource.lifecycle_state = 'active'
+          AND first_workspace_resource.creator_grant_id = first_workspace_grant
+          AND record::exists(first_workspace_grant)
+          AND first_workspace_grant.resource_id = first_workspace_resource
+          AND first_workspace_grant.account_id = account
+          AND first_workspace_grant.principal_id = operator_principal
+          AND first_workspace_grant.access_space_id = space
+          AND first_workspace_grant.status = 'active'
+          AND first_workspace_grant.revoked_at = NONE AND first_workspace_grant.expires_at = NONE
+          AND first_workspace_grant.grant_version = 1
+          AND first_workspace_grant.actions = ['create', 'read', 'update', 'delete']
+          AND first_workspace_grant.capability_ids CONTAINS 'fs.write';
+    "#, bindings).await.map_err(|_| "receipt_readback")?;
+    let [receipt]: [_; 1] = rows.try_into().map_err(|_| "receipt_correlation")?;
+    Ok(receipt)
+}
+
+#[tokio::test]
+async fn mounted_first_owner_workspace_create_persists_original_receipt_and_grant() {
+    const NAME: &str = "Mounted first owner receipt proof";
+    let binding = Binding::new();
+    let mut headers = index_account_channel_headers(&binding);
+    let backend = crate::storage::tests::embedded_test_backend().await
+        .unwrap_or_else(|_| panic!("mounted first-owner proof phase=backend_open"));
+    let mut mounted = None;
+    let probe = AssertUnwindSafe(async {
+        let (_, router) = mounted.insert(mount_index_account(&backend));
+        let session = issue_index_account_session(router, &mut headers).await?;
+        let channel = crate::api::stage::capture_channel_binding(&headers)
+            .map_err(|_| "fixture_channel_binding")?;
+        let mut bindings = json!({
+            "proof_account": session["account_id"].as_str().ok_or("fixture_account")?,
+            "proof_principal": session["principal_id"].as_str().ok_or("fixture_principal")?,
+            "proof_space": session["access_space_id"].as_str().ok_or("fixture_space")?,
+            "proof_session": session["session_id"].as_str().ok_or("fixture_session")?,
+            "proof_channel": channel.binding_hash,
+            "proof_name": NAME,
+        });
+        let rows: Vec<String> = read_mounted_fixture_rows(&backend.storage, r#"
+            SELECT VALUE setup_operation_id FROM first_owner_administration_origins:primary
+            WHERE account = type::record('local_accounts', $proof_account)
+              AND operator_principal = type::record('principals', $proof_principal)
+              AND space = type::record('access_spaces', $proof_space)
+              AND first_workspace_state = 'unclaimed' AND first_workspace_receipt_nonce = 0
+              AND first_workspace_original = NONE;
+        "#, &bindings).await.map_err(|_| "origin_before_post_readback")?;
+        let [setup_id]: [_; 1] = rows.try_into().map_err(|_| "origin_before_post_correlation")?;
+
+        let (status, workspace) = request(router, "POST", "/workspaces", &headers, json!({"name": NAME})).await;
+        if status != StatusCode::CREATED {
+            return Err("workspace_post_not_created");
+        }
+        bindings["proof_workspace"] = json!(workspace["id"].as_str().ok_or("workspace_response_id")?);
+        let receipt = read_mounted_first_owner_receipt(&backend.storage, &bindings).await?;
+        if receipt.setup_operation_id != setup_id {
+            return Err("setup_origin_identity_changed");
+        }
+        Ok::<_, &'static str>((bindings, receipt))
+    }).catch_unwind().await;
+
+    let logout = if let Some((_, router)) = mounted.as_ref().filter(|_| headers.contains_key("x-hsk-session-token")) {
+        let result = AssertUnwindSafe(mounted_response(router, "POST", "/authority/logout", &headers, Value::Null))
+            .catch_unwind().await;
+        if matches!(result, Ok(response) if response.status() == StatusCode::OK) {
+            "checked"
+        } else {
+            "unconfirmed"
+        }
+    } else {
+        "credential_unavailable"
+    };
+    drop(mounted);
+    let drained = matches!(
+        AssertUnwindSafe(backend.storage.drain_member_password_login_operations()).catch_unwind().await,
+        Ok(Ok(()))
+    );
+
+    let phase = match probe {
+        Ok(Ok(_)) if logout != "checked" => "logout_unconfirmed",
+        Ok(Ok(_)) if !drained => "owned_drain_unconfirmed",
+        Ok(Ok((bindings, receipt))) => {
+            let durable = AssertUnwindSafe(async {
+                let reopened = backend.reopen_storage().await.map_err(|_| "store_reopen_unconfirmed")?;
+                let durable = read_mounted_first_owner_receipt(&reopened, &bindings).await
+                    .map_err(|_| "reopened_receipt_readback")?;
+                if durable != receipt {
+                    return Err("reopened_receipt_identity_changed");
+                }
+                Ok::<(), &'static str>(())
+            }).catch_unwind().await;
+            match durable {
+                Ok(Ok(())) => {
+                    assert!(backend.close_and_remove().await.is_ok(), "mounted first-owner proof phase=store_cleanup");
+                    return;
+                }
+                Ok(Err(phase)) => phase,
+                Err(_) => "reopened_receipt_helper_panic",
+            }
+        }
+        Ok(Err(phase)) => phase,
+        Err(_) => "fixture_helper_panic",
+    };
+    let closure = if backend.close_and_preserve().await.is_ok() {
+        "closed_store_preserved"
+    } else {
+        "closure_unconfirmed"
+    };
+    panic!("mounted first-owner proof failed phase={phase} logout={logout} drained={drained} closure={closure}");
 }
 
 #[tokio::test]

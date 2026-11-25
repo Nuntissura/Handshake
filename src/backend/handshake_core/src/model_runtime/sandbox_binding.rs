@@ -78,14 +78,140 @@ pub enum ModelBoxingError {
     SandboxAdapter(#[from] SandboxAdapterError),
 }
 
+struct BoxedModelAcquisitionState {
+    original: Option<std::pin::Pin<Box<dyn std::future::Future<
+        Output = Result<ProcessHandle, SandboxAdapterError>,
+    > + Send>>>,
+    invoked: bool,
+    result: Option<Result<ProcessHandle, SandboxAdapterError>>,
+}
+
+struct BoxedModelAcquisition {
+    operation_id: uuid::Uuid,
+    _adapter: Arc<dyn crate::sandbox::SandboxAdapter>,
+    _original_spec: ProcessSpec,
+    _original_context: crate::storage::surreal::CapturedModelLaneOperation,
+    state: tokio::sync::Mutex<BoxedModelAcquisitionState>,
+}
+
+static RETAINED_BOXED_MODEL_ACQUISITIONS: std::sync::OnceLock<
+    std::sync::Mutex<BTreeMap<uuid::Uuid, Arc<BoxedModelAcquisition>>>,
+> = std::sync::OnceLock::new();
+
+impl BoxedModelAcquisition {
+    async fn observe(&self) -> Result<ProcessHandle, ModelBoxingError> {
+        let mut state = self.state.lock().await;
+        if let Some(result) = &state.result {
+            return result.clone().map_err(ModelBoxingError::SandboxAdapter);
+        }
+        state.invoked = true;
+        let result = state.original.as_mut().ok_or_else(|| ModelBoxingError::WorkProfileInvalid {
+            reason: format!("original model acquisition {} is unavailable; custody remains pending", self.operation_id),
+        })?.as_mut().await;
+        // Cancellation drops only this observer. The original future remains
+        // in its registered owner until its exact result has been retained.
+        state.result = Some(result.clone());
+        state.original.take();
+        result.map_err(ModelBoxingError::SandboxAdapter)
+    }
+
+
+}
+
+fn begin_boxed_model_acquisition(
+    registry: &SandboxAdapterRegistry,
+    spec: ModelProcessSpec,
+) -> Result<Arc<BoxedModelAcquisition>, ModelBoxingError> {
+    let work_profile_override = spec.work_profile_override.clone();
+    let process_spec = process_spec_from_model_spec(spec)?;
+    let adapter = select(registry, &process_spec, work_profile_override.as_ref())?;
+    adapter.validate_spawn_acquisition()?;
+    let original_adapter = Arc::clone(&adapter);
+    let original_spec = process_spec.clone();
+    let owner = Arc::new(BoxedModelAcquisition {
+        operation_id: uuid::Uuid::now_v7(),
+        _adapter: adapter,
+        _original_spec: process_spec,
+        _original_context: crate::storage::surreal::capture_model_lane_operation(),
+        state: tokio::sync::Mutex::new(BoxedModelAcquisitionState {
+            original: Some(Box::pin(async move { original_adapter.spawn(original_spec).await })),
+            invoked: false, result: None,
+        }),
+    });
+    // Every invocation owns a distinct operation. Spec/context equality never
+    // substitutes for ownership or coalesces concurrent callers.
+    RETAINED_BOXED_MODEL_ACQUISITIONS.get_or_init(Default::default).lock()
+        .unwrap_or_else(|error| error.into_inner()).insert(owner.operation_id, Arc::clone(&owner));
+    Ok(owner)
+}
+
+struct RoutedAcquisition {
+    owner: Arc<BoxedModelAcquisition>,
+    caller_live: bool,
+}
+
+type RoutedPendingAcquisitions =
+    Arc<std::sync::Mutex<BTreeMap<uuid::Uuid, RoutedAcquisition>>>;
+
+struct BoxingCaller {
+    owner: Arc<BoxedModelAcquisition>,
+    routed: Option<RoutedPendingAcquisitions>,
+    delivered: bool,
+}
+
+impl BoxingCaller {
+    fn deliver(&mut self, handle: &ProcessHandle) -> Result<(), ModelBoxingError> {
+        let invalid = || ModelBoxingError::WorkProfileInvalid {
+            reason: "original boxing owner is not ready for exact delivery".into(),
+        };
+        let mut routed = self.routed.as_ref().map(|pending|
+            pending.lock().unwrap_or_else(|error| error.into_inner()));
+        if let Some(pending) = &routed {
+            if !pending.get(&self.owner.operation_id).is_some_and(|current|
+                current.caller_live && Arc::ptr_eq(&current.owner, &self.owner)) {
+                return Err(invalid());
+            }
+        }
+        let state = self.owner.state.try_lock().map_err(|_| invalid())?;
+        if state.original.is_some() || state.result.as_ref() != Some(&Ok(handle.clone())) {
+            return Err(invalid());
+        }
+        let mut retained = RETAINED_BOXED_MODEL_ACQUISITIONS.get_or_init(Default::default).lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if !retained.get(&self.owner.operation_id)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.owner)) {
+            return Err(invalid());
+        }
+        retained.remove(&self.owner.operation_id);
+        if let Some(pending) = &mut routed { pending.remove(&self.owner.operation_id); }
+        self.delivered = true;
+        Ok(())
+    }
+}
+
+impl Drop for BoxingCaller {
+    fn drop(&mut self) {
+        if self.delivered { return; }
+        if let Some(pending) = &self.routed {
+            let mut pending = pending.lock().unwrap_or_else(|error| error.into_inner());
+            if let Some(current) = pending.get_mut(&self.owner.operation_id) {
+                if Arc::ptr_eq(&current.owner, &self.owner) { current.caller_live = false; }
+            }
+        }
+        // The exact unknown/undelivered owner and original future stay retained.
+        // Caller loss never requests a native signal or a replacement spawn.
+    }
+}
+
 pub async fn box_model_process(
     registry: &SandboxAdapterRegistry,
     spec: ModelProcessSpec,
 ) -> Result<ProcessHandle, ModelBoxingError> {
-    let work_profile_override = spec.work_profile_override.clone();
-    let process_spec = process_spec_from_model_spec(spec)?;
-    let adapter = select(registry, &process_spec, work_profile_override.as_ref())?;
-    Ok(adapter.spawn(process_spec).await?)
+    let owner = begin_boxed_model_acquisition(registry, spec)?;
+    let mut caller = BoxingCaller { owner: Arc::clone(&owner), routed: None, delivered: false };
+    let handle = owner.observe().await?;
+    caller.deliver(&handle)?;
+    Ok(handle)
 }
 
 #[derive(Clone)]
@@ -93,6 +219,7 @@ pub struct SandboxRoutedModelAdapter {
     adapter_id: String,
     registry: Arc<SandboxAdapterRegistry>,
     process_spec: ModelProcessSpec,
+    pending: RoutedPendingAcquisitions,
 }
 
 impl SandboxRoutedModelAdapter {
@@ -105,6 +232,7 @@ impl SandboxRoutedModelAdapter {
             adapter_id: adapter_id.into(),
             registry,
             process_spec,
+            pending: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
         }
     }
 }
@@ -121,8 +249,24 @@ impl ModelAdapter for SandboxRoutedModelAdapter {
         }
 
         let context_bundle = request.context_bundle;
-        let handle = box_model_process(&self.registry, self.process_spec.clone())
-            .await
+        let acquisition = {
+            let mut pending = self.pending.lock().unwrap_or_else(|error| error.into_inner());
+            if pending.values().any(|owner| !owner.caller_live) {
+                return Err(KernelError::ModelRuntime(
+                    "an abandoned or unknown original routed acquisition retains custody; no replacement spawn".into(),
+                ));
+            }
+            let acquisition = begin_boxed_model_acquisition(&self.registry, self.process_spec.clone())
+                .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+            pending.insert(acquisition.operation_id, RoutedAcquisition {
+                owner: Arc::clone(&acquisition), caller_live: true,
+            });
+            acquisition
+        };
+        let mut caller = BoxingCaller {
+            owner: Arc::clone(&acquisition), routed: Some(Arc::clone(&self.pending)), delivered: false,
+        };
+        let handle = acquisition.observe().await
             .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
         let response_text = format!(
             "sandbox-routed-model:{}:{}:{}",
@@ -155,7 +299,7 @@ impl ModelAdapter for SandboxRoutedModelAdapter {
             content_hash: output_hash.clone(),
         };
 
-        Ok(ModelAdapterOutput {
+        let output = ModelAdapterOutput {
             adapter_id: self.adapter_id.clone(),
             context_bundle_id: context_bundle.context_bundle_id,
             response_text,
@@ -164,7 +308,9 @@ impl ModelAdapter for SandboxRoutedModelAdapter {
             artifact_proposal,
             artifact_payload,
             output_hash,
-        })
+        };
+        caller.deliver(&handle).map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        Ok(output)
     }
 }
 

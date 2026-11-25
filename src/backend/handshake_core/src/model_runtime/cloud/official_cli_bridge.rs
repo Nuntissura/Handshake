@@ -1669,6 +1669,46 @@ fn wait_start_durability_blocking(
     })?
 }
 
+fn retain_queued_stop_receipt(
+    lifecycle: &Arc<ActiveProcessLifecycle>,
+    runtime: Option<tokio::runtime::Handle>,
+    error: &ProcessLedgerError,
+) {
+    if !matches!(error, ProcessLedgerError::DurabilityAckTimeout { event_kind, process_uuid, .. }
+        if event_kind.as_str() == crate::process_ledger::LedgerEventKind::Stop.as_str()
+            && *process_uuid == lifecycle.process_uuid())
+        || lifecycle.queued_stop().is_none()
+    {
+        return;
+    }
+    let Some(runtime) = runtime else { return; };
+    if !lifecycle.claim_stop_receipt_continuation() { return; }
+    let lifecycle = Arc::clone(lifecycle);
+    runtime.spawn(async move {
+        let process_uuid = lifecycle.process_uuid();
+        match lifecycle.observe_original_stop_receipt().await {
+            Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => {
+                tracing::info!(
+                    target: "handshake_core::official_cli_bridge",
+                    %process_uuid, "original queued CLI STOP received a late durable acknowledgement"
+                );
+            }
+            Ok(outcome) => {
+                tracing::warn!(
+                    target: "handshake_core::official_cli_bridge",
+                    %process_uuid, ?outcome, "original queued CLI STOP receipt remains unconfirmed"
+                );
+            }
+            Err(error) => {
+                tracing::error!(
+                    target: "handshake_core::official_cli_bridge",
+                    %process_uuid, %error, "original queued CLI STOP receipt settled without acceptance"
+                );
+            }
+        }
+    });
+}
+
 fn wait_stop_durability_blocking(
     lifecycle: Arc<ActiveProcessLifecycle>,
     exit_code: Option<i32>,
@@ -1708,8 +1748,9 @@ fn record_foreground_stop(
     pid: u32,
     exit_code: Option<i32>,
     reason: &str,
+    receipt_runtime: Option<tokio::runtime::Handle>,
 ) -> Result<(), OfficialCliBridgeError> {
-    match wait_stop_durability_blocking(lifecycle, exit_code, reason.to_string()) {
+    match wait_stop_durability_blocking(Arc::clone(&lifecycle), exit_code, reason.to_string()) {
         Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => Ok(()),
         Ok(
             StopRecordOutcome::LeftOpenForReconciliation
@@ -1720,12 +1761,15 @@ fn record_foreground_stop(
                 "foreground login child was reaped but STOP authority remains open or durability-unconfirmed ({reason})"
             ),
         }),
-        Err(error) => Err(OfficialCliBridgeError::LedgerRegistration {
-            pid,
-            reason: format!(
-                "foreground login child was reaped but STOP durability failed ({reason}): {error}"
-            ),
-        }),
+        Err(error) => {
+            retain_queued_stop_receipt(&lifecycle, receipt_runtime, &error);
+            Err(OfficialCliBridgeError::LedgerRegistration {
+                pid,
+                reason: format!(
+                    "foreground login child was reaped but STOP durability failed ({reason}): {error}"
+                ),
+            })
+        }
     }
 }
 
@@ -1772,6 +1816,7 @@ struct ForegroundChildOwner {
     session: Option<Arc<crate::terminal::PtySession>>,
     pid: u32,
     lifecycle: Option<Arc<ActiveProcessLifecycle>>,
+    receipt_runtime: Option<tokio::runtime::Handle>,
     _identity_locks: Vec<File>,
 }
 
@@ -1782,6 +1827,7 @@ impl ForegroundChildOwner {
             session: Some(session),
             pid,
             lifecycle: None,
+            receipt_runtime: None,
             _identity_locks: identity_locks,
         }
     }
@@ -1817,7 +1863,7 @@ impl ForegroundChildOwner {
         // joins the pty reader/waiter threads when this was the last holder.
         drop(session);
         if let Some(lifecycle) = self.lifecycle.take() {
-            record_foreground_stop(lifecycle, pid, Some(exit_code), reason)?;
+            record_foreground_stop(lifecycle, pid, Some(exit_code), reason, self.receipt_runtime.clone())?;
         }
         Ok(())
     }
@@ -1839,7 +1885,7 @@ impl ForegroundChildOwner {
         };
         drop(session);
         if let Some(lifecycle) = self.lifecycle.take() {
-            record_foreground_stop(lifecycle, pid, Some(exit_code), reason)?;
+            record_foreground_stop(lifecycle, pid, Some(exit_code), reason, self.receipt_runtime.clone())?;
         }
         Ok(())
     }
@@ -2352,6 +2398,7 @@ impl GuardedCliChild {
         };
         let result =
             wait_stop_durability_blocking(Arc::clone(lifecycle), exit_code, reason.to_string());
+        let stop_queued = lifecycle.queued_stop().is_some();
         match result {
             Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => {
                 self.stop_recorded = true
@@ -2360,9 +2407,13 @@ impl GuardedCliChild {
                 StopRecordOutcome::LeftOpenForReconciliation
                 | StopRecordOutcome::DurabilityUnconfirmed,
             ) => {
-                self.leave_open_and_reclaim(
-                    "ledger STOP authority was left open for reconciliation",
-                );
+                if stop_queued {
+                    self.leave_open_for_reconciliation("original queued ledger STOP durability remains unconfirmed");
+                } else {
+                    self.leave_open_and_reclaim(
+                        "ledger STOP authority was left open for reconciliation",
+                    );
+                }
             }
             Err(err) => {
                 tracing::error!(
@@ -2371,9 +2422,20 @@ impl GuardedCliChild {
                     error = %err,
                     "ledger STOP registration failed"
                 );
-                self.leave_open_and_reclaim("ledger STOP registration failed");
+                if stop_queued {
+                    self.retain_queued_stop_receipt(&err);
+                    self.leave_open_for_reconciliation("original queued ledger STOP registration remains unresolved");
+                } else {
+                    self.leave_open_and_reclaim("ledger STOP registration failed");
+                }
             }
         }
+    }
+
+    fn retain_queued_stop_receipt(&self, error: &ProcessLedgerError) {
+        let (Some(lifecycle), Some((reclaim, _))) =
+            (self.lifecycle.as_ref(), self.reclaim.as_ref()) else { return; };
+        retain_queued_stop_receipt(lifecycle, reclaim.owning_runtime_handle(), error);
     }
 
     fn leave_open_for_reconciliation(&mut self, reason: &str) {
@@ -3008,6 +3070,8 @@ impl LiveCliSpawner {
         let mut identity_locks = launch.identity_locks;
         identity_locks.append(&mut additional_identity_locks);
         let mut child_owner = ForegroundChildOwner::new(Arc::clone(&session), pid, identity_locks);
+        child_owner.receipt_runtime = self.reclaim.as_ref()
+            .and_then(|(reclaim, _)| reclaim.owning_runtime_handle());
         let creation_time_100ns = match attest_process(pid) {
             Ok(value) => value,
             Err(error) => {

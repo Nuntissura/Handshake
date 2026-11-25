@@ -160,15 +160,6 @@ impl Default for SplitWeights {
     }
 }
 
-/// Per-frame pointer-drag state. **Deliberately NOT part of [`SplitWeights`]** (which is
-/// serialized): persisting transient drag flags would corrupt layout snapshots (red-team RISK-5).
-/// Held as a separate non-persisted field in `HandshakeApp`.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct SplitDragState {
-    pub dragging_horizontal: bool,
-    pub dragging_vertical: bool,
-}
-
 /// Clamp a split fraction to `[SPLIT_MIN, SPLIT_MAX]`. Ported from the React
 /// `clampSplit = (v) => Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, v))`.
 ///
@@ -381,10 +372,8 @@ impl SplitLayoutWidget {
     pub fn show<'f, F, A, P>(
         ui: &mut egui::Ui,
         weights: &mut SplitWeights,
-        drag_state: &mut SplitDragState,
         active_pane: &mut Option<PaneId>,
         registry: &Arc<Mutex<PaneRegistry>>,
-        divider_colors: DividerColors,
         tab_bars: &mut HashMap<PaneId, TabBarState>,
         tab_colors: TabBarColors,
         active_module: ModuleId,
@@ -424,9 +413,12 @@ impl SplitLayoutWidget {
         let registry_guard = registry.lock().expect("pane registry mutex poisoned");
         let mut panes = registry_guard.pane_ids();
         panes.sort();
-        let projection = match kumihimo.project(ui.ctx().viewport_id(), &panes, area, *weights) {
+        let committed = match kumihimo.project(ui.ctx().viewport_id(), &panes, area, *weights) {
             Ok(projection) => projection,
-            Err(error) => { ui.label(error); return; }
+            Err(error) => {
+                ui.label(error);
+                return;
+            }
         };
         if let Err(error) = kumihimo.reconcile_tabs(ui.ctx().viewport_id(), tab_bars) { ui.label(error); return; }
         // (pane_id, TabBarResponse) collected per pane this frame, reconciled below.
@@ -588,7 +580,13 @@ impl SplitLayoutWidget {
             }
             emit_accesskit(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
         });
-        if let Err(error) = render_result { ui.colored_label(header_palette.text_subtle,error); }
+        let (projection, diagnostic) = match render_result {
+            Ok(rendered) => rendered,
+            Err(error) => (committed, Some(error)),
+        };
+        if let Some(error) = diagnostic {
+            ui.colored_label(header_palette.text_subtle, error);
+        }
         drop(registry_guard);
 
         // ── Reconcile tab interactions ──────────────────────────────────────────────────────────────
@@ -686,54 +684,26 @@ impl SplitLayoutWidget {
         // Stable legacy keyboard/AccessKit controls remain host intentions over the Kumihimo plan.
         let before = *weights;
         if let Some(hit) = projection.horizontal {
-            Self::divider(ui, SplitAxis::Horizontal, area, hit, &mut weights.horizontal,
-                &mut drag_state.dragging_horizontal, divider_colors);
+            Self::divider(ui, SplitAxis::Horizontal, hit, &mut weights.horizontal);
         }
         if let Some(hit) = projection.vertical {
-            Self::divider(ui, SplitAxis::Vertical, area, hit, &mut weights.vertical,
-                &mut drag_state.dragging_vertical, divider_colors);
+            Self::divider(ui, SplitAxis::Vertical, hit, &mut weights.vertical);
         }
         if *weights != before {
             if let Err(error) = kumihimo.resize(ui.ctx().viewport_id(), *weights) { *weights=before;ui.label(error); }
         }
     }
 
-    /// Render one divider: pointer drag, keyboard resize, AccessKit `Splitter` node, and the painted
-    /// line. `weight` is the split fraction this divider controls — CANONICAL React mapping:
-    /// `weights.horizontal` for the horizontal LINE (top/bottom, Y), `weights.vertical` for the
-    /// vertical LINE (left/right, X). `dragging` is the per-frame drag flag for hover/grab coloring.
-    #[allow(clippy::too_many_arguments)]
-    fn divider(
-        ui: &mut egui::Ui,
-        axis: SplitAxis,
-        area: egui::Rect,
-        hit_rect: egui::Rect,
-        weight: &mut f32,
-        dragging: &mut bool,
-        _colors: DividerColors,
-    ) {
+    fn divider(ui: &mut egui::Ui, axis: SplitAxis, hit_rect: egui::Rect, weight: &mut f32) {
         let id = Self::divider_id(axis);
         let response = ui.interact(hit_rect, id, egui::Sense::focusable_noninteractive());
 
-        // Cursor affordance on hover/drag.
-        if response.hovered() || response.dragged() {
+        if response.hovered() {
             let cursor = match axis {
                 SplitAxis::Horizontal => egui::CursorIcon::ResizeVertical,
                 SplitAxis::Vertical => egui::CursorIcon::ResizeHorizontal,
             };
             ui.ctx().set_cursor_icon(cursor);
-        }
-
-        // ── Pointer drag ───────────────────────────────────────────────────────────────────────
-        *dragging = response.dragged();
-        if response.dragged() {
-            let delta = match axis {
-                // +y drag moves the horizontal line down -> larger top fraction.
-                SplitAxis::Horizontal => response.drag_delta().y / area.height(),
-                // +x drag moves the vertical line right -> larger left fraction.
-                SplitAxis::Vertical => response.drag_delta().x / area.width(),
-            };
-            *weight = clamp_split(*weight + delta);
         }
 
         // Clicking the divider focuses it so the keyboard resize path below engages.
@@ -1100,8 +1070,7 @@ mod tests {
         assert!((apply_set_value(0.5) - 0.5).abs() < EPS, "0.5 -> 0.5");
     }
 
-    /// SplitWeights serializes with the exact React field names and round-trips; SplitDragState is a
-    /// separate non-serialized type (it derives no Serialize, enforced by the absence of the bound).
+    /// SplitWeights serializes with the exact React field names and round-trips.
     #[test]
     fn split_weights_serde_uses_react_field_names() {
         let w = SplitWeights {
@@ -1284,12 +1253,12 @@ mod tests {
         let projection=owner.project(egui::ViewportId::ROOT,&panes,area,weights).unwrap();
         assert!(projection.vertical.is_none());let hit=projection.horizontal.unwrap();
         assert!(hit.center().y>area.top()&&hit.center().y<area.bottom());
-        let ctx=egui::Context::default();let mut dragging=false;
+        let ctx=egui::Context::default();
         let _=ctx.run(egui::RawInput {screen_rect:Some(area),events:vec![egui::Event::AccessKitActionRequest(accesskit::ActionRequest {
             action:accesskit::Action::SetValue,target:accesskit::NodeId(DIVIDER_H_NODE_ID),
             data:Some(accesskit::ActionData::NumericValue(0.7))})],..Default::default()},|ctx| {
-            egui::CentralPanel::default().show(ctx,|ui|SplitLayoutWidget::divider(ui,SplitAxis::Horizontal,area,hit,
-                &mut weights.horizontal,&mut dragging,DividerColors {idle:egui::Color32::GRAY,hover:egui::Color32::GRAY,grab:egui::Color32::GRAY}));
+            egui::CentralPanel::default().show(ctx,|ui|SplitLayoutWidget::divider(ui,SplitAxis::Horizontal,hit,
+                &mut weights.horizontal));
         });
         assert!((weights.horizontal-0.7).abs()<0.001);
         owner.resize(egui::ViewportId::ROOT,weights).unwrap();

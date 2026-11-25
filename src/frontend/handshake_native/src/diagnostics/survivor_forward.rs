@@ -438,6 +438,60 @@ mod tests {
         assert_eq!(views[0].session_id, "g");
     }
 
+    #[test]
+    fn survivor_snapshot_projects_only_ordinary_events() {
+        let ordinary = DiagEvent {
+            event_code: 0, phase_marker: 4, severity: 2, _reserved: [0; 4],
+            thread_id: 1, sequence_id: 2, counter_a: 3, counter_b: 4,
+            metric_micros: 5, timestamp_nanos: 6,
+        };
+        let mut code_11 = ordinary;
+        code_11.event_code = 11;
+        let mut unknown = ordinary;
+        unknown.event_code = 65535;
+        let expected = vec![ordinary, code_11, unknown];
+        let mut rejected_code = ordinary;
+        rejected_code.event_code = 12;
+        let mut rejected_unknown_code = ordinary;
+        rejected_unknown_code.event_code = 31337;
+        let mut rejected_phase = ordinary;
+        rejected_phase.phase_marker = 5;
+        let mut rejected_severity = ordinary;
+        rejected_severity.severity = 3;
+        let mut rejected_reserved = ordinary;
+        rejected_reserved._reserved[0] = 1;
+        let mut events = vec![rejected_code, rejected_unknown_code, rejected_phase,
+            rejected_severity, rejected_reserved];
+        events.extend(expected.iter().copied());
+        let record: SurvivorRecordOnDisk = serde_json::from_value(
+            serde_json::json!({"last_events": events}),
+        ).unwrap();
+        assert_eq!(record.into_view().last_events, expected);
+    }
+
+    #[test]
+    fn survivor_snapshot_filters_before_limit_preserving_order_and_u64() {
+        let boundary = DiagEvent {
+            event_code: 65535, phase_marker: 4, severity: 2, _reserved: [0; 4],
+            thread_id: u64::MAX, sequence_id: u64::MAX,
+            counter_a: u64::MAX, counter_b: u64::MAX,
+            metric_micros: u64::MAX, timestamp_nanos: u64::MAX,
+        };
+        let mut accepted = vec![boundary];
+        accepted.extend((1..70_u64).map(|index| DiagEvent {
+            sequence_id: u64::MAX - (index * 13 % 71), ..boundary
+        }));
+        let mut excluded = boundary;
+        excluded.event_code = 12;
+        let mut events = vec![excluded; 5];
+        events.extend(accepted.iter().copied());
+        let bytes = serde_json::to_vec(&serde_json::json!({"last_events": events})).unwrap();
+        let record: SurvivorRecordOnDisk = serde_json::from_slice(&bytes).unwrap();
+        let projected = record.into_view().last_events;
+        assert_eq!(projected, accepted[..64]);
+        assert_eq!(projected[0], boundary);
+    }
+
     struct ScopeGuard(PathBuf);
     impl Drop for ScopeGuard {
         fn drop(&mut self) {

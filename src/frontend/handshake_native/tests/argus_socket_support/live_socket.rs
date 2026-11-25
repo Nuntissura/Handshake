@@ -401,6 +401,23 @@ impl ArgusClient {
         self.try_send(method, params, &token, AGENT_LABEL, true)
     }
 
+    /// Send one request on the current witness connection and require a complete reply frame.
+    pub fn try_call_delimited(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> std::io::Result<serde_json::Value> {
+        let token = self.token.clone();
+        self.try_exchange(
+            method,
+            params,
+            &token,
+            AGENT_LABEL,
+            true,
+            ReplyFraming::Delimited,
+        )
+    }
+
     pub fn interrupt_inspect_transport(
         &mut self,
         window_id: &str,
@@ -555,6 +572,25 @@ impl ArgusClient {
         agent_label: &str,
         record_in_transcript: bool,
     ) -> std::io::Result<serde_json::Value> {
+        self.try_exchange(
+            method,
+            params,
+            token,
+            agent_label,
+            record_in_transcript,
+            ReplyFraming::Ordinary,
+        )
+    }
+
+    fn try_exchange(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+        token: &str,
+        agent_label: &str,
+        record_in_transcript: bool,
+        framing: ReplyFraming,
+    ) -> std::io::Result<serde_json::Value> {
         let request = self.request(method, params, token, agent_label);
         let result = (|| {
             let transport = self.transport.as_mut().ok_or_else(|| {
@@ -564,7 +600,7 @@ impl ArgusClient {
                 )
             })?;
             write_rpc_frame(transport.get_mut(), &request)?;
-            read_rpc_frame(transport, &request)
+            read_rpc_reply(transport, &request, framing)
         })();
         if result.is_err() {
             self.transport.take();
@@ -856,15 +892,35 @@ fn write_rpc_frame(stream: &mut TcpStream, request: &serde_json::Value) -> std::
     stream.flush()
 }
 
+#[derive(Clone, Copy)]
+enum ReplyFraming {
+    Ordinary,
+    Delimited,
+}
+
 fn read_rpc_frame(
     reader: &mut BufReader<TcpStream>,
     request: &serde_json::Value,
+) -> std::io::Result<serde_json::Value> {
+    read_rpc_reply(reader, request, ReplyFraming::Ordinary)
+}
+
+fn read_rpc_reply(
+    reader: &mut impl BufRead,
+    request: &serde_json::Value,
+    framing: ReplyFraming,
 ) -> std::io::Result<serde_json::Value> {
     let mut line = String::new();
     if reader.read_line(&mut line)? == 0 {
         return Err(std::io::Error::new(
             std::io::ErrorKind::UnexpectedEof,
             "Argus transport closed without a response",
+        ));
+    }
+    if matches!(framing, ReplyFraming::Delimited) && !line.ends_with('\n') {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "Argus transport closed before the response delimiter",
         ));
     }
     let response: serde_json::Value = serde_json::from_str(line.trim()).map_err(|_| {
@@ -874,6 +930,15 @@ fn read_rpc_frame(
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             "Argus response request ID mismatch",
+        ));
+    }
+    if matches!(framing, ReplyFraming::Delimited)
+        && (response["jsonrpc"] != "2.0"
+            || response.get("result").is_some() == response.get("error").is_some())
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "invalid Argus response envelope",
         ));
     }
     Ok(response)

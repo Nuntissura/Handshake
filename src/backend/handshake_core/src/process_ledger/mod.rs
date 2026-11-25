@@ -69,6 +69,7 @@ pub use table::{
     PROCESS_LEDGER_FLUSH_INTERVAL_MS, PROCESS_LEDGER_METADATA_CAP_BYTES,
     PROCESS_LEDGER_RING_CAPACITY, PROCESS_LEDGER_TABLE_NAME,
 };
+pub(crate) use writer::RetainedLifecycleStopAck;
 pub use writer::{
     flush_failed_row_count, is_degraded, LedgerOverflowEvent, ProcessLedgerDrain,
     ProcessLedgerDurabilityAck, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
@@ -178,11 +179,9 @@ fn spawn_meta_pid_authoritative_default() -> bool {
     true
 }
 
-pub fn record_spawn(
-    ledger: &LedgerBatcher,
-    meta: SpawnMeta,
-) -> Result<ProcessOwnershipRecordId, ProcessLedgerError> {
-    let record_id = ProcessOwnershipRecordId::new_v7();
+impl SpawnMeta {
+    pub(crate) fn into_start(self, record_id: ProcessOwnershipRecordId) -> ProcessStart {
+        let meta = self;
     let mut metadata = if meta.metadata_blob.is_object() {
         meta.metadata_blob.clone()
     } else {
@@ -235,6 +234,16 @@ pub fn record_spawn(
         start = start.with_mt_id(mt_id);
     }
 
+        start
+    }
+}
+
+pub fn record_spawn(
+    ledger: &LedgerBatcher,
+    meta: SpawnMeta,
+) -> Result<ProcessOwnershipRecordId, ProcessLedgerError> {
+    let record_id = ProcessOwnershipRecordId::new_v7();
+    let start = meta.into_start(record_id);
     ledger.record_start(start)?;
     Ok(record_id)
 }

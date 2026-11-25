@@ -15,7 +15,7 @@ use super::{
 use crate::flight_recorder::FlightRecorder;
 use crate::mcp::gate::{evaluate_kernel_tool_gate_decision, KernelMcpToolGateRequest};
 use crate::storage::{
-    Database, ModelSessionState, NewModelSession, NewSessionMessage, SessionMessage,
+    Database, KernelSessionRunObservation, ModelSessionState, NewModelSession, NewSessionMessage, SessionMessage,
     SessionMessageRole,
 };
 
@@ -126,7 +126,7 @@ impl KernelProofRunner {
             .await?;
         self.record_flight_recorder_mirror(&queued_event).await?;
 
-        let (_claimed_lease, claimed_event) = self
+        let (claimed_lease, claimed_event) = self
             .db
             .claim_kernel_session_run_and_record_event(
                 &session.session_run_id,
@@ -141,10 +141,10 @@ impl KernelProofRunner {
             })?;
         self.record_flight_recorder_mirror(&claimed_event).await?;
 
-        let (_running_lease, running_event) = self
+        let (running_lease, running_event) = self
             .db
             .update_kernel_session_run_state_and_record_event(
-                &session.session_run_id,
+                KernelSessionRunObservation::Lease(&claimed_lease),
                 SessionRunState::Running,
                 Some(claimed_event.event_id.clone()),
                 correlation_id.clone(),
@@ -432,7 +432,7 @@ impl KernelProofRunner {
         let (_completed_lease, completed_event) = self
             .db
             .update_kernel_session_run_state_and_record_event(
-                &session.session_run_id,
+                KernelSessionRunObservation::Lease(&running_lease),
                 SessionRunState::Completed,
                 Some(completed_causation_id),
                 correlation_id.clone(),

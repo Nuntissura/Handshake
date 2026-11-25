@@ -327,7 +327,7 @@ impl TryFrom<BundleRow> for MailboxHandoffBundleV1 {
 /// references and a generic field would need its own bound threaded through it,
 /// so the seam's own `create_if_absent` uses the same shape.
 #[derive(SurrealValue)]
-struct CreateBindings {
+pub(crate) struct CreateBindings {
     record: RecordId,
     content: surrealdb::types::Value,
 }
@@ -360,7 +360,7 @@ struct ThreadTransitionBindings {
 }
 
 #[derive(SurrealValue)]
-struct MessageCreateBindings {
+pub(crate) struct MessageCreateBindings {
     record: RecordId,
     thread_id: Uuid,
     open_states: Vec<String>,
@@ -456,7 +456,12 @@ struct BundleIdBinding {
 
 // ── statements ──────────────────────────────────────────────────────────────
 
-const CREATE_THREAD_QUERY: &str = "CREATE $record CONTENT $content RETURN AFTER;";
+macro_rules! mailbox_thread_create_expression {
+    () => { "CREATE $record CONTENT $content RETURN AFTER" };
+}
+pub(crate) use mailbox_thread_create_expression;
+
+const CREATE_THREAD_QUERY: &str = concat!(mailbox_thread_create_expression!(), ";");
 
 const GET_THREAD_QUERY: &str = "SELECT thread_id, title, linked_record_kind, linked_record_id, \
      lifecycle_state, executor_kind_allowlist, claim_mode, lease_duration_secs, takeover_policy, \
@@ -480,7 +485,8 @@ const TRANSITION_THREAD_QUERY: &str = "UPDATE role_mailbox_thread SET \
 /// sub-select, so a terminal (or missing) thread yields `NONE` for a field the
 /// schema types as a non-optional `record<role_mailbox_thread>` and the CREATE
 /// fails. Nothing is inserted against a thread that closed concurrently.
-const APPEND_MESSAGE_QUERY: &str = "CREATE $record CONTENT { \
+macro_rules! mailbox_message_create_expression {
+    () => { "CREATE $record CONTENT { \
      message_id: $message_id, \
      thread_id: (SELECT VALUE id FROM role_mailbox_thread \
        WHERE thread_id = $thread_id AND $open_states CONTAINS lifecycle_state LIMIT 1)[0], \
@@ -490,7 +496,11 @@ const APPEND_MESSAGE_QUERY: &str = "CREATE $record CONTENT { \
      delivery_state: $delivery_state, \
      body: $body, \
      created_at_utc: $created_at_utc \
-     } RETURN AFTER;";
+     } RETURN AFTER" };
+}
+pub(crate) use mailbox_message_create_expression;
+
+const APPEND_MESSAGE_QUERY: &str = concat!(mailbox_message_create_expression!(), ";");
 
 const LIST_THREAD_MESSAGES_QUERY: &str = "SELECT message_id, thread_id, message_type, from_role, \
      to_roles, delivery_state, body, parent_message_id, created_at_utc, audit_reason \
@@ -632,10 +642,9 @@ impl RoleMailboxRepository {
             .await
     }
 
-    pub async fn create_thread(
-        &self,
-        thread: RoleMailboxThread,
-    ) -> Result<RoleMailboxThread, MailboxError> {
+    pub(crate) fn prepare_thread_create(
+        thread: &RoleMailboxThread,
+    ) -> Result<CreateBindings, MailboxError> {
         let content = ThreadRow {
             thread_id: thread.thread_id.as_uuid(),
             title: thread.title.clone(),
@@ -656,12 +665,41 @@ impl RoleMailboxRepository {
             expires_at_utc: thread.expires_at_utc,
             archived_at_utc: thread.archived_at_utc,
         };
+        Ok(CreateBindings::new(thread_record(thread.thread_id.as_uuid()), content))
+    }
+
+    pub(crate) fn prepare_message_create(
+        thread_id: RoleMailboxThreadId,
+        message_type: MessageType,
+        from_role: RoleId,
+        to_roles: Vec<RoleId>,
+        body: Value,
+    ) -> MessageCreateBindings {
+        let message_id = RoleMailboxMessageId::new_v7().as_uuid();
+        MessageCreateBindings {
+            record: message_record(message_id),
+            thread_id: thread_id.as_uuid(),
+            open_states: non_terminal_thread_states(),
+            message_id,
+            message_type: message_type.as_str().to_string(),
+            from_role: from_role.to_string(),
+            to_roles: to_roles.iter().map(ToString::to_string).collect(),
+            delivery_state: MessageDeliveryState::Queued.as_str().to_string(),
+            body,
+            created_at_utc: Utc::now(),
+        }
+    }
+
+    pub async fn create_thread(
+        &self,
+        thread: RoleMailboxThread,
+    ) -> Result<RoleMailboxThread, MailboxError> {
         // CREATE (not UPSERT) so a duplicate thread id fails exactly as the
         // original INSERT did instead of silently overwriting a live thread.
         let _: Vec<ThreadRow> = self
             .query(
                 CREATE_THREAD_QUERY,
-                CreateBindings::new(thread_record(thread.thread_id.as_uuid()), content),
+                Self::prepare_thread_create(&thread)?,
             )
             .await?;
         Ok(thread)
@@ -738,24 +776,13 @@ impl RoleMailboxRepository {
         to_roles: Vec<RoleId>,
         body: Value,
     ) -> Result<RoleMailboxMessage, MailboxError> {
-        let msg_id = RoleMailboxMessageId::new_v7();
-        let now = Utc::now();
+        let prepared = Self::prepare_message_create(
+            thread_id, message_type, from_role.clone(), to_roles.clone(), body.clone(),
+        );
+        let msg_id = RoleMailboxMessageId(prepared.message_id);
+        let now = prepared.created_at_utc;
         let created: Result<Vec<MessageRow>, SurrealStorageError> = self
-            .query(
-                APPEND_MESSAGE_QUERY,
-                MessageCreateBindings {
-                    record: message_record(msg_id.as_uuid()),
-                    thread_id: thread_id.as_uuid(),
-                    open_states: non_terminal_thread_states(),
-                    message_id: msg_id.as_uuid(),
-                    message_type: message_type.as_str().to_string(),
-                    from_role: from_role.to_string(),
-                    to_roles: to_roles.iter().map(ToString::to_string).collect(),
-                    delivery_state: MessageDeliveryState::Queued.as_str().to_string(),
-                    body: body.clone(),
-                    created_at_utc: now,
-                },
-            )
+            .query(APPEND_MESSAGE_QUERY, prepared)
             .await;
         if let Err(error) = created {
             // The guarded CREATE refused. Distinguish "no such thread" from

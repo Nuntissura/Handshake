@@ -281,6 +281,7 @@ impl ScopedReclaimStopWriter for RejectingStopWriter {
 #[derive(Default)]
 struct RecordingKill {
     attempts: Mutex<Vec<(ReclaimResourceScope, Uuid, Uuid)>>,
+    terminal_codes: Mutex<Vec<(ReclaimResourceScope, Uuid, Uuid, i32)>>,
     fail: bool,
 }
 
@@ -292,6 +293,7 @@ impl RecordingKill {
     fn failing() -> Self {
         Self {
             attempts: Mutex::new(Vec::new()),
+            terminal_codes: Mutex::new(Vec::new()),
             fail: true,
         }
     }
@@ -303,6 +305,17 @@ impl RecordingKill {
 
 #[async_trait]
 impl ScopedSandboxKill for RecordingKill {
+    async fn terminal_exit_code(
+        &self, resource_scope: &ReclaimResourceScope,
+        process_uuid: Uuid, kill_operation_uuid: Uuid,
+    ) -> Result<i32, KillError> {
+        self.terminal_codes.lock().unwrap().iter()
+            .find(|(scope, process, operation, _)| scope == resource_scope
+                && *process == process_uuid && *operation == kill_operation_uuid)
+            .map(|(_, _, _, code)| *code)
+            .ok_or_else(|| KillError::new("fixture has no original-operation terminal observation"))
+    }
+
     async fn kill(
         &self,
         resource_scope: &ReclaimResourceScope,
@@ -315,7 +328,7 @@ impl ScopedSandboxKill for RecordingKill {
             kill_operation_uuid,
         ));
         if self.fail {
-            Err(KillError::new("injected MT-019 kill failure"))
+            Err(KillError::before_adapter_invocation("injected MT-019 kill failure"))
         } else {
             Ok(())
         }
@@ -342,6 +355,16 @@ struct UnresponsiveKill {
 
 #[async_trait]
 impl ScopedSandboxKill for UnresponsiveKill {
+    async fn kill_observed_with_dispatch(
+        &self, resource_scope: &ReclaimResourceScope,
+        process_uuid: Uuid, kill_operation_uuid: Uuid,
+        _dispatch: handshake_core::process_ledger::reclaim::ScopedKillDispatchObservation,
+    ) -> Result<Option<handshake_core::sandbox::ProcessStatus>, KillError> {
+        // This fixture records the request, then remains pending before effect.
+        self.kill(resource_scope, process_uuid, kill_operation_uuid).await?;
+        Ok(None)
+    }
+
     async fn kill(
         &self,
         resource_scope: &ReclaimResourceScope,
@@ -1348,6 +1371,9 @@ async fn mt019_crash_after_kill_recovery_persists_stop_without_second_kill() {
         .expect("persist pre-crash kill-start fence");
 
     let killer = Arc::new(RecordingKill::succeeding());
+    killer.terminal_codes.lock().unwrap().push((
+        fixture.scope.clone(), process_uuid, claimed.reclaim_claim.kill_operation_uuid, 0,
+    ));
     let reclaim = reclaim_with(Arc::clone(&fixture.store), Arc::clone(&killer));
     let sweep = reclaim
         .reconcile_in_progress_for_session(

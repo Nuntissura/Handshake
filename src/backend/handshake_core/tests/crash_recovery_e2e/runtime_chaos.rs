@@ -623,6 +623,61 @@ async fn mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_pers
         process.status.success(),
         "real handshake_core startup recovery"
     );
+    let diagnostic_file = if cfg!(all(feature = "test-utils", feature = "duckdb-flight-recorder")) {
+        "handshake-core-stderr.log"
+    } else {
+        "handshake-core-stdout.log"
+    };
+    let diagnostic = std::fs::read_to_string(root.path().join(diagnostic_file))
+        .expect("read real startup recovery synchronous diagnostics");
+    let ansi = regex::Regex::new(r"\x1b\[[0-9;]*[A-Za-z]")
+        .expect("compile diagnostic ANSI normalization");
+    let diagnostic = ansi.replace_all(&diagnostic, "");
+    let [reconcile, drain, recorded] = [
+        (
+            "handshake_core::process_ledger",
+            "startup recovery-only restart-orphan reconcile complete",
+        ),
+        (
+            "handshake_core::process_ledger",
+            "unpublished process runtime drain observed",
+        ),
+        (
+            "handshake_core::restart_resume",
+            "startup restart-resume outcome recorded against embedded SurrealDB",
+        ),
+    ]
+    .map(|(target, message)| {
+        let mut events = diagnostic
+            .lines()
+            .enumerate()
+            .filter(|(_, line)| line.contains(target) && line.contains(message));
+        let event = events
+            .next()
+            .unwrap_or_else(|| panic!("missing real startup recovery diagnostic: {message}"));
+        assert!(
+            events.next().is_none(),
+            "duplicate real startup recovery diagnostic: {message}"
+        );
+        event
+    });
+    assert!(
+        reconcile.0 < drain.0 && drain.0 < recorded.0,
+        "startup recovery must reconcile and drain before recording its outcome"
+    );
+    let drain_fields: Vec<_> = drain.1.split_whitespace().collect();
+    for field in [
+        "runtime_quiesced=true",
+        "reclaim_task_quiesced=true",
+        "lease_released=true",
+        "lease_retained_reason=None",
+    ] {
+        assert!(drain_fields.contains(&field), "unproven runtime drain: {field}");
+    }
+    assert!(
+        drain_fields.contains(&"ledger=Flushed") || drain_fields.contains(&"ledger=AlreadyDrained"),
+        "startup recovery process ledger must be durably drained"
+    );
     let report_file: serde_json::Value = serde_json::from_slice(
         &std::fs::read(&process.report_file).expect("read product startup recovery report"),
     )

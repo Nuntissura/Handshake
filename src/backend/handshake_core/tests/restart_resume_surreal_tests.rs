@@ -128,7 +128,7 @@ CREATE $record CONTENT {
     session_run_id: $session_run_id,
     kernel_task_run_id: $kernel_task_run_id,
     adapter_id: 'restart-resume-surreal-test', state: $state,
-    claimed_by: 'previous-worker', lease_expires_at: time::now() + 30m,
+    claimed_by: 'previous-worker', lease_expires_at: time::now(),
     attempt_count: 1, available_at: time::now(), created_at: time::now(),
     updated_at: time::now(), owner_account_id: $owner_account_id,
     actor_principal_id: $actor_principal_id,
