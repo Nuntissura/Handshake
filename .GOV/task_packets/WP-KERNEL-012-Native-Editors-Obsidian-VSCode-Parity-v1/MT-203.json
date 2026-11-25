@@ -1099,5 +1099,46 @@
       "validation layers"
     ],
     "next_actor": "GUI coding agent: repair N1..N9 and the named tests"
+  },
+  "slice1_remediation2_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-25",
+    "remediates": "slice1_eval2_20261125 (N1..N9, all confirmed in code first)",
+    "commit": "077ca69693823f5d622e16d3e2dcd128a9391868",
+    "crate_tree": "fa4313025",
+    "wait_mechanism": "one fence per submission, polled with vkGetFenceStatus between growing sleeps (0.1 ms to 4 ms) until the caller's own deadline; a never-submitted sentinel fence detects loss of an idle device; no vkWaitSemaphores, vkWaitForFences, vkDeviceWaitIdle or vkQueueWaitIdle remain",
+    "spec_basis": [
+      "Fence Signaling: a fence signals after all earlier queue work",
+      "vkGetFenceStatus: on a lost device repeated calls end in SUCCESS or DEVICE_LOST",
+      "Lost Device: DEVICE_LOST counts as SUCCESS for in-use questions"
+    ],
+    "remaining_unbounded_calls": [
+      "vkCreateInstance/vkCreateDevice at open and in rebind without a lock",
+      "vkDestroyDevice only with evidence nothing is in use",
+      "vkQueueSubmit under the slot lock: a submit stuck in the driver would block close (not fixed)",
+      "driver teardown at process exit"
+    ],
+    "implementer_checks": {
+      "cargo check --locked --offline --tests -j 2": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "closure": "ash, libloading, cfg-if, windows-link; Cargo.lock unchanged"
+    },
+    "require_gpu": "checked in at the crate's .cargo/config.toml; unset means required; HANDSHAKE_REQUIRE_VULKAN_GPU=0 allows a visible skip",
+    "api_changes": [
+      "BudgetExceeded { requested_bytes }",
+      "AuthorizeRefusal::Abandoned",
+      "ReleaseRefusal",
+      "DeviceFate::Creating",
+      "OwnerEvent::DeviceCreatingAtClose",
+      "Claim discharge/settle/release_retained without the client handle",
+      "ClaimHold::in_flight",
+      "DeviceLease::may_release and wait_release",
+      "DeviceRetainedAtClose{holders:0}; DeviceLeaked only when the last handle goes"
+    ],
+    "unproven": [
+      "that polling alone sees gated work end on this Adreno",
+      "AMD, NVIDIA, Intel, multi-GPU, discrete heaps, real loss and TDR, validation layers"
+    ],
+    "tests": "compiled, not run; independent run pending"
   }
 }
