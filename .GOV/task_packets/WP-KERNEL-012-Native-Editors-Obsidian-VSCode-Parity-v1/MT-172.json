@@ -13655,5 +13655,54 @@
     ],
     "pt003": "neither row 1 nor row 3 explains the Workspace Create failure; static candidate: record::exists($row.setup_receipt) runs as the record user, which cannot read the LOCAL_ACCOUNT_SETUP ledger row (local_accounts.rs:172); to be confirmed by a run",
     "serialise_with": "MT-210/211 (same declaration recognizer)"
+  },
+  "restored_tree_eval_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "commit": "e4fa41e8c7f2e8305380591491ea8885fd0d2fae",
+    "tree": "7076a3e7610e56fdefd07ac79f7f4b24d9a45570",
+    "inputs_unchanged": true,
+    "result": "36 run, 30 passed, 6 failed, 0 timeouts; build 31m43s, tests 988 s",
+    "comparison_with_e6f0d3b11": {
+      "process_ledger_surreal_tests": "4/13 -> 10/13",
+      "process_reclaim_real_lifecycle_surreal_tests": "1/22 -> 20/22",
+      "restart_resume_boot_bound_surreal_tests": "0/1 -> 0/1"
+    },
+    "failures": [
+      {
+        "id": "D",
+        "class": "test (fixture composition), shared",
+        "tests": [
+          "ownership_inspection_survives_same_namespace_shutdown_and_reopen",
+          "reclaim_claim_state_and_fences_survive_same_namespace_shutdown_and_reopen",
+          "saturation_emits_overflow_receipts_and_clears_degraded_after_drain"
+        ],
+        "cause": "SurrealProcessLedgerStore::open installs process_ledger_schema.surql on a base-only test store; test_harness/surreal_test_store_support.rs:140 reopen re-checks against the base schema only (HANDSHAKE_SURREAL_SCHEMA_INFO_MISMATCH); production uses bootstrap_production_schemas"
+      },
+      {
+        "id": "E",
+        "class": "product, shared",
+        "tests": [
+          "mt019_concurrent_reclaimers_claim_each_process_exactly_once",
+          "mt019_concurrent_reclaimers_produce_one_kill_and_one_durable_stop"
+        ],
+        "cause": "scoped claim_rows in storage/surreal/process_ledger.rs runs one statement with no retry on a SurrealDB transaction conflict; the unscoped claim in reclaim.rs:2515 retries"
+      },
+      {
+        "id": "F",
+        "class": "test (fault-switch placement), shared",
+        "tests": [
+          "restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker"
+        ],
+        "cause": "the fault switch in persist_report is used up by the zero-bound main pass's own completion write (:701) before the abort-path write",
+        "product_observation": "a cancelled main pass still durably commits a COMPLETED report"
+      }
+    ],
+    "decision_rule_outcome": "no restored-only product failure: the restored tree is the base; the split fallback is not triggered",
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/eval-reclaim-20261125-02/run.log",
+    "log_sha256": "f893ea7d151893f07a9d1ea4f7d71d2fe8bec925ebf4b0dfe240b24646ba2934",
+    "junit_sha256": "82953a6840fd6fa9e8f40af3a715d01d3b8dd983b2c8613873966a7de7069871",
+    "result_sha256": "43d2b4f5334f27a9d40bce2c72e9fdb2a2aa7c7fdda0b5b804941ae96e1e5f32",
+    "next": "coder: D, E, F and the cancelled-pass COMPLETED observation; then the same three targets once"
   }
 }
