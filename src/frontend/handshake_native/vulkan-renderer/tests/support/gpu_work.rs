@@ -5,8 +5,8 @@
 
 use ash::vk::{self, Handle};
 use handshake_vulkan_renderer::{
-    ChargeClass, Claim, DeviceHandles, DeviceLease, GpuClient, Recording, SettleOutcome,
-    SettleReceipt, Settlement,
+    ChargeClass, Claim, DeviceHandles, DeviceLease, GpuClient, MemoryPlacement, Recording,
+    SettleOutcome, SettleReceipt, Settlement,
 };
 
 /// Words in each of the two buffers: 4 MiB.
@@ -29,20 +29,56 @@ unsafe impl Send for GpuWork {}
 // SAFETY: as above; nothing is changed through a shared reference.
 unsafe impl Sync for GpuWork {}
 
+/// # Safety
+/// The handles are those of a live device generation.
+unsafe fn instance_of(handles: &DeviceHandles) -> ash::Instance {
+    // SAFETY: the address is the loader's `vkGetInstanceProcAddr`, and the instance is live.
+    unsafe {
+        let get_instance_proc_addr = std::mem::transmute::<*const (), vk::PFN_vkGetInstanceProcAddr>(
+            handles.get_instance_proc_addr as *const (),
+        );
+        let static_fn = ash::StaticFn {
+            get_instance_proc_addr,
+        };
+        ash::Instance::load(&static_fn, vk::Instance::from_raw(handles.instance))
+    }
+}
+
+/// Size and placement of each memory heap, from what the driver itself answers: a discrete device's own heaps are
+/// dedicated, what is not device-local is shared, and of everything else the driver does not say.
+pub fn heaps_by_the_driver(handles: &DeviceHandles) -> Vec<(u64, MemoryPlacement)> {
+    // SAFETY: the handles are those of a live device generation, kept alive by the caller's lease.
+    let (kind, memory) = unsafe {
+        let instance = instance_of(handles);
+        let physical = vk::PhysicalDevice::from_raw(handles.physical_device);
+        (
+            instance
+                .get_physical_device_properties(physical)
+                .device_type,
+            instance.get_physical_device_memory_properties(physical),
+        )
+    };
+    memory
+        .memory_heaps
+        .iter()
+        .take(memory.memory_heap_count as usize)
+        .map(|heap| {
+            let own = heap.flags.contains(vk::MemoryHeapFlags::DEVICE_LOCAL);
+            let placement = match kind {
+                _ if !own => MemoryPlacement::Shared,
+                vk::PhysicalDeviceType::DISCRETE_GPU => MemoryPlacement::Dedicated,
+                _ => MemoryPlacement::Unknown,
+            };
+            (heap.size, placement)
+        })
+        .collect()
+}
+
 impl GpuWork {
     pub fn new(handles: &DeviceHandles) -> Self {
-        // SAFETY: the handles are those of a live device generation, kept alive by the caller's lease. The address is
-        // the loader's `vkGetInstanceProcAddr`.
+        // SAFETY: the handles are those of a live device generation, kept alive by the caller's lease.
         unsafe {
-            let get_instance_proc_addr = std::mem::transmute::<
-                *const (),
-                vk::PFN_vkGetInstanceProcAddr,
-            >(handles.get_instance_proc_addr as *const ());
-            let static_fn = ash::StaticFn {
-                get_instance_proc_addr,
-            };
-            let instance =
-                ash::Instance::load(&static_fn, vk::Instance::from_raw(handles.instance));
+            let instance = instance_of(handles);
             let device =
                 ash::Device::load(instance.fp_v1_0(), vk::Device::from_raw(handles.device));
             let types = instance.get_physical_device_memory_properties(

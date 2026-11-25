@@ -258,6 +258,74 @@ fn a_dropped_client_handle_detaches_its_client() {
     assert_eq!(bench.ledger.usage().charged_bytes, 0);
 }
 
+/// A detached module orphans nothing (GUI-DESKTOP-035): whoever holds its claims reports what it frees and ends them.
+#[test]
+fn claims_outlive_the_handle_of_their_client() {
+    let bench = bench(policy(100));
+    let other = attach(&bench.ledger, 2, 5);
+    let settled = other.admit(&request(30)).expect("fits");
+    let dropped = other.admit(&request(20)).expect("fits");
+    let retained = other.admit(&request(10)).expect("fits");
+    for claim in [&settled, &dropped, &retained] {
+        other
+            .charge(claim, ChargeClass::Committed, 8)
+            .expect("fits");
+    }
+    let _running = other.begin_submission(&settled).expect("authorized");
+    let keeps = Settlement {
+        retained: ByteQuantity::Measured(8),
+        ..clean()
+    };
+    other.settle(&retained, keeps).expect("retains");
+    drop(other);
+    assert_eq!(bench.ledger.usage().committed_bytes, 16);
+
+    // Without its handle, a claim is held to what it was held to before.
+    assert_eq!(
+        settled.settle(clean()),
+        Err(SettleRefusal::InFlight { in_flight: 1 })
+    );
+    bench.ledger.resolve_through(1, 1);
+    assert!(matches!(
+        settled.settle(clean()),
+        Err(SettleRefusal::RetainedBelowCharged { .. })
+    ));
+    assert_eq!(
+        settled.discharge(ChargeClass::Staging, 1),
+        Err(ChargeRefusal::NotCharged {
+            charged_bytes: 0,
+            requested_bytes: 1
+        })
+    );
+    assert_eq!(settled.discharge(ChargeClass::Committed, 8), Ok(()));
+    let receipt = settled.settle(clean()).expect("settles");
+    assert_eq!(
+        (receipt.released_bytes, receipt.observed.completed),
+        (30, 1)
+    );
+    assert_eq!(settled.settle(clean()), Err(SettleRefusal::DoubleRelease));
+    assert_eq!(
+        settled.discharge(ChargeClass::Committed, 0),
+        Err(ChargeRefusal::NotAuthorized(AuthorizeRefusal::Settled))
+    );
+    assert_eq!(
+        retained
+            .release_retained()
+            .map(|receipt| receipt.released_bytes),
+        Ok(8)
+    );
+    assert_eq!(
+        retained.release_retained(),
+        Err(SettleRefusal::DoubleRelease)
+    );
+    // What was reported freed is not leaked with a claim that is dropped after it.
+    assert_eq!(dropped.discharge(ChargeClass::Committed, 8), Ok(()));
+    drop(dropped);
+    let counters = bench.ledger.counters();
+    assert_eq!((counters.reclaimed, counters.leaked), (1, 0));
+    assert_eq!(bench.ledger.usage().charged_bytes, 0);
+}
+
 #[test]
 fn a_dropped_claim_without_work_is_reclaimed_at_once() {
     let bench = bench(bounded_policy(100, 1, 1));
@@ -334,18 +402,59 @@ fn a_dropped_claim_is_reclaimed_after_its_last_work_ended_and_not_earlier() {
 fn a_dropped_claim_waits_for_its_leases() {
     let bench = bench(policy(100));
     let claim = bench.claim(40);
+    let info = claim.info();
     let first = bench.client.hold(&claim).expect("authorized");
     let last = bench.client.hold(&claim).expect("authorized");
+    assert_eq!(last.standing(), Ok(()));
     drop(claim);
     assert_eq!(bench.ledger.usage().charged_bytes, 40);
-    // Who holds the device is still told whether it may use it.
-    assert_eq!(last.standing(), Ok(()));
+    // Nobody has a claim to use the device under any more, and who holds it is told.
+    let dropped = AuthorizeRefusal::Abandoned;
+    assert_eq!(last.standing(), Err(dropped));
+    assert_eq!(
+        bench.log.count(OwnerEvent::AuthorizeRefused {
+            subject: claim_subject(info),
+            reason: dropped.number()
+        }),
+        1
+    );
     drop(first);
     assert_eq!(bench.ledger.usage().charged_bytes, 40);
     drop(last);
     let usage = bench.ledger.usage();
     assert_eq!((usage.charged_bytes, usage.leases), (0, 0));
     assert_eq!(bench.ledger.counters().leaked, 0);
+}
+
+/// An object made from a lease may be used under any claim of its client, also one that was dropped.
+#[test]
+fn a_hold_counts_all_running_work_of_its_client_and_nobody_elses() {
+    let bench = bench(policy(100));
+    let other = attach(&bench.ledger, 2, 1);
+    let mine = bench.claim(10);
+    let dropped = bench.claim(10);
+    let theirs = other.admit(&request(10)).expect("fits");
+    let hold = bench.client.hold(&mine).expect("authorized");
+    assert_eq!(hold.in_flight(), 0);
+    for (client, claim) in [
+        (&bench.client, &mine),
+        (&bench.client, &dropped),
+        (&other, &theirs),
+    ] {
+        drop(client.begin_submission(claim).expect("authorized"));
+    }
+    drop(dropped);
+    assert_eq!(hold.in_flight(), 2);
+    bench.ledger.resolve_through(1, 1);
+    assert_eq!(hold.in_flight(), 1);
+    bench.ledger.resolve_through(1, 2);
+    assert_eq!((hold.in_flight(), bench.ledger.usage().in_flight), (0, 1));
+    // Work on a later device says nothing about this one.
+    bench.ledger.mark_device_lost(1);
+    bench.ledger.bind_device(KEY);
+    let later = bench.claim(10);
+    let _running = bench.client.begin_submission(&later).expect("authorized");
+    assert_eq!(hold.in_flight(), 0);
 }
 
 #[test]

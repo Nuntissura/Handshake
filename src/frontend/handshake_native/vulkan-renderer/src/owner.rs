@@ -14,19 +14,32 @@
 //! damage may leave it untouched for as long as it is idle. What ended meanwhile is noticed at the next call that
 //! asks the device, [`GpuOwner::poll`] being the one that does only that.
 //!
-//! No wait for the device runs with a lock of the owner held that a client's call needs.
+//! No wait for the device runs with a lock of the owner held that a client's call needs, and every wait ends at its own
+//! deadline whatever the driver does: none of them is a wait inside Vulkan.
+//!
+//! A device the owner let go of (lost and replaced, or closed) is kept while clients hold it or its work runs, and
+//! destroyed by the first call after that: of the owner, of a client, or the return of a lease.
 //!
 //! Not in this unit: the kernel issuer that authorizes the renderer-only shell and protected work
 //! (NATIVE-RENDER-BOOT-002/007, GPU-QUOTA-011), the installation-wide persisted quota ledger
 //! (GPU-QUOTA-006..010), windows, surfaces, swapchains and any drawing.
 
+#[cfg(test)]
+mod bound_tests;
 mod client;
 #[cfg(test)]
 mod fault_tests;
 mod lifecycle;
 #[cfg(test)]
+mod loss_tests;
+#[cfg(test)]
 mod pending_tests;
 mod queue;
+#[cfg(test)]
+mod rebind_tests;
+mod release;
+#[cfg(test)]
+mod release_tests;
 
 pub use client::GpuClient;
 pub use lifecycle::MAX_HELD_LOST_DEVICES;
@@ -41,31 +54,47 @@ use crate::process::ProcessClaim;
 use crate::records::{DeviceBinding, LedgerCounters, LedgerUsage, ModuleUsage, QuotaPolicy};
 use crate::vulkan::VulkanGeneration;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
-/// The bound generation and its number.
+/// A device generation and its number.
+#[derive(Clone)]
 struct Live {
     number: u64,
     vulkan: Arc<VulkanGeneration>,
 }
 
 struct Slot {
+    /// The bound generation.
     live: Option<Live>,
-    /// Lost devices that clients still hold.
-    set_aside: Vec<Weak<VulkanGeneration>>,
+    /// Devices the owner let go of and did not destroy yet: lost ones that clients held, and the one of a closed
+    /// owner. Nobody gets a new lease of them.
+    retained: Vec<Live>,
+    /// A rebind creates a device now.
+    creating: bool,
     /// The adapter as its latest generation reported it.
     identity: DeviceIdentity,
-    /// Released at close; a device that clients still hold keeps its own share.
+    /// Released at close; a device that is kept has its own share.
     process: Option<Arc<ProcessClaim>>,
+}
+
+impl Slot {
+    /// Generation `number`, when its device still exists here.
+    fn generation(&self, number: u64) -> Option<&Live> {
+        self.live
+            .iter()
+            .chain(&self.retained)
+            .find(|live| live.number == number)
+    }
 }
 
 /// What the owner and the handles it issued share.
 ///
 /// Lock order: `closed`, then `slot`, then the locks inside the ledger and the generation. The client's recording
-/// call, every wait for the device and the creation of one run with neither `slot` nor a lock inside held. Only the
-/// draining in a close, which is bounded, runs with `closed` held.
-struct OwnerShared {
+/// call, every wait for the device and the creation and destruction of one run with neither `slot` nor a lock inside
+/// held. Of these only what a close itself does, its bounded draining and the destruction that follows, runs with
+/// `closed` held.
+pub(crate) struct OwnerShared {
     core: Arc<OwnerCore>,
     slot: Mutex<Slot>,
     closed: Mutex<Option<ShutdownReport>>,
@@ -137,7 +166,8 @@ impl GpuOwner {
                         core,
                         slot: Mutex::new(Slot {
                             live: Some(live),
-                            set_aside: Vec::new(),
+                            retained: Vec::new(),
+                            creating: false,
                             identity,
                             process: Some(process),
                         }),
@@ -209,7 +239,8 @@ impl GpuOwner {
     }
 
     /// Ask the device, without waiting, how far its work got: end what finished, reclaim what was dropped and
-    /// finished, and notice a loss.
+    /// finished, and notice a loss. A device the owner let go of is asked as well, also after a close, and destroyed
+    /// when nothing holds it back any more; the answer is that of the bound one.
     pub fn poll(&self) -> Result<(), DeviceFault> {
         self.shared.poll()
     }
@@ -226,10 +257,10 @@ impl GpuOwner {
 
     /// Replace a lost generation with a new one on the same adapter and return its number.
     ///
-    /// The lost device first has to confirm that its work has ended; it is asked for at most [`MAX_WAIT`], and then
-    /// with the one wait that Vulkan promises to end on a lost device. Then it is destroyed. While clients still hold
-    /// it, it is set aside instead and destroyed with its last holder: recovery does not wait for them, and their
-    /// next call on the lease tells them of the loss. At most [`MAX_HELD_LOST_DEVICES`] devices are set aside.
+    /// The lost device first has to confirm that its work has ended; it is asked for at most [`MAX_WAIT`]. Then it is
+    /// destroyed. While clients still hold it, it is set aside instead and destroyed with its last holder: recovery
+    /// does not wait for them, and their next call on the lease tells them of the loss. At most
+    /// [`MAX_HELD_LOST_DEVICES`] devices are set aside.
     ///
     /// Claims are not touched: each keeps its charge and is moved by its holder with [`GpuClient::rebind_claim`]. A
     /// different adapter is never taken instead; when the adapter is gone the owner stays without a device and this
@@ -242,9 +273,10 @@ impl GpuOwner {
     /// and report what was still held. Idempotent: later calls return the first report.
     ///
     /// Claims that were not settled stay recorded as held; closing never reports them as settled
-    /// (GUI-DESKTOP-035). A device that clients still lease is not destroyed under them: the report says so, and
-    /// it is destroyed, and reported, when the last lease is dropped. Nor is a device destroyed that did not confirm
-    /// in time that its work has ended.
+    /// (GUI-DESKTOP-035). A device that clients still lease is not destroyed under them, nor one that did not confirm
+    /// in time that its work has ended: the report says so ([`crate::DeviceFate`]). It can still be observed, and it
+    /// is destroyed, and reported, once its last holder and its work are gone. [`DeviceLease::may_release`] tells a
+    /// holder when it may go. A close does not wait for a rebind that is creating a device on another thread.
     pub fn close(&self) -> ShutdownReport {
         self.shared.close()
     }

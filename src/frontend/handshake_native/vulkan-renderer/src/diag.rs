@@ -197,7 +197,8 @@ pub enum OwnerEvent {
     DeviceRebindRefused {
         reason: u16,
     },
-    /// The owner closed while `holders` clients hold its device (never 0).
+    /// The owner closed and kept its device: `holders` clients hold it, or it did not confirm in time that its work has
+    /// ended (0).
     DeviceRetainedAtClose {
         generation: u64,
         holders: u64,
@@ -239,16 +240,18 @@ pub enum OwnerEvent {
         holders: u64,
     },
     /// A device its owner could not destroy at once ([`Self::LostDeviceSetAside`], [`Self::DeviceRetainedAtClose`])
-    /// was destroyed with its last holder; `resolved` submissions ended with it.
+    /// was destroyed, after its last holder and its work were gone; `resolved` submissions ended with it.
     RetainedDeviceDestroyed {
         generation: u64,
         resolved: u64,
     },
-    /// Nobody holds the device of `generation` any more and it did not confirm that its work has ended: it was left
-    /// alive, with its memory and the process's owner slot.
+    /// The last handle of the owner is gone and the device of `generation` did not confirm that its work has ended: it
+    /// was left alive, with its memory and the process's owner slot, and nobody can look at it again.
     DeviceLeaked {
         generation: u64,
     },
+    /// The owner closed while a rebind was creating a device on another thread; see [`crate::DeviceFate::Creating`].
+    DeviceCreatingAtClose,
 }
 
 impl OwnerEvent {
@@ -284,6 +287,7 @@ impl OwnerEvent {
             Self::LostDeviceSetAside { .. } => 27,
             Self::RetainedDeviceDestroyed { .. } => 28,
             Self::DeviceLeaked { .. } => 29,
+            Self::DeviceCreatingAtClose => 30,
         }
     }
 
@@ -318,7 +322,8 @@ impl OwnerEvent {
             | Self::DeviceRetainedAtClose { .. }
             | Self::LostDeviceSetAside { .. }
             | Self::RetainedDeviceDestroyed { .. }
-            | Self::DeviceLeaked { .. } => None,
+            | Self::DeviceLeaked { .. }
+            | Self::DeviceCreatingAtClose => None,
         }
     }
 
@@ -354,7 +359,7 @@ impl OwnerEvent {
             Self::ClientRevoked { claims, .. } | Self::ClientDropped { claims, .. } => {
                 [claims, 0, 0]
             }
-            Self::ClientAttached { .. } => [0, 0, 0],
+            Self::ClientAttached { .. } | Self::DeviceCreatingAtClose => [0, 0, 0],
             Self::ClaimAbandoned {
                 in_flight,
                 charged_bytes,
@@ -411,7 +416,8 @@ impl OwnerEvent {
             | Self::ClaimAbandoned { .. }
             | Self::ClaimLeaked { .. }
             | Self::LostDeviceSetAside { .. }
-            | Self::DeviceLeaked { .. } => true,
+            | Self::DeviceLeaked { .. }
+            | Self::DeviceCreatingAtClose => true,
             Self::ShutdownOutstanding {
                 open_claims,
                 retained_claims,

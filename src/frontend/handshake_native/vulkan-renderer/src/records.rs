@@ -236,18 +236,26 @@ pub struct ReleaseReceipt {
 }
 
 /// What became of the device when its owner closed.
+///
+/// A device that is [`Self::Held`] or [`Self::Unconfirmed`] is kept, and every later call of the owner, a client or a
+/// returned lease looks at it: it is destroyed once nobody holds it and it says that its work has ended. That, or that
+/// the last handle of all went before it, is reported once, as [`crate::OwnerEvent::RetainedDeviceDestroyed`] or
+/// [`crate::OwnerEvent::DeviceLeaked`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeviceFate {
     /// There was no device.
     NoDevice,
     Destroyed,
-    /// Clients hold it: `holders` leases, recordings or waits, never 0. It ends when the last of them is gone, and
-    /// that is reported as [`crate::OwnerEvent::RetainedDeviceDestroyed`] or [`crate::OwnerEvent::DeviceLeaked`].
+    /// Clients hold it: `holders` leases, recordings or waits, never 0.
     Held {
         holders: u64,
     },
-    /// Nobody holds it, but it did not confirm in time that its work has ended. It was left alive.
+    /// Nobody holds it, but it did not confirm in time that its work has ended.
     Unconfirmed,
+    /// A rebind was replacing the lost one on another thread. Its successor is never bound: that thread destroys it as
+    /// soon as the driver returns it, and then reports [`crate::OwnerEvent::DeviceRebindRefused`]. Until then the
+    /// process's owner slot is taken.
+    Creating,
 }
 
 /// The device generation the ledger admits on.

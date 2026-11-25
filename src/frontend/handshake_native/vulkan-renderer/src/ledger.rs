@@ -54,6 +54,9 @@ const TOMB_SUPERSEDED: u8 = 2;
 
 /// An admitted claim of one client. Not `Clone`: one holder settles it once.
 ///
+/// Its holder can always report what was freed and end it, also when the client's handle is gone:
+/// [`Self::discharge`], [`Self::settle`], [`Self::release_retained`] (GUI-DESKTOP-035).
+///
 /// Dropping it without a settlement releases nothing (GPU-QUOTA-013). The owner reports it as abandoned and closes
 /// it once it observed the end of its work and no lease or reported memory is left; otherwise it stays charged.
 #[must_use = "a dropped claim is abandoned"]
@@ -104,11 +107,13 @@ impl Drop for Claim {
 pub struct ClaimHold {
     ledger: Arc<Shared>,
     info: ClaimInfo,
+    /// The attachment of the claim.
+    seat: u64,
 }
 
 impl ClaimHold {
     /// Whether the claim may still use its device. This is how the holder of an idle lease learns of a loss, a
-    /// revocation or a closed owner.
+    /// revocation, a dropped claim or a closed owner.
     pub fn standing(&self) -> Result<(), AuthorizeRefusal> {
         let result = {
             let mut guard = self.ledger.lock();
@@ -223,6 +228,9 @@ fn standing(device: Option<DeviceBinding>, record: &Record) -> Result<(), Author
     if record.state == ClaimState::Retained {
         return Err(AuthorizeRefusal::Settled);
     }
+    if record.abandoned {
+        return Err(AuthorizeRefusal::Abandoned);
+    }
     if record.revoked {
         return Err(AuthorizeRefusal::Revoked);
     }
@@ -249,6 +257,8 @@ struct State {
     admission_open: bool,
     device: Option<DeviceBinding>,
     last_generation: u64,
+    /// Highest generation marked lost. A generation is bound after the loss of the one before it.
+    last_lost: u64,
     next_claim: u64,
     next_seat: u64,
     /// Next fence value of the bound generation; restarts at 1 with each generation.
@@ -316,11 +326,10 @@ impl State {
         if claims >= max_claims {
             return Err(AdmissionDenial::ClaimLimit { max_claims });
         }
-        let remaining_bytes = limit_bytes.saturating_sub(self.charged_bytes);
-        if request.reserve_bytes > remaining_bytes {
+        // What is left of the quota says what others hold: a client is not told (GPU-QUOTA-015).
+        if request.reserve_bytes > limit_bytes.saturating_sub(self.charged_bytes) {
             return Err(AdmissionDenial::BudgetExceeded {
                 requested_bytes: request.reserve_bytes,
-                remaining_bytes,
             });
         }
         Ok((device, revision, max_in_flight))
@@ -368,6 +377,7 @@ impl ClaimLedger {
             admission_open: true,
             device: None,
             last_generation: 0,
+            last_lost: 0,
             next_claim: 1,
             next_seat: 1,
             next_sequence: 1,
@@ -478,15 +488,17 @@ impl ClaimLedger {
         self.lock().device = None;
     }
 
-    /// Mark `generation` lost. `true` only for the first report of the current generation.
+    /// Mark `generation` lost. `true` only for the first report of the latest generation, bound or, after the owner
+    /// closed, kept for its holders.
     pub fn mark_device_lost(&self, generation: u64) -> bool {
         let mut guard = self.lock();
         let state = &mut *guard;
-        match state.device.as_mut() {
-            Some(device) if device.generation == generation && !device.lost => {
-                device.lost = true;
-            }
-            _ => return false,
+        if generation != state.last_generation || generation <= state.last_lost {
+            return false;
+        }
+        state.last_lost = generation;
+        if let Some(device) = state.device.as_mut() {
+            device.lost |= device.generation == generation;
         }
         bump(&mut state.counters.device_losses);
         for record in state.live.values_mut() {

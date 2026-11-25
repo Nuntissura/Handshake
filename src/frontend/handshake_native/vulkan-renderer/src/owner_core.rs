@@ -99,15 +99,18 @@ impl OwnerCore {
     }
 
     /// `VK_ERROR_DEVICE_LOST` was observed on `generation`. Idempotent: only the first report of the
-    /// current generation changes state and is reported. Claims keep their charge.
+    /// latest generation changes state and is reported. Claims keep their charge.
     pub fn device_lost(&self, generation: u64) -> bool {
         let first = self.ledger.mark_device_lost(generation);
         if first {
             self.emit(OwnerEvent::VulkanDeviceLost { generation });
-            self.emit(OwnerEvent::Phase {
-                phase: OwnerPhase::DeviceLost,
-                generation,
-            });
+            // A closed owner that keeps the device for its holders stays closed.
+            if self.ledger.device().is_some() {
+                self.emit(OwnerEvent::Phase {
+                    phase: OwnerPhase::DeviceLost,
+                    generation,
+                });
+            }
         }
         first
     }
@@ -148,8 +151,8 @@ impl OwnerCore {
         });
     }
 
-    /// A device its owner could not destroy at once is gone from its last holder: `destroyed`, or left alive because
-    /// it did not confirm that its work has ended.
+    /// A device its owner could not destroy at once ended: `destroyed`, or left alive with the last handle of the owner
+    /// because it did not confirm that its work has ended.
     pub fn retained_device_ended(&self, generation: u64, destroyed: bool) {
         if destroyed {
             let resolved = self.ledger.generation_retired(generation);
@@ -200,10 +203,11 @@ impl OwnerCore {
                 generation,
                 holders,
             }),
-            DeviceFate::Unconfirmed => {
-                self.ledger.report_abandoned();
-                self.emit(OwnerEvent::DeviceLeaked { generation });
-            }
+            DeviceFate::Unconfirmed => self.emit(OwnerEvent::DeviceRetainedAtClose {
+                generation,
+                holders: 0,
+            }),
+            DeviceFate::Creating => self.emit(OwnerEvent::DeviceCreatingAtClose),
         }
         let usage = self.ledger.usage();
         self.emit(OwnerEvent::ShutdownOutstanding {

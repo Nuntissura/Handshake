@@ -1,6 +1,7 @@
 //! Settlement and the release of retained memory: each reservation ends exactly once, and only on evidence.
 
-use super::{bump, Claim, ClaimState, LedgerClient, Located, Record, State, TOMB_CLOSED};
+use super::client::{locate, Actor};
+use super::{bump, Claim, ClaimState, LedgerClient, Located, Record, Shared, State, TOMB_CLOSED};
 use crate::diag::{OwnerEvent, Subject};
 use crate::outcome::SettleRefusal;
 use crate::records::{
@@ -34,14 +35,45 @@ fn contradicts(record: &Record, outcome: SettleOutcome) -> bool {
     }
 }
 
+impl Claim {
+    /// Settle the work of this claim: [`LedgerClient::settle`], also when the client's handle is gone.
+    pub fn settle(&self, settlement: Settlement) -> Result<SettleReceipt, SettleRefusal> {
+        self.ledger.settle(self, self.holder(), settlement)
+    }
+
+    /// Release the retained memory of this claim: [`LedgerClient::release_retained`], also when the client's handle
+    /// is gone.
+    pub fn release_retained(&self) -> Result<ReleaseReceipt, SettleRefusal> {
+        self.ledger.release_retained(self, self.holder())
+    }
+}
+
 impl LedgerClient {
-    fn settle_locked(
+    /// Settle the work of `claim` exactly once. Refused while anything is in flight, when the outcome contradicts
+    /// what the owner observed, and as closing while a device lease is out.
+    pub fn settle(
         &self,
-        state: &mut State,
         claim: &Claim,
         settlement: Settlement,
     ) -> Result<SettleReceipt, SettleRefusal> {
-        match self.locate(state, claim) {
+        self.shared.settle(claim, self.actor(claim), settlement)
+    }
+
+    /// Release the retained memory of a settled claim exactly once. Refused before settlement and while a
+    /// device lease is out.
+    pub fn release_retained(&self, claim: &Claim) -> Result<ReleaseReceipt, SettleRefusal> {
+        self.shared.release_retained(claim, self.actor(claim))
+    }
+}
+
+impl Shared {
+    fn settle_locked(
+        state: &mut State,
+        claim: &Claim,
+        actor: Actor,
+        settlement: Settlement,
+    ) -> Result<SettleReceipt, SettleRefusal> {
+        match locate(state, claim, actor) {
             Located::Foreign => return Err(SettleRefusal::StaleClaim),
             Located::Closed => return Err(SettleRefusal::DoubleRelease),
             Located::Superseded => return Err(SettleRefusal::LateRelease),
@@ -120,17 +152,16 @@ impl LedgerClient {
         })
     }
 
-    /// Settle the work of `claim` exactly once. Refused while anything is in flight, when the outcome contradicts
-    /// what the owner observed, and as closing while a device lease is out.
-    pub fn settle(
+    fn settle(
         &self,
         claim: &Claim,
+        actor: Actor,
         settlement: Settlement,
     ) -> Result<SettleReceipt, SettleRefusal> {
         let result = {
-            let mut guard = self.shared.lock();
+            let mut guard = self.lock();
             let state = &mut *guard;
-            let result = self.settle_locked(state, claim, settlement);
+            let result = Self::settle_locked(state, claim, actor, settlement);
             match &result {
                 Ok(receipt) => {
                     bump(&mut state.counters.settled);
@@ -152,26 +183,21 @@ impl LedgerClient {
                     ClaimDisposition::Retained { charged_bytes } => charged_bytes,
                 },
             },
-            Err(refusal) => self.settle_refused(claim, *refusal),
+            Err(refusal) => settle_refused(actor, *refusal),
         };
-        self.shared.emit(event);
+        self.emit(event);
         result
     }
 
-    fn settle_refused(&self, claim: &Claim, refusal: SettleRefusal) -> OwnerEvent {
-        OwnerEvent::SettleRefused {
-            subject: self.subject(&claim.info),
-            reason: refusal.number(),
-        }
-    }
-
-    /// Release the retained memory of a settled claim exactly once. Refused before settlement and while a
-    /// device lease is out.
-    pub fn release_retained(&self, claim: &Claim) -> Result<ReleaseReceipt, SettleRefusal> {
+    fn release_retained(
+        &self,
+        claim: &Claim,
+        actor: Actor,
+    ) -> Result<ReleaseReceipt, SettleRefusal> {
         let result = {
-            let mut guard = self.shared.lock();
+            let mut guard = self.lock();
             let state = &mut *guard;
-            let result = self.release_locked(state, claim);
+            let result = Self::release_locked(state, claim, actor);
             match &result {
                 Ok(_) => bump(&mut state.counters.retained_released),
                 Err(refusal) => count_refusal(state, *refusal),
@@ -183,18 +209,18 @@ impl LedgerClient {
                 subject: Subject::claim(&receipt.claim),
                 released_bytes: receipt.released_bytes,
             },
-            Err(refusal) => self.settle_refused(claim, *refusal),
+            Err(refusal) => settle_refused(actor, *refusal),
         };
-        self.shared.emit(event);
+        self.emit(event);
         result
     }
 
     fn release_locked(
-        &self,
         state: &mut State,
         claim: &Claim,
+        actor: Actor,
     ) -> Result<ReleaseReceipt, SettleRefusal> {
-        match self.locate(state, claim) {
+        match locate(state, claim, actor) {
             Located::Foreign => return Err(SettleRefusal::StaleClaim),
             Located::Closed => return Err(SettleRefusal::DoubleRelease),
             Located::Superseded => return Err(SettleRefusal::LateRelease),
@@ -222,6 +248,13 @@ impl LedgerClient {
             claim: record.info,
             released_bytes: record.charged_bytes,
         })
+    }
+}
+
+fn settle_refused(actor: Actor, refusal: SettleRefusal) -> OwnerEvent {
+    OwnerEvent::SettleRefused {
+        subject: actor.subject,
+        reason: refusal.number(),
     }
 }
 

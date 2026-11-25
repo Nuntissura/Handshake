@@ -73,17 +73,13 @@ fn a_reservation_must_fit_what_the_quota_has_left() {
     assert_eq!(
         bench.client.admit(&request(41)).expect_err("too big"),
         AdmissionDenial::BudgetExceeded {
-            requested_bytes: 41,
-            remaining_bytes: 40
+            requested_bytes: 41
         }
     );
     let _second = bench.claim(40);
     assert_eq!(
         bench.client.admit(&request(1)).expect_err("full"),
-        AdmissionDenial::BudgetExceeded {
-            requested_bytes: 1,
-            remaining_bytes: 0
-        }
+        AdmissionDenial::BudgetExceeded { requested_bytes: 1 }
     );
     assert_eq!(bench.ledger.usage().charged_bytes, 100);
 }
@@ -94,10 +90,7 @@ fn the_largest_byte_numbers_do_not_wrap() {
     let all = bench.claim(u64::MAX);
     assert_eq!(
         bench.client.admit(&request(1)).expect_err("full"),
-        AdmissionDenial::BudgetExceeded {
-            requested_bytes: 1,
-            remaining_bytes: 0
-        }
+        AdmissionDenial::BudgetExceeded { requested_bytes: 1 }
     );
     let client = &bench.client;
     assert_eq!(
@@ -160,10 +153,7 @@ fn a_policy_change_leaves_existing_claims_alone() {
             .client
             .admit(&request(1))
             .expect_err("over the new limit"),
-        AdmissionDenial::BudgetExceeded {
-            requested_bytes: 1,
-            remaining_bytes: 0
-        }
+        AdmissionDenial::BudgetExceeded { requested_bytes: 1 }
     );
     bench.ledger.set_policy(QuotaPolicy::Unavailable);
     assert_eq!(old.info().policy_revision, PolicyRevision(7));
@@ -338,6 +328,13 @@ fn work_in_flight_keeps_a_claim_unsettled_whatever_the_client_reports() {
 #[test]
 fn an_outcome_that_contradicts_what_was_observed_is_refused() {
     use SettleOutcome::{Abandoned, Canceled, Completed, Failed, Lost, NoEffect};
+    #[derive(Clone, Copy, Debug)]
+    enum Touch {
+        Nothing,
+        Lease,
+        /// Charged and discharged again.
+        Memory(u64),
+    }
     let completed = WorkObserved {
         completed: 1,
         ..WorkObserved::default()
@@ -347,25 +344,29 @@ fn an_outcome_that_contradicts_what_was_observed_is_refused() {
         ..WorkObserved::default()
     };
     let nothing = WorkObserved::default();
-    for (observed, touched, accepted) in [
-        (
-            completed,
-            false,
-            &[Completed, Canceled, Failed, Abandoned][..],
-        ),
-        (refused, false, &[NoEffect, Canceled, Failed, Abandoned][..]),
-        (nothing, false, &[NoEffect, Canceled, Failed, Abandoned][..]),
-        (
-            nothing,
-            true,
-            &[Completed, NoEffect, Canceled, Failed, Abandoned][..],
-        ),
+    let ran = &[Completed, Canceled, Failed, Abandoned][..];
+    let ran_not = &[NoEffect, Canceled, Failed, Abandoned][..];
+    let either = &[Completed, NoEffect, Canceled, Failed, Abandoned][..];
+    for (observed, touch, accepted) in [
+        (completed, Touch::Nothing, ran),
+        (refused, Touch::Nothing, ran_not),
+        (nothing, Touch::Nothing, ran_not),
+        (nothing, Touch::Lease, either),
+        (nothing, Touch::Memory(1), either),
+        // No memory is no memory work.
+        (nothing, Touch::Memory(0), ran_not),
     ] {
         for outcome in [Completed, Canceled, Failed, Lost, NoEffect, Abandoned] {
             let bench = bench(policy(100));
             let held = bench.claim(10);
-            if touched {
-                drop(bench.client.hold(&held).expect("authorized"));
+            match touch {
+                Touch::Nothing => {}
+                Touch::Lease => drop(bench.client.hold(&held).expect("authorized")),
+                Touch::Memory(bytes) => {
+                    let class = ChargeClass::Committed;
+                    assert_eq!(bench.client.charge(&held, class, bytes), Ok(()));
+                    assert_eq!(bench.client.discharge(&held, class, bytes), Ok(()));
+                }
             }
             if observed != nothing {
                 let submission = bench.client.begin_submission(&held).expect("authorized");
@@ -380,13 +381,13 @@ fn an_outcome_that_contradicts_what_was_observed_is_refused() {
                 assert_eq!(
                     result.map(|receipt| (receipt.observed, receipt.released_bytes)),
                     Ok((observed, 10)),
-                    "{outcome:?}"
+                    "{outcome:?} after {touch:?}"
                 );
             } else {
                 assert_eq!(
                     result,
                     Err(SettleRefusal::OutcomeContradicted { observed }),
-                    "{outcome:?} after {observed:?}"
+                    "{outcome:?} after {touch:?} and {observed:?}"
                 );
                 assert_eq!(bench.ledger.usage().charged_bytes, 10);
             }

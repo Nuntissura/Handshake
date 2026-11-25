@@ -19,7 +19,8 @@ use std::time::Duration;
 ///
 /// Its identity is fixed at issue, so every byte and every event is attributed to the client the host meant. It
 /// reaches only claims and submissions of its own: another client's are unknown to it. Not `Clone`; dropping it
-/// detaches the client. A revoked handle admits nothing any more and still settles what it holds.
+/// detaches the client. A revoked handle admits nothing any more and still settles what it holds; claims that outlive
+/// the handle are discharged, settled and released through [`Claim`] itself.
 pub struct GpuClient {
     owner: Arc<OwnerShared>,
     ledger: LedgerClient,
@@ -106,6 +107,7 @@ impl GpuClient {
                 claim.id(),
                 Arc::clone(&live.vulkan),
                 hold,
+                Arc::clone(&self.owner),
             )),
             _ => Err(AuthorizeRefusal::DeviceUnavailable),
         }
@@ -125,8 +127,8 @@ impl GpuClient {
 
     /// Where `submission` stands, asking the device when the owner does not know yet. Does not wait for work.
     ///
-    /// A submission that was already observed answers from what was observed, also after its generation is gone.
-    /// On a refusal it stays pending.
+    /// A submission that was already observed answers from what was observed, also after its generation is gone. One
+    /// that is pending is observed as long as its device exists, also after a close. On a refusal it stays pending.
     pub fn observe(&self, submission: &Submission) -> Result<SubmissionState, SubmissionRefusal> {
         self.owner.observe(&self.ledger, submission)
     }
@@ -161,7 +163,7 @@ impl GpuClient {
     }
 
     /// Let the owner look at its device, without waiting. A client that saw `VK_ERROR_DEVICE_LOST` calls this; the
-    /// owner marks the generation lost only from what it observes itself.
+    /// owner marks the generation lost only from what it observes itself. See [`crate::GpuOwner::poll`].
     pub fn poll(&self) -> Result<(), DeviceFault> {
         self.owner.poll()
     }

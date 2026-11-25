@@ -97,7 +97,8 @@ impl Unavailable {
 /// A fault observed on a live generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeviceFault {
-    /// `VK_ERROR_DEVICE_LOST`. The generation is finished; rebind through the owner.
+    /// `VK_ERROR_DEVICE_LOST`, or a fence that only a lost device signals. The generation is finished; rebind through
+    /// the owner.
     Lost {
         generation: u64,
     },
@@ -158,11 +159,9 @@ impl AttachRefusal {
 pub enum AdmissionDenial {
     /// No configured quota exists (GPU-QUOTA-012: fail closed, never an unbounded default).
     HostQuotaUnavailable,
-    /// The reservation does not fit what the quota still has.
-    BudgetExceeded {
-        requested_bytes: u64,
-        remaining_bytes: u64,
-    },
+    /// The reservation does not fit what the quota still has. How much that is, is the host's to know
+    /// ([`crate::GpuOwner::usage`]): it says what other clients hold.
+    BudgetExceeded { requested_bytes: u64 },
     /// The ledger already holds as many claims as the policy allows.
     ClaimLimit { max_claims: u32 },
     /// The current generation is lost; nothing new is admitted until the owner rebinds.
@@ -217,6 +216,8 @@ pub enum AuthorizeRefusal {
     /// The claim already has as many submissions in flight as its policy allows. Submit again once one of
     /// them is observed finished.
     InFlightLimit { max_in_flight: u32 },
+    /// The claim was dropped. Its lease is only there to clean up.
+    Abandoned,
 }
 
 impl AuthorizeRefusal {
@@ -228,6 +229,7 @@ impl AuthorizeRefusal {
             Self::DeviceUnavailable => "device_unavailable",
             Self::Unknown => "claim_unknown",
             Self::InFlightLimit { .. } => "in_flight_limit",
+            Self::Abandoned => "claim_abandoned",
         }
     }
 
@@ -239,6 +241,28 @@ impl AuthorizeRefusal {
             Self::DeviceUnavailable => 4,
             Self::Unknown => 5,
             Self::InFlightLimit { .. } => 6,
+            Self::Abandoned => 7,
+        }
+    }
+}
+
+/// Why a lease is not to be returned yet, nor the objects made from it destroyed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReleaseRefusal {
+    /// Work of this client on the device is not observed finished, under this claim or another one.
+    InFlight { in_flight: u64 },
+}
+
+impl ReleaseRefusal {
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::InFlight { .. } => "release_in_flight",
+        }
+    }
+
+    pub const fn number(self) -> u16 {
+        match self {
+            Self::InFlight { .. } => 1,
         }
     }
 }

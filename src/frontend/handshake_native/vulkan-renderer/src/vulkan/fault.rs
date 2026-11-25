@@ -1,7 +1,15 @@
-//! The fault seam of this crate's own unit tests: what a driver would answer, put in its place, and a gate that keeps
-//! submitted work really pending. It exists in unit-test builds only. In every other build [`Faults`] is empty and
-//! answers nothing, and no Vulkan type of it leaves the crate in either.
+//! The fault seam of this crate's own unit tests. It exists in unit-test builds only. In every other build it answers
+//! nothing, holds nothing and replaces nothing, and no Vulkan type of it leaves the crate in either.
+//!
+//! What it does in unit tests:
+//! - It gives single answers of the driver in its place. An injected loss is lost for every call from there on.
+//! - A gate keeps submitted work really pending.
+//! - Every Vulkan call that waits for the device is replaced by one that ignores its timeout, whatever the machine's
+//!   driver does, so no wait of this crate can rely on one.
+//! - The creation of a device is held until the test lets it go on, or refused.
 
+#[cfg(not(test))]
+use crate::outcome::Unavailable;
 #[cfg(not(test))]
 use ash::vk;
 
@@ -9,9 +17,10 @@ use ash::vk;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Call {
     Submit,
-    Counter,
-    Wait,
-    Idle,
+    /// The state of a submission's fence.
+    Fence,
+    /// The state of the fence nothing is submitted with.
+    Sentinel,
 }
 
 #[cfg(not(test))]
@@ -32,36 +41,82 @@ impl Faults {
     }
 }
 
+/// A device is about to be created.
+#[cfg(not(test))]
+pub(super) const fn opening() -> Result<(), Unavailable> {
+    Ok(())
+}
+
+/// `device` as this crate calls it.
+#[cfg(not(test))]
+pub(super) fn table(_instance: &ash::Instance, device: ash::Device) -> ash::Device {
+    device
+}
+
 #[cfg(test)]
-pub(crate) use injected::{open_refused, refuse_open, Faults};
+pub(super) use creation::opening;
+#[cfg(test)]
+pub(crate) use creation::{hold_open, refuse_open};
+#[cfg(test)]
+pub(super) use deaf::table;
+#[cfg(test)]
+pub(crate) use deaf::waits;
+#[cfg(test)]
+pub(crate) use injected::{AfterLoss, Faults};
 
 #[cfg(test)]
 mod injected {
     use super::Call;
     use ash::vk;
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Mutex, MutexGuard, PoisonError};
 
-    static REFUSE_OPEN: AtomicBool = AtomicBool::new(false);
-
-    /// Whether the next generations find no adapter.
-    pub(crate) fn refuse_open(refuse: bool) {
-        REFUSE_OPEN.store(refuse, Ordering::SeqCst);
+    /// What a lost device says from the call after the one that met the loss. Vulkan allows each of these answers.
+    #[derive(Clone, Copy, Debug)]
+    pub(crate) struct AfterLoss {
+        pub(crate) fences: vk::Result,
+        pub(crate) sentinel: vk::Result,
     }
 
-    pub(crate) fn open_refused() -> bool {
-        REFUSE_OPEN.load(Ordering::SeqCst)
+    impl AfterLoss {
+        /// That it is lost.
+        pub(crate) const LOST: Self = Self {
+            fences: vk::Result::ERROR_DEVICE_LOST,
+            sentinel: vk::Result::ERROR_DEVICE_LOST,
+        };
+        /// As if its work ran for ever and nothing had happened.
+        pub(crate) const SILENT: Self = Self {
+            fences: vk::Result::NOT_READY,
+            sentinel: vk::Result::NOT_READY,
+        };
+        /// As if its work had ended and nothing had happened.
+        pub(crate) const FINISHED: Self = Self {
+            fences: vk::Result::SUCCESS,
+            sentinel: vk::Result::NOT_READY,
+        };
     }
 
-    #[derive(Default)]
     struct Plan {
         /// The call that meets the loss; from then on the device is lost for every call.
         lose_at: Option<Call>,
         lost: bool,
-        /// A lost device that never says that its work has ended.
-        stalled: bool,
+        after: AfterLoss,
         refuse_submit: Option<vk::Result>,
         gate: Option<vk::Semaphore>,
+        /// The queue's last submission met the loss here and was never given to the real queue.
+        withheld: bool,
+    }
+
+    impl Default for Plan {
+        fn default() -> Self {
+            Self {
+                lose_at: None,
+                lost: false,
+                after: AfterLoss::LOST,
+                refuse_submit: None,
+                gate: None,
+                withheld: false,
+            }
+        }
     }
 
     #[derive(Default)]
@@ -76,7 +131,8 @@ mod injected {
 
         pub(crate) fn answer(&self, call: Call) -> Option<vk::Result> {
             let mut plan = self.lock();
-            if plan.lose_at == Some(call) {
+            let meets = plan.lose_at == Some(call);
+            if meets {
                 plan.lose_at = None;
                 plan.lost = true;
             }
@@ -85,12 +141,23 @@ mod injected {
                     return Some(result);
                 }
             }
-            match (plan.lost, plan.stalled, call) {
-                (false, _, _) => None,
-                (true, true, Call::Wait) => Some(vk::Result::TIMEOUT),
-                (true, true, Call::Idle) => Some(vk::Result::ERROR_OUT_OF_HOST_MEMORY),
-                (true, _, _) => Some(vk::Result::ERROR_DEVICE_LOST),
+            if !plan.lost {
+                return None;
             }
+            Some(match call {
+                Call::Submit => {
+                    plan.withheld = true;
+                    vk::Result::ERROR_DEVICE_LOST
+                }
+                _ if meets => vk::Result::ERROR_DEVICE_LOST,
+                Call::Fence => plan.after.fences,
+                Call::Sentinel => plan.after.sentinel,
+            })
+        }
+
+        /// Whether the queue's last submission was never given to the real queue.
+        pub(crate) fn withheld_last(&self) -> bool {
+            self.lock().withheld
         }
 
         pub(crate) fn gate(&self) -> Option<vk::Semaphore> {
@@ -102,9 +169,16 @@ mod injected {
             self.lock().lose_at = Some(call);
         }
 
-        /// Whether the lost device withholds that its work has ended.
-        pub(crate) fn stall(&self, stalled: bool) {
-            self.lock().stalled = stalled;
+        /// The device is lost, and what it says from now on is `after`.
+        pub(crate) fn lose(&self, after: AfterLoss) {
+            let mut plan = self.lock();
+            plan.lost = true;
+            plan.after = after;
+        }
+
+        /// What the device says once it is lost, from now on.
+        pub(crate) fn after_loss(&self, after: AfterLoss) {
+            self.lock().after = after;
         }
 
         /// The queue refuses the next submission with `result`.
@@ -137,19 +211,166 @@ mod injected {
             }
         }
 
-        /// Before the device is destroyed: an injected loss is not a real one, so the real device may still run what
-        /// it was given. Open the gate, wait for the real end and destroy the gate.
-        pub(crate) fn finish(&self, device: &ash::Device) {
-            self.open_gate(device);
-            let gate = self.lock().gate.take();
-            // SAFETY: called by the only holder of the device, with its queue sealed; nothing waits for the gate any
-            // more once the device is idle.
-            unsafe {
-                let _ = device.device_wait_idle();
-                if let Some(gate) = gate {
-                    device.destroy_semaphore(gate, None);
-                }
+        /// Every submission that waited for the gate has ended.
+        pub(crate) fn destroy_gate(&self, device: &ash::Device) {
+            if let Some(gate) = self.lock().gate.take() {
+                // SAFETY: called by the only holder of the device, after all its work has ended.
+                unsafe { device.destroy_semaphore(gate, None) };
             }
+        }
+    }
+}
+
+/// A driver that ignores timeouts. The machine's own may or may not.
+#[cfg(test)]
+mod deaf {
+    use ash::vk;
+    use std::ffi::{c_void, CStr};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::Duration;
+
+    /// How long a wait takes: far longer than every bound the tests check, and short enough for them to say so.
+    const DEAF: Duration = Duration::from_secs(25);
+
+    static WAITS: AtomicU64 = AtomicU64::new(0);
+
+    /// How many calls that wait for the device were made in this process.
+    pub(crate) fn waits() -> u64 {
+        WAITS.load(Ordering::SeqCst)
+    }
+
+    fn wait() -> vk::Result {
+        WAITS.fetch_add(1, Ordering::SeqCst);
+        std::thread::sleep(DEAF);
+        // No evidence of anything, so a test that does not look at the time fails as well.
+        vk::Result::ERROR_OUT_OF_HOST_MEMORY
+    }
+
+    unsafe extern "system" fn wait_semaphores(
+        _device: vk::Device,
+        _info: *const vk::SemaphoreWaitInfo<'_>,
+        _timeout: u64,
+    ) -> vk::Result {
+        wait()
+    }
+
+    unsafe extern "system" fn wait_for_fences(
+        _device: vk::Device,
+        _count: u32,
+        _fences: *const vk::Fence,
+        _all: vk::Bool32,
+        _timeout: u64,
+    ) -> vk::Result {
+        wait()
+    }
+
+    unsafe extern "system" fn device_wait_idle(_device: vk::Device) -> vk::Result {
+        wait()
+    }
+
+    unsafe extern "system" fn queue_wait_idle(_queue: vk::Queue) -> vk::Result {
+        wait()
+    }
+
+    fn replacement(name: &CStr) -> Option<*const c_void> {
+        Some(match name.to_bytes() {
+            b"vkWaitSemaphores" | b"vkWaitSemaphoresKHR" => {
+                wait_semaphores as vk::PFN_vkWaitSemaphores as *const c_void
+            }
+            b"vkWaitForFences" => wait_for_fences as vk::PFN_vkWaitForFences as *const c_void,
+            b"vkDeviceWaitIdle" => device_wait_idle as vk::PFN_vkDeviceWaitIdle as *const c_void,
+            b"vkQueueWaitIdle" => queue_wait_idle as vk::PFN_vkQueueWaitIdle as *const c_void,
+            _ => return None,
+        })
+    }
+
+    /// `device`, with every call that waits replaced.
+    pub(in crate::vulkan) fn table(instance: &ash::Instance, device: ash::Device) -> ash::Device {
+        let handle = device.handle();
+        let load = |name: &CStr| {
+            replacement(name).unwrap_or_else(|| {
+                // SAFETY: `device` was created from `instance`, and the name is a C string.
+                let address = unsafe { instance.get_device_proc_addr(handle, name.as_ptr()) };
+                address.map_or(std::ptr::null(), |function| function as *const c_void)
+            })
+        };
+        // SAFETY: every address is the device's own for its name, or one of the functions above, which have the
+        // signature the specification gives that name.
+        unsafe { ash::Device::load_with(load, handle) }
+    }
+}
+
+/// What a test does to the creation of devices in its process.
+#[cfg(test)]
+mod creation {
+    use crate::outcome::Unavailable;
+    use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
+    use std::time::Duration;
+
+    /// A test that never lets go of a creation fails by what it finds then.
+    const LIMIT: Duration = Duration::from_secs(60);
+
+    struct Creation {
+        refuse: bool,
+        hold: bool,
+        /// A creation waits for the test.
+        waiting: bool,
+    }
+
+    static CREATION: Mutex<Creation> = Mutex::new(Creation {
+        refuse: false,
+        hold: false,
+        waiting: false,
+    });
+    static CHANGED: Condvar = Condvar::new();
+
+    fn lock() -> MutexGuard<'static, Creation> {
+        CREATION.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub(in crate::vulkan) fn opening() -> Result<(), Unavailable> {
+        let mut creation = lock();
+        creation.waiting = creation.hold;
+        CHANGED.notify_all();
+        let (mut creation, _) = CHANGED
+            .wait_timeout_while(creation, LIMIT, |creation| creation.hold)
+            .unwrap_or_else(PoisonError::into_inner);
+        creation.waiting = false;
+        if creation.refuse {
+            return Err(Unavailable::DeviceCreationRefused);
+        }
+        Ok(())
+    }
+
+    /// Whether the next generations find no adapter.
+    pub(crate) fn refuse_open(refuse: bool) {
+        lock().refuse = refuse;
+    }
+
+    /// Device creations wait until this is dropped.
+    pub(crate) struct HeldOpen {
+        _private: (),
+    }
+
+    pub(crate) fn hold_open() -> HeldOpen {
+        lock().hold = true;
+        HeldOpen { _private: () }
+    }
+
+    impl HeldOpen {
+        /// Until a creation waits. `false` when none came.
+        pub(crate) fn is_reached(&self) -> bool {
+            let (creation, _) = CHANGED
+                .wait_timeout_while(lock(), LIMIT, |creation| !creation.waiting)
+                .unwrap_or_else(PoisonError::into_inner);
+            creation.waiting
+        }
+    }
+
+    impl Drop for HeldOpen {
+        fn drop(&mut self) {
+            lock().hold = false;
+            CHANGED.notify_all();
         }
     }
 }

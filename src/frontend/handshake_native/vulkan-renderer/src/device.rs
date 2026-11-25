@@ -3,11 +3,13 @@
 
 use crate::ids::{ClaimId, DeviceKey};
 use crate::ledger::ClaimHold;
-use crate::outcome::AuthorizeRefusal;
+use crate::outcome::{AuthorizeRefusal, ReleaseRefusal};
+use crate::owner::OwnerShared;
 use crate::records::ByteQuantity;
 use crate::select::DeviceClass;
 use crate::vulkan::VulkanGeneration;
 use std::sync::Arc;
+use std::time::Duration;
 
 /// What the owner's device is.
 ///
@@ -125,20 +127,41 @@ pub struct DeviceHandles {
 ///
 /// What whoever uses the handles must keep to:
 /// - They are asked for with [`Self::handles`] before each use, not kept: that call is what tells an idle holder of a
-///   loss, a revocation or a closed owner.
+///   loss, a revocation, a dropped claim or a closed owner.
 /// - Objects created from them are destroyed before the lease is dropped, and not while a submission that uses
-///   them is [`crate::SubmissionState::Pending`].
+///   them is [`crate::SubmissionState::Pending`]. [`Self::may_release`] says when both are allowed, also after a loss,
+///   a close, or without the client's handle; [`Self::wait_release`] waits for it.
 /// - Memory allocated with them is charged to the claim ([`crate::GpuClient::charge`]) before it is allocated.
 /// - The lease carries no queue right. The queue is the owner's: work reaches it only through
 ///   [`crate::GpuClient::submit`]. Submitting to it, or waiting on it or on the whole device, through these
 ///   handles would race the owner and is not allowed.
-#[derive(Debug)]
+///
+/// A lease that is dropped too early takes nothing from under running work: the owner keeps the device until the work
+/// has ended and the next call of the owner, a client or another lease finds that out.
 pub struct DeviceLease {
     handles: DeviceHandles,
     claim: ClaimId,
-    // Released before the hold, so a claim that may settle never still keeps the device.
-    _device: Arc<VulkanGeneration>,
-    hold: ClaimHold,
+    // Released in this order, so a claim that may settle never still keeps the device.
+    device: Option<Arc<VulkanGeneration>>,
+    hold: Option<ClaimHold>,
+    owner: Arc<OwnerShared>,
+}
+
+impl std::fmt::Debug for DeviceLease {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeviceLease")
+            .field("handles", &self.handles)
+            .field("claim", &self.claim)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for DeviceLease {
+    fn drop(&mut self) {
+        drop(self.device.take());
+        drop(self.hold.take());
+        self.owner.reap();
+    }
 }
 
 impl DeviceLease {
@@ -147,20 +170,46 @@ impl DeviceLease {
         claim: ClaimId,
         device: Arc<VulkanGeneration>,
         hold: ClaimHold,
+        owner: Arc<OwnerShared>,
     ) -> Self {
         Self {
             handles,
             claim,
-            _device: device,
-            hold,
+            device: Some(device),
+            hold: Some(hold),
+            owner,
         }
     }
 
     /// The handles, when the claim may use its device now. Otherwise why not: the device is lost, the client was
-    /// revoked, the claim is settled, or the owner closed.
+    /// revoked, the claim is settled or was dropped, or the owner closed.
     pub fn handles(&self) -> Result<&DeviceHandles, AuthorizeRefusal> {
-        self.hold.standing()?;
+        match &self.hold {
+            Some(hold) => hold.standing()?,
+            None => return Err(AuthorizeRefusal::Unknown),
+        }
         Ok(&self.handles)
+    }
+
+    /// Whether the objects made from the handles may be destroyed and the lease dropped now: no work of this client on
+    /// its device runs any more. Asks the device, without waiting, as [`crate::GpuClient::observe`] does, and works as
+    /// long as the lease exists: also when the device is lost, the owner closed or the client's handle is gone.
+    pub fn may_release(&self) -> Result<(), ReleaseRefusal> {
+        match &self.hold {
+            Some(hold) => self.owner.may_release(self.handles.generation, hold),
+            None => Ok(()),
+        }
+    }
+
+    /// Wait at most `timeout`, and never longer than [`crate::MAX_WAIT`], until [`Self::may_release`] allows it, then
+    /// answer as it does. Other calls are not blocked by the wait.
+    pub fn wait_release(&self, timeout: Duration) -> Result<(), ReleaseRefusal> {
+        match &self.hold {
+            Some(hold) => self
+                .owner
+                .wait_release(self.handles.generation, hold, timeout),
+            None => Ok(()),
+        }
     }
 
     /// The handles for one purpose only: destroying the objects made from them before the lease is dropped. The

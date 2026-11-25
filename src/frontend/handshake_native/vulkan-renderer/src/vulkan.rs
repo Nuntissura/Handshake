@@ -2,15 +2,21 @@
 //! device and queue, through `ash`. Nothing here is public outside the crate and no `ash` type leaves it.
 //! Every `unsafe` block names the rule it relies on.
 //!
-//! No window, surface or swapchain exists in this slice. The generation's own child objects are one timeline
-//! semaphore and the command pools of submitted work. Clients may create further child objects through a
+//! No window, surface or swapchain exists in this slice. The generation's own child objects are its sentinel fence and
+//! the fences and command pools of submitted work. Clients may create further child objects through a
 //! [`crate::DeviceLease`], which keeps the generation alive until they returned it.
+//!
+//! Nothing here waits inside Vulkan for the device (see `queue`). The calls without a bound of their own are the
+//! creation of an instance and a device, which runs with no lock held, and their destruction, which is reached only
+//! with the evidence that nothing is left in use.
 #![allow(unsafe_code)]
 
+mod backoff;
 pub(crate) mod fault;
 mod loader;
 mod queue;
 
+pub(crate) use backoff::Backoff;
 pub(crate) use queue::{QueueFault, RecordedWork};
 
 use crate::device::{
@@ -18,7 +24,6 @@ use crate::device::{
 };
 use crate::ids::DeviceKey;
 use crate::outcome::Unavailable;
-use crate::owner_core::OwnerCore;
 use crate::process::ProcessClaim;
 use crate::records::ByteQuantity;
 use crate::select::{self, CandidateFacts, DeviceClass, BASELINE_API_VERSION};
@@ -27,8 +32,7 @@ use fault::Faults;
 use loader::LoaderLibrary;
 use queue::{QueueState, Quiescent};
 use std::ffi::{c_char, CStr};
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 const _: () = assert!(BASELINE_API_VERSION == vk::API_VERSION_1_3);
 const _: () = assert!(select::DRIVER_ID_SWIFTSHADER == vk::DriverId::GOOGLE_SWIFTSHADER.as_raw());
@@ -38,7 +42,7 @@ const _: () = assert!(select::DRIVER_ID_DOZEN == vk::DriverId::MESA_DOZEN.as_raw
 /// Bound on the physical devices inspected at startup.
 const MAX_ENUMERATED_DEVICES: usize = 64;
 
-/// The device features the owner enables for its clients and its own queue.
+/// The device features the owner enables for its clients.
 const FEATURES: [&str; 2] = ["dynamicRendering", "timelineSemaphore"];
 
 struct Inspected {
@@ -54,15 +58,9 @@ struct DeviceParts {
     physical: vk::PhysicalDevice,
     device: ash::Device,
     queue: vk::Queue,
-    timeline: vk::Semaphore,
+    sentinel: vk::Fence,
     identity: DeviceIdentity,
     memory_budget: bool,
-}
-
-/// Who is told when a device that its owner could not destroy at once is gone from its last holder.
-pub(crate) struct Epilogue {
-    pub(crate) core: Arc<OwnerCore>,
-    pub(crate) generation: u64,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -79,18 +77,14 @@ pub(crate) struct VulkanGeneration {
     instance: ash::Instance,
     physical: vk::PhysicalDevice,
     device: ash::Device,
-    /// Signalled by every submission with its fence value.
-    timeline: vk::Semaphore,
-    /// The one queue, and the command pools of work that may still run. This lock is the external
-    /// synchronization of the queue.
+    /// Nothing is ever submitted with it, so it is signalled on no healthy device.
+    sentinel: vk::Fence,
+    /// The one queue, and the objects of work that may still run. This lock is the external synchronization of the
+    /// queue.
     queue: Mutex<QueueState>,
-    /// A thread waits for the lost device to go idle.
-    idling: AtomicBool,
     identity: DeviceIdentity,
     memory_budget: bool,
     end: End,
-    /// Set when the device outlives its owner's use of it.
-    epilogue: OnceLock<Epilogue>,
     faults: Faults,
     /// Keeps the Vulkan loader loaded. Dropped after `Drop::drop` destroyed device and instance.
     library: LoaderLibrary,
@@ -144,10 +138,7 @@ impl VulkanGeneration {
         process: Arc<ProcessClaim>,
         required: Option<DeviceKey>,
     ) -> Result<Self, Unavailable> {
-        #[cfg(test)]
-        if fault::open_refused() {
-            return Err(Unavailable::DeviceCreationRefused);
-        }
+        fault::opening()?;
         let (entry, library) = loader::load()?;
         // SAFETY: valid entry; `vkEnumerateInstanceVersion` has no preconditions (absent on 1.0 loaders,
         // which ash reports as `None`).
@@ -174,13 +165,11 @@ impl VulkanGeneration {
                 instance,
                 physical: parts.physical,
                 device: parts.device,
-                timeline: parts.timeline,
+                sentinel: parts.sentinel,
                 queue: Mutex::new(QueueState::new(parts.queue)),
-                idling: AtomicBool::new(false),
                 identity: parts.identity,
                 memory_budget: parts.memory_budget,
                 end: End::Not,
-                epilogue: OnceLock::new(),
                 faults: Faults::default(),
                 library,
                 process,
@@ -272,7 +261,7 @@ impl VulkanGeneration {
             .ok_or(Unavailable::NoSuitableDevice)?;
 
         // The first planned client (the Vulkan UI pass of the renderer asset) draws with dynamic rendering, and
-        // the owner's fence is a timeline semaphore. A feature cannot be enabled after device creation.
+        // timeline semaphores order work of clients. A feature cannot be enabled after device creation.
         let mut supported12 = vk::PhysicalDeviceVulkan12Features::default();
         let mut supported13 = vk::PhysicalDeviceVulkan13Features::default();
         {
@@ -317,12 +306,13 @@ impl VulkanGeneration {
         // referenced arrays outlive the call.
         let device = unsafe { instance.create_device(chosen.physical, &create, None) }
             .map_err(|result| startup_error(result, Unavailable::DeviceCreationRefused))?;
+        let device = fault::table(instance, device);
         // SAFETY: one queue of `family` was requested above, so index 0 exists.
         let queue = unsafe { device.get_device_queue(family, 0) };
-        let timeline = match queue::create_timeline(&device) {
-            Ok(timeline) => timeline,
+        let sentinel = match queue::create_fence(&device) {
+            Ok(sentinel) => sentinel,
             Err(result) => {
-                // SAFETY: the device has no child object (the semaphore was not created) and no work.
+                // SAFETY: the device has no child object (the fence was not created) and no work.
                 unsafe { device.destroy_device(None) };
                 return Err(startup_error(result, Unavailable::DeviceCreationRefused));
             }
@@ -350,7 +340,7 @@ impl VulkanGeneration {
             physical: chosen.physical,
             device,
             queue,
-            timeline,
+            sentinel,
             identity,
             memory_budget,
         })
@@ -424,11 +414,6 @@ impl VulkanGeneration {
         }
     }
 
-    /// The owner lets go of a device that others still hold: `epilogue` is told when the last of them is gone.
-    pub(crate) fn retain_for_holders(&self, epilogue: Epilogue) {
-        let _ = self.epilogue.set(epilogue);
-    }
-
     /// Destroy the generation when its device confirms, without being waited for, that its work has ended. `false`
     /// when it does not: then nothing is destroyed, because objects that may be in use never are. Every object stays
     /// alive, the loader loaded and the process's owner slot taken.
@@ -443,7 +428,7 @@ impl VulkanGeneration {
         }
         self.seal();
         // The result is in the drained mark.
-        let _ = self.drain(0);
+        self.confirm();
         match self.evidence() {
             Some(evidence) => self.end(evidence),
             None => {
@@ -458,22 +443,23 @@ impl VulkanGeneration {
         if self.end != End::Not {
             return;
         }
-        self.end = End::Destroyed;
         #[cfg(test)]
-        self.faults.finish(&self.device);
-        let pools = self.take_pools();
+        self.let_it_end();
+        self.end = End::Destroyed;
+        let objects = self.take_objects();
         // SAFETY: `&mut self` in `dispose` or `drop`: no lease, recording or wait holds this generation any more
         // (each owns an `Arc` of it), so every client object made from a lease was destroyed first (the rule of
         // `DeviceLease`), and this thread alone uses the device and its queue. `_evidence` says that the queue takes
-        // nothing more and that nothing it took is still in use by the device, so the pools and the semaphore may be
-        // destroyed; a lost device must still be destroyed (Vulkan "Lost Device"). Children first, then the device,
-        // then the instance; the loader (`library`) is released after this body
-        // (VUID-vkDestroyDevice-device-05137, VUID-vkDestroyInstance-instance-00629).
+        // nothing more and that nothing it took is still in use by the device, so the objects of its work may be
+        // destroyed, and the sentinel was never submitted with; a lost device must still be destroyed (Vulkan "Lost
+        // Device"). Children first, then the device, then the instance; the loader (`library`) is released after this
+        // body (VUID-vkDestroyFence-fence-01120, VUID-vkDestroyDevice-device-05137,
+        // VUID-vkDestroyInstance-instance-00629).
         unsafe {
-            for pool in pools {
-                self.device.destroy_command_pool(pool, None);
+            for one in objects {
+                one.destroy(&self.device);
             }
-            self.device.destroy_semaphore(self.timeline, None);
+            self.device.destroy_fence(self.sentinel, None);
             self.device.destroy_device(None);
             self.instance.destroy_instance(None);
         }
@@ -482,20 +468,7 @@ impl VulkanGeneration {
 
 impl Drop for VulkanGeneration {
     fn drop(&mut self) {
-        let Some(epilogue) = self.epilogue.take() else {
-            return self.end_or_leave();
-        };
-        // What the fence still says about its last work is lost with the device.
-        if let Ok(value) = self.advance() {
-            epilogue
-                .core
-                .ledger()
-                .resolve_through(epilogue.generation, value);
-        }
         self.end_or_leave();
-        epilogue
-            .core
-            .retained_device_ended(epilogue.generation, self.end == End::Destroyed);
     }
 }
 
@@ -512,16 +485,5 @@ impl VulkanGeneration {
 
     pub(crate) fn open_gate(&self) {
         self.faults.open_gate(&self.device);
-    }
-
-    /// Wait for the real fence, whatever is injected, without telling the owner.
-    pub(crate) fn wait_really(&self, value: u64) {
-        let semaphores = [self.timeline];
-        let values = [value];
-        let wait = vk::SemaphoreWaitInfo::default()
-            .semaphores(&semaphores)
-            .values(&values);
-        // SAFETY: valid device and timeline semaphore; the referenced arrays outlive the call.
-        unsafe { self.device.wait_semaphores(&wait, 5_000_000_000) }.expect("the work ends");
     }
 }

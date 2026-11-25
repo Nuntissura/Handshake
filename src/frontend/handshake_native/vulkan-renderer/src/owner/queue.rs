@@ -1,9 +1,10 @@
 //! Submit, observe, wait and probe: the only way work reaches the owner's queue, and the only ways its end is seen.
 //!
 //! A submission is counted in flight before the queue takes it and stays counted until the owner observes its
-//! fence, its loss or that it never reached the queue. Nothing here blocks on the device except
-//! [`crate::GpuClient::wait`] and [`crate::GpuOwner::probe`], which are bounded by their caller and hold no lock
-//! meanwhile: settlement is asynchronous, and a client may observe whenever it needs to know.
+//! fence, its loss or that it never reached the queue. Nothing here waits for the device except
+//! [`crate::GpuClient::wait`], [`crate::GpuOwner::probe`] and [`crate::DeviceLease::wait_release`], which are bounded by
+//! their caller and by [`MAX_WAIT`] and hold no lock meanwhile: settlement is asynchronous, and a client may observe
+//! whenever it needs to know.
 
 use super::{Live, OwnerShared};
 use crate::device::Recording;
@@ -12,17 +13,18 @@ use crate::outcome::{
     AuthorizeRefusal, DeviceFault, DeviceHealth, RecordAborted, SubmissionRefusal, SubmitRefusal,
 };
 use crate::records::SubmissionState;
-use crate::vulkan::{QueueFault, RecordedWork};
+use crate::vulkan::{Backoff, QueueFault, RecordedWork};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Bound on one wait for the device ([`crate::GpuClient::wait`], [`crate::GpuOwner::probe`], and the draining in
-/// [`crate::GpuOwner::close`]). A wait on a semaphore is not promised to end on a lost device.
+/// Bound on one wait for the device ([`crate::GpuClient::wait`], [`crate::GpuOwner::probe`],
+/// [`crate::DeviceLease::wait_release`], and the draining in [`crate::GpuOwner::close`] and
+/// [`crate::GpuOwner::rebind_device`]).
 pub const MAX_WAIT: Duration = Duration::from_secs(5);
 
-/// `timeout`, within [`MAX_WAIT`].
-pub(super) fn bounded_ns(timeout: Duration) -> u64 {
-    u64::try_from(timeout.min(MAX_WAIT).as_nanos()).unwrap_or(0)
+/// A wait of `timeout`, within [`MAX_WAIT`].
+pub(super) fn bounded(timeout: Duration) -> Backoff {
+    Backoff::new(timeout.min(MAX_WAIT))
 }
 
 fn fault_of(fault: QueueFault, generation: u64) -> DeviceFault {
@@ -37,14 +39,12 @@ impl OwnerShared {
     /// The device of `live` answered with a fault. Only device loss marks the generation lost; it also ends the
     /// submissions of that generation once the device says, without being waited for, that none of them is still in
     /// use.
-    fn device_failed(&self, live: &Live, fault: QueueFault) -> DeviceFault {
+    pub(super) fn device_failed(&self, live: &Live, fault: QueueFault) -> DeviceFault {
         let typed = fault_of(fault, live.number);
         if fault == QueueFault::Lost {
+            live.vulkan.lose();
             self.core.device_lost(live.number);
-            live.vulkan.seal();
-            // The result is in the drained mark.
-            let _ = live.vulkan.drain(0);
-            if live.vulkan.is_drained() {
+            if live.vulkan.confirm() {
                 self.core.ledger().resolve_lost(live.number);
             }
         } else {
@@ -53,17 +53,8 @@ impl OwnerShared {
         typed
     }
 
-    /// [`Self::device_failed`] for generation `number`, when that is still the bound one.
-    fn generation_failed(&self, number: u64, fault: QueueFault) -> DeviceFault {
-        let slot = self.lock_slot();
-        match slot.live.as_ref() {
-            Some(live) if live.number == number => self.device_failed(live, fault),
-            _ => fault_of(fault, number),
-        }
-    }
-
-    /// Ask the device, without blocking, how far its fence got, and end every submission it passed.
-    fn advance(&self, live: &Live) -> Result<(), DeviceFault> {
+    /// Ask the device of `live`, without waiting, how far its queue got, and end every submission it completed.
+    pub(super) fn look(&self, live: &Live) -> Result<(), DeviceFault> {
         match live.vulkan.advance() {
             Ok(value) => {
                 self.core.ledger().resolve_through(live.number, value);
@@ -74,31 +65,39 @@ impl OwnerShared {
     }
 
     pub(super) fn poll(&self) -> Result<(), DeviceFault> {
-        match self.lock_slot().live.as_ref() {
-            Some(live) => self.advance(live),
+        let result = match self.lock_slot().live.as_ref() {
+            Some(live) => self.look(live),
             None => Err(DeviceFault::NoDevice),
-        }
+        };
+        self.reap();
+        result
     }
 
     pub(super) fn probe(&self, timeout: Duration) -> Result<DeviceHealth, DeviceFault> {
-        let (number, vulkan) = match self.lock_slot().live.as_ref() {
-            Some(live) => (live.number, Arc::clone(&live.vulkan)),
-            None => return Err(DeviceFault::NoDevice),
+        let live = self.lock_slot().live.clone();
+        let result = match &live {
+            Some(live) => self.probe_device(live, &mut bounded(timeout)),
+            None => Err(DeviceFault::NoDevice),
         };
-        let timeout_ns = bounded_ns(timeout);
-        if matches!(self.core.ledger().device(), Some(device) if device.lost) {
-            // Known already; this only ends submissions an earlier observation could not.
-            let _ = vulkan.drain(timeout_ns);
-            drop(vulkan);
-            return Err(self.generation_failed(number, QueueFault::Lost));
-        }
-        let waited = vulkan.wait_for(vulkan.last_signal(), timeout_ns);
         // The device is not held any longer than the wait itself.
-        drop(vulkan);
-        match waited {
-            Err(fault) => Err(self.generation_failed(number, fault)),
+        drop(live);
+        self.reap();
+        result
+    }
+
+    fn probe_device(
+        &self,
+        live: &Live,
+        backoff: &mut Backoff,
+    ) -> Result<DeviceHealth, DeviceFault> {
+        if live.vulkan.is_lost() {
+            // Known already; this only ends submissions an earlier look could not.
+            live.vulkan.drain(backoff);
+        }
+        match live.vulkan.wait_for(live.vulkan.last_value(), backoff) {
+            Err(fault) => Err(self.device_failed(live, fault)),
             Ok(idle) => {
-                self.poll()?;
+                self.look(live)?;
                 Ok(if idle {
                     DeviceHealth::Idle
                 } else {
@@ -109,6 +108,21 @@ impl OwnerShared {
     }
 
     pub(super) fn submit<F>(
+        &self,
+        client: &LedgerClient,
+        claim: &Claim,
+        record: F,
+    ) -> Result<Submission, SubmitRefusal>
+    where
+        F: FnOnce(&Recording) -> Result<(), RecordAborted>,
+    {
+        let result = self.submit_work(client, claim, record);
+        // A recording held its device as well.
+        self.reap();
+        result
+    }
+
+    fn submit_work<F>(
         &self,
         client: &LedgerClient,
         claim: &Claim,
@@ -131,7 +145,7 @@ impl OwnerShared {
                 return Err(refuse(client, claim, SubmitRefusal::NotAuthorized(refusal)));
             }
         };
-        // Under the slot lock, so fence values reach the queue in the order the ledger hands them out.
+        // Under the slot lock, so values reach the queue in the order the ledger hands them out.
         let submission = client
             .begin_submission(claim)
             .map_err(SubmitRefusal::NotAuthorized)?;
@@ -166,28 +180,29 @@ impl OwnerShared {
             // Submissions whose handle was dropped may have ended since somebody last asked the device.
             let _ = self.poll();
         }
-        let (number, vulkan) = {
+        let live = {
             let slot = self.lock_slot();
             client
                 .authorize_submission(claim)
                 .map_err(SubmitRefusal::NotAuthorized)?;
             match slot.live.as_ref() {
-                Some(live) if live.number == claim.generation() => {
-                    (live.number, Arc::clone(&live.vulkan))
-                }
+                Some(live) if live.number == claim.generation() => live.clone(),
                 _ => {
                     let refusal = AuthorizeRefusal::DeviceUnavailable;
                     return Err(refuse(client, claim, SubmitRefusal::NotAuthorized(refusal)));
                 }
             }
         };
-        let work = match RecordedWork::begin(vulkan) {
+        let work = match RecordedWork::begin(Arc::clone(&live.vulkan)) {
             Ok(work) => work,
             Err(fault) => {
-                let fault = self.generation_failed(number, fault);
+                let fault = self.device_failed(&live, fault);
                 return Err(refuse(client, claim, SubmitRefusal::Device(fault)));
             }
         };
+        let number = live.number;
+        // The recording holds the device now.
+        drop(live);
         match record(&Recording::new(work.raw(), number)) {
             Ok(()) => Ok(work),
             Err(RecordAborted) => Err(refuse(client, claim, SubmitRefusal::RecordAborted)),
@@ -203,15 +218,16 @@ impl OwnerShared {
             client.submission_refused(submission, SubmissionRefusal::Unknown);
             return Err(SubmissionRefusal::Unknown);
         }
-        let slot = self.lock_slot();
         let known = submission.state();
         if known != SubmissionState::Pending {
             return Ok(known);
         }
-        let outcome = match slot.live.as_ref() {
-            Some(live) if live.number == submission.generation() => self.advance(live),
-            _ => Err(DeviceFault::NoDevice),
+        // Its device may be bound, lost and set aside, or that of a closed owner.
+        let outcome = match self.lock_slot().generation(submission.generation()) {
+            Some(live) => self.look(live),
+            None => Err(DeviceFault::NoDevice),
         };
+        self.reap();
         match (submission.state(), outcome) {
             // A loss that ended the submission is an answer, not a refusal.
             (state @ SubmissionState::Finished(_), _) | (state, Ok(())) => Ok(state),
@@ -229,25 +245,27 @@ impl OwnerShared {
         submission: &Submission,
         timeout: Duration,
     ) -> Result<SubmissionState, SubmissionRefusal> {
-        let vulkan = match self.lock_slot().live.as_ref() {
-            Some(live)
-                if client.owns(submission)
-                    && live.number == submission.generation()
-                    && submission.state() == SubmissionState::Pending =>
-            {
-                Some(Arc::clone(&live.vulkan))
-            }
-            _ => None,
-        };
-        if let Some(vulkan) = vulkan {
-            let waited = vulkan.wait_for(submission.sequence(), bounded_ns(timeout));
-            // The device is not held any longer than the wait itself.
-            drop(vulkan);
-            if let Err(fault) = waited {
-                self.generation_failed(submission.generation(), fault);
+        if client.owns(submission) && submission.state() == SubmissionState::Pending {
+            let live = self
+                .lock_slot()
+                .generation(submission.generation())
+                .cloned();
+            if let Some(live) = live {
+                self.wait_for(&live, submission.sequence(), &mut bounded(timeout));
             }
         }
         self.observe(client, submission)
+    }
+
+    /// Wait until the submission `value` on the device of `live` has ended, or `backoff` ends. A loss is reported when
+    /// it is met; what is left of the time is for the lost device to say that its work has ended.
+    pub(super) fn wait_for(&self, live: &Live, value: u64, backoff: &mut Backoff) {
+        if let Err(fault) = live.vulkan.wait_for(value, backoff) {
+            self.device_failed(live, fault);
+            if fault == QueueFault::Lost {
+                live.vulkan.drain(backoff);
+            }
+        }
     }
 }
 

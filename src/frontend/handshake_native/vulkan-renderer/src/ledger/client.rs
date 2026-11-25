@@ -12,11 +12,50 @@ use crate::Submission;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+/// Who does something with a claim.
+#[derive(Clone, Copy)]
+pub(super) struct Actor {
+    /// Whom the report of it names.
+    pub(super) subject: Subject,
+    /// Whether the claim is its own.
+    own: bool,
+}
+
+/// Where `claim` stands for `actor`.
+pub(super) fn locate(state: &State, claim: &Claim, actor: Actor) -> Located {
+    if !actor.own {
+        return Located::Foreign;
+    }
+    if state.live.contains_key(&claim.info.id.0) {
+        return Located::Live;
+    }
+    match claim.tomb.load(Ordering::Acquire) {
+        TOMB_CLOSED => Located::Closed,
+        TOMB_SUPERSEDED => Located::Superseded,
+        _ => Located::Foreign,
+    }
+}
+
+impl Claim {
+    /// The holder of this claim, whoever that is now.
+    pub(super) fn holder(&self) -> Actor {
+        Actor {
+            subject: Subject::claim(&self.info),
+            own: true,
+        }
+    }
+
+    /// Report memory the claim freed: [`LedgerClient::discharge`], also when the client's handle is gone.
+    pub fn discharge(&self, class: ChargeClass, bytes: u64) -> Result<(), ChargeRefusal> {
+        self.ledger.discharge(self, self.holder(), class, bytes)
+    }
+}
+
 /// One client's handle on the ledger, issued by [`super::ClaimLedger::attach`] with the client's identity fixed.
 ///
 /// It reaches only claims that were admitted through it: any other claim, also one of the same module, is unknown to
 /// it. It cannot see or change the policy, other clients or the device. Not `Clone`; dropping it detaches the
-/// client, as a revocation does.
+/// client, as a revocation does. Claims it leaves behind stay with their holder, who ends them through [`Claim`].
 pub struct LedgerClient {
     pub(super) shared: Arc<Shared>,
     module: ModuleId,
@@ -81,18 +120,16 @@ impl LedgerClient {
         Subject::claim_used_by(self.module, self.client, info)
     }
 
+    /// This client, as the one that does something with `claim`.
+    pub(super) fn actor(&self, claim: &Claim) -> Actor {
+        Actor {
+            subject: self.subject(&claim.info),
+            own: Arc::ptr_eq(&claim.ledger, &self.shared) && claim.seat == self.seat,
+        }
+    }
+
     pub(super) fn locate(&self, state: &State, claim: &Claim) -> Located {
-        if !Arc::ptr_eq(&claim.ledger, &self.shared) || claim.seat != self.seat {
-            return Located::Foreign;
-        }
-        if state.live.contains_key(&claim.info.id.0) {
-            return Located::Live;
-        }
-        match claim.tomb.load(Ordering::Acquire) {
-            TOMB_CLOSED => Located::Closed,
-            TOMB_SUPERSEDED => Located::Superseded,
-            _ => Located::Foreign,
-        }
+        locate(state, claim, self.actor(claim))
     }
 
     /// The record of `claim`, when it may use its device now.
@@ -246,25 +283,11 @@ impl LedgerClient {
         Ok(ClaimHold {
             ledger: Arc::clone(&self.shared),
             info: claim.info,
+            seat: self.seat,
         })
     }
 
-    fn report_charge(
-        &self,
-        claim: &Claim,
-        result: Result<(), ChargeRefusal>,
-    ) -> Result<(), ChargeRefusal> {
-        if let Err(refusal) = &result {
-            bump(&mut self.shared.lock().counters.charge_refused);
-            self.shared.emit(OwnerEvent::ChargeRefused {
-                subject: self.subject(&claim.info),
-                reason: refusal.number(),
-            });
-        }
-        result
-    }
-
-    /// Record `bytes` of memory the claim now holds inside its reservation.
+    /// Record `bytes` of memory the claim now holds inside its reservation. A charge of 0 says nothing.
     pub fn charge(
         &self,
         claim: &Claim,
@@ -272,7 +295,7 @@ impl LedgerClient {
         bytes: u64,
     ) -> Result<(), ChargeRefusal> {
         let result = self.charge_locked(claim, class, bytes);
-        self.report_charge(claim, result)
+        self.shared.report_charge(self.actor(claim), result)
     }
 
     fn charge_locked(
@@ -290,7 +313,7 @@ impl LedgerClient {
             Some(total) if total <= record.info.reserved_bytes => {
                 let slot = slot_of(record, class);
                 *slot = slot.saturating_add(bytes);
-                record.touched = true;
+                record.touched |= bytes > 0;
                 Ok(())
             }
             _ => Err(ChargeRefusal::ReservationExceeded {
@@ -309,44 +332,8 @@ impl LedgerClient {
         class: ChargeClass,
         bytes: u64,
     ) -> Result<(), ChargeRefusal> {
-        let result = self.discharge_locked(claim, class, bytes);
-        self.report_charge(claim, result)
-    }
-
-    fn discharge_locked(
-        &self,
-        claim: &Claim,
-        class: ChargeClass,
-        bytes: u64,
-    ) -> Result<(), ChargeRefusal> {
-        let mut guard = self.shared.lock();
-        let state = &mut *guard;
-        let refusal = match self.locate(state, claim) {
-            Located::Live => None,
-            Located::Foreign => Some(AuthorizeRefusal::Unknown),
-            Located::Closed => Some(AuthorizeRefusal::Settled),
-            Located::Superseded => Some(AuthorizeRefusal::Lost {
-                generation: claim.info.generation,
-            }),
-        };
-        if let Some(refusal) = refusal {
-            return Err(ChargeRefusal::NotAuthorized(refusal));
-        }
-        let record = match state.live.get_mut(&claim.info.id.0) {
-            Some(record) if record.state == super::ClaimState::Open => record,
-            _ => return Err(ChargeRefusal::NotAuthorized(AuthorizeRefusal::Settled)),
-        };
-        let slot = slot_of(record, class);
-        match slot.checked_sub(bytes) {
-            Some(left) => {
-                *slot = left;
-                Ok(())
-            }
-            None => Err(ChargeRefusal::NotCharged {
-                charged_bytes: *slot,
-                requested_bytes: bytes,
-            }),
-        }
+        self.shared
+            .discharge(claim, self.actor(claim), class, bytes)
     }
 
     /// Report that nothing was submitted under `claim`, for a reason other than authorization itself.
@@ -363,6 +350,69 @@ impl LedgerClient {
             subject: self.subject(&submission.claim_info()),
             reason: refusal.number(),
         });
+    }
+}
+
+impl Shared {
+    fn report_charge(
+        &self,
+        actor: Actor,
+        result: Result<(), ChargeRefusal>,
+    ) -> Result<(), ChargeRefusal> {
+        if let Err(refusal) = &result {
+            bump(&mut self.lock().counters.charge_refused);
+            self.emit(OwnerEvent::ChargeRefused {
+                subject: actor.subject,
+                reason: refusal.number(),
+            });
+        }
+        result
+    }
+
+    fn discharge(
+        &self,
+        claim: &Claim,
+        actor: Actor,
+        class: ChargeClass,
+        bytes: u64,
+    ) -> Result<(), ChargeRefusal> {
+        let result = discharge_locked(&mut self.lock(), claim, actor, class, bytes);
+        self.report_charge(actor, result)
+    }
+}
+
+fn discharge_locked(
+    state: &mut State,
+    claim: &Claim,
+    actor: Actor,
+    class: ChargeClass,
+    bytes: u64,
+) -> Result<(), ChargeRefusal> {
+    let refusal = match locate(state, claim, actor) {
+        Located::Live => None,
+        Located::Foreign => Some(AuthorizeRefusal::Unknown),
+        Located::Closed => Some(AuthorizeRefusal::Settled),
+        Located::Superseded => Some(AuthorizeRefusal::Lost {
+            generation: claim.info.generation,
+        }),
+    };
+    if let Some(refusal) = refusal {
+        return Err(ChargeRefusal::NotAuthorized(refusal));
+    }
+    let record = match state.live.get_mut(&claim.info.id.0) {
+        Some(record) if record.state == super::ClaimState::Open => record,
+        _ => return Err(ChargeRefusal::NotAuthorized(AuthorizeRefusal::Settled)),
+    };
+    let slot = slot_of(record, class);
+    match slot.checked_sub(bytes) {
+        Some(left) => {
+            *slot = left;
+            Ok(())
+        }
+        None => Err(ChargeRefusal::NotCharged {
+            charged_bytes: *slot,
+            requested_bytes: bytes,
+        }),
     }
 }
 

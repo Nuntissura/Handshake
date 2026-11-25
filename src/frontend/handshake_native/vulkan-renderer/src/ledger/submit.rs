@@ -8,7 +8,7 @@
 
 use super::client::has_flight_room;
 use super::reclaim::reclaim;
-use super::{bump, Claim, ClaimLedger, LedgerClient, State};
+use super::{bump, Claim, ClaimHold, ClaimLedger, LedgerClient, State};
 use crate::diag::OwnerEvent;
 use crate::ids::ClaimId;
 use crate::outcome::{AuthorizeRefusal, SubmissionRefusal};
@@ -32,6 +32,8 @@ const fn code(observation: SubmissionObservation) -> u8 {
 /// A submission the ledger counts as not finished.
 pub(super) struct Flight {
     claim: u64,
+    /// The attachment of its claim.
+    seat: u64,
     outcome: Arc<AtomicU8>,
 }
 
@@ -158,6 +160,7 @@ impl LedgerClient {
             (claim.info.generation, sequence),
             Flight {
                 claim: claim.info.id.0,
+                seat: self.seat,
                 outcome: Arc::clone(&outcome),
             },
         );
@@ -174,6 +177,30 @@ impl LedgerClient {
     /// Whether this client's work is what `submission` stands for.
     pub fn owns(&self, submission: &Submission) -> bool {
         submission.ledger_key == self.shared.key && submission.seat == self.seat
+    }
+}
+
+impl ClaimHold {
+    /// Submissions of this client on the device of the hold that are not observed finished, under whichever of its
+    /// claims: any of them may use an object made from the lease.
+    pub fn in_flight(&self) -> u64 {
+        self.flights(|flights| u64::try_from(flights.count()).unwrap_or(u64::MAX))
+    }
+
+    /// The highest value among them.
+    pub(crate) fn last_in_flight(&self) -> Option<u64> {
+        self.flights(|flights| flights.last())
+    }
+
+    fn flights<T>(&self, of: impl FnOnce(&mut dyn Iterator<Item = u64>) -> T) -> T {
+        let state = self.ledger.lock();
+        let generation = self.info.generation;
+        let mut values = state
+            .flights
+            .range((generation, 0)..=(generation, u64::MAX))
+            .filter(|(_, flight)| flight.seat == self.seat)
+            .map(|((_, value), _)| *value);
+        of(&mut values)
     }
 }
 
@@ -201,17 +228,25 @@ impl ClaimLedger {
         result
     }
 
-    /// The owner observed the fence of `generation` at `value`: every submission up to it completed. Returns how
-    /// many submissions that resolved.
+    /// The owner observed the queue of `generation` at `value`: every submission up to it completed. Returns how
+    /// many submissions that resolved. Resolves nothing for a generation that is known to be lost: what it says of
+    /// its fences then is not that the work completed.
     pub fn resolve_through(&self, generation: u64, value: u64) -> u64 {
         let mut events = Vec::new();
-        let resolved = resolve_range(
-            &mut self.lock(),
-            generation,
-            value,
-            SubmissionObservation::Completed,
-            &mut events,
-        );
+        let resolved = {
+            let mut guard = self.lock();
+            let state = &mut *guard;
+            if generation <= state.last_lost {
+                return 0;
+            }
+            resolve_range(
+                state,
+                generation,
+                value,
+                SubmissionObservation::Completed,
+                &mut events,
+            )
+        };
         self.shared.emit_all(events);
         resolved
     }

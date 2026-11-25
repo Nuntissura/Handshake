@@ -1,0 +1,6 @@
+# The GPU tests of this crate need a real Vulkan device: without one they fail, they do not skip. A caller whose
+# machine may have none sets the variable to 0, and every test that then does not run says so in one HSK_GPU_SKIP line.
+#
+# Artifact paths are not set here: they come from the repository root's .cargo/config.toml or from CARGO_TARGET_DIR.
+[env]
+HANDSHAKE_REQUIRE_VULKAN_GPU = { value = "1", force = false }

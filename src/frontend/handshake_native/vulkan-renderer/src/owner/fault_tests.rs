@@ -1,15 +1,15 @@
 //! The owner on the machine's real Vulkan device under faults a healthy machine does not produce.
 //!
-//! The device, its queue and its work are real. Two things are the test's: single answers of the driver, replaced at
-//! the seam in `vulkan/fault.rs` (an injected loss is lost for every call from there on), and a gate that keeps
-//! submitted work really pending until the test opens it. Each case runs in a process of its own, and without an
-//! acceptable device it skips or fails as in `tests/gpu_owner.rs`.
+//! The device, its queue and its work are real. What is the test's is in `vulkan/fault.rs`: single answers of the driver
+//! (an injected loss is lost for every call from there on), a gate that keeps submitted work really pending until the
+//! test opens it, and that no Vulkan wait ends in time. Each case runs in a process of its own, and without an
+//! acceptable device it fails or skips as in `tests/gpu_owner.rs`.
 
 #[path = "../../tests/support/mod.rs"]
 pub(super) mod support;
 
 use super::{GpuClient, GpuOwner, MAX_HELD_LOST_DEVICES, MAX_WAIT};
-use crate::vulkan::fault::{refuse_open, Call};
+use crate::vulkan::fault::{refuse_open, AfterLoss, Call};
 use crate::vulkan::VulkanGeneration;
 use crate::{
     AdmissionDenial, AuthorizeRefusal, Claim, ClientId, DeviceFate, DeviceFault,
@@ -18,7 +18,6 @@ use crate::{
     Unavailable,
 };
 use ash::vk;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use support::gpu_env::{in_own_process, open, ran_in_its_own_process};
@@ -27,22 +26,32 @@ use support::{claim_subject, policy, request, EventLog};
 
 pub(super) const COMPLETED: SubmissionState =
     SubmissionState::Finished(SubmissionObservation::Completed);
-const DEVICE_LOST: SubmissionState = SubmissionState::Finished(SubmissionObservation::DeviceLost);
-const LOST: DeviceFault = DeviceFault::Lost { generation: 1 };
+pub(super) const DEVICE_LOST: SubmissionState =
+    SubmissionState::Finished(SubmissionObservation::DeviceLost);
+pub(super) const LOST: DeviceFault = DeviceFault::Lost { generation: 1 };
 pub(super) const QUOTA: u64 = 1 << 30;
 pub(super) const SHORT: Duration = Duration::from_millis(50);
+
+/// How much later than its deadline a bounded call may return, on a machine that is busy with something else.
+pub(super) const LATE: Duration = Duration::from_secs(5);
 
 pub(super) struct Rig {
     pub(super) client: GpuClient,
     pub(super) owner: GpuOwner,
     pub(super) log: Arc<EventLog>,
+    /// Let every device end with the rig: a case may leave its gate closed or its device silent, and a process that
+    /// ends with held work may hang.
+    pub(super) rescue: bool,
 }
 
 impl Drop for Rig {
-    /// A failing case may leave its gate closed, and a process that ends with held work may hang.
     fn drop(&mut self) {
-        if let Some(live) = self.owner.shared.lock_slot().live.as_ref() {
-            live.vulkan.faults().stall(false);
+        if !self.rescue {
+            return;
+        }
+        let slot = self.owner.shared.lock_slot();
+        for live in slot.live.iter().chain(&slot.retained) {
+            live.vulkan.faults().after_loss(AfterLoss::LOST);
             live.vulkan.open_gate();
         }
     }
@@ -51,14 +60,19 @@ impl Drop for Rig {
 pub(super) fn rig_with(policy: QuotaPolicy) -> Option<Rig> {
     let (owner, log) = open(policy)?;
     let client = attach(&owner, 1);
-    Some(Rig { client, owner, log })
+    Some(Rig {
+        client,
+        owner,
+        log,
+        rescue: true,
+    })
 }
 
 pub(super) fn rig() -> Option<Rig> {
     rig_with(policy(QUOTA))
 }
 
-fn attach(owner: &GpuOwner, module: u32) -> GpuClient {
+pub(super) fn attach(owner: &GpuOwner, module: u32) -> GpuClient {
     owner
         .attach_client(ModuleId(module), ClientId(1))
         .expect("free")
@@ -79,6 +93,21 @@ impl Rig {
         use_it(&slot.live.as_ref().expect("bound").vulkan)
     }
 
+    /// The device of `generation`, bound or let go of, with the slot locked.
+    pub(super) fn generation<T>(
+        &self,
+        generation: u64,
+        use_it: impl FnOnce(&Arc<VulkanGeneration>) -> T,
+    ) -> T {
+        let slot = self.owner.shared.lock_slot();
+        use_it(&slot.generation(generation).expect("exists").vulkan)
+    }
+
+    /// Submit a command buffer with nothing in it.
+    pub(super) fn submit_empty(&self, claim: &Claim) -> Submission {
+        self.client.submit(claim, |_| Ok(())).expect("submits")
+    }
+
     pub(super) fn submit(&self, claim: &Claim, worker: &Worker, value: u32) -> Submission {
         self.client
             .submit(claim, |recording| {
@@ -89,9 +118,9 @@ impl Rig {
     }
 
     /// The bound device is lost and the owner has seen it.
-    fn lose(&self) {
+    pub(super) fn lose(&self) {
         let generation = self.owner.device().expect("bound").generation;
-        self.device(|device| device.faults().lose_at(Call::Counter));
+        self.device(|device| device.faults().lose_at(Call::Sentinel));
         assert_eq!(self.owner.poll(), Err(DeviceFault::Lost { generation }));
     }
 
@@ -112,7 +141,7 @@ fn a_loss_met_by_submit_stays_in_flight_until_the_device_says_its_work_ended() {
     let Some(rig) = rig() else { return };
     let claim = rig.claim(64);
     rig.device(|device| {
-        device.faults().stall(true);
+        device.faults().after_loss(AfterLoss::SILENT);
         device.faults().lose_at(Call::Submit);
     });
     assert_eq!(
@@ -135,7 +164,7 @@ fn a_loss_met_by_submit_stays_in_flight_until_the_device_says_its_work_ended() {
     assert_eq!(rig.owner.device().expect("still bound").generation, 1);
     assert_eq!(rig.owner.usage().in_flight, 1);
 
-    rig.device(|device| device.faults().stall(false));
+    rig.device(|device| device.faults().after_loss(AfterLoss::LOST));
     assert_eq!(rig.owner.poll(), Err(LOST));
     assert_eq!(rig.owner.usage().in_flight, 0);
     for outcome in [SettleOutcome::Completed, SettleOutcome::NoEffect] {
@@ -157,21 +186,18 @@ fn a_loss_met_by_submit_stays_in_flight_until_the_device_says_its_work_ended() {
 fn a_loss_met_by_observe_wait_probe_or_poll_is_reported_once_and_ends_the_work() {
     in_own_process!();
     type Meet = fn(&Rig, &Submission);
-    let ways: [(Call, Meet); 4] = [
-        (Call::Counter, |rig, submission| {
-            assert_eq!(rig.client.observe(submission), Ok(DEVICE_LOST));
-        }),
-        (Call::Wait, |rig, submission| {
-            assert_eq!(rig.client.wait(submission, SHORT), Ok(DEVICE_LOST));
-        }),
-        (Call::Wait, |rig, _| {
-            assert_eq!(rig.owner.probe(SHORT), Err(LOST));
-        }),
-        (Call::Counter, |rig, _| {
-            assert_eq!(rig.client.poll(), Err(LOST));
-        }),
+    let ways: [Meet; 4] = [
+        |rig, submission| assert_eq!(rig.client.observe(submission), Ok(DEVICE_LOST)),
+        |rig, submission| assert_eq!(rig.client.wait(submission, SHORT), Ok(DEVICE_LOST)),
+        |rig, _| assert_eq!(rig.owner.probe(SHORT), Err(LOST)),
+        |rig, _| assert_eq!(rig.client.poll(), Err(LOST)),
     ];
-    for (call, meet) in ways {
+    // On the fence of the work, and on the one that nothing is submitted with.
+    let calls = [Call::Fence, Call::Sentinel];
+    for (call, meet) in calls
+        .into_iter()
+        .flat_map(|call| ways.map(|way| (call, way)))
+    {
         let Some(rig) = rig() else { return };
         let worker = rig.worker();
         rig.device(|device| device.close_gate());
@@ -190,6 +216,33 @@ fn a_loss_met_by_observe_wait_probe_or_poll_is_reported_once_and_ends_the_work()
         rig.device(|device| device.open_gate());
         rig.device(|device| device.wait_really(1));
         drop(worker.let_go(&rig.client));
+    }
+}
+
+/// With nothing submitted there is no fence to ask: the loss shows all the same.
+#[test]
+fn a_loss_of_an_idle_device_is_noticed_by_the_next_look() {
+    in_own_process!();
+    type Look = fn(&Rig) -> bool;
+    let looks: [Look; 3] = [
+        |rig| rig.owner.poll() == Err(LOST),
+        |rig| rig.client.poll() == Err(LOST),
+        |rig| rig.owner.probe(MAX_WAIT) == Err(LOST),
+    ];
+    for look in looks {
+        for shown in [vk::Result::ERROR_DEVICE_LOST, vk::Result::SUCCESS] {
+            let Some(rig) = rig() else { return };
+            assert_eq!(rig.owner.poll(), Ok(()));
+            rig.device(|device| {
+                device.faults().lose(AfterLoss {
+                    sentinel: shown,
+                    ..AfterLoss::LOST
+                })
+            });
+            assert!(look(&rig), "{shown:?}");
+            assert!(rig.owner.device().expect("bound").lost);
+            assert_eq!(rig.owner.rebind_device(), Ok(2));
+        }
     }
 }
 
@@ -407,80 +460,57 @@ fn a_rebind_without_an_adapter_leaves_no_device_and_may_be_repeated() {
 }
 
 #[test]
-fn a_device_that_does_not_say_its_work_ended_is_left_alive_and_reported() {
+fn a_device_that_never_says_so_is_kept_and_given_up_with_the_last_handle() {
     in_own_process!();
-    let Some(rig) = rig() else { return };
+    let Some(mut rig) = rig() else { return };
     let dropped = rig.claim(7);
     let leaked = OwnerEvent::ClaimLeaked {
         subject: claim_subject(dropped.info()),
         leaked_bytes: 7,
     };
-    drop(rig.client.submit(&dropped, |_| Ok(())).expect("submits"));
+    drop(rig.submit_empty(&dropped));
     drop(dropped);
     rig.device(|device| {
         // Really over, and the driver does not say so.
         device.wait_really(1);
-        device.faults().stall(true);
-        device.faults().lose_at(Call::Wait);
+        device.faults().lose(AfterLoss::SILENT);
     });
     let report = rig.owner.close();
     assert_eq!(report.device, DeviceFate::Unconfirmed);
     assert_eq!((report.in_flight, report.charged_bytes), (1, 7));
-    assert_eq!(rig.log.count(OwnerEvent::DeviceLeaked { generation: 1 }), 1);
-    assert_eq!(rig.log.count(leaked), 1);
-    assert_eq!(
-        rig.log.count_like(OwnerEvent::GenerationRetired {
+    assert!(!report.is_settled());
+    let kept = OwnerEvent::DeviceRetainedAtClose {
+        generation: 1,
+        holders: 0,
+    };
+    assert_eq!(rig.log.count(kept), 1);
+    let given_up = OwnerEvent::DeviceLeaked { generation: 1 };
+    // Somebody can still look, and every look finds the same.
+    for _ in 0..2 {
+        assert_eq!(rig.owner.poll(), Err(DeviceFault::NoDevice));
+        assert_eq!(rig.client.poll(), Err(DeviceFault::NoDevice));
+        assert_eq!(rig.owner.close(), report);
+    }
+    assert_eq!((rig.log.count(given_up), rig.log.count(leaked)), (0, 0));
+    let log = rig.log.clone();
+    rig.rescue = false;
+    drop(rig);
+    assert_eq!((log.count(given_up), log.count(leaked)), (1, 1));
+    for never in [
+        OwnerEvent::GenerationRetired {
             generation: 1,
-            resolved: 0
-        }),
-        0
-    );
+            resolved: 0,
+        },
+        OwnerEvent::RetainedDeviceDestroyed {
+            generation: 1,
+            resolved: 0,
+        },
+    ] {
+        assert_eq!(log.count_like(never), 0);
+    }
     // Its device is still the process's one device.
     assert_eq!(
-        GpuOwner::open(policy(1), rig.log.clone()).err(),
+        GpuOwner::open(policy(1), log).err(),
         Some(Unavailable::OwnerAlreadyOpen)
     );
-}
-
-#[test]
-fn a_leased_device_that_never_says_so_is_reported_when_its_last_holder_returns_it() {
-    in_own_process!();
-    let Some(rig) = rig() else { return };
-    let claim = rig.claim(7);
-    let lease = rig.client.lease(&claim).expect("authorized");
-    rig.device(|device| {
-        device.faults().stall(true);
-        device.faults().lose_at(Call::Wait);
-    });
-    assert_eq!(rig.owner.close().device, DeviceFate::Held { holders: 1 });
-    let leaked = OwnerEvent::DeviceLeaked { generation: 1 };
-    assert_eq!(rig.log.count(leaked), 0);
-    drop(lease);
-    assert_eq!(rig.log.count(leaked), 1);
-    assert_eq!(
-        rig.log.count_like(OwnerEvent::RetainedDeviceDestroyed {
-            generation: 1,
-            resolved: 0
-        }),
-        0
-    );
-    assert_eq!(rig.settle(&claim, SettleOutcome::Canceled), Ok(7));
-}
-
-#[test]
-fn a_second_rebind_is_refused_while_one_runs() {
-    in_own_process!();
-    let Some(rig) = rig() else { return };
-    rig.lose();
-    let running = &rig.owner.shared.rebinding;
-    running.store(true, Ordering::SeqCst);
-    for _ in 0..2 {
-        assert_eq!(
-            rig.owner.rebind_device(),
-            Err(DeviceRebindRefusal::InProgress)
-        );
-    }
-    running.store(false, Ordering::SeqCst);
-    assert_eq!(rig.owner.rebind_device(), Ok(2));
-    assert!(!running.load(Ordering::SeqCst));
 }

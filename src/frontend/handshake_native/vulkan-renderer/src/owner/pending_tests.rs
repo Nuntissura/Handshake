@@ -7,8 +7,8 @@ use super::fault_tests::support::{bounded_policy, claim_subject, policy, request
 use super::fault_tests::{rig, rig_with, COMPLETED, QUOTA, SHORT};
 use super::MAX_WAIT;
 use crate::{
-    AuthorizeRefusal, DeviceFate, DeviceFault, DeviceHealth, OwnerEvent, SettleOutcome,
-    SettleRefusal, SubmissionRefusal, SubmissionState, SubmitRefusal,
+    AuthorizeRefusal, DeviceFate, DeviceHealth, OwnerEvent, SettleOutcome, SettleRefusal,
+    SubmissionState, SubmitRefusal,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -211,9 +211,11 @@ fn a_close_over_running_work_is_bounded_and_says_what_it_left() {
         device.open_gate();
         device.wait_really(1);
     }
-    // A close that drains keeps no client waiting.
-    let no_device = SubmissionRefusal::Device(DeviceFault::NoDevice);
-    assert_eq!((meanwhile, was_closing), (Err(no_device), true));
+    // A close that drains keeps no client waiting, and its work is still observed.
+    assert_eq!(
+        (meanwhile, was_closing),
+        (Ok(SubmissionState::Pending), true)
+    );
     assert!(took >= MAX_WAIT / 2 && took < 2 * MAX_WAIT, "{took:?}");
     assert_eq!(
         (report.device, report.in_flight),

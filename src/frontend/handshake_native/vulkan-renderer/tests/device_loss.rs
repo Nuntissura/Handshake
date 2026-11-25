@@ -1,13 +1,12 @@
-//! Device loss, rebind and shutdown without a GPU: nothing is refunded, nothing stale submits, every loss is
-//! reported once and shutdown says truthfully what remained.
+//! Device loss and rebind without a GPU: nothing is refunded, nothing stale submits and every loss is reported once.
 
 mod support;
 
 use handshake_vulkan_renderer::{
-    AdmissionDenial, AuthorizeRefusal, ChargeClass, ClientId, DeviceFate, DeviceFault,
-    DeviceRebindRefusal, LedgerClient, ModuleId, OwnerCore, OwnerEvent, OwnerPhase, QuotaPolicy,
-    RebindRefusal, SettleOutcome, SettleRefusal, Settlement, SubmissionObservation,
-    SubmissionRefusal, SubmissionState, SubmitRefusal, Unavailable, WorkObserved,
+    AdmissionDenial, AuthorizeRefusal, ChargeClass, ClientId, DeviceFault, DeviceRebindRefusal,
+    LedgerClient, ModuleId, OwnerCore, OwnerEvent, OwnerPhase, QuotaPolicy, RebindRefusal,
+    SettleOutcome, SettleRefusal, Settlement, SubmissionObservation, SubmissionRefusal,
+    SubmissionState, SubmitRefusal, Unavailable, WorkObserved,
 };
 use std::sync::Arc;
 use support::{bench, claim_subject, client_subject, policy, request, EventLog, KEY, OTHER_KEY};
@@ -108,6 +107,33 @@ fn a_quiescent_loss_ends_the_submissions_of_that_generation_only() {
     assert_eq!(bench.ledger.resolve_lost(1), 0);
     assert_eq!(running.state(), DEVICE_LOST);
     assert!(bench.client.settle(&held, lost()).is_ok());
+}
+
+#[test]
+fn a_lost_generation_completes_nothing_any_more() {
+    let bench = bench(policy(100));
+    let held = bench.claim(10);
+    let first = bench.client.begin_submission(&held).expect("authorized");
+    let second = bench.client.begin_submission(&held).expect("authorized");
+    assert_eq!(bench.ledger.resolve_through(1, 1), 1);
+    bench.ledger.mark_device_lost(1);
+    for value in [0, 1, 2, u64::MAX] {
+        assert_eq!(bench.ledger.resolve_through(1, value), 0);
+    }
+    assert_eq!(second.state(), SubmissionState::Pending);
+    assert_eq!(bench.ledger.usage().in_flight, 1);
+    // Nor once its successor is bound; and that one completes its own.
+    bench.ledger.bind_device(KEY);
+    assert_eq!(bench.ledger.resolve_through(1, u64::MAX), 0);
+    let next = bench.claim(10);
+    let running = bench.client.begin_submission(&next).expect("authorized");
+    assert_eq!(bench.ledger.resolve_through(2, 1), 1);
+    assert_eq!(bench.ledger.resolve_lost(1), 1);
+    let completed = SubmissionState::Finished(SubmissionObservation::Completed);
+    assert_eq!(
+        [first.state(), second.state(), running.state()],
+        [completed, DEVICE_LOST, completed]
+    );
 }
 
 #[test]
@@ -456,128 +482,4 @@ fn ordinary_work_emits_no_event_per_submission() {
         assert_eq!(core.ledger().resolve_through(generation, value), 1);
     }
     assert_eq!(log.events().len(), before);
-}
-
-#[test]
-fn shutdown_reports_what_was_still_held_and_keeps_it_settleable() {
-    let log = Arc::new(EventLog::default());
-    let core = OwnerCore::new(policy(100), log.clone());
-    let client = attach(&core);
-    core.device_bound(KEY);
-    let held = client.admit(&request(20)).expect("fits");
-    let running = client.begin_submission(&held).expect("authorized");
-    core.begin_shutdown();
-    assert_eq!(
-        client.admit(&request(1)).expect_err("closing"),
-        AdmissionDenial::AdmissionClosed
-    );
-    assert!(core.attach(ModuleId(2), ClientId(2)).is_err());
-    let report = core.finish_shutdown(DeviceFate::Destroyed, 0);
-    assert_eq!((report.open_claims, report.charged_bytes), (1, 20));
-    assert_eq!(
-        (report.in_flight, report.device),
-        (0, DeviceFate::Destroyed)
-    );
-    assert!(!report.is_settled());
-    assert_eq!(
-        log.count(OwnerEvent::ShutdownOutstanding {
-            open_claims: 1,
-            retained_claims: 0,
-            charged_bytes: 20
-        }),
-        1
-    );
-    assert_eq!(
-        log.count(OwnerEvent::GenerationRetired {
-            generation: 1,
-            resolved: 1
-        }),
-        1
-    );
-    assert_eq!(running.state(), DEVICE_LOST);
-    assert_eq!(
-        client.authorize(&held),
-        Err(AuthorizeRefusal::DeviceUnavailable)
-    );
-    assert!(client.settle(&held, lost()).is_ok());
-    assert_eq!(core.ledger().usage().charged_bytes, 0);
-}
-
-#[test]
-fn shutdown_with_a_device_that_stays_alive_ends_no_submission() {
-    for (fate, event) in [
-        (
-            DeviceFate::Held { holders: 2 },
-            OwnerEvent::DeviceRetainedAtClose {
-                generation: 1,
-                holders: 2,
-            },
-        ),
-        (
-            DeviceFate::Unconfirmed,
-            OwnerEvent::DeviceLeaked { generation: 1 },
-        ),
-    ] {
-        let log = Arc::new(EventLog::default());
-        let core = OwnerCore::new(policy(100), log.clone());
-        let client = attach(&core);
-        core.device_bound(KEY);
-        let held = client.admit(&request(20)).expect("fits");
-        let running = client.begin_submission(&held).expect("authorized");
-        core.begin_shutdown();
-        let report = core.finish_shutdown(fate, 0);
-        assert_eq!((report.device, report.in_flight), (fate, 1));
-        assert!(!report.is_settled());
-        assert_eq!(running.state(), SubmissionState::Pending);
-        assert_eq!(log.count(event), 1);
-        assert_eq!(
-            log.count_like(OwnerEvent::GenerationRetired {
-                generation: 1,
-                resolved: 0
-            }),
-            0
-        );
-        assert_eq!(
-            client.settle(&held, lost()),
-            Err(SettleRefusal::InFlight { in_flight: 1 })
-        );
-    }
-}
-
-#[test]
-fn a_device_left_alive_reports_the_claims_nobody_holds_as_leaked() {
-    let log = Arc::new(EventLog::default());
-    let core = OwnerCore::new(policy(100), log.clone());
-    let client = attach(&core);
-    core.device_bound(KEY);
-    let kept = client.admit(&request(1)).expect("fits");
-    let dropped = client.admit(&request(20)).expect("fits");
-    let leaked = OwnerEvent::ClaimLeaked {
-        subject: claim_subject(dropped.info()),
-        leaked_bytes: 20,
-    };
-    drop(client.begin_submission(&dropped).expect("authorized"));
-    drop(dropped);
-    assert_eq!(log.count(leaked), 0);
-    core.begin_shutdown();
-    core.finish_shutdown(DeviceFate::Unconfirmed, 0);
-    assert_eq!((log.count(leaked), log.count_like(leaked)), (1, 1));
-    assert!(client
-        .settle(&kept, Settlement::clean(SettleOutcome::NoEffect))
-        .is_ok());
-}
-
-#[test]
-fn only_a_shutdown_without_anything_left_is_settled() {
-    let closed = |fate, lost_devices_held| {
-        let core = OwnerCore::new(policy(100), Arc::new(EventLog::default()));
-        core.device_bound(KEY);
-        core.begin_shutdown();
-        core.finish_shutdown(fate, lost_devices_held).is_settled()
-    };
-    assert!(closed(DeviceFate::Destroyed, 0));
-    assert!(closed(DeviceFate::NoDevice, 0));
-    assert!(!closed(DeviceFate::Destroyed, 1));
-    assert!(!closed(DeviceFate::Held { holders: 1 }, 0));
-    assert!(!closed(DeviceFate::Unconfirmed, 0));
 }

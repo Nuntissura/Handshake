@@ -1,23 +1,22 @@
 //! The owner on the machine's real Vulkan device, through its public surface: open, attach, lease, real work with a
 //! readback, observe, settle, reclaim and close.
 //!
-//! No window and no surface. A machine without an acceptable device skips with one `HSK_GPU_SKIP` line, which is not a
-//! pass of these cases, and fails where `HANDSHAKE_REQUIRE_VULKAN_GPU` is set. Faults a healthy machine does not
-//! produce are in the crate's unit tests (`src/owner/fault_tests.rs`).
+//! No window and no surface. A machine without an acceptable device fails; see `support/gpu_env.rs`. Faults a healthy
+//! machine does not produce are in the crate's unit tests (`src/owner/fault_tests.rs`).
 
 mod support;
 
 use handshake_vulkan_renderer::{
     AdmissionDenial, AttachRefusal, AuthorizeRefusal, ByteQuantity, ClientId, DeviceClass,
-    DeviceFate, DeviceHealth, DeviceRebindRefusal, GpuClient, GpuOwner, MemoryPlacement, ModuleId,
-    NullDiagnostics, OwnerEvent, QuotaPolicy, RecordAborted, SettleOutcome, SettleRefusal,
-    Settlement, SubmissionObservation, SubmissionRefusal, SubmissionState, SubmitRefusal,
-    Unavailable, DESCRIPTOR, MAX_WAIT,
+    DeviceFate, DeviceHealth, DeviceRebindRefusal, GpuClient, GpuOwner, ModuleId, NullDiagnostics,
+    OwnerEvent, QuotaPolicy, RecordAborted, SettleOutcome, SettleRefusal, Settlement,
+    SubmissionObservation, SubmissionRefusal, SubmissionState, SubmitRefusal, Unavailable,
+    DESCRIPTOR, MAX_WAIT,
 };
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
-use support::gpu_env::{in_own_process, open, ran_in_its_own_process};
-use support::gpu_work::Worker;
+use support::gpu_env::{in_own_process, open, ran_in_its_own_process, DOZEN, ONLY_DRIVERS};
+use support::gpu_work::{heaps_by_the_driver, Worker};
 use support::{bounded_policy, policy, request};
 
 const COMPLETED: SubmissionState = SubmissionState::Finished(SubmissionObservation::Completed);
@@ -68,18 +67,22 @@ fn the_process_has_one_owner_on_a_hardware_device() {
 
     let memory = owner.memory_snapshot().expect("bound");
     assert!(!memory.heaps.is_empty());
+    // Set beside what the driver answers to somebody else, and not beside the rule the owner follows itself.
+    let claim = client.admit(&request(1)).expect("fits");
+    let lease = client.lease(&claim).expect("authorized");
+    let expected = heaps_by_the_driver(lease.handles().expect("may use its device"));
+    let seen: Vec<_> = memory
+        .heaps
+        .iter()
+        .map(|heap| (heap.size_bytes, heap.placement))
+        .collect();
+    assert_eq!(seen, expected);
     for heap in &memory.heaps {
-        assert!(heap.size_bytes > 0);
-        assert_eq!(
-            heap.placement,
-            MemoryPlacement::of(identity.class, heap.device_local)
-        );
-        // What the device does not say is never called dedicated.
-        assert!(
-            heap.placement != MemoryPlacement::Dedicated || identity.class == DeviceClass::Discrete
-        );
         assert!(!matches!(heap.budget, ByteQuantity::Measured(_)));
     }
+    drop(lease);
+    let nothing = Settlement::clean(SettleOutcome::NoEffect);
+    assert!(client.settle(&claim, nothing).is_ok());
 
     assert_eq!(owner.probe(MAX_WAIT), Ok(DeviceHealth::Idle));
     assert_eq!(owner.poll(), Ok(()));
@@ -456,6 +459,25 @@ fn a_close_drains_the_queue_and_another_owner_knows_nothing_of_it() {
     );
     assert!(client.settle(&claim, done).is_ok());
     assert!(second.close().is_settled());
+}
+
+/// The Direct3D mapping driver alone, where it is installed, is refused live and not only by selection from facts. Not
+/// in an ordinary run: that driver creates Direct3D devices, whose shader cache then has to be removed (see
+/// `support/gpu_env.rs`).
+#[test]
+#[ignore = "loads the Direct3D mapping driver on purpose; run with --ignored"]
+fn the_layered_driver_alone_is_refused() {
+    in_own_process!(&[(ONLY_DRIVERS, DOZEN)]);
+    match GpuOwner::open(policy(1), Arc::new(NullDiagnostics)) {
+        Ok(owner) => panic!("opened {:?}", owner.identity()),
+        Err(reason @ (Unavailable::LayeredDriverRefused | Unavailable::ApiBelowBaseline)) => {
+            println!("HSK_GPU_LAYERED refused={}", reason.key());
+        }
+        Err(reason @ (Unavailable::InstanceRefused | Unavailable::NoPhysicalDevice)) => {
+            println!("HSK_GPU_SKIP no layered driver: {}", reason.key());
+        }
+        Err(reason) => panic!("{}", reason.key()),
+    }
 }
 
 /// Windows looks beside the executable before it looks in the system directory, unless it is told not to. A file there
