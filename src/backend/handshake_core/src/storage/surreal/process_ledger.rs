@@ -1095,11 +1095,13 @@ impl SurrealProcessLedgerStore {
             let observed_current = observed_marker.is_some_and(|observed|
                 observed.get("kill_operation_uuid").and_then(Value::as_str) == Some(operation.as_str())
                     && observed.get("status").and_then(Value::as_str) == Some("in_progress"));
+            let recorded_at = |marker: &Value| marker.get("recorded_at_unix_ms").and_then(Value::as_i64);
             if marker_object.len() != 3
                 || marker.get("kill_operation_uuid").and_then(Value::as_str) != Some(operation.as_str())
                 || marker.get("status").and_then(Value::as_str) != Some("in_progress")
-                || marker.get("recorded_at_unix_ms").and_then(Value::as_i64).is_none()
-                || (observed_current && observed_marker != Some(marker))
+                || recorded_at(marker).is_none()
+                // A later claim of the same operation records its own kill start.
+                || (observed_current && observed_marker.and_then(recorded_at) > recorded_at(marker))
             {
                 return Err(ProcessLedgerError::Store("renewal changed original in-progress operation".into()));
             }
@@ -5565,13 +5567,19 @@ mod tests {
 
     impl ReclaimFixture {
         async fn open() -> Self {
+            Self::open_with(|start| start).await
+        }
+
+        async fn open_with(customize: impl FnOnce(ProcessStart) -> ProcessStart) -> Self {
             let (directory, storage, store) = open_test_store().await;
             let process_uuid = Uuid::now_v7();
             let session_id = format!("session-{}", Uuid::now_v7());
-            let start = scoped_start(process_uuid)
-                .with_parent_session_id(session_id.clone())
-                .with_sandbox_adapter_id("reclaim-test-adapter")
-                .with_sandbox_internal_id(process_uuid.to_string());
+            let start = customize(
+                scoped_start(process_uuid)
+                    .with_parent_session_id(session_id.clone())
+                    .with_sandbox_adapter_id("reclaim-test-adapter")
+                    .with_sandbox_internal_id(process_uuid.to_string()),
+            );
             let values = exact_scope(&start.metadata_jsonb).expect("exact test scope");
             let scope = ReclaimResourceScope::try_from_stored(
                 &values[0], &values[1], &values[2], &values[4], &values[3],
@@ -5650,6 +5658,17 @@ mod tests {
         );
         assert_eq!(retried.reclaim_claim.generation, first.reclaim_claim.generation + 1);
         assert_ne!(retried.reclaim_claim.claimant_uuid, first.reclaim_claim.claimant_uuid);
+        // The retried kill of the same operation keeps its claim alive like the first.
+        fixture
+            .store
+            .mark_reclaim_kill_started(&retried, &retried.reclaim_claim)
+            .await
+            .expect("persist retried kill start");
+        fixture
+            .store
+            .renew_reclaim_claim(&retried, &retried.reclaim_claim)
+            .await
+            .expect("renew the retried kill claim");
         fixture.shutdown().await;
     }
 
@@ -5740,6 +5759,81 @@ mod tests {
             self.held_permits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(Box::new(CountingStopPermit(self.clone())))
         }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn vanished_pid_is_settled_only_for_a_row_of_this_host() {
+        use crate::process_ledger::reclaim::{
+            ProductionSandboxKill, ScopedKillOutcome, ScopedReclaim, ScopedReclaimTrigger,
+        };
+
+        let fixture = ReclaimFixture::open_with(|mut start| {
+            // No process object can hold this PID.
+            start.os_pid = Some(0xFFFF_FFFC);
+            start.sandbox_adapter_id =
+                Some(crate::sandbox::HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID.to_owned());
+            start.metadata_jsonb["effective_executable_sha256"] = serde_json::json!("0".repeat(64));
+            start.metadata_jsonb["os_creation_time_100ns"] = serde_json::json!(1);
+            start.runtime_owner = Some(ProcessRuntimeOwner {
+                runtime_instance_id: Uuid::now_v7(),
+                host_scope_id: "this-host".to_owned(),
+                lease_schema_id: EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.to_owned(),
+                lease_protocol: EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL.to_owned(),
+                lease_address: "127.0.0.1".to_owned(),
+                lease_port: 43210,
+            });
+            start
+        })
+        .await;
+        let held_permits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let reclaim_on = |host_scope_id: &str| {
+            ScopedReclaim::new(
+                Arc::clone(&fixture.store),
+                Arc::new(
+                    ProductionSandboxKill::with_registry(
+                        fixture.storage.clone(),
+                        crate::process_ledger::production_process_sandbox_registry(),
+                    )
+                    .with_host_scope(host_scope_id),
+                ),
+                Arc::new(CountingStopWriter {
+                    store: Arc::clone(&fixture.store),
+                    held_permits: Arc::clone(&held_permits),
+                }),
+            )
+        };
+        let inspect = || async {
+            fixture
+                .store
+                .inspect_ownership_by_process_uuid(&fixture.scope, fixture.process_uuid)
+                .await
+                .expect("inspect row")
+                .expect("row exists")
+        };
+
+        let report = reclaim_on("another-host")
+            .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Restart)
+            .await
+            .expect("an unproven absence is a reported failure");
+        match &report.processes_reclaimed[0].kill_result {
+            ScopedKillOutcome::Failed { error } => {
+                assert!(error.contains("PROCESS_ABSENT_HOST_UNPROVEN"), "{error}")
+            }
+            other => panic!("another host proves nothing: {other:?}"),
+        }
+        assert!(inspect().await.stopped_at.is_none());
+
+        let report = reclaim_on("this-host")
+            .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Restart)
+            .await
+            .expect("the recorded host proves the absence");
+        assert_eq!(report.processes_reclaimed[0].kill_result, ScopedKillOutcome::Killed);
+        let row = inspect().await;
+        assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
+        assert_eq!(row.exit_code, Some(-1));
+        assert_eq!(held_permits.load(std::sync::atomic::Ordering::SeqCst), 0);
+        fixture.shutdown().await;
     }
 
     #[tokio::test]

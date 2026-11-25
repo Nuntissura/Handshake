@@ -4359,7 +4359,11 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  `processes_reclaimed`); the periodic pass retries it. Fail-closed would permanently \
                  brick boot on non-Windows hosts, where the native reclaim adapter is unavailable and \
                  always returns Failed, and it cannot distinguish a correct refusal-to-kill (the \
-                 pid-reuse identity fence) from a genuine reap failure. Store errors, surfacing \
+                 pid-reuse identity fence) from a genuine reap failure. A recorded PID that no longer \
+                 exists is settled with the reclaim STOP (`exit_code` -1), but only for a row that \
+                 names this host; otherwise it stays open as `PROCESS_ABSENT_HOST_UNPROVEN`. A PID \
+                 that now names another process generation stays open as `PID_GENERATION_MISMATCH` \
+                 and is settled once that PID is free again. Store errors, surfacing \
                  errors, and a boot-reconcile TIMEOUT remain fail-closed and abort startup. \
                  RECOVERY-ONLY EXCLUSION: `HANDSHAKE_STARTUP_RECOVERY_ONLY=1` returns before the \
                  normal process-runtime composition; it composes the same process runtime from the \
