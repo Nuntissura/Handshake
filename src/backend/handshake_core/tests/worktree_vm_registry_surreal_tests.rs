@@ -1800,7 +1800,6 @@ async fn deterministic_failure_between_event_and_state_writes_rolls_back_both() 
                             payload: { transition_event_type: 'SESSION_FAILED',
                                 record_id: $record_id, worktree_id: $worktree_id,
                                 binding_id: $binding_id, binding_state: 'failed' },
-                            wsids: [$workspace_id],
                             owner_account_id: $owner_account_id,
                             actor_principal_id: $actor_principal_id,
                             authenticated_session_id: $authenticated_session_id,

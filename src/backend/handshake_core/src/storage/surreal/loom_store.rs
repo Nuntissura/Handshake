@@ -178,8 +178,7 @@ async fn write_loom_artifact_binding(
         .source_component("loom_artifact_store")
         .payload(json!({"type":"loom_asset_artifact_binding","workspace_id":expected.workspace_id,"asset_id":expected.asset_id,"artifact_id":artifact_id,"state":operation,"content_hash":expected.content_hash,"size_bytes":expected.size_bytes,"actor_kind":metadata.actor_kind.as_str(),"actor_id":metadata.actor_id,"job_id":metadata.job_id,"workflow_id":metadata.workflow_id}))
         .build().map_err(|_| StorageError::Validation("Loom artifact event invalid"))?;
-    let (_, mut ledger) = event_ledger::prepare_event(event)?;
-    ledger.wsids = vec![expected.workspace_id.clone()];
+    let (_, ledger) = event_ledger::prepare_event(event)?;
     let row = db.query_first::<LoomArtifactBindingRow, _>(
         "IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-ARTIFACT-NOT-FOUND'; } ELSE { \
         LET $current = (SELECT * FROM $record)[0]; \

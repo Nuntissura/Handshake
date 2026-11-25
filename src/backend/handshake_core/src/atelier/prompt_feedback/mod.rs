@@ -648,7 +648,7 @@ const IMPORT_CASES_TRANSACTION: &str = concat!(
     "$this.kernel_aggregate_type; LET $kernel_aggregate_id = $this.kernel_aggregate_id; LET $event_type = ",
     "$this.event_type; LET $actor_kind = $this.actor_kind; LET $actor_id = $this.actor_id; LET $causation_id = ",
     "$this.causation_id; LET $correlation_id = $this.correlation_id; LET $payload_hash = $this.payload_hash; LET ",
-    "$source_component = $this.source_component; LET $ledger_payload = $this.ledger_payload; LET $created_at = ",
+    "$source_component = $this.source_component; LET $ledger_payload = $this.ledger_payload; LET $wsids = $this.wsids; LET $created_at = ",
     "$this.created_at; LET $atelier_id = $this.atelier_id; LET $atelier_event_uuid = $this.atelier_event_uuid; ",
     "LET $event_family = $this.event_family; LET $atelier_payload = $this.atelier_payload; ",
     "LET $rid = $domain.case_rid; ",

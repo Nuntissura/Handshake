@@ -160,7 +160,6 @@ CREATE $record CONTENT {
     actor_id: 'restart-resume-surreal-test',
     payload_hash: '0000000000000000000000000000000000000000000000000000000000000000',
     source_component: 'restart_resume_surreal_tests', payload: $payload,
-    wsids: [$workspace_id],
     owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
     authenticated_session_id: $authenticated_session_id,
     access_space_id: $access_space_id, workspace_id: $workspace_id,
