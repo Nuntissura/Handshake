@@ -1,0 +1,36 @@
+# WP-KERNEL-012 MT-214 S1 — native windows and the event loop, behind typed commands and events.
+#
+# No Vulkan, no IME composition, no AccessKit: later slices and other crates add those on the seams described in
+# README.md.
+[package]
+name = "handshake_shell_window"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Native windows and the event loop of the kernel-owned shell: typed commands and events, quiet windows, wakes inside modal loops. No toolkit or window-library type in its interface."
+
+[target.'cfg(windows)'.dependencies]
+# Private (MT-214 S1): window creation, keyboard and pointer translation, DPI changes, the outer message pump. What it
+# does not do, or does not do quietly, is direct Win32 in src/platform (README.md, "Why winit and Win32").
+winit = { version = "=0.30.13", default-features = false, features = ["rwh_06"] }
+# The revision winit 0.30.13 binds, so the closure holds one Win32 binding crate.
+windows-sys = { version = "=0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_DataExchange",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_Power",
+    "Win32_System_Threading",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Tests only: a private desktop, so a test window can neither be seen nor take the Operator's focus.
+windows-sys = { version = "=0.52.0", features = ["Win32_Security", "Win32_System_StationsAndDesktops"] }
