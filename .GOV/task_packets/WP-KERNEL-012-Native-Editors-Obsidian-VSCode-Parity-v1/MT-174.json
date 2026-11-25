@@ -6465,6 +6465,19 @@
   "proof_limit": "Failedwholecommand is not perMT successfulcompile/checkpoint; priorround07 source review remains sourceonly unchanged; acceptancepending"
 }
 },
+  "operator_decision_20261125_builder_output_cap": {
+    "decision_id": "WP012-BUILDER-OUTPUT-CAP-20261125",
+    "amends": "WP012-PHASE02-BUILDER-OUTPUT-GRANT-20261010",
+    "operator_question": "Raise the builder target cap from 180 GB to 210 GB so the MT-172 compile can start now?",
+    "operator_quote": "Raise to 210 GB",
+    "decided_on": "2026-11-25",
+    "wp_id": "WP-KERNEL-012",
+    "cap_bytes": 210000000000,
+    "cap_scope": "builder Cargo target directory only; unchanged from the amended grant",
+    "changes": "cap_bytes only; every other field of the amended grant is unchanged",
+    "measured_target_bytes_at_decision": 202472328745,
+    "recorded_by": "KERNEL_BUILDER"
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
