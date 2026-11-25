@@ -1,0 +1,35 @@
+# WP-KERNEL-012 MT-203 — the Handshake-owned direct-Vulkan GPU owner unit.
+#
+# One private Vulkan generation (instance, strict physical-device pick, logical device, queue) plus the
+# owner-side claim ledger (admit -> account -> settle, exactly-once release). Master Spec v02.229 module 15
+# (GUI-DESKTOP-025..040, NATIVE-RENDER-BOOT-001..009, GPU-QUOTA-010..016); build rules HBR-HOST-001/003/005.
+#
+# Direct Vulkan through `ash` only: no wgpu, egui, eframe or winit in this unit's closure (Operator decisions
+# D7/D1, GUI-DESKTOP-003). `ash` is pinned to the revision the Native lock and Studio's `hsk-studio-vulkan`
+# leaf already use (0.38.0+1.3.281), so one Vulkan binding serves the owner and its future clients.
+#
+# Standalone [workspace] table, as `diag_ring` and `workspace_activation` do: the repo has no root cargo
+# workspace. This unit has no dependency on the `handshake-native` parent package and the parent does not
+# depend on it yet (host wiring is a later slice), so the parent manifest needs no `exclude` line.
+[workspace]
+
+[package]
+name = "handshake-vulkan-renderer"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Handshake central GPU owner: one private direct-Vulkan generation and the owner-side claim ledger (admission, budgets, retained-memory accounting, exactly-once settlement)."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+ash = { version = "=0.38.0", default-features = false, features = ["loaded", "std"] }
+
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
+[profile.test]
+debug = "line-tables-only"
+incremental = false
