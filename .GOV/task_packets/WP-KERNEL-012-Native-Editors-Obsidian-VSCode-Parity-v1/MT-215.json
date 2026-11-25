@@ -836,5 +836,67 @@
       "mt_ref": "MT-212.json",
       "when": "S3, S4, S6: exact file release by the holder"
     }
-  ]
+  ],
+  "slice1_implementation_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-25",
+    "slice": "S1 ui_heartbeat",
+    "commit": "80641cb641dff80b3104e851f3c8fd3ad4bb3b74",
+    "tree": "c3ecaa896763eaa44b0fb56932f1adabcc4f7699",
+    "paths": "src/frontend/handshake_host_ports/**",
+    "implementer_checks": {
+      "cargo check --locked --offline --tests -j 2": "exit 0",
+      "clippy all targets": "one existing warning in palmistry control.rs:397",
+      "closure": "handshake-diag-ring, bytemuck, memmap2, serde, serde_json; dev palmistry; no egui, eframe, winit, wgpu or ash"
+    },
+    "logs_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/logs",
+    "tests": "34 written, none run by the implementer; independent run pending",
+    "alive_proves": "since the last count the UI thread's loop took a wake the port requested from its own queue and ran the handler there; posts, frames, input and start publish nothing",
+    "alive_does_not_prove": [
+      "presenting",
+      "GPU health",
+      "input delivery",
+      "promptness below 5 s",
+      "other threads",
+      "process identity"
+    ],
+    "acceptance_touched": {
+      "AC215-1": "heartbeat crate only",
+      "AC215-6": "port side; runtime needs the host",
+      "AC215-9": "heartbeat part",
+      "AC215-10": "not met"
+    },
+    "open_items": [
+      {
+        "id": "HB-1",
+        "text": "spec 5.8.2, 5.8.6 and 6.13.4 say the heartbeat/ring is written every frame; AC215-6 says a timer; needs Operator-approved enrichment"
+      },
+      {
+        "id": "HB-2",
+        "text": "a new ring reads as Some(0,0), not None (ring.rs:375-389), so the 5 s clock starts at Palmistry's first poll; the freeze_detect.rs:231 comment is wrong for real rings"
+      },
+      {
+        "id": "HB-3",
+        "text": "app.rs on_exit beats nothing during teardown and the watcher wait is 5 s; the new shell must end the watcher while its loop runs"
+      },
+      {
+        "id": "HB-4",
+        "text": "a live loop that never presents no longer shows as stale; needs a present-progress signal",
+        "owner": "MT-214"
+      },
+      {
+        "id": "HB-5",
+        "text": "first watcher poll after system resume can see a stale heartbeat; the real window probe there is untested"
+      },
+      {
+        "id": "HB-6",
+        "text": "UserManual entry pending"
+      },
+      {
+        "id": "HB-7",
+        "text": "a host calling on_wake outside its loop, or the public write_heartbeat / diagnostics::heartbeat, can still forge liveness"
+      }
+    ],
+    "next_slice": "S2 author_ids; the loop adapter follows with MT-214 (post wakes to a window, WM_TIMER is low priority)"
+  }
 }
