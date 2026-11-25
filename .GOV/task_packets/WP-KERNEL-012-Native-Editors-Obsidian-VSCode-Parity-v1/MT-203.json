@@ -985,5 +985,119 @@
       "close during rebind's device creation"
     ],
     "next_slice": "owner-side allocation and images (G203-H1), then window and presentation (G203-H2)"
+  },
+  "slice1_eval2_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-25",
+    "scope": "MT-203 slice 1 remediation; not an MT verdict; lifecycle unchanged",
+    "commit": "a9355439adb8ea46b75184a7c10527309f294b66",
+    "crate_tree": "a1ead3005",
+    "result": "failed",
+    "counts": {
+      "lib": "13 passed, 3 failed",
+      "clients": "13",
+      "device_loss": "16",
+      "gpu_owner": "9",
+      "ledger": "18",
+      "selection": "7",
+      "skipped": 0
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/cargo-test-a9355439a.log",
+    "log_sha256": "527990d9ed92405fa9aa6713c5882902dffeaed2136528e0d2648fe27ecd6bbc",
+    "failed_tests": [
+      "pending_tests work_is_pending...",
+      "pending_tests a_dropped_claim_stays_charged...",
+      "pending_tests a_close_over_running_work..."
+    ],
+    "diagnosis_id": "MT203-DIAG-WAITSEMAPHORES-TIMEOUT",
+    "diagnosis": "vkWaitSemaphores with a nonzero timeout waits until signalled on Adreno X2-85 driver 0x8036f000 (x64 and native ARM64); timeout 0 returns; vkWaitForFences honours its timeout",
+    "diagnosis_refs": [
+      "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/probe-a9355439a/wait_probe_c.log",
+      "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/probe-a9355439a/wait_probe_arm64.log"
+    ],
+    "distinct_from": "S1-F1 (order of checks)",
+    "status_of_previous_findings": {
+      "S1-F1": "fixed",
+      "S1-F2": "fixed",
+      "S1-F3": "fixed",
+      "S1-F4": "partly (N2)",
+      "S1-F5": "partly (N1)",
+      "S1-F6": "partly (N1)",
+      "S1-F7": "partly (N4)",
+      "S1-F8": "fixed",
+      "S1-F9": "fixed"
+    },
+    "findings": [
+      {
+        "id": "N1",
+        "severity": "blocking",
+        "at": "src/vulkan/queue.rs:253-270; lifecycle.rs:72,166,203",
+        "defect": "wait, probe, close and rebind can block forever on such a driver; a hung GPU makes exit hang",
+        "repair": "own deadline: timeout-0 polling with sleep, or fences"
+      },
+      {
+        "id": "N2",
+        "severity": "medium",
+        "at": "owner/queue.rs:66-74; lifecycle.rs:203-210",
+        "defect": "a lost but undrained generation still trusts the counter; cut work can become Completed"
+      },
+      {
+        "id": "N3",
+        "severity": "medium",
+        "at": "owner/queue.rs:76,211; device.rs:129; vulkan.rs:449",
+        "defect": "after close with work running and a lease out the client cannot know when release is allowed; early release leaks device and process slot"
+      },
+      {
+        "id": "N4",
+        "severity": "medium",
+        "at": "ledger/client.rs:36,316",
+        "defect": "dropping GpuClient before its Claims leaves reported memory undischargeable (GUI-DESKTOP-035)"
+      },
+      {
+        "id": "N5",
+        "severity": "low",
+        "at": "ledger.rs:112",
+        "defect": "a dropped claim's lease still yields handles"
+      },
+      {
+        "id": "N6",
+        "severity": "low",
+        "at": "client.rs:290",
+        "defect": "charge(0) permits Completed without work"
+      },
+      {
+        "id": "N7",
+        "severity": "low",
+        "at": "ledger.rs:319",
+        "defect": "remaining_bytes shows every client the global remainder"
+      },
+      {
+        "id": "N8",
+        "severity": "low",
+        "defect": "close during rebind's device creation reports NoDevice; untested"
+      },
+      {
+        "id": "N9",
+        "severity": "harness",
+        "defect": "a killed child reports FAILED, not TIMEOUT; the require switch is only an environment variable; Dozen refusal not exercised live"
+      }
+    ],
+    "tests_that_cannot_fail_for_their_rule": [
+      "seam loss tests for N2",
+      "stalled cases for the bound",
+      "gpu_owner heap placement equality",
+      "is_settled terms individually",
+      "a_second_rebind...",
+      "all GPU tests without the switch"
+    ],
+    "unproven_without_x64": [
+      "AMD, NVIDIA, Intel, multi-GPU",
+      "discrete heaps",
+      "real loss and TDR",
+      "loss on an idle device",
+      "UINT64_MAX counter path",
+      "validation layers"
+    ],
+    "next_actor": "GUI coding agent: repair N1..N9 and the named tests"
   }
 }
