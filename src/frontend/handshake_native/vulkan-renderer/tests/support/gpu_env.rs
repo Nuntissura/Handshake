@@ -56,7 +56,17 @@ pub fn ran_in_its_own_process(here: &str) -> bool {
     let path = here.strip_suffix("::here").unwrap_or(here);
     let name = path.split_once("::").map_or(path, |(_, name)| name);
     let (passed, output) = run_child(name);
-    print!("{output}");
+    if passed {
+        // Its own summary would be counted as another test's.
+        for report in output
+            .lines()
+            .filter_map(|line| line.find("HSK_GPU").map(|at| &line[at..]))
+        {
+            println!("{report}");
+        }
+    } else {
+        print!("{output}");
+    }
     let kept = remove_new_cache(before);
     assert!(passed, "{name} failed in its own process");
     assert!(output.contains("1 passed"), "{name} did not run");

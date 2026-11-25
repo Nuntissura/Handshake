@@ -268,6 +268,11 @@ fn one_unreturned_lease_does_not_block_the_recovery_of_the_others() {
     assert_eq!(rig.client.wait(&submission, MAX_WAIT), Ok(COMPLETED));
     assert!(worker.work.holds(4));
     worker.settle(&rig.client);
+    // However often the device is lost, that one lease uses up no more than its own device.
+    for generation in 3..=3 + MAX_HELD_LOST_DEVICES as u64 {
+        rig.lose();
+        assert_eq!(rig.owner.rebind_device(), Ok(generation));
+    }
 
     // The holder is still told, keeps its own charge, and can clean up.
     assert_eq!(idle_lease.handles().err(), told);
