@@ -13608,5 +13608,52 @@
     "confidence": "rows 1-4 re-read in source by the orchestrator; rows 5-7 specialist only; nothing run",
     "lifecycle": "unchanged",
     "next": "repair specification by a specialist, adversarial review, then slices with MT-139 fresh/reopen proof where the schema revision changes"
+  },
+  "schema_repair_spec_20261125": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-25",
+    "spec_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/schema-writer-audit-20261125/repair-spec.json",
+    "method": "static, by a schema specialist; nothing run",
+    "corrections": [
+      "rows 1-3 were introduced by later commits 15b6c7cd1, 9044e6fc8 and fb5624af0 that never added the matching schema, not by import 34fb6f344",
+      "row 2 has no mounted route",
+      "two row-4 writers are already correct and two have no mounted caller",
+      "composed schema has 339 tables"
+    ],
+    "restored_tree_state": "e4fa41e8c: R0 restore plus S1 wsids in seven production writers plus S2; named compile check exit 0, inputs unchanged",
+    "slices": {
+      "code_only": [
+        "SC-1 login nonce (row 3) in resource_authority.rs six sites, plus a Member login and exchange test",
+        "SC-2 five ORDER BY parse fixes",
+        "SC-3 13 ModelLane receipt sites, user_manual 239/373 and three tests",
+        "SC-4 loom_search re-index guard",
+        "SC-5 schema-versus-writer guard test"
+      ],
+      "schema_revision_172": [
+        "SC-6 stage DDL for rows 1, 2, 4, 5, 6, the proposal event and the VM table",
+        "SC-7 measure and enroll INFO pins",
+        "SC-8 upgrade, reopen and mixed-catalog proofs",
+        "SC-9 remove the run-time DDL",
+        "SC-10 runtime proofs on the full production schema; move bootstrap_schema-only tests to embedded_test_backend"
+      ],
+      "needs_operator": [
+        "SC-11 row 7"
+      ]
+    },
+    "row7_security": "cloud consent revocation fails open: in-flight cloud lanes are not cancelled; filling fields cannot fix it; proposed design: append-only revocation and terminal rows with a new revocation purpose, never updating authority rows",
+    "operator_decisions": [
+      "row 7 design",
+      "whether the PT003 change goes into revision 172",
+      "worktree VM stores that already created their table at run time: second predecessor, or Operator confirms none exist",
+      "accept that per-session user-manual tests go red under the restored identity index",
+      "scope: schema_revision166/168/169/170.rs, new schema_revision171.rs, upgrade tests, guard test, Member login test, knowledge_crdt_lease_recovery_tests.rs are in no MT"
+    ],
+    "riskiest": [
+      "UNIQUE is not enforced when an indexed column is empty: the knowledge_entities identity index must return to (workspace_id, entity_kind, entity_key) with a duplicate preflight",
+      "first module-source change since revision 166: every predecessor and harness path must emit it or older stores fail closed",
+      "row 7 fails open"
+    ],
+    "pt003": "neither row 1 nor row 3 explains the Workspace Create failure; static candidate: record::exists($row.setup_receipt) runs as the record user, which cannot read the LOCAL_ACCOUNT_SETUP ledger row (local_accounts.rs:172); to be confirmed by a run",
+    "serialise_with": "MT-210/211 (same declaration recognizer)"
   }
 }
