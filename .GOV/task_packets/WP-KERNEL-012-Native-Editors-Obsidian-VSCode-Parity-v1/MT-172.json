@@ -13537,5 +13537,59 @@
       "29 extra paths classified mechanically only",
       "rows touched by the repair coder must be re-bound at the end"
     ]
+  },
+  "tripwire_and_decision_20261125": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-25",
+    "tripwire_run": {
+      "commit": "e6f0d3b11b08e86ba548027beec152ca4e97b3b9",
+      "runner": "cargo-nextest 0.9.146, one invocation, 3 integration targets, 300 s per test, one thread",
+      "result": "36 run, 5 passed, 31 failed, no timeouts, no infrastructure failures",
+      "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/eval-reclaim-20261125-01/run.log",
+      "log_sha256": "29a8a061913ac1b9c884bf20bad644f91dc3dd28db5aaed284889be864aba89b",
+      "result_sha256": "635f821404b8926e09f15a6d647ec0911ff7d75399d4cb5923332e83f99f9aa8",
+      "failure_causes": {
+        "A": "29 tests: process_ledger.rs APPLY_EVENT_BATCH never sets kernel_event_ledger.wsids, required array<string> in schema.surql since 6e239eeef (2026-09-15); pre-existing in b9606fac3",
+        "B": "1 test: retired token 'postgres' in reclaim.rs comments; pre-existing",
+        "C": "1 test: restart_resume_boot_pass_is_hard_bounded... caused by 3f8391efb (restart_resume.rs:708 commits COMPLETED, :501 re-persists the same report_id, :404 refuses)"
+      },
+      "meaning": "the tripwire cannot judge the repairs or the checkpoint; 21 of 22 reclaim tests stop in fixture seeding"
+    },
+    "decision": {
+      "id": "WP012-MT172-RESTORE-20261125",
+      "what": "new forward commit restoring src/backend to b9606fac3 except the keep-set, then shared fixes, then contract-required slices",
+      "keep_set_at_e6f0d3b11": [
+        "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+        "src/backend/handshake_core/src/api/code_nav_index_account_tests.rs",
+        "src/backend/handshake_core/tests/process_ledger_surreal_tests.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs"
+      ],
+      "restore_except_hunk": "tests/crash_recovery_e2e/runtime_child.rs keeps its host-scope import and two env lines",
+      "basis": [
+        "specialist keep-or-revert-analysis.json",
+        "revert-adversarial-review.json (STANDS WITH CONDITIONS)",
+        "Operator 2026-11-25: resolve blockers without operator input, with at least one adversarial agent"
+      ],
+      "not_the_basis": "the tripwire result; the grounds the adversary struck",
+      "rule": "fix shared causes, run the restored tree once; if red on a non-shared cause, run the same fixes on e6f0d3b11; if that is green take the split with STOP -1 forced",
+      "history": "3f8391efb..e6f0d3b11 stays in pushed history; no reset, no force",
+      "withdrawn_scopes": "PT018 and PT019 rewrites of process ledger, sandbox adapters, worktree VM registry, restart/resume and queue store are withdrawn from MT-172; contract-required parts return as slices",
+      "assumed_default": "spec 5.7.5 STOP exit_code -1 stays (Operator question open, non-blocking)"
+    },
+    "reland_slices": [
+      "0 restore",
+      "S1 wsids in every kernel_event_ledger writer",
+      "S2 retired tokens",
+      "S3 MT-019 F4 test hunks",
+      "S4 spec 5.7.3 overflow not silent (receipt stays open under REG-001..005)",
+      "S5 Orphaned is a query error",
+      "S6 outbox drain and head-first delivery, DuckDB replay (N12)",
+      "S7 Palmistry terminate_and_wait, retire after Recorded",
+      "S8 surreal.rs typed shutdown (MT-142 R2-1-4)",
+      "S9 queue lease fencing and restart-decision atomicity (PT019, MT-008)",
+      "S10 N1, N7, N11, N9+N10, N19+N14, N13, N8",
+      "S11 N3+N2, N4, N6 from 98efa4d01",
+      "S12 one test round over six targets"
+    ]
   }
 }
