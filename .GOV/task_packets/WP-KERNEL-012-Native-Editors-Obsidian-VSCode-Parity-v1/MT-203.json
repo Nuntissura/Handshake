@@ -948,5 +948,42 @@
       "validation layers"
     ],
     "next_actor": "GUI coding agent: repair S1-F1..F9 and the named tests"
+  },
+  "slice1_remediation_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-25",
+    "remediates": "slice1_eval_20261125 (S1-F1..F9 all confirmed by the implementer, none refuted)",
+    "commits": [
+      "d8e2a0c7e",
+      "a9355439adb8ea46b75184a7c10527309f294b66 (test-only follow-up, pin)"
+    ],
+    "crate_tree": "a1ead3005",
+    "implementer_checks": {
+      "cargo check --locked --offline --tests -j 2": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "closure": "ash, libloading, windows-link; cfg-if lock only; no wgpu, egui, eframe, winit"
+    },
+    "tests": "79 written, none run by the implementer; independent run pending",
+    "api_changes_for_asset_adapter": [
+      "one GpuClient per module client; ClaimRequest has no module/client",
+      "lease.handles() is fallible per use; handles_to_release() for cleanup",
+      "settle outcomes must match observed work",
+      "rebind may return MemoryHeld",
+      "dropped claims become abandoned",
+      "probe(timeout) is host-only; clients use poll()",
+      "ShutdownReport has DeviceFate; diagnostic events changed shape"
+    ],
+    "correction": "finding reference gpu_owner.rs:318,324 in the eval record does not exist at ae24bfcc6 (300 lines); the file was rewritten",
+    "not_established": "which component creates D3DSCache; GPU test children exclude Dozen and the parent removes its own folder and fails if it stays",
+    "needs_x64_hardware": [
+      "AMD, NVIDIA, Intel, multi-GPU",
+      "real loss and TDR",
+      "discrete budgets",
+      "validation layers"
+    ],
+    "untested": [
+      "close during rebind's device creation"
+    ],
+    "next_slice": "owner-side allocation and images (G203-H1), then window and presentation (G203-H2)"
   }
 }
