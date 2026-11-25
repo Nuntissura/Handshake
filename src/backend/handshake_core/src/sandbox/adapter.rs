@@ -442,9 +442,21 @@ pub struct DetachedProcessIdentity {
 pub enum DetachedReclaimOutcome {
     /// The owner observed this terminal status.
     Observed(ProcessStatus),
+    /// The owner ended the process and verified that it is gone, but no exit
+    /// status can be read.
+    Terminated,
     /// The owner proved that no process with the recorded identity exists on
     /// this host. Nothing was signalled and no exit status can be read.
     AlreadyAbsent,
+}
+
+impl From<RestartCleanupOutcome> for DetachedReclaimOutcome {
+    fn from(outcome: RestartCleanupOutcome) -> Self {
+        match outcome {
+            RestartCleanupOutcome::Terminated => Self::Terminated,
+            RestartCleanupOutcome::AlreadyAbsent => Self::AlreadyAbsent,
+        }
+    }
 }
 
 /// A failed detached reclaim, split at the first effect on the process.

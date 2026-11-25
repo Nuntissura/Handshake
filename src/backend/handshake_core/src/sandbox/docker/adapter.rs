@@ -606,13 +606,52 @@ impl SandboxAdapter for DockerAdapter {
     async fn reclaim_detached_observed(
         &self, identity: &crate::sandbox::DetachedProcessIdentity, signal: Signal,
     ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
-        match self.kill_observed(&identity.handle, signal).await {
-            Ok(Some(status)) => Ok(crate::sandbox::DetachedReclaimOutcome::Observed(status)),
-            Ok(None) => Err(crate::sandbox::DetachedReclaimError::AfterInvocation(spawn_failed(
-                "docker signal was acknowledged while the container still runs",
-            ))),
-            Err(error) => Err(crate::sandbox::DetachedReclaimError::AfterInvocation(error)),
+        use crate::sandbox::DetachedReclaimError::{AfterInvocation, BeforeInvocation};
+        use crate::sandbox::DetachedReclaimOutcome;
+        let handle = &identity.handle;
+        let process = self.process_state(handle).map_err(BeforeInvocation)?;
+        {
+            let mut state = process.lock().await;
+            if state.terminal.is_none()
+                && self.inspect_owned(handle).await.map_err(BeforeInvocation)?.is_none()
+            {
+                return Ok(DetachedReclaimOutcome::AlreadyAbsent);
+            }
+            // A signal whose answer was lost is decided by a fresh observation:
+            // a container that still runs is signalled again.
+            state.signals.retain(|attempt| attempt.original.is_some()
+                || !matches!(attempt.outcome, DockerSignalOutcome::Uncertain(_)));
         }
+        let failure = match self.kill_observed(handle, signal).await {
+            Ok(Some(status)) => return Ok(DetachedReclaimOutcome::Observed(status)),
+            Ok(None) => None,
+            Err(error) => Some(error),
+        };
+        for _ in 0..25 {
+            let mut state = process.lock().await;
+            if state.terminal.is_none() {
+                if state.signals.is_empty() {
+                    return Err(BeforeInvocation(failure.unwrap_or_else(||
+                        spawn_failed("docker container was not signalled"))));
+                }
+                if let Err(error) = self.observe_process(handle, &mut state).await {
+                    return Err(AfterInvocation(error));
+                }
+            }
+            if let Some(terminal) = state.terminal.clone() {
+                if let Err(error) = self.cleanup_observed_terminal(handle, &mut state).await {
+                    tracing::warn!(
+                        container = %handle.sandbox_internal_id, error = %error,
+                        "reclaimed docker container ended but was not removed"
+                    );
+                }
+                return Ok(DetachedReclaimOutcome::Observed(terminal.status));
+            }
+            drop(state);
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        Err(AfterInvocation(failure.unwrap_or_else(||
+            spawn_failed("docker container still runs after its kill signal"))))
     }
 
     async fn cleanup_terminal(

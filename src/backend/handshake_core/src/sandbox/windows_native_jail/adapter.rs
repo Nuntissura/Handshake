@@ -374,6 +374,58 @@ impl SandboxAdapter for WindowsNativeJailAdapter {
         }
     }
 
+    async fn reclaim_detached_observed(
+        &self,
+        identity: &crate::sandbox::DetachedProcessIdentity,
+        signal: Signal,
+    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
+        use crate::sandbox::DetachedReclaimError::{AfterInvocation, BeforeInvocation};
+        use crate::sandbox::DetachedReclaimOutcome;
+        let handle = &identity.handle;
+        self.ensure_handle(handle).map_err(BeforeInvocation)?;
+
+        #[cfg(target_os = "windows")]
+        {
+            let process = match self.process_for_handle(handle) {
+                Ok(process) => process,
+                // Not started by this adapter: its Job Object is out of reach and
+                // no launch generation is recorded, so only an absent PID proves
+                // that it ended.
+                Err(SandboxAdapterError::ProcessHandleStale { .. }) => {
+                    return match handle.pid {
+                        Some(pid) if crate::sandbox::handshake_native::process_id_is_absent(pid) => {
+                            Ok(DetachedReclaimOutcome::AlreadyAbsent)
+                        }
+                        _ => Err(BeforeInvocation(unavailable_error(
+                            "PID_GENERATION_UNRECORDED: the PID still exists and the native jail \
+                             row has no launch generation to verify it",
+                        ))),
+                    };
+                }
+                Err(error) => return Err(BeforeInvocation(error)),
+            };
+            self.kill(handle, signal).await.map_err(AfterInvocation)?;
+            for _ in 0..50 {
+                let exit_code = *process.exit_code.lock().map_err(|_| {
+                    AfterInvocation(spawn_failed("WindowsNativeJailAdapter exit state poisoned"))
+                })?;
+                if let Some(code) = exit_code {
+                    return Ok(DetachedReclaimOutcome::Observed(ProcessStatus::Exited { code }));
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            Err(AfterInvocation(spawn_failed(
+                "native jail process has no observed exit after its kill",
+            )))
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = signal;
+            Err(BeforeInvocation(self.backend_unavailable()))
+        }
+    }
+
     async fn cleanup_after_restart(
         &self,
         handle: &ProcessHandle,

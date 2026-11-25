@@ -612,6 +612,10 @@ fn env_bool(key: &str, default: bool) -> bool {
     }
 }
 
+/// Durable handle ids that name the scratch root of their VM.
+const PERSISTENT_HANDLE_PREFIX: &str = "hsk-ch-persistent-";
+const EPHEMERAL_HANDLE_PREFIX: &str = "hsk-ch-exec-";
+
 /// One recorded host->guest directory bind for a handle. Binds are baked into
 /// the per-exec initramfs at boot time (there is no virtio-fs/virtio-pci in the
 /// guest kernel), and `ReadWrite` binds are written back via the serial-tar
@@ -666,6 +670,8 @@ struct HandleState {
     /// `Some` for a persistent handle (snapshot/restore model); `None` for the
     /// ephemeral default model.
     persistent: Option<PersistentVm>,
+    /// `Some` for a handle minted by the ephemeral spawn path.
+    ephemeral: Option<EphemeralExecs>,
     original_persistent_handle: Option<ProcessHandle>,
     /// Idle auto-kill (§3.5.7 #6) configuration for a persistent handle: when
     /// `Some`, the idle reaper terminates the VM once `last_active` is older than
@@ -701,6 +707,7 @@ impl Default for HandleState {
             binds: Vec::new(),
             resource_limits: ResourceLimits::default(),
             persistent: None,
+            ephemeral: None,
             original_persistent_handle: None,
             idle_timeout_ms: None,
             last_active: Instant::now(),
@@ -708,6 +715,55 @@ impl Default for HandleState {
             committed_memory_mib: 0,
         }
     }
+}
+
+/// The per-exec VMs of one ephemeral handle.
+#[derive(Debug)]
+struct EphemeralExecs {
+    /// Execs that may still start or run a VM.
+    running: u32,
+    /// An exec ended without an observed VM exit, so its VM may still run.
+    unsettled: bool,
+    /// Turned on once by `kill`; every running exec then drops its VM.
+    kill: tokio::sync::watch::Sender<bool>,
+}
+
+impl Default for EphemeralExecs {
+    fn default() -> Self {
+        Self { running: 0, unsettled: false, kill: tokio::sync::watch::channel(false).0 }
+    }
+}
+
+/// Registers one exec of an ephemeral handle for as long as it runs.
+struct EphemeralExecGuard {
+    handles: Arc<Mutex<HashMap<Uuid, HandleState>>>,
+    handle_id: Uuid,
+    kill: tokio::sync::watch::Receiver<bool>,
+    /// The VM was started and its exit has not been observed.
+    vm_may_run: bool,
+}
+
+impl EphemeralExecGuard {
+    async fn killed(&mut self) {
+        let _ = self.kill.wait_for(|killed| *killed).await;
+    }
+}
+
+impl Drop for EphemeralExecGuard {
+    fn drop(&mut self) {
+        let mut handles = self.handles.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some(execs) = handles.get_mut(&self.handle_id)
+            .and_then(|state| state.ephemeral.as_mut())
+        {
+            execs.running = execs.running.saturating_sub(1);
+            execs.unsettled |= self.vm_may_run;
+        }
+    }
+}
+
+/// WSL scratch roots of the VMs one ephemeral handle boots all start with this.
+fn ephemeral_exec_root_prefix(work_dir: &str, sandbox_internal_id: &str) -> String {
+    format!("{work_dir}/exec-{sandbox_internal_id}-")
 }
 
 /// Persistent children stay registered through observed exit and checked cleanup.
@@ -1291,6 +1347,129 @@ impl CloudHypervisorAdapter {
         Ok(state.status.clone())
     }
 
+    /// Act on a handle that the ephemeral spawn path minted; `None` for others.
+    fn with_ephemeral<T>(
+        &self, handle: &ProcessHandle,
+        act: impl FnOnce(&mut HandleState, &mut EphemeralExecs) -> T,
+    ) -> Result<Option<T>, SandboxAdapterError> {
+        let mut handles = self.handles.lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+        let state = handles.get_mut(&handle.id)
+            .ok_or(SandboxAdapterError::ProcessHandleStale { process_id: handle.id })?;
+        let Some(mut execs) = state.ephemeral.take() else { return Ok(None); };
+        let result = act(state, &mut execs);
+        state.ephemeral = Some(execs);
+        Ok(Some(result))
+    }
+
+    /// Admit one exec of an ephemeral handle unless the handle was killed.
+    fn begin_ephemeral_exec(
+        &self, handle: &ProcessHandle,
+    ) -> Result<Option<EphemeralExecGuard>, SandboxAdapterError> {
+        self.with_ephemeral(handle, |state, execs| {
+            if state.killed {
+                return Err(spawn_failed("handle was killed; spawn a fresh handle before exec"));
+            }
+            execs.running += 1;
+            state.status = ProcessStatus::Running;
+            Ok(EphemeralExecGuard {
+                handles: Arc::clone(&self.handles),
+                handle_id: handle.id,
+                kill: execs.kill.subscribe(),
+                vm_may_run: false,
+            })
+        })?
+        .transpose()
+    }
+
+    /// End an ephemeral handle: no exec starts any more, running execs drop
+    /// their VM, and a VM without an observed exit is killed and verified gone.
+    async fn settle_ephemeral(
+        &self, handle: &ProcessHandle, signal: Signal,
+    ) -> Result<ProcessStatus, SandboxAdapterError> {
+        let not_ephemeral = || unavailable("handle owns no ephemeral execs");
+        self.with_ephemeral(handle, |state, execs| {
+            state.killed = true;
+            execs.kill.send_replace(true);
+        })?
+        .ok_or_else(not_ephemeral)?;
+        let deadline = Instant::now() + Duration::from_millis(PROBE_TIMEOUT_MS);
+        let unsettled = loop {
+            let (running, unsettled) = self
+                .with_ephemeral(handle, |_, execs| (execs.running, execs.unsettled))?
+                .ok_or_else(not_ephemeral)?;
+            if running == 0 {
+                break unsettled;
+            }
+            if Instant::now() >= deadline {
+                return Err(spawn_failed("an exec of the killed ephemeral handle has not ended"));
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        };
+        if unsettled {
+            let prefix = ephemeral_exec_root_prefix(&self.config.work_dir, &handle.sandbox_internal_id);
+            self.end_vm_roots(&prefix, true).await?;
+        }
+        self.with_ephemeral(handle, |state, execs| {
+            execs.unsettled = false;
+            if unsettled || !matches!(state.status,
+                ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
+                state.status = ProcessStatus::Killed { by_signal: signal };
+                state.exit_code = None;
+            }
+            state.status.clone()
+        })?
+        .ok_or_else(not_ephemeral)
+    }
+
+    /// Kill every VM whose scratch root is `root`, or starts with it, verify
+    /// that none is left and remove the roots.
+    async fn end_vm_roots(
+        &self, root: &str, is_prefix: bool,
+    ) -> Result<RestartCleanupOutcome, SandboxAdapterError> {
+        let roots = format!("{}{}", sh_quote_wsl(root), if is_prefix { "*" } else { "" });
+        let output = run_wsl_sh(
+            &self.config,
+            &format!(
+                "{}; if ls -d {roots} >/dev/null 2>&1; then rm -rf {roots} && echo HSK_VM_TERMINATED; \
+                 else echo HSK_VM_ABSENT; fi",
+                restart_vm_cleanup_script(root),
+            ),
+            PROBE_TIMEOUT_MS,
+        )
+        .await?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        match output.exit_code {
+            0 if stdout.contains("HSK_VM_TERMINATED") => Ok(RestartCleanupOutcome::Terminated),
+            0 if stdout.contains("HSK_VM_ABSENT") => Ok(RestartCleanupOutcome::AlreadyAbsent),
+            code => Err(spawn_failed(format!(
+                "cloud-hypervisor VM cleanup could not prove absence for `{root}` (exit {code}): {}",
+                output.stderr_text(),
+            ))),
+        }
+    }
+
+    /// Reclaim a VM that another adapter instance started, by the scratch root
+    /// its durable handle id names.
+    async fn reclaim_foreign_vm(
+        &self, handle: &ProcessHandle,
+    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
+        use crate::sandbox::DetachedReclaimError::{AfterInvocation, BeforeInvocation};
+        let id = handle.sandbox_internal_id.as_str();
+        let is_vm_id = |suffix: &str| suffix.len() == 32
+            && suffix.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
+        let (root, is_prefix) = if id.strip_prefix(PERSISTENT_HANDLE_PREFIX).is_some_and(is_vm_id) {
+            (format!("{}/persistent-{}", self.config.work_dir, &id[PERSISTENT_HANDLE_PREFIX.len()..]), false)
+        } else if id.strip_prefix(EPHEMERAL_HANDLE_PREFIX).is_some_and(is_vm_id) {
+            (ephemeral_exec_root_prefix(&self.config.work_dir, id), true)
+        } else {
+            return Err(BeforeInvocation(unavailable(format!(
+                "VM_ROOT_UNRECORDED: handle `{id}` does not name the scratch root of its VM",
+            ))));
+        };
+        self.end_vm_roots(&root, is_prefix).await.map(Into::into).map_err(AfterInvocation)
+    }
+
     async fn kill_persistent_observed(
         &self, handle: &ProcessHandle, vm: &PersistentVm,
     ) -> Result<ProcessStatus, SandboxAdapterError> {
@@ -1526,7 +1705,7 @@ impl CloudHypervisorAdapter {
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
-            format!("hsk-ch-persistent-{vm_id}"),
+            format!("{PERSISTENT_HANDLE_PREFIX}{vm_id}"),
         );
         let vm = PersistentVm {
             api_socket,
@@ -1743,7 +1922,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
-            format!("hsk-ch-{}", Uuid::now_v7().simple()),
+            format!("{EPHEMERAL_HANDLE_PREFIX}{}", Uuid::now_v7().simple()),
         );
         self.handles
             .lock()
@@ -1752,6 +1931,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 handle.id,
                 HandleState {
                     resource_limits: spec.resource_limits,
+                    ephemeral: Some(EphemeralExecs::default()),
                     ..HandleState::default()
                 },
             );
@@ -1791,6 +1971,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if let Some(vm) = persistent_vm {
             return self.exec_persistent_agent(handle, vm, cmd).await;
         }
+        let mut registered_exec = self.begin_ephemeral_exec(handle)?;
 
         // Snapshot the binds declared for this handle so the per-exec initramfs
         // can bake them in. RW binds also drive the serial-tar write-back.
@@ -1826,7 +2007,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         let serial_log = format!("{}/run-{run_id}.log", self.config.work_dir);
         // Per-exec scratch root inside WSL: the initramfs build tree, the cpio,
         // and the write-back staging dir all live under it for atomic cleanup.
-        let exec_root = format!("{}/exec-{run_id}", self.config.work_dir);
+        let exec_root = format!(
+            "{}{run_id}",
+            ephemeral_exec_root_prefix(&self.config.work_dir, &handle.sandbox_internal_id),
+        );
         let initramfs_cpio = format!("{exec_root}/initramfs.cpio");
         let timeout_ms = cmd.timeout_ms.unwrap_or(self.config.command_timeout_ms);
         let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
@@ -1852,14 +2036,26 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         )?;
 
         let start = Instant::now();
-        let boot = run_host_command(
+        let run_vm = run_host_command(
             self.config.wsl_exe(),
             &boot_args,
             None,
             Some(timeout_ms),
             handle.id,
-        )
-        .await;
+        );
+        let boot = match registered_exec.as_mut() {
+            Some(exec) => {
+                exec.vm_may_run = true;
+                let boot = tokio::select! {
+                    boot = run_vm => boot,
+                    _ = exec.killed() => Err(spawn_failed("handle was killed during exec")),
+                };
+                // Only a returned VM command is an observed VM exit.
+                exec.vm_may_run = boot.is_err();
+                boot
+            }
+            None => run_vm.await,
+        };
 
         // Always attempt to read + clean up the serial log regardless of how
         // the boot child terminated; the guest may have written framed output
@@ -1995,47 +2191,54 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     async fn kill(
         &self,
         handle: &ProcessHandle,
-        _signal: Signal,
+        signal: Signal,
     ) -> Result<(), SandboxAdapterError> {
         self.ensure_handle(handle)?;
 
-        let persistent = self
+        let (persistent, ephemeral) = self
             .handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
             .get(&handle.id)
-            .and_then(|state| state.persistent.clone());
+            .map(|state| (state.persistent.clone(), state.ephemeral.is_some()))
+            .unwrap_or_default();
         if let Some(vm) = persistent {
             return self.kill_persistent_observed(handle, &vm).await.map(|_| ());
         }
+        if ephemeral {
+            return self.settle_ephemeral(handle, signal).await.map(|_| ());
+        }
 
         Err(unavailable(
-            "ephemeral execution ownership is not adopted; handle kill cannot prove native settlement",
+            "handle owns neither a persistent VM nor ephemeral execs; kill cannot prove native settlement",
         ))
     }
 
     async fn reclaim_detached_observed(
-        &self, identity: &crate::sandbox::DetachedProcessIdentity, _signal: Signal,
+        &self, identity: &crate::sandbox::DetachedProcessIdentity, signal: Signal,
     ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
-        use crate::sandbox::{DetachedReclaimError, DetachedReclaimOutcome};
+        use crate::sandbox::DetachedReclaimError::{AfterInvocation, BeforeInvocation};
+        use crate::sandbox::DetachedReclaimOutcome::Observed;
         let handle = &identity.handle;
-        let owned_vm = || {
-            self.ensure_handle(handle)?;
-            let handles = self.handles.lock()
-                .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
-            let state = handles.get(&handle.id).ok_or(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            })?;
-            if state.original_persistent_handle.as_ref() != Some(handle) {
-                return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
-            }
-            state.persistent.clone()
-                .ok_or_else(|| spawn_failed("observed detached result requires the original persistent VM owner"))
-        };
-        let vm = owned_vm().map_err(DetachedReclaimError::BeforeInvocation)?;
-        self.kill_persistent_observed(handle, &vm).await
-            .map(DetachedReclaimOutcome::Observed)
-            .map_err(DetachedReclaimError::AfterInvocation)
+        let stale = || BeforeInvocation(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
+        if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
+            return Err(stale());
+        }
+        let owned = self.handles.lock()
+            .map_err(|error| BeforeInvocation(spawn_failed(format!("handle registry poisoned: {error}"))))?
+            .get(&handle.id)
+            .map(|state| (
+                state.persistent.clone(), state.original_persistent_handle.clone(),
+                state.ephemeral.is_some(),
+            ));
+        match owned {
+            None => self.reclaim_foreign_vm(handle).await,
+            Some((Some(vm), original, _)) if original.as_ref() == Some(handle) =>
+                self.kill_persistent_observed(handle, &vm).await.map(Observed).map_err(AfterInvocation),
+            Some((None, _, true)) =>
+                self.settle_ephemeral(handle, signal).await.map(Observed).map_err(AfterInvocation),
+            Some(_) => Err(stale()),
+        }
     }
 
     async fn cleanup_terminal(
@@ -2043,15 +2246,26 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         handle: &ProcessHandle,
     ) -> Result<(), SandboxAdapterError> {
         self.ensure_handle(handle)?;
-        let persistent = self
-            .handles
-            .lock()
-            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
-            .get(&handle.id)
-            .and_then(|state| state.persistent.clone());
+        let persistent = {
+            let mut handles = self.handles.lock()
+                .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?;
+            let state = handles.get_mut(&handle.id)
+                .ok_or(SandboxAdapterError::ProcessHandleStale { process_id: handle.id })?;
+            if let Some(execs) = &state.ephemeral {
+                // An ephemeral handle owns nothing between execs.
+                if execs.running != 0 || execs.unsettled
+                    || !matches!(state.status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. })
+                {
+                    return Err(unavailable("ephemeral handle still runs; kill it before its cleanup"));
+                }
+                state.killed = true;
+                return Ok(());
+            }
+            state.persistent.clone()
+        };
         let Some(vm) = persistent else {
             return Err(unavailable(
-                "ephemeral execution ownership is not adopted; per-exec status cannot prove handle cleanup",
+                "handle owns neither a persistent VM nor ephemeral execs; cleanup cannot be proven",
             ));
         };
         let retained = self
@@ -2116,7 +2330,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             || state.persistent.is_none()
             || state.original_persistent_handle.as_ref() != Some(handle) {
             return Err(unavailable(
-                "detached status requires the exact original persistent handle; ephemeral execution ownership is not adopted",
+                "detached status requires the exact original persistent handle",
             ));
         }
         Ok(state.status.clone())
@@ -5204,6 +5418,35 @@ done
         }
         // Owning fixture teardown only; this is not a terminal receipt.
         adapter.release_committed_memory_mib(512);
+    }
+
+    #[tokio::test]
+    async fn ephemeral_handle_teardown_is_accepted_and_refuses_later_execs() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            format!("{EPHEMERAL_HANDLE_PREFIX}{}", Uuid::now_v7().simple()),
+        );
+        adapter.handles.lock().unwrap().insert(
+            handle.id,
+            HandleState { ephemeral: Some(EphemeralExecs::default()), ..HandleState::default() },
+        );
+
+        let exec = adapter
+            .begin_ephemeral_exec(&handle)
+            .expect("live handle admits an exec")
+            .expect("ephemeral exec is registered");
+        assert!(adapter.cleanup_terminal(&handle).await.is_err(), "a running exec is not terminal");
+        // This exec ends before it started a VM, so nothing is left to verify.
+        drop(exec);
+        adapter.kill(&handle, Signal::Term).await.expect("ephemeral handle is torn down");
+        assert_eq!(
+            adapter.status(&handle).await.expect("status after teardown"),
+            ProcessStatus::Killed { by_signal: Signal::Term }
+        );
+        adapter.cleanup_terminal(&handle).await.expect("cleanup after teardown");
+        assert!(adapter.begin_ephemeral_exec(&handle).is_err(), "no exec starts after teardown");
     }
 
     #[test]

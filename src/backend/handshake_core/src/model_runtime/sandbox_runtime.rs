@@ -687,6 +687,8 @@ enum ColdPhase { Idle, Loading, Ready, Adopted, Cleanup, Closed, Unknown }
 struct ColdState {
     phase: ColdPhase,
     invoked: bool,
+    /// The adapter returned an error from spawn, so there is no handle to clean.
+    spawn_failed: bool,
     delivered: bool,
     factory_request: Option<String>,
     handle: Option<ProcessHandle>,
@@ -740,7 +742,8 @@ impl ColdRuntimeTicket {
         let owner = Arc::new(ColdGeneration {
             id: uuid::Uuid::now_v7(), model_id, adapter,
             state: std::sync::Mutex::new(ColdState {
-                phase: ColdPhase::Idle, invoked: false, delivered: false, factory_request: None,
+                phase: ColdPhase::Idle, invoked: false, spawn_failed: false, delivered: false,
+                factory_request: None,
                 handle: None, failure: None, cancel_requested: false,
                 contexts: Vec::new(), signal_attempts: Vec::new(), terminal: None,
                 exit_code: None, exit_code_observed: false,
@@ -842,8 +845,10 @@ impl ColdRuntimeTicket {
                         if state.phase == ColdPhase::Cleanup { return Err(ModelRuntimeError::Cancelled); }
                         state.invoked = true;
                     }
-                    let handle = owner.adapter.spawn(spec).await
-                        .map_err(|error| ModelRuntimeError::LoadError(format!("sandbox spawn failed: {error}")))?;
+                    let handle = owner.adapter.spawn(spec).await.map_err(|error| {
+                        owner.state.lock().unwrap_or_else(|error| error.into_inner()).spawn_failed = true;
+                        ModelRuntimeError::LoadError(format!("sandbox spawn failed: {error}"))
+                    })?;
                     {
                         let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
                         state.handle = Some(handle.clone());
@@ -912,7 +917,10 @@ impl ColdRuntimeTicket {
         {
             let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
             if state.handle.is_none() {
-                if !state.invoked { state.phase = ColdPhase::Closed; return Ok(()); }
+                if !state.invoked || state.spawn_failed {
+                    state.phase = ColdPhase::Closed;
+                    return Ok(());
+                }
                 return Err(ModelRuntimeError::UnloadError(
                     "invoked cold acquisition has no confirmed handle; original ownership retained".into()));
             }
@@ -1078,6 +1086,8 @@ mod tests {
         NonZeroExit(i32),
         /// The boot/exec itself fails (adapter error).
         ExecError,
+        /// The spawn fails, so no handle is ever minted.
+        SpawnError,
     }
 
     /// Records of what the fake adapter observed, so tests assert the exact
@@ -1114,6 +1124,12 @@ mod tests {
     impl SandboxAdapter for FakeSandboxAdapter {
         async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
             self.obs.lock().unwrap().last_spec = Some(spec);
+            if matches!(self.script, ExecScript::SpawnError) {
+                return Err(SandboxAdapterError::SpawnFailed {
+                    adapter_id: AdapterId::new("cloud_hypervisor"),
+                    reason: "fake spawn fault injection".to_string(),
+                });
+            }
             Ok(ProcessHandle::new(
                 AdapterId::new("cloud_hypervisor"),
                 None,
@@ -1140,7 +1156,7 @@ mod tests {
                     stderr: Bytes::new(),
                     duration_ms: 3,
                 }),
-                ExecScript::ExecError => Err(SandboxAdapterError::SpawnFailed {
+                ExecScript::ExecError | ExecScript::SpawnError => Err(SandboxAdapterError::SpawnFailed {
                     adapter_id: AdapterId::new("cloud_hypervisor"),
                     reason: "fake exec fault injection".to_string(),
                 }),
@@ -1393,6 +1409,30 @@ mod tests {
         drop(o);
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    /// A spawn that returned an error minted no handle, so nothing is retained.
+    #[tokio::test]
+    async fn failed_spawn_releases_its_cold_generation() {
+        let (dir, gguf) = temp_gguf();
+        let (adapter, obs) = FakeSandboxAdapter::new(ExecScript::SpawnError);
+        let mut rt = SandboxModelRuntime::new(adapter, cfg_for(&dir, &gguf));
+        let spec = LoadSpec {
+            artifact_path: gguf.clone(),
+            sha256_expected: String::new(),
+            runtime_kind: crate::model_runtime::RuntimeKind::LlamaCpp,
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::Local,
+            engine_origin: Some("llama_cpp".to_string()),
+            external_engine_import: None,
+        };
+        rt.load(spec).await.expect_err("a spawn error fails the load");
+        let id = rt.model_id();
+        rt.unload(id).await.expect("a failed spawn leaves nothing to clean up");
+        assert!(!obs.lock().unwrap().kill_called);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

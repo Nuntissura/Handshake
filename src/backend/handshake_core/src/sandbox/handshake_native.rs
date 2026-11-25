@@ -342,6 +342,26 @@ fn detached_identity_error(
     }
 }
 
+/// Whether Windows has no process object with this PID.
+#[cfg(target_os = "windows")]
+pub(crate) fn process_id_is_absent(pid: u32) -> bool {
+    use windows_sys::Win32::{
+        Foundation::ERROR_INVALID_PARAMETER,
+        System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
+    };
+
+    // PID 0 is the idle process; OpenProcess reports it like an absent PID.
+    if pid == 0 {
+        return false;
+    }
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if handle.is_null() {
+        return io::Error::last_os_error().raw_os_error() == Some(ERROR_INVALID_PARAMETER as i32);
+    }
+    drop(VerifiedDetachedProcessHandle(handle));
+    false
+}
+
 /// Open the process named by the complete durable identity.
 ///
 /// `None` means that Windows has no process object with the recorded PID. A

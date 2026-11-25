@@ -1422,6 +1422,7 @@ impl ScopedSandboxKill for ProductionSandboxKill {
             &identity.detached, crate::sandbox::Signal::Kill,
         ).await.map_err(KillError::from_detached_reclaim)? {
             crate::sandbox::DetachedReclaimOutcome::Observed(status) => Ok(Some(status)),
+            crate::sandbox::DetachedReclaimOutcome::Terminated => Ok(None),
             // The owner found no such process. That ends the recorded process
             // only when the row was recorded by this host.
             crate::sandbox::DetachedReclaimOutcome::AlreadyAbsent

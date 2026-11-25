@@ -962,7 +962,8 @@ impl WorktreeVmRegistry {
                                         .reclaim_detached_observed(&identity, Signal::Term).await
                                         .map(|outcome| match outcome {
                                             DetachedReclaimOutcome::Observed(status) => Some(status),
-                                            DetachedReclaimOutcome::AlreadyAbsent => None,
+                                            DetachedReclaimOutcome::Terminated
+                                            | DetachedReclaimOutcome::AlreadyAbsent => None,
                                         })
                                         .map_err(SandboxAdapterError::from),
                                     None => original_adapter.kill(&original_handle, Signal::Term).await.map(|()| None),
