@@ -5747,7 +5747,7 @@ impl WorktreeVmRegistry {
             || owner.intent.scope != durable.scope_strings()?
             || owner.intent.worktree_id != worktree_id
             || row.worktree_id != worktree_id
-            || row.adapter_id != self.adapter.capabilities().adapter_id
+            || row.adapter_id != self.adapter.capabilities().adapter_id.as_str()
             || row.binding_id != owner.intent.binding_id.to_string()
             || row.generation != owner.intent.generation
             || row.process_handle_json != owner.intent.process_handle_json

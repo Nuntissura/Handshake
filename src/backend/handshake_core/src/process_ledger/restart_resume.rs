@@ -1612,10 +1612,10 @@ impl SurrealRestartResumeRunner {
         error: &ResumeError,
         failure_seq: i64,
     ) -> Result<PreparedRestartDecision, RestartResumeRuntimeError> {
-        let delivery_ledger_id = surrealdb::types::RecordId::new(
+        let delivery_ledger_id = surrealdb::types::ToSql::to_sql(&surrealdb::types::RecordId::new(
             "kernel_idempotency_ledger",
             recovery_store_write_key(candidate, failure_seq, "role_mailbox_message").ledger_record_id(),
-        ).to_string();
+        ));
         let family = MessageFamily::DecisionRequest(DecisionRequestBody {
             question: format!(
                 "Restart recovery failed for {}; choose recovery handling.",

@@ -31,8 +31,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
-use crate::storage::surreal::swarm_outbox::SurrealSwarmOutboxEvent;
-use crate::storage::surreal::{SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxStore};
+use crate::storage::surreal::{
+    SurrealSwarmOutboxEvent, SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxStore,
+};
 use uuid::Uuid;
 
 use super::ids::ModelInstanceId;
