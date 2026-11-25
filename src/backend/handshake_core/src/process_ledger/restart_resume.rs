@@ -1438,7 +1438,7 @@ struct CandidateRow {
 }
 
 /// One `kernel_session_checkpoint` projection; field types mirror the
-/// `SCHEMAFULL` table definition, so the hand conversions the PostgreSQL
+/// `SCHEMAFULL` table definition, so the hand conversions the retired server-database
 /// version needed are gone.
 #[derive(SurrealValue)]
 struct CheckpointRow {

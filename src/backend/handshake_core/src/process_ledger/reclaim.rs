@@ -77,7 +77,7 @@ fn surreal_claim_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
 
 /// MT-008: atomically claim the active (un-stopped) rows for a session.
 ///
-/// The original PostgreSQL form was `SELECT ... FOR UPDATE` executed in a
+/// The retired server-database form was `SELECT ... FOR UPDATE` executed in a
 /// transaction that was committed immediately, releasing the row locks *before*
 /// the reclaim decision (sandbox kill + stop-event write) ran. Two concurrent
 /// reclaims could therefore both read the same active rows and both act on
@@ -2184,7 +2184,7 @@ impl ReclaimStopWriter for SurrealProcessLedgerStore {
 /// The projection the claim statement returns.
 ///
 /// Field types mirror the `SCHEMAFULL` `kernel_process_lifecycle` definition, so
-/// the conversions the PostgreSQL version had to perform by hand no longer
+/// the conversions the retired server-database version had to perform by hand no longer
 /// exist: `process_uuid`/`parent_process_id` arrive as native `uuid`, and the
 /// two JSON columns arrive as `object FLEXIBLE` rather than text that had to be
 /// re-parsed. Only `engine_kind` and `os_pid` still need a checked conversion,
@@ -2563,7 +2563,7 @@ impl SurrealProcessLedgerStore {
         #[cfg(not(feature = "surreal-test-support"))]
         let _ = corrupt_raw_receipt_for;
 
-        // The PostgreSQL version mapped rows inside the claiming transaction so
+        // The retired server-database version mapped rows inside the claiming transaction so
         // that a mapping failure rolled the claim back and left the rows
         // reclaimable. The seam commits the claim before Rust sees the rows, so
         // that intent is preserved by an explicit compensating release rather
