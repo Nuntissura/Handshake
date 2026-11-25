@@ -1,5 +1,6 @@
 //! A real quiet window, on a desktop that receives no input: through every command, and against whoever asks the
-//! operating system for something else.
+//! operating system for something else: each call the evaluation found to activate it (MT-214 W1), and dead keys
+//! another program posts (W6).
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -17,12 +18,17 @@ use handshake_shell_window::{
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongPtrW, IsWindow, IsWindowVisible, PostMessageW, SetWindowLongPtrW, SetWindowPos,
-    ShowWindow, GWL_EXSTYLE, HWND_TOP, SWP_NOMOVE, SWP_NOSIZE, SW_SHOW, WM_CLOSE, WS_EX_APPWINDOW,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    GetWindowLongPtrW, IsWindow, IsWindowVisible, IsZoomed, PostMessageW, SendMessageW,
+    SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, HWND_TOP, HWND_TOPMOST, SHOW_WINDOW_CMD,
+    SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_RESTORE, SW_SHOW, SW_SHOWMAXIMIZED, SW_SHOWMINNOACTIVE,
+    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_DEADCHAR, WM_SYSDEADCHAR, WS_EX_APPWINDOW,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
 };
 
-use support::{on_private_desktop, run_script, Decoy, Log};
+use support::{
+    control_the_watch, must_stay_inactive, on_private_desktop, run_script, stop_watching, Decoy,
+    Log,
+};
 
 const INNER: LogicalSize = LogicalSize::new(400.0, 300.0);
 const MODEL: Attribution = Attribution {
@@ -127,6 +133,7 @@ impl State {
                 assert_eq!(state.native_tokens, 0);
                 let token = control.native_window(self.window()).unwrap();
                 self.hwnd.set(token.win32().hwnd.get());
+                must_stay_inactive(self.hwnd.get());
                 *self.token.borrow_mut() = Some(token);
                 assert_eq!(self.state(control).native_tokens, 1);
                 // SAFETY: plain values, read only.
@@ -144,6 +151,7 @@ impl State {
                 self.events.add("destroyed");
                 // SAFETY: a plain value, read only.
                 assert_eq!(unsafe { IsWindow(self.hwnd.get()) }, 0);
+                stop_watching(self.hwnd.get());
                 assert!(control.windows().is_empty());
                 control.begin_shutdown().unwrap();
             }
@@ -177,7 +185,8 @@ impl State {
                 self.assert_quiet();
             }
             2 => {
-                // Something else in the process asks the operating system directly.
+                // Something else in the process asks the operating system directly. Without SWP_NOACTIVATE a
+                // SetWindowPos activates whatever the window procedure adds (the evaluation's step 2).
                 // SAFETY: plain values, for a window of this thread on the private desktop.
                 unsafe {
                     SetWindowLongPtrW(self.hwnd.get(), GWL_EXSTYLE, WS_EX_APPWINDOW as isize);
@@ -190,11 +199,72 @@ impl State {
                         0,
                         SWP_NOMOVE | SWP_NOSIZE,
                     );
-                    ShowWindow(self.hwnd.get(), SW_SHOW);
                 }
+                self.show_directly(SW_SHOW);
                 self.assert_quiet();
             }
             3 => {
+                self.show_directly(SW_HIDE);
+                self.show_directly(SW_SHOW);
+                self.assert_quiet();
+            }
+            4 => {
+                self.show_directly(SW_SHOWMINNOACTIVE);
+                self.assert_not_active();
+                self.show_directly(SW_SHOWNOACTIVATE);
+                self.assert_not_active();
+                self.run(control, WindowCommand::Show { activate: false })
+                    .unwrap();
+                self.assert_quiet();
+            }
+            5 => {
+                self.show_directly(SW_SHOWMINNOACTIVE);
+                self.show_directly(SW_RESTORE);
+                self.assert_quiet();
+            }
+            6 => {
+                self.show_directly(SW_SHOWNORMAL);
+                self.assert_quiet();
+                self.show_directly(SW_SHOWMAXIMIZED);
+                self.assert_not_active();
+                // SAFETY: a plain value, read only.
+                assert_ne!(unsafe { IsZoomed(self.hwnd.get()) }, 0, "maximised, quietly");
+                self.show_directly(SW_RESTORE);
+                self.assert_quiet();
+            }
+            7 => {
+                // SAFETY: plain values, for a window of this thread on the private desktop.
+                unsafe {
+                    SetWindowPos(
+                        self.hwnd.get(),
+                        HWND_TOPMOST,
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE,
+                    );
+                }
+                self.assert_quiet();
+                // SAFETY: plain values, read only.
+                let style = unsafe { GetWindowLongPtrW(self.hwnd.get(), GWL_EXSTYLE) } as u32;
+                assert_eq!(style & WS_EX_TOPMOST, 0, "never in the topmost band");
+            }
+            8 => {
+                // Dead keys without a key before them, as another program posts or sends them. The window library
+                // panics on one, and its panic ends the loop; the next step runs only if the loop lives.
+                let hwnd = self.hwnd.get();
+                // SAFETY: plain values, to a window of this thread.
+                unsafe {
+                    assert_ne!(PostMessageW(hwnd, WM_DEADCHAR, '^' as usize, 1), 0);
+                    assert_ne!(PostMessageW(hwnd, WM_SYSDEADCHAR, '`' as usize, 1), 0);
+                    SendMessageW(hwnd, WM_DEADCHAR, '~' as usize, 1);
+                }
+                // From here on only what the commands do is displayed.
+                self.displays.clear();
+            }
+            9 => {
+                self.assert_quiet();
                 let wider = LogicalSize::new(500.0, 350.0);
                 self.run(control, WindowCommand::SetInnerSize(wider))
                     .unwrap();
@@ -216,7 +286,7 @@ impl State {
                 );
                 self.assert_quiet();
             }
-            4 => {
+            10 => {
                 self.run(control, WindowCommand::Minimize).unwrap();
                 let state = self.state(control);
                 assert_eq!(state.display, Display::Minimized);
@@ -231,7 +301,7 @@ impl State {
                 );
                 self.assert_not_active();
             }
-            5 => {
+            11 => {
                 self.run(control, WindowCommand::Restore { activate: false })
                     .unwrap();
                 let state = self.state(control);
@@ -243,19 +313,19 @@ impl State {
                 assert_eq!(state.outer.origin, PhysicalPosition::new(70, 80));
                 self.assert_quiet();
             }
-            6 => {
+            12 => {
                 self.run(control, WindowCommand::Hide).unwrap();
                 assert_eq!(self.state(control).display, Display::Hidden);
                 self.run(control, WindowCommand::Show { activate: false })
                     .unwrap();
                 self.assert_quiet();
             }
-            7 => {
+            13 => {
                 // SAFETY: plain values, to a window of this thread.
                 assert_ne!(unsafe { PostMessageW(self.hwnd.get(), WM_CLOSE, 0, 0) }, 0);
                 return;
             }
-            8 => {
+            14 => {
                 // Asking does not destroy it, and a surface that may exist keeps it.
                 // SAFETY: a plain value, read only.
                 assert_ne!(unsafe { IsWindow(self.hwnd.get()) }, 0);
@@ -285,6 +355,11 @@ impl State {
         self.next();
     }
 
+    fn show_directly(&self, command: SHOW_WINDOW_CMD) {
+        // SAFETY: plain values, for a window of this thread on the private desktop.
+        unsafe { ShowWindow(self.hwnd.get(), command) };
+    }
+
     /// The active window of this thread, on its own desktop.
     fn assert_not_active(&self) {
         // SAFETY: no arguments.
@@ -301,6 +376,7 @@ impl State {
 #[test]
 fn a_quiet_window_is_never_active_and_never_above_another_window() {
     on_private_desktop(Duration::from_secs(60), || {
+        control_the_watch();
         let state = Rc::new(State {
             decoy: RefCell::default(),
             lane: RefCell::default(),
@@ -327,17 +403,16 @@ fn a_quiet_window_is_never_active_and_never_above_another_window() {
         assert_eq!(state.events.all(), ["created", "close", "destroyed"]);
         let displays = state.displays.all();
         let commanded = [
-            Display::Normal,
             Display::Minimized,
             Display::Normal,
             Display::Hidden,
             Display::Normal,
         ];
-        assert_eq!(displays.get(..5), Some(&commanded[..]), "{displays:?}");
+        assert_eq!(displays.get(..4), Some(&commanded[..]), "{displays:?}");
         // Destroying a shown window hides it first.
         assert!(displays
             .iter()
-            .skip(5)
+            .skip(4)
             .all(|display| *display == Display::Hidden));
         assert!(
             !state.sizes.all().contains(&(0, 0)),
@@ -345,6 +420,12 @@ fn a_quiet_window_is_never_active_and_never_above_another_window() {
         );
         assert_eq!((report.windows_created, report.windows_destroyed), (1, 1));
         assert_eq!(report.quiet_broken, 0);
+        assert!(
+            report.activations_refused >= 6,
+            "the guard refused what the direct calls asked for: {}",
+            report.activations_refused
+        );
+        assert_eq!(report.windows_left, 0);
         // SAFETY: a plain value, read only.
         assert_eq!(unsafe { IsWindow(state.hwnd.get()) }, 0);
     });

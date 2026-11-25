@@ -49,8 +49,8 @@ impl fmt::Debug for TypedText {
     }
 }
 
-/// A key by its position on the keyboard.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// A key by its position on the keyboard. Prints without the key.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PhysicalKey {
     /// Its name, where it has one.
     pub code: KeyCode,
@@ -58,8 +58,14 @@ pub struct PhysicalKey {
     pub scancode: u32,
 }
 
-/// A key by its meaning under the active keyboard layout.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+impl fmt::Debug for PhysicalKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("PhysicalKey(..)")
+    }
+}
+
+/// A key by its meaning under the active keyboard layout. Prints its kind only, without the key.
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum LogicalKey {
     /// A key with a name instead of text.
@@ -71,6 +77,17 @@ pub enum LogicalKey {
     Dead(Option<char>),
     /// A key the layout gives no meaning, with the platform's virtual key code.
     Unidentified(u32),
+}
+
+impl fmt::Debug for LogicalKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Named(_) => "Named(..)",
+            Self::Text(_) => "Text(..)",
+            Self::Dead(_) => "Dead(..)",
+            Self::Unidentified(_) => "Unidentified(..)",
+        })
+    }
 }
 
 /// Which of several keys with the same meaning it was.
@@ -95,8 +112,9 @@ pub enum PressState {
     Released,
 }
 
-/// A key went down or up.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A key went down or up. Prints without the key, its meaning and its place, so a log of events never shows what was
+/// typed (MT-214 W5).
+#[derive(Clone, PartialEq, Eq)]
 pub struct KeyEvent {
     /// The key by position.
     pub physical: PhysicalKey,
@@ -113,6 +131,17 @@ pub struct KeyEvent {
     pub focus_sync: bool,
     /// Where and when from.
     pub stamp: InputStamp,
+}
+
+impl fmt::Debug for KeyEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KeyEvent")
+            .field("state", &self.state)
+            .field("repeat", &self.repeat)
+            .field("focus_sync", &self.focus_sync)
+            .field("stamp", &self.stamp)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Text was typed. Follows the key that completed it. Control characters and shortcuts are not text.
@@ -280,4 +309,55 @@ pub enum CursorShape {
     Help,
     /// None.
     Hidden,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::WindowEvent;
+    use crate::origin::{DeviceKind, EventTime, Origin};
+
+    #[test]
+    fn a_key_event_prints_no_key_code_meaning_or_text() {
+        let stamp = InputStamp {
+            received: EventTime { nanos: 7 },
+            os_millis: None,
+            origin: Origin::OperatorDevice,
+            device: DeviceKind::Keyboard,
+            modifiers: Modifiers::default(),
+            serial: 9,
+        };
+        let meanings = [
+            LogicalKey::Text(TypedText::new("q")),
+            LogicalKey::Dead(Some('^')),
+            LogicalKey::Named(NamedKey::Escape),
+            LogicalKey::Unidentified(0xE8),
+        ];
+        for logical in meanings {
+            let key = KeyEvent {
+                physical: PhysicalKey {
+                    code: KeyCode::KeyQ,
+                    scancode: 0x10,
+                },
+                logical,
+                location: KeyLocation::Numpad,
+                state: PressState::Pressed,
+                repeat: false,
+                focus_sync: false,
+                stamp,
+            };
+            let event = WindowEvent::Key(key.clone());
+            for printed in [format!("{key:?}"), format!("{event:?}"), format!("{key:#?}")] {
+                for secret in ["KeyQ", "16", "0x10", "\"q\"", "'q'", "^", "Escape", "232", "Numpad"] {
+                    assert!(!printed.contains(secret), "{secret} in {printed}");
+                }
+                assert!(printed.contains("Pressed"), "the rest still prints: {printed}");
+            }
+        }
+        let position = PhysicalKey {
+            code: KeyCode::KeyQ,
+            scancode: 0x10,
+        };
+        assert_eq!(format!("{position:?}"), "PhysicalKey(..)");
+    }
 }

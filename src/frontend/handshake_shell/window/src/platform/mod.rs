@@ -6,10 +6,14 @@
 
 mod app;
 mod clipboard;
+mod commands;
 mod drops;
+mod guard;
 mod loop_core;
 mod monitors;
 mod place;
+#[cfg(test)]
+mod quiet_tests;
 mod service;
 mod translate;
 mod wake;

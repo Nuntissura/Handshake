@@ -8,7 +8,7 @@ use crate::origin::Authority;
 pub(crate) enum Foreground {
     /// Nothing.
     Nothing,
-    /// This window.
+    /// This window, or a window it owns: the Operator works in it.
     This,
     /// Another window of this process.
     OurOther,
@@ -58,7 +58,7 @@ pub(crate) fn plan_show(
         }
         let ours = matches!(foreground, Foreground::This | Foreground::OurOther);
         return match authority {
-            Authority::Operator => Ok(()),
+            Authority::Operator | Authority::Launch => Ok(()),
             Authority::OwnForeground if ours => Ok(()),
             Authority::OwnForeground | Authority::Host | Authority::Model => {
                 Err(Refusal::NeedsOperator)
@@ -101,7 +101,7 @@ pub(crate) fn plan_minimize(
 }
 
 /// Whether a window may be hidden or destroyed. A model may not take away the window the Operator works in, unless
-/// somebody asked to close it.
+/// somebody asked to close it and that request is still open.
 pub(crate) fn may_remove(
     authority: Authority,
     foreground: Foreground,
@@ -114,7 +114,20 @@ pub(crate) fn may_remove(
     }
 }
 
-/// Whether the clipboard may be replaced. It belongs to the Operator.
+/// Whether a window may be moved or sized. A model may not do it to the window the Operator works in.
+pub(crate) fn may_change_geometry(
+    authority: Authority,
+    foreground: Foreground,
+) -> Result<(), Refusal> {
+    if authority == Authority::Model && foreground == Foreground::This {
+        Err(Refusal::OperatorsWindow)
+    } else {
+        Ok(())
+    }
+}
+
+/// Whether the clipboard may be replaced. It belongs to the Operator; the launch of the process is no request to
+/// replace it.
 pub(crate) fn may_write_clipboard(
     authority: Authority,
     foreground: Foreground,
@@ -123,7 +136,7 @@ pub(crate) fn may_write_clipboard(
     match authority {
         Authority::Operator => Ok(()),
         Authority::OwnForeground if ours => Ok(()),
-        Authority::OwnForeground | Authority::Host | Authority::Model => {
+        Authority::Launch | Authority::OwnForeground | Authority::Host | Authority::Model => {
             Err(Refusal::NeedsOperator)
         }
     }
@@ -133,8 +146,9 @@ pub(crate) fn may_write_clipboard(
 mod tests {
     use super::*;
 
-    const AUTHORITIES: [Authority; 4] = [
+    const AUTHORITIES: [Authority; 5] = [
         Authority::Operator,
+        Authority::Launch,
         Authority::OwnForeground,
         Authority::Host,
         Authority::Model,
@@ -181,7 +195,7 @@ mod tests {
                 let shown = plan_show(WindowClass::Operator, true, authority, foreground);
                 assert_eq!(
                     shown.is_ok(),
-                    authority == Authority::Operator,
+                    authority.is_operators(),
                     "{authority:?} {foreground:?}"
                 );
             }
@@ -224,6 +238,11 @@ mod tests {
             let plan = |authority| plan_minimize(WindowClass::Operator, authority, foreground);
             assert_eq!(plan(Authority::Operator), Ok(MinimizePlan::ActivateNext));
             assert_eq!(plan(Authority::Host), Ok(MinimizePlan::ActivateNothing));
+            assert_eq!(
+                plan(Authority::Launch),
+                Ok(MinimizePlan::ActivateNothing),
+                "the launch activates, it does not hand on"
+            );
         }
         assert_eq!(
             plan_minimize(WindowClass::Operator, Authority::Model, Foreground::This),
@@ -254,10 +273,28 @@ mod tests {
     }
 
     #[test]
+    fn a_model_neither_moves_nor_sizes_the_operators_window() {
+        for authority in AUTHORITIES {
+            for foreground in FOREGROUNDS {
+                let refused = authority == Authority::Model && foreground == Foreground::This;
+                assert_eq!(
+                    may_change_geometry(authority, foreground).is_err(),
+                    refused,
+                    "{authority:?} {foreground:?}"
+                );
+            }
+        }
+        assert_eq!(
+            may_change_geometry(Authority::Model, Foreground::This),
+            Err(Refusal::OperatorsWindow)
+        );
+    }
+
+    #[test]
     fn only_the_operator_replaces_the_clipboard() {
         for foreground in FOREGROUNDS {
             assert_eq!(may_write_clipboard(Authority::Operator, foreground), Ok(()));
-            for authority in [Authority::Host, Authority::Model] {
+            for authority in [Authority::Launch, Authority::Host, Authority::Model] {
                 assert_eq!(
                     may_write_clipboard(authority, foreground),
                     Err(Refusal::NeedsOperator)

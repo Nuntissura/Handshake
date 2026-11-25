@@ -1,7 +1,8 @@
 //! One window, and the hook in front of the window library's window procedure.
 //!
-//! The hook sees every message first. It keeps a quiet window quiet whoever asks for something else, notes where an
-//! input came from before the library turns it into an event, and reports what the library does not.
+//! The hook sees every message first. It keeps a quiet window at the bottom of the Z order whoever asks for something
+//! else (the activation guard keeps it inactive), notes where an input came from before the library turns it into an
+//! event, keeps from the library what would end its loop, and reports what the library does not.
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -9,14 +10,17 @@ use std::sync::Arc;
 
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::UI::Controls::WM_MOUSELEAVE;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetActiveWindow, VK_F4};
 use windows_sys::Win32::UI::Input::{GetCurrentInputMessageSource, INPUT_MESSAGE_SOURCE};
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetMessageTime, GWL_EXSTYLE, MA_NOACTIVATE, STYLESTRUCT, WA_INACTIVE, WINDOWPOS, WM_ACTIVATE,
-    WM_CHAR, WM_DEADCHAR, WM_DROPFILES, WM_ENTERMENULOOP, WM_ENTERSIZEMOVE, WM_EXITMENULOOP,
-    WM_EXITSIZEMOVE, WM_KEYFIRST, WM_KEYLAST, WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST,
+    DefWindowProcW, GetMessageTime, PeekMessageW, GWL_EXSTYLE, MA_NOACTIVATE, MSG, PM_NOREMOVE,
+    STYLESTRUCT, WA_INACTIVE, WINDOWPOS, WM_ACTIVATE, WM_CHAR, WM_DEADCHAR, WM_DPICHANGED,
+    WM_DROPFILES, WM_ENTERMENULOOP, WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE,
+    WM_KEYDOWN, WM_KEYFIRST, WM_KEYLAST, WM_KEYUP, WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST,
     WM_NCDESTROY, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_STYLECHANGING, WM_SYSCHAR,
-    WM_SYSDEADCHAR, WM_TOUCH, WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING,
+    WM_SYSDEADCHAR, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_TOUCH, WM_WINDOWPOSCHANGED,
+    WM_WINDOWPOSCHANGING,
 };
 use winit::dpi::LogicalSize as LibrarySize;
 use winit::event_loop::ActiveEventLoop;
@@ -25,14 +29,15 @@ use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{CursorIcon, WindowAttributes, WindowId};
 
 use super::loop_core::{Core, Creation, MessageOrigin};
-use super::{drops, last_error, monitors, place, translate};
+use super::place::Target;
+use super::{drops, guard, last_error, monitors, place, translate};
 use crate::command::{CreateFailure, Placement, Refusal, WindowClass, WindowState};
 use crate::event::{Display, ModalLoop, WindowEvent, WindowKey};
 use crate::frame::FrameLedger;
 use crate::geometry::{ClientPoint, LogicalSize, PhysicalPosition, PhysicalSize, ScaleFactor};
 use crate::input::{CursorShape, Modifiers};
 use crate::monitor::{centered, outside_all, MonitorKey};
-use crate::origin::{DeviceKind, InputStamp, Origin};
+use crate::origin::{DeviceKind, EventTime, InputStamp, Origin, OPERATOR_AUTHORITY_LIFETIME};
 use crate::token::Win32Window;
 
 const CLASS_NAME: &str = "hsk_shell_window";
@@ -48,10 +53,11 @@ pub(super) struct Window {
     pub(super) hold: Arc<()>,
     pub(super) logical: Cell<LogicalSize>,
     pub(super) scale: Cell<ScaleFactor>,
-    pub(super) close_requested: Cell<bool>,
+    /// When somebody last asked to close it, while that request is open.
+    close_requested: Cell<Option<EventTime>>,
     pub(super) frames: RefCell<FrameLedger>,
     /// Where the window goes in the Z order while a show is carried out.
-    pub(super) order_during_show: Cell<Option<HWND>>,
+    order_during_show: Cell<Option<HWND>>,
     /// The host was told that it exists. Nothing is reported about it before.
     announced: Cell<bool>,
     pub(super) modifiers: Cell<Modifiers>,
@@ -63,18 +69,29 @@ pub(super) struct Window {
     position_reported: Cell<PhysicalPosition>,
     /// Where the newest key message came from. Its text messages are posted by the system and no longer say.
     key_origin: Cell<Option<(Origin, DeviceKind)>>,
+    /// The window library holds a key press open for a dead key; see [`Window::keep_keys`].
+    key_open: Cell<bool>,
     library: RefCell<Option<winit::window::Window>>,
     core: Weak<Core>,
 }
 
 impl Window {
-    /// Create a window, hidden. Runs inside a callback of the window library.
+    /// Create a window, hidden. Runs inside a callback of the window library. Nothing is activated meanwhile.
     pub(super) fn create(
         core: &Rc<Core>,
         event_loop: &ActiveEventLoop,
         creation: &Creation,
     ) -> Result<Rc<Self>, CreateFailure> {
+        guard::still(|| Self::create_hidden(core, event_loop, creation))
+    }
+
+    fn create_hidden(
+        core: &Rc<Core>,
+        event_loop: &ActiveEventLoop,
+        creation: &Creation,
+    ) -> Result<Rc<Self>, CreateFailure> {
         let spec = &creation.spec;
+        let quiet = spec.class == WindowClass::Quiet;
         let size = |size: LogicalSize| LibrarySize::new(size.width, size.height);
         let mut attributes = WindowAttributes::default()
             .with_title(spec.title.as_str())
@@ -82,6 +99,8 @@ impl Window {
             .with_visible(false)
             .with_active(false)
             .with_class_name(CLASS_NAME)
+            // The library gives every window a taskbar button unless told, again after Explorer restarts (MT-214 W7).
+            .with_skip_taskbar(quiet)
             // Its drop target reports one path at a time and no position.
             .with_drag_and_drop(false);
         if let Some(least) = spec.min_inner {
@@ -95,6 +114,10 @@ impl Window {
             _ => return Err(CreateFailure::System(0)),
         };
         let hwnd = handle.hwnd.get();
+        if quiet && !guard::mark_quiet(hwnd) {
+            place::destroy(hwnd);
+            return Err(CreateFailure::System(0));
+        }
         let window = Rc::new(Self {
             key: creation.key,
             id: library.id(),
@@ -107,7 +130,7 @@ impl Window {
             hold: Arc::new(()),
             logical: Cell::new(spec.inner),
             scale: Cell::new(place::scale(hwnd)),
-            close_requested: Cell::new(false),
+            close_requested: Cell::new(None),
             frames: RefCell::default(),
             order_during_show: Cell::new(None),
             announced: Cell::new(false),
@@ -119,6 +142,7 @@ impl Window {
             size_reported: Cell::new((PhysicalSize::default(), ScaleFactor::ONE)),
             position_reported: Cell::default(),
             key_origin: Cell::new(None),
+            key_open: Cell::new(false),
             library: RefCell::new(Some(library)),
             core: Rc::downgrade(core),
         });
@@ -135,7 +159,7 @@ impl Window {
             Refusal::System(error) => CreateFailure::System(error),
             _ => CreateFailure::System(0),
         };
-        place::apply_class(self).map_err(refused)?;
+        place::apply_class(&self.target()).map_err(refused)?;
         if self.class == WindowClass::Quiet {
             // Its frame is another one now.
             place::resize(self.hwnd, self.logical.get().to_physical(self.scale.get()))
@@ -177,14 +201,42 @@ impl Window {
         Ok(())
     }
 
+    pub(super) fn target(&self) -> Target<'_> {
+        Target {
+            hwnd: self.hwnd,
+            class: self.class,
+            order_during_show: &self.order_during_show,
+        }
+    }
+
     /// The window is gone: let go of the library's handle to it.
     pub(super) fn let_go(&self) {
         let library = self.library.borrow_mut().take();
         drop(library);
     }
 
+    /// The loop is over and a native token still names the window: it stays, hidden, until the thread ends, and the
+    /// library is not asked to destroy it.
+    pub(super) fn leave(&self) {
+        if let Some(library) = self.library.borrow_mut().take() {
+            std::mem::forget(library);
+        }
+    }
+
     pub(super) fn tokens(&self) -> usize {
         Arc::strong_count(&self.hold).saturating_sub(1)
+    }
+
+    /// A request to close it is open: made within [`OPERATOR_AUTHORITY_LIFETIME`], and neither used nor overtaken by
+    /// a show or the Operator's input since.
+    pub(super) fn close_open(&self, now: EventTime) -> bool {
+        self.close_requested
+            .get()
+            .is_some_and(|at| now.since(at) <= OPERATOR_AUTHORITY_LIFETIME)
+    }
+
+    pub(super) fn set_close_requested(&self, at: Option<EventTime>) {
+        self.close_requested.set(at);
     }
 
     pub(super) fn state(&self) -> WindowState {
@@ -242,7 +294,7 @@ impl Window {
         self.focused.replace(focused) != focused
     }
 
-    /// The stamp of the message that is being handled.
+    /// The stamp of the message that is being handled, with the loop's number for it.
     pub(super) fn stamp(&self, core: &Core) -> InputStamp {
         let message = core.message();
         InputStamp {
@@ -251,6 +303,7 @@ impl Window {
             origin: message.origin,
             device: message.device,
             modifiers: self.modifiers.get(),
+            serial: core.next_serial(),
         }
     }
 
@@ -316,12 +369,23 @@ impl Window {
         }
     }
 
+    /// A quiet window told it is active is broken only when it really is: refused activations still send
+    /// `WM_ACTIVATE` on the way back from minimised (MT-214 evaluation probe).
+    fn check_quiet(&self, core: &Core, wparam: WPARAM) {
+        // SAFETY: no arguments, read only.
+        let active = unsafe { GetActiveWindow() } == self.hwnd;
+        if self.class == WindowClass::Quiet && wparam as u32 & 0xFFFF != WA_INACTIVE && active {
+            core.update_report(|report| report.quiet_broken = report.quiet_broken.saturating_add(1));
+            core.push_window(self.key, WindowEvent::QuietBroken);
+        }
+    }
+
     /// Before the window library sees a message. A value answers it in the library's place.
     fn before(&self, core: &Core, message: u32, wparam: WPARAM, lparam: LPARAM) -> Option<LRESULT> {
         match message {
             WM_WINDOWPOSCHANGING => {
                 // SAFETY: the message carries a writable WINDOWPOS.
-                place::keep_quiet(self, unsafe { &mut *(lparam as *mut WINDOWPOS) });
+                place::keep_quiet(&self.target(), unsafe { &mut *(lparam as *mut WINDOWPOS) });
                 None
             }
             WM_STYLECHANGING if wparam as i32 == GWL_EXSTYLE => {
@@ -331,15 +395,6 @@ impl Window {
                 None
             }
             WM_MOUSEACTIVATE if self.class == WindowClass::Quiet => Some(MA_NOACTIVATE as LRESULT),
-            WM_ACTIVATE if self.class == WindowClass::Quiet => {
-                if wparam as u32 & 0xFFFF != WA_INACTIVE {
-                    core.update_report(|report| {
-                        report.quiet_broken = report.quiet_broken.saturating_add(1)
-                    });
-                    core.push_window(self.key, WindowEvent::QuietBroken);
-                }
-                None
-            }
             WM_ENTERSIZEMOVE | WM_EXITSIZEMOVE => {
                 self.modal_loop(core, ModalLoop::MoveOrSize, message == WM_ENTERSIZEMOVE);
                 None
@@ -355,6 +410,34 @@ impl Window {
                     WindowEvent::FilesDropped(dropped.into_event(position, self.stamp(core))),
                 );
                 Some(0)
+            }
+            _ => self.keep_keys(message, wparam),
+        }
+    }
+
+    /// The window library holds a key press open after a key down that a character message follows in the queue,
+    /// until a dead key or the last character takes it, and panics on a dead key without one; its panic ends the loop
+    /// (winit 0.30.13 `keyboard.rs`, `WM_DEADCHAR`). This follows it the way it decides, looking at the queue before
+    /// it does, and keeps from it a dead key that would find none: posted by another program, or out of order.
+    fn keep_keys(&self, message: u32, wparam: WPARAM) -> Option<LRESULT> {
+        match message {
+            WM_KEYDOWN | WM_SYSKEYDOWN => {
+                // The library leaves Alt+F4 alone.
+                if !(message == WM_SYSKEYDOWN && wparam == usize::from(VK_F4)) {
+                    let next = next_key_message(self.hwnd);
+                    let belongs = next.is_some_and(|next| {
+                        !matches!(next, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP)
+                    });
+                    self.key_open.set(belongs);
+                }
+                None
+            }
+            WM_DEADCHAR | WM_SYSDEADCHAR if !self.key_open.replace(false) => Some(0),
+            WM_CHAR | WM_SYSCHAR => {
+                let more = next_key_message(self.hwnd)
+                    .is_some_and(|next| matches!(next, WM_CHAR | WM_SYSCHAR));
+                self.key_open.set(self.key_open.get() && more);
+                None
             }
             _ => None,
         }
@@ -407,6 +490,16 @@ impl Window {
     }
 }
 
+/// The next keyboard message of `hwnd` in the queue, as the window library looks for it.
+fn next_key_message(hwnd: HWND) -> Option<u32> {
+    // SAFETY: a message structure that outlives the call; nothing is taken out of the queue.
+    unsafe {
+        let mut message: MSG = std::mem::zeroed();
+        (PeekMessageW(&mut message, hwnd, WM_KEYFIRST, WM_KEYLAST, PM_NOREMOVE) != 0)
+            .then_some(message.message)
+    }
+}
+
 unsafe extern "system" fn hook(
     hwnd: HWND,
     message: u32,
@@ -422,34 +515,59 @@ unsafe extern "system" fn hook(
         Rc::increment_strong_count(window);
         Rc::from_raw(window)
     };
-    let core = window.core.upgrade();
+    let Some(core) = window.core.upgrade() else {
+        // The loop is over and this window was left for a token (`Window::leave`): the library is not entered again.
+        if message == WM_NCDESTROY {
+            // SAFETY: as below.
+            unsafe { release(hwnd, reference) };
+        }
+        // SAFETY: the message as it came.
+        return unsafe { DefWindowProcW(hwnd, message, wparam, lparam) };
+    };
     // Nested messages have origins of their own; this one's is put back when they are done.
-    let outer = core
-        .as_ref()
-        .map(|core| core.set_message(window.origin_of(message)));
+    let outer = core.set_message(window.origin_of(message));
     let answer = core
-        .as_ref()
-        .and_then(|core| core.guarded(|| window.before(core, message, wparam, lparam)))
+        .guarded(|| window.before(&core, message, wparam, lparam))
         .flatten();
     let result = match answer {
         Some(result) => result,
+        // The library may restore, and so activate, a window whose scale changes (MT-214 W3).
+        // SAFETY: the message as it came.
+        None if message == WM_DPICHANGED => {
+            guard::still(|| unsafe { DefSubclassProc(hwnd, message, wparam, lparam) })
+        }
         // SAFETY: the message as it came.
         None => unsafe { DefSubclassProc(hwnd, message, wparam, lparam) },
     };
-    if let (Some(core), Some(outer)) = (&core, outer) {
-        if message == WM_WINDOWPOSCHANGED {
-            core.guarded(|| window.report_display(core));
+    match message {
+        WM_WINDOWPOSCHANGED => {
+            core.guarded(|| window.report_display(&core));
         }
-        core.set_message(outer);
+        WM_ACTIVATE => {
+            core.guarded(|| window.check_quiet(&core, wparam));
+        }
+        _ => {}
     }
+    core.set_message(outer);
     if message == WM_NCDESTROY {
+        guard::forget(hwnd);
         // SAFETY: the hook that `Window::hook` installed, and the reference it left.
-        unsafe {
-            RemoveWindowSubclass(hwnd, Some(hook), HOOK);
-            drop(Rc::from_raw(reference as *const Window));
-        }
+        unsafe { release(hwnd, reference) };
     }
     result
+}
+
+/// Remove the hook and give back the reference it held.
+///
+/// # Safety
+///
+/// `reference` is the one `Window::hook` installed for `hwnd`, given back once.
+unsafe fn release(hwnd: HWND, reference: usize) {
+    // SAFETY: as the caller says.
+    unsafe {
+        RemoveWindowSubclass(hwnd, Some(hook), HOOK);
+        drop(Rc::from_raw(reference as *const Window));
+    }
 }
 
 /// `None` hides the pointer.

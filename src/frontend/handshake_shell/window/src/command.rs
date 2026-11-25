@@ -147,6 +147,8 @@ pub enum Refusal {
     NeedsOperator,
     /// A model may not take away the window the Operator works in.
     WouldMoveFocus,
+    /// A model may not move or size the window the Operator works in.
+    OperatorsWindow,
     /// The window's surface is still held.
     NativeTokensHeld,
     /// The loop shuts down.
@@ -170,6 +172,7 @@ impl Refusal {
             Self::QuietWindow => "window.quiet",
             Self::NeedsOperator => "window.needs_operator",
             Self::WouldMoveFocus => "window.would_move_focus",
+            Self::OperatorsWindow => "window.operators_window",
             Self::NativeTokensHeld => "window.native_tokens_held",
             Self::ShuttingDown => "window.shutting_down",
             Self::ShutdownNotBegun => "window.shutdown_not_begun",

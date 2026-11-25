@@ -3,6 +3,10 @@
 //! An [`InputStamp`] of the Operator's is made in one place: where the event loop took an input message from the
 //! operating system. A command gets the Operator's authority from such a stamp and nowhere else, so a model or the
 //! shell itself cannot claim it.
+//!
+//! Each stamp carries the loop's number for its input. The authority is used up by number: the first command that
+//! needs it takes it, for that input and every earlier one, so a copied or kept stamp grants nothing a second time
+//! (MT-214 W4). The Operator's launch of the process activates one window, once.
 
 use std::time::Duration;
 
@@ -76,6 +80,8 @@ pub struct InputStamp {
     pub(crate) origin: Origin,
     pub(crate) device: DeviceKind,
     pub(crate) modifiers: Modifiers,
+    /// The loop's number for the input; 0 for a stamp the loop did not make.
+    pub(crate) serial: u64,
 }
 
 impl InputStamp {
@@ -87,6 +93,7 @@ impl InputStamp {
             origin: Origin::ModelAction(attribution),
             device: DeviceKind::Unknown,
             modifiers: Modifiers::default(),
+            serial: 0,
         }
     }
 
@@ -116,7 +123,8 @@ impl InputStamp {
     }
 }
 
-/// How long after the Operator's input a command may still carry the Operator's authority.
+/// How long after the Operator's input a command may still carry the Operator's authority. Also how long a request to
+/// close a window lets a model remove the window the Operator works in.
 pub const OPERATOR_AUTHORITY_LIFETIME: Duration = Duration::from_secs(5);
 
 /// How long after the loop was created the Operator's launch of the process may still show its first window in front.
@@ -124,7 +132,7 @@ pub const OPERATOR_AUTHORITY_LIFETIME: Duration = Duration::from_secs(5);
 /// works elsewhere.
 pub const LAUNCH_AUTHORITY_LIFETIME: Duration = Duration::from_secs(60);
 
-/// Who issued a command, and the issuer's number for it.
+/// Who issued a command, and the issuer's number for it. Not `Clone`: a command source is made for one command.
 #[derive(Debug)]
 pub struct CommandSource {
     id: u64,
@@ -133,7 +141,7 @@ pub struct CommandSource {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SourceKind {
-    OperatorInput(EventTime),
+    OperatorInput { at: EventTime, serial: u64 },
     OperatorLaunch(EventTime),
     OtherProgram,
     Host,
@@ -141,13 +149,19 @@ pub(crate) enum SourceKind {
 }
 
 impl CommandSource {
-    /// A command that answers an input. It has the Operator's authority only when that input was the Operator's, and
-    /// only for [`OPERATOR_AUTHORITY_LIFETIME`].
+    /// A command that answers an input. It has the Operator's authority only when that input was the Operator's, only
+    /// for [`OPERATOR_AUTHORITY_LIFETIME`], and only until a command used it: one input, one such command.
     pub fn from_input(stamp: &InputStamp, id: u64) -> Self {
         let kind = match stamp.origin {
-            Origin::OperatorDevice => SourceKind::OperatorInput(stamp.received),
+            // A stamp without the loop's number was not made by the loop.
+            Origin::OperatorDevice if stamp.serial != 0 => SourceKind::OperatorInput {
+                at: stamp.received,
+                serial: stamp.serial,
+            },
             Origin::ModelAction(attribution) => SourceKind::Model(attribution),
-            Origin::OtherProgram | Origin::Unattributed => SourceKind::OtherProgram,
+            Origin::OperatorDevice | Origin::OtherProgram | Origin::Unattributed => {
+                SourceKind::OtherProgram
+            }
         };
         Self { id, kind }
     }
@@ -179,23 +193,6 @@ impl CommandSource {
     pub fn id(&self) -> u64 {
         self.id
     }
-
-    pub(crate) fn authority(&self, now: EventTime) -> Authority {
-        let while_recent = |at, lifetime| {
-            if now.since(at) <= lifetime {
-                Authority::Operator
-            } else {
-                Authority::Host
-            }
-        };
-        match self.kind {
-            SourceKind::OperatorInput(at) => while_recent(at, OPERATOR_AUTHORITY_LIFETIME),
-            SourceKind::OperatorLaunch(at) => while_recent(at, LAUNCH_AUTHORITY_LIFETIME),
-            SourceKind::OtherProgram => Authority::OwnForeground,
-            SourceKind::Host => Authority::Host,
-            SourceKind::Model(_) => Authority::Model,
-        }
-    }
 }
 
 /// What a command may do to focus.
@@ -203,12 +200,66 @@ impl CommandSource {
 pub(crate) enum Authority {
     /// Anything the Operator may.
     Operator,
+    /// Activate one window, once: the Operator launched the process.
+    Launch,
     /// Activate a window only while one of ours is in the foreground.
     OwnForeground,
     /// Never activate.
     Host,
-    /// Never activate, and never take the foreground window away.
+    /// Never activate, and never take, move or size the window the Operator works in.
     Model,
+}
+
+impl Authority {
+    /// Only the Operator could have done what this authority was used for; using it uses it up.
+    pub(crate) fn is_operators(self) -> bool {
+        matches!(self, Self::Operator | Self::Launch)
+    }
+}
+
+/// What the Operator's authority was already used for, in one loop.
+#[derive(Debug, Default)]
+pub(crate) struct AuthorityLedger {
+    /// Every input up to this number granted its authority.
+    used_through: u64,
+    launch_used: bool,
+}
+
+impl AuthorityLedger {
+    /// What `source` may do now. Does not use anything up.
+    pub(crate) fn authority(&self, source: &CommandSource, now: EventTime) -> Authority {
+        let fresh = |at: EventTime, lifetime| now.since(at) <= lifetime;
+        match source.kind {
+            SourceKind::OperatorInput { at, serial } => {
+                if serial > self.used_through && fresh(at, OPERATOR_AUTHORITY_LIFETIME) {
+                    Authority::Operator
+                } else {
+                    Authority::Host
+                }
+            }
+            SourceKind::OperatorLaunch(at) => {
+                if !self.launch_used && fresh(at, LAUNCH_AUTHORITY_LIFETIME) {
+                    Authority::Launch
+                } else {
+                    Authority::Host
+                }
+            }
+            SourceKind::OtherProgram => Authority::OwnForeground,
+            SourceKind::Host => Authority::Host,
+            SourceKind::Model(_) => Authority::Model,
+        }
+    }
+
+    /// `source` was used for something only the Operator may do. Its input, and every earlier one, grant nothing more.
+    pub(crate) fn use_up(&mut self, source: &CommandSource) {
+        match source.kind {
+            SourceKind::OperatorInput { serial, .. } => {
+                self.used_through = self.used_through.max(serial);
+            }
+            SourceKind::OperatorLaunch(_) => self.launch_used = true,
+            SourceKind::OtherProgram | SourceKind::Host | SourceKind::Model(_) => {}
+        }
+    }
 }
 
 #[cfg(test)]
@@ -219,13 +270,14 @@ mod tests {
         EventTime { nanos }
     }
 
-    fn stamp(origin: Origin, received: u64) -> InputStamp {
+    fn stamp(origin: Origin, received: u64, serial: u64) -> InputStamp {
         InputStamp {
             received: at(received),
             os_millis: None,
             origin,
             device: DeviceKind::Unknown,
             modifiers: Modifiers::default(),
+            serial,
         }
     }
 
@@ -237,40 +289,96 @@ mod tests {
 
     #[test]
     fn only_the_operators_own_input_carries_the_operators_authority() {
-        let authority = |origin| CommandSource::from_input(&stamp(origin, 10), 1).authority(at(10));
+        let ledger = AuthorityLedger::default();
+        let authority = |origin| {
+            ledger.authority(&CommandSource::from_input(&stamp(origin, 10, 3), 1), at(10))
+        };
         assert_eq!(authority(Origin::OperatorDevice), Authority::Operator);
         assert_eq!(authority(Origin::OtherProgram), Authority::OwnForeground);
         assert_eq!(authority(Origin::Unattributed), Authority::OwnForeground);
         assert_eq!(authority(Origin::ModelAction(MODEL)), Authority::Model);
-        assert_eq!(CommandSource::host(1).authority(at(10)), Authority::Host);
         assert_eq!(
-            CommandSource::model(MODEL, 1).authority(at(10)),
+            ledger.authority(&CommandSource::host(1), at(10)),
+            Authority::Host
+        );
+        assert_eq!(
+            ledger.authority(&CommandSource::model(MODEL, 1), at(10)),
             Authority::Model
+        );
+        let unnumbered = CommandSource::from_input(&stamp(Origin::OperatorDevice, 10, 0), 1);
+        assert_eq!(
+            ledger.authority(&unnumbered, at(10)),
+            Authority::OwnForeground,
+            "a hardware stamp the loop did not number"
         );
     }
 
     #[test]
     fn the_operators_authority_ends_with_its_lifetime() {
         let lifetime = u64::try_from(OPERATOR_AUTHORITY_LIFETIME.as_nanos()).unwrap();
-        let source = CommandSource::from_input(&stamp(Origin::OperatorDevice, 100), 1);
-        assert_eq!(source.authority(at(100 + lifetime)), Authority::Operator);
-        assert_eq!(source.authority(at(101 + lifetime)), Authority::Host);
+        let ledger = AuthorityLedger::default();
+        let source = CommandSource::from_input(&stamp(Origin::OperatorDevice, 100, 1), 1);
+        assert_eq!(
+            ledger.authority(&source, at(100 + lifetime)),
+            Authority::Operator
+        );
+        assert_eq!(
+            ledger.authority(&source, at(101 + lifetime)),
+            Authority::Host
+        );
     }
 
     #[test]
-    fn the_launch_authority_ends_too() {
+    fn an_input_grants_the_operators_authority_to_one_command() {
+        let mut ledger = AuthorityLedger::default();
+        let key = stamp(Origin::OperatorDevice, 10, 5);
+        let copy = key;
+        let first = CommandSource::from_input(&key, 1);
+        assert_eq!(ledger.authority(&first, at(11)), Authority::Operator);
+        ledger.use_up(&first);
+        assert_eq!(ledger.authority(&first, at(11)), Authority::Host, "used");
+        let again = CommandSource::from_input(&copy, 2);
+        assert_eq!(
+            ledger.authority(&again, at(11)),
+            Authority::Host,
+            "a copy of the stamp"
+        );
+        let older = CommandSource::from_input(&stamp(Origin::OperatorDevice, 9, 4), 3);
+        assert_eq!(
+            ledger.authority(&older, at(11)),
+            Authority::Host,
+            "an earlier input"
+        );
+        let newer = CommandSource::from_input(&stamp(Origin::OperatorDevice, 11, 6), 4);
+        assert_eq!(ledger.authority(&newer, at(11)), Authority::Operator);
+        ledger.use_up(&CommandSource::host(5));
+        assert_eq!(
+            ledger.authority(&newer, at(11)),
+            Authority::Operator,
+            "only the Operator's use counts"
+        );
+    }
+
+    #[test]
+    fn the_launch_activates_one_window_once_and_ends_too() {
         let lifetime = u64::try_from(LAUNCH_AUTHORITY_LIFETIME.as_nanos()).unwrap();
+        let mut ledger = AuthorityLedger::default();
         let source = CommandSource::operator_launch(at(0), 1);
-        assert_eq!(source.authority(at(lifetime)), Authority::Operator);
-        assert_eq!(source.authority(at(lifetime + 1)), Authority::Host);
+        assert_eq!(ledger.authority(&source, at(lifetime)), Authority::Launch);
+        assert_eq!(ledger.authority(&source, at(lifetime + 1)), Authority::Host);
+        ledger.use_up(&source);
+        assert_eq!(ledger.authority(&source, at(1)), Authority::Host, "used");
+        assert!(Authority::Launch.is_operators() && Authority::Operator.is_operators());
+        assert!(!Authority::OwnForeground.is_operators() && !Authority::Model.is_operators());
     }
 
     #[test]
     fn a_stamp_a_caller_can_make_is_never_the_operators() {
         let made = InputStamp::model_action(MODEL, at(5));
         assert_eq!(made.origin(), Origin::ModelAction(MODEL));
+        let ledger = AuthorityLedger::default();
         assert_eq!(
-            CommandSource::from_input(&made, 1).authority(at(5)),
+            ledger.authority(&CommandSource::from_input(&made, 1), at(5)),
             Authority::Model
         );
     }

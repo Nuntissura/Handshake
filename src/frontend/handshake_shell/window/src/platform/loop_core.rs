@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use windows_sys::Win32::Foundation::HWND;
+use windows_sys::Win32::Foundation::{HWND, LPARAM};
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     PeekMessageW, PostQuitMessage, MSG, PM_REMOVE, WM_QUIT,
@@ -19,16 +19,12 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 use winit::event_loop::EventLoopProxy;
 
 use super::window::Window;
-use super::{clipboard, monitors, place, wake::Lane};
+use super::{clipboard, commands, guard, place, wake::Lane};
 use crate::clipboard::{ClipboardError, TextClipboard};
-use crate::command::{CreateFailure, Refusal, WindowCommand, WindowSpec, WindowState};
+use crate::command::{CreateFailure, Refusal, WindowSpec, WindowState};
 use crate::event::{Event, WindowEvent, WindowKey};
-use crate::frame::{FrameOutcome, FrameProgress, FrameTicket};
 use crate::host::{Control, LoopConfig, LoopError, RunReport, ShellHost};
-use crate::input::WheelSettings;
-use crate::monitor::{carried, Monitor};
-use crate::origin::{CommandSource, DeviceKind, EventTime, Origin};
-use crate::policy;
+use crate::origin::{Authority, AuthorityLedger, CommandSource, DeviceKind, EventTime, Origin};
 use crate::queue::EventQueue;
 use crate::token::NativeWindowToken;
 use crate::wake::{DispatchedWake, LaneId, WakeLane, WakeRefused};
@@ -95,6 +91,9 @@ pub(crate) struct Core {
     next_window: Cell<u64>,
     lanes: RefCell<Vec<Option<Lane>>>,
     message: Cell<MessageOrigin>,
+    /// The number of the newest input stamp.
+    serial: Cell<u64>,
+    authority: RefCell<AuthorityLedger>,
     clipboard: RefCell<Option<Box<dyn TextClipboard>>>,
     launched_by_operator: Cell<bool>,
     report: Cell<RunReport>,
@@ -123,6 +122,8 @@ impl Core {
             next_window: Cell::new(1),
             lanes: RefCell::default(),
             message: Cell::new(MessageOrigin::NONE),
+            serial: Cell::new(0),
+            authority: RefCell::default(),
             clipboard: RefCell::new(config.clipboard),
             launched_by_operator: Cell::new(config.launched_by_operator),
             report: Cell::default(),
@@ -136,7 +137,8 @@ impl Core {
         self.clipboard
             .borrow_mut()
             .get_or_insert_with(|| Box::new(clipboard::SystemClipboard::new(service)));
-        let lane = Lane::open(EVENT_LANE, service, self.thread, self.epoch)
+        // The host's events are input; this lane does not wait for more.
+        let lane = Lane::open(EVENT_LANE, service, self.thread, self.epoch, false)
             .ok_or_else(|| LoopError::System(super::last_error()))?;
         self.lanes.borrow_mut().push(Some(lane));
         Ok(())
@@ -152,6 +154,12 @@ impl Core {
         self.library.borrow_mut().take();
         self.host.borrow_mut().take();
         self.service.set(0);
+        self.report()
+    }
+
+    /// What the run was like so far.
+    pub(super) fn report(&self) -> RunReport {
+        self.update_report(|report| report.activations_refused = guard::refused());
         self.report.get()
     }
 
@@ -169,6 +177,25 @@ impl Core {
 
     pub(super) fn set_message(&self, origin: MessageOrigin) -> MessageOrigin {
         self.message.replace(origin)
+    }
+
+    /// A number for a new input stamp. Never 0.
+    pub(super) fn next_serial(&self) -> u64 {
+        let serial = self.serial.get().saturating_add(1);
+        self.serial.set(serial);
+        serial
+    }
+
+    pub(super) fn authority_of(&self, source: &CommandSource) -> Authority {
+        self.authority.borrow().authority(source, self.now())
+    }
+
+    pub(super) fn use_up(&self, source: &CommandSource) {
+        self.authority.borrow_mut().use_up(source);
+    }
+
+    pub(super) fn service(&self) -> HWND {
+        self.service.get()
     }
 
     // Events to the host.
@@ -240,15 +267,17 @@ impl Core {
         }
     }
 
-    /// The service window got a wake message out of the queue.
-    pub(super) fn dispatch_wake(self: &Rc<Self>, id: u32) {
+    /// The service window got a wake message out of the queue, with the number it was posted with.
+    pub(super) fn dispatch_wake(self: &Rc<Self>, id: u32, token: LPARAM) {
         let Some(lane) = self.lane(id) else { return };
-        let Some(taken) = lane.take() else { return };
+        let Some(taken) = lane.take(token) else { return };
         if id == EVENT_LANE {
             self.drain(EVENTS_PER_TURN);
             return;
         }
-        if self.phase.get() == Phase::Ended {
+        // From `finish` on the windows are going or gone, also while a loop inside the host still dispatches
+        // (MT-214 W6): no wake reaches the host.
+        if !matches!(self.phase.get(), Phase::Running | Phase::Draining) {
             return;
         }
         let Some(host) = self.host.borrow().clone() else {
@@ -303,11 +332,12 @@ impl Core {
 
     // Windows.
 
+    /// A window that exists. One whose handle is gone, and whose end the library did not report yet, is none.
     pub(super) fn window_by_key(&self, key: WindowKey) -> Option<Rc<Window>> {
         self.windows
             .borrow()
             .iter()
-            .find(|window| window.key == key)
+            .find(|window| window.key == key && place::exists(window.hwnd))
             .cloned()
     }
 
@@ -354,20 +384,33 @@ impl Core {
         self.end_when_empty();
     }
 
-    /// Destroy whatever is left, without asking. For the end of the loop.
+    /// Destroy whatever is left, without asking. For the end of the loop. A window a native token still names is only
+    /// hidden: a surface must not outlive its window (MT-214 W7).
     pub(super) fn destroy_windows(&self) {
         let windows: Vec<_> = self.windows.borrow().clone();
         for window in windows {
-            place::destroy(window.hwnd);
+            if window.tokens() > 0 {
+                place::hide(window.hwnd);
+            } else {
+                place::destroy(window.hwnd);
+            }
         }
     }
 
-    /// Let go of windows whose last event nobody will translate any more.
+    /// Let go of windows whose last event nobody will translate any more. One a token still names stays until the
+    /// thread ends.
     pub(super) fn forget_windows(&self) {
         let windows = std::mem::take(&mut *self.windows.borrow_mut());
+        let mut left = 0;
         for window in windows {
-            window.let_go();
+            if window.tokens() > 0 && place::exists(window.hwnd) {
+                window.leave();
+                left += 1;
+            } else {
+                window.let_go();
+            }
         }
+        self.update_report(|report| report.windows_left = left);
     }
 
     fn end_when_empty(&self) {
@@ -417,96 +460,7 @@ impl Core {
         Ok(key)
     }
 
-    pub(crate) fn command(
-        &self,
-        source: &CommandSource,
-        window: WindowKey,
-        command: WindowCommand,
-    ) -> Result<(), Refusal> {
-        let outcome = self.carry_out(source, window, command);
-        self.counted(outcome)
-    }
-
-    fn carry_out(
-        &self,
-        source: &CommandSource,
-        key: WindowKey,
-        command: WindowCommand,
-    ) -> Result<(), Refusal> {
-        let window = self.window_by_key(key).ok_or(Refusal::UnknownWindow)?;
-        let authority = source.authority(self.now());
-        let foreground = place::foreground(window.hwnd);
-        match command {
-            WindowCommand::Show { activate } => {
-                let plan = policy::plan_show(window.class, activate, authority, foreground)?;
-                place::show(&window, plan, false)
-            }
-            WindowCommand::Restore { activate } => {
-                let plan = policy::plan_show(window.class, activate, authority, foreground)?;
-                place::show(&window, plan, true)
-            }
-            WindowCommand::Hide => {
-                policy::may_remove(authority, foreground, window.close_requested.get())?;
-                place::hide(window.hwnd);
-                Ok(())
-            }
-            WindowCommand::Minimize => {
-                let plan = policy::plan_minimize(window.class, authority, foreground)?;
-                place::minimize(window.hwnd, plan);
-                Ok(())
-            }
-            WindowCommand::SetInnerSize(size) => {
-                if !size.is_usable() {
-                    return Err(Refusal::InvalidGeometry);
-                }
-                place::at_normal_size(window.hwnd)?;
-                let wanted = size.to_physical(window.scale.get());
-                place::resize(window.hwnd, wanted)?;
-                if place::inner(window.hwnd) == wanted {
-                    // Exactly what was asked for, and not what its whole pixels come back to.
-                    window.logical.set(size);
-                }
-                Ok(())
-            }
-            WindowCommand::MoveTo(position) => {
-                place::at_normal_size(window.hwnd)?;
-                place::move_to(window.hwnd, position)
-            }
-            WindowCommand::MoveToMonitor(target) => {
-                place::at_normal_size(window.hwnd)?;
-                let monitors = monitors::all();
-                let find = |key| monitors.iter().find(|monitor| monitor.key == key);
-                let to = find(target).ok_or(Refusal::UnknownMonitor)?;
-                let outer = place::outer(window.hwnd);
-                let position = match monitors::of_window(window.hwnd).and_then(find) {
-                    Some(from) => carried(outer, from, to),
-                    None => crate::monitor::centered(outer.size, to.work_area),
-                };
-                place::move_to(window.hwnd, position)
-            }
-            WindowCommand::SetCursor(shape) => {
-                window.set_cursor(shape);
-                Ok(())
-            }
-            WindowCommand::SetTitle(title) => {
-                window.set_title(&title);
-                Ok(())
-            }
-            WindowCommand::Destroy => {
-                policy::may_remove(authority, foreground, window.close_requested.get())?;
-                if window.tokens() > 0 {
-                    return Err(Refusal::NativeTokensHeld);
-                }
-                if place::destroy(window.hwnd) {
-                    Ok(())
-                } else {
-                    Err(Refusal::System(super::last_error()))
-                }
-            }
-        }
-    }
-
-    fn counted<T>(&self, outcome: Result<T, Refusal>) -> Result<T, Refusal> {
+    pub(super) fn counted<T>(&self, outcome: Result<T, Refusal>) -> Result<T, Refusal> {
         if outcome.is_err() {
             self.update_report(|report| report.refusals = report.refusals.saturating_add(1));
         }
@@ -525,56 +479,17 @@ impl Core {
             .collect()
     }
 
+    /// None once `finish` began destroying windows: a token then could outlive its window.
     pub(crate) fn native_window(&self, key: WindowKey) -> Option<NativeWindowToken> {
+        if !matches!(self.phase.get(), Phase::Running | Phase::Draining) {
+            return None;
+        }
         let window = self.window_by_key(key)?;
         Some(NativeWindowToken::new(
             key,
             window.handles?,
             Arc::clone(&window.hold),
         ))
-    }
-
-    pub(crate) fn monitors(&self) -> Vec<Monitor> {
-        monitors::all()
-    }
-
-    pub(crate) fn wheel_settings(&self) -> WheelSettings {
-        monitors::wheel_settings()
-    }
-
-    pub(crate) fn request_frame(&self, key: WindowKey) -> Result<(), Refusal> {
-        let window = self.window_by_key(key).ok_or(Refusal::UnknownWindow)?;
-        if window.frames.borrow_mut().request(self.now().nanos) {
-            window.ask_for_paint();
-        }
-        Ok(())
-    }
-
-    pub(crate) fn frame_done(
-        &self,
-        key: WindowKey,
-        ticket: FrameTicket,
-        outcome: FrameOutcome,
-    ) -> Result<(), Refusal> {
-        let window = self.window_by_key(key).ok_or(Refusal::UnknownWindow)?;
-        let again = window
-            .frames
-            .borrow_mut()
-            .answer(ticket, outcome)
-            .ok_or(Refusal::UnknownFrame)?;
-        if again {
-            window.ask_for_paint();
-        }
-        Ok(())
-    }
-
-    pub(crate) fn frame_progress(&self, key: WindowKey) -> Option<FrameProgress> {
-        let window = self.window_by_key(key)?;
-        let progress = window
-            .frames
-            .borrow()
-            .progress(self.now().nanos, window.can_show());
-        Some(progress)
     }
 
     pub(crate) fn open_lane(self: &Rc<Self>) -> Result<WakeLane, WakeRefused> {
@@ -587,7 +502,7 @@ impl Core {
         }
         let lane = u32::try_from(id)
             .ok()
-            .and_then(|id| Lane::open(id, self.service.get(), self.thread, self.epoch))
+            .and_then(|id| Lane::open(id, self.service.get(), self.thread, self.epoch, true))
             .ok_or(WakeRefused::LaneLimit)?;
         self.lanes.borrow_mut().push(Some(lane.clone()));
         Ok(WakeLane::new(lane, Rc::downgrade(self)))
@@ -612,10 +527,7 @@ impl Core {
         source: &CommandSource,
         text: &str,
     ) -> Result<(), ClipboardError> {
-        let foreground = place::foreground(self.service.get());
-        if policy::may_write_clipboard(source.authority(self.now()), foreground).is_err() {
-            return Err(ClipboardError::NeedsOperator);
-        }
+        commands::may_write_clipboard(self, source)?;
         self.with_clipboard(|clipboard| clipboard.write(text))
     }
 

@@ -18,7 +18,7 @@ use winit::platform::scancode::PhysicalKeyExtScancode;
 use super::loop_core::Core;
 use super::place;
 use super::window::Window;
-use crate::event::{Display, WindowEvent};
+use crate::event::WindowEvent;
 use crate::geometry::{ClientPoint, ScaleFactor};
 use crate::input::{
     ContactEvent, ContactPhase, KeyEvent, KeyLocation, LogicalKey, Modifiers, PhysicalKey,
@@ -26,7 +26,7 @@ use crate::input::{
     WHEEL_DETENT,
 };
 use crate::keys::{with_key_codes, with_named_keys, KeyCode, NamedKey};
-use crate::origin::{DeviceKind, Origin};
+use crate::origin::{DeviceKind, InputStamp, Origin};
 
 /// An event of one window. Only puts events into the queue, so the library is never entered again from here.
 pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library) {
@@ -42,10 +42,9 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
                 return;
             };
             let from = window.scale.replace(to);
-            if matches!(
-                place::display(window.hwnd),
-                Display::Normal | Display::Hidden
-            ) {
+            // Not for a minimised or maximised window, also while hidden: a size asked for there makes the library
+            // restore it with SW_RESTORE, which shows and activates it, and then hide it again (MT-214 W3).
+            if place::is_normal_size(window.hwnd) {
                 // From the logical size and not from the size so far, so crossing monitors back and forth never drifts.
                 let size = window.logical.get().to_physical(to);
                 let size = winit::dpi::PhysicalSize::new(size.width, size.height);
@@ -57,7 +56,7 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
             }
         }
         Library::CloseRequested => {
-            window.close_requested.set(true);
+            window.set_close_requested(Some(core.now()));
             push(WindowEvent::CloseRequested);
         }
         Library::Destroyed => core.window_destroyed(window.key),
@@ -98,6 +97,7 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
                 stamp,
             }));
             let pressed = event.state == ElementState::Pressed && !is_synthetic;
+            went_on(window, pressed, stamp);
             if let Some(text) = typed_text(event.text.as_deref(), pressed, stamp.modifiers()) {
                 push(WindowEvent::Text(TextEvent { text, stamp }));
             }
@@ -114,11 +114,13 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
         Library::CursorEntered { .. } => push(WindowEvent::PointerEntered(window.stamp(core))),
         Library::CursorLeft { .. } => push(WindowEvent::PointerLeft(window.stamp(core))),
         Library::MouseInput { state, button, .. } => {
+            let stamp = window.stamp(core);
+            went_on(window, state == ElementState::Pressed, stamp);
             push(WindowEvent::PointerButton(PointerButtonEvent {
                 button: pointer_button(button),
                 state: press_state(state),
                 position: window.pointer.get(),
-                stamp: window.stamp(core),
+                stamp,
             }))
         }
         Library::MouseWheel { delta, .. } => {
@@ -136,6 +138,13 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
         // Composition and the accessibility tree are later slices; the library keeps composition off until asked.
         // Themes, device paths and gestures of other platforms are not used.
         _ => {}
+    }
+}
+
+/// The Operator pressed a key or a button in the window after asking to close it: the request is over (MT-214 W4).
+fn went_on(window: &Window, pressed: bool, stamp: InputStamp) {
+    if pressed && stamp.origin() == Origin::OperatorDevice {
+        window.set_close_requested(None);
     }
 }
 
@@ -296,44 +305,66 @@ mod tests {
     use winit::keyboard::{NativeKeyCode, SmolStr};
 
     #[test]
-    fn every_named_key_position_keeps_its_name() {
-        // The library prints its names; ours are the same words.
-        macro_rules! check {
-            ($($name:ident),* $(,)?) => {
-                $(
-                    assert_eq!(key_code(LibraryCode::$name), KeyCode::$name);
-                    assert_eq!(format!("{:?}", LibraryCode::$name), KeyCode::$name.name());
-                )*
+    fn every_position_a_keyboard_reports_has_its_name_here() {
+        // Every scan code, through the library's own table (not this crate's list): each position it names is named
+        // here with the library's word for it, and keeps its scan code.
+        let mut named = 0;
+        for scancode in (0..=0xFF).chain(0xE000..=0xE0FF) {
+            let library = LibraryPhysical::from_scancode(scancode);
+            let LibraryPhysical::Code(code) = library else {
+                continue;
             };
+            let ours = physical_key(library);
+            assert_ne!(ours.code, KeyCode::Unidentified, "{scancode:#x} {code:?}");
+            assert_eq!(ours.code.name(), format!("{code:?}"), "{scancode:#x}");
+            assert_eq!(Some(ours.scancode), LibraryPhysical::Code(code).to_scancode());
+            named += 1;
         }
-        with_key_codes!(check);
+        assert!(named >= 140, "the sweep reads the table: {named}");
         assert_eq!(key_code(LibraryCode::F30), KeyCode::Unidentified);
     }
 
     #[test]
-    fn every_key_meaning_keeps_its_name() {
-        macro_rules! check {
-            ($($name:ident),* $(,)?) => {
-                $(
-                    assert_eq!(named_key(LibraryNamed::$name), Some(NamedKey::$name));
-                    assert_eq!(format!("{:?}", LibraryNamed::$name), NamedKey::$name.name());
-                )*
-            };
+    fn every_meaning_the_windows_layouts_give_has_its_name_here() {
+        // What winit 0.30.13 makes of a Windows virtual key (`keyboard_layout.rs`), written out, not taken from this
+        // crate's list: a meaning missing here would arrive as an unidentified key.
+        use LibraryNamed::*;
+        let given = [
+            Accept, Alt, AltGraph, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Attn, AudioVolumeDown,
+            AudioVolumeMute, AudioVolumeUp, Backspace, BrowserBack, BrowserFavorites, BrowserForward,
+            BrowserHome, BrowserRefresh, BrowserSearch, BrowserStop, CapsLock, Clear, ContextMenu,
+            Control, Convert, Copy, CrSel, Delete, End, Enter, EraseEof, Escape, ExSel, Execute, F1,
+            F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
+            F21, F22, F23, F24, FinalMode, HangulMode, HanjaMode, Hankaku, Help, Home, Insert,
+            JunjaMode, KanaMode, KanjiMode, Katakana, LaunchApplication1, LaunchApplication2,
+            LaunchMail, LaunchMediaPlayer, MediaPlayPause, MediaStop, MediaTrackNext,
+            MediaTrackPrevious, ModeChange, NonConvert, NumLock, PageDown, PageUp, Pause, Play, Print,
+            PrintScreen, Process, Romaji, ScrollLock, Select, Shift, Space, Standby, Super, Tab,
+            Zenkaku, ZoomToggle,
+        ];
+        for key in given {
+            let ours = named_key(key).unwrap_or_else(|| panic!("{key:?} has no name here"));
+            assert_eq!(ours.name(), format!("{key:?}"));
         }
-        with_named_keys!(check);
-        assert_eq!(named_key(LibraryNamed::TVPower), None);
+        assert_eq!(named_key(TVPower), None);
     }
 
     #[test]
-    fn no_two_names_are_the_same() {
-        let mut codes: Vec<_> = KeyCode::NAMED.iter().map(|code| code.name()).collect();
-        codes.sort_unstable();
-        codes.dedup();
-        assert_eq!(codes.len(), KeyCode::NAMED.len());
-        let mut named: Vec<_> = NamedKey::ALL.iter().map(|key| key.name()).collect();
-        named.sort_unstable();
-        named.dedup();
-        assert_eq!(named.len(), NamedKey::ALL.len());
+    fn no_two_names_differ_only_in_case() {
+        // Names are words in settings and shortcuts, where case is not read.
+        let folded = |names: Vec<&str>| {
+            let count = names.len();
+            let mut names: Vec<String> = names.iter().map(|name| name.to_lowercase()).collect();
+            names.sort_unstable();
+            names.dedup();
+            (count, names.len())
+        };
+        let codes = KeyCode::NAMED.iter().map(|code| code.name());
+        let (count, distinct) = folded(codes.chain(["Unidentified"]).collect());
+        assert_eq!(count, distinct);
+        let (count, distinct) = folded(NamedKey::ALL.iter().map(|key| key.name()).collect());
+        assert_eq!(count, distinct);
+        assert_eq!(folded(vec!["KeyA", "Keya"]), (2, 1), "the check sees a clash");
     }
 
     #[test]

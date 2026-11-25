@@ -9,38 +9,56 @@ pub(crate) const MAX_EVENTS: usize = 4096;
 
 /// Events in the order they happened. A run of pointer moves, sizes or positions of one window is kept as its newest
 /// member, so the order between different events never changes.
+///
+/// A loss is reported where it happened: [`Event::EventsLost`] comes after every event that was queued when the newest
+/// loss of the report happened, and before every later one (MT-214 W7).
 #[derive(Debug, Default)]
 pub(crate) struct EventQueue {
     events: VecDeque<Event>,
+    /// Events left out that the host was not told about yet.
     lost: u64,
+    /// How many queued events come before that report.
+    lost_after: usize,
 }
 
 impl EventQueue {
     pub(crate) fn push(&mut self, event: Event) {
+        // An event after a loss is not folded into one from before it.
+        let behind_loss = self.lost > 0 && self.lost_after == self.events.len();
         if let Some(last) = self.events.back_mut() {
-            if replaces(&event, last) {
+            if !behind_loss && replaces(&event, last) {
                 *last = event;
                 return;
             }
         }
         let full = self.events.len() >= MAX_EVENTS && !self.make_room();
         if full && (!is_vital(&event) || self.events.len() >= MAX_EVENTS * 2) {
-            self.lost = self.lost.saturating_add(1);
+            self.note_loss();
             return;
         }
         self.events.push_back(event);
     }
 
     pub(crate) fn pop(&mut self) -> Option<Event> {
-        if self.lost > 0 && self.events.len() < MAX_EVENTS {
+        if self.lost > 0 && self.lost_after == 0 {
             let count = std::mem::take(&mut self.lost);
             return Some(Event::EventsLost { count });
         }
-        self.events.pop_front()
+        let event = self.events.pop_front()?;
+        if self.lost > 0 {
+            self.lost_after -= 1;
+        }
+        Some(event)
     }
 
     pub(crate) fn is_empty(&self) -> bool {
         self.events.is_empty() && self.lost == 0
+    }
+
+    /// An event was left out now, after everything queued.
+    fn note_loss(&mut self) {
+        self.lost = self.lost.saturating_add(1);
+        self.lost_after = self.events.len();
     }
 
     /// Leave out the oldest pointer move. Nothing else can be left out without the host noticing.
@@ -49,7 +67,7 @@ impl EventQueue {
             return false;
         };
         self.events.remove(at);
-        self.lost = self.lost.saturating_add(1);
+        self.note_loss();
         true
     }
 }
@@ -124,6 +142,7 @@ mod tests {
             origin,
             device: DeviceKind::Mouse,
             modifiers: Modifiers::default(),
+            serial: 1,
         }
     }
 
@@ -252,9 +271,57 @@ mod tests {
         assert_eq!(queue.lost, 2);
 
         let drained = drain(&mut queue);
-        assert!(drained.contains(&Event::EventsLost { count: 2 }));
         assert_eq!(drained.first(), Some(&entered(1)));
+        assert_eq!(
+            drained.last(),
+            Some(&Event::EventsLost { count: 2 }),
+            "after every event that was queued when the last of them was lost"
+        );
+        assert_eq!(
+            drained[drained.len() - 2],
+            of(1, WindowEvent::FocusChanged { focused: true })
+        );
         assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn a_loss_is_reported_after_the_older_events_and_before_the_newer_ones() {
+        let mut queue = EventQueue::default();
+        while queue.events.len() < MAX_EVENTS {
+            queue.push(entered(1));
+        }
+        queue.push(entered(2));
+        assert_eq!(queue.pop(), Some(entered(1)));
+        assert_eq!(queue.pop(), Some(entered(1)), "older events come first");
+        let newer = of(1, WindowEvent::FocusChanged { focused: true });
+        queue.push(newer.clone());
+        queue.push(moved(1, 1.0));
+        let drained = drain(&mut queue);
+        assert_eq!(drained.len(), MAX_EVENTS + 1);
+        assert!(drained[..MAX_EVENTS - 2]
+            .iter()
+            .all(|event| *event == entered(1)));
+        assert_eq!(drained[MAX_EVENTS - 2], Event::EventsLost { count: 1 });
+        assert_eq!(drained[MAX_EVENTS - 1], newer);
+        assert_eq!(drained[MAX_EVENTS], moved(1, 1.0));
+    }
+
+    #[test]
+    fn an_event_after_a_loss_is_not_folded_into_one_before_it() {
+        let moved_to = |x| of(1, WindowEvent::Moved { outer: PhysicalPosition::new(x, 0) });
+        let mut queue = EventQueue::default();
+        while queue.events.len() < MAX_EVENTS - 1 {
+            queue.push(entered(1));
+        }
+        queue.push(moved_to(1));
+        queue.push(entered(2));
+        assert_eq!(queue.pop(), Some(entered(1)));
+        queue.push(moved_to(2));
+        let drained = drain(&mut queue);
+        let at = drained.len() - 2;
+        assert_eq!(drained[at], Event::EventsLost { count: 1 });
+        assert_eq!(drained[at - 1], moved_to(1));
+        assert_eq!(drained[at + 1], moved_to(2));
     }
 
     #[test]

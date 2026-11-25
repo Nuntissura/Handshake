@@ -1,5 +1,6 @@
 //! A real window crosses scales: the operating system's own message for it, sent to a window of this process on a
-//! desktop that receives no input.
+//! desktop that receives no input. Last, while it is hidden and maximised: the window library must not restore it,
+//! which would show and activate it (MT-214 W3).
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -10,14 +11,18 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use handshake_shell_window::{
-    CommandSource, Control, Event, FrameOutcome, LogicalSize, LoopConfig, PhysicalPosition,
-    Placement, ScaleFactor, WakeLane, WindowClass, WindowCommand, WindowEvent, WindowKey,
-    WindowSpec,
+    CommandSource, Control, Display, Event, FrameOutcome, LogicalSize, LoopConfig,
+    PhysicalPosition, Placement, ScaleFactor, WakeLane, WindowClass, WindowCommand, WindowEvent,
+    WindowKey, WindowSpec,
 };
 use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT};
-use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowRect, SendMessageW, WM_DPICHANGED};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    GetWindowRect, IsWindowVisible, IsZoomed, SendMessageW, ShowWindow, SW_SHOWMAXIMIZED,
+    WM_DPICHANGED,
+};
 
-use support::{on_private_desktop, run_script, Log};
+use support::{must_stay_inactive, on_private_desktop, run_script, stop_watching, Log};
 
 /// A size that does not survive rounding at each scale.
 const INNER: LogicalSize = LogicalSize::new(267.0, 151.0);
@@ -31,6 +36,8 @@ struct State {
     changes: Log<(u32, u32)>,
     sizes: Log<(u32, u32, u32)>,
     frames: Cell<u32>,
+    /// The scales were crossed; the window is maximised and hidden now.
+    maximised: Cell<bool>,
 }
 
 impl State {
@@ -62,6 +69,7 @@ impl State {
                 WindowEvent::Created { state, .. } => {
                     let token = control.native_window(window).unwrap();
                     self.hwnd.set(token.win32().hwnd.get());
+                    must_stay_inactive(self.hwnd.get());
                     let own = state.scale.dpi();
                     // Back and forth, and home at the end.
                     let mut scales = vec![own];
@@ -83,8 +91,10 @@ impl State {
                     control.request_frame(window).unwrap();
                     self.next();
                 }
-                WindowEvent::ScaleChanged { from, to } => self.changes.add((from.dpi(), to.dpi())),
-                WindowEvent::Resized { inner, scale } => {
+                WindowEvent::ScaleChanged { from, to } if !self.maximised.get() => {
+                    self.changes.add((from.dpi(), to.dpi()))
+                }
+                WindowEvent::Resized { inner, scale } if !self.maximised.get() => {
                     self.sizes.add((scale.dpi(), inner.width, inner.height))
                 }
                 WindowEvent::FrameDue { ticket, .. } => {
@@ -93,7 +103,10 @@ impl State {
                         .frame_done(window, ticket, FrameOutcome::Presented)
                         .unwrap();
                 }
-                WindowEvent::Destroyed => control.begin_shutdown().unwrap(),
+                WindowEvent::Destroyed => {
+                    stop_watching(self.hwnd.get());
+                    control.begin_shutdown().unwrap()
+                }
                 _ => {}
             },
             Event::ShutdownBegan => control.finish(0).unwrap(),
@@ -101,16 +114,7 @@ impl State {
         }
     }
 
-    fn cross(&self, control: &Control) {
-        let window = self.window.get().unwrap();
-        let Some(dpi) = self.scales.borrow_mut().pop() else {
-            let progress = control.frame_progress(window).unwrap();
-            assert!(progress.presented >= 1, "a frame that was asked for is due");
-            control
-                .command(&CommandSource::host(3), window, WindowCommand::Destroy)
-                .unwrap();
-            return;
-        };
+    fn send_scale(&self, dpi: u32) {
         let mut area = RECT {
             left: 0,
             top: 0,
@@ -128,6 +132,52 @@ impl State {
                 &area as *const RECT as LPARAM,
             );
         }
+    }
+
+    /// Maximised (the guard keeps it inactive), hidden, then a scale change: it stays hidden and maximised.
+    fn hidden_and_maximised(&self, control: &Control) {
+        let window = self.window.get().unwrap();
+        let hwnd = self.hwnd.get();
+        self.maximised.set(true);
+        // SAFETY: plain values, for a window of this thread on the private desktop.
+        unsafe { ShowWindow(hwnd, SW_SHOWMAXIMIZED) };
+        control
+            .command(&CommandSource::host(4), window, WindowCommand::Hide)
+            .unwrap();
+        let state = control.window_state(window).unwrap();
+        assert_eq!(state.display, Display::Hidden);
+        let dpi = state.scale.dpi();
+        // SAFETY: a plain value, read only.
+        assert_ne!(unsafe { IsZoomed(hwnd) }, 0, "maximised while hidden");
+        self.send_scale(if dpi == 144 { 120 } else { 144 });
+        // SAFETY: plain values, read only.
+        unsafe {
+            assert_eq!(IsWindowVisible(hwnd), 0, "still hidden");
+            assert_ne!(
+                IsZoomed(hwnd),
+                0,
+                "still maximised: the library did not restore it with SW_RESTORE"
+            );
+            assert_ne!(GetActiveWindow(), hwnd);
+        }
+    }
+
+    fn cross(&self, control: &Control) {
+        let window = self.window.get().unwrap();
+        let Some(dpi) = self.scales.borrow_mut().pop() else {
+            if !self.maximised.get() {
+                let progress = control.frame_progress(window).unwrap();
+                assert!(progress.presented >= 1, "a frame that was asked for is due");
+                self.hidden_and_maximised(control);
+                self.next();
+                return;
+            }
+            control
+                .command(&CommandSource::host(3), window, WindowCommand::Destroy)
+                .unwrap();
+            return;
+        };
+        self.send_scale(dpi);
         let state = control.window_state(window).unwrap();
         let scale = ScaleFactor::from_dpi(dpi).unwrap();
         assert_eq!(state.scale, scale);
@@ -151,6 +201,7 @@ fn crossing_scales_keeps_the_logical_size_exactly() {
             changes: Log::new(),
             sizes: Log::new(),
             frames: Cell::new(0),
+            maximised: Cell::new(false),
         });
         let (events, wakes) = (Rc::clone(&state), Rc::clone(&state));
         run_script(

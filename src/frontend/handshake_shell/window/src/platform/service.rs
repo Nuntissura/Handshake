@@ -12,15 +12,15 @@ use windows_sys::Win32::System::Power::{
     RegisterSuspendResumeNotification, UnregisterSuspendResumeNotification, HPOWERNOTIFY,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, RegisterClassExW,
-    SetWindowLongPtrW, DEVICE_NOTIFY_WINDOW_HANDLE, GWLP_USERDATA, PBT_APMRESUMEAUTOMATIC,
-    PBT_APMSUSPEND, SPI_SETWORKAREA, WM_DISPLAYCHANGE, WM_ENDSESSION, WM_POWERBROADCAST,
-    WM_QUERYENDSESSION, WM_SETTINGCHANGE, WNDCLASSEXW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-    WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, InSendMessageEx,
+    RegisterClassExW, SetWindowLongPtrW, DEVICE_NOTIFY_WINDOW_HANDLE, GWLP_USERDATA, ISMEX_NOSEND,
+    PBT_APMRESUMEAUTOMATIC, PBT_APMSUSPEND, SPI_SETWORKAREA, WM_DISPLAYCHANGE, WM_ENDSESSION,
+    WM_POWERBROADCAST, WM_QUERYENDSESSION, WM_SETTINGCHANGE, WNDCLASSEXW, WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW, WS_POPUP,
 };
 
-use super::last_error;
 use super::loop_core::Core;
+use super::{guard, last_error};
 use super::wake::WM_WAKE;
 use crate::event::Event;
 use crate::host::LoopError;
@@ -86,6 +86,11 @@ impl ServiceWindow {
         if hwnd == 0 {
             return Err(LoopError::System(last_error()));
         }
+        if !guard::mark_quiet(hwnd) {
+            // SAFETY: the window made above, of this thread.
+            unsafe { DestroyWindow(hwnd) };
+            return Err(LoopError::System(0));
+        }
         let core = Rc::into_raw(Rc::clone(core));
         // SAFETY: the window is of this thread; the reference is given back when the window is gone.
         let power = unsafe {
@@ -128,18 +133,22 @@ unsafe extern "system" fn procedure(
         Rc::increment_strong_count(core);
         Rc::from_raw(core)
     };
-    match core.guarded(|| answer(&core, message, wparam)).flatten() {
+    match core.guarded(|| answer(&core, message, wparam, lparam)).flatten() {
         Some(result) => result,
         // SAFETY: the message as it came.
         None => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
     }
 }
 
-fn answer(core: &Rc<Core>, message: u32, wparam: WPARAM) -> Option<LRESULT> {
+fn answer(core: &Rc<Core>, message: u32, wparam: WPARAM, lparam: LPARAM) -> Option<LRESULT> {
     match message {
         WM_WAKE => {
-            if let Ok(lane) = u32::try_from(wparam) {
-                core.dispatch_wake(lane);
+            // A wake is a posted message the loop took out of its queue. One sent from another thread is not
+            // (InSendMessageEx); one sent from this thread carries no number of an open post (`Lane::take`).
+            // SAFETY: no arguments that are used.
+            let posted = unsafe { InSendMessageEx(std::ptr::null()) } == ISMEX_NOSEND;
+            if let (true, Ok(lane)) = (posted, u32::try_from(wparam)) {
+                core.dispatch_wake(lane, lparam);
             }
             Some(0)
         }

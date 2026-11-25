@@ -1,5 +1,6 @@
-//! Wakes of a real loop: on its thread, in order, when due, through a full queue, and inside loops that run inside the
-//! host. One test, because a process has one loop.
+//! Wakes of a real loop: on its thread, in order, when due, through a full queue, through posts another loop throws
+//! away, not from a message anybody else posts or sends, inside loops that run inside the host, and never after
+//! `finish`. One test, because a process has one loop.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -16,14 +17,29 @@ use handshake_shell_window::{
 };
 use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DialogBoxIndirectParamW, DispatchMessageW, EndDialog, FindWindowW, GetMessageW, PostMessageW,
-    TranslateMessage, DLGTEMPLATE, MSG, WM_DISPLAYCHANGE, WM_INITDIALOG, WM_NULL, WS_POPUP,
+    DialogBoxIndirectParamW, DispatchMessageW, EndDialog, FindWindowW, GetMessageW, KillTimer,
+    PeekMessageW, PostMessageW, SendMessageW, SetTimer, TranslateMessage, DLGTEMPLATE, MSG,
+    PM_REMOVE, WM_APP, WM_DISPLAYCHANGE, WM_INITDIALOG, WM_NULL, WM_TIMER, WS_POPUP,
 };
 
 use support::{on_private_desktop, run_script, wide, Decoy, Log};
 
 const LIMIT: Duration = Duration::from_secs(60);
 const DIALOG_RESULT: isize = 7;
+
+/// The crate's wake message (`src/platform/wake.rs`), as another program would post it.
+const WM_WAKE: u32 = WM_APP + 1;
+
+/// How long a foreign loop throws the posts away: three of them, at 0, 0.5 and 1.5 s.
+const THROWN_AWAY_FOR: Duration = Duration::from_millis(1_800);
+
+fn service_window() -> HWND {
+    let service = wide("hsk_shell_service");
+    // SAFETY: the name outlives the call; read only.
+    let hwnd = unsafe { FindWindowW(service.as_ptr(), ptr::null()) };
+    assert_ne!(hwnd, 0);
+    hwnd
+}
 
 thread_local! {
     static DIALOG: Cell<HWND> = const { Cell::new(0) };
@@ -111,6 +127,46 @@ impl State {
         assert_eq!(self.nested_wakes.get(), 3);
     }
 
+    /// A loop that takes the wake posts out of the queue and throws them away, as somebody else's loop may.
+    fn throw_posts_away(&self) -> u32 {
+        let service = service_window();
+        let until = Instant::now() + THROWN_AWAY_FOR;
+        let mut thrown = 0;
+        while Instant::now() < until {
+            // SAFETY: a message structure of this function; only wake messages of the loop's own window are taken.
+            unsafe {
+                let mut message: MSG = std::mem::zeroed();
+                while PeekMessageW(&mut message, service, WM_WAKE, WM_WAKE, PM_REMOVE) != 0 {
+                    thrown += 1;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        thrown
+    }
+
+    /// A loop the host runs after `finish`, ended by a timer of the thread. A wake that is posted meanwhile must not
+    /// reach the host.
+    fn loop_after_finish(&self) {
+        let lane = self.b.borrow();
+        lane.as_ref().unwrap().request(60, Duration::ZERO).unwrap();
+        // SAFETY: a timer of this thread, ended below; an ordinary message loop of this thread.
+        unsafe {
+            let timer = SetTimer(0, 0, 300, None);
+            assert_ne!(timer, 0);
+            loop {
+                let mut message: MSG = std::mem::zeroed();
+                assert!(GetMessageW(&mut message, 0, 0, 0) > 0);
+                if message.message == WM_TIMER && message.hwnd == 0 {
+                    KillTimer(0, timer);
+                    break;
+                }
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
+        }
+    }
+
     fn modal_dialog(&self) {
         self.nested.set(Nested::Dialog);
         self.nested_wakes.set(0);
@@ -143,10 +199,6 @@ impl State {
         );
         match event {
             Event::LoopStarted => {
-                assert!(
-                    self.wakes.all().is_empty(),
-                    "no wake before the loop started"
-                );
                 *self.decoy.borrow_mut() = Some(Decoy::create());
                 let a = control.open_wake_lane().unwrap();
                 let b = control.open_wake_lane().unwrap();
@@ -156,22 +208,34 @@ impl State {
                 *self.a.borrow_mut() = Some(a);
                 *self.b.borrow_mut() = Some(b);
                 self.request(1, 0);
+                // Wake messages nobody posted from a lane, sent at once (from this thread they run here) and posted
+                // for later, for every lane there is and one more. None of them may dispatch a wake: the wake of
+                // lane a is due, and would come from inside this handler.
+                let service = service_window();
+                for lane in 0..4 {
+                    for forged in [0, 1, 2, 3, isize::MAX, -1] {
+                        // SAFETY: plain values, to a window of this thread.
+                        unsafe {
+                            SendMessageW(service, WM_WAKE, lane, forged);
+                            assert_ne!(PostMessageW(service, WM_WAKE, lane, forged), 0);
+                        }
+                    }
+                }
                 assert!(self.wakes.all().is_empty(), "never from inside the request");
                 self.events.add("started");
             }
             Event::ShutdownBegan => {
                 self.plain_loop();
                 // An event that comes up now has to wait for this handler.
-                let service = wide("hsk_shell_service");
-                // SAFETY: the name outlives the call; a window of this thread.
-                unsafe {
-                    let service = FindWindowW(service.as_ptr(), ptr::null());
-                    assert_ne!(service, 0);
-                    assert_ne!(PostMessageW(service, WM_DISPLAYCHANGE, 0, 0), 0);
-                }
+                // SAFETY: plain values, to a window of this thread.
+                assert_ne!(
+                    unsafe { PostMessageW(service_window(), WM_DISPLAYCHANGE, 0, 0) },
+                    0
+                );
                 self.modal_dialog();
                 self.events.add("shutdown");
                 control.finish(5).unwrap();
+                self.loop_after_finish();
             }
             Event::MonitorsChanged => self.events.add("monitors"),
             Event::LoopEnding => {
@@ -216,6 +280,16 @@ impl State {
                     .unwrap();
             }
             14 => {
+                // Every post of the next wake is thrown away for a while; one after that still dispatches it.
+                self.request(15, 0);
+                let thrown = self.throw_posts_away();
+                assert!(thrown >= 3, "{thrown} posts thrown away");
+            }
+            15 => {
+                assert!(
+                    self.requested_at.get().elapsed() >= THROWN_AWAY_FOR,
+                    "posted again after the posts were thrown away"
+                );
                 // The post of the next wake is refused, and so is every other until the loop has caught up.
                 self.fill_queue();
                 self.request(20, 0);
@@ -250,6 +324,7 @@ impl State {
                     self.request(40, 5);
                 }
             }
+            60 => panic!("a wake reached the host after finish"),
             other => panic!("wake {other} was replaced or cancelled"),
         }
     }
@@ -281,7 +356,8 @@ fn a_wake_is_dispatched_by_every_loop_of_its_thread_and_by_nothing_else() {
         .unwrap();
 
         let seen = state.wakes.all();
-        assert_eq!(&seen[..6], &[1, 2, 12, 14, 20, 21], "{seen:?}");
+        assert_eq!(&seen[..7], &[1, 2, 12, 14, 15, 20, 21], "{seen:?}");
+        assert!(!seen.contains(&60));
         assert_eq!(state.wakes.count(&30), 3);
         assert_eq!(state.wakes.count(&40), 3);
         let events = state.events.all();

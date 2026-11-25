@@ -13,6 +13,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, DeviceEvents, EventLoop};
 use winit::platform::windows::EventLoopBuilderExtWindows;
 use winit::window::WindowId;
 
+use super::guard::{ActivationGuard, GuardRefused};
 use super::loop_core::Core;
 use super::service::ServiceWindow;
 use super::window::Window;
@@ -21,6 +22,12 @@ use crate::event::Event;
 use crate::host::{LoopConfig, LoopError, RunReport, ShellHost};
 
 pub(crate) fn run(config: LoopConfig, host: Rc<dyn ShellHost>) -> Result<RunReport, LoopError> {
+    // Before the library makes its first window, and dropped last, after every window of the loop is settled, also
+    // when the loop unwinds.
+    let _guard = ActivationGuard::install().map_err(|refusal| match refusal {
+        GuardRefused::AlreadyInstalled => LoopError::AlreadyCreated,
+        GuardRefused::System(error) => LoopError::System(error),
+    })?;
     let event_loop = EventLoop::<()>::with_user_event()
         // Windows needs no particular thread; tests run the loop on one that is bound to a desktop of its own.
         .with_any_thread(true)
@@ -40,8 +47,8 @@ pub(crate) fn run(config: LoopConfig, host: Rc<dyn ShellHost>) -> Result<RunRepo
         core: Rc::clone(core),
     });
     let core = Rc::clone(core);
-    let report = core.detach();
     drop(running);
+    let report = core.report();
     if let Some(payload) = core.take_panic() {
         resume_unwind(payload);
     }
@@ -58,7 +65,7 @@ fn refused(error: EventLoopError) -> LoopError {
     }
 }
 
-/// Ends what the loop left behind, also when it unwinds.
+/// Ends what the loop left behind, also when it unwinds. A window a native token still names is hidden and left.
 struct Running {
     service: Option<ServiceWindow>,
     core: Rc<Core>,

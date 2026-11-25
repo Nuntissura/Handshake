@@ -3,24 +3,30 @@
 //! A wake is a message posted to a window, because that is what every loop on the thread dispatches: ours, and the
 //! operating system's own for moving, sizing, menus and dialogs. A timer message is not used: it is delivered only
 //! when the queue holds nothing else. The pool timer's thread posts and does nothing else.
+//!
+//! Each post carries its number, masked with a secret of the lane, so a message that another program or another part
+//! of this one posts or sends with the same number neither settles a post nor dispatches a wake (MT-214 W7, MT-215
+//! HB-7).
 
+use std::collections::hash_map::RandomState;
 use std::ffi::c_void;
+use std::hash::{BuildHasher, Hasher};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
-use windows_sys::Win32::Foundation::{FILETIME, HWND, TRUE};
+use windows_sys::Win32::Foundation::{FILETIME, HWND, LPARAM, TRUE};
 use windows_sys::Win32::System::Threading::{
     CloseThreadpoolTimer, CreateThreadpoolTimer, GetCurrentThreadId, SetThreadpoolTimer,
     WaitForThreadpoolTimerCallbacks, PTP_CALLBACK_INSTANCE, PTP_TIMER,
 };
-use windows_sys::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_APP};
+use windows_sys::Win32::UI::WindowsAndMessaging::{GetQueueStatus, PostMessageW, QS_INPUT, WM_APP};
 
 use crate::wake::{LaneId, WakeRefused};
 use crate::wake_slot::{nanos, Step, Taken, WakeSlot};
 
-/// Posted to the service window; the first parameter is the lane.
+/// Posted to the service window; the first parameter is the lane, the second the post's number with the lane's mask.
 pub(super) const WM_WAKE: u32 = WM_APP + 1;
 
 struct LaneState {
@@ -28,6 +34,10 @@ struct LaneState {
     window: HWND,
     thread: u32,
     epoch: Instant,
+    /// Waits a moment after a dispatch while input waits, so it cannot keep input out.
+    yields: bool,
+    /// What the post's number is masked with.
+    mask: usize,
     open: AtomicBool,
     slot: Mutex<WakeSlot>,
 }
@@ -46,13 +56,21 @@ impl LaneState {
         let look_at = match step {
             Step::Idle => None,
             Step::LookAt(at) => Some(at),
-            Step::Post => {
+            Step::Post(number) => {
+                let token = (number as usize ^ self.mask) as LPARAM;
                 // SAFETY: plain values. Posting to a window that is gone fails and is reported as refused.
-                let taken = unsafe { PostMessageW(self.window, WM_WAKE, self.id as usize, 0) } != 0;
-                Some(slot.posted(now, taken))
+                let taken =
+                    unsafe { PostMessageW(self.window, WM_WAKE, self.id as usize, token) } != 0;
+                Some(slot.posted(now, number, taken))
             }
         };
         set_timer(timer, look_at.map(|at| at.saturating_sub(now)));
+    }
+
+    /// The number a dispatched message names. On a 32-bit system the high half of a number is not carried, and the
+    /// numbers of one lane stay below it.
+    fn number(&self, token: LPARAM) -> u64 {
+        (token as usize ^ self.mask) as u64
     }
 }
 
@@ -112,6 +130,21 @@ impl Drop for LaneTimer {
     }
 }
 
+/// A secret of the lane: the standard library's per-process random keys, mixed with the lane's number.
+fn mask(id: u32) -> usize {
+    let mut hasher = RandomState::new().build_hasher();
+    hasher.write_u32(id);
+    hasher.finish() as usize
+}
+
+/// Whether the Operator's input waits in the calling thread's queue (GetQueueStatus: the high word is what the queue
+/// holds now).
+fn input_waits() -> bool {
+    // SAFETY: a plain value; reads the calling thread's queue.
+    let status = unsafe { GetQueueStatus(QS_INPUT) };
+    (status >> 16) & QS_INPUT != 0
+}
+
 /// One lane. Any thread may hold it.
 #[derive(Clone)]
 pub(crate) struct Lane {
@@ -121,12 +154,20 @@ pub(crate) struct Lane {
 
 impl Lane {
     /// A lane whose wakes go to `window`. `None` when the operating system gives no timer.
-    pub(super) fn open(id: u32, window: HWND, thread: u32, epoch: Instant) -> Option<Self> {
+    pub(super) fn open(
+        id: u32,
+        window: HWND,
+        thread: u32,
+        epoch: Instant,
+        yields: bool,
+    ) -> Option<Self> {
         let state = Arc::new(LaneState {
             id,
             window,
             thread,
             epoch,
+            yields,
+            mask: mask(id),
             open: AtomicBool::new(true),
             slot: Mutex::new(WakeSlot::default()),
         });
@@ -178,16 +219,19 @@ impl Lane {
         self.cancel();
     }
 
-    /// The service window got a post of this lane.
-    pub(super) fn take(&self) -> Option<Taken> {
+    /// The service window got a post of this lane, on the loop's thread. A message that is not one of its open posts
+    /// gives nothing.
+    pub(super) fn take(&self, token: LPARAM) -> Option<Taken> {
         let mut slot = self.state.slot();
         if !self.state.open.load(Ordering::Acquire) {
             return None;
         }
-        let taken = slot.dispatched(self.state.now());
-        if taken.is_some() {
-            set_timer(self.timer.timer, None);
-        }
+        let now = self.state.now();
+        let number = self.state.number(token);
+        let taken = slot.dispatched(now, number, self.state.yields && input_waits());
+        // A wake that is not due yet keeps its timer; one that is due and has no post open is posted.
+        let step = slot.step(now);
+        self.state.carry_out(&mut slot, step, now, self.timer.timer);
         taken
     }
 }

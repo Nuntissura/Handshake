@@ -31,7 +31,8 @@ pub trait ShellHost {
 #[derive(Default)]
 pub struct LoopConfig {
     /// The Operator started this process to work in it. The host may then activate one window, once, shortly after
-    /// the start ([`Control::take_launch_source`]). An agent, a test and an automatic start leave this off.
+    /// the start ([`Control::take_launch_source`]); it does not replace the clipboard. An agent, a test and an automatic
+    /// start leave this off.
     pub launched_by_operator: bool,
     /// Where clipboard text is kept instead of the operating system's clipboard.
     pub clipboard: Option<Box<dyn TextClipboard>>,
@@ -77,6 +78,11 @@ pub struct RunReport {
     pub refusals: u64,
     /// Times a quiet window was activated by something outside this crate. Must be 0.
     pub quiet_broken: u64,
+    /// Activations the guard of the loop's thread refused: of a quiet window, or of any window while this crate
+    /// carried out a change that does not activate.
+    pub activations_refused: u64,
+    /// Windows left hidden at the end because a native token still named them; they go when the thread ends.
+    pub windows_left: u64,
 }
 
 /// The loop, as the host's handlers use it.
@@ -217,8 +223,9 @@ impl Control {
         self.core.withdraw_clipboard()
     }
 
-    /// The authority of the Operator who launched this process, for the host's first window. Once, and only with
-    /// [`LoopConfig::launched_by_operator`].
+    /// The authority of the Operator who launched this process, for the host's first window: given once, and only
+    /// with [`LoopConfig::launched_by_operator`]; it activates one window, once, within
+    /// [`crate::LAUNCH_AUTHORITY_LIFETIME`].
     pub fn take_launch_source(&self, id: u64) -> Option<CommandSource> {
         self.core.take_launch_source(id)
     }
@@ -233,7 +240,8 @@ impl Control {
         self.core.begin_shutdown()
     }
 
-    /// Destroy every window, then end the loop with this code. [`Event::LoopEnding`] is the last event.
+    /// Destroy every window, then end the loop with this code. [`Event::LoopEnding`] is the last event. No wake reaches
+    /// the host from here on, also not from a loop the host runs, and no native token is given out.
     ///
     /// # Errors
     ///
