@@ -1047,6 +1047,7 @@
       "src/backend/handshake_core/src/process_ledger/runtime.rs",
       "src/backend/handshake_core/src/process_ledger/table.rs",
       "src/backend/handshake_core/src/process_ledger/writer.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
       "src/backend/handshake_core/src/sandbox/adapter.rs",
       "src/backend/handshake_core/src/sandbox/bootstrap.rs",
       "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs",
@@ -1253,7 +1254,15 @@
       "src/backend/handshake_core/tests/wp1_console_stream_sse_tests.rs",
       "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
       "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/kernel_queue_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/process_ledger.rs",
+      "src/backend/handshake_core/src/kernel/proof.rs",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "src/backend/handshake_core/src/storage/surreal/mt136_database_surface_proof_b.rs",
+      "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs",
       "src/backend/handshake_core/src/backend_runtime/mod.rs",
+      "src/backend/handshake_core/src/backend_runtime/startup_recovery.rs",
       "src/backend/handshake_core/src/api/authority.rs",
       "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
       "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
@@ -2714,6 +2723,7 @@
       "src/backend/handshake_core/src/process_ledger/runtime.rs",
       "src/backend/handshake_core/src/process_ledger/table.rs",
       "src/backend/handshake_core/src/process_ledger/writer.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
       "src/backend/handshake_core/src/sandbox/adapter.rs",
       "src/backend/handshake_core/src/sandbox/bootstrap.rs",
       "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs",
@@ -2924,7 +2934,15 @@
       "src/backend/handshake_core/src/storage/surreal/schema.rs",
       "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
       "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/kernel_queue_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/process_ledger.rs",
+      "src/backend/handshake_core/src/kernel/proof.rs",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "src/backend/handshake_core/src/storage/surreal/mt136_database_surface_proof_b.rs",
+      "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs",
       "src/backend/handshake_core/src/backend_runtime/mod.rs",
+      "src/backend/handshake_core/src/backend_runtime/startup_recovery.rs",
       "src/backend/handshake_core/src/api/authority.rs",
       "src/backend/handshake_core/src/storage/surreal.rs"
     ],
@@ -5894,6 +5912,59 @@
     ]
   },
   "implementation_record": {
+    "pt018_scoped_signal_stop_scope": {
+      "picotask": "WP012-MT172-PT018",
+      "approval_refs": ["packet.json#/operator_decisions_20261009", "packet.json#/operator_scope_expansion_20261023_02"],
+      "original_acceptance_ref": "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json#/scope/acceptance_criteria",
+      "added_dependency_path": "src/backend/handshake_core/src/storage/surreal/process_ledger.rs",
+      "scope": "Keep a genuine signal-only Cloud Hypervisor exit in the original scoped reclaim STOP with no fabricated numeric code. The already-owned adapter and reclaim paths must carry the exact signal through the existing storage marker, retry predicates and STOP acceptance.",
+      "sole_product_writer_thread": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "preserved": "Numeric pending receipts and legacy reclaim, exact original scope and ownership, first STOP payload, existing storage authorization and acceptance. No new native effect. Builds and tests remain paused."
+    },
+    "pt019_original_broker_observation_scope": {
+      "picotask": "WP012-MT172-PT019",
+      "approval_refs": ["packet.json#/operator_decisions_20261009", "packet.json#/operator_scope_expansion_20261023_02"],
+      "original_acceptance_ref": "../WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-008.json#/scope/acceptance_criteria/0",
+      "owning_contract_refs": ["MT-136.json", "MT-150.json", "MT-136-candidate-boundary.json"],
+      "added_dependency_paths": [
+        "src/backend/handshake_core/src/kernel/proof.rs",
+        "src/backend/handshake_core/src/storage/mod.rs",
+        "src/backend/handshake_core/src/storage/surreal/database.rs",
+        "src/backend/handshake_core/src/storage/surreal/mt136_database_surface_proof_b.rs",
+        "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs"
+      ],
+      "scope": "Require the original returned claim or prior transition observation at both broker state mutation boundaries. Initial unclaimed scheduling uses the exact returned enqueue observation at attempt zero. Migrate the existing production caller and existing fixtures without changing their assertions.",
+      "sole_product_writer_thread": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "preserved": "Existing storage authority, raw-row atomic guard, claim eligibility, recovery and lease policy, current MT status and independent proof requirements. Builds and tests remain paused."
+    },
+    "pt019_broker_queue_observation_scope": {
+      "picotask": "WP012-MT172-PT019",
+      "approval_refs": ["packet.json#/operator_decisions_20261009", "packet.json#/operator_scope_expansion_20261023_02"],
+      "dependency_path": "src/backend/handshake_core/src/storage/surreal/kernel_queue_store.rs",
+      "owning_storage_boundary_ref": "MT-136-candidate-boundary.json",
+      "scope": "Compare the original persisted queue observation in existing broker state writes and the atomic claim/event write. This prevents a changed lease or attempt between the broker read and update from becoming a stale transition or mismatched claim event during restart recovery.",
+      "sole_product_writer_thread": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "preserved": "Existing storage authority, broker APIs and eligibility, untouched plain claim, MT status and independent acceptance requirements. Builds and tests remain paused."
+    },
+    "pt019_startup_recovery_outcome_scope": {
+      "picotask": "WP012-MT172-PT019",
+      "approval_refs": ["packet.json#/operator_decisions_20261009", "packet.json#/operator_scope_expansion_20261023_02"],
+      "dependency_path": "src/backend/handshake_core/src/backend_runtime/startup_recovery.rs",
+      "scope": "Carry the runner outcome through the existing startup report path so a timed-out pass and unconfirmed persistence remain distinct from a completed pass.",
+      "sole_product_writer_thread": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "preserved": "Startup and scoped reclaim decisions, output count keys, MT status, and acceptance and independent proof requirements. Builds and tests remain paused."
+    },
+    "pt019_restart_decision_atomicity_scope": {
+      "picotask": "WP012-MT172-PT019",
+      "approval_refs": [
+        "packet.json#/operator_decisions_20261009",
+        "packet.json#/operator_scope_expansion_20261023_02"
+      ],
+      "dependency_path": "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+      "scope": "Reuse mailbox-owned creation bindings and guarded append when committing the existing restart failure, checkpoint, decision and receipts in the same storage operation.",
+      "sole_product_writer_thread": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "preserved": "Existing storage authorization, ordinary mailbox callers, MT acceptance and independent proof requirements. Build, test and runtime execution remain paused."
+    },
     "connected_coordinator_remedy_20261010": {
       "record_id": "WP012-P2-COORDINATOR-CONNECTED-REMEDY-20261010",
       "state": "AFFECTED_SOURCE_CLEAR_COMPILER_AND_ACCEPTANCE_PENDING",

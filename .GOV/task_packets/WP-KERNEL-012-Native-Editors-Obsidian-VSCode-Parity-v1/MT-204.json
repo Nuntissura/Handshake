@@ -415,7 +415,8 @@
     "trace_projection_required_when_non_ui": true,
     "surfaces": [
       "Existing native Dev Command Center (Sidecar Integration), Master Spec section 10.11, and Settings diagnostics projections consumed through MT-209",
-      "2026-10-25 Vulkan GUI assessment MT-204: Backend-only MCP admission/deadline/reconnect state is consumed by MT-209 native controls; preserve its explicit no-GUI/manual-write boundary and actual production-caller dependency."
+      "2026-10-25 Vulkan GUI assessment MT-204: Backend-only MCP admission/deadline/reconnect state is consumed by MT-209 native controls; preserve its explicit no-GUI/manual-write boundary and actual production-caller dependency.",
+      "MT-212.json#/picotask_plan/items/82 (GUI-WP012-runtime-mcp) locates MT-209's Dev Command Center projection of published MCP admission, deadline and reconnect state for the direct Vulkan host. MT-199.json#/scope/acceptance_criteria and current Master Spec module 15 GUI-DESKTOP-020/024/025 and GUI-DESKTOP-049–052 locate the existing host rendering, typed internal_diagnostics and correlated standalone Palmistry obligations."
     ],
     "argus_targets": [
       "MT-209 uses existing stable targets for scoped pending/admission/deadline/reconnect/cancellation/settlement state."

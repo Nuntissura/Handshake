@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-28T16:17:08.388272+00:00",
+  "updated_at_utc": "2026-11-20T12:42:29.098416+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -6746,6 +6746,42 @@
       },
       "scope": "Existing offline pane, stable accessible controls, denied Launch without governed model and owner, and truthful unavailable inventory. Retain prior Case01 pass and spent original Case02 failure.",
       "original_acceptance": "OPEN"
+    },
+    {
+      "candidate": "handpick-notes-native-publication-20261120-01",
+      "recorded_at_utc": "2026-11-20T12:42:29.098416+00:00",
+      "state": "SOURCE_PUBLISHED_COMPILE_FEEDBACK_QUALIFIED_RUNTIME_PENDING",
+      "source_commit": "b9606fac30fcb3b791649ef45f94f15923ce174d",
+      "source_tree": "2bf8d0bd6de7193c4977185b0e81e37757199f41",
+      "binding": {
+        "ref": "WP-KERNEL-012/MT-212/handpick-notes-native-publication-20261120-01/candidate.json",
+        "bytes": 31245,
+        "sha256": "5b4010c4b62afc7bffbc6e4c08b601ed997700dcb8980c162485704fb5544b27"
+      },
+      "source_publication": {
+        "commit": "b9606fac30fcb3b791649ef45f94f15923ce174d",
+        "tree": "2bf8d0bd6de7193c4977185b0e81e37757199f41",
+        "parent": "723454bc5491c14adbfc53abba1681b8c0de25d8",
+        "remote_branch": "refs/heads/feat/WP-KERNEL-012",
+        "observed_remote_tip": "b9606fac30fcb3b791649ef45f94f15923ce174d",
+        "limit": "Exactly47 source plus4 required graph paths; all raw a842 working bytes preserved,31 normal Git CRLF-to-LF canonicalizations. Existing compiled artifacts reused; no new Source application/build/test or detached GUI successor adoption."
+      },
+      "independent_publication": {
+        "ref": "WP-KERNEL-012/MT-212/handpick-notes-native-publication-20261120-01/remote-readback.json",
+        "bytes": 18645,
+        "sha256": "f0c7a8de28ee170479536eeabba46f34b024d42dbcefba00f3f97604d1664ef5"
+      },
+      "compile_feedback": {
+        "ref": "WP-KERNEL-012/MT-212/handpick-notes-native-codegen-20261120-03/result.json",
+        "bytes": 3656,
+        "sha256": "83f19e1d9b7f4945703520b40cfc3e52edf7485470d27bd3b31a545c573ae554"
+      },
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "scope_limit": "Publication record only. Original acceptance/lifecycle remain unchanged; listing/body/GPU/GUI acceptance and fresh owner admission are separate. Original compile binding2fcffebc/a842/3PE provenance remains immutable."
     }
   ],
   "picotask_plan": {
@@ -18601,7 +18637,9 @@
         "visible_actions": [
           "Use existing keyboard entry",
           "Select actual result",
-          "Dismiss/return to task"
+          "Dismiss/return to task",
+          "Open Add source from the same Handpick field. Use the current URL or prefix to open the authenticated owner form, review the source, and explicitly confirm.",
+          "Choose an existing authorized tag completion and open its exact tag hub."
         ],
         "native_api_bindings": [
           {
@@ -18615,7 +18653,9 @@
         "focused_acceptance": [
           "Do not re-review unchanged green Handpick",
           "Changed consumer retains exact pin and document lifetime",
-          "Original runtime acceptance remains separate"
+          "Original runtime acceptance remains separate",
+          "Verify the protected source-entry preview, explicit confirmation, durable receipt and delayed-scope behavior in MT-201.json#/gui_obligation/expected_evidence/8 on the actual direct Vulkan host.",
+          "Reuse the canonical tag identity and denial cases in #/picotask_plan/items/55. The retained Handpick provider preserves the full label and exact hub identity. A delayed resolution for an obsolete context or draft leaves the Notes draft intact."
         ],
         "proof": {
           "reuse": [

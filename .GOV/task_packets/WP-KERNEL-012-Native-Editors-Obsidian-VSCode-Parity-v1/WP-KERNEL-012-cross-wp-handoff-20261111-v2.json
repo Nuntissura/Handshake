@@ -1,0 +1,274 @@
+{
+  "file_id": "WP-KERNEL-012-CROSS-WP-HANDOFF-20261111-V2",
+  "file_kind": "cross_wp_status_handoff",
+  "as_of_utc": "2026-11-12T00:04:41Z",
+  "authority_effect": "Navigation and observed state only. The existing packet, original MTs, selected handoff, independent verdicts and direct Operator decisions retain authority.",
+  "authority": {
+    "packet": "packet.json",
+    "selected_handoff": "WP-KERNEL-012-phase02-successor-handoff-v8.json",
+    "current_execution": "WP-KERNEL-012-phase02-session-handoff-20261026.json:674",
+    "detailed_predecessor": "WP-KERNEL-012-cross-wp-status-handoff-20261111.json",
+    "original_source_map": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+    "ckc_packet": "../WP-CKC-posekit-overhaul/packet.json",
+    "multi_model_packet": "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+    "master_spec": "../../spec/SPEC_CURRENT.md",
+    "master_spec_version": "v02.229",
+    "build_rules": "../../roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+  },
+  "snapshot": {
+    "governance_root": ".",
+    "governance_branch": "gov_kernel",
+    "governance_head": "41cb854704b8a2a4f01a95d4c367c6bfa0ebe1a6",
+    "product_root_relative_to_governance_root": "../wtc-WP-KERNEL-012",
+    "artifact_root_relative_to_governance_root": "../Handshake_Artifacts/WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "published_product_head": "031326592daa9eabe82d257f797f4e032d88e4c4",
+    "published_product_tree": "ed7c309b9e16f66a221d48fac97d8d9acfd25b8f",
+    "observed_origin_main": "7659138874df91ae258839a7fbd72cc894459fae",
+    "integration": "WP012 contains reconciled CKC and Multi-Model source. The predecessor pins 4c429a07906a24ff7be8e999e576d8b23fa60336 and 98efa4d019c4f670186cd3ec1f048ece3adf0dcd are source comparison pins. The exact tips are outside WP012 ancestry. MT171–175 remain BLOCKED in the owning records. The packet remains In Progress."
+  },
+  "handshake_product": [
+    {
+      "area": "SurrealDB and storage",
+      "delivered": "Core starts on embedded RocksDB through the Rust SurrealDB 3.2.0 SDK. Durable Product state uses SurrealDB, including control-plane authority, EventLedger, Notes and Atelier. Operational Flight Recorder uses its separate DuckDB store. ArtifactStore payloads, browser presentation state and local Palmistry survivor records have their own contracts.",
+      "remaining": "Close current Rev170 startup and mounted authorization proof. MT140 retains the native Locus fixture and language gate. MT142 retains extended idle-host load proof. MT153 and MT154 retain authorization failures. The Tauri development launcher still supplies a PostgreSQL URL default, and a standalone cloud lifecycle test harness has a stale SQLx lockfile. Core startup uses Surreal. Locus sqlite_store.rs currently parses legacy JSON shapes and its active execution proceeds through Surreal.",
+      "spec": ["02-system-architecture.md:69", "02-system-architecture.md:2266", "02-system-architecture.md:2623", "03-local-first-infrastructure.md:647", "10-product-surfaces.md:16"],
+      "product": ["src/backend/handshake_core/src/backend_runtime/mod.rs:196", "src/backend/handshake_core/src/backend_runtime/configuration.rs:99", "src/backend/handshake_core/src/storage/mod.rs:3308", "src/backend/handshake_core/src/storage/surreal.rs:2516", "src/backend/handshake_core/src/storage/surreal/schema.rs:28", "app/src-tauri/src/lib.rs:375", "src/backend/handshake_core/src/locus/sqlite_store.rs:1", "src/backend/handshake_core/tests/pidless_cloud_lifecycle_harness/Cargo.lock:3315"],
+      "contracts": ["packet.json#/storage_contract", "MT-136.json", "MT-139.json", "MT-140.json", "MT-142.json", "MT-153.json", "MT-154.json"]
+    },
+    {
+      "area": "Small crates per feature",
+      "delivered": "Core uses separate crates for CKC templates, parsing, metrics, moodboards, contact sheets and OpenPose. It also splits document, Surreal adapter, storage support, authorization, job admission, model routing, scheduling, lifecycle and event IDs. Native uses separate code editor parts, rich Notes parts, embedded views, Cabinet Host, workspace activation, motion, diagnostics, ring and Palmistry protocol. Core and Native still own host composition and substantial host code.",
+      "remaining": "Keep cohesive feature and adapter boundaries. Split further when a leaf owns a coherent contract and its callers can migrate with focused proof. Keep auth, persistence, process ownership and Product-specific UI wiring in their actual owners.",
+      "product": ["src/backend/handshake_core/Cargo.toml:174", "src/frontend/handshake_native/Cargo.toml:121", "src/frontend/handshake_native/Cargo.toml:322"],
+      "contracts": ["MT-171.json", "MT-172.json", "MT-173.json", "MT-174.json", "MT-175.json"]
+    },
+    {
+      "area": "Rust Notes and cross-pillar workflows",
+      "delivered": "Native mounts Code and rich Notes under Notes, with per-view loading, journal and graph/canvas navigation. Source and scoped verdicts cover parts of symbols, diff, rich documents, links, backlink navigation, workspace persistence, model usability and interconnection. The original MT001–080 records contain 68 historical PASS labels, six BLOCKED and six FAIL. MT044 has a scoped historical parity-suite verdict. Its 43-entry source manifest has 32 PASS and 11 REQUIRES_SURREALDB entries.",
+      "remaining": "Reconcile the 11 manifest entries with later exact proofs before running anything: transclusion, HTML export, draft recovery, folder color, tag hubs, pins, breadcrumbs, Kanban, semantic search, faceted filters and find-in-files. Resolve current LSP, rich/code cross-reference, Swarm editing, large-document performance, FEMS and native host/launcher evidence in the owning rows. MT168 gates MT167 and MT169. Reuse MT170's scoped wikilink-to-Loom pass when inputs match. Keep mounted journal/Calendar, Stage, save attribution, workspace operations, privacy, UserManual, model navigation and cross-pillar acceptance. Replace the remaining React Monaco/Tiptap paths through proven Native workflows.",
+      "spec": ["07-user-experience-and-development.md:273", "10-product-surfaces.md:8566", "15-native-desktop-gui-vulkan-gpu-ownership.md:22"],
+      "product": ["src/frontend/handshake_native/src/app.rs:7431", "src/frontend/handshake_native/src/app.rs:7673", "src/frontend/handshake_native/src/editor_pane_factories.rs:1599", "src/frontend/handshake_native/src/editor_pane_factories.rs:1928", "src/frontend/handshake_native/src/interop/stage_interop.rs", "src/frontend/handshake_native/src/interop/calendar_interop.rs", "src/frontend/handshake_native/tests/parity_manifest.json", "app/package.json:29"],
+      "contracts": ["MT-044.json", "MT-045.json", "MT-046.json", "MT-143.json", "MT-167.json", "MT-168.json", "MT-169.json", "MT-170.json", "MT-204.json", "MT-205.json", "MT-206.json", "MT-207.json", "MT-208.json", "MT-209.json", "MT-212.json"]
+    },
+    {
+      "area": "Workspace operations, interconnection and model usability",
+      "delivered": "Scoped original verdicts cover Notes as the default workspace, Notes usability, terminal/model launch, visual structure, foreground-safe navigation and UserManual updates. Later scoped verdicts cover authorized Flight Recorder callers, debug bundle export, Loom addressability and backlinks, live document behavior and persistence, indexed grant lookup and session worktree cleanup. Native has dedicated Stage and Calendar bridges. Core has typed document routes and an EventLedger store.",
+      "remaining": "Carry mounted chat, folder resolution, Stage and Calendar, journal navigation, save attribution, debug breakpoints, job routes and production diagnostics to their original verdicts. MT204–209 carry MCP timeout/reconnect and cancellation, Swarm resource policy and claim fencing, legacy workflow replay and Dev Command Center UI.",
+      "product": ["src/frontend/handshake_native/src/user_manual_pane.rs", "src/frontend/handshake_native/src/interop/stage_interop.rs", "src/frontend/handshake_native/src/interop/calendar_interop.rs", "src/backend/handshake_core/src/api/knowledge_documents.rs", "src/backend/handshake_core/src/storage/surreal/event_ledger.rs"],
+      "contracts": ["MT-098.json", "MT-104.json", "MT-111.json", "MT-117.json", "MT-120.json", "MT-125.json", "MT-143.json", "MT-157.json", "MT-160.json", "MT-163.json", "MT-165.json", "MT-204.json", "MT-205.json", "MT-206.json", "MT-207.json", "MT-208.json", "MT-209.json"]
+    },
+    {
+      "area": "WP-CKC and Atelier/PoseKit",
+      "delivered": "The combined source mounts Atelier sheets and versions, media/search, operations and prompt feedback on the Surreal composition. It includes ArtifactStore reads, OpenPose/PNG, model leases and lineage, deterministic rewrites, and a Native Atelier panel. The original packet preserves intake/facial, contact sheets, annotations, editing, model actions and stable inspection IDs.",
+      "remaining": "Carry CKC MT004–055 post-port proof through MT057–066. Use scoped schema and earlier evidence only for matching claims. Close actual intake/facial and PoseKit paths, prompt feedback and exports, and full original Argus, UserManual and headless acceptance. MT065 requires all 128 stable atelier-ckc widget IDs and inspect, steer and reobserve behavior across states. MT067 retains a separate Studio/ArtifactStore binding.",
+      "product": ["src/backend/handshake_core/src/api/mod.rs:232", "src/backend/handshake_core/src/api/atelier_ckc_media.rs:51", "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs:66", "src/backend/handshake_core/src/api/atelier_ckc_ops.rs:77", "src/backend/handshake_core/src/api/atelier_ckc_prompt_feedback.rs:35", "src/frontend/handshake_native/src/atelier_panel.rs"],
+      "contracts": ["MT-171.json", "../WP-CKC-posekit-overhaul/MT-058.json", "../WP-CKC-posekit-overhaul/MT-065.json", "../WP-CKC-posekit-overhaul/MT-066.json", "../WP-CKC-posekit-overhaul/MT-067.json"]
+    },
+    {
+      "area": "WP-1 Multi-Model Orchestration",
+      "delivered": "Core has production coordinator and Operator Chat composition, scoped model-lane and process ownership code, and durable Swarm Flight Recorder drain. Native wires RUN Operator Chat, LAB Lane Diagnostics and Engine Profiles. Published checkpoint 9db444c86e999dd867d3b02656675996342e059d contains the production-socket prerequisite and Manual RUN wiring. Two exact Native test executables compiled in that earlier qualified batch.",
+      "remaining": "MT172 maps 41 picotasks to the original contracts. Advance PT003 routing and schema policies. Keep PT039's separate hold. Finish genuine authenticated routing with Operator-selected Codex and gpt-6.1-sol, scoped navigation/preferences, provider outcomes, owned cancel/reclaim/restart/drain and required real worktree, microVM and Native capstone cases. Original MT017 requires exactly one canonical EventLedger event and one correlated Flight Recorder event through replay, restart, cancellation and failure.",
+      "product": ["src/backend/handshake_core/src/swarm_orchestration/production_factory.rs:228", "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs:450", "src/frontend/handshake_native/src/operator_chat_pane.rs", "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs"],
+      "contracts": ["MT-172.json#/picotask_plan", "MT-196.json", "MT-212.json", "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json", "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json", "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json", "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-023.json", "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-024.json"]
+    },
+    {
+      "area": "EventLedger, Flight Recorder, internal_diagnostics, Palmistry and Argus",
+      "delivered": "SurrealDB EventLedger owns durable state transitions, replay and promotion. DuckDB Flight Recorder records operational history correlated to governed actions. Native internal_diagnostics publishes typed heartbeat, frame/resource and mechanical events through the shared ring. Standalone Palmistry reads independently, detects freeze/crash and writes signed survivor records. Native implements session-signed recovery requests. Core implements verification of active session, nonce and durable signed source, then writes palmistry.survivor_recovered to Flight Recorder. The older direct transport returns SchemaIncompatible. Argus exposes scoped inspection and actions under stable IDs, including allowlisted diagnostics and the dropped count.",
+      "remaining": "Active Core composition mounts the Argus action-receipt route. The recovery/start/model-lane routes exist in a separate constructor that the active router does not call. Native maintain_palmistry has no production caller. Complete and prove mounted linkage through its owning MT172 contract. Keep session-bound recovery separate from protected adoption and registration with real WorkProfile and authorized workspace identity. Carry historical MT081–096 scoped proof forward when exact inputs match. Keep early signed watcher/crash capture before login, then prove independent survival, recovered ingestion, privacy and clean drain on the final host. CabinetChildRead fits the ring and watcher contract. Prove it in an actual local survivor after a separately admitted controlled crash.",
+      "spec": ["02-system-architecture.md:2623", "05-security-and-observability.md:1882", "05-security-and-observability.md:1952", "06-mechanical-integrations.md:7344", "10-product-surfaces.md:8005", "15-native-desktop-gui-vulkan-gpu-ownership.md:128"],
+      "product": ["src/frontend/handshake_native/src/main.rs:463", "src/frontend/handshake_native/src/internal_diagnostics.rs:1080", "src/frontend/handshake_native/src/mcp/server.rs:951", "src/frontend/palmistry/src/main.rs:842", "src/frontend/palmistry/src/fr_forward.rs:359", "src/backend/handshake_core/src/api/mod.rs:93", "src/backend/handshake_core/src/api/palmistry.rs:1909", "src/backend/handshake_core/src/api/palmistry.rs:4122"],
+      "contracts": ["MT-081.json", "MT-089.json", "MT-092.json", "MT-094.json", "MT-096.json", "MT-172.json:8603", "MT-175.json", "MT-202.json:96", "MT-212.json"]
+    },
+    {
+      "area": "Direct Vulkan, Kumihimo, Handpick, Cabinet and GPU",
+      "delivered": "Current Native selects and checks a Vulkan adapter through wgpu/eframe and mounts existing Kumihimo docking, Handpick and Cabinet Host. MT212 maps 92 GUI picotasks to 302 original contracts and records eight Handpick and eight Cabinet component cases, plus scoped motion/settings checks. Canonical Kumihimo shared clip revision 3b3494f898bfd6450fe1980dfd8959a1acb70e8d was published and reread with 13 Core and six Web tests. The Product dependency still uses 8a97b9ae. The shared clip revision still includes the legacy desktop bridge.",
+      "remaining": "Adopt proven canonical Kumihimo source at an exact pin in a distinct Product change. Prove direct Vulkan without wgpu, egui or eframe. Preserve shared edges, accessibility, focus, IME, DPI, multiwindow, persisted layout, clean professional UI, motion, Handpick, Cabinet and complete Engine Profile dispatch. Kernel-owned prelogin rendering covers login and shell. Bind the real issuer and central GPU ownership. Keep protected work under live grants and retain in-flight allocations until actual settlement. Studio RF-12 still needs allocation from the owner of the existing client port and its manifests/consumers.",
+      "spec": ["15-native-desktop-gui-vulkan-gpu-ownership.md:26", "15-native-desktop-gui-vulkan-gpu-ownership.md:64", "15-native-desktop-gui-vulkan-gpu-ownership.md:128"],
+      "product": ["src/frontend/handshake_native/Cargo.toml:112", "src/frontend/handshake_native/src/main.rs:564", "src/frontend/handshake_native/src/kumihimo.rs:318", "src/frontend/handshake_native/src/search_rail.rs:1358", "src/frontend/handshake_native/src/settings_dialog.rs:3046", "src/frontend/cabinet_host/Cargo.toml:10"],
+      "contracts": ["MT-196.json", "MT-198.json", "MT-199.json", "MT-200.json", "MT-201.json", "MT-202.json", "MT-203.json", "MT-212.json"]
+    }
+  ],
+  "repo_governance": {
+    "current_assignment": "Root manages one Coding, one Codecheck/dependency, GUI in parallel, and scoped specialists/eval. One non-GUI picotask, MT172 PT003. Refresh contexts at actual Cargo handback. The current goal supersedes the older tick/team arrangement.",
+    "native_compile": {
+      "state": "Coding explicitly returned source, compiler, process and evidence custody. Independent terminal and executable review passed compile-only for the exact -02 candidate, including all 7,625 source guards, unchanged index, natural Job drain, V11 coverage, checked handle closes and separate selected and ordinary Native executable identity. No test body ran. One unused Queryable import warning remains in the compiled test.",
+      "cargo_exit_utc": "2026-11-11T22:14:16.006356Z",
+      "job_drained_utc": "2026-11-11T22:29:14.393638Z",
+      "producer_wait_utc": "2026-11-11T22:29:20.442853Z",
+      "selected_pe_sha256": "b348fd8578cf219e6e30437df34e48742145fce08e1d06c3a311b3e9c660ed55",
+      "artifacts": [
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-20261111-02/result.json",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-20261111-02/codegen-artifact.json",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-20261111-02/released.json",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-20261111-02/private-job-final.json",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-20261111-02/owned-job-observations.jsonl",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-20261111-02/resource-guard.jsonl",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-custody-20261111-02/coding-direct-native-cabinet-child-diagnostics-wait-01.json",
+        "MT-212/mt212-cabinet-child-diagnostics-native-codegen-custody-20261111-02/producer-terminal-handoff.json"
+      ]
+    },
+    "product_checkpoint": {
+      "state": "Coding published the four-file checkpoint by normal push and explicitly returned source, index and common Git custody. Root reread actual origin, commit, tree, parent, exact four paths and remaining WIPs. The independent evaluator verified all 7,625 live source hashes, preserved edits, empty stage and exact source-map equivalence. The materialized manifest and independent review passed the ordinary Core producer's qualification predicate.",
+      "parent": "04169996da16d1f5159975335ec9c0c263f14dc2",
+      "independent_reviewer": "/root/cabinet_publication_independent_eval",
+      "published_input_manifest_sha256": "a018a880df6300c9019b5f7abed272d3f25a099e53a7c973a786f4f53d76b082",
+      "independent_review_sha256": "ee50dcbd9ec0c136ef63233c7518dcc6337d7c732a89fb732292bec68482d16b",
+      "artifact_refs": [
+        "MT-212/mt212-cabinet-current-ordinary-core-preparation-20261111-02/cabinet-published-input-manifest-03132659.json",
+        "MT-212/mt212-cabinet-current-ordinary-core-preparation-20261111-02/cabinet-published-input-independent-review-03132659.json"
+      ],
+      "paths": [
+        "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/diagnostics/gui_events.rs",
+        "src/frontend/handshake_native/tests/test_folder_tree_argus.rs"
+      ],
+      "empty_stage_index_sha256": "b1e9d6eb871b91dd1d937091c6ec3f3dd87a5604cd060443644c214f0db726f4",
+      "preserved": ["src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs", "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs", ".gameplan-active"]
+    },
+    "ordinary_core_compile": {
+      "state": "Cargo exited 0 at 23:12:55 UTC and emitted the unique nonfresh ordinary executable row. Earlier V11 had lost qualification at 900,001 cumulative visits, eight reconciliations and 18.594 seconds. The guard invoked no stop API. Sole VCTIP PID 16004 drained naturally at 23:27:53 UTC, leaving the private Job empty, with zero terminations. The original observer saw producer exit 1 at 23:27:59 UTC and closed its handle. The producer closed all 7,654 file handles and three native handles. The final V11 sample completed, with no measured resource crossing and unchanged inputs. Coding explicitly returned compiler, source-read, process and evidence custody. This capture remains disqualified. No test or runtime selected.",
+      "owner": "/root/cabinet_ordinary_core_cycle_coding",
+      "cargo_started": "MT-212/mt212-cabinet-current-ordinary-core-codegen-20261111-01/cargo-started.json",
+      "cargo_started_sha256": "7f34afe28452a3e9dab1d4bd44c56ebe5148f367e8d5496ef6d74b77d057b166",
+      "cargo_exit": "MT-212/mt212-cabinet-current-ordinary-core-codegen-20261111-01/cargo-exit.json",
+      "cargo_exit_sha256": "e29bb0125c4ed921b2f0e2bc8802c085252d3f561399210afbd250ad65e40bf2",
+      "cargo_stdout": "MT-212/mt212-cabinet-current-ordinary-core-codegen-20261111-01/cargo.stdout.jsonl",
+      "cargo_stdout_sha256": "5747a01ea66e7e26cb4cde9de41d649691bf98ad9de93d40b28e898562290b00",
+      "selected_cargo_row": {"row": 1453, "byte_range": [2008422, 2009738], "raw_line_sha256": "6b14d29a900564229e0fb6ed821b5d376406e5fbbe2375f66ab310227742e915", "fresh": false},
+      "build_finished_row": 1454,
+      "retained_observer_started": "MT-212/mt212-cabinet-current-ordinary-core-codegen-custody-20261111-01/coding-direct-cabinet-current-ordinary-core-wait-started-01.json",
+      "resource_admission": "MT-212/mt212-cabinet-current-ordinary-core-preparation-20261111-02/mt212-cabinet-current-ordinary-core-resource-admission-01.json",
+      "resource_admission_sha256": "66e2a26991565ef5488ee95a2c22286320665f4cb49f511b1143d7b94ba1afc5",
+      "custody_admission": "MT-212/mt212-cabinet-current-ordinary-core-preparation-20261111-02/mt212-cabinet-current-ordinary-core-custody-admission-01.json",
+      "custody_admission_sha256": "e4ef6127595b08587e2fd4d44c68e724e3c4a95771385ec08980a906c12dcc7a",
+      "native_named_dx": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/native-cabinet-02-named-dx-acquisition-review-01.json",
+      "native_named_dx_sha256": "8d0c43cda4aac0e2520d6984a257ce29176aa58148c44b787f92e96cd42bf91e",
+      "resource_journal": "MT-212/mt212-cabinet-current-ordinary-core-codegen-20261111-01/resource-guard.jsonl",
+      "result": "MT-212/mt212-cabinet-current-ordinary-core-codegen-20261111-01/result.json",
+      "result_sha256": "0034d26e33d5d400d5a79326ff6c32941b5ee115696363f51f4ac1cd6ac82f02",
+      "released": "MT-212/mt212-cabinet-current-ordinary-core-codegen-20261111-01/released.json",
+      "released_sha256": "2072396ba4e3473c8229a889e0733f2271696d1ee06128f751ea6a47743c8256",
+      "producer_terminal": "MT-212/mt212-cabinet-current-ordinary-core-codegen-custody-20261111-01/coding-direct-cabinet-current-ordinary-core-wait-01.json",
+      "producer_terminal_sha256": "bbd6c09dfb7ea0693c5b303712802c29cbcc7fd657d1527c22d95babbd235857",
+      "producer_handoff": "MT-212/mt212-cabinet-current-ordinary-core-codegen-custody-20261111-01/producer-terminal-handoff.json",
+      "producer_handoff_sha256": "b35a1d3564c27ccfc09bb66a1f71345a97fa0f037c59472a917356fa36c5d8c0",
+      "native_v5_dormant_assembly": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/native-cabinet-02-mounted-v5-assembly-dormant-01.json",
+      "native_v5_dormant_assembly_sha256": "66629e4213d1da1584e348ad83f7b93ac598e0e9b9c5dc1ce120036f433d08ae",
+      "native_v5_root_qualification": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/native-cabinet-02-mounted-v5-root-qualification-01.json",
+      "native_v5_root_qualification_sha256": "33449978a126b56be60118ebaab96d542650891ce31eebc7bfa5316389a71d36",
+      "warm_v2_patch": "MT-212/mt212-cabinet-current-ordinary-core-warm-preparation-20261112-02/mt212-cabinet-current-ordinary-core-warm-cargo-parser-changed-only-02.patch",
+      "warm_v2_patch_sha256": "51a87229b3ff61792136404cebfa34537d660369d259aebc97b4f6550a5164f7",
+      "settled_cache_review": "MT-212/mt212-cabinet-current-ordinary-core-warm-preparation-20261112-02/mt212-cabinet-current-ordinary-core-settled-cache-review-01.json",
+      "settled_cache_review_sha256": "818b29f7468c61c5e7b141c43b588484c9218876bcf773b1e6044339d540c96b",
+      "next_after_handback": "Independent evaluator held and verified the rebuilt ordinary Core executable. The alternate-basis record passed the strict V2 predicate. Both distinct Native V5 reviewers qualified acquisition only, and Root checked their exact tuple. The separate warm run used the same executable and full V11. Preserve this disqualified capture and keep Cabinet runtime separate."
+    },
+    "ordinary_core_warm_compile": {
+      "state": "The separate warm run exited Cargo 0 with all 808 artifacts fresh. It verified the same held ordinary Core executable and full V11 with one live target and three live disk samples and a clean final sample. No trip or stop. The retained observer verified producer exit 0, an empty Job and all 7,670 file and three native handle closes. Coding returned custody. Both independent warm acquisition reviews passed. Named Dx verified the fixture location and all 857 bound source files predated the executable, with no newer, unmapped or changed inputs. The exact V5 paired binding passed independent acquisition-only review. The named runtime owner accepted future Cabinet ownership after PT003 checked handback. Cabinet runtime remains disabled.",
+      "result": "MT-212/mt212-cabinet-current-ordinary-core-warm-codegen-20261112-01/result.json",
+      "result_sha256": "03ec61f4e9b7dc253ee684232a3923892ff8fc86872bf414f2ed44cfb10d41d2",
+      "artifact": "MT-212/mt212-cabinet-current-ordinary-core-warm-codegen-20261112-01/codegen-artifact.json",
+      "artifact_sha256": "bd3e101863dc85b02650d6249689839bf00b521ae9ad662636cc753d8bc93184",
+      "released": "MT-212/mt212-cabinet-current-ordinary-core-warm-codegen-20261112-01/released.json",
+      "released_sha256": "f8fd76c5005d5eab7183daa024d7e6e4a8c8351fe3ece7a6dfb96a16a5a13697",
+      "producer_terminal": "MT-212/mt212-cabinet-current-ordinary-core-warm-codegen-custody-20261112-01/coding-direct-cabinet-current-ordinary-core-warm-wait-01.json",
+      "producer_terminal_sha256": "43097e645353c73423de7535978e52a2ae1ad16dcfd8094d9118a053bf72aac9",
+      "producer_handoff": "MT-212/mt212-cabinet-current-ordinary-core-warm-codegen-custody-20261112-01/producer-terminal-handoff.json",
+      "producer_handoff_sha256": "89dbe1a55753ad7a8e07ed33aaa3c5a8bfc1d8dbd41fc9009beaa40fff433705",
+      "named_dx": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/ordinary-core-warm-named-dx-acquisition-review-01.json",
+      "named_dx_sha256": "8449f563367c8d7e013e7093d2c691efdcd00c38f2698c99f67179d506c94f79",
+      "same_cc": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/ordinary-core-cabinet-current-warm-same-cc-acquisition-review-01.json",
+      "same_cc_sha256": "ef94607ed97d03c08477170ab5c48e717b70813d570bf801cfafe23946d6a900",
+      "fixture_freshness": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/ordinary-core-warm-fixture-freshness-witness-01.json",
+      "fixture_freshness_sha256": "05f20806d27efdb2a4683884cbf3774f2abd90d4127547b4015f24c4cbe53c19",
+      "mounted_paired_binding": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/mounted-v12-controller-binding-paired-acquisition-dormant-05.json",
+      "mounted_paired_binding_sha256": "a2e495a041b6ca727c3e1e9a1c8773dbf19567d307130efd0b6a1d3fd0c3a70e",
+      "mounted_observer_dormant": "MT-212/mt212-cabinet-mounted-retained-observer-review-preparation-20261111-01/observe-cabinet-mounted-v5-controller-dormant-01.py",
+      "mounted_observer_dormant_sha256": "49fb5947799319c7bec2d6b7f29a467f8fe8756ea0e8c53afd45d1fc3b316ee5"
+    },
+    "gui_diagnostics_dependency": {
+      "next": "Route the protected Core mount and canonical original watcher registration/adoption authority to the existing MT172 owner. Then use the existing Native PalmistryHandle prepare_adoption, same-operation read and advance_adoption seam under the current account and workspace. Keep AC202-7 separate.",
+      "avoid": "Do not mount the entire alternate router or activate legacy maintain_palmistry. Its legacy start request can create a second watcher. Require run/lane authorization for model-lane observations that write status. Keep survivor recovery session authentication distinct from protected watcher adoption.",
+      "product": ["src/frontend/handshake_native/src/app.rs:8848", "src/frontend/handshake_native/src/app.rs:20446", "src/frontend/handshake_native/src/backend_client.rs:16383", "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs:1077", "src/backend/handshake_core/src/api/mod.rs:95", "src/backend/handshake_core/src/api/palmistry.rs:1259", "src/backend/handshake_core/src/api/palmistry.rs:3960", "src/backend/handshake_core/src/api/palmistry.rs:4044"],
+      "spec": ["11-shared-dev-platform-and-oss-foundations.md:3033"],
+      "contracts": ["MT-172.json:8603", "MT-202.json:96"]
+    },
+    "gui_operator_chat_selection_dependency": {
+      "observed": "Native posts nonlocal selection before launch without run_id. The mounted Core endpoint requires an existing canonical run and complete Locus. Direct cloud, CLI and subagent launch currently records run/lane without the required pre-dispatch selection audit. The existing atomic run, launch admission and selection audit transaction is local-profile-only. SessionRegistry session IDs, BYOK consent and catalog Flight Recorder telemetry do not supply this audit.",
+      "next": "When Codecheck and Coding can take this MT172 dependency, extend or reuse the canonical Core prepare path to resolve current inventory, real owner/Locus and authorized workspace selection. Commit the run and selection audit with EventLedger before dispatch. Return a bounded typed receipt and reauthorize it before launch. Native must compare the receipt to its current pending selection and send the immutable model/profile and authorized resource choice. Preserve the original no-dispatch-on-audit-failure behavior and one canonical run.",
+      "native_fallback_candidate": "External Native V2 independently passed source review. It fences stale selection after rejection or cancellation and acknowledges Argus Launch only after actual backend dispatch. It includes a same-frame refusal and successful-dispatch regression. Compile and runtime remain open. Keep Product inputs frozen until the exact current proofs settle.",
+      "candidate_artifact": "MT-212/gui-operator-chat-selection-fallback-20261112-02/candidate.json",
+      "candidate_artifact_sha256": "3eb02c742491264b87626d5032604ad80f1cb30081854ae67753985b058113da",
+      "product": ["src/frontend/handshake_native/src/backend_client.rs:16053", "src/backend/handshake_core/src/api/operator_chat.rs:173", "src/backend/handshake_core/src/api/operator_chat.rs:385", "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs:2754", "src/backend/handshake_core/src/model_lane.rs:18217"],
+      "contracts": ["../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json:229", "MT-196.json:478", "MT-212.json"]
+    },
+    "pt003_observed_failure": "Mounted Rev170 s170-01 returned 403 where the contract requires 201. It reached transaction_receipt/database_error and left settlement unresolved. Earlier Rev169 failed at claim_write statement 10. Preserve all four spent attempts and the positive MT139 hold. The working test-only diagnostic already has independent warm compile qualification. The dormant qualification predicates passed source review. Live use needs the actual controller bindings, exact published inputs and separate one-case admission.",
+    "pt003_dormant_controller": {
+      "state": "The named independent validator ran the admitted receipt170-probe01 once on published 031326592. The consuming marker was observed at 00:03:11 UTC. Workspace Create returned HTTP 403 instead of 201 and test exit 101. The receipt marker was branch=first_claim, stage=response, statement=0, kind=internal. The outer workspace diagnostic still reported transaction_receipt/database_error and unknown settlement. Resource guard qualification and unchanged inputs passed. The private Job was empty, all 7,695 file and 12 native handles closed, the outer controller returned, and the independent validator explicitly handed back custody. The exact case is spent. Preserve earlier failures and the separately held positive MT139 case. No retry.",
+      "patch": "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-runtime-controller-02-integration-dormant-02.patch",
+      "patch_sha256": "8d0c4083c7bf1f8a2fa290e07b394d107dbb89a9294491686e94c5aa344b0327",
+      "publication_review": "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-published-input-independent-review-03132659.json",
+      "publication_review_sha256": "33958b239275caab85d38ef58c130f262d2f81de44594f4e3f20abdddcc26f1a",
+      "case_descriptor": "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-case-descriptor-dormant-01.json",
+      "case_descriptor_sha256": "b737e6fa091c50c085f4dba6f10e4d91ffa0b9b655cbf6dfe491f70ab6897fbe",
+      "root_acquisition_qualification": "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-warm-root-qualification-01.json",
+      "root_acquisition_qualification_sha256": "f28f1d4cbda812d07548b81954d88a50985615fc98512c39b9a32f2717aeba83",
+      "issued_binding": "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-runtime-binding-admitted-01.json",
+      "issued_binding_sha256": "4cce898924c52c3fa58604980327998b2398e4f821f3091b139127874403cc14",
+      "issued_admission": "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-runtime-resource-custody-admission-01.json",
+      "issued_admission_sha256": "e85e98cebdde6fe432a36e52680f383c7dfe4ae8690e6be633f0f5d0e168ac04",
+      "start_deadline_utc": "2026-11-12T00:13:28.641665Z",
+      "independent_runtime_turn": "01a1cd0f-66d9-7870-a599-e7b6e592f177",
+      "runtime_result": "MT-212/receipt170-probe01/result.json",
+      "runtime_result_sha256": "2387086ea5fe8ad70a9553f72f2a2c3972f1351275061354ccb585dffe7a15c2",
+      "runtime_release": "MT-212/receipt170-probe01/released.json",
+      "runtime_release_sha256": "38de0a9c2586a960ddb3dc5971f015f98eb3a48e6e5a2affd35e628d7192a9a6",
+      "runtime_stdout": "MT-212/receipt170-probe01/test.stdout.txt",
+      "runtime_stdout_sha256": "99c681159a2187571ddb788d1eb743f74e96ab0c48395cebb8b8a40873cdac96",
+      "next_source": "The probe failed in response processing before row decode or commit. SurrealDB 3.2.0 maps several engine failures to the generic Internal class, and the retained streams contain no finer discriminator. A separate test-only external patch passed changed-only source review. It emits only fixed computation-depth, key-value-store transaction, datastore or other-internal categories, preserving the production SQL, bindings, permissions, error path and settlement behavior. It remains unapplied and uncompiled. A future probe needs separately reviewed evidence and admission. Keep the frozen Product inputs for Cabinet.",
+      "next_source_candidate": "MT-212/mt172-pt003-receipt-internal-family-source-20261112-01/candidate.json",
+      "next_source_candidate_sha256": "b583ca0d95ff26717e054dd89630a6c607b07bd552979919f8c266543a5e5439"
+    },
+    "next_proof_preparation": [
+      "MT-212/mt212-cabinet-current-ordinary-core-preparation-20261111-02/mt212-cabinet-current-ordinary-core-binding-dormant-02.json",
+      "MT-212/mt212-cabinet-current-ordinary-core-preparation-20261111-02/mt212-cabinet-current-ordinary-core-capture-dormant-02.py",
+      "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-runtime-acquisition-binding-dormant-01.json",
+      "MT-212/mt172-pt003-receipt-diagnostic-runtime-qualified-acquisition-preparation-20261111-01/receipt-diagnostic-runtime-acquisition-predicates-dormant-01.py"
+    ],
+    "standalone_source": "MT210 has scoped independent standalone P1/P2 PASS at c3ef4b8d87bf8ceab4ea31b4c025325da920f32a. Its typed MT still shows BLOCKED/PENDING. Bind the existing result through its owner. MT211 owns separate pinned host adoption, schema equivalence and production startup/reopen proof."
+  },
+  "continuation": {
+    "do": [
+      "Reuse Native -02 independent compile qualification on the exact four-file published checkpoint. Bind the separate publication review before using the new head in Core. Preserve both existing recovery test edits and the active marker.",
+      "Follow the retained ordinary Core observer to checked terminal and explicit handback. Independently qualify the exact ordinary Core executable, Native review pair and actual mounted fixture before Cabinet V5 runtime. Keep Core's receipt diagnostic observation separately scoped with its existing independent partners. Only changed inputs or an evidenced hypothesis can support a new attempt.",
+      "Keep GUI work moving on ready source and proof while the compiler is occupied. Reuse Cabinet mechanics and use the actual registered workspace Folder/Worktree producer and typed launch reauthorization. Route the portable GPU client work through its Studio source owner and upstream reusable capability before adopting it.",
+      "Use original acceptance claims to select proof. Preserve the signed watcher and run independent production survival on the final host. Carry the matching Product proof to its original MT and avoid copying histories."
+    ],
+    "do_not": [
+      "Do not infer source, compiler or process release from Cargo exit, a missing PID or silence. Preserve retained observer, actual terminal and explicit owner handback.",
+      "Do not retry spent cases, replace the retained observer with a reconstructed receipt, restart an existing cycle or reopen PT039 from this handoff.",
+      "Do not create branches or worktrees, restart ticks or teams, run a second non-GUI MT, or broadly clean compiler artifacts. Reuse only verified owned artifacts with matching inputs.",
+      "Do not use SQL fallback authority, synthetic authorization, free-form paths as grants, wgpu as final direct Vulkan evidence, or app-owned watcher lifetime as Palmistry survival proof.",
+      "Do not use source, Cargo exits, mocks, component proof or reconciled source as substitutes for original independent mounted acceptance."
+    ],
+    "observed_time_sinks_and_proposals": [
+      {
+        "observed": "Native Cargo finished in about 108 seconds. The owned VCTIP helper held the private Job for about 15 more minutes.",
+        "proposal": "Keep the retained observer attached through natural drain and use that window for independent source review, publication preflight and disjoint GUI work. Investigate a supported MSVC change only with actual proof that it preserves Job custody. Keep the existing handback requirement."
+      },
+      {
+        "observed": "Native -01 used the wrong first ordered authority guard and failed before Cargo. The Core cold run hit a 25-second live target-scan deadline after 754,727 visits. A separately admitted warm capture then qualified the unchanged executable.",
+        "proposal": "Run the exact producer prebody guard against the final bytes before consuming admission. Check target inventory cost against the live scan deadline. Reuse the verified compatible target. Keep full live evidence and independent qualification for any changed scan method."
+      },
+      {
+        "observed": "Mounted attempts spent their proof before downstream behavior because an early binding or Workspace Create prerequisite failed.",
+        "proposal": "Validate the final binding, actual authentication, schema/API readiness and required fixture before the consuming marker. Keep producer-only rejection distinct from runtime attempts. Preserve already-valid proof and stop the affected batch at the first failed prerequisite."
+      },
+      {
+        "observed": "The current renderer, canonical asset and Studio GPU port carry distinct pins and owners. Multiple generations of source and proof also describe the same original claims.",
+        "proposal": "Assign the exact missing owner interface once. Publish reusable source, independently reread its revision, then adopt separately. Give each original claim one current proof pointer with its input pins and verdict. Hand over the changed state and the next action."
+      }
+    ]
+  }
+}
