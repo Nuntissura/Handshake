@@ -1365,20 +1365,13 @@ async fn saturation_emits_overflow_receipts_and_clears_degraded_after_drain() {
         ).with_metadata_jsonb(scope_metadata(&fixture.scope));
         let process_uuid = start.process_uuid;
         let started = Instant::now();
-        let result = writer.append_start_lossless(start);
+        writer
+            .append_start(start)
+            .expect("append never blocks on store");
         worst_append = worst_append.max(started.elapsed());
         if index < CAPACITY {
-            result.expect("available queue slot");
             accepted.push(process_uuid);
         } else {
-            let error = result.expect_err("full queue must reject the producer");
-            assert!(matches!(
-                error,
-                ProcessLedgerError::EnqueueDropped(ref message)
-                    if message.contains("ledger writer queue is full")
-                        && message.contains(&process_uuid.to_string())
-                        && message.contains("capacity 128")
-            ), "unexpected overflow error: {error:?}");
             dropped.push(process_uuid);
         }
     }
@@ -1397,6 +1390,25 @@ async fn saturation_emits_overflow_receipts_and_clears_degraded_after_drain() {
         assert_eq!(typed.event_type, KernelEventType::FrEvtLedgerOverflow);
         assert_eq!(typed.payload["sampled_event_payload"]["process_uuid"], process_uuid.to_string());
     }
+
+    // A lossless producer is refused with its exact cause on the same full queue.
+    let refused = ProcessStart::new(
+        ProcessEngineKind::MechanicalJob,
+        "owner-lossless",
+        Some("WP-KERNEL-004".to_string()),
+    ).with_metadata_jsonb(scope_metadata(&fixture.scope));
+    let refused_uuid = refused.process_uuid;
+    let error = writer
+        .append_start_lossless(refused)
+        .expect_err("full queue must reject the lossless producer");
+    assert!(matches!(
+        error,
+        ProcessLedgerError::EnqueueDropped(ref message)
+            if message.contains("ledger writer queue is full")
+                && message.contains(&refused_uuid.to_string())
+                && message.contains("capacity 128")
+    ), "unexpected overflow error: {error:?}");
+    assert_eq!(overflow.events().len(), ATTEMPTS - CAPACITY + 1);
 
     drain.drain_available_to(fixture.store.clone()).await.expect("drain into embedded Surreal");
     assert_eq!(fixture.process_event_count(&fixture.scope).await, CAPACITY as i64);
@@ -1432,7 +1444,7 @@ async fn saturation_emits_overflow_receipts_and_clears_degraded_after_drain() {
     })).await.expect("read all exact-scope lifecycle identities");
     assert_eq!(lifecycle_ids.len(), CAPACITY);
     assert_eq!(lifecycle_ids.into_iter().collect::<std::collections::BTreeSet<_>>(), accepted.iter().copied().collect());
-    for process_uuid in [dropped[0], dropped[dropped.len() - 1]] {
+    for process_uuid in [dropped[0], dropped[dropped.len() - 1], refused_uuid] {
         assert!(fixture.lifecycle(process_uuid, &fixture.scope).await.is_none());
         assert!(fixture.event(process_uuid, LedgerEventKind::Start, &fixture.scope).await.is_none());
     }
