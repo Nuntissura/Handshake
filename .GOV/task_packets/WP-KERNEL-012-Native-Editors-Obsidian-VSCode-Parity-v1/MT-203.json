@@ -842,5 +842,111 @@
     "proof_refs": [
       "MT-203.json#/validation/proof_records/0"
     ]
+  },
+  "slice1_eval_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-25",
+    "scope": "MT-203 slice 1 only; not an MT verdict; lifecycle unchanged",
+    "commit": "ae24bfcc6606e7467c9e7f2cc4b6d927f5cb2260",
+    "command": "cargo test --locked --offline --no-fail-fast -- --nocapture (crate src/frontend/handshake_native/vulkan-renderer)",
+    "result": "failed",
+    "counts": {
+      "device_loss": "11 passed, 1 failed",
+      "gpu_owner": "7 passed",
+      "ledger": "19 passed",
+      "selection": "5 passed",
+      "skipped": 0
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/cargo-test-ae24bfcc6.log",
+    "log_sha256": "c84a03bb7b4890035a21c698d0d9c93ddcaf2dcceb91808a1b77fb4c20b32940",
+    "device_observed": "Qualcomm Adreno X2-85 through an emulated x64 process (driver id 8, API 1.4.295); no Khronos validation layer; not x64 hardware acceptance",
+    "no_defect_found_in": [
+      "unsafe blocks",
+      "early refund",
+      "double release",
+      "rebind mis-charge",
+      "CPU, D3D or GL path",
+      "overflow",
+      "reachable panic",
+      "lock order",
+      "public ash, wgpu or egui types"
+    ],
+    "findings": [
+      {
+        "id": "S1-F1",
+        "severity": "blocking",
+        "at": "src/ledger/rebind.rs:27,45; tests/device_loss.rs:71",
+        "defect": "in-flight check runs before NotLost, so a healthy claim with running work is told to wait for a loss that never came",
+        "repair": "check NotLost first"
+      },
+      {
+        "id": "S1-F2",
+        "severity": "high",
+        "at": "src/ledger.rs:477",
+        "defect": "revoke_client marks existing claims only; the same client can admit again (GUI-DESKTOP-035); untested"
+      },
+      {
+        "id": "S1-F3",
+        "severity": "high",
+        "at": "src/owner.rs:142,189,283,348",
+        "defect": "one handle carries client calls and set_policy, revoke_client, close, rebind_device; ids are caller-asserted, so a module can raise its own quota or revoke another"
+      },
+      {
+        "id": "S1-F4",
+        "severity": "medium",
+        "at": "src/ledger/settle.rs:9-85",
+        "defect": "outcome is never read: after DeviceLost, Completed or NoEffect still gets a receipt (GUI-DESKTOP-033, GPU-QUOTA-014)"
+      },
+      {
+        "id": "S1-F5",
+        "severity": "medium",
+        "at": "src/owner.rs:258-274; src/owner/queue.rs:4,116",
+        "defect": "probe waits idle, unbounded, under slot and queue locks"
+      },
+      {
+        "id": "S1-F6",
+        "severity": "medium",
+        "at": "src/owner.rs:316",
+        "defect": "one unreturned lease blocks recovery for all; idle lease holders are not told of a loss"
+      },
+      {
+        "id": "S1-F7",
+        "severity": "medium",
+        "at": "G203-H3",
+        "defect": "a dropped Claim leaks bytes and a slot until process exit; dropped Submissions clear only through blocking calls"
+      },
+      {
+        "id": "S1-F8",
+        "severity": "medium",
+        "at": "src/diag.rs OwnerEvent; src/vulkan.rs:414",
+        "defect": "no opaque module, client or claim ids, so attribution cannot survive (GUI-DESKTOP-029/050); a retained device's later destruction or leak is not reported"
+      },
+      {
+        "id": "S1-F9",
+        "severity": "low",
+        "at": "src/owner.rs:379 and others",
+        "defect": "shared versus dedicated not attributable on integrated GPUs; close may report retained with 0 holders; in-flight bound checked after recording; ash::Entry::load uses default DLL search"
+      }
+    ],
+    "tests_that_cannot_fail_for_their_rule": [
+      "gpu_owner without a device (no require-GPU switch)",
+      "device_loss.rs:392",
+      "GPU completion tests use empty command buffers",
+      "gpu_owner.rs:318,324",
+      "ledger.rs:174"
+    ],
+    "untested": [
+      "GpuOwner device loss, successful rebind, DeviceHeld, NotQuiescent: no fault seam"
+    ],
+    "test_cleanup_defect": "GPU tests leave a LOCALAPPDATA/D3DSCache folder (CX-GIT-003); the eval agent moved two to MT-203/eval-agent/leftovers",
+    "still_to_prove_on_x64": [
+      "AMD, NVIDIA, Intel selection and multi-GPU",
+      "real pending work, settle refused, wait timeout",
+      "lease use after close",
+      "real loss through submit, observe, probe and rebind",
+      "discrete heaps and budget",
+      "validation layers"
+    ],
+    "next_actor": "GUI coding agent: repair S1-F1..F9 and the named tests"
   }
 }
