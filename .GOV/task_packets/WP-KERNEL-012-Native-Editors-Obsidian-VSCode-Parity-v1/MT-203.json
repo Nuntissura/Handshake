@@ -110,7 +110,9 @@
     "depends_on": [
       "MT-197"
     ],
-    "allowed_write_paths": [],
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/vulkan-renderer/**"
+    ],
     "forbidden_write_paths": [
       "Files outside exact actual owning allocation",
       "Canonical renderer internals from a host-only scope",
@@ -198,6 +200,22 @@
           "Genuine Vulkan backend/device evidence and independent affected review/acceptance",
           "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
         ]
+      },
+      {
+        "check_id": "UI203-SLICE1-IMPLEMENTER-COMPILE",
+        "kind": "implementer_compile_static",
+        "claim_refs": [
+          "AC203-1"
+        ],
+        "command_or_method": "cargo check --locked --offline --tests -j 2",
+        "working_directory": "src/frontend/handshake_native/vulkan-renderer",
+        "expected": "Exit 0 with no warning on the committed crate and its Cargo.lock. Compile result only; no test is executed.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_follow_current_scoped_authority_no_automatic_retry",
+        "evidence_required": [
+          "Exact commit and tree, exit code and result line",
+          "cargo tree --locked --offline closure without wgpu, egui, eframe or winit"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -256,7 +274,9 @@
   },
   "scope": {
     "summary": "Existing and future modules consume one authoritative shared GPU ownership/broker contract with accountable memory/lifecycle and focused typed clients, integrated without replacing adequate canonical components.",
-    "allowed_paths": [],
+    "allowed_paths": [
+      "src/frontend/handshake_native/vulkan-renderer/**"
+    ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
       "Canonical renderer internals from a host-only scope",
@@ -505,6 +525,27 @@
     },
     "shared_gui_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
   },
+  "operator_direction_20261125": {
+    "direction_id": "WP012-OPERATOR-VULKAN-ONLY-20261125",
+    "recorded_at_utc": "2026-11-25T19:11:19Z",
+    "recorded_by": "KERNEL_BUILDER (GUI coding agent, MT-203)",
+    "operator_sentences": [
+      "refactoring the gui so handshake uses vulcan only",
+      "replace old gui with vulcan",
+      "no large crates"
+    ],
+    "operator_decisions": {
+      "D7": "i want pure vulkan, no wgpu",
+      "D1": "Drop egui"
+    },
+    "spec_binding": "Master Spec v02.229 module 15 GUI-DESKTOP-003 (v02.227): a toolkit or backend built on wgpu, egui or eframe does not fulfil it",
+    "decision_refs": [
+      ".GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json:412 (D1), :457 (D7)",
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md:26 (GUI-DESKTOP-003)"
+    ],
+    "effect_on_this_mt": "The GPU owner is direct Vulkan through ash in one small unit. The consuming host is a zero-egui shell binary beside the current application; this MT assumes no eframe or wgpu host and no call per frame.",
+    "scope_note": "Direction record only. It changes no lifecycle status, acceptance criterion, pin or verdict."
+  },
   "spec_basis": {
     "source": "Current operator UI/refactor/Vulkan request relayed by Master, requirement meaning in packet request; no fabricated verbatim message or accepted design.",
     "operator_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/requirements",
@@ -601,17 +642,205 @@
   },
   "validation": {
     "review_verdict": "PENDING",
-    "proof_records": [],
+    "proof_records": [
+      {
+        "record_id": "UI203-SLICE1-IMPLEMENTER-COMPILE-20261125-01",
+        "check_id": "UI203-SLICE1-IMPLEMENTER-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "evidence_kind": "implementer_compile_static_not_acceptance",
+        "covers": [
+          "MT-203"
+        ],
+        "command": "cargo check --locked --offline --tests -j 2",
+        "working_directory": "src/frontend/handshake_native/vulkan-renderer",
+        "environment": "schema166-b-stack32m-host-profile-01.json env, then CARGO_HOME=C:/hsk-wp012-cargo, toolchain 1.97.1-x86_64-pc-windows-msvc (x64-hosted, no --target), RUSTC_WRAPPER and RUSTC_WORKSPACE_WRAPPER empty, CARGO_INCREMENTAL=0, RUSTFLAGS unset, CARGO_TARGET_DIR=HANDSHAKE_ARTIFACTS_ROOT/WP-KERNEL-012/MT-203/gui-agent/target",
+        "exit_code": 0,
+        "result": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.81s; 0 errors, 0 warnings. First full check of the same unit 8.85s, 0 warnings. cargo clippy --locked --offline --tests -j 2: exit 0, 0 warnings.",
+        "commit": "ae24bfcc6606e7467c9e7f2cc4b6d927f5cb2260",
+        "tree": "bf128ce82e4d084dc89d133856de90705cbfd9c0",
+        "crate_tree": "ca30c3ea8031d5edd2a50a1cdee4a5a95fd45dfc",
+        "cargo_lock_sha256": "d46d351b5d2a190fdece21eb1695361c3a7d2a2251045d2e43e98a28343e66f1",
+        "dependency_closure": [
+          "handshake-vulkan-renderer 0.1.0",
+          "ash 0.38.0+1.3.281",
+          "libloading 0.8.9",
+          "windows-link 0.2.1",
+          "cfg-if 1.0.5 (lock only, other targets)"
+        ],
+        "completed_at_utc": "2026-11-25T19:10:34Z",
+        "tests_run": false,
+        "runtime_run": false,
+        "independent_verdict": "PENDING_UNCHANGED"
+      }
+    ],
     "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
   },
   "gpu_contract_result": {
-    "status": "NOT_STARTED",
-    "canonical_owner": null,
+    "status": "SLICE_1_COMPILED_NOT_RUN",
+    "canonical_owner": "handshake-vulkan-renderer, src/frontend/handshake_native/vulkan-renderer on feat/WP-KERNEL-012 (Handshake-owned host GPU owner). Reusable client vocabulary and UI passes stay with the renderer asset.",
     "typed_clients": [],
-    "allocation_and_memory_model": null,
-    "inflight_and_reclamation": null,
-    "shutdown_loss_recovery_windows_modules": null,
-    "source_adoption_binding": null,
-    "proof_refs": []
+    "typed_clients_note": "No client is attached. Port adapter and UI pass wait on gaps G203-A1..A5.",
+    "grounding": {
+      "read_at_revision": {
+        "assets_origin_codex_handshake_studio_assets": "d32d0574a827b9bc71eb38e0149b84b1ced36a7a",
+        "assets_origin_codex_handpick": "8eadc5b5",
+        "product_parent_of_the_slice": "71cc3b6d34ee47eb90a94fb4c45e998fc925360b"
+      },
+      "canonical_client_port": "hsk_studio_render_gpu::client::GpuClientPort (admit, authorize, settle, rebind, counters), handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:426",
+      "owner_reference": "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs (transient asset-local owner, STU-ARC-024; never host acceptance)",
+      "o4": "ledger.json#/direction/blocker_decisions_20261107/O4: the Vulkan renderer takes a host-supplied device; not implemented in the asset (G203-A1, G203-A2)",
+      "rf_12": "integration-refactor-inventory-20261030.json:344 and WP-KERNEL-012-product-status-and-handoff-20261112-v7.md:64 (typed submit, observe, settle with attachment, operation, generation and fence)",
+      "rejected": "The earlier MT-203 asset work on origin/codex/handpick (render-gpu memory observation and native-memory) is wgpu-based and cannot be the owner under D7."
+    },
+    "rf_12_mapping": {
+      "attach": "ClaimRequest module and client; GpuOwner::revoke_client is the detach that stops submissions and keeps charges",
+      "reserve": "GpuOwner::admit: bytes, bounded by limit_bytes, max_claims and max_in_flight_per_claim of the host policy",
+      "submit": "GpuOwner::submit: the client records into the owner's command buffer, the owner alone touches the queue",
+      "observe": "GpuOwner::observe (no wait) and GpuOwner::wait (bounded); the owner reads its own timeline semaphore, a client never reports completion",
+      "settle": "GpuOwner::settle and release_retained, exactly once",
+      "carried_by_submission": "module, client, operation, operation id, device generation and fence value (timeline value)"
+    },
+    "allocation_and_memory_model": "Quota admission and per-claim reservation with committed and staging charges inside it; retained memory stays charged under its lease until released; unmeasured never becomes zero; a settlement that reports less than the claim has charged is refused; driver heap estimates are a separate view and are never merged. Allocation itself is the client's in this slice (G203-H1).",
+    "inflight_and_reclamation": "One timeline semaphore per generation. A submission is counted before the queue takes it and ends only when the owner observes its value, the loss of a quiescent device, the destruction of its device, or that it never reached the queue. Settlement and rebind are refused while anything is in flight; command pools are freed only after their value passed.",
+    "shutdown_loss_recovery_windows_modules": "Only VK_ERROR_DEVICE_LOST is loss. A lost device is destroyed only when no lease, recording or wait holds it and it is quiescent; otherwise the rebind is refused with a typed reason. Rebind keeps the adapter, generation + 1, charge moved once, nothing refunded. Close drains, destroys or truthfully retains. Windows and detachment beyond revocation are not in this slice.",
+    "source_adoption_binding": {
+      "asset_source_adopted": false,
+      "reason": "No asset source or dependency is linked. The port and the UI pass are adopted by a later distinct pinned change once the asset publishes a wgpu-free port and takes an injected device (HBR-MODULE-LIFECYCLE-004/007/008).",
+      "dependency": "ash =0.38.0 (0.38.0+1.3.281), features loaded and std",
+      "lock_closure": [
+        "handshake-vulkan-renderer 0.1.0",
+        "ash 0.38.0+1.3.281",
+        "libloading 0.8.9",
+        "windows-link 0.2.1",
+        "cfg-if 1.0.5 (lock only, other targets)"
+      ]
+    },
+    "gaps": [
+      {
+        "id": "G203-A1",
+        "owner": "renderer asset (Studio lead allocation)",
+        "gap": "Device injection: the Studio Vulkan renderer does not take a host device. Owner::open_device calls create_device itself; Core, the only holder of device and queue, is pub(crate) and destroys both in Drop; UiPass::new/with_limits take &Owner and clone its private Core; UiPass::draw takes &mut Owner and a PaneId. DeviceLease (raw handles) has a producer and no consumer. The crate documentation says 'takes a host-supplied device (O4)'; no entry point does.",
+        "refs": [
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:255",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:306",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:319",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:665",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:895",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:940",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/ui.rs:956",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/ui.rs:964",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/ui.rs:1130",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/lib.rs:2"
+        ],
+        "host_side_ready": "GpuOwner::lease returns DeviceHandles with the fields of that DeviceLease plus features, and keeps the device alive until the lease is dropped.",
+        "still_differs": "The asset DeviceLease has generation u32 (host u64), issuer only TransientAssetLocal, and no features field although UiPass requires dynamicRendering."
+      },
+      {
+        "id": "G203-A2",
+        "owner": "renderer asset (Studio lead allocation)",
+        "gap": "Asynchronous settlement: every upload and every UI pass ends in Submitter::submit_wait, which submits to the queue itself and waits up to FENCE_TIMEOUT_NS on a fence; per-pass buffers are reused on the assumption that the wait returned. A host that owns the queue and observes completion later needs recording separated from submission and per-submission resources.",
+        "refs": [
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:488",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:523",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:1038",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/owner.rs:1198",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/ui.rs:1260",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/ui.rs:1514",
+          "handshake-studio-assets/crates/hsk-studio-vulkan/src/present.rs:511"
+        ],
+        "host_side_ready": "GpuOwner::submit hands the client the owner's command buffer to record into, returns a Submission at once, and the owner observes its timeline value (observe without waiting, wait with a bound)."
+      },
+      {
+        "id": "G203-A3",
+        "owner": "renderer asset (Studio lead allocation)",
+        "gap": "The canonical port is not linkable without wgpu: GpuClientPort, GpuGrant and GrantLedger live in hsk-studio-render-gpu, which depends on wgpu =27.0.1 unconditionally. Linking it would put wgpu into this unit's closure (D7).",
+        "refs": [
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:426",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:16",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/Cargo.toml:22"
+        ],
+        "host_side_ready": "The unit's records carry the port's admission and settlement fields without loss (module u32, client u64, operation, requested bytes; retained, peak, evictions, native_driver, in_flight, outcome including abandoned). The port's DeviceRef selects among devices; here the one bound device is meant and an adapter assigns its u64."
+      },
+      {
+        "id": "G203-A4",
+        "owner": "renderer asset (Studio lead allocation)",
+        "gap": "A host grant cannot carry a device or the owner's generation: GpuGrant's lease is a crate-private wgpu DeviceLease; issue_host and rebind_host pass lease None and fix generation 1 or old + 1; the backend turns such a grant into Unavailable(no_device).",
+        "refs": [
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:170",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:604",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:615",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:621",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:739",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:755",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/device.rs:245",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/plan_sink.rs:1333"
+        ]
+      },
+      {
+        "id": "G203-A5",
+        "owner": "renderer asset (Studio lead allocation)",
+        "gap": "Port outcomes the owner needs and the port lacks: no release of retained memory after a settlement that reports retained bytes (the owner keeps it charged until release_retained); no refusal for work in flight or a held device on rebind, for the claim and in-flight bounds, for a held lease at settlement, or for retained numbers that contradict the claim's charges; AdmissionRequest has no operation id and no authorization provenance (GPU-QUOTA-008/010), GpuOperation has no render.",
+        "refs": [
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:72",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:252",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:306",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/client.rs:326",
+          "handshake-studio-assets/crates/hsk-studio-render-gpu/src/plan_sink.rs:1984"
+        ]
+      },
+      {
+        "id": "G203-A6",
+        "owner": "renderer asset, capability question for the packet lead",
+        "gap": "hsk-studio-render-gpu-native-memory (handpick) already reads VK_EXT_memory_budget but only from a wgpu device, so a pure-Vulkan owner cannot consume it. GpuOwner::memory_snapshot reads the same properties from the owner's own device. If the asset publishes a raw-handle observer, this unit should consume it (HBR-COMPONENT-001).",
+        "refs": [
+          "origin/codex/handpick 8eadc5b5 handshake-studio-assets/crates/hsk-studio-render-gpu/native-memory/Cargo.toml",
+          "... native-memory/src/lib.rs"
+        ]
+      },
+      {
+        "id": "G203-H1",
+        "owner": "this unit, next slice",
+        "gap": "No owner-side allocation and no owner images: clients allocate from a lease and report charges. The render attachment of an injected pass (image, view, format, extent, layouts) is therefore not typed here. RF-12 does not define the word attachment; here it is the module and client attribution a submission carries."
+      },
+      {
+        "id": "G203-H2",
+        "owner": "this unit, window slice",
+        "gap": "The instance enables no surface extension, the device no swapchain, and submit takes no wait or signal semaphores, so nothing can present yet."
+      },
+      {
+        "id": "G203-H3",
+        "owner": "host wiring and Core",
+        "gap": "Not here: kernel issuer and grants (NATIVE-RENDER-BOOT-002/007, GPU-QUOTA-011), installation-wide persisted quota ledger (GPU-QUOTA-006..010), forwarding OwnerDiagnostics into internal_diagnostics and Palmistry (AC203-7), an owner-side settlement for a claim whose handle was dropped."
+      },
+      {
+        "id": "G203-H4",
+        "owner": "proof",
+        "gap": "Nothing has run. A real device loss has not been provoked; the loss path is covered by pure tests and, for submit and observe, by a device test that skips with a typed reason when no acceptable Vulkan device exists."
+      }
+    ],
+    "acceptance_state": {
+      "AC203-1": "Grounded for this slice; affected clients of existing modules are not inventoried here.",
+      "AC203-2..AC203-7": "Open. Source for parts of 2, 3, 4 and 5 exists and compiles; nothing is proven at runtime, no client is attached, and diagnostics wiring (7) is not started."
+    },
+    "hbr_slice_dispositions": [
+      {
+        "rule_ref": "HBR-MAN-001",
+        "disposition": "NOT_APPLICABLE",
+        "reason": "This slice has no operator- or model-reachable surface: the unit is mounted in no host and exposes no command, setting, navigation path or event. The obligation applies when a host wires it."
+      },
+      {
+        "rule_ref": "HBR-HOST-003",
+        "disposition": "SOURCE_PRESENT_NOT_PROVEN",
+        "reason": "Owner, admission, budgets, settlement and loss paths exist in source; runtime proof is a separate step."
+      },
+      {
+        "rule_ref": "HBR-HOST-005",
+        "disposition": "PARTIAL",
+        "reason": "Content-free event-driven port exists and assumes no call per frame; forwarding into internal_diagnostics is host wiring."
+      }
+    ],
+    "proof_refs": [
+      "MT-203.json#/validation/proof_records/0"
+    ]
   }
 }
