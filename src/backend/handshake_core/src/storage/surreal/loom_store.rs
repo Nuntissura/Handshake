@@ -178,7 +178,8 @@ async fn write_loom_artifact_binding(
         .source_component("loom_artifact_store")
         .payload(json!({"type":"loom_asset_artifact_binding","workspace_id":expected.workspace_id,"asset_id":expected.asset_id,"artifact_id":artifact_id,"state":operation,"content_hash":expected.content_hash,"size_bytes":expected.size_bytes,"actor_kind":metadata.actor_kind.as_str(),"actor_id":metadata.actor_id,"job_id":metadata.job_id,"workflow_id":metadata.workflow_id}))
         .build().map_err(|_| StorageError::Validation("Loom artifact event invalid"))?;
-    let (_, ledger) = event_ledger::prepare_event(event)?;
+    let (_, mut ledger) = event_ledger::prepare_event(event)?;
+    ledger.wsids = vec![expected.workspace_id.clone()];
     let row = db.query_first::<LoomArtifactBindingRow, _>(
         "IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-ARTIFACT-NOT-FOUND'; } ELSE { \
         LET $current = (SELECT * FROM $record)[0]; \
@@ -186,7 +187,7 @@ async fn write_loom_artifact_binding(
         IF $current.artifact_id != NONE AND $current.artifact_id != $artifact_id { THROW 'HSK-LOOM-ARTIFACT-CONFLICT'; }; \
         IF $publish AND $current.artifact_id = NONE { THROW 'HSK-LOOM-ARTIFACT-NOT-RESERVED'; }; \
         IF $current.artifact_id = NONE OR ($publish AND $current.artifact_binding_state = 'reserved') { \
-          CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
+          CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, created_at: $ledger.created_at }; \
           UPDATE $record SET artifact_id = $artifact_id, artifact_binding_state = IF $publish { 'ready' } ELSE { 'reserved' }, artifact_retention_ttl_days = $ttl, artifact_binding_event_id = $ledger.record, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id; \
         }; \
         RETURN SELECT * FROM $record; };",

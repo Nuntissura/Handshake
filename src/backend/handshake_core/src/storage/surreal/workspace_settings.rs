@@ -104,6 +104,7 @@ IF array::len($current) > 1 OR array::len($prior) > 1 {
         correlation_id: NONE,
         payload_hash: $settings_state_sha256,
         source_component: 'workspace_settings_state',
+        wsids: [$workspace_id],
         owner_account_id: $owner_account_id,
         actor_principal_id: $actor_principal_id,
         authenticated_session_id: $authenticated_session_id,

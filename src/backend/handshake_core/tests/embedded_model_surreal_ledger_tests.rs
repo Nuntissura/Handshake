@@ -1016,6 +1016,7 @@ async fn restart_resume_replays_canonical_events_on_the_same_exact_scope_storage
             "payload_hash": "0000000000000000000000000000000000000000000000000000000000000000",
             "source_component": "embedded_model_surreal_ledger_tests",
             "payload": { "by": 3 },
+            "wsids": [scope.workspace_id.clone()],
             "created_at": Utc::now(),
         }),
     )

@@ -1864,7 +1864,7 @@ const APPLY_CLASSIFICATIONS_STATEMENT: &str = concat!(
              idempotency_key: $e.idempotency_key, event_type: $e.event_type, \
              actor_kind: $e.actor_kind, actor_id: $e.actor_id, causation_id: $e.causation_id, \
              correlation_id: $e.correlation_id, payload_hash: $e.payload_hash, \
-             source_component: $e.source_component, payload: $e.ledger_payload, \
+             source_component: $e.source_component, payload: $e.ledger_payload, wsids: $e.wsids, \
              created_at: $e.created_at }; \
          }; \
          LET $ledger_row = (SELECT event_id, event_sequence FROM kernel_event_ledger \
