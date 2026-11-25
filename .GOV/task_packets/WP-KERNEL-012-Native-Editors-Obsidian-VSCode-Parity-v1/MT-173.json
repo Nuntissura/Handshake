@@ -4815,5 +4815,22 @@
     ],
     "pt003": "neither row 1 nor row 3 explains the Workspace Create failure; static candidate: record::exists($row.setup_receipt) runs as the record user, which cannot read the LOCAL_ACCOUNT_SETUP ledger row (local_accounts.rs:172); to be confirmed by a run",
     "serialise_with": "MT-210/211 (same declaration recognizer)"
+  },
+  "operator_decision_20261126_cloud_consent_revocation": {
+    "decision_id": "WP012-CLOUD-CONSENT-REVOCATION-DESIGN-20261126",
+    "operator_question": "Approve fixing cloud consent revocation with add-only revocation records?",
+    "operator_quote": "Approve the design",
+    "decided_on": "2026-11-26",
+    "recorded_by": "ORCHESTRATOR root session",
+    "problem": "revocation calls replace(), which UPDATEs model_lane_cloud_authority rows that the schema makes immutable (FOR update, delete NONE); a record user's revocation is refused and, per the specialist's trace, in-flight cloud lanes are not cancelled (fail-open)",
+    "approved_design": [
+      "append-only immutable kinds consent_revocation and lane terminal, modelled on consent_denial",
+      "new purpose cloud_consent_revocation (Workspace, Update) in ContextCoordinationPurpose, fn::wp012_cloud_source_access and receipt_create",
+      "readers overlay the latest immutable row for a consent",
+      "never UPDATE authority rows; no loosening of existing permissions",
+      "test: revoke consent while a lane is in flight; lane cancelled and revocation row present"
+    ],
+    "scope": "MT-173 slice SC-11; preferably inside schema revision 172 with the other schema changes",
+    "spec_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/schema-writer-audit-20261125/repair-spec.json#/items (row_7)"
   }
 }
