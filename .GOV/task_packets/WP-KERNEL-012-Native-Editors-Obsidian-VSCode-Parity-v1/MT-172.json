@@ -13468,5 +13468,37 @@
     ],
     "refactor_exposure": "none: WP1 core import path reconciliation; nothing moves to the Vulkan shell from this MT. Read by the operator chat pane and lane diagnostics consumed elsewhere (WP-1 MT-012 and MT-008). Its picotasks PT028 and PT035 consume the operator chat pane and native DTOs; the native pane itself is WP-1 MT-012 and is not changed here.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "takeover_state_20261125": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-25",
+    "operator_direction": "Operator goal 2026-11-25: take over WP-KERNEL-012; no more teams; one coding agent, one code checker and dependency agent, one gui agent, one specialist, one eval agent; one pico task at a time",
+    "product_branch": "feat/WP-KERNEL-012",
+    "product_commits": {
+      "3f8391efb": "uncompiled checkpoint of working-tree changes left by prior sessions (59 files)",
+      "71cc3b6d3": "three compile fixes (events.rs, restart_resume.rs, worktree_vm_registry.rs)"
+    },
+    "compile_evidence": {
+      "check_id": "WP012-P1-MT-172-COMPILE",
+      "executor_role": "KERNEL_BUILDER",
+      "commit": "71cc3b6d34ee47eb90a94fb4c45e998fc925360b",
+      "exit_code": 0,
+      "inputs_unchanged": true,
+      "started_at": "2026-11-25T18:43:05Z",
+      "completed_at": "2026-11-25T19:09:19Z",
+      "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/compile-check-20261125-03/result.json",
+      "meaning": "implementer compile evidence only; no runtime verdict; the same check exited 0 on f776f494e, 37f452a6b, 855804ab2, bc06385fd and 09de66cdb while the MT stayed blocked"
+    },
+    "open_before_verdict": [
+      "confirmed behaviour defects in the checkpoint, see review_ref; repair in the recorded order, then the owning tests with the original fixtures",
+      "PT001: 301-row reconciliation re-bound to the candidate commit; 18 semantic gaps and 4 null-blob rows each with a reviewed disposition",
+      "PT006/PT014 outbox 11 tests rerun on a pushed commit (previous pass was on a working tree)",
+      "consumed source acceptance: owner and proof requirement named for each of the 25 records",
+      "independent WP_VALIDATOR in fresh context runs the proof itself and records the verdict"
+    ],
+    "review_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/checkpoint-review-20261125/defects.json",
+    "operator_decision_request": "PT018 production overflow receipt needs Master Spec enrichment REG-001..005 (proposal only, no approval recorded); does not block the repairs",
+    "correction": "an earlier statement that 3f8391efb holds a half-applied pt018-full-source-v4 candidate was wrong: it is a separate implementation and nothing from v4 is to be applied",
+    "dropped_process": "the V11 capture guard, observer, custody and admission layers are not used: no authority for them was found; kept are the cap check before launch, one build per disk, process identity and input digests (launcher: compile-check-20261125-01/run_check.py)"
   }
 }
