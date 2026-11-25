@@ -1006,6 +1006,7 @@ impl SurrealProcessLedgerStore {
             owner_host_scope_id: owner_host_scope_id.to_owned(),
             excluded_owner_runtime_instance_id,
             authorized_process_uuids,
+            kill_running_process_uuids: crate::process_ledger::reclaim::running_kill_process_uuids(),
             claimant_uuid: Uuid::now_v7(),
             kill_operation_uuid: Uuid::now_v7(),
             now_unix_ms,
@@ -1947,6 +1948,7 @@ struct ClaimBindings {
     owner_host_scope_id: String,
     excluded_owner_runtime_instance_id: Uuid,
     authorized_process_uuids: Vec<Uuid>,
+    kill_running_process_uuids: Vec<Uuid>,
     claimant_uuid: Uuid,
     kill_operation_uuid: Uuid,
     now_unix_ms: i64,
@@ -2713,8 +2715,9 @@ WHERE stopped_at = NONE
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
             AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
-        OR (stop_reason = 'reclaim_claimed' AND reclaim_state = 'claimed'
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
+        OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
+            AND process_uuid NOT IN $kill_running_process_uuids))
 RETURN AFTER;
 "#;
 
@@ -2792,8 +2795,9 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
             AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
-        OR (stop_reason = 'reclaim_claimed' AND reclaim_state = 'claimed'
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
+        OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
+            AND process_uuid NOT IN $kill_running_process_uuids))
 RETURN AFTER;
 "#;
 
@@ -2872,8 +2876,9 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
             AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
     AND owner_runtime_instance_id = $owner_runtime_instance_id
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
-        OR (stop_reason = 'reclaim_claimed' AND reclaim_state = 'claimed'
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
+        OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
+            AND process_uuid NOT IN $kill_running_process_uuids))
 RETURN AFTER;
 "#;
 
@@ -3013,8 +3018,9 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         ORDER BY process_uuid
     )
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
-        OR (stop_reason = 'reclaim_claimed' AND reclaim_state = 'claimed'
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
+        OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
+            AND process_uuid NOT IN $kill_running_process_uuids))
 RETURN AFTER;
 "#;
 
@@ -3154,8 +3160,9 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         ORDER BY process_uuid
     )
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
-        OR (stop_reason = 'reclaim_claimed' AND reclaim_state = 'claimed'
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
+        OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
+            AND process_uuid NOT IN $kill_running_process_uuids))
 RETURN AFTER;
 "#;
 
@@ -3215,17 +3222,12 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND metadata.__handshake_internal_reclaim_receipt_v1 = NONE
     AND metadata.__handshake_internal_reclaim_durable_receipt_v1 = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
+    AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
     AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
     AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
     AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
     AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-    AND reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_kill_operation_uuid = $kill_operation_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
 ;
 "#;
 
@@ -4132,8 +4134,6 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
         let bindings = Self::fence_bindings(process, claim, Value::Null, "")?;
         let mut expected_claim = claim.clone();
         expected_claim.lease_expires_at_unix_ms = bindings.lease_expires_at_unix_ms;
-        let expected_metadata = serde_json::to_value(&expected_claim)
-            .map_err(|error| ProcessLedgerError::Store(error.to_string()))?;
         let failure = format!("reclaim claim ownership lost while renewing process {process_uuid}");
         let attempted = bindings.clone();
         let updated = self.storage.with_data_operation(move |database| {
@@ -4156,21 +4156,23 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
                 original
             }
         };
-        if expected_claim.lease_expires_at_unix_ms <= claim.lease_expires_at_unix_ms {
-            return Err(original_error);
-        }
-        let mut readback = bindings;
-        readback.claim_metadata = expected_metadata;
+        // This renewal, or an earlier one whose answer was lost, may be durable.
+        // Adopt a longer lease only when nothing else of the claim changed.
         let rows = self.storage.with_data_operation(move |database| {
             Box::pin(async move {
-                database.query_values::<surrealdb::types::Value, _>(LOAD_RENEWED_CLAIM, readback).await
+                database.query_values::<surrealdb::types::Value, _>(LOAD_RENEWED_CLAIM, bindings).await
             })
         }).await;
         if let Ok(mut rows) = rows {
             if rows.len() == 1 {
                 if let Ok(row) = ReclaimRow::from_value(rows.remove(0)) {
-                    if let Ok(renewed) = Self::verified_renewal_claim(process, claim, expected_claim, row) {
-                        return Ok(renewed);
+                    let durable = row.reclaim_lease_expires_at_unix_ms
+                        .filter(|lease| *lease > claim.lease_expires_at_unix_ms);
+                    if let Some(lease) = durable {
+                        expected_claim.lease_expires_at_unix_ms = lease;
+                        if let Ok(renewed) = Self::verified_renewal_claim(process, claim, expected_claim, row) {
+                            return Ok(renewed);
+                        }
                     }
                 }
             }
@@ -5550,6 +5552,254 @@ mod tests {
                 );
             }
         }
+    }
+
+    struct ReclaimFixture {
+        _directory: tempfile::TempDir,
+        storage: SurrealStorage,
+        store: Arc<SurrealProcessLedgerStore>,
+        scope: ReclaimResourceScope,
+        session_id: String,
+        process_uuid: Uuid,
+    }
+
+    impl ReclaimFixture {
+        async fn open() -> Self {
+            let (directory, storage, store) = open_test_store().await;
+            let process_uuid = Uuid::now_v7();
+            let session_id = format!("session-{}", Uuid::now_v7());
+            let start = scoped_start(process_uuid)
+                .with_parent_session_id(session_id.clone())
+                .with_sandbox_adapter_id("reclaim-test-adapter")
+                .with_sandbox_internal_id(process_uuid.to_string());
+            let values = exact_scope(&start.metadata_jsonb).expect("exact test scope");
+            let scope = ReclaimResourceScope::try_from_stored(
+                &values[0], &values[1], &values[2], &values[4], &values[3],
+            )
+            .expect("typed test scope");
+            store
+                .write_batch(vec![LedgerEvent::Start(start)])
+                .await
+                .expect("seed reclaimable START");
+            Self {
+                _directory: directory,
+                storage,
+                store: Arc::new(store),
+                scope,
+                session_id,
+                process_uuid,
+            }
+        }
+
+        async fn claim(&self) -> Option<ScopedReclaimableProcess> {
+            self.store
+                .active_process_for_session(&self.scope, &self.session_id, self.process_uuid)
+                .await
+                .expect("claim query")
+        }
+
+        async fn expire_claim_lease(&self) {
+            let bindings = TamperBindings {
+                record: RecordId::new(PROCESS_LEDGER_TABLE_NAME, self.process_uuid.to_string()),
+                owner_account_id: self.scope.account_uuid.to_string(),
+                actor_principal_id: self.scope.actor_uuid.to_string(),
+                authenticated_session_id: self.scope.session_uuid.to_string(),
+                access_space_id: self.scope.access_space_uuid.to_string(),
+                workspace_id: self.scope.workspace_id.clone(),
+            };
+            let changed = self
+                .storage
+                .with_data_operation(|database| {
+                    Box::pin(async move {
+                        database
+                            .execute_returning(
+                                "UPDATE $record SET reclaim_lease_expires_at_unix_ms = reclaim_claimed_at_unix_ms, metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_claimed_at_unix_ms WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id RETURN AFTER;",
+                                bindings,
+                            )
+                            .await
+                    })
+                })
+                .await
+                .expect("expire claim lease");
+            assert_eq!(changed, 1, "exactly one claim lease must expire");
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+
+        async fn shutdown(self) {
+            drop(self.store);
+            self.storage.shutdown().await.expect("shutdown test store");
+        }
+    }
+
+    #[tokio::test]
+    async fn expired_kill_claim_is_claimable_again() {
+        let fixture = ReclaimFixture::open().await;
+        let first = fixture.claim().await.expect("open row is claimable");
+        fixture
+            .store
+            .mark_reclaim_kill_started(&first, &first.reclaim_claim)
+            .await
+            .expect("persist kill start");
+        assert!(fixture.claim().await.is_none(), "a live lease excludes a second claim");
+
+        fixture.expire_claim_lease().await;
+        let retried = fixture.claim().await.expect("an expired kill claim is claimable again");
+        assert_eq!(
+            retried.reclaim_claim.kill_operation_uuid,
+            first.reclaim_claim.kill_operation_uuid
+        );
+        assert_eq!(retried.reclaim_claim.generation, first.reclaim_claim.generation + 1);
+        assert_ne!(retried.reclaim_claim.claimant_uuid, first.reclaim_claim.claimant_uuid);
+        fixture.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn lost_claim_renewal_answer_is_found_on_retry() {
+        let fixture = ReclaimFixture::open().await;
+        let claimed = fixture.claim().await.expect("open row is claimable");
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        let renewed = fixture
+            .store
+            .renew_reclaim_claim(&claimed, &claimed.reclaim_claim)
+            .await
+            .expect("renew claim");
+        assert!(
+            renewed.lease_expires_at_unix_ms > claimed.reclaim_claim.lease_expires_at_unix_ms
+        );
+        // The caller never saw that answer and retries from its old claim.
+        let retried = fixture
+            .store
+            .renew_reclaim_claim(&claimed, &claimed.reclaim_claim)
+            .await
+            .expect("the durable renewal is found again");
+        assert_eq!(retried, renewed);
+        fixture.shutdown().await;
+    }
+
+    #[derive(Default)]
+    struct LateKill {
+        attempts: std::sync::atomic::AtomicUsize,
+        release: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl crate::process_ledger::reclaim::ScopedSandboxKill for LateKill {
+        async fn kill(
+            &self,
+            _resource_scope: &ReclaimResourceScope,
+            _process_uuid: Uuid,
+            _kill_operation_uuid: Uuid,
+        ) -> Result<(), crate::process_ledger::reclaim::KillError> {
+            self.attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.release.notified().await;
+            Ok(())
+        }
+
+        async fn kill_operation_status(
+            &self,
+            _resource_scope: &ReclaimResourceScope,
+            _process_uuid: Uuid,
+            _kill_operation_uuid: Uuid,
+        ) -> Result<ReclaimKillOperationStatus, crate::process_ledger::reclaim::KillError> {
+            Ok(ReclaimKillOperationStatus::Unknown)
+        }
+    }
+
+    #[derive(Clone)]
+    struct CountingStopWriter {
+        store: Arc<SurrealProcessLedgerStore>,
+        held_permits: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    struct CountingStopPermit(CountingStopWriter);
+
+    impl Drop for CountingStopPermit {
+        fn drop(&mut self) {
+            self.0.held_permits.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    #[async_trait]
+    impl crate::process_ledger::reclaim::ScopedReclaimStopReservation for CountingStopPermit {
+        async fn persist(
+            self: Box<Self>,
+            stop: ProcessStop,
+            _timeout: Duration,
+        ) -> Result<(), ProcessLedgerError> {
+            self.0.store.write_batch(vec![LedgerEvent::Stop(stop)]).await
+        }
+    }
+
+    impl crate::process_ledger::reclaim::ScopedReclaimStopWriter for CountingStopWriter {
+        fn reserve_reclaim_stop(
+            &self,
+        ) -> Result<
+            Box<dyn crate::process_ledger::reclaim::ScopedReclaimStopReservation>,
+            ProcessLedgerError,
+        > {
+            self.held_permits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(Box::new(CountingStopPermit(self.clone())))
+        }
+    }
+
+    #[tokio::test]
+    async fn late_kill_result_is_adopted_without_a_second_kill_or_a_held_permit() {
+        use crate::process_ledger::reclaim::{
+            running_kill_process_uuids, ScopedKillOutcome, ScopedReclaim, ScopedReclaimTrigger,
+        };
+        use std::sync::atomic::Ordering;
+
+        let fixture = ReclaimFixture::open().await;
+        let killer = Arc::new(LateKill::default());
+        let held_permits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let reclaim = ScopedReclaim::new(
+            Arc::clone(&fixture.store),
+            Arc::clone(&killer),
+            Arc::new(CountingStopWriter {
+                store: Arc::clone(&fixture.store),
+                held_permits: Arc::clone(&held_permits),
+            }),
+        )
+        .with_kill_observation_budget(Duration::from_secs(6));
+
+        // The first pass waits out its window; the second finds the kill running.
+        for expected in ["has not returned within", "KILL_STILL_RUNNING"] {
+            let report = reclaim
+                .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Failure)
+                .await
+                .expect("a kill that does not return is a reported failure");
+            match &report.processes_reclaimed[0].kill_result {
+                ScopedKillOutcome::Failed { error } => {
+                    assert!(error.contains(expected), "{error}")
+                }
+                other => panic!("no STOP may be claimed yet: {other:?}"),
+            }
+            assert_eq!(killer.attempts.load(Ordering::SeqCst), 1);
+            assert_eq!(held_permits.load(Ordering::SeqCst), 0);
+        }
+
+        killer.release.notify_one();
+        while running_kill_process_uuids().contains(&fixture.process_uuid) {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        let report = reclaim
+            .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Failure)
+            .await
+            .expect("the late result settles the row");
+        assert_eq!(report.processes_reclaimed[0].kill_result, ScopedKillOutcome::Killed);
+        assert_eq!(killer.attempts.load(Ordering::SeqCst), 1, "no second kill");
+        assert_eq!(held_permits.load(Ordering::SeqCst), 0);
+        let row = fixture
+            .store
+            .inspect_ownership_by_process_uuid(&fixture.scope, fixture.process_uuid)
+            .await
+            .expect("inspect stopped row")
+            .expect("stopped row exists");
+        assert_eq!(row.lifecycle_state, LedgerEventKind::Stop);
+        assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
+        assert_eq!(row.exit_code, Some(-1));
+        drop(reclaim);
+        fixture.shutdown().await;
     }
 
     #[tokio::test]

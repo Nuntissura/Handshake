@@ -1677,16 +1677,13 @@ async fn persist_scoped_stop(
         }
         owner
     } else {
-        let reservation = if let Some(fence) = kill_fence.as_ref() {
-            if !fence.matches(process, store, &fence.killer, writer) {
-                return Err(ProcessLedgerError::Store("original reclaim STOP permit owner mismatch".into()));
-            }
-            drop(reservation);
-            None
-        } else {
-            Some(reservation.ok_or_else(||
-                ProcessLedgerError::Store("original scoped STOP reservation unavailable".into()))?)
-        };
+        match kill_fence.as_ref() {
+            Some(fence) if !fence.matches(process, store, &fence.killer, writer) =>
+                return Err(ProcessLedgerError::Store("original reclaim STOP permit owner mismatch".into())),
+            None if reservation.is_none() => return Err(ProcessLedgerError::Store(
+                "original scoped STOP reservation unavailable".into())),
+            _ => {}
+        }
         let mut pending = process.clone();
         pending.kill_succeeded_pending_stop = true;
         pending.metadata_jsonb = stop.metadata_jsonb.clone();
@@ -1710,12 +1707,9 @@ async fn persist_scoped_stop(
                     if verified != expected_stop {
                         return (false, Err(ProcessLedgerError::Store("canonical original scoped STOP payload changed".into())));
                     }
-                    let reservation = if let Some(fence) = kill_fence {
-                        let original = fence.stop_permit.lock()
-                            .unwrap_or_else(|error| error.into_inner()).take();
-                        original
-                    } else { reservation };
-                    let Some(reservation) = reservation else {
+                    let retained = kill_fence.and_then(|fence| fence.stop_permit.lock()
+                        .unwrap_or_else(|error| error.into_inner()).take());
+                    let Some(reservation) = retained.or(reservation) else {
                         return (false, Err(ProcessLedgerError::Store(
                             "original reclaim STOP permit remains unavailable".into())));
                     };
@@ -1906,22 +1900,72 @@ enum RetainedKillOutcome {
     NotInvoked(KillError),
     Completed(Result<Option<crate::sandbox::ProcessStatus>, KillError>),
     JoinedWithoutResult(KillError),
-    Uncertain(KillError),
+}
+
+type JoinedKill = Result<Result<Option<crate::sandbox::ProcessStatus>, KillError>, tokio::task::JoinError>;
+
+impl RetainedKillOutcome {
+    fn from_join(joined: JoinedKill) -> Self {
+        match joined {
+            Ok(result) => Self::Completed(result),
+            Err(error) => Self::JoinedWithoutResult(KillError::new(format!(
+                "original reclaim task failed to join: {error}",
+            ))),
+        }
+    }
+
+    fn into_kill_result(self) -> Result<Option<crate::sandbox::ProcessStatus>, KillError> {
+        match self {
+            Self::NotInvoked(error) =>
+                Err(KillError::before_adapter_invocation(error.message().to_owned())),
+            Self::Completed(result) => result,
+            Self::JoinedWithoutResult(error) => Err(error),
+        }
+    }
 }
 
 struct RetainedClaimRenewal {
-    original_claim: ReclaimClaim,
     deadline: time::Instant,
-    invocation: Option<ScopedReclaimRenewal>,
-    result: Arc<std::sync::Mutex<Option<(time::Instant, Result<ReclaimClaim, ProcessLedgerError>)>>>,
-    task: Option<JoinHandle<()>>,
+    result: Arc<std::sync::Mutex<Option<Result<ReclaimClaim, ProcessLedgerError>>>>,
 }
 
 struct ReclaimClaimProgress {
     acknowledged_claim: ReclaimClaim,
-    renewal_unresolved: bool,
+    /// The last renewal failed or never answered, so the durable lease may be
+    /// longer than the acknowledged one until a retry confirms it.
+    renewal_unconfirmed: bool,
     retained_renewal: Option<RetainedClaimRenewal>,
     pending_stop: Option<ProcessStop>,
+}
+
+impl ReclaimClaimProgress {
+    fn new(claim: ReclaimClaim) -> Self {
+        Self {
+            acknowledged_claim: claim, renewal_unconfirmed: false,
+            retained_renewal: None, pending_stop: None,
+        }
+    }
+
+    /// Adopt a renewed lease of the same claim. Every other answer leaves the
+    /// acknowledged claim in place for a retry.
+    fn record_renewal(
+        &mut self, outcome: Result<ReclaimClaim, ProcessLedgerError>,
+    ) -> Result<(), ProcessLedgerError> {
+        self.renewal_unconfirmed = true;
+        let renewed = outcome?;
+        let mut expected = self.acknowledged_claim.clone();
+        expected.lease_expires_at_unix_ms = renewed.lease_expires_at_unix_ms;
+        if renewed != expected
+            || renewed.lease_expires_at_unix_ms < self.acknowledged_claim.lease_expires_at_unix_ms
+        {
+            return Err(ProcessLedgerError::Store(
+                "claim renewal returned a different identity or shortened lease".into(),
+            ));
+        }
+        self.acknowledged_claim = renewed;
+        self.renewal_unconfirmed = false;
+        Ok(())
+    }
 }
 
 struct ProcessKillFence {
@@ -1938,45 +1982,36 @@ struct ProcessKillFence {
 }
 
 impl ProcessKillFence {
-    fn observe_claim_renewal(&self) -> Result<bool, ProcessLedgerError> {
+    /// Collect a finished background renewal, or give up on one that passed its
+    /// deadline. Returns the deadline of a renewal that is still in flight.
+    fn collect_claim_renewal(&self) -> Option<time::Instant> {
         let mut progress = self.claim_progress.lock().unwrap_or_else(|error| error.into_inner());
-        if !progress.renewal_unresolved { return Ok(true); }
-        let renewal = progress.retained_renewal.as_ref().ok_or_else(|| ProcessLedgerError::Store(
-            "original claim renewal remains unresolved; native task and STOP permit retained".into(),
-        ))?;
-        let original_claim = renewal.original_claim.clone();
+        let renewal = progress.retained_renewal.as_ref()?;
         let deadline = renewal.deadline;
-        let result = Arc::clone(&renewal.result);
-        let result = result.lock().unwrap_or_else(|error| error.into_inner());
-        let Some((captured_at, outcome)) = result.as_ref() else {
-            if time::Instant::now() >= deadline {
-                return Err(ProcessLedgerError::Store(
-                    "original retained renewal has no result within its original deadline; custody retained".into(),
-                ));
-            }
-            return Ok(false);
-        };
-        if *captured_at > deadline {
-            return Err(ProcessLedgerError::Store(
-                "original retained renewal result arrived after its original deadline; custody retained".into(),
-            ));
+        let outcome = renewal.result.lock().unwrap_or_else(|error| error.into_inner()).take();
+        if outcome.is_none() && time::Instant::now() < deadline { return Some(deadline); }
+        progress.retained_renewal = None;
+        let outcome = outcome.unwrap_or_else(|| Err(ProcessLedgerError::Store(
+            "claim renewal has no result within its deadline".into(),
+        )));
+        if let Err(error) = progress.record_renewal(outcome) {
+            tracing::warn!(
+                process_uuid = %self.original.process_uuid, error = %error,
+                "reclaim claim renewal failed and will be retried"
+            );
         }
-        let renewed = outcome.as_ref().map_err(|error| ProcessLedgerError::Store(format!(
-            "original retained claim renewal remains unresolved; custody retained: {error}",
-        )))?;
-        let mut expected = original_claim.clone();
-        expected.lease_expires_at_unix_ms = renewed.lease_expires_at_unix_ms;
-        if *renewed != expected
-            || renewed.lease_expires_at_unix_ms < original_claim.lease_expires_at_unix_ms
-            || progress.acknowledged_claim != original_claim || progress.pending_stop.is_some()
-        {
-            return Err(ProcessLedgerError::Store(
-                "original retained renewal differs from its reserved claim; custody retained".into(),
-            ));
-        }
-        progress.acknowledged_claim = renewed.clone();
-        progress.renewal_unresolved = false;
-        Ok(true)
+        None
+    }
+
+    fn is_same_process(&self, process: &ScopedReclaimableProcess) -> bool {
+        self.original.resource_scope == process.resource_scope
+            && self.original.process_uuid == process.process_uuid
+            && self.original.runtime_owner == process.runtime_owner
+            && self.original.os_pid == process.os_pid
+            && self.original.started_at == process.started_at
+            && self.original.parent_session_id == process.parent_session_id
+            && self.original.sandbox_adapter_id == process.sandbox_adapter_id
+            && self.original.sandbox_internal_id == process.sandbox_internal_id
     }
 
     fn matches(
@@ -1984,119 +2019,61 @@ impl ProcessKillFence {
         store: &Arc<dyn ScopedReclaimProcessStore>, killer: &Arc<dyn ScopedSandboxKill>,
         stop_writer: &Arc<dyn ScopedReclaimStopWriter>,
     ) -> bool {
-        self.original.resource_scope == process.resource_scope
+        self.is_same_process(process)
             && process.resource_scope == process.reclaim_claim.resource_scope
-            && self.original.process_uuid == process.process_uuid
             && self.original.reclaim_claim.kill_operation_uuid == process.reclaim_claim.kill_operation_uuid
             && self.original.reclaim_claim.claimant_uuid == process.reclaim_claim.claimant_uuid
             && self.original.reclaim_claim.generation == process.reclaim_claim.generation
             && self.original.reclaim_claim.claimed_at_unix_ms == process.reclaim_claim.claimed_at_unix_ms
-            && self.original.runtime_owner == process.runtime_owner
-            && self.original.os_pid == process.os_pid
-            && self.original.started_at == process.started_at
-            && self.original.parent_session_id == process.parent_session_id
-            && self.original.sandbox_adapter_id == process.sandbox_adapter_id
-            && self.original.sandbox_internal_id == process.sandbox_internal_id
             && Arc::ptr_eq(&self.store, store) && Arc::ptr_eq(&self.killer, killer)
             && Arc::ptr_eq(&self.stop_writer, stop_writer)
     }
 
-
-    fn permits_uninvoked_successor(
-        &self, process: &ScopedReclaimableProcess,
-        store: &Arc<dyn ScopedReclaimProcessStore>, killer: &Arc<dyn ScopedSandboxKill>,
-        stop_writer: &Arc<dyn ScopedReclaimStopWriter>,
-    ) -> bool {
-        let (not_invoked, proved_refusal) = {
-            let result = self.result.lock().unwrap_or_else(|error| error.into_inner());
-            (matches!(&*result, Some(RetainedKillOutcome::NotInvoked(_))),
-             matches!(&*result, Some(RetainedKillOutcome::Completed(Err(error)))
-                if error.kind == KillFailureKind::BeforeAdapterInvocation))
-        };
-        if process.kill_succeeded_pending_stop || self.original.kill_succeeded_pending_stop
-            || process.resource_scope != process.reclaim_claim.resource_scope
-            || self.original.resource_scope != self.original.reclaim_claim.resource_scope
-            || !Arc::ptr_eq(&self.store, store) || !Arc::ptr_eq(&self.killer, killer)
-            || !Arc::ptr_eq(&self.stop_writer, stop_writer)
-            || process.reclaim_claim.generation <= self.original.reclaim_claim.generation
-            || process.reclaim_claim.claimant_uuid == self.original.reclaim_claim.claimant_uuid
-            || (!not_invoked && !proved_refusal)
-            || self.claim_progress.lock().unwrap_or_else(|error| error.into_inner()).pending_stop.is_some()
-        { return false; }
-        let original_operation = self.original.reclaim_claim.kill_operation_uuid.to_string();
-        let released_original = process.metadata_jsonb.get("reclaim_last_kill_operation")
-            .and_then(Value::as_object).is_some_and(|operation|
-                operation.get("kill_operation_uuid").and_then(Value::as_str) == Some(original_operation.as_str())
-                && operation.get("status").and_then(Value::as_str) == Some("not_started"));
-        if !released_original
-            && !(not_invoked
-                && process.reclaim_claim.kill_operation_uuid == self.original.reclaim_claim.kill_operation_uuid)
-        { return false; }
-        let mut original = self.original.clone();
-        let mut incoming = process.clone();
-        original.reclaim_claim = incoming.reclaim_claim.clone();
-        for metadata in [&mut original.metadata_jsonb, &mut incoming.metadata_jsonb] {
-            let Some(metadata) = metadata.as_object_mut() else { return false; };
-            metadata.remove("reclaim_claim");
-            metadata.remove("reclaim_last_kill_operation");
-        }
-        original == incoming
+    /// The outcome of this kill, or `None` while the kill may still run.
+    fn finished(&self) -> Option<RetainedKillOutcome> {
+        let published = self.result.lock().unwrap_or_else(|error| error.into_inner()).clone();
+        if published.is_some() { return published; }
+        // A supervisor that was dropped with its runtime leaves the task here.
+        let mut task = self.task.try_lock().ok()?;
+        let joined = task.as_mut()?.now_or_never()?;
+        task.take();
+        drop(task);
+        self.publish(RetainedKillOutcome::from_join(joined));
+        self.result.lock().unwrap_or_else(|error| error.into_inner()).clone()
     }
 
-    fn publish(&self, result: RetainedKillOutcome) {
-        let mut published = self.result.lock().unwrap_or_else(|error| error.into_inner());
-        let checked = matches!(&result,
-            RetainedKillOutcome::Completed(_) | RetainedKillOutcome::JoinedWithoutResult(_));
-        if published.is_none()
-            || (checked && matches!(&*published, Some(RetainedKillOutcome::Uncertain(_))))
-        {
-            *published = Some(result);
-        }
-        drop(published);
+    fn publish(&self, outcome: RetainedKillOutcome) {
+        self.result.lock().unwrap_or_else(|error| error.into_inner()).get_or_insert(outcome);
         self.completed.notify_waiters();
     }
 }
 
-
-enum ReclaimDispatchPhase { Predispatch, HandedOff, Supervised }
-
+/// Marks a kill as not invoked when its creator stops before the dispatch.
 struct ReclaimPredispatchGuard {
     owner: Arc<ProcessKillFence>,
-    phase: ReclaimDispatchPhase,
+    dispatched: bool,
 }
 
 impl ReclaimPredispatchGuard {
-    fn publish_not_invoked(&self) -> bool {
-        if !matches!(self.phase, ReclaimDispatchPhase::Predispatch) { return false; }
-        self.owner.publish(RetainedKillOutcome::NotInvoked(
-            KillError::new("original reclaim creator exited before native task handoff")));
-        true
+    fn publish_not_invoked(&self) {
+        if !self.dispatched {
+            self.owner.publish(RetainedKillOutcome::NotInvoked(
+                KillError::new("original reclaim creator exited before native task handoff")));
+        }
     }
 }
 
 impl Drop for ReclaimPredispatchGuard {
-    fn drop(&mut self) {
-        match self.phase {
-            ReclaimDispatchPhase::Predispatch => { self.publish_not_invoked(); }
-            ReclaimDispatchPhase::HandedOff => self.owner.publish(RetainedKillOutcome::Uncertain(
-                KillError::new("original reclaim task handoff did not finish supervision"))),
-            ReclaimDispatchPhase::Supervised => {}
-        }
-    }
+    fn drop(&mut self) { self.publish_not_invoked(); }
 }
 
-struct KillPublicationGuard {
-    owner: Arc<ProcessKillFence>,
-    returned: bool,
-}
+/// Returns an unused STOP permit on every exit, including cancellation. A kill
+/// that outlives its observation must not keep the writer from draining.
+struct UnusedStopPermitGuard(Arc<ProcessKillFence>);
 
-impl Drop for KillPublicationGuard {
+impl Drop for UnusedStopPermitGuard {
     fn drop(&mut self) {
-        if !self.returned {
-            self.owner.publish(RetainedKillOutcome::Uncertain(KillError::new(
-                "original reclaim observer was interrupted; task/result custody remains unresolved",
-            )));
-        }
+        self.0.stop_permit.lock().unwrap_or_else(|error| error.into_inner()).take();
     }
 }
 
@@ -2104,50 +2081,56 @@ static PROCESS_KILL_FENCES: OnceLock<
     std::sync::Mutex<std::collections::HashMap<Uuid, Arc<ProcessKillFence>>>,
 > = OnceLock::new();
 
+/// The fence of exactly this claim's kill in this instance.
 fn lookup_process_kill_fence(
     process: &ScopedReclaimableProcess,
     store: &Arc<dyn ScopedReclaimProcessStore>, killer: &Arc<dyn ScopedSandboxKill>,
     stop_writer: &Arc<dyn ScopedReclaimStopWriter>,
-) -> Result<Option<Arc<ProcessKillFence>>, ProcessLedgerError> {
-    let fences = PROCESS_KILL_FENCES.get_or_init(Default::default).lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let existing = fences.get(&process.process_uuid).cloned();
-    if existing.as_ref().is_some_and(|owner| !owner.matches(process, store, killer, stop_writer)) {
-        return Err(ProcessLedgerError::Store("original reclaim fence scope/operation/store/owner mismatch".into()));
-    }
-    Ok(existing)
+) -> Option<Arc<ProcessKillFence>> {
+    PROCESS_KILL_FENCES.get_or_init(Default::default).lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(&process.process_uuid)
+        .filter(|owner| owner.matches(process, store, killer, stop_writer))
+        .cloned()
 }
 
+/// Processes whose kill was started by this instance and may still run. Their
+/// expired claims must not be taken over here.
+pub(crate) fn running_kill_process_uuids() -> Vec<Uuid> {
+    PROCESS_KILL_FENCES.get_or_init(Default::default).lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .iter()
+        .filter(|(_, fence)| fence.finished().is_none())
+        .map(|(process_uuid, _)| *process_uuid)
+        .collect()
+}
+
+/// Register the kill of a newly claimed process. Returns `None` while a kill
+/// from an earlier claim may still run: no second kill is started beside it. A
+/// finished earlier kill that proved the end of the process is adopted instead
+/// of repeated.
 fn acquire_process_kill_fence(
     process: &ScopedReclaimableProcess,
     store: &Arc<dyn ScopedReclaimProcessStore>, killer: &Arc<dyn ScopedSandboxKill>,
     stop_writer: &Arc<dyn ScopedReclaimStopWriter>,
-) -> Result<(Arc<ProcessKillFence>, bool), ProcessLedgerError> {
+) -> Option<Arc<ProcessKillFence>> {
     let mut fences = PROCESS_KILL_FENCES.get_or_init(Default::default).lock()
         .unwrap_or_else(|error| error.into_inner());
-    if let Some(existing) = fences.get(&process.process_uuid) {
-        if existing.matches(process, store, killer, stop_writer) {
-            return Ok((Arc::clone(existing), false));
-        }
-        if !existing.permits_uninvoked_successor(process, store, killer, stop_writer) {
-            return Err(ProcessLedgerError::Store("original reclaim fence scope/operation/store/owner mismatch".into()));
-        }
-        // Typed predispatch proof makes this original permit definitely unused.
-        existing.stop_permit.lock().unwrap_or_else(|error| error.into_inner()).take();
-    }
+    let adopted = match fences.get(&process.process_uuid) {
+        None => None,
+        Some(earlier) => Some(earlier.finished()?).filter(|outcome|
+            matches!(outcome, RetainedKillOutcome::Completed(Ok(_))) && earlier.is_same_process(process)),
+    };
     let fence = Arc::new(ProcessKillFence {
         original: process.clone(), store: Arc::clone(store), killer: Arc::clone(killer),
         stop_writer: Arc::clone(stop_writer), stop_permit: std::sync::Mutex::new(None),
         task: tokio::sync::Mutex::new(None), supervisor: std::sync::Mutex::new(None),
-        result: std::sync::Mutex::new(None),
-        claim_progress: std::sync::Mutex::new(ReclaimClaimProgress {
-            acknowledged_claim: process.reclaim_claim.clone(),
-            renewal_unresolved: false, retained_renewal: None, pending_stop: None,
-        }),
+        result: std::sync::Mutex::new(adopted),
+        claim_progress: std::sync::Mutex::new(ReclaimClaimProgress::new(process.reclaim_claim.clone())),
         completed: tokio::sync::Notify::new(),
     });
     fences.insert(process.process_uuid, Arc::clone(&fence));
-    Ok((fence, true))
+    Some(fence)
 }
 
 fn start_original_fenced_kill(
@@ -2155,8 +2138,7 @@ fn start_original_fenced_kill(
     predispatch: &mut ReclaimPredispatchGuard,
     owning_runtime: Option<&tokio::runtime::Handle>,
 ) -> Result<(), ProcessLedgerError> {
-    if !Arc::ptr_eq(owner, &predispatch.owner)
-        || !matches!(predispatch.phase, ReclaimDispatchPhase::Predispatch) {
+    if !Arc::ptr_eq(owner, &predispatch.owner) || predispatch.dispatched {
         return Err(ProcessLedgerError::Store("original reclaim dispatch guard mismatch".into()));
     }
     let mut original = owner.task.try_lock().map_err(|_| ProcessLedgerError::Store(
@@ -2178,56 +2160,50 @@ fn start_original_fenced_kill(
     let dispatch = ScopedKillDispatchObservation::capture_identity_context(deadline_at);
     let original_dispatch = dispatch.clone();
     let owning_runtime = owning_runtime.cloned().unwrap_or_else(tokio::runtime::Handle::current);
-    predispatch.phase = ReclaimDispatchPhase::HandedOff;
+    predispatch.dispatched = true;
     *original = Some(owning_runtime.spawn(async move {
         killer.kill_observed_with_dispatch(&scope, process_uuid, operation, original_dispatch).await
     }));
     let retained = Arc::clone(owner);
     let supervisor = owning_runtime.spawn(async move {
-        let mut publication = KillPublicationGuard { owner: Arc::clone(&retained), returned: false };
         let mut task = retained.task.lock().await;
         let Some(original) = task.as_mut() else { return; };
-        let deadline = time::sleep_until(deadline_at);
-        tokio::pin!(deadline);
-        let outcome = tokio::select! {
-            joined = &mut *original => match joined {
-                Ok(result) => RetainedKillOutcome::Completed(result),
-                Err(error) => RetainedKillOutcome::JoinedWithoutResult(KillError::new(format!(
-                    "original reclaim task failed to join: {error}",
-                ))),
-            },
-            _ = &mut deadline => {
-                if dispatch.cancel_before_effect() {
-                    original.abort();
-                    match (&mut *original).await {
-                        Ok(result) => RetainedKillOutcome::Completed(result),
-                        Err(error) if error.is_cancelled() =>
-                            RetainedKillOutcome::Completed(Err(KillError::before_adapter_invocation(format!(
-                                "reclaim kill operation for process {process_uuid} exceeded {}ms before adapter effect",
-                                timeout.as_millis(),
-                            )))),
-                        Err(error) => RetainedKillOutcome::JoinedWithoutResult(KillError::new(format!(
-                            "original reclaim task failed during pre-effect deadline join: {error}",
-                        ))),
-                    }
-                } else {
-                    // Effect admission won. Keep the original task uninterrupted;
-                    // observer deadlines cannot replace or cancel its result owner.
-                    match (&mut *original).await {
-                        Ok(result) => RetainedKillOutcome::Completed(result),
-                        Err(error) => RetainedKillOutcome::JoinedWithoutResult(KillError::new(format!(
-                            "original admitted reclaim task returned a checked join error: {error}",
-                        ))),
-                    }
+        let observed = time::timeout_at(deadline_at, &mut *original).await;
+        let window_closed = observed.is_err();
+        let outcome = match observed {
+            Ok(joined) => RetainedKillOutcome::from_join(joined),
+            Err(_) if dispatch.cancel_before_effect() => {
+                original.abort();
+                match (&mut *original).await {
+                    Err(error) if error.is_cancelled() =>
+                        RetainedKillOutcome::Completed(Err(KillError::before_adapter_invocation(format!(
+                            "reclaim kill operation for process {process_uuid} exceeded {}ms before adapter effect",
+                            timeout.as_millis(),
+                        )))),
+                    joined => RetainedKillOutcome::from_join(joined),
                 }
             }
+            // The kill was admitted and may still end the process. It gets one
+            // more window to report; until then no second kill is started.
+            Err(_) => match time::timeout(timeout, &mut *original).await {
+                Ok(joined) => RetainedKillOutcome::from_join(joined),
+                Err(_) => {
+                    original.abort();
+                    RetainedKillOutcome::JoinedWithoutResult(KillError::new(format!(
+                        "reclaim kill operation for process {process_uuid} returned nothing within {}ms and was abandoned",
+                        (timeout * 2).as_millis(),
+                    )))
+                }
+            },
         };
         task.take();
+        drop(task);
+        // Nobody observes a failure any more once the window closed.
+        let abandoned = window_closed && !matches!(outcome, RetainedKillOutcome::Completed(Ok(_)));
         retained.publish(outcome);
-        publication.returned = true;
+        if abandoned { clear_process_kill_fence(process_uuid, &retained); }
     });
     *owner.supervisor.lock().unwrap_or_else(|error| error.into_inner()) = Some(supervisor);
-    predispatch.phase = ReclaimDispatchPhase::Supervised;
     Ok(())
 }
 
@@ -2248,30 +2224,13 @@ fn clear_process_kill_fence(process_uuid: Uuid, completed: &Arc<ProcessKillFence
 }
 
 
-fn clear_completed_process_kill_fence(
-    process: &ScopedReclaimableProcess,
-    store: &Arc<dyn ScopedReclaimProcessStore>, killer: &Arc<dyn ScopedSandboxKill>,
-    stop_writer: &Arc<dyn ScopedReclaimStopWriter>,
-) {
-    let Ok(Some(owner)) = lookup_process_kill_fence(process, store, killer, stop_writer) else { return; };
-    let complete = matches!(
-        &*owner.result.lock().unwrap_or_else(|error| error.into_inner()),
-        Some(RetainedKillOutcome::Completed(Ok(_)))
-    );
-    if complete { clear_process_kill_fence(process.process_uuid, &owner); }
-}
-
-fn clear_failed_process_kill_fence(
-    process: &ScopedReclaimableProcess,
-    store: &Arc<dyn ScopedReclaimProcessStore>, killer: &Arc<dyn ScopedSandboxKill>,
-    stop_writer: &Arc<dyn ScopedReclaimStopWriter>,
-) {
-    let Ok(Some(owner)) = lookup_process_kill_fence(process, store, killer, stop_writer) else { return; };
-    let complete = matches!(
-        &*owner.result.lock().unwrap_or_else(|error| error.into_inner()),
-        Some(RetainedKillOutcome::NotInvoked(_) | RetainedKillOutcome::Completed(Err(_)))
-    );
-    if complete { clear_process_kill_fence(process.process_uuid, &owner); }
+/// Drop a finished kill whose durable row no longer needs it.
+fn clear_finished_process_kill_fence(process_uuid: Uuid) {
+    let mut fences = PROCESS_KILL_FENCES.get_or_init(Default::default).lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if fences.get(&process_uuid).is_some_and(|fence| fence.finished().is_some()) {
+        fences.remove(&process_uuid);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -2499,7 +2458,7 @@ impl ScopedReclaim {
             return Err(ProcessLedgerError::Store("original submitted scoped STOP readback owner unavailable".into()));
         }
         let original = owner.verify_and_publish().await?;
-        clear_completed_process_kill_fence(&original, &self.store, &self.sandbox_kill, &self.stop_writer);
+        clear_finished_process_kill_fence(process_uuid);
         let original_session = original.parent_session_id.clone()
             .unwrap_or_else(|| format!("process-ledger://{process_uuid}"));
         Ok(Some(ScopedReclaimReport {
@@ -2662,8 +2621,8 @@ impl ScopedReclaim {
                     let stop = process.original_pending_stop()?;
                     let fence = lookup_process_kill_fence(
                         &process, &self.store, &self.sandbox_kill, &self.stop_writer,
-                    )?;
-                    let reservation = if retained_submission.is_some() || fence.is_some() {
+                    );
+                    let reservation = if retained_submission.is_some() {
                         None
                     } else {
                         let verified = self.store.verified_pending_stop(&process).await?;
@@ -2679,7 +2638,7 @@ impl ScopedReclaim {
                 }.await;
                 match persisted {
                     Ok(()) => {
-                        clear_completed_process_kill_fence(&process, &self.store, &self.sandbox_kill, &self.stop_writer);
+                        clear_finished_process_kill_fence(process.process_uuid);
                         (ScopedKillOutcome::Killed, Some(LedgerEventKind::Stop))
                     }
                     Err(error) if policy == RestartOrphanReconcileErrorPolicy::AbortOnFirstError => {
@@ -2692,95 +2651,82 @@ impl ScopedReclaim {
                         None,
                     ),
                 }
-            } else {
-                let (kill_fence, owns_kill) = acquire_process_kill_fence(
-                    &process, &self.store, &self.sandbox_kill, &self.stop_writer,
-                )?;
-                if owns_kill {
-                    let reservation = match self.stop_writer.reserve_fresh_reclaim_stop() {
-                        Ok(reservation) => reservation,
-                        Err(error) => {
-                            clear_process_kill_fence(process.process_uuid, &kill_fence);
-                            self.release_unprocessed_claims_after_abort(
-                                std::iter::once(&process), "STOP reservation rejection",
-                            ).await;
-                            return Err(error);
-                        }
-                    };
-                    let mut predispatch = ReclaimPredispatchGuard {
-                        owner: Arc::clone(&kill_fence), phase: ReclaimDispatchPhase::Predispatch,
-                    };
-                    if let Err(error) = self
-                        .store
-                        .mark_reclaim_kill_started(&process, &process.reclaim_claim)
-                        .await
-                    {
-                        drop(reservation);
-                        if predispatch.publish_not_invoked() {
-                            let mut released = matches!(self.store.release_unstarted_reclaim_claim(
-                                &process, &process.reclaim_claim,
-                            ).await, Ok(true));
-                            if !released {
-                                released = self.store.release_proved_uninvoked_claim(
-                                    &process, &process.reclaim_claim,
-                                ).await.is_ok();
-                            }
-                            if released {
-                                clear_process_kill_fence(process.process_uuid, &kill_fence);
-                            }
-                        }
+            } else if let Some(kill_fence) = acquire_process_kill_fence(
+                &process, &self.store, &self.sandbox_kill, &self.stop_writer,
+            ) {
+                let _unused_permit = UnusedStopPermitGuard(Arc::clone(&kill_fence));
+                let reservation = match self.stop_writer.reserve_fresh_reclaim_stop() {
+                    Ok(reservation) => reservation,
+                    Err(error) => {
+                        clear_process_kill_fence(process.process_uuid, &kill_fence);
+                        self.release_unprocessed_claims_after_abort(
+                            std::iter::once(&process), "STOP reservation rejection",
+                        ).await;
                         return Err(error);
                     }
-                    *kill_fence.stop_permit.lock().unwrap_or_else(|error| error.into_inner()) =
-                        Some(reservation);
-                    let timeout = if self.kill_timeout.is_zero() {
-                        Duration::from_millis(1)
-                    } else { self.kill_timeout };
+                };
+                let mut predispatch = ReclaimPredispatchGuard {
+                    owner: Arc::clone(&kill_fence), dispatched: false,
+                };
+                if let Err(error) = self
+                    .store
+                    .mark_reclaim_kill_started(&process, &process.reclaim_claim)
+                    .await
+                {
+                    drop(reservation);
+                    predispatch.publish_not_invoked();
+                    let mut released = matches!(self.store.release_unstarted_reclaim_claim(
+                        &process, &process.reclaim_claim,
+                    ).await, Ok(true));
+                    if !released {
+                        released = self.store.release_proved_uninvoked_claim(
+                            &process, &process.reclaim_claim,
+                        ).await.is_ok();
+                    }
+                    if released {
+                        clear_process_kill_fence(process.process_uuid, &kill_fence);
+                    }
+                    return Err(error);
+                }
+                *kill_fence.stop_permit.lock().unwrap_or_else(|error| error.into_inner()) =
+                    Some(reservation);
+                // An adopted earlier kill already proved the end of the process.
+                if kill_fence.finished().is_none() {
                     start_original_fenced_kill(
-                        &kill_fence, timeout, &mut predispatch, self.owning_runtime.as_ref(),
+                        &kill_fence, self.effective_kill_timeout(), &mut predispatch,
+                        self.owning_runtime.as_ref(),
                     )?;
                 }
-                let (kill, renewed_claim, kill_fence) =
-                    self.kill_with_claim_renewal(&process, kill_fence, owns_kill).await?;
-                process.reclaim_claim = renewed_claim;
-                process.sync_reclaim_claim_metadata()?;
-                match kill.and_then(|status| ScopedReclaimTerminal::from_observed(&process, status)) {
+                let kill = self.observe_fenced_kill(&process, &kill_fence).await
+                    .and_then(|status| ScopedReclaimTerminal::from_observed(&process, status));
+                let settled_claim = self.settle_fenced_claim(&process, &kill_fence).await;
+                match kill {
                     Ok(terminal) => {
-                        let stop = {
-                            let mut progress = kill_fence.claim_progress.lock()
-                                .unwrap_or_else(|error| error.into_inner());
-                            if progress.renewal_unresolved {
-                                return Err(ProcessLedgerError::Store(
-                                    "original claim renewal remains unresolved; STOP creation deferred".into(),
-                                ));
-                            }
-                            process.reclaim_claim = progress.acknowledged_claim.clone();
+                        let persisted = async {
+                            process.reclaim_claim = settled_claim?;
                             process.sync_reclaim_claim_metadata()?;
-                            if progress.pending_stop.is_none() {
-                                progress.pending_stop = Some(pack_scoped_pending_stop(&process, terminal)?);
-                            }
-                            let stop = progress.pending_stop.as_ref().expect("retained original STOP").clone();
+                            let stop = {
+                                let mut progress = kill_fence.claim_progress.lock()
+                                    .unwrap_or_else(|error| error.into_inner());
+                                if progress.pending_stop.is_none() {
+                                    progress.pending_stop = Some(pack_scoped_pending_stop(&process, terminal)?);
+                                }
+                                progress.pending_stop.as_ref().expect("retained original STOP").clone()
+                            };
                             let mut original = process.clone();
                             original.metadata_jsonb = stop.metadata_jsonb.clone();
-                            original.original_pending_stop().and_then(|exact| {
-                                if ScopedReclaimTerminal::from_stop(&exact)? == terminal { Ok(exact) }
-                                else { Err(ProcessLedgerError::Store("retained terminal outcome changed".into())) }
-                            })
-                        };
-                        let persisted = match stop {
-                            Ok(stop) => {
-                                match self.store.mark_reclaim_kill_succeeded(
-                                    &process, &stop, &process.reclaim_claim,
-                                ).await {
-                                    Ok(()) => persist_scoped_stop(
-                                        &process, &self.store, &self.stop_writer, None,
-                                        Some(Arc::clone(&kill_fence)), stop, self.stop_ack_timeout,
-                                    ).await,
-                                    Err(error) => Err(error),
-                                }
+                            let stop = original.original_pending_stop()?;
+                            if ScopedReclaimTerminal::from_stop(&stop)? != terminal {
+                                return Err(ProcessLedgerError::Store("retained terminal outcome changed".into()));
                             }
-                            Err(error) => Err(error),
-                        };
+                            self.store.mark_reclaim_kill_succeeded(
+                                &process, &stop, &process.reclaim_claim,
+                            ).await?;
+                            persist_scoped_stop(
+                                &process, &self.store, &self.stop_writer, None,
+                                Some(Arc::clone(&kill_fence)), stop, self.stop_ack_timeout,
+                            ).await
+                        }.await;
                         match persisted {
                             Ok(()) => {
                                 clear_process_kill_fence(process.process_uuid, &kill_fence);
@@ -2795,42 +2741,39 @@ impl ScopedReclaim {
                         }
                     }
                     Err(error) => {
-                        let mut diagnostic = error.message().to_owned();
+                        // MT-019 F3: a kill failure is reported and counted, it never
+                        // aborts the pass, not even at boot. The row stays truthfully
+                        // open and unclaimed, so a later pass retries it. Only a kill
+                        // that still runs keeps its fence against a second kill.
+                        if error.kind != KillFailureKind::StillRunning {
+                            clear_process_kill_fence(process.process_uuid, &kill_fence);
+                        }
+                        process.reclaim_claim = settled_claim?;
+                        process.sync_reclaim_claim_metadata()?;
                         if error.kind == KillFailureKind::BeforeAdapterInvocation {
-                            match self.store.release_proved_uninvoked_claim(&process, &process.reclaim_claim).await {
-                                Ok(()) => {
-                                    kill_fence.stop_permit.lock().unwrap_or_else(|error| error.into_inner()).take();
-                                    clear_process_kill_fence(process.process_uuid, &kill_fence);
-                                    if policy == RestartOrphanReconcileErrorPolicy::AbortOnFirstError {
-                                        if let Some(cause) = &error.identity_lookup_cause {
-                                            let original = cause.lock().unwrap_or_else(|error| error.into_inner())
-                                                .take().ok_or_else(|| ProcessLedgerError::Store(
-                                                    "original identity lookup cause was already handed back".into(),
-                                                ))?;
-                                            return Err(original);
-                                        }
-                                    }
-                                }
-                                Err(release_error) => {
-                                    tracing::warn!(
-                                        process_uuid = %process.process_uuid,
-                                        session_id = ?process.parent_session_id,
-                                        kill_operation_uuid = %process.reclaim_claim.kill_operation_uuid,
-                                        refusal = %diagnostic,
-                                        error = %release_error,
-                                        "proved pre-adapter refusal claim release remains unconfirmed; original custody retained"
-                                    );
-                                    return Err(release_error);
+                            self.store.release_proved_uninvoked_claim(&process, &process.reclaim_claim).await?;
+                            if policy == RestartOrphanReconcileErrorPolicy::AbortOnFirstError {
+                                // A failed identity read is a store error, not a kill failure.
+                                if let Some(cause) = &error.identity_lookup_cause {
+                                    let original = cause.lock().unwrap_or_else(|error| error.into_inner())
+                                        .take().ok_or_else(|| ProcessLedgerError::Store(
+                                            "original identity lookup cause was already handed back".into(),
+                                        ))?;
+                                    return Err(original);
                                 }
                             }
                         } else {
-                            // MT-019 F3: a kill failure is reported and counted, it
-                            // never aborts the pass, not even at boot.
-                            diagnostic = format!("{diagnostic}; original possible-effect operation, claim and STOP permit retained");
+                            self.store.release_reclaim_claim(&process, &process.reclaim_claim).await?;
                         }
-                        (ScopedKillOutcome::Failed { error: diagnostic }, None)
+                        (ScopedKillOutcome::Failed { error: error.message().to_owned() }, None)
                     }
                 }
+            } else {
+                self.store.release_unstarted_reclaim_claim(&process, &process.reclaim_claim).await?;
+                (ScopedKillOutcome::Failed { error: format!(
+                    "KILL_STILL_RUNNING: an earlier kill of process {} has not returned; no second kill was started",
+                    process.process_uuid,
+                ) }, None)
             };
             Ok(ScopedReclaimedProcess {
                 process_uuid: process.process_uuid,
@@ -2973,7 +2916,7 @@ impl ScopedReclaim {
                 )
                 .await?;
             if matches!(status, ReclaimKillOperationStatus::Failed | ReclaimKillOperationStatus::NotStarted) {
-                clear_failed_process_kill_fence(&process, &self.store, &self.sandbox_kill, &self.stop_writer);
+                clear_finished_process_kill_fence(process.process_uuid);
             }
         }
         Ok(status)
@@ -3203,7 +3146,7 @@ impl ScopedReclaim {
                 {
                     Ok(()) => {
                         if matches!(status, ReclaimKillOperationStatus::Failed | ReclaimKillOperationStatus::NotStarted) {
-                            clear_failed_process_kill_fence(&process, &self.store, &self.sandbox_kill, &self.stop_writer);
+                            clear_finished_process_kill_fence(process.process_uuid);
                         }
                         state_advanced = true;
                         operations.push(ReclaimKillOperationSweepEntry {
@@ -3285,7 +3228,7 @@ impl ScopedReclaim {
             if process.kill_succeeded_pending_stop {
                 continue;
             }
-            if !matches!(lookup_process_kill_fence(process, &self.store, &self.sandbox_kill, &self.stop_writer), Ok(None))
+            if lookup_process_kill_fence(process, &self.store, &self.sandbox_kill, &self.stop_writer).is_some()
                 || !matches!(scoped_stop_submission(process, &self.store, &self.stop_writer), Ok(None))
             {
                 continue;
@@ -3305,147 +3248,121 @@ impl ScopedReclaim {
         }
     }
 
-    async fn kill_with_claim_renewal(
-        &self, process: &ScopedReclaimableProcess, kill_fence: Arc<ProcessKillFence>, owns_kill: bool,
-    ) -> Result<(
-        Result<Option<crate::sandbox::ProcessStatus>, KillError>,
-        ReclaimClaim, Arc<ProcessKillFence>,
-    ), ProcessLedgerError> {
-        if !kill_fence.matches(process, &self.store, &self.sandbox_kill, &self.stop_writer) {
-            return Err(ProcessLedgerError::Store("original reclaim observer subject mismatch".into()));
-        }
-        let renew_every = if self.claim_renew_interval.is_zero() {
-            Duration::from_millis(1)
-        } else { self.claim_renew_interval.min(RECLAIM_CLAIM_TTL / 2) };
+    fn effective_kill_timeout(&self) -> Duration {
+        self.kill_timeout.max(Duration::from_millis(1))
+    }
+
+    /// Wait for a fenced kill while keeping its claim alive. The wait ends with
+    /// the kill window; a kill that still runs then is reported, not awaited.
+    async fn observe_fenced_kill(
+        &self, process: &ScopedReclaimableProcess, kill_fence: &Arc<ProcessKillFence>,
+    ) -> Result<Option<crate::sandbox::ProcessStatus>, KillError> {
+        let renew_every = self.claim_renew_interval
+            .clamp(Duration::from_millis(1), RECLAIM_CLAIM_TTL / 2);
         let mut renewal = time::interval(renew_every);
         renewal.set_missed_tick_behavior(MissedTickBehavior::Delay);
         renewal.tick().await;
-        let kill_timeout = if self.kill_timeout.is_zero() {
-            Duration::from_millis(1)
-        } else { self.kill_timeout };
-        let observer_deadline = time::sleep(kill_timeout);
-        let observer_deadline_at = observer_deadline.deadline();
-        tokio::pin!(observer_deadline);
+        let kill_timeout = self.effective_kill_timeout();
+        let deadline_at = time::Instant::now() + kill_timeout;
         loop {
             let completed = kill_fence.completed.notified();
             tokio::pin!(completed);
             completed.as_mut().enable();
-            let deadline_reached = time::Instant::now() >= observer_deadline_at;
-            let renewal_ready = kill_fence.observe_claim_renewal()?;
-            let retained = if renewal_ready {
-                kill_fence.result.lock().unwrap_or_else(|error| error.into_inner()).clone()
-            } else { None };
-            if let Some(retained) = retained {
-                let result = match retained {
-                    RetainedKillOutcome::NotInvoked(error) =>
-                        Err(KillError::before_adapter_invocation(error.message().to_owned())),
-                    RetainedKillOutcome::Completed(result) => result,
-                    RetainedKillOutcome::Uncertain(error)
-                    | RetainedKillOutcome::JoinedWithoutResult(error) => Err(error),
-                };
-                let claim = {
-                    let progress = kill_fence.claim_progress.lock()
-                        .unwrap_or_else(|error| error.into_inner());
-                    if progress.renewal_unresolved {
-                        return Err(ProcessLedgerError::Store(
-                            "original claim renewal remains unresolved; native result and STOP permit retained".into(),
-                        ));
-                    }
-                    progress.acknowledged_claim.clone()
-                };
-                return Ok((result, claim, Arc::clone(&kill_fence)));
+            kill_fence.collect_claim_renewal();
+            if let Some(outcome) = kill_fence.finished() {
+                return outcome.into_kill_result();
             }
-            if deadline_reached {
-                let observer = if owns_kill { "initial" } else { "coalesced" };
-                let claim = kill_fence.claim_progress.lock()
-                    .unwrap_or_else(|error| error.into_inner()).acknowledged_claim.clone();
-                return Ok((Err(KillError::still_running(format!(
-                    "{observer} reclaim observation for process {} remains pending after {}ms",
+            if time::Instant::now() >= deadline_at {
+                return Err(KillError::still_running(format!(
+                    "reclaim kill of process {} has not returned within {}ms",
                     process.process_uuid, kill_timeout.as_millis(),
-                ))), claim, Arc::clone(&kill_fence)));
+                )));
             }
             tokio::select! {
                 biased;
                 _ = &mut completed => {}
-                _ = &mut observer_deadline => {}
-                _ = renewal.tick() => {
-                    let (mut renewal_process, claim, retained_renewal) = {
-                        let mut progress = kill_fence.claim_progress.lock()
-                            .unwrap_or_else(|error| error.into_inner());
-                        if progress.renewal_unresolved {
-                            if progress.retained_renewal.is_some() { continue; }
-                            return Err(ProcessLedgerError::Store("original claim renewal is already pending; custody retained".into()));
-                        }
-                        if progress.pending_stop.is_some() { continue; }
-                        let claim = progress.acknowledged_claim.clone();
-                        let mut renewal_process = process.clone();
-                        renewal_process.reclaim_claim = claim.clone();
-                        renewal_process.sync_reclaim_claim_metadata()?;
-                        progress.renewal_unresolved = true;
-                        progress.retained_renewal = None;
-                        let invocation = self.owning_runtime.as_ref().and_then(|_|
-                            self.store.retained_reclaim_renewal(&renewal_process, &claim, observer_deadline_at));
-                        let retained_renewal = if let (Some(invocation), Some(runtime)) =
-                            (invocation, self.owning_runtime.as_ref())
-                        {
-                            progress.retained_renewal = Some(RetainedClaimRenewal {
-                                original_claim: claim.clone(), deadline: invocation.deadline,
-                                invocation: Some(invocation), result: Arc::new(std::sync::Mutex::new(None)),
-                                task: None,
-                            });
-                            let retained = progress.retained_renewal.as_mut().expect("original renewal registered");
-                            let invocation = retained.invocation.take().expect("original renewal invocation");
-                            let result = Arc::clone(&retained.result);
-                            let owner = Arc::clone(&kill_fence);
-                            retained.task = Some(runtime.spawn(async move {
-                                let outcome = invocation.original.await;
-                                let captured_at = time::Instant::now();
-                                *result.lock().unwrap_or_else(|error| error.into_inner()) =
-                                    Some((captured_at, outcome));
-                                owner.completed.notify_waiters();
-                            }));
-                            true
-                        } else { false };
-                        (renewal_process, claim, retained_renewal)
-                    };
-                    if retained_renewal { continue; }
-                    match time::timeout_at(
-                        observer_deadline_at, self.store.renew_reclaim_claim(&renewal_process, &claim),
-                    ).await {
-                        Ok(Ok(renewed)) => {
-                            let mut expected = claim.clone();
-                            expected.lease_expires_at_unix_ms = renewed.lease_expires_at_unix_ms;
-                            if renewed != expected
-                                || renewed.lease_expires_at_unix_ms < claim.lease_expires_at_unix_ms
-                            {
-                                return Err(ProcessLedgerError::Store(
-                                    "original claim renewal returned a different identity or shortened lease; custody retained".into(),
-                                ));
-                            }
-                            renewal_process.reclaim_claim = renewed.clone();
-                            renewal_process.sync_reclaim_claim_metadata()?;
-                            let mut progress = kill_fence.claim_progress.lock()
-                                .unwrap_or_else(|error| error.into_inner());
-                            if !progress.renewal_unresolved || progress.pending_stop.is_some()
-                                || progress.acknowledged_claim != claim
-                            {
-                                return Err(ProcessLedgerError::Store(
-                                    "original claim renewal reservation changed; custody retained".into(),
-                                ));
-                            }
-                            progress.acknowledged_claim = renewed;
-                            progress.renewal_unresolved = false;
-                        }
-                        Ok(Err(error)) => return Err(ProcessLedgerError::Store(format!(
-                            "original claim renewal outcome remains unresolved; custody retained: {error}",
-                        ))),
-                        Err(_) => return Err(ProcessLedgerError::Store(
-                            "original claim renewal exceeded the observation deadline; native task, claim and STOP permit retained".into(),
-                        )),
-                    }
-                }
+                _ = time::sleep_until(deadline_at) => {}
+                _ = renewal.tick() => self.renew_fenced_claim(process, kill_fence, deadline_at).await,
             }
         }
+    }
+
+    /// Extend the claim lease once. A renewal that fails changes nothing: the
+    /// next tick or the final settlement retries it from the acknowledged claim.
+    async fn renew_fenced_claim(
+        &self, process: &ScopedReclaimableProcess, kill_fence: &Arc<ProcessKillFence>,
+        deadline: time::Instant,
+    ) {
+        let (renewal_process, claim) = {
+            let mut progress = kill_fence.claim_progress.lock()
+                .unwrap_or_else(|error| error.into_inner());
+            if progress.retained_renewal.is_some() || progress.pending_stop.is_some() { return; }
+            let claim = progress.acknowledged_claim.clone();
+            let mut renewal_process = process.clone();
+            renewal_process.reclaim_claim = claim.clone();
+            if renewal_process.sync_reclaim_claim_metadata().is_err() { return; }
+            if let (Some(runtime), Some(invocation)) = (
+                self.owning_runtime.as_ref(),
+                self.owning_runtime.as_ref().and_then(|_|
+                    self.store.retained_reclaim_renewal(&renewal_process, &claim, deadline)),
+            ) {
+                let result = Arc::new(std::sync::Mutex::new(None));
+                progress.retained_renewal = Some(RetainedClaimRenewal {
+                    deadline: invocation.deadline, result: Arc::clone(&result),
+                });
+                let owner = Arc::clone(kill_fence);
+                runtime.spawn(async move {
+                    let outcome = invocation.original.await;
+                    *result.lock().unwrap_or_else(|error| error.into_inner()) = Some(outcome);
+                    owner.completed.notify_waiters();
+                });
+                return;
+            }
+            (renewal_process, claim)
+        };
+        let outcome = time::timeout_at(
+            deadline, self.store.renew_reclaim_claim(&renewal_process, &claim),
+        ).await.unwrap_or_else(|_| Err(ProcessLedgerError::Store(
+            "claim renewal exceeded the kill window".into(),
+        )));
+        let recorded = kill_fence.claim_progress.lock()
+            .unwrap_or_else(|error| error.into_inner()).record_renewal(outcome);
+        if let Err(error) = recorded {
+            tracing::warn!(
+                process_uuid = %process.process_uuid, error = %error,
+                "reclaim claim renewal failed and will be retried"
+            );
+        }
+    }
+
+    /// The durable claim after the kill window. A renewal in flight is awaited
+    /// until its own deadline and a failed one is retried once, so that a lost
+    /// renewal answer cannot block the STOP or the release for good.
+    async fn settle_fenced_claim(
+        &self, process: &ScopedReclaimableProcess, kill_fence: &Arc<ProcessKillFence>,
+    ) -> Result<ReclaimClaim, ProcessLedgerError> {
+        loop {
+            let completed = kill_fence.completed.notified();
+            tokio::pin!(completed);
+            completed.as_mut().enable();
+            let Some(deadline) = kill_fence.collect_claim_renewal() else { break; };
+            let _ = time::timeout_at(deadline, completed).await;
+        }
+        let mut settled = process.clone();
+        {
+            let progress = kill_fence.claim_progress.lock().unwrap_or_else(|error| error.into_inner());
+            settled.reclaim_claim = progress.acknowledged_claim.clone();
+            if !progress.renewal_unconfirmed { return Ok(settled.reclaim_claim); }
+        }
+        settled.sync_reclaim_claim_metadata()?;
+        let outcome = time::timeout(
+            self.stop_ack_timeout, self.store.renew_reclaim_claim(&settled, &settled.reclaim_claim),
+        ).await.unwrap_or_else(|_| Err(ProcessLedgerError::Store(
+            "claim renewal retry exceeded the STOP acknowledgement window".into(),
+        )));
+        let mut progress = kill_fence.claim_progress.lock().unwrap_or_else(|error| error.into_inner());
+        progress.record_renewal(outcome)?;
+        Ok(progress.acknowledged_claim.clone())
     }
 
     async fn retained_recovery_status(
@@ -3455,8 +3372,7 @@ impl ScopedReclaim {
             process.original_pending_stop().map_err(|error| KillError::new(error.to_string()))?;
             return Ok(ReclaimKillOperationStatus::Succeeded);
         }
-        let owner = lookup_process_kill_fence(process, &self.store, &self.sandbox_kill, &self.stop_writer)
-            .map_err(|error| KillError::new(error.to_string()))?;
+        let owner = lookup_process_kill_fence(process, &self.store, &self.sandbox_kill, &self.stop_writer);
         let Some(owner) = owner else {
             // No local retained operation exists. The caller already holds the
             // exact canonical recovery claim and its original bounded callback.
@@ -3478,40 +3394,22 @@ impl ScopedReclaim {
             process.metadata_jsonb = original.metadata_jsonb;
             return Ok(ReclaimKillOperationStatus::Succeeded);
         };
-        if !owner.observe_claim_renewal().map_err(|error| KillError::new(error.to_string()))? {
+        if owner.collect_claim_renewal().is_some() {
             return Ok(ReclaimKillOperationStatus::Unknown);
         }
         {
-            let progress = owner.claim_progress.lock().unwrap_or_else(|error| error.into_inner());
-            if progress.renewal_unresolved || progress.acknowledged_claim != process.reclaim_claim {
+            // The caller just read this claim, so its lease is the durable one.
+            let mut progress = owner.claim_progress.lock().unwrap_or_else(|error| error.into_inner());
+            if progress.acknowledged_claim != process.reclaim_claim
+                && (progress.pending_stop.is_some()
+                    || progress.record_renewal(Ok(process.reclaim_claim.clone())).is_err())
+            {
                 return Ok(ReclaimKillOperationStatus::Unknown);
             }
         }
-        let mut result = owner.result.lock().unwrap_or_else(|error| error.into_inner()).clone();
-        if matches!(&result, Some(RetainedKillOutcome::Uncertain(_))) {
-            let Ok(mut task) = owner.task.try_lock() else {
-                return Ok(ReclaimKillOperationStatus::Unknown);
-            };
-            let Some(original) = task.as_mut() else {
-                return Ok(ReclaimKillOperationStatus::Unknown);
-            };
-            let Some(joined) = (&mut *original).now_or_never() else {
-                return Ok(ReclaimKillOperationStatus::Unknown);
-            };
-            let checked = match joined {
-                Ok(result) => RetainedKillOutcome::Completed(result),
-                Err(error) => RetainedKillOutcome::JoinedWithoutResult(KillError::new(format!(
-                    "original retained reclaim task returned a checked join error: {error}",
-                ))),
-            };
-            task.take();
-            owner.publish(checked);
-            result = owner.result.lock().unwrap_or_else(|error| error.into_inner()).clone();
-        }
-        let terminal = match result {
+        let terminal = match owner.finished() {
             None => return Ok(ReclaimKillOperationStatus::InProgress),
             Some(RetainedKillOutcome::NotInvoked(_)) => return Ok(ReclaimKillOperationStatus::NotStarted),
-            Some(RetainedKillOutcome::Uncertain(_)) => return Ok(ReclaimKillOperationStatus::Unknown),
             Some(RetainedKillOutcome::Completed(Err(error)))
                 if error.kind == KillFailureKind::BeforeAdapterInvocation =>
                     return Ok(ReclaimKillOperationStatus::NotStarted),
@@ -3522,7 +3420,7 @@ impl ScopedReclaim {
                 let retained_terminal = {
                     let progress = owner.claim_progress.lock()
                         .unwrap_or_else(|error| error.into_inner());
-                    if progress.renewal_unresolved || progress.acknowledged_claim != process.reclaim_claim {
+                    if progress.acknowledged_claim != process.reclaim_claim {
                         return Ok(ReclaimKillOperationStatus::Unknown);
                     }
                     progress.pending_stop.as_ref().map(ScopedReclaimTerminal::from_stop).transpose()
@@ -3546,7 +3444,7 @@ impl ScopedReclaim {
         let original = {
             let mut progress = owner.claim_progress.lock()
                 .unwrap_or_else(|error| error.into_inner());
-            if progress.renewal_unresolved || progress.acknowledged_claim != process.reclaim_claim {
+            if progress.acknowledged_claim != process.reclaim_claim {
                 return Ok(ReclaimKillOperationStatus::Unknown);
             }
             if progress.pending_stop.is_none() {

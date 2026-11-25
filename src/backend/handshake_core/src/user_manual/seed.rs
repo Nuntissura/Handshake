@@ -4277,8 +4277,11 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  STOP only after embedded SurrealDB store acknowledgement. A post-kill write failure remains \
                  `kill_succeeded_pending_stop`; retry persists STOP without killing again, while stale \
                  claimant tokens cannot renew, release, or finalize a newer claim. Before kill, the \
-                 claimant durably enters `reclaim_kill_in_progress`; that phase is never lease-taken \
-                 over, so a second backend cannot double-kill a blocked process. The stable \
+                 claimant durably enters `reclaim_kill_in_progress`. A kill that does not return \
+                 within its bounded window is reported as a kill failure: no STOP is written, its \
+                 claim and STOP permit are released, and while that kill still runs the same \
+                 instance starts no second kill of the process and adopts its late result. A claim \
+                 left behind by a crash is taken over only after its lease expired. The stable \
                  `kill_operation_uuid` is the sandbox adapter idempotency key across retries. If the \
                  backend crashes during that phase, run the bounded session recovery sweep: adapter \
                  `succeeded` evidence advances to pending STOP without another kill; `failed` or \
