@@ -1140,5 +1140,100 @@
       "AMD, NVIDIA, Intel, multi-GPU, discrete heaps, real loss and TDR, validation layers"
     ],
     "tests": "compiled, not run; independent run pending"
+  },
+  "slice1_eval3_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-203 slice 1 after the second remediation; slice result on this machine only; not an MT verdict; lifecycle unchanged",
+    "commit": "077ca69693823f5d622e16d3e2dcd128a9391868",
+    "crate_tree": "fa4313025",
+    "result": "passed (this machine)",
+    "counts": {
+      "lib": 34,
+      "clients": 15,
+      "device_loss": 13,
+      "gpu_owner": "9 (+1 ignored)",
+      "harness": 4,
+      "ledger": 18,
+      "selection": 7,
+      "shutdown": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    "gpu_required": "yes, by the checked-in crate config; no skip lines",
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/cargo-test-077ca6969.log",
+    "log_sha256": "0d301426ec9a72fefc71653c6d3e4e9b28f1ba62233443125c5e36f67c45bbb2",
+    "device": "Adreno X2-85 through an emulated x64 process; not x64 hardware acceptance",
+    "previous_findings": {
+      "N1": "fixed",
+      "N2": "fixed",
+      "N3": "fixed",
+      "N4": "fixed",
+      "N5": "fixed",
+      "N6": "fixed",
+      "N7": "fixed",
+      "N8": "fixed",
+      "N9": "fixed except Dozen refused only by API version"
+    },
+    "spec_check": "fences: one per submission, never reset, destroyed only after signal or drain (VUID-vkDestroyFence-fence-01120); child objects destroyed first (VUID-vkDestroyDevice-device-05137); queue and fence externally synchronised at submit",
+    "answered": "polling alone sees gated work end on this driver",
+    "new_findings": [
+      {
+        "id": "E3-1",
+        "severity": "medium",
+        "at": "owner/queue.rs:135-152; vulkan/queue.rs:186-214",
+        "defect": "vkQueueSubmit runs under both slot and queue locks; a driver stall blocks poll, observe, lease drop, close and drop, so exit can hang",
+        "repair": "dedicated submit mutex; seal via an atomic"
+      },
+      {
+        "id": "E3-2",
+        "severity": "low-medium",
+        "at": "owner/queue.rs:68,226; release.rs:21-25",
+        "defect": "diagnostics emitted under the slot lock; a sink calling back deadlocks"
+      },
+      {
+        "id": "E3-3",
+        "severity": "low",
+        "at": "lifecycle.rs:166,227",
+        "defect": "waiting or recording callers count as holders; close reports Held with 0 leases"
+      },
+      {
+        "id": "E3-4",
+        "severity": "low, inherent",
+        "at": "vulkan/queue.rs:280-291",
+        "defect": "fences reading SUCCESS before the sentinel shows loss report cut work Completed; the spec allows it"
+      },
+      {
+        "id": "E3-5",
+        "severity": "low",
+        "at": "lifecycle.rs:85",
+        "defect": "disposal result of a device created after close is never reported"
+      },
+      {
+        "id": "E3-6",
+        "severity": "low",
+        "defect": "each waiter polls on its own; cost grows linearly with waiters; not measured"
+      }
+    ],
+    "tests_that_cannot_fail_for_their_rule": [
+      "Dozen test (ignored, accepts api_below_baseline)",
+      "a_loss_of_an_idle_device (injected answer)",
+      "ended_at 5 s slack equals MAX_WAIT",
+      "backoff upper bound timeout*50"
+    ],
+    "ac203": {
+      "AC203-1": "not judged",
+      "AC203-2..5": "partly: attach/detach, isolation, budget, settlement, reclaim, shutdown, loss, rebind; no windows",
+      "AC203-6": "not in slice",
+      "AC203-7": "event port only; no internal_diagnostics or Palmistry wiring"
+    },
+    "unproven_without_native_x64": [
+      "AMD, NVIDIA, Intel, multi-GPU",
+      "dedicated heaps",
+      "real loss and TDR including the sentinel",
+      "real submit stalls",
+      "validation layers",
+      "Dozen refusal by driver id"
+    ]
   }
 }
