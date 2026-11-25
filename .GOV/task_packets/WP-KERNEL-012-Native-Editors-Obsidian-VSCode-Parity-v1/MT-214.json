@@ -891,5 +891,118 @@
       "ARM64 and other systems not compiled"
     ],
     "next": "independent eval, then S2 (needs MT-203 present support) or S3"
+  },
+  "slice1_eval_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-25",
+    "scope": "MT-214 slice 1 only; not an MT verdict; lifecycle unchanged",
+    "commit": "9788406857d7821e43e1d590a85e78764fd26a2c",
+    "result": "failed",
+    "counts": {
+      "unit": "54/54",
+      "focus_ban": "4/5",
+      "geometry": "5/5",
+      "public_surface": "3/3",
+      "host_panic": "1/1",
+      "menu_loop": "1/1",
+      "operator_window": "1/1",
+      "scale_change": "1/1",
+      "wakes": "1/1",
+      "quiet_window": "0/1"
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval-run-9788406857.log",
+    "log_sha256": "a9500212e901bc39a093744a07571fe9f6420440edaf925c7227bed6d1097ccf",
+    "operator_safety": "all windows on private desktops; no SwitchDesktop call; OS clipboard never reached; session locked during the run, so unchanged foreground is weak evidence",
+    "findings": [
+      {
+        "id": "W1",
+        "severity": "high",
+        "at": "place.rs:290; test_quiet_window.rs:292",
+        "defect": "SWP_NOACTIVATE set in WM_WINDOWPOSCHANGING does not prevent activation (plain SetWindowPos, or hide then SW_SHOW); minimise also activates ordinary windows",
+        "repair": "a thread-local CBT hook refused activation in all 5 probe sequences"
+      },
+      {
+        "id": "W2",
+        "severity": "high",
+        "at": "wake_slot.rs:69-79,95,178",
+        "defect": "in_queue never recovers from a discarded post; three losses end the lane; a unit test asserts the defect (MT-215 F1)"
+      },
+      {
+        "id": "W3",
+        "severity": "medium, read",
+        "at": "translate.rs:45",
+        "defect": "a hidden maximised Operator window on DPI change makes winit call SW_RESTORE (activates), then hide"
+      },
+      {
+        "id": "W4",
+        "severity": "medium, authority",
+        "at": "origin.rs:146; host.rs:37; translate.rs:60; loop_core.rs:458-486; place.rs:108",
+        "defect": "hardware stamps reusable for 5 s; launch authority reusable for 60 s; close_requested never clears; a model may move or resize the Operator's foreground window; owner chains ignored"
+      },
+      {
+        "id": "W5",
+        "severity": "medium, privacy",
+        "at": "input.rs:99,30",
+        "defect": "KeyEvent Debug prints key codes"
+      },
+      {
+        "id": "W6",
+        "severity": "medium, read",
+        "defect": "a posted WM_DEADCHAR ends the loop by panic; in an OS modal loop wakes continue over dead windows"
+      },
+      {
+        "id": "W7",
+        "severity": "low",
+        "at": "app.rs:70,92; queue.rs:35; service.rs:140",
+        "defect": "windows destroyed despite held tokens; EventsLost reported before older events; DispatchedWake accepts sent messages; zero-delay wakes starve input; possible taskbar button via AddTab; no ghosting decision"
+      },
+      {
+        "id": "W8",
+        "severity": "test defect",
+        "at": "test_focus_ban.rs:175",
+        "defect": "expects 2, scan counts lines; three later asserts unreached"
+      }
+    ],
+    "tests_that_cannot_fail_for_their_rule": [
+      "FocusWatch",
+      "no wake before start",
+      "no_two_names",
+      "both every_key loops",
+      "private-desktop scan (one mention suffices)"
+    ],
+    "never_run_paths": [
+      "owner and BehindForeground paths, because the private desktop's foreground is always 0"
+    ],
+    "ac214": {
+      "AC214-1": "met for this crate",
+      "AC214-12": "met for this crate",
+      "AC214-2": "fails",
+      "AC214-4": "unit plus one frame",
+      "AC214-5": "mapping only",
+      "AC214-8": "no multiwindow test",
+      "AC214-11": "panic and shutdown only"
+    },
+    "mt215_conditions": {
+      "F1": "refused posts met, discarded posts not",
+      "F2": "met",
+      "HB-3": "met",
+      "HB-4": "unit only",
+      "HB-7": "by type, sent-message caveat"
+    },
+    "needs_native_x64_and_real_desktop": [
+      "foreground and Z order",
+      "minimise and restore",
+      "taskbar and Explorer restart",
+      "monitors and DPI",
+      "move/size and caption hold",
+      "input origin",
+      "touch and pen",
+      "clipboard",
+      "drop",
+      "hang ghost",
+      "sleep",
+      "session end"
+    ],
+    "next_actor": "GUI coding agent: repair W1..W8 and the named tests"
   }
 }
