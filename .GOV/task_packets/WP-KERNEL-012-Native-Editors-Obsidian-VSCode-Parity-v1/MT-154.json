@@ -5076,5 +5076,14 @@
     ],
     "refactor_exposure": "low: Only the context menu entry moves to the Vulkan shell; the account-session routes stay backend. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus handshake_context_menu and the shell command descriptors. Egui-bound today: code_editor/panel.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25); context_menu.rs holds little egui code.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "finding_20261125_unauthenticated_kernel_routes": {
+    "recorded_by": "ORCHESTRATOR root session, from an adversarial review of MT-172",
+    "recorded_on": "2026-11-25",
+    "judged_at": "71cc3b6d3",
+    "at": "src/backend/handshake_core/src/api/kernel.rs: dcc_projection (233), trigger_dcc_governed_action (290), session_spawn_tree_dcc_projection (367)",
+    "finding": "no authentication check seen in these handlers or in the router layers applied to kernel routes; dcc_projection returns session records",
+    "confidence": "static reading; 290 and 367 not read in full; not run",
+    "lifecycle": "unchanged; MT-154 owner decides the repair scope"
   }
 }

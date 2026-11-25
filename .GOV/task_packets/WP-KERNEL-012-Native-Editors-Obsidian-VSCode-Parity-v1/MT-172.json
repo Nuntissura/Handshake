@@ -13500,5 +13500,42 @@
     "operator_decision_request": "PT018 production overflow receipt needs Master Spec enrichment REG-001..005 (proposal only, no approval recorded); does not block the repairs",
     "correction": "an earlier statement that 3f8391efb holds a half-applied pt018-full-source-v4 candidate was wrong: it is a separate implementation and nothing from v4 is to be applied",
     "dropped_process": "the V11 capture guard, observer, custody and admission layers are not used: no authority for them was found; kept are the cap check before launch, one build per disk, process identity and input digests (launcher: compile-check-20261125-01/run_check.py)"
+  },
+  "reconciliation_review_20261125": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-25",
+    "picotask": "WP012-MT172-PT001",
+    "bound_to": "71cc3b6d3",
+    "result": "AC1 not passable: source content was lost by accident at import 34fb6f344 (rows conflict_not_written)",
+    "row_classes_301": {
+      "equal_source": 102,
+      "equal_recorded_f16cfdcb": 128,
+      "neither": 57,
+      "absent": 14
+    },
+    "rows_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/pt001-reconciliation-20261125/rebind-71cc3b6d3.json",
+    "dispositions_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/pt001-reconciliation-20261125/dispositions.json",
+    "adversarial_review_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/pt001-reconciliation-20261125/adversarial-review.json",
+    "must_fix_before_ac1": [
+      "N1",
+      "N2+N3",
+      "N4",
+      "N6",
+      "N7",
+      "N9",
+      "N11",
+      "named N19 tests",
+      "N15 once decided"
+    ],
+    "operator_decision_requests": [
+      "N15: delete llm/ollama.rs or retain it (contracts contradict each other)",
+      "PATHS: write-path additions for N7, N8 and N15 tests and MT-174 files"
+    ],
+    "not_done": [
+      "29 test files not compared case by case",
+      "residual lines of 73 line-based rows not read",
+      "29 extra paths classified mechanically only",
+      "rows touched by the repair coder must be re-bound at the end"
+    ]
   }
 }
