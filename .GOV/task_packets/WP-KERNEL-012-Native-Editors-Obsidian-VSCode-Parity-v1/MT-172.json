@@ -13591,5 +13591,22 @@
       "S11 N3+N2, N4, N6 from 98efa4d01",
       "S12 one test round over six targets"
     ]
+  },
+  "schema_writer_audit_20261125": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-25",
+    "finding": "the import 34fb6f344 left schema and code out of step: required fields never written, and a table and fields used by code but defined nowhere; failures appear only at run time",
+    "audit_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/schema-writer-audit-20261125/audit.json",
+    "top_effects": [
+      "workspace activation never acknowledges",
+      "member login and session exchange fail",
+      "every admitted AI job fails",
+      "note, journal and view creation fail",
+      "editor CRDT push fails",
+      "process ledger START fails (wsids)"
+    ],
+    "confidence": "rows 1-4 re-read in source by the orchestrator; rows 5-7 specialist only; nothing run",
+    "lifecycle": "unchanged",
+    "next": "repair specification by a specialist, adversarial review, then slices with MT-139 fresh/reopen proof where the schema revision changes"
   }
 }
