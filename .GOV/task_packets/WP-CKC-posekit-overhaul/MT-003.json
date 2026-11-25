@@ -160,5 +160,27 @@
     "2026-10-25 FLIGHT_RECORDER: Direct new producer NOT_APPLICABLE to MT-003 because Read-only intent-to-native-surface mapping; this task creates no runtime GUI or observable product behavior. Preserve underlying business-event/EventLedger obligations in the named implementation MTs; this record does not claim they are wired or accepted.",
     "2026-10-25 INTERNAL_DIAGNOSTICS: Direct new producer NOT_APPLICABLE to this support-only scope. Underlying GUI/byte-route/schema/runtime consequences, where changed by their owning implementation MT, reuse the shared typed mechanical allowlist. Exact downstream producer binding remains NOT_VERIFIED; no per-MT logger.",
     "2026-10-25 PALMISTRY: Direct new tracker NOT_APPLICABLE to this support-only scope. Existing standalone out-of-process watcher and original independent genuine application crash-survival proof remain required for affected runtime work; no watcher controller/restart/remediation authority is introduced."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "none: emits no business event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: read-only mapping of original CKC/PoseKit intent to native surfaces, no product code; nothing moves to the Vulkan shell from this MT.",
+    "recorded_at": "2026-11-25T19:05:14Z"
+  }
 }

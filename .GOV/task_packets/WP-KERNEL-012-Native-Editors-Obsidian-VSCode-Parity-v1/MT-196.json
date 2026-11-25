@@ -688,5 +688,45 @@
     "acceptance_state": "NOT_PROVEN",
     "original_acceptance_unchanged": true,
     "current_compile_or_runtime_pass_claimed": false
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: Engine Profiles Settings tab and chat profile selector: profile loaded/stale/denied, active selection accepted or superseded, dispatch refused; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "business_event_ids: profile create, edit, delete, active selection and dispatch (only those this MT or its hbr_int_009 tier text already names)",
+      "palmistry": "ring_visible: Engine Profiles Settings tab and chat profile selector liveness and freezes on the shared ring; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); no watcher of its own"
+    },
+    "control_descriptors": "shared_typed_source: existing ids settings.engine-profiles.create, settings.engine-profiles.refresh, settings.engine-profiles.draft.*, settings.engine-profiles.delete.confirm, settings.engine-profiles.delete.cancel, operator-chat.profile.{id} and operator-chat.picker.model; declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: profile CRUD and active selection",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "module_tab_feature_subtab: Settings > Engine Profiles, inside Settings",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-015",
+      "GUI-DESKTOP-017",
+      "GUI-DESKTOP-019",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-018"
+    ],
+    "refactor_exposure": "high: The Engine Profiles tab and chat selector move to the Vulkan shell with complete-profile selection, immutable revision and fingerprint shown; late acknowledgements never switch the profile. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the one Settings tree, a Kumihimo pane and Handpick for profile pick. Egui-bound today: settings_dialog.rs, operator_chat_pane.rs, app.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25); backend_client.rs holds no egui code.",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }

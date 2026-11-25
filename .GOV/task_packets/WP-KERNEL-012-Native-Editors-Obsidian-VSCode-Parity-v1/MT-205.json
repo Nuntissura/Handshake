@@ -873,5 +873,27 @@
     "proof_records": [],
     "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
   },
-  "diagnostic_result_policy": "Record future per-tier WIRED only after its required observed output is inspected. NOT_APPLICABLE needs a concrete reason; DEFERRED names the unresolved owner/dependency and does not satisfy a required acceptance row. This planned record asserts none of those future outcomes."
+  "diagnostic_result_policy": "Record future per-tier WIRED only after its required observed output is inspected. NOT_APPLICABLE needs a concrete reason; DEFERRED names the unresolved owner/dependency and does not satisfy a required acceptance row. This planned record asserts none of those future outcomes.",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "business_event_ids: the events this MT's hbr_int_009_tier_obligations already name, unchanged; no new event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: backend MCP ownership and cancellation settlement; nothing moves to the Vulkan shell from this MT. Read by the Dev Command Center pane (MT-209). Its own gui_obligation already names MT-209 as the consumer.",
+    "recorded_at": "2026-11-25T19:05:27Z"
+  }
 }

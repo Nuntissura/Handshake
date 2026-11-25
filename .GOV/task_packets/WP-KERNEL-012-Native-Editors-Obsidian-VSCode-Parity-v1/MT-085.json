@@ -300,5 +300,30 @@
       "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
     ],
     "not_applicable_reason": "This bounded MT owns backend/standalone/diagnostic/support behavior rather than a new GUI. Original affected native consumer/adoption obligations remain required."
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: slow-frame event with frame duration",
+      "flight_recorder": "business_event_ids: the events this MT's hbr_int_009_tier_obligations already name, unchanged; no new event",
+      "palmistry": "ring_visible: slow-frame event on the ring"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: none, it is a counter",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "medium: slow-frame timing on the UI thread; no operator surface of its own. Frame timing moves from the egui frame loop (app.rs) to the Vulkan shell frame loop with the same typed slow-frame event. Read by the Diagnostics panel (MT-087).",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }

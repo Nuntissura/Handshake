@@ -377,5 +377,27 @@
       ],
       "no_context_instruction": "Read MT-107.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "business_event_ids: the events this MT's hbr_int_009_tier_obligations already name, unchanged; no new event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: backend launch-contract validation and managed test harness re-scope; nothing moves to the Vulkan shell from this MT. Read by the model session launch of MT-101.",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }

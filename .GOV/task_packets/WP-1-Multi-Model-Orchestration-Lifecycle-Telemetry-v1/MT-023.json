@@ -640,5 +640,27 @@
     "[WP1-MT-023-VK-002] FLIGHT_RECORDER: Preserve canonical business-event Flight Recorder/EventLedger emissions, exact trace/span/run/lane/message and authenticated account/Principal/AccessSpace/workspace/session identity, atomic mutation/event and replay/idempotency obligations from this MT. Presentation-only focus/layout/motion does not invent business events. Actual emit-to-readback wiring is NOT_VERIFIED by this record.",
     "[WP1-MT-023-VK-003] INTERNAL_DIAGNOSTICS: Wire the affected native action/state/error and runtime lifecycle outcomes to the shared internal_diagnostics producer/API and typed mechanical allowlist. Preserve exact correlation/session and privacy; record no conversation/project content, credentials or secrets. Reuse module-owned telemetry and meaningful positive/denied/error/recovery proof; actual caller/output binding remains NOT_VERIFIED.",
     "[WP1-MT-023-VK-004] PALMISTRY: Wire affected liveness/freeze/crash capture through the standalone out-of-process Palmistry watcher/recorder, canonical ring/survivor route and same-session event identity for later diagnostics. Retain genuine app/watcher process-birth binding, normal ACK/drain, durable reopen and original independent owned-application freeze/crash-survival proof. No per-MT watcher, control app, automatic restart, foreign-process disruption or OS remediation; source links do not prove survival."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "business_event_ids: the events this MT's hbr_int_009_tier_obligations already name, unchanged; no new event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: backend microVM launch against a worktree folder; nothing moves to the Vulkan shell from this MT. Read by the folder/worktree picker and lane state of the Orchestration Console (MT-012), with Cabinet owning the tree. Whether the in-VM model uses a GPU is not stated; if it does it is admitted through the central owner (WP-KERNEL-012 MT-203). Its gui_obligation asks for an operator surface; that is the reader named here, this MT's own write scope has none.",
+    "recorded_at": "2026-11-25T19:05:12Z"
+  }
 }

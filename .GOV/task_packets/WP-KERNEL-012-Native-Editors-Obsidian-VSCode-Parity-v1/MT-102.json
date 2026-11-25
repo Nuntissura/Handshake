@@ -321,5 +321,45 @@
       "Retain stable model/AccessKit routes, keyboard/focus/IME, DPI/resize/multiwindow, aligned icons/text/panels, touching edges/shared dividers, truthful empty/loading/error/denied/recovery, context/persistence/reopen and same-change UserManual. Keep existing taxonomy; use coherent menus/tabs/trees with restrained interruptible toolkit motion/reduced-motion, no clutter or text bloat. Original independent runtime/auth/privacy/proof remains required."
     ],
     "not_applicable_reason": null
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: visual debugger: worksurface structure inspector: dump requested/failed, capture refused; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "none: read-only inspection",
+      "palmistry": "ring_visible: visual debugger: worksurface structure inspector liveness and freezes on the shared ring; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); no watcher of its own"
+    },
+    "control_descriptors": "shared_typed_source: existing ids settings.diagnostics.worksurface-inspector.dump, settings.diagnostics.worksurface-inspector.status; declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: no mutating command of its own, navigation and view state only",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "none: no setting of its own; motion follows settings.appearance.reduce-motion",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-029",
+      "GUI-DESKTOP-032",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-010"
+    ],
+    "refactor_exposure": "high: The inspector dumps the Vulkan shell tree (panes, ids, rects) instead of the egui layout; capture goes today through mcp/screenshot.rs (PrintWindow/BitBlt) and becomes a shell frame readback through the owner. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the shell control tree and the Kumihimo layout model. Egui-bound today: settings_dialog.rs, settings_diagnostics_section.rs, app.rs, mcp/screenshot.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25); visual_debugger/mod.rs holds no egui code. Its acceptance names egui_kittest as proof tool; the same assertions must run on the Vulkan shell.",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }

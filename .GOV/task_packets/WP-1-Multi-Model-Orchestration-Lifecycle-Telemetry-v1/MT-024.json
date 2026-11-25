@@ -225,5 +225,27 @@
     "[WP1-MT-024-VK-002] FLIGHT_RECORDER: Direct producer NOT_APPLICABLE because this MT is support-only/pure source with no product runtime effects. Original adopting-host business-event/EventLedger obligations remain required; do not add per-MT events.",
     "[WP1-MT-024-VK-003] INTERNAL_DIAGNOSTICS: Direct new producer NOT_APPLICABLE to this scope. Future affected host behavior must use the canonical internal_diagnostics producer, typed mechanical allowlist and exact scope/correlation; consumer linkage is NOT_VERIFIED here.",
     "[WP1-MT-024-VK-004] PALMISTRY: Direct tracker NOT_APPLICABLE to this scope. Preserve the standalone out-of-process Palmistry later-diagnostics recorder and original genuine owned-application freeze/crash-survival proof for affected host runtime; no controller/restart/remediation."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "none: emits no business event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: SurrealDB test-scope cleanup only, support code in tests; nothing moves to the Vulkan shell from this MT.",
+    "recorded_at": "2026-11-25T19:05:12Z"
+  }
 }

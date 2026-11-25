@@ -8425,5 +8425,39 @@
     "[WP1-MT-017-VK-002] FLIGHT_RECORDER: Preserve canonical business-event Flight Recorder/EventLedger emissions, exact trace/span/run/lane/message and authenticated account/Principal/AccessSpace/workspace/session identity, atomic mutation/event and replay/idempotency obligations from this MT. Presentation-only focus/layout/motion does not invent business events. Actual emit-to-readback wiring is NOT_VERIFIED by this record.",
     "[WP1-MT-017-VK-003] INTERNAL_DIAGNOSTICS: Wire the affected native action/state/error and runtime lifecycle outcomes to the shared internal_diagnostics producer/API and typed mechanical allowlist. Preserve exact correlation/session and privacy; record no conversation/project content, credentials or secrets. Reuse module-owned telemetry and meaningful positive/denied/error/recovery proof; actual caller/output binding remains NOT_VERIFIED.",
     "[WP1-MT-017-VK-004] PALMISTRY: Wire affected liveness/freeze/crash capture through the standalone out-of-process Palmistry watcher/recorder, canonical ring/survivor route and same-session event identity for later diagnostics. Retain genuine app/watcher process-birth binding, normal ACK/drain, durable reopen and original independent owned-application freeze/crash-survival proof. No per-MT watcher, control app, automatic restart, foreign-process disruption or OS remediation; source links do not prove survival."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: WP-1 capstone proof over the Orchestration Console, SwarmLaneDiagnostics, Settings and UserManual panes: asserted on the driven panes: visible-disabled models (AC-13), zeroizing key entry outcomes (AC-12), launch/denied/cancel states; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "business_event_ids: exactly one canonical event and one Flight Recorder event per activity (AC-16), as written",
+      "palmistry": "ring_visible: the driven panes keep their own ring liveness; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); this proof adds no watcher"
+    },
+    "control_descriptors": "shared_typed_source: reuses the ids of MT-008, MT-012, MT-014, MT-015 and MT-022, adds none; declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: only through the driven panes",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "none: no setting of its own; motion follows settings.appearance.reduce-motion",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "low: The sixteen intents keep their backend proof; the live native operator proof repeats on the Vulkan shell with the same scope, restart and exactly-once assertions. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus Argus/AccessKit steering on that binary. Egui-bound code not inspected (this MT names no product file).",
+    "recorded_at": "2026-11-25T19:05:12Z"
+  }
 }

@@ -1150,5 +1150,39 @@
     "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-045: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
     "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-045: DEFERRED until actual E8-MT045-LargeDocPerformanceProof caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
     "2026-10-25 HBR-INT-009 PALMISTRY MT-045: DEFERRED until actual E8-MT045-LargeDocPerformanceProof outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: large document and codebase performance proof: proof asserts frame-time and memory budgets per scenario; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "none: proof reads",
+      "palmistry": "ring_visible: the driven panes keep their own ring liveness; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); this proof adds no watcher"
+    },
+    "control_descriptors": "shared_typed_source: reuses existing editor ids; declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: no mutating command of its own, navigation and view state only",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "none: no setting of its own; motion follows settings.appearance.reduce-motion",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "low: The latency and memory scenarios are measured again on the Vulkan shell; figures from the egui host stay history for that host only. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the frame-time source of MT-085 and the GPU owner for memory figures. Egui-bound code not inspected (this MT names no existing native source file).",
+    "recorded_at": "2026-11-25T19:05:27Z"
+  }
 }

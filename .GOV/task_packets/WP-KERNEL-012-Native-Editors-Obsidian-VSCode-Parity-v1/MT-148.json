@@ -1244,5 +1244,27 @@
     "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-148: Direct new business-event producer NOT_APPLICABLE to this bounded support_proof task. Preserve original proof and affected host/business-operation EventLedger obligations; no synthetic event or per-MT logger.",
     "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-148: Direct new runtime producer NOT_APPLICABLE unless existing scoped executable behavior changes. Actual host/adoption retains shared typed internal_diagnostics wiring and original proof; paperwork/source is not WIRED evidence.",
     "2026-10-25 HBR-INT-009 PALMISTRY MT-148: No new watcher/tracker is introduced by this bounded task. Preserve downstream standalone out-of-process Palmistry recorder linkage and original controlled-owned-application crash-survival/normal ACK-drain proof; no controller or automatic restart."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "none: emits no business event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: fresh-worktree build and test repair; nothing moves to the Vulkan shell from this MT.",
+    "recorded_at": "2026-11-25T19:05:27Z"
+  }
 }

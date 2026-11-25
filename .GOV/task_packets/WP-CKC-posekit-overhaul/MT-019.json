@@ -195,5 +195,39 @@
     "2026-10-25 FLIGHT_RECORDER: For Integrate Facial Rust app capabilities into native Handshake Ingest, retain the original canonical SurrealDB/EventLedger business-event/receipt identity, same-transaction obligations where applicable, and independent public readback proof. Presentation-only focus/layout/motion changes do not invent business events. Exact current emit-to-consumer binding and runtime proof are NOT_VERIFIED by this record; reuse the canonical producer, never a per-MT logger.",
     "2026-10-25 INTERNAL_DIAGNOSTICS: Affected native action/navigation/control/error and Vulkan/GPU lifetime outcomes reuse the existing shared diagnostic producer/API and typed mechanical allowlist. Preserve real event/control/correlation/session identity and privacy; record no project content/secrets. Exact producer/caller binding and live output remain NOT_VERIFIED. Existing proof-only tasks observe these outcomes without creating replacement instrumentation.",
     "2026-10-25 PALMISTRY: Reuse the standalone out-of-process watcher/event recorder and canonical ring/survivor path for later diagnostics. Preserve exact app/watcher PID plus process-birth/correlation binding, normal shutdown acknowledgements/drain and original independent controlled-owned-application freeze/crash-survival proof. Static links, clean shutdown, foreign-process disruption and an empty process query do not prove survival. Exact linkage/proof remains NOT_VERIFIED; no per-MT watcher, app controller, restart or OS remediation."
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: Facial analysis controls in Atelier Ingest: analyze requested/accepted/failed, model unavailable, degraded result shown honestly; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "business_event_ids: Facial run receipt (only those this MT or its hbr_int_009 tier text already names)",
+      "palmistry": "ring_visible: Facial analysis controls in Atelier Ingest liveness and freezes on the shared ring; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); no watcher of its own"
+    },
+    "control_descriptors": "shared_typed_source: existing ids atelier-ingest-mode-facial-review, atelier-ingest-facial-analyze, atelier-ingest-facial-features-load, atelier-ingest-facial-features-readout, atelier-ingest-facial-provenance, atelier-ingest-facial-receipt, atelier-ingest-facial-summary; declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: analyze",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "none: no setting of its own; motion follows settings.appearance.reduce-motion",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "medium: Analyze controls and result readouts are redrawn in the Vulkan pane; the Facial engine stays native backend code. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus a Kumihimo pane inside the Atelier module. Egui-bound today: atelier_panel.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25).",
+    "recorded_at": "2026-11-25T19:05:14Z"
+  }
 }

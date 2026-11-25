@@ -363,5 +363,39 @@
       "Retain stable model/AccessKit routes, keyboard/focus/IME, DPI/resize/multiwindow, aligned icons/text/panels, touching edges/shared dividers, truthful empty/loading/error/denied/recovery, context/persistence/reopen and same-change UserManual. Keep existing taxonomy; use coherent menus/tabs/trees with restrained interruptible toolkit motion/reduced-motion, no clutter or text bloat. Original independent runtime/auth/privacy/proof remains required."
     ],
     "not_applicable_reason": null
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: notes open, edit, save and reopen flow: open failed, saved, denied, reopened state; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "business_event_ids: document_saved and code edit events through the existing emitter (MT-036), no new event",
+      "palmistry": "ring_visible: notes open, edit, save and reopen flow liveness and freezes on the shared ring; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); no watcher of its own"
+    },
+    "control_descriptors": "shared_typed_source: existing project-tree and rich editor ids (project-tree.doc.{id}, editor.rich.text); declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: document save",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "none: no setting of its own; motion follows settings.appearance.reduce-motion",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "high: The open/save/reopen flow runs through the Vulkan panes and Cabinet tree; the backend document routes do not change. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the rich editor Kumihimo pane, HANDSHAKE-RICH-DOCUMENT-MODEL-ASSET-001 and Cabinet for the project tree. Egui-bound today: app.rs, editor_pane_factories.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25). Its acceptance names egui_kittest as proof tool; the same assertions must run on the Vulkan shell.",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }

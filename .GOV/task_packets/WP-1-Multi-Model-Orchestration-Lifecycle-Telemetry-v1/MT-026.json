@@ -381,5 +381,27 @@
   "preserved_original_obligations": {
     "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860",
     "requirements": "Full original three-WP/SIX/16/native/manual/Argus/independent IV/19 job UNRUN/pins/spent budgets preserved. Genuine165 real measurement -> sole measured pin -> independent confirm before166; immutable164. No old counters reset or original host obligations waived."
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "none: emits no business event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004"
+    ],
+    "refactor_exposure": "none: standalone handshake_workflow_lifecycle crate, pure execution and entry mechanics without any GUI host; nothing moves to the Vulkan shell from this MT. Its later pinned host adoption owns any Vulkan consumer.",
+    "recorded_at": "2026-11-25T19:05:12Z"
   }
 }

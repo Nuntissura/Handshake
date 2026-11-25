@@ -14199,5 +14199,39 @@
       "proof_strength": "Owning model/navigation/popup and headless egui primitive integration only. Original host create-note/R154-A, genuine GUI/accessibility/Argus/native and full original MT175/WP acceptance remain unproved; no historical failure claim or probe renewal.",
       "next": "Actual owning proof plus coherent canonical publication and both independent rereads precede a distinct exact pinned host-adoption allocation through the existing leader. Retain full original WP/MT/spec/pins/proof and spent/denied scopes; do not claim original acceptance from these component tests."
     }
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_host_allowlist: native host import paths (app, atelier, panes, MCP, accessibility, palmistry launch): host mount, MCP attach or pane factory failure; content-free codes with real session/correlation and PID plus process birth (HBR-HOST-005)",
+      "flight_recorder": "business_event_ids: events of the carried panes, unchanged",
+      "palmistry": "ring_visible: native host import paths (app, atelier, panes, MCP, accessibility, palmistry launch) liveness and freezes on the shared ring; freeze/crash survival is proved on the mounted app at WP-KERNEL-012 MT-202 (HBR-HOST-006); no watcher of its own"
+    },
+    "control_descriptors": "shared_typed_source: existing ids of the panes and panels it carries, unchanged; declared once in the Kumihimo-adopted descriptor source that feeds GUI, model tools, AccessKit/Argus and UserManual (HBR-HOST-002)",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: as the carried panes do",
+    "jobs": "none: no queued or retained job of its own",
+    "settings": "none: no setting of its own; motion follows settings.appearance.reduce-motion",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-026",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "high: The native host files it reconciles are the egui host that the zero-egui shell replaces at the switch; the reconciled pane, MCP, accessibility and launch behaviour is what the shell must carry over. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the Kumihimo pane registry and the shell start path. Egui-bound today: app.rs, atelier_panel.rs, pane_registry.rs, mcp/*, accessibility/*, module_switcher.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25); the MT names 62 native files, this is a sample.",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }

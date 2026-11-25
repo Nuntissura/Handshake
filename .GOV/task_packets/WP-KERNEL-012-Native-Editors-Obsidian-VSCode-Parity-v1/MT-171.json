@@ -3076,5 +3076,27 @@
       "owner_chat": "01a13d23-bee7-73a1-a9ac-e0b50db5ca93",
       "limits": "Exact canonical source assignment and final owning proof rebind only; original acceptance remains OPEN, no execution grant."
     }
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "Operator 2026-11-25 ('refactoring the gui so handshake uses vulcan only'; 'update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs'); Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui), Master Spec v02.227; WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: no GUI producer here; this MT's own hbr_int_009_tier_obligations stand as written",
+      "flight_recorder": "business_event_ids: the events this MT's hbr_int_009_tier_obligations already name, unchanged; no new event",
+      "palmistry": "none: no host-mounted surface to watch"
+    },
+    "control_descriptors": "none: no operator or model control",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing; here: existing backend attribution unchanged, no GUI command",
+    "jobs": "none: no GUI or GPU job",
+    "settings": "none: no settings surface",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "none: CKC core import path reconciliation; nothing moves to the Vulkan shell from this MT. Read by the Atelier panel (WP-CKC MT-065).",
+    "recorded_at": "2026-11-25T19:05:27Z"
   }
 }
