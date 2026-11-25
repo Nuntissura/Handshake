@@ -1004,5 +1004,39 @@
       "session end"
     ],
     "next_actor": "GUI coding agent: repair W1..W8 and the named tests"
+  },
+  "slice1_remediation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice1_eval_20261125 (W1..W8 all confirmed in code, none refuted)",
+    "commit": "f88af7727",
+    "paths": "src/frontend/handshake_shell/**",
+    "activation_block": "thread-only CBT hook SetWindowsHookExW(WH_CBT, on_cbt, 0, GetCurrentThreadId()) refusing HCBT_ACTIVATE and HCBT_SETFOCUS for quiet windows; installed before winit builds its first window, dropped last, also on unwind; never sees other threads or programs (Microsoft Learn: CBTProc, SetWindowsHookExW)",
+    "fixes": {
+      "W1": "platform/guard.rs; place.rs calls run inside still/allowing; QuietBroken counts only when GetActiveWindow()==hwnd",
+      "W2": "wake_slot.rs rewritten: numbered posts with a per-lane secret; unanswered posts repeat at 0.5, 1, 2, 4, then 8 s; defect-asserting test deleted",
+      "W3": "size only when is_normal_size; WM_DPICHANGED inside still",
+      "W4": "AuthorityLedger one-use stamps; launch activates one window once and no longer writes the clipboard; close request expires after 5 s and is used once; may_change_geometry stops a model moving the Operator's window; owner chains respected; active window stands in when the desktop has no foreground",
+      "W5": "manual Debug for key types",
+      "W6": "stray dead keys swallowed; no wake delivery after finish",
+      "W7": "EventsLost in place; sent and forged wakes refused; 1 ms yield to waiting input; skip_taskbar for quiet windows; windows holding tokens hidden and reported; ghosting decision in README",
+      "W8": "test fixed"
+    },
+    "implementer_checks": {
+      "check --tests": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "doc": "clean",
+      "closure": "winit, windows-sys and winit's deps; no wgpu, egui, eframe, glow"
+    },
+    "eval_risks_named_by_implementer": [
+      "active-window stand-in, SW_MINIMIZE control, topmost forced to bottom and the exact count of 15 refusals rest on private-desktop behaviour not confirmed",
+      "GetQueueStatus marks waiting input as not new"
+    ],
+    "decisions_for_operator": [
+      "5 s close-request lifetime",
+      "launch no longer writes the clipboard",
+      "active-window stand-in also applies in the product, making model refusals stricter"
+    ],
+    "tests": "compiled, not run; independent run pending"
   }
 }
