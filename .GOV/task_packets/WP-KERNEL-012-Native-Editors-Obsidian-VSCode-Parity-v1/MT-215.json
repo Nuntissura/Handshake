@@ -898,5 +898,85 @@
       }
     ],
     "next_slice": "S2 author_ids; the loop adapter follows with MT-214 (post wakes to a window, WM_TIMER is low priority)"
+  },
+  "slice1_eval_20261125": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-25",
+    "scope": "MT-215 slice 1 only; not an MT verdict; lifecycle unchanged",
+    "commit": "80641cb641dff80b3104e851f3c8fd3ad4bb3b74",
+    "result": "passed",
+    "counts": {
+      "unit": "2",
+      "hot_path": "1",
+      "port_rules": "15",
+      "real_threads": "2",
+      "watcher_agreement": "14",
+      "failed": 0
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-215/eval-agent/eval-run.log",
+    "log_sha256": "06f37d120ce69b8e9944cb6b6a33fa68532e7a10b81e20ab210914c2f12163f9",
+    "host": "emulated x64 on ARM64 Windows; not native x64 acceptance",
+    "must_bind_the_adapter_slice": [
+      "F1",
+      "F2",
+      "HB-7"
+    ],
+    "findings": [
+      {
+        "id": "F1",
+        "severity": "medium",
+        "at": "port.rs:204-212,314-321; wake.rs:240-245",
+        "defect": "a pool timer's PostMessage can fail after Ok; no turn retries, then a long handler reads as a false confirmed freeze",
+        "repair": "contract must require re-posting until dispatched"
+      },
+      {
+        "id": "F2",
+        "severity": "medium",
+        "at": "recorder.rs:203,220; lib.rs:36",
+        "defect": "a beat before install_v2 creates a writerless recorder; ring silent all session; first call allocates"
+      },
+      {
+        "id": "F3",
+        "severity": "low",
+        "defect": "50 ms margin includes timer granularity; handlers over about 35 ms break the literal 250 ms"
+      },
+      {
+        "id": "F4",
+        "severity": "low",
+        "at": "port.rs:219-230,314-319",
+        "defect": "no outstanding-wake limit; LoopClosed retried forever, untested"
+      },
+      {
+        "id": "F5",
+        "severity": "low",
+        "defect": "mapped ring file can leak if real_threads fails (CX-GIT-003); no per-test timeout (CX-EXEC-005)"
+      }
+    ],
+    "open_item_severity": {
+      "HB-1": "blocks MT, also spec 6.13.5",
+      "HB-2": "low, ring_reader.rs:156 has the same wrong comment",
+      "HB-3": "medium",
+      "HB-4": "high, MT-214",
+      "HB-5": "medium, understated",
+      "HB-6": "blocks MT",
+      "HB-7": "high at integration: two racing writers can leave hb_seq odd forever (ring.rs:289-295); app.rs:8898 is a second publisher"
+    },
+    "tests_that_cannot_fail_for_their_rule": [
+      "stale_heartbeat_alone",
+      "modal_loops nested half",
+      "blocked_ui_thread nothing published",
+      "without_a_ring silent",
+      "into_sink drop half",
+      "cadence WAKE_DELAY"
+    ],
+    "prove_on_real_shell_native_x64": [
+      "posted window wake and 250 ms cadence idle, minimised, occluded, throttled",
+      "move/size, menu, drag-drop, dialog, caption-hold loops",
+      "single publisher source gate",
+      "owned freeze and crash with real Palmistry and survivor record",
+      "S3 and Modern Standby resume",
+      "shutdown acknowledgement"
+    ],
+    "arm64_note": "the seqlock lacks fences for native ARM64 (existing)"
   }
 }
