@@ -2942,22 +2942,22 @@ impl Database for SurrealDatabase {
 
     async fn update_kernel_session_run_state(
         &self,
-        observation: KernelSessionRunObservation<'_>,
+        session_run_id: &str,
         state: SessionRunState,
     ) -> StorageResult<KernelSessionLease> {
-        super::kernel_queue_store::update_state(&self.storage, observation, state).await
+        super::kernel_queue_store::update_state(&self.storage, session_run_id, state).await
     }
 
     async fn update_kernel_session_run_state_and_record_event(
         &self,
-        observation: KernelSessionRunObservation<'_>,
+        session_run_id: &str,
         state: SessionRunState,
         causation_id: Option<String>,
         correlation_id: String,
     ) -> StorageResult<(KernelSessionLease, KernelEvent)> {
         super::kernel_queue_store::update_state_and_record_event(
             &self.storage,
-            observation,
+            session_run_id,
             state,
             causation_id,
             correlation_id,

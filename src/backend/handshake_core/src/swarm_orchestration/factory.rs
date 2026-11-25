@@ -58,46 +58,6 @@ pub type SessionReadyHook = Arc<dyn Fn() -> SwarmResult<()> + Send + Sync>;
 /// runtime adapter (shared `Arc` so the coordinator and the generation path
 /// can both reference it) and its own [`CancellationToken`], plus the ledger
 /// record id so teardown can write the matching stop row.
-#[derive(Clone, Debug)]
-pub struct NativeSessionTerminal {
-    pub(crate) handle: crate::sandbox::ProcessHandle,
-    pub(crate) terminal: crate::sandbox::ProcessStatus,
-    pub(crate) exit_code: Option<i32>,
-}
-
-pub type NativeTerminalHandoff = Arc<std::sync::Mutex<Option<NativeSessionTerminal>>>;
-
-impl NativeSessionTerminal {
-    pub(crate) fn code_for_start(&self, start: &ProcessStart) -> SwarmResult<Option<i32>> {
-        let observed = match self.terminal {
-            crate::sandbox::ProcessStatus::Exited { code } => self.exit_code == Some(code),
-            crate::sandbox::ProcessStatus::Killed { .. } => true,
-            _ => false,
-        };
-        if !observed || start.os_pid != self.handle.pid
-            || start.started_at != self.handle.spawned_at_utc
-            || start.sandbox_adapter_id.as_deref() != Some(self.handle.adapter_id.as_str())
-            || start.sandbox_internal_id.as_deref() != Some(self.handle.sandbox_internal_id.as_str())
-            || start.metadata_jsonb.get("sandbox_handle_id") != Some(&serde_json::json!(self.handle.id)) {
-            return Err(super::error::SwarmError::LedgerFailed(
-                "native terminal observation does not match the original session START".into()));
-        }
-        Ok(self.exit_code)
-    }
-}
-
-pub(crate) fn session_stop_code(
-    native: Option<&NativeTerminalHandoff>, start: &ProcessStart, diagnostic: i32,
-) -> SwarmResult<Option<i32>> {
-    match native {
-        None => Ok(Some(diagnostic)),
-        Some(handoff) => handoff.lock().unwrap_or_else(|error| error.into_inner()).as_ref()
-            .ok_or_else(|| super::error::SwarmError::LedgerFailed(
-                "original native terminal cleanup observation is unavailable".into()))?
-            .code_for_start(start),
-    }
-}
-
 pub struct LiveSession {
     /// The live model runtime this session drives. Real in production, a real
     /// controllable adapter in tests — never a no-op stub.
@@ -133,7 +93,6 @@ pub struct LiveSession {
     /// for pidless cloud sessions whose START was durably acknowledged before
     /// this session could be published.
     pub ledger_lifecycle: Option<Arc<ActiveProcessLifecycle>>,
-    pub native_terminal: Option<NativeTerminalHandoff>,
     /// Warm-VM restore metadata captured by the factory after a successful warm
     /// local load/restore. The coordinator ignores it; app/runtime side-tables
     /// can persist it so later warm VM spawns can skip a cold in-guest load.
@@ -167,7 +126,6 @@ impl LiveSession {
             ledger_engine_kind_override: None,
             ledger_start_override: None,
             ledger_lifecycle: None,
-            native_terminal: None,
             warm_vm_restore_manifest: None,
             ready_hook: None,
         }

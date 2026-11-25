@@ -292,7 +292,6 @@ pub struct SessionHandle {
     pub ledger_engine_kind_override: Option<ProcessEngineKind>,
     pub ledger_start_override: Option<ProcessStart>,
     pub ledger_lifecycle: Option<Arc<ActiveProcessLifecycle>>,
-    pub native_terminal: Option<super::factory::NativeTerminalHandoff>,
     pub process_engine_kind: ProcessEngineKind,
     pub parent_session_id: String,
     pub runtime: Arc<dyn crate::model_runtime::ModelRuntime>,
@@ -968,7 +967,7 @@ impl Drop for ManagedGenerationFinalizer {
             };
             handle.state = ModelSessionState::Cancelling;
             handle.cleanup = Some(PendingSessionCleanup {
-                authoritative_start: None, retained_stop: None, lifecycle_attempted: false, stop_ack: None,
+                authoritative_start: None, retained_stop: None, lifecycle_attempted: false,
                 terminal: ModelSessionState::Cancelled,
                 reason: reason.to_string(),
                 exit_code: -1,
@@ -1139,7 +1138,6 @@ struct PendingSessionCleanup {
     authoritative_start: Option<ProcessStart>,
     retained_stop: Option<ProcessStop>,
     lifecycle_attempted: bool,
-    stop_ack: Option<Arc<tokio::sync::Mutex<crate::process_ledger::RetainedLifecycleStopAck>>>,
     terminal: ModelSessionState,
     reason: String,
     exit_code: i32,
@@ -1235,7 +1233,6 @@ struct PendingOrphanCleanup {
     start: Option<crate::process_ledger::ProcessStart>,
     stop: Option<ProcessStop>,
     lifecycle_attempted: bool,
-    stop_ack: Option<Arc<tokio::sync::Mutex<crate::process_ledger::RetainedLifecycleStopAck>>>,
     last_stop_outcome: Option<String>,
     teardown_succeeded: bool,
     stop_succeeded: bool,
@@ -2215,7 +2212,6 @@ impl SwarmCoordinator {
                 ledger_engine_kind_override: live.ledger_engine_kind_override,
                 ledger_start_override: live.ledger_start_override,
                 ledger_lifecycle: live.ledger_lifecycle,
-                native_terminal: live.native_terminal,
                 parent_session_id: request.parent_session_id.clone(),
                 runtime: live.runtime,
                 teardown: Some(live.teardown),
@@ -2259,7 +2255,7 @@ impl SwarmCoordinator {
         self.inner.orphan_cleanups.lock().expect("orphan cleanups poisoned").insert(cleanup_id,
             PendingOrphanCleanup {
                 instance_id: request.instance_id, live, _permit: permit, _checkout_lease: checkout_lease, committed_memory_bytes: memory.bytes,
-                start: None, stop: None, lifecycle_attempted: false, stop_ack: None, last_stop_outcome: None,
+                start: None, stop: None, lifecycle_attempted: false, last_stop_outcome: None,
                 teardown_succeeded: false, stop_succeeded: false, owner_generation: 0,
                 in_progress: false, eviction_event_id: cleanup_id,
             });
@@ -2323,7 +2319,7 @@ impl SwarmCoordinator {
                     != serde_json::to_value(&start).map_err(|e| SwarmError::LedgerFailed(e.to_string()))?
                 { return Err(SwarmError::LedgerFailed("session supplied START identity mismatch".into())); }
             }
-            if handle.ledger_lifecycle.is_none() && handle.native_terminal.is_none() {
+            if handle.ledger_lifecycle.is_none() {
                 cleanup.retained_stop = Some(ProcessStop::from_start(&start, Some(exit_code)).with_stop_reason(reason));
             }
             cleanup.authoritative_start = Some(start);
@@ -2331,19 +2327,9 @@ impl SwarmCoordinator {
         if cleanup.retained_stop.is_none() && cleanup.lifecycle_attempted {
             cleanup.retained_stop = handle.ledger_lifecycle.as_ref().and_then(|l| l.queued_stop());
         }
-        if handle.native_terminal.is_some() && cleanup.teardown_succeeded
-            && handle.ledger_lifecycle.is_none() && cleanup.retained_stop.is_none() {
-            let start = cleanup.authoritative_start.as_ref().expect("original START retained");
-            let code = super::factory::session_stop_code(handle.native_terminal.as_ref(), start, exit_code)?;
-            cleanup.retained_stop = Some(ProcessStop::from_start(start, code).with_stop_reason(reason));
-        }
         if let Some(stop) = cleanup.retained_stop.as_ref() {
             let start = cleanup.authoritative_start.as_ref().expect("original START retained");
-            if handle.native_terminal.is_some() && !cleanup.teardown_succeeded {
-                return Err(SwarmError::LedgerFailed("native STOP precedes confirmed teardown".into()));
-            }
-            let code = super::factory::session_stop_code(handle.native_terminal.as_ref(), start, exit_code)?;
-            let mut expected = ProcessStop::from_start(start, code).with_stop_reason(reason);
+            let mut expected = ProcessStop::from_start(start, Some(exit_code)).with_stop_reason(reason);
             expected.stopped_at = stop.stopped_at;
             if serde_json::to_value(stop).map_err(|e| SwarmError::LedgerFailed(e.to_string()))?
                 != serde_json::to_value(&expected).map_err(|e| SwarmError::LedgerFailed(e.to_string()))?
@@ -2357,22 +2343,19 @@ impl SwarmCoordinator {
         lifecycle: Option<Arc<ActiveProcessLifecycle>>, stop: Option<ProcessStop>,
         exit_code: i32, reason: &str,
     ) -> SwarmResult<()> {
-        self.capture_session_stop(instance_id, spawn_generation, exit_code, reason)?;
-        let (native_code, stop) = {
+        let first = {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
-            let handle = registry.get_mut(&instance_id)
+            let cleanup = registry.get_mut(&instance_id)
                 .filter(|handle| handle.spawn_generation == spawn_generation)
+                .and_then(|handle| handle.cleanup.as_mut())
                 .ok_or(SwarmError::UnknownInstance(instance_id))?;
-            let cleanup = handle.cleanup.as_mut().ok_or(SwarmError::UnknownInstance(instance_id))?;
-            let start = cleanup.authoritative_start.as_ref().ok_or_else(||
-                SwarmError::LedgerFailed("original session START is unavailable".into()))?;
-            let native_code = super::factory::session_stop_code(handle.native_terminal.as_ref(), start, exit_code)?;
-            let stop = cleanup.retained_stop.clone().or(stop);
-            if lifecycle.is_some() { cleanup.lifecycle_attempted = true; }
-            (native_code, stop)
+            let first = lifecycle.is_some() && !cleanup.lifecycle_attempted;
+            if first { cleanup.lifecycle_attempted = true; }
+            first
         };
-        if let Some(lifecycle) = lifecycle.as_ref() {
-            let result = lifecycle.stop_with_durable_ack(native_code, reason, self.inner.config.teardown_timeout).await;
+        if first {
+            let lifecycle = lifecycle.as_ref().expect("lifecycle present");
+            let result = lifecycle.stop_with_durable_ack(Some(exit_code), reason, self.inner.config.teardown_timeout).await;
             {
                 let mut registry = self.inner.registry.lock().expect("registry poisoned");
                 let cleanup = registry.get_mut(&instance_id)
@@ -2382,54 +2365,18 @@ impl SwarmCoordinator {
                 cleanup.retained_stop = lifecycle.queued_stop();
             }
             match result {
-                Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => Ok(()),
+                Ok(StopRecordOutcome::Recorded) => Ok(()),
                 Ok(outcome) => Err(SwarmError::LedgerFailed(format!("session STOP has no observed durable ACK: {outcome:?}"))),
                 Err(error) => Err(SwarmError::LedgerFailed(error.to_string())),
             }
         } else {
-            let stop = stop.ok_or_else(|| SwarmError::LedgerFailed(
-                "session original queued STOP is unavailable".into(),
-            ))?;
-            let (ack, owner_generation) = {
-                let mut registry = self.inner.registry.lock().expect("registry poisoned");
-                let handle = registry.get_mut(&instance_id)
-                    .filter(|handle| handle.spawn_generation == spawn_generation)
-                    .ok_or(SwarmError::UnknownInstance(instance_id))?;
-                let cleanup = handle.cleanup.as_mut().ok_or(SwarmError::UnknownInstance(instance_id))?;
-                if cleanup.retained_stop.as_ref() != Some(&stop) {
-                    return Err(SwarmError::LedgerFailed("session original STOP owner mismatch".into()));
-                }
-                let ack = if let Some(ack) = &cleanup.stop_ack {
-                    Arc::clone(ack)
-                } else {
-                    let ack = self.inner.ledger.try_reserve_reclaim_stop()
-                        .and_then(|reservation| reservation.commit_with_durable_ack(stop.clone()))
-                        .and_then(|ack| ack.retain_stop())
-                        .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
-                    // This gate contains reservation, synchronous send and
-                    // original receipt storage with no cancellation point.
-                    cleanup.stop_ack = Some(Arc::clone(&ack));
-                    ack
-                };
-                (ack, cleanup.owner_generation)
-            };
-            let result = crate::process_ledger::RetainedLifecycleStopAck::wait_retained(
-                &ack, stop.process_uuid, self.inner.config.teardown_timeout,
-            ).await;
-            let mut registry = self.inner.registry.lock().expect("registry poisoned");
-            let cleanup = registry.get_mut(&instance_id)
-                .filter(|handle| handle.spawn_generation == spawn_generation)
-                .and_then(|handle| handle.cleanup.as_mut())
-                .ok_or(SwarmError::UnknownInstance(instance_id))?;
-            if cleanup.owner_generation != owner_generation
-                || !cleanup.stop_ack.as_ref().is_some_and(|original| Arc::ptr_eq(original, &ack)) {
-                return Err(SwarmError::LedgerFailed("session STOP receipt owner changed".into()));
-            }
-            match result {
-                Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => Ok(()),
-                Ok(outcome) => Err(SwarmError::LedgerFailed(format!("session STOP remains unconfirmed: {outcome:?}"))),
-                Err(error) => Err(SwarmError::LedgerFailed(error.to_string())),
-            }
+            let stop = stop.or_else(|| lifecycle.as_ref().and_then(|l| l.queued_stop()))
+                .ok_or_else(|| SwarmError::LedgerFailed("session original queued STOP is unavailable".into()))?;
+            self.inner.ledger.try_reserve_reclaim_stop()
+                .and_then(|reservation| reservation.commit_with_durable_ack(stop))
+                .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?
+                .wait(self.inner.config.teardown_timeout).await
+                .map_err(|error| SwarmError::LedgerFailed(error.to_string()))
         }
     }
 
@@ -3511,7 +3458,7 @@ impl SwarmCoordinator {
                     if handle.state != ModelSessionState::Cancelling {
                         handle.state = ModelSessionState::Cancelling;
                         handle.cleanup = Some(PendingSessionCleanup {
-                            authoritative_start: None, retained_stop: None, lifecycle_attempted: false, stop_ack: None,
+                            authoritative_start: None, retained_stop: None, lifecycle_attempted: false,
                             terminal: ModelSessionState::Cancelled,
                             reason: cancel_reason.clone(),
                             exit_code: -1,
@@ -6406,7 +6353,6 @@ impl SwarmCoordinator {
                 ledger_engine_kind_override: live.ledger_engine_kind_override,
                 ledger_start_override: live.ledger_start_override,
                 ledger_lifecycle: live.ledger_lifecycle,
-                native_terminal: live.native_terminal,
                 process_engine_kind,
                 parent_session_id: request.parent_session_id.clone(),
                 runtime: live.runtime,
@@ -6960,7 +6906,7 @@ impl SwarmCoordinator {
         handle.state = ModelSessionState::Cancelling;
         let (outcome_tx, _outcome_rx) = watch::channel(CleanupOwnerOutcome::InProgress);
         handle.cleanup = Some(PendingSessionCleanup {
-            authoritative_start: None, retained_stop: None, lifecycle_attempted: false, stop_ack: None,
+            authoritative_start: None, retained_stop: None, lifecycle_attempted: false,
             terminal,
             reason: reason.to_string(),
             exit_code,
@@ -7185,14 +7131,6 @@ impl SwarmCoordinator {
                         )
                     })
                     .unwrap_or_default();
-                let owns_native_teardown = self.inner.registry.lock().expect("registry poisoned")
-                    .get(&instance_id).filter(|handle| handle.spawn_generation == spawn_generation)
-                    .is_some_and(|handle| handle.native_terminal.is_some());
-                if owns_native_teardown {
-                    return Err(SwarmError::LedgerFailed(format!(
-                        "original native teardown remains pending: {teardown_error}{pending_receipt_context}",
-                    )));
-                }
                 let reclaimer = self
                     .inner
                     .process_reclaimer
@@ -7936,7 +7874,7 @@ async fn retry_orphan_cleanup(inner: &Arc<Inner>, cleanup_id: uuid::Uuid) -> Swa
                     != serde_json::to_value(&start).map_err(|error| SwarmError::LedgerFailed(error.to_string()))?
                 { return Err(SwarmError::LedgerFailed("orphan supplied START identity mismatch".into())); }
             }
-            if lifecycle.is_none() && cleanup.live.native_terminal.is_none() {
+            if lifecycle.is_none() {
                 cleanup.stop = Some(ProcessStop::from_start(&start, Some(-1)).with_stop_reason("duplicate_instance_rollback"));
             }
             cleanup.start = Some(start);
@@ -7950,77 +7888,51 @@ async fn retry_orphan_cleanup(inner: &Arc<Inner>, cleanup_id: uuid::Uuid) -> Swa
         inner.orphan_cleanups.lock().expect("orphan cleanups poisoned").get_mut(&cleanup_id)
             .ok_or_else(|| SwarmError::LedgerFailed("orphan owner missing after teardown".into()))?.teardown_succeeded = true;
     }
-    let native_code = {
-        let mut cleanups = inner.orphan_cleanups.lock().expect("orphan cleanups poisoned");
-        let cleanup = cleanups.get_mut(&cleanup_id).ok_or_else(||
-            SwarmError::LedgerFailed("orphan owner missing after terminal observation".into()))?;
-        if !cleanup.teardown_succeeded {
-            return Err(SwarmError::LedgerFailed("orphan native teardown remains unconfirmed".into()));
-        }
-        let start = cleanup.start.as_ref().ok_or_else(||
-            SwarmError::LedgerFailed("orphan original START is unavailable".into()))?;
-        let code = super::factory::session_stop_code(cleanup.live.native_terminal.as_ref(), start, -1)?;
-        if lifecycle.is_none() && cleanup.stop.is_none() {
-            cleanup.stop = Some(ProcessStop::from_start(start, code).with_stop_reason("duplicate_instance_rollback"));
-        }
-        code
-    };
     if !stop_succeeded {
-        if let Some(lifecycle) = lifecycle.as_ref() {
-            {
-                let mut cleanups = inner.orphan_cleanups.lock().expect("orphan cleanups poisoned");
-                let cleanup = cleanups.get_mut(&cleanup_id).ok_or_else(|| SwarmError::LedgerFailed("orphan owner missing".into()))?;
-                cleanup.lifecycle_attempted = true;
-            }
-            let result = lifecycle.stop_with_durable_ack(native_code, "duplicate_instance_rollback", Duration::from_secs(5)).await;
+        let first_lifecycle = {
+            let mut cleanups = inner.orphan_cleanups.lock().expect("orphan cleanups poisoned");
+            let cleanup = cleanups.get_mut(&cleanup_id).ok_or_else(|| SwarmError::LedgerFailed("orphan owner missing".into()))?;
+            let first = lifecycle.is_some() && !cleanup.lifecycle_attempted;
+            if first { cleanup.lifecycle_attempted = true; }
+            first
+        };
+        if first_lifecycle {
+            let result = lifecycle.as_ref().expect("lifecycle present").stop_with_durable_ack(Some(-1), "duplicate_instance_rollback", Duration::from_secs(5)).await;
             let mut cleanups = inner.orphan_cleanups.lock().expect("orphan cleanups poisoned");
             let cleanup = cleanups.get_mut(&cleanup_id).ok_or_else(|| SwarmError::LedgerFailed("orphan owner missing after STOP".into()))?;
-            cleanup.stop = lifecycle.queued_stop();
+            cleanup.stop = lifecycle.as_ref().and_then(|l| l.queued_stop());
             cleanup.last_stop_outcome = Some(format!("{result:?}"));
             match result {
-                Ok(crate::process_ledger::StopRecordOutcome::Recorded | crate::process_ledger::StopRecordOutcome::AlreadyStopped) => cleanup.stop_succeeded = true,
+                Ok(crate::process_ledger::StopRecordOutcome::Recorded) => cleanup.stop_succeeded = true,
                 Ok(outcome) => return Err(SwarmError::LedgerFailed(format!("orphan STOP has no observed durable ACK: {outcome:?}"))),
                 Err(error) => return Err(SwarmError::LedgerFailed(error.to_string())),
             }
         } else {
-            let (ack, process_uuid, owner_generation) = {
+            let stop = {
                 let mut cleanups = inner.orphan_cleanups.lock().expect("orphan cleanups poisoned");
                 let cleanup = cleanups.get_mut(&cleanup_id).ok_or_else(|| SwarmError::LedgerFailed("orphan owner missing".into()))?;
                 if cleanup.stop.is_none() { cleanup.stop = lifecycle.as_ref().and_then(|l| l.queued_stop()); }
                 let stop = cleanup.stop.clone().ok_or_else(|| SwarmError::LedgerFailed("orphan exact queued STOP is unavailable".into()))?;
                 let start = cleanup.start.as_ref().ok_or_else(|| SwarmError::LedgerFailed("orphan authoritative START is unavailable".into()))?;
-                let mut expected = ProcessStop::from_start(start, native_code).with_stop_reason("duplicate_instance_rollback");
+                let mut expected = ProcessStop::from_start(start, Some(-1)).with_stop_reason("duplicate_instance_rollback");
                 expected.stopped_at = stop.stopped_at;
                 if serde_json::to_value(&stop).map_err(|error| SwarmError::LedgerFailed(error.to_string()))?
                     != serde_json::to_value(&expected).map_err(|error| SwarmError::LedgerFailed(error.to_string()))?
                 { return Err(SwarmError::LedgerFailed("orphan retained STOP identity mismatch".into())); }
-                let ack = if let Some(ack) = &cleanup.stop_ack {
-                    Arc::clone(ack)
-                } else {
-                    let ack = inner.ledger.try_reserve_reclaim_stop()
-                        .and_then(|reservation| reservation.commit_with_durable_ack(stop.clone()))
-                        .and_then(|ack| ack.retain_stop())
-                        .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
-                    cleanup.stop_ack = Some(Arc::clone(&ack));
-                    ack
-                };
-                (ack, stop.process_uuid, cleanup.owner_generation)
+                stop
             };
-            let result = crate::process_ledger::RetainedLifecycleStopAck::wait_retained(
-                &ack, process_uuid, Duration::from_secs(5),
-            ).await;
+            let result = match inner.ledger.try_reserve_reclaim_stop() {
+                Ok(reservation) => match reservation.commit_with_durable_ack(stop) {
+                    Ok(ack) => ack.wait(Duration::from_secs(5)).await,
+                    Err(error) => Err(error),
+                },
+                Err(error) => Err(error),
+            };
             let mut cleanups = inner.orphan_cleanups.lock().expect("orphan cleanups poisoned");
             let cleanup = cleanups.get_mut(&cleanup_id).ok_or_else(|| SwarmError::LedgerFailed("orphan owner missing after retry".into()))?;
-            if cleanup.owner_generation != owner_generation
-                || !cleanup.stop_ack.as_ref().is_some_and(|original| Arc::ptr_eq(original, &ack)) {
-                return Err(SwarmError::LedgerFailed("orphan STOP receipt owner changed".into()));
-            }
             cleanup.last_stop_outcome = Some(format!("{result:?}"));
-            match result {
-                Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => cleanup.stop_succeeded = true,
-                Ok(outcome) => return Err(SwarmError::LedgerFailed(format!("orphan STOP remains unconfirmed: {outcome:?}"))),
-                Err(error) => return Err(SwarmError::LedgerFailed(error.to_string())),
-            }
+            result.map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+            cleanup.stop_succeeded = true;
         }
     }
     let event_id = {

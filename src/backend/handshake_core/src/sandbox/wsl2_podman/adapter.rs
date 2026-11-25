@@ -14,8 +14,8 @@ use super::podman_cli::{
 };
 use super::wsl_detection::{default_wsl_exe, verify_wsl2_distro};
 use crate::sandbox::{
-    AdapterCapabilities, AdapterId, BindMode, Command, DetachedProcessIdentity,
-    DetachedReclaimError, DetachedReclaimOutcome, ExecResult, GpuPassthrough, IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+    AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
+    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
     RestartCleanupOutcome, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
 };
 
@@ -140,38 +140,6 @@ impl Wsl2PodmanAdapter {
             });
         }
         Ok(())
-    }
-
-    /// State of the recorded container after its owner label was checked, or
-    /// `None` when podman has no such container.
-    async fn owned_container_status(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
-        let args = vec![
-            "--remote=false".to_string(),
-            "inspect".to_string(),
-            "--format".to_string(),
-            format!(
-                "{{{{ index .Config.Labels \"{PODMAN_PROCESS_OWNER_LABEL}\" }}}},{{{{ .State.Status }}}},{{{{ .State.ExitCode }}}}"
-            ),
-            handle.sandbox_internal_id.clone(),
-        ];
-        let output = run_podman_command(
-            &self.config,
-            &args,
-            None,
-            Some(self.config.command_timeout_ms()),
-        )
-        .await?;
-        if output.exit_code != 0 {
-            let detail = output.stderr_text();
-            if restart_cleanup_target_absent(&detail) {
-                return Ok(None);
-            }
-            return Err(spawn_failed(format!("podman reclaim inspection failed: {detail}")));
-        }
-        parse_owned_container_status(handle.id, &String::from_utf8_lossy(&output.stdout)).map(Some)
     }
 
     async fn ensure_runtime_available(&self) -> Result<(), SandboxAdapterError> {
@@ -394,81 +362,6 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
         }
     }
 
-    /// Signal the recorded container and read its end before removing it.
-    async fn reclaim_detached_observed(
-        &self,
-        identity: &DetachedProcessIdentity,
-        signal: Signal,
-    ) -> Result<DetachedReclaimOutcome, DetachedReclaimError> {
-        use DetachedReclaimError::{AfterInvocation, BeforeInvocation};
-        let handle = &identity.handle;
-        self.ensure_handle(handle).map_err(BeforeInvocation)?;
-        if !is_valid_durable_container_id(&handle.sandbox_internal_id) {
-            return Err(BeforeInvocation(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            }));
-        }
-        let Some(mut status) = self.owned_container_status(handle).await.map_err(BeforeInvocation)?
-        else {
-            return Ok(DetachedReclaimOutcome::AlreadyAbsent);
-        };
-        if status == ProcessStatus::Running {
-            let signalled = run_podman_command(
-                &self.config,
-                &Self::kill_args(&handle.sandbox_internal_id, signal),
-                None,
-                Some(self.config.command_timeout_ms()),
-            )
-            .await
-            .map_err(AfterInvocation)?;
-            for _ in 0..25 {
-                match self.owned_container_status(handle).await.map_err(AfterInvocation)? {
-                    Some(current) => status = current,
-                    // Removed with its exit status after it ended.
-                    None => return Ok(DetachedReclaimOutcome::Terminated),
-                }
-                if status != ProcessStatus::Running {
-                    break;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            }
-            if status == ProcessStatus::Running {
-                return Err(AfterInvocation(spawn_failed(format!(
-                    "podman container still runs after its kill signal: {}",
-                    signalled.stderr_text()
-                ))));
-            }
-            if !matches!(status, ProcessStatus::Exited { .. }) {
-                return Err(AfterInvocation(spawn_failed(format!(
-                    "podman container has no exit status after its kill signal: {status:?}"
-                ))));
-            }
-        } else if !matches!(status, ProcessStatus::Exited { .. }) {
-            return Err(BeforeInvocation(spawn_failed(format!(
-                "podman container cannot be reclaimed from {status:?}"
-            ))));
-        }
-        let removed = run_podman_command(
-            &self.config,
-            &[
-                "--remote=false".to_string(),
-                "rm".to_string(),
-                "--force".to_string(),
-                handle.sandbox_internal_id.clone(),
-            ],
-            None,
-            Some(self.config.command_timeout_ms()),
-        )
-        .await;
-        if !matches!(&removed, Ok(output) if output.exit_code == 0) {
-            tracing::warn!(
-                container = %handle.sandbox_internal_id,
-                "reclaimed podman container ended but was not removed"
-            );
-        }
-        Ok(DetachedReclaimOutcome::Observed(status))
-    }
-
     async fn cleanup_after_restart(
         &self,
         handle: &ProcessHandle,
@@ -677,23 +570,6 @@ fn restart_cleanup_target_absent(detail: &str) -> bool {
     detail.contains("no such container") || detail.contains("no such object")
 }
 
-/// Parse the `owner,status,exit code` inspection of a recorded container.
-fn parse_owned_container_status(
-    process_id: Uuid,
-    text: &str,
-) -> Result<ProcessStatus, SandboxAdapterError> {
-    let mut fields = text.trim().splitn(3, ',');
-    match (fields.next(), fields.next(), fields.next()) {
-        (Some(owner), Some(status), Some(exit_code)) => {
-            if owner != durable_container_owner(process_id) {
-                return Err(SandboxAdapterError::ProcessHandleStale { process_id });
-            }
-            Ok(parse_podman_status(status, parse_podman_exit_code(exit_code)?))
-        }
-        _ => Err(spawn_failed(format!("invalid podman reclaim inspection `{}`", text.trim()))),
-    }
-}
-
 fn durable_container_owner(process_id: Uuid) -> String {
     format!("hsk-{}", process_id.simple())
 }
@@ -791,24 +667,5 @@ mod restart_cleanup_tests {
         ] {
             assert!(!restart_owner_matches(process_id, untrusted.as_bytes()));
         }
-    }
-
-    #[test]
-    fn owned_container_status_requires_the_recorded_owner_label() {
-        let process_id = Uuid::now_v7();
-        let owner = durable_container_owner(process_id);
-        assert_eq!(
-            parse_owned_container_status(process_id, &format!("{owner},exited,137\n")),
-            Ok(ProcessStatus::Exited { code: 137 })
-        );
-        assert_eq!(
-            parse_owned_container_status(process_id, &format!("{owner},running,0")),
-            Ok(ProcessStatus::Running)
-        );
-        assert_eq!(
-            parse_owned_container_status(process_id, "hsk-other,exited,0"),
-            Err(SandboxAdapterError::ProcessHandleStale { process_id })
-        );
-        assert!(parse_owned_container_status(process_id, "exited").is_err());
     }
 }

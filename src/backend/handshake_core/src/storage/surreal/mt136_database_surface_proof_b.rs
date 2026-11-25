@@ -26,7 +26,7 @@ use crate::storage::knowledge::{
 };
 use crate::storage::knowledge_crdt::{NewGraphMutationProposal, NewPromotedFact};
 use crate::storage::{
-    AccessMode, AiJobListFilter, Database, KernelSessionRunObservation, EntityRef, JobKind, JobMetrics, JobState,
+    AccessMode, AiJobListFilter, Database, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, ModelSessionState, NewAiJob, NewModelSession, NewWorkspace, OperationType,
     PlannedOperation, SafetyMode, StorageError, StorageResult, WriteContext,
 };
@@ -693,24 +693,24 @@ async fn event_crdt_and_kernel_queue_methods_are_atomic_and_durable() -> Storage
             .await,
         Err(StorageError::Validation(_))
     ));
-    let plain_claim = database
+    assert!(database
         .claim_kernel_session_run(&plain_id, "worker", 30)
-        .await?;
-    assert!(plain_claim.is_some());
+        .await?
+        .is_some());
     assert!(database
         .claim_kernel_session_run(&plain_id, "other-worker", 30)
         .await?
         .is_none());
-    let plain_running = database
-        .update_kernel_session_run_state(
-            KernelSessionRunObservation::Lease(plain_claim.as_ref().expect("plain claim")),
-            SessionRunState::Running,
-        )
-        .await?;
-    assert_eq!(plain_running.state, SessionRunState::Running);
+    assert_eq!(
+        database
+            .update_kernel_session_run_state(&plain_id, SessionRunState::Running)
+            .await?
+            .state,
+        SessionRunState::Running
+    );
     assert!(matches!(
         database
-            .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&plain_running), SessionRunState::Queued)
+            .update_kernel_session_run_state(&plain_id, SessionRunState::Queued)
             .await,
         Err(StorageError::Validation(_))
     ));
@@ -737,7 +737,7 @@ async fn event_crdt_and_kernel_queue_methods_are_atomic_and_durable() -> Storage
     assert_eq!(claimed.state, SessionRunState::Claimed);
     let (running, running_event) = database
         .update_kernel_session_run_state_and_record_event(
-            KernelSessionRunObservation::Lease(&claimed),
+            &atomic_id,
             SessionRunState::Running,
             Some(claimed_event.event_id),
             "mt136-b-state-correlation".to_owned(),

@@ -12,9 +12,8 @@ use crate::sandbox::windows_native_jail_target_capabilities;
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, AttachedEphemeralPathGuard, AttachedNetworkMode,
     AttachedProcessSpec, AttachedSandboxProcess, AttachedStdioContract, BindMode, Command,
-    DetachedProcessIdentity, DetachedReclaimError, DetachedReclaimOutcome, ExecResult,
-    IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, SandboxAdapter,
-    SandboxAdapterError, Signal, ThroughputClass,
+    DetachedProcessIdentity, ExecResult, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec,
+    ProcessStatus, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
 };
 #[cfg(not(target_os = "windows"))]
 use crate::sandbox::{GpuPassthrough, IsolationStrength};
@@ -130,10 +129,6 @@ impl HandshakeNativeSandboxAdapter {
 
 #[async_trait]
 impl SandboxAdapter for HandshakeNativeSandboxAdapter {
-    fn validate_spawn_acquisition(&self) -> Result<(), SandboxAdapterError> {
-        Err(Self::unsupported("spawn"))
-    }
-
     async fn spawn(&self, _spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
         Err(Self::unsupported("spawn"))
     }
@@ -240,9 +235,11 @@ impl SandboxAdapter for HandshakeNativeSandboxAdapter {
         Err(Self::unsupported("kill"))
     }
 
-    async fn reclaim_detached_observed(
-        &self, identity: &DetachedProcessIdentity, _signal: Signal,
-    ) -> Result<DetachedReclaimOutcome, DetachedReclaimError> {
+    async fn reclaim_detached(
+        &self,
+        identity: &DetachedProcessIdentity,
+        _signal: Signal,
+    ) -> Result<(), SandboxAdapterError> {
         #[cfg(target_os = "windows")]
         {
             reclaim_verified_detached_process(identity, HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID).await
@@ -250,9 +247,9 @@ impl SandboxAdapter for HandshakeNativeSandboxAdapter {
         #[cfg(not(target_os = "windows"))]
         {
             let _ = identity;
-            Err(DetachedReclaimError::BeforeInvocation(Self::unavailable(
+            Err(Self::unavailable(
                 "crash-detached Handshake-native reclaim is implemented only on Windows",
-            )))
+            ))
         }
     }
 
@@ -342,39 +339,13 @@ fn detached_identity_error(
     }
 }
 
-/// Whether Windows has no process object with this PID.
-#[cfg(target_os = "windows")]
-pub(crate) fn process_id_is_absent(pid: u32) -> bool {
-    use windows_sys::Win32::{
-        Foundation::ERROR_INVALID_PARAMETER,
-        System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
-    };
-
-    // PID 0 is the idle process; OpenProcess reports it like an absent PID.
-    if pid == 0 {
-        return false;
-    }
-    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
-    if handle.is_null() {
-        return io::Error::last_os_error().raw_os_error() == Some(ERROR_INVALID_PARAMETER as i32);
-    }
-    drop(VerifiedDetachedProcessHandle(handle));
-    false
-}
-
-/// Open the process named by the complete durable identity.
-///
-/// `None` means that Windows has no process object with the recorded PID. A
-/// process object keeps its PID until it is destroyed, so the recorded
-/// generation no longer runs on this host. Any other failure, including a PID
-/// that now names another generation, is an error and proves nothing.
 #[cfg(target_os = "windows")]
 fn open_verified_detached_process(
     identity: &DetachedProcessIdentity,
     expected_adapter_id: &str,
 ) -> Result<Option<VerifiedDetachedProcessHandle>, SandboxAdapterError> {
     use windows_sys::Win32::{
-        Foundation::{ERROR_INVALID_PARAMETER, FILETIME},
+        Foundation::FILETIME,
         System::Threading::{
             GetProcessTimes, OpenProcess, QueryFullProcessImageNameW,
             PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
@@ -387,9 +358,8 @@ fn open_verified_detached_process(
             format!("owning adapter identity does not match {expected_adapter_id}"),
         ));
     }
-    // PID 0 is the idle process; OpenProcess reports it like an absent PID.
-    let pid = identity.handle.pid.filter(|pid| *pid != 0).ok_or_else(|| {
-        detached_identity_error(identity, "missing OS PID; reclaim is forbidden")
+    let pid = identity.handle.pid.ok_or_else(|| {
+        detached_identity_error(identity, "missing OS PID; PID-only reclaim is forbidden")
     })?;
     let expected_creation_time = identity.os_creation_time_100ns.ok_or_else(|| {
         detached_identity_error(
@@ -413,13 +383,13 @@ fn open_verified_detached_process(
     };
     if handle.is_null() {
         let error = io::Error::last_os_error();
-        if error.raw_os_error() == Some(ERROR_INVALID_PARAMETER as i32) {
-            return Ok(None);
-        }
-        return Err(detached_identity_error(
-            identity,
-            format!("cannot open and verify pid {pid}: {error}"),
-        ));
+        return match error.raw_os_error() {
+            Some(87) => Ok(None),
+            _ => Err(detached_identity_error(
+                identity,
+                format!("cannot open pid {pid}: {error}"),
+            )),
+        };
     }
     let process = VerifiedDetachedProcessHandle(handle);
     let mut creation = FILETIME::default();
@@ -440,7 +410,7 @@ fn open_verified_detached_process(
     if creation_time != expected_creation_time {
         return Err(detached_identity_error(
             identity,
-            "PID_GENERATION_MISMATCH: PID creation generation does not match durable launch identity",
+            "PID creation generation does not match durable launch identity",
         ));
     }
 
@@ -475,89 +445,37 @@ fn open_verified_detached_process(
 }
 
 #[cfg(target_os = "windows")]
-fn observe_verified_detached_process(
-    identity: &DetachedProcessIdentity,
-    process: &VerifiedDetachedProcessHandle,
-) -> Result<ProcessStatus, SandboxAdapterError> {
-    use windows_sys::Win32::{
-        Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT},
-        System::Threading::{GetExitCodeProcess, WaitForSingleObject},
-    };
-
-    match unsafe { WaitForSingleObject(process.0, 0) } {
-        WAIT_TIMEOUT => Ok(ProcessStatus::Running),
-        WAIT_OBJECT_0 => {
-            let mut code = 0u32;
-            if unsafe { GetExitCodeProcess(process.0, &mut code) } == 0 {
-                return Err(detached_identity_error(
-                    identity,
-                    format!("verified process is signaled but exit code is unavailable: {}",
-                        io::Error::last_os_error()),
-                ));
-            }
-            // Preserve the actual Windows exit-code bits in the existing i32 API.
-            Ok(ProcessStatus::Exited { code: code as i32 })
-        }
-        result => Err(detached_identity_error(
-            identity, format!("verified process state is unobserved; wait result {result}"),
-        )),
-    }
-}
-
-#[cfg(target_os = "windows")]
 fn terminate_verified_detached_process(
     identity: &DetachedProcessIdentity,
     expected_adapter_id: &str,
-) -> Result<DetachedReclaimOutcome, DetachedReclaimError> {
+) -> Result<(), SandboxAdapterError> {
     use windows_sys::Win32::{
         Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT},
         System::Threading::{TerminateProcess, WaitForSingleObject},
     };
-    use DetachedReclaimError::{AfterInvocation, BeforeInvocation};
 
-    let Some(process) = open_verified_detached_process(identity, expected_adapter_id)
-        .map_err(BeforeInvocation)?
-    else {
-        return Ok(DetachedReclaimOutcome::AlreadyAbsent);
+    let Some(process) = open_verified_detached_process(identity, expected_adapter_id)? else {
+        return Ok(());
     };
-    let observed = observe_verified_detached_process(identity, &process)
-        .map_err(BeforeInvocation)?;
-    if matches!(observed, ProcessStatus::Exited { .. }) {
-        return Ok(DetachedReclaimOutcome::Observed(observed));
-    }
     if unsafe { TerminateProcess(process.0, 1) } == 0 {
-        let error = io::Error::last_os_error();
-        // The process may have ended on its own between the check and the call.
-        return match observe_verified_detached_process(identity, &process) {
-            Ok(status @ ProcessStatus::Exited { .. }) =>
-                Ok(DetachedReclaimOutcome::Observed(status)),
-            _ => Err(AfterInvocation(detached_identity_error(
-                identity,
-                format!("TerminateProcess failed: {error}"),
-            ))),
-        };
+        return Err(detached_identity_error(
+            identity,
+            format!("TerminateProcess failed: {}", io::Error::last_os_error()),
+        ));
     }
     match unsafe { WaitForSingleObject(process.0, 5_000) } {
-        WAIT_OBJECT_0 => match observe_verified_detached_process(identity, &process)
-            .map_err(AfterInvocation)?
-        {
-            status @ ProcessStatus::Exited { .. } => Ok(DetachedReclaimOutcome::Observed(status)),
-            _ => Err(AfterInvocation(detached_identity_error(
-                identity,
-                "terminal process observation changed",
-            ))),
-        },
-        WAIT_TIMEOUT => Err(AfterInvocation(detached_identity_error(
+        WAIT_OBJECT_0 => Ok(()),
+        WAIT_TIMEOUT => Err(detached_identity_error(
             identity,
             "process did not terminate within 5000ms",
-        ))),
-        result => Err(AfterInvocation(detached_identity_error(
+        )),
+        result => Err(detached_identity_error(
             identity,
             format!(
                 "process wait failed with result {result}: {}",
                 io::Error::last_os_error()
             ),
-        ))),
+        )),
     }
 }
 
@@ -567,19 +485,16 @@ fn terminate_verified_detached_process(
 pub(crate) async fn reclaim_verified_detached_process(
     identity: &DetachedProcessIdentity,
     expected_adapter_id: &'static str,
-) -> Result<DetachedReclaimOutcome, DetachedReclaimError> {
+) -> Result<(), SandboxAdapterError> {
     let identity = identity.clone();
     tokio::task::spawn_blocking(move || {
         terminate_verified_detached_process(&identity, expected_adapter_id)
     })
     .await
-    .unwrap_or_else(|error| {
-        // A panicked worker does not tell whether TerminateProcess ran.
-        Err(DetachedReclaimError::AfterInvocation(SandboxAdapterError::SpawnFailed {
-            adapter_id: identity_adapter_id(expected_adapter_id),
-            reason: format!("detached reclaim worker failed to join: {error}"),
-        }))
-    })
+    .map_err(|error| SandboxAdapterError::SpawnFailed {
+        adapter_id: identity_adapter_id(expected_adapter_id),
+        reason: format!("detached reclaim worker failed to join: {error}"),
+    })?
 }
 
 #[cfg(target_os = "windows")]
@@ -588,17 +503,19 @@ pub(crate) async fn verified_detached_process_status(
     expected_adapter_id: &'static str,
 ) -> Result<ProcessStatus, SandboxAdapterError> {
     let identity = identity.clone();
-    tokio::task::spawn_blocking(move || {
-        let process = open_verified_detached_process(&identity, expected_adapter_id)?
-            .ok_or_else(|| detached_identity_error(
-                &identity, "recorded PID no longer exists; no terminal status can be read"))?;
-        observe_verified_detached_process(&identity, &process)
+    let running = tokio::task::spawn_blocking(move || {
+        open_verified_detached_process(&identity, expected_adapter_id)
+            .map(|process| process.is_some())
     })
     .await
     .map_err(|error| SandboxAdapterError::SpawnFailed {
         adapter_id: identity_adapter_id(expected_adapter_id),
         reason: format!("detached status worker failed to join: {error}"),
-    })?
+    })??;
+    match running {
+        true => Ok(ProcessStatus::Running),
+        false => Ok(ProcessStatus::Exited { code: 0 }),
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -783,53 +700,6 @@ mod tests {
 
         assert!(result.is_err(), "unsupported stdio must fail closed");
         assert!(!root.exists(), "invalid-stdio refusal must reclaim root");
-    }
-
-    #[cfg(target_os = "windows")]
-    fn detached_identity(pid: u32, os_creation_time_100ns: u64) -> DetachedProcessIdentity {
-        let process_uuid = uuid::Uuid::now_v7();
-        DetachedProcessIdentity {
-            process_uuid,
-            handle: ProcessHandle {
-                id: process_uuid,
-                adapter_id: AdapterId::new(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID),
-                pid: Some(pid),
-                sandbox_internal_id: process_uuid.to_string(),
-                spawned_at_utc: chrono::Utc::now(),
-            },
-            executable_sha256: Some("0".repeat(64)),
-            os_creation_time_100ns: Some(os_creation_time_100ns),
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    #[tokio::test]
-    async fn detached_reclaim_proves_an_absent_pid_and_refuses_before_invocation() {
-        let adapter = HandshakeNativeSandboxAdapter::new();
-        // No process object can hold this PID, so OpenProcess reports absence.
-        assert_eq!(
-            adapter
-                .reclaim_detached_observed(&detached_identity(0xFFFF_FFFC, 1), Signal::Kill)
-                .await,
-            Ok(DetachedReclaimOutcome::AlreadyAbsent)
-        );
-        // A live PID of another generation, and the idle PID, are refusals.
-        let own_pid = std::process::id();
-        let own_creation = process_creation_time_100ns(own_pid).expect("own creation time");
-        for (pid, creation, reason) in [
-            (own_pid, own_creation + 1, "PID_GENERATION_MISMATCH"),
-            (0, 1, "missing OS PID"),
-        ] {
-            match adapter
-                .reclaim_detached_observed(&detached_identity(pid, creation), Signal::Kill)
-                .await
-            {
-                Err(DetachedReclaimError::BeforeInvocation(error)) => {
-                    assert!(error.to_string().contains(reason), "{error}")
-                }
-                other => panic!("pid {pid} must be refused before invocation: {other:?}"),
-            }
-        }
     }
 
     #[cfg(target_os = "windows")]

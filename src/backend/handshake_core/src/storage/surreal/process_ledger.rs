@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::process_ledger::reclaim::{
     default_dead_owner_confirmation_gap, runtime_owner_loopback_lease_is_free,
-    ReclaimResourceScope, ScopedReclaimProcessStore, ScopedReclaimableProcess, ScopedReclaimTerminal,
+    ReclaimResourceScope, ScopedReclaimProcessStore, ScopedReclaimableProcess,
     StaleSessionProcessSet,
 };
 use crate::process_ledger::{
@@ -481,13 +481,6 @@ impl SurrealProcessLedgerStore {
         resource_scope: &ReclaimResourceScope,
         process_uuid: Uuid,
     ) -> Result<Option<ProcessOwnershipInspection>, ProcessLedgerError> {
-        self.inspect_ownership_expected_stop(resource_scope, process_uuid, None).await
-    }
-
-    async fn inspect_ownership_expected_stop(
-        &self, resource_scope: &ReclaimResourceScope, process_uuid: Uuid,
-        expected_stop: Option<&ProcessStop>,
-    ) -> Result<Option<ProcessOwnershipInspection>, ProcessLedgerError> {
         validate_inspection_scope(resource_scope)?;
         let canonical_record = RecordId::new(PROCESS_LEDGER_TABLE_NAME, process_uuid.to_string());
         let canonical = self
@@ -553,7 +546,7 @@ impl SurrealProcessLedgerStore {
         if exact_rows.len() != 1 || exact_rows[0].id != canonical.id {
             return Err(inspection_error("duplicate canonical process identity"));
         }
-        self.verify_and_project_inspection(resource_scope, canonical, expected_stop)
+        self.verify_and_project_inspection(resource_scope, canonical)
             .await
             .map(Some)
     }
@@ -608,7 +601,7 @@ impl SurrealProcessLedgerStore {
         {
             return Err(inspection_error("ambiguous latest artifact ownership"));
         }
-        self.verify_and_project_inspection(resource_scope, rows.into_iter().next().unwrap(), None)
+        self.verify_and_project_inspection(resource_scope, rows.into_iter().next().unwrap())
             .await
             .map(Some)
     }
@@ -617,7 +610,6 @@ impl SurrealProcessLedgerStore {
         &self,
         resource_scope: &ReclaimResourceScope,
         row: InspectionLifecycleRow,
-        expected_stop: Option<&ProcessStop>,
     ) -> Result<ProcessOwnershipInspection, ProcessLedgerError> {
         let event_record = row
             .event_ledger_event_id
@@ -651,16 +643,6 @@ impl SurrealProcessLedgerStore {
             .map_err(surreal_store_error)?
             .ok_or_else(|| inspection_error("missing or foreign canonical EventLedger receipt"))?;
         verify_inspection_receipt(&row, &receipt, expected_kind, &expected_event_id)?;
-        if let Some(stop) = expected_stop {
-            let event = LedgerEvent::Stop(stop.clone());
-            let mut expected_payload = event.sampled_payload();
-            expected_payload.as_object_mut()
-                .ok_or_else(|| inspection_error("original STOP payload is malformed"))?
-                .insert("runtime_owner".into(), process_runtime_owner_payload(&event)?);
-            if expected_kind != LedgerEventKind::Stop || receipt.payload != expected_payload {
-                return Err(inspection_error("final STOP receipt differs from complete original submission"));
-            }
-        }
         inspection_from_row(row, event_record)
     }
 
@@ -1006,7 +988,6 @@ impl SurrealProcessLedgerStore {
             owner_host_scope_id: owner_host_scope_id.to_owned(),
             excluded_owner_runtime_instance_id,
             authorized_process_uuids,
-            kill_running_process_uuids: crate::process_ledger::reclaim::running_kill_process_uuids(),
             claimant_uuid: Uuid::now_v7(),
             kill_operation_uuid: Uuid::now_v7(),
             now_unix_ms,
@@ -1058,76 +1039,9 @@ impl SurrealProcessLedgerStore {
             claim_metadata: serde_json::to_value(claim)
                 .map_err(|e| ProcessLedgerError::Store(e.to_string()))?,
             resolution_status: resolution_status.to_owned(),
-            mark_start_valid_before: None,
             authorized_process_uuids: Vec::new(),
             excluded_owner_runtime_instance_id: None,
         })
-    }
-
-    fn verified_renewal_claim(
-        process: &ScopedReclaimableProcess,
-        claim: &ReclaimClaim,
-        expected_claim: ReclaimClaim,
-        row: ReclaimRow,
-    ) -> Result<ReclaimClaim, ProcessLedgerError> {
-        let in_progress = row.stop_reason.as_deref() == Some("reclaim_kill_in_progress")
-            && row.reclaim_state.as_deref() == Some("kill_in_progress");
-        let claimed = row.stop_reason.as_deref() == Some("reclaim_claimed")
-            && row.reclaim_state.as_deref() == Some("claimed");
-        if !claimed && !in_progress {
-            return Err(ProcessLedgerError::Store("renewal returned a non-renewable claim phase".into()));
-        }
-        let renewed = ScopedReclaimableProcess::try_from(row)?;
-        let mut expected = process.clone();
-        expected.reclaim_claim = expected_claim.clone();
-        let metadata = expected.metadata_jsonb.as_object_mut().ok_or_else(||
-            ProcessLedgerError::Store("original renewal metadata is not an object".into()))?;
-        metadata.insert("reclaim_claim".into(), serde_json::to_value(&expected_claim)
-            .map_err(|error| ProcessLedgerError::Store(error.to_string()))?);
-        if in_progress {
-            // Mark-start may have added this phase marker after the original claim read.
-            let marker = renewed.metadata_jsonb.get("reclaim_last_kill_operation")
-                .ok_or_else(|| ProcessLedgerError::Store("renewal lost original in-progress marker".into()))?;
-            let operation = claim.kill_operation_uuid.to_string();
-            let marker_object = marker.as_object().ok_or_else(||
-                ProcessLedgerError::Store("renewal in-progress marker is not an object".into()))?;
-            let observed_marker = process.metadata_jsonb.get("reclaim_last_kill_operation");
-            let observed_current = observed_marker.is_some_and(|observed|
-                observed.get("kill_operation_uuid").and_then(Value::as_str) == Some(operation.as_str())
-                    && observed.get("status").and_then(Value::as_str) == Some("in_progress"));
-            let recorded_at = |marker: &Value| marker.get("recorded_at_unix_ms").and_then(Value::as_i64);
-            if marker_object.len() != 3
-                || marker.get("kill_operation_uuid").and_then(Value::as_str) != Some(operation.as_str())
-                || marker.get("status").and_then(Value::as_str) != Some("in_progress")
-                || recorded_at(marker).is_none()
-                // A later claim of the same operation records its own kill start.
-                || (observed_current && observed_marker.and_then(recorded_at) > recorded_at(marker))
-            {
-                return Err(ProcessLedgerError::Store("renewal changed original in-progress operation".into()));
-            }
-            metadata.insert("reclaim_last_kill_operation".into(), marker.clone());
-        }
-        if expected_claim.lease_expires_at_unix_ms < claim.lease_expires_at_unix_ms
-            || renewed.reclaim_claim != expected_claim || renewed != expected
-        {
-            return Err(ProcessLedgerError::Store("renewal changed original claim identity or metadata".into()));
-        }
-        Ok(renewed.reclaim_claim)
-    }
-
-    fn verified_pending_stop_row(
-        expected: &ScopedReclaimableProcess, stop: &ProcessStop, row: ReclaimRow,
-    ) -> Result<ProcessStop, ProcessLedgerError> {
-        if row.stop_reason.as_deref() != Some("kill_succeeded_pending_stop")
-            || row.reclaim_state.as_deref() != Some("kill_succeeded_pending_stop")
-        {
-            return Err(ProcessLedgerError::Store("canonical pending STOP phase changed".into()));
-        }
-        let actual = ScopedReclaimableProcess::try_from(row)?;
-        if actual != *expected || actual.original_pending_stop()? != *stop {
-            return Err(ProcessLedgerError::Store("canonical pending STOP subject or payload changed".into()));
-        }
-        Ok(stop.clone())
     }
 
     async fn fenced_update(
@@ -1929,7 +1843,6 @@ struct ReclaimRow {
     sandbox_capabilities_snapshot: Value,
     metadata: Value,
     stop_reason: Option<String>,
-    reclaim_state: Option<String>,
     reclaim_claimant_uuid: Option<Uuid>,
     reclaim_kill_operation_uuid: Option<Uuid>,
     reclaim_generation: Option<i64>,
@@ -1950,14 +1863,13 @@ struct ClaimBindings {
     owner_host_scope_id: String,
     excluded_owner_runtime_instance_id: Uuid,
     authorized_process_uuids: Vec<Uuid>,
-    kill_running_process_uuids: Vec<Uuid>,
     claimant_uuid: Uuid,
     kill_operation_uuid: Uuid,
     now_unix_ms: i64,
     lease_expires_at_unix_ms: i64,
 }
 
-#[derive(Debug, Clone, SurrealValue)]
+#[derive(Debug, SurrealValue)]
 struct ClaimFenceBindings {
     owner_account_id: String,
     actor_principal_id: String,
@@ -1982,7 +1894,6 @@ struct ClaimFenceBindings {
     metadata: Value,
     claim_metadata: Value,
     resolution_status: String,
-    mark_start_valid_before: Option<DateTime<Utc>>,
     authorized_process_uuids: Vec<Uuid>,
     excluded_owner_runtime_instance_id: Option<Uuid>,
 }
@@ -2430,8 +2341,6 @@ FOR $item IN $items {
                     OR $existing.reclaim_state != 'kill_succeeded_pending_stop'
                     OR $existing.metadata.reclaim_claim != $item.incoming.metadata.reclaim_claim
                     OR $existing.metadata.reclaim_pending_stop != $item.incoming.metadata.reclaim_pending_stop
-                    OR $existing.metadata.reclaim_stop_payload = NONE
-                    OR $existing.metadata != $item.incoming.metadata
                 ))
                 OR ($existing.stopped_at != NONE AND $existing.metadata != $item.incoming.metadata)
             { THROW $item.identity_conflict_marker; };
@@ -2644,22 +2553,24 @@ COMMIT TRANSACTION;
 
 const CLAIM_SESSION: &str = r#"
 UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_claim = IF stop_reason = 'kill_succeeded_pending_stop' { metadata.reclaim_claim } ELSE { {
+    metadata.reclaim_claim = {
         resource_scope: {account_uuid: $owner_account_id, actor_uuid: $actor_principal_id,
             session_uuid: $authenticated_session_id, workspace_id: $workspace_id, access_space_uuid: $access_space_id},
         claimant_uuid: <string>$claimant_uuid,
         kill_operation_uuid: <string>(IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid }),
         generation: IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
         claimed_at_unix_ms: $now_unix_ms, lease_expires_at_unix_ms: $lease_expires_at_unix_ms
-    } },
+    },
     metadata.reclaim_pending_stop = IF stop_reason = 'kill_succeeded_pending_stop' {
-        metadata.reclaim_pending_stop
+        {exit_code: metadata.reclaim_pending_stop.exit_code, stop_reason: 'reclaim',
+         claimant_uuid: <string>$claimant_uuid, kill_operation_uuid: <string>reclaim_kill_operation_uuid,
+         generation: reclaim_generation + 1}
     } ELSE { NONE },
-    reclaim_claimant_uuid = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimant_uuid } ELSE { $claimant_uuid },
+    reclaim_claimant_uuid = $claimant_uuid,
     reclaim_kill_operation_uuid = IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid },
-    reclaim_generation = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_generation } ELSE { IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 } },
-    reclaim_claimed_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimed_at_unix_ms } ELSE { $now_unix_ms },
-    reclaim_lease_expires_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_lease_expires_at_unix_ms } ELSE { $lease_expires_at_unix_ms },
+    reclaim_generation = IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
+    reclaim_claimed_at_unix_ms = $now_unix_ms,
+    reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms,
     reclaim_state = IF stop_reason = 'kill_succeeded_pending_stop' { 'kill_succeeded_pending_stop' } ELSE { 'claimed' },
     stop_reason = IF stop_reason = 'kill_succeeded_pending_stop' { stop_reason } ELSE { 'reclaim_claimed' }
 WHERE stopped_at = NONE
@@ -2697,50 +2608,44 @@ WHERE stopped_at = NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
         OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
-            AND process_uuid NOT IN $kill_running_process_uuids))
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
 RETURN AFTER;
 "#;
 
 const CLAIM_SESSION_PROCESS: &str = r#"
 UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_claim = IF stop_reason = 'kill_succeeded_pending_stop' { metadata.reclaim_claim } ELSE { {
+    metadata.reclaim_claim = {
         resource_scope: {account_uuid: $owner_account_id, actor_uuid: $actor_principal_id,
             session_uuid: $authenticated_session_id, workspace_id: $workspace_id, access_space_uuid: $access_space_id},
         claimant_uuid: <string>$claimant_uuid,
         kill_operation_uuid: <string>(IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid }),
         generation: IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
         claimed_at_unix_ms: $now_unix_ms, lease_expires_at_unix_ms: $lease_expires_at_unix_ms
-    } },
+    },
     metadata.reclaim_pending_stop = IF stop_reason = 'kill_succeeded_pending_stop' {
-        metadata.reclaim_pending_stop
+        {exit_code: metadata.reclaim_pending_stop.exit_code, stop_reason: 'reclaim',
+         claimant_uuid: <string>$claimant_uuid, kill_operation_uuid: <string>reclaim_kill_operation_uuid,
+         generation: reclaim_generation + 1}
     } ELSE { NONE },
-    reclaim_claimant_uuid = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimant_uuid } ELSE { $claimant_uuid },
+    reclaim_claimant_uuid = $claimant_uuid,
     reclaim_kill_operation_uuid = IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid },
-    reclaim_generation = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_generation } ELSE { IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 } },
-    reclaim_claimed_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimed_at_unix_ms } ELSE { $now_unix_ms },
-    reclaim_lease_expires_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_lease_expires_at_unix_ms } ELSE { $lease_expires_at_unix_ms },
+    reclaim_generation = IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
+    reclaim_claimed_at_unix_ms = $now_unix_ms,
+    reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms,
     reclaim_state = IF stop_reason = 'kill_succeeded_pending_stop' { 'kill_succeeded_pending_stop' } ELSE { 'claimed' },
     stop_reason = IF stop_reason = 'kill_succeeded_pending_stop' { stop_reason } ELSE { 'reclaim_claimed' }
 WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
@@ -2777,50 +2682,44 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
         OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
-            AND process_uuid NOT IN $kill_running_process_uuids))
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
 RETURN AFTER;
 "#;
 
 const CLAIM_OWNED_PROCESS: &str = r#"
 UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_claim = IF stop_reason = 'kill_succeeded_pending_stop' { metadata.reclaim_claim } ELSE { {
+    metadata.reclaim_claim = {
         resource_scope: {account_uuid: $owner_account_id, actor_uuid: $actor_principal_id,
             session_uuid: $authenticated_session_id, workspace_id: $workspace_id, access_space_uuid: $access_space_id},
         claimant_uuid: <string>$claimant_uuid,
         kill_operation_uuid: <string>(IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid }),
         generation: IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
         claimed_at_unix_ms: $now_unix_ms, lease_expires_at_unix_ms: $lease_expires_at_unix_ms
-    } },
+    },
     metadata.reclaim_pending_stop = IF stop_reason = 'kill_succeeded_pending_stop' {
-        metadata.reclaim_pending_stop
+        {exit_code: metadata.reclaim_pending_stop.exit_code, stop_reason: 'reclaim',
+         claimant_uuid: <string>$claimant_uuid, kill_operation_uuid: <string>reclaim_kill_operation_uuid,
+         generation: reclaim_generation + 1}
     } ELSE { NONE },
-    reclaim_claimant_uuid = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimant_uuid } ELSE { $claimant_uuid },
+    reclaim_claimant_uuid = $claimant_uuid,
     reclaim_kill_operation_uuid = IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid },
-    reclaim_generation = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_generation } ELSE { IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 } },
-    reclaim_claimed_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimed_at_unix_ms } ELSE { $now_unix_ms },
-    reclaim_lease_expires_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_lease_expires_at_unix_ms } ELSE { $lease_expires_at_unix_ms },
+    reclaim_generation = IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
+    reclaim_claimed_at_unix_ms = $now_unix_ms,
+    reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms,
     reclaim_state = IF stop_reason = 'kill_succeeded_pending_stop' { 'kill_succeeded_pending_stop' } ELSE { 'claimed' },
     stop_reason = IF stop_reason = 'kill_succeeded_pending_stop' { stop_reason } ELSE { 'reclaim_claimed' }
 WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
@@ -2857,51 +2756,45 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
     AND owner_runtime_instance_id = $owner_runtime_instance_id
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
         OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
-            AND process_uuid NOT IN $kill_running_process_uuids))
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
 RETURN AFTER;
 "#;
 
 const CLAIM_FOREIGN_SESSION: &str = r#"
 UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_claim = IF stop_reason = 'kill_succeeded_pending_stop' { metadata.reclaim_claim } ELSE { {
+    metadata.reclaim_claim = {
         resource_scope: {account_uuid: $owner_account_id, actor_uuid: $actor_principal_id,
             session_uuid: $authenticated_session_id, workspace_id: $workspace_id, access_space_uuid: $access_space_id},
         claimant_uuid: <string>$claimant_uuid,
         kill_operation_uuid: <string>(IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid }),
         generation: IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
         claimed_at_unix_ms: $now_unix_ms, lease_expires_at_unix_ms: $lease_expires_at_unix_ms
-    } },
+    },
     metadata.reclaim_pending_stop = IF stop_reason = 'kill_succeeded_pending_stop' {
-        metadata.reclaim_pending_stop
+        {exit_code: metadata.reclaim_pending_stop.exit_code, stop_reason: 'reclaim',
+         claimant_uuid: <string>$claimant_uuid, kill_operation_uuid: <string>reclaim_kill_operation_uuid,
+         generation: reclaim_generation + 1}
     } ELSE { NONE },
-    reclaim_claimant_uuid = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimant_uuid } ELSE { $claimant_uuid },
+    reclaim_claimant_uuid = $claimant_uuid,
     reclaim_kill_operation_uuid = IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid },
-    reclaim_generation = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_generation } ELSE { IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 } },
-    reclaim_claimed_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimed_at_unix_ms } ELSE { $now_unix_ms },
-    reclaim_lease_expires_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_lease_expires_at_unix_ms } ELSE { $lease_expires_at_unix_ms },
+    reclaim_generation = IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
+    reclaim_claimed_at_unix_ms = $now_unix_ms,
+    reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms,
     reclaim_state = IF stop_reason = 'kill_succeeded_pending_stop' { 'kill_succeeded_pending_stop' } ELSE { 'claimed' },
     stop_reason = IF stop_reason = 'kill_succeeded_pending_stop' { stop_reason } ELSE { 'reclaim_claimed' }
 WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
@@ -2938,25 +2831,18 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
     AND (owner_runtime_instance_id = NONE
         OR owner_runtime_instance_id != $excluded_owner_runtime_instance_id)
     AND process_uuid IN $authorized_process_uuids
@@ -2996,54 +2882,48 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
             AND (owner_runtime_instance_id = NONE
                 OR owner_runtime_instance_id != $excluded_owner_runtime_instance_id)
         ORDER BY process_uuid
     )
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
         OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
-            AND process_uuid NOT IN $kill_running_process_uuids))
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
 RETURN AFTER;
 "#;
 
 const CLAIM_STALE_OWNED_SESSION: &str = r#"
 UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_claim = IF stop_reason = 'kill_succeeded_pending_stop' { metadata.reclaim_claim } ELSE { {
+    metadata.reclaim_claim = {
         resource_scope: {account_uuid: $owner_account_id, actor_uuid: $actor_principal_id,
             session_uuid: $authenticated_session_id, workspace_id: $workspace_id, access_space_uuid: $access_space_id},
         claimant_uuid: <string>$claimant_uuid,
         kill_operation_uuid: <string>(IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid }),
         generation: IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
         claimed_at_unix_ms: $now_unix_ms, lease_expires_at_unix_ms: $lease_expires_at_unix_ms
-    } },
+    },
     metadata.reclaim_pending_stop = IF stop_reason = 'kill_succeeded_pending_stop' {
-        metadata.reclaim_pending_stop
+        {exit_code: metadata.reclaim_pending_stop.exit_code, stop_reason: 'reclaim',
+         claimant_uuid: <string>$claimant_uuid, kill_operation_uuid: <string>reclaim_kill_operation_uuid,
+         generation: reclaim_generation + 1}
     } ELSE { NONE },
-    reclaim_claimant_uuid = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimant_uuid } ELSE { $claimant_uuid },
+    reclaim_claimant_uuid = $claimant_uuid,
     reclaim_kill_operation_uuid = IF reclaim_kill_operation_uuid = NONE { $kill_operation_uuid } ELSE { reclaim_kill_operation_uuid },
-    reclaim_generation = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_generation } ELSE { IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 } },
-    reclaim_claimed_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_claimed_at_unix_ms } ELSE { $now_unix_ms },
-    reclaim_lease_expires_at_unix_ms = IF stop_reason = 'kill_succeeded_pending_stop' { reclaim_lease_expires_at_unix_ms } ELSE { $lease_expires_at_unix_ms },
+    reclaim_generation = IF reclaim_generation = NONE { 1 } ELSE { reclaim_generation + 1 },
+    reclaim_claimed_at_unix_ms = $now_unix_ms,
+    reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms,
     reclaim_state = IF stop_reason = 'kill_succeeded_pending_stop' { 'kill_succeeded_pending_stop' } ELSE { 'claimed' },
     stop_reason = IF stop_reason = 'kill_succeeded_pending_stop' { stop_reason } ELSE { 'reclaim_claimed' }
 WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
@@ -3082,25 +2962,18 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
     AND process_uuid IN $authorized_process_uuids
     AND $authorized_process_uuids = (
         SELECT VALUE process_uuid FROM kernel_process_lifecycle
@@ -3140,37 +3013,31 @@ WHERE stopped_at = NONE AND sandbox_adapter_id != NONE
         AND metadata.reclaim_claim.claimant_uuid = <string>reclaim_claimant_uuid
         AND metadata.reclaim_claim.kill_operation_uuid = <string>reclaim_kill_operation_uuid
         AND metadata.reclaim_claim.generation = reclaim_generation
-        AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-        AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
         AND metadata.reclaim_claim.resource_scope.account_uuid = owner_account_id
         AND metadata.reclaim_claim.resource_scope.actor_uuid = actor_principal_id
         AND metadata.reclaim_claim.resource_scope.session_uuid = authenticated_session_id
         AND metadata.reclaim_claim.resource_scope.access_space_uuid = access_space_id
         AND metadata.reclaim_claim.resource_scope.workspace_id = workspace_id
         AND (stop_reason != 'kill_succeeded_pending_stop' OR (
-            ((array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND metadata.reclaim_pending_stop.exit_code != NONE)
-             OR (array::sort(object::keys(metadata.reclaim_pending_stop)) = ['by_signal', 'claimant_uuid', 'generation', 'kill_operation_uuid', 'stop_reason']
-                AND sandbox_adapter_id = 'cloud_hypervisor'
-                AND metadata.reclaim_pending_stop.by_signal IN ['int', 'kill', 'term']
-                AND exit_code = NONE
-                AND metadata.reclaim_stop_payload.exit_code = NULL))
+            array::sort(object::keys(metadata.reclaim_pending_stop)) = ['claimant_uuid', 'exit_code', 'generation', 'kill_operation_uuid', 'stop_reason']
             AND metadata.reclaim_pending_stop.claimant_uuid = <string>reclaim_claimant_uuid
             AND metadata.reclaim_pending_stop.kill_operation_uuid = <string>reclaim_kill_operation_uuid
             AND metadata.reclaim_pending_stop.generation = reclaim_generation
-            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'))))
+            AND metadata.reclaim_pending_stop.stop_reason = 'reclaim'
+            AND metadata.reclaim_pending_stop.exit_code != NONE))))
         ORDER BY process_uuid
     )
     AND (stop_reason = NONE OR stop_reason = 'kill_succeeded_pending_stop'
         OR (stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms
-            AND process_uuid NOT IN $kill_running_process_uuids))
+            AND reclaim_lease_expires_at_unix_ms < $now_unix_ms))
 RETURN AFTER;
 "#;
 
 const RENEW_CLAIM: &str = r#"
 UPDATE kernel_process_lifecycle SET
+    reclaim_claimed_at_unix_ms = $now_unix_ms,
     reclaim_lease_expires_at_unix_ms = $lease_expires_at_unix_ms,
+    metadata.reclaim_claim.claimed_at_unix_ms = $now_unix_ms,
     metadata.reclaim_claim.lease_expires_at_unix_ms = $lease_expires_at_unix_ms
 WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND owner_account_id = $owner_account_id
@@ -3192,45 +3059,13 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
     AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
-    AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-    AND reclaim_lease_expires_at_unix_ms <= $lease_expires_at_unix_ms
+    AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress', 'kill_succeeded_pending_stop']
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
 RETURN AFTER;
-"#;
-
-const LOAD_RENEWED_CLAIM: &str = r#"
-SELECT * FROM kernel_process_lifecycle
-WHERE process_uuid = $process_uuid AND stopped_at = NONE
-    AND owner_account_id = $owner_account_id
-    AND actor_principal_id = $actor_principal_id
-    AND authenticated_session_id = $authenticated_session_id
-    AND access_space_id = $access_space_id
-    AND workspace_id = $workspace_id
-    AND parent_session_id = $parent_session_id
-    AND sandbox_adapter_id = $sandbox_adapter_id AND sandbox_adapter_id != NONE
-    AND sandbox_internal_id = $sandbox_internal_id
-    AND owner_runtime_instance_id = $owner_runtime_instance_id
-    AND owner_host_scope_id = $owner_host_scope_id
-    AND owner_lease_schema_id = $owner_lease_schema_id
-    AND owner_lease_protocol = $owner_lease_protocol
-    AND owner_lease_address = $owner_lease_address
-    AND owner_lease_port = $owner_lease_port
-    AND metadata.__handshake_internal_reclaim_receipt_v1 = NONE
-    AND metadata.__handshake_internal_reclaim_durable_receipt_v1 = NONE
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_kill_operation_uuid = $kill_operation_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
-    AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-;
 "#;
 
 const MARK_KILL_STARTED: &str = r#"
@@ -3262,12 +3097,8 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
     AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
     AND stop_reason = 'reclaim_claimed'
-    AND $mark_start_valid_before != NONE
-    AND time::now() < $mark_start_valid_before
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND reclaim_generation = $generation
@@ -3300,97 +3131,13 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = 'kill_in_progress'
-    AND stop_reason = 'reclaim_kill_in_progress'
-    AND metadata.reclaim_last_kill_operation.kill_operation_uuid = <string>$kill_operation_uuid
-    AND metadata.reclaim_last_kill_operation.status = 'in_progress'
+    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
+    AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
 RETURN AFTER;
-"#;
-
-const LOAD_VERIFIED_PENDING_STOP: &str = r#"
-SELECT * FROM kernel_process_lifecycle
-WHERE process_uuid = $process_uuid AND stopped_at = NONE
-    AND owner_account_id = $owner_account_id
-    AND actor_principal_id = $actor_principal_id
-    AND authenticated_session_id = $authenticated_session_id
-    AND access_space_id = $access_space_id
-    AND workspace_id = $workspace_id
-    AND parent_session_id = $parent_session_id
-    AND sandbox_adapter_id = $sandbox_adapter_id AND sandbox_adapter_id != NONE
-    AND sandbox_internal_id = $sandbox_internal_id
-    AND owner_runtime_instance_id = $owner_runtime_instance_id
-    AND owner_host_scope_id = $owner_host_scope_id
-    AND owner_lease_schema_id = $owner_lease_schema_id
-    AND owner_lease_protocol = $owner_lease_protocol
-    AND owner_lease_address = $owner_lease_address
-    AND owner_lease_port = $owner_lease_port
-    AND metadata.__handshake_internal_reclaim_receipt_v1 = NONE
-    AND metadata.__handshake_internal_reclaim_durable_receipt_v1 = NONE
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
-    AND stop_reason = 'kill_succeeded_pending_stop'
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_kill_operation_uuid = $kill_operation_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-    AND metadata = $metadata;
-"#;
-
-const LOAD_RESOLVED_PENDING_STOP: &str = r#"
-SELECT * FROM kernel_process_lifecycle
-WHERE process_uuid = $process_uuid AND stopped_at = NONE
-    AND owner_account_id = $owner_account_id
-    AND actor_principal_id = $actor_principal_id
-    AND authenticated_session_id = $authenticated_session_id
-    AND access_space_id = $access_space_id
-    AND workspace_id = $workspace_id
-    AND parent_session_id = $parent_session_id
-    AND sandbox_adapter_id = $sandbox_adapter_id AND sandbox_adapter_id != NONE
-    AND sandbox_internal_id = $sandbox_internal_id
-    AND owner_runtime_instance_id = $owner_runtime_instance_id
-    AND owner_host_scope_id = $owner_host_scope_id
-    AND owner_lease_schema_id = $owner_lease_schema_id
-    AND owner_lease_protocol = $owner_lease_protocol
-    AND owner_lease_address = $owner_lease_address
-    AND owner_lease_port = $owner_lease_port
-    AND metadata.__handshake_internal_reclaim_receipt_v1 = NONE
-    AND metadata.__handshake_internal_reclaim_durable_receipt_v1 = NONE
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
-    AND stop_reason = 'kill_succeeded_pending_stop'
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_kill_operation_uuid = $kill_operation_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-    AND metadata = $metadata
-    AND process_uuid IN $authorized_process_uuids
-    AND $authorized_process_uuids = (
-        SELECT VALUE process_uuid FROM kernel_process_lifecycle
-        WHERE parent_session_id = $parent_session_id AND stopped_at = NONE AND sandbox_adapter_id != NONE
-            AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
-            AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id
-            AND workspace_id = $workspace_id
-            AND (($excluded_owner_runtime_instance_id != NONE
-                AND (owner_runtime_instance_id = NONE OR owner_runtime_instance_id != $excluded_owner_runtime_instance_id))
-                OR ($excluded_owner_runtime_instance_id = NONE
-                    AND owner_runtime_instance_id = $owner_runtime_instance_id AND owner_host_scope_id = $owner_host_scope_id))
-        ORDER BY process_uuid
-    )
-;
 "#;
 
 const RELEASE_CLAIM: &str = r#"
@@ -3427,100 +3174,8 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
     AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
     AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_kill_operation_uuid = $kill_operation_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-RETURN AFTER;
-"#;
-
-const RELEASE_PROVED_UNINVOKED_CLAIM: &str = r#"
-UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_last_kill_operation = {
-        kill_operation_uuid: <string>$kill_operation_uuid,
-        status: 'not_started',
-        recorded_at_unix_ms: $now_unix_ms
-    },
-    metadata.reclaim_claim = NONE,
-    stop_reason = NONE,
-    reclaim_state = NONE,
-    reclaim_claimant_uuid = NONE,
-    reclaim_kill_operation_uuid = NONE,
-    reclaim_claimed_at_unix_ms = NONE,
-    reclaim_lease_expires_at_unix_ms = NONE
-WHERE process_uuid = $process_uuid AND stopped_at = NONE
-    AND owner_account_id = $owner_account_id
-    AND actor_principal_id = $actor_principal_id
-    AND authenticated_session_id = $authenticated_session_id
-    AND access_space_id = $access_space_id
-    AND workspace_id = $workspace_id
-    AND parent_session_id = $parent_session_id
-    AND sandbox_adapter_id = $sandbox_adapter_id AND sandbox_adapter_id != NONE
-    AND sandbox_internal_id = $sandbox_internal_id
-    AND owner_runtime_instance_id = $owner_runtime_instance_id
-    AND owner_host_scope_id = $owner_host_scope_id
-    AND owner_lease_schema_id = $owner_lease_schema_id
-    AND owner_lease_protocol = $owner_lease_protocol
-    AND owner_lease_address = $owner_lease_address
-    AND owner_lease_port = $owner_lease_port
-    AND metadata.__handshake_internal_reclaim_receipt_v1 = NONE
-    AND metadata.__handshake_internal_reclaim_durable_receipt_v1 = NONE
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
-    AND stop_reason IN ['reclaim_claimed', 'reclaim_kill_in_progress']
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_kill_operation_uuid = $kill_operation_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-RETURN AFTER;
-"#;
-
-const RELEASE_UNSTARTED_CLAIM: &str = r#"
-UPDATE kernel_process_lifecycle SET
-    metadata.reclaim_last_kill_operation = {
-        kill_operation_uuid: <string>$kill_operation_uuid,
-        status: 'not_started',
-        recorded_at_unix_ms: $now_unix_ms
-    },
-    metadata.reclaim_claim = NONE,
-    stop_reason = NONE,
-    reclaim_state = NONE,
-    reclaim_claimant_uuid = NONE,
-    reclaim_kill_operation_uuid = NONE,
-    reclaim_claimed_at_unix_ms = NONE,
-    reclaim_lease_expires_at_unix_ms = NONE
-WHERE process_uuid = $process_uuid AND stopped_at = NONE
-    AND owner_account_id = $owner_account_id
-    AND actor_principal_id = $actor_principal_id
-    AND authenticated_session_id = $authenticated_session_id
-    AND access_space_id = $access_space_id
-    AND workspace_id = $workspace_id
-    AND parent_session_id = $parent_session_id
-    AND sandbox_adapter_id = $sandbox_adapter_id AND sandbox_adapter_id != NONE
-    AND sandbox_internal_id = $sandbox_internal_id
-    AND owner_runtime_instance_id = $owner_runtime_instance_id
-    AND owner_host_scope_id = $owner_host_scope_id
-    AND owner_lease_schema_id = $owner_lease_schema_id
-    AND owner_lease_protocol = $owner_lease_protocol
-    AND owner_lease_address = $owner_lease_address
-    AND owner_lease_port = $owner_lease_port
-    AND metadata.__handshake_internal_reclaim_receipt_v1 = NONE
-    AND metadata.__handshake_internal_reclaim_durable_receipt_v1 = NONE
-    AND reclaim_claimant_uuid = $claimant_uuid
-    AND reclaim_generation = $generation
-    AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = 'claimed'
-    AND stop_reason = 'reclaim_claimed'
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND reclaim_generation = $generation
@@ -3553,12 +3208,8 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = 'kill_in_progress'
+    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
     AND stop_reason = 'reclaim_kill_in_progress'
-    AND metadata.reclaim_last_kill_operation.kill_operation_uuid = <string>$kill_operation_uuid
-    AND metadata.reclaim_last_kill_operation.status = 'in_progress'
     AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND process_uuid IN $authorized_process_uuids
     AND $authorized_process_uuids = (
@@ -3607,12 +3258,8 @@ WHERE process_uuid = $process_uuid AND stopped_at = NONE
     AND reclaim_claimant_uuid = $claimant_uuid
     AND reclaim_generation = $generation
     AND metadata.reclaim_claim = $claim_metadata
-    AND metadata.reclaim_claim.claimed_at_unix_ms = reclaim_claimed_at_unix_ms
-    AND metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_lease_expires_at_unix_ms
-    AND reclaim_state = 'kill_in_progress'
+    AND reclaim_state = IF stop_reason = 'reclaim_claimed' { 'claimed' } ELSE IF stop_reason = 'reclaim_kill_in_progress' { 'kill_in_progress' } ELSE { 'kill_succeeded_pending_stop' }
     AND stop_reason = 'reclaim_kill_in_progress'
-    AND metadata.reclaim_last_kill_operation.kill_operation_uuid = <string>$kill_operation_uuid
-    AND metadata.reclaim_last_kill_operation.status = 'in_progress'
     AND reclaim_kill_operation_uuid = $kill_operation_uuid
     AND process_uuid IN $authorized_process_uuids
     AND $authorized_process_uuids = (
@@ -3826,172 +3473,135 @@ impl ProcessLedgerStore for SurrealProcessLedgerStore {
     }
 
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
-        self.write_batch_attributed(events).await.map_err(|(error, _)| match error {
-            ProcessLedgerError::Surreal { source }
-                if matches!(&source, super::SurrealStorageError::StatementTimeout { .. }
-                    | super::SurrealStorageError::StatementBudgetExhausted { .. }) =>
-                ProcessLedgerError::Store(source.to_string()),
-            error => error,
-        })
-    }
+        if events.is_empty() {
+            return Ok(());
+        }
 
-    async fn write_batch_attributed(
-        &self, events: Vec<LedgerEvent>,
-    ) -> Result<(), (ProcessLedgerError, Option<usize>)> {
-        let mut conflict_ordinal = None;
-        let result: Result<(), ProcessLedgerError> = async {
-            if events.is_empty() {
-                return Ok(());
-            }
-
-            let mut items = Vec::with_capacity(events.len());
-            let mut expected_final_rows: Vec<ExpectedLifecycleRow> = Vec::new();
-            for (index, event) in events.iter().enumerate() {
-                let kind = event.kind();
-                let process_uuid = event.process_uuid();
-                let incoming = match LifecycleRow::try_from(event) {
-                    Ok(incoming) => incoming,
-                    Err(error) => {
-                        if let (ProcessLedgerError::StopIdentityConflict { process_uuid, conflicting_stop },
-                            LedgerEvent::Stop(stop)) = (&error, event)
-                        {
-                            if *process_uuid == stop.process_uuid && conflicting_stop.as_ref() == stop {
-                                conflict_ordinal = Some(index);
-                            }
-                        }
-                        return Err(error);
-                    }
-                };
-                let mut payload = event.sampled_payload();
-                payload
-                    .as_object_mut()
-                    .ok_or_else(|| {
-                        ProcessLedgerError::Event(
-                            "ProcessLedger EventLedger payload must be an object".to_owned(),
-                        )
-                    })?
-                    .insert(
-                        "runtime_owner".to_owned(),
-                        process_runtime_owner_payload(event)?,
-                    );
-                let payload_bytes = serde_json::to_vec(&payload)
-                    .map_err(|error| ProcessLedgerError::Event(error.to_string()))?;
-                let record = RecordId::new(PROCESS_LEDGER_TABLE_NAME, process_uuid.to_string());
-                let event_id = format!(
-                    "process-lifecycle-{process_uuid}-{}",
-                    kind.as_str().to_lowercase()
+        let mut items = Vec::with_capacity(events.len());
+        let mut expected_final_rows: Vec<ExpectedLifecycleRow> = Vec::new();
+        for (index, event) in events.iter().enumerate() {
+            let kind = event.kind();
+            let process_uuid = event.process_uuid();
+            let incoming = LifecycleRow::try_from(event)?;
+            let mut payload = event.sampled_payload();
+            payload
+                .as_object_mut()
+                .ok_or_else(|| {
+                    ProcessLedgerError::Event(
+                        "ProcessLedger EventLedger payload must be an object".to_owned(),
+                    )
+                })?
+                .insert(
+                    "runtime_owner".to_owned(),
+                    process_runtime_owner_payload(event)?,
                 );
-                let event_record = RecordId::new("kernel_event_ledger", event_id.clone());
-                let verification_mismatch_marker = format!(
-                    "PROCESS_LEDGER_VERIFICATION_MISMATCH:{index}:{process_uuid}:{}",
+            let payload_bytes = serde_json::to_vec(&payload)
+                .map_err(|error| ProcessLedgerError::Event(error.to_string()))?;
+            let record = RecordId::new(PROCESS_LEDGER_TABLE_NAME, process_uuid.to_string());
+            let event_id = format!(
+                "process-lifecycle-{process_uuid}-{}",
+                kind.as_str().to_lowercase()
+            );
+            let event_record = RecordId::new("kernel_event_ledger", event_id.clone());
+            let verification_mismatch_marker = format!(
+                "PROCESS_LEDGER_VERIFICATION_MISMATCH:{index}:{process_uuid}:{}",
+                kind.as_str()
+            );
+            let item = BatchApplyItem {
+                record: record.clone(),
+                incoming: incoming.clone(),
+                is_start: kind == LedgerEventKind::Start,
+                event_record: event_record.clone(),
+                event_id,
+                event_type: format!("PROCESS_{}", kind.as_str()),
+                idempotency_key: format!("process-lifecycle:{process_uuid}:{}", kind.as_str()),
+                task_run_id: event
+                    .parent_session_id()
+                    .unwrap_or("process-ledger")
+                    .to_owned(),
+                session_run_id: event
+                    .parent_session_id()
+                    .unwrap_or("process-ledger")
+                    .to_owned(),
+                actor_id: event.owner_role().to_owned(),
+                payload_hash: format!("{:x}", Sha256::digest(payload_bytes)),
+                event_payload: payload,
+                identity_conflict_marker: format!(
+                    "PROCESS_LEDGER_IDENTITY_CONFLICT:{index}:{process_uuid}:{}",
                     kind.as_str()
-                );
-                let item = BatchApplyItem {
-                    record: record.clone(),
-                    incoming: incoming.clone(),
-                    is_start: kind == LedgerEventKind::Start,
-                    event_record: event_record.clone(),
-                    event_id,
-                    event_type: format!("PROCESS_{}", kind.as_str()),
-                    idempotency_key: format!("process-lifecycle:{process_uuid}:{}", kind.as_str()),
-                    task_run_id: event
-                        .parent_session_id()
-                        .unwrap_or("process-ledger")
-                        .to_owned(),
-                    session_run_id: event
-                        .parent_session_id()
-                        .unwrap_or("process-ledger")
-                        .to_owned(),
-                    actor_id: event.owner_role().to_owned(),
-                    payload_hash: format!("{:x}", Sha256::digest(payload_bytes)),
-                    event_payload: payload,
-                    identity_conflict_marker: format!(
-                        "PROCESS_LEDGER_IDENTITY_CONFLICT:{index}:{process_uuid}:{}",
-                        kind.as_str()
-                    ),
-                    verification_mismatch_marker: verification_mismatch_marker.clone(),
-                };
-
-                if let Some(expected) = expected_final_rows
-                    .iter_mut()
-                    .find(|expected| expected.incoming.process_uuid == process_uuid)
-                {
-                    expected.incoming = incoming;
-                    expected.event_record = event_record;
-                    expected.verification_mismatch_marker = verification_mismatch_marker;
-                } else {
-                    expected_final_rows.push(ExpectedLifecycleRow {
-                        record,
-                        incoming,
-                        event_record,
-                        verification_mismatch_marker,
-                    });
-                }
-                items.push(item);
-            }
-
-            let expected_count = i64::try_from(items.len()).map_err(|_| {
-                ProcessLedgerError::Store("Surreal ProcessLedger batch is too large".to_owned())
-            })?;
-            let bindings = BatchApplyBindings {
-                items,
-                expected_final_rows,
+                ),
+                verification_mismatch_marker: verification_mismatch_marker.clone(),
             };
-            let result = self
-                .storage
-                .with_data_operation(|database| {
-                    Box::pin(async move {
-                        database
-                            .query_values_at::<i64, _>(APPLY_EVENT_BATCH, bindings, 3)
-                            .await
-                    })
+
+            if let Some(expected) = expected_final_rows
+                .iter_mut()
+                .find(|expected| expected.incoming.process_uuid == process_uuid)
+            {
+                expected.incoming = incoming;
+                expected.event_record = event_record;
+                expected.verification_mismatch_marker = verification_mismatch_marker;
+            } else {
+                expected_final_rows.push(ExpectedLifecycleRow {
+                    record,
+                    incoming,
+                    event_record,
+                    verification_mismatch_marker,
+                });
+            }
+            items.push(item);
+        }
+
+        let expected_count = i64::try_from(items.len()).map_err(|_| {
+            ProcessLedgerError::Store("Surreal ProcessLedger batch is too large".to_owned())
+        })?;
+        let bindings = BatchApplyBindings {
+            items,
+            expected_final_rows,
+        };
+        let result = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<i64, _>(APPLY_EVENT_BATCH, bindings, 3)
+                        .await
                 })
-                .await;
-            let counts = match result {
-                Ok(counts) => counts,
-                Err(error) => {
-                    if matches!(&error, super::SurrealStorageError::StatementTimeout { .. }
-                        | super::SurrealStorageError::StatementBudgetExhausted { .. }) {
-                        return Err(ProcessLedgerError::from(error));
-                    }
-                    let thrown_message = match &error {
-                        crate::storage::surreal::SurrealStorageError::Database(error)
-                            if error.details().is_thrown() => Some(error.message()),
-                        _ => None,
-                    };
-                    if let Some(message) = thrown_message {
-                        let mut matches = events.iter().enumerate().filter(|(index, event)| {
-                            let marker = format!(
-                                "PROCESS_LEDGER_IDENTITY_CONFLICT:{index}:{}:{}",
-                                event.process_uuid(), event.kind().as_str(),
-                            );
-                            message.contains(&marker)
-                        });
-                        if let Some((index, event)) = matches.next() {
-                            if matches.next().is_none() {
-                                conflict_ordinal = Some(index);
-                                return Err(match event {
-                                    LedgerEvent::Start(start) => ProcessLedgerError::StartIdentityConflict {
-                                        process_uuid: start.process_uuid, conflicting_start: Box::new(start.clone()),
-                                    },
-                                    LedgerEvent::Stop(stop) => ProcessLedgerError::StopIdentityConflict {
-                                        process_uuid: stop.process_uuid, conflicting_stop: Box::new(stop.clone()),
-                                    },
-                                });
+            })
+            .await;
+        let counts = match result {
+            Ok(counts) => counts,
+            Err(error) => {
+                let message = error.to_string();
+                for (index, event) in events.iter().enumerate() {
+                    let marker = format!(
+                        "PROCESS_LEDGER_IDENTITY_CONFLICT:{index}:{}:{}",
+                        event.process_uuid(),
+                        event.kind().as_str()
+                    );
+                    if message.contains(&marker) {
+                        return Err(match event {
+                            LedgerEvent::Start(start) => {
+                                ProcessLedgerError::StartIdentityConflict {
+                                    process_uuid: start.process_uuid,
+                                    conflicting_start: Box::new(start.clone()),
+                                }
                             }
-                        }
+                            LedgerEvent::Stop(stop) => ProcessLedgerError::StopIdentityConflict {
+                                process_uuid: stop.process_uuid,
+                                conflicting_stop: Box::new(stop.clone()),
+                            },
+                        });
                     }
-                    return Err(ProcessLedgerError::Store(error.to_string()));
                 }
-            };
-            if counts.as_slice() != [expected_count] {
-                return Err(ProcessLedgerError::Store(format!(
-                    "invalid Surreal ProcessLedger batch acknowledgement: {counts:?}"
-                )));
+                return Err(ProcessLedgerError::Store(message));
             }
-            Ok(())
-        }.await;
-        result.map_err(|error| (error, conflict_ordinal))
+        };
+        if counts.as_slice() != [expected_count] {
+            return Err(ProcessLedgerError::Store(format!(
+                "invalid Surreal ProcessLedger batch acknowledgement: {counts:?}"
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -4110,76 +3720,35 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
         .await
     }
 
-    fn retained_reclaim_renewal(
-        &self, process: &ScopedReclaimableProcess, claim: &ReclaimClaim,
-        deadline: tokio::time::Instant,
-    ) -> Option<crate::process_ledger::reclaim::ScopedReclaimRenewal> {
-        let context = self.storage.capture_reclaim_renewal_context(deadline.into_std())?;
-        let deadline = tokio::time::Instant::from_std(context.deadline);
-        let store = self.clone();
-        let process = process.clone();
-        let claim = claim.clone();
-        Some(crate::process_ledger::reclaim::ScopedReclaimRenewal {
-            deadline,
-            original: Box::pin(async move {
-                context.scope(async move { store.renew_reclaim_claim(&process, &claim).await }).await
-            }),
-        })
-    }
-
     async fn renew_reclaim_claim(
         &self,
         process: &ScopedReclaimableProcess,
         claim: &ReclaimClaim,
     ) -> Result<ReclaimClaim, ProcessLedgerError> {
         let process_uuid = process.process_uuid;
-        let bindings = Self::fence_bindings(process, claim, Value::Null, "")?;
-        let mut expected_claim = claim.clone();
-        expected_claim.lease_expires_at_unix_ms = bindings.lease_expires_at_unix_ms;
-        let failure = format!("reclaim claim ownership lost while renewing process {process_uuid}");
-        let attempted = bindings.clone();
-        let updated = self.storage.with_data_operation(move |database| {
-            Box::pin(async move {
-                database.query_values::<surrealdb::types::Value, _>(RENEW_CLAIM, attempted).await
-            })
-        }).await;
-        let original_error = match updated {
-            Ok(mut rows) if rows.len() == 1 => {
-                let row = ReclaimRow::from_value(rows.remove(0))
-                    .map_err(|error| ProcessLedgerError::Store(error.to_string()))?;
-                return Self::verified_renewal_claim(process, claim, expected_claim, row);
-            }
-            Ok(rows) if !rows.is_empty() => return Err(ProcessLedgerError::Store(failure)),
-            Ok(_) => ProcessLedgerError::Store(failure),
-            Err(error) => {
-                let ambiguous = matches!(&error, SurrealStorageError::StatementTimeout { .. });
-                let original = surreal_store_error(error);
-                if !ambiguous { return Err(original); }
-                original
-            }
-        };
-        // This renewal, or an earlier one whose answer was lost, may be durable.
-        // Adopt a longer lease only when nothing else of the claim changed.
-        let rows = self.storage.with_data_operation(move |database| {
-            Box::pin(async move {
-                database.query_values::<surrealdb::types::Value, _>(LOAD_RENEWED_CLAIM, bindings).await
-            })
-        }).await;
-        if let Ok(mut rows) = rows {
-            if rows.len() == 1 {
-                if let Ok(row) = ReclaimRow::from_value(rows.remove(0)) {
-                    let durable = row.reclaim_lease_expires_at_unix_ms
-                        .filter(|lease| *lease > claim.lease_expires_at_unix_ms);
-                    if let Some(lease) = durable {
-                        expected_claim.lease_expires_at_unix_ms = lease;
-                        if let Ok(renewed) = Self::verified_renewal_claim(process, claim, expected_claim, row) {
-                            return Ok(renewed);
-                        }
-                    }
-                }
-            }
-        }
-        Err(original_error)
+        let row = self
+            .fenced_update(
+                RENEW_CLAIM,
+                Self::fence_bindings(process, claim, Value::Null, "")?,
+                format!("reclaim claim ownership lost while renewing process {process_uuid}"),
+            )
+            .await?;
+        Ok(ReclaimClaim {
+            resource_scope: claim.resource_scope.clone(),
+            claimant_uuid: claim.claimant_uuid,
+            kill_operation_uuid: claim.kill_operation_uuid,
+            generation: claim.generation,
+            claimed_at_unix_ms: row.reclaim_claimed_at_unix_ms.ok_or_else(|| {
+                ProcessLedgerError::Store(
+                    "renewed Surreal reclaim claim has no claim time".to_owned(),
+                )
+            })?,
+            lease_expires_at_unix_ms: row.reclaim_lease_expires_at_unix_ms.ok_or_else(|| {
+                ProcessLedgerError::Store(
+                    "renewed Surreal reclaim claim has no lease expiry".to_owned(),
+                )
+            })?,
+        })
     }
 
     async fn mark_reclaim_kill_started(
@@ -4188,15 +3757,9 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
         claim: &ReclaimClaim,
     ) -> Result<(), ProcessLedgerError> {
         let process_uuid = process.process_uuid;
-        let first_invalid = claim.lease_expires_at_unix_ms.checked_add(1)
-            .and_then(DateTime::<Utc>::from_timestamp_millis)
-            .ok_or_else(|| ProcessLedgerError::Store(
-                "original reclaim mark-start lease boundary is not representable".into()))?;
-        let mut bindings = Self::fence_bindings(process, claim, Value::Null, "")?;
-        bindings.mark_start_valid_before = Some(first_invalid);
         self.fenced_update(
             MARK_KILL_STARTED,
-            bindings,
+            Self::fence_bindings(process, claim, Value::Null, "")?,
             format!("reclaim kill-start fence lost ownership for process_uuid {process_uuid}"),
         )
         .await?;
@@ -4217,94 +3780,15 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
                 "pending STOP differs from original claim or runtime owner".to_owned(),
             ));
         }
-        let mut pending = process.clone();
-        pending.metadata_jsonb = stop.metadata_jsonb.clone();
-        if pending.original_pending_stop()? != *stop {
-            return Err(ProcessLedgerError::Store("pending STOP payload changed".into()));
-        }
-        pending.kill_succeeded_pending_stop = true;
-        let bindings = Self::fence_bindings(process, claim, stop.metadata_jsonb.clone(), "succeeded")?;
-        let failure = format!(
-            "reclaim claim ownership lost before pending STOP for process {}",
-            stop.process_uuid
-        );
-        let updated = self.storage.with_data_operation(move |database| {
-            Box::pin(async move {
-                database.query_values::<surrealdb::types::Value, _>(MARK_KILL_SUCCEEDED, bindings).await
-            })
-        }).await;
-        let original_error = match updated {
-            Ok(mut rows) if rows.len() == 1 => {
-                let row = ReclaimRow::from_value(rows.remove(0))
-                    .map_err(|error| ProcessLedgerError::Store(error.to_string()))?;
-                return Self::verified_pending_stop_row(&pending, stop, row).map(|_| ());
-            }
-            Ok(rows) if !rows.is_empty() => return Err(ProcessLedgerError::Store(failure)),
-            Ok(_) => ProcessLedgerError::Store(failure),
-            Err(error) => {
-                let ambiguous = matches!(&error, SurrealStorageError::StatementTimeout { .. });
-                let original = surreal_store_error(error);
-                if !ambiguous { return Err(original); }
-                original
-            }
-        };
-        match self.verified_pending_stop(&pending).await {
-            Ok(verified) if verified == *stop => Ok(()),
-            _ => Err(original_error),
-        }
-    }
-
-    async fn verify_submitted_stop(
-        &self, process: &ScopedReclaimableProcess, stop: &ProcessStop,
-    ) -> Result<(), ProcessLedgerError> {
-        if process.original_pending_stop()? != *stop {
-            return Err(inspection_error("submitted STOP differs from original scoped claim"));
-        }
-        self.inspect_ownership_expected_stop(
-            &process.resource_scope, process.process_uuid, Some(stop),
-        ).await?.ok_or_else(|| inspection_error("original submitted STOP has no final lifecycle"))?;
-        Ok(())
-    }
-
-    async fn verified_pending_stop(
-        &self, process: &ScopedReclaimableProcess,
-    ) -> Result<ProcessStop, ProcessLedgerError> {
-        if !process.kill_succeeded_pending_stop {
-            return Err(ProcessLedgerError::Store("pending STOP marker is absent".into()));
-        }
-        let stop = process.original_pending_stop()?;
-        let row = self.fenced_update(
-            LOAD_VERIFIED_PENDING_STOP,
-            Self::fence_bindings(process, &process.reclaim_claim, process.metadata_jsonb.clone(), "succeeded")?,
-            "original canonical pending STOP marker is unavailable".into(),
-        ).await?;
-        Self::verified_pending_stop_row(process, &stop, row)
-    }
-
-    async fn release_unstarted_reclaim_claim(
-        &self, process: &ScopedReclaimableProcess, claim: &ReclaimClaim,
-    ) -> Result<bool, ProcessLedgerError> {
-        let bindings = Self::fence_bindings(process, claim, Value::Null, "")?;
-        let rows = self.storage.with_data_operation(|database| {
-            Box::pin(async move {
-                database.query_values::<ReclaimRow, _>(RELEASE_UNSTARTED_CLAIM, bindings).await
-            })
-        }).await.map_err(surreal_store_error)?;
-        match rows.len() {
-            0 => Ok(false),
-            1 => Ok(true),
-            _ => Err(ProcessLedgerError::Store("unstarted claim release matched multiple rows".into())),
-        }
-    }
-
-    async fn release_proved_uninvoked_claim(
-        &self, process: &ScopedReclaimableProcess, claim: &ReclaimClaim,
-    ) -> Result<(), ProcessLedgerError> {
         self.fenced_update(
-            RELEASE_PROVED_UNINVOKED_CLAIM,
-            Self::fence_bindings(process, claim, Value::Null, "")?,
-            format!("proved uninvoked claim release lost exact ownership for process {}", process.process_uuid),
-        ).await?;
+            MARK_KILL_SUCCEEDED,
+            Self::fence_bindings(process, claim, stop.metadata_jsonb.clone(), "succeeded")?,
+            format!(
+                "reclaim claim ownership lost before pending STOP for process {}",
+                stop.process_uuid
+            ),
+        )
+        .await?;
         Ok(())
     }
 
@@ -4342,8 +3826,13 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
         };
         let process_uuid = process.process_uuid;
         let kill_operation_uuid = process.reclaim_claim.kill_operation_uuid;
-        let expected_stop = if status == ReclaimKillOperationStatus::Succeeded {
-            let stop = process.original_pending_stop()?;
+        let statement = if status == ReclaimKillOperationStatus::Succeeded {
+            RESOLVE_KILL_SUCCEEDED
+        } else {
+            RESOLVE_KILL_RELEASED
+        };
+        let metadata = if status == ReclaimKillOperationStatus::Succeeded {
+            let stop = process.reclaim_stop(-1);
             if stop.runtime_owner != process.runtime_owner
                 || scoped_reclaim_stop_claim(&stop)?.as_ref() != Some(&process.reclaim_claim)
             {
@@ -4351,12 +3840,10 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
                     "recovered STOP differs from original owner or claim".to_owned(),
                 ));
             }
-            Some(stop)
+            stop.metadata_jsonb
         } else {
-            None
+            Value::Null
         };
-        let metadata = expected_stop.as_ref().map(|stop| stop.metadata_jsonb.clone())
-            .unwrap_or(Value::Null);
         let mut bindings =
             Self::fence_bindings(process, &process.reclaim_claim, metadata, resolution_status)?;
         bindings.authorized_process_uuids = authorized_process_uuids.to_vec();
@@ -4372,51 +3859,13 @@ impl ScopedReclaimProcessStore for SurrealProcessLedgerStore {
             ));
         }
         bindings.excluded_owner_runtime_instance_id = excluded_owner_runtime_instance_id;
-        let failure = format!(
-            "reclaim kill-operation resolution did not match process_uuid {process_uuid} operation {kill_operation_uuid}"
-        );
-        if let Some(stop) = expected_stop {
-            let mut pending = process.clone();
-            pending.metadata_jsonb = stop.metadata_jsonb.clone();
-            pending.kill_succeeded_pending_stop = true;
-            let readback = bindings.clone();
-            let updated = self.storage.with_data_operation(move |database| {
-                Box::pin(async move {
-                    database.query_values::<surrealdb::types::Value, _>(RESOLVE_KILL_SUCCEEDED, bindings).await
-                })
-            }).await;
-            let original_error = match updated {
-                Ok(mut rows) if rows.len() == 1 => {
-                    let row = ReclaimRow::from_value(rows.remove(0))
-                        .map_err(|error| ProcessLedgerError::Store(error.to_string()))?;
-                    return Self::verified_pending_stop_row(&pending, &stop, row).map(|_| ());
-                }
-                Ok(rows) if !rows.is_empty() => return Err(ProcessLedgerError::Store(failure)),
-                Ok(_) => ProcessLedgerError::Store(failure),
-                Err(error) => {
-                    let ambiguous = matches!(&error, SurrealStorageError::StatementTimeout { .. });
-                    let original = surreal_store_error(error);
-                    if !ambiguous { return Err(original); }
-                    original
-                }
-            };
-            let rows = self.storage.with_data_operation(move |database| {
-                Box::pin(async move {
-                    database.query_values::<surrealdb::types::Value, _>(LOAD_RESOLVED_PENDING_STOP, readback).await
-                })
-            }).await;
-            if let Ok(mut rows) = rows {
-                if rows.len() == 1 {
-                    if let Ok(row) = ReclaimRow::from_value(rows.remove(0)) {
-                        if Self::verified_pending_stop_row(&pending, &stop, row).is_ok() {
-                            return Ok(());
-                        }
-                    }
-                }
-            }
-            return Err(original_error);
-        }
-        self.fenced_update(RESOLVE_KILL_RELEASED, bindings, failure).await?;
+        self.fenced_update(
+            statement,
+            bindings,
+            format!(
+                "reclaim kill-operation resolution did not match process_uuid {process_uuid} operation {kill_operation_uuid}"
+            ),
+        ).await?;
         Ok(())
     }
 
@@ -4570,7 +4019,13 @@ fn scoped_reclaim_stop_claim(
     if claim.resource_scope != exact {
         return Err(invalid());
     }
-    let expected_pending = ScopedReclaimTerminal::from_stop(stop)?.pending_metadata(&claim);
+    let expected_pending = serde_json::json!({
+        "exit_code": stop.exit_code.ok_or_else(invalid)?,
+        "stop_reason": "reclaim",
+        "claimant_uuid": claim.claimant_uuid,
+        "kill_operation_uuid": claim.kill_operation_uuid,
+        "generation": claim.generation,
+    });
     if pending != Some(&expected_pending)
         || metadata.get("reclaim_last_kill_operation")
             != Some(&serde_json::json!({
@@ -4579,16 +4034,6 @@ fn scoped_reclaim_stop_claim(
             }))
     {
         return Err(invalid());
-    }
-    if let Some(payload) = metadata.get("reclaim_stop_payload") {
-        let mut original = stop.clone();
-        original.metadata_jsonb.as_object_mut().ok_or_else(invalid)?
-            .remove("reclaim_stop_payload");
-        if serde_json::to_value(&original).map_err(|_| invalid())? != *payload {
-            return Err(ProcessLedgerError::StopIdentityConflict {
-                process_uuid: stop.process_uuid, conflicting_stop: Box::new(stop.clone()),
-            });
-        }
     }
     Ok(Some(claim))
 }
@@ -5554,346 +4999,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    struct ReclaimFixture {
-        _directory: tempfile::TempDir,
-        storage: SurrealStorage,
-        store: Arc<SurrealProcessLedgerStore>,
-        scope: ReclaimResourceScope,
-        session_id: String,
-        process_uuid: Uuid,
-    }
-
-    impl ReclaimFixture {
-        async fn open() -> Self {
-            Self::open_with(|start| start).await
-        }
-
-        async fn open_with(customize: impl FnOnce(ProcessStart) -> ProcessStart) -> Self {
-            let (directory, storage, store) = open_test_store().await;
-            let process_uuid = Uuid::now_v7();
-            let session_id = format!("session-{}", Uuid::now_v7());
-            let start = customize(
-                scoped_start(process_uuid)
-                    .with_parent_session_id(session_id.clone())
-                    .with_sandbox_adapter_id("reclaim-test-adapter")
-                    .with_sandbox_internal_id(process_uuid.to_string()),
-            );
-            let values = exact_scope(&start.metadata_jsonb).expect("exact test scope");
-            let scope = ReclaimResourceScope::try_from_stored(
-                &values[0], &values[1], &values[2], &values[4], &values[3],
-            )
-            .expect("typed test scope");
-            store
-                .write_batch(vec![LedgerEvent::Start(start)])
-                .await
-                .expect("seed reclaimable START");
-            Self {
-                _directory: directory,
-                storage,
-                store: Arc::new(store),
-                scope,
-                session_id,
-                process_uuid,
-            }
-        }
-
-        async fn claim(&self) -> Option<ScopedReclaimableProcess> {
-            self.store
-                .active_process_for_session(&self.scope, &self.session_id, self.process_uuid)
-                .await
-                .expect("claim query")
-        }
-
-        async fn expire_claim_lease(&self) {
-            let bindings = TamperBindings {
-                record: RecordId::new(PROCESS_LEDGER_TABLE_NAME, self.process_uuid.to_string()),
-                owner_account_id: self.scope.account_uuid.to_string(),
-                actor_principal_id: self.scope.actor_uuid.to_string(),
-                authenticated_session_id: self.scope.session_uuid.to_string(),
-                access_space_id: self.scope.access_space_uuid.to_string(),
-                workspace_id: self.scope.workspace_id.clone(),
-            };
-            let changed = self
-                .storage
-                .with_data_operation(|database| {
-                    Box::pin(async move {
-                        database
-                            .execute_returning(
-                                "UPDATE $record SET reclaim_lease_expires_at_unix_ms = reclaim_claimed_at_unix_ms, metadata.reclaim_claim.lease_expires_at_unix_ms = reclaim_claimed_at_unix_ms WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id RETURN AFTER;",
-                                bindings,
-                            )
-                            .await
-                    })
-                })
-                .await
-                .expect("expire claim lease");
-            assert_eq!(changed, 1, "exactly one claim lease must expire");
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-
-        async fn shutdown(self) {
-            drop(self.store);
-            self.storage.shutdown().await.expect("shutdown test store");
-        }
-    }
-
-    #[tokio::test]
-    async fn expired_kill_claim_is_claimable_again() {
-        let fixture = ReclaimFixture::open().await;
-        let first = fixture.claim().await.expect("open row is claimable");
-        fixture
-            .store
-            .mark_reclaim_kill_started(&first, &first.reclaim_claim)
-            .await
-            .expect("persist kill start");
-        assert!(fixture.claim().await.is_none(), "a live lease excludes a second claim");
-
-        fixture.expire_claim_lease().await;
-        let retried = fixture.claim().await.expect("an expired kill claim is claimable again");
-        assert_eq!(
-            retried.reclaim_claim.kill_operation_uuid,
-            first.reclaim_claim.kill_operation_uuid
-        );
-        assert_eq!(retried.reclaim_claim.generation, first.reclaim_claim.generation + 1);
-        assert_ne!(retried.reclaim_claim.claimant_uuid, first.reclaim_claim.claimant_uuid);
-        // The retried kill of the same operation keeps its claim alive like the first.
-        fixture
-            .store
-            .mark_reclaim_kill_started(&retried, &retried.reclaim_claim)
-            .await
-            .expect("persist retried kill start");
-        fixture
-            .store
-            .renew_reclaim_claim(&retried, &retried.reclaim_claim)
-            .await
-            .expect("renew the retried kill claim");
-        fixture.shutdown().await;
-    }
-
-    #[tokio::test]
-    async fn lost_claim_renewal_answer_is_found_on_retry() {
-        let fixture = ReclaimFixture::open().await;
-        let claimed = fixture.claim().await.expect("open row is claimable");
-        tokio::time::sleep(Duration::from_millis(5)).await;
-        let renewed = fixture
-            .store
-            .renew_reclaim_claim(&claimed, &claimed.reclaim_claim)
-            .await
-            .expect("renew claim");
-        assert!(
-            renewed.lease_expires_at_unix_ms > claimed.reclaim_claim.lease_expires_at_unix_ms
-        );
-        // The caller never saw that answer and retries from its old claim.
-        let retried = fixture
-            .store
-            .renew_reclaim_claim(&claimed, &claimed.reclaim_claim)
-            .await
-            .expect("the durable renewal is found again");
-        assert_eq!(retried, renewed);
-        fixture.shutdown().await;
-    }
-
-    #[derive(Default)]
-    struct LateKill {
-        attempts: std::sync::atomic::AtomicUsize,
-        release: tokio::sync::Notify,
-    }
-
-    #[async_trait]
-    impl crate::process_ledger::reclaim::ScopedSandboxKill for LateKill {
-        async fn kill(
-            &self,
-            _resource_scope: &ReclaimResourceScope,
-            _process_uuid: Uuid,
-            _kill_operation_uuid: Uuid,
-        ) -> Result<(), crate::process_ledger::reclaim::KillError> {
-            self.attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            self.release.notified().await;
-            Ok(())
-        }
-
-        async fn kill_operation_status(
-            &self,
-            _resource_scope: &ReclaimResourceScope,
-            _process_uuid: Uuid,
-            _kill_operation_uuid: Uuid,
-        ) -> Result<ReclaimKillOperationStatus, crate::process_ledger::reclaim::KillError> {
-            Ok(ReclaimKillOperationStatus::Unknown)
-        }
-    }
-
-    #[derive(Clone)]
-    struct CountingStopWriter {
-        store: Arc<SurrealProcessLedgerStore>,
-        held_permits: Arc<std::sync::atomic::AtomicUsize>,
-    }
-
-    struct CountingStopPermit(CountingStopWriter);
-
-    impl Drop for CountingStopPermit {
-        fn drop(&mut self) {
-            self.0.held_permits.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-        }
-    }
-
-    #[async_trait]
-    impl crate::process_ledger::reclaim::ScopedReclaimStopReservation for CountingStopPermit {
-        async fn persist(
-            self: Box<Self>,
-            stop: ProcessStop,
-            _timeout: Duration,
-        ) -> Result<(), ProcessLedgerError> {
-            self.0.store.write_batch(vec![LedgerEvent::Stop(stop)]).await
-        }
-    }
-
-    impl crate::process_ledger::reclaim::ScopedReclaimStopWriter for CountingStopWriter {
-        fn reserve_reclaim_stop(
-            &self,
-        ) -> Result<
-            Box<dyn crate::process_ledger::reclaim::ScopedReclaimStopReservation>,
-            ProcessLedgerError,
-        > {
-            self.held_permits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(Box::new(CountingStopPermit(self.clone())))
-        }
-    }
-
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn vanished_pid_is_settled_only_for_a_row_of_this_host() {
-        use crate::process_ledger::reclaim::{
-            ProductionSandboxKill, ScopedKillOutcome, ScopedReclaim, ScopedReclaimTrigger,
-        };
-
-        let fixture = ReclaimFixture::open_with(|mut start| {
-            // No process object can hold this PID.
-            start.os_pid = Some(0xFFFF_FFFC);
-            start.sandbox_adapter_id =
-                Some(crate::sandbox::HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID.to_owned());
-            start.metadata_jsonb["effective_executable_sha256"] = serde_json::json!("0".repeat(64));
-            start.metadata_jsonb["os_creation_time_100ns"] = serde_json::json!(1);
-            start.runtime_owner = Some(ProcessRuntimeOwner {
-                runtime_instance_id: Uuid::now_v7(),
-                host_scope_id: "this-host".to_owned(),
-                lease_schema_id: EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.to_owned(),
-                lease_protocol: EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL.to_owned(),
-                lease_address: "127.0.0.1".to_owned(),
-                lease_port: 43210,
-            });
-            start
-        })
-        .await;
-        let held_permits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let reclaim_on = |host_scope_id: &str| {
-            ScopedReclaim::new(
-                Arc::clone(&fixture.store),
-                Arc::new(
-                    ProductionSandboxKill::with_registry(
-                        fixture.storage.clone(),
-                        crate::process_ledger::production_process_sandbox_registry(),
-                    )
-                    .with_host_scope(host_scope_id),
-                ),
-                Arc::new(CountingStopWriter {
-                    store: Arc::clone(&fixture.store),
-                    held_permits: Arc::clone(&held_permits),
-                }),
-            )
-        };
-        let inspect = || async {
-            fixture
-                .store
-                .inspect_ownership_by_process_uuid(&fixture.scope, fixture.process_uuid)
-                .await
-                .expect("inspect row")
-                .expect("row exists")
-        };
-
-        let report = reclaim_on("another-host")
-            .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Restart)
-            .await
-            .expect("an unproven absence is a reported failure");
-        match &report.processes_reclaimed[0].kill_result {
-            ScopedKillOutcome::Failed { error } => {
-                assert!(error.contains("PROCESS_ABSENT_HOST_UNPROVEN"), "{error}")
-            }
-            other => panic!("another host proves nothing: {other:?}"),
-        }
-        assert!(inspect().await.stopped_at.is_none());
-
-        let report = reclaim_on("this-host")
-            .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Restart)
-            .await
-            .expect("the recorded host proves the absence");
-        assert_eq!(report.processes_reclaimed[0].kill_result, ScopedKillOutcome::Killed);
-        let row = inspect().await;
-        assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
-        assert_eq!(row.exit_code, Some(-1));
-        assert_eq!(held_permits.load(std::sync::atomic::Ordering::SeqCst), 0);
-        fixture.shutdown().await;
-    }
-
-    #[tokio::test]
-    async fn late_kill_result_is_adopted_without_a_second_kill_or_a_held_permit() {
-        use crate::process_ledger::reclaim::{
-            running_kill_process_uuids, ScopedKillOutcome, ScopedReclaim, ScopedReclaimTrigger,
-        };
-        use std::sync::atomic::Ordering;
-
-        let fixture = ReclaimFixture::open().await;
-        let killer = Arc::new(LateKill::default());
-        let held_permits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let reclaim = ScopedReclaim::new(
-            Arc::clone(&fixture.store),
-            Arc::clone(&killer),
-            Arc::new(CountingStopWriter {
-                store: Arc::clone(&fixture.store),
-                held_permits: Arc::clone(&held_permits),
-            }),
-        )
-        .with_kill_observation_budget(Duration::from_secs(6));
-
-        // The first pass waits out its window; the second finds the kill running.
-        for expected in ["has not returned within", "KILL_STILL_RUNNING"] {
-            let report = reclaim
-                .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Failure)
-                .await
-                .expect("a kill that does not return is a reported failure");
-            match &report.processes_reclaimed[0].kill_result {
-                ScopedKillOutcome::Failed { error } => {
-                    assert!(error.contains(expected), "{error}")
-                }
-                other => panic!("no STOP may be claimed yet: {other:?}"),
-            }
-            assert_eq!(killer.attempts.load(Ordering::SeqCst), 1);
-            assert_eq!(held_permits.load(Ordering::SeqCst), 0);
-        }
-
-        killer.release.notify_one();
-        while running_kill_process_uuids().contains(&fixture.process_uuid) {
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        let report = reclaim
-            .run(&fixture.scope, &fixture.session_id, ScopedReclaimTrigger::Failure)
-            .await
-            .expect("the late result settles the row");
-        assert_eq!(report.processes_reclaimed[0].kill_result, ScopedKillOutcome::Killed);
-        assert_eq!(killer.attempts.load(Ordering::SeqCst), 1, "no second kill");
-        assert_eq!(held_permits.load(Ordering::SeqCst), 0);
-        let row = fixture
-            .store
-            .inspect_ownership_by_process_uuid(&fixture.scope, fixture.process_uuid)
-            .await
-            .expect("inspect stopped row")
-            .expect("stopped row exists");
-        assert_eq!(row.lifecycle_state, LedgerEventKind::Stop);
-        assert_eq!(row.stop_reason.as_deref(), Some("reclaim"));
-        assert_eq!(row.exit_code, Some(-1));
-        drop(reclaim);
-        fixture.shutdown().await;
     }
 
     #[tokio::test]

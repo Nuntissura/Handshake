@@ -533,7 +533,7 @@ impl DuckDbFlightRecorder {
         Ok(event)
     }
 
-    fn insert_event(&self, event: FlightRecorderEvent) -> Result<bool, RecorderError> {
+    fn insert_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
         let payload_str = serde_json::to_string(&event.payload)
             .map_err(|e| RecorderError::InvalidEvent(e.to_string()))?;
         let wsids_json = if event.wsids.is_empty() {
@@ -552,51 +552,6 @@ impl DuckDbFlightRecorder {
 
         let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
 
-        let event_id_str = event.event_id.to_string();
-        let trace_id_str = event.trace_id.to_string();
-        let timestamp_str = event.timestamp.to_rfc3339();
-
-        if crate::swarm_orchestration::events::is_terminal_flight_recorder_event(&event) {
-            let (existing, matching): (i64, i64) = conn.query_row(
-                r#"
-                SELECT count(*), count(*) FILTER (WHERE
-                    trace_id IS NOT DISTINCT FROM CAST(? AS UUID)
-                    AND timestamp IS NOT DISTINCT FROM CAST(? AS TIMESTAMPTZ)
-                    AND actor IS NOT DISTINCT FROM ?
-                    AND actor_id IS NOT DISTINCT FROM ?
-                    AND event_type IS NOT DISTINCT FROM ?
-                    AND job_id IS NOT DISTINCT FROM ?
-                    AND workflow_id IS NOT DISTINCT FROM ?
-                    AND model_id IS NOT DISTINCT FROM ?
-                    AND model_session_id IS NOT DISTINCT FROM ?
-                    AND activity_span_id IS NOT DISTINCT FROM ?
-                    AND session_span_id IS NOT DISTINCT FROM ?
-                    AND capability_id IS NOT DISTINCT FROM ?
-                    AND policy_decision_id IS NOT DISTINCT FROM ?
-                    AND wsids IS NOT DISTINCT FROM CAST(? AS JSON)
-                    AND payload IS NOT DISTINCT FROM CAST(? AS JSON))
-                FROM events WHERE event_id = CAST(? AS UUID)
-                "#,
-                duckdb::params![
-                    trace_id_str, timestamp_str, event.actor.to_string(), event.actor_id,
-                    event.event_type.to_string(), event.job_id.as_deref(),
-                    event.workflow_id.as_deref(), event.model_id.as_deref(),
-                    event.model_session_id.as_deref(), event.activity_span_id.as_deref(),
-                    event.session_span_id.as_deref(), event.capability_id.as_deref(),
-                    event.policy_decision_id.as_deref(), wsids_str, payload_str, event_id_str,
-                ],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            ).map_err(|error| RecorderError::SinkError(error.to_string()))?;
-            if existing != 0 {
-                if existing == 1 && matching == 1 {
-                    return Ok(false);
-                }
-                return Err(RecorderError::InvalidEvent(
-                    "terminal event identity conflicts with stored content".into(),
-                ));
-            }
-        }
-
         #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
         let proof_snapshot = if self.proof_control.selected_fault(event.event_id) {
             match Self::proof_snapshot(&conn) {
@@ -614,6 +569,10 @@ impl DuckDbFlightRecorder {
                 return Err(error);
             }
         }
+
+        let event_id_str = event.event_id.to_string();
+        let trace_id_str = event.trace_id.to_string();
+        let timestamp_str = event.timestamp.to_rfc3339();
 
         let insertion = conn.execute(
             r#"
@@ -675,7 +634,7 @@ impl DuckDbFlightRecorder {
         }
         insertion.map_err(|error| RecorderError::SinkError(error.to_string()))?;
 
-        Ok(true)
+        Ok(())
     }
 
     #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
@@ -1417,15 +1376,13 @@ impl FlightRecorder for DuckDbFlightRecorder {
         // before persistence to prevent Unicode bypass attacks [§11.5].
         event.normalize_payload();
         #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
-        if !crate::swarm_orchestration::events::is_terminal_flight_recorder_event(&event) {
-            let _ = self.proof_control.before_insert(&event).await;
-        }
+        let _ = self.proof_control.before_insert(&event).await;
         #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
         let observed_event = event.clone();
         let result = self.insert_event(event);
         #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
-        if matches!(&result, Ok(true)) { self.proof_control.insert_succeeded(&observed_event); }
-        result.map(|_| ())
+        if result.is_ok() { self.proof_control.insert_succeeded(&observed_event); }
+        result
     }
 
     #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]

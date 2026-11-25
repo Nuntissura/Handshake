@@ -23,14 +23,13 @@ use crate::{
     },
     role_mailbox::RoleId,
     role_mailbox_v1::{
-        repo::{CreateBindings, MessageCreateBindings},
         ClaimMode, DecisionOption, DecisionRequestBody, ExecutorKind, LinkedRecordKind,
         MessageFamily, MessageType, ResponseAuthorityScope, RoleMailboxRepository,
         RoleMailboxThread, TakeoverPolicy,
     },
     sandbox::{AdapterId, ProcessHandle, SandboxAdapterRegistry},
     session_checkpoint::{
-        CheckpointStateKind, EventLedgerRow, IdempotencyKey,
+        ApplyOutcome, CheckpointStateKind, EventLedgerRow, IdempotencyKey, IdempotencyLedger,
         IdempotencyLedgerError, ReplayError, SessionCheckpoint, SessionCheckpointId,
         SideEffectKind,
     },
@@ -311,7 +310,7 @@ impl RestartOrphanReclaimer for SurrealRestartOrphanReclaimer {
                 if let Err(error) = self.store.mark_cleanup_completed(process).await {
                     return Err(self
                         .release_after_failure(
-                            &claimed[index.saturating_add(1)..],
+                            &claimed[index..],
                             format!(
                                 "durable post-cleanup marker failed for process {}: {error}",
                                 process.process_uuid
@@ -373,6 +372,7 @@ pub enum AbortReportFault {
 pub struct SurrealRestartResumeRunner {
     storage: SurrealStorage,
     resource_scope: ReclaimResourceScope,
+    idempotency: Arc<IdempotencyLedger>,
     orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>,
     #[cfg(feature = "test-utils")]
     cancel_before_resume: Arc<AtomicBool>,
@@ -382,36 +382,47 @@ pub struct SurrealRestartResumeRunner {
 
 const PERSIST_RESUME_REPORT: &str = r#"
 LET $existing = SELECT * FROM ONLY $report_record
-WHERE owner_account_id = $report.owner_account_id
-    AND actor_principal_id = $report.actor_principal_id
-    AND authenticated_session_id = $report.authenticated_session_id
-    AND access_space_id = $report.access_space_id
-    AND workspace_id = $report.workspace_id
-    AND report_id = $report.report_id
+WHERE owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id
+    AND report_id = <uuid>$report.report_id
     AND sessions_examined = $report.sessions_examined
-    AND sessions_resumed = $report.sessions_resumed
-    AND sessions_recovery_failed = $report.sessions_recovery_failed
-    AND orphan_reclaims = $report.orphan_reclaims
-    AND operator_decision_requests = $report.operator_decision_requests
-    AND fr_events_emitted = $report.fr_events_emitted
-    AND total_replay_events = $report.total_replay_events
-    AND total_duration_ms = $report.total_duration_ms
-    AND started_at_utc = $report.started_at_utc
-    AND completed_at_utc = $report.completed_at_utc
-    AND schema_version = $report.schema_version;
+    AND total_replay_events = $report.total_replay_events;
 IF $existing = NONE {
     IF record::exists($report_record) {
         THROW 'RESTART_RESUME_REPORT_IDEMPOTENCY_CONFLICT';
     };
-    CREATE $report_record CONTENT $report;
+    CREATE $report_record CONTENT {
+        report_id: <uuid>$report.report_id,
+        sessions_examined: $report.sessions_examined,
+        sessions_resumed: $report.sessions_resumed,
+        sessions_recovery_failed: $report.sessions_recovery_failed,
+        total_replay_events: $report.total_replay_events,
+        total_duration_ms: $report.total_duration_ms,
+        started_at_utc: <datetime>$report.started_at_utc,
+        completed_at_utc: <datetime>$report.completed_at_utc,
+        orphan_reclaims: $report.orphan_reclaims,
+        operator_decision_requests: $report.operator_decision_requests,
+        fr_events_emitted: $report.fr_events_emitted,
+        schema_version: $report.schema_version,
+        owner_account_id: $owner_account_id,
+        actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id,
+        access_space_id: $access_space_id,
+        workspace_id: $workspace_id
+    };
 };
-RETURN (SELECT owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, report_id, sessions_examined, sessions_resumed, sessions_recovery_failed, orphan_reclaims, operator_decision_requests, fr_events_emitted, total_replay_events, total_duration_ms, started_at_utc, completed_at_utc, schema_version FROM $report_record
-    WHERE id = $report_record
-        AND owner_account_id = $report.owner_account_id
-        AND actor_principal_id = $report.actor_principal_id
-        AND authenticated_session_id = $report.authenticated_session_id
-        AND access_space_id = $report.access_space_id
-        AND workspace_id = $report.workspace_id);
+-- `FROM $report_record`, not `FROM ONLY`: `ONLY` yields the bare record (or
+-- NONE), so `array::len` would receive a record/NONE instead of an array and the
+-- acknowledgement could never be read back as an int.
+RETURN array::len(SELECT VALUE id FROM $report_record
+    WHERE owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id);
 "#;
 
 impl SurrealRestartResumeRunner {
@@ -422,6 +433,7 @@ impl SurrealRestartResumeRunner {
     ) -> Self {
         Self {
             resource_scope,
+            idempotency: Arc::new(IdempotencyLedger::new(storage.clone())),
             storage,
             orphan_reclaimer,
             #[cfg(feature = "test-utils")]
@@ -475,11 +487,7 @@ impl SurrealRestartResumeRunner {
     }
 
     pub async fn run(&self) -> Result<ResumeReport, RestartResumeRuntimeError> {
-        let started = std::time::Instant::now();
-        let mut report = empty_report(Utc::now(), Duration::ZERO);
-        emit_report_event(&mut report, FrEventId::RestartResumeStarted);
-        self.run_pass(&mut report, started).await?;
-        Ok(report)
+        self.run_with_preface_events(&[]).await
     }
 
     pub async fn run_with_bound(
@@ -488,14 +496,12 @@ impl SurrealRestartResumeRunner {
     ) -> Result<BoundedRestartResumeOutcome, RestartResumeRuntimeError> {
         let started_at_utc = Utc::now();
         let started = std::time::Instant::now();
-        let mut report = empty_report(started_at_utc, Duration::ZERO);
-        emit_report_event(&mut report, FrEventId::RestartResumeStarted);
-        match tokio::time::timeout(timeout, self.run_pass(&mut report, started)).await {
-            Ok(Ok(())) => Ok(BoundedRestartResumeOutcome::Completed(report)),
+        match tokio::time::timeout(timeout, self.run()).await {
+            Ok(Ok(report)) => Ok(BoundedRestartResumeOutcome::Completed(report)),
             Ok(Err(error)) => Err(error),
             Err(_) => {
-                report.total_duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-                report.completed_at_utc = Utc::now();
+                let mut report = empty_report(started_at_utc, started.elapsed());
+                emit_report_event(&mut report, FrEventId::RestartResumeStarted);
                 let evidence_persisted = match tokio::time::timeout(
                     RESTART_RESUME_ABORT_REPORT_GRACE,
                     self.persist_report(&report),
@@ -563,14 +569,15 @@ impl SurrealRestartResumeRunner {
                 resource_scope.clone(),
                 Arc::clone(&orphan_reclaimer),
             );
-            let started = std::time::Instant::now();
-            let mut report = empty_report(Utc::now(), Duration::ZERO);
-            for event_id in &preface_events {
-                emit_report_event(&mut report, *event_id);
-            }
-            emit_report_event(&mut report, FrEventId::RestartResumeStarted);
-            let candidates = match runner.load_candidates().await {
-                Ok(candidates) => candidates,
+            match runner.run_with_preface_events(&preface_events).await {
+                Ok(report) => {
+                    return Ok(RestartResumeDbBackoffEvidence {
+                        db_unavailable_attempts,
+                        backoff_observed: !backoff_delay_ms.is_empty(),
+                        backoff_delay_ms,
+                        report,
+                    });
+                }
                 Err(error)
                     if attempt < policy.max_attempts
                         && is_transient_db_unavailable_error(&error) =>
@@ -582,38 +589,39 @@ impl SurrealRestartResumeRunner {
                         &mut preface_events,
                     )
                     .await;
-                    continue;
                 }
                 Err(error) => return Err(error),
-            };
-            runner.apply_candidates(&mut report, started, candidates).await?;
-            return Ok(RestartResumeDbBackoffEvidence {
-                db_unavailable_attempts,
-                backoff_observed: !backoff_delay_ms.is_empty(),
-                backoff_delay_ms,
-                report,
-            });
+            }
         }
 
         unreachable!("RestartResumeDbBackoffPolicy always has at least one attempt")
     }
 
-    async fn run_pass(
+    async fn run_with_preface_events(
         &self,
-        report: &mut ResumeReport,
-        started: std::time::Instant,
-    ) -> Result<(), RestartResumeRuntimeError> {
+        preface_events: &[FrEventId],
+    ) -> Result<ResumeReport, RestartResumeRuntimeError> {
+        let started_at_utc = Utc::now();
+        let started = std::time::Instant::now();
         let candidates = self.load_candidates().await?;
-        self.apply_candidates(report, started, candidates).await
-    }
+        let mut report = ResumeReport {
+            report_id: Uuid::now_v7(),
+            sessions_examined: candidates.len() as u32,
+            sessions_resumed: Vec::new(),
+            sessions_recovery_failed: Vec::new(),
+            orphan_reclaims: Vec::new(),
+            operator_decision_requests: Vec::new(),
+            fr_events_emitted: Vec::new(),
+            total_replay_events: 0,
+            total_duration_ms: 0,
+            started_at_utc,
+            completed_at_utc: Utc::now(),
+        };
 
-    async fn apply_candidates(
-        &self,
-        report: &mut ResumeReport,
-        started: std::time::Instant,
-        candidates: Vec<ResumeCandidate>,
-    ) -> Result<(), RestartResumeRuntimeError> {
-        report.sessions_examined = candidates.len() as u32;
+        for event_id in preface_events {
+            emit_report_event(&mut report, *event_id);
+        }
+        emit_report_event(&mut report, FrEventId::RestartResumeStarted);
 
         for candidate in candidates {
             let processes_reclaimed = self.reclaim_orphans(&candidate).await?;
@@ -626,7 +634,7 @@ impl SurrealRestartResumeRunner {
             }
 
             let Some(checkpoint) = candidate.checkpoint.clone() else {
-                self.record_failure(report, &candidate, ResumeError::NoCheckpoint, None)
+                self.record_failure(&mut report, &candidate, ResumeError::NoCheckpoint)
                     .await?;
                 continue;
             };
@@ -638,29 +646,26 @@ impl SurrealRestartResumeRunner {
                     checkpoint.last_event_ledger_seq,
                 )
                 .await?;
-            let observed_through_seq = events
-                .last()
-                .map(|event| event.event_sequence)
-                .unwrap_or(checkpoint.last_event_ledger_seq);
             let global_sequences = self
                 .load_global_sequences_through(
                     checkpoint.last_event_ledger_seq,
-                    observed_through_seq,
+                    events
+                        .last()
+                        .map(|event| event.event_sequence)
+                        .unwrap_or(checkpoint.last_event_ledger_seq),
                 )
                 .await?;
-            let replay_sequences: Vec<i64> = events.iter().map(|event| event.event_sequence).collect();
             let replay_result = execute_global_replay(&checkpoint, &events, &global_sequences);
             match replay_result {
                 Ok(result) => {
                     #[cfg(feature = "test-utils")]
                     if self.cancel_before_resume.swap(false, Ordering::AcqRel) {
                         self.record_failure(
-                            report,
+                            &mut report,
                             &candidate,
                             ResumeError::SessionApplyError {
                                 reason: "operator_cancel_during_recovery".to_owned(),
                             },
-                            None,
                         )
                         .await?;
                         continue;
@@ -671,7 +676,6 @@ impl SurrealRestartResumeRunner {
                             &checkpoint,
                             &result.final_state,
                             result.final_seq,
-                            &replay_sequences,
                         )
                         .await?;
                     if resumed {
@@ -681,33 +685,21 @@ impl SurrealRestartResumeRunner {
                             final_seq: result.final_seq,
                         });
                         report.total_replay_events += result.applied_count as u64;
-                        emit_report_event(report, FrEventId::RestartResumeSessionResumed);
+                        emit_report_event(&mut report, FrEventId::RestartResumeSessionResumed);
                     }
                 }
                 Err(error) => {
-                    self.record_failure(
-                        report,
-                        &candidate,
-                        ResumeError::ReplayError(error),
-                        Some(ReplayFailureObservation {
-                            after_seq: checkpoint.last_event_ledger_seq,
-                            through_seq: observed_through_seq,
-                            scoped_sequences: replay_sequences,
-                            global_sequences,
-                        }),
-                    )
-                    .await?;
+                    self.record_failure(&mut report, &candidate, ResumeError::ReplayError(error))
+                        .await?;
                 }
             }
         }
 
-        let mut completed = report.clone();
-        completed.total_duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-        completed.completed_at_utc = Utc::now();
-        emit_report_event(&mut completed, FrEventId::RestartResumeCompleted);
-        self.persist_report(&completed).await?;
-        *report = completed;
-        Ok(())
+        report.total_duration_ms = started.elapsed().as_millis() as u64;
+        report.completed_at_utc = Utc::now();
+        emit_report_event(&mut report, FrEventId::RestartResumeCompleted);
+        self.persist_report(&report).await?;
+        Ok(report)
     }
 
     async fn load_candidates(&self) -> Result<Vec<ResumeCandidate>, RestartResumeRuntimeError> {
@@ -728,9 +720,8 @@ impl SurrealRestartResumeRunner {
                 Box::pin(async move {
                     database
                         .query_values(
-                            "SELECT id, session_run_id, kernel_task_run_id, adapter_id, state, attempt_count, claimed_by, lease_expires_at, available_at, created_at, updated_at \
+                            "SELECT session_run_id, kernel_task_run_id, adapter_id, state, attempt_count, created_at \
                              FROM kernel_session_queue WHERE state IN $states \
-                             AND (lease_expires_at = NONE OR lease_expires_at <= time::now()) \
                              AND owner_account_id = $owner_account_id \
                              AND actor_principal_id = $actor_principal_id \
                              AND authenticated_session_id = $authenticated_session_id \
@@ -755,25 +746,14 @@ impl SurrealRestartResumeRunner {
         let mut candidates = Vec::with_capacity(rows.len());
         for row in rows {
             let session_id = parse_session_uuid(&row.session_run_id)?;
-            let selected = self.load_latest_checkpoint(session_id).await?;
-            let observed_checkpoint = selected.head;
-            let observed_replay_base = selected.replay_base;
-            let checkpoint = observed_replay_base.clone().map(CheckpointRow::into_checkpoint).transpose()?;
+            let checkpoint = self.load_latest_checkpoint(session_id).await?;
             candidates.push(ResumeCandidate {
-                queue_record: row.id,
-                claimed_by: row.claimed_by,
-                lease_expires_at: row.lease_expires_at,
-                available_at: row.available_at,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
                 session_id,
                 session_run_id: row.session_run_id,
                 kernel_task_run_id: row.kernel_task_run_id,
                 adapter_id: row.adapter_id,
                 state: row.state,
                 attempt_count: row.attempt_count,
-                observed_checkpoint,
-                observed_replay_base,
                 checkpoint,
             });
         }
@@ -783,7 +763,7 @@ impl SurrealRestartResumeRunner {
     async fn load_latest_checkpoint(
         &self,
         session_id: Uuid,
-    ) -> Result<CheckpointSelection, RestartResumeRuntimeError> {
+    ) -> Result<Option<SessionCheckpoint>, RestartResumeRuntimeError> {
         #[derive(SurrealValue)]
         struct LatestCheckpointBindings {
             session_id: Uuid,
@@ -795,38 +775,23 @@ impl SurrealRestartResumeRunner {
         }
 
         let scope = self.resource_scope.clone();
-        let row: Option<CheckpointSelection> = self
+        let row: Option<CheckpointRow> = self
             .storage
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
                         .query_first(
-                            r#"RETURN {
-                                LET $head = (SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq, compact_state, state_kind, pending_artifacts, created_at_utc, created_by_process, schema_version
-                                    FROM kernel_session_checkpoint WHERE session_id = $session_id
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id
-                                    ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1);
-                                IF array::len($head) = 0 {
-                                    RETURN { head: NONE, replay_base: NONE };
-                                };
-                                IF $head[0].state_kind = 'recovery_failed' {
-                                    LET $base = (SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq, compact_state, state_kind, pending_artifacts, created_at_utc, created_by_process, schema_version
-                                    FROM kernel_session_checkpoint WHERE session_id = $session_id
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id
-                                      AND state_kind != 'recovery_failed'
-                                    ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1);
-                                    RETURN { head: $head[0], replay_base: $base[0] };
-                                };
-                                RETURN { head: $head[0], replay_base: $head[0] };
-                            };"#,
+                            "SELECT checkpoint_id, session_id, model_session_id, \
+                             last_event_ledger_seq, compact_state, state_kind, \
+                             pending_artifacts, created_at_utc, created_by_process, \
+                             schema_version \
+                             FROM kernel_session_checkpoint WHERE session_id = $session_id \
+                             AND owner_account_id = $owner_account_id \
+                             AND actor_principal_id = $actor_principal_id \
+                             AND authenticated_session_id = $authenticated_session_id \
+                             AND access_space_id = $access_space_id \
+                             AND workspace_id = $workspace_id \
+                             ORDER BY created_at_utc DESC LIMIT 1;",
                             LatestCheckpointBindings {
                                 session_id,
                                 owner_account_id: scope.account_uuid.to_string(),
@@ -841,9 +806,7 @@ impl SurrealRestartResumeRunner {
             })
             .await?;
 
-        row.ok_or_else(|| RestartResumeRuntimeError::Store(
-            "checkpoint head selection returned no snapshot".to_owned(),
-        ))
+        row.map(CheckpointRow::into_checkpoint).transpose()
     }
 
     async fn load_events_after_checkpoint(
@@ -966,27 +929,12 @@ impl SurrealRestartResumeRunner {
         checkpoint: &SessionCheckpoint,
         final_state: &Value,
         final_seq: i64,
-        replay_sequences: &[i64],
     ) -> Result<bool, RestartResumeRuntimeError> {
         let queue_claim = recovery_store_write_key(candidate, final_seq, "kernel_session_queue");
         let checkpoint_claim =
             recovery_store_write_key(candidate, final_seq, "kernel_session_checkpoint");
         let new_checkpoint_id = Uuid::now_v7();
         let bindings = ResumeCandidateBindings {
-            replay_after_seq: checkpoint.last_event_ledger_seq,
-            replay_sequences: replay_sequences.to_vec(),
-            observed_checkpoint: candidate.observed_checkpoint.clone(),
-            observed_replay_base: candidate.observed_replay_base.clone(),
-            queue_record: candidate.queue_record.clone(),
-            observed_state: candidate.state.clone(),
-            observed_attempt: candidate.attempt_count,
-            observed_claimed_by: candidate.claimed_by.clone(),
-            observed_lease_expires_at: candidate.lease_expires_at,
-            observed_available_at: candidate.available_at,
-            observed_created_at: candidate.created_at,
-            observed_updated_at: candidate.updated_at,
-            observed_kernel_task_run_id: candidate.kernel_task_run_id.clone(),
-            observed_adapter_id: candidate.adapter_id.clone(),
             owner_account_id: self.resource_scope.account_uuid.to_string(),
             actor_principal_id: self.resource_scope.actor_uuid.to_string(),
             authenticated_session_id: self.resource_scope.session_uuid.to_string(),
@@ -1015,187 +963,64 @@ impl SurrealRestartResumeRunner {
                 Box::pin(async move {
                     database
                         .query_first(
-                            r#"RETURN {
-                                LET $queue_claim = type::record('kernel_idempotency_ledger', $queue_claim_id);
-                                LET $checkpoint_claim = type::record('kernel_idempotency_ledger', $checkpoint_claim_id);
-                                LET $queue_prior = (SELECT id, session_id, event_seq, side_effect_kind, applied_at_utc
-                                    FROM $queue_claim LIMIT 2);
-                                IF array::len($queue_prior) != 0 {
-                                    LET $valid = array::len($queue_prior) = 1
-                                        AND $queue_prior[0].id = $queue_claim
-                                        AND $queue_prior[0].session_id = $session_id
-                                        AND $queue_prior[0].event_seq = $event_seq
-                                        AND $queue_prior[0].side_effect_kind = $queue_side_effect_kind
-                                        AND $queue_prior[0].applied_at_utc != NONE;
-                                    IF $valid != true {
-                                        THROW 'restart resume queue receipt is pending or noncanonical';
-                                    };
-                                };
-                                LET $checkpoint_prior = (SELECT id, session_id, event_seq, side_effect_kind, applied_at_utc
-                                    FROM $checkpoint_claim LIMIT 2);
-                                IF array::len($checkpoint_prior) != 0 {
-                                    LET $valid = array::len($checkpoint_prior) = 1
-                                        AND $checkpoint_prior[0].id = $checkpoint_claim
-                                        AND $checkpoint_prior[0].session_id = $session_id
-                                        AND $checkpoint_prior[0].event_seq = $event_seq
-                                        AND $checkpoint_prior[0].side_effect_kind = $checkpoint_side_effect_kind
-                                        AND $checkpoint_prior[0].applied_at_utc != NONE;
-                                    IF $valid != true {
-                                        THROW 'restart resume checkpoint receipt is pending or noncanonical';
-                                    };
-                                };
-                                IF array::len($queue_prior) = 1 AND array::len($checkpoint_prior) = 1 {
-                                    RETURN false;
-                                };
-                                LET $current_sequences = (SELECT VALUE event_sequence FROM kernel_event_ledger
-                                    WHERE session_run_id = $session_run_id AND event_sequence > $replay_after_seq
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id ORDER BY event_sequence);
-                                IF $current_sequences != $replay_sequences { RETURN false; };
-                                LET $head = (SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq, compact_state, state_kind, pending_artifacts, created_at_utc, created_by_process, schema_version
-                                    FROM kernel_session_checkpoint WHERE session_id = $session_id
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id
-                                    ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1);
-                                IF $observed_checkpoint = NONE {
-                                    IF array::len($head) != 0 { RETURN false; };
-                                } ELSE {
-                                    IF array::len($head) != 1
-                                        OR $head[0].checkpoint_id != $observed_checkpoint.checkpoint_id
-                                        OR $head[0].session_id != $observed_checkpoint.session_id
-                                        OR $head[0].model_session_id != $observed_checkpoint.model_session_id
-                                        OR $head[0].last_event_ledger_seq != $observed_checkpoint.last_event_ledger_seq
-                                        OR $head[0].compact_state != $observed_checkpoint.compact_state
-                                        OR $head[0].state_kind != $observed_checkpoint.state_kind
-                                        OR $head[0].pending_artifacts != $observed_checkpoint.pending_artifacts
-                                        OR $head[0].created_at_utc != $observed_checkpoint.created_at_utc
-                                        OR $head[0].created_by_process != $observed_checkpoint.created_by_process
-                                        OR $head[0].schema_version != $observed_checkpoint.schema_version {
-                                        RETURN false;
-                                    };
-                                };
-                                LET $replay_base = (SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq, compact_state, state_kind, pending_artifacts, created_at_utc, created_by_process, schema_version
-                                    FROM kernel_session_checkpoint WHERE session_id = $session_id AND state_kind != 'recovery_failed'
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id
-                                    ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1);
-                                IF $observed_replay_base = NONE {
-                                    IF array::len($replay_base) != 0 { RETURN false; };
-                                } ELSE {
-                                    IF array::len($replay_base) != 1
-                                        OR $replay_base[0].checkpoint_id != $observed_replay_base.checkpoint_id
-                                        OR $replay_base[0].session_id != $observed_replay_base.session_id
-                                        OR $replay_base[0].model_session_id != $observed_replay_base.model_session_id
-                                        OR $replay_base[0].last_event_ledger_seq != $observed_replay_base.last_event_ledger_seq
-                                        OR $replay_base[0].compact_state != $observed_replay_base.compact_state
-                                        OR $replay_base[0].state_kind != $observed_replay_base.state_kind
-                                        OR $replay_base[0].pending_artifacts != $observed_replay_base.pending_artifacts
-                                        OR $replay_base[0].created_at_utc != $observed_replay_base.created_at_utc
-                                        OR $replay_base[0].created_by_process != $observed_replay_base.created_by_process
-                                        OR $replay_base[0].schema_version != $observed_replay_base.schema_version {
-                                        RETURN false;
-                                    };
-                                };
-                                LET $failed = (UPDATE $queue_record SET state = 'FAILED', updated_at = time::now()
-                                    WHERE session_run_id = $session_run_id
-                                      AND kernel_task_run_id = $observed_kernel_task_run_id
-                                      AND adapter_id = $observed_adapter_id
-                                      AND state IN $states AND state = $observed_state
-                                      AND attempt_count = $observed_attempt
-                                      AND claimed_by = $observed_claimed_by
-                                      AND lease_expires_at = $observed_lease_expires_at
-                                      AND (lease_expires_at = NONE OR lease_expires_at <= time::now())
-                                      AND available_at = $observed_available_at
-                                      AND created_at = $observed_created_at
-                                      AND updated_at = $observed_updated_at
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id RETURN AFTER);
-                                IF array::len($failed) = 0 { RETURN false; };
-                                IF array::len($failed) != 1 OR $failed[0].id != $queue_record
-                                    OR $failed[0].state != 'FAILED' {
-                                    THROW 'restart resume exact FAILED transition was not confirmed';
-                                };
-                                LET $rescheduled = (UPDATE $queue_record SET
-                                    state = 'RETRY_SCHEDULED', claimed_by = NONE, lease_expires_at = NONE,
-                                    available_at = time::now(), updated_at = time::now()
-                                    WHERE session_run_id = $session_run_id
-                                      AND kernel_task_run_id = $observed_kernel_task_run_id
-                                      AND adapter_id = $observed_adapter_id
-                                      AND state = 'FAILED' AND attempt_count = $observed_attempt
-                                      AND claimed_by = $observed_claimed_by
-                                      AND lease_expires_at = $observed_lease_expires_at
-                                      AND available_at = $observed_available_at
-                                      AND created_at = $observed_created_at
-                                      AND updated_at = $failed[0].updated_at
-                                      AND owner_account_id = $owner_account_id
-                                      AND actor_principal_id = $actor_principal_id
-                                      AND authenticated_session_id = $authenticated_session_id
-                                      AND access_space_id = $access_space_id
-                                      AND workspace_id = $workspace_id RETURN AFTER);
-                                IF array::len($rescheduled) != 1 OR $rescheduled[0].id != $queue_record
-                                    OR $rescheduled[0].state != 'RETRY_SCHEDULED'
-                                    OR $rescheduled[0].claimed_by != NONE
-                                    OR $rescheduled[0].lease_expires_at != NONE {
-                                    THROW 'restart resume exact RETRY_SCHEDULED transition was not confirmed';
-                                };
-                                IF array::len($queue_prior) = 0 {
-                                    LET $created_queue_receipt = (CREATE $queue_claim CONTENT {
-                                        session_id: $session_id, event_seq: $event_seq,
-                                        side_effect_kind: $queue_side_effect_kind, applied_at_utc: time::now()
-                                    } RETURN VALUE id);
-                                    IF array::len($created_queue_receipt) != 1
-                                        OR $created_queue_receipt[0] != $queue_claim {
-                                        THROW 'restart resume queue receipt creation was not confirmed';
-                                    };
-                                };
-                                IF array::len($checkpoint_prior) = 0 {
-                                    LET $checkpoint_record = type::record('kernel_session_checkpoint', $new_checkpoint_id);
-                                    LET $created = (CREATE $checkpoint_record CONTENT {
-                                        checkpoint_id: $new_checkpoint_uuid,
-                                        owner_account_id: $owner_account_id,
-                                        actor_principal_id: $actor_principal_id,
-                                        authenticated_session_id: $authenticated_session_id,
-                                        access_space_id: $access_space_id,
-                                        workspace_id: $workspace_id,
-                                        session_id: $session_id, model_session_id: $model_session_id,
-                                        last_event_ledger_seq: $event_seq, compact_state: $compact_state,
-                                        state_kind: 'post_failure', pending_artifacts: $pending_artifacts,
-                                        created_at_utc: time::now(), created_by_process: $created_by_process,
-                                        schema_version: $schema_version
-                                    } RETURN AFTER);
-                                    IF array::len($created) != 1 OR $created[0].id != $checkpoint_record
-                                        OR $created[0].checkpoint_id != $new_checkpoint_uuid
-                                        OR $created[0].session_id != $session_id
-                                        OR $created[0].owner_account_id != $owner_account_id
-                                        OR $created[0].actor_principal_id != $actor_principal_id
-                                        OR $created[0].authenticated_session_id != $authenticated_session_id
-                                        OR $created[0].access_space_id != $access_space_id
-                                        OR $created[0].workspace_id != $workspace_id {
-                                        THROW 'restart resume checkpoint creation was not confirmed';
-                                    };
-                                    LET $created_checkpoint_receipt = (CREATE $checkpoint_claim CONTENT {
-                                        session_id: $session_id, event_seq: $event_seq,
-                                        side_effect_kind: $checkpoint_side_effect_kind, applied_at_utc: time::now()
-                                    } RETURN VALUE id);
-                                    IF array::len($created_checkpoint_receipt) != 1
-                                        OR $created_checkpoint_receipt[0] != $checkpoint_claim {
-                                        THROW 'restart resume checkpoint receipt creation was not confirmed';
-                                    };
-                                };
-                                RETURN true;
-                            };"#,
+                            "RETURN { \
+                             LET $queue_claim = type::record('kernel_idempotency_ledger', $queue_claim_id); \
+                             LET $checkpoint_claim = type::record('kernel_idempotency_ledger', $checkpoint_claim_id); \
+                             IF record::exists($queue_claim) \
+                                AND record::exists($checkpoint_claim) { RETURN false; }; \
+                                 IF !record::exists($queue_claim) { \
+                                     CREATE $queue_claim CONTENT { \
+                                         session_id: $session_id, \
+                                         event_seq: $event_seq, \
+                                         side_effect_kind: $queue_side_effect_kind, \
+                                         applied_at_utc: time::now() \
+                                     }; \
+                                 }; \
+                                 IF !record::exists($checkpoint_claim) { \
+                                     CREATE $checkpoint_claim CONTENT { \
+                                         session_id: $session_id, \
+                                         event_seq: $event_seq, \
+                                         side_effect_kind: $checkpoint_side_effect_kind, \
+                                         applied_at_utc: time::now() \
+                                     }; \
+                                 }; \
+                                 UPDATE kernel_session_queue SET \
+                                     state = 'FAILED', updated_at = time::now() \
+                                 WHERE session_run_id = $session_run_id AND state IN $states AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+; \
+                                 UPDATE kernel_session_queue SET \
+                                     state = 'RETRY_SCHEDULED', claimed_by = NONE, \
+                                     lease_expires_at = NONE, available_at = time::now(), \
+                                     updated_at = time::now() \
+                                 WHERE session_run_id = $session_run_id AND state = 'FAILED' AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+; \
+                                 CREATE type::record('kernel_session_checkpoint', $new_checkpoint_id) CONTENT { \
+                                     checkpoint_id: $new_checkpoint_uuid, \
+                                     owner_account_id: $owner_account_id, \
+                                     actor_principal_id: $actor_principal_id, \
+                                     authenticated_session_id: $authenticated_session_id, \
+                                     access_space_id: $access_space_id, \
+                                     workspace_id: $workspace_id, \
+                                     session_id: $session_id, \
+                                     model_session_id: $model_session_id, \
+                                     last_event_ledger_seq: $event_seq, \
+                                     compact_state: $compact_state, \
+                                     state_kind: 'post_failure', \
+                                     pending_artifacts: $pending_artifacts, \
+                                     created_at_utc: time::now(), \
+                                     created_by_process: $created_by_process, \
+                                     schema_version: $schema_version \
+                                 } RETURN NONE; \
+                             RETURN true; \
+                             };",
                             bindings,
                         )
                         .await
@@ -1210,386 +1035,131 @@ impl SurrealRestartResumeRunner {
         report: &mut ResumeReport,
         candidate: &ResumeCandidate,
         error: ResumeError,
-        replay_observation: Option<ReplayFailureObservation>,
     ) -> Result<(), RestartResumeRuntimeError> {
+        report
+            .sessions_recovery_failed
+            .push((candidate.session_id, error.clone()));
+
         let failure_seq = failure_idempotency_seq(candidate, &error);
-        let decision = self.prepare_operator_decision(candidate, &error, failure_seq)?;
-        let mailbox_key = recovery_store_write_key(candidate, failure_seq, "role_mailbox_message");
-        let failure_checkpoint = candidate.checkpoint.as_ref().map(|checkpoint| {
-            let checkpoint_id = Uuid::now_v7();
-            RecoveryFailedCheckpointBindings {
-                owner_account_id: self.resource_scope.account_uuid.to_string(),
-                actor_principal_id: self.resource_scope.actor_uuid.to_string(),
-                authenticated_session_id: self.resource_scope.session_uuid.to_string(),
-                access_space_id: self.resource_scope.access_space_uuid.to_string(),
-                workspace_id: self.resource_scope.workspace_id.clone(),
-                record: surrealdb::types::RecordId::new(
-                    "kernel_session_checkpoint",
-                    checkpoint_id.to_string(),
-                ),
-                checkpoint_id,
-                session_id: candidate.session_id,
-                model_session_id: checkpoint.model_session_id,
-                last_event_ledger_seq: checkpoint.last_event_ledger_seq,
-                compact_state: checkpoint.compact_state.clone(),
-                pending_artifacts: checkpoint.pending_artifacts.clone(),
-                created_by_process: i64::from(std::process::id()),
-                schema_version: i64::from(checkpoint.schema_version),
-            }
-        });
-        #[derive(SurrealValue)]
-        struct FailSessionBindings {
-            decision: PreparedRestartDecision,
-            mailbox_receipt: surrealdb::types::RecordId,
-            mailbox_side_effect_kind: String,
-            replay_observation: Option<ReplayFailureObservation>,
-            observed_checkpoint: Option<CheckpointRow>,
-            observed_replay_base: Option<CheckpointRow>,
-            checkpoint: Option<RecoveryFailedCheckpointBindings>,
-            checkpoint_receipt: surrealdb::types::RecordId,
-            checkpoint_side_effect_kind: String,
-            queue_record: surrealdb::types::RecordId,
-            receipt_record: surrealdb::types::RecordId,
-            session_id: Uuid,
-            event_seq: i64,
-            side_effect_kind: String,
-            session_run_id: String,
-            kernel_task_run_id: String,
-            adapter_id: String,
-            state: String,
-            attempt_count: i64,
-            claimed_by: Option<String>,
-            lease_expires_at: Option<DateTime<Utc>>,
-            available_at: DateTime<Utc>,
-            created_at: DateTime<Utc>,
-            updated_at: DateTime<Utc>,
-            owner_account_id: String,
-            actor_principal_id: String,
-            authenticated_session_id: String,
-            access_space_id: String,
-            workspace_id: String,
-        }
-        let key = recovery_store_write_key(candidate, failure_seq, "kernel_session_queue");
-        let checkpoint_key = recovery_store_write_key(
-            candidate, failure_seq, "kernel_session_checkpoint_recovery_failed",
-        );
-        let bindings = FailSessionBindings {
-            decision,
-            mailbox_receipt: surrealdb::types::RecordId::new(
-                "kernel_idempotency_ledger", mailbox_key.ledger_record_id(),
-            ),
-            mailbox_side_effect_kind: mailbox_key.side_effect_storage_key(),
-            replay_observation,
-            observed_checkpoint: candidate.observed_checkpoint.clone(),
-            observed_replay_base: candidate.observed_replay_base.clone(),
-            checkpoint: failure_checkpoint,
-            checkpoint_receipt: surrealdb::types::RecordId::new(
-                "kernel_idempotency_ledger", checkpoint_key.ledger_record_id(),
-            ),
-            checkpoint_side_effect_kind: checkpoint_key.side_effect_storage_key(),
-            queue_record: candidate.queue_record.clone(),
-            receipt_record: surrealdb::types::RecordId::new(
-                "kernel_idempotency_ledger", key.ledger_record_id(),
-            ),
-            session_id: candidate.session_id,
-            event_seq: failure_seq,
-            side_effect_kind: key.side_effect_storage_key(),
-            session_run_id: candidate.session_run_id.clone(),
-            kernel_task_run_id: candidate.kernel_task_run_id.clone(),
-            adapter_id: candidate.adapter_id.clone(),
-            state: candidate.state.clone(),
-            attempt_count: candidate.attempt_count,
-            claimed_by: candidate.claimed_by.clone(),
-            lease_expires_at: candidate.lease_expires_at,
-            available_at: candidate.available_at,
-            created_at: candidate.created_at,
-            updated_at: candidate.updated_at,
+        self.apply_idempotent_store_write(
+            candidate,
+            failure_seq,
+            "role_mailbox_message",
+            || async {
+                self.post_operator_decision(candidate, &error)
+                    .await
+                    .map_err(|err| err.to_string())
+            },
+        )
+        .await?;
+        self.apply_idempotent_store_write(
+            candidate,
+            failure_seq,
+            "kernel_session_checkpoint_recovery_failed",
+            || async {
+                let Some(checkpoint) = candidate.checkpoint.as_ref() else {
+                    return Ok(());
+                };
+                let checkpoint_id = Uuid::now_v7();
+                let bindings = RecoveryFailedCheckpointBindings {
+                    owner_account_id: self.resource_scope.account_uuid.to_string(),
+                    actor_principal_id: self.resource_scope.actor_uuid.to_string(),
+                    authenticated_session_id: self.resource_scope.session_uuid.to_string(),
+                    access_space_id: self.resource_scope.access_space_uuid.to_string(),
+                    workspace_id: self.resource_scope.workspace_id.clone(),
+                    record: surrealdb::types::RecordId::new(
+                        "kernel_session_checkpoint",
+                        checkpoint_id.to_string(),
+                    ),
+                    checkpoint_id,
+                    session_id: candidate.session_id,
+                    model_session_id: checkpoint.model_session_id,
+                    last_event_ledger_seq: checkpoint.last_event_ledger_seq,
+                    compact_state: checkpoint.compact_state.clone(),
+                    pending_artifacts: checkpoint.pending_artifacts.clone(),
+                    created_by_process: i64::from(std::process::id()),
+                    schema_version: i64::from(checkpoint.schema_version),
+                };
+                self.storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .execute_returning(
+                                    "CREATE $record CONTENT { \
+                                     checkpoint_id: $checkpoint_id, session_id: $session_id, \
+                                     owner_account_id: $owner_account_id, \
+                                     actor_principal_id: $actor_principal_id, \
+                                     authenticated_session_id: $authenticated_session_id, \
+                                     access_space_id: $access_space_id, \
+                                     workspace_id: $workspace_id, \
+                                     model_session_id: $model_session_id, \
+                                     last_event_ledger_seq: $last_event_ledger_seq, \
+                                     compact_state: $compact_state, \
+                                     state_kind: 'recovery_failed', \
+                                     pending_artifacts: $pending_artifacts, \
+                                     created_at_utc: time::now(), \
+                                     created_by_process: $created_by_process, \
+                                     schema_version: $schema_version \
+                                 };",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await
+                    .map_err(|err| err.to_string())?;
+                Ok(())
+            },
+        )
+        .await?;
+        self.apply_idempotent_store_write(
+            candidate,
+            failure_seq,
+            "kernel_session_queue",
+            || async {
+                #[derive(SurrealValue)]
+                struct FailSessionBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+                    session_run_id: String,
+                }
+
+                let bindings = FailSessionBindings {
             owner_account_id: self.resource_scope.account_uuid.to_string(),
             actor_principal_id: self.resource_scope.actor_uuid.to_string(),
             authenticated_session_id: self.resource_scope.session_uuid.to_string(),
             access_space_id: self.resource_scope.access_space_uuid.to_string(),
             workspace_id: self.resource_scope.workspace_id.clone(),
-        };
-        let applied: Option<bool> = self.storage.with_data_operation(move |database| {
-            Box::pin(async move {
-                database.query_first(
-                    concat!(r#"RETURN {
-                        LET $prior = (SELECT id, session_id, event_seq, side_effect_kind, applied_at_utc
-                            FROM $receipt_record LIMIT 2);
-                        IF array::len($prior) != 0 {
-                            IF array::len($prior) = 1 AND $prior[0].id = $receipt_record
-                                AND $prior[0].session_id = $session_id
-                                AND $prior[0].event_seq = $event_seq
-                                AND $prior[0].side_effect_kind = $side_effect_kind
-                                AND $prior[0].applied_at_utc != NONE {
-                                RETURN false;
-                            };
-                            THROW 'restart failure queue receipt is pending or noncanonical';
-                        };
-                        IF $replay_observation != NONE {
-                            LET $scoped_sequences = (SELECT VALUE event_sequence FROM kernel_event_ledger
-                                WHERE session_run_id = $session_run_id
-                                  AND event_sequence > $replay_observation.after_seq
-                                  AND owner_account_id = $owner_account_id
-                                  AND actor_principal_id = $actor_principal_id
-                                  AND authenticated_session_id = $authenticated_session_id
-                                  AND access_space_id = $access_space_id
-                                  AND workspace_id = $workspace_id ORDER BY event_sequence);
-                            IF $scoped_sequences != $replay_observation.scoped_sequences { RETURN false; };
-                            LET $global_sequences = (SELECT VALUE event_sequence FROM kernel_event_ledger
-                                WHERE event_sequence > $replay_observation.after_seq
-                                  AND event_sequence <= $replay_observation.through_seq
-                                ORDER BY event_sequence);
-                            IF $global_sequences != $replay_observation.global_sequences { RETURN false; };
-                        };
-                        LET $head = (SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq, compact_state, state_kind, pending_artifacts, created_at_utc, created_by_process, schema_version
-                            FROM kernel_session_checkpoint WHERE session_id = $session_id
-                              AND owner_account_id = $owner_account_id
-                              AND actor_principal_id = $actor_principal_id
-                              AND authenticated_session_id = $authenticated_session_id
-                              AND access_space_id = $access_space_id
-                              AND workspace_id = $workspace_id
-                            ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1);
-                        IF $observed_checkpoint = NONE {
-                            IF array::len($head) != 0 { RETURN false; };
-                        } ELSE {
-                            IF array::len($head) != 1
-                                OR $head[0].checkpoint_id != $observed_checkpoint.checkpoint_id
-                                OR $head[0].session_id != $observed_checkpoint.session_id
-                                OR $head[0].model_session_id != $observed_checkpoint.model_session_id
-                                OR $head[0].last_event_ledger_seq != $observed_checkpoint.last_event_ledger_seq
-                                OR $head[0].compact_state != $observed_checkpoint.compact_state
-                                OR $head[0].state_kind != $observed_checkpoint.state_kind
-                                OR $head[0].pending_artifacts != $observed_checkpoint.pending_artifacts
-                                OR $head[0].created_at_utc != $observed_checkpoint.created_at_utc
-                                OR $head[0].created_by_process != $observed_checkpoint.created_by_process
-                                OR $head[0].schema_version != $observed_checkpoint.schema_version {
-                                RETURN false;
-                            };
-                        };
-                        LET $replay_base = (SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq, compact_state, state_kind, pending_artifacts, created_at_utc, created_by_process, schema_version
-                            FROM kernel_session_checkpoint WHERE session_id = $session_id AND state_kind != 'recovery_failed'
-                              AND owner_account_id = $owner_account_id
-                              AND actor_principal_id = $actor_principal_id
-                              AND authenticated_session_id = $authenticated_session_id
-                              AND access_space_id = $access_space_id
-                              AND workspace_id = $workspace_id
-                            ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1);
-                        IF $observed_replay_base = NONE {
-                            IF array::len($replay_base) != 0 { RETURN false; };
-                        } ELSE {
-                            IF array::len($replay_base) != 1
-                                OR $replay_base[0].checkpoint_id != $observed_replay_base.checkpoint_id
-                                OR $replay_base[0].session_id != $observed_replay_base.session_id
-                                OR $replay_base[0].model_session_id != $observed_replay_base.model_session_id
-                                OR $replay_base[0].last_event_ledger_seq != $observed_replay_base.last_event_ledger_seq
-                                OR $replay_base[0].compact_state != $observed_replay_base.compact_state
-                                OR $replay_base[0].state_kind != $observed_replay_base.state_kind
-                                OR $replay_base[0].pending_artifacts != $observed_replay_base.pending_artifacts
-                                OR $replay_base[0].created_at_utc != $observed_replay_base.created_at_utc
-                                OR $replay_base[0].created_by_process != $observed_replay_base.created_by_process
-                                OR $replay_base[0].schema_version != $observed_replay_base.schema_version {
-                                RETURN false;
-                            };
-                        };
-                        LET $checkpoint_prior = (SELECT id, session_id, event_seq, side_effect_kind, applied_at_utc
-                            FROM $checkpoint_receipt LIMIT 2);
-                        IF array::len($checkpoint_prior) != 0 {
-                            LET $valid = array::len($checkpoint_prior) = 1
-                                AND $checkpoint_prior[0].id = $checkpoint_receipt
-                                AND $checkpoint_prior[0].session_id = $session_id
-                                AND $checkpoint_prior[0].event_seq = $event_seq
-                                AND $checkpoint_prior[0].side_effect_kind = $checkpoint_side_effect_kind
-                                AND $checkpoint_prior[0].applied_at_utc != NONE;
-                            IF $valid != true {
-                                THROW 'restart failure checkpoint receipt is pending or noncanonical';
-                            };
-                        };
-                        LET $mailbox_prior = (SELECT id, session_id, event_seq, side_effect_kind, applied_at_utc
-                            FROM $mailbox_receipt LIMIT 2);
-                        IF array::len($mailbox_prior) != 0 {
-                            LET $valid = array::len($mailbox_prior) = 1
-                                AND $mailbox_prior[0].id = $mailbox_receipt
-                                AND $mailbox_prior[0].session_id = $session_id
-                                AND $mailbox_prior[0].event_seq = $event_seq
-                                AND $mailbox_prior[0].side_effect_kind = $mailbox_side_effect_kind
-                                AND $mailbox_prior[0].applied_at_utc != NONE;
-                            IF $valid != true {
-                                THROW 'restart failure mailbox receipt is pending or noncanonical';
-                            };
-                        };
-                        LET $existing_decision = IF array::len($mailbox_prior) = 0 {
-                            (SELECT id, message_id, thread_id, thread_id.thread_id AS thread_uuid, body, to_roles
-                            FROM role_mailbox_message
-                            WHERE message_type = $decision.message.message_type
-                              AND from_role = $decision.message.from_role
-                              AND body.session_run_id = $session_run_id
-                              AND body.recovery_delivery_ledger_id = $decision.delivery_ledger_id
-                              AND thread_id.linked_record_id = $decision.thread.content.linked_record_id
-                            LIMIT 2)
-                        } ELSE { [] };
-                        IF array::len($existing_decision) != 0 {
-                            LET $valid = array::len($existing_decision) = 1
-                                AND $existing_decision[0].message_id != NONE
-                                AND $existing_decision[0].message_id != <uuid>'00000000-0000-0000-0000-000000000000'
-                                AND $existing_decision[0].thread_uuid != NONE
-                                AND $existing_decision[0].thread_uuid != <uuid>'00000000-0000-0000-0000-000000000000'
-                                AND $existing_decision[0].id = type::record('role_mailbox_message', $existing_decision[0].message_id)
-                                AND $existing_decision[0].thread_id = type::record('role_mailbox_thread', $existing_decision[0].thread_uuid)
-                                AND $existing_decision[0].body = $decision.message.body
-                                AND $existing_decision[0].to_roles = $decision.message.to_roles;
-                            IF $valid != true {
-                                THROW 'original restart decision delivery is ambiguous or differs from its intended message';
-                            };
-                        };
-                        LET $failed = (UPDATE $queue_record SET
-                            state = 'FAILED', claimed_by = NONE, lease_expires_at = NONE,
-                            updated_at = time::now()
-                            WHERE session_run_id = $session_run_id
-                              AND kernel_task_run_id = $kernel_task_run_id
-                              AND adapter_id = $adapter_id
-                              AND state = $state AND attempt_count = $attempt_count
-                              AND claimed_by = $claimed_by AND lease_expires_at = $lease_expires_at
-                              AND (lease_expires_at = NONE OR lease_expires_at <= time::now())
-                              AND available_at = $available_at AND created_at = $created_at
-                              AND updated_at = $updated_at
-                              AND owner_account_id = $owner_account_id
-                              AND actor_principal_id = $actor_principal_id
-                              AND authenticated_session_id = $authenticated_session_id
-                              AND access_space_id = $access_space_id
-                              AND workspace_id = $workspace_id RETURN AFTER);
-                        IF array::len($failed) = 0 { RETURN false; };
-                        IF array::len($failed) != 1 OR $failed[0].id != $queue_record
-                            OR $failed[0].state != 'FAILED' OR $failed[0].claimed_by != NONE
-                            OR $failed[0].lease_expires_at != NONE {
-                            THROW 'restart failure exact queue transition was not confirmed';
-                        };
-                        IF array::len($mailbox_prior) = 0 {
-                            IF array::len($existing_decision) = 0 {
-                                LET $record = $decision.thread.record;
-                                LET $content = $decision.thread.content;
-                                LET $created_thread = ("#, crate::role_mailbox_v1::repo::mailbox_thread_create_expression!(), r#");
-                                IF array::len($created_thread) != 1
-                                    OR $created_thread[0].id != $decision.thread.record
-                                    OR $created_thread[0].thread_id != $decision.thread.content.thread_id
-                                    OR $created_thread[0].title != $decision.thread.content.title
-                                    OR $created_thread[0].linked_record_kind != $decision.thread.content.linked_record_kind
-                                    OR $created_thread[0].linked_record_id != $decision.thread.content.linked_record_id
-                                    OR $created_thread[0].lifecycle_state != $decision.thread.content.lifecycle_state
-                                    OR $created_thread[0].executor_kind_allowlist != $decision.thread.content.executor_kind_allowlist
-                                    OR $created_thread[0].claim_mode != $decision.thread.content.claim_mode
-                                    OR $created_thread[0].lease_duration_secs != $decision.thread.content.lease_duration_secs
-                                    OR $created_thread[0].takeover_policy != $decision.thread.content.takeover_policy
-                                    OR $created_thread[0].response_authority_scope != $decision.thread.content.response_authority_scope
-                                    OR $created_thread[0].created_at_utc != $decision.thread.content.created_at_utc
-                                    OR $created_thread[0].updated_at_utc != $decision.thread.content.updated_at_utc
-                                    OR $created_thread[0].expires_at_utc != $decision.thread.content.expires_at_utc
-                                    OR $created_thread[0].archived_at_utc != $decision.thread.content.archived_at_utc {
-                                    THROW 'restart failure decision thread creation was not confirmed';
-                                };
-                                LET $record = $decision.message.record;
-                                LET $thread_id = $decision.message.thread_id;
-                                LET $open_states = $decision.message.open_states;
-                                LET $message_id = $decision.message.message_id;
-                                LET $message_type = $decision.message.message_type;
-                                LET $from_role = $decision.message.from_role;
-                                LET $to_roles = $decision.message.to_roles;
-                                LET $delivery_state = $decision.message.delivery_state;
-                                LET $body = $decision.message.body;
-                                LET $created_at_utc = $decision.message.created_at_utc;
-                                LET $created_message = ("#, crate::role_mailbox_v1::repo::mailbox_message_create_expression!(), r#");
-                                IF array::len($created_message) != 1
-                                    OR $created_message[0].id != $decision.message.record
-                                    OR $created_message[0].thread_id != $decision.thread.record
-                                    OR $created_message[0].message_id != $decision.message.message_id
-                                    OR $created_message[0].message_type != $decision.message.message_type
-                                    OR $created_message[0].from_role != $decision.message.from_role
-                                    OR $created_message[0].to_roles != $decision.message.to_roles
-                                    OR $created_message[0].delivery_state != $decision.message.delivery_state
-                                    OR $created_message[0].body != $decision.message.body
-                                    OR $created_message[0].created_at_utc != $decision.message.created_at_utc {
-                                    THROW 'restart failure decision message creation was not confirmed';
-                                };
-                            };
-                            LET $created_mailbox_receipt = (CREATE $mailbox_receipt CONTENT {
-                                session_id: $session_id, event_seq: $event_seq,
-                                side_effect_kind: $mailbox_side_effect_kind, applied_at_utc: time::now()
-                            } RETURN AFTER);
-                            IF array::len($created_mailbox_receipt) != 1
-                                OR $created_mailbox_receipt[0].id != $mailbox_receipt
-                                OR $created_mailbox_receipt[0].session_id != $session_id
-                                OR $created_mailbox_receipt[0].event_seq != $event_seq
-                                OR $created_mailbox_receipt[0].side_effect_kind != $mailbox_side_effect_kind
-                                OR $created_mailbox_receipt[0].applied_at_utc = NONE {
-                                THROW 'restart failure mailbox receipt creation was not confirmed';
-                            };
-                        };
-                        IF array::len($checkpoint_prior) = 0 {
-                            IF $checkpoint != NONE {
-                                LET $checkpoint_record = $checkpoint.record;
-                                LET $created = (CREATE $checkpoint_record CONTENT {
-                                    checkpoint_id: $checkpoint.checkpoint_id,
-                                    session_id: $checkpoint.session_id,
-                                    owner_account_id: $checkpoint.owner_account_id,
-                                    actor_principal_id: $checkpoint.actor_principal_id,
-                                    authenticated_session_id: $checkpoint.authenticated_session_id,
-                                    access_space_id: $checkpoint.access_space_id,
-                                    workspace_id: $checkpoint.workspace_id,
-                                    model_session_id: $checkpoint.model_session_id,
-                                    last_event_ledger_seq: $checkpoint.last_event_ledger_seq,
-                                    compact_state: $checkpoint.compact_state,
-                                    state_kind: 'recovery_failed',
-                                    pending_artifacts: $checkpoint.pending_artifacts,
-                                    created_at_utc: time::now(),
-                                    created_by_process: $checkpoint.created_by_process,
-                                    schema_version: $checkpoint.schema_version
-                                } RETURN AFTER);
-                                IF array::len($created) != 1 OR $created[0].id != $checkpoint_record
-                                    OR $created[0].checkpoint_id != $checkpoint.checkpoint_id
-                                    OR $created[0].model_session_id != $checkpoint.model_session_id
-                                    OR $created[0].last_event_ledger_seq != $checkpoint.last_event_ledger_seq
-                                    OR $created[0].compact_state != $checkpoint.compact_state
-                                    OR $created[0].state_kind != 'recovery_failed'
-                                    OR $created[0].pending_artifacts != $checkpoint.pending_artifacts
-                                    OR $created[0].created_by_process != $checkpoint.created_by_process
-                                    OR $created[0].schema_version != $checkpoint.schema_version
-                                    OR $created[0].created_at_utc = NONE
-                                    OR $created[0].session_id != $session_id
-                                    OR $created[0].owner_account_id != $owner_account_id
-                                    OR $created[0].actor_principal_id != $actor_principal_id
-                                    OR $created[0].authenticated_session_id != $authenticated_session_id
-                                    OR $created[0].access_space_id != $access_space_id
-                                    OR $created[0].workspace_id != $workspace_id {
-                                    THROW 'restart failure checkpoint creation was not confirmed';
-                                };
-                            };
-                            LET $created_checkpoint_receipt = (CREATE $checkpoint_receipt CONTENT {
-                                session_id: $session_id, event_seq: $event_seq,
-                                side_effect_kind: $checkpoint_side_effect_kind, applied_at_utc: time::now()
-                            } RETURN VALUE id);
-                            IF array::len($created_checkpoint_receipt) != 1
-                                OR $created_checkpoint_receipt[0] != $checkpoint_receipt {
-                                THROW 'restart failure checkpoint receipt creation was not confirmed';
-                            };
-                        };
-                        LET $created_queue_receipt = (CREATE $receipt_record CONTENT {
-                            session_id: $session_id, event_seq: $event_seq,
-                            side_effect_kind: $side_effect_kind, applied_at_utc: time::now()
-                        } RETURN VALUE id);
-                        IF array::len($created_queue_receipt) != 1
-                            OR $created_queue_receipt[0] != $receipt_record {
-                            THROW 'restart failure queue receipt creation was not confirmed';
-                        };
-                        RETURN true;
-                    };"#),
-                    bindings,
-                ).await
-            })
-        }).await.map_err(|error| RestartResumeRuntimeError::SideEffectFailed {
-            table: "kernel_session_queue".to_owned(), error: error.to_string(),
-        })?;
-        if applied != Some(true) { return Ok(()); }
-        report.sessions_recovery_failed.push((candidate.session_id, error.clone()));
+                    session_run_id: candidate.session_run_id.clone(),
+                };
+                self.storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .execute_returning(
+                                    "UPDATE kernel_session_queue SET \
+                                     state = 'FAILED', claimed_by = NONE, \
+                                     lease_expires_at = NONE, updated_at = time::now() \
+                                     WHERE session_run_id = $session_run_id AND owner_account_id = $owner_account_id \
+ AND actor_principal_id = $actor_principal_id \
+ AND authenticated_session_id = $authenticated_session_id \
+ AND access_space_id = $access_space_id \
+ AND workspace_id = $workspace_id \
+;",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await
+                    .map_err(|err| err.to_string())?;
+                Ok(())
+            },
+        )
+        .await?;
         report
             .operator_decision_requests
             .push(OperatorDecisionRequest {
@@ -1606,16 +1176,56 @@ impl SurrealRestartResumeRunner {
         Ok(())
     }
 
-    fn prepare_operator_decision(
+    async fn post_operator_decision(
         &self,
         candidate: &ResumeCandidate,
         error: &ResumeError,
-        failure_seq: i64,
-    ) -> Result<PreparedRestartDecision, RestartResumeRuntimeError> {
-        let delivery_ledger_id = surrealdb::types::ToSql::to_sql(&surrealdb::types::RecordId::new(
-            "kernel_idempotency_ledger",
-            recovery_store_write_key(candidate, failure_seq, "role_mailbox_message").ledger_record_id(),
-        ));
+    ) -> Result<(), RestartResumeRuntimeError> {
+        #[derive(SurrealValue)]
+        struct ExistingDecisionBindings {
+            linked_record_id: String,
+            session_run_id: String,
+        }
+
+        let bindings = ExistingDecisionBindings {
+            linked_record_id: candidate.session_id.to_string(),
+            session_run_id: candidate.session_run_id.clone(),
+        };
+        // The previous SQL join walked message -> thread; the record link on
+        // `thread_id` expresses the same constraint as a field traversal.
+        let existing: Option<Uuid> = self
+            .storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            "SELECT VALUE message_id FROM role_mailbox_message \
+                             WHERE message_type = 'decision_request' \
+                             AND body.session_run_id = $session_run_id \
+                             AND thread_id.linked_record_id = $linked_record_id \
+                             ORDER BY created_at_utc LIMIT 1;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await?;
+        if existing.is_some() {
+            return Ok(());
+        }
+
+        let repo = RoleMailboxRepository::new(self.storage.clone());
+        let thread = RoleMailboxThread::open(
+            format!("Restart recovery decision for {}", candidate.session_run_id),
+            LinkedRecordKind::Freeform,
+            Some(candidate.session_id.to_string()),
+            vec![ExecutorKind::Operator],
+            ClaimMode::Open,
+            TakeoverPolicy::Never,
+            ResponseAuthorityScope::OperatorOnly,
+        );
+        let thread = repo.create_thread(thread).await?;
+
         let family = MessageFamily::DecisionRequest(DecisionRequestBody {
             question: format!(
                 "Restart recovery failed for {}; choose recovery handling.",
@@ -1647,10 +1257,6 @@ impl SurrealRestartResumeRunner {
         });
         let mut body = serde_json::to_value(family)?;
         if let Some(map) = body.as_object_mut() {
-            map.insert(
-                "recovery_delivery_ledger_id".to_string(),
-                Value::String(delivery_ledger_id.clone()),
-            );
             map.insert("resume_error".to_string(), serde_json::to_value(error)?);
             map.insert(
                 "session_run_id".to_string(),
@@ -1670,26 +1276,39 @@ impl SurrealRestartResumeRunner {
             );
         }
 
-        let thread = RoleMailboxThread::open(
-            format!("Restart recovery decision for {}", candidate.session_run_id),
-            LinkedRecordKind::Freeform,
-            Some(candidate.session_id.to_string()),
-            vec![ExecutorKind::Operator],
-            ClaimMode::Open,
-            TakeoverPolicy::Never,
-            ResponseAuthorityScope::OperatorOnly,
-        );
-        Ok(PreparedRestartDecision {
-            thread: RoleMailboxRepository::prepare_thread_create(&thread)?,
-            message: RoleMailboxRepository::prepare_message_create(
-                thread.thread_id,
-                MessageType::DecisionRequest,
-                RoleId::Orchestrator,
-                vec![RoleId::Operator],
-                body,
-            ),
-            delivery_ledger_id,
-        })
+        repo.append_message(
+            thread.thread_id,
+            MessageType::DecisionRequest,
+            RoleId::Orchestrator,
+            vec![RoleId::Operator],
+            body,
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn apply_idempotent_store_write<F, Fut>(
+        &self,
+        candidate: &ResumeCandidate,
+        event_seq: i64,
+        table: &'static str,
+        op: F,
+    ) -> Result<ApplyOutcome, RestartResumeRuntimeError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<(), String>>,
+    {
+        let outcome = self
+            .idempotency
+            .try_apply(recovery_store_write_key(candidate, event_seq, table), op)
+            .await?;
+        if let ApplyOutcome::Failed { error } = outcome {
+            return Err(RestartResumeRuntimeError::SideEffectFailed {
+                table: table.to_string(),
+                error,
+            });
+        }
+        Ok(outcome)
     }
 
     async fn persist_report(&self, report: &ResumeReport) -> Result<(), RestartResumeRuntimeError> {
@@ -1711,54 +1330,54 @@ impl SurrealRestartResumeRunner {
         #[derive(SurrealValue)]
         struct ReportBindings {
             report_record: surrealdb::types::RecordId,
-            report: RestartResumeReportRow,
+            owner_account_id: String,
+            actor_principal_id: String,
+            authenticated_session_id: String,
+            access_space_id: String,
+            workspace_id: String,
+            report: Value,
         }
         let scope = &self.resource_scope;
-        let intended = RestartResumeReportRow {
-            owner_account_id: scope.account_uuid.to_string(),
-            actor_principal_id: scope.actor_uuid.to_string(),
-            authenticated_session_id: scope.session_uuid.to_string(),
-            access_space_id: scope.access_space_uuid.to_string(),
-            workspace_id: scope.workspace_id.clone(),
-            report_id: report.report_id,
-            sessions_examined: i64::from(report.sessions_examined),
-            sessions_resumed: serde_json::to_value(&report.sessions_resumed)?,
-            sessions_recovery_failed: serde_json::to_value(&report.sessions_recovery_failed)?,
-            orphan_reclaims: serde_json::to_value(&report.orphan_reclaims)?,
-            operator_decision_requests: serde_json::to_value(&report.operator_decision_requests)?,
-            fr_events_emitted: report.fr_events_emitted.clone(),
-            total_replay_events: i64::try_from(report.total_replay_events).map_err(|_| {
-                RestartResumeRuntimeError::Store("report replay count exceeds durable integer range".to_owned())
-            })?,
-            total_duration_ms: i64::try_from(report.total_duration_ms).map_err(|_| {
-                RestartResumeRuntimeError::Store("report duration exceeds durable integer range".to_owned())
-            })?,
-            started_at_utc: report.started_at_utc,
-            completed_at_utc: report.completed_at_utc,
-            schema_version: 2,
-        };
+        let mut report_value = serde_json::to_value(report)?;
+        let object = report_value.as_object_mut().ok_or_else(|| {
+            RestartResumeRuntimeError::Store("typed report must serialize as an object".to_owned())
+        })?;
+        object.insert("schema_version".to_owned(), Value::from(2));
+        for (key, value) in [
+            ("owner_account_id", scope.account_uuid.to_string()),
+            ("actor_principal_id", scope.actor_uuid.to_string()),
+            ("authenticated_session_id", scope.session_uuid.to_string()),
+            ("access_space_id", scope.access_space_uuid.to_string()),
+            ("workspace_id", scope.workspace_id.clone()),
+        ] {
+            object.insert(key.to_owned(), Value::String(value));
+        }
         let bindings = ReportBindings {
             report_record: surrealdb::types::RecordId::new(
                 "kernel_restart_resume_report",
                 report.report_id.to_string(),
             ),
-            report: intended.clone(),
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+            report: report_value,
         };
         let acknowledgements = self
             .storage
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .query_values_at::<RestartResumeReportRow, _>(PERSIST_RESUME_REPORT, bindings, 2)
+                        .query_values_at::<i64, _>(PERSIST_RESUME_REPORT, bindings, 2)
                         .await
                 })
             })
             .await
             .map_err(|error| RestartResumeRuntimeError::Store(error.to_string()))?;
-        if acknowledgements.as_slice() != std::slice::from_ref(&intended) {
+        if acknowledgements.as_slice() != [1] {
             return Err(RestartResumeRuntimeError::Store(format!(
-                "restart-resume report acknowledgement mismatch: expected one exact durable row, received {} rows",
-                acknowledgements.len(),
+                "restart-resume report acknowledgement mismatch: {acknowledgements:?}"
             )));
         }
         Ok(())
@@ -1766,36 +1385,7 @@ impl SurrealRestartResumeRunner {
 }
 
 #[derive(SurrealValue)]
-struct PreparedRestartDecision {
-    thread: CreateBindings,
-    message: MessageCreateBindings,
-    delivery_ledger_id: String,
-}
-
-#[derive(SurrealValue)]
-struct ReplayFailureObservation {
-    after_seq: i64,
-    through_seq: i64,
-    scoped_sequences: Vec<i64>,
-    global_sequences: Vec<i64>,
-}
-
-#[derive(SurrealValue)]
 struct ResumeCandidateBindings {
-    replay_after_seq: i64,
-    replay_sequences: Vec<i64>,
-    observed_checkpoint: Option<CheckpointRow>,
-    observed_replay_base: Option<CheckpointRow>,
-    queue_record: surrealdb::types::RecordId,
-    observed_state: String,
-    observed_attempt: i64,
-    observed_claimed_by: Option<String>,
-    observed_lease_expires_at: Option<DateTime<Utc>>,
-    observed_available_at: DateTime<Utc>,
-    observed_created_at: DateTime<Utc>,
-    observed_updated_at: DateTime<Utc>,
-    observed_kernel_task_run_id: String,
-    observed_adapter_id: String,
     owner_account_id: String,
     actor_principal_id: String,
     authenticated_session_id: String,
@@ -1839,11 +1429,6 @@ struct RecoveryFailedCheckpointBindings {
 /// One `kernel_session_queue` projection used to seed resume candidates.
 #[derive(SurrealValue)]
 struct CandidateRow {
-    id: surrealdb::types::RecordId,
-    claimed_by: Option<String>,
-    lease_expires_at: Option<DateTime<Utc>>,
-    available_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
     session_run_id: String,
     kernel_task_run_id: String,
     adapter_id: String,
@@ -1856,12 +1441,6 @@ struct CandidateRow {
 /// `SCHEMAFULL` table definition, so the hand conversions the PostgreSQL
 /// version needed are gone.
 #[derive(SurrealValue)]
-struct CheckpointSelection {
-    head: Option<CheckpointRow>,
-    replay_base: Option<CheckpointRow>,
-}
-
-#[derive(Clone, SurrealValue)]
 struct CheckpointRow {
     checkpoint_id: Uuid,
     session_id: Uuid,
@@ -1927,20 +1506,12 @@ struct RestartResumeReportRow {
 
 #[derive(Clone)]
 struct ResumeCandidate {
-    queue_record: surrealdb::types::RecordId,
-    claimed_by: Option<String>,
-    lease_expires_at: Option<DateTime<Utc>>,
-    available_at: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
     session_id: Uuid,
     session_run_id: String,
     kernel_task_run_id: String,
     adapter_id: String,
     state: String,
     attempt_count: i64,
-    observed_checkpoint: Option<CheckpointRow>,
-    observed_replay_base: Option<CheckpointRow>,
     checkpoint: Option<SessionCheckpoint>,
 }
 
@@ -2865,17 +2436,6 @@ mod tests {
             .checkpoint
             .clone()
             .expect("first attempt has checkpoint");
-        let first_replay_sequences: Vec<i64> = first_runner
-            .load_events_after_checkpoint(
-                &first_attempt.session_run_id,
-                first_attempt.session_id,
-                first_checkpoint.last_event_ledger_seq,
-            )
-            .await
-            .expect("load original first replay sequences")
-            .iter()
-            .map(|event| event.event_sequence)
-            .collect();
         let first_report = first_runner.run().await.expect("recover first crash");
         assert_eq!(first_report.sessions_examined, 1);
         assert_eq!(first_report.sessions_resumed.len(), 1);
@@ -2900,7 +2460,6 @@ mod tests {
                     &first_checkpoint,
                     &first_checkpoint.compact_state,
                     first_checkpoint.last_event_ledger_seq,
-                    &first_replay_sequences,
                 )
                 .await
                 .expect("replay first resume transaction"),

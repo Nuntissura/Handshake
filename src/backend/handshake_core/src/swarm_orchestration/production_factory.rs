@@ -238,26 +238,6 @@ pub fn build_production_swarm_coordinator_with_sandbox_registry<F>(
 where
     F: Fn(FlightRecorderEvent) -> Result<(), String> + Send + Sync + 'static,
 {
-    build_production_swarm_coordinator_with_terminal_emitter(
-        ledger, cloud, model_lane_store, sandbox_registry, genie_x,
-        concurrency, trace_id, emit_fn, None,
-    )
-}
-
-fn build_production_swarm_coordinator_with_terminal_emitter<F>(
-    ledger: LedgerBatcher,
-    cloud: CloudLaneFactoryConfig,
-    model_lane_store: ModelLaneStore,
-    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
-    genie_x: Option<GenieXFactoryConfig>,
-    concurrency: Option<usize>,
-    trace_id: uuid::Uuid,
-    emit_fn: F,
-    stable_emit: Option<super::events::StableTerminalEmitter>,
-) -> SwarmCoordinator
-where
-    F: Fn(FlightRecorderEvent) -> Result<(), String> + Send + Sync + 'static,
-{
     let concurrency = concurrency.unwrap_or_else(default_swarm_concurrency).max(1);
     let budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
     let config = SwarmConfig::new(budget);
@@ -283,7 +263,7 @@ where
     let flight_sink: Arc<dyn super::events::SwarmEventSink> = match projection_scope.clone() {
         Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
             trace_id, scope, emit_fn,
-        ).with_stable_terminal_emitter(stable_emit)),
+        )),
         None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn)),
     };
     let console_sink: Arc<dyn super::events::SwarmEventSink> = match projection_scope {
@@ -458,8 +438,7 @@ pub(crate) fn build_scoped_operator_chat_launch_service_with_outbox(
             1024,
         );
     let genie_x = genie_x_resolver.map(|resolver| GenieXFactoryConfig::new(resolver, recorder.clone()));
-    let stable_bridge = terminal_bridge.clone();
-    let coordinator = build_production_swarm_coordinator_with_terminal_emitter(
+    let coordinator = build_production_swarm_coordinator_with_sandbox_registry(
         ledger,
         cloud,
         model_lane_store,
@@ -468,7 +447,6 @@ pub(crate) fn build_scoped_operator_chat_launch_service_with_outbox(
         None,
         trace_id,
         move |event| terminal_bridge.emit(event),
-        Some(Arc::new(move |event| stable_bridge.emit_stable(event))),
     )
     .with_process_reclaimer(process_reclaimer);
     let service = Arc::new(
@@ -1159,423 +1137,18 @@ struct DurableWorktreeVmStore {
     access: super::resource_scope::ResourceAccessContext,
 }
 
-
-
-#[derive(Clone)]
-struct PreparedLocalSession {
-    runtime: Arc<dyn ModelRuntime>,
-    model_id: ModelId,
-    teardown: SessionTeardown,
-}
-
-struct LocalLoadState {
-    result: Option<PreparedLocalSession>,
-    failure: Option<String>,
-    cleanup_requested: bool,
-    adopted: bool,
-    closed: bool,
-}
-
-struct RetainedLocalLoad {
-    state: Mutex<LocalLoadState>,
-    load: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
-    cleanup: tokio::sync::Mutex<Option<tokio::task::JoinHandle<SwarmResult<()>>>>,
-    context: crate::storage::surreal::CapturedModelLaneOperation,
-    capability_registry: Option<Arc<crate::capabilities::CapabilityRegistry>>,
-    storage: Option<crate::storage::surreal::SurrealStorage>,
-}
-
-struct LocalLoadTaskGuard { owner: Arc<RetainedLocalLoad>, completed: bool }
-impl Drop for LocalLoadTaskGuard {
-    fn drop(&mut self) {
-        if !self.completed {
-            self.owner.state.lock().unwrap_or_else(|error| error.into_inner()).failure =
-                Some("original local load was interrupted; outcome remains unknown".into());
-        }
-    }
-}
-
-impl RetainedLocalLoad {
-    async fn original_context<T>(&self, work: impl std::future::Future<Output = T>) -> T {
-        match &self.storage {
-            Some(storage) => crate::storage::surreal::with_captured_model_lane_operation(
-                storage, self.context.clone(), work,
-            ).await,
-            None => crate::storage::surreal::with_captured_capability_registry(
-                self.capability_registry.clone(), work,
-            ).await,
-        }
-    }
-
-    async fn observe(&self) -> SwarmResult<PreparedLocalSession> {
-        let mut original = self.load.lock().await;
-        if let Some(task) = original.as_mut() {
-            let joined = task.await;
-            original.take();
-            if let Err(error) = joined {
-                self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-            }
-        }
-        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.cleanup_requested || state.adopted || state.closed {
-            return Err(SwarmError::FactoryFailed("original local request is not available for adoption".into()));
-        }
-        state.result.clone().ok_or_else(|| SwarmError::FactoryFailed(
-            state.failure.clone().unwrap_or_else(|| "original local load remains unobserved".into())))
-    }
-
-    async fn cleanup_pending(self: &Arc<Self>, session: &FactorySessionLedgerOwner) -> SwarmResult<()> {
-        {
-            let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-            if state.adopted { return Ok(()); }
-            state.cleanup_requested = true;
-        }
-        // Coordinator cancellation must not wait through a hung original load.
-        let mut original = self.load.try_lock()
-            .map_err(|_| SwarmError::FactoryFailed("original local load observer is active".into()))?;
-        if let Some(task) = original.as_mut() {
-            if !task.is_finished() {
-                return Err(SwarmError::FactoryFailed("original local load remains pending".into()));
-            }
-            let observed = futures::FutureExt::now_or_never(task)
-                .ok_or_else(|| SwarmError::FactoryFailed("local load terminal observation remains pending".into()))?;
-            original.take();
-            if let Err(error) = observed {
-                self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-            }
-        }
-        drop(original);
-        let mut cleanup = self.cleanup.try_lock()
-            .map_err(|_| SwarmError::FactoryFailed("original local cleanup observer is active".into()))?;
-        let closed = self.state.lock().unwrap_or_else(|error| error.into_inner()).closed;
-        if cleanup.is_none() && !closed {
-            let prepared = {
-                let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-                state.result.clone().ok_or_else(|| SwarmError::FactoryFailed(
-                    state.failure.clone().unwrap_or_else(|| "original local load has no confirmed runtime".into())))?
-            };
-            let owner = Arc::clone(self);
-            *cleanup = Some(tokio::runtime::Handle::try_current()
-                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?.spawn(async move {
-                    let result = owner.original_context((prepared.teardown)()).await;
-                    if result.is_ok() {
-                        let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                        state.closed = true;
-                        state.result.take();
-                    }
-                    result
-                }));
-        }
-        if let Some(task) = cleanup.as_mut() {
-            if !task.is_finished() {
-                return Err(SwarmError::FactoryFailed("original local unload remains pending".into()));
-            }
-            let result = futures::FutureExt::now_or_never(task)
-                .ok_or_else(|| SwarmError::FactoryFailed("local unload terminal observation remains pending".into()))?;
-            cleanup.take();
-            result.map_err(|error| SwarmError::FactoryFailed(error.to_string()))??;
-        }
-        if session.active.lock().unwrap_or_else(|error| error.into_inner()).is_some() {
-            return Err(SwarmError::FactoryFailed("unpublished local START remains retained for exact STOP reconciliation".into()));
-        }
-        session.release_unused_after_cleanup();
-        Ok(())
-    }
-}
-
-struct FactoryInstanceIdentity;
-
-struct FactorySessionLedgerOwner {
-    factory_identity: Arc<FactoryInstanceIdentity>,
-    request: SpawnRequest,
-    record_id: ProcessOwnershipRecordId,
-    reservation: Mutex<Option<ReservedProcessLifecycle>>,
-    active: Mutex<Option<Arc<ActiveProcessLifecycle>>>,
-    local: Mutex<Option<Arc<RetainedLocalLoad>>>,
-}
-
-static RETAINED_FACTORY_SESSION_LEDGERS:
-    std::sync::OnceLock<Mutex<HashMap<uuid::Uuid, Arc<FactorySessionLedgerOwner>>>> =
-    std::sync::OnceLock::new();
-
-impl FactorySessionLedgerOwner {
-    fn begin(&self, start: ProcessStart) -> SwarmResult<(ProcessStart, Arc<ActiveProcessLifecycle>)> {
-        if start.process_uuid != self.record_id.as_uuid() {
-            return Err(SwarmError::LedgerFailed("session START differs from its original reserved record".into()));
-        }
-        let mut active = self.active.lock().unwrap_or_else(|error| error.into_inner());
-        if active.is_some() {
-            return Err(SwarmError::LedgerFailed("original session START is already retained".into()));
-        }
-        let reservation = self.reservation.lock().unwrap_or_else(|error| error.into_inner()).take()
-            .ok_or_else(|| SwarmError::LedgerFailed("original session pair is unavailable".into()))?;
-        let lifecycle = Arc::new(reservation.begin_retained(start)
-            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?);
-        let committed = lifecycle.start().clone();
-        *active = Some(Arc::clone(&lifecycle));
-        Ok((committed, lifecycle))
-    }
-
-    fn transfer(&self) {
-        RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).remove(&self.record_id.as_uuid());
-    }
-
-    fn release_unused_after_cleanup(&self) {
-        // An active lifecycle remains retained until its genuine terminal
-        // reconciliation. Resource cleanup never fabricates a session STOP.
-        if self.active.lock().unwrap_or_else(|error| error.into_inner()).is_none() {
-            self.reservation.lock().unwrap_or_else(|error| error.into_inner()).take();
-            self.transfer();
-        }
-    }
-}
-
 #[derive(Clone)]
 struct PendingWarmVmCreate {
-    owner: Arc<WarmCreateOwner>,
-}
-
-
-#[derive(Clone)]
-struct WarmAcquired {
-    handle: crate::sandbox::ProcessHandle,
-    created: bool,
-    binding: super::worktree_vm_registry::WorktreeVmBindingIdentity,
-}
-
-struct WarmCreateState {
-    invoked: bool,
-    acquired: Option<WarmAcquired>,
-    snapshot_request: Option<Arc<super::worktree_vm_registry::WarmSnapshotRequest>>,
-    snapshot: Option<super::worktree_vm_registry::WarmSnapshotTicket>,
-    cleanup_requested: bool,
-    adopted: bool,
-    closed: bool,
-    failure: Option<String>,
-}
-
-struct WarmCreateOwner {
-    id: uuid::Uuid,
-    request: SpawnRequest,
     registry: Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
     worktree_id: String,
-    session_ledger: Arc<FactorySessionLedgerOwner>,
-    reservation_owner: Arc<super::worktree_vm_registry::WarmReservationOwner>,
-    context: crate::storage::surreal::CapturedModelLaneOperation,
-    capability_registry: Option<Arc<crate::capabilities::CapabilityRegistry>>,
-    state: Mutex<WarmCreateState>,
-    gate: tokio::sync::Mutex<()>,
-    acquisition: tokio::sync::Mutex<Option<tokio::task::JoinHandle<SwarmResult<WarmAcquired>>>>,
-    capture: tokio::sync::Mutex<Option<tokio::task::JoinHandle<SwarmResult<super::worktree_vm_registry::WarmSnapshotTicket>>>>,
-    cleanup: tokio::sync::Mutex<Option<tokio::task::JoinHandle<SwarmResult<()>>>>,
-}
-
-static RETAINED_WARM_CREATES:
-    std::sync::OnceLock<Mutex<HashMap<uuid::Uuid, Arc<WarmCreateOwner>>>> =
-    std::sync::OnceLock::new();
-
-struct WarmCreateTaskGuard { owner: Arc<WarmCreateOwner>, completed: bool }
-
-impl Drop for WarmCreateTaskGuard {
-    fn drop(&mut self) {
-        if !self.completed {
-            self.owner.state.lock().unwrap_or_else(|error| error.into_inner()).failure =
-                Some("original warm request task interrupted; ownership remains retained".into());
-        }
-    }
-}
-
-struct WarmCreateCallerGuard { owner: Arc<WarmCreateOwner>, completed: bool }
-
-impl Drop for WarmCreateCallerGuard {
-    fn drop(&mut self) {
-        if !self.completed {
-            let mut state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-            if !state.adopted { state.cleanup_requested = true; }
-        }
-    }
-}
-
-impl PendingWarmVmCreate {
-    fn retire(&self) {
-        RETAINED_WARM_CREATES.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).remove(&self.owner.id);
-    }
-
-    async fn acquired(&self) -> SwarmResult<WarmAcquired> {
-        let mut driver = self.owner.acquisition.lock().await;
-        if let Some(task) = driver.as_mut() {
-            let observed = task.await;
-            driver.take();
-            observed.map_err(|error| SwarmError::FactoryFailed(error.to_string()))??;
-        }
-        let state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.cleanup_requested || state.adopted {
-            return Err(SwarmError::FactoryFailed("warm request is no longer available for adoption".into()));
-        }
-        state.acquired.clone().ok_or_else(|| SwarmError::FactoryFailed(
-            state.failure.clone().unwrap_or_else(|| "original warm acquisition has no confirmed result".into())))
-    }
-
-    async fn capture(
-        &self, model_hash: String, guest_path: String,
-        ready: crate::model_runtime::WarmAgentGuestFrame,
-    ) -> SwarmResult<super::worktree_vm_registry::WarmSnapshotTicket> {
-        let mut driver = self.owner.capture.lock().await;
-        {
-            let state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-            if state.cleanup_requested || state.adopted {
-                return Err(SwarmError::FactoryFailed("warm cleanup won before snapshot capture".into()));
-            }
-            if let Some(snapshot) = &state.snapshot { return Ok(snapshot.clone()); }
-        }
-        if driver.is_none() {
-            let acquired = self.owner.state.lock().unwrap_or_else(|error| error.into_inner())
-                .acquired.clone().ok_or_else(|| SwarmError::FactoryFailed("original warm binding is unavailable".into()))?;
-            let request = super::worktree_vm_registry::WarmSnapshotRequest::new(
-                self.owner.id, self.owner.worktree_id.clone(), acquired.binding,
-            );
-            self.owner.state.lock().unwrap_or_else(|error| error.into_inner()).snapshot_request = Some(Arc::clone(&request));
-            let owner = Arc::clone(&self.owner);
-            let guard = WarmCreateTaskGuard { owner: Arc::clone(&owner), completed: false };
-            let task = tokio::runtime::Handle::try_current()
-                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?.spawn(async move {
-                    let mut guard = guard;
-                    let work = async {
-                        if owner.state.lock().unwrap_or_else(|error| error.into_inner()).cleanup_requested {
-                            return Err(SwarmError::FactoryFailed("warm cleanup owns the selected generation".into()));
-                        }
-                        let ticket = owner.registry.capture_selected_warm_snapshot(
-                            request, &model_hash, &guest_path, &ready,
-                        ).await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-                        owner.state.lock().unwrap_or_else(|error| error.into_inner()).snapshot = Some(ticket.clone());
-                        Ok(ticket)
-                    };
-                    let result = owner.registry.with_original_warm_context(
-                        owner.context.clone(), owner.capability_registry.clone(), work,
-                    ).await;
-                    if let Err(error) = &result {
-                        owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-                    }
-                    guard.completed = true;
-                    result
-                });
-            *driver = Some(task);
-        }
-        if let Some(task) = driver.as_mut() {
-            let observed = task.await;
-            driver.take();
-            observed.map_err(|error| SwarmError::FactoryFailed(error.to_string()))??;
-        }
-        let state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.cleanup_requested { return Err(SwarmError::FactoryFailed("warm cleanup won before snapshot delivery".into())); }
-        state.snapshot.clone().ok_or_else(|| SwarmError::FactoryFailed("original warm snapshot has no confirmed result".into()))
-    }
-
-    async fn cleanup_pending(&self) -> SwarmResult<()> {
-        {
-            let mut state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-            if state.adopted { self.retire(); return Ok(()); }
-            state.cleanup_requested = true;
-        }
-        // Do not wait through an unfinished original acquisition/capture or
-        // an active acceptance transaction in the coordinator's cancel hook.
-        let _gate = self.owner.gate.try_lock()
-            .map_err(|_| SwarmError::FactoryFailed("warm acceptance remains in flight".into()))?;
-        {
-            let mut driver = self.owner.acquisition.try_lock()
-                .map_err(|_| SwarmError::FactoryFailed("warm acquisition observer remains active".into()))?;
-            if let Some(task) = driver.as_mut() {
-                if !task.is_finished() { return Err(SwarmError::FactoryFailed("original warm acquisition remains pending".into())); }
-                let observed = futures::FutureExt::now_or_never(task)
-                    .ok_or_else(|| SwarmError::FactoryFailed("warm acquisition terminal observation pending".into()))?;
-                driver.take();
-                if let Err(error) = observed {
-                    self.owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-                }
-            }
-        }
-        {
-            let mut driver = self.owner.capture.try_lock()
-                .map_err(|_| SwarmError::FactoryFailed("warm capture observer remains active".into()))?;
-            if let Some(task) = driver.as_mut() {
-                if !task.is_finished() { return Err(SwarmError::FactoryFailed("original warm capture remains pending".into())); }
-                let observed = futures::FutureExt::now_or_never(task)
-                    .ok_or_else(|| SwarmError::FactoryFailed("warm capture terminal observation pending".into()))?;
-                driver.take();
-                if let Err(error) = observed {
-                    self.owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-                }
-            }
-        }
-        let mut cleanup = self.owner.cleanup.try_lock()
-            .map_err(|_| SwarmError::FactoryFailed("warm cleanup observer remains active".into()))?;
-        if cleanup.is_none() && !self.owner.state.lock().unwrap_or_else(|error| error.into_inner()).closed {
-            let owner = Arc::clone(&self.owner);
-            let guard = WarmCreateTaskGuard { owner: Arc::clone(&owner), completed: false };
-            let task = tokio::runtime::Handle::try_current()
-                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?.spawn(async move {
-                    let mut guard = guard;
-                    let work = async {
-                        let (acquired, snapshot, invoked) = {
-                            let state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                            (state.acquired.clone(), state.snapshot_request.clone(), state.invoked)
-                        };
-                        let Some(acquired) = acquired else {
-                            if !invoked { return Ok(()); }
-                            return match owner.registry.release_owned_warm_reservation(&owner.reservation_owner).await {
-                                Ok(super::worktree_vm_registry::WarmReservationRelease::ConfirmedBeforeNative) => Ok(()),
-                                Err(error) => Err(SwarmError::FactoryFailed(format!(
-                                    "original warm reservation remains pending without a binding: {error}",
-                                ))),
-                            };
-                        };
-                        if let Some(snapshot) = snapshot {
-                            owner.registry.cleanup_selected_warm_snapshot(&snapshot).await
-                                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-                        }
-                        if acquired.created {
-                            owner.registry.teardown_worktree_vm_if_current(&owner.worktree_id, &acquired.binding)
-                                .await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-                        }
-                        Ok(())
-                    };
-                    let result = owner.registry.with_original_warm_context(
-                        owner.context.clone(), owner.capability_registry.clone(), work,
-                    ).await;
-                    if result.is_ok() {
-                        owner.state.lock().unwrap_or_else(|error| error.into_inner()).closed = true;
-                    } else if let Err(error) = &result {
-                        owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-                    }
-                    guard.completed = true;
-                    result
-                });
-            *cleanup = Some(task);
-        }
-        if let Some(task) = cleanup.as_mut() {
-            if !task.is_finished() { return Err(SwarmError::FactoryFailed("original warm cleanup remains pending".into())); }
-            let observed = futures::FutureExt::now_or_never(task)
-                .ok_or_else(|| SwarmError::FactoryFailed("warm cleanup terminal observation pending".into()))?;
-            cleanup.take();
-            observed.map_err(|error| SwarmError::FactoryFailed(error.to_string()))??;
-        }
-        self.retire();
-        Ok(())
-    }
+    /// Exact durable/in-memory binding fence created by this factory attempt. A
+    /// worktree id or ProcessHandle alone is routing identity, not cleanup
+    /// ownership: an ABA successor may reuse either key after this attempt.
+    binding_identity: super::worktree_vm_registry::WorktreeVmBindingIdentity,
 }
 
 /// The production model session factory.
-#[derive(Clone)]
-struct PendingColdCreate {
-    request: SpawnRequest,
-    ticket: crate::model_runtime::sandbox_runtime::ColdRuntimeTicket,
-    session_ledger: Arc<FactorySessionLedgerOwner>,
-}
-
 pub struct ProductionModelSessionFactory {
-    factory_identity: Arc<FactoryInstanceIdentity>,
     ledger: LedgerBatcher,
     cloud: CloudLaneFactoryConfig,
     /// Optional sandbox adapter registry (WP-KERNEL-004 wave 1). When present, a
@@ -1601,7 +1174,6 @@ pub struct ProductionModelSessionFactory {
     /// cancellation of the async create future so the coordinator can await
     /// exact compensation even though no ProcessLedger START exists yet.
     pending_warm_vm_creates: Mutex<HashMap<ModelInstanceId, PendingWarmVmCreate>>,
-    pending_cold_creates: Mutex<HashMap<ModelInstanceId, PendingColdCreate>>,
     /// Synthetic pid base for in-process sessions (candle / cloud run in-process
     /// — there is no separate OS process). A monotonic offset keeps ledger pids
     /// distinct per instance so START/STOP rows correlate one-to-one.
@@ -1611,113 +1183,6 @@ pub struct ProductionModelSessionFactory {
 }
 
 impl ProductionModelSessionFactory {
-    fn local_session_owner(&self, request: &SpawnRequest) -> SwarmResult<Arc<FactorySessionLedgerOwner>> {
-        let retained = RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner());
-        if let Some(owner) = retained.values().find(|owner| owner.request.instance_id == request.instance_id) {
-            if !Arc::ptr_eq(&owner.factory_identity, &self.factory_identity)
-                || owner.request != *request || owner.local.lock().unwrap_or_else(|error| error.into_inner()).is_none() {
-                return Err(SwarmError::FactoryFailed("instance belongs to a different retained original acquisition".into()));
-            }
-            return Ok(Arc::clone(owner));
-        }
-        drop(retained);
-        self.reserve_session_lifecycle(request)
-    }
-
-    fn start_local_load(
-        &self, session: &Arc<FactorySessionLedgerOwner>,
-        original: std::pin::Pin<Box<dyn std::future::Future<Output = SwarmResult<PreparedLocalSession>> + Send>>,
-    ) -> SwarmResult<Arc<RetainedLocalLoad>> {
-        if !Arc::ptr_eq(&session.factory_identity, &self.factory_identity) {
-            return Err(SwarmError::FactoryFailed("local load belongs to a different original factory".into()));
-        }
-        let mut slot = session.local.lock().unwrap_or_else(|error| error.into_inner());
-        if let Some(owner) = &*slot { return Ok(Arc::clone(owner)); }
-        let executor = tokio::runtime::Handle::try_current()
-            .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-        let owner = Arc::new(RetainedLocalLoad {
-            state: Mutex::new(LocalLoadState {
-                result: None, failure: None, cleanup_requested: false, adopted: false, closed: false,
-            }),
-            load: tokio::sync::Mutex::new(None), cleanup: tokio::sync::Mutex::new(None),
-            context: crate::storage::surreal::capture_model_lane_operation(),
-            capability_registry: crate::storage::surreal::configured_capability_registry(),
-            storage: self.durable_worktree_vm_store.as_ref().map(|store| store.storage.clone()),
-        });
-        *slot = Some(Arc::clone(&owner));
-        let mut driver = owner.load.try_lock()
-            .map_err(|_| SwarmError::FactoryFailed("new local load observer is occupied".into()))?;
-        let task_owner = Arc::clone(&owner);
-        let guard = LocalLoadTaskGuard { owner: Arc::clone(&owner), completed: false };
-        *driver = Some(executor.spawn(async move {
-            let mut guard = guard;
-            let result = task_owner.original_context(original).await;
-            let mut state = task_owner.state.lock().unwrap_or_else(|error| error.into_inner());
-            match result {
-                Ok(prepared) => state.result = Some(prepared),
-                Err(error) => state.failure = Some(error.to_string()),
-            }
-            guard.completed = true;
-        }));
-        drop(driver);
-        Ok(owner)
-    }
-
-    fn adopt_local_session(
-        &self, request: &SpawnRequest, session: &FactorySessionLedgerOwner,
-        owner: &RetainedLocalLoad, prepared: PreparedLocalSession, kind: ProcessEngineKind,
-    ) -> SwarmResult<LiveSession> {
-        let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-        if !Arc::ptr_eq(&session.factory_identity, &self.factory_identity)
-            || session.request != *request || state.cleanup_requested || state.adopted || state.closed
-            || !state.result.as_ref().is_some_and(|original|
-                original.model_id == prepared.model_id && Arc::ptr_eq(&original.runtime, &prepared.runtime)) {
-            return Err(SwarmError::FactoryFailed("original local load is not available for adoption".into()));
-        }
-        let os_pid = self.synthetic_pid(request);
-        let (record_id, start, lifecycle) = self.record_start(
-            session, request, prepared.model_id, os_pid, kind,
-        )?;
-        let live = LiveSession::new(
-            prepared.runtime, prepared.model_id, CancellationToken::new(), prepared.teardown, record_id, os_pid,
-        ).with_pidless_reserved_ledger(kind, start, lifecycle);
-        state.adopted = true;
-        state.result.take();
-        session.transfer();
-        Ok(live)
-    }
-
-    fn reserve_session_lifecycle(&self, request: &SpawnRequest) -> SwarmResult<Arc<FactorySessionLedgerOwner>> {
-        let mut retained = RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner());
-        if retained.values().any(|owner| owner.request.instance_id == request.instance_id) {
-            return Err(SwarmError::LedgerFailed(
-                "original factory request retains its session pair; no duplicate acquisition".into()));
-        }
-        let reservation = self.ledger.try_reserve_lifecycles(1)
-            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?.pop()
-            .ok_or_else(|| SwarmError::LedgerFailed("single session pair reservation was empty".into()))?;
-        let owner = Arc::new(FactorySessionLedgerOwner {
-            factory_identity: Arc::clone(&self.factory_identity),
-            request: request.clone(), record_id: ProcessOwnershipRecordId::new_v7(),
-            reservation: Mutex::new(Some(reservation)), active: Mutex::new(None),
-            local: Mutex::new(None),
-        });
-        retained.insert(owner.record_id.as_uuid(), Arc::clone(&owner));
-        Ok(owner)
-    }
-
-    fn clear_pending_cold_create(&self, request: &SpawnRequest, generation: uuid::Uuid) {
-        let mut pending = self.pending_cold_creates.lock().unwrap_or_else(|error| error.into_inner());
-        if pending.get(&request.instance_id).is_some_and(|owner|
-            owner.request == *request && owner.ticket.generation() == generation) {
-            if let Some(owner) = pending.remove(&request.instance_id) {
-                owner.session_ledger.release_unused_after_cleanup();
-            }
-        }
-    }
-
     /// Build a factory that supports the local candle + llama.cpp paths, the
     /// supplied cloud-lane config, and (when `sandbox_registry` is `Some`) the
     /// Tier-3 microVM sandbox route. Pass [`CloudLaneFactoryConfig::unconfigured`]
@@ -1729,14 +1194,12 @@ impl ProductionModelSessionFactory {
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
         Self {
-            factory_identity: Arc::new(FactoryInstanceIdentity),
             ledger,
             cloud,
             sandbox_registry,
             durable_worktree_vm_store: None,
             worktree_vm_registries: Mutex::new(HashMap::new()),
             pending_warm_vm_creates: Mutex::new(HashMap::new()),
-            pending_cold_creates: Mutex::new(HashMap::new()),
             pid_base: 50_000,
             genie_x: None,
             genie_x_creates: Mutex::new(HashMap::new()),
@@ -1842,80 +1305,26 @@ impl ProductionModelSessionFactory {
         request: &SpawnRequest,
         registry: Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
         worktree_id: &str,
-        original: std::pin::Pin<Box<dyn std::future::Future<Output = SwarmResult<WarmAcquired>> + Send>>,
-    ) -> SwarmResult<PendingWarmVmCreate> {
-        let executor = tokio::runtime::Handle::try_current()
-            .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-        let session_ledger = self.reserve_session_lifecycle(request)?;
-        let mut pending = self.pending_warm_vm_creates.lock().map_err(|error|
-            SwarmError::FactoryFailed(format!("pending warm VM create map is poisoned: {error}")))?;
-        if pending.contains_key(&request.instance_id) {
-            return Err(SwarmError::FactoryFailed(
-                "the original warm request still owns this instance; use its pending cleanup".into()));
-        }
-        let request_owner_id = uuid::Uuid::now_v7();
-        let reservation_owner = registry.warm_reservation_owner(request_owner_id, worktree_id);
-        let owner = Arc::new(WarmCreateOwner {
-            id: request_owner_id, request: request.clone(), registry, session_ledger, reservation_owner,
-            worktree_id: worktree_id.to_string(),
-            context: crate::storage::surreal::capture_model_lane_operation(),
-            capability_registry: crate::storage::surreal::configured_capability_registry(),
-            state: Mutex::new(WarmCreateState {
-                invoked: false, acquired: None, snapshot_request: None, snapshot: None,
-                cleanup_requested: false, adopted: false, closed: false, failure: None,
-            }),
-            gate: tokio::sync::Mutex::new(()),
-            acquisition: tokio::sync::Mutex::new(None),
-            capture: tokio::sync::Mutex::new(None), cleanup: tokio::sync::Mutex::new(None),
-        });
-        let target = PendingWarmVmCreate { owner: Arc::clone(&owner) };
-        // Register custody before the original native future can be polled.
-        pending.insert(request.instance_id, target.clone());
-        RETAINED_WARM_CREATES.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).insert(owner.id, Arc::clone(&owner));
-        let mut driver = owner.acquisition.try_lock()
-            .map_err(|_| SwarmError::FactoryFailed("new warm acquisition observer is occupied".into()))?;
-        let task_owner = Arc::clone(&owner);
-        let guard = WarmCreateTaskGuard { owner: Arc::clone(&owner), completed: false };
-        *driver = Some(executor.spawn(async move {
-            let mut guard = guard;
-            let work = async {
-                {
-                    let mut state = task_owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                    if state.cleanup_requested {
-                        return Err(SwarmError::FactoryFailed("warm acquisition canceled before invocation".into()));
-                    }
-                    state.invoked = true;
-                }
-                let acquired = original.await?;
-                task_owner.state.lock().unwrap_or_else(|error| error.into_inner()).acquired = Some(acquired.clone());
-                Ok(acquired)
-            };
-            let result = task_owner.registry.with_original_warm_context(
-                task_owner.context.clone(), task_owner.capability_registry.clone(), async {
-                    task_owner.registry.with_warm_reservation_owner(
-                        Arc::clone(&task_owner.reservation_owner), work,
-                    ).await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?
-                },
-            ).await;
-            if let Err(error) = &result {
-                task_owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-            }
-            guard.completed = true;
-            result
-        }));
-        drop(driver);
-        Ok(target)
+        binding_identity: super::worktree_vm_registry::WorktreeVmBindingIdentity,
+    ) -> SwarmResult<()> {
+        let mut pending = self.pending_warm_vm_creates.lock().map_err(|error| {
+            SwarmError::FactoryFailed(format!("pending warm VM create map is poisoned: {error}"))
+        })?;
+        pending.insert(
+            request.instance_id,
+            PendingWarmVmCreate {
+                registry,
+                worktree_id: worktree_id.to_string(),
+                binding_identity,
+            },
+        );
+        Ok(())
     }
 
-    fn clear_pending_warm_vm_create(&self, target: &PendingWarmVmCreate) {
-        let mut pending = self.pending_warm_vm_creates.lock().unwrap_or_else(|error| error.into_inner());
-        if pending.get(&target.owner.request.instance_id).is_some_and(|current|
-            current.owner.id == target.owner.id && current.owner.request == target.owner.request) {
-            pending.remove(&target.owner.request.instance_id);
+    fn clear_pending_warm_vm_create(&self, instance_id: ModelInstanceId) {
+        if let Ok(mut pending) = self.pending_warm_vm_creates.lock() {
+            pending.remove(&instance_id);
         }
-        target.owner.session_ledger.release_unused_after_cleanup();
-        target.retire();
     }
 
     /// Record a real process-ledger START row for an in-process model session,
@@ -1924,15 +1333,11 @@ impl ProductionModelSessionFactory {
     /// loud rather than leaving a phantom session.
     fn record_start(
         &self,
-        session: &FactorySessionLedgerOwner,
         request: &SpawnRequest,
         model_id: ModelId,
         os_pid: u32,
         engine_kind: ProcessEngineKind,
-    ) -> SwarmResult<(ProcessOwnershipRecordId, ProcessStart, Arc<ActiveProcessLifecycle>)> {
-        if !Arc::ptr_eq(&session.factory_identity, &self.factory_identity) || session.request != *request {
-            return Err(SwarmError::LedgerFailed("session pair belongs to a different original factory/request".into()));
-        }
+    ) -> SwarmResult<ProcessOwnershipRecordId> {
         let mut meta =
             SpawnMeta::new(os_pid, engine_kind, request.owner_role.clone()).without_os_pid();
         meta.model_id = Some(model_id.to_string());
@@ -1952,8 +1357,7 @@ impl ProductionModelSessionFactory {
             "checkout_lease_worktree_id": request.checkout_lease().and_then(|lease| lease.worktree_id.clone()),
             "checkout_lease_canonical_working_dir": request.checkout_lease().and_then(|lease| lease.canonical_working_dir.clone()),
         });
-        let (start, lifecycle) = session.begin(meta.into_start(session.record_id))?;
-        Ok((session.record_id, start, lifecycle))
+        record_spawn(&self.ledger, meta).map_err(|e| SwarmError::LedgerFailed(e.to_string()))
     }
 
     async fn record_cloud_session_start(
@@ -2065,38 +1469,14 @@ impl ProductionModelSessionFactory {
     /// `sandbox_adapter_id` (e.g. `cloud_hypervisor`) and `sandbox_internal_id`
     /// (e.g. `hsk-ch-<uuid>`) so the START/STOP rows carry the microVM identity.
     #[allow(clippy::too_many_arguments)]
-    #[cfg(test)]
     fn record_start_sandboxed(
-        &self, request: &SpawnRequest, model_id: ModelId,
-        engine_kind: ProcessEngineKind, handle: &crate::sandbox::ProcessHandle,
-    ) -> SwarmResult<(ProcessOwnershipRecordId, ProcessStart)> {
-        let record_id = ProcessOwnershipRecordId::new_v7();
-        let start = self.build_start_sandboxed(record_id, request, model_id, engine_kind, handle);
-        self.ledger.record_start_lossless(start.clone())
-            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
-        Ok((record_id, start))
-    }
-
-    fn record_reserved_sandboxed_start(
-        &self, session: &FactorySessionLedgerOwner, request: &SpawnRequest,
-        model_id: ModelId, engine_kind: ProcessEngineKind, handle: &crate::sandbox::ProcessHandle,
-    ) -> SwarmResult<(ProcessOwnershipRecordId, ProcessStart, Arc<ActiveProcessLifecycle>)> {
-        if !Arc::ptr_eq(&session.factory_identity, &self.factory_identity) || session.request != *request {
-            return Err(SwarmError::LedgerFailed("session pair belongs to a different original factory/request".into()));
-        }
-        let start = self.build_start_sandboxed(session.record_id, request, model_id, engine_kind, handle);
-        let (start, lifecycle) = session.begin(start)?;
-        Ok((session.record_id, start, lifecycle))
-    }
-
-    fn build_start_sandboxed(
         &self,
-        record_id: ProcessOwnershipRecordId,
         request: &SpawnRequest,
         model_id: ModelId,
         engine_kind: ProcessEngineKind,
         handle: &crate::sandbox::ProcessHandle,
-    ) -> ProcessStart {
+    ) -> SwarmResult<(ProcessOwnershipRecordId, ProcessStart)> {
+        let record_id = ProcessOwnershipRecordId::new_v7();
         let resource_scope = self
             .durable_worktree_vm_store
             .as_ref()
@@ -2153,7 +1533,10 @@ impl ProductionModelSessionFactory {
         if let Some(mt_id) = request.mt_id.clone() {
             start = start.with_mt_id(mt_id);
         }
-        start
+        self.ledger
+            .record_start_lossless(start.clone())
+            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+        Ok((record_id, start))
     }
 
     /// MT-207: explicit warm-VM local execution. This is intentionally a
@@ -2310,90 +1693,188 @@ impl ProductionModelSessionFactory {
                 .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
         }
 
-        let acquisition_registry = Arc::clone(&worktree_vm_registry);
-        let original_worktree = worktree_id.to_string();
-        let original_manifest = request.warm_vm_restore_manifest.clone();
-        let original_hash = model_artifact_sha256.clone();
-        let original_guest = warm_cfg.model_guest_path.clone();
-        let original = Box::pin(async move {
-            let (handle, created, binding) = if let Some(manifest) = original_manifest {
-                let outcome = acquisition_registry.restore_warm_model_with_identity(
-                    &manifest, &original_hash, &original_guest,
-                ).await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
+        let (handle, created_by_attempt, binding_identity) =
+            if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+                let outcome = worktree_vm_registry
+                    .restore_warm_model_with_identity(
+                        manifest,
+                        &model_artifact_sha256,
+                        &warm_cfg.model_guest_path,
+                    )
+                    .await
+                    .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
                 (outcome.handle, true, outcome.binding_identity)
             } else {
-                let outcome = acquisition_registry.ensure_worktree_vm_with_spec_outcome(
-                    &original_worktree, spec,
-                ).await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
+                let outcome = worktree_vm_registry
+                    .ensure_worktree_vm_with_spec_outcome(worktree_id, spec)
+                    .await
+                    .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
                 (outcome.handle, outcome.created, outcome.binding_identity)
             };
-            let binding = binding.ok_or_else(|| SwarmError::FactoryFailed(
-                "original warm acquisition returned no exact binding fence; custody remains pending".into()))?;
-            Ok(WarmAcquired { handle, created, binding })
-        });
-        let pending = self.register_pending_warm_vm_create(
-            request, Arc::clone(&worktree_vm_registry), worktree_id, original,
-        )?;
-        let mut caller = WarmCreateCallerGuard { owner: Arc::clone(&pending.owner), completed: false };
-        let completion = async {
-            let acquired = pending.acquired().await?;
-            let handle = acquired.handle;
-            let binding_identity = acquired.binding;
-            let transport = adapter.warm_agent_transport(&handle).await
-                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-            let mut runtime = if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
-                WarmVmModelRuntime::from_restored_manifest(transport, warm_cfg.clone(), manifest)
-                    .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?
-            } else { WarmVmModelRuntime::new(transport, warm_cfg.clone()) };
-            let loaded_model_id = if request.warm_vm_restore_manifest.is_some() {
-                runtime.model_id()
-            } else {
-                runtime.load(LoadSpec {
-                    artifact_path: std::path::PathBuf::new(),
-                    sha256_expected: model_artifact_sha256.clone(),
-                    runtime_kind: RuntimeKind::LlamaCpp,
-                    sampling_defaults: SamplingParams::default(),
-                    kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
-                    declared_capabilities: ModelCapabilities::default(),
-                    provider: ProviderKind::Local, engine_origin: Some("llama_cpp".to_string()),
-                    external_engine_import: None,
-                }).await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?
-            };
-            let ready = runtime.ready_frame()
-                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-            let snapshot = pending.capture(
-                model_artifact_sha256.clone(), warm_cfg.model_guest_path.clone(), ready,
-            ).await?;
-            let _acceptance = pending.owner.gate.lock().await;
-            if pending.owner.state.lock().unwrap_or_else(|error| error.into_inner()).cleanup_requested {
-                return Err(SwarmError::FactoryFailed("warm cleanup won before snapshot acceptance".into()));
-            }
-            let warm_vm_restore_manifest = snapshot.manifest.clone();
-            worktree_vm_registry.accept_selected_warm_snapshot(&snapshot, || {
-            // No await separates the exact request's final adoption check from
-            // its original session START and LiveSession delivery.
-            let mut state = pending.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-            if state.cleanup_requested || state.adopted {
-                return Err(SwarmError::FactoryFailed("warm request is no longer available for adoption".into()));
-            }
-            let os_pid = self.synthetic_pid(request);
-            let (record_id, ledger_start, lifecycle) = self.record_reserved_sandboxed_start(
-                &pending.owner.session_ledger, request, loaded_model_id, ProcessEngineKind::LlamaCpp, &handle,
+        let binding_identity = binding_identity.ok_or_else(|| {
+            SwarmError::FactoryFailed(format!(
+                "warm VM binding for worktree {worktree_id} did not return an exact ownership fence"
+            ))
+        })?;
+
+        if created_by_attempt {
+            self.register_pending_warm_vm_create(
+                request,
+                Arc::clone(&worktree_vm_registry),
+                worktree_id,
+                binding_identity.clone(),
             )?;
+        }
+
+        let completion = async {
+
+        let transport = match adapter.warm_agent_transport(&handle).await {
+            Ok(transport) => transport,
+            Err(error) => {
+                let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
+                return Err(factory_error_with_cleanup(error.to_string(), cleanup));
+            }
+        };
+
+        let mut runtime = if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+            match WarmVmModelRuntime::from_restored_manifest(transport, warm_cfg.clone(), manifest) {
+                Ok(runtime) => runtime,
+                Err(error) => {
+                    let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                        &worktree_vm_registry,
+                        worktree_id,
+                        created_by_attempt,
+                        &binding_identity,
+                    )
+                    .await;
+                    return Err(factory_error_with_cleanup(error.to_string(), cleanup));
+                }
+            }
+        } else {
+            WarmVmModelRuntime::new(transport, warm_cfg.clone())
+        };
+        let loaded_model_id = if request.warm_vm_restore_manifest.is_some() {
+            runtime.model_id()
+        } else {
+            let spec_load = LoadSpec {
+                artifact_path: std::path::PathBuf::new(),
+                sha256_expected: model_artifact_sha256.clone(),
+                runtime_kind: RuntimeKind::LlamaCpp,
+                sampling_defaults: SamplingParams::default(),
+                kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+                declared_capabilities: ModelCapabilities::default(),
+                provider: ProviderKind::Local,
+                engine_origin: Some("llama_cpp".to_string()),
+                external_engine_import: None,
+            };
+            match runtime.load(spec_load).await {
+                Ok(model_id) => model_id,
+                Err(error) => {
+                    let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                        &worktree_vm_registry,
+                        worktree_id,
+                        created_by_attempt,
+                        &binding_identity,
+                    )
+                    .await;
+                    return Err(factory_error_with_cleanup(error.to_string(), cleanup));
+                }
+            }
+        };
+        let ready = match runtime.ready_frame() {
+            Ok(ready) => ready,
+            Err(error) => {
+                let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
+                return Err(factory_error_with_cleanup(error.to_string(), cleanup));
+            }
+        };
+        let warm_vm_restore_manifest = match worktree_vm_registry
+            .snapshot_warm_model(
+                worktree_id,
+                &model_artifact_sha256,
+                &warm_cfg.model_guest_path,
+                &ready,
+            )
+            .await
+        {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                let cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
+                return Err(factory_error_with_cleanup(
+                    format!(
+                        "warm VM snapshot capture failed after successful load/restore; refusing to \
+                         return a non-resumable warm session: {error}"
+                    ),
+                    cleanup,
+                ));
+            }
+        };
+        let os_pid = self.synthetic_pid(request);
+        let (record_id, ledger_start) = match self.record_start_sandboxed(
+            request,
+            loaded_model_id,
+            ProcessEngineKind::LlamaCpp,
+            &handle,
+        ) {
+            Ok(record_id) => record_id,
+            Err(error) => {
+                let cleanup = adapter
+                    .delete_snapshot(&warm_vm_restore_manifest.snapshot)
+                    .await;
+                let kill_cleanup = teardown_worktree_after_factory_failure_if_owned(
+                    &worktree_vm_registry,
+                    worktree_id,
+                    created_by_attempt,
+                    &binding_identity,
+                )
+                .await;
+                if let Err(cleanup_error) = cleanup {
+                    return Err(SwarmError::FactoryFailed(format!(
+                        "warm VM ledger START failed after successful snapshot capture and \
+                         snapshot cleanup also failed; refusing to return a session: \
+                         ledger_error={error}; cleanup_error={cleanup_error}"
+                    )));
+                }
+                if let Err(cleanup_error) = kill_cleanup {
+                    return Err(SwarmError::FactoryFailed(format!(
+                        "warm VM ledger START failed and sandbox cleanup failed; \
+                         ledger_error={error}; cleanup_error={cleanup_error}"
+                    )));
+                }
+                return Err(error);
+            }
+        };
+
         let owning = Arc::new(tokio::sync::Mutex::new(runtime));
         let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
             inner: owning.clone(),
             model_id: loaded_model_id,
         });
         let cancel = CancellationToken::new();
-        let native_terminal = Arc::new(Mutex::new(None));
         let teardown = worktree_warm_runtime_teardown(
             owning,
             loaded_model_id,
             Arc::clone(&worktree_vm_registry),
             worktree_id.to_string(),
             binding_identity,
-            Arc::clone(&native_terminal),
         );
 
         let mut live =
@@ -2403,29 +1884,15 @@ impl ProductionModelSessionFactory {
         } else {
             live.with_pidless_ledger(ProcessEngineKind::LlamaCpp, ledger_start)
         };
-        live.ledger_lifecycle = Some(lifecycle);
-        live.native_terminal = Some(native_terminal);
         live = live.with_warm_vm_restore_manifest(warm_vm_restore_manifest);
-            state.adopted = true;
-            pending.owner.session_ledger.transfer();
-            Ok(live)
-            }).await.map_err(|error| SwarmError::FactoryFailed(error.to_string()))?
-        }.await;
-        match completion {
-            Ok(live) => {
-                caller.completed = true;
-                self.clear_pending_warm_vm_create(&pending);
-                Ok(live)
-            }
-            Err(error) => {
-                let cleanup = pending.cleanup_pending().await;
-                if cleanup.is_ok() {
-                    caller.completed = true;
-                    self.clear_pending_warm_vm_create(&pending);
-                }
-                Err(factory_error_with_cleanup(error.to_string(), cleanup.map_err(|error| error.to_string())))
-            }
+        Ok(live)
         }
+        .await;
+
+        if created_by_attempt && completion.is_ok() {
+            self.clear_pending_warm_vm_create(request.instance_id);
+        }
+        completion
     }
 
     /// WP-KERNEL-004 wave 1: route a Local+LlamaCpp+Tier3 spawn into a Cloud
@@ -2486,23 +1953,7 @@ impl ProductionModelSessionFactory {
 
         // Build + load the runtime around the SELECTED adapter (mints the
         // ephemeral handle + binds the GGUF; honest typed error on failure).
-        let session_ledger = self.reserve_session_lifecycle(request)?;
         let mut runtime = SandboxModelRuntime::new(Arc::clone(&adapter), cfg);
-        let ticket = runtime.cold_ticket();
-        ticket.bind_factory_request(request.instance_id.to_string())
-            .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-        {
-            let mut pending = self.pending_cold_creates.lock().map_err(|error|
-                SwarmError::FactoryFailed(format!("cold pending-create owner is poisoned: {error}")))?;
-            if pending.contains_key(&request.instance_id) {
-                return Err(SwarmError::FactoryFailed(
-                    "original cold generation still owns this instance; no duplicate acquisition".into()));
-            }
-            pending.insert(request.instance_id, PendingColdCreate {
-                request: request.clone(), ticket: ticket.clone(), session_ledger: Arc::clone(&session_ledger),
-            });
-        }
-
         let spec_load = crate::model_runtime::LoadSpec {
             artifact_path: std::path::PathBuf::new(),
             sha256_expected: request.model_artifact_sha256.clone().unwrap_or_default(),
@@ -2526,15 +1977,14 @@ impl ProductionModelSessionFactory {
                     .to_string(),
             )
         })?;
-        let adoption = ticket.clone();
-        let cleanup_ticket = ticket.clone();
-        let result = adoption.try_adopt(
-            || SwarmError::FactoryFailed("cold generation cleanup won before session adoption".into()),
-            move || {
+        // The adapter handle for teardown kill (clone before the runtime moves).
+        let teardown_adapter = runtime.adapter();
+        let teardown_handle = runtime.handle().cloned();
+
         let os_pid = self.synthetic_pid(request);
         // Record the START only AFTER load succeeded (C7) with the sandbox fields.
-        let (record_id, ledger_start, lifecycle) = self.record_reserved_sandboxed_start(
-            &session_ledger, request,
+        let (record_id, ledger_start) = self.record_start_sandboxed(
+            request,
             loaded_model_id,
             ProcessEngineKind::LlamaCpp,
             &ledger_handle,
@@ -2546,26 +1996,15 @@ impl ProductionModelSessionFactory {
             model_id: loaded_model_id,
         });
         let cancel = CancellationToken::new();
-        let native_terminal = Arc::new(Mutex::new(None));
         let teardown =
-            sandboxed_runtime_teardown(owning, cleanup_ticket, Arc::clone(&native_terminal));
+            sandboxed_runtime_teardown(owning, loaded_model_id, teardown_adapter, teardown_handle);
 
-        let mut live = LiveSession::new(shared, loaded_model_id, cancel, teardown, record_id, os_pid);
-        live.ledger_lifecycle = Some(lifecycle);
-        live.native_terminal = Some(native_terminal);
-        let live = if ledger_start.os_pid.is_some() {
+        let live = LiveSession::new(shared, loaded_model_id, cancel, teardown, record_id, os_pid);
+        Ok(if ledger_start.os_pid.is_some() {
             live.with_ledger_start(ProcessEngineKind::LlamaCpp, ledger_start)
         } else {
             live.with_pidless_ledger(ProcessEngineKind::LlamaCpp, ledger_start)
-        };
-        session_ledger.transfer();
-        Ok(live)
-            },
-        );
-        if result.is_ok() {
-            self.clear_pending_cold_create(request, ticket.generation());
-        }
-        result
+        })
     }
 
     async fn create_local_candle(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
@@ -2582,22 +2021,36 @@ impl ProductionModelSessionFactory {
             )
         })?;
 
-        let session = self.local_session_owner(request)?;
-        let original = Box::pin(async move {
-            let LoadedCandleModel { runtime, model_id, capabilities: _ } =
-                load_local_candle_model(artifact_path, sha256).await
-                    .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-            let owning = Arc::new(tokio::sync::Mutex::new(runtime));
-            let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
-                inner: owning.clone(), model_id,
-            });
-            Ok(PreparedLocalSession {
-                runtime: shared, model_id, teardown: shared_runtime_teardown(owning, model_id),
-            })
+        // REAL load via the exact shared helper the single-load IPC uses.
+        let LoadedCandleModel {
+            runtime,
+            model_id,
+            capabilities: _capabilities,
+        } = load_local_candle_model(artifact_path, sha256)
+            .await
+            .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+
+        let os_pid = self.synthetic_pid(request);
+        // Record the START only AFTER the load succeeded so a load failure never
+        // leaves an orphan START (C7).
+        let record_id = self.record_start(request, model_id, os_pid, ProcessEngineKind::Candle)?;
+
+        // Wrap the owning runtime in a shared Mutex so the coordinator's
+        // `Arc<dyn ModelRuntime>` (used for cancel + the real generate path) and
+        // the teardown closure (which needs &mut for the async `unload`) agree on
+        // ONE engine. Teardown deterministically unloads then drops the last Arc
+        // — the D1 free, mirroring `kernel_model_runtime_unload`'s detach-drop.
+        let owning = Arc::new(tokio::sync::Mutex::new(runtime));
+        let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
+            inner: owning.clone(),
+            model_id,
         });
-        let owner = self.start_local_load(&session, original)?;
-        let prepared = owner.observe().await?;
-        self.adopt_local_session(request, &session, &owner, prepared, ProcessEngineKind::Candle)
+        let cancel = CancellationToken::new();
+        let teardown = shared_runtime_teardown(owning, model_id);
+
+        Ok(LiveSession::new(
+            shared, model_id, cancel, teardown, record_id, os_pid,
+        ))
     }
 
     async fn create_local_llama(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
@@ -2629,22 +2082,29 @@ impl ProductionModelSessionFactory {
             external_engine_import: None,
         };
 
-        let session = self.local_session_owner(request)?;
-        let original = Box::pin(async move {
-            let mut runtime = LlamaCppRuntime::new(KvCachePolicy::default());
-            let model_id = runtime.load(spec).await
-                .map_err(|error| SwarmError::FactoryFailed(error.to_string()))?;
-            let owning = Arc::new(tokio::sync::Mutex::new(runtime));
-            let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
-                inner: owning.clone(), model_id,
-            });
-            Ok(PreparedLocalSession {
-                runtime: shared, model_id, teardown: shared_runtime_teardown(owning, model_id),
-            })
+        let mut runtime = LlamaCppRuntime::new(KvCachePolicy::default());
+        // REAL load. If the GGUF is absent / unreadable the adapter returns a
+        // typed ModelRuntimeError, surfaced honestly here (not a placeholder).
+        let model_id = runtime
+            .load(spec)
+            .await
+            .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+
+        let os_pid = self.synthetic_pid(request);
+        let record_id =
+            self.record_start(request, model_id, os_pid, ProcessEngineKind::LlamaCpp)?;
+
+        let owning = Arc::new(tokio::sync::Mutex::new(runtime));
+        let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
+            inner: owning.clone(),
+            model_id,
         });
-        let owner = self.start_local_load(&session, original)?;
-        let prepared = owner.observe().await?;
-        self.adopt_local_session(request, &session, &owner, prepared, ProcessEngineKind::LlamaCpp)
+        let cancel = CancellationToken::new();
+        let teardown = shared_runtime_teardown(owning, model_id);
+
+        Ok(LiveSession::new(
+            shared, model_id, cancel, teardown, record_id, os_pid,
+        ))
     }
 
     async fn create_cloud(
@@ -2875,74 +2335,10 @@ impl ModelSessionFactory for ProductionModelSessionFactory {
     }
 
     async fn drain_pending_creates(&self) -> SwarmResult<()> {
-        let pending = self.pending_cold_creates.lock().map_err(|error|
-            SwarmError::FactoryFailed(format!("cold pending-create owner is poisoned: {error}")))?
-            .values().cloned().collect::<Vec<_>>();
-        let mut cold_error = None;
-        for owner in pending {
-            match owner.ticket.cleanup_pending().await {
-                Ok(_) => self.clear_pending_cold_create(&owner.request, owner.ticket.generation()),
-                Err(error) => cold_error = Some(SwarmError::FactoryFailed(
-                    format!("original cold create remains owned: {error}"))),
-            }
-        }
-        let warm = self.pending_warm_vm_creates.lock().map_err(|error|
-            SwarmError::FactoryFailed(format!("warm pending-create owner is poisoned: {error}")))?
-            .values().cloned().collect::<Vec<_>>();
-        for owner in warm {
-            match owner.cleanup_pending().await {
-                Ok(()) => self.clear_pending_warm_vm_create(&owner),
-                Err(error) => cold_error = Some(error),
-            }
-        }
-        let local = RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).values()
-            .filter(|session| Arc::ptr_eq(&session.factory_identity, &self.factory_identity)).filter_map(|session| {
-                let local = session.local.lock().unwrap_or_else(|error| error.into_inner()).clone();
-                local.map(|owner| (Arc::clone(session), owner))
-            }).collect::<Vec<_>>();
-        for (session, owner) in local {
-            if let Err(error) = owner.cleanup_pending(&session).await { cold_error = Some(error); }
-        }
-        let genie = self.drain_genie_x_creates().await;
-        if cold_error.is_none()
-            && RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-                .unwrap_or_else(|error| error.into_inner()).values()
-                .any(|owner| Arc::ptr_eq(&owner.factory_identity, &self.factory_identity)) {
-            cold_error = Some(SwarmError::FactoryFailed(
-                "original factory session pairs remain retained for acquisition reconciliation".into()));
-        }
-        match cold_error { Some(error) => Err(error), None => genie }
+        self.drain_genie_x_creates().await
     }
 
     async fn cancel_pending_create(&self, request: &SpawnRequest) -> SwarmResult<()> {
-        {
-            let retained = RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-                .unwrap_or_else(|error| error.into_inner());
-            if retained.values().any(|owner| owner.request.instance_id == request.instance_id
-                && (!Arc::ptr_eq(&owner.factory_identity, &self.factory_identity) || owner.request != *request)) {
-                return Err(SwarmError::FactoryFailed("pending acquisition belongs to a different original factory/request".into()));
-            }
-        }
-        let local = RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).values()
-            .find(|session| Arc::ptr_eq(&session.factory_identity, &self.factory_identity)
-                && session.request == *request).and_then(|session| {
-                let local = session.local.lock().unwrap_or_else(|error| error.into_inner()).clone();
-                local.map(|owner| (Arc::clone(session), owner))
-            });
-        if let Some((session, owner)) = local {
-            return owner.cleanup_pending(&session).await;
-        }
-        let cold = self.pending_cold_creates.lock().map_err(|error|
-            SwarmError::FactoryFailed(format!("cold pending-create owner is poisoned: {error}")))?
-            .get(&request.instance_id).filter(|owner| owner.request == *request).cloned();
-        if let Some(owner) = cold {
-            owner.ticket.cleanup_pending().await.map_err(|error|
-                SwarmError::FactoryFailed(format!("original cold create remains owned: {error}")))?;
-            self.clear_pending_cold_create(request, owner.ticket.generation());
-            return Ok(());
-        }
         if request.runtime_binding == RuntimeBinding::GenieX {
             let pending = self.genie_x_creates.lock().map_err(|_| {
                 SwarmError::FactoryFailed("GenieX session owner is poisoned".into())
@@ -2952,19 +2348,33 @@ impl ModelSessionFactory for ProductionModelSessionFactory {
                 None => Ok(()),
             };
         }
-        let pending = self.pending_warm_vm_creates.lock().map_err(|error|
-            SwarmError::FactoryFailed(format!("pending warm VM create map is poisoned: {error}")))?
-            .get(&request.instance_id).filter(|owner| owner.owner.request == *request).cloned();
-        if let Some(owner) = pending {
-            owner.cleanup_pending().await?;
-            self.clear_pending_warm_vm_create(&owner);
-        }
-        if RETAINED_FACTORY_SESSION_LEDGERS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).values().any(|owner| Arc::ptr_eq(&owner.factory_identity, &self.factory_identity)
-                && owner.request == *request) {
-            return Err(SwarmError::FactoryFailed(
-                "original session acquisition/START ownership remains pending; no synthetic STOP or no-effect disposition".into()));
-        }
+        let pending = self
+            .pending_warm_vm_creates
+            .lock()
+            .map_err(|error| {
+                SwarmError::FactoryFailed(format!(
+                    "pending warm VM create map is poisoned: {error}"
+                ))
+            })?
+            .get(&request.instance_id)
+            .cloned();
+        let Some(target) = pending else {
+            // No exact attempt record means no cleanup authority. In
+            // particular, a failed adopter has a worktree id but did not create
+            // the existing binding and must never tear it down.
+            return Ok(());
+        };
+        target
+            .registry
+            .teardown_worktree_vm_if_current(&target.worktree_id, &target.binding_identity)
+            .await
+            .map_err(|error| {
+                SwarmError::FactoryFailed(format!(
+                    "pending warm VM create compensation refused a stale binding or failed for {}: {error}",
+                    request.instance_id,
+                ))
+            })?;
+        self.clear_pending_warm_vm_create(request.instance_id);
         Ok(())
     }
 }
@@ -3067,7 +2477,6 @@ fn worktree_warm_runtime_teardown<R>(
     registry: Arc<super::worktree_vm_registry::WorktreeVmRegistry>,
     worktree_id: String,
     binding_identity: super::worktree_vm_registry::WorktreeVmBindingIdentity,
-    native_terminal: super::factory::NativeTerminalHandoff,
 ) -> SessionTeardown
 where
     R: ModelRuntime + 'static,
@@ -3085,7 +2494,6 @@ where
         let worktree_id = worktree_id.clone();
         let binding_identity = binding_identity.clone();
         let progress = Arc::clone(&progress);
-        let native_terminal = Arc::clone(&native_terminal);
         Box::pin(async move {
             // Serialize retries and retain success independently for both
             // side-effects. A transient failure must not repeat a completed
@@ -3110,7 +2518,7 @@ where
                 None
             } else {
                 match registry
-                    .teardown_worktree_vm_if_current_observed(&worktree_id, &binding_identity, &native_terminal)
+                    .teardown_worktree_vm_if_current(&worktree_id, &binding_identity)
                     .await
                 {
                     Ok(()) => {
@@ -3159,23 +2567,47 @@ where
     })
 }
 
-/// Close the exact cold generation, then clear only that generation's runtime
-/// view. The coordinator retains the original session START/STOP identity.
-fn sandboxed_runtime_teardown(
-    owning: Arc<tokio::sync::Mutex<crate::model_runtime::SandboxModelRuntime>>,
-    ticket: crate::model_runtime::sandbox_runtime::ColdRuntimeTicket,
-    native_terminal: super::factory::NativeTerminalHandoff,
-) -> SessionTeardown {
+/// Sandboxed (microVM) teardown (WP-KERNEL-004 wave 1): unload the boxed model
+/// behind the Mutex (best-effort, which also kills the ephemeral handle via the
+/// runtime's `unload`), THEN explicitly `kill` the microVM handle through the
+/// adapter so the in-VM boot is torn down even if the runtime was already
+/// unloaded, then drop the owning Arc. The ledger STOP is written by the
+/// coordinator against the START record this session carries.
+fn sandboxed_runtime_teardown<R>(
+    owning: Arc<tokio::sync::Mutex<R>>,
+    model_id: ModelId,
+    adapter: Arc<dyn crate::sandbox::SandboxAdapter>,
+    handle: Option<crate::sandbox::ProcessHandle>,
+) -> SessionTeardown
+where
+    R: ModelRuntime + 'static,
+{
     Arc::new(move || {
         let owning = Arc::clone(&owning);
-        let ticket = ticket.clone();
-        let native_terminal = Arc::clone(&native_terminal);
+        let adapter = Arc::clone(&adapter);
+        let handle = handle.clone();
         Box::pin(async move {
-            let (handle, terminal, exit_code) = ticket.cleanup_owned_observed().await.map_err(|error|
-                SwarmError::Internal(format!("original cold generation cleanup remains pending: {error}")))?;
-            *native_terminal.lock().unwrap_or_else(|error| error.into_inner()) =
-                Some(super::factory::NativeSessionTerminal { handle, terminal, exit_code });
-            owning.lock().await.finish_cold_generation(ticket.generation());
+            let unload_error = {
+                let mut guard = owning.lock().await;
+                guard.unload(model_id).await.err()
+            };
+            // Always attempt explicit microVM teardown even when model unload
+            // fails. Either error keeps the coordinator cleanup receipt pending
+            // and retains this retryable closure.
+            let kill_error = if let Some(handle) = handle {
+                adapter
+                    .kill(&handle, crate::sandbox::Signal::Term)
+                    .await
+                    .err()
+            } else {
+                None
+            };
+            if unload_error.is_some() || kill_error.is_some() {
+                return Err(SwarmError::Internal(format!(
+                    "sandbox runtime teardown failed: unload={:?}; kill={:?}",
+                    unload_error, kill_error
+                )));
+            }
             Ok(())
         })
     })

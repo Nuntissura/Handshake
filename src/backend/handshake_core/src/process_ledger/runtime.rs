@@ -17,7 +17,7 @@ use super::{
     acquire_embedded_runtime_instance_lease,
     reclaim::spawn_managed_staleness_reclaim_task_after_boot, reconcile_restart_orphans_at_boot,
     EmbeddedRuntimeInstanceDescriptor, EmbeddedRuntimeInstanceLease, LedgerBatcherConfig,
-    LedgerDrainJoinOutcome, ManagedStalenessReclaimTask, ProcessLedgerError,
+    LedgerDrainJoinOutcome, ManagedStalenessReclaimTask, NoopOverflowSink, ProcessLedgerError,
     ProcessLedgerOverflowSink, ProcessLedgerStore, ProductionSandboxKill, ScopedReclaim,
     ReclaimResourceScope, RestartOrphanBootReconcileReport, RetainedLedgerBatcher,
     StaleSessionSource, StalenessReclaimConfig, SurrealModelLaneStaleSessionSource,
@@ -55,39 +55,6 @@ struct ProcessReclaimRuntimeInner {
     boot_reconcile: RestartOrphanBootReconcileReport,
 }
 
-
-
-struct MissingProductionOverflowSink;
-
-impl ProcessLedgerOverflowSink for MissingProductionOverflowSink {
-    fn emit_overflow(&self, _event: super::LedgerOverflowEvent) -> Result<(), ProcessLedgerError> {
-        Err(ProcessLedgerError::OverflowEmit(
-            "production overflow sink is not configured; overflow event was not emitted".into(),
-        ))
-    }
-}
-
-struct StartupRuntimeLease {
-    lease: Option<EmbeddedRuntimeInstanceLease>,
-    armed: bool,
-}
-
-impl Drop for StartupRuntimeLease {
-    fn drop(&mut self) {
-        if let Some(lease) = self.lease.take() {
-            if self.armed {
-                // A supplied or activated lease cannot advertise this runtime
-                // dead without checked custody and scoped zero.
-                std::mem::forget(lease);
-            } else {
-                // Only private production's fresh, unexposed preactivation
-                // lease reaches this branch.
-                drop(lease);
-            }
-        }
-    }
-}
-
 #[derive(Debug, SurrealValue)]
 struct OpenRowCountBindings {
     runtime_instance_id: Uuid,
@@ -122,61 +89,43 @@ impl ProcessReclaimRuntime {
     ) -> Result<Self, ProcessLedgerError> {
         let runtime_lease =
             acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope_id.into())?;
-        Self::production_with_startup_lease(
+        Self::production_with_lease(
             storage,
             resource_scope,
             overflow_sink,
             registry,
-            StartupRuntimeLease { lease: Some(runtime_lease), armed: false },
+            runtime_lease,
             startup_timeout,
         )
         .await
     }
 
-    pub fn production_with_lease(
+    pub async fn production_with_lease(
         storage: SurrealStorage,
         resource_scope: ReclaimResourceScope,
         overflow_sink: Option<Arc<dyn ProcessLedgerOverflowSink>>,
         registry: Arc<SandboxAdapterRegistry>,
         runtime_lease: EmbeddedRuntimeInstanceLease,
         startup_timeout: Duration,
-    ) -> impl std::future::Future<Output = Result<Self, ProcessLedgerError>> {
-        // Construct custody synchronously, including an unpolled future.
-        Self::production_with_startup_lease(
-            storage, resource_scope, overflow_sink, registry,
-            StartupRuntimeLease { lease: Some(runtime_lease), armed: true }, startup_timeout,
-        )
-    }
-
-    async fn production_with_startup_lease(
-        storage: SurrealStorage,
-        resource_scope: ReclaimResourceScope,
-        overflow_sink: Option<Arc<dyn ProcessLedgerOverflowSink>>,
-        registry: Arc<SandboxAdapterRegistry>,
-        mut startup_lease: StartupRuntimeLease,
-        startup_timeout: Duration,
     ) -> Result<Self, ProcessLedgerError> {
-        let owning_runtime = tokio::runtime::Handle::try_current().map_err(|error|
-            ProcessLedgerError::InvalidConfig(format!("process reclaim application runtime unavailable: {error}")))?;
-        let runtime_instance = startup_lease.lease.as_ref().expect("original startup lease").descriptor().clone();
+        let runtime_instance = runtime_lease.descriptor().clone();
         let process_store = Arc::new(SurrealProcessLedgerStore::open(storage.clone()).await?);
         let ledger_store: Arc<dyn ProcessLedgerStore> = process_store.clone();
-        startup_lease.armed = true;
         let ledger = RetainedLedgerBatcher::spawn_with_runtime_owner(
             ledger_store,
-            overflow_sink.unwrap_or_else(|| Arc::new(MissingProductionOverflowSink)),
+            overflow_sink.unwrap_or_else(|| Arc::new(NoopOverflowSink)),
             LedgerBatcherConfig::default(),
             runtime_instance.process_runtime_owner(),
         );
         let killer = Arc::new(ProductionSandboxKill::with_registry(
             storage.clone(),
             Arc::clone(&registry),
-        ).with_host_scope(runtime_instance.host_scope_id.clone()));
+        ));
         let reclaim = Arc::new(ScopedReclaim::new(
             process_store,
             killer,
             Arc::new(ledger.ledger()),
-        ).with_owning_runtime(owning_runtime).with_kill_observation_budget(startup_timeout));
+        ));
         let stale_source: Arc<dyn StaleSessionSource> = Arc::new(
             SurrealModelLaneStaleSessionSource::new(storage.clone(), runtime_instance.clone()),
         );
@@ -214,27 +163,14 @@ impl ProcessReclaimRuntime {
             ),
         };
         if let Some(error) = boot_error {
-            let cleanup_deadline = time::Instant::now() + startup_timeout;
-            // A terminal abort is not a positive flush. Bound the original
-            // retained drain, including settlement, by this one cleanup budget.
-            let writer_flushed = matches!(
-                time::timeout_at(cleanup_deadline, ledger.drain_and_join(startup_timeout)).await,
-                Ok(LedgerDrainJoinOutcome::Flushed | LedgerDrainJoinOutcome::AlreadyDrained)
-            );
-            let remaining = cleanup_deadline.saturating_duration_since(time::Instant::now());
-            if writer_flushed && !ledger.ledger().has_pending_start_admissions() && !remaining.is_zero() {
-                let zero_owned_rows = matches!(
-                    time::timeout_at(cleanup_deadline, open_row_count_for_runtime(
-                        &storage, &resource_scope, &runtime_instance,
-                    )).await,
-                    Ok(Ok(0))
-                );
-                if zero_owned_rows {
-                    drop(startup_lease.lease.take());
-                }
+            let writer_stopped = ledger.abort_and_join_blocking(startup_timeout);
+            if writer_stopped {
+                drop(runtime_lease);
+            } else {
+                // Fail closed: a writer whose terminal state was not observed
+                // must remain protected by the exact OS lease until process exit.
+                std::mem::forget(runtime_lease);
             }
-            // Otherwise the guard retains the exact original lease. Query
-            // failure, timeout or nonzero rows never replaces the startup error.
             return Err(error);
         }
 
@@ -265,7 +201,7 @@ impl ProcessReclaimRuntime {
                 reclaim,
                 registry,
                 runtime_instance,
-                runtime_lease: Mutex::new(startup_lease.lease.take()),
+                runtime_lease: Mutex::new(Some(runtime_lease)),
                 reclaim_task,
                 boot_reconcile: boot_report,
             }),
@@ -302,9 +238,30 @@ impl ProcessReclaimRuntime {
     /// sweep. It is therefore only safe when this instance owns nothing that is
     /// still running.
     async fn open_row_count_for_this_instance(&self) -> Result<i64, ProcessLedgerError> {
-        open_row_count_for_runtime(
-            &self.inner.storage, &self.inner.resource_scope, &self.inner.runtime_instance,
-        ).await
+        let bindings = OpenRowCountBindings {
+            runtime_instance_id: self.inner.runtime_instance.instance_id,
+            owner_account_id: self.inner.resource_scope.account_uuid.to_string(),
+            actor_principal_id: self.inner.resource_scope.actor_uuid.to_string(),
+            authenticated_session_id: self.inner.resource_scope.session_uuid.to_string(),
+            access_space_id: self.inner.resource_scope.access_space_uuid.to_string(),
+            workspace_id: self.inner.resource_scope.workspace_id.clone(),
+        };
+        self.inner
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<i64, _>(OPEN_ROW_COUNT_FOR_RUNTIME, bindings)
+                        .await
+                })
+            })
+            .await
+            .map_err(|error| ProcessLedgerError::Store(error.to_string()))?
+            .ok_or_else(|| {
+                ProcessLedgerError::Store(
+                    "Surreal open-row count returned no exact-scope result".to_owned(),
+                )
+            })
     }
 
     pub async fn shutdown_and_drain(&self, timeout: Duration) -> ProcessReclaimRuntimeDrainReport {
@@ -313,10 +270,8 @@ impl ProcessReclaimRuntime {
         // first to consume the second's budget can abort a healthy writer even
         // when both phases individually finish within the declared bound.
         let reclaim_task_quiesced = self.inner.reclaim_task.shutdown_and_join(timeout).await;
-        let ledger_phase_started = time::Instant::now();
         let ledger = self.inner.ledger.drain_and_join(timeout).await;
         let drained = reclaim_task_quiesced
-            && !self.inner.ledger.ledger().has_pending_start_admissions()
             && matches!(
                 &ledger,
                 LedgerDrainJoinOutcome::Flushed | LedgerDrainJoinOutcome::AlreadyDrained
@@ -336,44 +291,45 @@ impl ProcessReclaimRuntime {
         // ResourceScope. Otherwise it is retained (the OS frees the socket at
         // real process exit), which is the only statement that is always true:
         // this process is still alive.
-        let already_released = || self.inner.runtime_lease.lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()).is_none();
-        let (mut lease_released, mut lease_retained_reason) = if already_released() {
-            (true, None)
-        } else if !drained {
-            (false, Some("reclaim task or ledger writer did not reach a proven terminal state".to_string()))
+        let (lease_released, lease_retained_reason) = if !drained {
+            (
+                false,
+                Some(
+                    "reclaim task or ledger writer did not reach a proven terminal state"
+                        .to_string(),
+                ),
+            )
         } else {
-            let remaining = timeout.saturating_sub(ledger_phase_started.elapsed());
-            if remaining.is_zero() {
-                (false, Some("ledger shutdown phase deadline expired before scoped-zero proof".to_string()))
-            } else {
-                match time::timeout(remaining, self.open_row_count_for_this_instance()).await {
-                    Ok(Ok(0)) => {
-                        let mut slot = self.inner.runtime_lease.lock()
-                            .unwrap_or_else(|poisoned| poisoned.into_inner());
-                        // Hold the slot until the original socket is physically
-                        // dropped; None then denotes an already-completed release.
-                        drop(slot.take());
+            match self.open_row_count_for_this_instance().await {
+                Ok(0) => {
+                    let released = self
+                        .inner
+                        .runtime_lease
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .take()
+                        .is_some();
+                    if released {
                         (true, None)
+                    } else {
+                        (false, Some("lease was already released".to_string()))
                     }
-                    Ok(Ok(open_rows)) => (false, Some(format!(
-                        "{open_rows} lifecycle rows owned by this runtime instance are still open; releasing the liveness lease would advertise this live process as dead",
-                    ))),
-                    Ok(Err(error)) => (false, Some(format!(
-                        "could not prove this runtime instance owns zero open lifecycle rows: {error}",
-                    ))),
-                    Err(_) => (false, Some(
-                        "scoped-zero proof exceeded the remaining ledger shutdown phase budget".to_string(),
-                    )),
                 }
+                Ok(open_rows) => (
+                    false,
+                    Some(format!(
+                        "{open_rows} lifecycle rows owned by this runtime instance are still open; \
+                         releasing the liveness lease would advertise this live process as dead"
+                    )),
+                ),
+                Err(error) => (
+                    false,
+                    Some(format!(
+                        "could not prove this runtime instance owns zero open lifecycle rows: {error}"
+                    )),
+                ),
             }
         };
-        if !lease_released && already_released() {
-            // A concurrent caller may have completed the same positive release
-            // while this caller's own observation was denied or timed out.
-            lease_released = true;
-            lease_retained_reason = None;
-        }
         if let Some(reason) = lease_retained_reason.as_deref() {
             tracing::info!(
                 target: "handshake_core::process_ledger",
@@ -443,34 +399,3 @@ pub async fn production_process_sandbox_registry_async(
     ));
     Ok(Arc::new(registry))
 }
-
-async fn open_row_count_for_runtime(
-    storage: &SurrealStorage,
-    resource_scope: &ReclaimResourceScope,
-    runtime_instance: &EmbeddedRuntimeInstanceDescriptor,
-) -> Result<i64, ProcessLedgerError> {
-        let bindings = OpenRowCountBindings {
-            runtime_instance_id: runtime_instance.instance_id,
-            owner_account_id: resource_scope.account_uuid.to_string(),
-            actor_principal_id: resource_scope.actor_uuid.to_string(),
-            authenticated_session_id: resource_scope.session_uuid.to_string(),
-            access_space_id: resource_scope.access_space_uuid.to_string(),
-            workspace_id: resource_scope.workspace_id.clone(),
-        };
-        storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
-                        .query_first::<i64, _>(OPEN_ROW_COUNT_FOR_RUNTIME, bindings)
-                        .await
-                })
-            })
-            .await
-            .map_err(|error| ProcessLedgerError::Store(error.to_string()))?
-            .ok_or_else(|| {
-                ProcessLedgerError::Store(
-                    "Surreal open-row count returned no exact-scope result".to_owned(),
-                )
-            })
-}
-

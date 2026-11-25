@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::model_runtime::WarmAgentTransport;
 
@@ -437,56 +436,8 @@ pub struct DetachedProcessIdentity {
     pub os_creation_time_100ns: Option<u64>,
 }
 
-/// Evidence returned by the adapter that owns a crash-detached process.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DetachedReclaimOutcome {
-    /// The owner observed this terminal status.
-    Observed(ProcessStatus),
-    /// The owner ended the process and verified that it is gone, but no exit
-    /// status can be read.
-    Terminated,
-    /// The owner proved that no process with the recorded identity exists on
-    /// this host. Nothing was signalled and no exit status can be read.
-    AlreadyAbsent,
-}
-
-impl From<RestartCleanupOutcome> for DetachedReclaimOutcome {
-    fn from(outcome: RestartCleanupOutcome) -> Self {
-        match outcome {
-            RestartCleanupOutcome::Terminated => Self::Terminated,
-            RestartCleanupOutcome::AlreadyAbsent => Self::AlreadyAbsent,
-        }
-    }
-}
-
-/// A failed detached reclaim, split at the first effect on the process.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum DetachedReclaimError {
-    /// Refused or failed before anything was done to the process.
-    #[error("{0}")]
-    BeforeInvocation(SandboxAdapterError),
-    /// The process may have been signalled; its state is not proven.
-    #[error("{0}")]
-    AfterInvocation(SandboxAdapterError),
-}
-
-impl From<DetachedReclaimError> for SandboxAdapterError {
-    fn from(error: DetachedReclaimError) -> Self {
-        match error {
-            DetachedReclaimError::BeforeInvocation(error)
-            | DetachedReclaimError::AfterInvocation(error) => error,
-        }
-    }
-}
-
 #[async_trait]
 pub trait SandboxAdapter: Send + Sync {
-    /// Pure pre-effect rejection for adapters that do not expose ordinary spawn.
-    /// Success does not assert that a later acquisition error had no effect.
-    fn validate_spawn_acquisition(&self) -> Result<(), SandboxAdapterError> {
-        Ok(())
-    }
-
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError>;
 
     /// Spawn a live process whose stdout, stderr, tree-termination authority,
@@ -571,38 +522,16 @@ pub trait SandboxAdapter: Send + Sync {
     async fn kill(&self, handle: &ProcessHandle, signal: Signal)
         -> Result<(), SandboxAdapterError>;
 
-    /// Complete adapter-owned cleanup after an observed terminal process.
-    /// This is idempotent and must not signal the target process. Adapters
-    /// without extra terminal cleanup perform no work by default.
-    async fn cleanup_terminal(
+    /// Reclaim a crash-detached process through its owning adapter. Container
+    /// and VM adapters can reconstruct their durable handle and use their
+    /// normal kill path; host-attached adapters override this to verify exact
+    /// OS generation and executable identity before termination.
+    async fn reclaim_detached(
         &self,
-        _handle: &ProcessHandle,
+        identity: &DetachedProcessIdentity,
+        signal: Signal,
     ) -> Result<(), SandboxAdapterError> {
-        Ok(())
-    }
-
-    /// Reclaim a crash-detached process through its owning adapter and return
-    /// what that adapter observed. The default uses the adapter's normal kill
-    /// and status path; an acknowledged kill without an observed terminal
-    /// status is a failure, never a success. Host-attached adapters override
-    /// this to verify exact OS generation and executable identity first.
-    async fn reclaim_detached_observed(
-        &self, identity: &DetachedProcessIdentity, signal: Signal,
-    ) -> Result<DetachedReclaimOutcome, DetachedReclaimError> {
         self.kill(&identity.handle, signal).await
-            .map_err(DetachedReclaimError::AfterInvocation)?;
-        match self.detached_status(identity).await
-            .map_err(DetachedReclaimError::AfterInvocation)?
-        {
-            status @ (ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) =>
-                Ok(DetachedReclaimOutcome::Observed(status)),
-            status => Err(DetachedReclaimError::AfterInvocation(
-                SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: identity.handle.adapter_id.clone(),
-                    reason: format!("kill was acknowledged without a terminal status: {status:?}"),
-                },
-            )),
-        }
     }
 
     /// Reconcile a handle persisted by a previous backend boot.
@@ -624,22 +553,13 @@ pub trait SandboxAdapter: Send + Sync {
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError>;
 
     /// Query the owning adapter's authoritative state for a crash-detached
-    /// process. This mirrors [`SandboxAdapter::reclaim_detached_observed`] and
-    /// defaults to the adapter's normal durable-handle status path.
+    /// process. This mirrors [`SandboxAdapter::reclaim_detached`] and defaults
+    /// to the adapter's normal durable-handle status path.
     async fn detached_status(
         &self,
         identity: &DetachedProcessIdentity,
     ) -> Result<ProcessStatus, SandboxAdapterError> {
         self.status(&identity.handle).await
-    }
-
-    /// Return only a retained terminal outcome whose original detached owner completed cleanup.
-    fn cached_settled_detached_terminal(
-        &self,
-        identity: &DetachedProcessIdentity,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
-        let _ = identity;
-        Ok(None)
     }
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError>;

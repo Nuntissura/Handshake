@@ -326,10 +326,11 @@ impl crate::sandbox::SandboxAdapter for PalmistryWatcherAdapter {
         Err(Self::unsupported("generic kill"))
     }
 
-    async fn reclaim_detached_observed(
-        &self, identity: &crate::sandbox::DetachedProcessIdentity,
+    async fn reclaim_detached(
+        &self,
+        identity: &crate::sandbox::DetachedProcessIdentity,
         _signal: crate::sandbox::Signal,
-    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
+    ) -> Result<(), crate::sandbox::SandboxAdapterError> {
         #[cfg(target_os = "windows")]
         {
             crate::sandbox::handshake_native::reclaim_verified_detached_process(
@@ -341,9 +342,7 @@ impl crate::sandbox::SandboxAdapter for PalmistryWatcherAdapter {
         #[cfg(not(target_os = "windows"))]
         {
             let _ = identity;
-            Err(crate::sandbox::DetachedReclaimError::BeforeInvocation(
-                Self::unsupported("detached reclaim on this host"),
-            ))
+            Err(Self::unsupported("detached reclaim on this host"))
         }
     }
 

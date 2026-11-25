@@ -410,33 +410,6 @@ impl SandboxAdapter for GvisorAdapter {
         Ok(())
     }
 
-    /// The in-memory kill flag proves nothing about a running `runsc do`, so a
-    /// reclaim kills every process of this sandbox id and verifies that none is
-    /// left, for a handle of this boot as for one of a prior boot.
-    async fn reclaim_detached_observed(
-        &self,
-        identity: &crate::sandbox::DetachedProcessIdentity,
-        signal: Signal,
-    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
-        use crate::sandbox::DetachedReclaimError::{AfterInvocation, BeforeInvocation};
-        let handle = &identity.handle;
-        if handle.adapter_id != AdapterId::new(GVISOR_ADAPTER_ID)
-            || !is_valid_durable_sandbox_id(&handle.sandbox_internal_id)
-        {
-            return Err(BeforeInvocation(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            }));
-        }
-        if self.ensure_handle(handle).is_ok() {
-            // No further exec may start under a handle that is being reclaimed.
-            self.kill(handle, signal).await.map_err(BeforeInvocation)?;
-        }
-        self.cleanup_after_restart(handle)
-            .await
-            .map(Into::into)
-            .map_err(AfterInvocation)
-    }
-
     async fn cleanup_after_restart(
         &self,
         handle: &ProcessHandle,

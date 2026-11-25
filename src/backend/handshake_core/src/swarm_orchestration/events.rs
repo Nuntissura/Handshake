@@ -31,9 +31,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
-use crate::storage::surreal::{
-    SurrealSwarmOutboxEvent, SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxStore,
-};
+use crate::storage::surreal::{SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxStore};
 use uuid::Uuid;
 
 use super::ids::ModelInstanceId;
@@ -194,44 +192,6 @@ impl SwarmEventSink for RecordingSwarmSink {
     }
 }
 
-pub(crate) struct StableTerminalEvent {
-    event: FlightRecorderEvent,
-}
-
-pub(crate) type StableTerminalEmitter =
-    Arc<dyn Fn(StableTerminalEvent) -> Result<(), String> + Send + Sync>;
-
-impl StableTerminalEvent {
-    pub(crate) fn event(&self) -> &FlightRecorderEvent { &self.event }
-
-    pub(crate) fn matches_original(&self, original: &str) -> Result<bool, String> {
-        let mut prior: FlightRecorderEvent =
-            serde_json::from_str(original).map_err(|_| "invalid original terminal envelope")?;
-        let mut current = self.event.clone();
-        prior.validate().map_err(|_| "invalid original terminal envelope")?;
-        current.validate().map_err(|_| "invalid terminal envelope")?;
-        prior.normalize_payload();
-        current.normalize_payload();
-        let mut prior = serde_json::to_value(prior).map_err(|_| "invalid original terminal envelope")?;
-        let raw: serde_json::Value =
-            serde_json::from_str(original).map_err(|_| "invalid original terminal envelope")?;
-        let raw_keys = raw.as_object().ok_or("invalid original terminal envelope")?;
-        let normalized_keys = prior.as_object().ok_or("invalid original terminal envelope")?;
-        if raw_keys.len() != normalized_keys.len()
-            || raw_keys.keys().any(|key| !normalized_keys.contains_key(key))
-        {
-            return Ok(false);
-        }
-        let mut current = serde_json::to_value(current).map_err(|_| "invalid terminal envelope")?;
-        for value in [&mut prior, &mut current] {
-            let object = value.as_object_mut().ok_or("invalid terminal envelope")?;
-            object.remove("timestamp");
-            object.remove("trace_id");
-        }
-        Ok(prior == current)
-    }
-}
-
 /// Production sink: maps swarm events to flight-recorder envelopes. The
 /// FR-EVT-SWARM-* id is stamped into `payload.fr_event_id` (see registry note
 /// at the top of this file). Uses the generic [`FlightRecorderEventType::System`]
@@ -243,7 +203,6 @@ where
 {
     trace_id: Uuid,
     emit_fn: F,
-    stable_emit: Option<StableTerminalEmitter>,
     resource_scope: Option<ExactResourceScopeAttribution>,
 }
 
@@ -256,7 +215,6 @@ where
             trace_id,
             emit_fn,
             resource_scope: None,
-            stable_emit: None,
         }
     }
 
@@ -271,13 +229,7 @@ where
             trace_id,
             emit_fn,
             resource_scope: Some(resource_scope),
-            stable_emit: None,
         }
-    }
-
-    pub(crate) fn with_stable_terminal_emitter(mut self, emit: Option<StableTerminalEmitter>) -> Self {
-        self.stable_emit = emit;
-        self
     }
 
     fn build(&self, event: &SwarmEvent) -> Result<FlightRecorderEvent, String> {
@@ -477,17 +429,6 @@ where
 {
     fn emit(&self, event: SwarmEvent) -> Result<(), String> {
         let fr_event = self.build(&event)?;
-        if self.resource_scope.is_some()
-            && matches!(&event,
-                SwarmEvent::SessionCancelled { event_id: Some(_), .. }
-                | SwarmEvent::SessionCompleted { event_id: Some(_), .. }
-                | SwarmEvent::SessionFailed { event_id: Some(_), .. }
-                | SwarmEvent::ResourceEvicted { event_id: Some(_), .. })
-        {
-            if let Some(emit) = &self.stable_emit {
-                return emit(StableTerminalEvent { event: fr_event });
-            }
-        }
         (self.emit_fn)(fr_event)
     }
 }
@@ -511,7 +452,7 @@ pub struct DurableSwarmFrBridge {
     terminal_tx: tokio::sync::mpsc::Sender<DurableTerminalCommand>,
     shutdown_tx: tokio::sync::watch::Sender<bool>,
     accepting: Arc<AtomicBool>,
-    terminal_fenced: Arc<std::sync::Mutex<TerminalProducerFence>>,
+    terminal_fenced: Arc<AtomicBool>,
     dropped: Arc<AtomicU64>,
     terminal_retry_count: Arc<AtomicU64>,
 }
@@ -519,92 +460,34 @@ pub struct DurableSwarmFrBridge {
 #[derive(Clone)]
 pub struct DurableSwarmFrDrain {
     bridge: DurableSwarmFrBridge,
-    task: Arc<tokio::sync::Mutex<DurableSwarmFrDrainState>>,
+    task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
     drain_failed: Arc<AtomicBool>,
-}
-
-enum DurableSwarmFrDrainState {
-    PendingJoin(tokio::task::JoinHandle<()>),
-    Settled(bool),
 }
 
 impl DurableSwarmFrDrain {
     pub async fn drain_and_join(&self, timeout: Duration) -> bool {
-        let deadline = tokio::time::Instant::now() + timeout;
         self.bridge.begin_shutdown();
-        let Ok(mut task) = tokio::time::timeout_at(deadline, self.task.lock()).await else {
-            return false;
+        let mut task = self.task.lock().await;
+        let Some(join_handle) = task.as_mut() else {
+            return true;
         };
-        let joined = match &mut *task {
-            DurableSwarmFrDrainState::Settled(result) => return *result,
-            DurableSwarmFrDrainState::PendingJoin(join_handle) => {
-                match tokio::time::timeout_at(deadline, join_handle).await {
-                    Ok(result) => result.is_ok(),
-                    Err(_) => return false,
-                }
+        let joined = match tokio::time::timeout(timeout, join_handle).await {
+            Ok(result) => {
+                task.take();
+                result.is_ok()
             }
+            Err(_) => false,
         };
-        let result = joined
+        joined
             && !self.drain_failed.load(Ordering::Acquire)
             && !self.bridge.terminal_is_fenced()
-            && self.bridge.dropped_count() == 0;
-        *task = DurableSwarmFrDrainState::Settled(result);
-        result
-    }
-}
-
-
-#[derive(Default)]
-struct TerminalProducerFence {
-    timed_out_commands: usize,
-    definitive_failure: bool,
-}
-
-enum TerminalAckVerdict { Pending, Accepted, Rejected }
-
-struct TerminalCommandAckState {
-    verdict: TerminalAckVerdict,
-    timeout_registered: bool,
-}
-
-struct TerminalCommandAck {
-    fence: Arc<std::sync::Mutex<TerminalProducerFence>>,
-    state: std::sync::Mutex<TerminalCommandAckState>,
-}
-
-impl TerminalCommandAck {
-    fn publish(&self, accepted: bool) {
-        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-        if !matches!(state.verdict, TerminalAckVerdict::Pending) { return; }
-        let mut fence = self.fence.lock().unwrap_or_else(|error| error.into_inner());
-        if state.timeout_registered {
-            fence.timed_out_commands -= 1;
-            state.timeout_registered = false;
-        }
-        if !accepted { fence.definitive_failure = true; }
-        state.verdict = if accepted { TerminalAckVerdict::Accepted } else { TerminalAckVerdict::Rejected };
-    }
-
-    fn observe_timeout(&self) {
-        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-        if matches!(state.verdict, TerminalAckVerdict::Pending) && !state.timeout_registered {
-            let mut fence = self.fence.lock().unwrap_or_else(|error| error.into_inner());
-            fence.timed_out_commands += 1;
-            state.timeout_registered = true;
-        }
-    }
-
-    fn observe_definitive_failure(&self) {
-        self.publish(false);
-        self.fence.lock().unwrap_or_else(|error| error.into_inner()).definitive_failure = true;
+            && self.bridge.dropped_count() == 0
     }
 }
 
 struct DurableTerminalCommand {
     event: FlightRecorderEvent,
-    stable_operation: Option<StableTerminalEvent>,
     ack: std::sync::mpsc::SyncSender<Result<(), String>>,
-    command_ack: Arc<TerminalCommandAck>,
 }
 
 impl DurableSwarmFrBridge {
@@ -631,7 +514,7 @@ impl DurableSwarmFrBridge {
         let (bridge, task, drain_failed) = Self::spawn_inner(recorder, Some(outbox), capacity);
         let drain = DurableSwarmFrDrain {
             bridge: bridge.clone(),
-            task: Arc::new(tokio::sync::Mutex::new(DurableSwarmFrDrainState::PendingJoin(task))),
+            task: Arc::new(tokio::sync::Mutex::new(Some(task))),
             drain_failed,
         };
         (bridge, drain)
@@ -649,7 +532,7 @@ impl DurableSwarmFrBridge {
             Self::spawn_inner(Arc::new(UnavailableFlightRecorder), Some(outbox), capacity);
         let drain = DurableSwarmFrDrain {
             bridge: bridge.clone(),
-            task: Arc::new(tokio::sync::Mutex::new(DurableSwarmFrDrainState::PendingJoin(task))),
+            task: Arc::new(tokio::sync::Mutex::new(Some(task))),
             drain_failed,
         };
         (bridge, drain)
@@ -670,13 +553,13 @@ impl DurableSwarmFrBridge {
             tokio::sync::mpsc::channel::<DurableTerminalCommand>(capacity);
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
         let accepting = Arc::new(AtomicBool::new(true));
-        let terminal_fenced = Arc::new(std::sync::Mutex::new(TerminalProducerFence::default()));
+        let terminal_fenced = Arc::new(AtomicBool::new(false));
+        let task_terminal_fenced = Arc::clone(&terminal_fenced);
         let terminal_retry_count = Arc::new(AtomicU64::new(0));
         let task_retry_count = Arc::clone(&terminal_retry_count);
         let drain_failed = Arc::new(AtomicBool::new(false));
         let task_drain_failed = Arc::clone(&drain_failed);
         let task = tokio::spawn(async move {
-            let mut pending_finalization: Option<SurrealSwarmOutboxEvent> = None;
             let mut retry_tick = tokio::time::interval(Duration::from_millis(100));
             loop {
                 tokio::select! {
@@ -692,7 +575,6 @@ impl DurableSwarmFrBridge {
                                     capacity,
                                     command,
                                     &task_retry_count,
-                                    &mut pending_finalization,
                                 ).await;
                             }
                             while let Some(event) = rx.recv().await {
@@ -713,29 +595,11 @@ impl DurableSwarmFrBridge {
                             }
                             if let Some(outbox) = outbox.as_ref() {
                                 loop {
-                                    match retry_one_terminal_outbox(outbox, &recorder, &task_retry_count, &mut pending_finalization).await {
-                                        Ok(true) => {}
-                                        Ok(false) => {
-                                            match outbox.has_scoped_rows().await {
-                                                Ok(false) => {}
-                                                Ok(true) => {
-                                                    task_drain_failed.store(true, Ordering::Release);
-                                                    tracing::warn!(
-                                                        target: "handshake_core::swarm_orchestration",
-                                                        "scoped terminal swarm outbox rows remain after shutdown drain"
-                                                    );
-                                                }
-                                                Err(error) => {
-                                                    task_drain_failed.store(true, Ordering::Release);
-                                                    tracing::warn!(
-                                                        target: "handshake_core::swarm_orchestration",
-                                                        %error,
-                                                        "scoped terminal swarm outbox emptiness is unconfirmed after shutdown drain"
-                                                    );
-                                                }
-                                            }
-                                            break;
+                                    match retry_one_terminal_outbox(outbox, &recorder, &task_retry_count).await {
+                                        Ok(true) => {
+                                            task_terminal_fenced.store(false, Ordering::Release);
                                         }
+                                        Ok(false) => break,
                                         Err(error) => {
                                             task_drain_failed.store(true, Ordering::Release);
                                             tracing::warn!(
@@ -751,12 +615,6 @@ impl DurableSwarmFrBridge {
                             break;
                         }
                     },
-                    _ = retry_tick.tick(), if outbox.is_some() => {
-                        if let Some(outbox) = outbox.as_ref() {
-                            let _ = retry_one_terminal_outbox(outbox, &recorder, &task_retry_count, &mut pending_finalization).await;
-                        }
-                        retry_tick.reset();
-                    },
                     command = terminal_rx.recv() => if let Some(command) = command {
                         persist_and_attempt_terminal(
                             &recorder,
@@ -764,7 +622,6 @@ impl DurableSwarmFrBridge {
                             capacity,
                             command,
                             &task_retry_count,
-                            &mut pending_finalization,
                         ).await;
                     },
                     event = rx.recv() => match event {
@@ -786,6 +643,13 @@ impl DurableSwarmFrBridge {
                         }
                         None => {
                             if terminal_rx.is_closed() { break; }
+                        }
+                    },
+                    _ = retry_tick.tick(), if outbox.is_some() => {
+                        if let Some(outbox) = outbox.as_ref() {
+                            if matches!(retry_one_terminal_outbox(outbox, &recorder, &task_retry_count).await, Ok(true)) {
+                                task_terminal_fenced.store(false, Ordering::Release);
+                            }
                         }
                     },
                 }
@@ -810,36 +674,20 @@ impl DurableSwarmFrBridge {
     /// success means the embedded outbox commit was acknowledged; rejection
     /// is returned to the lifecycle producer and fences later terminal writes.
     pub fn emit(&self, event: FlightRecorderEvent) -> Result<(), String> {
-        self.emit_inner(event, None)
-    }
-
-    pub(crate) fn emit_stable(&self, event: StableTerminalEvent) -> Result<(), String> {
-        self.emit_inner(event.event.clone(), Some(event))
-    }
-
-    fn emit_inner(
-        &self, event: FlightRecorderEvent, stable_operation: Option<StableTerminalEvent>,
-    ) -> Result<(), String> {
         if !self.accepting.load(Ordering::Acquire) {
             self.dropped.fetch_add(1, Ordering::Relaxed);
             return Err("swarm Flight Recorder bridge is not accepting events".to_string());
         }
         if is_terminal_flight_recorder_event(&event) {
-            if self.terminal_is_fenced() {
+            if self.terminal_fenced.load(Ordering::Acquire) {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
                 return Err("terminal swarm Flight Recorder producer is fenced".to_string());
             }
             let (ack_tx, ack_rx) = std::sync::mpsc::sync_channel(1);
-            let command_ack = Arc::new(TerminalCommandAck {
-                fence: Arc::clone(&self.terminal_fenced),
-                state: std::sync::Mutex::new(TerminalCommandAckState {
-                    verdict: TerminalAckVerdict::Pending, timeout_registered: false,
-                }),
-            });
-            let command = DurableTerminalCommand { event, stable_operation, ack: ack_tx, command_ack: Arc::clone(&command_ack) };
+            let command = DurableTerminalCommand { event, ack: ack_tx };
             if let Err(error) = self.terminal_tx.try_send(command) {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
-                command_ack.observe_definitive_failure();
+                self.terminal_fenced.store(true, Ordering::Release);
                 return Err(format!(
                     "terminal swarm Flight Recorder spool capacity exhausted; producer fenced: {error}"
                 ));
@@ -852,21 +700,15 @@ impl DurableSwarmFrBridge {
                 ack_rx.recv_timeout(Duration::from_secs(5))
             };
             match acknowledgement {
-                Ok(Ok(())) => {
-                    command_ack.publish(true);
-                    Ok(())
-                }
+                Ok(Ok(())) => Ok(()),
                 Ok(Err(error)) => {
-                    command_ack.observe_definitive_failure();
+                    self.terminal_fenced.store(true, Ordering::Release);
                     Err(error)
                 }
                 Err(error) => {
-                    match error {
-                        std::sync::mpsc::RecvTimeoutError::Timeout => command_ack.observe_timeout(),
-                        std::sync::mpsc::RecvTimeoutError::Disconnected => command_ack.observe_definitive_failure(),
-                    }
+                    self.terminal_fenced.store(true, Ordering::Release);
                     Err(format!(
-                        "terminal swarm Flight Recorder durable acknowledgement failed: {error}"
+                        "terminal swarm Flight Recorder durable acknowledgement failed; producer fenced: {error}"
                     ))
                 }
             }
@@ -898,8 +740,7 @@ impl DurableSwarmFrBridge {
     }
 
     pub fn terminal_is_fenced(&self) -> bool {
-        let fence = self.terminal_fenced.lock().unwrap_or_else(|error| error.into_inner());
-        fence.definitive_failure || fence.timed_out_commands != 0
+        self.terminal_fenced.load(Ordering::Acquire)
     }
 }
 
@@ -934,37 +775,26 @@ async fn persist_and_attempt_terminal(
     capacity: usize,
     command: DurableTerminalCommand,
     retry_count: &AtomicU64,
-    pending_finalization: &mut Option<SurrealSwarmOutboxEvent>,
 ) {
-    let DurableTerminalCommand { event, stable_operation, ack, command_ack } = command;
+    let DurableTerminalCommand { event, ack } = command;
     if let Some(outbox) = outbox {
-        if let Err(error) = event.validate() {
-            command_ack.publish(false);
-            let _ = ack.send(Err(error.to_string()));
-            return;
-        }
-        let persistence = match stable_operation {
-            Some(operation) => outbox.persist_stable_terminal(&operation, capacity)
-                .await.map_err(|error| error.to_string()),
-            None => persist_terminal_outbox(outbox, &event, capacity).await,
-        };
-        match persistence {
+        match persist_terminal_outbox(outbox, &event, capacity).await {
             Ok(outcome) => {
-                command_ack.publish(true);
                 let _ = ack.send(Ok(()));
                 if outcome == SurrealSwarmOutboxPersistOutcome::AlreadyCommitted {
                     return;
                 }
-                if let Err(error) = retry_one_terminal_outbox(outbox, recorder, retry_count, pending_finalization).await {
+                if let Err(error) = deliver_terminal_outbox_event(outbox, recorder, &event).await {
+                    retry_count.fetch_add(1, Ordering::Relaxed);
                     tracing::warn!(
                         target: "handshake_core::swarm_orchestration",
                         %error,
-                        "terminal swarm outbox head remains pending"
+                        event_id = %event.event_id,
+                        "terminal swarm event remains in durable embedded outbox"
                     );
                 }
             }
             Err(error) => {
-                command_ack.publish(false);
                 let _ = ack.send(Err(error));
             }
         }
@@ -972,12 +802,10 @@ async fn persist_and_attempt_terminal(
         // Focused test seam: the recorder itself is the durable acknowledgement.
         match recorder.record_event(event).await {
             Ok(()) => {
-                command_ack.publish(true);
                 let _ = ack.send(Ok(()));
             }
             Err(error) => {
                 retry_count.fetch_add(1, Ordering::Relaxed);
-                command_ack.publish(false);
                 let _ = ack.send(Err(format!(
                     "terminal Flight Recorder persistence failed: {error}"
                 )));
@@ -998,23 +826,25 @@ async fn persist_terminal_outbox(
         .map_err(|error| error.to_string())
 }
 
-async fn record_terminal_outbox_event(
+async fn deliver_terminal_outbox_event(
     outbox: &SurrealSwarmOutboxStore,
     recorder: &Arc<dyn crate::flight_recorder::FlightRecorder>,
-    event: FlightRecorderEvent,
-    row: &SurrealSwarmOutboxEvent,
+    event: &FlightRecorderEvent,
 ) -> Result<(), String> {
-    match recorder.record_event(event).await {
-        Ok(()) => Ok(()),
+    match recorder.record_event(event.clone()).await {
+        Ok(()) => {
+            outbox
+                .mark_delivered(&event.event_id.to_string())
+                .await
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        }
         Err(error) => {
-            let primary: String = error.to_string().chars().take(4096).collect();
-            match outbox.record_failure_exact(row, &primary).await {
-                Ok(()) => Err(primary),
-                Err(update_error) => {
-                    let secondary: String = update_error.to_string().chars().take(4096).collect();
-                    Err(format!("{primary}; outbox failure annotation unconfirmed: {secondary}"))
-                }
-            }
+            outbox
+                .record_failure(&event.event_id.to_string(), &error.to_string())
+                .await
+                .map_err(|update_error| update_error.to_string())?;
+            Err(error.to_string())
         }
     }
 }
@@ -1023,39 +853,27 @@ async fn retry_one_terminal_outbox(
     outbox: &SurrealSwarmOutboxStore,
     recorder: &Arc<dyn crate::flight_recorder::FlightRecorder>,
     retry_count: &AtomicU64,
-    pending_finalization: &mut Option<SurrealSwarmOutboxEvent>,
 ) -> Result<bool, String> {
-    let row = match &mut *pending_finalization {
-        Some(row) => row,
-        slot @ None => {
-            let Some(row) = outbox
-                .next_pending()
-                .await
-                .map_err(|error| error.to_string())?
-            else {
-                return Ok(false);
-            };
-            let event: FlightRecorderEvent =
-                serde_json::from_str(&row.event_json).map_err(|error| error.to_string())?;
-            if event.event_id.to_string() != row.event_id {
-                return Err("embedded swarm outbox event identity mismatch".to_string());
-            }
-            if let Err(error) = record_terminal_outbox_event(outbox, recorder, event, &row).await {
-                retry_count.fetch_add(1, Ordering::Relaxed);
-                return Err(format!("terminal outbox head {}: {error}", row.event_id));
-            }
-            slot.insert(row)
-        }
+    let Some(row) = outbox
+        .next_pending()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(false);
     };
-    if let Err(error) = outbox.finalize_exact(row).await {
-        retry_count.fetch_add(1, Ordering::Relaxed);
-        return Err(format!("terminal outbox head {}: {error}", row.event_id));
+    let event: FlightRecorderEvent =
+        serde_json::from_str(&row.event_json).map_err(|error| error.to_string())?;
+    if event.event_id.to_string() != row.event_id {
+        return Err("embedded swarm outbox event identity mismatch".to_string());
     }
-    *pending_finalization = None;
+    if let Err(error) = deliver_terminal_outbox_event(outbox, recorder, &event).await {
+        retry_count.fetch_add(1, Ordering::Relaxed);
+        return Err(error);
+    }
     Ok(true)
 }
 
-pub(crate) fn is_terminal_flight_recorder_event(event: &FlightRecorderEvent) -> bool {
+fn is_terminal_flight_recorder_event(event: &FlightRecorderEvent) -> bool {
     event.event_type == FlightRecorderEventType::LlmInference
         || event
             .payload

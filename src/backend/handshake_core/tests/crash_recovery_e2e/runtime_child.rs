@@ -19,7 +19,7 @@ use handshake_core::{
     session_checkpoint::{CheckpointStateKind, SessionCheckpoint},
     storage::{
         surreal::{bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig},
-        Database, KernelSessionRunObservation,
+        Database,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -571,13 +571,13 @@ pub async fn seed_closed_recovery_store(data_dir: &Path) -> SeededRecoveryEviden
         },
     )
     .await;
-    let claimed = database
+    database
         .claim_kernel_session_run(&session_run_id, "mt195-real-binary-seed", 300)
         .await
         .expect("claim real-binary recovery candidate")
         .expect("real-binary recovery candidate is claimable");
     database
-        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&claimed), SessionRunState::Running)
+        .update_kernel_session_run_state(&session_run_id, SessionRunState::Running)
         .await
         .expect("mark real-binary recovery candidate running");
     let replay_event = NewKernelEvent::builder(
@@ -688,13 +688,13 @@ async fn run_child_entrypoint_from_env() {
         },
     )
     .await;
-    let claimed = database
+    database
         .claim_kernel_session_run(&session_run_id, "mt195-runtime-child", 300)
         .await
         .expect("claim MT-195 child session")
         .expect("queued MT-195 child session is claimable");
     database
-        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&claimed), SessionRunState::Running)
+        .update_kernel_session_run_state(&session_run_id, SessionRunState::Running)
         .await
         .expect("mark MT-195 child session running");
     let replay_event = NewKernelEvent::builder(

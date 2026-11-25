@@ -231,23 +231,12 @@ fn one_field_mismatches(
 }
 
 fn terminal_event(label: &str) -> FlightRecorderEvent {
-    let trace_id = Uuid::now_v7();
-    let model_id = "mt020-outbox-model";
-    let mut event = FlightRecorderEvent::new(
+    FlightRecorderEvent::new(
         FlightRecorderEventType::LlmInference,
         FlightRecorderActor::Agent,
-        trace_id,
-        json!({
-            "mt": "MT-020", "label": label,
-            "type": "llm_inference", "trace_id": trace_id.to_string(),
-            "model_id": model_id,
-            "token_usage": {
-                "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2
-            }
-        }),
-    );
-    event.model_id = Some(model_id.to_owned());
-    event
+        Uuid::now_v7(),
+        json!({"mt": "MT-020", "label": label}),
+    )
 }
 
 fn non_terminal_event(label: &str) -> FlightRecorderEvent {

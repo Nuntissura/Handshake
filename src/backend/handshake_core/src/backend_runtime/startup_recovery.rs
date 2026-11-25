@@ -3,7 +3,7 @@ use super::*;
 pub(super) async fn perform_startup_recovery(
     surreal: &crate::storage::surreal::SurrealStorage,
     reclaim_resource_scope: ReclaimResourceScope,
-) -> Result<BoundedRestartResumeOutcome, Box<dyn std::error::Error>> {
+) -> Result<crate::session_checkpoint::ResumeReport, Box<dyn std::error::Error>> {
     let sandbox_registry = Arc::new(build_startup_recovery_registry_async().await);
     let process_store = Arc::new(SurrealProcessLedgerStore::new(
         surreal.clone(),
@@ -21,31 +21,33 @@ pub(super) async fn perform_startup_recovery(
     .await?
     .run_with_bound(restart_resume_boot_timeout())
     .await?;
-    if let BoundedRestartResumeOutcome::TimedOut {
-        timeout,
-        report,
-        evidence_persisted,
-    } = &restart_outcome {
-        tracing::error!(target: "handshake_core::restart_resume",
-            report_id = %report.report_id, timeout_ms = timeout.as_millis() as u64,
-            evidence_persisted = *evidence_persisted, "startup restart-resume timed out; incomplete report persistence is confirmed only when acknowledged");
-    }
-    Ok(restart_outcome)
+    let restart_report = match restart_outcome {
+        BoundedRestartResumeOutcome::Completed(report) => report,
+        BoundedRestartResumeOutcome::TimedOut {
+            timeout,
+            report,
+            evidence_persisted,
+        } => {
+            tracing::error!(target: "handshake_core::restart_resume",
+                report_id = %report.report_id, timeout_ms = timeout.as_millis() as u64,
+                evidence_persisted, "startup restart-resume timed out; incomplete report persistence is confirmed only when acknowledged");
+            report
+        }
+    };
+    Ok(restart_report)
 }
 
 pub(super) fn record_startup_recovery_report(
-    outcome: &BoundedRestartResumeOutcome,
+    restart_report: &crate::session_checkpoint::ResumeReport,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    write_startup_recovery_report(outcome)?;
-    if let BoundedRestartResumeOutcome::Completed(restart_report) = outcome {
-        tracing::info!(
-            target: "handshake_core::restart_resume",
-            sessions_examined = restart_report.sessions_examined,
-            sessions_resumed = restart_report.sessions_resumed.len(),
-            sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
-            "startup restart-resume outcome recorded against embedded SurrealDB"
-        );
-    }
+    write_startup_recovery_report(restart_report)?;
+    tracing::info!(
+        target: "handshake_core::restart_resume",
+        sessions_examined = restart_report.sessions_examined,
+        sessions_resumed = restart_report.sessions_resumed.len(),
+        sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
+        "startup restart-resume outcome recorded against embedded SurrealDB"
+    );
     Ok(())
 }
 
@@ -58,7 +60,7 @@ pub(super) fn startup_recovery_only_requested() -> bool {
 }
 
 fn write_startup_recovery_report(
-    outcome: &BoundedRestartResumeOutcome,
+    report: &crate::session_checkpoint::ResumeReport,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let Some(path) = std::env::var_os("HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE").map(PathBuf::from)
     else {
@@ -67,16 +69,7 @@ fn write_startup_recovery_report(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let report = outcome.report();
-    let (outcome_kind, evidence_persisted) = match outcome {
-        BoundedRestartResumeOutcome::Completed(_) => ("completed", true),
-        BoundedRestartResumeOutcome::TimedOut { evidence_persisted, .. } => {
-            ("timed_out", *evidence_persisted)
-        }
-    };
     let payload = serde_json::json!({
-        "outcome": outcome_kind,
-        "evidence_persisted": evidence_persisted,
         "report_id": report.report_id,
         "sessions_examined": report.sessions_examined,
         "sessions_resumed": report.sessions_resumed.len(),

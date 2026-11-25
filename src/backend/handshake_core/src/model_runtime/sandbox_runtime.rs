@@ -47,7 +47,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::{stream, FutureExt};
+use futures::stream;
 
 use crate::sandbox::{
     AdapterId, BindMode, BindSpec, Command, ImageRef, NetPolicy, ProcessHandle, ProcessSpec,
@@ -342,7 +342,6 @@ pub struct SandboxModelRuntime {
     /// The ephemeral handle minted at `load()` via `adapter.spawn`, with the
     /// GGUF dir bound via `adapter.fs_bind` so the per-exec initramfs bakes it.
     handle: Option<ProcessHandle>,
-    generation: Option<ColdRuntimeTicket>,
     /// The `ModelId` minted at `load()`.
     model_id: ModelId,
     /// All-false declared capabilities (mirror the CLI bridge: a sandbox runner
@@ -368,14 +367,11 @@ impl SandboxModelRuntime {
     /// [`ModelRuntime::load`] to validate the GGUF, mint the ephemeral handle,
     /// and bind the model dir before `generate()`.
     pub fn new(adapter: Arc<dyn SandboxAdapter>, cfg: SandboxModelConfig) -> Self {
-        let model_id = ModelId::new_v7();
-        let generation = ColdRuntimeTicket::new(Arc::clone(&adapter), model_id);
         Self {
             adapter,
             cfg,
             handle: None,
-            generation: Some(generation),
-            model_id,
+            model_id: ModelId::new_v7(),
             declared_capabilities: ModelCapabilities::default(),
             runtime_cancel: CancellationToken::new(),
         }
@@ -384,18 +380,6 @@ impl SandboxModelRuntime {
     /// The ephemeral sandbox handle minted at `load()`, if loaded. Exposed so
     /// the factory can read `sandbox_internal_id` for the process-ledger START
     /// and so teardown can `kill` it.
-    pub(crate) fn cold_ticket(&self) -> ColdRuntimeTicket {
-        self.generation.as_ref().expect("current cold generation").clone()
-    }
-
-    pub(crate) fn finish_cold_generation(&mut self, generation: uuid::Uuid) {
-        if self.generation.as_ref().is_some_and(|current| current.generation() == generation) {
-            self.handle = None;
-            self.generation = None;
-            self.runtime_cancel = CancellationToken::new();
-        }
-    }
-
     pub fn handle(&self) -> Option<&ProcessHandle> {
         self.handle.as_ref()
     }
@@ -418,12 +402,6 @@ impl SandboxModelRuntime {
     }
 
     fn streaming_generate(&self, req: GenerateRequest) -> TokenStream {
-        if !self.generation.as_ref().is_some_and(ColdRuntimeTicket::can_generate) {
-            return Box::pin(stream::once(async {
-                Err(ModelRuntimeError::GenerateError("cold generation is not available for inference".into()))
-            }));
-        }
-
         let Some(handle) = self.handle.clone() else {
             return single_error_stream(ModelRuntimeError::GenerateError(
                 "sandbox model runtime generate before load: call load() to mint the microVM \
@@ -589,23 +567,41 @@ impl ModelRuntime for SandboxModelRuntime {
         }
 
         let spec = try_inference_process_spec(self.model_id, &self.cfg)?;
-        if self.generation.is_none() {
-            self.generation = Some(ColdRuntimeTicket::new(Arc::clone(&self.adapter), self.model_id));
-            self.runtime_cancel = CancellationToken::new();
+        let handle =
+            self.adapter.spawn(spec).await.map_err(|err| {
+                ModelRuntimeError::LoadError(format!("sandbox spawn failed: {err}"))
+            })?;
+        // Register the GGUF dir bind so the ephemeral per-exec initramfs bakes
+        // it (the CH adapter reads binds from handle state, not ProcessSpec.binds).
+        self.adapter
+            .fs_bind(
+                &handle,
+                self.cfg.gguf_root_bind.clone(),
+                PathBuf::from(GGUF_GUEST_ROOT),
+                BindMode::ReadOnly,
+            )
+            .await
+            .map_err(|err| {
+                ModelRuntimeError::LoadError(format!("sandbox gguf fs_bind failed: {err}"))
+            })?;
+        if let Some(bind) = runner_bind {
+            self.adapter
+                .fs_bind(&handle, bind.host_path, bind.guest_path, bind.mode)
+                .await
+                .map_err(|err| {
+                    ModelRuntimeError::LoadError(format!("sandbox runner fs_bind failed: {err}"))
+                })?;
         }
-        let ticket = self.cold_ticket();
-        let model_id = ticket.load(spec, self.cfg.gguf_root_bind.clone(), runner_bind).await?;
-        self.handle = ticket.0.state.lock().unwrap_or_else(|error| error.into_inner()).handle.clone();
-        Ok(model_id)
+
+        self.handle = Some(handle);
+        Ok(self.model_id)
     }
 
-    async fn unload(&mut self, id: ModelId) -> Result<(), ModelRuntimeError> {
-        if id != self.model_id {
-            return Err(ModelRuntimeError::UnloadError("model does not own this cold generation".into()));
-        }
-        if let Some(ticket) = self.generation.clone() {
-            ticket.cleanup_owned().await?;
-            self.finish_cold_generation(ticket.generation());
+    async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+        if let Some(handle) = self.handle.take() {
+            // Best-effort terminate the ephemeral handle; an error here is not
+            // fatal (any in-flight child is reaped by the adapter on drop).
+            let _ = self.adapter.kill(&handle, Signal::Term).await;
         }
         Ok(())
     }
@@ -658,410 +654,16 @@ impl ModelRuntime for SandboxModelRuntime {
     fn cancel(&self, token: CancellationToken) {
         token.cancel();
         self.runtime_cancel.cancel();
-        if let Some(ticket) = &self.generation {
-            // The exact owner retains this explicit request. Async unload or
-            // factory pending drain observes its original cleanup task.
-            if ticket.request_cleanup(Signal::Kill, false).is_none() {
-                if let Err(error) = ticket.start_cleanup() {
-                    ticket.0.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-                }
-            }
-        }
-    }
-
-}
-
-
-impl Drop for SandboxModelRuntime {
-    fn drop(&mut self) {
-        if let Some(ticket) = &self.generation {
-            ticket.abandon();
-        }
-    }
-}
-
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ColdPhase { Idle, Loading, Ready, Adopted, Cleanup, Closed, Unknown }
-
-struct ColdState {
-    phase: ColdPhase,
-    invoked: bool,
-    /// The adapter returned an error from spawn, so there is no handle to clean.
-    spawn_failed: bool,
-    delivered: bool,
-    factory_request: Option<String>,
-    handle: Option<ProcessHandle>,
-    failure: Option<String>,
-    cancel_requested: bool,
-    contexts: Vec<(Signal, Option<Arc<crate::capabilities::CapabilityRegistry>>)>,
-    signal_attempts: Vec<Signal>,
-    terminal: Option<crate::sandbox::ProcessStatus>,
-    exit_code: Option<i32>,
-    exit_code_observed: bool,
-}
-
-struct ColdGeneration {
-    id: uuid::Uuid,
-    model_id: ModelId,
-    adapter: Arc<dyn SandboxAdapter>,
-    state: std::sync::Mutex<ColdState>,
-    load: tokio::sync::Mutex<Option<tokio::task::JoinHandle<Result<ModelId, ModelRuntimeError>>>>,
-    cleanup: tokio::sync::Mutex<Option<tokio::task::JoinHandle<Result<(), ModelRuntimeError>>>>,
-}
-
-static RETAINED_COLD_GENERATIONS:
-    std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<uuid::Uuid, Arc<ColdGeneration>>>> =
-    std::sync::OnceLock::new();
-
-#[derive(Clone)]
-pub(crate) struct ColdRuntimeTicket(Arc<ColdGeneration>);
-
-#[derive(Clone, Copy)]
-pub(crate) enum ColdPendingDisposition { Adopted, Closed }
-
-struct ColdTaskGuard {
-    owner: Arc<ColdGeneration>,
-    completed: bool,
-}
-
-impl Drop for ColdTaskGuard {
-    fn drop(&mut self) {
-        if !self.completed {
-            let mut state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-            state.failure = Some("original cold operation interrupted; actual ownership retained".into());
-            if state.phase != ColdPhase::Cleanup {
-                state.phase = ColdPhase::Unknown;
-            }
-        }
-    }
-}
-
-impl ColdRuntimeTicket {
-    fn new(adapter: Arc<dyn SandboxAdapter>, model_id: ModelId) -> Self {
-        let owner = Arc::new(ColdGeneration {
-            id: uuid::Uuid::now_v7(), model_id, adapter,
-            state: std::sync::Mutex::new(ColdState {
-                phase: ColdPhase::Idle, invoked: false, spawn_failed: false, delivered: false,
-                factory_request: None,
-                handle: None, failure: None, cancel_requested: false,
-                contexts: Vec::new(), signal_attempts: Vec::new(), terminal: None,
-                exit_code: None, exit_code_observed: false,
-            }),
-            load: tokio::sync::Mutex::new(None), cleanup: tokio::sync::Mutex::new(None),
-        });
-        RETAINED_COLD_GENERATIONS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).insert(owner.id, Arc::clone(&owner));
-        Self(owner)
-    }
-
-    pub(crate) fn generation(&self) -> uuid::Uuid { self.0.id }
-
-    pub(crate) fn bind_factory_request(&self, instance: String) -> Result<(), ModelRuntimeError> {
-        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.phase != ColdPhase::Idle || state.factory_request.is_some() {
-            return Err(ModelRuntimeError::LoadError("cold generation already has an owner".into()));
-        }
-        state.factory_request = Some(instance);
-        Ok(())
-    }
-
-    pub(crate) fn try_adopt<T, E>(
-        &self, refused: impl FnOnce() -> E, publish: impl FnOnce() -> Result<T, E>,
-    ) -> Result<T, E> {
-        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.phase != ColdPhase::Ready || state.delivered {
-            return Err(refused());
-        }
-        let result = publish();
-        if result.is_ok() {
-            state.phase = ColdPhase::Adopted;
-            state.delivered = true;
-        }
-        result
-    }
-
-    fn retire(&self) {
-        RETAINED_COLD_GENERATIONS.get_or_init(Default::default).lock()
-            .unwrap_or_else(|error| error.into_inner()).remove(&self.0.id);
-    }
-
-    fn can_generate(&self) -> bool {
-        matches!(self.0.state.lock().unwrap_or_else(|error| error.into_inner()).phase,
-            ColdPhase::Ready | ColdPhase::Adopted)
-    }
-
-    fn abandon(&self) {
-        // Drop may run inside a publication callback holding this same gate.
-        let Ok(mut state) = self.0.state.try_lock() else { return; };
-        if state.phase == ColdPhase::Idle && !state.invoked {
-            state.phase = ColdPhase::Closed;
-            drop(state);
-            self.retire();
-        } else if state.phase != ColdPhase::Closed {
-            state.phase = ColdPhase::Cleanup;
-        }
-    }
-
-    fn request_cleanup(&self, signal: Signal, pending_only: bool) -> Option<ColdPendingDisposition> {
-        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-        if pending_only && state.delivered { return Some(ColdPendingDisposition::Adopted); }
-        if state.phase == ColdPhase::Closed { return Some(ColdPendingDisposition::Closed); }
-        state.phase = ColdPhase::Cleanup;
-        if signal == Signal::Kill { state.cancel_requested = true; }
-        if !state.contexts.iter().any(|(original, _)| *original == signal) {
-            state.contexts.push((signal, crate::storage::surreal::configured_capability_registry()));
-        }
-        None
-    }
-
-    async fn load(
-        &self, spec: ProcessSpec, root: PathBuf, runner: Option<BindSpec>,
-    ) -> Result<ModelId, ModelRuntimeError> {
-        let mut driver = self.0.load.lock().await;
-        {
-            let state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-            if matches!(state.phase, ColdPhase::Ready | ColdPhase::Adopted) { return Ok(self.0.model_id); }
-            if matches!(state.phase, ColdPhase::Cleanup | ColdPhase::Closed | ColdPhase::Unknown) {
-                return Err(ModelRuntimeError::LoadError(
-                    state.failure.clone().unwrap_or_else(|| "cold generation is no longer adoptable".into())));
-            }
-        }
-        if driver.is_none() {
-            self.0.adapter.validate_spawn_acquisition().map_err(|error| {
-                ModelRuntimeError::LoadError(format!("cold pre-effect spawn rejection: {error}"))
-            })?;
-            let runtime = tokio::runtime::Handle::try_current()
-                .map_err(|error| ModelRuntimeError::LoadError(error.to_string()))?;
-            self.0.state.lock().unwrap_or_else(|error| error.into_inner()).phase = ColdPhase::Loading;
-            let owner = Arc::clone(&self.0);
-            let guard = ColdTaskGuard { owner: Arc::clone(&owner), completed: false };
-            let registry = crate::storage::surreal::configured_capability_registry();
-            let task = runtime.spawn(async move {
-                let mut guard = guard;
-                let work = async {
-                    {
-                        let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                        if state.phase == ColdPhase::Cleanup { return Err(ModelRuntimeError::Cancelled); }
-                        state.invoked = true;
-                    }
-                    let handle = owner.adapter.spawn(spec).await.map_err(|error| {
-                        owner.state.lock().unwrap_or_else(|error| error.into_inner()).spawn_failed = true;
-                        ModelRuntimeError::LoadError(format!("sandbox spawn failed: {error}"))
-                    })?;
-                    {
-                        let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                        state.handle = Some(handle.clone());
-                        if state.phase == ColdPhase::Cleanup { return Err(ModelRuntimeError::Cancelled); }
-                    }
-                    owner.adapter.fs_bind(&handle, root, PathBuf::from(GGUF_GUEST_ROOT), BindMode::ReadOnly)
-                        .await.map_err(|error| ModelRuntimeError::LoadError(format!("sandbox gguf fs_bind failed: {error}")))?;
-                    if owner.state.lock().unwrap_or_else(|error| error.into_inner()).phase == ColdPhase::Cleanup {
-                        return Err(ModelRuntimeError::Cancelled);
-                    }
-                    if let Some(bind) = runner {
-                        owner.adapter.fs_bind(&handle, bind.host_path, bind.guest_path, bind.mode).await
-                            .map_err(|error| ModelRuntimeError::LoadError(format!("sandbox runner fs_bind failed: {error}")))?;
-                    }
-                    let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                    if state.phase == ColdPhase::Cleanup { return Err(ModelRuntimeError::Cancelled); }
-                    state.phase = ColdPhase::Ready;
-                    Ok(owner.model_id)
-                };
-                let result = crate::storage::surreal::with_captured_capability_registry(registry, work).await;
-                if let Err(error) = &result {
-                    let mut state = owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-                    state.failure = Some(error.to_string());
-                    if state.phase != ColdPhase::Cleanup { state.phase = ColdPhase::Unknown; }
-                }
-                guard.completed = true;
-                result
+        // Tear down the in-flight microVM via the adapter so a cancel actually
+        // kills the boxed boot (ephemeral children are also reaped by the
+        // adapter's kill_on_drop). Best-effort, fire-and-forget on a detached
+        // task because `cancel` is a sync trait method.
+        if let Some(handle) = self.handle.clone() {
+            let adapter = Arc::clone(&self.adapter);
+            tokio::spawn(async move {
+                let _ = adapter.kill(&handle, Signal::Kill).await;
             });
-            *driver = Some(task);
         }
-        let result = driver.as_mut().expect("original cold load task").await;
-        driver.take();
-        let model_id = result.map_err(|error| ModelRuntimeError::LoadError(
-            format!("original cold load task did not complete: {error}")))??;
-        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.phase != ColdPhase::Ready { return Err(ModelRuntimeError::Cancelled); }
-        if state.factory_request.is_none() {
-            state.delivered = true;
-            state.phase = ColdPhase::Adopted;
-        }
-        Ok(model_id)
-    }
-
-    fn observe_finished_load(&self) -> Result<(), ModelRuntimeError> {
-        let mut driver = self.0.load.try_lock()
-            .map_err(|_| ModelRuntimeError::UnloadError("original cold load still has a live observer".into()))?;
-        if let Some(task) = driver.as_mut() {
-            if !task.is_finished() {
-                return Err(ModelRuntimeError::UnloadError("original cold spawn/bind remains pending".into()));
-            }
-            let observed = task.now_or_never().ok_or_else(||
-                ModelRuntimeError::UnloadError("original cold task terminal observation is pending".into()))?;
-            driver.take();
-            if let Err(error) = observed {
-                self.0.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-            }
-        }
-        Ok(())
-    }
-
-    fn start_cleanup(&self) -> Result<(), ModelRuntimeError> {
-        self.observe_finished_load()?;
-        let mut driver = self.0.cleanup.try_lock()
-            .map_err(|_| ModelRuntimeError::UnloadError("original cold cleanup has a live observer".into()))?;
-        if driver.is_some() { return Ok(()); }
-        {
-            let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-            if state.handle.is_none() {
-                if !state.invoked || state.spawn_failed {
-                    state.phase = ColdPhase::Closed;
-                    return Ok(());
-                }
-                return Err(ModelRuntimeError::UnloadError(
-                    "invoked cold acquisition has no confirmed handle; original ownership retained".into()));
-            }
-        }
-        let runtime = tokio::runtime::Handle::try_current()
-            .map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))?;
-        let owner = Arc::clone(&self.0);
-        let guard = ColdTaskGuard { owner: Arc::clone(&owner), completed: false };
-        let task = runtime.spawn(async move {
-            let mut guard = guard;
-            let (handle, signal, registry) = {
-                let state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                let signal = if state.cancel_requested { Signal::Kill } else { Signal::Term };
-                (state.handle.clone().expect("retained cold handle"), signal,
-                    state.contexts.iter().find(|(requested, _)| *requested == signal)
-                        .and_then(|(_, registry)| registry.clone()))
-            };
-            let work = async {
-                let cached = owner.state.lock().unwrap_or_else(|error| error.into_inner()).terminal.clone();
-                let mut terminal = match cached {
-                    Some(terminal) => terminal,
-                    None => owner.adapter.status(&handle).await
-                        .map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))?,
-                };
-                if terminal == crate::sandbox::ProcessStatus::Running {
-                    let send = {
-                        let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                        if state.signal_attempts.contains(&signal) { false } else {
-                            state.signal_attempts.push(signal);
-                            true
-                        }
-                    };
-                    if send {
-                        owner.adapter.kill(&handle, signal).await
-                            .map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))?;
-                    }
-                    terminal = owner.adapter.status(&handle).await
-                        .map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))?;
-                }
-                if !matches!(terminal, crate::sandbox::ProcessStatus::Exited { .. }
-                    | crate::sandbox::ProcessStatus::Killed { .. }) {
-                    return Err(ModelRuntimeError::UnloadError(
-                        format!("cold cleanup lacks terminal proof: {terminal:?}")));
-                }
-                owner.state.lock().unwrap_or_else(|error| error.into_inner()).terminal = Some(terminal.clone());
-                let code_needed = !owner.state.lock().unwrap_or_else(|error| error.into_inner()).exit_code_observed;
-                if code_needed {
-                    let code = match terminal {
-                        crate::sandbox::ProcessStatus::Exited { code } => Some(code),
-                        _ => owner.adapter.exit_code(&handle).await
-                            .map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))?,
-                    };
-                    let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                    state.exit_code = code;
-                    state.exit_code_observed = true;
-                }
-                owner.adapter.cleanup_terminal(&handle).await
-                    .map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))?;
-                owner.state.lock().unwrap_or_else(|error| error.into_inner()).phase = ColdPhase::Closed;
-                Ok(())
-            };
-            let result = crate::storage::surreal::with_captured_capability_registry(registry, work).await;
-            if let Err(error) = &result {
-                owner.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).failure = Some(error.to_string());
-            }
-            guard.completed = true;
-            result
-        });
-        *driver = Some(task);
-        Ok(())
-    }
-
-    pub(crate) async fn cleanup_pending(&self) -> Result<ColdPendingDisposition, ModelRuntimeError> {
-        let disposition = self.request_cleanup(Signal::Term, true);
-        if matches!(disposition, Some(ColdPendingDisposition::Adopted)) {
-            return Ok(ColdPendingDisposition::Adopted);
-        }
-        if !matches!(disposition, Some(ColdPendingDisposition::Closed)) {
-            self.start_cleanup()?;
-        }
-        let mut driver = self.0.cleanup.try_lock()
-            .map_err(|_| ModelRuntimeError::UnloadError("cold cleanup observer remains active".into()))?;
-        if let Some(task) = driver.as_mut() {
-            if !task.is_finished() {
-                return Err(ModelRuntimeError::UnloadError("original cold cleanup remains pending".into()));
-            }
-            let result = task.now_or_never().ok_or_else(||
-                ModelRuntimeError::UnloadError("cold cleanup terminal observation pending".into()))?;
-            driver.take();
-            result.map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))??;
-        }
-        if self.0.state.lock().unwrap_or_else(|error| error.into_inner()).phase != ColdPhase::Closed {
-            return Err(ModelRuntimeError::UnloadError("cold generation is not closed".into()));
-        }
-        self.retire();
-        Ok(ColdPendingDisposition::Closed)
-    }
-
-    pub(crate) fn observed_terminal(&self) -> Result<(ProcessHandle, crate::sandbox::ProcessStatus, Option<i32>), ModelRuntimeError> {
-        let state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
-        if state.phase != ColdPhase::Closed || !state.exit_code_observed {
-            return Err(ModelRuntimeError::UnloadError("original cold terminal cleanup is unconfirmed".into()));
-        }
-        let handle = state.handle.clone().ok_or_else(||
-            ModelRuntimeError::UnloadError("original cold native handle is unavailable".into()))?;
-        let terminal = state.terminal.clone().ok_or_else(||
-            ModelRuntimeError::UnloadError("original cold terminal kind is unavailable".into()))?;
-        if !matches!(terminal, crate::sandbox::ProcessStatus::Exited { .. } | crate::sandbox::ProcessStatus::Killed { .. }) {
-            return Err(ModelRuntimeError::UnloadError("original cold state is not terminal".into()));
-        }
-        Ok((handle, terminal, state.exit_code))
-    }
-
-    pub(crate) async fn cleanup_owned(&self) -> Result<(), ModelRuntimeError> {
-        self.cleanup_owned_settled().await?;
-        self.retire();
-        Ok(())
-    }
-
-    pub(crate) async fn cleanup_owned_observed(&self) -> Result<(ProcessHandle, crate::sandbox::ProcessStatus, Option<i32>), ModelRuntimeError> {
-        self.cleanup_owned_settled().await?;
-        let observed = self.observed_terminal()?;
-        self.retire();
-        Ok(observed)
-    }
-
-    async fn cleanup_owned_settled(&self) -> Result<(), ModelRuntimeError> {
-        let disposition = self.request_cleanup(Signal::Term, false);
-        if !matches!(disposition, Some(ColdPendingDisposition::Closed)) {
-            self.start_cleanup()?;
-        }
-        let mut driver = self.0.cleanup.lock().await;
-        if let Some(task) = driver.as_mut() {
-            let result = task.await;
-            driver.take();
-            result.map_err(|error| ModelRuntimeError::UnloadError(error.to_string()))??;
-        }
-        if self.0.state.lock().unwrap_or_else(|error| error.into_inner()).phase != ColdPhase::Closed {
-            return Err(ModelRuntimeError::UnloadError("cold cleanup remains unconfirmed".into()));
-        }
-        Ok(())
     }
 }
 
@@ -1086,8 +688,6 @@ mod tests {
         NonZeroExit(i32),
         /// The boot/exec itself fails (adapter error).
         ExecError,
-        /// The spawn fails, so no handle is ever minted.
-        SpawnError,
     }
 
     /// Records of what the fake adapter observed, so tests assert the exact
@@ -1124,12 +724,6 @@ mod tests {
     impl SandboxAdapter for FakeSandboxAdapter {
         async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
             self.obs.lock().unwrap().last_spec = Some(spec);
-            if matches!(self.script, ExecScript::SpawnError) {
-                return Err(SandboxAdapterError::SpawnFailed {
-                    adapter_id: AdapterId::new("cloud_hypervisor"),
-                    reason: "fake spawn fault injection".to_string(),
-                });
-            }
             Ok(ProcessHandle::new(
                 AdapterId::new("cloud_hypervisor"),
                 None,
@@ -1156,7 +750,7 @@ mod tests {
                     stderr: Bytes::new(),
                     duration_ms: 3,
                 }),
-                ExecScript::ExecError | ExecScript::SpawnError => Err(SandboxAdapterError::SpawnFailed {
+                ExecScript::ExecError => Err(SandboxAdapterError::SpawnFailed {
                     adapter_id: AdapterId::new("cloud_hypervisor"),
                     reason: "fake exec fault injection".to_string(),
                 }),
@@ -1409,30 +1003,6 @@ mod tests {
         drop(o);
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(runner_dir);
-    }
-
-    /// A spawn that returned an error minted no handle, so nothing is retained.
-    #[tokio::test]
-    async fn failed_spawn_releases_its_cold_generation() {
-        let (dir, gguf) = temp_gguf();
-        let (adapter, obs) = FakeSandboxAdapter::new(ExecScript::SpawnError);
-        let mut rt = SandboxModelRuntime::new(adapter, cfg_for(&dir, &gguf));
-        let spec = LoadSpec {
-            artifact_path: gguf.clone(),
-            sha256_expected: String::new(),
-            runtime_kind: crate::model_runtime::RuntimeKind::LlamaCpp,
-            sampling_defaults: SamplingParams::default(),
-            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
-            declared_capabilities: ModelCapabilities::default(),
-            provider: ProviderKind::Local,
-            engine_origin: Some("llama_cpp".to_string()),
-            external_engine_import: None,
-        };
-        rt.load(spec).await.expect_err("a spawn error fails the load");
-        let id = rt.model_id();
-        rt.unload(id).await.expect("a failed spawn leaves nothing to clean up");
-        assert!(!obs.lock().unwrap().kill_called);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

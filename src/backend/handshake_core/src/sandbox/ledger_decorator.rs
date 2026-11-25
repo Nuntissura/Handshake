@@ -10,8 +10,7 @@ use uuid::Uuid;
 
 use crate::model_runtime::WarmAgentTransport;
 use crate::process_ledger::{
-    cap_metadata_jsonb, ActiveProcessLifecycle, LedgerBatcher, ProcessEngineKind, ProcessStart,
-    ProcessStop, ReservedProcessLifecycle, StopRecordOutcome,
+    cap_metadata_jsonb, LedgerBatcher, ProcessEngineKind, ProcessStart, ProcessStop,
 };
 
 use super::{
@@ -26,87 +25,6 @@ pub struct LedgerDecorator {
     ledger: LedgerBatcher,
     starts: Arc<Mutex<HashMap<Uuid, ProcessStart>>>,
     stopped: Arc<Mutex<HashSet<Uuid>>>,
-    pending_stops: Arc<Mutex<HashMap<Uuid, ProcessStop>>>,
-    lifecycles: Arc<Mutex<HashMap<Uuid, Arc<ActiveProcessLifecycle>>>>,
-    acquisitions: Arc<Mutex<HashMap<Uuid, Arc<RetainedAcquisition>>>>,
-    process_states: Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<ProcessStopState>>>>>,
-}
-
-enum DecoratorAcquisition {
-    Spawn(ProcessSpec),
-    Restore(SnapshotRef),
-}
-
-struct AcquisitionState {
-    caller_live: bool,
-    invoked: bool,
-    no_effect: bool,
-    delivered: bool,
-    handle: Option<ProcessHandle>,
-    error: Option<SandboxAdapterError>,
-    diagnostic: Option<String>,
-}
-
-struct RetainedAcquisition {
-    keeper: LedgerDecorator,
-    reservation: Mutex<Option<ReservedProcessLifecycle>>,
-    state: Mutex<AcquisitionState>,
-    join: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
-}
-
-static RETAINED_DECORATOR_ACQUISITIONS:
-    std::sync::OnceLock<Mutex<HashMap<Uuid, Arc<RetainedAcquisition>>>> =
-    std::sync::OnceLock::new();
-
-struct AcquisitionCallerGuard {
-    owner: Arc<RetainedAcquisition>,
-}
-
-impl Drop for AcquisitionCallerGuard {
-    fn drop(&mut self) {
-        self.owner.state.lock().unwrap_or_else(|error| error.into_inner()).caller_live = false;
-    }
-}
-
-struct AcquisitionTaskGuard {
-    owner: Arc<RetainedAcquisition>,
-    completed: bool,
-}
-
-impl Drop for AcquisitionTaskGuard {
-    fn drop(&mut self) {
-        if self.completed {
-            return;
-        }
-        let mut state = self.owner.state.lock().unwrap_or_else(|error| error.into_inner());
-        if !state.invoked {
-            state.no_effect = true;
-            self.owner.reservation.lock().unwrap_or_else(|error| error.into_inner()).take();
-        }
-        state.diagnostic = Some(
-            "original acquisition task interrupted; invoked effects remain owned and unknown".into(),
-        );
-    }
-}
-
-enum KillRequestState {
-    NotAttempted,
-    Attempted,
-    Acknowledged,
-    Uncertain { reason: String },
-}
-
-struct TerminalObservation {
-    status: ProcessStatus,
-    exit_code: Option<i32>,
-    exit_code_observed: bool,
-}
-
-struct ProcessStopState {
-    handle: ProcessHandle,
-    kill_requests: Vec<(Signal, KillRequestState)>,
-    terminal: Option<TerminalObservation>,
-    observed_exit_code: Option<i32>,
 }
 
 impl LedgerDecorator {
@@ -116,166 +34,7 @@ impl LedgerDecorator {
             ledger,
             starts: Arc::new(Mutex::new(HashMap::new())),
             stopped: Arc::new(Mutex::new(HashSet::new())),
-            pending_stops: Arc::new(Mutex::new(HashMap::new())),
-            lifecycles: Arc::new(Mutex::new(HashMap::new())),
-            acquisitions: Arc::new(Mutex::new(HashMap::new())),
-            process_states: Arc::new(Mutex::new(HashMap::new())),
         }
-    }
-
-    async fn acquire_reserved(
-        &self,
-        operation: DecoratorAcquisition,
-    ) -> Result<ProcessHandle, SandboxAdapterError> {
-        let adapter_id = self.inner.capabilities().adapter_id;
-        match &operation {
-            DecoratorAcquisition::Spawn(_) => self.inner.validate_spawn_acquisition()?,
-            DecoratorAcquisition::Restore(_) if !self.inner.capabilities().supports_snapshot => {
-                return Err(SandboxAdapterError::SnapshotUnsupported { adapter_id });
-            }
-            DecoratorAcquisition::Restore(_) => {}
-        }
-        let (id, owner, runtime) = {
-            let mut pending = self.acquisitions.lock().unwrap_or_else(|error| error.into_inner());
-            pending.retain(|id, owner| {
-                let state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                if state.no_effect || state.delivered {
-                    RETAINED_DECORATOR_ACQUISITIONS.get_or_init(Default::default)
-                        .lock().unwrap_or_else(|error| error.into_inner()).remove(id);
-                    false
-                } else {
-                    true
-                }
-            });
-            for (id, owner) in pending.iter() {
-                let state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-                if !state.caller_live || state.diagnostic.is_some() || state.error.is_some() {
-                    return Err(SandboxAdapterError::AdapterUnavailable {
-                        adapter_id,
-                        reason: format!("original acquisition {id} retains unresolved custody: {:?}",
-                            state.diagnostic),
-                    });
-                }
-            }
-        let runtime = tokio::runtime::Handle::try_current().map_err(|error| {
-            SandboxAdapterError::AdapterUnavailable {
-                adapter_id: adapter_id.clone(),
-                reason: format!("owned acquisition requires a running executor: {error}"),
-            }
-        })?;
-        let reservation = self.ledger.try_reserve_lifecycles(1)
-            .map_err(|error| SandboxAdapterError::SpawnFailed {
-                adapter_id: adapter_id.clone(),
-                reason: format!("process ledger paired preflight failed: {error}"),
-            })?.pop().expect("one complete lifecycle reservation");
-        let id = Uuid::now_v7();
-        let owner = Arc::new(RetainedAcquisition {
-            keeper: self.clone(),
-            reservation: Mutex::new(Some(reservation)),
-            state: Mutex::new(AcquisitionState {
-                caller_live: true, invoked: false, no_effect: false, delivered: false,
-                handle: None, error: None, diagnostic: None,
-            }),
-            join: tokio::sync::Mutex::new(None),
-        });
-        pending.insert(id, Arc::clone(&owner));
-        RETAINED_DECORATOR_ACQUISITIONS.get_or_init(Default::default)
-            .lock().unwrap_or_else(|error| error.into_inner()).insert(id, Arc::clone(&owner));
-            (id, owner, runtime)
-        };
-        let _caller = AcquisitionCallerGuard { owner: Arc::clone(&owner) };
-        let registry = crate::storage::surreal::configured_capability_registry();
-        let worker = Arc::clone(&owner);
-        let guard = AcquisitionTaskGuard { owner: Arc::clone(&owner), completed: false };
-        let task = runtime.spawn(async move {
-            let mut guard = guard;
-            let work = async {
-                worker.state.lock().unwrap_or_else(|error| error.into_inner()).invoked = true;
-                let acquired = match &operation {
-                    DecoratorAcquisition::Spawn(spec) => worker.keeper.inner.spawn(spec.clone()).await,
-                    DecoratorAcquisition::Restore(snapshot) => worker.keeper.inner.restore(snapshot).await,
-                };
-                match acquired {
-                    Ok(handle) => {
-                        worker.state.lock().unwrap_or_else(|error| error.into_inner())
-                            .handle = Some(handle.clone());
-                        let start = match &operation {
-                            DecoratorAcquisition::Spawn(spec) => worker.keeper.start_event(spec, &handle),
-                            DecoratorAcquisition::Restore(_) => worker.keeper.restore_start_event(&handle),
-                        };
-                        let reservation = worker.reservation.lock()
-                            .unwrap_or_else(|error| error.into_inner()).take()
-                            .expect("original acquisition retains its paired reservation");
-                        match reservation.begin_retained(start.clone()) {
-                            Ok(lifecycle) => {
-                                worker.keeper.starts.lock().unwrap_or_else(|error| error.into_inner())
-                                    .insert(handle.id, start);
-                                worker.keeper.lifecycles.lock().unwrap_or_else(|error| error.into_inner())
-                                    .insert(handle.id, Arc::new(lifecycle));
-                            }
-                            Err(error) => {
-                                let mut state = worker.state.lock().unwrap_or_else(|error| error.into_inner());
-                                state.diagnostic = Some(format!("acquired handle START remains unconfirmed: {error}"));
-                                state.error = Some(SandboxAdapterError::AdapterUnavailable {
-                                    adapter_id: handle.adapter_id.clone(),
-                                    reason: state.diagnostic.clone().unwrap_or_default(),
-                                });
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        let mut state = worker.state.lock().unwrap_or_else(|error| error.into_inner());
-                        state.diagnostic = Some(format!("invoked acquisition error; native effect unknown: {error}"));
-                        state.error = Some(error);
-                    }
-                }
-            };
-            crate::storage::surreal::with_captured_capability_registry(registry, work).await;
-            guard.completed = true;
-        });
-        // No await separates dispatch from registration of the original task.
-        *owner.join.try_lock().expect("new acquisition join holder") = Some(task);
-        let mut join = owner.join.lock().await;
-        let observed = join.as_mut().expect("registered original acquisition task").await;
-        join.take();
-        if let Err(error) = observed {
-            return Err(SandboxAdapterError::AdapterUnavailable {
-                adapter_id,
-                reason: format!("original acquisition {id} did not complete: {error}; custody retained"),
-            });
-        }
-        let mut state = owner.state.lock().unwrap_or_else(|error| error.into_inner());
-        if let Some(error) = state.error.take() {
-            return Err(error);
-        }
-        let handle = state.handle.clone().ok_or_else(|| SandboxAdapterError::AdapterUnavailable {
-            adapter_id, reason: format!("original acquisition {id} returned no handle; custody retained"),
-        })?;
-        state.delivered = true;
-        drop(state);
-        self.acquisitions.lock().unwrap_or_else(|error| error.into_inner()).remove(&id);
-        RETAINED_DECORATOR_ACQUISITIONS.get_or_init(Default::default)
-            .lock().unwrap_or_else(|error| error.into_inner()).remove(&id);
-        Ok(handle)
-    }
-
-    pub(crate) fn pending_acquisition_handles(&self) -> Vec<ProcessHandle> {
-        self.acquisitions.lock().unwrap_or_else(|error| error.into_inner()).values()
-            .filter_map(|owner| owner.state.lock().unwrap_or_else(|error| error.into_inner())
-                .handle.clone()).collect()
-    }
-
-    fn restore_start_event(&self, handle: &ProcessHandle) -> ProcessStart {
-        let mut start = ProcessStart::new(ProcessEngineKind::SandboxContainer, "KERNEL_BUILDER", None)
-            .with_process_uuid(handle.id)
-            .with_sandbox_adapter_id(handle.adapter_id.as_str().to_string())
-            .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
-            .with_sandbox_capabilities_snapshot(capabilities_snapshot(&self.inner.capabilities()));
-        start.started_at = handle.spawned_at_utc;
-        if let Some(pid) = handle.pid {
-            start = start.with_os_pid(pid);
-        }
-        start
     }
 
     fn start_event(&self, spec: &ProcessSpec, handle: &ProcessHandle) -> ProcessStart {
@@ -330,75 +89,7 @@ impl LedgerDecorator {
             event = event.with_model_artifact_sha256(model_artifact_sha256.clone());
         }
 
-        event.started_at = handle.spawned_at_utc;
         event
-    }
-
-    fn process_state(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<Arc<tokio::sync::Mutex<ProcessStopState>>, SandboxAdapterError> {
-        let mut states =
-            self.process_states
-                .lock()
-                .map_err(|error| SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("ledger decorator state poisoned: {error}"),
-                })?;
-        Ok(states
-            .entry(handle.id)
-            .or_insert_with(|| {
-                Arc::new(tokio::sync::Mutex::new(ProcessStopState {
-                    handle: handle.clone(),
-                    kill_requests: Vec::new(),
-                    terminal: None,
-                    observed_exit_code: None,
-                }))
-            })
-            .clone())
-    }
-
-    async fn observe_terminal(
-        &self,
-        handle: &ProcessHandle,
-        state: &mut ProcessStopState,
-    ) -> Result<ProcessStatus, SandboxAdapterError> {
-        if state.handle != *handle {
-            return Err(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            });
-        }
-        let status = match &state.terminal {
-            Some(terminal) => terminal.status.clone(),
-            None => self.inner.status(handle).await?,
-        };
-        let (exit_code, exit_code_observed) = match &status {
-            ProcessStatus::Exited { code } => (Some(*code), true),
-            ProcessStatus::Killed { .. } => (
-                state.observed_exit_code,
-                state.observed_exit_code.is_some(),
-            ),
-            _ => return Ok(status),
-        };
-        let terminal = state.terminal.get_or_insert(TerminalObservation {
-            status,
-            exit_code,
-            exit_code_observed,
-        });
-        if !terminal.exit_code_observed {
-            terminal.exit_code = self.inner.exit_code(handle).await?;
-            terminal.exit_code_observed = true;
-        }
-        self.inner.cleanup_terminal(handle).await?;
-        let reason = match &terminal.status {
-            ProcessStatus::Exited { .. } => "status:exited".to_string(),
-            ProcessStatus::Killed { by_signal } => {
-                format!("status:killed:{}", signal_name(*by_signal))
-            }
-            _ => unreachable!("only observed terminal statuses are retained"),
-        };
-        self.record_stop_once(handle, terminal.exit_code, reason)?;
-        Ok(terminal.status.clone())
     }
 
     fn record_stop_once(
@@ -407,85 +98,65 @@ impl LedgerDecorator {
         exit_code: Option<i32>,
         stop_reason: impl Into<String>,
     ) -> Result<(), SandboxAdapterError> {
-        let mut stopped =
-            self.stopped
-                .lock()
-                .map_err(|error| SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("ledger decorator state poisoned: {error}"),
-                })?;
-        if stopped.contains(&handle.id) {
+        if !self
+            .stopped
+            .lock()
+            .map_err(|error| SandboxAdapterError::AdapterUnavailable {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .insert(handle.id)
+        {
             return Ok(());
         }
-        let mut pending =
-            self.pending_stops
-                .lock()
-                .map_err(|error| SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("ledger decorator state poisoned: {error}"),
-                })?;
-        let stop = match pending.get(&handle.id) {
-            Some(stop) => stop.clone(),
-            None => {
-                let retained = self
-                    .starts
-                    .lock()
-                    .map_err(|error| SandboxAdapterError::AdapterUnavailable {
-                        adapter_id: handle.adapter_id.clone(),
-                        reason: format!("ledger decorator state poisoned: {error}"),
-                    })?
-                    .get(&handle.id)
-                    .cloned();
-                let start = retained
-                    .or_else(|| self.ledger.recorded_start(handle.id))
-                    .ok_or_else(|| SandboxAdapterError::AdapterUnavailable {
-                        adapter_id: handle.adapter_id.clone(),
-                        reason: "original ledger START unavailable; terminal ownership remains outstanding"
-                            .to_string(),
-                    })?;
-                let stop =
-                    ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason.into());
-                pending.insert(handle.id, stop.clone());
-                stop
-            }
-        };
-        let lifecycle = self.lifecycles.lock().unwrap_or_else(|error| error.into_inner())
-            .get(&handle.id).cloned();
-        if let Some(lifecycle) = lifecycle {
-            match lifecycle.stop_with_event(stop).map_err(|error| {
-                SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("reserved process ledger STOP failed: {error}"),
-                }
-            })? {
-                StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped => {}
-                other => return Err(SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("reserved process STOP remains unconfirmed: {other:?}"),
-                }),
-            }
-        } else {
-            self.ledger.record_stop_lossless(stop).map_err(|error| {
-                SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("process ledger STOP write failed: {error}"),
-                }
-            })?;
-        }
-        stopped.insert(handle.id);
-        pending.remove(&handle.id);
-        Ok(())
+
+        let start = self
+            .starts
+            .lock()
+            .map_err(|error| SandboxAdapterError::AdapterUnavailable {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .get(&handle.id)
+            .cloned()
+            .unwrap_or_else(|| {
+                ProcessStart::new(ProcessEngineKind::SandboxContainer, "KERNEL_BUILDER", None)
+                    .with_process_uuid(handle.id)
+                    .with_sandbox_adapter_id(handle.adapter_id.as_str().to_string())
+                    .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
+                    .with_sandbox_capabilities_snapshot(capabilities_snapshot(
+                        &self.inner.capabilities(),
+                    ))
+            });
+        let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason.into());
+        self.ledger
+            .record_stop(stop)
+            .map_err(|error| SandboxAdapterError::AdapterUnavailable {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("process ledger STOP write failed: {error}"),
+            })
     }
 }
 
 #[async_trait]
 impl SandboxAdapter for LedgerDecorator {
-    fn validate_spawn_acquisition(&self) -> Result<(), SandboxAdapterError> {
-        self.inner.validate_spawn_acquisition()
-    }
-
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
-        self.acquire_reserved(DecoratorAcquisition::Spawn(spec)).await
+        let handle = self.inner.spawn(spec.clone()).await?;
+        let start = self.start_event(&spec, &handle);
+        self.ledger.record_start(start.clone()).map_err(|error| {
+            SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("process ledger START write failed: {error}"),
+            }
+        })?;
+        self.starts
+            .lock()
+            .map_err(|error| SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .insert(handle.id, start);
+        Ok(handle)
     }
 
     async fn spawn_attached(
@@ -561,128 +232,32 @@ impl SandboxAdapter for LedgerDecorator {
         handle: &ProcessHandle,
         signal: Signal,
     ) -> Result<(), SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        let status = self.observe_terminal(handle, &mut state).await?;
-        if matches!(status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
-            return Ok(());
-        }
-        let request = match state
-            .kill_requests
-            .iter()
-            .position(|(requested, _)| *requested == signal)
-        {
-            Some(index) => index,
-            None => {
-                let earlier_attempt = state
-                    .kill_requests
-                    .iter()
-                    .any(|(_, request)| !matches!(request, KillRequestState::NotAttempted));
-                if earlier_attempt && !matches!(status, ProcessStatus::Running) {
-                    return Err(SandboxAdapterError::AdapterUnavailable {
-                        adapter_id: handle.adapter_id.clone(),
-                        reason: "a different signal requires an observed running process"
-                            .to_string(),
-                    });
-                }
-                state
-                    .kill_requests
-                    .push((signal, KillRequestState::NotAttempted));
-                state.kill_requests.len() - 1
-            }
-        };
-        match &state.kill_requests[request].1 {
-            KillRequestState::Acknowledged => return Ok(()),
-            KillRequestState::Attempted => {
-                return Err(SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: "native signal outcome is pending; no signal was repeated".to_string(),
-                });
-            }
-            KillRequestState::Uncertain { reason } => {
-                return Err(SandboxAdapterError::AdapterUnavailable {
-                    adapter_id: handle.adapter_id.clone(),
-                    reason: format!("native signal outcome remains uncertain: {reason}"),
-                });
-            }
-            KillRequestState::NotAttempted => {}
-        }
-        state.kill_requests[request].1 = KillRequestState::Attempted;
-        match self.inner.kill(handle, signal).await {
-            Ok(()) => state.kill_requests[request].1 = KillRequestState::Acknowledged,
-            Err(error) => {
-                state.kill_requests[request].1 = KillRequestState::Uncertain {
-                    reason: error.to_string(),
-                };
-                return Err(error);
-            }
-        }
-        self.observe_terminal(handle, &mut state).await?;
-        Ok(())
-    }
-
-    async fn cleanup_terminal(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<(), SandboxAdapterError> {
-        self.inner.cleanup_terminal(handle).await
-    }
-
-    async fn reclaim_detached_observed(
-        &self, identity: &super::adapter::DetachedProcessIdentity, signal: Signal,
-    ) -> Result<super::adapter::DetachedReclaimOutcome, super::adapter::DetachedReclaimError> {
-        self.inner.reclaim_detached_observed(identity, signal).await
-    }
-
-    async fn detached_status(
-        &self,
-        identity: &super::adapter::DetachedProcessIdentity,
-    ) -> Result<ProcessStatus, SandboxAdapterError> {
-        self.inner.detached_status(identity).await
-    }
-
-    fn cached_settled_detached_terminal(
-        &self,
-        identity: &super::adapter::DetachedProcessIdentity,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
-        self.inner.cached_settled_detached_terminal(identity)
-    }
-
-    async fn cleanup_after_restart(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<super::adapter::RestartCleanupOutcome, SandboxAdapterError> {
-        self.inner.cleanup_after_restart(handle).await
+        self.inner.kill(handle, signal).await?;
+        self.record_stop_once(handle, None, format!("kill:{}", signal_name(signal)))
     }
 
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        self.observe_terminal(handle, &mut state).await
+        let status = self.inner.status(handle).await?;
+        match status {
+            ProcessStatus::Exited { code } => {
+                self.record_stop_once(handle, Some(code), "status:exited")?;
+            }
+            ProcessStatus::Killed { by_signal } => {
+                self.record_stop_once(
+                    handle,
+                    None,
+                    format!("status:killed:{}", signal_name(by_signal)),
+                )?;
+            }
+            ProcessStatus::Running
+            | ProcessStatus::Orphaned
+            | ProcessStatus::FailedToStart { .. } => {}
+        }
+        Ok(status)
     }
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        if state.handle != *handle {
-            return Err(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            });
-        }
-        if let Some(terminal) = &state.terminal {
-            let code = terminal.exit_code;
-            self.observe_terminal(handle, &mut state).await?;
-            return Ok(code);
-        }
-        let code = match state.observed_exit_code {
-            Some(code) => Some(code),
-            None => self.inner.exit_code(handle).await?,
-        };
-        state.observed_exit_code = code;
-        if code.is_some() {
-            self.observe_terminal(handle, &mut state).await?;
-        }
-        Ok(code)
+        self.inner.exit_code(handle).await
     }
 
     async fn snapshot(&self, handle: &ProcessHandle) -> Result<SnapshotRef, SandboxAdapterError> {
@@ -692,7 +267,28 @@ impl SandboxAdapter for LedgerDecorator {
     }
 
     async fn restore(&self, snapshot: &SnapshotRef) -> Result<ProcessHandle, SandboxAdapterError> {
-        self.acquire_reserved(DecoratorAcquisition::Restore(snapshot.clone())).await
+        let handle = self.inner.restore(snapshot).await?;
+        // A restored instance is a freshly-running sandbox; record a START so
+        // the process ledger keeps a STOP partner for it on kill/status.
+        let start = ProcessStart::new(ProcessEngineKind::SandboxContainer, "KERNEL_BUILDER", None)
+            .with_process_uuid(handle.id)
+            .with_sandbox_adapter_id(handle.adapter_id.as_str().to_string())
+            .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
+            .with_sandbox_capabilities_snapshot(capabilities_snapshot(&self.inner.capabilities()));
+        self.ledger.record_start(start.clone()).map_err(|error| {
+            SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("process ledger START write failed (restore): {error}"),
+            }
+        })?;
+        self.starts
+            .lock()
+            .map_err(|error| SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .insert(handle.id, start);
+        Ok(handle)
     }
 
     async fn delete_snapshot(&self, snapshot: &SnapshotRef) -> Result<(), SandboxAdapterError> {

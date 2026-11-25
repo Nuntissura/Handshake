@@ -4277,11 +4277,8 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  STOP only after embedded SurrealDB store acknowledgement. A post-kill write failure remains \
                  `kill_succeeded_pending_stop`; retry persists STOP without killing again, while stale \
                  claimant tokens cannot renew, release, or finalize a newer claim. Before kill, the \
-                 claimant durably enters `reclaim_kill_in_progress`. A kill that does not return \
-                 within its bounded window is reported as a kill failure: no STOP is written, its \
-                 claim and STOP permit are released, and while that kill still runs the same \
-                 instance starts no second kill of the process and adopts its late result. A claim \
-                 left behind by a crash is taken over only after its lease expired. The stable \
+                 claimant durably enters `reclaim_kill_in_progress`; that phase is never lease-taken \
+                 over, so a second backend cannot double-kill a blocked process. The stable \
                  `kill_operation_uuid` is the sandbox adapter idempotency key across retries. If the \
                  backend crashes during that phase, run the bounded session recovery sweep: adapter \
                  `succeeded` evidence advances to pending STOP without another kill; `failed` or \
@@ -4359,11 +4356,7 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  `processes_reclaimed`); the periodic pass retries it. Fail-closed would permanently \
                  brick boot on non-Windows hosts, where the native reclaim adapter is unavailable and \
                  always returns Failed, and it cannot distinguish a correct refusal-to-kill (the \
-                 pid-reuse identity fence) from a genuine reap failure. A recorded PID that no longer \
-                 exists is settled with the reclaim STOP (`exit_code` -1), but only for a row that \
-                 names this host; otherwise it stays open as `PROCESS_ABSENT_HOST_UNPROVEN`. A PID \
-                 that now names another process generation stays open as `PID_GENERATION_MISMATCH` \
-                 and is settled once that PID is free again. Store errors, surfacing \
+                 pid-reuse identity fence) from a genuine reap failure. Store errors, surfacing \
                  errors, and a boot-reconcile TIMEOUT remain fail-closed and abort startup. \
                  RECOVERY-ONLY EXCLUSION: `HANDSHAKE_STARTUP_RECOVERY_ONLY=1` returns before the \
                  normal process-runtime composition; it composes the same process runtime from the \

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -10,7 +9,7 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use super::kernel_003_bridge::{
-    docker_exec_args, docker_run_args, parse_docker_status,
+    docker_exec_args, docker_run_args, parse_docker_exit_code, parse_docker_status,
     run_docker_command,
 };
 use crate::sandbox::{
@@ -61,24 +60,6 @@ impl Default for DockerConfig {
 pub struct DockerAdapter {
     config: DockerConfig,
     gpu_cache: Arc<Mutex<DockerGpuProbeCache>>,
-    processes: Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<DockerProcessState>>>>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DockerObservation {
-    status: ProcessStatus,
-    exit_code: Option<i32>,
-    started_at: String,
-}
-
-#[derive(Debug)]
-struct DockerProcessState {
-    handle: Option<ProcessHandle>,
-    started_at: Option<String>,
-    signals: Vec<DockerSignalAttempt>,
-    removal: Option<DockerRemovalAttempt>,
-    terminal: Option<DockerObservation>,
-    removed: bool,
 }
 
 impl DockerAdapter {
@@ -88,7 +69,6 @@ impl DockerAdapter {
         Ok(Self {
             config,
             gpu_cache: Arc::new(Mutex::new(DockerGpuProbeCache::new(gpu_passthrough))),
-            processes: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -99,7 +79,6 @@ impl DockerAdapter {
         Self {
             config,
             gpu_cache: Arc::new(Mutex::new(DockerGpuProbeCache::new(gpu_passthrough))),
-            processes: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -147,281 +126,6 @@ impl DockerAdapter {
             });
         }
         Ok(())
-    }
-
-    fn process_state(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<Arc<tokio::sync::Mutex<DockerProcessState>>, SandboxAdapterError> {
-        self.ensure_handle(handle)?;
-        if !is_valid_durable_container_id(&handle.sandbox_internal_id) {
-            return Err(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            });
-        }
-        let mut processes = self.processes.lock().map_err(|error| {
-            spawn_failed(format!("docker process registry poisoned: {error}"))
-        })?;
-        Ok(processes
-            .entry(handle.id)
-            .or_insert_with(|| {
-                Arc::new(tokio::sync::Mutex::new(DockerProcessState {
-                    handle: None,
-                    started_at: None,
-                    signals: Vec::new(),
-                    removal: None,
-                    terminal: None,
-                    removed: false,
-                }))
-            })
-            .clone())
-    }
-
-    async fn inspect_owned(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<Option<DockerObservation>, SandboxAdapterError> {
-        let args = vec![
-            "inspect".to_string(),
-            "--format".to_string(),
-            "{{json .}}".to_string(),
-            handle.sandbox_internal_id.clone(),
-        ];
-        let output = run_docker_command(
-            &self.config,
-            &args,
-            None,
-            Some(self.config.command_timeout_ms()),
-        )
-        .await?;
-        if output.exit_code != 0 {
-            let detail = output.stderr_text();
-            if restart_cleanup_target_absent(&detail) {
-                return Ok(None);
-            }
-            return Err(spawn_failed(format!("docker ownership/state inspection failed: {detail}")));
-        }
-        let value: serde_json::Value = serde_json::from_slice(&output.stdout)
-            .map_err(|error| spawn_failed(format!("invalid docker inspection JSON: {error}")))?;
-        let owner = value
-            .get("Config")
-            .and_then(|config| config.get("Labels"))
-            .and_then(|labels| labels.get(DOCKER_PROCESS_OWNER_LABEL))
-            .and_then(serde_json::Value::as_str);
-        if value.get("Id").and_then(serde_json::Value::as_str)
-            != Some(handle.sandbox_internal_id.as_str())
-            || owner != Some(durable_container_owner(handle.id).as_str())
-        {
-            return Err(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            });
-        }
-        let state = value.get("State").ok_or_else(|| spawn_failed("docker state is missing"))?;
-        let kind = state
-            .get("Status")
-            .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| spawn_failed("docker state kind is missing"))?;
-        let started_at = state
-            .get("StartedAt")
-            .and_then(serde_json::Value::as_str)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| spawn_failed("docker start generation is missing"))?
-            .to_string();
-        let parsed_start = chrono::DateTime::parse_from_rfc3339(&started_at)
-            .map_err(|_| spawn_failed("docker start generation is invalid"))?;
-        if chrono::Datelike::year(&parsed_start) <= 1 {
-            return Err(spawn_failed("docker start generation is unobserved"));
-        }
-        let normalized_kind = kind.trim().to_ascii_lowercase();
-        let exit_code = if normalized_kind == "exited" {
-            let code = state
-                .get("ExitCode")
-                .and_then(serde_json::Value::as_i64)
-                .and_then(|code| i32::try_from(code).ok())
-                .ok_or_else(|| spawn_failed("docker terminal exit code is unobserved"))?;
-            Some(code)
-        } else {
-            None
-        };
-        Ok(Some(DockerObservation {
-            status: parse_docker_status(&normalized_kind, exit_code),
-            exit_code,
-            started_at,
-        }))
-    }
-
-    async fn observe_process(
-        &self,
-        handle: &ProcessHandle,
-        state: &mut DockerProcessState,
-    ) -> Result<DockerObservation, SandboxAdapterError> {
-        if state.handle.as_ref().is_some_and(|original| original != handle) {
-            return Err(SandboxAdapterError::ProcessHandleStale {
-                process_id: handle.id,
-            });
-        }
-        if state.removed {
-            return state.terminal.clone().ok_or_else(|| {
-                spawn_failed("docker removal has no original terminal observation")
-            });
-        }
-        let Some(observed) = self.inspect_owned(handle).await? else {
-            return match &state.terminal {
-                Some(terminal) => {
-                    state.removed = true;
-                    Ok(terminal.clone())
-                }
-                None => Ok(DockerObservation {
-                    status: ProcessStatus::Orphaned,
-                    exit_code: None,
-                    started_at: String::new(),
-                }),
-            };
-        };
-        if let Some(original) = &state.started_at {
-            if original != &observed.started_at {
-                return Err(SandboxAdapterError::ProcessHandleStale {
-                    process_id: handle.id,
-                });
-            }
-        } else if matches!(observed.status, ProcessStatus::Running | ProcessStatus::Exited { .. }) {
-            // Commit original identity only from this owner-verified frame.
-            // Earlier failed or absent observations retain serialization alone.
-            state.handle = Some(handle.clone());
-            state.started_at = Some(observed.started_at.clone());
-        }
-        if let Some(terminal) = &state.terminal {
-            if terminal != &observed {
-                return Err(SandboxAdapterError::ProcessHandleStale {
-                    process_id: handle.id,
-                });
-            }
-        } else if matches!(observed.status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
-            state.terminal = Some(observed.clone());
-        }
-        Ok(observed)
-    }
-
-    async fn cleanup_observed_terminal(
-        &self,
-        handle: &ProcessHandle,
-        state: &mut DockerProcessState,
-    ) -> Result<(), SandboxAdapterError> {
-        if state.handle.as_ref().is_some_and(|original| original != handle) {
-            return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
-        }
-        for attempt in &mut state.signals {
-            if attempt.original.is_some() {
-                attempt.observe().await?;
-            }
-        }
-        if let Some(removal) = &mut state.removal {
-            if removal.original.is_some() {
-                removal.observe().await?;
-            }
-            if matches!(removal.outcome, Some(DockerRemovalOutcome::Accepted)) {
-                state.removed = true;
-            }
-        }
-        let observed = self.observe_process(handle, state).await?;
-        if !matches!(observed.status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
-            return Err(spawn_failed(
-                "docker cleanup requires an owned observed terminal container",
-            ));
-        }
-        if state.removed {
-            return Ok(());
-        }
-        if let Some(removal) = &mut state.removal {
-            // Only a positively settled rejection permits a new plain rm after
-            // the existing fresh exact-generation terminal observation above.
-            if !matches!(removal.outcome, Some(DockerRemovalOutcome::Rejected(_))) {
-                return removal.observe().await;
-            }
-        }
-        let args = vec!["rm".to_string(), handle.sandbox_internal_id.clone()];
-        let config = self.config.clone();
-        let registry = crate::storage::surreal::configured_capability_registry();
-        state.removal = Some(DockerRemovalAttempt {
-            original: Some(Box::pin(async move {
-                crate::storage::surreal::with_captured_capability_registry(registry, async move {
-                    let output = run_docker_command(
-                        &config, &args, None, Some(config.command_timeout_ms()),
-                    ).await?;
-                    if output.exit_code != 0 && !restart_cleanup_target_absent(&output.stderr_text()) {
-                        return Ok(Some(output.stderr_text()));
-                    }
-                    Ok(None)
-                }).await
-            })),
-            outcome: None,
-            _original_context: crate::storage::surreal::capture_model_lane_operation(),
-        });
-        state.removal.as_mut().expect("registered original Docker removal").observe().await?;
-        state.removed = true;
-        Ok(())
-    }
-
-    async fn kill_observed(
-        &self,
-        handle: &ProcessHandle,
-        signal: Signal,
-    ) -> Result<Option<ProcessStatus>, SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        if state.handle.as_ref().is_some_and(|original| original != handle) {
-            return Err(SandboxAdapterError::ProcessHandleStale { process_id: handle.id });
-        }
-        // Resume original commands before the existing pre-signal observation;
-        // a different explicit signal still requires observed Running afterward.
-        for attempt in &mut state.signals {
-            if attempt.original.is_some() {
-                attempt.observe().await?;
-            }
-        }
-        let observed = self.observe_process(handle, &mut state).await?;
-        if matches!(observed.status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
-            self.cleanup_observed_terminal(handle, &mut state).await?;
-            return Ok(Some(observed.status));
-        }
-        if !matches!(observed.status, ProcessStatus::Running) {
-            return Err(spawn_failed(
-                "docker signal requires an owned observed running container",
-            ));
-        }
-        if let Some(attempt) = state.signals.iter_mut().find(|attempt| attempt.signal == signal) {
-            attempt.observe().await?;
-        } else {
-            let args = Self::kill_args(&handle.sandbox_internal_id, signal);
-            let config = self.config.clone();
-            let registry = crate::storage::surreal::configured_capability_registry();
-            let original = Box::pin(async move {
-                crate::storage::surreal::with_captured_capability_registry(registry, async move {
-                    let output = run_docker_command(
-                        &config, &args, None, Some(config.command_timeout_ms()),
-                    ).await?;
-                    if output.exit_code != 0 {
-                        return Err(spawn_failed(format!("docker kill/stop failed: {}", output.stderr_text())));
-                    }
-                    Ok(())
-                }).await
-            });
-            state.signals.push(DockerSignalAttempt {
-                signal, original: Some(original), outcome: DockerSignalOutcome::Attempted,
-                _original_context: crate::storage::surreal::capture_model_lane_operation(),
-            });
-            state.signals.last_mut().expect("registered original Docker signal").observe().await?;
-        }
-        let observed = self.observe_process(handle, &mut state).await?;
-        if matches!(observed.status, ProcessStatus::Exited { .. } | ProcessStatus::Killed { .. }) {
-            self.cleanup_observed_terminal(handle, &mut state).await?;
-            return Ok(Some(observed.status));
-        } else if !matches!(observed.status, ProcessStatus::Running) {
-            return Err(spawn_failed(
-                "docker signal was acknowledged without an observed terminal state",
-            ));
-        }
-        Ok(None)
     }
 
     async fn ensure_runtime_available(&self) -> Result<(), SandboxAdapterError> {
@@ -598,69 +302,46 @@ impl SandboxAdapter for DockerAdapter {
     }
 
     async fn kill(
-        &self, handle: &ProcessHandle, signal: Signal,
-    ) -> Result<(), SandboxAdapterError> {
-        self.kill_observed(handle, signal).await.map(|_| ())
-    }
-
-    async fn reclaim_detached_observed(
-        &self, identity: &crate::sandbox::DetachedProcessIdentity, signal: Signal,
-    ) -> Result<crate::sandbox::DetachedReclaimOutcome, crate::sandbox::DetachedReclaimError> {
-        use crate::sandbox::DetachedReclaimError::{AfterInvocation, BeforeInvocation};
-        use crate::sandbox::DetachedReclaimOutcome;
-        let handle = &identity.handle;
-        let process = self.process_state(handle).map_err(BeforeInvocation)?;
-        {
-            let mut state = process.lock().await;
-            if state.terminal.is_none()
-                && self.inspect_owned(handle).await.map_err(BeforeInvocation)?.is_none()
-            {
-                return Ok(DetachedReclaimOutcome::AlreadyAbsent);
-            }
-            // A signal whose answer was lost is decided by a fresh observation:
-            // a container that still runs is signalled again.
-            state.signals.retain(|attempt| attempt.original.is_some()
-                || !matches!(attempt.outcome, DockerSignalOutcome::Uncertain(_)));
-        }
-        let failure = match self.kill_observed(handle, signal).await {
-            Ok(Some(status)) => return Ok(DetachedReclaimOutcome::Observed(status)),
-            Ok(None) => None,
-            Err(error) => Some(error),
-        };
-        for _ in 0..25 {
-            let mut state = process.lock().await;
-            if state.terminal.is_none() {
-                if state.signals.is_empty() {
-                    return Err(BeforeInvocation(failure.unwrap_or_else(||
-                        spawn_failed("docker container was not signalled"))));
-                }
-                if let Err(error) = self.observe_process(handle, &mut state).await {
-                    return Err(AfterInvocation(error));
-                }
-            }
-            if let Some(terminal) = state.terminal.clone() {
-                if let Err(error) = self.cleanup_observed_terminal(handle, &mut state).await {
-                    tracing::warn!(
-                        container = %handle.sandbox_internal_id, error = %error,
-                        "reclaimed docker container ended but was not removed"
-                    );
-                }
-                return Ok(DetachedReclaimOutcome::Observed(terminal.status));
-            }
-            drop(state);
-            tokio::time::sleep(Duration::from_millis(200)).await;
-        }
-        Err(AfterInvocation(failure.unwrap_or_else(||
-            spawn_failed("docker container still runs after its kill signal"))))
-    }
-
-    async fn cleanup_terminal(
         &self,
         handle: &ProcessHandle,
+        signal: Signal,
     ) -> Result<(), SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        self.cleanup_observed_terminal(handle, &mut state).await
+        self.ensure_handle(handle)?;
+        let args = Self::kill_args(&handle.sandbox_internal_id, signal);
+        let output = run_docker_command(
+            &self.config,
+            &args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
+        if output.exit_code != 0 {
+            return Err(spawn_failed(format!(
+                "docker kill/stop failed: {}",
+                output.stderr_text()
+            )));
+        }
+
+        let rm_args = vec![
+            "rm".to_string(),
+            "--force".to_string(),
+            handle.sandbox_internal_id.clone(),
+        ];
+        let cleanup = run_docker_command(
+            &self.config,
+            &rm_args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
+        if cleanup.exit_code == 0 {
+            Ok(())
+        } else {
+            Err(spawn_failed(format!(
+                "docker cleanup failed after kill/stop: {}",
+                cleanup.stderr_text()
+            )))
+        }
     }
 
     async fn cleanup_after_restart(
@@ -722,15 +403,51 @@ impl SandboxAdapter for DockerAdapter {
     }
 
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        Ok(self.observe_process(handle, &mut state).await?.status)
+        self.ensure_handle(handle)?;
+        let status_args = vec![
+            "inspect".to_string(),
+            "--format".to_string(),
+            "{{.State.Status}}".to_string(),
+            handle.sandbox_internal_id.clone(),
+        ];
+        let status = run_docker_command(
+            &self.config,
+            &status_args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
+        if status.exit_code != 0 {
+            return Ok(ProcessStatus::Orphaned);
+        }
+        let exit_code = self.exit_code(handle).await?;
+        Ok(parse_docker_status(
+            &String::from_utf8_lossy(&status.stdout),
+            exit_code,
+        ))
     }
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError> {
-        let process = self.process_state(handle)?;
-        let mut state = process.lock().await;
-        Ok(self.observe_process(handle, &mut state).await?.exit_code)
+        self.ensure_handle(handle)?;
+        let args = vec![
+            "inspect".to_string(),
+            "--format".to_string(),
+            "{{.State.ExitCode}}".to_string(),
+            handle.sandbox_internal_id.clone(),
+        ];
+        let output = run_docker_command(
+            &self.config,
+            &args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
+        if output.exit_code != 0 {
+            return Err(SandboxAdapterError::ProcessHandleStale {
+                process_id: handle.id,
+            });
+        }
+        parse_docker_exit_code(&String::from_utf8_lossy(&output.stdout))
     }
 
     fn capabilities(&self) -> AdapterCapabilities {
@@ -939,113 +656,3 @@ mod restart_cleanup_tests {
         }
     }
 }
-
-
-enum DockerSignalOutcome {
-    Attempted,
-    Acknowledged,
-    Uncertain(String),
-}
-
-struct DockerSignalAttempt {
-    signal: Signal,
-    original: Option<std::pin::Pin<Box<
-        dyn std::future::Future<Output = Result<(), SandboxAdapterError>> + Send,
-    >>>,
-    outcome: DockerSignalOutcome,
-    _original_context: crate::storage::surreal::CapturedModelLaneOperation,
-}
-
-impl std::fmt::Debug for DockerSignalAttempt {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let outcome = match &self.outcome {
-            DockerSignalOutcome::Attempted => "attempted",
-            DockerSignalOutcome::Acknowledged => "acknowledged",
-            DockerSignalOutcome::Uncertain(_) => "uncertain",
-        };
-        formatter.debug_struct("DockerSignalAttempt")
-            .field("signal", &self.signal).field("outcome", &outcome)
-            .finish_non_exhaustive()
-    }
-}
-
-impl DockerSignalAttempt {
-    async fn observe(&mut self) -> Result<(), SandboxAdapterError> {
-        if let Some(original) = self.original.as_mut() {
-            let observed = original.as_mut().await;
-            self.outcome = match &observed {
-                Ok(()) => DockerSignalOutcome::Acknowledged,
-                Err(error) => DockerSignalOutcome::Uncertain(error.to_string()),
-            };
-            self.original.take();
-            return observed;
-        }
-        match &self.outcome {
-            DockerSignalOutcome::Acknowledged => Ok(()),
-            DockerSignalOutcome::Uncertain(reason) => Err(SandboxAdapterError::AdapterUnavailable {
-                adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
-                reason: format!("original Docker signal outcome remains uncertain: {reason}"),
-            }),
-            DockerSignalOutcome::Attempted => Err(SandboxAdapterError::AdapterUnavailable {
-                adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
-                reason: "original Docker signal has no retained result".into(),
-            }),
-        }
-    }
-}
-
-
-
-enum DockerRemovalOutcome {
-    Accepted,
-    Rejected(String),
-    Uncertain(String),
-}
-
-struct DockerRemovalAttempt {
-    original: Option<std::pin::Pin<Box<
-        dyn std::future::Future<Output = Result<Option<String>, SandboxAdapterError>> + Send,
-    >>>,
-    outcome: Option<DockerRemovalOutcome>,
-    _original_context: crate::storage::surreal::CapturedModelLaneOperation,
-}
-
-impl std::fmt::Debug for DockerRemovalAttempt {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let outcome = match &self.outcome {
-            None => "attempted",
-            Some(DockerRemovalOutcome::Accepted) => "accepted",
-            Some(DockerRemovalOutcome::Rejected(_)) => "rejected",
-            Some(DockerRemovalOutcome::Uncertain(_)) => "uncertain",
-        };
-        formatter.debug_struct("DockerRemovalAttempt").field("outcome", &outcome)
-            .finish_non_exhaustive()
-    }
-}
-
-impl DockerRemovalAttempt {
-    async fn observe(&mut self) -> Result<(), SandboxAdapterError> {
-        if let Some(original) = self.original.as_mut() {
-            let observed = original.as_mut().await;
-            self.outcome = Some(match &observed {
-                Ok(None) => DockerRemovalOutcome::Accepted,
-                Ok(Some(reason)) => DockerRemovalOutcome::Rejected(reason.clone()),
-                Err(error) => DockerRemovalOutcome::Uncertain(error.to_string()),
-            });
-            self.original.take();
-            observed?;
-        }
-        match &self.outcome {
-            Some(DockerRemovalOutcome::Accepted) => Ok(()),
-            Some(DockerRemovalOutcome::Rejected(reason)) => Err(spawn_failed(
-                format!("docker terminal removal rejected: {reason}"),
-            )),
-            Some(DockerRemovalOutcome::Uncertain(reason)) => Err(SandboxAdapterError::AdapterUnavailable {
-                adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
-                reason: format!("original Docker removal remains uncertain: {reason}"),
-            }),
-            None => Err(spawn_failed("original Docker removal has no retained outcome")),
-        }
-    }
-}
-

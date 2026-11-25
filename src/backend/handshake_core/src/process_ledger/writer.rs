@@ -47,13 +47,11 @@ const PROCESS_LEDGER_START_INDEX_CAPACITY: usize = 65_536;
 
 
 static GLOBAL_DEGRADED_WRITERS: AtomicUsize = AtomicUsize::new(0);
-static GLOBAL_UNRESOLVED_LEDGER_WRITE: AtomicBool = AtomicBool::new(false);
 
 /// Process-wide count of ledger rows whose flush/store write failed.
 ///
-/// A flush failure means persistence of one or more `ProcessStart` /
-/// `ProcessStop` rows was not confirmed; an unknown outcome may still apply.
-/// Previously the in-loop flush result
+/// A flush failure means one or more `ProcessStart` / `ProcessStop` rows could
+/// not be persisted to the ledger store. Previously the in-loop flush result
 /// was discarded with `let _ = ...`, so a dropped row was completely invisible.
 /// This counter makes the loss observable and surfaceable to operators and
 /// monitoring without inventing a new spec event (spec 5.7.3 mandates only
@@ -62,13 +60,12 @@ static GLOBAL_LEDGER_FLUSH_FAILED_ROWS: AtomicU64 = AtomicU64::new(0);
 
 pub fn is_degraded() -> bool {
     GLOBAL_DEGRADED_WRITERS.load(Ordering::SeqCst) > 0
-        || GLOBAL_UNRESOLVED_LEDGER_WRITE.load(Ordering::SeqCst)
 }
 
 /// Total number of ledger rows that failed to flush to the store process-wide.
 ///
-/// Non-zero means at least one `ProcessStart`/`ProcessStop` write lacked
-/// confirmed persistence; pair with the `tracing::error!` at the failure site to
+/// Non-zero means at least one `ProcessStart`/`ProcessStop` row was not durably
+/// recorded; pair with the loud `tracing::error!` emitted at the failure site to
 /// recover the affected row identities.
 pub fn flush_failed_row_count() -> u64 {
     GLOBAL_LEDGER_FLUSH_FAILED_ROWS.load(Ordering::SeqCst)
@@ -216,14 +213,6 @@ pub trait ProcessLedgerStore: Send + Sync + 'static {
     }
 
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError>;
-
-    /// Optional exact position in this submitted batch for an attributed
-    /// identity rejection. Legacy stores retain the unique-payload fallback.
-    async fn write_batch_attributed(
-        &self, events: Vec<LedgerEvent>,
-    ) -> Result<(), (ProcessLedgerError, Option<usize>)> {
-        self.write_batch(events).await.map_err(|error| (error, None))
-    }
 }
 
 pub trait ProcessLedgerOverflowSink: Send + Sync + 'static {
@@ -296,81 +285,18 @@ impl LedgerOverflowEvent {
 }
 
 /// The identity bookkeeping a queued row triggers once the writer has actually
-/// accepted it: a START publishes its identity for the eventual terminal owner.
-/// STOP retirement requires a matching row's successful store commit.
+/// accepted it: a START publishes its identity for the eventual terminal owner,
+/// a STOP releases it.
 enum AcceptedEventIdentity {
-    Start(Arc<ProcessStart>),
-    Stop,
+    Start(Box<ProcessStart>),
+    Stop(Uuid),
 }
 
 impl AcceptedEventIdentity {
-    fn preserve_original_start(
-        &mut self, recorded: &HashMap<Uuid, Arc<ProcessStart>>,
-    ) -> Result<(), ProcessLedgerError> {
-        if let Self::Start(incoming) = self {
-            if let Some(original) = recorded.get(&incoming.process_uuid) {
-                if incoming.as_ref() != original.as_ref() {
-                    return Err(ProcessLedgerError::StartIdentityConflict {
-                        process_uuid: incoming.process_uuid,
-                        conflicting_start: Box::new(incoming.as_ref().clone()),
-                    });
-                }
-                *incoming = Arc::clone(original);
-            }
-        }
-        Ok(())
-    }
-
     fn of(event: &LedgerEvent) -> Self {
         match event {
-            LedgerEvent::Start(start) => Self::Start(Arc::new(start.clone())),
-            LedgerEvent::Stop(_) => Self::Stop,
-        }
-    }
-}
-
-
-struct LifecycleStopAuthority {
-    authorized: AtomicBool,
-    invalidated_start: AtomicBool,
-}
-
-impl LifecycleStopAuthority {
-    fn new(authorized: bool) -> Self {
-        Self { authorized: AtomicBool::new(authorized), invalidated_start: AtomicBool::new(false) }
-    }
-
-    fn load(&self, ordering: Ordering) -> bool { self.authorized.load(ordering) }
-    fn store(&self, value: bool, ordering: Ordering) { self.authorized.store(value, ordering); }
-}
-
-
-type AcceptedStartIndex = Arc<std::sync::Mutex<HashMap<Uuid, Arc<ProcessStart>>>>;
-
-struct IndexedStartRetirement {
-    index: AcceptedStartIndex,
-    original: Arc<ProcessStart>,
-}
-
-impl IndexedStartRetirement {
-    fn for_stop(
-        index: &AcceptedStartIndex, recorded: &HashMap<Uuid, Arc<ProcessStart>>, stop: &ProcessStop,
-    ) -> Option<Self> {
-        recorded.get(&stop.process_uuid).and_then(|original| {
-            let mut expected = ProcessStop::from_start(original.as_ref(), stop.exit_code);
-            expected.stopped_at = stop.stopped_at;
-            expected.stop_reason = stop.stop_reason.clone();
-            (expected == *stop).then(|| Self {
-                index: Arc::clone(index), original: Arc::clone(original),
-            })
-        })
-    }
-
-    fn retire_if_current(self) {
-        let mut recorded = self.index.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if recorded.get(&self.original.process_uuid)
-            .is_some_and(|current| Arc::ptr_eq(current, &self.original)) {
-            recorded.remove(&self.original.process_uuid);
+            LedgerEvent::Start(start) => Self::Start(Box::new(start.clone())),
+            LedgerEvent::Stop(stop) => Self::Stop(stop.process_uuid),
         }
     }
 }
@@ -380,79 +306,43 @@ impl IndexedStartRetirement {
 struct LedgerWriteRequest {
     event: LedgerEvent,
     durable_ack: Option<oneshot::Sender<Result<(), String>>>,
-    stop_authorized: Option<Arc<LifecycleStopAuthority>>,
-    index_retirement: Option<IndexedStartRetirement>,
-    rejected_start_retirement: Option<IndexedStartRetirement>,
-    scoped_stop_confirmation: Option<super::reclaim::ScopedStopConfirmation>,
+    stop_authorized: Option<Arc<AtomicBool>>,
 }
 
 impl LedgerWriteRequest {
-
-    fn unacknowledged_indexed(
-        event: LedgerEvent, indexed: &AcceptedEventIdentity, index: &AcceptedStartIndex,
-        recorded: &HashMap<Uuid, Arc<ProcessStart>>,
-    ) -> Self {
-        let mut request = Self::unacknowledged(event);
-        if let AcceptedEventIdentity::Start(original) = indexed {
-            let registers_original = !recorded.contains_key(&original.process_uuid)
-                && recorded.len() < PROCESS_LEDGER_START_INDEX_CAPACITY;
-            if registers_original {
-                request.rejected_start_retirement = Some(IndexedStartRetirement {
-                    index: Arc::clone(index), original: Arc::clone(original),
-                });
-            }
-        }
-        if let LedgerEvent::Stop(stop) = &request.event {
-            request.index_retirement = IndexedStartRetirement::for_stop(index, recorded, stop);
-        }
-        request
-    }
-
     fn unacknowledged(event: LedgerEvent) -> Self {
         Self {
             event,
             durable_ack: None,
             stop_authorized: None,
-            index_retirement: None,
-            rejected_start_retirement: None,
-            scoped_stop_confirmation: None,
         }
     }
 
     fn acknowledged(
         event: LedgerEvent,
         durable_ack: oneshot::Sender<Result<(), String>>,
-        stop_authorized: Arc<LifecycleStopAuthority>,
+        stop_authorized: Arc<AtomicBool>,
     ) -> Self {
         Self {
             event,
             durable_ack: Some(durable_ack),
             stop_authorized: Some(stop_authorized),
-            index_retirement: None,
-            rejected_start_retirement: None,
-            scoped_stop_confirmation: None,
         }
     }
 
-    fn lifecycle_start(event: LedgerEvent, stop_authorized: Arc<LifecycleStopAuthority>) -> Self {
+    fn lifecycle_start(event: LedgerEvent, stop_authorized: Arc<AtomicBool>) -> Self {
         Self {
             event,
             durable_ack: None,
             stop_authorized: Some(stop_authorized),
-            index_retirement: None,
-            rejected_start_retirement: None,
-            scoped_stop_confirmation: None,
         }
     }
 
-    fn lifecycle_stop(event: LedgerEvent, stop_authorized: Arc<LifecycleStopAuthority>) -> Self {
+    fn lifecycle_stop(event: LedgerEvent, stop_authorized: Arc<AtomicBool>) -> Self {
         Self {
             event,
             durable_ack: None,
             stop_authorized: Some(stop_authorized),
-            index_retirement: None,
-            rejected_start_retirement: None,
-            scoped_stop_confirmation: None,
         }
     }
 }
@@ -466,15 +356,6 @@ pub struct ProcessLedgerDurabilityAck {
 }
 
 impl ProcessLedgerDurabilityAck {
-
-    pub(crate) fn retain_stop(self) -> Result<Arc<Mutex<RetainedLifecycleStopAck>>, ProcessLedgerError> {
-        if !matches!(self.event_kind, LedgerEventKind::Stop) {
-            return Err(ProcessLedgerError::InvalidConfig("only STOP receipts use retained STOP custody".into()));
-        }
-        Ok(Arc::new(Mutex::new(RetainedLifecycleStopAck {
-            process_uuid: self.process_uuid, receiver: Some(self.receiver), verdict: None,
-        })))
-    }
     pub async fn wait_unbounded(self) -> Result<(), ProcessLedgerError> {
         match self.receiver.await {
             Ok(Ok(())) => Ok(()),
@@ -511,19 +392,6 @@ impl ProcessLedgerDurabilityAck {
     }
 }
 
-const START_ADMISSION_CLOSED: usize = 1usize << (usize::BITS - 1);
-
-#[derive(Clone)]
-struct StartAdmission(Arc<StartAdmissionLifetime>);
-
-struct StartAdmissionLifetime(Arc<AtomicUsize>);
-
-impl Drop for StartAdmissionLifetime {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::AcqRel);
-    }
-}
-
 /// Capacity reserved for one complete resource lifecycle before that resource
 /// is opened. Neither permit has emitted a row yet.
 ///
@@ -531,7 +399,6 @@ impl Drop for StartAdmissionLifetime {
 /// so the STOP guarantee can travel with a long-lived runtime or subprocess.
 /// Dropping an unused reservation returns both slots without fabricating rows.
 pub struct ReservedProcessLifecycle {
-    _start_admission: StartAdmission,
     start_permit: Option<OwnedPermit<LedgerWriteRequest>>,
     stop_permit: Option<OwnedPermit<LedgerWriteRequest>>,
     runtime_owner: Option<super::ProcessRuntimeOwner>,
@@ -542,27 +409,12 @@ pub struct ReservedProcessLifecycle {
 /// acknowledgement; merely consuming the permit is not reported as STOP.
 pub struct ReservedProcessStop {
     permit: Option<OwnedPermit<LedgerWriteRequest>>,
-    recorded_starts: AcceptedStartIndex,
-    _fresh_admission: Option<StartAdmission>,
 }
 
 impl ReservedProcessStop {
     pub fn commit_with_durable_ack(
-        self,
+        mut self,
         stop: ProcessStop,
-    ) -> Result<ProcessLedgerDurabilityAck, ProcessLedgerError> {
-        self.commit_reserved_stop(stop, None)
-    }
-
-    pub(crate) fn commit_with_scoped_confirmation(
-        self, stop: ProcessStop, confirmation: super::reclaim::ScopedStopConfirmation,
-    ) -> Result<ProcessLedgerDurabilityAck, ProcessLedgerError> {
-        confirmation.validate(&stop)?;
-        self.commit_reserved_stop(stop, Some(confirmation))
-    }
-
-    fn commit_reserved_stop(
-        mut self, stop: ProcessStop, confirmation: Option<super::reclaim::ScopedStopConfirmation>,
     ) -> Result<ProcessLedgerDurabilityAck, ProcessLedgerError> {
         let permit = self.permit.take().ok_or_else(|| {
             ProcessLedgerError::InvalidConfig(
@@ -571,16 +423,11 @@ impl ReservedProcessStop {
         })?;
         let process_uuid = stop.process_uuid;
         let (durable_ack, receiver) = oneshot::channel();
-        {
-            let recorded = self.recorded_starts.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            let retirement = IndexedStartRetirement::for_stop(&self.recorded_starts, &recorded, &stop);
-            let mut request = LedgerWriteRequest::acknowledged(
-                LedgerEvent::Stop(stop), durable_ack, Arc::new(LifecycleStopAuthority::new(true)),
-            );
-            request.index_retirement = retirement;
-            request.scoped_stop_confirmation = confirmation;
-            permit.send(request);
-        }
+        permit.send(LedgerWriteRequest::acknowledged(
+            LedgerEvent::Stop(stop),
+            durable_ack,
+            Arc::new(AtomicBool::new(true)),
+        ));
         Ok(ProcessLedgerDurabilityAck {
             receiver,
             process_uuid,
@@ -590,17 +437,6 @@ impl ReservedProcessStop {
 }
 
 impl ReservedProcessLifecycle {
-    pub(crate) fn begin_retained(
-        self,
-        start: ProcessStart,
-    ) -> Result<ActiveProcessLifecycle, ProcessLedgerError> {
-        let admission = self._start_admission.clone();
-        let mut active = self.begin(start)?;
-        active.auto_stop_on_drop = false;
-        *active.retained_admission.lock().unwrap_or_else(|error| error.into_inner()) = Some(admission);
-        Ok(active)
-    }
-
     /// Emit the real START after the resource has a real identity. Both permits
     /// were accepted before resource access, so this transition cannot observe
     /// a later full/closed queue.
@@ -621,7 +457,7 @@ impl ReservedProcessLifecycle {
                 "reserved lifecycle is missing its STOP permit".to_string(),
             )
         })?;
-        let stop_authorized = Arc::new(LifecycleStopAuthority::new(true));
+        let stop_authorized = Arc::new(AtomicBool::new(true));
         start_permit.send(LedgerWriteRequest::lifecycle_start(
             LedgerEvent::Start(start.clone()),
             Arc::clone(&stop_authorized),
@@ -631,9 +467,7 @@ impl ReservedProcessLifecycle {
             stop_permit: std::sync::Mutex::new(Some(stop_permit)),
             queued_stop: std::sync::Mutex::new(None),
             left_open_for_reconciliation: AtomicBool::new(false),
-            stop_ack: std::sync::Mutex::new(None),
-            receipt_continuation_started: AtomicBool::new(false),
-            retained_admission: std::sync::Mutex::new(None),
+            stop_durability_unconfirmed: AtomicBool::new(false),
             auto_stop_on_drop: true,
             stop_authorized,
         })
@@ -662,7 +496,7 @@ impl ReservedProcessLifecycle {
         })?;
         let (durable_ack, receiver) = oneshot::channel();
         let process_uuid = start.process_uuid;
-        let stop_authorized = Arc::new(LifecycleStopAuthority::new(false));
+        let stop_authorized = Arc::new(AtomicBool::new(false));
         start_permit.send(LedgerWriteRequest::acknowledged(
             LedgerEvent::Start(start.clone()),
             durable_ack,
@@ -674,13 +508,11 @@ impl ReservedProcessLifecycle {
                 stop_permit: std::sync::Mutex::new(Some(stop_permit)),
                 queued_stop: std::sync::Mutex::new(None),
                 left_open_for_reconciliation: AtomicBool::new(false),
-                stop_ack: std::sync::Mutex::new(None),
-                receipt_continuation_started: AtomicBool::new(false),
+                stop_durability_unconfirmed: AtomicBool::new(false),
                 // Queue acceptance is not authority. Until the caller observes
                 // the durable ACK, Drop must conservatively leave the lifecycle
                 // open instead of fabricating a STOP for a START that may have
                 // been rejected as an identity conflict.
-                retained_admission: std::sync::Mutex::new(None),
                 auto_stop_on_drop: false,
                 stop_authorized,
             },
@@ -727,49 +559,16 @@ pub enum StopRecordOutcome {
 /// `AlreadyStopped` from `LeftOpenForReconciliation`, never reporting a
 /// graceful success after another path deliberately abandoned STOP authority.
 pub struct ActiveProcessLifecycle {
-    retained_admission: std::sync::Mutex<Option<StartAdmission>>,
     start: ProcessStart,
     stop_permit: std::sync::Mutex<Option<OwnedPermit<LedgerWriteRequest>>>,
     queued_stop: std::sync::Mutex<Option<ProcessStop>>,
     left_open_for_reconciliation: AtomicBool,
-    stop_ack: std::sync::Mutex<Option<Arc<Mutex<RetainedLifecycleStopAck>>>>,
-    receipt_continuation_started: AtomicBool,
+    stop_durability_unconfirmed: AtomicBool,
     auto_stop_on_drop: bool,
-    stop_authorized: Arc<LifecycleStopAuthority>,
+    stop_authorized: Arc<AtomicBool>,
 }
 
 impl ActiveProcessLifecycle {
-    pub(crate) fn stop_with_event(
-        &self,
-        stop: ProcessStop,
-    ) -> Result<StopRecordOutcome, ProcessLedgerError> {
-        if stop.process_uuid != self.start.process_uuid {
-            return Err(ProcessLedgerError::InvalidConfig(
-                "reserved STOP does not belong to its original START".to_string(),
-            ));
-        }
-        let mut held = self.stop_permit.lock().unwrap_or_else(|error| error.into_inner());
-        let Some(permit) = held.take() else {
-            return Ok(if self.left_open_for_reconciliation.load(Ordering::SeqCst) {
-                StopRecordOutcome::LeftOpenForReconciliation
-            } else {
-                StopRecordOutcome::AlreadyStopped
-            });
-        };
-        if !self.stop_authorized.load(Ordering::SeqCst) {
-            self.left_open_for_reconciliation.store(true, Ordering::SeqCst);
-            drop(permit);
-            return Ok(StopRecordOutcome::LeftOpenForReconciliation);
-        }
-        *self.queued_stop.lock().unwrap_or_else(|error| error.into_inner()) = Some(stop.clone());
-        permit.send(LedgerWriteRequest::lifecycle_stop(
-            LedgerEvent::Stop(stop),
-            Arc::clone(&self.stop_authorized),
-        ));
-        self.retained_admission.lock().unwrap_or_else(|error| error.into_inner()).take();
-        Ok(StopRecordOutcome::Recorded)
-    }
-
     pub fn process_uuid(&self) -> Uuid {
         self.start.process_uuid
     }
@@ -832,107 +631,56 @@ impl ActiveProcessLifecycle {
         reason: &str,
         timeout: Duration,
     ) -> Result<StopRecordOutcome, ProcessLedgerError> {
-        let ack = {
-            let mut permit = self.stop_permit.lock().unwrap_or_else(|error| error.into_inner());
-            let mut queued = self.queued_stop.lock().unwrap_or_else(|error| error.into_inner());
-            if let Some(original) = queued.as_ref() {
-                let mut expected = ProcessStop::from_start(&self.start, exit_code).with_stop_reason(reason);
-                expected.stopped_at = original.stopped_at;
-                if original != &expected {
-                    return Err(ProcessLedgerError::InvalidConfig(
-                        "durable STOP retry does not match its original payload".into(),
-                    ));
-                }
+        let durable_ack = {
+            let mut permit = match self.stop_permit.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            let Some(permit) = permit.take() else {
+                return Ok(if self.stop_durability_unconfirmed.load(Ordering::SeqCst) {
+                    StopRecordOutcome::DurabilityUnconfirmed
+                } else if self.left_open_for_reconciliation.load(Ordering::SeqCst) {
+                    StopRecordOutcome::LeftOpenForReconciliation
+                } else {
+                    StopRecordOutcome::AlreadyStopped
+                });
+            };
+            if !self.stop_authorized.load(Ordering::SeqCst) {
+                self.left_open_for_reconciliation
+                    .store(true, Ordering::SeqCst);
+                drop(permit);
+                return Ok(StopRecordOutcome::LeftOpenForReconciliation);
             }
-            let mut retained = self.stop_ack.lock().unwrap_or_else(|error| error.into_inner());
-            if let Some(permit) = permit.take() {
-                if !self.stop_authorized.load(Ordering::SeqCst) {
-                    self.left_open_for_reconciliation.store(true, Ordering::SeqCst);
-                    drop(permit);
-                    return Ok(StopRecordOutcome::LeftOpenForReconciliation);
-                }
-                let stop = ProcessStop::from_start(&self.start, exit_code).with_stop_reason(reason);
-                let (sender, receiver) = oneshot::channel();
-                let ack = Arc::new(Mutex::new(RetainedLifecycleStopAck {
-                    process_uuid: self.start.process_uuid, receiver: Some(receiver), verdict: None,
-                }));
-                // Register original receipt and immutable payload before the
-                // synchronous send. No waiter owns or consumes the receiver.
-                *queued = Some(stop.clone());
-                *retained = Some(Arc::clone(&ack));
-                permit.send(LedgerWriteRequest::acknowledged(
-                    LedgerEvent::Stop(stop), sender, Arc::clone(&self.stop_authorized),
-                ));
-                ack
-            } else {
-                let Some(ack) = retained.as_ref() else {
-                    return Ok(if self.left_open_for_reconciliation.load(Ordering::SeqCst) {
-                        StopRecordOutcome::LeftOpenForReconciliation
-                    } else {
-                        // A queue-only STOP has no store receipt to promote.
-                        StopRecordOutcome::DurabilityUnconfirmed
-                    });
-                };
-                Arc::clone(ack)
+
+            let stop = ProcessStop::from_start(&self.start, exit_code).with_stop_reason(reason);
+            let process_uuid = stop.process_uuid;
+            let (durable_ack, receiver) = oneshot::channel();
+            *self.queued_stop.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(stop.clone());
+            permit.send(LedgerWriteRequest::acknowledged(
+                LedgerEvent::Stop(stop),
+                durable_ack,
+                Arc::clone(&self.stop_authorized),
+            ));
+            ProcessLedgerDurabilityAck {
+                receiver,
+                process_uuid,
+                event_kind: LedgerEventKind::Stop,
             }
         };
-        match time::timeout(timeout, async {
-            let mut retained = ack.lock().await;
-            retained.observe(self.start.process_uuid).await
-        }).await {
-            Ok(result) => {
-                if matches!(&result, Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped)) {
-                    self.retained_admission.lock().unwrap_or_else(|error| error.into_inner()).take();
-                }
-                if matches!(&result, Err(ProcessLedgerError::DurabilityRejected { .. })) {
-                    self.left_open_for_reconciliation.store(true, Ordering::SeqCst);
-                }
-                result
-            },
-            Err(_) => Err(ProcessLedgerError::DurabilityAckTimeout {
-                event_kind: LedgerEventKind::Stop.as_str().to_string(),
-                process_uuid: self.start.process_uuid,
-                timeout_ms: timeout.as_millis(),
-            }),
-        }
-    }
 
-    pub(crate) fn claim_stop_receipt_continuation(&self) -> bool {
-        if self.queued_stop().is_none()
-            || self.stop_ack.lock().unwrap_or_else(|error| error.into_inner()).is_none()
-        {
-            return false;
-        }
-        self.receipt_continuation_started.compare_exchange(
-            false, true, Ordering::AcqRel, Ordering::Acquire,
-        ).is_ok()
-    }
-
-    pub(crate) async fn observe_original_stop_receipt(
-        &self,
-    ) -> Result<StopRecordOutcome, ProcessLedgerError> {
-        if self.queued_stop().is_none() {
-            return Err(ProcessLedgerError::InvalidConfig("original queued STOP unavailable".into()));
-        }
-        let ack = self.stop_ack.lock().unwrap_or_else(|error| error.into_inner())
-            .as_ref().cloned().ok_or_else(|| ProcessLedgerError::DurabilityAckLost {
-                event_kind: LedgerEventKind::Stop.as_str().to_string(),
-                process_uuid: self.start.process_uuid,
-            })?;
-        let result = {
-            let mut retained = ack.lock().await;
-            if retained.process_uuid != self.start.process_uuid {
-                return Err(ProcessLedgerError::InvalidConfig("original STOP receipt identity mismatch".into()));
+        match durable_ack.wait(timeout).await {
+            Ok(()) => Ok(StopRecordOutcome::Recorded),
+            Err(error) => {
+                if matches!(error, ProcessLedgerError::DurabilityRejected { .. }) {
+                    self.left_open_for_reconciliation
+                        .store(true, Ordering::SeqCst);
+                } else {
+                    self.stop_durability_unconfirmed
+                        .store(true, Ordering::SeqCst);
+                }
+                Err(error)
             }
-            retained.observe(self.start.process_uuid).await
-        };
-        if matches!(&result, Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped)) {
-            self.retained_admission.lock().unwrap_or_else(|error| error.into_inner()).take();
         }
-        if matches!(&result, Err(ProcessLedgerError::DurabilityRejected { .. })) {
-            self.left_open_for_reconciliation.store(true, Ordering::SeqCst);
-        }
-        result
     }
 
     /// Relinquish the reserved STOP permit without recording a STOP row.
@@ -978,7 +726,6 @@ impl Drop for ActiveProcessLifecycle {
 }
 
 pub struct ProcessLedgerWriter {
-    start_admission: Arc<AtomicUsize>,
     sender: Sender<LedgerWriteRequest>,
     overflow_sink: Arc<dyn ProcessLedgerOverflowSink>,
     degraded: Arc<AtomicBool>,
@@ -986,7 +733,7 @@ pub struct ProcessLedgerWriter {
     flush_failed_rows: Arc<AtomicU64>,
     capacity: usize,
     close_notify: Arc<Notify>,
-    recorded_starts: AcceptedStartIndex,
+    recorded_starts: Arc<std::sync::Mutex<HashMap<Uuid, ProcessStart>>>,
 }
 
 impl ProcessLedgerWriter {
@@ -1012,7 +759,6 @@ impl ProcessLedgerWriter {
             capacity: config.capacity,
             close_notify: Arc::clone(&close_notify),
             recorded_starts: Arc::new(std::sync::Mutex::new(HashMap::new())),
-            start_admission: Arc::new(AtomicUsize::new(0)),
         };
         let join = tokio::spawn(run_writer(
             receiver,
@@ -1056,11 +802,10 @@ impl ProcessLedgerWriter {
             capacity: config.capacity,
             close_notify: Arc::new(Notify::new()),
             recorded_starts: Arc::new(std::sync::Mutex::new(HashMap::new())),
-            start_admission: Arc::new(AtomicUsize::new(0)),
         };
         let drain = ProcessLedgerDrain {
-            retained_batch: Mutex::new(RetainedWriteBatch::new(Vec::new(), Some(receiver))),
-            terminal_rejection: std::sync::Mutex::new(None),
+            receiver: Mutex::new(receiver),
+            retained_batch: Mutex::new(Vec::new()),
             degraded,
             flush_failed_rows,
             batch_size: config.batch_size,
@@ -1073,19 +818,10 @@ impl ProcessLedgerWriter {
     /// Full and closed queues fail synchronously, so the caller can release its
     /// fenced claim without touching the process. The permit remains owned
     /// across a slow kill and cannot be displaced by unrelated writer traffic.
-    pub(crate) fn try_reserve_fresh_reclaim_stop(&self) -> Result<ReservedProcessStop, ProcessLedgerError> {
-        let admission = self.begin_start_admission()?;
-        let mut reserved = self.try_reserve_reclaim_stop()?;
-        reserved._fresh_admission = Some(admission);
-        Ok(reserved)
-    }
-
     pub fn try_reserve_reclaim_stop(&self) -> Result<ReservedProcessStop, ProcessLedgerError> {
         match self.sender.clone().try_reserve_owned() {
             Ok(permit) => Ok(ReservedProcessStop {
                 permit: Some(permit),
-                recorded_starts: Arc::clone(&self.recorded_starts),
-                _fresh_admission: None,
             }),
             Err(TrySendError::Full(_sender)) => {
                 mark_degraded(&self.degraded);
@@ -1130,7 +866,6 @@ impl ProcessLedgerWriter {
         &self,
         count: usize,
     ) -> Result<Vec<ReservedProcessLifecycle>, ProcessLedgerError> {
-        let admission = self.begin_start_admission()?;
         if count == 0 {
             return Err(ProcessLedgerError::InvalidConfig(
                 "lifecycle reservation count must be greater than zero".to_string(),
@@ -1183,7 +918,6 @@ impl ProcessLedgerWriter {
                 )
             })?;
             lifecycles.push(ReservedProcessLifecycle {
-                _start_admission: admission.clone(),
                 start_permit: Some(start_permit),
                 stop_permit: Some(stop_permit),
                 runtime_owner: None,
@@ -1211,32 +945,9 @@ impl ProcessLedgerWriter {
     /// close. The loop closes its receiving half (no more rows accepted), drains
     /// everything already buffered to the store, then returns so its `JoinHandle`
     /// resolves. Idempotent and safe to call from any `LedgerBatcher` clone; a
-    /// seals START admission even for a manual-drain writer (which runs no loop).
-    /// Already acquired lifecycle permits retain their matching STOP authority.
+    /// no-op for the manual-drain writer (which runs no loop).
     pub fn begin_close(&self) {
-        self.start_admission.fetch_or(START_ADMISSION_CLOSED, Ordering::AcqRel);
         self.close_notify.notify_one();
-    }
-
-    pub(crate) fn has_pending_start_admissions(&self) -> bool {
-        self.start_admission.load(Ordering::Acquire) & !START_ADMISSION_CLOSED != 0
-    }
-
-    fn begin_start_admission(&self) -> Result<StartAdmission, ProcessLedgerError> {
-        self.start_admission
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |state| {
-                if state & START_ADMISSION_CLOSED != 0 || state == START_ADMISSION_CLOSED - 1 {
-                    None
-                } else {
-                    Some(state + 1)
-                }
-            })
-            .map_err(|_| ProcessLedgerError::EnqueueDropped(
-                "ledger START admission is closed or exhausted".to_string(),
-            ))?;
-        Ok(StartAdmission(Arc::new(StartAdmissionLifetime(
-            Arc::clone(&self.start_admission),
-        ))))
     }
 
     pub fn is_degraded(&self) -> bool {
@@ -1253,7 +964,7 @@ impl ProcessLedgerWriter {
     }
 
     /// The START identity the writer accepted for `process_uuid`, if its STOP
-    /// row has not committed with matching retirement custody yet.
+    /// row has not been accepted yet.
     ///
     /// Terminal owners that did not author the START use this to derive a STOP
     /// whose immutable identity columns match the persisted lifecycle row,
@@ -1263,60 +974,50 @@ impl ProcessLedgerWriter {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .get(&process_uuid)
-            .map(|start| start.as_ref().clone())
+            .cloned()
     }
 
-    /// Track START identity only after successful queue acceptance.
-    /// Matching STOP retirement remains owned by its queued write request.
-    fn index_accepted_event(
-        recorded: &mut HashMap<Uuid, Arc<ProcessStart>>, indexed: AcceptedEventIdentity,
-    ) -> Option<Uuid> {
+    /// Track the accepted START identity, or release it once its STOP row has
+    /// been accepted. Called only after the row is actually in the queue, so a
+    /// dropped row never leaves a phantom identity behind.
+    fn index_accepted_event(&self, indexed: AcceptedEventIdentity) {
+        let mut recorded = self
+            .recorded_starts
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         match indexed {
             AcceptedEventIdentity::Start(start) => {
                 let process_uuid = start.process_uuid;
                 if recorded.len() >= PROCESS_LEDGER_START_INDEX_CAPACITY
                     && !recorded.contains_key(&process_uuid)
                 {
-                    return Some(process_uuid);
+                    tracing::warn!(
+                        target: PROCESS_LEDGER_SOURCE_COMPONENT,
+                        event = "ledger_start_index_saturated",
+                        process_uuid = %process_uuid,
+                        capacity = PROCESS_LEDGER_START_INDEX_CAPACITY,
+                        "in-flight START identity index is saturated; this lifecycle's terminal owner must supply its own START identity"
+                    );
+                    return;
                 }
-                recorded.insert(process_uuid, start);
+                recorded.insert(process_uuid, *start);
             }
-            AcceptedEventIdentity::Stop => {}
-        }
-        None
-    }
-
-    fn report_start_index_saturation(process_uuid: Option<Uuid>) {
-        if let Some(process_uuid) = process_uuid {
-            tracing::warn!(
-                target: PROCESS_LEDGER_SOURCE_COMPONENT,
-                event = "ledger_start_index_saturated",
-                process_uuid = %process_uuid,
-                capacity = PROCESS_LEDGER_START_INDEX_CAPACITY,
-                "in-flight START identity index is saturated; this lifecycle's terminal owner must supply its own START identity"
-            );
+            AcceptedEventIdentity::Stop(process_uuid) => {
+                recorded.remove(&process_uuid);
+            }
         }
     }
 
     fn enqueue(&self, event: LedgerEvent) -> Result<(), ProcessLedgerError> {
-        let _admission = match &event {
-            LedgerEvent::Start(_) => Some(self.begin_start_admission()?),
-            LedgerEvent::Stop(_) => None,
-        };
-        let mut indexed = AcceptedEventIdentity::of(&event);
-        let (result, saturated) = {
-            let mut recorded = self.recorded_starts.lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            indexed.preserve_original_start(&recorded)?;
-            let result = self.sender.try_send(LedgerWriteRequest::unacknowledged_indexed(event, &indexed, &self.recorded_starts, &recorded));
-            let saturated = if result.is_ok() {
-                Self::index_accepted_event(&mut recorded, indexed)
-            } else { None };
-            (result, saturated)
-        };
-        Self::report_start_index_saturation(saturated);
-        match result {
-            Ok(()) => Ok(()),
+        let indexed = AcceptedEventIdentity::of(&event);
+        match self
+            .sender
+            .try_send(LedgerWriteRequest::unacknowledged(event))
+        {
+            Ok(()) => {
+                self.index_accepted_event(indexed);
+                Ok(())
+            }
             Err(TrySendError::Full(request)) | Err(TrySendError::Closed(request)) => {
                 mark_degraded(&self.degraded);
                 emit_overflow(
@@ -1331,26 +1032,17 @@ impl ProcessLedgerWriter {
     }
 
     fn enqueue_lossless(&self, event: LedgerEvent) -> Result<(), ProcessLedgerError> {
-        let _admission = match &event {
-            LedgerEvent::Start(_) => Some(self.begin_start_admission()?),
-            LedgerEvent::Stop(_) => None,
-        };
         let event_kind = event.kind();
         let process_uuid = event.process_uuid();
-        let mut indexed = AcceptedEventIdentity::of(&event);
-        let (result, saturated) = {
-            let mut recorded = self.recorded_starts.lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            indexed.preserve_original_start(&recorded)?;
-            let result = self.sender.try_send(LedgerWriteRequest::unacknowledged_indexed(event, &indexed, &self.recorded_starts, &recorded));
-            let saturated = if result.is_ok() {
-                Self::index_accepted_event(&mut recorded, indexed)
-            } else { None };
-            (result, saturated)
-        };
-        Self::report_start_index_saturation(saturated);
-        match result {
-            Ok(()) => Ok(()),
+        let indexed = AcceptedEventIdentity::of(&event);
+        match self
+            .sender
+            .try_send(LedgerWriteRequest::unacknowledged(event))
+        {
+            Ok(()) => {
+                self.index_accepted_event(indexed);
+                Ok(())
+            }
             Err(error) => {
                 // A full queue and a closed queue are different operational
                 // faults: the first is backpressure against a live writer, the
@@ -1384,23 +1076,13 @@ impl ProcessLedgerWriter {
         event: LedgerEvent,
         timeout: Duration,
     ) -> Result<(), ProcessLedgerError> {
-        let _admission = match &event {
-            LedgerEvent::Start(_) => Some(self.begin_start_admission()?),
-            LedgerEvent::Stop(_) => None,
-        };
         let event_kind = event.kind();
         let process_uuid = event.process_uuid();
-        let mut indexed = AcceptedEventIdentity::of(&event);
+        let indexed = AcceptedEventIdentity::of(&event);
         match time::timeout(timeout, self.sender.reserve()).await {
             Ok(Ok(permit)) => {
-                let saturated = {
-                    let mut recorded = self.recorded_starts.lock()
-                        .unwrap_or_else(|poisoned| poisoned.into_inner());
-                    indexed.preserve_original_start(&recorded)?;
-                    permit.send(LedgerWriteRequest::unacknowledged_indexed(event, &indexed, &self.recorded_starts, &recorded));
-                    Self::index_accepted_event(&mut recorded, indexed)
-                };
-                Self::report_start_index_saturation(saturated);
+                permit.send(LedgerWriteRequest::unacknowledged(event));
+                self.index_accepted_event(indexed);
                 Ok(())
             }
             outcome => {
@@ -1433,87 +1115,9 @@ impl Drop for ProcessLedgerWriter {
     }
 }
 
-
-enum UnresolvedLedgerBatch {
-    StatementTimeout(u128),
-    Interrupted,
-}
-
-struct RetainedWriteBatch {
-    rows: Vec<LedgerWriteRequest>,
-    receiver: Option<Receiver<LedgerWriteRequest>>,
-    unresolved: Option<UnresolvedLedgerBatch>,
-    terminal_rejected: bool,
-}
-
-impl RetainedWriteBatch {
-    fn new(rows: Vec<LedgerWriteRequest>, receiver: Option<Receiver<LedgerWriteRequest>>) -> Self {
-        Self { rows, receiver, unresolved: None, terminal_rejected: false }
-    }
-
-    fn close_intake(&mut self) {
-        if let Some(receiver) = self.receiver.as_mut() { receiver.close(); }
-    }
-
-    fn unresolved_error(&self) -> Option<ProcessLedgerError> {
-        self.unresolved.as_ref().map(|outcome| match outcome {
-            UnresolvedLedgerBatch::StatementTimeout(waited_ms) => ProcessLedgerError::Surreal {
-                source: SurrealStorageError::StatementTimeout { waited_ms: *waited_ms },
-            },
-            UnresolvedLedgerBatch::Interrupted => ProcessLedgerError::Store(
-                "original ledger batch await was interrupted; settlement is unknown and resubmission is refused".into(),
-            ),
-        })
-    }
-}
-
-impl std::ops::Deref for RetainedWriteBatch {
-    type Target = Vec<LedgerWriteRequest>;
-    fn deref(&self) -> &Self::Target { &self.rows }
-}
-
-impl std::ops::DerefMut for RetainedWriteBatch {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.rows }
-}
-
-impl Drop for RetainedWriteBatch {
-    fn drop(&mut self) {
-        if self.unresolved.is_some() {
-            self.close_intake();
-            // No settlement/recovery authority exists here. Preserve the exact
-            // rows, receipts, retirement and closed intake until process exit.
-            std::mem::forget(std::mem::take(&mut self.rows));
-            if let Some(receiver) = self.receiver.take() { std::mem::forget(receiver); }
-        }
-    }
-}
-
-struct LedgerBatchAttempt<'a> {
-    receiver: &'a mut Option<Receiver<LedgerWriteRequest>>,
-    unresolved: &'a mut Option<UnresolvedLedgerBatch>,
-    rows: &'a [LedgerWriteRequest],
-    degraded: &'a AtomicBool,
-    flush_failed_rows: &'a AtomicU64,
-    returned: bool,
-}
-
-impl Drop for LedgerBatchAttempt<'_> {
-    fn drop(&mut self) {
-        if !self.returned && self.unresolved.is_none() {
-            GLOBAL_UNRESOLVED_LEDGER_WRITE.store(true, Ordering::SeqCst);
-            *self.unresolved = Some(UnresolvedLedgerBatch::Interrupted);
-            if let Some(receiver) = self.receiver.as_mut() { receiver.close(); }
-            mark_degraded(self.degraded);
-            record_flush_failure(self.flush_failed_rows, self.rows, &ProcessLedgerError::Store(
-                "original ledger batch await was interrupted; persistence is unknown and custody remains retained".into(),
-            ));
-        }
-    }
-}
-
 pub struct ProcessLedgerDrain {
-    retained_batch: Mutex<RetainedWriteBatch>,
-    terminal_rejection: std::sync::Mutex<Option<ProcessLedgerError>>,
+    receiver: Mutex<Receiver<LedgerWriteRequest>>,
+    retained_batch: Mutex<Vec<LedgerWriteRequest>>,
     degraded: Arc<AtomicBool>,
     flush_failed_rows: Arc<AtomicU64>,
     batch_size: usize,
@@ -1524,15 +1128,12 @@ impl ProcessLedgerDrain {
     where
         S: ProcessLedgerStore,
     {
+        let mut receiver = self.receiver.lock().await;
         let mut batch = self.retained_batch.lock().await;
-        if let Some(error) = batch.unresolved_error() {
-            batch.close_intake();
-            return Err(error);
-        }
         if !batch.is_empty() {
             self.flush_batch_observed(&store, &mut batch).await?;
         }
-        while let Ok(mut event) = batch.receiver.as_mut().expect("original manual receiver").try_recv() {
+        while let Ok(mut event) = receiver.try_recv() {
                 if rejected_lifecycle_stop(&event) {
                     if let Some(ack) = event.durable_ack.take() {
                         let _ = ack.send(Err("lifecycle START has no durable STOP authority".to_string()));
@@ -1547,11 +1148,7 @@ impl ProcessLedgerDrain {
         if !batch.is_empty() {
             self.flush_batch_observed(&store, &mut batch).await?;
         }
-        let rejection = self.terminal_rejection.lock().unwrap_or_else(|error| error.into_inner());
-        match rejection.as_ref().and_then(copy_identity_conflict) {
-            Some(error) => Err(error),
-            None => Ok(()),
-        }
+        Ok(())
     }
 
     /// Number of ledger rows this drain failed to flush to the store.
@@ -1560,30 +1157,26 @@ impl ProcessLedgerDrain {
     }
 
     /// Flush helper that propagates store errors (preserving the manual-drain
-    /// contract) but records unconfirmed persistence before returning the error, so
+    /// contract) but records the loss observably before returning the error, so
     /// even the propagating path is never silent.
     async fn flush_batch_observed<S>(
         &self,
         store: &Arc<S>,
-        batch: &mut RetainedWriteBatch,
+        batch: &mut Vec<LedgerWriteRequest>,
     ) -> Result<(), ProcessLedgerError>
     where
         S: ProcessLedgerStore,
     {
         match flush_batch(store, batch, &self.degraded, &self.flush_failed_rows).await {
             Ok(()) => Ok(()),
-            Err(error) => {
-                let mut retained = self.terminal_rejection.lock().unwrap_or_else(|error| error.into_inner());
-                if retained.is_none() { *retained = copy_identity_conflict(&error); }
-                Err(error)
-            },
+            Err(error) => Err(error),
         }
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn run_writer(
-    receiver: Receiver<LedgerWriteRequest>,
+    mut receiver: Receiver<LedgerWriteRequest>,
     store: Arc<dyn ProcessLedgerStore>,
     _overflow_sink: Arc<dyn ProcessLedgerOverflowSink>,
     config: WriterConfig,
@@ -1602,7 +1195,7 @@ async fn run_writer(
     // overflow. Bound the retained set at `capacity` and stop receiving while
     // it is full; the mpsc channel then provides backpressure while ticks (or a
     // close request) retry the exact retained rows.
-    let mut batch = RetainedWriteBatch::new(Vec::with_capacity(config.capacity), Some(receiver));
+    let mut batch = Vec::with_capacity(config.capacity);
     let mut receiver_drained = false;
     let mut terminal_rejection = None;
 
@@ -1611,14 +1204,12 @@ async fn run_writer(
             break;
         }
 
-        let receive_enabled = !receiver_drained && batch.len() < config.capacity;
         tokio::select! {
-            maybe_event = batch.receiver.as_mut().expect("original writer receiver").recv(), if receive_enabled => {
+            maybe_event = receiver.recv(), if !receiver_drained && batch.len() < config.capacity => {
                 let Some(mut event) = maybe_event else {
                     receiver_drained = true;
                     if !batch.is_empty() {
                         if let Err(error) = flush_batch(&store, &mut batch, &degraded, &flush_failed_rows).await {
-                        if batch.unresolved.is_some() { return Err(error); }
                         if terminal_rejection.is_none()
                             && matches!(&error, ProcessLedgerError::StartIdentityConflict { .. }
                                 | ProcessLedgerError::StopIdentityConflict { .. })
@@ -1642,7 +1233,6 @@ async fn run_writer(
                     // store failures. The failed batch stays retained and the
                     // receive branch is disabled once it reaches `capacity`.
                     if let Err(error) = flush_batch(&store, &mut batch, &degraded, &flush_failed_rows).await {
-                        if batch.unresolved.is_some() { return Err(error); }
                         if terminal_rejection.is_none()
                             && matches!(&error, ProcessLedgerError::StartIdentityConflict { .. }
                                 | ProcessLedgerError::StopIdentityConflict { .. })
@@ -1655,7 +1245,6 @@ async fn run_writer(
             _ = ticker.tick() => {
                 if !batch.is_empty() {
                     if let Err(error) = flush_batch(&store, &mut batch, &degraded, &flush_failed_rows).await {
-                        if batch.unresolved.is_some() { return Err(error); }
                         if terminal_rejection.is_none()
                             && matches!(&error, ProcessLedgerError::StartIdentityConflict { .. }
                                 | ProcessLedgerError::StopIdentityConflict { .. })
@@ -1672,10 +1261,9 @@ async fn run_writer(
                 // queue. Retry the retained failed batch immediately; after it
                 // succeeds, the receive branch drains that queued STOP before
                 // `recv()` can report the channel fully drained.
-                batch.close_intake();
+                receiver.close();
                 if !batch.is_empty() {
                     if let Err(error) = flush_batch(&store, &mut batch, &degraded, &flush_failed_rows).await {
-                        if batch.unresolved.is_some() { return Err(error); }
                         if terminal_rejection.is_none()
                             && matches!(&error, ProcessLedgerError::StartIdentityConflict { .. }
                                 | ProcessLedgerError::StopIdentityConflict { .. })
@@ -1695,9 +1283,8 @@ async fn run_writer(
 
 /// Make a ledger flush/store failure observable instead of silently discarding it.
 ///
-/// `flush_batch` records every row whose persistence was not confirmed.
-/// Known rollbacks retain unrelated rows for retry; outcome-unknown batches
-/// retain all custody and refuse resubmission. This:
+/// `flush_batch` records all rejected identities before permanent conflicts clear
+/// the batch; transient failures retain it for retry. This:
 ///   * increments the per-writer and process-wide flush-failure row counters
 ///     (surfaceable via `ProcessLedgerWriter::flush_failed_rows` /
 ///     `flush_failed_row_count`), and
@@ -1721,37 +1308,22 @@ fn record_flush_failure(
             event_kind = event.kind().as_str(),
             parent_session_id = event.parent_session_id().unwrap_or("unknown-session"),
             error = %error,
-            "process ledger flush/store failed; row persistence was not confirmed"
+            "process ledger flush/store failed; row not durably persisted"
         );
     }
 }
 
 async fn flush_batch<S>(
     store: &Arc<S>,
-    batch: &mut RetainedWriteBatch,
+    batch: &mut Vec<LedgerWriteRequest>,
     degraded: &Arc<AtomicBool>,
     flush_failed_rows: &AtomicU64,
 ) -> Result<(), ProcessLedgerError>
 where
     S: ProcessLedgerStore + ?Sized,
 {
-    if let Some(error) = batch.unresolved_error() {
-        batch.close_intake();
-        return Err(error);
-    }
-    reject_invalidated_batch_stops(batch);
-    if batch.is_empty() { return Ok(()); }
     let events = batch.iter().map(|request| request.event.clone()).collect();
-    let result = {
-        let mut attempt = LedgerBatchAttempt {
-            receiver: &mut batch.receiver, unresolved: &mut batch.unresolved,
-            rows: &batch.rows, degraded, flush_failed_rows, returned: false,
-        };
-        let result = store.write_batch_attributed(events).await;
-        attempt.returned = true;
-        result
-    };
-    match result {
+    match store.write_batch(events).await {
         Ok(()) => {
             for mut request in batch.drain(..) {
                 if matches!(request.event, LedgerEvent::Start(_)) {
@@ -1759,43 +1331,24 @@ where
                         authorized.store(true, Ordering::SeqCst);
                     }
                 }
-                if let Some(retirement) = request.index_retirement.take() {
-                    retirement.retire_if_current();
-                }
-                if let Some(confirmation) = request.scoped_stop_confirmation.take() {
-                    if let LedgerEvent::Stop(stop) = &request.event {
-                        confirmation.publish(stop);
-                    }
-                }
                 if let Some(ack) = request.durable_ack.take() {
                     let _ = ack.send(Ok(()));
                 }
             }
-            if !batch.terminal_rejected { clear_degraded(degraded); }
+            clear_degraded(degraded);
             Ok(())
         }
-        Err((error, ordinal)) => {
-            if let ProcessLedgerError::Surreal {
-                source: SurrealStorageError::StatementTimeout { waited_ms },
-            } = &error {
-                GLOBAL_UNRESOLVED_LEDGER_WRITE.store(true, Ordering::SeqCst);
-                batch.unresolved = Some(UnresolvedLedgerBatch::StatementTimeout(*waited_ms));
-                batch.close_intake();
-            }
+        Err(error) => {
             let permanent_identity_conflict = matches!(
                 &error,
                 ProcessLedgerError::StartIdentityConflict { .. }
                     | ProcessLedgerError::StopIdentityConflict { .. }
             );
-            // Every submitted row lacks confirmed persistence. Only a known
-            // identity rejection authorizes selective removal after rollback.
-            record_flush_failure(flush_failed_rows, batch, &error);
-            if permanent_identity_conflict {
-                batch.terminal_rejected = true;
-                reject_exact_identity_conflict(batch, &error, ordinal);
-            } else if matches!(&error, ProcessLedgerError::ReclaimConflict { .. }) {
-                // Preserve the legacy anonymous reclaim-conflict contract.
+            if permanent_identity_conflict
+                || matches!(&error, ProcessLedgerError::ReclaimConflict { .. })
+            {
                 for request in batch.iter_mut() {
+                    // The authoritative transaction rejected the entire batch.
                     if matches!(request.event, LedgerEvent::Start(_)) {
                         if let Some(authorized) = request.stop_authorized.as_ref() {
                             authorized.store(false, Ordering::SeqCst);
@@ -1806,91 +1359,17 @@ where
                     }
                 }
             }
+            record_flush_failure(flush_failed_rows, batch, &error);
+            // The authoritative transaction rejected the whole batch. Do not retry an immutable identity conflict.
+            if permanent_identity_conflict {
+                batch.clear();
+            }
             mark_degraded(degraded);
             Err(error)
         }
     }
 }
 
-
-fn reject_exact_identity_conflict(
-    batch: &mut Vec<LedgerWriteRequest>, error: &ProcessLedgerError, ordinal: Option<usize>,
-) {
-    let matches = |request: &LedgerWriteRequest| match (error, &request.event) {
-        (ProcessLedgerError::StartIdentityConflict { process_uuid, conflicting_start }, LedgerEvent::Start(start)) =>
-            *process_uuid == start.process_uuid && start == conflicting_start.as_ref(),
-        (ProcessLedgerError::StopIdentityConflict { process_uuid, conflicting_stop }, LedgerEvent::Stop(stop)) =>
-            *process_uuid == stop.process_uuid && stop == conflicting_stop.as_ref(),
-        _ => false,
-    };
-    let rejected_index = if let Some(index) = ordinal {
-        let Some(request) = batch.get(index) else { return; };
-        if !matches(request) { return; }
-        index
-    } else {
-        let mut positions = batch.iter().enumerate().filter_map(|(index, request)| matches(request).then_some(index));
-        let Some(index) = positions.next() else { return; };
-        if positions.next().is_some() { return; }
-        index
-    };
-    let rejected_start_owner = if matches!(batch[rejected_index].event, LedgerEvent::Start(_)) {
-        batch[rejected_index].stop_authorized.clone()
-    } else { None };
-    if let Some(owner) = &rejected_start_owner {
-        owner.invalidated_start.store(true, Ordering::SeqCst);
-        owner.store(false, Ordering::SeqCst);
-    }
-    let mut retained = Vec::with_capacity(batch.len());
-    for (index, mut request) in batch.drain(..).enumerate() {
-        let dependent = matches!(request.event, LedgerEvent::Stop(_))
-            && rejected_start_owner.as_ref().is_some_and(|original|
-                request.stop_authorized.as_ref().is_some_and(|owner| Arc::ptr_eq(original, owner)));
-        if index == rejected_index || dependent {
-            if index == rejected_index && matches!(request.event, LedgerEvent::Start(_)) {
-                if let Some(retirement) = request.rejected_start_retirement.take() {
-                    retirement.retire_if_current();
-                }
-            }
-            if let Some(ack) = request.durable_ack.take() {
-                let _ = ack.send(Err(error.to_string()));
-            }
-        } else {
-            retained.push(request);
-        }
-    }
-    *batch = retained;
-}
-
-fn reject_invalidated_batch_stops(batch: &mut Vec<LedgerWriteRequest>) {
-    batch.retain_mut(|request| {
-        let rejected = matches!(request.event, LedgerEvent::Stop(_))
-            && request.stop_authorized.as_ref().is_some_and(|owner|
-                owner.invalidated_start.load(Ordering::SeqCst));
-        if rejected {
-            if let Some(ack) = request.durable_ack.take() {
-                let _ = ack.send(Err("original lifecycle START was permanently rejected".into()));
-            }
-            false
-        } else {
-            true
-        }
-    });
-}
-
-
-fn copy_identity_conflict(error: &ProcessLedgerError) -> Option<ProcessLedgerError> {
-    match error {
-        ProcessLedgerError::StartIdentityConflict { process_uuid, conflicting_start } =>
-            Some(ProcessLedgerError::StartIdentityConflict {
-                process_uuid: *process_uuid, conflicting_start: conflicting_start.clone(),
-            }),
-        ProcessLedgerError::StopIdentityConflict { process_uuid, conflicting_stop } =>
-            Some(ProcessLedgerError::StopIdentityConflict {
-                process_uuid: *process_uuid, conflicting_stop: conflicting_stop.clone(),
-            }),
-        _ => None,
-    }
-}
 fn rejected_lifecycle_stop(request: &LedgerWriteRequest) -> bool {
     matches!(request.event, LedgerEvent::Stop(_))
         && request
@@ -2198,18 +1677,6 @@ impl SurrealProcessLedgerStore {
                 LedgerEvent::Start(start) => (&start.runtime_owner, &start.metadata_jsonb),
                 LedgerEvent::Stop(stop) => (&stop.runtime_owner, &stop.metadata_jsonb),
             };
-            if matches!(event, LedgerEvent::Stop(stop)
-                if stop.stop_reason.as_deref().is_some_and(|reason|
-                    reason.starts_with("reclaim_claimed:") || reason.starts_with("reclaim_killed:")))
-                || [
-                    "__handshake_internal_reclaim_receipt_v1",
-                    "__handshake_internal_reclaim_durable_receipt_v1",
-                ].iter().any(|key| metadata.get(*key).is_some())
-            {
-                return Err(ProcessLedgerError::InvalidConfig(
-                    "legacy process writer rejects reserved reclaim markers".into(),
-                ));
-            }
             if owner.is_some()
                 || [
                     "owner_account_id",
@@ -2350,11 +1817,11 @@ mod surreal_restart_tests {
                 LedgerEvent::Start(start.clone())
             };
             let (sender, mut receiver) = oneshot::channel();
-            let mut batch = RetainedWriteBatch::new(vec![LedgerWriteRequest::acknowledged(
+            let mut batch = vec![LedgerWriteRequest::acknowledged(
                 event,
                 sender,
-                Arc::new(LifecycleStopAuthority::new(true)),
-            )], None);
+                Arc::new(AtomicBool::new(true)),
+            )];
             let ordinary =
                 ProcessStart::new(ProcessEngineKind::Candle, "ordinary-unacknowledged", None);
             batch.push(LedgerWriteRequest::unacknowledged(LedgerEvent::Start(
@@ -2392,8 +1859,7 @@ mod surreal_restart_tests {
                     .unwrap()
                     .unwrap()
                     .is_err());
-                assert_eq!(batch.len(), 1);
-                assert!(matches!(&batch[0].event, LedgerEvent::Start(retained) if retained == &ordinary));
+                assert!(batch.is_empty());
             } else {
                 assert!(time::timeout(Duration::from_millis(20), &mut receiver)
                     .await
@@ -3131,27 +2597,23 @@ mod surreal_restart_tests {
         let active_uuid = active.process_uuid;
         let marked_uuid = marked.process_uuid;
         store
-            .write_batch(vec![LedgerEvent::Start(marked)])
+            .write_batch(vec![
+                LedgerEvent::Start(active),
+                LedgerEvent::Start(marked.clone()),
+            ])
             .await
-            .expect("persist marked raw-receipt fixture");
-        let prior_claims = ReclaimProcessStore::active_processes_for_session(
-            store.as_ref(), session_id,
-        )
-        .await
-        .expect("claim prior cleanup fixture");
-        let [prior_cleanup] = prior_claims.as_slice() else {
-            panic!("expected one prior cleanup claim");
-        };
+            .expect("persist mixed raw-receipt fixtures");
+
+        let prior_owner = Uuid::now_v7();
+        let prior_marker = format!("reclaim_killed:{prior_owner}");
+        let prior_stopped_at = Utc::now() - chrono::Duration::seconds(7);
+        let mut prior_cleanup =
+            ProcessStop::from_start(&marked, None).with_stop_reason(prior_marker.clone());
+        prior_cleanup.stopped_at = prior_stopped_at;
         store
-            .mark_reclaim_cleanup_completed(prior_cleanup)
+            .write_batch(vec![LedgerEvent::Stop(prior_cleanup)])
             .await
             .expect("persist prior cleanup marker");
-        let prior_marker = prior_cleanup.reclaim_expected_killed_reason.clone();
-        let prior_stopped_at = prior_cleanup.reclaim_claimed_at;
-        store
-            .write_batch(vec![LedgerEvent::Start(active)])
-            .await
-            .expect("persist active raw-receipt fixture");
 
         let error = store
             .active_processes_for_session_with_raw_receipt_failure(
@@ -3307,66 +2769,3 @@ mod surreal_restart_tests {
         storage.shutdown().await.expect("close process guard store");
     }
 }
-
-
-enum LifecycleStopVerdict {
-    Accepted,
-    Rejected(String),
-    Lost,
-}
-
-pub(crate) struct RetainedLifecycleStopAck {
-    process_uuid: Uuid,
-    receiver: Option<oneshot::Receiver<Result<(), String>>>,
-    verdict: Option<LifecycleStopVerdict>,
-}
-
-impl RetainedLifecycleStopAck {
-
-    pub(crate) async fn wait_retained(
-        ack: &Arc<Mutex<Self>>, process_uuid: Uuid, timeout: Duration,
-    ) -> Result<StopRecordOutcome, ProcessLedgerError> {
-        match time::timeout(timeout, async {
-            let mut retained = ack.lock().await;
-            if retained.process_uuid != process_uuid {
-                return Err(ProcessLedgerError::InvalidConfig("retained STOP receipt owner mismatch".into()));
-            }
-            retained.observe(process_uuid).await
-        }).await {
-            Ok(result) => result,
-            Err(_) => Err(ProcessLedgerError::DurabilityAckTimeout {
-                event_kind: LedgerEventKind::Stop.as_str().to_string(),
-                process_uuid, timeout_ms: timeout.as_millis(),
-            }),
-        }
-    }
-    async fn observe(&mut self, process_uuid: Uuid) -> Result<StopRecordOutcome, ProcessLedgerError> {
-        if self.verdict.is_none() {
-            let Some(receiver) = self.receiver.as_mut() else {
-                return Err(ProcessLedgerError::DurabilityAckLost {
-                    event_kind: LedgerEventKind::Stop.as_str().to_string(), process_uuid,
-                });
-            };
-            let observed = receiver.await;
-            self.verdict = Some(match observed {
-                Ok(Ok(())) => LifecycleStopVerdict::Accepted,
-                Ok(Err(reason)) => LifecycleStopVerdict::Rejected(reason),
-                Err(_) => LifecycleStopVerdict::Lost,
-            });
-            self.receiver.take();
-            if matches!(self.verdict, Some(LifecycleStopVerdict::Accepted)) {
-                return Ok(StopRecordOutcome::Recorded);
-            }
-        }
-        match &self.verdict {
-            Some(LifecycleStopVerdict::Accepted) => Ok(StopRecordOutcome::AlreadyStopped),
-            Some(LifecycleStopVerdict::Rejected(reason)) => Err(ProcessLedgerError::DurabilityRejected {
-                event_kind: LedgerEventKind::Stop.as_str().to_string(), process_uuid, reason: reason.clone(),
-            }),
-            _ => Err(ProcessLedgerError::DurabilityAckLost {
-                event_kind: LedgerEventKind::Stop.as_str().to_string(), process_uuid,
-            }),
-        }
-    }
-}
-

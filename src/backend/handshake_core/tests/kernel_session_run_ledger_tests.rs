@@ -53,7 +53,6 @@
 use handshake_core::kernel::{
     KernelActor, KernelEventType, KernelTaskRun, NewKernelEvent, SessionRun, SessionRunState,
 };
-use handshake_core::storage::KernelSessionRunObservation;
 use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
 use serde_json::json;
 use std::time::Duration;
@@ -108,14 +107,14 @@ async fn durable_claim_and_lease() {
     assert_eq!(reclaimed.attempt_count, 2);
 
     let running = db
-        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&reclaimed), SessionRunState::Running)
+        .update_kernel_session_run_state(&session.session_run_id, SessionRunState::Running)
         .await
         .expect("transition claimed session to running");
     assert_eq!(running.state, SessionRunState::Running);
     assert_eq!(running.claimed_by.as_deref(), Some("worker-b"));
 
     let completed = db
-        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&running), SessionRunState::Completed)
+        .update_kernel_session_run_state(&session.session_run_id, SessionRunState::Completed)
         .await
         .expect("transition running session to completed");
     assert_eq!(completed.state, SessionRunState::Completed);
@@ -123,7 +122,7 @@ async fn durable_claim_and_lease() {
     assert!(completed.lease_expires_at.is_none());
 
     let invalid = db
-        .update_kernel_session_run_state(KernelSessionRunObservation::Lease(&completed), SessionRunState::Running)
+        .update_kernel_session_run_state(&session.session_run_id, SessionRunState::Running)
         .await
         .expect_err("completed sessions must not move back to running");
     assert!(
@@ -356,18 +355,18 @@ async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
     db.enqueue_kernel_session_run(retry_session.clone())
         .await
         .expect("enqueue retry session");
-    let retry_claimed = db.claim_kernel_session_run(&retry_session.session_run_id, "worker-a", 30)
+    db.claim_kernel_session_run(&retry_session.session_run_id, "worker-a", 30)
         .await
         .expect("claim retry session")
         .expect("retry session claim");
-    let retry_running = db.update_kernel_session_run_state(KernelSessionRunObservation::Lease(&retry_claimed), SessionRunState::Running)
+    db.update_kernel_session_run_state(&retry_session.session_run_id, SessionRunState::Running)
         .await
         .expect("retry session running");
-    let retry_failed = db.update_kernel_session_run_state(KernelSessionRunObservation::Lease(&retry_running), SessionRunState::Failed)
+    db.update_kernel_session_run_state(&retry_session.session_run_id, SessionRunState::Failed)
         .await
         .expect("retry session failed");
     db.update_kernel_session_run_state(
-        KernelSessionRunObservation::Lease(&retry_failed),
+        &retry_session.session_run_id,
         SessionRunState::RetryScheduled,
     )
     .await
@@ -387,11 +386,11 @@ async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
         &backpressure_task.kernel_task_run_id,
         "dummy-echo-backpressure",
     );
-    let backpressure_queued = db.enqueue_kernel_session_run(backpressure_session.clone())
+    db.enqueue_kernel_session_run(backpressure_session.clone())
         .await
         .expect("enqueue backpressure session");
-    let backpressure_delayed = db.update_kernel_session_run_state(
-        KernelSessionRunObservation::Enqueued(&backpressure_queued),
+    db.update_kernel_session_run_state(
+        &backpressure_session.session_run_id,
         SessionRunState::BackpressureDelayed,
     )
     .await
@@ -405,7 +404,7 @@ async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
         "backpressure-delayed work must not claim directly"
     );
     db.update_kernel_session_run_state(
-        KernelSessionRunObservation::Lease(&backpressure_delayed),
+        &backpressure_session.session_run_id,
         SessionRunState::Queued,
     )
     .await
@@ -422,17 +421,17 @@ async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
     db.enqueue_kernel_session_run(dead_session.clone())
         .await
         .expect("enqueue deadletter session");
-    let dead_claimed = db.claim_kernel_session_run(&dead_session.session_run_id, "worker-d", 30)
+    db.claim_kernel_session_run(&dead_session.session_run_id, "worker-d", 30)
         .await
         .expect("claim deadletter session")
         .expect("deadletter session claim");
-    let dead_running = db.update_kernel_session_run_state(KernelSessionRunObservation::Lease(&dead_claimed), SessionRunState::Running)
+    db.update_kernel_session_run_state(&dead_session.session_run_id, SessionRunState::Running)
         .await
         .expect("deadletter session running");
-    let dead_failed = db.update_kernel_session_run_state(KernelSessionRunObservation::Lease(&dead_running), SessionRunState::Failed)
+    db.update_kernel_session_run_state(&dead_session.session_run_id, SessionRunState::Failed)
         .await
         .expect("deadletter session failed");
-    db.update_kernel_session_run_state(KernelSessionRunObservation::Lease(&dead_failed), SessionRunState::DeadLettered)
+    db.update_kernel_session_run_state(&dead_session.session_run_id, SessionRunState::DeadLettered)
         .await
         .expect("deadletter terminal state");
     let dead_claim = db
