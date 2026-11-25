@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-198",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-198",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "Canonical Vulkan capability reuse and conditional standalone source gap",
     "version": 1,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "closure_unit": {
     "outcome": "Exact supported Vulkan renderer capability and immutable source contract, with standalone implementation/publication only for a verified reusable gap.",
@@ -55,7 +55,10 @@
       "MT-198.json#/scope/acceptance_criteria/2",
       "MT-198.json#/scope/acceptance_criteria/3",
       "MT-198.json#/scope/acceptance_criteria/4",
-      "MT-198.json#/scope/acceptance_criteria/5"
+      "MT-198.json#/scope/acceptance_criteria/5",
+      "MT-198.json#/scope/acceptance_criteria/6",
+      "MT-198.json#/scope/acceptance_criteria/7",
+      "MT-198.json#/scope/acceptance_criteria/8"
     ],
     "materialized_acceptance": [
       {
@@ -81,6 +84,18 @@
       {
         "id": "AC198-6",
         "text": "AC198-6: Any reusable source change preserves host-neutral typed diagnostic/failure contracts consumable by existing internal_diagnostics/Palmistry adapters. Reuse canonical watcher/source proof and do not embed a copied watcher/controller/restart mechanism inside renderer or GUI source."
+      },
+      {
+        "id": "AC198-7",
+        "text": "AC198-7: Every row of standalone_source_gaps_20261125 is either closed by a published, independently re-read asset revision that meets its required text, or stays OPEN with the asset owner as next actor. The host implements none of them."
+      },
+      {
+        "id": "AC198-8",
+        "text": "AC198-8: The six adoption conditions in MT-197 renderer_decision.ui_layer hold at the pinned revision before any host crate depends on it, and each has a named observed result."
+      },
+      {
+        "id": "AC198-9",
+        "text": "AC198-9: No asset feature or adapter is removed for this work; egui adapters stay in their asset until their last consumer is gone and are retired by the asset owner afterwards."
       }
     ]
   },
@@ -189,6 +204,24 @@
           "Named independent review; permission-held cases stay open",
           "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
         ]
+      },
+      {
+        "check_id": "UI198-GAPS-20261125",
+        "claim_refs": [
+          "AC198-7",
+          "AC198-8",
+          "AC198-9"
+        ],
+        "command_or_method": "For each closed gap: fresh read of the canonical repository at the published revision, catalog entry, owning asset proof, and the host-side closure check; for the six conditions: the observed result per condition.",
+        "expected": "every row closed with a published revision or OPEN with the asset owner; no host implementation of any row",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "independent remote re-read",
+          "asset proof reference",
+          "closure check output",
+          "condition result table"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -259,7 +292,10 @@
       "AC198-3: Preserve the capability-owned surface/window lifecycle, Vulkan selection, input/DPI/IME/accessibility and diagnostic contracts. Record unsupported behavior honestly. Host account/storage/privacy policy stays in Handshake; D3D/OpenGL fallback cannot count as Vulkan.",
       "AC198-4: Provide exact source/dependency/API/proof/rollback identity for MT-199. Unknown owner/API/path stays UNKNOWN_PENDING_DESIGN; this conditional source stage creates no compulsory busywork or attempt grant.",
       "AC198-5: Any verified reusable renderer/GPU capability gap must consume/extend the actual canonical centralized owner contract and focused typed clients. Standalone proof binds memory/accountability/lifecycle obligations; no per-module independent GPU device/pool/budget bypass, assumed single adapter/API, unrelated CPU/NPU move or new monolith. Reuse adequate existing capability without mandatory source work.",
-      "AC198-6: Any reusable source change preserves host-neutral typed diagnostic/failure contracts consumable by existing internal_diagnostics/Palmistry adapters. Reuse canonical watcher/source proof and do not embed a copied watcher/controller/restart mechanism inside renderer or GUI source."
+      "AC198-6: Any reusable source change preserves host-neutral typed diagnostic/failure contracts consumable by existing internal_diagnostics/Palmistry adapters. Reuse canonical watcher/source proof and do not embed a copied watcher/controller/restart mechanism inside renderer or GUI source.",
+      "AC198-7: Every row of standalone_source_gaps_20261125 is either closed by a published, independently re-read asset revision that meets its required text, or stays OPEN with the asset owner as next actor. The host implements none of them.",
+      "AC198-8: The six adoption conditions in MT-197 renderer_decision.ui_layer hold at the pinned revision before any host crate depends on it, and each has a named observed result.",
+      "AC198-9: No asset feature or adapter is removed for this work; egui adapters stay in their asset until their last consumer is gone and are retired by the asset owner afterwards."
     ],
     "proof_targets": [
       "MT-198.json#/renderer_capability"
@@ -603,6 +639,257 @@
         "WindowSlots, SDK registry and OS windows are distinct observations"
       ]
     },
-    "new_source_required": false
+    "new_source_required": false,
+    "superseded_by_direction_20261125": {
+      "superseded_at_utc": "2026-11-25T19:06:54Z",
+      "superseded_by_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "reason": "Operator direction D1 and D7 (no egui, no wgpu) and Q1/Q2 2026-11-25. The eframe coordinator and the wgpu Vulkan backend recorded here stay true historical facts about the shipping egui host and its pins; they are not the target.",
+      "fields": [
+        "renderer_capability.canonical_owner_and_api (eframe and native::EframeNativeCoordinator)",
+        "renderer_capability.immutable_source_and_proof (revision 8a97b9ae...)",
+        "renderer_capability.new_source_required=false (see standalone_source_gaps_20261125)",
+        "execution.canonical_source_binding.api"
+      ],
+      "kept": "Every recorded value above stays unchanged for history.",
+      "observed_drift": "The host manifest at 71cc3b6d pins Kumihimo core, content, layout-json, egui and the eframe/egui-wgpu/accesskit_windows patches at 8eadc5b57dc20d96bf29340f835505ad8ff7cbc8, not at the 8a97b9ae revision named here.",
+      "applies": "direction only: existing egui-host proof and the pin stay valid for the frozen host; no verdict changes."
+    }
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "asset_local_test_host_only",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "typed diagnostic contracts exported by the asset; host wiring in MT-199/MT-215",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "asset declares controls once; the host maps ids (KG-04)",
+    "attribution": "required: actor/session, command id, revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded render queues in the asset (KG-02)",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-004",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "STU-ARC-023",
+      "STU-ARC-024"
+    ],
+    "refactor_exposure": "high",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "standalone_source_gaps_20261125": {
+    "record_id": "WP012-KUM-CABINET-GAPS-20261125",
+    "state": "OPEN",
+    "owner": "asset dev leader (Chat thread) as next actor; this MT is the standalone-source record, the host adopts only published pins (HBR-MODULE-LIFECYCLE-007/008)",
+    "read_at": "assets origin/codex/handshake-studio-assets d32d0574a827b9bc71eb38e0149b84b1ced36a7a; origin/codex/handpick 8eadc5b57dc20d96bf29340f835505ad8ff7cbc8; product 71cc3b6d (src/frontend unchanged since 3f8391efb)",
+    "conditions_ref": "MT-197.json#/design_result/renderer_decision/ui_layer/conditions_before_adoption",
+    "rows": [
+      {
+        "id": "KG-01",
+        "priority": 1,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "kumihimo-ui, its text adapter and the Vulkan UI pass live in handshake-studio-assets without an independent verdict and are not in Kumihimo or the catalog",
+        "required": "Independent verdict on SMB-UI-TREE-1 and SMB-VK-UI-PASS-1 (conditions 1 and 2), then publication as Kumihimo packages with exact revision and catalog entry; today's adapters kept",
+        "evidence": "SMB-UI-TREE-1 (12133fdf) and SMB-VK-UI-PASS-1 (88b5500c) are READY_FOR_VALIDATION with verdicts: [] in .GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-ui-tree-1.json and hsk-studio-vk-ui-pass-1.json. Lane self-reports are not verdicts.",
+        "blocks": [
+          "MT-213 S4",
+          "MT-199",
+          "MT-200",
+          "MT-201"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-02",
+        "priority": 1,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "UI pass and presenter create their own instance and device and settle synchronously",
+        "required": "UI pass records into a host-supplied image on an injected MT-203 device lease with the host's fence/timeline settlement; no own instance, device, queue, allocator or swapchain in product use; typed device-loss and rebind; the read_pane staging-after-timeout defect fixed and proven",
+        "evidence": "hsk-studio-vulkan creates its own instance and device (src/owner.rs:753 create_instance, :895 create_device), UiPass::new(&Owner) and draw(&mut Owner, PaneId) (src/ui.rs:956, 1130), and waits on a fence inside submit (src/owner.rs submit_wait and wait_for_fences at 522-523). The 2026-11-13 handoff also records read_pane freeing staging after a fence timeout at 88b5500c and 198f6dc4; not re-read at the current tip.",
+        "blocks": [
+          "MT-213 S4",
+          "MT-214 S2 boundary"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-03",
+        "priority": 1,
+        "asset": "KUMIHIMO-ASSET-001 (text port) with HANDSHAKE-TEXT-MECHANICS-ASSET-001",
+        "gap": "No paragraph, caret, hit test, selection, IME composition state or font fallback",
+        "required": "One text port: shaped paragraph with line breaks and bidi, caret stops, hit test, selection geometry, grapheme editing, composition state with cursor range, and a fallback chain covering CJK, Arabic, Hebrew and emoji with a diagnosed missing glyph; virtualised rows for 100,000 lines; AccessKit text runs. MT-216 and MT-217 consume one composition event type from here.",
+        "evidence": "TextPort shapes one line and rasterises one glyph (src/text.rs). The lane record lists: one family, no fallback chain, script fixed to Latn. The crate DESCRIPTOR lists IME composition, gesture arbiter, docking behaviour, AccessKit adapter and Vulkan pass as not_yet. The egui host bundles Inter plus Noto CJK, symbols, Hebrew, Arabic and Devanagari faces (app.rs install_fonts, 37828); the replacement needs at least that coverage.",
+        "blocks": [
+          "MT-213 S5",
+          "MT-216 S4",
+          "MT-217 S3",
+          "MT-201"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-04",
+        "priority": 1,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "Author-id grammar hard-coded; a duplicate stable_id mapping refuses colliding ids",
+        "required": "Host-supplied id policy (grammar, stable id, collision rule) so existing host ids and stable model ids are accepted unchanged; the asset's own rule stays the default for other consumers",
+        "evidence": "kumihimo-ui hard-codes STU-MDL-100/103 in src/semantic.rs valid_author_id and enforces it in src/tree.rs:440. Recon counted 497 of 741 host author-id constants failing it; a rescan at 71cc3b6d of const names containing AUTHOR under handshake_native/src finds 579 of 850 failing. The count depends on the extraction rule (prefix constants included); the majority fails either way.",
+        "blocks": [
+          "MT-213 S5",
+          "MT-215 S2"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-05",
+        "priority": 1,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "Tokens, metrics, icons and motion are generated from a Studio file",
+        "required": "Host-supplied theme, metrics, icon set and motion table (durations, easing, reduced-motion preference); the generated Studio values stay as the default set",
+        "evidence": "src/tokens.rs is generated from the Studio design-system.json (status DRAFT) with a fixed Dark/Light Theme enum and fixed metrics; its motion rules conflict with the Operator direction (see MT-200).",
+        "blocks": [
+          "MT-200 tokens and motion"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-06",
+        "priority": 2,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "Semantic tree lacks some roles and the host adapter is unwritten",
+        "required": "Complete roles, actions, numeric and text-run data for the shell's controls (editable text, tree, list, grid, tab, menu, dialog, splitter, status) and a stable node identity contract; the AccessKit platform adapter is MT-214",
+        "evidence": "kumihimo-ui DESCRIPTOR not_yet: AccessKit adapter (host)",
+        "blocks": [
+          "MT-213 S6"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-07",
+        "priority": 2,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "Docking, tabs, pop-outs and gestures exist only in the egui adapter",
+        "required": "kumihimo-ui adapter over kumihimo-core with the behaviour of kumihimo-egui (project_with_chrome, chrome, content, input, live divider WP-KUM-025, decorative transition WP-KUM-024, restore layout, redock), gesture arbiter, keyboard dock control, root and detached presenters (D8) over KG-02",
+        "evidence": "kumihimo-ui DESCRIPTOR not_yet: docking behaviour, gesture arbiter; kumihimo-vulkan has no presenter (WP-KUM-024); host consumes kumihimo_egui workspace::project_with_chrome, chrome::draw, content::draw, input::process",
+        "blocks": [
+          "MT-199",
+          "MT-200"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-08",
+        "priority": 3,
+        "asset": "KUMIHIMO-ASSET-001",
+        "gap": "Widget coverage for a professional host",
+        "required": "Menu bar and submenu, context menu over handshake_context_menu, virtual tree and list, multi-line edit, dialog, scroll bar, tooltip, progress, drag source and drop target, each with keyboard, focus, disabled reason and truthful state",
+        "evidence": "kumihimo-ui DESCRIPTOR lists first widgets only; handshake_context_menu core is toolkit-free and its egui adapter is egui-bound",
+        "blocks": [
+          "MT-200",
+          "MT-212 migration"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-09",
+        "priority": 2,
+        "asset": "CABINET-ASSET-001 and CABINET-PEAK-ASSET-001",
+        "gap": "cabinet-egui and cabinet-peak-egui are egui-only view adapters; the cabinet core is toolkit-free",
+        "required": "Cabinet view adapter on kumihimo-ui with the same features (lazy children, rename, drag and drop, multi-select, type-ahead, recycle, preview, restore planning, accessibility tree); the egui adapters stay until their last consumer is gone",
+        "evidence": "Cabinet/cabinet-egui and Cabinet/Peak/cabinet-peak-egui at origin/codex/handpick 8eadc5b57dc20d96bf29340f835505ad8ff7cbc8 depend on egui =0.33.3; cabinet core depends on cabinet-peak only",
+        "blocks": [
+          "MT-200 file trees",
+          "MT-212 GUI-WP012-graph-folders"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-10",
+        "priority": 2,
+        "asset": "HANDSHAKE-GUTTER-ASSET-001, HANDSHAKE-EMBED-VIEWS-ASSET-001, HANDSHAKE-TEXT-MECHANICS-ASSET-001, HANDSHAKE-CONTEXT-MENU-ASSET-001",
+        "gap": "egui-bound view halves or dependencies",
+        "required": "Gutter and embed views split into a toolkit-free model and a kumihimo-ui view; text mechanics without ecolor; context menu view on kumihimo-ui; existing public contracts preserved",
+        "evidence": "handshake_gutter and handshake_embed_views depend on egui 0.33; handshake_text_mechanics on ecolor; handshake_context_menu_egui on egui 0.33.3; the host takes handshake_gutter, handshake_text_mechanics and handshake_context_menu_egui from the assets repository and handshake_embed_views by path",
+        "blocks": [
+          "MT-216",
+          "MT-217",
+          "MT-212"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      },
+      {
+        "id": "KG-11",
+        "priority": 2,
+        "asset": "HSK-STUDIO-RENDER-GPU-ASSET-001 (client port) or Kumihimo",
+        "gap": "GpuClientPort lives in a crate with a wgpu dependency",
+        "required": "The typed client port in a crate without wgpu, so MT-203's adapter and the UI pass share one contract",
+        "evidence": "MT-203 lib.rs: the port adapter is added when the asset publishes the port in a crate without a wgpu dependency",
+        "blocks": [
+          "MT-203 adapter",
+          "KG-02"
+        ],
+        "state": "OPEN",
+        "next_actor": "asset dev leader"
+      }
+    ],
+    "no_gap_evidenced": "HANDPICK-ASSET-001 core is toolkit-free; MT-201 owns its native presentation and records a gap only if one is found.",
+    "asset_owner_request_text": "To the asset dev leader (Chat thread). Handshake GUI is moving to direct Vulkan without egui (D1, D7, D8). Please provide, in order: (1) verdict and Kumihimo publication of kumihimo-ui, its text adapter and the Vulkan UI pass (KG-01); (2) UI pass on an injected MT-203 device lease with async settlement, no own instance/device/swapchain, and the read_pane timeout defect fixed (KG-02); (3) one text port: paragraph, bidi, caret, hit test, selection, IME composition, CJK/RTL/emoji fallback, virtual rows (KG-03); (4) host-supplied author-id policy (KG-04) and theme, metrics, icons, motion (KG-05); (5) roles and text runs for accessibility (KG-06); docking, tabs, pop-outs and presenters over kumihimo-core (KG-07); (6) Cabinet view adapter (KG-09), gutter, embed views, text mechanics, context menu (KG-10), port crate without wgpu (KG-11); (7) widget coverage (KG-08). Keep every existing feature and adapter. Six conditions: verdict, publication, device injection, id policy, tokens, text port. Reply with revision, API and proof per row.",
+    "host_bound_egui_crates_not_assets": [
+      "cabinet_host (host adapter crate, MT-212 host_build_units)",
+      "motion_preference (MT-212 host_build_units)",
+      "handshake_folder_tree (host path crate; replaced by Cabinet, Q6)",
+      "handshake_native/theme/egui_apply and other egui views (MT-200, MT-212)"
+    ]
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q6",
+        "quote": "use Cabinet for file trees."
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "This MT is the standalone-source MT for the Kumihimo and Cabinet gaps; the eframe renderer capability is superseded as a target and kept as history.",
+    "changes": [
+      "renderer_capability.superseded_by_direction_20261125 added (text kept)",
+      "standalone_source_gaps_20261125 added (KG-01..KG-11)",
+      "AC198-7..AC198-9 and proof check UI198-GAPS-20261125 added",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged",
+    "next_actor": "asset dev leader (Chat thread) for KG-01..KG-05 first, then KG-06..KG-11; host adopts only published pins"
   }
 }

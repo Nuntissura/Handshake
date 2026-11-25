@@ -1,0 +1,805 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-218",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-218",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "app.rs split into small toolkit-free host-state crates and the motion clock",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "The 44,066-line app.rs becomes small toolkit-free crates for session, navigation, document lifecycle, settings, layout, background work and motion, consumed by the frozen egui host and by the new shell.",
+    "specification_anchor_refs": [
+      {
+        "id": "GUI-DESKTOP-043",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.6",
+        "verbatim": "The delivered GUI MUST preserve the complete original editor, CKC/PoseKit and multi-model orchestration workflows and their required runtime/auth/privacy/deployment behavior."
+      },
+      {
+        "id": "HBR-COMPART-002",
+        "anchor": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+        "verbatim": "A change confined to one module must not rebuild the whole product."
+      },
+      {
+        "id": "Q10",
+        "anchor": "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+        "verbatim": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "app.rs map: completion structs 124-4116, stage and code-ref operations 3582-4116, view mode 4561, layout worker 4598, health 4672, document load and code-save (Win32) 4718-5040, LSP attach 5810, editor targets 5847, reset layout 5890, HandshakeApp struct 5900, drawer and rename 6941-7003, mount handles 7132-7346, pane factories 7535, impl HandshakeApp 8227-42392, eframe impl 42644, Drop 42812",
+      "egui:: appears 415 times in app.rs; 43 files in src call request_repaint (402 hits); settings debounce app.rs:4619",
+      "motion_preference/src/lib.rs (egui animation_time only today; MT-212 host_build_units.motion_preference owns the egui crate)",
+      "layout persistence: layout_persistence.rs and src/frontend/layout_snapshot",
+      "Palmistry heartbeat stays in MT-215; MCP and Argus state stay in MT-215"
+    ],
+    "pillar_refs": [
+      "HBR-COMPART",
+      "HBR-HOST",
+      "HBR-COMPONENT"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "Argus on the unchanged egui host"
+    ],
+    "account_bound_resource_refs": [
+      "session, workspace, document and settings state"
+    ],
+    "consumed_capability_refs": [
+      "src/frontend/layout_snapshot",
+      "handshake_internal_diagnostics",
+      "backend_client request types (not moved here)"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-218.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "The 44,066-line app.rs becomes small toolkit-free crates for session, navigation, document lifecycle, settings, layout, background work and motion, consumed by the frozen egui host and by the new shell.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC218-1",
+      "AC218-2",
+      "AC218-3",
+      "AC218-4",
+      "AC218-5",
+      "AC218-6",
+      "AC218-7",
+      "AC218-8",
+      "AC218-9",
+      "AC218-10"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC218-1",
+        "text": "Closure: each extracted crate compiles without egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow and exposes no toolkit type; the app state, navigation, document lifecycle, settings, layout, background work and motion crates are separate."
+      },
+      {
+        "id": "AC218-2",
+        "text": "Baseline and progress: app.rs starts at 44,066 lines (134 top-level items, 751 methods in impl HandshakeApp, lines 8227 to 42392). Every slice reports lines moved and the crate line counts; a slice that moves nothing is not progress."
+      },
+      {
+        "id": "AC218-3",
+        "text": "Final state: app.rs holds only the egui host's composition and adapters; no domain state, no workflow state machine, no transport; the new shell consumes the same crates."
+      },
+      {
+        "id": "AC218-4",
+        "text": "Behaviour is unchanged: existing host tests keep their executed count; app.rs inline test modules (from line 40006) move with their subject."
+      },
+      {
+        "id": "AC218-5",
+        "text": "Completions (the Mt0xx operation structs at lines 124 to 4116 and the Pending* structs) become named state machines per feature with their own crate or module, not one shared enum."
+      },
+      {
+        "id": "AC218-6",
+        "text": "Settings, layout and session persistence read and write the same bytes as today; old and new hosts can open each other's state."
+      },
+      {
+        "id": "AC218-7",
+        "text": "The frame loop has no hidden work: each crate exposes an explicit update(now, inputs) -> effects and a wake or damage reason; nothing polls per frame without a reason."
+      },
+      {
+        "id": "AC218-8",
+        "text": "Motion crate: monotonic clock injected by the host, MT-200 duration table, interruptible sampling toward an already committed destination, one preference (normal or reduced) shared by both hosts; no decorative motion delays an action."
+      },
+      {
+        "id": "AC218-9",
+        "text": "HBR-COMPART-002: warm rebuild time and relinked test binaries are measured before the first slice and after the last and recorded."
+      },
+      {
+        "id": "AC218-10",
+        "text": "No new aggregate: a crate that only re-exports or that other crates must all depend on is rejected in review."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Largest file in the native crate; behaviour must not change.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "gui",
+    "module_ref": "src/frontend/handshake_native/src/app.rs",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [],
+    "start_precondition": "Every edit to app.rs needs the recorded single-writer release (MT-212 holder 01a1738d-2b8e-7151-9e9e-3972429af70c). S1 writes only the new crate root and the two files it moves.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_app_state/Cargo.toml",
+      "src/frontend/handshake_app_state/Cargo.lock",
+      "src/frontend/handshake_app_state/navigation/**",
+      "src/frontend/handshake_app_state/document_lifecycle/**",
+      "src/frontend/handshake_app_state/session/**",
+      "src/frontend/handshake_app_state/settings_state/**",
+      "src/frontend/handshake_app_state/layout_state/**",
+      "src/frontend/handshake_app_state/background_work/**",
+      "src/frontend/handshake_app_state/operations/**",
+      "src/frontend/handshake_app_state/motion/**",
+      "src/frontend/handshake_native/src/app.rs (extraction with release only)",
+      "src/frontend/handshake_native/Cargo.toml and Cargo.lock (one named writer)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "Feature changes while moving code",
+      "motion_preference egui crate behaviour (MT-212 host unit)",
+      "A single app_state mega-crate"
+    ],
+    "shared_resource_locks": [
+      "handshake_native/Cargo.toml, Cargo.lock, src/lib.rs, src/app.rs",
+      "MT-212 holds a potential-path list and a claim (01a1738d-2b8e-7151-9e9e-3972429af70c) on app.rs, lib.rs, main.rs, Cargo.toml, Cargo.lock, mcp/*, accessibility/registry.rs, code_editor/* and rich_editor/*: take one file at a time by recorded release from its holder."
+    ],
+    "inputs": [
+      "app.rs",
+      "existing host tests",
+      "MT-200 motion table"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first coding slice): motion crate. Injected monotonic clock, duration table type, interruptible value toward a committed destination, normal/reduced preference; pure tests for start, interrupt, reversal, reduced and duplicate input. No host file touched."
+      },
+      {
+        "n": 2,
+        "step": "S2: layout_state crate over layout_snapshot: load, save, reconcile and reset as a state machine (app.rs 5890 and layout worker 4598)."
+      },
+      {
+        "n": 3,
+        "step": "S3: navigation crate: view mode, module switch, tab open and close targets, pending navigation operations (app.rs 4561, 4758, 3834-3870)."
+      },
+      {
+        "n": 4,
+        "step": "S4: document_lifecycle crate: open, load failure, save, conflict, code-save transaction (app.rs 4718-5040 and the Win32CodeSaveApi seam)."
+      },
+      {
+        "n": 5,
+        "step": "S5: operations: move each completion struct family into its own module or crate with its tests."
+      },
+      {
+        "n": 6,
+        "step": "S6: settings_state and background_work: debounce, re-probe, workers as explicit update -> effects."
+      },
+      {
+        "n": 7,
+        "step": "S7: shrink app.rs to composition; report final line counts and the HBR-COMPART-002 measurement."
+      }
+    ],
+    "first_coding_slice": "S1 (first coding slice): motion crate. Injected monotonic clock, duration table type, interruptible value toward a committed destination, normal/reduced preference; pure tests for start, interrupt, reversal, reduced and duplicate input. No host file touched.",
+    "expected_outputs": [
+      "eight small crates",
+      "line count and rebuild measurement table",
+      "app.rs reduced to host composition"
+    ],
+    "stop_conditions": [
+      "A listed line reference no longer matches: re-read and record the new one before editing.",
+      "The needed mechanic belongs to Kumihimo, Cabinet, handshake_text_mechanics, handshake_context_menu, handshake_gutter, handshake_embed_views or handpick: stop, record it in MT-198 and continue other slices.",
+      "A dependency would bring any banned crate into the closure: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow.",
+      "A file is held by another writer, or a compile/disk slot is not named in the dispatch.",
+      "Two failed attempts on the same check without a new cause (CX-EXEC-003).",
+      "A test needs to change its assertions to pass: stop, record the behaviour difference, do not weaken it."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "consumes_published_contract",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-218/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": "cargo +1.97.1-x86_64-pc-windows-msvc check --locked --tests --manifest-path src/frontend/handshake_app_state/Cargo.toml -j 1",
+      "gap": "Manifest exists after S1. Host check literal: cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "maintenance_id": "WP012-APP-STATE-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "src/frontend/handshake_app_state",
+      "purpose": "Host state without a toolkit.",
+      "public_contract": "state machines with explicit update and effects",
+      "test_entry": "per-crate tests plus existing host tests",
+      "dependency_direction": "hosts depend on state crates; state crates depend on data crates only",
+      "naming": "Crate and binary names here are generic working paths in the existing src/frontend/handshake_* pattern; no canonical product name is verified and a product name needs Operator naming work (HSK naming rule)."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "SA218-STATIC",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC218-1",
+          "AC218-10"
+        ],
+        "command_or_method": "cargo +1.97.1-x86_64-pc-windows-msvc tree --locked -e normal --target x86_64-pc-windows-msvc --manifest-path <crate>/Cargo.toml lists none of: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow; source scan of the public API finds no winit, ash or toolkit type; crate graph acyclic and host-to-crate only; implementer compile commands for each crate and for the host",
+        "expected": "clean",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "cargo tree",
+          "compile logs",
+          "line-count table"
+        ]
+      },
+      {
+        "check_id": "SA218-TESTS",
+        "kind": "test",
+        "claim_refs": [
+          "AC218-4",
+          "AC218-6",
+          "AC218-8"
+        ],
+        "command_or_method": "Validator runs the moved tests and the existing host tests; compares executed counts with the pre-move baseline recorded at the start of S1.",
+        "expected": "counts equal or higher, all pass",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "baseline and after counts"
+        ]
+      },
+      {
+        "check_id": "SA218-RUNTIME",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC218-3",
+          "AC218-5",
+          "AC218-7"
+        ],
+        "command_or_method": "Validator drives the unchanged egui host through Argus for navigation, open/save/close, settings and layout reset after each slice that touches app.rs.",
+        "expected": "no behaviour change",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "receipts",
+          "captures",
+          "measurement table"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_app_state/**",
+      "src/frontend/handshake_native/src/app.rs"
+    ],
+    "extra_build_proofs": [
+      {
+        "proof_ref": "SA218-TESTS",
+        "build_kind": "idle_host",
+        "command_or_method": "warm rebuild and relinked-test-binary measurement on an idle host (HBR-COMPART-002)",
+        "reason": "Measured once before S1 and once after the last slice"
+      }
+    ]
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Only where user-visible behaviour or a recovery path moves"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_test"
+    ],
+    "location": "src/frontend/handshake_native/src/manual_content_editors.rs and src/backend/handshake_core/src/user_manual (shared files: one named writer)",
+    "reason": "No user-visible change is expected.",
+    "not_applicable_reason": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "egui host panes after each move"
+    ],
+    "argus_targets": [
+      "existing author ids"
+    ],
+    "expected_evidence": [
+      "existing host tests and counts",
+      "captures of the egui host unchanged",
+      "new-shell captures after MT-213"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "session, workspace, document and settings state"
+    ],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "Existing grants and fences unchanged"
+    ],
+    "same_project_private_resource_cases": [
+      "State of another account is unreachable"
+    ],
+    "cross_account_negative_cases": [
+      "A denied or foreign-account state shows no content, title, count or thumbnail"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Captures, snapshots, caches and diagnostics inherit the source scope and never widen it"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Logout and switch clear the same state as today; tests cover it"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "No new diagnostics"
+    ],
+    "expected_evidence": [
+      "default_deny_negative_test",
+      "revocation_or_context_switch_test",
+      "content_free_diagnostic_field_audit"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Surface mounts only in the kernel-owned Vulkan shell; no toolkit type in a public contract; asset-local hosts are not acceptance.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Each control and action declared once with a stable id that feeds GUI, AccessKit, Argus and UserManual.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No GPU work.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every cache, queue and buffer bounded and accounted, with overload, cancel, stale-revision and release behaviour.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "GUI actions, states, errors and GPU failures through the existing internal_diagnostics allowlist, content-free.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "DEFERRED",
+      "obligation_or_reason": "Survival is proven with the composed shell in MT-202.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every command carries actor/session, command id, revision and correlation; correlation grants nothing.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "State for docking, settings and focus; presentation belongs to MT-200.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Egui host behaviour after each move, plus the new shell after MT-213.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Renderer error scan on every captured frame: Vulkan validation messages and runtime errors; any error fails.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Capture matrix: normal, constrained viewport, and empty/error/loading/multi-item states.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Trace projection where there is no direct surface.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A surface Argus cannot see or steer is repaired in this MT or recorded as a blocking gap.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Warm rebuild time and relinked test binaries recorded for the candidate.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Mechanic consumed from its single existing owner (context_capsule.consumed_capability_refs).",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No new canonical mechanic without a spec primitive and an owner search.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Asset change lands in its canonical repository and is re-read before any host write.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent accounts see neither content nor existence metadata of each other.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Logout, switch or revocation clears or fences caches, captures, snapshots and stale UI state.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Cargo target under the one artifact root, owner-scoped, named in the dispatch (KB-OUT-008).",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "UserManual updated in the same change; MANUAL_VERSION bumped where declared.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A no-context model can operate the surface from the manual alone.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Manual entries are code-truthful and self-consistency tested.",
+      "proof_ref": "MT-218.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "no business event moved or added"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "NOT_APPLICABLE",
+      "reason": "no new observable behaviour; existing codes unchanged"
+    },
+    {
+      "tier": "palmistry",
+      "status": "NOT_APPLICABLE",
+      "reason": "no watcher change"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "existing codes; no new producer",
+      "flight_recorder": "none",
+      "palmistry": "none added"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: actor and correlation on commands as today",
+    "jobs": "explicit update effects replace per-frame polling",
+    "settings": "settings and layout formats unchanged",
+    "spec_refs": [
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "high: every host feature passes through app.rs today",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DECOMPOSITION",
+    "risks": [
+      "A silent behaviour change in a moved state machine.",
+      "A cycle between new crates and the host.",
+      "Eight crates become one facade.",
+      "Two writers edit app.rs.",
+      "Performance regresses through message plumbing."
+    ],
+    "minimum_controls": [
+      "AC218-4 counts plus conformance of moved tests.",
+      "Crate graph checked in SA218-STATIC; host depends on crates only.",
+      "AC218-10 rejection rule.",
+      "Recorded single-writer release per slice.",
+      "AC218-9 measurement and AC218-7 wake reasons."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196..MT-205",
+      "MT-212.json",
+      "packet.json",
+      "WP-KERNEL-STUDIO packet (compartment refactor text is Studio-scoped)"
+    ],
+    "result": "No owner of the app.rs split. HBR-COMPART-002 itself is DEFERRED until a compartment refactor lands; this MT is the native-host part of it.",
+    "boundary": "Host state only. Argus, snapshots and heartbeat are MT-215; editors are MT-216/MT-217; docking and theme are MT-200; shell windows are MT-214."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Many smaller crates, no large crates (Q10)."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "GUI coding agent for S1; app.rs holder for every later slice",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-218.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null,
+  "conditional_dependencies": [
+    {
+      "mt_ref": "MT-212.json",
+      "when": "every edit to app.rs needs the holder's recorded release"
+    },
+    {
+      "mt_ref": "MT-200.json",
+      "when": "S1 motion durations are confirmed by MT-200's table"
+    }
+  ]
+}

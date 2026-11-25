@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-199",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-26T12:38:22.8732229Z",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-199",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "Pinned Vulkan-backed native GUI host migration",
     "version": 1,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "closure_unit": {
     "outcome": "The genuine Handshake native application renders through a supported Vulkan backend and retains required user/model behavior.",
@@ -55,7 +55,13 @@
       "MT-199.json#/scope/acceptance_criteria/2",
       "MT-199.json#/scope/acceptance_criteria/3",
       "MT-199.json#/scope/acceptance_criteria/4",
-      "MT-199.json#/scope/acceptance_criteria/5"
+      "MT-199.json#/scope/acceptance_criteria/5",
+      "MT-199.json#/scope/acceptance_criteria/6",
+      "MT-199.json#/scope/acceptance_criteria/7",
+      "MT-199.json#/scope/acceptance_criteria/8",
+      "MT-199.json#/scope/acceptance_criteria/9",
+      "MT-199.json#/scope/acceptance_criteria/10",
+      "MT-199.json#/scope/acceptance_criteria/11"
     ],
     "materialized_acceptance": [
       {
@@ -81,6 +87,30 @@
       {
         "id": "AC199-6",
         "text": "AC199-6: Actual Vulkan backend/device, native GUI action/error and affected GPU memory/lifetime failures are observable through existing internal_diagnostics and correlated standalone Palmistry records, under original allowlist/privacy. Neither a source declaration nor configured backend label proves event wiring or crash survival."
+      },
+      {
+        "id": "AC199-7",
+        "text": "AC199-7: A zero-egui shell binary composed from MT-214, MT-215, MT-216, MT-217 and MT-218 crates and pinned Kumihimo, Cabinet and Handpick revisions builds for x86_64-pc-windows-msvc with none of the banned crates (egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow) in its normal closure, beside the unchanged egui host."
+      },
+      {
+        "id": "AC199-8",
+        "text": "AC199-8: One runtime owner: the new shell takes the same native runtime lease (main.rs:454), MCP binding and Palmistry identity as the egui host; if either host holds them the other shows a typed busy state and opens no server, watcher, store or device."
+      },
+      {
+        "id": "AC199-9",
+        "text": "AC199-9: Startup parity: login and local account, workspace activation, session restore, module and Settings reachability, crash handler and panic hook, diagnostics ring, Palmistry launch and shutdown acknowledgement match the egui host; a module not yet re-hosted shows a truthful typed state and stays reachable."
+      },
+      {
+        "id": "AC199-10",
+        "text": "AC199-10: Every PaneRegistry pane (PaneFactory::render(&mut egui::Ui), pane_registry.rs:535) has a toolkit-free factory contract and a mapped new-shell implementation or an explicit open row in MT-212's routing."
+      },
+      {
+        "id": "AC199-11",
+        "text": "AC199-11: The egui host is frozen: fixes only. Each fix is recorded with its new-shell counterpart or the reason it has none; no feature is added to it."
+      },
+      {
+        "id": "AC199-12",
+        "text": "AC199-12: Switch-over is one recorded commit that flips installer, launcher, CI and manual to the new shell, taken only after MT-202 PASS on that candidate, with the previous release artifact, tag and rollback steps recorded; otherwise the egui host keeps shipping."
       }
     ]
   },
@@ -109,7 +139,10 @@
     "foreground_or_interactive_tools_forbidden": false,
     "depends_on": [
       "MT-197",
-      "MT-198"
+      "MT-198",
+      "MT-213",
+      "MT-214",
+      "MT-215"
     ],
     "allowed_write_paths": [
       "src/frontend/handshake_native/Cargo.toml",
@@ -164,6 +197,11 @@
       "joint_runtime_acceptance_ref": "MT-202.json#/proof",
       "completion_policy": "MT-199 and MT-203 integrate jointly; their genuine combined GPU/GUI runtime evidence is accepted at MT-202, not a predecessor runtime-before-compile gate.",
       "gui_asset_binding_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    },
+    "depends_on_scope_20261125": {
+      "MT-213": "Only new-shell migration, docking and switch-over work waits for MT-213 PASS; the frozen egui host's current proof and fixes do not.",
+      "MT-214": "Shell crates consumed by the new binary.",
+      "MT-215": "Ports consumed by the new binary."
     }
   },
   "proof": {
@@ -207,6 +245,28 @@
           "Affected proof and original acceptance linkage",
           "Named independent review; permission-held cases stay open",
           "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
+        ]
+      },
+      {
+        "check_id": "UI199-ZERO-EGUI-SHELL-20261125",
+        "claim_refs": [
+          "AC199-7",
+          "AC199-8",
+          "AC199-9",
+          "AC199-10",
+          "AC199-11",
+          "AC199-12"
+        ],
+        "command_or_method": "Implementer: x64 closure check (cargo tree, no banned crate) and compile of the shell. Validator: zero-egui shell in a quiet window on x64, startup parity, lease exclusivity with the egui host, Argus conformance (MT-215), switch-over rehearsal and rollback; no focus change. Product acceptance stays with MT-202.",
+        "expected": "criteria observed on the exact candidate; egui host unaffected",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "closure output",
+          "conformance receipts",
+          "readback captures",
+          "lease conflict receipt",
+          "rollback receipt"
         ]
       }
     ],
@@ -297,7 +357,13 @@
       "AC199-3: Preserve keyboard/focus/IME, DPI/multiwindow, accessibility, correct rendering, quiet behavior, diagnostics and model-use routes. Explicit platform limitations cannot silently replace original required behavior.",
       "AC199-4: GUI coder B owns the disjoint external vulkan-renderer candidate. Coordinate shared app/lib/manifest integration with coder A and Primary as exact sequential hook handoff. Original runtime/process/finite-pool limits remain unchanged.",
       "AC199-5: Adopt Vulkan through the authoritative shared GPU owner and focused typed client/ownership contract, with accountable allocations/budgets/pressure/staging/shared-versus-dedicated/inflight/reclaim/shutdown/device-loss/recovery/multiwindow/module attach/detach. Prove genuine Vulkan backend/device and required lifecycle behavior; no renamed DX/OpenGL fallback or independent per-module pool bypass. MT-203 owns the central host lifecycle contract and scoped evidence.",
-      "AC199-6: Actual Vulkan backend/device, native GUI action/error and affected GPU memory/lifetime failures are observable through existing internal_diagnostics and correlated standalone Palmistry records, under original allowlist/privacy. Neither a source declaration nor configured backend label proves event wiring or crash survival."
+      "AC199-6: Actual Vulkan backend/device, native GUI action/error and affected GPU memory/lifetime failures are observable through existing internal_diagnostics and correlated standalone Palmistry records, under original allowlist/privacy. Neither a source declaration nor configured backend label proves event wiring or crash survival.",
+      "AC199-7: A zero-egui shell binary composed from MT-214, MT-215, MT-216, MT-217 and MT-218 crates and pinned Kumihimo, Cabinet and Handpick revisions builds for x86_64-pc-windows-msvc with none of the banned crates (egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow) in its normal closure, beside the unchanged egui host.",
+      "AC199-8: One runtime owner: the new shell takes the same native runtime lease (main.rs:454), MCP binding and Palmistry identity as the egui host; if either host holds them the other shows a typed busy state and opens no server, watcher, store or device.",
+      "AC199-9: Startup parity: login and local account, workspace activation, session restore, module and Settings reachability, crash handler and panic hook, diagnostics ring, Palmistry launch and shutdown acknowledgement match the egui host; a module not yet re-hosted shows a truthful typed state and stays reachable.",
+      "AC199-10: Every PaneRegistry pane (PaneFactory::render(&mut egui::Ui), pane_registry.rs:535) has a toolkit-free factory contract and a mapped new-shell implementation or an explicit open row in MT-212's routing.",
+      "AC199-11: The egui host is frozen: fixes only. Each fix is recorded with its new-shell counterpart or the reason it has none; no feature is added to it.",
+      "AC199-12: Switch-over is one recorded commit that flips installer, launcher, CI and manual to the new shell, taken only after MT-202 PASS on that candidate, with the previous release artifact, tag and rollback steps recorded; otherwise the egui host keeps shipping."
     ],
     "proof_targets": [
       "Genuine handshake-native Vulkan backend and affected original GUI behavior"
@@ -1024,5 +1090,358 @@
     "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "record_ref": "MT-200.json#/gui_reset02_owned_adoption_20261026",
     "scope": "Pinned Kumihimo RestoreLayout/Redock host integration"
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "window, device, startup and switch-over outcomes through the existing producer (MT-215)",
+      "flight_recorder": "existing startup events unchanged",
+      "palmistry": "heartbeat, freeze and crash survival of the shell (MT-202 AC202-9)"
+    },
+    "control_descriptors": "existing descriptors; the shell adds window and status controls once",
+    "attribution": "required: actor/session, command id, revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "existing settings persistence",
+    "spec_refs": [
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-024",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-037",
+      "NATIVE-RENDER-BOOT-001"
+    ],
+    "refactor_exposure": "high",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "zero_egui_shell_migration_20261125": {
+    "record_id": "WP012-ZERO-EGUI-MIGRATION-20261125",
+    "state": "DIRECTION_RECORDED_NOT_STARTED",
+    "strategy": "A zero-egui Vulkan shell binary is built beside the current app. The egui host stays frozen (fixes only), shipping and the parity reference until one switch-over; then MT-220 removes egui, eframe and wgpu.",
+    "sequence": [
+      "MT-214 crates and MT-215 ports",
+      "MT-213 x64 gate PASS",
+      "pane-by-pane adoption through toolkit-free factories (AC199-10) with MT-212 routing",
+      "MT-202 PASS on the candidate",
+      "one switch-over commit (AC199-12)",
+      "MT-220, MT-221"
+    ],
+    "superseded_fields": [
+      "scope.code_boundary.canonical_renderer_owner (eframe/egui-wgpu patches): kept as the frozen host's dependency, not the target",
+      "execution.allowed_write_paths: still the frozen host's paths; new shell crates belong to MT-214, MT-215, MT-216, MT-217 and MT-218"
+    ],
+    "silent_breaks": [
+      "Argus snapshot and steering on an isolated egui::Context (app.rs:13244, 13290; raw_input_hook 42649)",
+      "Screenshot through ViewportCommand::Screenshot (mcp/screenshot.rs:713, 786)",
+      "Heartbeat inside eframe update and idle repaint (app.rs:42712, 42754; interval app.rs:4634)",
+      "Quiet UIA patch in accesskit_windows 0.29.2 (Cargo.toml [patch.crates-io])",
+      "Detached windows (popout_window.rs:424 show_viewport_immediate; detached Settings app.rs:23963)",
+      "IME handling on egui::ImeEvent (code_editor/panel.rs:2658, rich_editor/renderer/ime_handler.rs:123)",
+      "Focus audit scans handshake_native/src only (tests/test_focus_audit_quiet.rs:41)",
+      "171 of 218 test files under handshake_native/tests name egui; composition_tests crate uses egui_kittest",
+      "Egui-bound crates and services listed in AC202-16"
+    ],
+    "gate_ref": "MT-213.json"
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q9",
+        "quote": "wire the the gui to the internal_diagnostic, also wire it in the stand alone watcher/recorder Palmistry"
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Host migration is a zero-egui shell built beside the frozen egui host, with one recorded switch-over.",
+    "changes": [
+      "AC199-7..AC199-12 and proof check UI199-ZERO-EGUI-SHELL-20261125 added",
+      "execution.depends_on extended with MT-213, MT-214, MT-215 (lifecycle.depends_on unchanged)",
+      "zero_egui_shell_migration_20261125 added",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc",
+      "toolkit_wording_disposition_20261125 added (reading note; acceptance texts of WP-1, CKC and WP012 contracts unchanged)"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; existing blocked_on and proof records stay",
+    "next_actor": "GUI coding agent for MT-214 S1; this MT's shell work waits for MT-213 PASS"
+  },
+  "toolkit_wording_disposition_20261125": {
+    "record_id": "WP012-TOOLKIT-WORDING-DISPOSITION-20261125",
+    "recorded_at_utc": "2026-11-25T19:12:07Z",
+    "state": "READING_NOTE_NO_TEXT_CHANGED",
+    "source": "Coordinator message 2026-11-25 plus the Operator direction in packet.json#/operator_vulkan_gui_refactor_20261125. Each listed clause was read in its own contract on 2026-11-25.",
+    "rules": [
+      "R1: The Operator direction replaces the toolkit (no egui, no wgpu, no React or Tauri surface). The observable behaviour in these clauses stays required on the kernel-owned Vulkan shell.",
+      "R2: Proof tool: egui_kittest, kittest, wgpu screenshot and egui output inspection become an AccessKit TreeUpdate of the live tree plus offscreen Vulkan readback, driven through Argus actions and, for event streams, the shell port; no OS input.",
+      "R3: A clause that names an egui mechanism (ScrollArea, Event::Key, Memory, Window, Area, TextEdit, IMEOutput, render state) is read as the behaviour it protects, on the new shell's own mechanism.",
+      "R4: Proof-target text that names an egui test file stays as history; the replacement test is recorded in MT-220 AC220-4's map and in MT-202.",
+      "R5: A clause that cannot be read this way is listed as an Operator question and is not treated as met.",
+      "R6: Acceptance texts, verdicts, pins and history stay unchanged. Settled verdicts describe the egui host; the new shell is proven under MT-202."
+    ],
+    "rows": [
+      {
+        "contract": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
+        "clause": "AC8",
+        "named": "React, Tauri/WebView",
+        "kind": "prohibition",
+        "reading_on_the_vulkan_shell": "Unchanged: no React, Tauri, WebView or npm proof authority; native Rust surface stays required."
+      },
+      {
+        "contract": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
+        "clause": "AC10",
+        "named": "Rust native list_widgets/... or egui/AccessKit kittest evidence",
+        "kind": "proof tool",
+        "reading_on_the_vulkan_shell": "Argus actions plus an AccessKit TreeUpdate and offscreen Vulkan readback of the diagnostics surface; counts and refs still compared with backend state."
+      },
+      {
+        "contract": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
+        "clause": "AC1",
+        "named": "native egui operator pane",
+        "kind": "surface",
+        "reading_on_the_vulkan_shell": "The operator chat pane is a native pane in the kernel-owned Vulkan shell with the same registration, reachability and behaviour."
+      },
+      {
+        "contract": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
+        "clause": "AC1",
+        "named": "native egui settings surface",
+        "kind": "surface",
+        "reading_on_the_vulkan_shell": "The same settings surface in the Vulkan shell, Argus-inspectable with the same stable author ids."
+      },
+      {
+        "contract": "WP-CKC-posekit-overhaul/MT-004.json",
+        "clause": "AC6",
+        "named": "React shell labels and internal ids",
+        "kind": "legacy app only",
+        "reading_on_the_vulkan_shell": "Unchanged and limited to app/ (MT-221): applies while the constants exist there."
+      },
+      {
+        "contract": "WP-CKC-posekit-overhaul/MT-005.json",
+        "clause": "AC2",
+        "named": "No wgpu backend feature panic text",
+        "kind": "observed failure",
+        "reading_on_the_vulkan_shell": "Launching the native binary does not fail for a missing GPU backend feature; on the Vulkan shell the equivalent is a typed unavailable state, never a panic."
+      },
+      {
+        "contract": "WP-CKC-posekit-overhaul/MT-041.json",
+        "clause": "AC3",
+        "named": "egui popups",
+        "kind": "mechanism remark",
+        "reading_on_the_vulkan_shell": "The two-step open-then-steer menu protocol and a menu that stays open across the headless drain stay required; the egui remark names today's cause only."
+      },
+      {
+        "contract": "WP-CKC-posekit-overhaul/MT-065.json",
+        "clause": "constraint 1",
+        "named": "Native egui only (no Tauri/WebView2/CDP)",
+        "kind": "surface",
+        "reading_on_the_vulkan_shell": "Native Vulkan shell only, still no Tauri, WebView2 or CDP."
+      },
+      {
+        "contract": "MT-002.json",
+        "clause": "AC-003, AC-007, PT-003",
+        "named": "egui_kittest screenshot; egui::ScrollArea::show_rows; egui_kittest PNG",
+        "kind": "surface and mechanism",
+        "reading_on_the_vulkan_shell": "Visible range and painted-line count equal the rows the virtual list actually painted (never an overscan recompute); readback shows the middle window and not line 0."
+      },
+      {
+        "contract": "MT-010.json",
+        "clause": "AC-005, AC-006, PT-005, PT-006",
+        "named": "egui_kittest AccessKit dump; egui::Event::Key match arms",
+        "kind": "proof tool and mechanism",
+        "reading_on_the_vulkan_shell": "AccessKit TreeUpdate shows the code_editor_cmd nodes; one dispatcher handles every key event; the source scan targets the toolkit-free key event type."
+      },
+      {
+        "contract": "MT-012.json",
+        "clause": "AC 1, 7, 10; proof_targets 1 and 3 (zero-based)",
+        "named": "egui window, kittest screenshot, kittest tree",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Same visible bold, heading size and rich-editor-root TextInput checks on the shell, by readback and TreeUpdate."
+      },
+      {
+        "contract": "MT-019.json",
+        "clause": "AC 1, 6-8, 11 (kittest), egui::Spinner",
+        "named": "kittest; egui::Spinner",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Panel header, month grid, error chip with Retry, a visible loading indicator and the journal accessibility ids are required; the indicator need not be egui's."
+      },
+      {
+        "contract": "MT-026.json",
+        "clause": "AC5; PROOF2..PROOF6",
+        "named": "React reference; kittest",
+        "kind": "reference and proof tool",
+        "reading_on_the_vulkan_shell": "Title behaviour stays as recorded from the legacy reference; placement, drop, edge and removal checks use TreeUpdate, actions and readback."
+      },
+      {
+        "contract": "MT-036.json",
+        "clause": "AC4, AC7; proof_targets 4 and 5",
+        "named": "egui frame; kittest",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "A failed emit never blocks or panics the shell frame; the pane shows the event after an integration event."
+      },
+      {
+        "contract": "MT-043.json",
+        "clause": "AC-043-03",
+        "named": "egui AccessKit adapter",
+        "kind": "mechanism",
+        "reading_on_the_vulkan_shell": "AccessKit actions reach the editor through the shell adapter; saved content still contains the inserted text."
+      },
+      {
+        "contract": "MT-061.json",
+        "clause": "AC-061-2, -4, -6; proof_targets 2 and 3",
+        "named": "kittest; egui TextEdit::multiline",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Section frames, in-place card edit, commit, Escape and the resize nodes are required; the edit control is the Kumihimo text field."
+      },
+      {
+        "contract": "MT-075.json",
+        "clause": "AC1, AC2; PROOF1..PROOF3",
+        "named": "egui font families; kittest screenshot",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "The fallback chain order and no-tofu result apply to the Kumihimo text port; readback replaces the kittest image."
+      },
+      {
+        "contract": "MT-076.json",
+        "clause": "AC2, AC4; PROOF2",
+        "named": "kittest screenshot; egui IMEOutput",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Underlined inline preedit at the caret and a candidate rectangle at the caret are required; the rectangle is read from the port, not from egui output."
+      },
+      {
+        "contract": "MT-079.json",
+        "clause": "AC-079-1..6, PT-079-A..E",
+        "named": "kittest; wgpu screenshot; PlaceholderPaneFactory",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "The real code and rich panes mount, are wired, and focus through the shell's factories; TreeUpdate and readback replace kittest and wgpu images."
+      },
+      {
+        "contract": "MT-080.json",
+        "clause": "AC-080-1..5, -8, PT-080-A..C",
+        "named": "kittest; wgpu screenshot; wgpu-flake allowance",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Secondary panes mount and their wirings fire; the known wgpu-flake isolate allowance ends with wgpu and gives no allowance on the Vulkan shell."
+      },
+      {
+        "contract": "MT-086.json",
+        "clause": "AC-006-3, -4, PT-006-B",
+        "named": "cc.wgpu_render_state; wgpu-screenshot harness",
+        "kind": "mechanism and proof tool",
+        "reading_on_the_vulkan_shell": "Adapter identity comes once from the MT-203 device identity (vendor, device, driver, API; backend Vulkan); driver strings stay out of the ring; sampling cadence unchanged."
+      },
+      {
+        "contract": "MT-087.json",
+        "clause": "AC-007-1..3, PT-007-A..B",
+        "named": "kittest; wgpu screenshot",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "The diagnostics pane mounts with live state and readable sections; readback replaces the wgpu image."
+      },
+      {
+        "contract": "MT-094.json",
+        "clause": "AC-014-1",
+        "named": "before eframe::run_native",
+        "kind": "mechanism",
+        "reading_on_the_vulkan_shell": "launch_palmistry runs before the shell event loop starts; proven by a source-scan of the shell main and by a bounded test that never waits on the windowed binary."
+      },
+      {
+        "contract": "MT-096.json",
+        "clause": "AC-016-5",
+        "named": "wgpu screenshot",
+        "kind": "proof tool",
+        "reading_on_the_vulkan_shell": "The proof manifest lists the same scenarios and a readback capture of the diagnostics panel with a forwarded freeze or crash record."
+      },
+      {
+        "contract": "MT-097.json",
+        "clause": "AC-097-2, -4, PT-097-B, -D",
+        "named": "kittest; wgpu screenshot",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Fresh default worksurface contains exactly the notes set and none of the removed panes; readback replaces the wgpu image."
+      },
+      {
+        "contract": "MT-098.json",
+        "clause": "AC-098-1..3, PT-098-A..C",
+        "named": "kittest; wgpu screenshot",
+        "kind": "surface and proof tool",
+        "reading_on_the_vulkan_shell": "Chat pane mounts beside the editors and the send path round-trips or shows its typed blocker; same observable checks on the shell."
+      },
+      {
+        "contract": "MT-103.json",
+        "clause": "AC-103-1, AC-103-4; PT-103-A, PT-103-C",
+        "named": "egui-events only",
+        "kind": "mechanism",
+        "reading_on_the_vulkan_shell": "Model steering enqueues accesskit actions into the shell's own event path and never an OS input call; the source audit and the action-channel test stay."
+      },
+      {
+        "contract": "MT-121.json",
+        "clause": "AC-121-4",
+        "named": "egui::Memory-backed surfaces",
+        "kind": "mechanism",
+        "reading_on_the_vulkan_shell": "The shell snapshot is the live tree: popups and context menus are present by construction; the fresh-context question belongs to the frozen egui host."
+      },
+      {
+        "contract": "MT-131.json",
+        "clause": "AC-131-4",
+        "named": "egui::Window::anchor and Area",
+        "kind": "mechanism",
+        "reading_on_the_vulkan_shell": "No menu or modal in the shell carries an unnamed interactive node; the egui source lines apply to the frozen host."
+      },
+      {
+        "contract": "MT-135.json",
+        "clause": "AC-135-2",
+        "named": "egui::Memory-backed surface",
+        "kind": "mechanism",
+        "reading_on_the_vulkan_shell": "Every surface the shell can open is in the live tree by one mechanism and a new menu needs no bespoke copy."
+      }
+    ],
+    "named_but_no_disposition_needed": [
+      {
+        "contract": "MT-013.json, MT-023.json, MT-025.json, MT-058.json, MT-101.json, MT-189.json, MT-190.json",
+        "why": "Name kittest, a Tauri intercept or an egui-dependency ban in passing: MT-058/189/190 ban egui and stay true, MT-023/025 'Tauri intercept' is the test seam and becomes the port or request seam, MT-013 is a kittest tree check (R2), MT-101 records a Tauri-IPC blocker as legacy."
+      }
+    ],
+    "kittest_census": {
+      "coordinator_count": 75,
+      "author_scan": "Acceptance, proof_targets, proof.checks and materialized_acceptance texts at 2026-11-25: 34 existing contracts name egui_kittest (33 WP012 and WP-1 MT-015) and 84 name any kittest (82 WP012 and WP-1 2); MT-199 adds one through its own new banned-crate list. The figure depends on the field set and the word searched.",
+      "reading": "All of them follow R2 and R4. Their cargo test commands keep naming the egui host until MT-220's map replaces them."
+    },
+    "operator_questions": [
+      {
+        "id": "TQ-1",
+        "text": "Settled kittest PASS verdicts: do they stand for the egui host only, with MT-202 re-proving the same behaviour on the Vulkan shell, or must each listed MT be re-validated individually? This record assumes the first."
+      },
+      {
+        "id": "TQ-2",
+        "text": "Mechanism clauses with no equivalent on the new shell (MT-010 AC-006 and PT-006 egui::Event::Key scan, MT-121 AC-121-4, MT-131 AC-131-4, MT-135 AC-135-2, MT-002 AC-007 ScrollArea): may they be read as the stated behaviour and closed by the new shell proof?"
+      },
+      {
+        "id": "TQ-3",
+        "text": "Named cargo test commands (WP-1 MT-015 proof_targets and the WP012 kittest commands) cannot run on the new shell: may the replacement list in MT-220's map become the proof command for those contracts?"
+      },
+      {
+        "id": "TQ-4",
+        "text": "MT-080 AC-080-8 allows isolate-verify for known wgpu-flake binaries: confirm the allowance lapses with wgpu instead of carrying over."
+      }
+    ]
   }
 }

@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-202",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-26T12:38:23.0180165Z",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-202",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "Cross-WP desktop UI behavior, accessibility and real-app proof",
     "version": 1,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "closure_unit": {
     "outcome": "Independent evidence proves delivered Vulkan-backed UI and all affected original three-WP workflows; held cases remain open until original proof passes.",
@@ -65,7 +65,18 @@
       "MT-202.json#/scope/acceptance_criteria/3",
       "MT-202.json#/scope/acceptance_criteria/4",
       "MT-202.json#/scope/acceptance_criteria/5",
-      "MT-202.json#/scope/acceptance_criteria/6"
+      "MT-202.json#/scope/acceptance_criteria/6",
+      "MT-202.json#/scope/acceptance_criteria/7",
+      "MT-202.json#/scope/acceptance_criteria/8",
+      "MT-202.json#/scope/acceptance_criteria/9",
+      "MT-202.json#/scope/acceptance_criteria/10",
+      "MT-202.json#/scope/acceptance_criteria/11",
+      "MT-202.json#/scope/acceptance_criteria/12",
+      "MT-202.json#/scope/acceptance_criteria/13",
+      "MT-202.json#/scope/acceptance_criteria/14",
+      "MT-202.json#/scope/acceptance_criteria/15",
+      "MT-202.json#/scope/acceptance_criteria/16",
+      "MT-202.json#/scope/acceptance_criteria/17"
     ],
     "materialized_acceptance": [
       {
@@ -95,6 +106,50 @@
       {
         "id": "AC202-7",
         "text": "AC202-7: Prove genuine new GUI diagnostic events and Vulkan/GPU memory/lifetime failures are observable through internal_diagnostics and retained as real correlated events by STANDALONE OUT-OF-PROCESS Palmistry after a controlled owned Handshake Product crash. This is later separately admitted through Primary/original independent acceptance route; no OS crash, foreign stop, automatic restart, recovery execution or model authority. Reuse unaffected original diagnostic/source proof and preserve normal lifecycle/owned drain. Bind existing stable event/control IDs, real correlation/session and exact target PID/process-birth identity. Normal explicit shutdown requires its actual acknowledgements and owned drain; no later-empty-process proxy."
+      },
+      {
+        "id": "AC202-8",
+        "text": "AC202-8: Argus on the new shell acts and observes on the live presented tree (no isolated egui::Context; today app.rs:13290 and raw_input_hook app.rs:42649): click, set_value, inspect and receipts work on root and detached windows with no foreground change."
+      },
+      {
+        "id": "AC202-9",
+        "text": "AC202-9: Palmistry on the new shell: heartbeat from the UI thread at least every 250 ms while idle and busy without a redraw dependency (today app.rs:42712 and 42754), Healthy when idle, Suspected or Frozen after an owned freeze, survivor record after an owned crash with the real process birth and session, and normal shutdown acknowledgement and drain (freeze_detect.rs:79, 5 s threshold)."
+      },
+      {
+        "id": "AC202-10",
+        "text": "AC202-10: Screenshots are Vulkan readbacks of the presented frame with renderer identity and revision (replacing screenshot.rs:713 and 786), permission-bound, per window."
+      },
+      {
+        "id": "AC202-11",
+        "text": "AC202-11: Accessibility: an out-of-process UIA client reads and drives the new shell without activating it; the disposition of the quiet accesskit_windows patch (Cargo.toml patch at 8eadc5b5) is recorded."
+      },
+      {
+        "id": "AC202-12",
+        "text": "AC202-12: Detached windows: pop-outs (popout_window.rs:424) and detached Settings (app.rs:23963) keep identity, focus rule, IME, DPI, merge-back, close behaviour and device ownership."
+      },
+      {
+        "id": "AC202-13",
+        "text": "AC202-13: IME: code editor (panel.rs:2658), rich editor (ime_handler.rs:123), Handpick and every text field compose, cancel, commit and lose focus without a double insert, with a real OS IME on the x64 machine."
+      },
+      {
+        "id": "AC202-14",
+        "text": "AC202-14: The focus audit covers every shell, port, gate and test root (today test_focus_audit_quiet.rs scans handshake_native/src only) and stays green."
+      },
+      {
+        "id": "AC202-15",
+        "text": "AC202-15: Test migration: each egui-named test file (171 of 218 under handshake_native/tests, plus the composition_tests crate) has a toolkit-free or shell replacement or a recorded coverage owner; no acceptance is lost (with MT-220 AC220-4)."
+      },
+      {
+        "id": "AC202-16",
+        "text": "AC202-16: Egui-bound dependencies and services have an adopted replacement or an open row: kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, handshake_gutter, handshake_embed_views, handshake_folder_tree, handshake_text_mechanics (ecolor), cabinet_host, motion_preference, theme/egui_apply, fonts (app.rs:37831), clipboard, cursor icons, request_repaint (43 files), rfd file dialog, eframe persistence path (main.rs:569) and egui_tiles."
+      },
+      {
+        "id": "AC202-17",
+        "text": "AC202-17: Reduced motion, toggled while a transition runs, ends the transition on the committed geometry on the next frame on root and detached presenters, with one Core commit and no extra redraw (MT-200 expected_evidence 8 repeated on the new shell)."
+      },
+      {
+        "id": "AC202-18",
+        "text": "AC202-18: The design, alignment and readability checks of MT-200 AC200-9 and AC200-12 pass on captures of the affected workflows at every recorded scale."
       }
     ]
   },
@@ -126,7 +181,13 @@
       "MT-199",
       "MT-200",
       "MT-201",
-      "MT-203"
+      "MT-203",
+      "MT-213",
+      "MT-214",
+      "MT-215",
+      "MT-216",
+      "MT-217",
+      "MT-218"
     ],
     "allowed_write_paths": [
       "src/frontend/handshake_native/tests/",
@@ -207,6 +268,35 @@
           "Affected proof and original acceptance linkage",
           "Named independent review; permission-held cases stay open",
           "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
+        ]
+      },
+      {
+        "check_id": "UI202-NEW-SHELL-20261125",
+        "claim_refs": [
+          "AC202-8",
+          "AC202-9",
+          "AC202-10",
+          "AC202-11",
+          "AC202-12",
+          "AC202-13",
+          "AC202-14",
+          "AC202-15",
+          "AC202-16",
+          "AC202-17",
+          "AC202-18"
+        ],
+        "command_or_method": "Validator runs the new shell candidate on the x64 PC in a quiet window: Argus conformance, readback captures, UIA client, owned freeze and crash with Palmistry attached, detached windows, IME (with the declared Operator-typed step), focus audit over all roots, design checks and the test-migration map. Each criterion is observed on the exact candidate revision.",
+        "expected": "all pass with zero focus or Z-order change",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "receipts",
+          "survivor records with process birth",
+          "readback captures",
+          "UIA dump",
+          "focus audit",
+          "migration map hash",
+          "design measurement table"
         ]
       }
     ],
@@ -290,7 +380,18 @@
       "AC202-4: Update affected built-in UserManual and stable model controls/headless/parallel routes. Preserve diagnostics, Argus/AccessKit, Flight Recorder, quiet operation and actor/scope privacy. A no-context model can operate affected workflows through documented routes.",
       "AC202-5: Original named independent acceptance owner executes genuine runtime acceptance under actual current permission/allowance/admission. Preserve exact historical spent outcomes. Future relevant retries require current human scoped technical-leader and distinct independent-partner agreement; no reset/refill/automatic grant or invented numeric denial. Missing required proof remains unresolved.",
       "AC202-6: Workflow tester and independent acceptance route prove module/feature Settings hierarchy discovery, Engine Profiles inside Settings/full dispatch, typed persistence and error/denied/recovery paths in the actual app. Prove Vulkan device/backend identity plus centralized GPU allocation/budget/pressure/staging/shared-versus-dedicated/inflight/reclaim/shutdown/device-loss/recovery/multiwindow/module attachment behavior on exact admitted inputs. Scope focused checks to real owning contracts, reusing unchanged proof.",
-      "AC202-7: Prove genuine new GUI diagnostic events and Vulkan/GPU memory/lifetime failures are observable through internal_diagnostics and retained as real correlated events by STANDALONE OUT-OF-PROCESS Palmistry after a controlled owned Handshake Product crash. This is later separately admitted through Primary/original independent acceptance route; no OS crash, foreign stop, automatic restart, recovery execution or model authority. Reuse unaffected original diagnostic/source proof and preserve normal lifecycle/owned drain. Bind existing stable event/control IDs, real correlation/session and exact target PID/process-birth identity. Normal explicit shutdown requires its actual acknowledgements and owned drain; no later-empty-process proxy."
+      "AC202-7: Prove genuine new GUI diagnostic events and Vulkan/GPU memory/lifetime failures are observable through internal_diagnostics and retained as real correlated events by STANDALONE OUT-OF-PROCESS Palmistry after a controlled owned Handshake Product crash. This is later separately admitted through Primary/original independent acceptance route; no OS crash, foreign stop, automatic restart, recovery execution or model authority. Reuse unaffected original diagnostic/source proof and preserve normal lifecycle/owned drain. Bind existing stable event/control IDs, real correlation/session and exact target PID/process-birth identity. Normal explicit shutdown requires its actual acknowledgements and owned drain; no later-empty-process proxy.",
+      "AC202-8: Argus on the new shell acts and observes on the live presented tree (no isolated egui::Context; today app.rs:13290 and raw_input_hook app.rs:42649): click, set_value, inspect and receipts work on root and detached windows with no foreground change.",
+      "AC202-9: Palmistry on the new shell: heartbeat from the UI thread at least every 250 ms while idle and busy without a redraw dependency (today app.rs:42712 and 42754), Healthy when idle, Suspected or Frozen after an owned freeze, survivor record after an owned crash with the real process birth and session, and normal shutdown acknowledgement and drain (freeze_detect.rs:79, 5 s threshold).",
+      "AC202-10: Screenshots are Vulkan readbacks of the presented frame with renderer identity and revision (replacing screenshot.rs:713 and 786), permission-bound, per window.",
+      "AC202-11: Accessibility: an out-of-process UIA client reads and drives the new shell without activating it; the disposition of the quiet accesskit_windows patch (Cargo.toml patch at 8eadc5b5) is recorded.",
+      "AC202-12: Detached windows: pop-outs (popout_window.rs:424) and detached Settings (app.rs:23963) keep identity, focus rule, IME, DPI, merge-back, close behaviour and device ownership.",
+      "AC202-13: IME: code editor (panel.rs:2658), rich editor (ime_handler.rs:123), Handpick and every text field compose, cancel, commit and lose focus without a double insert, with a real OS IME on the x64 machine.",
+      "AC202-14: The focus audit covers every shell, port, gate and test root (today test_focus_audit_quiet.rs scans handshake_native/src only) and stays green.",
+      "AC202-15: Test migration: each egui-named test file (171 of 218 under handshake_native/tests, plus the composition_tests crate) has a toolkit-free or shell replacement or a recorded coverage owner; no acceptance is lost (with MT-220 AC220-4).",
+      "AC202-16: Egui-bound dependencies and services have an adopted replacement or an open row: kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, handshake_gutter, handshake_embed_views, handshake_folder_tree, handshake_text_mechanics (ecolor), cabinet_host, motion_preference, theme/egui_apply, fonts (app.rs:37831), clipboard, cursor icons, request_repaint (43 files), rfd file dialog, eframe persistence path (main.rs:569) and egui_tiles.",
+      "AC202-17: Reduced motion, toggled while a transition runs, ends the transition on the committed geometry on the next frame on root and detached presenters, with one Core commit and no extra redraw (MT-200 expected_evidence 8 repeated on the new shell).",
+      "AC202-18: The design, alignment and readability checks of MT-200 AC200-9 and AC200-12 pass on captures of the affected workflows at every recorded scale."
     ],
     "proof_targets": [
       "Original three-WP runtime acceptance and affected genuine native UI workflows"
@@ -652,5 +753,91 @@
     "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "record_ref": "MT-200.json#/gui_reset02_owned_adoption_20261026",
     "scope": "Affected built-in UserManual and focused proof pointers; no acceptance execution"
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "every affected GUI and GPU failure observed through the existing producer",
+      "flight_recorder": "existing business events unchanged",
+      "palmistry": "owned freeze and owned crash with the new shell mounted; survivor records; normal acknowledgement and drain"
+    },
+    "control_descriptors": "existing descriptors verified against the shell",
+    "attribution": "required: actor/session, command id, revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded jobs unchanged",
+    "settings": "Settings and Engine Profiles verified in the shell",
+    "spec_refs": [
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-024",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054",
+      "GUI-DESKTOP-055"
+    ],
+    "refactor_exposure": "high",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "silent_breaks_20261125": {
+    "record_id": "WP012-SILENT-BREAKS-20261125",
+    "state": "ACCEPTANCE_ROWS_ADDED_NOT_RUN",
+    "list": [
+      "Argus snapshot and steering on an isolated egui::Context (app.rs:13244, 13290; raw_input_hook 42649)",
+      "Screenshot through ViewportCommand::Screenshot (mcp/screenshot.rs:713, 786)",
+      "Heartbeat inside eframe update and idle repaint (app.rs:42712, 42754; interval app.rs:4634)",
+      "Quiet UIA patch in accesskit_windows 0.29.2 (Cargo.toml [patch.crates-io])",
+      "Detached windows (popout_window.rs:424 show_viewport_immediate; detached Settings app.rs:23963)",
+      "IME handling on egui::ImeEvent (code_editor/panel.rs:2658, rich_editor/renderer/ime_handler.rs:123)",
+      "Focus audit scans handshake_native/src only (tests/test_focus_audit_quiet.rs:41)",
+      "171 of 218 test files under handshake_native/tests name egui; composition_tests crate uses egui_kittest",
+      "Egui-bound crates and services listed in AC202-16"
+    ],
+    "acceptance": "AC202-8..AC202-18"
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q3",
+        "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      },
+      {
+        "id": "Q9",
+        "quote": "wire the the gui to the internal_diagnostic, also wire it in the stand alone watcher/recorder Palmistry"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "The breaks that a switch-over would hide are acceptance rows here, and Palmistry must survive on the new shell.",
+    "changes": [
+      "AC202-8..AC202-18 and proof check UI202-NEW-SHELL-20261125 added",
+      "silent_breaks_20261125 added",
+      "execution.depends_on extended with MT-213..MT-218 (lifecycle.depends_on unchanged)",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; AC202-1..AC202-7 wording and the original three-WP obligations stay",
+    "next_actor": "independent validator after the new-shell candidate exists; GUI coding agents for the predecessors"
   }
 }

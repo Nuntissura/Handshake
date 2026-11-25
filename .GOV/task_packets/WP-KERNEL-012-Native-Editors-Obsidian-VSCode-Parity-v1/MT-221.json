@@ -1,0 +1,698 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-221",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-221",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Retire the legacy Tauri and React app",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "The legacy app/ tree (Tauri shell and React UI) is retired after its remaining features have native owners and WP-KERNEL-017 has finished its notes-editor removal, with an Operator-approved list and an archive.",
+    "specification_anchor_refs": [
+      {
+        "id": "Q2",
+        "anchor": "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+        "verbatim": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q8",
+        "anchor": "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+        "verbatim": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      },
+      {
+        "id": "GUI-DESKTOP-043",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.6",
+        "verbatim": "The delivered GUI MUST preserve the complete original editor, CKC/PoseKit and multi-model orchestration workflows and their required runtime/auth/privacy/deployment behavior."
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "app/ at 71cc3b6d: 475 tracked files; Tauri shell in app/src-tauri; UI in app/src (142 component files, 121 lib files)",
+      "WP-KERNEL-017 MT-261..MT-264 (legacy TS/React notes editor removal behind a gate; the gate requires WP-012 parity and native perf evidence that is not green today)",
+      "src/backend/handshake_core/tests/work_packet_scope_binder_tests.rs:131 names app/src-tauri; .github/workflows/ci.yml lines 72-121 and 341-347 run app tooling; palette.rs header cites app/src/App.css",
+      "Master Spec 02 and 01 modules: native Rust GUI supersedes the prior Tauri app and React front end"
+    ],
+    "pillar_refs": [
+      "HBR-HOST",
+      "HBR-PRIV"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "none (removal)"
+    ],
+    "account_bound_resource_refs": [],
+    "consumed_capability_refs": [
+      "WP-KERNEL-017 legacy removal gate"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-221.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "The legacy app/ tree (Tauri shell and React UI) is retired after its remaining features have native owners and WP-KERNEL-017 has finished its notes-editor removal, with an Operator-approved list and an archive.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC221-1",
+      "AC221-2",
+      "AC221-3",
+      "AC221-4",
+      "AC221-5",
+      "AC221-6"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC221-1",
+        "text": "Feature and test census: every screen, command, shortcut, setting, e2e and unit test in app/ (475 tracked files: 142 components, 121 lib, 15 harness, Tauri shell) maps to a native owner with proof, to the WP-KERNEL-017 removal it belongs to, or to an explicit Operator-approved drop. Nothing is dropped by default (Q8)."
+      },
+      {
+        "id": "AC221-2",
+        "text": "Boundary with WP-KERNEL-017: the notes-editor removal (app/src/lib/editor, app/src/lib/tiptap, their dependencies and IPC) stays with WP-KERNEL-017 MT-261..MT-264 and their GREEN gate; this MT does not duplicate, precede or weaken it."
+      },
+      {
+        "id": "AC221-3",
+        "text": "External consumers are listed with a replacement: CI jobs (.github/workflows/ci.yml app lint, depcruise, test and audit), the Codex direct-fetch rule, the workspace scope-binder test naming app/src-tauri, justfile references and docs."
+      },
+      {
+        "id": "AC221-4",
+        "text": "Design tokens are preserved: the native palette comment states its values came from app/src/App.css; the values live in the native token source with the comment updated and no visual change."
+      },
+      {
+        "id": "AC221-5",
+        "text": "The retirement is reversible: last buildable commit and dependency lockfiles archived under the approved archive location; the removal list is approved by the Operator in chat."
+      },
+      {
+        "id": "AC221-6",
+        "text": "After removal the product builds, CI is green without app jobs, no product code or doc refers to a removed path except history, and the built-in manual no longer mentions it."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "Census and removal, no runtime logic.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "app",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-202"
+    ],
+    "start_precondition": "WP-KERNEL-017 MT-264 is done (its gate is GREEN), the native owners exist, and the Operator approved the exact list. The census may start earlier.",
+    "allowed_write_paths": [
+      "app/** (removal by approved list only)",
+      ".github/workflows/ci.yml (app jobs only)",
+      "src/frontend/handshake_native/src/theme/palette.rs (comment only)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "WP-KERNEL-017 scope (app/src/lib/editor, app/src/lib/tiptap and their dependencies)",
+      "Any native source except the comment",
+      "Deleting branches, tags or worktrees"
+    ],
+    "shared_resource_locks": [
+      "ci.yml",
+      "the Operator-approved list"
+    ],
+    "inputs": [
+      "WP-KERNEL-017 verdicts",
+      "native owner list"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first slice; no removal): write the census JSON (app feature or test -> native owner, WP-KERNEL-017 row, or open question) under the artifact root; list every external reference with its replacement."
+      },
+      {
+        "n": 2,
+        "step": "S2: verify each row against running native behaviour or record the gap as an Operator decision."
+      },
+      {
+        "n": 3,
+        "step": "S3: propose the removal list and archive location; wait for approval."
+      },
+      {
+        "n": 4,
+        "step": "S4: remove, fix CI and comments, verify build and references."
+      },
+      {
+        "n": 5,
+        "step": "S5: update manuals and topology records."
+      }
+    ],
+    "first_coding_slice": "S1 (first slice; no removal): write the census JSON (app feature or test -> native owner, WP-KERNEL-017 row, or open question) under the artifact root; list every external reference with its replacement.",
+    "expected_outputs": [
+      "census JSON",
+      "approved list",
+      "archive reference",
+      "green CI run"
+    ],
+    "stop_conditions": [
+      "The WP-KERNEL-017 gate is not GREEN: do not remove the notes editor or anything it depends on.",
+      "The Operator has not approved: do not remove anything.",
+      "A row has no native owner: stop and report."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-221/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": null,
+      "gap": "Removal of non-compiled web sources; CI is the check.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "maintenance_id": "WP012-LEGACY-APP-RETIRE-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane with WP-KERNEL-017 owner",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "app",
+      "purpose": "Retirement of the legacy app.",
+      "public_contract": "none",
+      "test_entry": "CI run without app jobs",
+      "dependency_direction": "not applicable"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "LA221-CENSUS",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC221-1",
+          "AC221-2",
+          "AC221-3"
+        ],
+        "command_or_method": "Validator samples census rows, checks the WP-KERNEL-017 gate state and the reference list.",
+        "expected": "each row has an owner or a decision",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "census hash",
+          "samples"
+        ]
+      },
+      {
+        "check_id": "LA221-CI",
+        "kind": "test",
+        "claim_refs": [
+          "AC221-5",
+          "AC221-6"
+        ],
+        "command_or_method": "Validator checks CI after removal and searches product and docs for dangling references.",
+        "expected": "green and no dangling reference",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "CI run",
+          "search output"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "app/**",
+      ".github/workflows/ci.yml"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Remove legacy app references from the manual"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_test"
+    ],
+    "location": "src/frontend/handshake_native/src/manual_content_editors.rs and src/backend/handshake_core/src/user_manual (shared files: one named writer)",
+    "reason": "One GUI only after retirement.",
+    "not_applicable_reason": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No surface."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "resources_touched": [],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "No data is read or moved"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Removes source only."
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Trace projection where there is no direct surface.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Warm rebuild time and relinked test binaries recorded for the candidate.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface, GPU work or runtime behaviour is created; removal of a legacy tree only.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Cargo target under the one artifact root, owner-scoped, named in the dispatch (KB-OUT-008).",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "UserManual updated in the same change; MANUAL_VERSION bumped where declared.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A no-context model can operate the surface from the manual alone.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Manual entries are code-truthful and self-consistency tested.",
+      "proof_ref": "MT-221.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "no runtime behaviour"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "NOT_APPLICABLE",
+      "reason": "no runtime behaviour"
+    },
+    {
+      "tier": "palmistry",
+      "status": "NOT_APPLICABLE",
+      "reason": "no runtime behaviour"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not_applicable",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "low: no live product path should depend on it",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "REMOVAL",
+    "risks": [
+      "A still-used workflow exists only in app/.",
+      "CI gates disappear unnoticed.",
+      "A shared style or API contract is lost.",
+      "Removal collides with WP-KERNEL-017."
+    ],
+    "minimum_controls": [
+      "AC221-1 census with open questions.",
+      "AC221-3 explicit replacement for every CI job.",
+      "AC221-4 token values kept in native source.",
+      "AC221-2 boundary and the gate."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196..MT-205",
+      "MT-212.json",
+      "packet.json",
+      "WP-KERNEL-017 MT-261..MT-264"
+    ],
+    "result": "WP-KERNEL-017 owns the notes-editor part of app/; no owner for the rest of the tree.",
+    "boundary": "This MT is the remainder; WP-KERNEL-017 keeps its gate and scope."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Replace the old GUI (Q2) without losing features (Q8)."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "GUI coding agent for S1; WP-KERNEL-017 owner for the gate; Operator for approval",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED",
+    "operator_approval_required": "exact removal list, reply approved or proceed"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-221.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null
+}

@@ -2,7 +2,8 @@
   "architecture_binding": {
     "module_lifecycle_refs": [
       "MT-210.json",
-      "MT-211.json#/execution/source_adoption"
+      "MT-211.json#/execution/source_adoption",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/architecture_binding"
     ]
   },
   "shared_schema_declaration_reader_20261026": {
@@ -4662,7 +4663,9 @@
     "reserved_draft_count": 7,
     "runtime_reliability_addition_ref": "packet.json#/operator_runtime_reliability_20261025",
     "execution_restructure_ref": "packet.json#/operator_workflow_restructure_20261013",
-    "gui_rollup_addition_ref": "packet.json#/operator_gui_rollup_20261026"
+    "gui_rollup_addition_ref": "packet.json#/operator_gui_rollup_20261026",
+    "vulkan_gui_refactor_addition_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "authored_count_note_20261125": "Numeric MT contract files: 205 before and 214 after the MT-213..MT-221 addition; authored_count above is historical and unchanged (MT-210..MT-212 were not counted there either)."
   },
   "packet_acceptance_matrix": {
     "schema": "PACKET_ACCEPTANCE_MATRIX_V1",
@@ -14509,5 +14512,448 @@
     "coding": "01a17387-13d3-7091-951e-c06728fb7e94",
     "compiler_owner": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
     "limits": "No original MT/status/acceptance replacement, duplicate compile, new attempt/runtime grant or source/resource release"
+  },
+  "operator_vulkan_gui_refactor_20261125": {
+    "decision_id": "WP012-VULKAN-GUI-REFACTOR-20261125",
+    "recorded_at_utc": "2026-11-25T19:06:54Z",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; KB-PREP-001..005)",
+    "status": "CONTRACTS_AUTHORED_NOT_ACTIVATED_NOT_CLAIMED_NOT_VALIDATED",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q3",
+        "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+      },
+      {
+        "id": "Q4",
+        "quote": "no saas look, no text bloat. this is a high grade production software for profesional use. keep it clean, clear, coherent. no ui clutter. bundle in sub menus or tabs, or use tree systems."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q6",
+        "quote": "use Cabinet for file trees."
+      },
+      {
+        "id": "Q7",
+        "quote": "use handpick as searchbar multitool"
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      },
+      {
+        "id": "Q9",
+        "quote": "wire the the gui to the internal_diagnostic, also wire it in the stand alone watcher/recorder Palmistry"
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      },
+      {
+        "id": "Q12",
+        "quote": "use sub agents in parallel for paperwork, update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs.",
+        "source": "Operator chat 2026-11-25, quoted verbatim as relayed by the coordinator's message to the packet author; the author did not read the chat itself."
+      }
+    ],
+    "prior_operator_decisions": [
+      {
+        "id": "D1",
+        "quote": "Drop egui",
+        "decided_at": "2026-10-30",
+        "evidence_ref": ".GOV/spec/master-spec-v02.229/spec-changelog.jsonl entry v02.227 authority.decisions_applied.D1"
+      },
+      {
+        "id": "D7",
+        "quote": "i want pure vulkan, no wgpu, i think this is also the direction we are going for wp kernel",
+        "decided_at": "2026-10-31T23:54:56Z",
+        "evidence_ref": ".GOV/spec/master-spec-v02.229/spec-changelog.jsonl entry v02.227 authority.decisions_applied.D7"
+      },
+      {
+        "id": "D8",
+        "quote": "kumihimo as owner, ok",
+        "decided_at": "2026-10-31T23:54:56Z",
+        "evidence_ref": ".GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json#/decisions_for_operator (D8); STU-ARC-023"
+      },
+      {
+        "id": "PRE-ACCOUNT-SHELL",
+        "quote": "kernel-owned shell startup (Recommended)",
+        "decided_at": "2026-10-28",
+        "evidence_ref": "MT-203.json#/operator_authority/pre_account_gpu_startup_20261028"
+      }
+    ],
+    "decision_basis_ref": "MT-197.json#/design_result/renderer_decision",
+    "approval": {
+      "request": "The Operator asked that the Vulkan GUI refactor has its own microtask packets (Q1).",
+      "what_is_approved": "Authoring and amending contracts in the kernel. No implementation start, runtime, compile, publication, deletion or verdict is approved by this record.",
+      "packet_author_write_scope": "MT-197..MT-202, MT-212, packet.json and new MT files only; MT-203 and every other MT untouched"
+    },
+    "contracts": [
+      {
+        "mt_id": "MT-213",
+        "contract_ref": "MT-213.json",
+        "purpose": "x64 direct-Vulkan shell gate before docking work",
+        "owning_module": "src/frontend/handshake_shell_gate",
+        "depends_on": [
+          "MT-198",
+          "MT-203",
+          "MT-214",
+          "MT-215"
+        ],
+        "first_coding_slice": "S1 crate, receipt writer and closure test"
+      },
+      {
+        "mt_id": "MT-214",
+        "contract_ref": "MT-214.json",
+        "purpose": "Window, surface, input, IME and accessibility bridge of the native shell",
+        "owning_module": "src/frontend/handshake_shell",
+        "depends_on": [
+          "MT-203"
+        ],
+        "first_coding_slice": "S1 window crate"
+      },
+      {
+        "mt_id": "MT-215",
+        "contract_ref": "MT-215.json",
+        "purpose": "Toolkit-free host ports: Argus actions, snapshots, capture, wire, author ids, heartbeat, focus audit",
+        "owning_module": "src/frontend/handshake_host_ports",
+        "depends_on": [],
+        "first_coding_slice": "S1 ui_heartbeat crate"
+      },
+      {
+        "mt_id": "MT-216",
+        "contract_ref": "MT-216.json",
+        "purpose": "Toolkit-free code editor state and text input",
+        "owning_module": "src/frontend/handshake_native/src/code_editor",
+        "depends_on": [],
+        "first_coding_slice": "S1 document_state crate"
+      },
+      {
+        "mt_id": "MT-217",
+        "contract_ref": "MT-217.json",
+        "purpose": "Toolkit-free rich editor state and text input",
+        "owning_module": "src/frontend/handshake_native/src/rich_editor",
+        "depends_on": [],
+        "first_coding_slice": "S1 document_state crate"
+      },
+      {
+        "mt_id": "MT-218",
+        "contract_ref": "MT-218.json",
+        "purpose": "app.rs split into small host-state crates and the motion clock",
+        "owning_module": "src/frontend/handshake_native/src/app.rs",
+        "depends_on": [],
+        "first_coding_slice": "S1 motion crate"
+      },
+      {
+        "mt_id": "MT-219",
+        "contract_ref": "MT-219.json",
+        "purpose": "Publish device.gpu.shell in the capability registry",
+        "owning_module": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "depends_on": [],
+        "first_coding_slice": "S1 inputs and diff record, no code"
+      },
+      {
+        "mt_id": "MT-220",
+        "contract_ref": "MT-220.json",
+        "purpose": "Retire the egui host after switch-over",
+        "owning_module": "src/frontend/handshake_native",
+        "depends_on": [
+          "MT-199",
+          "MT-200",
+          "MT-201",
+          "MT-202",
+          "MT-212",
+          "MT-216",
+          "MT-217",
+          "MT-218"
+        ],
+        "first_coding_slice": "S1 census, no removal"
+      },
+      {
+        "mt_id": "MT-221",
+        "contract_ref": "MT-221.json",
+        "purpose": "Retire the legacy Tauri and React app",
+        "owning_module": "app",
+        "depends_on": [
+          "MT-202"
+        ],
+        "first_coding_slice": "S1 census, no removal"
+      }
+    ],
+    "amended_contracts": [
+      {
+        "mt_id": "MT-197",
+        "change": "renderer_decision and design direction filled, not proven; gate MT-213"
+      },
+      {
+        "mt_id": "MT-198",
+        "change": "eframe renderer capability marked superseded; standalone-source gap list KG-01..KG-11; AC198-7..9"
+      },
+      {
+        "mt_id": "MT-199",
+        "change": "zero-egui shell migration and switch-over; AC199-7..12; execution.depends_on MT-213, MT-214, MT-215"
+      },
+      {
+        "mt_id": "MT-200",
+        "change": "design language, motion table, alignment and readability checks; AC200-9..14; execution.depends_on MT-213"
+      },
+      {
+        "mt_id": "MT-201",
+        "change": "Handpick shell mount, Portal motion and keyboard parity; AC201-7..10; execution.depends_on MT-213"
+      },
+      {
+        "mt_id": "MT-202",
+        "change": "silent-break list and Palmistry survival as acceptance; AC202-8..18; execution.depends_on MT-213..MT-218"
+      },
+      {
+        "mt_id": "MT-212",
+        "change": "92-row pico routing; execution.depends_on MT-213 for shell drawing only"
+      }
+    ],
+    "order_and_gate": [
+      "1. MT-214 S1..S4 and MT-215 S1..S4 with the MT-203 unit; asset conditions KG-01..KG-06 by the asset owner",
+      "2. MT-213 on an x64 PC; PASS opens docking and migration",
+      "3. MT-199, MT-200, MT-201, MT-212 new-shell work; MT-216, MT-217, MT-218 in parallel with recorded file releases",
+      "4. MT-202 on the candidate; MT-199 switch-over",
+      "5. MT-220 and MT-221 with Operator-approved removal lists"
+    ],
+    "ownership_check": [
+      {
+        "piece": "Direct-Vulkan window, swapchain, input, IME, AccessKit shell",
+        "owner_found": "none among MT-196..MT-205, MT-212, packet.json",
+        "result": "MT-214 (new); device MT-203; adoption MT-199; UI drawing Kumihimo"
+      },
+      {
+        "piece": "Toolkit-free ports for Argus input, snapshot, capture and heartbeat",
+        "owner_found": "MT-084 owns heartbeat semantics; MT-212 picos own egui behaviour",
+        "result": "MT-215 (new)"
+      },
+      {
+        "piece": "Toolkit-free editor, text and motion state; app.rs split",
+        "owner_found": "feature owners only (clusters E1, E2)",
+        "result": "MT-216, MT-217, MT-218 (new); text geometry Kumihimo KG-03"
+      },
+      {
+        "piece": "x64 spike gate",
+        "owner_found": "none",
+        "result": "MT-213 (new)"
+      },
+      {
+        "piece": "device.gpu.shell registry publication",
+        "owner_found": "MT-174 owns the registry file and workflow path, MT-185 owns publication of two other entries; no acceptance names device.gpu.shell",
+        "result": "MT-219 (new, publication only, coordinates with both)"
+      },
+      {
+        "piece": "Egui host and legacy app/ retirement",
+        "owner_found": "WP-KERNEL-017 MT-261..MT-264 own the notes-editor part of app/",
+        "result": "MT-220 and MT-221 (new); MT-221 excludes WP-KERNEL-017 scope"
+      }
+    ],
+    "architecture_binding": {
+      "created_modules": [
+        "src/frontend/handshake_shell_gate",
+        "src/frontend/handshake_shell",
+        "src/frontend/handshake_host_ports",
+        "src/frontend/handshake_code_editor",
+        "src/frontend/handshake_rich_editor",
+        "src/frontend/handshake_app_state"
+      ],
+      "touched_modules": [
+        "src/frontend/handshake_native (by recorded single-writer release)",
+        "assets/capability_registry.json (governed workflow only)",
+        "app (later removal)"
+      ],
+      "boundary_change": "New small crates beside the native crate; the native crate keeps only its frozen egui presentation. Shared code moves into crates both hosts consume.",
+      "dependency_direction": "Views and hosts depend on state, port and shell crates; those depend on MT-203, AccessKit core, data crates and published assets; no reverse edges; no cross-crate toolkit type.",
+      "build_budget": "HBR-COMPART-002 measurement recorded by MT-218; no numeric cap is invented here.",
+      "naming": "Crate paths are generic working names in the existing src/frontend/handshake_* pattern; product names need Operator naming work."
+    },
+    "conflicts": [
+      {
+        "id": "CF-1",
+        "between": [
+          "MT-219",
+          "MT-174",
+          "MT-185"
+        ],
+        "text": "All three touch the capability registry. Publication is one sequence through the existing workflow; the file's owner records the hand-over."
+      },
+      {
+        "id": "CF-2",
+        "between": [
+          "Kumihimo D8 (root and detached presenters, WP-KUM-023)",
+          "MT-214 surface crate"
+        ],
+        "text": "Proposed boundary: Handshake owns window, surface, swapchain and present; Kumihimo draws into a host-supplied image. The asset owner must acknowledge it."
+      },
+      {
+        "id": "CF-3",
+        "between": [
+          "kumihimo-ui design-system motion rules",
+          "MT-200 motion table and Operator Q3"
+        ],
+        "text": "The asset forbids tweening docks, tabs and menus; the Operator asks for motion. Host-supplied motion tokens (KG-05)."
+      },
+      {
+        "id": "CF-4",
+        "between": [
+          "MT-212 claim (01a1738d-2b8e-7151-9e9e-3972429af70c)",
+          "MT-199, MT-215, MT-216, MT-217, MT-218"
+        ],
+        "text": "Shared files app.rs, lib.rs, main.rs, Cargo.toml and Cargo.lock, mcp/*, code_editor/*, rich_editor/* need a recorded release per slice."
+      },
+      {
+        "id": "CF-5",
+        "between": [
+          "WP-KERNEL-017 MT-261..MT-264",
+          "MT-221"
+        ],
+        "text": "Notes-editor removal stays with WP-KERNEL-017 and its gate."
+      },
+      {
+        "id": "CF-6",
+        "between": [
+          "MT-198 recorded pin 8a97b9ae",
+          "host manifest pin 8eadc5b5"
+        ],
+        "text": "Drift recorded; no pin changed."
+      },
+      {
+        "id": "CF-7",
+        "between": [
+          "GUI coding agent on MT-203 (uncommitted)",
+          "MT-213, MT-214"
+        ],
+        "text": "MT-203's public API and present support are still changing; line references are advisory."
+      }
+    ],
+    "operator_decisions_needed": [
+      {
+        "id": "OD-1",
+        "text": "Name the x64 desktop PC and access for MT-213; this machine is ARM64."
+      },
+      {
+        "id": "OD-2",
+        "text": "Confirm that V2 and the HBR-HOST rows bind the new MTs under the WP pin 896f4e15 (CX-GOV-PIN-002)."
+      },
+      {
+        "id": "OD-3",
+        "text": "Name the human reviewer for the actual registry diff and the order with MT-174 and MT-185 (MT-219)."
+      },
+      {
+        "id": "OD-4",
+        "text": "Release the Studio lanes SMB-UI-TREE-1 and SMB-VK-UI-PASS-1 for an independent verdict and Kumihimo publication (recorded paused on 2026-11-13)."
+      },
+      {
+        "id": "OD-5",
+        "text": "Design: neutral graphite shell palette yes or no; does the Studio motion rule bind Handshake."
+      },
+      {
+        "id": "OD-6",
+        "text": "Approve the exact removal lists of MT-220 and MT-221 when they exist."
+      },
+      {
+        "id": "OD-7",
+        "text": "Product names for the new binary and crates, if wanted."
+      },
+      {
+        "id": "OD-8",
+        "text": "Owner of the kernel issuer for device.gpu.shell (NATIVE-RENDER-BOOT-002, -007): no acceptance row names it."
+      }
+    ],
+    "numbering": {
+      "materialized_before": 205,
+      "added": 9,
+      "materialized_after": 214,
+      "next_unallocated_id": "MT-222",
+      "note": "Count is numeric MT-###.json files in this folder (sidecars excluded); packet microtasks.authored_count stays at its historical value."
+    },
+    "asset_owner_request_ref": "MT-198.json#/standalone_source_gaps_20261125/asset_owner_request_text",
+    "spec_basis": {
+      "entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+      "version_inspected": "v02.229",
+      "refs": [
+        ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+        ".GOV/spec/master-spec-v02.229/spec-modules/11-shared-dev-platform-and-oss-foundations.md#11.1.6.5",
+        ".GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md (STU-ARC-023, STU-ARC-024, STU-ARC-025)"
+      ]
+    },
+    "limits": "No status, verdict, acceptance wording, pin, claim, allocation or history changed. Amendments add keys, acceptance rows and dependencies only."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself. The Q12 sentence was relayed separately (see its source).",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q3",
+        "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+      },
+      {
+        "id": "Q4",
+        "quote": "no saas look, no text bloat. this is a high grade production software for profesional use. keep it clean, clear, coherent. no ui clutter. bundle in sub menus or tabs, or use tree systems."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q6",
+        "quote": "use Cabinet for file trees."
+      },
+      {
+        "id": "Q7",
+        "quote": "use handpick as searchbar multitool"
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      },
+      {
+        "id": "Q9",
+        "quote": "wire the the gui to the internal_diagnostic, also wire it in the stand alone watcher/recorder Palmistry"
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      },
+      {
+        "id": "Q12",
+        "quote": "use sub agents in parallel for paperwork, update every mt of wp kernel 012, wp ckc and wp 1 multi model orchestration to include the vulkan work it needs.",
+        "source": "Operator chat 2026-11-25, quoted verbatim as relayed by the coordinator's message to the packet author; the author did not read the chat itself."
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "host_integration_provenance": {
+      "commit": "a70adf3866c66fa898df7f64445bcc9eaab0f7b0",
+      "note": "host_integration blocks in the WP012, CKC and WP-1 contracts cite the Operator's 2026-11-25 instruction in direction_ref; this object is the governance record of that instruction in this WP. Direction_ref strings in those blocks are a quote of it and are not rewritten."
+    },
+    "applies_here": "The Vulkan GUI refactor has its own packets (Q1) and every MT of WP-KERNEL-012, WP-CKC and WP-1 is to carry the Vulkan work it needs (Q12). New MTs: MT-213 to MT-221. Wording dispositions: MT-199.json#/toolkit_wording_disposition_20261125. Hash note: MT-212.json#/host_integration_repin_20261125."
   }
 }

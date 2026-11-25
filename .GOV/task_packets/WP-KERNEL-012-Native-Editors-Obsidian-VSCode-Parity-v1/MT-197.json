@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-197",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-26T12:38:22.8162028Z",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-197",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "All-contract desktop UI coverage, design and grounded renderer decision",
     "version": 1,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "closure_unit": {
     "outcome": "Reviewed desktop UI design and exact implementation slices cover every original MT across all three WPs without dropping held cases.",
@@ -637,9 +637,165 @@
         "authority": "NON_AUTHORITATIVE_CANDIDATE_FOR_EXISTING_COVERAGE_OWNER"
       }
     ],
-    "design": null,
+    "design": {
+      "record_id": "WP012-DESIGN-DIRECTION-20261125",
+      "state": "DIRECTION_RECORDED_NOT_DESIGNED",
+      "recorded_at_utc": "2026-11-25T19:06:54Z",
+      "verbatim": [
+        {
+          "id": "Q3",
+          "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+        },
+        {
+          "id": "Q4",
+          "quote": "no saas look, no text bloat. this is a high grade production software for profesional use. keep it clean, clear, coherent. no ui clutter. bundle in sub menus or tabs, or use tree systems."
+        },
+        {
+          "id": "Q5",
+          "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+        },
+        {
+          "id": "Q6",
+          "quote": "use Cabinet for file trees."
+        },
+        {
+          "id": "Q7",
+          "quote": "use handpick as searchbar multitool"
+        }
+      ],
+      "direction": [
+        "Professional desktop tool: clean, clear, coherent, dense where the work needs it; no SaaS cards, no promotional or explanatory text blocks in the chrome.",
+        "Docked panes touch; separation is a shared edge and a divider, never a gap or a rounded internal window (GUI-DESKTOP-007).",
+        "Rare features sit in submenus, tabs or trees and stay discoverable by keyboard and model; a permanent panel needs a permanent use.",
+        "Icons, text, edges and controls align to one grid; alignment and readability are checked, not assumed (MT-200 AC200-12).",
+        "Motion is present where it shows cause and effect, is interruptible and never delays an action (MT-200 motion table).",
+        "Windows and panels from Kumihimo, file trees from Cabinet, the search bar is Handpick; the host adds no parallel control."
+      ],
+      "baseline_tokens": {
+        "source": "kumihimo-ui design/design-system.json at origin/codex/handshake-studio-assets d32d0574a827b9bc71eb38e0149b84b1ced36a7a",
+        "status": "DRAFT, Studio-authored; not accepted as the Handshake baseline",
+        "useful_values": "4 px grid; edges snap so panes share one physical pixel edge; radius 0 docked; body 12/16, caption 11/14, title 13/18; icon grids 20/16/12; field and row 24 px; contrast pairs computed to WCAG 2.2 AA (4.5:1 text, 3:1 non-text)",
+        "use": "Input to the Handshake token set, host-supplied through KG-05; the Operator decides where it differs"
+      },
+      "conflicts_to_resolve": [
+        "Motion: design-system rules say docks, tabs, menus and presets change in one frame and only four things animate; Operator direction asks for motion and MT-200 requires a visible redock settle.",
+        "Palette: design-system identity is neutral grey and its shell_conflict note says today's shell palette (dark #121418) is blue-tinted; an Operator decision is needed before shell colours change."
+      ],
+      "not_done": "No layout, icon set, component sheet or workflow map is designed. AC197-2 and AC197-3 (distinct expert designer, separate workflow tester) are unmet."
+    },
     "prototype_workflow_feedback": [],
-    "renderer_decision": null,
+    "renderer_decision": {
+      "record_id": "WP012-RENDERER-DIRECTION-20261125",
+      "state": "DIRECTION_RECORDED_NOT_PROVEN",
+      "recorded_at_utc": "2026-11-25T19:06:54Z",
+      "basis": "Two reviews named by the dispatch (research, then adversarial) plus Operator direction 2026-11-25; every local line reference below was re-read by the packet author on 2026-11-25.",
+      "honesty": "Nothing here is proven on the host. No zero-egui Handshake frame has been rendered, the Kumihimo UI layer has lane evidence only, and MT-203 is uncommitted work in progress. design_result.status stays NOT_STARTED.",
+      "renderer": {
+        "choice": "Direct Vulkan through ash, owned by the Handshake GPU owner",
+        "owner_ref": "MT-203.json (unit src/frontend/handshake_native/vulkan-renderer, in progress by the GUI coding agent)",
+        "excluded": "wgpu, egui, eframe in the product (D7, D1, GUI-DESKTOP-003)"
+      },
+      "ui_layer": {
+        "choice": "Adopt and extend the in-house kumihimo-ui toolkit and Vulkan UI pass over kumihimo-core, owned by KUMIHIMO-ASSET-001 (D8, STU-ARC-023, DEC-KUM-DIRECT-VULKAN-RENDERER-v1)",
+        "evidence": "kumihimo-ui has no dependencies and forbids unsafe code; its semantic tree is AccessKit-shaped and host-fed; SMB-VK-UI-PASS-1 draws its 11 primitives with offline SPIR-V at measured CPU parity (lane self-reported).",
+        "conditions_before_adoption": [
+          {
+            "n": 1,
+            "condition": "Independent verdict",
+            "owner": "asset dev leader / Studio validator",
+            "evidence": "SMB-UI-TREE-1 (12133fdf) and SMB-VK-UI-PASS-1 (88b5500c) are READY_FOR_VALIDATION with verdicts: [] in .GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-ui-tree-1.json and hsk-studio-vk-ui-pass-1.json. Lane self-reports are not verdicts.",
+            "state": "OPEN"
+          },
+          {
+            "n": 2,
+            "condition": "Published in Kumihimo",
+            "owner": "asset dev leader",
+            "evidence": "kumihimo-ui is at handshake-studio-assets/crates/kumihimo-ui on origin/codex/handshake-studio-assets d32d0574a827b9bc71eb38e0149b84b1ced36a7a; it is not in Kumihimo/product on origin/codex/handpick 8eadc5b57dc20d96bf29340f835505ad8ff7cbc8 and not in assets-index.yaml. kumihimo-vulkan there holds only src/decorative_transition.rs (WP-KUM-024).",
+            "state": "OPEN"
+          },
+          {
+            "n": 3,
+            "condition": "Device injection through MT-203 with asynchronous settlement",
+            "owner": "asset dev leader with MT-203",
+            "evidence": "hsk-studio-vulkan creates its own instance and device (src/owner.rs:753 create_instance, :895 create_device), UiPass::new(&Owner) and draw(&mut Owner, PaneId) (src/ui.rs:956, 1130), and waits on a fence inside submit (src/owner.rs submit_wait and wait_for_fences at 522-523). The 2026-11-13 handoff also records read_pane freeing staging after a fence timeout at 88b5500c and 198f6dc4; not re-read at the current tip.",
+            "state": "OPEN"
+          },
+          {
+            "n": 4,
+            "condition": "Host-supplied author-id policy",
+            "owner": "asset dev leader",
+            "evidence": "kumihimo-ui hard-codes STU-MDL-100/103 in src/semantic.rs valid_author_id and enforces it in src/tree.rs:440. Recon counted 497 of 741 host author-id constants failing it; a rescan at 71cc3b6d of const names containing AUTHOR under handshake_native/src finds 579 of 850 failing. The count depends on the extraction rule (prefix constants included); the majority fails either way.",
+            "state": "OPEN"
+          },
+          {
+            "n": 5,
+            "condition": "Host-supplied theme and tokens",
+            "owner": "asset dev leader",
+            "evidence": "src/tokens.rs is generated from the Studio design-system.json (status DRAFT) with a fixed Dark/Light Theme enum and fixed metrics; its motion rules conflict with the Operator direction (see MT-200).",
+            "state": "OPEN"
+          },
+          {
+            "n": 6,
+            "condition": "Text port for paragraph, caret and hit test with CJK and RTL fallback",
+            "owner": "asset dev leader",
+            "evidence": "TextPort shapes one line and rasterises one glyph (src/text.rs). The lane record lists: one family, no fallback chain, script fixed to Latn. The crate DESCRIPTOR lists IME composition, gesture arbiter, docking behaviour, AccessKit adapter and Vulkan pass as not_yet.",
+            "state": "OPEN"
+          }
+        ]
+      },
+      "no_egui_bridge": {
+        "choice": "No egui bridge",
+        "reason": "A bridge would need an Operator relaxation of D1. Instead a zero-egui Vulkan shell binary is built beside the current app; the egui host stays frozen (fixes only) as the shipping app and parity reference until one switch-over, then egui, eframe and wgpu are removed (MT-199, MT-220)."
+      },
+      "order": [
+        "Text first, not last",
+        "Window, surface, input, accessibility and ports (MT-214, MT-215) and the Kumihimo conditions",
+        "x64 gate MT-213",
+        "Docking, design, Handpick and pico migration (MT-199, MT-200, MT-201, MT-212)",
+        "Switch-over, then retirement (MT-220, MT-221)"
+      ],
+      "gate": {
+        "mt_ref": "MT-213.json",
+        "state": "OPEN_NOT_RUN",
+        "covers": "text field with IME, 100k-line scroll within 8.33 ms, UIA tree without foreground, CJK/RTL, Argus act/observe/capture, detached window, device loss, idle heartbeat, memory",
+        "machine": "This machine is ARM64 (Adreno): its numbers are not x64 acceptance (Q11)."
+      },
+      "fallback": {
+        "candidate": "Masonry core",
+        "status": "Recorded candidate if the gate fails; never a second UI owner beside Kumihimo",
+        "evidence": "linebender/xilem main masonry_core/Cargo.toml read 2026-11-25: accesskit, parley and ui-events are dependencies; wgpu, vello and winit are not. The reviews' claim that masonry_core exposes IME signals was not re-verified by this author; repeat the check at use."
+      },
+      "rejected_options": [
+        {
+          "option": "egui bridge inside the new shell",
+          "reason": "relaxes D1; keeps two UI stacks"
+        },
+        {
+          "option": "Stay on eframe or wgpu with a Vulkan backend (MT-198 renderer_capability)",
+          "reason": "D7 and GUI-DESKTOP-003"
+        },
+        {
+          "option": "A host-built widget toolkit",
+          "reason": "HBR-MODULE-LIFECYCLE-008 and CX-CAP-001: reusable GUI logic belongs to Kumihimo"
+        },
+        {
+          "option": "Two UI owners, for example Masonry beside Kumihimo",
+          "reason": "D8 single owner; one active owner per capability"
+        },
+        {
+          "option": "Docking work before text is proven",
+          "reason": "dispatch order: text first; the gate precedes docking"
+        }
+      ],
+      "silent_breaks_owned": "MT-202.json AC202-8..AC202-18",
+      "open_items": [
+        "six adoption conditions",
+        "x64 acceptance machine not named by the Operator",
+        "MT-203 present support (surface and swapchain) not in its unit",
+        "Kumihimo D8 presenter versus MT-214 surface boundary needs the asset owner's acknowledgement",
+        "kernel issuer for device.gpu.shell has no acceptance row"
+      ]
+    },
     "exact_source_allocation": null,
     "spec_refinement_disposition": null,
     "note": "Populate this owning result without duplicate report/inventory. Prototype feedback is not real-app acceptance.",
@@ -674,5 +830,85 @@
         "reader": "/root/wp1_gui_contract_delta"
       }
     ]
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none in this design record",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "names the single descriptor owner (Kumihimo) for later MTs",
+    "attribution": "not_applicable",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-001",
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-021"
+    ],
+    "refactor_exposure": "high: direction for every GUI MT",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q3",
+        "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+      },
+      {
+        "id": "Q4",
+        "quote": "no saas look, no text bloat. this is a high grade production software for profesional use. keep it clean, clear, coherent. no ui clutter. bundle in sub menus or tabs, or use tree systems."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q6",
+        "quote": "use Cabinet for file trees."
+      },
+      {
+        "id": "Q7",
+        "quote": "use handpick as searchbar multitool"
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Renderer decision and design direction recorded here; the x64 gate MT-213 decides. Nothing is proven.",
+    "changes": [
+      "design_result.renderer_decision filled (was null)",
+      "design_result.design filled with a direction marked NOT_DESIGNED (was null)",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; design_result.status stays NOT_STARTED",
+    "next_actor": "GUI coding agent for MT-214 S1 and MT-215 S1; expert UI designer (AC197-2) still unassigned; asset dev leader for the six conditions"
   }
 }

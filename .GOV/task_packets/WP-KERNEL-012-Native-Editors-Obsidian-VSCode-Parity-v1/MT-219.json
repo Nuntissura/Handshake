@@ -1,0 +1,701 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-219",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-219",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Publish device.gpu.shell in the capability registry",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "The generated capability registry at assets/capability_registry.json contains the exact entry device.gpu.shell, published through the existing governed workflow with a genuine diff review, so the shell issuer can later bind to a registered full identifier.",
+    "specification_anchor_refs": [
+      {
+        "id": "NATIVE-RENDER-REG-001",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/11-shared-dev-platform-and-oss-foundations.md#11.1.6.5",
+        "verbatim": "The CapabilityRegistry MUST register device.gpu.shell as an exact full identifier with kind=runtime, section_ref=11.1, required_capabilities=[], default_governance_mode=gov_standard, and risk_class=high."
+      },
+      {
+        "id": "NATIVE-RENDER-REG-003",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/11-shared-dev-platform-and-oss-foundations.md#11.1.6.5",
+        "verbatim": "Registry changes MUST preserve existing entries and follow the existing section 11.1.6 genuine extraction from complete authorized inputs, schema validation, integrity checks, actual-diff human review and publication law."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-001",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": "The trusted local kernel MAY initialize and render the Vulkan login screen and application shell before account activation only under the exact registered full capability device.gpu.shell."
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "capabilities.rs:22 declares device.gpu.shell in source; capabilities.rs:395 rejects it as a grant string",
+      "assets/capability_registry.json today: 37 entries and no device.gpu.shell (measured at 71cc3b6d)",
+      "capability_registry_workflow.rs (publication journal, review, retained previous registry)",
+      "MT-174 (write scope includes this file and the workflow) and MT-185 (governed publication, two R2 entries, PENDING); WP-KERNEL-012-cross-wp-handoff-20261113.json rf12.shell_capability_extraction",
+      "MT-203.json#/operator_authority/pre_account_gpu_startup_20261028 (policy approval; the issuer is not implemented)"
+    ],
+    "pillar_refs": [
+      "HBR-HOST",
+      "HBR-PRIV"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "none (no operator surface)"
+    ],
+    "account_bound_resource_refs": [],
+    "consumed_capability_refs": [
+      "Capability registry workflow (existing owner: MT-174/MT-185)"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-219.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "The generated capability registry at assets/capability_registry.json contains the exact entry device.gpu.shell, published through the existing governed workflow with a genuine diff review, so the shell issuer can later bind to a registered full identifier.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC219-1",
+      "AC219-2",
+      "AC219-3",
+      "AC219-4",
+      "AC219-5",
+      "AC219-6",
+      "AC219-7"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC219-1",
+        "text": "Genuine extraction from complete authorized inputs at Master Spec v02.229 produces the registry draft; the draft bytes' SHA256 is the registry version."
+      },
+      {
+        "id": "AC219-2",
+        "text": "The published registry contains device.gpu.shell exactly once with kind=runtime, section_ref=11.1, required_capabilities=[], default_governance_mode=gov_standard and risk_class=high (NATIVE-RENDER-REG-001), and every entry that was published before is preserved."
+      },
+      {
+        "id": "AC219-3",
+        "text": "The actual diff against the previous published registry is reviewed by a named human reviewer; the review record binds the exact draft hash. The manual one-entry proposal is not used."
+      },
+      {
+        "id": "AC219-4",
+        "text": "Schema validation, integrity checks and the mechanical_engines.json unchanged-input rule pass, and the publication Flight Recorder event is authentic (not manufactured)."
+      },
+      {
+        "id": "AC219-5",
+        "text": "Independent re-read of the published file by a validator: identifier present, hash equal to the recorded version, previous version retained and restorable."
+      },
+      {
+        "id": "AC219-6",
+        "text": "No ordinary profile, role, model, account or string can hold the capability: CapabilityRegistry::can_perform still returns false for device.gpu.shell (capabilities.rs:395 and the test test_shell_gpu_capability_is_not_grantable_by_strings_or_profiles)."
+      },
+      {
+        "id": "AC219-7",
+        "text": "The publication claims nothing else: no issuer, no grant, no runtime renderer start, no Vulkan call."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "Workflow run and review coordination.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [],
+    "start_precondition": "The holder of assets/capability_registry.json (MT-174 write scope, MT-185 publication) records the hand-over or runs the publication itself. If MT-185 publishes first, its two R2 entries are in the baseline; if not, the extraction diff contains them too and the reviewer sees both.",
+    "allowed_write_paths": [
+      "assets/capability_registry.json (only by the governed workflow's own publication step, never by hand)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "src/backend/handshake_core/src/capabilities.rs and capability_registry_workflow.rs source edits",
+      "any profile, grant, issuer or session change",
+      "Master Spec text"
+    ],
+    "shared_resource_locks": [
+      "assets/capability_registry.json: one publication at a time with MT-174/MT-185"
+    ],
+    "inputs": [
+      "Master Spec v02.229 bundle",
+      "the existing workflow binary and its authenticated POST /jobs capability_registry_build route",
+      "named human diff reviewer (Operator or delegate)"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first slice; no code): record the workflow inputs at v02.229, current published hash, 37-entry baseline and the exact diff the extraction will produce; request the reviewer. Output: one inputs record in this MT, no file change."
+      },
+      {
+        "n": 2,
+        "step": "S2: run the governed extraction in the validator's environment through the existing route; store draft, diff and hash under the artifact root."
+      },
+      {
+        "n": 3,
+        "step": "S3: human review of the actual diff; record reviewer, time and draft hash."
+      },
+      {
+        "n": 4,
+        "step": "S4: publish through the workflow; store the publication event reference and the retained previous registry."
+      },
+      {
+        "n": 5,
+        "step": "S5: independent re-read and the existing negative test."
+      }
+    ],
+    "first_coding_slice": "S1 (first slice; no code): record the workflow inputs at v02.229, current published hash, 37-entry baseline and the exact diff the extraction will produce; request the reviewer. Output: one inputs record in this MT, no file change.",
+    "expected_outputs": [
+      "published registry file",
+      "review record",
+      "publication event reference",
+      "previous registry retained"
+    ],
+    "stop_conditions": [
+      "A diff other than the authorized entries plus device.gpu.shell appears: stop and record it.",
+      "The workflow needs the retired DuckDB recorder path (MT-174 notes it is prohibited): stop and route to the MT-174 owner.",
+      "No named human reviewer: stop."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": "MT-174",
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-219/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": null,
+      "gap": "No product source changes; there is nothing to compile.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "maintenance_id": "WP012-SHELL-CAPABILITY-MAINT-01",
+      "owner": "MT-174 registry owner",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "assets/capability_registry.json",
+      "purpose": "Capability registry publication.",
+      "public_contract": "the published JSON",
+      "test_entry": "existing workflow and capability tests",
+      "dependency_direction": "consumers read the published file"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "CR219-REVIEW",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC219-1",
+          "AC219-2",
+          "AC219-3",
+          "AC219-4"
+        ],
+        "command_or_method": "Validator re-reads the draft, the diff, the review record and the published file and recomputes hashes.",
+        "expected": "hashes match; entry present once; previous entries intact",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "draft hash",
+          "diff",
+          "review record",
+          "published hash"
+        ]
+      },
+      {
+        "check_id": "CR219-NEGATIVE",
+        "kind": "test",
+        "claim_refs": [
+          "AC219-6"
+        ],
+        "command_or_method": "Validator runs the existing exact test capabilities::tests::test_shell_gpu_capability_is_not_grantable_by_strings_or_profiles (selector named in MT-203's policy record).",
+        "expected": "pass",
+        "timeout_seconds": 900,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "test output"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "assets/capability_registry.json"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "location": null,
+    "reason": null,
+    "not_applicable_reason": "No operator surface or command changes; the shell manual is updated by MT-214 when the shell can start."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No operator surface."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "resources_touched": [],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "Registration changes nobody's access"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Registry entry only; no account data, no grant."
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No control.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Registers the shell GPU capability; performs no GPU work.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No retained allocation.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No GUI behaviour.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Publication carries its actor and correlation.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No frame.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No frame.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "The publication event is the inspectable record.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No build unit changes.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No UI mechanic.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No UI mechanic.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Asset change lands in its canonical repository and is re-read before any host write.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "Registry is installation policy, no account content.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Logout, switch or revocation clears or fences caches, captures, snapshots and stale UI state.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No build.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface change.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface change.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface change.",
+      "proof_ref": "MT-219.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "APPLICABLE",
+      "reason": "the workflow's own publication event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "NOT_APPLICABLE",
+      "reason": "no runtime behaviour"
+    },
+    {
+      "tier": "palmistry",
+      "status": "NOT_APPLICABLE",
+      "reason": "no runtime behaviour"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none",
+      "flight_recorder": "existing publication event only",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "workflow actor and reviewer recorded as the workflow already does",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "NATIVE-RENDER-REG-001",
+      "NATIVE-RENDER-REG-002",
+      "NATIVE-RENDER-REG-003",
+      "NATIVE-RENDER-BOOT-001",
+      "NATIVE-RENDER-BOOT-009"
+    ],
+    "refactor_exposure": "medium: gates product shell startup (MT-214 S5)",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AUTHORITY_PUBLICATION",
+    "risks": [
+      "A one-entry hand edit passes as publication.",
+      "Unrelated drift (R2 entries, watcher capability) is published unseen.",
+      "Registration is read as a runtime grant.",
+      "The previous registry is lost.",
+      "Review is simulated."
+    ],
+    "minimum_controls": [
+      "AC219-1, AC219-3 and the reviewer record.",
+      "AC219-2 plus the complete diff artifact.",
+      "AC219-6 negative test and AC219-7.",
+      "AC219-5 retained previous version.",
+      "Named human and hash binding; the validator re-checks."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196..MT-205",
+      "MT-212.json",
+      "packet.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-172.json"
+    ],
+    "result": "No contract accepts device.gpu.shell publication. MT-174 owns the file's write path and workflow; MT-185 owns publication of two other entries; MT-203 records the policy but not the registry.",
+    "boundary": "Publication only. The process- and generation-bound kernel issuer (NATIVE-RENDER-BOOT-002, -007) is named in MT-203's policy record and in no acceptance row: reported as an open ownership question."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "The shell needs a registered capability before it may open Vulkan before login."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "MT-174/MT-185 owner for the hand-over; Operator or delegate as reviewer",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-219.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null
+}

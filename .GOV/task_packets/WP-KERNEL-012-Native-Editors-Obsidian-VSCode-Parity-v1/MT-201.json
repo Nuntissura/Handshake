@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-201",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-26T12:38:22.9714747Z",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-201",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "Existing Handpick native mount and workbench integration",
     "version": 1,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "closure_unit": {
     "outcome": "Existing Handpick is genuinely mounted and usable in the native workbench in place of a VS Code-like search control.",
@@ -60,7 +60,11 @@
       "MT-201.json#/scope/acceptance_criteria/2",
       "MT-201.json#/scope/acceptance_criteria/3",
       "MT-201.json#/scope/acceptance_criteria/4",
-      "MT-201.json#/scope/acceptance_criteria/5"
+      "MT-201.json#/scope/acceptance_criteria/5",
+      "MT-201.json#/scope/acceptance_criteria/6",
+      "MT-201.json#/scope/acceptance_criteria/7",
+      "MT-201.json#/scope/acceptance_criteria/8",
+      "MT-201.json#/scope/acceptance_criteria/9"
     ],
     "materialized_acceptance": [
       {
@@ -86,6 +90,22 @@
       {
         "id": "AC201-6",
         "text": "AC201-6: Real Handpick entry/focus/selection/dismissal, scoped failure/denial and relevant component states are observable through existing internal_diagnostics and correlated standalone Palmistry records without leaking query/project contents or creating new watcher/control authority."
+      },
+      {
+        "id": "AC201-7",
+        "text": "AC201-7: Handpick is the search bar multitool in the new shell header: one persistent field that searches, completes, writes Notes and accepts source entry, with the same behaviour and format as the Portal and Handshake materials."
+      },
+      {
+        "id": "AC201-8",
+        "text": "AC201-8: Motion parity: the composition opens with a 200 ms ease-out reveal (opacity .65 to 1 and a clip-path inset from the bottom), and with reduced motion it appears at once; measured on the shell by readback, reference handshake-portal product/handpick/web/handpick.css:75-78 (file last changed 23e4de1)."
+      },
+      {
+        "id": "AC201-9",
+        "text": "AC201-9: Keyboard parity with product/handpick/web/Handpick.tsx:515-537 at Portal commit e1f4cd6: composition guard (no key handling while composing), Escape closes the innermost layer first, ArrowDown enters the panel, Enter opens or hands off, Ctrl/Cmd+Space completion, Ctrl/Cmd+Enter save, Alt+Enter search, arrows, Enter and Tab in completions, arrows and Enter in results. A key that conflicts with a host shortcut is recorded, not dropped."
+      },
+      {
+        "id": "AC201-10",
+        "text": "AC201-10: IME, focus return to the editor, scoped denial and the Add source flow keep their recorded rules (MT-201 expected_evidence 8) on the new shell and in a detached window."
       }
     ]
   },
@@ -113,7 +133,8 @@
     "lane": "implementation",
     "foreground_or_interactive_tools_forbidden": false,
     "depends_on": [
-      "MT-197"
+      "MT-197",
+      "MT-213"
     ],
     "allowed_write_paths": [
       "src/frontend/handshake_native/src/search_rail.rs",
@@ -156,6 +177,9 @@
       "prototype": "Controlled quiet isolated prototype interaction with owned test window/session, preserve Operator focus/input and explicit actual owner.",
       "genuine_product": "Only separately admitted genuine Product GUI proof under current named independent route, resource/auth/process safeguards and actual allowance. Prototype permission is not a runtime grant.",
       "source_stage": "No arbitrary app launch or authority bypass from source work."
+    },
+    "depends_on_scope_20261125": {
+      "MT-213": "Only the new-shell Handpick mount waits for MT-213 PASS; the published egui integration and its open proofs continue."
     }
   },
   "proof": {
@@ -199,6 +223,26 @@
           "Affected proof and original acceptance linkage",
           "Named independent review; permission-held cases stay open",
           "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
+        ]
+      },
+      {
+        "check_id": "UI201-HANDPICK-SHELL-20261125",
+        "claim_refs": [
+          "AC201-7",
+          "AC201-8",
+          "AC201-9",
+          "AC201-10"
+        ],
+        "command_or_method": "Validator drives Handpick in the new shell header through Argus and by keyboard events on the port, measures the reveal from readback frames, repeats with reduced motion, IME composition, and the Add source flow, in root and detached windows; compares behaviour with the Portal reference files.",
+        "expected": "parity observed; differences recorded as decisions",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "key-by-key result table",
+          "reveal frame timing",
+          "argus receipts",
+          "IME event log",
+          "focus audit"
         ]
       }
     ],
@@ -285,7 +329,11 @@
       "AC201-3: Prove genuine native mount, keyboard open/focus/selection/dismissal, scoped results/actions and empty/loading/error/denied/recovery states. Preserve existing context permissions and model accessibility without widening access.",
       "AC201-4: Separate workflow tester checks Handpick entry/selection and return to editor/CKC/orchestration multi-step work, including icon/scrollbar, IME/DPI and accessibility behavior. An HTML draft, imported screenshot or unmounted component fixture is insufficient.",
       "AC201-5: Handpick remains reachable from the module/feature Settings hierarchy or equivalent system tree where applicable, with its original controls and typed persistence/error/denied states. Its render/client resources use the shared authoritative GPU owner/accountability contract; no independent device/pool/budget bypass.",
-      "AC201-6: Real Handpick entry/focus/selection/dismissal, scoped failure/denial and relevant component states are observable through existing internal_diagnostics and correlated standalone Palmistry records without leaking query/project contents or creating new watcher/control authority."
+      "AC201-6: Real Handpick entry/focus/selection/dismissal, scoped failure/denial and relevant component states are observable through existing internal_diagnostics and correlated standalone Palmistry records without leaking query/project contents or creating new watcher/control authority.",
+      "AC201-7: Handpick is the search bar multitool in the new shell header: one persistent field that searches, completes, writes Notes and accepts source entry, with the same behaviour and format as the Portal and Handshake materials.",
+      "AC201-8: Motion parity: the composition opens with a 200 ms ease-out reveal (opacity .65 to 1 and a clip-path inset from the bottom), and with reduced motion it appears at once; measured on the shell by readback, reference handshake-portal product/handpick/web/handpick.css:75-78 (file last changed 23e4de1).",
+      "AC201-9: Keyboard parity with product/handpick/web/Handpick.tsx:515-537 at Portal commit e1f4cd6: composition guard (no key handling while composing), Escape closes the innermost layer first, ArrowDown enters the panel, Enter opens or hands off, Ctrl/Cmd+Space completion, Ctrl/Cmd+Enter save, Alt+Enter search, arrows, Enter and Tab in completions, arrows and Enter in results. A key that conflicts with a host shortcut is recorded, not dropped.",
+      "AC201-10: IME, focus return to the editor, scoped denial and the Add source flow keep their recorded rules (MT-201 expected_evidence 8) on the new shell and in a detached window."
     ],
     "proof_targets": [
       "Existing Handpick mounted and used in genuine native workbench"
@@ -669,5 +717,72 @@
       ],
       "limit": "Read-only route lookup is not assignment, agreement, allowance or runtime permission; original genuine GUI/workbench/Palmistry acceptance remains separate."
     }
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "Handpick entry, focus, selection, dismissal, denial outcomes (existing HandpickInput/Retrieval/Navigation/Writing codes)",
+      "flight_recorder": "existing search and Notes events unchanged",
+      "palmistry": "survival with Handpick open (MT-202 AC202-9)"
+    },
+    "control_descriptors": "handpick author ids declared once and kept",
+    "attribution": "required: actor/session, command id, revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "search results bounded by the existing limits",
+    "settings": "Handpick settings unchanged",
+    "spec_refs": [
+      "GUI-DESKTOP-013",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-041"
+    ],
+    "refactor_exposure": "medium",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "handpick_shell_parity_20261125": {
+    "record_id": "WP012-HANDPICK-SHELL-20261125",
+    "state": "DIRECTION_RECORDED_NOT_STARTED",
+    "portal_reference": {
+      "repository": "handshake-portal",
+      "commit": "e1f4cd6",
+      "motion": "product/handpick/web/handpick.css:64,75-78 (file last changed 23e4de1)",
+      "keyboard": "product/handpick/web/Handpick.tsx:515-537",
+      "spec": "product/handpick/spec/handpick-spec.yaml#/source_entry_extension at b495d8eee6fe15d3544b83757b918b7aaf200f12 (already cited by this MT)"
+    },
+    "canonical_asset": "HANDPICK-ASSET-001 core at the host-pinned revision 944a306ff436e1aa53d67ac17f0680c423e7597a (Cargo.toml line 115); a newer Portal commit is not an adopted pin",
+    "presentation": "The host presentation is this MT's; its drawing moves to the new UI layer after MT-213.",
+    "still_open": "Add source stays unavailable until a typed authenticated URL-source registration exists (recorded handoff); parity of that flow stays UNVERIFIED on the host"
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q3",
+        "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+      },
+      {
+        "id": "Q7",
+        "quote": "use handpick as searchbar multitool"
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Handpick is the search bar multitool in the new shell, with Portal motion and keyboard behaviour.",
+    "changes": [
+      "AC201-7..AC201-10 and proof check UI201-HANDPICK-SHELL-20261125 added",
+      "handpick_shell_parity_20261125 added",
+      "execution.depends_on extended with MT-213",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged",
+    "next_actor": "GUI coder A after MT-213 PASS and a published text port (KG-03)"
   }
 }

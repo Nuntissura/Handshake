@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-11-20T12:42:29.098416+00:00",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "Remaining native GUI implementation for folded WP012, CKC and WP1",
     "version": 1,
-    "contract_revision": 1
+    "contract_revision": 2
   },
   "closure_unit": {
     "outcome": "Implement and wire the remaining applicable GUI work from every original WP012, CKC and WP1 MT through actual Vulkan and pinned Kumihimo, retaining original acceptance and independently proving affected workflows",
@@ -63,7 +63,9 @@
   "execution": {
     "lane": "implementation",
     "foreground_or_interactive_tools_forbidden": true,
-    "depends_on": [],
+    "depends_on": [
+      "MT-213"
+    ],
     "product_worktree": "../wtc-WP-KERNEL-012",
     "product_branch": "feat/WP-KERNEL-012",
     "allowed_write_paths": [
@@ -212,7 +214,10 @@
       "No actual combined source/Codecheck/compiler admission for a Cargo launch"
     ],
     "path_authority": "These are potential exact host GUI paths from inspected pico owners, not an active write lease. Every application still binds the frozen changed-file allocation and actual Primary/Coding writer; unresolved historical paths and canonical asset/backend dependencies are not authorized host writes.",
-    "module_ref": "MT-212.json#/context_capsule/owning_module"
+    "module_ref": "MT-212.json#/context_capsule/owning_module",
+    "depends_on_scope_20261125": {
+      "MT-213": "The MT-213 dependency applies only to work that draws or docks on the direct-Vulkan shell (routing rows below). Egui-host fixes, backend wiring, UserManual and proof work already under way continue without it; no existing claim, status or allocation changes."
+    }
   },
   "proof": {
     "parent_proof_refs": [
@@ -37359,5 +37364,1036 @@
       "state": "REQUESTED_ACTUAL_WORKER_OR_API_INPUT_PENDING",
       "global_stop": false
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "every pico action, state and failure through the existing allowlist",
+      "flight_recorder": "existing business events unchanged",
+      "palmistry": "survival with the affected panes mounted (MT-202 AC202-9)"
+    },
+    "control_descriptors": "existing descriptors; no second vocabulary",
+    "attribution": "required: actor/session, command id, revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded jobs unchanged",
+    "settings": "Settings tree through MT-200",
+    "spec_refs": [
+      "GUI-DESKTOP-002",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "high",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "vulkan_direct_routing_20261125": {
+    "record_id": "WP012-MT212-ROUTING-20261125",
+    "state": "ROUTING_RECORDED_NOT_STARTED",
+    "rule": "Each pico keeps its id, acceptance and evidence. A row names the MT that owns the toolkit-bound state, shell, port or layout part of the pico; the presentation (drawing on the new UI layer), the backend wiring and the UserManual stay in this MT and are re-hosted after MT-213 PASS. Paths are read from the pico records; a path in several rows is shared and one single writer moves it.",
+    "gate": "Drawing on the direct-Vulkan shell for any pico needs MT-213 PASS. Egui-host fixes do not.",
+    "counts": {
+      "picos": 92,
+      "with_parts_for_other_mts": 69
+    },
+    "unsplit_large_files_open_ownership": [
+      "atelier_panel.rs (20,715 lines) and graph/* (11 files, 20,255 lines, all name egui) have no MT that splits their state; they are re-hosted in this MT, and the state split is an open question for the GUI lead",
+      "settings_dialog.rs (3,624 lines), operator_chat_pane.rs and the other panel files are re-hosted here or in MT-200; none is split by MT-216..MT-218"
+    ],
+    "stale_statements": [
+      "picotask_plan.shared.wp012.kumihimo_binding.missing_capability_disposition (says no reusable toolkit gap is evidenced): superseded for the new shell by MT-198.json#/standalone_source_gaps_20261125",
+      "context_capsule.host_build_units.cabinet_host and motion_preference: still the frozen egui host's crates; their toolkit-free halves are Cabinet (KG-09) and MT-218's motion crate"
+    ],
+    "rows": [
+      {
+        "index": 0,
+        "pico_id": "GUI-WP012-172-CHAT",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 1,
+        "pico_id": "GUI-WP012-172-MODELS",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 2,
+        "pico_id": "GUI-WP012-172-ROUTING",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 3,
+        "pico_id": "GUI-WP012-172-SCOPE",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs"
+          ]
+        }
+      },
+      {
+        "index": 4,
+        "pico_id": "GUI-WP012-172-DIAGNOSTICS",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 5,
+        "pico_id": "GUI-WP012-172-MANUAL",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 6,
+        "pico_id": "GUI-CKC-MT-004-atelier-entry",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "module_switcher.rs",
+            "top_menu_bar.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 7,
+        "pico_id": "GUI-CKC-MT-007-argus",
+        "toolkit_bound_part_goes_to": {
+          "MT-215": [
+            "mcp/action.rs",
+            "mcp/argus.rs",
+            "mcp/tools.rs"
+          ]
+        }
+      },
+      {
+        "index": 8,
+        "pico_id": "GUI-CKC-MT-009-sheet",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 9,
+        "pico_id": "GUI-CKC-MT-010-media",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 10,
+        "pico_id": "GUI-CKC-MT-011-search",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 11,
+        "pico_id": "GUI-CKC-MT-012-story-moodboard",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 12,
+        "pico_id": "GUI-CKC-MT-013-book-layout",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs"
+          ]
+        }
+      },
+      {
+        "index": 13,
+        "pico_id": "GUI-CKC-MT-014-posekit-export",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 14,
+        "pico_id": "GUI-CKC-MT-015-markers-framing",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 15,
+        "pico_id": "GUI-CKC-MT-016-artifact-links",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 16,
+        "pico_id": "GUI-CKC-MT-017-ingest",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 17,
+        "pico_id": "GUI-CKC-MT-018-contact-sheet",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 18,
+        "pico_id": "GUI-CKC-MT-030-facial-review",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 19,
+        "pico_id": "GUI-CKC-MT-020-prompt-feedback",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 20,
+        "pico_id": "GUI-CKC-MT-042-settings",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs"
+          ],
+          "MT-200": [
+            "settings_editor_section.rs"
+          ]
+        }
+      },
+      {
+        "index": 21,
+        "pico_id": "GUI-CKC-MT-062-model-ops",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 22,
+        "pico_id": "GUI-CKC-MT-047-media-lifetime",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 23,
+        "pico_id": "GUI-CKC-MT-050-png-recovery",
+        "toolkit_bound_part_goes_to": {
+          "MT-215": [
+            "mcp/argus.rs"
+          ]
+        }
+      },
+      {
+        "index": 24,
+        "pico_id": "GUI-CKC-MT-021-manual",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 25,
+        "pico_id": "GUI-CKC-MT-005-vulkan-host",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs",
+            "main.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "shell, shared diagnostics and teardown move to MT-199, MT-214 and MT-215; CKC-specific acceptance stays here"
+      },
+      {
+        "index": 26,
+        "pico_id": "GUI-WP1-MT015-001",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 27,
+        "pico_id": "GUI-WP1-MT015-002",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 28,
+        "pico_id": "GUI-WP1-MT021-001",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "pane_registry.rs"
+          ],
+          "MT-200": [
+            "top_menu_bar.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 29,
+        "pico_id": "GUI-WP1-MT021-002",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs",
+            "workspace_settings.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 30,
+        "pico_id": "GUI-WP1-MT021-003",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 31,
+        "pico_id": "GUI-WP012-host-vulkan",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs",
+            "main.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "shell mounting of pane factories moves to MT-214 and MT-199; the pane-mount acceptance stays here"
+      },
+      {
+        "index": 32,
+        "pico_id": "GUI-WP012-layout-dock",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs",
+            "pane_registry.rs"
+          ],
+          "MT-200": [
+            "split_layout.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "docking on the new shell is MT-200 over Kumihimo KG-07"
+      },
+      {
+        "index": 33,
+        "pico_id": "GUI-WP012-layout-persistence",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs"
+          ],
+          "MT-200": [
+            "layout_persistence.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "layout state moves to MT-218 (layout_state crate); persistence acceptance stays here"
+      },
+      {
+        "index": 34,
+        "pico_id": "GUI-WP012-layout-materials",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs"
+          ],
+          "MT-200": [
+            "pane_header.rs",
+            "tab_bar.rs",
+            "theme/egui_apply.rs",
+            "theme/palette.rs",
+            "top_menu_bar.rs"
+          ]
+        },
+        "note": "tokens and checks are MT-200 (AC200-9, AC200-12)"
+      },
+      {
+        "index": 35,
+        "pico_id": "GUI-WP012-code-text",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/mod.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 36,
+        "pico_id": "GUI-WP012-code-cursors",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/keymap.rs",
+            "code_editor/mod.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 37,
+        "pico_id": "GUI-WP012-code-find",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/mod.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 38,
+        "pico_id": "GUI-WP012-code-fold",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/mod.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 39,
+        "pico_id": "GUI-WP012-code-navigation",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/editor_view.rs",
+            "code_editor/lsp_client.rs",
+            "code_editor/navigation.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 40,
+        "pico_id": "GUI-WP012-code-diagnostics",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/code_actions.rs",
+            "code_editor/panel.rs",
+            "code_editor/rename.rs"
+          ]
+        }
+      },
+      {
+        "index": 41,
+        "pico_id": "GUI-WP012-code-rename",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/panel.rs",
+            "code_editor/rename.rs"
+          ]
+        }
+      },
+      {
+        "index": 42,
+        "pico_id": "GUI-WP012-code-diff",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/diff_editor_panel.rs",
+            "code_editor/mod.rs"
+          ]
+        }
+      },
+      {
+        "index": 43,
+        "pico_id": "GUI-WP012-code-format",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "top_menu_bar.rs"
+          ],
+          "MT-216": [
+            "code_editor/formatting.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 44,
+        "pico_id": "GUI-WP012-code-chrome",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/mod.rs",
+            "code_editor/panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 45,
+        "pico_id": "GUI-WP012-rich-edit",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/document_owner.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 46,
+        "pico_id": "GUI-WP012-rich-format",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/formatting/toolbar.rs",
+            "rich_editor/renderer/input_handler.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 47,
+        "pico_id": "GUI-WP012-rich-embeds",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/block_renderer.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 48,
+        "pico_id": "GUI-WP012-rich-links",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/rich_editor_widget.rs",
+            "rich_editor/wikilinks/autocomplete.rs",
+            "rich_editor/wikilinks/confirm.rs",
+            "rich_editor/wikilinks/inline_view.rs"
+          ]
+        }
+      },
+      {
+        "index": 49,
+        "pico_id": "GUI-WP012-rich-slash",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/input_handler.rs",
+            "rich_editor/renderer/rich_editor_widget.rs",
+            "rich_editor/slash_commands/menu.rs"
+          ]
+        }
+      },
+      {
+        "index": 50,
+        "pico_id": "GUI-WP012-rich-properties",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/properties/panel.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 51,
+        "pico_id": "GUI-WP012-rich-find",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/find_replace/panel.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 52,
+        "pico_id": "GUI-WP012-rich-journal",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/daily_notes/date_nav.rs",
+            "rich_editor/daily_notes/journal_panel.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 53,
+        "pico_id": "GUI-WP012-rich-save",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/rich_editor_widget.rs",
+            "rich_editor/save/draft_manager.rs",
+            "rich_editor/save/save_manager.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 54,
+        "pico_id": "GUI-WP012-rich-reading",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/markdown_render.rs",
+            "rich_editor/outline_panel.rs",
+            "rich_editor/reading_mode.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 55,
+        "pico_id": "GUI-WP012-graph-tags",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/inline_tags/mod.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 56,
+        "pico_id": "GUI-WP012-graph-view",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 57,
+        "pico_id": "GUI-WP012-graph-folders",
+        "toolkit_bound_part_goes_to": {
+          "MT-198 KG-09 then MT-212": [
+            "graph/folder_tree.rs",
+            "project_tree.rs"
+          ]
+        },
+        "note": "file tree view moves to Cabinet (MT-198 KG-09); folder semantics stay here"
+      },
+      {
+        "index": 58,
+        "pico_id": "GUI-WP012-graph-sidebar",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/wikilinks/backlinks_panel.rs",
+            "rich_editor/wikilinks/outgoing_links_panel.rs"
+          ]
+        }
+      },
+      {
+        "index": 59,
+        "pico_id": "GUI-WP012-graph-wiki",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/markdown_render.rs"
+          ]
+        }
+      },
+      {
+        "index": 60,
+        "pico_id": "GUI-WP012-graph-canvas",
+        "toolkit_bound_part_goes_to": {
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 61,
+        "pico_id": "GUI-WP012-graph-collections",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 62,
+        "pico_id": "GUI-WP012-search-loom",
+        "toolkit_bound_part_goes_to": {
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 63,
+        "pico_id": "GUI-WP012-search-files",
+        "toolkit_bound_part_goes_to": {
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 64,
+        "pico_id": "GUI-WP012-search-handpick",
+        "toolkit_bound_part_goes_to": {
+          "MT-201": [
+            "command_palette.rs",
+            "quick_switcher.rs",
+            "search_rail.rs",
+            "search_rail/composition.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "new-shell mount, motion and keyboard are MT-201 (AC201-7..AC201-10)"
+      },
+      {
+        "index": 65,
+        "pico_id": "GUI-WP012-interop-selection",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/mod.rs"
+          ],
+          "MT-217": [
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 66,
+        "pico_id": "GUI-WP012-interop-loom",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 67,
+        "pico_id": "GUI-WP012-interop-coderefs",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/mod.rs",
+            "code_editor/note_refs_panel.rs"
+          ],
+          "MT-217": [
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 68,
+        "pico_id": "GUI-WP012-interop-events",
+        "toolkit_bound_part_goes_to": {
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 69,
+        "pico_id": "GUI-WP012-fems-retrieval",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 70,
+        "pico_id": "GUI-WP012-fems-proposal",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        }
+      },
+      {
+        "index": 71,
+        "pico_id": "GUI-WP012-interop-stage",
+        "toolkit_bound_part_goes_to": {
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 72,
+        "pico_id": "GUI-WP012-interop-locus",
+        "toolkit_bound_part_goes_to": {
+          "MT-217": [
+            "rich_editor/renderer/block_renderer.rs"
+          ]
+        }
+      },
+      {
+        "index": 73,
+        "pico_id": "GUI-WP012-navigation-menus",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "context_menu_surfaces.rs",
+            "top_menu_bar.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "menu and shortcut presentation is MT-200; menu widgets are MT-198 KG-08"
+      },
+      {
+        "index": 74,
+        "pico_id": "GUI-WP012-navigation-status",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_editor_section.rs"
+          ],
+          "MT-216": [
+            "code_editor/panel.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 75,
+        "pico_id": "GUI-WP012-settings-hierarchy",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs",
+            "settings_editor_section.rs",
+            "workspace_settings.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "Settings tree on the new shell is MT-200 (AC200-6, AC200-10)"
+      },
+      {
+        "index": 76,
+        "pico_id": "GUI-WP012-settings-profiles",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_dialog.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 77,
+        "pico_id": "GUI-WP012-manual-topics",
+        "note": "stays in MT-212; presentation is re-hosted on the new UI layer after MT-213"
+      },
+      {
+        "index": 78,
+        "pico_id": "GUI-WP012-inspect-layout",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "layout_persistence.rs"
+          ],
+          "MT-215": [
+            "visual_debugger/mod.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "live snapshot port is MT-215"
+      },
+      {
+        "index": 79,
+        "pico_id": "GUI-WP012-inspect-capture-auth",
+        "toolkit_bound_part_goes_to": {
+          "MT-215": [
+            "mcp/argus.rs",
+            "mcp/screenshot.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "capture port and readback are MT-215; permission acceptance stays here"
+      },
+      {
+        "index": 80,
+        "pico_id": "GUI-WP012-argus-actions",
+        "toolkit_bound_part_goes_to": {
+          "MT-215": [
+            "accessibility/registry.rs",
+            "mcp/action.rs",
+            "mcp/argus.rs",
+            "mcp/binding.rs",
+            "mcp_navigation.rs"
+          ]
+        },
+        "note": "ports and wire layer are MT-215; the egui behaviour stays the parity reference"
+      },
+      {
+        "index": 81,
+        "pico_id": "GUI-WP012-diagnostics-export",
+        "toolkit_bound_part_goes_to": {
+          "MT-200": [
+            "settings_diagnostics_section.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 82,
+        "pico_id": "GUI-WP012-runtime-mcp",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "pane_registry.rs"
+          ]
+        }
+      },
+      {
+        "index": 83,
+        "pico_id": "GUI-WP012-runtime-budget",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "pane_registry.rs"
+          ]
+        }
+      },
+      {
+        "index": 84,
+        "pico_id": "GUI-WP012-runtime-fences",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "pane_registry.rs"
+          ]
+        }
+      },
+      {
+        "index": 85,
+        "pico_id": "GUI-WP012-runtime-recovery",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "pane_registry.rs"
+          ]
+        }
+      },
+      {
+        "index": 86,
+        "pico_id": "GUI-WP012-runtime-shutdown",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "main.rs"
+          ],
+          "MT-215": [
+            "internal_diagnostics.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "heartbeat and shutdown ports are MT-215; acceptance on the new shell is MT-202 AC202-9"
+      },
+      {
+        "index": 87,
+        "pico_id": "GUI-WP012-gpu-ownership",
+        "toolkit_bound_part_goes_to": {
+          "MT-199": [
+            "kumihimo.rs",
+            "main.rs"
+          ],
+          "MT-203": [
+            "diagnostics/gpu_info.rs"
+          ]
+        },
+        "note": "unchanged: MT-203 remains the owner"
+      },
+      {
+        "index": 88,
+        "pico_id": "GUI-WP012-proof-workflows",
+        "toolkit_bound_part_goes_to": {
+          "MT-215": [
+            "mcp/action.rs",
+            "visual_debugger/mod.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 89,
+        "pico_id": "GUI-WP012-process-terminal",
+        "toolkit_bound_part_goes_to": {
+          "MT-218": [
+            "app.rs"
+          ]
+        }
+      },
+      {
+        "index": 90,
+        "pico_id": "GUI-WP012-input-ime",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/panel.rs"
+          ],
+          "MT-217": [
+            "rich_editor/renderer/ime_handler.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ],
+          "MT-218": [
+            "app.rs"
+          ]
+        },
+        "note": "IME state moves to MT-216 and MT-217, text port is MT-198 KG-03, OS proof is MT-213 and MT-202"
+      },
+      {
+        "index": 91,
+        "pico_id": "GUI-WP012-input-unicode",
+        "toolkit_bound_part_goes_to": {
+          "MT-216": [
+            "code_editor/panel.rs"
+          ],
+          "MT-217": [
+            "rich_editor/daily_notes/journal_panel.rs",
+            "rich_editor/renderer/line_layout.rs",
+            "rich_editor/renderer/rich_editor_widget.rs"
+          ]
+        },
+        "note": "segmentation and bidi live in handshake_text_mechanics and the Kumihimo text port (MT-198 KG-03)"
+      }
+    ]
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Which parts of the picos move to the new MTs, and the dependency on the x64 gate.",
+    "changes": [
+      "vulkan_direct_routing_20261125 added (92 rows)",
+      "execution.depends_on gains MT-213 with depends_on_scope_20261125 (lifecycle.depends_on unchanged)",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc",
+      "host_integration_repin_20261125 added after the governance commit that added host_integration to the 98 pinned WP-1 and CKC contracts; pins not rewritten"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; pico states, candidates, source allocations and the active claim stay",
+    "next_actor": "MT-212 holder to release files per slice; GUI coding agent for the predecessors"
+  },
+  "host_integration_repin_20261125": {
+    "record_id": "WP012-HOST-INTEGRATION-REPIN-20261125",
+    "recorded_at_utc": "2026-11-25T19:12:07Z",
+    "governance_commit": "a70adf3866c66fa898df7f64445bcc9eaab0f7b0",
+    "governance_commit_subject": "chore(gov): add host_integration blocks to WP012, CKC and WP-1 microtasks",
+    "what_it_changed": "295 MT contracts gained one top-level host_integration object and nothing else (JSON compare of every changed file: 30 WP-1, 68 CKC, 197 WP012).",
+    "pins_not_rewritten": "The sha256 values in picotask_plan.original_contract_coverage stay as recorded: current_contract_sha256 on 68 CKC rows and current_source_sha256 on 30 WP-1 rows, 98 pins in total. They describe the contract text before that commit.",
+    "verified": {
+      "matching_text_before_commit": 94,
+      "by_line_ending": "64 CKC and 24 WP-1 pins match the pre-commit file with CRLF, 6 WP-1 pins match it with LF",
+      "not_matching_any_committed_text": {
+        "count": 4,
+        "contracts": [
+          "WP-CKC-posekit-overhaul/MT-009.json",
+          "WP-CKC-posekit-overhaul/MT-023.json",
+          "WP-CKC-posekit-overhaul/MT-056.json",
+          "WP-CKC-posekit-overhaul/MT-060.json"
+        ],
+        "note": "Their pins match none of the 8, 9, 5 and 10 committed revisions of those files, so that mismatch predates the host_integration commit and is not explained by it."
+      }
+    },
+    "reader_rule": "For the 94 pins, a mismatch with the working file is this addition when git show a70adf38^:<path>, hashed with the pinned line ending, equals the pin. Any other mismatch, including the four above, is drift to be resolved by its owner.",
+    "other_hashes": "The 204 WP012 rows' source_snapshot_refs (400 source_sha256 values) were already historical before the commit: 2 match the pre-commit WP012 text and 398 match neither the text before nor after it."
+  }
 }

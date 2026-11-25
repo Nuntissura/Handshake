@@ -1,0 +1,840 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-215",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-215",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Toolkit-free host ports for Argus actions, snapshots, capture and the UI heartbeat",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "Model steering, live snapshots, screenshots, author ids, the MCP wire layer and the Palmistry heartbeat run on toolkit-free ports, so the new shell keeps the same model and watcher routes and both hosts can be checked with one conformance suite.",
+    "specification_anchor_refs": [
+      {
+        "id": "GUI-DESKTOP-045",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.6",
+        "verbatim": "Parallel Operator and model clients MUST have attributable, recoverable interaction routes. One client's view, selection or navigation MUST NOT silently replace another client's focus, active context or work."
+      },
+      {
+        "id": "GUI-DESKTOP-049",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.7",
+        "verbatim": "Actual new GUI actions, navigation, component states and errors, including Vulkan backend and centralized GPU memory/lifetime failures, MUST be observable through the existing internal_diagnostics producer/API and its typed mechanical allowlist."
+      },
+      {
+        "id": "GUI-DESKTOP-051",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.7",
+        "verbatim": "Palmistry MUST remain a STANDALONE OUT-OF-PROCESS watcher and event recorder for later diagnostics, preserving section 6.13 lifecycle inversion"
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "app.rs:13244 snapshot_viewport and app.rs:13290 refresh_mcp_snapshot_with_production_context (isolated egui::Context)",
+      "app.rs:42649 raw_input_hook (actions drained before the frame); mcp/action.rs:656 UiAction, 949 ActionChannel, 1143 reject_queued_for_operator_input, 1243 drain_revalidated_into_events",
+      "mcp/screenshot.rs:713 and :786 (egui screenshot event and ViewportCommand::Screenshot)",
+      "app.rs:4634 HEARTBEAT_IDLE_REPAINT_INTERVAL 250 ms, app.rs:8890 bump_heartbeat, app.rs:42712 and 42754 (heartbeat inside eframe update), diag_ring/src/ring.rs:284 write_heartbeat, palmistry/src/freeze_detect.rs:66 (250 ms cadence), :72 (300 ms poll), :79 (5000 ms threshold)",
+      "MT-084.json (heartbeat acceptance to preserve) and MT-091 (freeze detection)",
+      "accessibility/snapshot.rs:126-239 (UiNodeBounds, SnapshotViewport, UiTreeNode, UiTreeSnapshot); accessibility/registry.rs; tests/test_focus_audit_quiet.rs:41 (walks src/ only)",
+      "src/mcp: 9 of 12 files name egui (13,908 lines); src/accessibility: 7 of 7 (4,616 lines)"
+    ],
+    "pillar_refs": [
+      "HBR-VIS",
+      "HBR-QUIET",
+      "HBR-HOST",
+      "HBR-INT-009",
+      "HBR-SWARM"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "argus.inspect",
+      "argus.click",
+      "argus.set_value",
+      "argus.screenshot",
+      "conformance suite on both hosts"
+    ],
+    "account_bound_resource_refs": [
+      "UI tree snapshots",
+      "captures",
+      "action payloads"
+    ],
+    "consumed_capability_refs": [
+      "Existing MCP wire protocol and leases",
+      "diag_ring heartbeat writer",
+      "internal_diagnostics producer",
+      "MT-203 owner for readback"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-215.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "Model steering, live snapshots, screenshots, author ids, the MCP wire layer and the Palmistry heartbeat run on toolkit-free ports, so the new shell keeps the same model and watcher routes and both hosts can be checked with one conformance suite.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC215-1",
+      "AC215-2",
+      "AC215-3",
+      "AC215-4",
+      "AC215-5",
+      "AC215-6",
+      "AC215-7",
+      "AC215-8",
+      "AC215-9",
+      "AC215-10"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC215-1",
+        "text": "Closure: action, snapshot, capture, heartbeat, author-id and wire crates compile without egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow and expose no toolkit type; the egui host keeps thin adapters over them and the new shell has its own adapters."
+      },
+      {
+        "id": "AC215-2",
+        "text": "Wire compatibility: argus.inspect, argus.click, argus.set_value, argus.screenshot and every other registered method keep their request and response JSON; one conformance suite runs against both hosts and passes on both."
+      },
+      {
+        "id": "AC215-3",
+        "text": "Snapshot is taken from the live tree of the presented frame: bounds and viewport come from the real window (physical and logical pixels, scale, window id), root and detached, with a typed no-frame-yet state; the isolated egui::Context path (app.rs:13290) is not used by the new shell."
+      },
+      {
+        "id": "AC215-4",
+        "text": "Actions are revalidated against the live tree at execution, carry agent_label, session, correlation and lease, never overwrite Operator input in the same frame (reject_queued_for_operator_input semantics kept) and return a receipt with the observed effect."
+      },
+      {
+        "id": "AC215-5",
+        "text": "Capture is a Vulkan readback of the presented frame of the named window through an MT-203 claim with asynchronous settlement, carries renderer identity, revision, region and content hash, is permission-bound as today, and never blocks the UI thread or uses OS screen capture on the new shell."
+      },
+      {
+        "id": "AC215-6",
+        "text": "Heartbeat: a UI-thread timer independent of redraw publishes counter and monotonic nanos through diag_ring write_heartbeat at least every 250 ms while the loop is alive, wait-free and allocation-free, silent without a ring writer; a background thread never publishes it, so a blocked UI thread goes stale."
+      },
+      {
+        "id": "AC215-7",
+        "text": "Author ids: one host-supplied grammar policy accepts every existing id, rejects duplicates across the composed tree, and maps to AccessKit node ids; no existing id is renamed. The survey of existing constants and the measured rejection count under the Kumihimo grammar are recorded."
+      },
+      {
+        "id": "AC215-8",
+        "text": "Focus audit covers every shell, port, gate and test root (src and tests), not handshake_native/src only, and fails on SetForegroundWindow, BringWindowToTop, SetActiveWindow, SetFocus, keybd_event, mouse_event, SendInput or equivalents outside the declared allow-list."
+      },
+      {
+        "id": "AC215-9",
+        "text": "Bounds: queues, snapshots, retained captures and receipts have explicit limits with typed overflow; nothing holds a lock across a blocking wait."
+      },
+      {
+        "id": "AC215-10",
+        "text": "internal_diagnostics: each outcome maps to the existing GuiDiagnosticOperation/Phase and DiagEventCode allowlist; a missing code is requested as a typed addition, never worked around with text."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Protocol-preserving extraction across two hosts.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "gui",
+    "module_ref": "src/frontend/handshake_host_ports",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [],
+    "start_precondition": "S1 and S2 write only the new crate root. Any edit under src/frontend/handshake_native needs a recorded release of that exact file by its MT-212 holder. S5 readback needs MT-214 S2 and the MT-203 unit.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_host_ports/Cargo.toml",
+      "src/frontend/handshake_host_ports/Cargo.lock",
+      "src/frontend/handshake_host_ports/action_port/**",
+      "src/frontend/handshake_host_ports/semantic_snapshot/**",
+      "src/frontend/handshake_host_ports/frame_capture/**",
+      "src/frontend/handshake_host_ports/ui_heartbeat/**",
+      "src/frontend/handshake_host_ports/author_ids/**",
+      "src/frontend/handshake_host_ports/mcp_wire/**",
+      "src/frontend/handshake_host_ports/focus_audit/**",
+      "src/frontend/handshake_native/src/mcp/** (extraction with release only)",
+      "src/frontend/handshake_native/src/accessibility/** (extraction with release only)",
+      "src/frontend/handshake_native/Cargo.toml and Cargo.lock (one named writer)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "Any change to the MCP wire JSON, permission checks or lease semantics",
+      "A second MCP server, watcher, ring or recorder"
+    ],
+    "shared_resource_locks": [
+      "handshake_native/Cargo.toml, Cargo.lock, src/lib.rs, src/app.rs (single writer)",
+      "MT-212 holds a potential-path list and a claim (01a1738d-2b8e-7151-9e9e-3972429af70c) on app.rs, lib.rs, main.rs, Cargo.toml, Cargo.lock, mcp/*, accessibility/registry.rs, code_editor/* and rich_editor/*: take one file at a time by recorded release from its holder."
+    ],
+    "inputs": [
+      "existing MCP tests",
+      "existing accessibility snapshot types",
+      "diag_ring crate"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first coding slice): ui_heartbeat crate. A port trait plus a monotonic timer helper driven by the host loop, calling diag_ring write_heartbeat; unit tests for monotonicity, allocation-free path, no-ring no-op and a stale counter when the loop is blocked. The egui host is untouched."
+      },
+      {
+        "n": 2,
+        "step": "S2: author_ids crate: host grammar policy, duplicate detection, node-id mapping; survey test over every existing id constant."
+      },
+      {
+        "n": 3,
+        "step": "S3: semantic_snapshot crate: move the snapshot data types and JSON; live-tree provider trait with viewport source; egui adapter keeps today's output byte-for-byte."
+      },
+      {
+        "n": 4,
+        "step": "S4: action_port crate: UiAction, outcomes, receipts, queue and revalidation over the provider trait; egui adapter stays in the host."
+      },
+      {
+        "n": 5,
+        "step": "S5: frame_capture crate: request and receipt types, provider trait, Vulkan readback provider over MT-214 surface and an MT-203 claim."
+      },
+      {
+        "n": 6,
+        "step": "S6: mcp_wire crate: server, session, leases, attribution, binding and tool dispatch without toolkit types (needs MT-212 release); both hosts consume it."
+      },
+      {
+        "n": 7,
+        "step": "S7: focus_audit target over every GUI root, then the conformance suite against both hosts."
+      }
+    ],
+    "first_coding_slice": "S1 (first coding slice): ui_heartbeat crate. A port trait plus a monotonic timer helper driven by the host loop, calling diag_ring write_heartbeat; unit tests for monotonicity, allocation-free path, no-ring no-op and a stale counter when the loop is blocked. The egui host is untouched.",
+    "expected_outputs": [
+      "seven small crates",
+      "conformance suite",
+      "extended focus audit",
+      "egui adapters that keep current behaviour"
+    ],
+    "stop_conditions": [
+      "A listed line reference no longer matches: re-read and record the new one before editing.",
+      "The needed mechanic belongs to Kumihimo, Cabinet, handshake_text_mechanics, handshake_context_menu, handshake_gutter, handshake_embed_views or handpick: stop, record it in MT-198 and continue other slices.",
+      "A dependency would bring any banned crate into the closure: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow.",
+      "A file is held by another writer, or a compile/disk slot is not named in the dispatch.",
+      "Two failed attempts on the same check without a new cause (CX-EXEC-003).",
+      "An existing id would have to change to satisfy a grammar: stop, keep the id, extend the host policy."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "consumes_published_contract",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-215/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": "cargo +1.97.1-x86_64-pc-windows-msvc check --locked --tests --manifest-path src/frontend/handshake_host_ports/Cargo.toml -j 1",
+      "gap": "The manifest does not exist until S1; host-side compile uses the literal in HP215-STATIC.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "maintenance_id": "WP012-HOST-PORTS-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "src/frontend/handshake_host_ports",
+      "purpose": "Model-steering, observation and heartbeat seams shared by both hosts.",
+      "public_contract": "ports plus unchanged MCP JSON",
+      "test_entry": "conformance suite binary and per-crate tests (validator only)",
+      "dependency_direction": "hosts and shell depend on ports; ports depend on diag_ring and data crates only",
+      "naming": "Crate and binary names here are generic working paths in the existing src/frontend/handshake_* pattern; no canonical product name is verified and a product name needs Operator naming work (HSK naming rule)."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "HP215-STATIC",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC215-1"
+        ],
+        "command_or_method": "cargo +1.97.1-x86_64-pc-windows-msvc tree --locked -e normal --target x86_64-pc-windows-msvc --manifest-path <crate>/Cargo.toml lists none of: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow; source scan of the public API finds no winit, ash or toolkit type; implementer compile command; plus the existing host check cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going after any host edit",
+        "expected": "clean on both",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "cargo tree",
+          "compile logs",
+          "input digests"
+        ]
+      },
+      {
+        "check_id": "HP215-CONFORMANCE",
+        "kind": "test",
+        "claim_refs": [
+          "AC215-2",
+          "AC215-3",
+          "AC215-4",
+          "AC215-7",
+          "AC215-9",
+          "AC215-10"
+        ],
+        "command_or_method": "Validator runs the conformance suite against the egui host and the new shell with the same cases and compares recorded wire JSON.",
+        "expected": "identical results except documented renderer identity",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "case list",
+          "JSON diffs"
+        ]
+      },
+      {
+        "check_id": "HP215-RUNTIME",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC215-1",
+          "AC215-2",
+          "AC215-3",
+          "AC215-4",
+          "AC215-5",
+          "AC215-6",
+          "AC215-7",
+          "AC215-8",
+          "AC215-9",
+          "AC215-10"
+        ],
+        "command_or_method": "Validator drives the shell through Argus on the x64 PC with a quiet window, two agent sessions and simulated Operator input; capture by readback; owned UI block for the heartbeat; focus audit around every run.",
+        "expected": "all criteria; zero focus change",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "receipts",
+          "PNG hashes",
+          "ring reader output",
+          "focus audit"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_host_ports/**",
+      "src/frontend/handshake_native/src/mcp/**",
+      "src/frontend/handshake_native/src/accessibility/**",
+      "src/frontend/handshake_shell/**"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Argus methods, snapshot fields, capture receipt fields, heartbeat meaning"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_test"
+    ],
+    "location": "src/frontend/handshake_native/src/manual_content_editors.rs and src/backend/handshake_core/src/user_manual (shared files: one named writer)",
+    "reason": "Model-facing routes must stay documented and unchanged.",
+    "not_applicable_reason": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "argus.* responses",
+      "settings diagnostics panel heartbeat state"
+    ],
+    "argus_targets": [
+      "conformance suite client"
+    ],
+    "expected_evidence": [
+      "conformance suite results on both hosts",
+      "readback PNG with hash and renderer identity",
+      "focus audit report"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "UI tree snapshots",
+      "captures",
+      "action payloads"
+    ],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "Existing permission checks on capture and steering stay in force"
+    ],
+    "same_project_private_resource_cases": [
+      "A capture or snapshot of another account's window is denied"
+    ],
+    "cross_account_negative_cases": [
+      "A denied or foreign-account state shows no content, title, count or thumbnail"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Captures, snapshots, caches and diagnostics inherit the source scope and never widen it"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Logout or account switch revokes pending captures and clears retained frames and trees"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Snapshot values, names and capture metadata follow content scope; diagnostics carry codes only"
+    ],
+    "expected_evidence": [
+      "default_deny_negative_test",
+      "revocation_or_context_switch_test",
+      "content_free_diagnostic_field_audit"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "Ports draw nothing; the surfaces mount through MT-214 and MT-199.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Each control and action declared once with a stable id that feeds GUI, AccessKit, Argus and UserManual.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "All GPU work through the MT-203 owner: admission, budget, retained accounting, exactly-once release, typed loss.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every cache, queue and buffer bounded and accounted, with overload, cancel, stale-revision and release behaviour.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "GUI actions, states, errors and GPU failures through the existing internal_diagnostics allowlist, content-free.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Palmistry survives an owned freeze and an owned crash of the real application with the surface mounted.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every command carries actor/session, command id, revision and correlation; correlation grants nothing.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Shared edges, dividers, keyboard, focus, IME, AccessKit, DPI, multiwindow, recovery and truthful states.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Validator drives the running surface through Argus (stable author_id, no foreground).",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Renderer error scan on every captured frame: Vulkan validation messages and runtime errors; any error fails.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Capture matrix: normal, constrained viewport, and empty/error/loading/multi-item states.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Port behaviour is inspected through the conformance suite and receipts.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A surface Argus cannot see or steer is repaired in this MT or recorded as a blocking gap.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Warm rebuild time and relinked test binaries recorded for the candidate.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Mechanic consumed from its single existing owner (context_capsule.consumed_capability_refs).",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No new canonical mechanic without a spec primitive and an owner search.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "Handshake-owned host ports; no asset change.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent accounts see neither content nor existence metadata of each other.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Logout, switch or revocation clears or fences caches, captures, snapshots and stale UI state.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Cargo target under the one artifact root, owner-scoped, named in the dispatch (KB-OUT-008).",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "UserManual updated in the same change; MANUAL_VERSION bumped where declared.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A no-context model can operate the surface from the manual alone.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Manual entries are code-truthful and self-consistency tested.",
+      "proof_ref": "MT-215.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "no business event; Flight Recorder drilldown keeps its existing producers"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "APPLICABLE",
+      "reason": "existing allowlist codes"
+    },
+    {
+      "tier": "palmistry",
+      "status": "APPLICABLE",
+      "reason": "heartbeat writer; watcher unchanged"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_existing_ring: action, snapshot, capture and heartbeat outcomes",
+      "flight_recorder": "none",
+      "palmistry": "heartbeat writer for the existing watcher; no new watcher code"
+    },
+    "control_descriptors": "author ids feed AccessKit, Argus and UserManual from one policy",
+    "attribution": "required: agent_label, session, correlation and lease on every action and capture; grants nothing",
+    "jobs": "bounded capture and action queues with typed overflow",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-047",
+      "GUI-DESKTOP-048",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-053"
+    ],
+    "refactor_exposure": "high: without these the new shell is blind to models and looks frozen to Palmistry",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "MODEL_AND_WATCHER_SEAM",
+    "risks": [
+      "The snapshot is correct but not of the presented frame.",
+      "A timer thread keeps the heartbeat alive while the UI is frozen.",
+      "Readback stalls the UI or leaks staging.",
+      "A model action lands on a stale widget after a layout change.",
+      "Two wire servers drift apart.",
+      "Renaming ids to satisfy a grammar breaks saved scripts."
+    ],
+    "minimum_controls": [
+      "AC215-3 frame identity and window id in the snapshot.",
+      "AC215-6 UI-thread only, plus the blocked-loop test.",
+      "AC215-5 async settlement and ledger counters.",
+      "AC215-4 live revalidation.",
+      "AC215-2 one conformance suite.",
+      "AC215-7 no rename."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196..MT-205",
+      "MT-212.json",
+      "packet.json",
+      "MT-084.json"
+    ],
+    "result": "No owner of toolkit-free ports. MT-084 owns today's heartbeat semantics (kept), MT-212 GUI-WP012-argus-actions and inspect-capture-auth own the egui behaviour (kept as the parity reference).",
+    "boundary": "Protocol, permissions, leases and watcher stay with their owners; this MT changes where the code lives and what it depends on."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q9",
+        "quote": "wire the the gui to the internal_diagnostic, also wire it in the stand alone watcher/recorder Palmistry"
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Argus and Palmistry must keep working on the new shell without a second server or watcher."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "GUI coding agent for S1; MT-212 holder for file releases at S3, S4 and S6",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-215.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null,
+  "conditional_dependencies": [
+    {
+      "mt_ref": "MT-214.json",
+      "when": "S5 capture provider and the live window registry"
+    },
+    {
+      "mt_ref": "MT-212.json",
+      "when": "S3, S4, S6: exact file release by the holder"
+    }
+  ]
+}

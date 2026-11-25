@@ -1,0 +1,843 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-213",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-213",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "x64 direct-Vulkan shell gate: text, scroll, accessibility, capture, windows, recovery",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "One zero-egui x64 Windows test binary, built from the MT-203 GPU owner, the MT-214 and MT-215 crates and one pinned Kumihimo revision, passes eleven measured checks on an x64 desktop PC, or fails with a recorded cause and the Masonry-core fallback review opens. Docking work on the new shell stays closed until a validator PASS.",
+    "specification_anchor_refs": [
+      {
+        "id": "GUI-DESKTOP-020..026",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.4",
+        "verbatim": "[GUI-DESKTOP-022] The chosen renderer MUST preserve native window/input, keyboard/focus/IME, DPI, accessibility, multiwindow, resize/minimize/restore and required surface/device recovery behavior."
+      },
+      {
+        "id": "GUI-DESKTOP-024",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.4",
+        "verbatim": "Vulkan acceptance MUST identify the actual backend and device on the exact running application binary/source/dependency/configuration and bind evidence to genuine rendered frames and the affected lifecycle actions."
+      },
+      {
+        "id": "HBR-HOST-001",
+        "anchor": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+        "verbatim": "An asset-local test host (for example a harness binary) is permitted for asset proof only and is never acceptance evidence for the product."
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "MT-197.json#/design_result/renderer_decision (decision and its conditions)",
+      "MT-198.json#/standalone_source_gaps_20261125 (asset gaps this gate needs: KG-01, KG-02, KG-03, KG-04, KG-05, KG-06)",
+      "MT-203 unit: src/frontend/handshake_native/vulkan-renderer/src/lib.rs DESCRIPTOR and public API (admit, authorize, lease, charge, submit, observe, settle, release_retained, rebind); read its current text, the GUI coding agent is still editing it and its DESCRIPTOR lists surface extensions, presentation waits and owner images as not there yet",
+      "Studio host evidence for shape only: assets origin/codex/handshake-studio-assets d32d0574 handshake-studio-assets/crates/hsk-studio-native-host and hsk-studio-vulkan (asset-local, winit, own device; not host acceptance)",
+      "src/frontend/palmistry/src/freeze_detect.rs:79 FREEZE_THRESHOLD 5000 ms; :72 POLL_INTERVAL 300 ms; :66 MT-084 idle cadence 250 ms"
+    ],
+    "pillar_refs": [
+      "HBR-VIS",
+      "HBR-QUIET",
+      "HBR-HOST",
+      "HBR-INT-009",
+      "HBR-COMPART"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "argus.inspect",
+      "argus.click",
+      "argus.set_value",
+      "argus.screenshot (Vulkan readback)",
+      "UIA client process",
+      "shell-gate receipt JSON"
+    ],
+    "account_bound_resource_refs": [],
+    "consumed_capability_refs": [
+      "KUMIHIMO-ASSET-001 kumihimo-ui node tree, display list, text port and Vulkan UI pass (pinned revision)",
+      "MT-203 central GPU owner",
+      "MT-214 window, surface, input, accessibility crates",
+      "MT-215 action, snapshot, capture, heartbeat ports"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-213.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "One zero-egui x64 Windows test binary, built from the MT-203 GPU owner, the MT-214 and MT-215 crates and one pinned Kumihimo revision, passes eleven measured checks on an x64 desktop PC, or fails with a recorded cause and the Masonry-core fallback review opens. Docking work on the new shell stays closed until a validator PASS.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC213-1",
+      "AC213-2",
+      "AC213-3",
+      "AC213-4",
+      "AC213-5",
+      "AC213-6",
+      "AC213-7",
+      "AC213-8",
+      "AC213-9",
+      "AC213-10",
+      "AC213-11"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC213-1",
+        "text": "Closure: the x64 gate binary's normal dependency closure contains none of egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow, and the only vkCreateInstance/vkCreateDevice caller in the process is the MT-203 owner (checked by a counting seam and by source scan)."
+      },
+      {
+        "id": "AC213-2",
+        "text": "Text field with IME: Japanese and Chinese composition shows the preedit underlined at the caret with the candidate window at the caret rectangle, commits once, cancels without inserting, and survives focus loss. Event-scripted in a quiet window, plus one Operator-typed pass with the real OS IME (HBR-QUIET-004)."
+      },
+      {
+        "id": "AC213-3",
+        "text": "Scroll: a 100,000-line document scrolls continuously at 1920x1080 and 100% scale; every measured frame after 60 warm-up frames has CPU record+submit plus GPU time (timestamp queries, present wait excluded) within 8.33 ms. Report p50, p99, max and frame count."
+      },
+      {
+        "id": "AC213-4",
+        "text": "Accessibility: an out-of-process UIA client reads names, roles, bounds, values and focus, invokes the button and sets the field value, while the window is never activated; foreground window, focus and Z-order of other windows are identical before and after."
+      },
+      {
+        "id": "AC213-5",
+        "text": "CJK and RTL: a fixed corpus of Japanese, Chinese, Korean, Arabic, Hebrew, mixed bidi, combining marks and emoji renders through the fallback chain; caret stops, word motion, hit test, selection rectangles and grapheme deletion equal the recorded expected values; a missing glyph is visible and diagnosed, never silent."
+      },
+      {
+        "id": "AC213-6",
+        "text": "Argus: argus.inspect returns the live tree with bounds and viewport source; argus.click and argus.set_value produce receipts and the observed effect; argus.screenshot returns an offscreen or swapchain-image Vulkan readback of the presented frame for root and detached windows, never an OS screen grab."
+      },
+      {
+        "id": "AC213-7",
+        "text": "Detached window: a second OS window shares the one device, moves a view and back without losing its identity, focus rule or IME state, follows per-monitor DPI, and closes without releasing in-flight work."
+      },
+      {
+        "id": "AC213-8",
+        "text": "Device loss: a controlled loss yields the typed outcome, MT-203 rebind and redraw of the same state; charges are not refunded; repeated failure shows a typed unavailable state with no fallback backend."
+      },
+      {
+        "id": "AC213-9",
+        "text": "Idle: with no input for 60 s the shell submits no GPU work except a visible caret blink, the UI-thread heartbeat advances at least every 250 ms, and Palmistry reports Healthy; an owned 6 s UI-thread block yields Suspected or Frozen plus a survivor record, then recovery."
+      },
+      {
+        "id": "AC213-10",
+        "text": "Memory: every allocation is charged to an MT-203 claim; after 100 open/close cycles of the detached window and after shutdown, usage_by_module returns to the recorded baseline with zero double release."
+      },
+      {
+        "id": "AC213-11",
+        "text": "Platform: results count only from an x64 desktop PC with a discrete or desktop GPU; CPU architecture, GPU, driver, Vulkan version, Windows build, monitor and scale are in the receipt. ARM64 (Adreno) results are labelled not acceptance."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "GPU, IME, UIA and watcher behaviour in one harness.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "gui",
+    "module_ref": "src/frontend/handshake_shell_gate",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-198",
+      "MT-203",
+      "MT-214",
+      "MT-215"
+    ],
+    "start_precondition": "S1 needs nothing. S2 needs the MT-203 unit pushed. S3 needs MT-214 window and surface pushed and MT-203 present support (no surface or swapchain extension is enabled in the MT-203 working tree read 2026-11-25). S4 onward needs a Kumihimo revision published on its canonical repository and independently re-read (MT-198 KG-01..KG-05).",
+    "allowed_write_paths": [
+      "src/frontend/handshake_shell_gate/Cargo.toml",
+      "src/frontend/handshake_shell_gate/Cargo.lock",
+      "src/frontend/handshake_shell_gate/src/**",
+      "src/frontend/handshake_shell_gate/tests/**",
+      "src/frontend/handshake_shell_gate/README.md"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "Any product crate: the gate consumes them, it never edits them",
+      "src/frontend/handshake_native/**"
+    ],
+    "shared_resource_locks": [
+      "x64 acceptance PC (not yet named by the Operator)",
+      "Kumihimo pin (one revision for the whole gate)"
+    ],
+    "inputs": [
+      "MT-203 GpuOwner API",
+      "Kumihimo pinned revision",
+      "MT-214/MT-215 crates",
+      "fixed CJK/RTL corpus with expected caret stops (author it from Unicode bidi and grapheme rules, not from any running editor)"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first coding slice): create the crate with its own [workspace], Cargo.lock and a shell-gate binary that writes a JSON receipt (machine identity, package revisions, check list all NOT_RUN); add the closure test that fails on the banned list. No window, no GPU."
+      },
+      {
+        "n": 2,
+        "step": "S2: open the MT-203 owner, admit one claim, record device identity, settle, close; typed unavailable path exercised."
+      },
+      {
+        "n": 3,
+        "step": "S3: quiet window plus swapchain through MT-214; clear, present, resize, minimize, restore; damage-driven loop with submit counters."
+      },
+      {
+        "n": 4,
+        "step": "S4: draw one Kumihimo display list on the injected device and compare readback with the CPU painter of the same list."
+      },
+      {
+        "n": 5,
+        "step": "S5: text field, 100,000-line virtual list, button and a small tree; IME port; CJK/RTL corpus check."
+      },
+      {
+        "n": 6,
+        "step": "S6: accessibility adapter and an out-of-process UIA client with a focus and Z-order audit around it."
+      },
+      {
+        "n": 7,
+        "step": "S7: Argus ports: inspect, click, set_value, screenshot by Vulkan readback."
+      },
+      {
+        "n": 8,
+        "step": "S8: detached window, per-monitor DPI change, controlled device loss, 100 open/close cycles."
+      },
+      {
+        "n": 9,
+        "step": "S9: idle heartbeat with Palmistry attached; owned freeze."
+      },
+      {
+        "n": 10,
+        "step": "S10: one command per check (shell-gate --check <name> --receipt <path>) so a validator can run each alone."
+      }
+    ],
+    "first_coding_slice": "S1 (first coding slice): create the crate with its own [workspace], Cargo.lock and a shell-gate binary that writes a JSON receipt (machine identity, package revisions, check list all NOT_RUN); add the closure test that fails on the banned list. No window, no GPU.",
+    "expected_outputs": [
+      "src/frontend/handshake_shell_gate crate",
+      "receipt JSON schema documented in the crate README",
+      "per-check receipts under the artifact root"
+    ],
+    "stop_conditions": [
+      "A listed line reference no longer matches: re-read and record the new one before editing.",
+      "The needed mechanic belongs to Kumihimo, Cabinet, handshake_text_mechanics, handshake_context_menu, handshake_gutter, handshake_embed_views or handpick: stop, record it in MT-198 and continue other slices.",
+      "A dependency would bring any banned crate into the closure: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow.",
+      "A file is held by another writer, or a compile/disk slot is not named in the dispatch.",
+      "Two failed attempts on the same check without a new cause (CX-EXEC-003).",
+      "The measured machine is not x64: record as non-acceptance and stop the acceptance claim.",
+      "The gate fails one check twice with no new cause: record the blocker, then MT-197 opens the Masonry-core fallback review; do not add a second UI owner."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "consumes_published_contract",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-213/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": "cargo +1.97.1-x86_64-pc-windows-msvc check --locked --tests --manifest-path src/frontend/handshake_shell_gate/Cargo.toml -j 1",
+      "gap": "The manifest does not exist until S1; before that there is no command to run.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "host_adoption",
+    "module_maintenance": {
+      "maintenance_id": "WP012-SHELL-GATE-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "src/frontend/handshake_shell_gate",
+      "purpose": "Disposable gate; delete after switch-over or keep as a regression gate by Operator choice.",
+      "public_contract": "shell-gate CLI and receipt JSON",
+      "test_entry": "shell-gate --check <name>",
+      "dependency_direction": "depends on shell crates, never the reverse"
+    },
+    "source_adoption": {
+      "source_mt_refs": [
+        "MT-198"
+      ],
+      "canonical_repository_url": "https://github.com/Nuntissura/assets",
+      "source_subdirectory": "PENDING: Kumihimo path of the published UI layer and Vulkan pass (today kumihimo-ui is under handshake-studio-assets/crates on branch codex/handshake-studio-assets)",
+      "source_revision": "PENDING: no published Kumihimo revision contains it",
+      "release_artifact_refs": [],
+      "dependency_lock_ref": "PENDING: gate Cargo.lock after publication",
+      "remote_verification_ref": "PENDING: independent re-read by the host",
+      "standalone_proof_refs": [],
+      "embedding_adapter_ref": "MT-214.json (surface and accessibility adapters)",
+      "compatibility_proof_refs": [],
+      "rollback_ref": "Remove the gate crate; nothing else depends on it"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "SG213-STATIC",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC213-1"
+        ],
+        "command_or_method": "cargo +1.97.1-x86_64-pc-windows-msvc tree --locked -e normal --target x86_64-pc-windows-msvc --manifest-path <crate>/Cargo.toml lists none of: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow; source scan of the public API finds no winit, ash or toolkit type; plus the implementer compile command in execution.implementer_compile",
+        "expected": "no banned crate; compile clean",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "cargo tree output",
+          "compile log",
+          "input digest before and after"
+        ]
+      },
+      {
+        "check_id": "SG213-GATE",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC213-1",
+          "AC213-2",
+          "AC213-3",
+          "AC213-4",
+          "AC213-5",
+          "AC213-6",
+          "AC213-7",
+          "AC213-8",
+          "AC213-9",
+          "AC213-10",
+          "AC213-11"
+        ],
+        "command_or_method": "Validator runs shell-gate --check <name> for every check on the named x64 PC, quiet window, with the Vulkan validation layer on; Argus and UIA clients drive it; the Operator performs the declared IME step.",
+        "expected": "every check PASS on x64 with zero validation errors and zero focus or Z-order change",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "receipt per check",
+          "readback PNG per check",
+          "UIA tree dump",
+          "focus audit report",
+          "Palmistry survivor record",
+          "machine identity"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_shell_gate/**",
+      "src/frontend/handshake_shell/**",
+      "src/frontend/handshake_host_ports/**",
+      "src/frontend/handshake_native/vulkan-renderer/**",
+      "the pinned Kumihimo revision"
+    ],
+    "extra_build_proofs": [
+      {
+        "proof_ref": "SG213-GATE",
+        "build_kind": "release_profile",
+        "command_or_method": "cargo +1.97.1-x86_64-pc-windows-msvc build --locked --release --manifest-path src/frontend/handshake_shell_gate/Cargo.toml -j 1 (exists after S1; not run by the author)",
+        "reason": "8.33 ms is measured on a release build"
+      }
+    ]
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "shell-gate: purpose, commands, receipt fields, failure codes (crate README and one UserManual developer entry)"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_test"
+    ],
+    "location": "src/frontend/handshake_native/src/manual_content_editors.rs and src/backend/handshake_core/src/user_manual (shared files: one named writer)",
+    "reason": "A no-context model must be able to run and read each check.",
+    "not_applicable_reason": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "shell-gate test window (quiet) and detached window"
+    ],
+    "argus_targets": [
+      "field, list, button, tree and window author ids of the gate"
+    ],
+    "expected_evidence": [
+      "argus_inspect_tree",
+      "argus_screenshot_readback",
+      "renderer_error_scan (Vulkan validation layer on, zero errors)",
+      "capture matrix: normal, 125/150/200% scale, constrained size, empty and error states"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "resources_touched": [],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "No account, workspace or project content is loaded; the corpus is synthetic"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Synthetic content only."
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "The gate is an asset-local style test host: it proves feasibility and is never product acceptance.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Each control and action declared once with a stable id that feeds GUI, AccessKit, Argus and UserManual.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "All GPU work through the MT-203 owner: admission, budget, retained accounting, exactly-once release, typed loss.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every cache, queue and buffer bounded and accounted, with overload, cancel, stale-revision and release behaviour.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "GUI actions, states, errors and GPU failures through the existing internal_diagnostics allowlist, content-free.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Heartbeat and owned freeze on the gate binary; product crash survival stays with MT-202 AC202-7 and AC202-9.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every command carries actor/session, command id, revision and correlation; correlation grants nothing.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Focus, IME, AccessKit, DPI, multiwindow and recovery; docking is outside this gate.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Validator drives the running surface through Argus (stable author_id, no foreground).",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Renderer error scan on every captured frame: Vulkan validation messages and runtime errors; any error fails.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Capture matrix: normal, constrained viewport, and empty/error/loading/multi-item states.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Trace projection where there is no direct surface.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A surface Argus cannot see or steer is repaired in this MT or recorded as a blocking gap.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Warm rebuild time and relinked test binaries recorded for the candidate.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Mechanic consumed from its single existing owner (context_capsule.consumed_capability_refs).",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No new canonical mechanic without a spec primitive and an owner search.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Asset change lands in its canonical repository and is re-read before any host write.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "The gate holds no account data.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "The gate holds no account session.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Cargo target under the one artifact root, owner-scoped, named in the dispatch (KB-OUT-008).",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "UserManual updated in the same change; MANUAL_VERSION bumped where declared.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A no-context model can operate the surface from the manual alone.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Manual entries are code-truthful and self-consistency tested.",
+      "proof_ref": "MT-213.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "no business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "APPLICABLE",
+      "reason": "heartbeat, device loss, unavailable and capture outcomes through the MT-215 ports into the existing ring"
+    },
+    {
+      "tier": "palmistry",
+      "status": "APPLICABLE",
+      "reason": "freeze and recovery observed by the unmodified watcher"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "asset_local_test_host_only",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "gate-local receipts only; the product producer is exercised through the MT-215 ports and recorded as host evidence in MT-202",
+      "flight_recorder": "none",
+      "palmistry": "palmistry_attached_for_the_heartbeat_check; product survival is MT-202"
+    },
+    "control_descriptors": "gate controls declared once with stable author ids",
+    "attribution": "required: actor/session and correlation on every action receipt; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-024",
+      "GUI-DESKTOP-036",
+      "GUI-DESKTOP-037",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-051"
+    ],
+    "refactor_exposure": "high: every docking, migration and pane slice waits on this result",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "GATE",
+    "risks": [
+      "A pass on ARM64 or on an emulated x64 toolchain is read as x64 acceptance.",
+      "The gate quietly links egui through a shared crate.",
+      "Scroll numbers come from a blank list or exclude GPU time.",
+      "IME is proven only by scripted events.",
+      "Passing the gate is read as product acceptance."
+    ],
+    "minimum_controls": [
+      "AC213-11 machine identity in the receipt; non-x64 results are labelled.",
+      "AC213-1 closure and creation-count check.",
+      "AC213-3 states content, resolution and both times.",
+      "AC213-2 requires the Operator-typed pass.",
+      "HBR-HOST-001: the gate is a test host; MT-202 keeps product acceptance."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196.json",
+      "MT-197.json",
+      "MT-198.json",
+      "MT-199.json",
+      "MT-200.json",
+      "MT-201.json",
+      "MT-202.json",
+      "MT-203.json",
+      "MT-204.json",
+      "MT-205.json",
+      "MT-212.json",
+      "packet.json"
+    ],
+    "result": "No owner of an x64 gate. MT-197 AC197-4 grounds the choice and MT-202 accepts the product; neither measures a zero-egui shell before docking work.",
+    "boundary": "Evidence and go/no-go only. Window, surface, input and accessibility crates belong to MT-214; ports to MT-215; asset gaps to MT-198; GPU owner to MT-203."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q9",
+        "quote": "wire the the gui to the internal_diagnostic, also wire it in the stand alone watcher/recorder Palmistry"
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "x64 first (Q11): this is the gate the docking work waits on; text is proven first, not last."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "GUI coding agent for S1; the Operator to name the x64 acceptance PC; the asset dev leader for the Kumihimo pin",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED",
+    "gate": "BLOCKS docking work in MT-199, MT-200, MT-201 and MT-212 on the new shell"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-213.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null
+}

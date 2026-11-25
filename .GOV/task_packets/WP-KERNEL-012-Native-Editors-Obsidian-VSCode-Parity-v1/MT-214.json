@@ -1,0 +1,847 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-214",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-214",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Direct-Vulkan native shell: window, surface, input, IME and accessibility bridge",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "Small Handshake-owned crates give the kernel-owned native shell its window, Vulkan surface, input, IME and accessibility bridge with no egui, eframe or wgpu, so a zero-egui shell binary can be built beside the current application.",
+    "specification_anchor_refs": [
+      {
+        "id": "GUI-DESKTOP-020",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.4",
+        "verbatim": "The genuine native Handshake GUI MUST render through a Vulkan-backed path. A DirectX or OpenGL fallback MUST NOT be renamed or accepted as Vulkan."
+      },
+      {
+        "id": "GUI-DESKTOP-025",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.4",
+        "verbatim": "Renderer adoption MUST consume the centralized GPU ownership and memory contracts in section 15.5. Native window or module clients MUST NOT bypass them through independently owned devices, pools or budgets."
+      },
+      {
+        "id": "GUI-DESKTOP-037",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.5",
+        "verbatim": "Window creation, resize/recreation and multiwindow use MUST share the authoritative resource/budget/lifecycle contract without treating each window as an independent authority."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-001",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": "The trusted local kernel MAY initialize and render the Vulkan login screen and application shell before account activation only under the exact registered full capability device.gpu.shell."
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "Current host to learn behaviour from, never to copy: src/frontend/handshake_native/src/main.rs (startup, crash handler, runtime lease 454-460, NativeOptions persistence_path 569), app.rs:42649 raw_input_hook, app.rs:42712 update, app.rs:23963 and popout_window.rs:424 detached viewports",
+      "src/frontend/handshake_native/vulkan-renderer/src/lib.rs (MT-203 public contract; read only)",
+      "Locked host versions today: winit 0.30.13, accesskit 0.21.1, accesskit_windows 0.29.2 (patched quiet build from Kumihimo revision 8eadc5b5), ash 0.38.0",
+      "src/frontend/handshake_native/clippy.toml disallowed-methods and src/quiet_mode/focus_guard.rs (focus ban to carry over)",
+      "Asset-local precedent: hsk-studio-native-host window.rs and win32.rs (WS_EX_NOACTIVATE, SW_SHOWNOACTIVATE) and hsk-studio-vulkan present.rs at assets d32d0574"
+    ],
+    "pillar_refs": [
+      "HBR-HOST",
+      "HBR-QUIET",
+      "HBR-VIS",
+      "HBR-INT-009",
+      "HBR-COMPART"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "argus.inspect over the live semantic tree",
+      "argus.screenshot by Vulkan readback",
+      "UIA client process"
+    ],
+    "account_bound_resource_refs": [
+      "window titles, clipboard, drag payloads"
+    ],
+    "consumed_capability_refs": [
+      "MT-203 central GPU owner (device, queue, ledger)",
+      "KUMIHIMO-ASSET-001 semantic tree and display list (data only in this MT)",
+      "AccessKit core types"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-214.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "Small Handshake-owned crates give the kernel-owned native shell its window, Vulkan surface, input, IME and accessibility bridge with no egui, eframe or wgpu, so a zero-egui shell binary can be built beside the current application.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC214-1",
+      "AC214-2",
+      "AC214-3",
+      "AC214-4",
+      "AC214-5",
+      "AC214-6",
+      "AC214-7",
+      "AC214-8",
+      "AC214-9",
+      "AC214-10",
+      "AC214-11",
+      "AC214-12"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC214-1",
+        "text": "Closure and contracts: each crate builds alone; none of egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow is in any closure; no winit, ash, accesskit-platform or toolkit type appears in a public signature except the AccessKit core node types in the accessibility crate."
+      },
+      {
+        "id": "AC214-2",
+        "text": "Window: create, show without activation, resize, minimize, restore, move across monitors, per-monitor DPI change, cursor shape, clipboard, OS file drop and close are typed events and commands; a quiet window never takes foreground, focus or a Z-order place above the Operator's window."
+      },
+      {
+        "id": "AC214-3",
+        "text": "Surface: VkSurface and swapchain live on the MT-203 device through an admitted claim; resize, minimize and restore recreate it; an old swapchain and its images are released once, after the owner reports settlement; no vkDeviceWaitIdle on the frame path."
+      },
+      {
+        "id": "AC214-4",
+        "text": "Frames are damage-driven: no redraw without damage, an armed timer or an input; idle submits no GPU work; present mode and frame pacing are reported values, not assumptions."
+      },
+      {
+        "id": "AC214-5",
+        "text": "Input: pointer, wheel, precision touchpad, keyboard (physical and logical key, repeat, dead keys), text and modifiers arrive as typed events tagged with origin (Operator device or model action) and a timestamp; no API injects OS input."
+      },
+      {
+        "id": "AC214-6",
+        "text": "IME: OS composition becomes one typed event stream per focused text target (enabled, preedit with cursor range, commit, cancel, disabled) and the candidate rectangle follows the caret on scroll and DPI change; focus loss sends one cancel or commit, never both. The composition state itself is Kumihimo's (KG-03); this crate holds none."
+      },
+      {
+        "id": "AC214-7",
+        "text": "Accessibility: the host semantic tree reaches UIA with stable node ids across frames, roles, names, values, bounds, text runs, focus and actions; actions come back as typed requests; reading the tree never activates the window; every window has its own tree."
+      },
+      {
+        "id": "AC214-8",
+        "text": "Multiwindow: root, detached panes and detached Settings share one device and one owner ledger; closing one window keeps other windows and in-flight work valid."
+      },
+      {
+        "id": "AC214-9",
+        "text": "Loss and unavailability: device loss rebinds through MT-203 and redraws; a missing or rejected device shows a typed, readable unavailable state and exits with a typed code; no D3D, OpenGL or software fallback exists in the code."
+      },
+      {
+        "id": "AC214-10",
+        "text": "Pre-account startup: the product binary opens the device only under device.gpu.shell and the kernel issuer (NATIVE-RENDER-BOOT-001..008); without both it refuses with a typed outcome. Test binaries say so in their receipts."
+      },
+      {
+        "id": "AC214-11",
+        "text": "Shutdown: explicit close drains, settles claims, acknowledges Palmistry and exits; a crash leaves the OS exception handler and panic hook behaviour unchanged."
+      },
+      {
+        "id": "AC214-12",
+        "text": "Size: five crates (window, surface, input, accessibility, shell); shell is composition only and holds no widget, pane or domain logic; line counts per crate are reported each slice."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Win32, Vulkan presentation, IME and accessibility in one boundary.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "gui",
+    "module_ref": "src/frontend/handshake_shell",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-203"
+    ],
+    "start_precondition": "S1 needs nothing. S2 needs the MT-203 unit pushed and extended with present support: VK_KHR_surface plus VK_KHR_win32_surface on the instance, VK_KHR_swapchain on the device, a present-capable queue and a claim class for surfaces (read 2026-11-25 in the uncommitted MT-203 working tree: dynamicRendering and timeline semaphores are enabled, no surface or swapchain extension is; re-read before relying on it). S5 needs MT-219 published and the kernel issuer.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_shell/Cargo.toml",
+      "src/frontend/handshake_shell/Cargo.lock",
+      "src/frontend/handshake_shell/window/**",
+      "src/frontend/handshake_shell/surface/**",
+      "src/frontend/handshake_shell/input/**",
+      "src/frontend/handshake_shell/accessibility/**",
+      "src/frontend/handshake_shell/shell/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "src/frontend/handshake_native/** (the egui host stays frozen; MT-199 owns any host-side change)",
+      "Widgets, layout, text shaping, glyph atlases or pipelines (Kumihimo)"
+    ],
+    "shared_resource_locks": [
+      "MT-203 present-support slice",
+      "src/frontend/handshake_shell workspace Cargo.lock (one writer)"
+    ],
+    "inputs": [
+      "MT-203 GpuOwner",
+      "AccessKit core crate",
+      "Win32 via windows-sys or winit 0.30.13 private to the window crate"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first coding slice): window crate only. Define the typed window event and command enums (no winit type public), quiet create flags, DPI scale events, minimize/restore, multiple windows; implement over winit 0.30.13 kept private; unit tests for event mapping and a focus-ban source scan of this crate. Record in the crate README why raw Win32 was or was not needed."
+      },
+      {
+        "n": 2,
+        "step": "S2: surface crate: surface and swapchain on the MT-203 lease, acquire, present, resize recreate, occlusion, frame-pacing report; unit tests over a fake owner for settlement ordering."
+      },
+      {
+        "n": 3,
+        "step": "S3: input crate: pointer, wheel, keyboard, text, modifiers and translation of OS IME events to the typed stream; origin tag; property tests over recorded event sequences (no composition state kept here)."
+      },
+      {
+        "n": 4,
+        "step": "S4: accessibility crate: semantic tree to AccessKit update, action requests back, stable node ids, per-window adapters; decide and record whether the quiet accesskit_windows patch is still required and where it lives."
+      },
+      {
+        "n": 5,
+        "step": "S5: shell binary: opens under device.gpu.shell, shows the shell frame and login surface state only, damage loop, shutdown path; no module pane."
+      },
+      {
+        "n": 6,
+        "step": "S6: detached windows and per-monitor DPI; 100-cycle leak test against the MT-203 ledger."
+      }
+    ],
+    "first_coding_slice": "S1 (first coding slice): window crate only. Define the typed window event and command enums (no winit type public), quiet create flags, DPI scale events, minimize/restore, multiple windows; implement over winit 0.30.13 kept private; unit tests for event mapping and a focus-ban source scan of this crate. Record in the crate README why raw Win32 was or was not needed.",
+    "expected_outputs": [
+      "five crates under src/frontend/handshake_shell",
+      "README per crate with contract, tests and failure codes",
+      "shell binary that opens a quiet window"
+    ],
+    "stop_conditions": [
+      "A listed line reference no longer matches: re-read and record the new one before editing.",
+      "The needed mechanic belongs to Kumihimo, Cabinet, handshake_text_mechanics, handshake_context_menu, handshake_gutter, handshake_embed_views or handpick: stop, record it in MT-198 and continue other slices.",
+      "A dependency would bring any banned crate into the closure: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow.",
+      "A file is held by another writer, or a compile/disk slot is not named in the dispatch.",
+      "Two failed attempts on the same check without a new cause (CX-EXEC-003).",
+      "MT-203 cannot add present support without a design change: stop S2, record the exact owner question, continue S1/S3/S4."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": "MT-203",
+    "contract_dependency_kind": "consumes_published_contract",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-214/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": "cargo +1.97.1-x86_64-pc-windows-msvc check --locked --tests --manifest-path src/frontend/handshake_shell/Cargo.toml -j 1",
+      "gap": "The workspace manifest does not exist until S1.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "maintenance_id": "WP012-SHELL-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "src/frontend/handshake_shell",
+      "purpose": "Window, surface, input, IME and accessibility for the kernel-owned shell.",
+      "public_contract": "typed window/input/surface/accessibility APIs, no toolkit types",
+      "test_entry": "cargo test per member crate (validator only)",
+      "dependency_direction": "shell crates depend on MT-203 and AccessKit core; panes depend on shell contracts, never the reverse",
+      "naming": "Crate and binary names here are generic working paths in the existing src/frontend/handshake_* pattern; no canonical product name is verified and a product name needs Operator naming work (HSK naming rule)."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "SH214-STATIC",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC214-1",
+          "AC214-12"
+        ],
+        "command_or_method": "cargo +1.97.1-x86_64-pc-windows-msvc tree --locked -e normal --target x86_64-pc-windows-msvc --manifest-path <crate>/Cargo.toml lists none of: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow; source scan of the public API finds no winit, ash or toolkit type; implementer compile command; public signature scan",
+        "expected": "clean",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "cargo tree",
+          "compile log",
+          "line counts per crate"
+        ]
+      },
+      {
+        "check_id": "SH214-UNIT",
+        "kind": "test",
+        "claim_refs": [
+          "AC214-3",
+          "AC214-5",
+          "AC214-6"
+        ],
+        "command_or_method": "Validator runs each crate's tests from its own manifest, named in the crate README, nonzero executed.",
+        "expected": "all pass",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "test names and counts"
+        ]
+      },
+      {
+        "check_id": "SH214-RUNTIME",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC214-1",
+          "AC214-2",
+          "AC214-3",
+          "AC214-4",
+          "AC214-5",
+          "AC214-6",
+          "AC214-7",
+          "AC214-8",
+          "AC214-9",
+          "AC214-10",
+          "AC214-11",
+          "AC214-12"
+        ],
+        "command_or_method": "Validator runs the shell binary in a quiet window on the x64 PC: window matrix, DPI change, detached window, device loss, unavailable device, idle submits, UIA client, Argus readback; focus and Z-order audit around every run. This is asset-level host proof; product acceptance is MT-202.",
+        "expected": "each criterion observed; zero focus change; zero validation errors",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "receipts",
+          "readback PNGs",
+          "UIA dump",
+          "ledger counters",
+          "focus audit"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_shell/**",
+      "src/frontend/handshake_native/vulkan-renderer/**"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Shell startup, unavailable-GPU state, window and DPI behaviour, accessibility routes"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_test"
+    ],
+    "location": "src/frontend/handshake_native/src/manual_content_editors.rs and src/backend/handshake_core/src/user_manual (shared files: one named writer)",
+    "reason": "New shell surfaces need operation and recovery text.",
+    "not_applicable_reason": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "root shell window",
+      "detached windows",
+      "unavailable-GPU state",
+      "login shell frame"
+    ],
+    "argus_targets": [
+      "stable window and shell control author ids"
+    ],
+    "expected_evidence": [
+      "argus_inspect_tree",
+      "argus_screenshot_readback",
+      "renderer_error_scan with validation layer",
+      "capture matrix over scale and size",
+      "uia_tree_dump_without_activation"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "window titles, clipboard, drag payloads"
+    ],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "The shell grants no access; protected content needs its existing grants (NATIVE-RENDER-BOOT-004)"
+    ],
+    "same_project_private_resource_cases": [
+      "Login shell shows no account content before activation"
+    ],
+    "cross_account_negative_cases": [
+      "A denied or foreign-account state shows no content, title, count or thumbnail"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Captures, snapshots, caches and diagnostics inherit the source scope and never widen it"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Logout clears window content, clipboard offers and accessibility tree entries of the former account"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Window titles and accessibility names of protected content follow the same scope as the content"
+    ],
+    "expected_evidence": [
+      "default_deny_negative_test",
+      "revocation_or_context_switch_test",
+      "content_free_diagnostic_field_audit"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Surface mounts only in the kernel-owned Vulkan shell; no toolkit type in a public contract; asset-local hosts are not acceptance.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Each control and action declared once with a stable id that feeds GUI, AccessKit, Argus and UserManual.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "All GPU work through the MT-203 owner: admission, budget, retained accounting, exactly-once release, typed loss.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every cache, queue and buffer bounded and accounted, with overload, cancel, stale-revision and release behaviour.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "GUI actions, states, errors and GPU failures through the existing internal_diagnostics allowlist, content-free.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Palmistry survives an owned freeze and an owned crash of the real application with the surface mounted.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every command carries actor/session, command id, revision and correlation; correlation grants nothing.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Keyboard, focus, IME, AccessKit, DPI, multiwindow and recovery; docking geometry belongs to MT-200.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Validator drives the running surface through Argus (stable author_id, no foreground).",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Renderer error scan on every captured frame: Vulkan validation messages and runtime errors; any error fails.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Capture matrix: normal, constrained viewport, and empty/error/loading/multi-item states.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Trace projection where there is no direct surface.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A surface Argus cannot see or steer is repaired in this MT or recorded as a blocking gap.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Warm rebuild time and relinked test binaries recorded for the candidate.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Mechanic consumed from its single existing owner (context_capsule.consumed_capability_refs).",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No new canonical mechanic without a spec primitive and an owner search.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No asset change in this MT; asset consumption is data contracts only and the pinned adoption is MT-199.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Before account activation the shell shows no account content.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Logout, switch or revocation clears or fences caches, captures, snapshots and stale UI state.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Cargo target under the one artifact root, owner-scoped, named in the dispatch (KB-OUT-008).",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "UserManual updated in the same change; MANUAL_VERSION bumped where declared.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A no-context model can operate the surface from the manual alone.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Manual entries are code-truthful and self-consistency tested.",
+      "proof_ref": "MT-214.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "no business event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "APPLICABLE",
+      "reason": "window, surface, device and IME outcomes wired to the ring by MT-215 ports"
+    },
+    {
+      "tier": "palmistry",
+      "status": "APPLICABLE",
+      "reason": "window and process identity observable; survival proof in MT-202"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "window, surface, device-loss, unavailable and IME error codes through the existing producer",
+      "flight_recorder": "none (mechanical only)",
+      "palmistry": "heartbeat and window identity come from MT-215; the shell exposes PID and process birth"
+    },
+    "control_descriptors": "window and shell controls declared once, shared with Argus and UserManual",
+    "attribution": "required: actor/session and correlation on every command; origin tag separates Operator input from model actions; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none (window state persistence through the existing layout path, MT-200)",
+    "spec_refs": [
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "GUI-DESKTOP-023",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-029",
+      "GUI-DESKTOP-036",
+      "GUI-DESKTOP-037",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-047",
+      "NATIVE-RENDER-BOOT-001",
+      "NATIVE-RENDER-BOOT-007"
+    ],
+    "refactor_exposure": "high: this is the shell host itself; the enum has no host value, so the nearest client value is recorded",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "SHELL_FOUNDATION",
+    "risks": [
+      "The shell opens its own device or keeps a private swapchain pool outside the ledger.",
+      "winit or Win32 types leak and couple panes to the window library.",
+      "UIA reading or a capture activates the window.",
+      "IME commits twice after focus change.",
+      "Shutdown reports settled work that is still in flight.",
+      "Kumihimo presenter code and this surface crate both claim the swapchain."
+    ],
+    "minimum_controls": [
+      "AC214-3 and the MT-203 ledger tests; creation-count seam.",
+      "AC214-1 signature scan.",
+      "AC214-7 plus focus and Z-order audit.",
+      "AC214-6 event-sequence property tests.",
+      "AC214-11 and MT-203 AC203-4 settlement tests.",
+      "Boundary in ownership_check_20261125: Handshake owns window, surface and swapchain; Kumihimo records draws into a host-supplied image."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196..MT-205",
+      "MT-212.json",
+      "packet.json"
+    ],
+    "result": "No owner. MT-199 adopts the shell into the product, MT-203 owns the device and forbids window code in its unit, MT-198/D8 own the renderer asset. No record owns a toolkit-free window, surface, input, IME and accessibility layer.",
+    "boundary": "MT-203 owns instance, device, queue, ledger. Kumihimo owns widgets, layout, text, atlases, pipelines and draws into an image this MT supplies. MT-199 owns product composition and switch-over. MT-200 owns docking and design."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q10",
+        "quote": "no large crates, gui and features can and should be many smaller crates bundled together per module or feature when possible"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Vulkan only, x64 first, small crates; the shell is the window and not the widgets."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "GUI coding agent (S1 may start now); MT-203 GUI coding agent for present support",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-214.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null,
+  "conditional_dependencies": [
+    {
+      "mt_ref": "MT-219.json",
+      "when": "S5 product startup: device.gpu.shell published and the kernel issuer reviewed"
+    },
+    {
+      "mt_ref": "MT-198.json",
+      "when": "S4 text runs and roles: Kumihimo semantic tree contract at the pinned revision"
+    }
+  ]
+}

@@ -1,0 +1,780 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-220",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-220",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Retire the egui host after switch-over",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "After the new shell is the shipping app and parity is proven, egui, eframe and wgpu leave the native product and its test and packaging paths, with an Operator-approved removal list and a rollback point.",
+    "specification_anchor_refs": [
+      {
+        "id": "GUI-DESKTOP-003",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.1",
+        "verbatim": "under Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui) a toolkit or backend built on wgpu, egui or eframe does not fulfil it"
+      },
+      {
+        "id": "Q2",
+        "anchor": "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+        "verbatim": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q8",
+        "anchor": "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+        "verbatim": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      }
+    ],
+    "read_context": [
+      "Product revision read: 71cc3b6d34ee47eb90a94fb4c45e998fc925360b on feat/WP-KERNEL-012 (src/frontend is unchanged since 3f8391efb). Re-read every line reference before editing.",
+      "Measured bindings at 71cc3b6d: 179 of 237 handshake_native src files and 171 of 218 .rs files under handshake_native/tests name egui (175 of 239 .rs files under any src/frontend tests folder); Cargo.toml lists egui, eframe, egui_tiles, kumihimo-egui, wgpu 27.0.1, egui_kittest, three [patch.crates-io] entries; handshake_native_composition_tests and toolkit_spike crates",
+      "installer/windows/build_installer.ps1, handshake_native.wxs, BUNDLED_DEPS_POLICY.md and src/frontend/handshake_native/installer/windows name handshake-native",
+      "MT-199 switch-over record; MT-202 acceptance; MT-212 pico list (which picos have moved)"
+    ],
+    "pillar_refs": [
+      "HBR-HOST",
+      "HBR-VIS",
+      "HBR-COMPART"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "Argus against the new shell only"
+    ],
+    "account_bound_resource_refs": [
+      "settings, layout, session, captures"
+    ],
+    "consumed_capability_refs": [
+      "MT-199 switch-over",
+      "MT-202 acceptance"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-220.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "After the new shell is the shipping app and parity is proven, egui, eframe and wgpu leave the native product and its test and packaging paths, with an Operator-approved removal list and a rollback point.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC220-1",
+      "AC220-2",
+      "AC220-3",
+      "AC220-4",
+      "AC220-5",
+      "AC220-6",
+      "AC220-7",
+      "AC220-8"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC220-1",
+        "text": "Switch-over happened first in one recorded commit (MT-199): installer, launcher, CI and docs point at the new shell, MT-202 is PASS on that candidate, and the previous release binary and tag are retained for rollback."
+      },
+      {
+        "id": "AC220-2",
+        "text": "Feature census: every workflow, control, author id and setting of the egui host maps to a new-shell owner with its proof, or to an explicit Operator-approved drop; the census is attached and nothing is marked dropped by default (Q8)."
+      },
+      {
+        "id": "AC220-3",
+        "text": "No product frontend manifest or lock resolves any of egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow in normal or build dependencies, and the toolkit_spike, egui test harness crates and [patch.crates-io] entries for eframe, egui-wgpu and accesskit_windows are gone."
+      },
+      {
+        "id": "AC220-4",
+        "text": "Every test that names egui (171 of 218 files under handshake_native/tests and the composition_tests crate at 71cc3b6d) is replaced by a toolkit-free or shell-conformance test or is listed with the acceptance it covered; the total acceptance covered does not fall."
+      },
+      {
+        "id": "AC220-5",
+        "text": "Persisted settings, layout, keymap and session written by the egui host open in the new shell; downgrade behaviour is documented."
+      },
+      {
+        "id": "AC220-6",
+        "text": "Argus method JSON, author ids and Palmistry identity match the egui host; a fresh freeze and crash of the new shell produce survivor records (repeat of MT-202 evidence on the retired host's absence)."
+      },
+      {
+        "id": "AC220-7",
+        "text": "Removal is executed only from a list the Operator approved in chat as 'approved' or 'proceed', with a recoverable branch and an artifact of the last egui release; nothing else is deleted."
+      },
+      {
+        "id": "AC220-8",
+        "text": "UserManual, module docs and the installer bundle policy name only the new shell."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Cross-cutting removal with rollback.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "gui",
+    "module_ref": "src/frontend/handshake_native",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-199",
+      "MT-200",
+      "MT-201",
+      "MT-202",
+      "MT-212",
+      "MT-216",
+      "MT-217",
+      "MT-218"
+    ],
+    "start_precondition": "All dependencies PASS on the switch-over candidate and the Operator has approved the exact removal list in chat. Until then this MT is planning only: the census may start, nothing is removed.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/** (removal by approved list only)",
+      "src/frontend/handshake_native_composition_tests/**",
+      "src/frontend/toolkit_spike/**",
+      "src/frontend/handshake_native/motion_preference/**",
+      "src/frontend/cabinet_host/** (egui half)",
+      "src/frontend/handshake_gutter/**, src/frontend/handshake_embed_views/**, src/frontend/handshake_folder_tree/**, src/frontend/handshake_text_mechanics/** (egui halves or stale local copies, after asset adoption)",
+      "installer/windows/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "Removing a feature, test or adapter that has no recorded replacement",
+      "Deleting any local branch, worktree or tag; any git clean or reset"
+    ],
+    "shared_resource_locks": [
+      "Operator-approved removal list",
+      "handshake_native Cargo.toml and Cargo.lock"
+    ],
+    "inputs": [
+      "MT-212 pico ledger",
+      "MT-202 verdict",
+      "switch-over commit"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (first slice; no removal): produce the feature and test census JSON (egui host control, author id, setting, test file -> new owner and proof) under the artifact root and attach its hash here; verify counts against the measured baseline."
+      },
+      {
+        "n": 2,
+        "step": "S2: test migration map: every egui-named test -> replacement test or recorded coverage."
+      },
+      {
+        "n": 3,
+        "step": "S3: switch-over verification: installer, CI, launcher and docs point to the new shell; rollback artifact and tag recorded."
+      },
+      {
+        "n": 4,
+        "step": "S4: list every file, crate, dependency, patch and manifest line to remove; Operator approval in chat."
+      },
+      {
+        "n": 5,
+        "step": "S5: remove in small commits on the product branch, each compiling; run the closure check after each."
+      },
+      {
+        "n": 6,
+        "step": "S6: verify persisted-state compatibility and final closure; update UserManual."
+      }
+    ],
+    "first_coding_slice": "S1 (first slice; no removal): produce the feature and test census JSON (egui host control, author id, setting, test file -> new owner and proof) under the artifact root and attach its hash here; verify counts against the measured baseline.",
+    "expected_outputs": [
+      "census JSON",
+      "test migration map",
+      "approved removal list",
+      "closure report"
+    ],
+    "stop_conditions": [
+      "A listed line reference no longer matches: re-read and record the new one before editing.",
+      "The needed mechanic belongs to Kumihimo, Cabinet, handshake_text_mechanics, handshake_context_menu, handshake_gutter, handshake_embed_views or handpick: stop, record it in MT-198 and continue other slices.",
+      "A dependency would bring any banned crate into the closure: egui, eframe, egui-winit, egui-wgpu, egui_tiles, epaint, ecolor, emath, egui_kittest, kumihimo-egui, cabinet-egui, cabinet-peak-egui, handshake_context_menu_egui, wgpu, wgpu-core, wgpu-hal, glow.",
+      "A file is held by another writer, or a compile/disk slot is not named in the dispatch.",
+      "Two failed attempts on the same check without a new cause (CX-EXEC-003).",
+      "The Operator has not approved the exact list: do not remove anything.",
+      "A census row has no owner: stop and report, never mark it dropped."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-220/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": "cargo +1.97.1-x86_64-pc-windows-msvc check --locked --tests --manifest-path src/frontend/handshake_native/Cargo.toml -j 1",
+      "gap": "Run only against the switch-over candidate.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "maintenance_id": "WP012-EGUI-RETIRE-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "src/frontend/handshake_native",
+      "purpose": "Retirement of the egui host.",
+      "public_contract": "none",
+      "test_entry": "closure check and conformance suite",
+      "dependency_direction": "not applicable"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "ER220-CENSUS",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC220-2",
+          "AC220-4"
+        ],
+        "command_or_method": "Validator samples the census and test map against source, tests and the MT-202 evidence.",
+        "expected": "every row has an owner and a proof or a recorded drop",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "census hash",
+          "sample list"
+        ]
+      },
+      {
+        "check_id": "ER220-CLOSURE",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC220-3"
+        ],
+        "command_or_method": "cargo +1.97.1-x86_64-pc-windows-msvc tree --locked --target x86_64-pc-windows-msvc on every product frontend manifest lists none of the banned crates in any edge kind",
+        "expected": "clean",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "tree outputs"
+        ]
+      },
+      {
+        "check_id": "ER220-RUNTIME",
+        "kind": "runtime",
+        "claim_refs": [
+          "AC220-1",
+          "AC220-2",
+          "AC220-3",
+          "AC220-4",
+          "AC220-5",
+          "AC220-6",
+          "AC220-7",
+          "AC220-8"
+        ],
+        "command_or_method": "Validator runs the new shell only: census workflow sample, persistence from the egui host's saved state, Argus conformance, Palmistry freeze and crash.",
+        "expected": "all pass; no egui binary present",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "receipts",
+          "captures",
+          "survivor records"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/**",
+      "installer/windows/**"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Remove references to the egui host; add the new shell's recovery text"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_test"
+    ],
+    "location": "src/frontend/handshake_native/src/manual_content_editors.rs and src/backend/handshake_core/src/user_manual (shared files: one named writer)",
+    "reason": "The manual must describe one shell.",
+    "not_applicable_reason": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "the shipping shell"
+    ],
+    "argus_targets": [
+      "existing author ids"
+    ],
+    "expected_evidence": [
+      "argus conformance on the shell only",
+      "captures for the census rows"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "settings, layout, session, captures"
+    ],
+    "identity_and_scope_contexts": [
+      "Existing account, sub-profile, workspace and model-lane context; none is created or widened here"
+    ],
+    "enforcement_boundaries": [
+      "Existing grants unchanged"
+    ],
+    "same_project_private_resource_cases": [
+      "Migrated state keeps its scope"
+    ],
+    "cross_account_negative_cases": [
+      "A denied or foreign-account state shows no content, title, count or thumbnail"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Captures, snapshots, caches and diagnostics inherit the source scope and never widen it"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Logout and switch behaviour unchanged"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "No content in removal receipts"
+    ],
+    "expected_evidence": [
+      "default_deny_negative_test",
+      "revocation_or_context_switch_test",
+      "content_free_diagnostic_field_audit"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Only the new shell hosts surfaces.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Each control and action declared once with a stable id that feeds GUI, AccessKit, Argus and UserManual.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "All GPU work through the MT-203 owner: admission, budget, retained accounting, exactly-once release, typed loss.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every cache, queue and buffer bounded and accounted, with overload, cancel, stale-revision and release behaviour.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "GUI actions, states, errors and GPU failures through the existing internal_diagnostics allowlist, content-free.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Repeat the survival proof on the new shell alone.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Every command carries actor/session, command id, revision and correlation; correlation grants nothing.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Shared edges, dividers, keyboard, focus, IME, AccessKit, DPI, multiwindow, recovery and truthful states.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Validator drives the running surface through Argus (stable author_id, no foreground).",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Renderer error scan on every captured frame: Vulkan validation messages and runtime errors; any error fails.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Capture matrix: normal, constrained viewport, and empty/error/loading/multi-item states.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Trace projection where there is no direct surface.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A surface Argus cannot see or steer is repaired in this MT or recorded as a blocking gap.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Warm rebuild time and relinked test binaries recorded for the candidate.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Mechanic consumed from its single existing owner (context_capsule.consumed_capability_refs).",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No new canonical mechanic without a spec primitive and an owner search.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Asset change lands in its canonical repository and is re-read before any host write.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent accounts see neither content nor existence metadata of each other.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Logout, switch or revocation clears or fences caches, captures, snapshots and stale UI state.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Cargo target under the one artifact root, owner-scoped, named in the dispatch (KB-OUT-008).",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "UserManual updated in the same change; MANUAL_VERSION bumped where declared.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A no-context model can operate the surface from the manual alone.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Manual entries are code-truthful and self-consistency tested.",
+      "proof_ref": "MT-220.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "no new event"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "APPLICABLE",
+      "reason": "existing codes on the new shell"
+    },
+    {
+      "tier": "palmistry",
+      "status": "APPLICABLE",
+      "reason": "watcher identity on the new binary; survival repeated"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "existing producer unchanged on the new shell",
+      "flight_recorder": "unchanged",
+      "palmistry": "unchanged: same watcher identity rules, new binary path registered"
+    },
+    "control_descriptors": "existing descriptors",
+    "attribution": "unchanged",
+    "jobs": "none",
+    "settings": "existing settings open unchanged",
+    "spec_refs": [
+      "GUI-DESKTOP-003",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-043"
+    ],
+    "refactor_exposure": "high: removes the parity reference",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "REMOVAL",
+    "risks": [
+      "A feature dies silently with a deleted test.",
+      "Persisted state breaks for existing users.",
+      "Palmistry watches the wrong binary.",
+      "A removed crate is still needed by the test harness.",
+      "Deletion is irreversible."
+    ],
+    "minimum_controls": [
+      "AC220-2 census and AC220-4 migration map.",
+      "AC220-5 compatibility tests.",
+      "AC220-6 watcher identity check.",
+      "Closure and compile after every commit.",
+      "AC220-7 approval, branch and release artifact; rollback ref recorded."
+    ]
+  },
+  "ownership_check_20261125": {
+    "searched": [
+      "MT-196..MT-205",
+      "MT-212.json",
+      "packet.json"
+    ],
+    "result": "No owner of egui retirement. MT-199 owns switch-over and MT-212 owns picos; neither removes the old host.",
+    "boundary": "Removal of the egui host and its toolkit crates only; the legacy Tauri/React app is MT-221; asset-side crates are retired by their asset owner."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q2",
+        "quote": "replace old gui with vulcan."
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Replace the old GUI with Vulkan (Q2) and remove nothing without a recorded home (Q8)."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and re-judge no settled verdict. Explicit Operator confirmation of that adoption is an open item (CX-GOV-PIN-002)."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-25T19:06:54Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "GUI coding agent for S1 and S2; Operator for approval at S4",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED",
+    "operator_approval_required": "exact removal list, reply approved or proceed"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-220.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-25T19:06:54Z",
+  "updated_at_utc": null
+}

@@ -20,13 +20,13 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-200",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-26T12:38:22.9273099Z",
+  "updated_at_utc": "2026-11-25T19:06:54Z",
   "identity": {
     "mt_id": "MT-200",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
     "title": "Shared-edge professional native workbench and materials",
     "version": 1,
-    "contract_revision": 3
+    "contract_revision": 4
   },
   "closure_unit": {
     "outcome": "Professional materially distinct native docked workbench with shared edges/dividers and all retained workflows reachable.",
@@ -65,7 +65,13 @@
       "MT-200.json#/scope/acceptance_criteria/4",
       "MT-200.json#/scope/acceptance_criteria/5",
       "MT-200.json#/scope/acceptance_criteria/6",
-      "MT-200.json#/scope/acceptance_criteria/7"
+      "MT-200.json#/scope/acceptance_criteria/7",
+      "MT-200.json#/scope/acceptance_criteria/8",
+      "MT-200.json#/scope/acceptance_criteria/9",
+      "MT-200.json#/scope/acceptance_criteria/10",
+      "MT-200.json#/scope/acceptance_criteria/11",
+      "MT-200.json#/scope/acceptance_criteria/12",
+      "MT-200.json#/scope/acceptance_criteria/13"
     ],
     "materialized_acceptance": [
       {
@@ -99,6 +105,30 @@
       {
         "id": "AC200-8",
         "text": "AC200-8: Real navigation, layout/divider/component/Settings state changes and errors emit or expose typed allowlisted mechanical diagnostic state through internal_diagnostics and the existing Palmistry event path, without project contents/secrets or a watcher copied into the GUI."
+      },
+      {
+        "id": "AC200-9",
+        "text": "AC200-9: Design language: every colour, size, radius, font size and icon comes from one host token set (dark and light); views contain no literal, and the token set is supplied to Kumihimo through its public port."
+      },
+      {
+        "id": "AC200-10",
+        "text": "AC200-10: Information architecture: no promotional or explanatory text blocks, no card grids, no permanent panel for a feature used rarely; every feature is reachable by menu, tab or tree, by keyboard and by Argus author id, and the map of feature to location is recorded."
+      },
+      {
+        "id": "AC200-11",
+        "text": "AC200-11: Motion follows the recorded motion table; every animation is interruptible, projects only committed geometry, never delays input or a commit, and shows the same end state when reduced motion is on."
+      },
+      {
+        "id": "AC200-12",
+        "text": "AC200-12: Alignment and readability checks pass on real readback captures at 100, 125, 150 and 200 percent scale and at the minimum window size: no clipped text, shared edges on one physical pixel, icon boxes centred, grid steps respected, text and control contrast at least WCAG 2.2 AA measured from pixels, pointer targets at least 24 px."
+      },
+      {
+        "id": "AC200-13",
+        "text": "AC200-13: Windows and panels come from Kumihimo, file trees from Cabinet and the search bar is Handpick; the host has no private dock, splitter, tab, tree or search implementation."
+      },
+      {
+        "id": "AC200-14",
+        "text": "AC200-14: Docking and layout work on the new shell starts only after MT-213 PASS; existing egui layout behaviour (RestoreLayout, Redock, live divider, persistence) is re-proven on the new shell."
       }
     ]
   },
@@ -126,7 +156,8 @@
     "lane": "implementation",
     "foreground_or_interactive_tools_forbidden": false,
     "depends_on": [
-      "MT-197"
+      "MT-197",
+      "MT-213"
     ],
     "allowed_write_paths": [
       "src/frontend/handshake_native/src/app.rs",
@@ -173,7 +204,10 @@
       "src/frontend/handshake_native/src/manual_content_editors.rs",
       "src/frontend/handshake_native/tests/test_top_menu_bar.rs",
       "src/frontend/handshake_native/tests/test_backend_down_responsive.rs"
-    ]
+    ],
+    "depends_on_scope_20261125": {
+      "MT-213": "Only docking, layout, motion and design work on the new shell waits for MT-213 PASS; the already published egui layout work and its open proofs continue."
+    }
   },
   "proof": {
     "parent_proof_refs": [
@@ -218,6 +252,28 @@
           "Affected proof and original acceptance linkage",
           "Named independent review; permission-held cases stay open",
           "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
+        ]
+      },
+      {
+        "check_id": "UI200-DESIGN-MOTION-20261125",
+        "claim_refs": [
+          "AC200-9",
+          "AC200-10",
+          "AC200-11",
+          "AC200-12",
+          "AC200-13",
+          "AC200-14"
+        ],
+        "command_or_method": "Validator captures the new-shell workbench by Vulkan readback in a quiet window at the recorded scales and window sizes, reads the semantic tree through Argus, measures contrast, alignment, clipping, targets and motion timing from pixels and receipts, and toggles reduced motion mid-transition. Operator review of captures is separate.",
+        "expected": "all design checks pass with the recorded tolerances",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "captures per scale and theme",
+          "measurement table",
+          "motion trace",
+          "argus tree",
+          "focus audit"
         ]
       }
     ],
@@ -306,7 +362,13 @@
       "AC200-5: Separate workflow tester performs real user actions and multi-step tasks on the genuine app with Argus/AccessKit state and captures. Prototype alternatives/feedback remain distinct from actual behavior/runtime acceptance.",
       "AC200-6: Implement Settings module tabs with feature subtabs OR equivalent discoverable system tree covering actual existing module/features. Preserve Engine Profiles INSIDE Settings and complete profile dispatch and original MT-196 snapshots/live authority. Prove reachability, keyboard/accessibility, typed persistence and empty/loading/error/denied/recovery states without dropping original controls.",
       "AC200-7: Workbench/multiwindow/module clients obey the single authoritative GPU owner/broker and memory-accounting/lifecycle contracts; do not create independent device/pool/budget bypasses. Keep visual/material behavior responsive to actual pressure/recovery without widening resource/auth scope.",
-      "AC200-8: Real navigation, layout/divider/component/Settings state changes and errors emit or expose typed allowlisted mechanical diagnostic state through internal_diagnostics and the existing Palmistry event path, without project contents/secrets or a watcher copied into the GUI."
+      "AC200-8: Real navigation, layout/divider/component/Settings state changes and errors emit or expose typed allowlisted mechanical diagnostic state through internal_diagnostics and the existing Palmistry event path, without project contents/secrets or a watcher copied into the GUI.",
+      "AC200-9: Design language: every colour, size, radius, font size and icon comes from one host token set (dark and light); views contain no literal, and the token set is supplied to Kumihimo through its public port.",
+      "AC200-10: Information architecture: no promotional or explanatory text blocks, no card grids, no permanent panel for a feature used rarely; every feature is reachable by menu, tab or tree, by keyboard and by Argus author id, and the map of feature to location is recorded.",
+      "AC200-11: Motion follows the recorded motion table; every animation is interruptible, projects only committed geometry, never delays input or a commit, and shows the same end state when reduced motion is on.",
+      "AC200-12: Alignment and readability checks pass on real readback captures at 100, 125, 150 and 200 percent scale and at the minimum window size: no clipped text, shared edges on one physical pixel, icon boxes centred, grid steps respected, text and control contrast at least WCAG 2.2 AA measured from pixels, pointer targets at least 24 px.",
+      "AC200-13: Windows and panels come from Kumihimo, file trees from Cabinet and the search bar is Handpick; the host has no private dock, splitter, tab, tree or search implementation.",
+      "AC200-14: Docking and layout work on the new shell starts only after MT-213 PASS; existing egui layout behaviour (RestoreLayout, Redock, live divider, persistence) is re-proven on the new shell."
     ],
     "proof_targets": [
       "Genuine native workbench shared dividers and retained workflows"
@@ -689,5 +751,181 @@
       "publication": "publication-01.json",
       "test_body_status": "Focused reset tests typechecked, not executed; no runnable test binaries produced"
     }
+  },
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "layout, divider, motion and settings outcomes through the existing allowlist",
+      "flight_recorder": "existing layout persistence and settings events unchanged",
+      "palmistry": "survival with the workbench mounted (MT-202 AC202-9)"
+    },
+    "control_descriptors": "dock, tab, divider, menu and settings controls declared once",
+    "attribution": "required: actor/session, command id, revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded previews coalesce",
+    "settings": "Settings hierarchy and Engine Profiles unchanged (AC200-6)",
+    "spec_refs": [
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-008",
+      "GUI-DESKTOP-009",
+      "GUI-DESKTOP-010",
+      "GUI-DESKTOP-011",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-041"
+    ],
+    "refactor_exposure": "high",
+    "recorded_at": "2026-11-25T19:06:54Z"
+  },
+  "motion_table_20261125": {
+    "record_id": "WP012-MOTION-TABLE-20261125",
+    "state": "PROPOSED_TO_BE_CONFIRMED",
+    "confirm_against": [
+      "MT-200.json#/gui_obligation/expected_evidence/8 (D8 redock and reduced motion)",
+      "Kumihimo WP-KUM-024 (caller-supplied monotonic time, existing theme duration, redock settle) and WP-KUM-025 (live divider, one commit on release)",
+      "kumihimo-ui design-system.json motion block (DRAFT)"
+    ],
+    "rows": [
+      {
+        "token": "hover",
+        "ms": 80,
+        "use": "hover and press colour change",
+        "state": "PROPOSED; design-system has no hover tween"
+      },
+      {
+        "token": "overlay_in",
+        "ms": 100,
+        "use": "menus, popups, tooltips open",
+        "state": "PROPOSED; design-system overlay slide is 100"
+      },
+      {
+        "token": "overlay_out",
+        "ms": 80,
+        "use": "menus, popups, tooltips close",
+        "state": "PROPOSED; design-system tooltip fade is 80"
+      },
+      {
+        "token": "settle",
+        "ms": 150,
+        "use": "redock and tab reveal: visible settle onto the committed geometry",
+        "state": "PROPOSED; must satisfy MT-200 expected_evidence 8"
+      },
+      {
+        "token": "handpick_composer_reveal",
+        "ms": 200,
+        "use": "Handpick composition reveal, ease-out, opacity .65 to 1 and clip-path inset from the bottom",
+        "state": "FIXED from handshake-portal product/handpick/web/handpick.css:75,77 (file last changed 23e4de1)"
+      },
+      {
+        "token": "cap",
+        "ms": 250,
+        "use": "no decorative animation is longer",
+        "state": "PROPOSED"
+      },
+      {
+        "token": "looping_progress",
+        "ms": null,
+        "use": "indeterminate progress",
+        "state": "EXEMPT from the cap"
+      },
+      {
+        "token": "live_divider_drag",
+        "ms": 0,
+        "use": "follows the pointer directly",
+        "state": "EXEMPT from tweening (WP-KUM-025)"
+      }
+    ],
+    "rules": [
+      "Layout, focus, hit test and the model-visible state commit at once; animation only projects the already committed geometry.",
+      "Every animation is interruptible and samples a host-injected monotonic clock (MT-218 motion crate).",
+      "Reduced motion: the existing setting settings.appearance.reduce-motion (workspace_settings.reduce_motion; today it only changes egui animation_time in motion_preference/src/lib.rs) sets every duration to 0 on the next frame and stops its redraw, on both presenters; the OS preference is read only as its default if the Operator agrees.",
+      "No animation runs in a hidden, quiet or headless window."
+    ],
+    "conflict": "kumihimo-ui design-system.json motion.rules say docks, tabs, menus and presets change in one frame with no tween and that only four things animate. Operator Q3 asks for motion where possible and MT-200 requires a visible redock settle. Host-supplied motion tokens (KG-05) let Handshake keep its table and Studio keep its rules; if the two must match, the Operator decides."
+  },
+  "design_checks_20261125": {
+    "record_id": "WP012-DESIGN-CHECKS-20261125",
+    "state": "PROPOSED_FROM_DRAFT_DESIGN_SYSTEM_VALUES",
+    "checks": [
+      {
+        "id": "DC-1",
+        "check": "Grid and shared edges: positions and sizes are on the 4 px grid (2 px only inside a control); adjacent panes share one physical edge at every scale"
+      },
+      {
+        "id": "DC-2",
+        "check": "Text: no clipping or overlap at 100, 125, 150, 200 percent and minimum window; ellipsis carries the full text in the accessibility name"
+      },
+      {
+        "id": "DC-3",
+        "check": "Icons: 20/16/12 grids, centred in their box within half a physical pixel, one stroke weight per grid, tinted from tokens"
+      },
+      {
+        "id": "DC-4",
+        "check": "Contrast measured from readback pixels: 4.5:1 text, 3:1 non-text and focus ring, dark and light"
+      },
+      {
+        "id": "DC-5",
+        "check": "Targets at least 24 px, splitters hit 8 px, focus ring visible and never clipped"
+      },
+      {
+        "id": "DC-6",
+        "check": "States: empty, loading, error, denied and recovery show truthful text and an action, in the same layout as the loaded state"
+      },
+      {
+        "id": "DC-7",
+        "check": "Density and text: no block of explanatory prose in the chrome; help lives in the UserManual and tooltips; each icon has a tooltip with its action name"
+      },
+      {
+        "id": "DC-8",
+        "check": "Structure: menu bar, tabs and trees only, no duplicated route to one action without a recorded reason"
+      }
+    ],
+    "how": "The validator runs the shell in a quiet window, reads the semantic tree, captures by Vulkan readback and measures from pixels; an operator review of captures is separate and recorded."
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q3",
+        "quote": "let your team design excelent clean ui, add motion where possible. check for readability, alighnment of icons, windows, panels etc."
+      },
+      {
+        "id": "Q4",
+        "quote": "no saas look, no text bloat. this is a high grade production software for profesional use. keep it clean, clear, coherent. no ui clutter. bundle in sub menus or tabs, or use tree systems."
+      },
+      {
+        "id": "Q5",
+        "quote": "use kumohime for windows and panels, if it lacks logic, features or adapter or other, ask the asset dev leader Chat thread to update it before implementing it in the host app."
+      },
+      {
+        "id": "Q6",
+        "quote": "use Cabinet for file trees."
+      },
+      {
+        "id": "Q7",
+        "quote": "use handpick as searchbar multitool"
+      },
+      {
+        "id": "Q8",
+        "quote": "update the existing assets when needed, then implement in handshake, dont remove features or adapter."
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "Workbench, design language, motion table and alignment/readability checks for the new shell, over Kumihimo and Cabinet.",
+    "changes": [
+      "AC200-9..AC200-14 and proof check UI200-DESIGN-MOTION-20261125 added",
+      "motion_table_20261125 and design_checks_20261125 added (proposed, to be confirmed)",
+      "execution.depends_on extended with MT-213 for new-shell docking (existing egui work unaffected)",
+      "host_integration block added (HBR-HOST-001..008; none was present)",
+      "identity.contract_revision and updated_at_utc"
+    ],
+    "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; source-published and static-qualified egui records (reset02) stay",
+    "new_write_scope_note": "A host token crate (colours, sizes, icons, motion) belongs to MT-200 under src/frontend/handshake_design_tokens (generic working path) and is added to allowed_write_paths when its slice is dispatched.",
+    "next_actor": "UI designer for AC197-2; GUI coder A after MT-213 PASS"
   }
 }
