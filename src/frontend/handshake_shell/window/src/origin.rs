@@ -61,6 +61,12 @@ pub struct EventTime {
 }
 
 impl EventTime {
+    /// A time on the clock of the events, for a recorded event sequence or a test. Grants nothing: the Operator's
+    /// authority comes only from a stamp the loop made (MT-214 S3).
+    pub const fn from_nanos(nanos: u64) -> Self {
+        Self { nanos }
+    }
+
     /// Monotonic nanoseconds since the event loop was created.
     pub fn nanos(self) -> u64 {
         self.nanos

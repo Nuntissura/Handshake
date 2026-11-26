@@ -156,6 +156,15 @@ fn carry_out(
             window.set_title(&title);
             Ok(())
         }
+        // Neither moves a window or the focus, so any source may (MT-214 S3); the input crate asks for both.
+        WindowCommand::AllowIme(allowed) => {
+            window.allow_ime(allowed);
+            Ok(())
+        }
+        WindowCommand::SetImeArea(area) => {
+            window.set_ime_area(area);
+            Ok(())
+        }
         WindowCommand::Destroy => {
             if window.tokens() > 0 {
                 return Err(Refusal::NativeTokensHeld);

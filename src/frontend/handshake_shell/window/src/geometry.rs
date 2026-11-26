@@ -154,6 +154,20 @@ pub struct ClientPoint {
     pub y: f64,
 }
 
+/// A rectangle inside a window's client area, in whole physical pixels from its top left corner. Where the input
+/// method's candidate window keeps clear of (MT-214 S3).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct ClientRect {
+    /// Pixels from the client area's left edge.
+    pub x: i32,
+    /// Pixels from the client area's top edge.
+    pub y: i32,
+    /// Width in physical pixels.
+    pub width: u32,
+    /// Height in physical pixels.
+    pub height: u32,
+}
+
 /// A rectangle in physical pixels of the virtual desktop.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PhysicalRect {

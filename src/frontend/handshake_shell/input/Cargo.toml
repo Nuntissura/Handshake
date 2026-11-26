@@ -1,0 +1,27 @@
+# WP-KERNEL-012 MT-214 S3 — the input crate: typed input with its origin and time, and the input method's composition
+# as one event stream per focused text target with its candidate area (AC214-5, AC214-6).
+#
+# Binds to the window crate's events and commands; keeps no composition (Kumihimo's text port does, MT-198 KG-03). No
+# window library, Win32 crate or toolkit is a dependency of its code, and it has no unsafe code. Tests alone use Win32,
+# to post the operating system's messages to a window of their own on a private desktop.
+[package]
+name = "handshake_shell_input"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Typed input of the kernel-owned shell, tagged with its origin and time, and the input method's composition routed to the focused text target with its candidate area. No toolkit or window-library type in its interface."
+
+[dependencies]
+handshake_shell_window = { path = "../window" }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Tests only: the window crate's private desktop and the messages the real-loop test posts to its own window. The
+# revision winit 0.30.13 binds, as in the window and surface crates.
+windows-sys = { version = "=0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_DataExchange",
+    "Win32_System_StationsAndDesktops",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }

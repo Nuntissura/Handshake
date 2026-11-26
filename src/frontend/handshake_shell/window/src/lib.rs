@@ -1,7 +1,9 @@
 //! Native windows and the event loop of the kernel-owned shell (WP-KERNEL-012 MT-214 S1).
 //!
 //! Typed commands in, typed events out, with no window-library, graphics or toolkit type in between. Nothing is drawn
-//! here, and nothing moves the Operator's focus, cursor or windows.
+//! here, and nothing moves the Operator's focus, cursor or windows. The input method's composition events and its two
+//! commands are here too ([`WindowEvent::Ime`], [`WindowCommand::AllowIme`], [`WindowCommand::SetImeArea`]);
+//! `handshake_shell_input` routes them to text targets (S3).
 //!
 //! # How a host uses it
 //!
@@ -112,12 +114,14 @@ pub use command::{
 pub use event::{Display, Event, ModalLoop, WindowEvent, WindowKey};
 pub use frame::{FrameCause, FrameOutcome, FrameProgress, FrameTicket};
 pub use geometry::{
-    ClientPoint, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, ScaleFactor, BASE_DPI,
+    ClientPoint, ClientRect, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, ScaleFactor,
+    BASE_DPI,
 };
 pub use input::{
-    ContactEvent, ContactPhase, CursorShape, FilesDropped, KeyEvent, KeyLocation, LogicalKey,
-    Modifiers, PhysicalKey, PointerButton, PointerButtonEvent, PointerMoved, PressState, TextEvent,
-    TypedText, WheelEvent, WheelSettings, MAX_DROPPED_FILES, WHEEL_DETENT,
+    ContactEvent, ContactPhase, CursorShape, FilesDropped, ImeChange, ImeInput, KeyEvent,
+    KeyLocation, LogicalKey, Modifiers, PhysicalKey, PointerButton, PointerButtonEvent,
+    PointerMoved, PressState, TextEvent, TypedText, WheelEvent, WheelSettings, MAX_DROPPED_FILES,
+    WHEEL_DETENT,
 };
 pub use keys::{KeyCode, NamedKey};
 pub use monitor::{carried, centered, clamped, outside_all, size_on, Monitor, MonitorKey};

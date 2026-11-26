@@ -1,7 +1,8 @@
 # WP-KERNEL-012 MT-214 — the kernel-owned native shell, as small crates.
 #
-# window (S1), surface (S2: the window crate composed with the MT-203 GPU owner), then input, accessibility and shell
-# (MT-214 AC214-12). shell so far binds the MT-215 UI heartbeat port to the loop and the present path. Direct Vulkan
+# window (S1), surface (S2: the window crate composed with the MT-203 GPU owner), input (S3: typed input with its
+# origin, and the input method's composition per text target, over the window crate's events), then accessibility and
+# shell (MT-214 AC214-12). shell so far binds the MT-215 UI heartbeat port to the loop and the present path. Direct Vulkan
 # only: no egui, eframe, wgpu or glow may enter any closure, and no window-library, graphics-API or toolkit type any
 # public signature (AC214-1, HBR-HOST-001).
 #
@@ -10,7 +11,7 @@
 # and so no member; so is the heartbeat port (`../handshake_host_ports/ui_heartbeat`), a dependency of `shell`.
 [workspace]
 resolver = "2"
-members = ["window", "surface", "shell"]
+members = ["window", "surface", "input", "shell"]
 
 [profile.dev]
 debug = "line-tables-only"

@@ -17,9 +17,9 @@ use windows_sys::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWi
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     DefWindowProcW, GetMessageTime, GWL_EXSTYLE, MA_NOACTIVATE, STYLESTRUCT, WA_INACTIVE,
     WINDOWPOS, WM_ACTIVATE, WM_CHAR, WM_DEADCHAR, WM_DPICHANGED, WM_DROPFILES, WM_ENTERMENULOOP,
-    WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE, WM_KEYFIRST, WM_KEYLAST,
-    WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST, WM_NCDESTROY, WM_NCMOUSEMOVE,
-    WM_NCXBUTTONDBLCLK, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_STYLECHANGING,
+    WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE, WM_IME_COMPOSITION, WM_IME_ENDCOMPOSITION,
+    WM_IME_STARTCOMPOSITION, WM_KEYFIRST, WM_KEYLAST, WM_MOUSEACTIVATE, WM_MOUSEFIRST,
+    WM_MOUSELAST, WM_NCDESTROY, WM_NCMOUSEMOVE, WM_NCXBUTTONDBLCLK, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_STYLECHANGING,
     WM_SYSCHAR, WM_SYSDEADCHAR, WM_TOUCH, WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING,
 };
 use winit::dpi::LogicalSize as LibrarySize;
@@ -37,7 +37,9 @@ use super::{drops, guard, last_error, monitors, place, translate};
 use crate::command::{CreateFailure, Placement, Refusal, WindowClass, WindowState};
 use crate::event::{Display, ModalLoop, WindowEvent, WindowKey};
 use crate::frame::FrameLedger;
-use crate::geometry::{ClientPoint, LogicalSize, PhysicalPosition, PhysicalSize, ScaleFactor};
+use crate::geometry::{
+    ClientPoint, ClientRect, LogicalSize, PhysicalPosition, PhysicalSize, ScaleFactor,
+};
 use crate::input::{CursorShape, Modifiers};
 use crate::monitor::{centered, outside_all, MonitorKey};
 use crate::origin::{DeviceKind, InputStamp, Origin};
@@ -287,6 +289,25 @@ impl Window {
         }
     }
 
+    /// Whether the input method composes for the window (`WindowCommand::AllowIme`). The library associates the
+    /// thread's default input context, or none, with the window (`ImmAssociateContextEx`); nothing is activated.
+    pub(super) fn allow_ime(&self, allowed: bool) {
+        if let Some(library) = self.library.borrow().as_ref() {
+            library.set_ime_allowed(allowed);
+        }
+    }
+
+    /// Where the candidate window keeps clear of (`WindowCommand::SetImeArea`). Physical, so the library's scale is not
+    /// applied again; it sets the composition and candidate forms of the window's input context.
+    pub(super) fn set_ime_area(&self, area: ClientRect) {
+        if let Some(library) = self.library.borrow().as_ref() {
+            library.set_ime_cursor_area(
+                winit::dpi::PhysicalPosition::new(area.x, area.y),
+                winit::dpi::PhysicalSize::new(area.width, area.height),
+            );
+        }
+    }
+
     pub(super) fn set_focused(&self, focused: bool) -> bool {
         self.focused.replace(focused) != focused
     }
@@ -474,10 +495,21 @@ impl Window {
         core.push_window(self.key, WindowEvent::ModalLoop { kind, began });
     }
 
-    /// Where an input message came from; nothing for any other message.
+    /// Where an input message came from; nothing for any other message. Text and the input method's composition
+    /// messages, which the system or the input method makes of a key, take the origin of the newest key when the
+    /// operating system does not say (MT-214 S3).
     fn origin_of(&self, message: u32) -> MessageOrigin {
-        let text = matches!(message, WM_CHAR | WM_DEADCHAR | WM_SYSCHAR | WM_SYSDEADCHAR);
-        let keyboard = (WM_KEYFIRST..=WM_KEYLAST).contains(&message);
+        let text = matches!(
+            message,
+            WM_CHAR
+                | WM_DEADCHAR
+                | WM_SYSCHAR
+                | WM_SYSDEADCHAR
+                | WM_IME_STARTCOMPOSITION
+                | WM_IME_COMPOSITION
+                | WM_IME_ENDCOMPOSITION
+        );
+        let keyboard = (WM_KEYFIRST..=WM_KEYLAST).contains(&message) || text;
         let pointer = (WM_MOUSEFIRST..=WM_MOUSELAST).contains(&message)
             || (WM_NCMOUSEMOVE..=WM_NCXBUTTONDBLCLK).contains(&message)
             || matches!(

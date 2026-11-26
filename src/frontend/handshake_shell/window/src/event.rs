@@ -4,8 +4,8 @@ use crate::command::{CreateFailure, WindowState};
 use crate::frame::{FrameCause, FrameTicket};
 use crate::geometry::{PhysicalPosition, PhysicalSize, ScaleFactor};
 use crate::input::{
-    ContactEvent, FilesDropped, KeyEvent, Modifiers, PointerButtonEvent, PointerMoved, TextEvent,
-    WheelEvent,
+    ContactEvent, FilesDropped, ImeInput, KeyEvent, Modifiers, PointerButtonEvent, PointerMoved,
+    TextEvent, WheelEvent,
 };
 use crate::monitor::MonitorKey;
 use crate::origin::InputStamp;
@@ -15,6 +15,12 @@ use crate::origin::InputStamp;
 pub struct WindowKey(pub(crate) u64);
 
 impl WindowKey {
+    /// The key with this number, for a recorded event sequence or a test (MT-214 S3). It names a window only while the
+    /// loop has one under it; a command for any other is refused as unknown.
+    pub const fn from_number(number: u64) -> Self {
+        Self(number)
+    }
+
     /// The number, for diagnostics.
     pub fn number(self) -> u64 {
         self.0
@@ -150,6 +156,9 @@ pub enum WindowEvent {
     Contact(ContactEvent),
     /// Files were dropped.
     FilesDropped(FilesDropped),
+    /// The operating system's input method changed the composition. Only while [`crate::WindowCommand::AllowIme`] is
+    /// on and the window has the keyboard.
+    Ime(ImeInput),
     /// A quiet window was activated by something outside this crate. It must not happen; the host records it.
     QuietBroken,
 }

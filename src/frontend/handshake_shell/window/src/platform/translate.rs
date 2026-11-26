@@ -7,7 +7,8 @@ use windows_sys::Win32::UI::Input::{
     INPUT_MESSAGE_DEVICE_TYPE, INPUT_MESSAGE_ORIGIN_ID,
 };
 use winit::event::{
-    ElementState, Force, MouseButton, MouseScrollDelta, Touch, TouchPhase, WindowEvent as Library,
+    ElementState, Force, Ime as LibraryIme, MouseButton, MouseScrollDelta, Touch, TouchPhase,
+    WindowEvent as Library,
 };
 use winit::keyboard::{
     Key, KeyCode as LibraryCode, KeyLocation as LibraryLocation, ModifiersState,
@@ -22,9 +23,9 @@ use super::window::Window;
 use crate::event::WindowEvent;
 use crate::geometry::{ClientPoint, ScaleFactor};
 use crate::input::{
-    ContactEvent, ContactPhase, CursorShape, KeyEvent, KeyLocation, LogicalKey, Modifiers, PhysicalKey,
-    PointerButton, PointerButtonEvent, PointerMoved, PressState, TextEvent, TypedText, WheelEvent,
-    WHEEL_DETENT,
+    ContactEvent, ContactPhase, CursorShape, ImeChange, ImeInput, KeyEvent, KeyLocation, LogicalKey,
+    Modifiers, PhysicalKey, PointerButton, PointerButtonEvent, PointerMoved, PressState, TextEvent,
+    TypedText, WheelEvent, WHEEL_DETENT,
 };
 use crate::keys::{with_key_codes, with_named_keys, KeyCode, NamedKey};
 use crate::origin::{DeviceKind, InputStamp, Origin};
@@ -134,9 +135,27 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
             }));
         }
         Library::Touch(touch) => push(WindowEvent::Contact(contact(&touch, window, core))),
-        // Composition and the accessibility tree are later slices; the library keeps composition off until asked.
-        // Themes, device paths and gestures of other platforms are not used.
+        // Only while `AllowIme` is on: the library keeps composition off until asked (MT-214 S3).
+        Library::Ime(ime) => push(WindowEvent::Ime(ImeInput {
+            change: ime_change(ime),
+            stamp: window.stamp(core),
+        })),
+        // The accessibility tree is a later slice. Themes, device paths and gestures of other platforms are not used.
         _ => {}
+    }
+}
+
+/// The library's input method event as a change. On Windows the library reports a composition's start and end as
+/// enabled and disabled (`WM_IME_STARTCOMPOSITION`, `WM_IME_ENDCOMPOSITION`), its cursor in bytes.
+fn ime_change(ime: LibraryIme) -> ImeChange {
+    match ime {
+        LibraryIme::Enabled => ImeChange::Started,
+        LibraryIme::Preedit(text, cursor) => ImeChange::Preedit {
+            text: TypedText::new(text),
+            cursor,
+        },
+        LibraryIme::Commit(text) => ImeChange::Commit(TypedText::new(text)),
+        LibraryIme::Disabled => ImeChange::Ended,
     }
 }
 
@@ -411,6 +430,31 @@ mod tests {
         assert_eq!(
             logical_key(&Key::Unidentified(NativeKey::Windows(0xE8))),
             LogicalKey::Unidentified(0xE8)
+        );
+    }
+
+    #[test]
+    fn every_input_method_event_of_the_library_is_one_change_with_its_text_and_cursor() {
+        assert_eq!(ime_change(LibraryIme::Enabled), ImeChange::Started);
+        assert_eq!(ime_change(LibraryIme::Disabled), ImeChange::Ended);
+        assert_eq!(
+            ime_change(LibraryIme::Preedit("かな".to_owned(), Some((3, 6)))),
+            ImeChange::Preedit {
+                text: TypedText::new("かな"),
+                cursor: Some((3, 6)),
+            }
+        );
+        assert_eq!(
+            ime_change(LibraryIme::Preedit(String::new(), None)),
+            ImeChange::Preedit {
+                text: TypedText::new(""),
+                cursor: None,
+            },
+            "the library's clearing preedit before a commit"
+        );
+        assert_eq!(
+            ime_change(LibraryIme::Commit("仮名".to_owned())),
+            ImeChange::Commit(TypedText::new("仮名"))
         );
     }
 

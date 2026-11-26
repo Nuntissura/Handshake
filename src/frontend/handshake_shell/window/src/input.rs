@@ -27,13 +27,13 @@ impl Modifiers {
     }
 }
 
-/// Text the Operator typed. Prints as its length only, so a log of events never holds what was typed.
+/// Text the Operator typed, or a model sent. Prints as its length only, so a log of events never holds what was typed.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TypedText(String);
 
 impl TypedText {
-    #[cfg_attr(not(windows), allow(dead_code))]
-    pub(crate) fn new(text: impl Into<String>) -> Self {
+    /// The text, kept out of logs. Grants nothing: who typed it is said by the stamp that comes with it.
+    pub fn new(text: impl Into<String>) -> Self {
         Self(text.into())
     }
 
@@ -149,6 +149,36 @@ impl fmt::Debug for KeyEvent {
 pub struct TextEvent {
     /// The text.
     pub text: TypedText,
+    /// Where and when from.
+    pub stamp: InputStamp,
+}
+
+/// What the operating system's input method did to the window's composition (IMM32, through the window library; MT-214
+/// S3). The window keeps none of it; `handshake_shell_input` routes it to the focused text target.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ImeChange {
+    /// A composition began.
+    Started,
+    /// The text being composed. Empty text clears it.
+    Preedit {
+        /// The text.
+        text: TypedText,
+        /// The input method's cursor, or its selected clause, as byte offsets into `text`; `None` hides the cursor.
+        cursor: Option<(usize, usize)>,
+    },
+    /// Text the composition produced, to be inserted. May be empty.
+    Commit(TypedText),
+    /// The composition ended.
+    Ended,
+}
+
+/// An input method change, and where and when it came from: the origin of the window's newest key, since the
+/// operating system says nothing of the input method's own messages.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImeInput {
+    /// What changed.
+    pub change: ImeChange,
     /// Where and when from.
     pub stamp: InputStamp,
 }
@@ -359,5 +389,30 @@ mod tests {
             scancode: 0x10,
         };
         assert_eq!(format!("{position:?}"), "PhysicalKey(..)");
+    }
+
+    #[test]
+    fn an_input_method_change_prints_no_composed_text() {
+        let stamp = InputStamp {
+            received: EventTime { nanos: 7 },
+            os_millis: None,
+            origin: Origin::OperatorDevice,
+            device: DeviceKind::Keyboard,
+            modifiers: Modifiers::default(),
+            serial: 9,
+        };
+        let changes = [
+            ImeChange::Preedit {
+                text: TypedText::new("geheim"),
+                cursor: Some((0, 6)),
+            },
+            ImeChange::Commit(TypedText::new("geheim")),
+        ];
+        for change in changes {
+            let event = WindowEvent::Ime(ImeInput { change, stamp });
+            let printed = format!("{event:?}");
+            assert!(!printed.contains("geheim"), "{printed}");
+            assert!(printed.contains("6 bytes"), "the length still prints: {printed}");
+        }
     }
 }

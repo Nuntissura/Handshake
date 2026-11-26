@@ -1,8 +1,9 @@
 # handshake_shell_window
 
 Native windows and the event loop of the kernel-owned shell (WP-KERNEL-012 MT-214 slice 1). Typed commands in, typed
-events out. No Vulkan, no IME composition, no accessibility tree: those are the surface, input and accessibility crates
-of later slices. Windows x64 first; the same code compiles for Windows ARM64. On other systems only the data types
+events out. No Vulkan, no accessibility tree: those are the surface and accessibility crates. The input method's
+composition arrives here as `WindowEvent::Ime`, with `WindowCommand::AllowIme` and `SetImeArea` (slice 3); the input
+crate (`../input`) routes it to text targets, and nothing here keeps it. Windows x64 first; the same code compiles for Windows ARM64. On other systems only the data types
 exist.
 
 The contract is in the crate documentation (`src/lib.rs`): how a host uses it, who may do what, wakes, failure modes.
@@ -52,8 +53,8 @@ Win32 is needed beside it:
 | Clipboard, work areas, wheel settings | none | Win32; a write keeps the old content only when it is plain text alone (a marker of the clipboard history is a registered format, so it keeps nothing, E4-F4), up to 1 MiB, and puts it back if its own put fails (KEEP_PLAIN_TEXT_OR_NOTHING, `src/clipboard.rs`, R2-N6, E3-F2); the copy is made on a thread of its own on the loop thread's desktop and waited for 250 ms at most, since Microsoft documents no bound on a program's rendering of promised text: a hung program makes the write `clipboard.busy`, never the loop wait (E4-F3); a withdrawal empties only this process's own last write (E3-F3) |
 | The Operator's close, told from anybody else's | `CloseRequested` for every `WM_CLOSE`, whoever sent or posted it | `window.rs`, `platform/closing.rs` and `policy::CloseWatch`: only a close message the system sends inside the close command it made of the Operator's own Alt+F4, close button or system-menu double-click on that window approves ACTIVATION_AFTER_REMOVAL (E3-F6): the command sent while the gesture's message is handled, or the one that handling posted, seen in the queue right after it (E4-F2) |
 
-Not needed in this slice, for the next ones to know: winit's IME is IMM32 only (`ime.rs`, `WM_IME_*`), off until asked;
-it has no TSF. AccessKit's Windows adapter subclasses a window handle that was not shown yet, so it attaches through
+winit's IME is IMM32 only (`ime.rs`, `WM_IME_*`), off until asked; it has no TSF, and TSF input methods reach it through
+the system's IMM32 compatibility. It reports a composition's start and end as `Enabled` and `Disabled`. AccessKit's Windows adapter subclasses a window handle that was not shown yet, so it attaches through
 `NativeWindowToken` on `WindowEvent::Created`.
 
 Costs of winit that stay: one loop per process, so one loop per test binary; it makes a visible top-level window without
@@ -84,7 +85,7 @@ it (`tests/test_public_surface.rs`).
 | For | Where |
 | --- | --- |
 | Surface (S2) | `NativeWindowToken` on `Created`; `FrameDue` and `frame_done(Presented)`; `FrameProgress::waiting` is the present-progress signal |
-| IME (S3) | winit's IME events in `translate.rs` become new variants of `WindowEvent` (non-exhaustive); `InputStamp::model_action` for steered input |
+| IME (S3, done) | winit's IME events (IMM32 only) become `WindowEvent::Ime(ImeInput)` in `translate.rs`, stamped with the origin of the window's newest key (`window.rs` `origin_of`, as for text); `WindowCommand::AllowIme` and `SetImeArea(ClientRect)` call winit's `set_ime_allowed` and `set_ime_cursor_area` (physical, client-relative); `EventTime::from_nanos` and `TypedText::new` are public for recorded sequences and model input, and grant nothing; `InputStamp::model_action` for steered input |
 | AccessKit (S4) | `NativeWindowToken` on `Created`, before the first `Show` |
 | Heartbeat (MT-215) | a `WakeLane` behind `EventLoopWake`; `on_wake` only with a `&DispatchedWake` |
 
@@ -105,7 +106,7 @@ for it, so the paths that need one run. One loop per test binary.
 
 | Target | Rule |
 | --- | --- |
-| unit tests | policy (restore is geometry, activation after removal, the Operator's close gesture only through the command the system made of it, a gesture that made none lends nothing, a foreign close approves nothing), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys, dead keys inside a key the library handles), how a message arrived, the clipboard policy against a clipboard that lists formats as the system does (only plain text asked for and kept, markers as registered formats, the limit, the other choice, a copy the clipboard changed since, withdrawal after a restore), key mapping against winit's own tables, wheel, drop parsing, key events print no key |
+| unit tests | policy (restore is geometry, activation after removal, the Operator's close gesture only through the command the system made of it, a gesture that made none lends nothing, a foreign close approves nothing), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys, dead keys inside a key the library handles), how a message arrived, the clipboard policy against a clipboard that lists formats as the system does (only plain text asked for and kept, markers as registered formats, the limit, the other choice, a copy the clipboard changed since, withdrawal after a restore), key mapping against winit's own tables, every winit IME event to one change, wheel, drop parsing, key and IME events print no key or text |
 | unit tests, `platform/quiet_tests.rs` | the guard against every sequence that activates a plain window (with that control, each one counted as refused), sections, minimise hand-off, lifetime; behind the foreground below its owner chain; topmost foreground; the keyboard after an approved removal; a close command in a real queue seen where it waits, and F4 alone through the system's own handling making none, so a close posted after it is nobody's (E4-F2) |
 | `test_geometry` | scale and size arithmetic |
 | `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hooks are the loop thread's own two, each for that thread; the only desktop binding in the crate's source is the clipboard keeper thread's, to the loop thread's own desktop |

@@ -361,6 +361,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_shell_input"
+version = "0.1.0"
+dependencies = [
+ "handshake_shell_window",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "handshake_shell_surface"
 version = "0.1.0"
 dependencies = [

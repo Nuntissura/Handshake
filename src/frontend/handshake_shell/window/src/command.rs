@@ -3,7 +3,9 @@
 use std::fmt;
 
 use crate::event::Display;
-use crate::geometry::{LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, ScaleFactor};
+use crate::geometry::{
+    ClientRect, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, ScaleFactor,
+};
 use crate::input::CursorShape;
 use crate::monitor::MonitorKey;
 
@@ -83,6 +85,11 @@ pub enum WindowCommand {
     SetCursor(CursorShape),
     /// Title bar text. May be private: never printed.
     SetTitle(String),
+    /// Let the operating system's input method compose text for the window, or not; off until asked. On while a text
+    /// target that takes composed text has the window's focus. It moves no window and no focus.
+    AllowIme(bool),
+    /// Where the input method's candidate window keeps clear of: the caret, in the client area.
+    SetImeArea(ClientRect),
     /// Destroy it. Refused while a [`crate::NativeWindowToken`] exists: a Vulkan surface must not outlive its window.
     Destroy,
 }
@@ -99,6 +106,8 @@ impl fmt::Debug for WindowCommand {
             Self::MoveToMonitor(to) => write!(f, "MoveToMonitor({to:?})"),
             Self::SetCursor(shape) => write!(f, "SetCursor({shape:?})"),
             Self::SetTitle(_) => f.write_str("SetTitle"),
+            Self::AllowIme(allowed) => write!(f, "AllowIme({allowed})"),
+            Self::SetImeArea(area) => write!(f, "SetImeArea({area:?})"),
             Self::Destroy => f.write_str("Destroy"),
         }
     }
