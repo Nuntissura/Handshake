@@ -13776,5 +13776,22 @@
       "eval_view": "right class; consistent with PT019, MT-019 F3 and runtime.rs fail-closed text; no conflict with the resilient-boot decision (only kill failure is fail-open)",
       "operator_confirmation": "changes this case from continue to abort startup; PT019 preserves startup decisions"
     }
+  },
+  "operator_decision_20261126_startup_unconfirmed_completion": {
+    "decision_id": "WP012-STARTUP-UNCONFIRMED-COMPLETION-20261126",
+    "operator_question": "If startup's completion record cannot be confirmed saved, should startup stop instead of continue?",
+    "operator_quote": "i agree, keep pushing progress focus on finishing the pico tasks and microtasks",
+    "agreed_with": "orchestrator recommendation: stop startup (fail closed)",
+    "decided_on": "2026-11-26",
+    "recorded_by": "ORCHESTRATOR root session",
+    "rule": "when a boot recovery pass finishes inside the bound but its COMPLETED report is not acknowledged within the remaining budget plus grace, run_with_bound returns an error and startup aborts; it is never reported as TimedOut",
+    "basis": [
+      "MT-019 F3: store/surfacing errors and boot timeout fail closed",
+      "process_ledger/runtime.rs resilient-boot text: only kill failure is fail-open",
+      "PT019: a timed-out pass and unconfirmed persistence remain distinct from a completed pass"
+    ],
+    "open_check": "whether a repeated recovery pass on the next start is safe (idempotent) is to be verified by the eval agent",
+    "applies_to": "MT-172 PT019, commit 3abee6f9f and successors",
+    "standing_direction": "focus on finishing the picotasks and microtasks"
   }
 }
