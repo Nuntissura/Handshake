@@ -1449,5 +1449,25 @@
       "tree": "no banned crates (MT-203/gui-agent/logs/tree-e4-1.log)"
     },
     "tests": "nothing run; independent run pending"
+  },
+  "slice2_eval3_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-203 slice 2 remediation 2; not an MT verdict; lifecycle unchanged",
+    "commit": "dc61ad3f5 (identical at 29763b430)",
+    "result": "passed (this machine): 137 of 137 including the ignored test run separately",
+    "closure": {
+      "S2-F3": "closed: making a second close wait fails bound_tests.rs:175"
+    },
+    "frame_path": "no device-wide waits; FIFO present can block up to one vertical blank",
+    "logs": {
+      "MT-203/eval-agent/eval-summary-29763b430.json": "b6bc4efa...",
+      "eval-run-29763b430-renderer.log": "512a8335...",
+      "eval-run-29763b430-renderer-ignored.log": "6d9d4fcf..."
+    },
+    "needs_native_x64": [
+      "maintenance1 path",
+      "validation and sync-validation layers"
+    ]
   }
 }

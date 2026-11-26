@@ -1619,5 +1619,76 @@
       "release dates and maintenance activity",
       "newer ash releases"
     ]
+  },
+  "eval5_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 remediation4 (window and surface crates); not an MT verdict; lifecycle unchanged",
+    "commit": "29763b430",
+    "method": "exact copy at MT-214/eval-agent/tmp/tree-29763b430, blobs matched before and after (tree digest 37387245...); README test commands; private desktops",
+    "result": "failed: window crate 118 of 120 (test_clipboard fails; quiet_tests::a_minimise_hands_the_activation_to_no_window_of_this_thread fails at :332, also at 198dae691 rebuilt today, so environment, not this commit); surface crate 36 of 39 (all three frame_loop window tests fail); present_cases 8 of 8",
+    "findings": [
+      {
+        "id": "E5-F1",
+        "severity": "high (E4-F1 not closed; second failed fix of the same item)",
+        "at": "window/tests/support/mod.rs:176; test_clipboard.rs:175",
+        "defect": "this machine refuses the unnamed station's clipboard: OpenClipboard returns error 5 with or without an owner window, even with WINSTA_ALL_ACCESS (independent probe)",
+        "repair": "a clipboard the test can open that is not WinSta0, or an HBR-QUIET-004 step; check OpenClipboard first and report blocked"
+      },
+      {
+        "id": "E5-F2",
+        "severity": "medium (SF-2 not closed)",
+        "at": "surface/src/host/ending.rs:84-88",
+        "defect": "the window is hidden right after the one proof present; after the hide every acquire returns VK_ERROR_OUT_OF_DATE_KHR (instrumented run I2); the proof hits the 2 s bound with closes_unproven=1 and the window is kept until shutdown; counterfactual I3 without the hide proves in about 10 ms and the 6-cycle test passes",
+        "repair": "finish the acquire-back while the window is still shown, then hide"
+      },
+      {
+        "id": "E5-F3",
+        "severity": "low (SF-1 test defect)",
+        "at": "surface/tests/frame_loop.rs:102,191,344",
+        "defect": "the test requires focus events but posted WM_SETFOCUS/WM_KILLFOCUS never produce one (0 over 965 checks); the rule itself holds (keys 2, pointer 3, move 1 arrived; no frame requested; nothing submitted); mutation M1 caught at :387",
+        "repair": "drop focus from the completion condition"
+      },
+      {
+        "id": "E5-F4",
+        "severity": "low (E4-F2 residual)",
+        "at": "closing.rs:139",
+        "defect": "a foreign SC_CLOSE posted during the handling of a gesture that made no command is credited to the Operator (probe test fails with Some(true)); for the close button the handling lasts the whole hold, which a foreign program can see through the capture window",
+        "repair": "allow the posted path only for Alt+F4"
+      },
+      {
+        "id": "R4-D3",
+        "severity": "low",
+        "at": "platform/clipboard.rs:207",
+        "defect": "read() can block the loop thread without limit; neither Control::read_clipboard nor Busy says so",
+        "repair": "reuse the keeper thread for reads"
+      }
+    ],
+    "closure": {
+      "E4-F2": "closed for posts after the handling (M4, M5 caught)",
+      "E4-F3": "closed in code, unverified at runtime (step 4 never runs; M3 shows nothing)",
+      "E4-F4": "closed"
+    },
+    "deviations": {
+      "R4-D1": "accepted: re-acquiring each presented image after its last present (fence signalled), with nothing out, no acquire pending and work observed, rests on the same basis as the accepted successor rule and satisfies VUID-01282; liveness not guaranteed but the miss is counted; mutation M2 fails the hosted case",
+      "R4-D2": "accepted: a thread with no windows is bound to the loop thread's own desktop, cannot switch the input desktop, activate, focus or inject; the scan pins that one call; HBR-QUIET-002 holds"
+    },
+    "operator_safety": "HBR-QUIET-001 holds: 28 watched runs, about 151,000 samples; WinSta0 clipboard sequence, owner, open window and format count unchanged; no run window in front, active, focused, capturing or visible; desktops and stations unchanged; no input, no cursor clip",
+    "build_side_effect": "vctip.exe from the eval's builds left 4 invisible windows each; PIDs 14524, 47932, 42068, 32048 stopped after matching creation time and the chain vctip < link < rustc < the eval's cargo; 57208 exited on its own; the eval's own stuck probe process 58528 stopped (it never opened a clipboard)",
+    "logs": {
+      "MT-214/eval-agent/eval-summary-29763b430.json": "13fc2ac3... (hashes of every log, result, samples file and probe)",
+      "eval-run-29763b430-window.log": "5930eaa6...",
+      "eval-run-29763b430-surface.log": "9f1d8606...",
+      "mutations-29763b430.json": "e071fe27...",
+      "mutations-29763b430-instrumented.json": "1f745cc9...",
+      "note": "five attribution runs used stale binaries from the shared target and are marked invalid in the summary"
+    },
+    "needs_native_x64_and_real_desktop": [
+      "real Alt+F4 and close-button paths (DefWindowProc ignored a synthetic Alt+F4 and close-button press)",
+      "maintenance1 path; validation layers",
+      "hidden-window behaviour on the composited Operator desktop",
+      "any clipboard off WinSta0 and the wait for a hung clipboard owner"
+    ],
+    "routing": "E5-F1 is the second failure of the same fix: a specialist investigation plus adversarial review per the Operator's direction (GLOBAL-SCOPE-008, GLOBAL-REMEDIATE-005); E5-F2..F4 and R4-D3 queued for the GUI coder after MT-214 slice 3"
   }
 }
