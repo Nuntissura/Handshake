@@ -1180,5 +1180,97 @@
       "lock bound under real load",
       "deleting a still-mapped ring file on time-limit expiry (control test not yet run)"
     ]
+  },
+  "slice2_eval2_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-215 slice 2 remediation; not an MT verdict; lifecycle unchanged",
+    "commit": "e749ee2e9",
+    "method": "archived copy, contents matched before and after (tree digest 8a07da03...); every file's timestamp reset and logs prove every test binary was rebuilt from the copy; x64 emulated on ARM64",
+    "result": "failed: 57 of 58 (ports 44 passed, 1 failed, 1 ignored by design as a child-only test; shell 13 passed)",
+    "mutations": "13 runs on the eval's own copy: all 9 expected failures caught (P1-P5, P6 by deny(missing_docs), P6b by the doctest, S1, S3); P8 passed (confirms N1); P7, S2, S4 survived (N3, N4)",
+    "prior_findings": {
+      "E1": "closed",
+      "E2": "closed and follows ac215_6_stall_decision exactly (every dispatched wake beats, port.rs:230-243; one Degraded and one Recovered per stall; no withheld state; P1-P3 caught)",
+      "E3": "closed except N3 and N4",
+      "E4": "closed (P4)",
+      "E5": "closed (P5 failed in 5 s; every test has its own limit)",
+      "E6": "allocation counts 0 including a watched window; wait-free not met (N2)",
+      "E7": "ring files removed on success and failure; its own test is broken (N1)"
+    },
+    "findings": [
+      {
+        "id": "N1",
+        "severity": "medium, product test",
+        "at": "ui_heartbeat/tests/test_real_threads.rs:262,313",
+        "defect": "the child runs with --test-threads=1 so libtest prints 'test ... ... ' before the RING line and strip_prefix(\"RING \") never matches; fails every run; cleanup itself works (exit 101 or 124, TIMEOUT line, ring removed)",
+        "repair": "find 'RING ' anywhere in the line (mutation P8 does this and passes)"
+      },
+      {
+        "id": "N2",
+        "severity": "medium",
+        "defect": "AC215-6 wait-free not met",
+        "repair": "see waitfree_decision"
+      },
+      {
+        "id": "N3",
+        "severity": "low",
+        "at": "sink.rs:13-25",
+        "defect": "adding Default and Clone to PortToken broke no test (P7)",
+        "repair": "compile_fail doctests for PortToken::default(), .clone() and a struct literal"
+      },
+      {
+        "id": "N4",
+        "severity": "low",
+        "at": "source_scan.rs:24,42-45,214-216",
+        "defect": "the scan misses ring writers made through a use ... as alias (S2) and write_heartbeat in a path dependency outside both workspaces (S4: vulkan-renderer/src)",
+        "repair": "scan the path-crate closure from cargo metadata; refuse renamed imports of the ring-writer and port types"
+      },
+      {
+        "id": "N5",
+        "severity": "low, diag_ring request",
+        "defect": "R1 code 14 and the is_ordinary_code change are correct; R2 verified (serde and serde_json reach the shell only through diag_ring); R3 versions match all four locks; R1 does not explain why StalledOperation (11) does not fit; its 'v2 must accept the new code' item is already true (schema.rs:432-436 refuses only code 12); no live owner: MT-081 and MT-095 are PASS_V1 and no WP-012 MT lists diag_ring in its write paths",
+        "repair": "the orchestrator must assign an owner before the request can be implemented"
+      }
+    ],
+    "waitfree_decision": {
+      "decision": "a bounded lock does not meet AC215-6; wait-free reads are required on the beat path",
+      "reasons": [
+        "AC215-6 says wait-free",
+        "MT-084, whose acceptance this keeps, requires a heartbeat write with no lock contention that never blocks the UI thread",
+        "spec STU-ARC-028 contrasts the wait-free path with the recorder that takes a mutex",
+        "the port's own contracts: frames must not wait (frames.rs:13-14), request_wake must not block (wake.rs:51)"
+      ],
+      "locks_on_path": [
+        "before the ring write: each PresentWatch mutex (port.rs:231 to watch.rs:77-81) and the lane-slot lock in Lane::take (loop_core.rs:268)",
+        "after the ring write: the lane-slot lock in Lane::request; the pool thread holds it across PostMessageW, SendNotifyMessageW and SetThreadpoolTimer (wake.rs:202-214)"
+      ],
+      "smallest_change_design_untested": [
+        "ui_heartbeat (MT-215): publish the beat before track_present_stall",
+        "surface (MT-214): wanted_since in an atomic plus a lock-free frame_wanted_for() for the shell",
+        "window (MT-214): the timer callback must not hold the lane slot across OS calls; take and request use try_lock plus an atomic hand-off the callback drains"
+      ],
+      "alternative": "an Operator-approved AC215-6 contract change"
+    },
+    "operator_safety": "all 15 runs passed HBR-QUIET-001: foreground NULL in every sampled phase with no change; clipboard sequence 95; input desktop Default; cursor never clipped; no Operator input; desktops and stations unchanged; no visible run window; no process left behind",
+    "build_side_effect": "12 vctip.exe stopped after proving creation time and parent chain (vctip > link > rustc or rustdoc > the eval's cargo); runs waited 09:47-10:14 for another lane's handshake_core build; the GPU test removed only the shader-cache folder its own process created",
+    "logs": {
+      "eval-summary-e749ee2e9.json": "1c6039ed3fbbeb813fefc97d3e08e34fb37f0f0039074f4a68379afe54c9c20a",
+      "eval-run-e749ee2e9-ports.log": "bddc5f7fb370aca3ae627dfe0c3ab1278ec73025ad73e4af1f88c4d37eeddf4d",
+      "eval-run-e749ee2e9-shell.log": "7a9cadba85ceb722d3f036cc805a6d78f871a1e8b99d13e3a74daa7b49fb768a",
+      "probe-e749ee2e9-child-ring-test.json": "c173476ef52799af182c9f4a0f81e839ceed0ddda057996c8bb6021a62bb9c57",
+      "folder": "Handshake_Artifacts/WP-KERNEL-012/MT-215/eval-agent/"
+    },
+    "left_for_owner": "three ring files from the previous eval in MT-214/eval-agent/target/tmp",
+    "routing": "N1, N3, N4 and wait-free step 1 to the GUI coder (MT-215); wait-free steps 2-3 to the GUI coder (MT-214 window and surface); N5 diag_ring owner assignment pending an adversarial check of the proposed narrow grant",
+    "needs_native_x64_and_real_desktop": [
+      "250 ms cadence when idle, minimised, occluded or throttled",
+      "a real GPU-hang present stall",
+      "Palmistry attached to the real process",
+      "sleep and resume",
+      "lane-slot lock hold time and priority inversion under load",
+      "drivers on the real desktop",
+      "seqlock fences on native ARM64"
+    ]
   }
 }
