@@ -1157,5 +1157,30 @@
     "policy": "after an Operator-approved minimise, hide or destroy (the Operator's own command or an open close request) leaves the keyboard nowhere, the keyboard goes to that window's owner, otherwise to the topmost other Operator window, and never while another program is in front; a model cannot trigger it",
     "applies_to": "MT-214 slice 1, second remediation (R2-N5)",
     "open_check": "behaviour on a real desktop (not only private test desktops) is still to be proven"
+  },
+  "slice1_remediation2_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice1_eval2_20261126 (R2-N1..N6, all confirmed in code, none refuted)",
+    "commit": "edba628a030a6fe66ca738fb9327e042af5b0509",
+    "paths": "src/frontend/handshake_shell/** (22 files; new platform/key_gate.rs and platform/lanes.rs)",
+    "fixes": {
+      "R2-N1": "policy::plan_show runs may_change_geometry first; Restore always counts as a resize, Show when the window is minimised",
+      "R2-N2": "subclass procedure answers 0 to any keyboard message sent from another thread (InSendMessageEx != ISMEX_NOSEND); fixed without patching winit; refusals counted in RunReport::sent_keys_refused",
+      "R2-N3": "refused posts back off from 10 ms doubling to 8 s; after 4 unanswered posts a lane waits for proof the loop runs (one SendNotifyMessageW probe at a time); a hung loop holds at most 4 posts per lane",
+      "R2-N4": "lanes.rs hands out the first free number with a new random mask per reopen",
+      "R2-N5": "ACTIVATION_AFTER_REMOVAL as confirmed by the Operator (operator_decision_20261126_activation_after_removal)",
+      "R2-N6": "a clipboard write copies the current contents first and restores them if SetClipboardData fails; if nothing can be copied it stops before emptying (ClipboardError::CannotKeep); owner-display, private and GDI-object formats can still be lost on failure; writes make other programs render delayed formats"
+    },
+    "implementer_checks": {
+      "cargo check --locked --offline --tests -j 2": "exit 0, no warnings",
+      "clippy --all-targets -D warnings": "clean",
+      "cargo tree": "windows-sys 0.52.0, winit 0.30.13 and winit's deps; no banned crate"
+    },
+    "tests": "written, none run; independent run queued after the backend eval",
+    "open": [
+      "R2-N5 hand-on not verified on the Operator's real desktop",
+      "Operator-input stamp and input_waits paths unit-only"
+    ]
   }
 }
