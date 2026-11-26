@@ -12418,5 +12418,18 @@
       "hashless debug bin outputs",
       "cargo registry cache"
     ]
+  },
+  "cargo_cleanup_result_20261126": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-26",
+    "result": "Operator-approved cleanup complete: plan C all 29 sets removed (25,742,083,024 bytes, 13:25Z); plan D: attempt 1 started removing chain libduckdb-sys-0dcbed7c9aaf1991 and stopped when a compiler started (8,133,925,268 bytes removed, log removal-log-...-PLAN-D-20261126T132555Z.jsonl); attempt 2 removed the other three chains (20,437,771,070 bytes, log removal-log-...-PLAN-D-20261126T132707Z.jsonl) and skipped the half-removed chain for content drift (the script's own guard)",
+    "residue": "about 23 MB of the half-removed chain remains (build/libduckdb-sys-0dcbed7c9aaf1991 2,068 files 12,193,262 bytes; build/libduckdb-sys-c876c9644b2eccda 5 files 10,914,456 bytes; deps libduckdb_sys-f2b7244cfc318513.d and liblibduckdb_sys-f2b7244cfc318513.rmeta; empty fingerprint folders); its fingerprints are gone so cargo cannot use it; left in place rather than deleted by hand outside the guarded script",
+    "measured_after": {
+      "builder_target_apparent_bytes": 153881651023,
+      "builder_target_unique_inode_bytes": 121499910541,
+      "free_bytes_C": 157387440128,
+      "headroom_under_209_GB_stop_line_apparent": 55118348977
+    },
+    "execution_log": "Handshake_Artifacts/WP-KERNEL-012/cargo-cleanup-20261125/execution-20261126.log"
   }
 }
