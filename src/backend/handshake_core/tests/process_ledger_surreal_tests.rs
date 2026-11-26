@@ -20,7 +20,7 @@ use handshake_core::{
         PROCESS_LEDGER_RING_CAPACITY, PROCESS_LEDGER_TABLE_NAME,
         RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
     },
-    storage::surreal::{SurrealProcessLedgerStore, SurrealStorage},
+    storage::surreal::{bootstrap_production_schemas, SurrealProcessLedgerStore, SurrealStorage},
 };
 
 mod surreal_test_store_support;
@@ -863,9 +863,7 @@ async fn ownership_inspection_rejects_missing_foreign_or_incomplete_evidence_wit
 
 #[tokio::test]
 async fn ownership_inspection_survives_same_namespace_shutdown_and_reopen() {
-    let mut allocator = IsolatedSurrealTestStore::create()
-        .await
-        .expect("allocate durable embedded Surreal scope");
+    let mut allocator = create_production_composed_store().await;
     let namespace = allocator.namespace().to_owned();
     let database = allocator.database().to_owned();
     let storage = allocator.storage().clone();
@@ -942,9 +940,7 @@ allocator
 /// bounded in-progress sweep, and stay exact-scope gated after the restart.
 #[tokio::test]
 async fn reclaim_claim_state_and_fences_survive_same_namespace_shutdown_and_reopen() {
-    let mut allocator = IsolatedSurrealTestStore::create()
-        .await
-        .expect("allocate durable embedded Surreal scope");
+    let mut allocator = create_production_composed_store().await;
     let namespace = allocator.namespace().to_owned();
     let database = allocator.database().to_owned();
     let storage = allocator.storage().clone();
@@ -1347,7 +1343,7 @@ async fn orphan_receipt_without_lifecycle_rejects_identical_retries_atomically_a
 async fn saturation_emits_overflow_receipts_and_clears_degraded_after_drain() {
     const CAPACITY: usize = 128;
     const ATTEMPTS: usize = 10_000;
-    let mut fixture = SurrealFixture::open().await;
+    let mut fixture = SurrealFixture::on(create_production_composed_store().await).await;
     let namespace = fixture.allocator.namespace().to_owned();
     let database = fixture.allocator.database().to_owned();
     let overflow = InMemoryOverflowSink::default();
@@ -1559,6 +1555,20 @@ fn five_mismatched_scopes(scope: &ReclaimResourceScope) -> [ReclaimResourceScope
     [account, actor, session, access_space, workspace]
 }
 
+/// Allocates an isolated store with the production schema composition, the one the
+/// production ProcessLedger store opens on. Its receipt makes the harness reopen verify
+/// the full production catalog. A base-only store records only the base catalog, so the
+/// fields and indexes `SurrealProcessLedgerStore::open` adds fail that reopen check.
+async fn create_production_composed_store() -> IsolatedSurrealTestStore {
+    let allocator = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate durable embedded Surreal scope");
+    bootstrap_production_schemas(allocator.storage())
+        .await
+        .expect("bootstrap production schema composition");
+    allocator
+}
+
 struct SurrealFixture {
     allocator: IsolatedSurrealTestStore,
     storage: SurrealStorage,
@@ -1568,9 +1578,15 @@ struct SurrealFixture {
 
 impl SurrealFixture {
     async fn open() -> Self {
-        let mut allocator = IsolatedSurrealTestStore::create()
-            .await
-            .expect("allocate isolated embedded Surreal scope");
+        Self::on(
+            IsolatedSurrealTestStore::create()
+                .await
+                .expect("allocate isolated embedded Surreal scope"),
+        )
+        .await
+    }
+
+    async fn on(allocator: IsolatedSurrealTestStore) -> Self {
         let storage = allocator.storage().clone();
         let store = Arc::new(
             SurrealProcessLedgerStore::open(storage.clone())
