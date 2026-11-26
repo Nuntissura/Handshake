@@ -14078,5 +14078,35 @@
     },
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib --test crash_recovery_e2e -E 'test(/order_by_projection_tests|navigation_grant_query_tests/) | (binary(crash_recovery_e2e) & test(=runtime_child::original_replay_scope_read_orders_by_projected_event_sequence))' (exactly 5 tests; batch with the pending MT-172 and SC-1 evals)",
     "eval_status": "blocked with the other backend evals on the builder target cap (Operator decision pending)"
+  },
+  "sc2_static_review_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's report; static review only",
+    "recorded_on": "2026-11-26",
+    "subject": "SC-2 commit 534bd295b",
+    "verdict": "passed (static only; not a test verdict): all five fixes correct under SurrealDB 3.2.0's parse rule; nothing changed but the parse",
+    "check1": "old texts fail check_idiom (parts.rs:168-245), new texts pass by alias (grant_id) or projected field; 3.2.0 sorts by the expression behind the alias record::id(id) (expression_registry.rs:338, pipeline.rs:530-600); grant keys are UUIDv7 strings (resource_authority.rs:5974) so string order equals record-id order, unique so no ties; ORDER BY runs before LIMIT 2 and production still denies when two rows return; the derive ignores extra keys (surrealdb-types-derive-3.2.0 named.rs:118-170, mod.rs:480-485; the empty-map check at mod.rs:741 is unit structs only)",
+    "check2": "no other site: all 494 ORDER BY occurrences in src/backend (none in src/shared) scanned, including concat!/macro-built queries and GROUP BY; block_view_store page_query! arguments all projected; loom_search.rs:1163 is SELECT * with OMIT (passes); DuckDB and PostgreSQL queries excluded as not SurrealQL",
+    "check3": "each test fails at its expect on the old text and runs the production constant or method; site 5's production helper also runs as root so its seeding hides nothing",
+    "findings": [
+      {
+        "id": "SC2-F1",
+        "severity": "medium, proof gap",
+        "defect": "sites 1, 2 and 3 run in production as the record user (with_navigation_read_transaction model_lane.rs:5411/5446/5478/5484; swarm_orchestration/model_lane.rs:2616/4374/4683) while their tests run as root with OPTION IMPORT data; the edit adds no permissioned field (event_id model_lane_schema.surql:23, update_seq schema.surql:1178 have none; grant_id derives from id), but these queries have never run as the record user on 3.2, e.g. grant_version is hidden by field permission when the purpose is navigation_read (model_lane_schema.surql:1413-1416) while NavigationGrantSnapshot decodes it as i64 (UNVERIFIED)",
+        "repair": "add tests/model_lane_navigation_api_surreal_tests.rs, tests/model_lane_navigation_surreal_tests.rs and tests/model_lane_navigation_api_tests.rs to the batched backend eval"
+      },
+      {
+        "id": "SC2-F2",
+        "severity": "low",
+        "defect": "ordering assertions for sites 1 and 4 cannot tell sorted from unsorted: the sort field is the record key and both scan paths already return ascending key order",
+        "repair": "record sites 1 and 4 as parse-only proof"
+      }
+    ],
+    "site4_prediction": "likely to pass as the record user: delegation_chain [principal] equals the stored grant's chain (resource_authority.rs:5838, 5992); policy versions 1; delegated_capabilities holds the capability; resource_grants select rule (schema.surql:6100) and mt166_resource_select_grant (7056) met; principals readable via id = $auth.principal_id; rule predicates evaluated with permissions off (exec/permission.rs:93); grant_version gate passes with no purpose set; same predicates as canonical_grant_query (resource_authority.rs:39-43); no residual risk found statically",
+    "not_verified": [
+      "nothing compiled or run",
+      "textual scan, not the real parser",
+      "the SC2-F1 field-permission interaction"
+    ],
+    "eval_batch_update": "the batched backend eval adds the three navigation test binaries from SC2-F1; sites 1 and 4 count as parse-only proof"
   }
 }
