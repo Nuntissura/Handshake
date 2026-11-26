@@ -1347,5 +1347,57 @@
       "device loss and rebind (AC214-9)",
       "unavailable-device state"
     ]
+  },
+  "slice1_remediation3_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice1_eval3_20261126 findings E3-F2..E3-F6 and the named weak tests (E3-F1 waived per operator_waiver_20261126_real_desktop_handon); all confirmed in code first, none refuted",
+    "commit": "198dae691ffde2aa6765725fae6b98ea864c285b",
+    "paths": "src/frontend/handshake_shell/window/** only (26 files, 6 new); surface crate and governance untouched; verified by git diff --name-only 6f71cac07 198dae691",
+    "fixes": {
+      "E3-F2": "keep (platform/clipboard.rs:297) copies the old clipboard only when every listed format is CF_UNICODETEXT, CF_TEXT, CF_OEMTEXT or CF_LOCALE, at most 1 MiB, with no clipboard-history or cloud marker (checked by registered name); requests no other format; wipes the copy before freeing; our text allocated before OpenClipboard; CannotKeep no longer produced",
+      "E3-F3": "LastWrite (clipboard.rs:109,195): withdraw empties only this window's own last successful write",
+      "E3-F4": "a probe answer counts only while no wake post waits (wake.rs:105,120); a request on the loop thread is not a sign of life and the loop thread never probes itself (wake.rs:155); docs in lib.rs, lanes.rs, wake_slot.rs, README",
+      "E3-F5": "new platform/retrieval.rs: a WH_GETMESSAGE hook on the loop thread only, recording the newest retrieved message and whether it was inside a sent message; key gate holds back dead keys while winit handles a keyboard message (key_gate.rs:90,108)",
+      "E3-F6": "new platform/closing.rs and policy::CloseWatch (policy.rs:21,59): a close request approves the hand-on only when sent from within a close command started by the Operator's Alt+F4, close button or system-menu double-click on that window; foreign close messages let a model remove the window once and approve nothing"
+    },
+    "deviations_to_review": [
+      {
+        "id": "R3-D1",
+        "what": "clipboard policy KEEP_PLAIN_TEXT_OR_NOTHING instead of the brief's 'prefer not emptying': when the old clipboard is not plain text, a write keeps nothing and replaces it; a rare refusal after emptying leaves it empty and reports clipboard.not_restored; the refusing alternative is one constant (UNKEPT, clipboard.rs:66)",
+        "basis": "Microsoft Clipboard Formats (synthesized formats; history and cloud formats), Clipboard Operations, EnumClipboardFormats"
+      },
+      {
+        "id": "R3-D2",
+        "what": "the HBR-QUIET source scan in test_focus_ban, which banned WH_GETMESSAGE, now allows exactly two thread-local hooks (the CBT guard and the retrieval hook), each with its exact call shape checked"
+      },
+      {
+        "id": "R3-D3",
+        "what": "that Windows sends rather than posts WM_CLOSE for SC_CLOSE is taken from Wine's implementation, not Microsoft documentation; if Windows posts it, the Operator's own close only loses the hand-on (fail-safe)"
+      }
+    ],
+    "tests_added": {
+      "test_wakes.rs:164": "only stale posts stay queued; wake 1 at least 500 ms later (catches reusing a lane's mask)",
+      "probe_path": "five posts thrown away, more than BLIND_POSTS (catches a broken probe path)",
+      "test_wakes.rs:398": "exactly 4 posts while the loop waits in SendMessage (catches a probe counting while posts wait)",
+      "test_sent_keys": "keys dispatched inside a sent message not refused; sent keys counted (catches InSendMessageEx alone)",
+      "test_clipboard": "real OS clipboard on a private window station; no forced renders; withdraw affects only our write (catches copying every format)",
+      "closed_again": "posted close plus a model's destroy hands the keyboard to no one",
+      "unit": "fake clipboard listing formats as Windows does; marker detection; 1 MiB limit; refusing alternative; withdraw after restore; close watch; key-gate nesting"
+    },
+    "cannot_fail_on_private_desktops": [
+      "other-program-in-front branch",
+      "FocusWatch",
+      "hardware input stamps",
+      "input_waits"
+    ],
+    "implementer_checks": {
+      "check --locked --offline --tests -j 2": "exit 0, no warnings",
+      "clippy --all-targets -D warnings": "exit 0, 13 targets",
+      "cargo tree -e all --target all": "no egui, eframe, wgpu, glow or kumihimo",
+      "Cargo.lock": "unchanged",
+      "logs": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/check-r3-final.log, clippy-r3-final.log, tree-r3-1.log"
+    },
+    "tests": "nothing run; independent run pending (combined with slice 2 and MT-203 slice 2 remediation at 198dae691)"
   }
 }
