@@ -8,13 +8,23 @@
 //! of this one posts or sends with the same number neither settles a post nor dispatches a wake (MT-214 W7, MT-215
 //! HB-7). A lane opened under the number of a dropped one has a secret of its own, so the posts of the dropped lane
 //! that are still in the queue dispatch nothing either (R2-N4).
+//!
+//! # Locks (MT-215 N2, AC215-6)
+//!
+//! The slot's lock guards arithmetic and nothing else: no thread posts, sends, sets the timer or makes any other call
+//! into the system while it holds it. A decision is made under the lock (counting a post as taken before it is made, so
+//! that no second thread decides on the same number), and carried out after it is let go. The loop's thread, which beats,
+//! never waits for the lock: it takes it with `try_lock`, and where a pool thread holds it, leaves what it wanted in the
+//! lane's `Handoff`, which the holder works through before it lets go and looks at again after. The timer is set
+//! outside the lock from the newest decision's `want`, so an overtaken thread sets the newer one. Pool threads (the
+//! timer's callback, a waker of another thread) may wait for the lock, for one decision at a time.
 
 use std::collections::hash_map::RandomState;
 use std::ffi::c_void;
 use std::hash::{BuildHasher, Hasher};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
 use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::{FILETIME, HWND, LPARAM, TRUE};
@@ -27,6 +37,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     PM_QS_POSTMESSAGE, QS_INPUT, WM_APP,
 };
 
+use crate::handoff::{Handoff, Mail};
 use crate::wake::{LaneId, WakeRefused};
 use crate::wake_slot::{nanos, Step, Taken, WakeSlot};
 
@@ -126,6 +137,24 @@ fn posts_wait(window: HWND) -> bool {
     }
 }
 
+/// What a decision under the slot's lock asks its thread to do once it has let go: operating-system calls, which are
+/// never made under the lock.
+#[derive(Clone, Copy, Default)]
+struct Act {
+    /// Post the wake with this number.
+    post: Option<u64>,
+    /// Post a dispatched message again (it was dispatched while the slot was held).
+    repost: Option<LPARAM>,
+    /// Ask the loop whether it runs.
+    ask: bool,
+}
+
+/// The timer when no look is wanted.
+const NO_TIMER: u64 = u64::MAX;
+
+/// How many times one thread works through what others left for it, before it leaves the rest to the timer.
+const PUMPS: usize = 4;
+
 struct LaneState {
     id: u32,
     /// Waits a moment after a dispatch while input waits, so it cannot keep input out.
@@ -133,8 +162,14 @@ struct LaneState {
     /// What the post's number is masked with.
     mask: usize,
     open: AtomicBool,
+    /// The wake's state. Held for arithmetic on it only: no thread makes an operating-system call, posts, sets the timer
+    /// or sends while it holds this (MT-215 N2).
     slot: Mutex<WakeSlot>,
     pulse: Arc<Pulse>,
+    /// What the loop's thread leaves when it cannot take the slot.
+    hand: Handoff,
+    /// When the newest decision wants the timer to fire (the lane's clock), or [`NO_TIMER`].
+    want: AtomicU64,
 }
 
 impl LaneState {
@@ -142,38 +177,153 @@ impl LaneState {
         self.pulse.now()
     }
 
+    /// The slot, waiting for it. Pool threads only: the callback and the wakers of other threads. A holder holds it for
+    /// arithmetic, never across a call into the system, so the wait is short, and nobody is held up by it who must not
+    /// wait.
     fn slot(&self) -> MutexGuard<'_, WakeSlot> {
         self.slot.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Carry out a step. The slot stays locked, so no two threads set the timer against each other.
-    fn carry_out(&self, slot: &mut WakeSlot, step: Step, now: u64, timer: PTP_TIMER) {
-        let look_at = match step {
-            Step::Idle => None,
-            Step::LookAt(at) => Some(at),
-            // Asked on the loop's thread, the pool asks at once.
-            Step::Ask(_) if self.pulse.on_loop_thread() => Some(now),
-            Step::Ask(at) => {
-                self.pulse.ask();
-                Some(at)
-            }
-            Step::Post(number) => {
-                let token = (number as usize ^ self.mask) as LPARAM;
-                // SAFETY: plain values. Posting to a window that is gone fails and is reported as refused.
-                let taken = unsafe {
-                    PostMessageW(self.pulse.window, WM_WAKE, self.id as usize, token)
-                } != 0;
-                Some(slot.posted(now, number, taken))
-            }
-        };
-        set_timer(timer, look_at.map(|at| at.saturating_sub(now)));
+    /// Work through what others left, as the holder of the slot.
+    fn drain(&self, slot: &mut WakeSlot, now: u64, act: &mut Act) {
+        match self.hand.take_mail() {
+            Some(Mail::Request { value, due }) => slot.arm_at(value, due),
+            Some(Mail::Cancel) => slot.cancel(),
+            None => {}
+        }
+        if let Some(number) = self.hand.take_refused() {
+            slot.unposted(now, number);
+        }
+        if let Some(token) = self.hand.take_retake() {
+            act.repost = Some(token as LPARAM);
+        }
+        self.hand.take_look();
     }
 
-    /// Look at the slot now, and do what it says.
-    fn step_now(&self, slot: &mut WakeSlot, timer: PTP_TIMER) {
+    /// Decide what is needed now, and count it as done: a post is counted as taken before it is made, so no second
+    /// thread decides on the same number. Pure: no call into the system.
+    fn decide(&self, slot: &mut WakeSlot, now: u64, act: &mut Act) {
+        if !self.open.load(Ordering::Acquire) {
+            slot.cancel();
+            self.want.store(NO_TIMER, Ordering::Release);
+            return;
+        }
+        let want = match slot.step(now, self.pulse.life()) {
+            Step::Idle => NO_TIMER,
+            Step::LookAt(at) => at,
+            // Asked on the loop's thread, the pool asks at once.
+            Step::Ask(_) if self.pulse.on_loop_thread() => now,
+            Step::Ask(at) => {
+                act.ask = true;
+                at
+            }
+            Step::Post(number) => {
+                act.post = Some(number);
+                slot.posted(now, number, true)
+            }
+        };
+        self.want.store(want, Ordering::Release);
+    }
+
+    /// `op` on the slot, then what is needed now, as the holder: drained first, so `op` sees what was left before it.
+    fn settle<T>(
+        &self,
+        slot: &mut WakeSlot,
+        op: impl FnOnce(&mut WakeSlot, u64) -> T,
+    ) -> (T, Act) {
         let now = self.now();
-        let step = slot.step(now, self.pulse.life());
-        self.carry_out(slot, step, now, timer);
+        let mut act = Act::default();
+        self.drain(slot, now, &mut act);
+        let out = op(slot, now);
+        self.decide(slot, now, &mut act);
+        (out, act)
+    }
+
+    /// [`Self::settle`] with the slot, waiting for it. Pool threads only.
+    fn locked<T>(&self, op: impl FnOnce(&mut WakeSlot, u64) -> T) -> (T, Act) {
+        let mut slot = self.slot();
+        self.settle(&mut slot, op)
+    }
+
+    /// [`Self::settle`] with the slot if it is free right now; `None` if another thread holds it. Never waits: the loop's
+    /// thread takes the slot this way and leaves what it wanted with [`Handoff`] when it is not free.
+    fn try_locked<T>(&self, op: impl FnOnce(&mut WakeSlot, u64) -> T) -> Option<(T, Act)> {
+        let mut slot = match self.slot.try_lock() {
+            Ok(slot) => slot,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => return None,
+        };
+        Some(self.settle(&mut slot, op))
+    }
+
+    /// Make the calls into the system that a decision asked for, outside the lock, and bring the timer to what the
+    /// newest decision wants.
+    fn perform(&self, act: Act, timer: PTP_TIMER) {
+        if let Some(token) = act.repost {
+            // SAFETY: plain values. A refusal is made good by the post that is still open.
+            unsafe { PostMessageW(self.pulse.window, WM_WAKE, self.id as usize, token) };
+        }
+        if let Some(number) = act.post {
+            let token = (number as usize ^ self.mask) as LPARAM;
+            // SAFETY: plain values. Posting to a window that is gone fails and is reported as refused.
+            let taken =
+                unsafe { PostMessageW(self.pulse.window, WM_WAKE, self.id as usize, token) } != 0;
+            if !taken {
+                self.hand.refuse(number);
+            }
+        }
+        if act.ask {
+            self.pulse.ask();
+        }
+        self.arm(timer);
+    }
+
+    /// Set the timer to what the newest decision wants. Decisions are made one at a time under the lock but their
+    /// timers are set outside it, so a thread whose timer was overtaken sets the newer one: it looks again at `want`
+    /// after the call, and the thread that made the newer decision sets it too. Bounded.
+    fn arm(&self, timer: PTP_TIMER) {
+        for _ in 0..PUMPS {
+            let want = self.want.load(Ordering::Acquire);
+            set_timer(timer, (want != NO_TIMER).then(|| want.saturating_sub(self.now())));
+            if self.want.load(Ordering::Acquire) == want {
+                return;
+            }
+        }
+    }
+
+    /// [`Self::perform`], and what others left meanwhile, for the loop's thread: never waits. What it cannot take the
+    /// slot for, the thread that holds it works through.
+    fn pump_loop(&self, timer: PTP_TIMER, mut act: Act) {
+        for _ in 0..PUMPS {
+            self.perform(act, timer);
+            if !self.hand.pending_after_release() {
+                return;
+            }
+            let Some(((), next)) = self.try_locked(|_, _| ()) else {
+                return;
+            };
+            act = next;
+        }
+        self.leave_to_timer(timer);
+    }
+
+    /// [`Self::perform`], and what others left meanwhile, for a pool thread, which may wait for the slot.
+    fn pump_pool(&self, timer: PTP_TIMER, mut act: Act) {
+        for _ in 0..PUMPS {
+            self.perform(act, timer);
+            if !self.hand.pending_after_release() {
+                return;
+            }
+            let ((), next) = self.locked(|_, _| ());
+            act = next;
+        }
+        self.leave_to_timer(timer);
+    }
+
+    /// Too much was left to work through now: the timer fires at once and does the rest.
+    fn leave_to_timer(&self, timer: PTP_TIMER) {
+        self.want.store(self.now(), Ordering::Release);
+        self.arm(timer);
     }
 
     /// The number a dispatched message names. On a 32-bit system the high half of a number is not carried, and the
@@ -209,8 +359,8 @@ unsafe extern "system" fn on_timer(
     if !state.open.load(Ordering::Acquire) {
         return;
     }
-    let mut slot = state.slot();
-    state.step_now(&mut slot, timer);
+    let ((), act) = state.locked(|_, _| ());
+    state.pump_pool(timer, act);
 }
 
 /// The pool timer, and its reference to the state.
@@ -254,6 +404,10 @@ fn input_waits() -> bool {
 }
 
 /// One lane. Any thread may hold it.
+///
+/// The loop's thread never waits for the slot (MT-215 N2, AC215-6): [`Lane::take`], [`Lane::request`], [`Lane::cancel`]
+/// and [`Lane::nudge`] take it with `try_lock` and, when a pool thread holds it, leave what they wanted with the
+/// [`Handoff`], which the holder works through before and after it lets go.
 #[derive(Clone)]
 pub(crate) struct Lane {
     state: Arc<LaneState>,
@@ -270,6 +424,8 @@ impl Lane {
             open: AtomicBool::new(true),
             slot: Mutex::new(WakeSlot::default()),
             pulse: Arc::clone(pulse),
+            hand: Handoff::default(),
+            want: AtomicU64::new(NO_TIMER),
         });
         let context = Arc::into_raw(Arc::clone(&state));
         // SAFETY: the callback matches, and the context lives until the timer is closed.
@@ -296,20 +452,49 @@ impl Lane {
     }
 
     pub(crate) fn request(&self, value: u64, delay: Duration) -> Result<(), WakeRefused> {
-        let mut slot = self.state.slot();
         if !self.state.open.load(Ordering::Acquire) {
             return Err(WakeRefused::Closed);
         }
-        let now = self.state.now();
-        let step = slot.request(now, value, nanos(delay), self.state.pulse.life());
-        self.state.carry_out(&mut slot, step, now, self.timer.timer);
+        if !self.on_loop_thread() {
+            return self.request_from_a_pool_thread(value, delay);
+        }
+        let due = self.state.now().saturating_add(nanos(delay));
+        match self.state.try_locked(|slot, _| slot.arm_at(value, due)) {
+            Some(((), act)) => self.state.pump_loop(self.timer.timer, act),
+            None => {
+                self.state.hand.put(Mail::Request { value, due });
+                self.state.pump_loop(self.timer.timer, Act::default());
+            }
+        }
         Ok(())
     }
 
+    /// [`Lane::request`] from a thread that is not the loop's, which may wait for the slot.
+    fn request_from_a_pool_thread(&self, value: u64, delay: Duration) -> Result<(), WakeRefused> {
+        let due = self.state.now().saturating_add(nanos(delay));
+        let ((), act) = self.state.locked(|slot, _| slot.arm_at(value, due));
+        self.state.pump_pool(self.timer.timer, act);
+        Ok(())
+    }
+
+    /// [`Lane::cancel`] from a thread that is not the loop's, which may wait for the slot.
+    fn cancel_from_a_pool_thread(&self) {
+        let ((), act) = self.state.locked(|slot, _| slot.cancel());
+        self.state.pump_pool(self.timer.timer, act);
+    }
+
     pub(crate) fn cancel(&self) {
-        let mut slot = self.state.slot();
-        slot.cancel();
-        set_timer(self.timer.timer, None);
+        if !self.on_loop_thread() {
+            self.cancel_from_a_pool_thread();
+            return;
+        }
+        match self.state.try_locked(|slot, _| slot.cancel()) {
+            Some(((), act)) => self.state.pump_loop(self.timer.timer, act),
+            None => {
+                self.state.hand.put(Mail::Cancel);
+                self.state.pump_loop(self.timer.timer, Act::default());
+            }
+        }
     }
 
     /// No more wakes, from any holder.
@@ -320,25 +505,101 @@ impl Lane {
 
     /// The loop answered a probe: look now whether to post, on the loop's thread.
     pub(super) fn nudge(&self) {
-        let mut slot = self.state.slot();
-        if self.state.open.load(Ordering::Acquire) {
-            self.state.step_now(&mut slot, self.timer.timer);
+        if !self.state.open.load(Ordering::Acquire) {
+            return;
+        }
+        match self.state.try_locked(|_, _| ()) {
+            Some(((), act)) => self.state.pump_loop(self.timer.timer, act),
+            None => {
+                self.state.hand.look();
+                self.state.pump_loop(self.timer.timer, Act::default());
+            }
         }
     }
 
     /// The service window got a post of this lane, on the loop's thread. A message that is not one of its open posts
     /// gives nothing; any dispatched post shows that the loop runs.
+    ///
+    /// Never waits (MT-215 N2): when a pool thread holds the slot the message is posted again at once and comes round
+    /// once more, a moment later, instead of the loop's thread waiting for the slot.
     pub(super) fn take(&self, token: LPARAM) -> Option<Taken> {
         self.state.pulse.alive();
-        let mut slot = self.state.slot();
         if !self.state.open.load(Ordering::Acquire) {
             return None;
         }
-        let now = self.state.now();
         let number = self.state.number(token);
-        let taken = slot.dispatched(now, number, self.state.yields && input_waits());
-        // A wake that is not due yet keeps its timer; one that is due and has no post open is posted.
-        self.state.step_now(&mut slot, self.timer.timer);
-        taken
+        let yields = self.state.yields && input_waits();
+        match self
+            .state
+            .try_locked(|slot, now| slot.dispatched(now, number, yields))
+        {
+            // A wake that is not due yet keeps its timer; one that is due and has no post open is posted.
+            Some((taken, act)) => {
+                self.state.pump_loop(self.timer.timer, act);
+                taken
+            }
+            None => {
+                self.state.hand.retake(token as u64);
+                self.state.pump_loop(self.timer.timer, Act::default());
+                None
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A lane on this thread, as the loop's thread holds it, whose window is a handle nothing owns: a post to it is
+    /// refused, so the refusal path runs too, and nothing is queued anywhere.
+    fn lane_on_this_thread() -> Lane {
+        // SAFETY: no arguments.
+        let thread = unsafe { GetCurrentThreadId() };
+        let window: HWND = 0x7777;
+        let pulse = Pulse::new(window, thread, Instant::now());
+        Lane::open(5, &pulse, false).expect("a pool timer")
+    }
+
+    /// MT-215 N2 (AC215-6): while a pool thread holds the slot, the loop's thread asks, cancels and takes a dispatched
+    /// post without waiting; what it asked for is done by the next holder. A blocking lock here would hang the test.
+    #[test]
+    fn the_loop_thread_never_waits_for_a_held_slot() {
+        let lane = lane_on_this_thread();
+        let held = lane.state.slot();
+        assert!(lane.request(1, Duration::ZERO).is_ok(), "a request with the slot held");
+        assert!(lane.state.hand.pending_after_release(), "it was left for the holder");
+        assert!(lane.take(0x1234).is_none(), "a dispatch with the slot held is not lost, nor waited for");
+        assert!(lane.state.hand.take_retake().is_some(), "it comes round again");
+        lane.cancel();
+        lane.nudge();
+        drop(held);
+
+        // The next holder works through what was left: the cancel was newest, so nothing is armed.
+        lane.nudge();
+        assert!(!lane.state.hand.pending_after_release());
+        assert_eq!(lane.state.slot().step(lane.state.now(), 0), Step::Idle, "the cancel won");
+        assert!(lane.request(2, Duration::ZERO).is_ok());
+        assert_ne!(
+            lane.state.slot().step(lane.state.now(), 0),
+            Step::Idle,
+            "a request with the slot free is armed at once"
+        );
+    }
+
+    /// A request left while the slot was held is armed by whoever takes the slot next, with its own due time.
+    #[test]
+    fn what_was_left_for_the_holder_is_done_when_the_slot_is_next_taken() {
+        let lane = lane_on_this_thread();
+        let held = lane.state.slot();
+        assert!(lane.request(9, Duration::from_secs(3_600)).is_ok());
+        drop(held);
+        lane.nudge();
+        let step = lane.state.slot().step(lane.state.now(), 0);
+        assert!(
+            matches!(step, Step::LookAt(at) if at > lane.state.now() + nanos(Duration::from_secs(3_000))),
+            "armed for the hour it was asked for: {step:?}"
+        );
+        assert!(lane.state.want.load(Ordering::Acquire) > lane.state.now());
     }
 }

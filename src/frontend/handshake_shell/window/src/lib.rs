@@ -86,6 +86,8 @@ mod event;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod frame;
 mod geometry;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod handoff;
 mod input;
 mod keys;
 mod monitor;

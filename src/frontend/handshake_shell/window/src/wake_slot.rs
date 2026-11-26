@@ -76,16 +76,31 @@ pub(crate) struct WakeSlot {
     refused: u32,
     /// No post before this time, after a refused one.
     retry_at: u64,
+    /// What the newest post changed, for [`WakeSlot::unposted`].
+    undo: Undo,
+}
+
+/// The fields a post overwrites, as they were before it.
+#[derive(Clone, Copy, Debug, Default)]
+struct Undo {
+    posted_at: u64,
+    unanswered: u32,
+    refused: u32,
+    retry_at: u64,
 }
 
 impl WakeSlot {
-    /// Ask for a wake. One that has not been dispatched yet is replaced. `life` as for [`WakeSlot::step`].
+    /// Ask for a wake. One that has not been dispatched yet is replaced. `life` as for [`WakeSlot::step`]. The lanes arm
+    /// and step apart (outside the slot's lock the step is decided separately); the tests use this pair as one.
+    #[cfg(test)]
     pub(crate) fn request(&mut self, now: u64, value: u64, delay: u64, life: u64) -> Step {
-        self.armed = Some(Armed {
-            value,
-            due: now.saturating_add(delay),
-        });
+        self.arm_at(value, now.saturating_add(delay));
         self.step(now, life)
+    }
+
+    /// Arm a wake due at `due`, in place of one that has not been dispatched. Decides nothing: the caller steps.
+    pub(crate) fn arm_at(&mut self, value: u64, due: u64) {
+        self.armed = Some(Armed { value, due });
     }
 
     /// What is needed at this time. `life` is when the loop last showed that it runs; 0 for never.
@@ -120,12 +135,35 @@ impl WakeSlot {
             self.retry_at = now.saturating_add(wait);
             return self.retry_at;
         }
+        self.undo = Undo {
+            posted_at: self.posted_at,
+            unanswered: self.unanswered,
+            refused: self.refused,
+            retry_at: self.retry_at,
+        };
         self.refused = 0;
         self.retry_at = 0;
         self.posted = self.posted.max(number);
         self.posted_at = now;
         self.unanswered = self.unanswered.saturating_add(1);
         now.saturating_add(self.interval())
+    }
+
+    /// The post with this number, counted as taken before it was made (so that no second thread decides on the same
+    /// number while the first is posting it outside the lock), was refused by the queue after all: undo the count and
+    /// count the refusal. Returns when to look again.
+    pub(crate) fn unposted(&mut self, now: u64, number: u64) -> u64 {
+        if self.posted == number {
+            self.posted = number.saturating_sub(1);
+            self.posted_at = self.undo.posted_at;
+            self.unanswered = self.undo.unanswered;
+            self.refused = self.undo.refused;
+            self.retry_at = self.undo.retry_at;
+        } else {
+            // A later post was counted since; only this one is not in the queue.
+            self.unanswered = self.unanswered.saturating_sub(1);
+        }
+        self.posted(now, number, false)
     }
 
     /// The loop dispatched the post with this number. Returns the wake, if one is due. A number that is not one of an
@@ -426,6 +464,31 @@ mod tests {
         assert_eq!(slot.dispatched(9, 1, false), None, "replayed");
         slot.request(10, 2, 0, 0);
         assert_eq!(slot.dispatched(11, 1, false), None, "settled before");
+    }
+
+    /// MT-215 N2: a post is counted before it is made, outside the lock; a refused one is taken back.
+    #[test]
+    fn a_post_counted_before_it_was_made_is_taken_back_when_the_queue_refuses_it() {
+        let mut slot = WakeSlot::default();
+        assert_eq!(slot.request(0, 1, 0, 0), Step::Post(1));
+        slot.posted(0, 1, true);
+        // Counted: no second post for the same number while the first is made.
+        assert_eq!(slot.step(MS, 0), Step::LookAt(nanos(REPEAT)));
+        let again = slot.unposted(MS, 1);
+        assert_eq!(again, MS + nanos(RETRY), "the refusal is counted as if it had come first");
+        assert_eq!(slot.step(2 * MS, 0), Step::LookAt(MS + nanos(RETRY)));
+        assert_eq!(slot.step(MS + nanos(RETRY), 0), Step::Post(1), "the same number is posted again");
+        // A refusal after a refusal doubles, as before.
+        slot.posted(MS + nanos(RETRY), 1, true);
+        let second = slot.unposted(20 * MS, 1);
+        assert_eq!(second, 20 * MS + nanos(RETRY) * 2);
+        // A post after a later one: only the unanswered count goes back.
+        let mut slot = WakeSlot::default();
+        slot.request(0, 1, 0, 0);
+        slot.posted(0, 1, true);
+        slot.posted(600 * MS, 2, true);
+        slot.unposted(601 * MS, 1);
+        assert_eq!(slot.dispatched(602 * MS, 2, false).map(|taken| taken.value), Some(1));
     }
 
     #[test]
