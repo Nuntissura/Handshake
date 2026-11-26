@@ -561,3 +561,347 @@ async fn startup_runner_fails_closed_without_checkpoint_and_ignores_one_field_mi
     assert_eq!(foreign_queue.state, "RUNNING");
     harness.close().await;
 }
+
+/// Operator-requested repeat-safety proof for decision
+/// WP012-STARTUP-UNCONFIRMED-COMPLETION-20261126: a pass whose COMPLETED write
+/// fails stops startup with the store error after its other effects committed,
+/// and the next pass over the same store repeats none of them. The orphan is a
+/// real child process, so the external kill runs through the production path.
+#[cfg(windows)]
+mod repeat_safety {
+    use std::{
+        os::windows::process::CommandExt,
+        path::PathBuf,
+        process::{Child, Command, Stdio},
+        time::{Duration, Instant},
+    };
+
+    use handshake_core::{
+        process_ledger::{
+            acquire_embedded_runtime_instance_lease,
+            restart_resume::{
+                AbortReportFault, BoundedRestartResumeOutcome, RestartResumeRuntimeError,
+            },
+            LedgerEvent, ProcessEngineKind, ProcessStart,
+        },
+        sandbox::{process_creation_time_100ns, HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID},
+    };
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+
+    use super::*;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    struct ChildGuard(Option<Child>);
+
+    impl ChildGuard {
+        fn pid(&self) -> u32 {
+            self.0.as_ref().expect("child present").id()
+        }
+
+        fn is_running(&mut self) -> bool {
+            self.0
+                .as_mut()
+                .expect("child present")
+                .try_wait()
+                .expect("query child state")
+                .is_none()
+        }
+
+        fn wait_exited(&mut self, timeout: Duration) -> bool {
+            let deadline = Instant::now() + timeout;
+            while Instant::now() < deadline {
+                if !self.is_running() {
+                    return true;
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            false
+        }
+    }
+
+    impl Drop for ChildGuard {
+        fn drop(&mut self) {
+            if let Some(mut child) = self.0.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+
+    fn powershell_path() -> PathBuf {
+        let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:/Windows".to_owned());
+        let path =
+            PathBuf::from(system_root).join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        assert!(path.is_file(), "required real-process executable is absent");
+        path
+    }
+
+    #[derive(SurrealValue)]
+    struct ScopeBindings {
+        owner_account_id: String,
+        actor_principal_id: String,
+        authenticated_session_id: String,
+        access_space_id: String,
+        workspace_id: String,
+    }
+
+    fn scope_bindings(scope: &ReclaimResourceScope) -> ScopeBindings {
+        let (owner, actor, session, access_space, workspace) = scope_values(scope);
+        ScopeBindings {
+            owner_account_id: owner,
+            actor_principal_id: actor,
+            authenticated_session_id: session,
+            access_space_id: access_space,
+            workspace_id: workspace,
+        }
+    }
+
+    #[derive(SurrealValue)]
+    struct NoBindings {}
+
+    const COUNT_EXACT_CHECKPOINTS: &str = r#"
+RETURN array::len(SELECT VALUE id FROM kernel_session_checkpoint
+    WHERE owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id);
+"#;
+
+    const COUNT_EXACT_REPORTS: &str = r#"
+RETURN array::len(SELECT VALUE id FROM kernel_restart_resume_report
+    WHERE owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id);
+"#;
+
+    const COUNT_EXACT_COMPLETED_REPORTS: &str = r#"
+RETURN array::len(SELECT VALUE id FROM kernel_restart_resume_report
+    WHERE owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id
+        AND fr_events_emitted CONTAINS 'FR-EVT-RESTART-RESUME-COMPLETED');
+"#;
+
+    const COUNT_MAILBOX_THREADS: &str = "RETURN array::len(SELECT VALUE id FROM role_mailbox_thread);";
+    const COUNT_MAILBOX_MESSAGES: &str =
+        "RETURN array::len(SELECT VALUE id FROM role_mailbox_message);";
+    const COUNT_IDEMPOTENCY_CLAIMS: &str =
+        "RETURN array::len(SELECT VALUE id FROM kernel_idempotency_ledger);";
+
+    async fn count<B: SurrealValue + Send + 'static>(
+        storage: &SurrealStorage,
+        statement: &'static str,
+        bindings: B,
+    ) -> i64 {
+        let counts = storage
+            .with_data_operation(|database| {
+                Box::pin(async move { database.query_values::<i64, _>(statement, bindings).await })
+            })
+            .await
+            .expect("count restart-resume repeat-safety rows");
+        match counts.as_slice() {
+            [count] => *count,
+            other => panic!("count query returned {other:?}"),
+        }
+    }
+
+    /// Every durable effect a recovery pass can repeat, read from the store.
+    #[derive(Debug, PartialEq)]
+    struct DurableEffects {
+        queues: Vec<(String, Option<String>, Option<DateTime<Utc>>)>,
+        checkpoints: i64,
+        mailbox_threads: i64,
+        mailbox_messages: i64,
+        idempotency_claims: i64,
+        lifecycles: i64,
+        open_lifecycles: i64,
+        process_events: i64,
+        orphan: (Option<DateTime<Utc>>, Option<String>, Option<i64>, Value),
+        kill_calls: usize,
+    }
+
+    async fn durable_effects(
+        harness: &ProcessLedgerSurrealHarness,
+        queues: &[RecordId],
+        orphan_uuid: Uuid,
+    ) -> DurableEffects {
+        let storage = harness.storage();
+        let scope = harness.resource_scope().clone();
+        let mut queue_rows = Vec::with_capacity(queues.len());
+        for queue in queues {
+            let row: QueueProbe = query_first(&storage, READ_QUEUE, exact_record(&scope, queue.clone()))
+                .await
+                .expect("exact-scope queue row");
+            queue_rows.push((row.state, row.claimed_by, row.lease_expires_at));
+        }
+        let orphan = harness.lifecycle(orphan_uuid).await.expect("orphan lifecycle row");
+        DurableEffects {
+            queues: queue_rows,
+            checkpoints: count(&storage, COUNT_EXACT_CHECKPOINTS, scope_bindings(&scope)).await,
+            mailbox_threads: count(&storage, COUNT_MAILBOX_THREADS, NoBindings {}).await,
+            mailbox_messages: count(&storage, COUNT_MAILBOX_MESSAGES, NoBindings {}).await,
+            idempotency_claims: count(&storage, COUNT_IDEMPOTENCY_CLAIMS, NoBindings {}).await,
+            lifecycles: harness.lifecycle_count().await,
+            open_lifecycles: harness.open_lifecycle_count().await,
+            process_events: harness.process_event_count().await,
+            orphan: (orphan.stopped_at, orphan.stop_reason, orphan.exit_code, orphan.metadata),
+            kill_calls: harness.restart_kill_calls(),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn startup_pass_with_failed_completed_write_is_repeat_safe_on_the_next_pass() {
+        let harness = ProcessLedgerSurrealHarness::open().await;
+        let storage = harness.storage();
+        let scope = harness.resource_scope().clone();
+        let bound = Duration::from_secs(60);
+
+        // Recovery fails for a checkpointed session through the one-shot operator
+        // cancel seam: decision message, recovery_failed checkpoint, FAILED queue.
+        // Seeded first, so it is the first candidate examined and consumes the cancel.
+        let cancelled = Uuid::now_v7();
+        let cancelled_queue = seed_queue(&storage, &scope, cancelled, "RUNNING").await;
+        seed_checkpoint(&storage, &scope, cancelled, 0, json!({ "counter": 1 })).await;
+        // Recovery fails for a session with no checkpoint: decision message, FAILED queue.
+        let missing = Uuid::now_v7();
+        let missing_queue = seed_queue(&storage, &scope, missing, "RUNNING").await;
+        // A resumable session whose prior boot left a real orphan child process.
+        let resumed = Uuid::now_v7();
+        let resumed_queue = seed_queue(&storage, &scope, resumed, "RUNNING").await;
+        seed_checkpoint(&storage, &scope, resumed, 0, json!({ "counter": 10 })).await;
+        seed_event(&storage, &scope, resumed, 1, json!({ "by": 5 })).await;
+        seed_event(&storage, &scope, resumed, 2, json!({ "by": 7 })).await;
+
+        let executable = powershell_path();
+        let child = Command::new(&executable)
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Start-Sleep -Seconds 600",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .expect("spawn restart orphan child");
+        let mut child = ChildGuard(Some(child));
+        let process_uuid = Uuid::now_v7();
+        let mut metadata = harness.metadata();
+        metadata["effective_executable_sha256"] = Value::String(hex::encode(Sha256::digest(
+            std::fs::read(&executable).expect("read real executable"),
+        )));
+        metadata["os_creation_time_100ns"] = Value::from(
+            process_creation_time_100ns(child.pid()).expect("capture child generation identity"),
+        );
+        metadata["sandbox_handle_id"] = Value::String(process_uuid.to_string());
+        let old_lease = acquire_embedded_runtime_instance_lease(
+            Uuid::now_v7(),
+            harness.restart_host_scope(),
+        )
+        .expect("acquire prior runtime lease before the orphan START");
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "restart-repeat-safety-orphan",
+            None,
+        )
+        .with_process_uuid(process_uuid)
+        .with_os_pid(child.pid())
+        .with_parent_session_id(resumed.to_string())
+        .with_sandbox_adapter_id(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID)
+        .with_sandbox_internal_id(process_uuid.to_string())
+        .with_runtime_owner(old_lease.descriptor().process_runtime_owner())
+        .with_metadata_jsonb(metadata);
+        harness
+            .write_batch(vec![LedgerEvent::Start(start)])
+            .await
+            .expect("seed orphan START");
+        drop(old_lease);
+        assert!(child.is_running());
+
+        // First pass: every effect commits, then the COMPLETED write fails and
+        // startup stops with the store error.
+        let first = harness.restart_runner().await;
+        first.arm_operator_cancel_before_resume();
+        first.arm_completed_report_fault_for_test(AbortReportFault::PersistenceFailure);
+        match first.run_with_bound(bound).await {
+            Err(RestartResumeRuntimeError::Store(_)) => {}
+            other => panic!("a failed COMPLETED write must stop startup with the store error: {other:?}"),
+        }
+        drop(first);
+        assert!(
+            child.wait_exited(Duration::from_secs(10)),
+            "the first pass killed the real orphan child"
+        );
+        let queues = [cancelled_queue, missing_queue, resumed_queue];
+        let first_effects = durable_effects(&harness, &queues, process_uuid).await;
+        assert_eq!(first_effects.queues[0].0, "FAILED");
+        assert_eq!(first_effects.queues[1].0, "FAILED");
+        assert_eq!(first_effects.queues[2].0, "RETRY_SCHEDULED");
+        assert_eq!(first_effects.kill_calls, 1, "the first pass killed the orphan once");
+        assert!(first_effects.orphan.0.is_some(), "the orphan has a durable STOP");
+        assert_eq!(first_effects.orphan.1.as_deref(), Some("reclaim"));
+        assert_eq!(first_effects.open_lifecycles, 0);
+        assert_eq!(first_effects.mailbox_threads, 2, "one decision thread per failed session");
+        assert_eq!(first_effects.mailbox_messages, 2, "one decision message per failed session");
+        assert_eq!(
+            first_effects.checkpoints, 4,
+            "two seeded checkpoints, one post_failure and one recovery_failed"
+        );
+        let resumed_checkpoint = latest_checkpoint(&storage, &scope, resumed)
+            .await
+            .expect("resumed checkpoint");
+        assert_eq!(resumed_checkpoint.state_kind, "post_failure");
+        assert_eq!(resumed_checkpoint.compact_state["counter"], 22);
+        assert_eq!(resumed_checkpoint.last_event_ledger_seq, 2);
+        let cancelled_checkpoint = latest_checkpoint(&storage, &scope, cancelled)
+            .await
+            .expect("cancelled checkpoint");
+        assert_eq!(cancelled_checkpoint.state_kind, "recovery_failed");
+        assert_eq!(count(&storage, COUNT_EXACT_REPORTS, scope_bindings(&scope)).await, 0);
+
+        // Second pass over the same store: it completes normally and repeats nothing.
+        let second = harness
+            .restart_runner()
+            .await
+            .run_with_bound(bound)
+            .await
+            .expect("the repeated recovery pass completes normally");
+        let report = match second {
+            BoundedRestartResumeOutcome::Completed(report) => report,
+            other => panic!("the repeated recovery pass must complete: {other:?}"),
+        };
+        assert_eq!(report.sessions_examined, 0);
+        assert!(report.sessions_resumed.is_empty());
+        assert!(report.sessions_recovery_failed.is_empty());
+        assert!(report.orphan_reclaims.is_empty());
+        assert!(report.operator_decision_requests.is_empty());
+        assert_eq!(
+            report.fr_events_emitted,
+            [
+                "FR-EVT-RESTART-RESUME-STARTED",
+                "FR-EVT-RESTART-RESUME-COMPLETED",
+            ]
+        );
+        assert_eq!(
+            durable_effects(&harness, &queues, process_uuid).await,
+            first_effects,
+            "the repeated pass adds no resume, kill, STOP, mailbox message or checkpoint"
+        );
+        assert_eq!(
+            count(&storage, COUNT_EXACT_COMPLETED_REPORTS, scope_bindings(&scope)).await,
+            1,
+            "only the repeated pass left a COMPLETED report"
+        );
+        drop(storage);
+        harness.close().await;
+    }
+}

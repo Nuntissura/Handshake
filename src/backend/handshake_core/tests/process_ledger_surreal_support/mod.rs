@@ -31,6 +31,7 @@ pub struct ProcessLedgerSurrealHarness {
     scope: ReclaimResourceScope,
     restart: Arc<RestartResources>,
     restart_faults: Mutex<Vec<Arc<BlockingScopedKill>>>,
+    restart_kill_calls: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl ProcessLedgerSurrealHarness {
@@ -58,6 +59,7 @@ impl ProcessLedgerSurrealHarness {
             scope,
             restart,
             restart_faults: Mutex::new(Vec::new()),
+            restart_kill_calls: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }
     }
 
@@ -79,6 +81,11 @@ impl ProcessLedgerSurrealHarness {
         self.restart.lease().descriptor().host_scope_id.clone()
     }
 
+    /// External kills requested by every restart runner this harness built.
+    pub fn restart_kill_calls(&self) -> usize {
+        self.restart_kill_calls.load(std::sync::atomic::Ordering::Acquire)
+    }
+
     pub async fn restart_runner_with_fault(&self, fault: Option<Arc<BlockingScopedKill>>) ->
         handshake_core::process_ledger::restart_resume::SurrealRestartResumeRunner {
         if let Some(fault) = &fault {
@@ -88,6 +95,7 @@ impl ProcessLedgerSurrealHarness {
             Arc::new(handshake_core::sandbox::build_startup_recovery_registry_async().await);
         let killer = Arc::new(FixtureScopedKill {
             production: ProductionSandboxKill::with_registry(self.storage.clone(), registry), fault,
+            kill_calls: self.restart_kill_calls.clone(),
         });
         let reclaim = ScopedReclaim::new(self.store.clone(), killer,
             Arc::new(self.restart.ledger.ledger()));
@@ -265,12 +273,14 @@ impl BlockingScopedKill {
 struct FixtureScopedKill {
     production: ProductionSandboxKill,
     fault: Option<Arc<BlockingScopedKill>>,
+    kill_calls: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 #[async_trait::async_trait]
 impl ScopedSandboxKill for FixtureScopedKill {
     async fn kill(&self, scope: &ReclaimResourceScope, process_uuid: Uuid,
         kill_operation_uuid: Uuid) -> Result<(), KillError> {
+        self.kill_calls.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         if let Some(fault) = &self.fault {
             if fault.scope == *scope && fault.process_uuid == process_uuid {
                 *fault.operation.lock().expect("scoped fault operation lock") = Some(
