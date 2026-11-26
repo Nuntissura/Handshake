@@ -12389,5 +12389,34 @@
     ],
     "refactor_exposure": "none: shared core, bootstrap and manifest import path reconciliation; nothing moves to the Vulkan shell from this MT.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "cargo_cleanup_execution_20261126": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-26",
+    "operator_decisions": [
+      {
+        "question": "How should the cargo target cap be unblocked?",
+        "operator_quote": "Delete stale builds"
+      },
+      {
+        "question": "Remove exactly the listed plan-C sets and D1-D2 chains?",
+        "operator_quote": "Approved",
+        "list": "Handshake_Artifacts/WP-KERNEL-012/cargo-cleanup-20261125/approval-list-20261126.json"
+      }
+    ],
+    "fresh_inspection": "removal script sha256 fc398cdd... verified; Cargo.lock, Cargo.toml, rust-toolchain.toml and .cargo unchanged since the plan; preflight C 29 sets 227 files 25,742,083,024 bytes and D1-D2 4 chains 12,042 files 28,595,342,491 bytes with no drift; 1,018 records written since the plan name none of the 41 unit hashes",
+    "execution": {
+      "plan_C": "removed 2026-11-26T13:25Z, 25,742,083,024 apparent bytes; log removal-log-WP012-CARGO-CLEANUP-20261125-PLAN-C-20261126T132547Z.jsonl",
+      "plan_D_D1_D2": "first attempt refused by the script's compiler guard (cargo running); retrying at the next compiler-free gap",
+      "log": "Handshake_Artifacts/WP-KERNEL-012/cargo-cleanup-20261125/execution-20261126.log"
+    },
+    "kept": [
+      "plan A validator target (2026-10-10 preservation clause)",
+      "plan B sccache",
+      "plan D3",
+      "record-named first-party sets",
+      "hashless debug bin outputs",
+      "cargo registry cache"
+    ]
   }
 }

@@ -4897,5 +4897,25 @@
       "the Member path through authenticate_local_session",
       "read-side undefined fields (only scanned roughly)"
     ]
+  },
+  "sc4_reindex_guard_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet, finishing an Opus agent's draft stopped by the usage limit); named check verified by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "picotask": "SC-4 loom_search REINDEX NONE guard (code only; the item's schema fields stay in revision 172, SC-6)",
+    "commit": "fda3f89ff817c33ec636a699b0963d4aaf51a168 (only src/backend/handshake_core/src/storage/surreal/loom_search.rs)",
+    "site": "loom_search.rs:480, REINDEX_QUERY $existing SELECT",
+    "failure": "SurrealDB 3.2.0 record::id takes a RecordId only (surrealdb-core fnc/record.rs:32) and rejects NONE, so reindexing a block whose index row has no receipt aborted the transaction",
+    "fix": "IF index_event_id = NONE { NONE } ELSE { record::id(index_event_id) } AS index_event_id; the other record::id(index_event_id) sites (515, 524 RETURNs on the receipt-checked path; 565 the search read) untouched, as the spec names only $existing",
+    "draft_review": "the Sonnet coder found the stopped agent's draft correct and changed nothing",
+    "test": "reindex_unattributed_index_row_tests::reindex_replaces_an_index_row_without_receipt_and_keeps_stored_receipt_ids: production SurrealLoomSearchStore::reindex_block as the account record user inside the Loom session receipt scope, embedded store with the full production schema; one attributed row written by the production reindex and one row with index_event_id NONE imported under OPTION IMPORT (the current schema forbids it); asserts the unattributed reindex succeeds and replaces the row with an attributed one, stored receipt ids and ledger event correct, unchanged reruns return changed:false with the same ids; fails at its expect on the old text",
+    "compile_runs": {
+      "compile-check-20261126-17": "ITERATION on the draft: exit 0, inputs unchanged, no new warnings",
+      "compile-check-20261126-19": "unmodified launcher (005406f6...) on fda3f89ff: exit 0, inputs_unchanged true, dirty none, peak 208,195,431,005 bytes, 42m04s, cargo.log sha256 90b787308f4e4c39591c4d7aaafdecacb3ed5653562fa4a90a04b103c7e87acf; verified by the orchestrator"
+    },
+    "files_touched": {
+      "loom_search.rs": "MT-173",
+      "waiver": "none needed"
+    },
+    "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/reindex_unattributed_index_row_tests/)' (exactly 1 test; batch with the pending MT-172 and MT-173 evals)"
   }
 }
