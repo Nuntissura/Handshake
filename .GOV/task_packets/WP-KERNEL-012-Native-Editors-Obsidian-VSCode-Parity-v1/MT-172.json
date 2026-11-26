@@ -13704,5 +13704,77 @@
     "junit_sha256": "82953a6840fd6fa9e8f40af3a715d01d3b8dd983b2c8613873966a7de7069871",
     "result_sha256": "43d2b4f5334f27a9d40bce2c72e9fdb2a2aa7c7fdda0b5b804941ae96e1e5f32",
     "next": "coder: D, E, F and the cancelled-pass COMPLETED observation; then the same three targets once"
+  },
+  "owning_tests_eval_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "run_id": "WP012-MT172-EVAL-RECLAIM-20261126-01",
+    "commit": "3abee6f9f21d1064217fd0c2fb95b7400bee2081",
+    "tree": "7269a48693fa1e54db876a3b1784a5932dc95d47",
+    "inputs_unchanged": true,
+    "result": "36 run, 35 passed, 1 failed, 0 timeouts; build 40m13s, tests 838 s",
+    "per_target": {
+      "process_ledger_surreal_tests": "13/13",
+      "process_reclaim_real_lifecycle_surreal_tests": "22/22",
+      "restart_resume_boot_bound_surreal_tests": "0/1"
+    },
+    "history": "e6f0d3b11 5/36; e4fa41e8c 30/36; 3abee6f9f 35/36",
+    "failure": {
+      "test": "restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker",
+      "at": "tests/restart_resume_boot_bound_surreal_tests.rs:140-152",
+      "cause": "test binds $session, a protected SurrealDB 3.2.0 variable (surrealdb-core cnf/mod.rs:23); test bug since b41df6a94, never reached before",
+      "class": "test"
+    },
+    "log_sha256": "419d0ba257819617abbe40b78fe7d893c3ba59acfa67e881644c33d87d255b4f",
+    "junit_sha256": "d00fade71fddec29f53d82450212c909eeec8a51bc81ffd3249ec74ea8971418",
+    "result_sha256": "ecf15d148b1e287eda204dd1546df34d4249ef70296b843ea5ae4d5dd311b39c",
+    "review": {
+      "D": "correct and strict; hides no production mismatch",
+      "E": "safe: conflicts write nothing, committed claims never replayed, bounded at 10 attempts, no lease stealing",
+      "F": "fault switch on its path; no cancelled or timed-out pass writes COMPLETED",
+      "tests_weakened": "none",
+      "findings": [
+        {
+          "id": "R3-1",
+          "severity": "medium-high",
+          "at": "process_ledger/restart_resume.rs:514-529",
+          "defect": "the COMPLETED write gets a fixed 1 s instead of the remaining boot bound; under load a write that would succeed aborts startup; departs from the routed budget directive",
+          "repair": "timeout_at(max(deadline, now + grace))"
+        },
+        {
+          "id": "R3-2",
+          "severity": "medium",
+          "defect": "the blocked-kill scenario (100 ms bound, no false STOP) never ran because of the test bug"
+        },
+        {
+          "id": "R3-3",
+          "severity": "medium",
+          "defect": "no test checks that a TimedOut pass leaves no durable COMPLETED report; the new error branch is untested"
+        },
+        {
+          "id": "R3-4",
+          "severity": "low-medium",
+          "at": "process_ledger/reclaim.rs:49-59; storage/surreal/retry.rs:118-142,211-218",
+          "defect": "retry check matches only 'Resource busy'; misses RocksDB TryAgain and TransactionCommit conflicts; the shared retry module handles both and names reclaim.rs as a loop to migrate"
+        },
+        {
+          "id": "R3-5",
+          "severity": "low, pre-existing",
+          "at": "storage/surreal/process_ledger.rs:2647-2649",
+          "defect": "a kill_succeeded_pending_stop row can be claimed without its lease expiring"
+        },
+        {
+          "id": "R3-6",
+          "severity": "low",
+          "at": "process_ledger/restart_resume.rs:534",
+          "defect": "a pass finishing exactly at the deadline drops its real report"
+        }
+      ]
+    },
+    "unacknowledged_completion": {
+      "choice": "error (startup aborts), not TimedOut",
+      "eval_view": "right class; consistent with PT019, MT-019 F3 and runtime.rs fail-closed text; no conflict with the resilient-boot decision (only kill failure is fail-open)",
+      "operator_confirmation": "changes this case from continue to abort startup; PT019 preserves startup decisions"
+    }
   }
 }
