@@ -1434,5 +1434,20 @@
       "device loss and unavailable state",
       "non-coherent memory"
     ]
+  },
+  "slice2_remediation2_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice2_eval2_20261126 S2-F3 (still partly open) and the owner side of MT-214 SF-2",
+    "commit": "dc61ad3f5",
+    "fixes": {
+      "S2-F3": "owner/lifecycle.rs: the close lock is held only to change the close state; drain and destruction run with no lock; a concurrent close returns DeviceFate::Closing and a rebind returns Closed; close stays single-shot and a timed-out device is still kept; test bound_tests::a_close_that_drains_keeps_no_other_call_waiting",
+      "SF-2_owner_side": "new OwnerSurface::prove_presents (acquire back with timeout 0); retirement rule extended: a swapchain whose every presented image came back after its last present ends without a successor (R4-D1 in MT-214)"
+    },
+    "implementer_checks": {
+      "check and clippy --all-targets -D warnings": "exit 0 (MT-203/gui-agent/logs/check-e4-2.log, clippy-e4-1.log)",
+      "tree": "no banned crates (MT-203/gui-agent/logs/tree-e4-1.log)"
+    },
+    "tests": "nothing run; independent run pending"
   }
 }

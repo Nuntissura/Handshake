@@ -1491,5 +1491,47 @@
       "device loss and the unavailable state",
       "real DPI and occlusion"
     ]
+  },
+  "remediation4_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice1_eval4_20261126 (E4-F1..F4) and slice2_eval_20261126 (SF-1, SF-2); all confirmed in code first, none refuted",
+    "commit": "29763b430 (window and surface crates); owner side of SF-2 in MT-203 commit dc61ad3f5",
+    "fixes": {
+      "E4-F1": "window/tests/support/mod.rs uses the unnamed window station (CreateWindowStationW(NULL, 0, ...)), no elevation; a named mutex runs one clipboard test of the session at a time; the station's clipboard is emptied at the end; the test fails if WinSta0's clipboard sequence changed; UNVERIFIED until test_clipboard runs",
+      "E4-F2": "a close command is credited only if the system sent it while handling the gesture or the handling posted it (an SC_CLOSE first in the queue right after, not there before); tests: unit a_gesture_that_made_no_command_lends_nothing_to_anybody_elses, the matching closing.rs test, quiet_tests::f4_alone_makes_no_close_command_and_lends_nothing_to_a_posted_one on a real private-desktop queue; dragged-off close button unit-only (needs a held mouse button)",
+      "E4-F3": "Microsoft docs for GetClipboardData, WM_RENDERFORMAT and Clipboard Operations name no bound on the render wait; the copy is made on a keeper thread waited for 250 ms at most; a hung owner makes the write clipboard.busy; R3-D1 kept; test_clipboard step 4 hangs the other program 3 s and requires the write to return within 1 s",
+      "E4-F4": "dead marker check removed (every marker is a registered format and already not plain text); the step-3 claim removed",
+      "SF-1": "surface/tests/frame_loop.rs posts mouse, key, focus and kill-focus messages and moves the window during idle; requires the events to arrive, no host-requested frame and no submission beyond OS exposures",
+      "SF-2": "on close without maintenance1 the presenter makes a successor swapchain, presents once before the hide, then calls OwnerSurface::prove_presents until proven (acquire timeout 0, wait capped at 2 s, no device-wide wait); a missed cap counts in PresentReport::closes_unproven; maintenance1 path unchanged; tests: closing test requires the window destroyed before shutdown, windows_opened_and_closed_one_after_another_leave_no_swapchain_behind (6 cycles), hosted case a_surface_proven_before_release_lets_its_window_go, retire.rs unit tests"
+    },
+    "deviations_to_review": [
+      {
+        "id": "R4-D1",
+        "what": "SF-2 extra rule: a swapchain whose every presented image came back after its last present ends without a successor"
+      },
+      {
+        "id": "R4-D2",
+        "what": "E4-F3 keeper thread calls SetThreadDesktop to the loop thread's desktop; test_focus_ban allows exactly that one call; windows-sys feature Win32_System_StationsAndDesktops added; Cargo.lock unchanged"
+      },
+      {
+        "id": "R4-D3",
+        "what": "read() still renders promised text on the loop thread (accepted in its docs; same hazard as E4-F3)"
+      }
+    ],
+    "implementer_checks": {
+      "check and clippy --all-targets -D warnings": "exit 0, no warnings (MT-214/gui-agent/logs/e4-check-1.log, e4-clippy-1.log)",
+      "tree": "no egui, eframe, wgpu, glow or kumihimo (MT-214/gui-agent/logs/e4-tree-1.log)",
+      "toolchain_note": "rust-toolchain.toml resolves to aarch64 on this machine; RUSTUP_TOOLCHAIN=1.97.1-x86_64-pc-windows-msvc must be set",
+      "vctip": "none left running"
+    },
+    "tests": "nothing run; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "whether Windows sends or posts SC_CLOSE for Alt+F4 and the close button",
+      "whether this driver gives back the last-presented image of a hidden window (if not, the SF-2 tests fail and closes count unproven)",
+      "maintenance1 path",
+      "a hung clipboard owner on the Operator's desktop",
+      "if the clipboard sequence only rises at CloseClipboard after a delayed render, promised text is never kept (fails safe)"
+    ]
   }
 }

@@ -1031,5 +1031,99 @@
       "sleep and resume",
       "the GPU stall path"
     ]
+  },
+  "slice2_eval_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-215 slice 2; not an MT verdict; lifecycle unchanged",
+    "commit": "e29ca7cff",
+    "method": "archived copy, blobs matched before and after (tree digest 5e14fa88...); private desktops; ARM64 with x64 emulation; 8 of 8 expected mutations caught, 1 mutation showed a scan gap",
+    "result": "failed: 50 of 51 (ui_heartbeat 41 passed 1 failed; handshake_shell 9 of 9, heartbeat_present ran on the device)",
+    "files": {
+      "eval-summary-e29ca7cff.json": "ec73a9900e90cd701110dcb9e3b538016c017a0a8801540031d8f7acfaf64643",
+      "eval-run-e29ca7cff-ports.log": "88c419ee6a4bde08f0f57638afd01ddc33e486e92844786d94286fca8ad688ef",
+      "eval-run-e29ca7cff-shell.log": "6b14b1210cecbcf02b30916fd247cecaa63dd298dd1ac867908f9be672518563",
+      "folder": "Handshake_Artifacts/WP-KERNEL-012/MT-215/eval-agent/ (mutation-e29ca7cff-*.json, probe-e29ca7cff/)"
+    },
+    "findings": [
+      {
+        "id": "E1",
+        "severity": "medium",
+        "at": "test_watcher_agreement.rs:224-234 (fails at :230, reproduced)",
+        "defect": "F3's WAKE_DELAY 100 ms (lib.rs:104) puts the last beat of Desk::running at 1905 ms, after the watcher's last poll at 1805 ms, so the poll after the 3600 s jump reads Healthy",
+        "repair": "poll once to sync the watcher just before clock.advance"
+      },
+      {
+        "id": "E2",
+        "severity": "high",
+        "at": "port.rs:239-251",
+        "defect": "beats withheld while the loop is alive; departs from AC215-6",
+        "repair": "see ac215_6_stall_decision"
+      },
+      {
+        "id": "E3",
+        "severity": "medium",
+        "at": "source_scan.rs:14,78-95",
+        "defect": "the single-publisher scan misses publishers: an added HeartbeatSink::publish call in shell/src/lib.rs passed (mutation S4); a second UiHeartbeat, ShellHeartbeat or DiagRingWriterV2 on the same ring and members outside hard-coded folders are invisible",
+        "repair": "HeartbeatSink::publish takes a token only the port can make; refuse a second ShellHeartbeat per loop at runtime; scan every manifest member"
+      },
+      {
+        "id": "E4",
+        "severity": "low",
+        "at": "events.rs:37-58; diag_ring schema.rs:292-312",
+        "defect": "the stall event puts the last beat counter into SlowFrame counter_a, which is defined as a frame index",
+        "repair": "typed-addition request to the diag_ring owner under AC215-10"
+      },
+      {
+        "id": "E5",
+        "severity": "low",
+        "at": "test_port_rules.rs:645-651",
+        "defect": "unbounded loop: under mutation P5 it grew until a 32 GiB allocation aborted after about 6 minutes",
+        "repair": "bound the loop; add per-test timeouts (F5 rest)"
+      },
+      {
+        "id": "E6",
+        "severity": "low",
+        "at": "window/src/platform/wake.rs:298-306; surface/src/watch.rs:59-86",
+        "defect": "the shell beat path takes the lane-slot mutex shared with the pool timer thread and each PresentWatch mutex; bounded and no allocation found by reading, but not wait-free and no allocation test covers ShellHeartbeat",
+        "repair": "allocation test for ShellHeartbeat; consider wait-free reads"
+      },
+      {
+        "id": "E7",
+        "severity": "low",
+        "defect": "shell tests remove ring files only on success; three left in MT-214/eval-agent/target/tmp (inside the artifact root)",
+        "repair": "remove on every exit path"
+      }
+    ],
+    "prior_findings": {
+      "F1": "closed for the shell (mutation S1 caught)",
+      "F2": "closed (mutation P1 caught; native has_ring_writer uses get, recorder.rs:325)",
+      "F3": "closed by const assert but caused E1; one real-loop gap of 315.6 ms seen (S3 run, emulated)",
+      "F4": "closed (P2, P3 caught)",
+      "F5": "partly (E5, E7)",
+      "HB-7": "closed on the shell path: DispatchedWake constructed only inside the window crate, per-lane secret mask and lane check (P4, S2 caught); scan gaps in E3 remain"
+    },
+    "revoke_assumption": "verified: ledger refuses a revoked claim (ledger.rs:252), the refusal stops the frame (decide.rs:159-169) and the frame keeps waiting (frame.rs:105-109); S3 report shows last_error Frame(NotAuthorized(Revoked)); models a refusal, not a real GPU hang",
+    "ac215_6_stall_decision": {
+      "decision": "not permitted; the literal AC215-6 holds",
+      "reasons": [
+        "AC215-6 is unconditional and no Operator-approved contract change for HB-1 or HB-4 is recorded in MT-215.json or packet.json",
+        "spec 5.8.2 defines the heartbeat as UI-thread liveness; GUI-DESKTOP-049 routes Vulkan failures through typed internal_diagnostics events",
+        "Palmistry turns Suspected into a debug log line only (palmistry/src/main.rs:679-686), so withholding beats barely surfaces a stall, makes Suspected ambiguous and inflates stale_ms if the UI thread later hangs",
+        "a watcher needs two independent signals: heartbeat stale with the window not responding is a frozen UI thread; heartbeat fresh plus a typed stall event is a stalled present"
+      ],
+      "repair": "on_wake always publishes; keep one Degraded and one Recovered event per stall; drop Withheld and after_withheld; update docs and the three stall tests; event code per E4",
+      "operator_route": "if Palmistry should actively flag present stalls, that is a contract change for HB-1 and HB-4 to put to the Operator"
+    },
+    "operator_safety": "pass over 12 runs: no run window foreground, active, focused or capturing; clipboard sequence stayed 95; cursor never clipped; no Operator input during a run; desktops and window stations unchanged; one session lock at 08:16:46 before a run",
+    "build_side_effect": "11 vctip.exe processes outlived the eval's builds; each stopped only after creation time and parent chain (vctip > link > rustc > the eval's cargo) proved the eval's build started it; no run left a process behind",
+    "needs_native_x64_and_real_desktop": [
+      "250 ms cadence when idle, minimised, occluded or throttled",
+      "present stalls from a real GPU hang and false stalls on occluded windows",
+      "Palmistry attached to the real process with a real hung-window probe",
+      "sleep and resume",
+      "drivers on the real desktop",
+      "seqlock fences on native ARM64"
+    ]
   }
 }
