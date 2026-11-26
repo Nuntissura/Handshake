@@ -319,3 +319,31 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
     );
     harness.close().await;
 }
+
+#[tokio::test]
+async fn restart_resume_completed_pass_counts_one_report_and_gets_the_remaining_bound() {
+    let harness = ProcessLedgerSurrealHarness::open().await;
+    let bound = Duration::from_secs(30);
+    assert_eq!(exact_scope_completed_reports(&harness).await, 0);
+    // R4-3 positive control for the COMPLETED-count query: a pass that does
+    // complete counts exactly one durable COMPLETED report.
+    let outcome = harness
+        .restart_runner()
+        .await
+        .run_with_bound(bound)
+        .await
+        .expect("an unfaulted bounded pass completes");
+    match &outcome {
+        BoundedRestartResumeOutcome::Completed(report) => assert!(report
+            .fr_events_emitted
+            .iter()
+            .any(|event| event == "FR-EVT-RESTART-RESUME-COMPLETED")),
+        other => panic!("an unfaulted pass inside a 30 s bound must complete: {other:?}"),
+    }
+    assert_eq!(
+        exact_scope_completed_reports(&harness).await,
+        1,
+        "a pass that completes leaves exactly one durable COMPLETED report"
+    );
+    harness.close().await;
+}
