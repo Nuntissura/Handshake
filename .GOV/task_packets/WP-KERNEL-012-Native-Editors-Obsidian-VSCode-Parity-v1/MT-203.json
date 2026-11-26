@@ -1279,5 +1279,98 @@
       "a closed window's surface may be held until a later present or owner close when no present proof exists"
     ],
     "tests": "compiled, not run; independent run pending"
+  },
+  "slice2_eval_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-203 slice 2; not an MT verdict; lifecycle unchanged",
+    "commit": "992ca2b34068931a3787aaaba5b23ef126edd04c",
+    "crate_tree": "dd2003956",
+    "result": "failed (one product test, plus an unsound retirement proof)",
+    "counts": {
+      "lib": 46,
+      "clients": 15,
+      "device_loss": 13,
+      "gpu_owner": "9 (+1 ignored)",
+      "harness": 4,
+      "ledger": 18,
+      "resources": "4 passed, 1 failed",
+      "selection": 7,
+      "shutdown": 7
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/cargo-test-992ca2b34.log",
+    "log_sha256": "542d9e8559788612c44bc7abfe48eb8f475eafecd2db175ecba6ac015803b041",
+    "validation_layer": "not installed on this machine (no Khronos layer registered, VULKAN_SDK unset)",
+    "findings": [
+      {
+        "id": "S2-F1",
+        "severity": "product failure",
+        "at": "vulkan/resources.rs:435,455; tests/resources.rs:147",
+        "defect": "host reads and writes are bounded by the allocator block size (gpu-alloc rounds up to a power of two) instead of the buffer size, so they reach past the VkBuffer"
+      },
+      {
+        "id": "S2-F2",
+        "severity": "medium",
+        "at": "present/retire.rs:43,70-74; present.rs:22-25",
+        "defect": "without maintenance1 a retired swapchain is treated as done when any window's later acquire fence signals; presentation is outside queue operations and present order is per swapchain only, so window B can destroy window A's swapchain while A's image may still be held (VUID-vkDestroySwapchainKHR-swapchain-01282)"
+      },
+      {
+        "id": "S2-F3",
+        "severity": "low-medium",
+        "at": "memory.rs:167,414; resources.rs:186,193; release.rs:21-25,46-50",
+        "defect": "E3-1 not fully closed: the memory lock is held across vkAllocateMemory and vkMapMemory and taken by look; may_release and reap run look under the slot lock, including vkDestroySwapchainKHR"
+      },
+      {
+        "id": "S2-F4",
+        "severity": "low-medium",
+        "at": "present.rs:373-387; device.rs:277",
+        "defect": "a Frame is accepted as an image target in a plain submit that does not wait on the acquire semaphore and does not update last_use"
+      },
+      {
+        "id": "S2-F5",
+        "severity": "low-medium",
+        "at": "frames.rs:137-202",
+        "defect": "one surfaces lock per generation held across submit and vkQueuePresentKHR; a FIFO-blocking present stalls every window's acquire"
+      },
+      {
+        "id": "S2-F6",
+        "severity": "low",
+        "defect": "present OOM marks the image presented with a never-signalling proof fence; create_fence().ok() presents without proof; budget refusal silently moves to the next memory type; swapchain memory not charged; SurfaceTarget dropped under owner locks; stranded semaphores grow; caller-supplied from-layout trusted"
+      }
+    ],
+    "closed": [
+      "E3-2: outbox neither reorders, drops nor duplicates; the ledger emits after releasing its lock (doc error: events may be delivered on another thread)",
+      "semaphore use matches the Khronos swapchain semaphore reuse guide",
+      "acquire timeout 0 and recreate with oldSwapchain correct",
+      "no ash type in the public API"
+    ],
+    "dependency": "gpu-alloc 0.6.2 acceptable: MIT OR Apache-2.0, checksum matches, used by wgpu-hal 27.0.4, single maintainer, no RustSec advisory found; Cargo.lock added only bitflags 2.13.2, gpu-alloc, gpu-alloc-types",
+    "tests_that_cannot_fail_for_their_rule": [
+      "no test exercises the lane-held event path",
+      "second clear probably cannot detect a missing invalidate on this memory type",
+      "probe and extent tests check pure functions only",
+      "presentation test checks the extension list only"
+    ],
+    "untested": [
+      "OtherGeneration",
+      "OverBudget",
+      "LayoutInvalid",
+      "BufferTooSmall",
+      "UsageMissing"
+    ],
+    "coverage": {
+      "AC203-2..5": "partly",
+      "AC203-6": "not in slice",
+      "AC203-7": "event port only",
+      "AC214-3": "code only, retirement proof unsound"
+    },
+    "needs_window_host_and_native_x64": [
+      "present loop, resize, minimise/restore, dropped frame, surface release, multiwindow retirement",
+      "maintenance1 versus acquire-fence path",
+      "stalled presents, loss with a surface",
+      "validation layers including sync validation",
+      "discrete heaps, budget spill, bufferImageGranularity above 1, non-coherent readback memory"
+    ],
+    "next_actor": "GUI coding agent: repair S2-F1..F6 and the named tests"
   }
 }
