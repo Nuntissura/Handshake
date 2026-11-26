@@ -504,14 +504,15 @@ impl SurrealRestartResumeRunner {
 
     /// Runs one pass under `timeout`. The bound cancels only the pass body, which
     /// never writes the COMPLETED report: a report write already handed to the
-    /// embedded engine can still commit after its caller future is dropped. The
-    /// COMPLETED report is written only for a pass that finished strictly inside
-    /// the bound; that write is part of the primary run, so it is awaited until the
-    /// bound's deadline and, only if the deadline passes first, for the report grace
-    /// (the routed budget: primary run deadline, then only on timeout the 1 s
-    /// report grace). An unconfirmed COMPLETED write is an error, never `TimedOut`.
-    /// So a pass the bound cancels never commits COMPLETED, and `TimedOut` never
-    /// coexists with a COMPLETED report of the same pass.
+    /// embedded engine can still commit after its caller future is dropped. A pass
+    /// is inside the bound when it finished at or before the deadline, read at the
+    /// moment the pass returned; such a pass keeps its real report, and only it
+    /// writes COMPLETED. That write is part of the primary run, so it is awaited
+    /// until the bound's deadline and, only if the deadline passes first, for the
+    /// report grace (the routed budget: primary run deadline, then only on timeout
+    /// the 1 s report grace). An unconfirmed COMPLETED write is an error, never
+    /// `TimedOut`. So a pass the bound cancels never commits COMPLETED, and
+    /// `TimedOut` never coexists with a COMPLETED report of the same pass.
     pub async fn run_with_bound(
         &self,
         timeout: Duration,
@@ -523,15 +524,22 @@ impl SurrealRestartResumeRunner {
         let deadline = now
             .checked_add(timeout)
             .unwrap_or_else(|| now + Duration::from_secs(86_400 * 365 * 30));
-        match tokio::time::timeout_at(deadline, self.resume_pass(&[])).await {
-            Ok(Ok(report)) if tokio::time::Instant::now() < deadline => {
+        // The finish instant is read inside the bounded future, so the boundary is
+        // judged when the pass returned, not when this caller next runs.
+        let pass = async {
+            let result = self.resume_pass(&[]).await;
+            (result, tokio::time::Instant::now())
+        };
+        match tokio::time::timeout_at(deadline, pass).await {
+            Ok((Ok(report), finished_at)) if finished_at <= deadline => {
                 self.write_completed_report_within(report, timeout, deadline)
                     .await
             }
-            Ok(Err(error)) => Err(error),
-            // The pass did not finish strictly inside the bound (for a zero bound it
-            // never does), or it was cancelled; its COMPLETED report was never written.
-            Ok(Ok(_)) | Err(_) => {
+            Ok((Err(error), _)) => Err(error),
+            // The pass finished after the deadline (a zero bound admits no pass that
+            // takes any time), or the bound cancelled it; its COMPLETED report was
+            // never written.
+            Ok((Ok(_), _)) | Err(_) => {
                 let mut report = empty_report(started_at_utc, started.elapsed());
                 emit_report_event(&mut report, FrEventId::RestartResumeStarted);
                 let evidence_persisted = match tokio::time::timeout(
