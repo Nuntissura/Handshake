@@ -978,5 +978,58 @@
       "shutdown acknowledgement"
     ],
     "arm64_note": "the seqlock lacks fences for native ARM64 (existing)"
+  },
+  "slice2_implementation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "slice": "S2 adapter: the UI heartbeat bound to the shell's loop and present path",
+    "commit": "e29ca7cff",
+    "paths": "src/frontend/handshake_host_ports/ui_heartbeat/** and src/frontend/handshake_shell/{Cargo.toml,Cargo.lock,shell/**}; verified by git diff --name-only 8e565bfa1 e29ca7cff; no src/backend or .GOV",
+    "fixes": {
+      "F1": "loop contract requires an accepted wake to be re-posted until dispatched, bounded (ui_heartbeat/src/wake.rs:50); the shell binding sits on the window crate's wake lane which already does this (shell/src/heartbeat.rs:47-77)",
+      "F2": "RecorderHeartbeat writes nothing until has_ring_writer reports the writer installed (sink.rs:101-115); an early beat no longer creates a writerless recorder (recorder.rs:203) and does not allocate",
+      "HB-7": "on_wake takes the loop's own proof of dispatch, not a ticket (wake.rs:70,88; port.rs:219), and ignores wakes the loop does not vouch for; in the shell that proof is the window crate's DispatchedWake plus a lane check (heartbeat.rs:74,122); sinks own their ring writers by value; a source scan enforces one heartbeat publisher",
+      "F3": "WAKE_DELAY 100 ms with a const assert leaving room for 16 ms timer granularity and a 125 ms handler (lib.rs:104-111)",
+      "F4": "at most 4 wakes outstanding (port.rs:435); LoopClosed stops the port for good (port.rs:465)",
+      "F5": "partly: test ring files in the target's tmp folder in the artifact root (tests/support/mod.rs:41); per-test timeouts need nextest runner config outside the allowed paths"
+    },
+    "adapter": "ShellHeartbeat in new crate src/frontend/handshake_shell/shell (package handshake_shell, MT-214's composition crate), because the contract says the shell depends on the ports and the ports depend only on diag_ring; watches every presenting window's PresentWatch (at most 16, typed overflow)",
+    "reports": {
+      "frozen_ui_thread": "heartbeat goes stale; Palmistry confirms a freeze",
+      "present_stall": "a frame wanted 2 s with no present withholds beats while the window answers; Palmistry reports Suspected; one SlowFrame event (phase Degraded) at stall start and one (Recovered) at its end"
+    },
+    "outside_ui_heartbeat": "shell workspace Cargo.toml (new member) and Cargo.lock (+84 lines, none removed: bytemuck 1.25.2, bytemuck_derive 1.12.1, itoa 1.0.18, memmap2 0.9.11, serde_json 1.0.151, zmij 1.0.23, three path crates, serde gaining serde_derive; cargo's re-point of winapi-util rejected); window, surface and renderer unchanged; HBR-STOP-005 disclosure",
+    "question_for_review": {
+      "id": "AC215-6-STALL",
+      "what": "withholding beats while the loop is alive (present stall) departs from AC215-6's literal 'every 250 ms while the loop is alive' and ties into HB-1; the stall reuses SlowFrame with a Degraded or Recovered phase instead of a dedicated typed code in diag_ring",
+      "route": "adjudicated by the next independent eval against the contract text, per the Operator's direction to resolve questions with an adversarial agent"
+    },
+    "still_open": [
+      "the egui host's second heartbeat publisher (app.rs:8898) and the public diagnostics::heartbeat are outside this slice's write paths",
+      "per-test timeouts (F5 rest)"
+    ],
+    "tests_added": [
+      "port rules: foreign wake, closed loop, outstanding bound, present stall, F3 cadence",
+      "F2 recorder order",
+      "allocation-free hot path including stalls",
+      "watcher agreement for a stall (Suspected, never Frozen)",
+      "heartbeat_loop.rs on a private desktop: foreign lane wakes with heartbeat tickets, thrown-away posts, a 6 s block under forged posts",
+      "heartbeat_present.rs (GPU): revoked client stalls the present, minimise recovers; assumption that a revoked claim makes frames fail is untested",
+      "source_scan.rs: one publisher, dependencies, focus ban"
+    ],
+    "implementer_checks": {
+      "check and clippy --all-targets -D warnings": "pass on both workspaces",
+      "tree": "no egui, eframe, wgpu, glow or kumihimo; host_ports --target all fails offline (js-sys), so -e normal --target all and -e all --target x86_64-pc-windows-msvc were checked",
+      "logs": "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/logs/s2-*"
+    },
+    "process_slip": "one clippy run (s2-shell-clippy-2, nothing recompiled) started while another lane's cargo ran",
+    "tests": "nothing run; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "250 ms cadence when idle, minimised, occluded or throttled",
+      "whether drivers present on a private desktop",
+      "Palmistry attached to the real process",
+      "sleep and resume",
+      "the GPU stall path"
+    ]
   }
 }
