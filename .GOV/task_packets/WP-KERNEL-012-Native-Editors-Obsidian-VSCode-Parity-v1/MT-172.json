@@ -14046,5 +14046,37 @@
       "unchanged": "mounted_first_owner_workspace_create_..."
     },
     "queued": "A1-A3 for the backend coder after SC-1"
+  },
+  "sc2_order_by_fixes_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report; named check result verified by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "picotask": "SC-2 five ORDER BY parse fixes from schema_repair_spec_20261125",
+    "commit": "534bd295b",
+    "backend_tree": "56300d8a3 (identical at bc954d50c, which changes src/frontend only)",
+    "paths": "src/backend/handshake_core/src/api/model_lane_navigation.rs, src/storage/surreal/model_lane.rs, tests/crash_recovery_e2e/runtime_child.rs; all in MT-172 write paths; no waiver needed",
+    "cause": "SurrealDB 3.2.0 rejects an ORDER BY idiom that is neither a projected field nor an alias ('Missing order idiom ... in statement selection', syn/parser/stmt/select.rs:148, check in parts.rs:168-245); a projection like record::id(id) AS grant_id is the idiom record::id, not id",
+    "sites": [
+      "model_lane.rs:2513 NAVIGATION_GRANT_SNAPSHOT: ORDER BY id -> ORDER BY grant_id (string keys, same order)",
+      "model_lane.rs:2657 NAVIGATION_INPUT_SNAPSHOT: event_id added to the projection",
+      "model_lane.rs:8232 crdt_seen_update_ids read: update_seq added to the projection",
+      "api/model_lane_navigation.rs:59: ORDER BY grant_id ASC LIMIT 2, literal moved to constant NAVIGATION_GRANT_QUERY",
+      "tests/crash_recovery_e2e/runtime_child.rs:467: event_sequence added to the projection in constant ORIGINAL_REPLAY_SCOPE_READ; SessionRead moved to module level"
+    ],
+    "caller_effect": "decoded row structs unchanged and ignore the extra fields; callers receive exactly what they did before",
+    "tests": [
+      "storage::surreal::model_lane::order_by_projection_tests::navigation_grant_snapshot_orders_by_projected_grant_id",
+      "...::navigation_input_snapshot_orders_by_projected_event_id",
+      "...::crdt_seen_update_ids_order_by_projected_update_seq (calls the real crdt_seen_update_ids)",
+      "api::model_lane_navigation::navigation_grant_query_tests::navigation_grant_query_orders_eligible_grants_by_projected_grant_id (real provisioned principal, workspace and two grants; authenticated record user with the API's scope)",
+      "crash_recovery_e2e runtime_child::original_replay_scope_read_orders_by_projected_event_sequence"
+    ],
+    "test_note": "each runs on embedded_test_backend() with the full production schema and the production query text or method; on the old text each fails at the query expect with the parse error",
+    "for_review": "sites 1, 2, 3 and 5 seed rows as root under OPTION IMPORT (same approach as SC1-D1); site 4's query never ran before, so its record-user permission path is exercised for the first time and may surface a further defect",
+    "compile_runs": {
+      "compile-check-20261126-12": "ITERATION on the dirty tree: exit 0, 25m31s, inputs unchanged, peak 208.195 GB; no new warnings (lib test target stays at 507)",
+      "compile-check-20261126-13": "unmodified launcher (005406f6...) WP012-P1-MT-172-COMPILE on pushed bc954d50c (tree aa9505fe7): exit 0, 24m42s, inputs_unchanged true, dirty none, peak 208.195 GB, cargo.log sha256 095227019382b0b8c6d924e10a4c050873d7393caa6c65c8e4b9d7a42f8a76d1; verified by the orchestrator"
+    },
+    "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib --test crash_recovery_e2e -E 'test(/order_by_projection_tests|navigation_grant_query_tests/) | (binary(crash_recovery_e2e) & test(=runtime_child::original_replay_scope_read_orders_by_projected_event_sequence))' (exactly 5 tests; batch with the pending MT-172 and SC-1 evals)",
+    "eval_status": "blocked with the other backend evals on the builder target cap (Operator decision pending)"
   }
 }
