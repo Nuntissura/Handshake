@@ -38,7 +38,7 @@ pub(crate) use handshake_runtime_instance::runtime_owner_loopback_lease_is_free;
 /// un-claim uses.
 const RECLAIM_CLAIM_STOP_REASON: &str = "reclaim_claimed";
 const RECLAIM_KILLED_STOP_REASON: &str = "reclaim_killed";
-const SURREAL_CLAIM_MAX_ATTEMPTS: usize = 10;
+pub(crate) const SURREAL_CLAIM_MAX_ATTEMPTS: usize = 10;
 const SURREAL_CLAIM_BACKOFF_CAP_MS: u64 = 32;
 static RECLAIM_BOOT_OWNER_ID: OnceLock<Uuid> = OnceLock::new();
 
@@ -46,7 +46,7 @@ fn reclaim_boot_owner_id() -> Uuid {
     *RECLAIM_BOOT_OWNER_ID.get_or_init(Uuid::now_v7)
 }
 
-fn is_surreal_retryable_transaction_conflict(
+pub(crate) fn is_surreal_retryable_transaction_conflict(
     error: &crate::storage::surreal::SurrealStorageError,
 ) -> bool {
     matches!(
@@ -58,7 +58,7 @@ fn is_surreal_retryable_transaction_conflict(
     )
 }
 
-fn surreal_claim_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
+pub(crate) fn surreal_claim_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
     let exponential_cap = 1_u64
         .checked_shl(failed_attempt.min(5) as u32)
         .unwrap_or(SURREAL_CLAIM_BACKOFF_CAP_MS)
