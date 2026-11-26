@@ -1533,5 +1533,91 @@
       "a hung clipboard owner on the Operator's desktop",
       "if the clipboard sequence only rises at CloseClipboard after a delayed render, promised text is never kept (fails safe)"
     ]
+  },
+  "dependency_review_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the dependency agent's report; static, read from manifests and registry sources",
+    "recorded_on": "2026-11-26",
+    "scope": "new crates in src/frontend/handshake_shell/Cargo.lock (6f71cac07, e29ca7cff) and src/frontend/handshake_native/vulkan-renderer/Cargo.lock (992ca2b34)",
+    "crates": [
+      {
+        "crate": "ash 0.38.0",
+        "via": "renderer <- surface",
+        "size": "127.7k generated lines, 8,797 unsafe",
+        "deps": "libloading (already present)",
+        "licence": "MIT/Apache",
+        "verdict": "keep: direct Vulkan through ash is the recorded renderer decision (D7, spec GUI-DESKTOP-003); generated third-party bindings, not a Handshake crate"
+      },
+      {
+        "crate": "gpu-alloc 0.6.2",
+        "via": "renderer",
+        "size": "2.6k / 63 unsafe",
+        "deps": "bitflags, gpu-alloc-types =0.3.1",
+        "licence": "MIT/Apache",
+        "verdict": "keep (single maintainer; wgpu-hal 27.0.4's Vulkan backend uses it, manifest checked)"
+      },
+      {
+        "crate": "gpu-alloc-types 0.3.1",
+        "size": "221 / 6",
+        "verdict": "keep"
+      },
+      {
+        "crate": "bitflags 2.13.2",
+        "size": "6.0k / 3",
+        "verdict": "keep, align versions"
+      },
+      {
+        "crate": "bytemuck 1.25.2 + bytemuck_derive 1.12.1",
+        "via": "diag-ring",
+        "size": "4.2k + 2.4k / 385",
+        "deps": "syn (already built for thiserror-impl)",
+        "licence": "Zlib/Apache/MIT",
+        "verdict": "keep (compile-time Pod check), align versions"
+      },
+      {
+        "crate": "memmap2 0.9.11",
+        "via": "diag-ring",
+        "size": "4.0k / 141",
+        "licence": "MIT/Apache",
+        "verdict": "keep"
+      },
+      {
+        "crate": "serde_json 1.0.151",
+        "via": "diag-ring three_tier_evidence only",
+        "size": "18.4k / 16, build script",
+        "deps": "itoa, memchr, serde_core, zmij",
+        "verdict": "question"
+      },
+      {
+        "crate": "itoa 1.0.18",
+        "via": "serde_json",
+        "verdict": "question"
+      },
+      {
+        "crate": "zmij 1.0.23",
+        "via": "serde_json (non-optional; number.rs:192, error.rs:474)",
+        "size": "2.1k / 70, build script runs rustc --version",
+        "licence": "MIT",
+        "what": "David Tolnay's double-to-string library, a port of Victor Zverovich's C++ zmij",
+        "verdict": "question"
+      },
+      {
+        "crate": "serde_derive",
+        "via": "diag-ring serde derive feature",
+        "verdict": "question"
+      }
+    ],
+    "question_detail": "ui_heartbeat uses only the ring, the schema and Heartbeat (sink.rs:3-5); serde_json is used only in diag-ring three_tier_evidence.rs; gating that module and serde behind a default feature with ui_heartbeat default-features = false removes serde_json, itoa, zmij and serde_derive from the shell; diag-ring is the shared MT-081/MT-095 crate, so this is routed to its owner together with MT-215 E4's typed-addition request",
+    "version_drift": [
+      "bitflags 2.13.0 (shell) vs 2.13.2 (renderer): only a macro moved to avoid a compiler crash; renderer tested on 2.13.2, ships in the shell on 2.13.0",
+      "bytemuck 1.25.2 / derive 1.12.1 (shell) vs 1.25.0 / 1.10.2 (diag_ring, host_ports, palmistry locks): the ring-layout derive is tested on one version and ships on another",
+      "serde_json 1.0.150 vs 1.0.151, zmij 1.0.21 vs 1.0.23 across the same locks"
+    ],
+    "drift_repair": "one lock-parity check across the shell and its path dependencies (queued)",
+    "banned_crates": "shell lock (164 packages) has no egui, eframe, wgpu or glow",
+    "not_verified": [
+      "runtime behaviour",
+      "release dates and maintenance activity",
+      "newer ash releases"
+    ]
   }
 }

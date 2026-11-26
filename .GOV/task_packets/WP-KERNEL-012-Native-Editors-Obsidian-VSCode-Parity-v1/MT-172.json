@@ -13999,5 +13999,52 @@
     "gameplan_note": "the coder ran the WP gameplan builder before_round check: 59 steps unconfirmed and two checks fail; Codex CX-GP-001 retired these as gates, so not treated as one",
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib --test local_execution_authority_surreal_tests -E 'test(/protected_session_binding_tests|protected_parameter_guard_tests/) | binary(local_execution_authority_surreal_tests)'; expect 7 lib tests plus all of local_execution_authority_surreal_tests including authenticated_store_integration_contract",
     "eval_status": "blocked: the builder target is at the cap stop line; awaiting the Operator's cap decision"
+  },
+  "protected_bindings_static_review_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's report; static review only, nothing compiled or run",
+    "recorded_on": "2026-11-26",
+    "subject": "PROTECTED-SESSION-BINDINGS commit 8e565bfa1",
+    "verdict": "passed (static review only; not a test verdict)",
+    "evidence": [
+      "all 13 renamed binding sets and the OpenRows helper use field session_record; each query uses only $session_record (13 sites in local_accounts.rs, 24 in resource_authority.rs); no rename, rename_all or flatten attribute changes those keys; rename_all unused in the backend",
+      "independent scan: of 1,882 SurrealValue derives only the 7 allowlisted structs have protected fields; tuple binds, owned-string keys, json objects, map inserts, LET and FOR checked; every $session in .surql is a declared function parameter (exempt, user_defined.rs:101); attach_variables (context.rs:1072) rejects protected names before any statement",
+      "only handshake_core and handshake_document_surreal depend on surrealdb; build.rs generates no queries"
+    ],
+    "findings": [
+      {
+        "id": "A1",
+        "severity": "low",
+        "at": "local_accounts.rs:2760-2779; workspaces.rs:1791; resource_authority.rs:13524-13542",
+        "defect": "these assertions give the same result whether or not the binding exists; no new test runs the fence UPDATE, the administrator confirmation SELECT, either EXCHANGE_WRITE, or the artifact and administration CREATE text; for resource_authority the exchange readbacks call record::exists($session_record) which takes a RecordId, so a dropped binding should error (not run)",
+        "repair": "static check that every $name in each query constant is a field of its binding struct, or positive-path tests"
+      },
+      {
+        "id": "A2",
+        "severity": "low",
+        "at": "schema.rs:17284-17285, 17471",
+        "defect": "the guard misses tuples outside .bind(( (caller-named Binds vectors knowledge.rs:1136/1189, handshake_document_surreal lib.rs:9), maps built with from/from_iter or non-literal keys, json or Object values bound through a variable, flattened fields, and $session anywhere under storage/surreal/schema and in every .surql; none occurs today",
+        "repair": "extend the rules; replace the path exemption with a declared-function-parameter check"
+      },
+      {
+        "id": "A3",
+        "severity": "low",
+        "at": "schema.rs:17254",
+        "defect": "allowlist keyed by file and struct is a loophole: a later top-level bind of an allowlisted struct or a new protected field on one passes; the ratchet only reports stale entries",
+        "repair": "key by field and reject allowlisted struct names as bind or query-helper arguments"
+      },
+      {
+        "id": "A4",
+        "severity": "info",
+        "defect": "Member and administrator exchange, activation read, confirmations and registrations now run for the first time; SC-1 (login nonce) may be the next failure they hit"
+      }
+    ],
+    "pt003": "the coder's claim holds statically: create path binds account_session (workspaces.rs:711); Owner and Admin exchanges take the non-member path (resource_authority.rs ~12407); recovery read only on recovery (workspaces.rs:1659); no unbound $session anywhere; not checked at the commit where PT003 was recorded (the record names none)",
+    "expected_test_changes": {
+      "new_tests": "the 7 new tests should pass",
+      "local_execution_authority_surreal_tests": "correction to the coder: none of the three .is_err() checks before line 252 should flip (two fail on the Validation error, expected_revision None, before any query; forged-actor now fails on the actor mismatch at preferences.rs:540); line 252 and the following snapshot were certain failures and now pass or fail later",
+      "producer_authority_tests": "workspace_activation_observation_http_... (lines 844, 935) and cleanup paths at 440 and 482",
+      "unchanged": "mounted_first_owner_workspace_create_..."
+    },
+    "queued": "A1-A3 for the backend coder after SC-1"
   }
 }
