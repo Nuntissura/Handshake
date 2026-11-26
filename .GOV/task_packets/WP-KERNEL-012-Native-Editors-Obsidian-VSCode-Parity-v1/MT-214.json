@@ -1182,5 +1182,112 @@
       "R2-N5 hand-on not verified on the Operator's real desktop",
       "Operator-input stamp and input_waits paths unit-only"
     ]
+  },
+  "slice1_eval3_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 slice 1 after the second remediation; not an MT verdict; lifecycle unchanged",
+    "commit": "edba628a030a6fe66ca738fb9327e042af5b0509",
+    "result": "inconclusive: 102 of 102 tests pass; R2-N5 cannot be judged without a real desktop",
+    "counts": {
+      "lib": 81,
+      "focus_ban": 7,
+      "geometry": 5,
+      "host_panic": 1,
+      "menu_loop": 1,
+      "operator_window": 1,
+      "public_surface": 3,
+      "quiet_window": 1,
+      "scale_change": 1,
+      "wakes": 1
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval-run-edba628a0-r2.log",
+    "log_sha256": "19335f50d5e069c53c52d1a864109464726400ba489f8c1ea7c73d7634e02f95",
+    "method_note": "run on an exact copy of the shell tree at edba628a0 because the worktree held another agent's uncommitted surface crate",
+    "operator_safety": "Operator foreground and clipboard sequence unchanged across 8,599 samples; no window of the run in front, active, focused or capturing",
+    "previous_findings": {
+      "R2-N1": "fixed (a model may still act while the Operator is in another program, by design)",
+      "R2-N2": "panic path closed; over-refuses real keys (F5)",
+      "R2-N3": "partly (F4); probe path never runs in a test",
+      "R2-N4": "fixed",
+      "R2-N5": "implemented as recorded; real-desktop effect unverified (F1)",
+      "R2-N6": "failure path fixed; new success-path costs (F2, F3)"
+    },
+    "findings": [
+      {
+        "id": "E3-F1",
+        "severity": "medium, unverified",
+        "at": "place.rs:265-267",
+        "defect": "the hand-on is skipped when another program is in front; on a real desktop the system's fallback activation may go to another program first, so the keyboard never reaches the owner; caption-button minimise is outside the policy"
+      },
+      {
+        "id": "E3-F2",
+        "severity": "medium-low, privacy",
+        "at": "clipboard.rs:248-278,374-393",
+        "defect": "every write copies every clipboard format with no byte limit: forces delayed rendering in other programs, can stall the UI thread, copies secrets such as password-manager entries into our memory, holds the clipboard open longer; CannotKeep makes the Operator's copy fail"
+      },
+      {
+        "id": "E3-F3",
+        "severity": "low",
+        "at": "clipboard.rs:137-153",
+        "defect": "after a restore our window owns the clipboard, so withdraw erases the Operator's restored data"
+      },
+      {
+        "id": "E3-F4",
+        "severity": "low",
+        "at": "wake_slot.rs:104-105; lib.rs:40; lanes.rs:17",
+        "defect": "a loop blocked in a SendMessage to another thread still answers probes, so 'at most four posts per hung lane' is false for that hang"
+      },
+      {
+        "id": "E3-F5",
+        "severity": "low",
+        "at": "platform/mod.rs:36-40; service.rs:173-179",
+        "defect": "real keys typed during a modal loop inside a sent message report ISMEX_SEND and are refused and miscounted; on-screen keyboard, remote desktop and SendInput tools are not blocked"
+      },
+      {
+        "id": "E3-F6",
+        "severity": "low, contradicts the Operator's policy wording",
+        "at": "translate.rs:58-60",
+        "defect": "any program's WM_CLOSE opens a close request, after which a model's Destroy counts as approved and hands activation on; the policy says a model cannot trigger it"
+      }
+    ],
+    "tests_that_cannot_fail_for_their_rule": [
+      "stale-post claim in test_wakes.rs:221-235",
+      "probe path (only 3 posts thrown away, fewer than BLIND_POSTS=4)",
+      "SystemBoard never runs; the Pad's CF_BITMAP-only case cannot occur",
+      "other_program_in_front branch, FocusWatch, input-stamp and input_waits paths unit-only"
+    ],
+    "ac214": {
+      "met_for_this_crate": [
+        "AC214-1",
+        "AC214-12"
+      ],
+      "quiet_part_private_desktops_only": [
+        "AC214-2"
+      ],
+      "unit_only": [
+        "AC214-4",
+        "AC214-5",
+        "AC214-11"
+      ],
+      "partial": [
+        "AC214-8"
+      ],
+      "not_covered": [
+        "AC214-3",
+        "AC214-6",
+        "AC214-7",
+        "AC214-9",
+        "AC214-10"
+      ]
+    },
+    "needs_native_x64_and_real_desktop": [
+      "R2-N5 with a real foreground, the system's fallback activation and caption-button minimise",
+      "activation by another program and ghost windows",
+      "copy-back against real Office delayed rendering and injected write failure",
+      "dead keys and IME on real layouts",
+      "the probe path under a real hang"
+    ],
+    "next_actor": "GUI coding agent after the first-frame slice: E3-F2, E3-F6, E3-F3, E3-F4, E3-F5 and the named tests; E3-F1 on a real desktop"
   }
 }
