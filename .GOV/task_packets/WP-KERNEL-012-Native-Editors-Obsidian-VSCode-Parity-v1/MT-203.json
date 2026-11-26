@@ -1372,5 +1372,40 @@
       "discrete heaps, budget spill, bufferImageGranularity above 1, non-coherent readback memory"
     ],
     "next_actor": "GUI coding agent: repair S2-F1..F6 and the named tests"
+  },
+  "slice2_remediation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice2_eval_20261126 (S2-F1..F6, all confirmed in code, none refuted)",
+    "commit": "5b813e3cba953662a02894553156ad6b465f4d3f",
+    "crate_tree": "0ed970fff",
+    "fixes": {
+      "S2-F1": "host reads and writes bounded by the buffer's own size; zero-length access maps nothing",
+      "S2-F2": "per-surface retirement rule (below)",
+      "S2-F3": "allocation books and returned blocks have their own locks; frees never wait; host access maps under the buffer's own lock; reap and may_release destroy with no slot lock; vkDestroySwapchainKHR under its own surface lock only; not fixed: close() still holds its close lock across drain and destruction",
+      "S2-F4": "a frame can be recorded on only in its own present, which waits on the acquire and updates last use; elsewhere RecordRefusal::FrameNotPresented",
+      "S2-F5": "one lock per surface; a present holds the lane and its own surface lock only",
+      "S2-F6": "present OOM leaves state unchanged; with maintenance1 no present without its fence; over-budget ends as OverBudget instead of moving memory type; swapchain memory reported as an estimate, not charged; window targets dropped outside owner locks; stranded acquire semaphores destroyed with their swapchain; caller layouts validated against image usage (VUID-VkImageMemoryBarrier-oldLayout-01208/01211/01212/01213, newLayout-01198), not tracked"
+    },
+    "retirement_rule": {
+      "with_maintenance1": "the swapchain's own present fences (VkSwapchainPresentFenceInfoKHR)",
+      "without": "a proven present of a later swapchain of the same surface: an acquire on that later swapchain hands back the same image and its fence signals (Khronos swapchain_recreation sample; Vulkan Guide Swapchain Semaphore Reuse)",
+      "both": "no frame out, rendering submissions and acquire fences ended",
+      "kept_until_device_destroyed": "the last presented swapchain of a released surface without maintenance1, with its window target"
+    },
+    "implementer_checks": {
+      "check --locked --offline --tests -j 2": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "rustfmt": "clean",
+      "closure": "ash, gpu-alloc, bitflags, gpu-alloc-types, libloading, windows-link; Cargo.lock unchanged; no ash type in the public API"
+    },
+    "window_host_cases": "written in tests/support/present_cases.rs and compiled; to be run by the window host",
+    "tests": "compiled, not run; independent run pending",
+    "needs_window_host_and_native_x64": [
+      "present loop, resize, minimise and restore, dropped frame, surface release, multiwindow retirement, FIFO-blocked present isolation",
+      "maintenance1 versus acquire-fence path",
+      "validation and sync-validation layers",
+      "non-coherent memory"
+    ]
   }
 }
