@@ -4860,5 +4860,42 @@
     },
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/member_login_nonce_tests/)' (exactly 1 test; batch with the pending MT-172 eval)",
     "eval_status": "blocked with the MT-172 eval on the builder target cap (Operator decision pending)"
+  },
+  "sc1_static_review_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's report; F2 schema facts re-read by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "subject": "SC-1 commit a0e0ee43b",
+    "verdict": "passed (static review only, scoped to SC-1 row 3; not a test verdict)",
+    "check1": "all six sites write authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 (resource_authority.rs:11923, 11928, 11933, 12246, 12251, 12256), the same expression as the administrator twins (:12923, :13161; local_accounts.rs:1034, 1737-1752); WHERE fences, THROWs and readbacks unchanged; every SET/CONTENT/MERGE/INSERT write in resource_authority.rs, local_accounts.rs and workspaces.rs on the login, exchange, confirmation, enrollment, redeem and first-owner paths checked against the composed schema: no other top-level undefined key",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high, outside the diff",
+        "at": "schema.surql:8069-8072 (table SCHEMAFULL at :8215), written by resource_authority.rs:9884 (CREATE $permit CONTENT $content)",
+        "defect": "member_enrollment_redemption_permits.original, account_before, principal_before and space_before are TYPE object without FLEXIBLE on a SCHEMAFULL table; the redeem permit write stores full nested rows in them; SurrealDB 3.2.0 rejects any nested key under a non-flexible object with FieldUndefined (surrealdb-core doc/field.rs:137-155, Ancestor(false) branch); so redemption fails, no redeemed Member can exist, and Member login stays unreachable end to end even after SC-1",
+        "orchestrator_check": "schema lines, SCHEMAFULL table and the engine branch re-read and confirmed statically; runtime unconfirmed",
+        "repair": "add FLEXIBLE to all four fields in the revision-172 schema block, as a new spec row (proposed id ROW-8-REDEEM-PERMIT-FLEXIBLE); routed to the schema revision 172 slice (SC-6)"
+      },
+      {
+        "id": "SC1-D2",
+        "severity": "low, undeclared deviation",
+        "defect": "the spec asked for POST /authority/login then exchange with a 200 check; the test calls the storage methods directly (the same ones the route handlers call, authority.rs:2222, :2722), skipping channel-binding capture, store_session_secret (OS keychain) and record_login_event to authenticate_local_session; the record's (POST ...) labels overstate this",
+        "repair": "recorded as a deviation here"
+      },
+      {
+        "id": "F3",
+        "severity": "low",
+        "defect": "nothing proves RED: on old code every failure inside the login body returns TransactionSettlementPending, so the output never shows FieldUndefined; the indexed claim is unproven (a count query does not show the index was used)",
+        "repair": "run the test once on 29763b430 (old) and record the fail-on-old, pass-on-new pair"
+      }
+    ],
+    "sc1_d1_decision": "acceptable as is: in 3.2.0 OPTION IMPORT skips field processing (DEFAULT, TYPE, VALUE, ASSERT, READONLY), references, events, live queries, changefeeds, views and output; undefined-field cleanup and index writes still run; the only member_enrollments event (vault phase guard) only throws and writes no other rows; no field has a DEFAULT or computed value; the seeded row lacks issue, original_request_hex, original_request_sha256, vault_namespace, vault_reference and vault_claim_id, which login and exchange never read; the rows the fixed writers update are seeded with full field processing and events, so the divergence cannot hide a FieldUndefined in the writers; no cheaper real chain exists (needs a live Owner, a confirmed administrator session, OS-keychain custody and recipient record access, and F2 breaks redeem today); recommended, not blocking: seed the five missing fields",
+    "check4": "the nonce expression is correct: ?? 0 covers rows without the field; result always >= 1 so ASSERT >= 0 holds; writes run as root so the mt109 events do not fire; the write keeps the write-write conflict that fences a login against a concurrent revocation",
+    "not_verified": [
+      "any runtime result including F2",
+      "optimistic-commit conflict behaviour on the embedded engine",
+      "the Member path through authenticate_local_session",
+      "read-side undefined fields (only scanned roughly)"
+    ]
   }
 }
