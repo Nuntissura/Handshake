@@ -366,7 +366,15 @@ pub enum AbortReportFault {
     Block = 1,
     PersistenceFailure = 2,
     AcknowledgementMismatch = 3,
+    /// Performs the real write, acknowledged only after
+    /// [`DELAYED_REPORT_ACKNOWLEDGEMENT`].
+    DelayedAcknowledgement = 4,
 }
+
+/// How long [`AbortReportFault::DelayedAcknowledgement`] holds the report write
+/// before performing it: longer than the 1 s report grace.
+#[cfg(feature = "test-utils")]
+pub const DELAYED_REPORT_ACKNOWLEDGEMENT: Duration = Duration::from_secs(2);
 
 #[derive(Clone)]
 pub struct SurrealRestartResumeRunner {
@@ -1706,11 +1714,14 @@ fn recovery_store_write_key(
 }
 
 /// Consumes one armed test-only report-write fault: `Block` never acknowledges,
-/// the other two fail before any write reaches the store.
+/// `PersistenceFailure` and `AcknowledgementMismatch` fail before any write
+/// reaches the store, and `DelayedAcknowledgement` waits, then lets the real
+/// write run.
 #[cfg(feature = "test-utils")]
 async fn apply_report_fault(fault: &AtomicU8) -> Result<(), RestartResumeRuntimeError> {
     match fault.swap(0, Ordering::AcqRel) {
         1 => std::future::pending::<()>().await,
+        4 => tokio::time::sleep(DELAYED_REPORT_ACKNOWLEDGEMENT).await,
         2 => {
             return Err(RestartResumeRuntimeError::Store(
                 "injected report persistence failure".to_owned(),

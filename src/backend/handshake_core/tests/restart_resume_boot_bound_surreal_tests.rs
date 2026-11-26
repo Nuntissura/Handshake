@@ -199,7 +199,19 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
         fault_runner.arm_completed_report_fault_for_test(fault);
         let began = Instant::now();
         let result = fault_runner.run_with_bound(completion_bound).await;
-        assert!(began.elapsed() < completion_bound + Duration::from_secs(2));
+        let elapsed = began.elapsed();
+        assert!(elapsed < completion_bound + Duration::from_secs(2));
+        if matches!(
+            fault,
+            handshake_core::process_ledger::restart_resume::AbortReportFault::Block
+        ) {
+            // R4-2: the unacknowledged write is awaited to the bound's deadline and only
+            // then for the 1 s grace; a fixed 1 s cut after the pass returns far earlier.
+            assert!(
+                elapsed >= completion_bound + Duration::from_secs(1),
+                "an unacknowledged COMPLETED write must wait the remaining bound plus the grace: {elapsed:?}"
+            );
+        }
         match result {
             Err(RestartResumeRuntimeError::Store(_)) => {}
             other => panic!(
@@ -344,6 +356,40 @@ async fn restart_resume_completed_pass_counts_one_report_and_gets_the_remaining_
         exact_scope_completed_reports(&harness).await,
         1,
         "a pass that completes leaves exactly one durable COMPLETED report"
+    );
+    // R4-2: a COMPLETED write acknowledged after more than the old fixed 1 s, but
+    // before the bound's deadline, is part of the primary run and must complete.
+    let delay = handshake_core::process_ledger::restart_resume::DELAYED_REPORT_ACKNOWLEDGEMENT;
+    assert!(
+        delay > Duration::from_secs(1),
+        "the fault must acknowledge later than the old fixed 1 s COMPLETED budget"
+    );
+    let delayed_runner = harness.restart_runner().await;
+    delayed_runner.arm_completed_report_fault_for_test(
+        handshake_core::process_ledger::restart_resume::AbortReportFault::DelayedAcknowledgement,
+    );
+    let began = Instant::now();
+    let delayed = delayed_runner
+        .run_with_bound(bound)
+        .await
+        .expect("a COMPLETED write acknowledged before the deadline is not an error");
+    let elapsed = began.elapsed();
+    assert!(
+        elapsed >= delay,
+        "the COMPLETED write was acknowledged only after the injected delay: {elapsed:?}"
+    );
+    assert!(elapsed < bound, "the delayed acknowledgement arrived before the deadline: {elapsed:?}");
+    match delayed {
+        BoundedRestartResumeOutcome::Completed(report) => assert!(report
+            .fr_events_emitted
+            .iter()
+            .any(|event| event == "FR-EVT-RESTART-RESUME-COMPLETED")),
+        other => panic!("a late but in-bound COMPLETED acknowledgement must complete: {other:?}"),
+    }
+    assert_eq!(
+        exact_scope_completed_reports(&harness).await,
+        2,
+        "the late-acknowledged COMPLETED write committed exactly one more report"
     );
     harness.close().await;
 }
