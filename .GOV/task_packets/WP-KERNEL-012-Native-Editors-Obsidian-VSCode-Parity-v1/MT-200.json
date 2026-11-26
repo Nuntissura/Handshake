@@ -927,5 +927,109 @@
     "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; source-published and static-qualified egui records (reset02) stay",
     "new_write_scope_note": "A host token crate (colours, sizes, icons, motion) belongs to MT-200 under src/frontend/handshake_design_tokens (generic working path) and is added to allowed_write_paths when its slice is dispatched.",
     "next_actor": "UI designer for AC197-2; GUI coder A after MT-213 PASS"
+  },
+  "motion_decision_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, from a specialist's online research and an adversarial review (Operator direction: motion where possible, researched online; questions decided with an adversarial agent)",
+    "recorded_on": "2026-11-26",
+    "supersedes_state_of": "motion_table_20261125 (PROPOSED_TO_BE_CONFIRMED)",
+    "research": {
+      "file": "Handshake_Artifacts/WP-KERNEL-012/MT-200/motion-research-20261126.json",
+      "sha256": "b9a8638a2d1cd1d0707ab3c4acfaa4ee27342a259ddab8fedfc5389cbccda5d2",
+      "sources": "17 (15 read, 2 UNVERIFIED): Material 3 motion tokens and curves, Fluent 2 durations, WinUI, Atlassian motion, GPUI animation.rs and window.rs (Zed), VS Code workbench.reduceMotion, Win32 SPI_GETCLIENTAREAANIMATION, WCAG, web.dev, CSS easing, handshake-portal handpick.css, Kumihimo design-system.json"
+    },
+    "adversarial_source_check": "six sources re-fetched and confirmed: M3 standard (0.2,0,0,1), decelerate (0,0,0,1), accelerate (0.3,0,1,1), short1-4 50/100/150/200, medium1 250; Fluent 50/100/150/200/250/300/400/500; Atlassian scale and 'shorter, faster, less dramatic' exits; GPUI checks reduce_motion, renders one static frame under it, requests frames only while unfinished; VS Code reduceMotion on|off|auto default auto; SPI_GETCLIENTAREAANIMATION (0x1042) BOOL, TRUE = enabled; Kumihimo motion block matches (80/100/1200/120, easing 0.2,0,0,1); not re-checked: WinUI 83/167/250, Fluent curves, WCAG, web.dev, CSS easing, Atlassian practical-out; no unsupported number found",
+    "decision": {
+      "table": [
+        {
+          "token": "hover_in",
+          "ms": 0,
+          "state": "PROVISIONAL, confirm on real desktop"
+        },
+        {
+          "token": "hover_out",
+          "ms": 80,
+          "curve": "cubic-bezier(0.2,0,0,1)",
+          "state": "PROVISIONAL, confirm on real desktop (no field source)"
+        },
+        {
+          "token": "overlay_in",
+          "ms": 100,
+          "curve": "cubic-bezier(0.2,0,0,1)",
+          "use": "popovers, tooltips and floating overlay panels only; opacity plus a slide of at most 8 px"
+        },
+        {
+          "token": "overlay_out",
+          "ms": 80,
+          "use": "tooltips and overlay panels only (the existing Kumihimo tooltip fade); curve change optional"
+        },
+        {
+          "token": "menu_open_close",
+          "ms": 0,
+          "use": "menus change in one frame (Kumihimo rule)"
+        },
+        {
+          "token": "settle",
+          "ms": 150,
+          "curve": "cubic-bezier(0.2,0,0,1)",
+          "use": "the moved pane's committed rectangle on redock and the tab-strip scroll-into-view only (MT-200 D8)"
+        },
+        {
+          "token": "tab_dock_preset_switch",
+          "ms": 0
+        },
+        {
+          "token": "handpick_composer_reveal",
+          "ms": 200,
+          "curve": "cubic-bezier(0,0,0.58,1)",
+          "state": "FIXED from handshake-portal handpick.css"
+        },
+        {
+          "token": "cap",
+          "ms": 250,
+          "use": "no decorative animation is longer"
+        },
+        {
+          "token": "looping_progress",
+          "ms": 1200,
+          "curve": "linear loop",
+          "use": "only while work runs; static under reduced motion; exempt from the cap"
+        },
+        {
+          "token": "live_divider_drag",
+          "ms": 0
+        }
+      ],
+      "never_animate": [
+        "layout, hit test, focus and AccessKit state (commit on the first frame)",
+        "text, caret and scroll",
+        "tab, dock and Layout Preset switches",
+        "splitter or window drag",
+        "anything in a hidden, minimised, quiet or headless window",
+        "error or denied states",
+        "readback proof frames",
+        "no overshoot, bounce or parallax anywhere"
+      ],
+      "kumihimo_conflict": "SPLIT: Kumihimo's no-tween default stays for frequent actions (docks, tabs, menus, presets); Handshake adds only the redock settle, the provisional hover-out and the Handpick reveal through host-supplied motion tokens (KG-05); no change to the shared asset is needed",
+      "reduced_motion": "settings.appearance.reduce-motion on/off/auto; auto reads Windows SPI_GETCLIENTAREAANIMATION and re-reads it on WM_SETTINGCHANGE; an explicit Operator choice overrides the OS; Kumihimo's rule already reads 'OS setting or Studio preference'; reduced motion sets every duration to 0, jumps in-flight animations to their end on the next frame and requests no further redraw",
+      "mt218_clock_rules": [
+        "host-injected monotonic tick, integer-difference sampling",
+        "an interrupted animation retargets from the currently displayed value",
+        "animation covers committed geometry only",
+        "frames are requested only while something runs; zero frame requests when idle (acceptance test)",
+        "frame requests are damage or present requests only and never show, raise or focus a window",
+        "hidden, minimised and quiet windows request nothing and jump to the end state on restore",
+        "proof captures wait until nothing runs, or run with reduced motion on"
+      ]
+    },
+    "optional_operator_question_after_real_desktop": "After seeing the settle on a real desktop, should motion be wider (add tab-switch and dock-switch fades, diverging from Kumihimo), as-is, or narrower (drop the settle)? Default: as-is.",
+    "confirm_on_real_desktop": [
+      "feel of the 150 ms settle at 60 and 144 Hz and 100 and 150 percent DPI",
+      "hover-out 80 ms versus instant",
+      "overlay 8 px slide versus opacity only",
+      "auto reduced motion following the Windows Show animations toggle live",
+      "idle CPU and GPU at zero when nothing animates",
+      "no focus steal or window show during animation frames"
+    ],
+    "routing": "MT-218 motion clock implements mt218_clock_rules; MT-200 presentation applies the table; Kumihimo unchanged"
   }
 }

@@ -801,5 +801,11 @@
       "mt_ref": "MT-200.json",
       "when": "S1 motion durations are confirmed by MT-200's table"
     }
-  ]
+  ],
+  "motion_decision_ref_20261126": {
+    "recorded_on": "2026-11-26",
+    "see": "MT-200.json#/motion_decision_20261126",
+    "clock_rules_ref": "MT-200.json#/motion_decision_20261126/decision/mt218_clock_rules",
+    "note": "the motion clock crate implements these rules"
+  }
 }
