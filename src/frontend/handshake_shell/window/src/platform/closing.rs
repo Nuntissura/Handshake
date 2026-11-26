@@ -11,6 +11,11 @@
 //! Windows' own is not documented). A sent one arrives while the press is being handled; a posted one is seen in the
 //! queue once the handling ended ([`queued_close`]), when none was queued before it, and is the next close command
 //! taken out of the queue. A gesture whose handling made no command lends nothing to a close command that comes after.
+//!
+//! Only Alt+F4 may have its command posted (E5-F4). The handling of a press on the close button lasts as long as the
+//! button is held, and another program can see that hold (the button's window captures the mouse) and post a close
+//! command meanwhile; were a posted command counted for it, a press dragged off the button would credit that program's
+//! command to the Operator. The close button and the system menu send theirs, so a posted one is never theirs.
 
 use std::cell::Cell;
 
@@ -39,12 +44,9 @@ pub(super) enum Pending {
     /// A close command ended, and whether one that the Operator's gesture made was under way before it.
     Command(bool),
     /// The handling of the Operator's press ended. `before`: whether a close gesture was being handled before it;
-    /// `gesture`: whether this press is one; `queued`: a close command waited in the queue before it.
-    Press {
-        before: bool,
-        gesture: bool,
-        queued: bool,
-    },
+    /// `may_post`: this press is Alt+F4, whose handling may post its close command (E5-F4), and no close command
+    /// waited in the queue before it.
+    Press { before: bool, may_post: bool },
 }
 
 #[derive(Default)]
@@ -77,8 +79,8 @@ impl Closing {
 
     /// Before the window library sees `message`. `operators_input`: the Operator's own input, which the operating
     /// system reported as hardware and the loop took out of its queue. `queued`: whether a close command for the window
-    /// waits in the queue now ([`queued_close`]); asked only for a close gesture, and never while the watch changes,
-    /// since a look at the queue may run messages other threads sent.
+    /// waits in the queue now ([`queued_close`]); asked only for Alt+F4, the one gesture whose command may be posted
+    /// (E5-F4), and never while the watch changes, since a look at the queue may run messages other threads sent.
     pub(super) fn before(
         &self,
         now: EventTime,
@@ -90,13 +92,9 @@ impl Closing {
     ) -> Option<Pending> {
         if operators_input {
             if let Some(gesture) = press(message, wparam) {
-                let queued = gesture && queued();
+                let may_post = gesture && message == WM_SYSKEYDOWN && !queued();
                 let before = self.change(|watch| watch.press_begins(gesture));
-                return Some(Pending::Press {
-                    before,
-                    gesture,
-                    queued,
-                });
+                return Some(Pending::Press { before, may_post });
             }
         }
         match message {
@@ -124,19 +122,15 @@ impl Closing {
         }
     }
 
-    /// The window library handled the message [`Closing::before`] left `pending` for. `queued` as there: after a close
-    /// gesture, a close command in the queue that was not there before is the one the system posted for it.
+    /// The window library handled the message [`Closing::before`] left `pending` for. `queued` as there: after Alt+F4,
+    /// a close command in the queue that was not there before is the one the system posted for it.
     pub(super) fn after(&self, now: EventTime, pending: Pending, queued: impl FnOnce() -> bool) {
         match pending {
             Pending::Command(before) => self.change(|watch| watch.command_ends(before)),
-            Pending::Press {
-                before,
-                gesture,
-                queued: was_queued,
-            } => {
+            Pending::Press { before, may_post } => {
                 // The handling is over before the queue is looked at.
                 self.change(|watch| watch.press_ends(before));
-                if gesture && !was_queued && queued() {
+                if may_post && queued() {
                     self.change(|watch| watch.command_posted(now));
                 }
             }
@@ -294,6 +288,34 @@ mod tests {
         gesture(&closing, ALT_F4, Handling::Posts, &queue);
         taken_out(&closing, &queue, 4);
         assert_eq!(closing.open(at(5)), Some(false), "the command queued before");
+    }
+
+    /// MT-214 E5-F4: only Alt+F4's handling may post its close command. A close command another program posts while the
+    /// close button is held (its handling lasts the whole hold, which that program can watch) or while a double-click on
+    /// the system menu is handled, whose handling made none, is nobody's; the queue is not even looked at for them.
+    #[test]
+    fn a_close_posted_while_a_button_gesture_is_handled_is_nobodys() {
+        const SYSTEM_MENU: (u32, WPARAM) = (WM_NCLBUTTONDBLCLK, HTSYSMENU as WPARAM);
+        for made in [BUTTON, SYSTEM_MENU] {
+            let closing = Closing::default();
+            let queue = Cell::new(false);
+            let pending = closing
+                .before(at(1), made.0, made.1, Arrival::Queue, true, || {
+                    panic!("the queue looked at before {made:?}")
+                })
+                .expect("a press");
+            // Another program posts a close command while the gesture is handled; the handling makes none.
+            queue.set(true);
+            closing.after(at(3), pending, || panic!("the queue looked at after {made:?}"));
+            taken_out(&closing, &queue, 4);
+            assert_eq!(closing.open(at(5)), Some(false), "posted during the handling: {made:?}");
+        }
+        // Alt+F4's own posted command still counts.
+        let closing = Closing::default();
+        let queue = Cell::new(false);
+        gesture(&closing, ALT_F4, Handling::Posts, &queue);
+        taken_out(&closing, &queue, 4);
+        assert_eq!(closing.open(at(5)), Some(true));
     }
 
     #[test]

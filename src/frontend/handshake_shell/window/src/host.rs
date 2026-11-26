@@ -202,11 +202,13 @@ impl Control {
         self.core.open_lane()
     }
 
-    /// The text on the clipboard.
+    /// The text on the clipboard. Never waits longer than a quarter of a second: a program that promised the text and
+    /// does not render it in time makes the read [`ClipboardError::Busy`], and every read and write stays busy until it
+    /// rendered or gave up (MT-214 R4-D3).
     ///
     /// # Errors
     ///
-    /// [`ClipboardError`].
+    /// [`ClipboardError`]; [`ClipboardError::Busy`] also while another program has the clipboard open.
     pub fn read_clipboard(&self) -> Result<Option<String>, ClipboardError> {
         self.core.read_clipboard()
     }

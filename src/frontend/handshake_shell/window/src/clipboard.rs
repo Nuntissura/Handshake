@@ -17,7 +17,8 @@
 //!   (Clipboard Operations, "Delayed Rendering"), with one exception: promised plain text, when the clipboard holds
 //!   nothing but plain text. That request is made on a thread of its own, and the write waits for it at most a quarter
 //!   of a second: a program that does not render in time makes the write [`ClipboardError::Busy`] and never makes the
-//!   loop wait (MT-214 E4-F3).
+//!   loop wait (MT-214 E4-F3). A read asks for promised text the same way, on the same thread, within the same bound
+//!   (R4-D3).
 //! - When nothing is kept, the write replaces the clipboard all the same. Should the system then refuse the new text,
 //!   the clipboard stays empty and the write says so ([`ClipboardError::NotRestored`]). Refusing such writes instead
 //!   ([`ClipboardError::CannotKeep`], clipboard untouched) would make most copies fail: after a copy in a browser, an
@@ -38,8 +39,9 @@ pub const KEEP_MAX_BYTES: usize = 1024 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ClipboardError {
-    /// Another program has it open, or a program that promised the text a write keeps did not render it in time. Try
-    /// again later; nothing here waits for it.
+    /// Another program has it open; or a program that promised text did not render it within a quarter of a second, for
+    /// a read or for what a write keeps, and until it did or gave up every read and write is busy (MT-214 E4-F3, R4-D3).
+    /// Try again later; nothing here waits for it longer.
     Busy,
     /// More than [`MAX_CLIPBOARD_BYTES`].
     TooLarge,
@@ -72,8 +74,10 @@ impl ClipboardError {
 
 /// Where clipboard text is kept. The default is the operating system's clipboard; tests give their own.
 pub trait TextClipboard {
-    /// The text, if there is any. A program that promised text and did not give it yet is asked for it, and that takes
-    /// as long as that program takes.
+    /// The text, if there is any. A program that promised text and did not give it yet is asked for it; the operating
+    /// system's clipboard asks on a thread of its own and waits a quarter of a second at most, then is
+    /// [`ClipboardError::Busy`] (MT-214 R4-D3). Another implementation must not block for longer either: it runs on the
+    /// loop's thread.
     ///
     /// # Errors
     ///

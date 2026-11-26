@@ -2,11 +2,13 @@
 //!
 //! Without `VK_EXT_swapchain_maintenance1` nothing but a surface's own images proves that its last presents ended, and a
 //! surface released without that proof is kept, with its window, until the owner closes. So a closing window that
-//! presented first gets that proof (MT-214 SF-2): a new swapchain, one present on it while the window is still shown,
-//! then the presenter's looks ask the owner to acquire back its images until the image of that present came back, which
-//! ends the old swapchain by its successor's present and the new one by its own image. Then the surface is released,
-//! the owner ends it with its work, and the window is destroyed. Nothing waits for the device; after
-//! [`decide::PROVE_WINDOW`] the surface is released all the same, and counted.
+//! presented first gets that proof (MT-214 SF-2): a new swapchain, one present on it, then the presenter's looks ask the
+//! owner to acquire back its images until the image of that present came back, which ends the old swapchain by its
+//! successor's present and the new one by its own image. All of it while the window is still shown as it was, never
+//! activated: once it is hidden every acquire of its swapchain is out of date (`VK_ERROR_OUT_OF_DATE_KHR`, seen by the
+//! evaluation of 29763b430), so a proof begun before the hide never comes (E5-F2). Then the window is hidden, the
+//! surface released, the owner ends it with its work, and the window is destroyed. Nothing waits for the device; after
+//! [`decide::PROVE_WINDOW`] the window is hidden and the surface released all the same, and counted.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -39,12 +41,13 @@ impl Core {
         !ending.is_empty()
     }
 
-    /// One step of closing a window: prove its presents ended and release its surface, settle its claim, and destroy
-    /// it once its target is let go. Returns whether more is to come.
+    /// One step of closing a window: prove its presents ended and release its surface, then hide it, settle its claim,
+    /// and destroy it once its target is let go. Returns whether more is to come.
     pub(super) fn close_step(&self, control: &Control, slot: &mut Slot) -> bool {
         if self.prove_step(slot) {
             return true;
         }
+        self.hide(control, slot);
         let mut more = false;
         match slot.settle() {
             Settled::Now => self.count(|report| report.claims_settled += 1),
@@ -80,22 +83,35 @@ impl Core {
         slot.closing = true;
         self.schedule.borrow_mut().cancel(Need::Frame(key));
         if !self.present_fences && slot.has_surface() {
-            // While the window is still shown: its one present is never into a hidden window.
+            // The window stays shown until the proof ended (E5-F2): a hidden window's acquires are out of date.
             self.begin_proof(control, &mut slot);
         } else {
             self.release(&mut slot);
         }
-        let hidden = control.command(&self.source(), key, WindowCommand::Hide);
         let _ = self.owner.poll();
         if self.close_step(control, &mut slot) {
             self.want_looks();
         }
-        hidden
+        // Hidden by that step, or by the look that ends the proof.
+        match slot.hidden {
+            Some(hidden) => hidden,
+            None => control
+                .window_state(key)
+                .map(|_| ())
+                .ok_or(Refusal::UnknownWindow),
+        }
     }
 
     fn release(&self, slot: &mut Slot) {
         if slot.release_surface() {
             self.count(|report| report.surfaces_released += 1);
+        }
+    }
+
+    /// Hide a closing window, once; only when the proof of its presents is over (E5-F2).
+    fn hide(&self, control: &Control, slot: &mut Slot) {
+        if slot.hidden.is_none() {
+            slot.hidden = Some(control.command(&self.source(), slot.key, WindowCommand::Hide));
         }
     }
 
@@ -164,7 +180,12 @@ impl Core {
         }
         let slots = self.all_slots();
         for slot in &slots {
-            self.release(&mut slot.borrow_mut());
+            let mut slot = slot.borrow_mut();
+            // A proof still under way is given up, as the owner closes now; its closing window is hidden with it.
+            self.release(&mut slot);
+            if slot.closing {
+                self.hide(control, &mut slot);
+            }
         }
         let _ = self.owner.poll();
         self.settle_all(&slots);

@@ -183,16 +183,18 @@ impl<'a> Shell<'a> {
         Ok(())
     }
 
-    /// Close a window: hide it, release its surface, settle its claim, and destroy it once the owner let go of its
+    /// Close a window: release its surface, hide it, settle its claim, and destroy it once the owner let go of its
     /// target. Without `VK_EXT_swapchain_maintenance1` a surface that presented first proves its presents ended: one
-    /// present on a new swapchain, before the hide, whose image the owner acquires back on the presenter's later looks
-    /// (MT-214 SF-2); then it is released and the window goes. One whose proof does not come within two seconds is
-    /// released all the same and kept, hidden, until the owner closes ([`PresentReport::closes_unproven`]). A window that
-    /// does not present is destroyed at once.
+    /// present on a new swapchain, whose image the owner acquires back on the presenter's later looks (MT-214 SF-2).
+    /// Until that proof ended the window stays shown as it was, never activated, since every acquire of a hidden
+    /// window's swapchain is out of date (E5-F2); then it is hidden, the surface released, and the window goes. One
+    /// whose proof does not come within two seconds is hidden and released all the same and kept, hidden, until the
+    /// owner closes ([`PresentReport::closes_unproven`]). A window that does not present is hidden and destroyed at once.
     ///
     /// # Errors
     ///
-    /// [`Refusal`] of the window crate for the hide or the destroy.
+    /// [`Refusal`] of the window crate for the hide when it was made in this call, or for the destroy of a window
+    /// without presentation; [`Refusal::UnknownWindow`] for a window that is gone.
     pub fn close_window(&self, window: WindowKey) -> Result<(), Refusal> {
         self.core.close_window(self.control, window)
     }

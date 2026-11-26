@@ -4,11 +4,13 @@
 //!
 //! - `an_idle_window_submits_nothing_and_one_damage_presents_one_frame`: AC214-4, also while input, focus and move
 //!   messages reach the window on the real loop (MT-214 SF-1), and the capture of a presented swapchain image compared
-//!   texel by texel; the watch of MT-215 HB-4 says the wanted frame was presented.
+//!   texel by texel; the watch of MT-215 HB-4 says the wanted frame was presented. Posted focus messages make no focus
+//!   event on the loop, so the stir is complete once keys, pointer and the move arrived (E5-F3).
 //! - `resize_minimise_restore_and_scale_change_recreate_the_swapchain`: AC214-3; every replaced swapchain ends.
 //! - `closing_a_window_releases_its_target_once_and_keeps_the_other_presenting`: AC214-3, AC214-8; the closed window
-//!   is destroyed before shutdown, with or without `VK_EXT_swapchain_maintenance1` (MT-214 SF-2).
-//! - `windows_opened_and_closed_one_after_another_leave_no_swapchain_behind`: MT-214 SF-2.
+//!   is destroyed before shutdown, with or without `VK_EXT_swapchain_maintenance1` (MT-214 SF-2), and is never hidden
+//!   while its presents are still being proven (E5-F2).
+//! - `windows_opened_and_closed_one_after_another_leave_no_swapchain_behind`: MT-214 SF-2, E5-F2.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -63,11 +65,12 @@ fn step(name: &'static str, run: impl FnMut(&Shell<'_>, &App) -> bool + 'static)
 }
 
 /// Events of the windows that change nothing shown, and frames due by their cause, as the application heard them.
+/// Focus events are not counted: whatever posted focus messages make is held to drawing nothing like every other event,
+/// but on the loop they make none (E5-F3), so nothing waits for one.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct Seen {
     keys: u64,
     pointer: u64,
-    focus: u64,
     moved: u64,
     requested: u64,
     exposed: u64,
@@ -84,7 +87,6 @@ impl Seen {
             | WindowEvent::PointerLeft(_)
             | WindowEvent::PointerButton(_)
             | WindowEvent::Wheel(_) => self.pointer += 1,
-            WindowEvent::FocusChanged { .. } => self.focus += 1,
             WindowEvent::Moved { .. } => self.moved += 1,
             WindowEvent::FrameDue {
                 cause: FrameCause::Requested,
@@ -98,12 +100,10 @@ impl Seen {
         }
     }
 
-    /// Input, focus and a move all reached the application since `before`.
+    /// Keys, the pointer and a move all reached the application since `before`. Not focus: posted `WM_SETFOCUS` and
+    /// `WM_KILLFOCUS` made no focus event in 965 checks of the evaluation of 29763b430 (MT-214 E5-F3).
     fn stirred_since(self, before: Self) -> bool {
-        self.keys > before.keys
-            && self.pointer > before.pointer
-            && self.focus > before.focus
-            && self.moved > before.moved
+        self.keys > before.keys && self.pointer > before.pointer && self.moved > before.moved
     }
 }
 
@@ -327,6 +327,23 @@ fn command(shell: &Shell<'_>, window: WindowKey, command: WindowCommand) {
         .control()
         .command(&CommandSource::host(70), window, command)
         .expect("the window takes the command");
+}
+
+/// MT-214 E5-F2: a closing window is hidden only once its surface was released, after the proof of its presents
+/// ended. Every acquire of a hidden window's swapchain is out of date, so a proof begun before the hide never comes.
+fn not_hidden_while_proving(shell: &Shell<'_>, window: WindowKey) {
+    let hidden = shell
+        .control()
+        .window_state(window)
+        .is_some_and(|state| state.display == Display::Hidden);
+    let proving = shell
+        .presentation(window)
+        .is_some_and(|presentation| presentation.swapchain.is_some());
+    assert!(
+        !(hidden && proving),
+        "hidden while its presents were being proven: {:?}",
+        shell.report()
+    );
 }
 
 /// Input, focus and move messages for the window, as the operating system posts them to it, and a move by the host:
@@ -587,23 +604,24 @@ fn closing_a_window_releases_its_target_once_and_keeps_the_other_presenting() {
                 assert_eq!(shell.report().targets_released, 0);
                 note.set(counts(shell, app.window(1)).1);
                 shell.close_window(app.window(0)).expect("closing");
-                let hidden = shell
-                    .control()
-                    .window_state(app.window(0))
-                    .is_none_or(|state| state.display == Display::Hidden);
-                assert!(hidden, "a closed window is hidden at once");
+                // Hidden at once with present fences; without them once its presents are proven ended (E5-F2).
+                not_hidden_while_proving(shell, app.window(0));
                 true
             }),
             step("damage the other", |shell, app| {
+                not_hidden_while_proving(shell, app.window(0));
                 shell.damage(app.window(1)).expect("damaged");
                 true
             }),
             step("the other still presents", move |shell, app| {
+                not_hidden_while_proving(shell, app.window(0));
                 settled(shell, app.window(1), check.get())
             }),
             step("the first lets its window go, once, before shutdown", |shell, app| {
                 // Its presents are proven ended, by its present fences or, without them, by one present on a new
-                // swapchain whose image came back (MT-214 SF-2): the owner drops the target, the window goes.
+                // swapchain whose image came back while it was still shown (MT-214 SF-2, E5-F2): the owner drops the
+                // target, the window goes.
+                not_hidden_while_proving(shell, app.window(0));
                 let report = shell.report();
                 assert_eq!(report.closes_unproven, 0, "{report:?}");
                 assert!(report.targets_released <= 1, "once: {report:?}");
@@ -655,9 +673,11 @@ fn windows_opened_and_closed_one_after_another_leave_no_swapchain_behind() {
                 }),
                 step("close it", move |shell, app| {
                     shell.close_window(app.window(number)).expect("closing");
+                    not_hidden_while_proving(shell, app.window(number));
                     true
                 }),
                 step("it is gone, with its swapchains and target", move |shell, app| {
+                    not_hidden_while_proving(shell, app.window(number));
                     let now = swapchains(shell);
                     // The one that stays, and the closing window's old swapchain and the new one of its proof.
                     assert!(now <= 3, "{now} swapchains while window {number} closes");

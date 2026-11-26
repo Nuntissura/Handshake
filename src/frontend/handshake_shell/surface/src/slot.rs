@@ -1,7 +1,7 @@
 //! One window's presentation: its client handle, its Display claim, its surface and what the presenter knows of its
 //! swapchain. The GPU calls are here; when they are made is `host.rs`'s, what follows from them `decide.rs`'s.
 
-use handshake_shell_window::{PhysicalSize, WindowKey};
+use handshake_shell_window::{PhysicalSize, Refusal, WindowKey};
 use handshake_vulkan_renderer::{
     AuthorizationProvenance, Claim, ClaimDisposition, ClaimRequest, ClientId, Extent, GpuClient,
     GpuOwner, ImageLayout, OperationId, OperationKind, OwnerSurface, PresentRefusal,
@@ -62,6 +62,8 @@ pub(crate) struct Slot {
     pub(crate) capture: Capture,
     /// Closing, its presents are being proven ended before the surface is released, until this time (MT-214 SF-2).
     pub(crate) proving: Option<Instant>,
+    /// Closing, the window was hidden, with what the window crate answered: only once the proof ended (E5-F2).
+    pub(crate) hidden: Option<Result<(), Refusal>>,
 }
 
 impl Slot {
@@ -102,6 +104,7 @@ impl Slot {
             retire_frames: 0,
             capture: Capture::None,
             proving: None,
+            hidden: None,
         })
     }
 

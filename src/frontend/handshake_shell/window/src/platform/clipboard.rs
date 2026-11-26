@@ -8,10 +8,11 @@
 //!
 //! That one request may make another program render text it promised: the system sends it `WM_RENDERFORMAT` and the
 //! request waits for it (Clipboard Operations, "Delayed Rendering"), and Microsoft's documentation of
-//! `GetClipboardData`, `WM_RENDERFORMAT` and Delayed Rendering names no time after which it gives up. So the copy is
-//! made on a thread of its own, on the loop thread's desktop, and the write waits for it at most [`KEEP_WAIT`]: a
-//! program that does not render in time makes the write [`ClipboardError::Busy`], and never makes the loop wait
-//! (MT-214 E4-F3). One copy runs at a time; while one still runs it holds the clipboard open, and writes are busy.
+//! `GetClipboardData`, `WM_RENDERFORMAT` and Delayed Rendering names no time after which it gives up. A read asks for
+//! the same text in the same way. So the copy, and every read, is made on the keeper thread, a thread of its own on the
+//! loop thread's desktop, and waited for at most [`KEEP_WAIT`]: a program that does not render in time makes the write
+//! or the read [`ClipboardError::Busy`], and never makes the loop wait (MT-214 E4-F3, R4-D3). One errand of the keeper
+//! runs at a time; while one still runs it holds the clipboard open, and reads and writes are busy.
 //!
 //! A withdrawal empties the clipboard only while it holds this window's own last write: its owner is this window
 //! ("A window becomes the clipboard owner when it ... calls the EmptyClipboard function. The window remains the
@@ -34,7 +35,7 @@ use windows_sys::Win32::System::Memory::{
     GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE,
 };
 use windows_sys::Win32::System::Ole::{CF_LOCALE, CF_OEMTEXT, CF_TEXT, CF_UNICODETEXT};
-use windows_sys::Win32::System::StationsAndDesktops::{GetThreadDesktop, SetThreadDesktop, HDESK};
+use windows_sys::Win32::System::StationsAndDesktops::{GetThreadDesktop, SetThreadDesktop};
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
 use super::last_error;
@@ -51,10 +52,18 @@ const MAX_FORMATS: usize = 1_024;
 /// The formats of plain text, as the clipboard lists them: the one placed, and those the system makes from it.
 const PLAIN_TEXT: [u32; 4] = [FORMAT, CF_TEXT as u32, CF_OEMTEXT as u32, CF_LOCALE as u32];
 
-/// How long a write waits for the copy of what it keeps (E4-F3). Text already on the clipboard is copied in far less;
-/// the rest is the program that promised it, rendering on request (Microsoft's estimate of the overhead of a render on
-/// request is 10 to 100 microseconds, Clipboard Operations, "Delayed Rendering Guidance").
+/// How long a write waits for the copy of what it keeps, and a read for the text (E4-F3, R4-D3). Text already on the
+/// clipboard is copied in far less; the rest is the program that promised it, rendering on request (Microsoft's estimate
+/// of the overhead of a render on request is 10 to 100 microseconds, Clipboard Operations, "Delayed Rendering
+/// Guidance").
 pub(super) const KEEP_WAIT: Duration = Duration::from_millis(250);
+
+/// What a read brings back: the text, if there is any.
+type Reading = Result<Option<String>, ClipboardError>;
+
+/// An errand of the keeper thread ([`SystemClipboard::on_keeper`]), run once that thread is bound to the loop thread's
+/// desktop, or with the error number of the binding. `None`: another program has the clipboard open.
+type Errand<T> = fn(Result<(), u32>) -> Option<T>;
 
 /// What a write does when it keeps nothing of a clipboard that holds something (`crate::clipboard`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,8 +81,10 @@ pub(super) struct SystemClipboard {
     /// Owns what is put on the clipboard. Never shown.
     owner: HWND,
     last: LastWrite,
-    /// The thread of a copy of what a write keeps that did not end within [`KEEP_WAIT`]: it holds the clipboard open.
+    /// The keeper thread of a copy or a read that did not end within [`KEEP_WAIT`]: it holds the clipboard open.
     keeper: Option<JoinHandle<()>>,
+    /// What a read runs on the keeper thread: [`read_text`]. Tests give their own.
+    reader: Errand<Reading>,
 }
 
 /// A copy of what a write keeps, made on a thread of its own (E4-F3), and the clipboard's sequence number then.
@@ -88,13 +99,15 @@ impl SystemClipboard {
             owner,
             last: LastWrite::default(),
             keeper: None,
+            reader: read_text,
         }
     }
 
-    /// What a write keeps, copied on a thread of its own on this thread's desktop; waits at most [`KEEP_WAIT`]. A copy
-    /// that runs on keeps the clipboard open, so the write is [`ClipboardError::Busy`], and so is every write until it
-    /// ended. Nobody waits for its answer any more: its thread wipes and frees the copy when it ends.
-    fn keep_within_bound(&mut self) -> Result<Keeping, ClipboardError> {
+    /// Run `errand` on the keeper thread, a thread of its own bound to this thread's desktop, and wait for it at most
+    /// [`KEEP_WAIT`] (E4-F3, R4-D3). An errand that runs on keeps the clipboard open, so this is
+    /// [`ClipboardError::Busy`], and so is every read and write until it ended. Nobody waits for its answer any more:
+    /// what it made is dropped when it ends, a copy wiped and freed.
+    fn on_keeper<T: Send + 'static>(&mut self, errand: Errand<T>) -> Result<T, ClipboardError> {
         if let Some(keeper) = self.keeper.take() {
             if !keeper.is_finished() {
                 self.keeper = Some(keeper);
@@ -108,13 +121,20 @@ impl SystemClipboard {
         let thread = std::thread::Builder::new()
             .name("hsk-clipboard-keep".to_owned())
             .spawn(move || {
-                let _ = answered.send(copy_to_keep(desktop));
+                // SAFETY: a thread of its own that has no window or hook yet; the desktop is the loop thread's, of this
+                // process's window station, and stays open while that thread runs.
+                let bound = if unsafe { SetThreadDesktop(desktop) } == 0 {
+                    Err(last_error())
+                } else {
+                    Ok(())
+                };
+                let _ = answered.send(errand(bound));
             })
             .map_err(|_| ClipboardError::Busy)?;
         match answer.recv_timeout(KEEP_WAIT) {
-            Ok(Some(keeping)) => {
+            Ok(Some(value)) => {
                 let _ = thread.join();
-                Ok(keeping)
+                Ok(value)
             }
             Ok(None) | Err(RecvTimeoutError::Disconnected) => {
                 let _ = thread.join();
@@ -197,33 +217,9 @@ fn lock(memory: HGLOBAL) -> Result<Locked, ClipboardError> {
 }
 
 impl TextClipboard for SystemClipboard {
+    /// Made on the keeper thread, waited for at most [`KEEP_WAIT`] (R4-D3).
     fn read(&mut self) -> Result<Option<String>, ClipboardError> {
-        // SAFETY: a plain value, read only.
-        if unsafe { IsClipboardFormatAvailable(FORMAT) } == 0 {
-            return Ok(None);
-        }
-        let _opened = self.open()?;
-        // SAFETY: the clipboard is open. The memory stays the clipboard's, and valid until it is closed.
-        let memory = unsafe { GetClipboardData(FORMAT) };
-        if memory == 0 {
-            return Ok(None);
-        }
-        let memory = memory as HGLOBAL;
-        let locked = lock(memory)?;
-        // SAFETY: a plain value.
-        let room = unsafe { GlobalSize(memory) } / size_of::<u16>();
-        // SAFETY: `room` units are readable while the memory is locked, and a lock is aligned for any value. Another
-        // program wrote them; every bit pattern is a u16.
-        let units = unsafe { slice::from_raw_parts(locked.start.cast::<u16>(), room) };
-        let text = units.split(|unit| *unit == 0).next().unwrap_or(&[]);
-        if text.len() > MAX_UNITS {
-            return Err(ClipboardError::TooLarge);
-        }
-        let text = String::from_utf16_lossy(text);
-        if text.len() > MAX_CLIPBOARD_BYTES {
-            return Err(ClipboardError::TooLarge);
-        }
-        Ok(Some(text))
+        self.on_keeper(self.reader)?
     }
 
     fn write(&mut self, text: &str) -> Result<(), ClipboardError> {
@@ -233,7 +229,7 @@ impl TextClipboard for SystemClipboard {
         let units: Vec<u16> = text.encode_utf16().chain(Some(0)).collect();
         // Before the clipboard is opened, so it is open for the swap only.
         let data = text_memory(&units)?;
-        let keeping = self.keep_within_bound()?;
+        let keeping = self.on_keeper(copy_to_keep)?;
         let opened = self.open()?;
         // The copy is of what is there only if nothing changed the clipboard since it was made.
         // SAFETY: no arguments.
@@ -366,13 +362,11 @@ fn keep<B: Board>(board: &B) -> Result<Vec<(u32, B::Data)>, Skipped> {
     }
 }
 
-/// The copy of what a write keeps, made on the thread of [`SystemClipboard::keep_within_bound`], which runs it on the
-/// desktop of the loop's thread (`desktop`): the program that promised text is sent `WM_RENDERFORMAT`, and window
+/// The copy of what a write keeps, an errand of the keeper thread ([`SystemClipboard::on_keeper`]), which runs it on the
+/// desktop of the loop's thread (`bound`): the program that promised text is sent `WM_RENDERFORMAT`, and window
 /// messages pass only between threads of one desktop (Desktops). `None` when another program has the clipboard open.
-fn copy_to_keep(desktop: HDESK) -> Option<Keeping> {
-    // SAFETY: a thread of its own that has no window or hook yet; the desktop is the loop thread's, of this process's
-    // window station, and stays open while that thread runs.
-    if unsafe { SetThreadDesktop(desktop) } == 0 {
+fn copy_to_keep(bound: Result<(), u32>) -> Option<Keeping> {
+    if bound.is_err() {
         return Some(Keeping {
             kept: Err(Skipped::Unreadable),
             sequence: 0,
@@ -388,6 +382,50 @@ fn copy_to_keep(desktop: HDESK) -> Option<Keeping> {
     let sequence = unsafe { GetClipboardSequenceNumber() };
     drop(opened);
     Some(Keeping { kept, sequence })
+}
+
+/// A read, an errand of the keeper thread as [`copy_to_keep`] is (R4-D3): asking for the text may make the program that
+/// promised it render it, and that request waits for it. `None` when another program has the clipboard open.
+fn read_text(bound: Result<(), u32>) -> Option<Reading> {
+    if let Err(error) = bound {
+        return Some(Err(ClipboardError::System(error)));
+    }
+    // SAFETY: a plain value, read only.
+    if unsafe { IsClipboardFormatAvailable(FORMAT) } == 0 {
+        return Some(Ok(None));
+    }
+    // SAFETY: no window: the clipboard is read here, never emptied or written. Fails at once while it is open.
+    if unsafe { OpenClipboard(0) } == 0 {
+        return None;
+    }
+    let opened = OpenedClipboard;
+    Some(text_on(&opened))
+}
+
+/// The text on the open clipboard.
+fn text_on(_: &OpenedClipboard) -> Reading {
+    // SAFETY: the clipboard is open. The memory stays the clipboard's, and valid until it is closed. Promised text is
+    // rendered on request, which the caller bounds ([`KEEP_WAIT`]).
+    let memory = unsafe { GetClipboardData(FORMAT) };
+    if memory == 0 {
+        return Ok(None);
+    }
+    let memory = memory as HGLOBAL;
+    let locked = lock(memory)?;
+    // SAFETY: a plain value.
+    let room = unsafe { GlobalSize(memory) } / size_of::<u16>();
+    // SAFETY: `room` units are readable while the memory is locked, and a lock is aligned for any value. Another
+    // program wrote them; every bit pattern is a u16.
+    let units = unsafe { slice::from_raw_parts(locked.start.cast::<u16>(), room) };
+    let text = units.split(|unit| *unit == 0).next().unwrap_or(&[]);
+    if text.len() > MAX_UNITS {
+        return Err(ClipboardError::TooLarge);
+    }
+    let text = String::from_utf16_lossy(text);
+    if text.len() > MAX_CLIPBOARD_BYTES {
+        return Err(ClipboardError::TooLarge);
+    }
+    Ok(Some(text))
 }
 
 /// Clipboard data this process holds. Wiped and freed unless the clipboard takes it.

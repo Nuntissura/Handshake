@@ -28,9 +28,11 @@ pub(crate) enum CommandFrom {
 /// the Operator's close would count as anybody's, which only withholds the hand-on).
 ///
 /// The command counts only when it is the one the system made of the gesture (E4-F2): sent by this thread while the
-/// gesture's message is being handled, or the first one taken out of the queue after that handling posted one, when
-/// none was queued before it. A gesture whose handling made no command, a press on the close button dragged off it or
-/// F4 without Alt, approves nothing, and a close command another program posts after it is nobody's. A close message
+/// gesture's message is being handled, or the first one taken out of the queue after the handling of Alt+F4 posted one,
+/// when none was queued before it (only Alt+F4's may be posted, E5-F4; `platform::closing`). A gesture whose handling
+/// made no command, a press on the close button dragged off it or F4 without Alt, approves nothing, and a close command
+/// another program posts after its handling, or during it for any gesture but Alt+F4, is nobody's (one posted within the
+/// brief handling of an Alt+F4 that made none is the residual case). A close message
 /// posted or sent by another program, or by this one, and a close command another thread sends, are nobody's approval;
 /// such a request still lets a model remove the window once, and hands nothing on.
 #[derive(Clone, Copy, Debug, Default)]

@@ -54,14 +54,16 @@ while old swapchains, captures or closing windows wait for it: 8 ms doubling to 
   the window's, and (0, 0) when minimised, which suspends (Vulkan specification, WSI, Win32 Platform).
 - The owner destroys a replaced swapchain once (VUID-vkDestroySwapchainKHR-swapchain-01282), after its work and
   presents are proven ended by its own surface. The presenter never destroys or waits for anything itself.
-- Close: the window is hidden (`WindowCommand::Hide`), the surface released, the claim settled with what the owner
+- Close: the surface released, the window hidden (`WindowCommand::Hide`), the claim settled with what the owner
   observed, and the window destroyed once its native token count is 0, which is when the owner dropped the target. The
   target counts its own drop: `PresentReport::targets_released`. Without the extension, a surface that presented first
-  proves its presents ended (MT-214 SF-2): a new swapchain and one present on it before the hide, then the presenter's
-  looks call `OwnerSurface::prove_presents` until the image of that present came back, which ends the old swapchain by
-  its successor's present and the new one by its own image; then the surface is released. No wait for the device; a
-  proof that does not come within `PROVE_WINDOW` (2 s) releases the surface all the same, which then keeps its last
-  swapchain, target and window until the owner closes, counted in `PresentReport::closes_unproven`.
+  proves its presents ended (MT-214 SF-2): a new swapchain and one present on it, then the presenter's looks call
+  `OwnerSurface::prove_presents` until the image of that present came back, which ends the old swapchain by its
+  successor's present and the new one by its own image; then the window is hidden and the surface released. The window
+  stays shown, never activated, until then: every acquire of a hidden window's swapchain is out of date, so a proof
+  begun before the hide never came (E5-F2). No wait for the device; a proof that does not come within `PROVE_WINDOW`
+  (2 s) hides the window and releases the surface all the same, which then keeps its last swapchain, target and window
+  until the owner closes, counted in `PresentReport::closes_unproven`.
 - Shutdown (`Shell::shutdown`): after the application heard `ShutdownBegan`, every surface is released, claims settled,
   the owner closed (bounded by its own deadline), claims still open let go, and `Control::finish` tried until no target
   is held.

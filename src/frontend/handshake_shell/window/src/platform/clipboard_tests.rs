@@ -3,6 +3,7 @@
 //! clipboard, followed by the formats to which it can be converted", Synthesized Clipboard Formats).
 
 use std::cell::Cell;
+use std::time::Instant;
 
 use windows_sys::Win32::System::Ole::{
     CF_BITMAP, CF_DIB, CF_DIBV5, CF_ENHMETAFILE, CF_HDROP, CF_LOCALE, CF_METAFILEPICT, CF_OEMTEXT,
@@ -236,6 +237,32 @@ fn an_empty_clipboard_is_written_and_a_refused_empty_changes_nothing() {
     };
     assert_eq!(write(&mut pad), Err(ClipboardError::System(5)));
     assert_eq!((pad.formats, pad.puts), (text(), 0));
+}
+
+/// MT-214 R4-D3: a read is made on the keeper thread. One whose program does not render in time is busy within the
+/// bound and never makes the loop wait; while it runs on, reads and writes are busy and touch nothing; once it ended, the
+/// next read is made. The errands here touch no clipboard.
+#[test]
+fn a_read_not_rendered_in_time_is_busy_and_never_makes_the_loop_wait() {
+    fn late(_: Result<(), u32>) -> Option<Reading> {
+        std::thread::sleep(KEEP_WAIT * 4);
+        Some(Ok(Some("late".to_owned())))
+    }
+    fn prompt(_: Result<(), u32>) -> Option<Reading> {
+        Some(Ok(Some("prompt".to_owned())))
+    }
+    let mut clipboard = SystemClipboard::new(0);
+    clipboard.reader = late;
+    let started = Instant::now();
+    assert_eq!(clipboard.read(), Err(ClipboardError::Busy));
+    let waited = started.elapsed();
+    assert!(waited < KEEP_WAIT * 3, "the read waited {waited:?}");
+    clipboard.reader = prompt;
+    assert_eq!(clipboard.read(), Err(ClipboardError::Busy), "the late read still runs");
+    assert_eq!(clipboard.write("text"), Err(ClipboardError::Busy), "and holds the clipboard");
+    let keeper = clipboard.keeper.take().expect("the late read runs on");
+    keeper.join().expect("it ended");
+    assert_eq!(clipboard.read(), Ok(Some("prompt".to_owned())));
 }
 
 /// MT-214 E3-F3: after a refused write put the Operator's text back, this window owns the clipboard again, and a
