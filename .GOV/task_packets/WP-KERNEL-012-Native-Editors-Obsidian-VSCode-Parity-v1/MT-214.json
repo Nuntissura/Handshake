@@ -1038,5 +1038,113 @@
       "active-window stand-in also applies in the product, making model refusals stricter"
     ],
     "tests": "compiled, not run; independent run pending"
+  },
+  "slice1_eval2_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 slice 1 after remediation; not an MT verdict; lifecycle unchanged",
+    "commit": "f88af7727",
+    "run": "passed 91 of 91",
+    "slice_result": "failed on review (N1, N2)",
+    "counts": {
+      "unit": 70,
+      "focus_ban": 7,
+      "geometry": 5,
+      "host_panic": 1,
+      "menu_loop": 1,
+      "operator_window": 1,
+      "public_surface": 3,
+      "quiet_window": 1,
+      "scale_change": 1,
+      "wakes": 1
+    },
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval-run-f88af7727.log",
+    "log_sha256": "9d51450568ecf9a3d79e78ccb52aa8d77d02693450bf9417ce9d65102b0b29c1",
+    "operator_safety": "session unlocked during the run; 2,934 read-only samples: Operator foreground and clipboard sequence unchanged, none of our windows on the Operator's desktop, no leftovers",
+    "previous_findings": {
+      "W1": "fixed on this thread's paths; activation by another program via AttachThreadInput and ghost windows not verified",
+      "W2": "fixed",
+      "W3": "fixed",
+      "W4": "partly (N1)",
+      "W5": "fixed",
+      "W6": "partly (N2)",
+      "W7": "fixed (1 ms yield unit-tested only)",
+      "W8": "fixed"
+    },
+    "findings": [
+      {
+        "id": "R2-N1",
+        "severity": "medium",
+        "at": "commands.rs:86-95; place.rs:91-92,108-110",
+        "defect": "a model can send Restore{activate:false} and un-maximise the Operator's window; Show and Restore never call may_change_geometry; untested"
+      },
+      {
+        "id": "R2-N2",
+        "severity": "medium-low",
+        "at": "window.rs:427-431; winit keyboard.rs:115,124,161",
+        "defect": "a dead-key message sent from another thread during winit's PeekMessage look-ahead still panics the loop; by reading, not reproduced"
+      },
+      {
+        "id": "R2-N3",
+        "severity": "low",
+        "at": "wake_slot.rs:97-100",
+        "defect": "a refused post is retried every 10 ms with no backoff; while the loop hangs the queue can fill in about 21 minutes"
+      },
+      {
+        "id": "R2-N4",
+        "severity": "low",
+        "at": "loop_core.rs:495-509",
+        "defect": "lane numbers are never reused; 63 lanes per loop lifetime"
+      },
+      {
+        "id": "R2-N5",
+        "severity": "low, decision",
+        "at": "place.rs:141-153,215-218",
+        "defect": "inside still, an Operator-approved minimise, hide or destroy hands activation to none of our windows; closing a detached pane leaves the keyboard nowhere"
+      },
+      {
+        "id": "R2-N6",
+        "severity": "low",
+        "at": "platform/clipboard.rs:127-139",
+        "defect": "if SetClipboardData fails after EmptyClipboard the Operator's clipboard is left empty"
+      }
+    ],
+    "weak_tests": [
+      "FocusWatch is a safety guard only",
+      "private-desktop scan checks run_script calls only",
+      "no test reaches the InSendMessageEx refusal (service.rs:149)",
+      "Operator-input stamp and input_waits paths unit-only",
+      "loose lower bounds refused>=5 and activations_refused>=6"
+    ],
+    "ac214": {
+      "met_for_this_crate": [
+        "AC214-1",
+        "AC214-12"
+      ],
+      "quiet_part_on_private_desktops": [
+        "AC214-2"
+      ],
+      "unit_only": [
+        "AC214-4",
+        "AC214-5",
+        "AC214-11"
+      ],
+      "not_covered": [
+        "AC214-8",
+        "AC214-3",
+        "AC214-6",
+        "AC214-7",
+        "AC214-9",
+        "AC214-10"
+      ]
+    },
+    "mt215_conditions": {
+      "F1": "met",
+      "HB-7": "met by type",
+      "HB-3": "met",
+      "F2": "met by construction",
+      "HB-4": "unit only"
+    },
+    "next_actor": "GUI coding agent: repair R2-N1..N6"
   }
 }
