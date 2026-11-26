@@ -1399,5 +1399,97 @@
       "logs": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/check-r3-final.log, clippy-r3-final.log, tree-r3-1.log"
     },
     "tests": "nothing run; independent run pending (combined with slice 2 and MT-203 slice 2 remediation at 198dae691)"
+  },
+  "slice1_eval4_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 slice 1 after the third remediation; not an MT verdict; lifecycle unchanged",
+    "commit": "198dae691ffde2aa6765725fae6b98ea864c285b",
+    "method": "exact copy at Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/tmp/tree-198dae691, blobs matched before and after (tree digest 2474dbd3...); private desktops; ARM64 Snapdragon with Adreno X2-85, x64 toolchain emulated",
+    "result": "failed: 115 of 116 passed; test_clipboard cannot run",
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval-run-198dae691-shell.log",
+    "log_sha256": "b75a3e1d3e95d747067a20e390f5754324790158f048dd81c99d3076826605ce",
+    "summary_ref": "MT-214/eval-agent/eval-summary-198dae691.json (sha256 4dba63dd01ed1e7fc80b643a9b50637341ca37cbdaab7a5c8c0b7bd1c03fb079); mutation logs mutation-198dae691-*.log and mutations-198dae691*.json",
+    "closure": {
+      "E3-F2": "closed in code, unit evidence only (real-OS proof missing, E4-F1)",
+      "E3-F3": "closed in code, unit evidence only (E4-F1)",
+      "E3-F4": "closed: mutation gives 5 posts instead of 4 and the test fails",
+      "E3-F5": "closed: mutation fails test_sent_keys:172",
+      "E3-F6": "closed for foreign WM_CLOSE posted or sent: mutation fails test_operator_window:398"
+    },
+    "findings": [
+      {
+        "id": "E4-F1",
+        "severity": "high, test harness",
+        "at": "window/tests/support/mod.rs:166-172",
+        "defect": "CreateWindowStationW with a name fails with error 5 (only Administrators may name a window station, Microsoft Learn; confirmed by probe: unnamed opens the shared Service-0x0-...$ station)",
+        "repair": "unnamed non-interactive station, accepting it is shared with the logon session (serialize the clipboard tests and assert the Operator's WinSta0 clipboard sequence is unchanged), or declare an elevated step"
+      },
+      {
+        "id": "E4-F2",
+        "severity": "low",
+        "at": "closing.rs:82-85; policy.rs:36-44",
+        "defect": "a foreign posted SC_CLOSE within 1 s of a close gesture that produced no command (button press dragged off, F4 with no focus) is credited to the Operator",
+        "repair": "tie the gesture to the command that system processing produces, not to any SC_CLOSE leaving the queue"
+      },
+      {
+        "id": "E4-F3",
+        "severity": "low, UNVERIFIED",
+        "at": "clipboard.rs:376",
+        "defect": "a write still asks another program to render promised plain text while the clipboard is open; a hung clipboard owner could stall the UI thread (Windows timeout not checked)"
+      },
+      {
+        "id": "E4-F4",
+        "severity": "low",
+        "at": "clipboard.rs:302-307",
+        "defect": "the marker check cannot change any outcome, since every marker is also not plain text; test_clipboard step 3 cannot fail for marker detection"
+      }
+    ],
+    "deviations": {
+      "R3-D1": "accepted: replacing the clipboard is normal Windows copy behaviour; refusing would fail most copies after a browser or Office copy; empty-then-fail is rare and reported as NotRestored",
+      "R3-D2": "accepted: hook is (WH_GETMESSAGE, proc, 0, GetCurrentThreadId()), the source scan pins that exact call, it sees only its own thread's queue and only reads; HBR-QUIET-002 holds",
+      "R3-D3": "holds on this build: probe on a private desktop showed DefWindowProc sends WM_CLOSE inside SC_CLOSE on the same thread; system-menu double-click sends both; Alt+F4 and close-button paths need real input"
+    },
+    "operator_safety": "foreground and clipboard sequence unchanged across about 70,000 samples; no run window visible, in front, focused or capturing; desktops and window stations unchanged; one external foreground-none event at 07:02:18 not caused by the runs",
+    "build_side_effect": "the MSVC linker telemetry tool vctip.exe made 4 invisible windows and outlived the build as pid 41600 (created by the eval agent's own build); the eval agent checked its identity and stopped it; build launchers should prevent or reclaim it (HBR-QUIET-003); mitigation UNVERIFIED",
+    "needs_native_x64_and_real_desktop": [
+      "Alt+F4 and close-button paths",
+      "a hung clipboard owner",
+      "presentation the Operator sees",
+      "real DPI and occlusion"
+    ]
+  },
+  "slice2_eval_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 slice 2 surface crate; not an MT verdict; lifecycle unchanged",
+    "commit": "198dae691ffde2aa6765725fae6b98ea864c285b (surface crate as of 6f71cac07)",
+    "result": "passed (this machine): 37 of 37: lib 21, frame_loop 3, headless 1, present_cases 7, source_scan 5; unit and hosted cases on private desktops only; SH214-RUNTIME not covered",
+    "log_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval-run-198dae691-shell.log",
+    "log_sha256": "b75a3e1d3e95d747067a20e390f5754324790158f048dd81c99d3076826605ce",
+    "host_note": "the Vulkan driver here has no VK_EXT_swapchain_maintenance1, so retirement always takes the successor-present path",
+    "frame_path": "no device-wide wait in the surface crate or GPU owner; acquire timeout 0; FIFO present paces at vertical blank (120 presents in 1978 ms), so it blocks the loop thread up to one blank",
+    "findings": [
+      {
+        "id": "SF-1",
+        "severity": "low",
+        "at": "decide.rs:62; frame_loop.rs:265",
+        "defect": "making every input, focus or move event draw a frame left frame_loop passing; the input rule is unit-only",
+        "repair": "post input and focus messages during frame_loop.rs:265 and assert nothing is submitted"
+      },
+      {
+        "id": "SF-2",
+        "severity": "medium, declared",
+        "at": "frame_loop.rs:498-502; retire.rs:18-21",
+        "defect": "without swapchain_maintenance1 (the live path here) every closed window stays hidden with its swapchain and target until shutdown: unbounded growth with detached panes",
+        "repair": "before release, present once on a successor swapchain and acquire it back, so the successor-present rule can end the old one"
+      }
+    ],
+    "needs_native_x64_and_real_desktop": [
+      "presentation the Operator actually sees",
+      "the maintenance1 path",
+      "device loss and the unavailable state",
+      "real DPI and occlusion"
+    ]
   }
 }

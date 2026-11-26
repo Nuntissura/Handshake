@@ -1407,5 +1407,32 @@
       "validation and sync-validation layers",
       "non-coherent memory"
     ]
+  },
+  "slice2_eval2_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-203 slice 2 remediation; not an MT verdict; lifecycle unchanged",
+    "commit": "198dae691ffde2aa6765725fae6b98ea864c285b (renderer unchanged since 5b813e3cb)",
+    "result": "passed (this machine): 135 of 135 including the ignored layered-driver test run separately; the 7 window-host cases pass in the surface crate run",
+    "log_ref": [
+      "Handshake_Artifacts/WP-KERNEL-012/MT-203/eval-agent/cargo-test-198dae691.log (sha256 2696c26e9c6b757998bd6f0b1c246e54fd30a82a50dd887434eae2dff7dcb846)",
+      "MT-203/eval-agent/cargo-test-198dae691-ignored.log (sha256 05d874ef538f375c42e1bc2c001125be14f21829f7389d3942afc4c0b0f17da6)",
+      "MT-203/eval-agent/eval-summary-198dae691.json (sha256 bde1149ed66d7ffce8755de0de5efdb1c444a4386813ac83093ca128703302d7)"
+    ],
+    "closure": {
+      "S2-F1": "closed: bounding by the block again fails resources.rs:149",
+      "S2-F2": "closed: letting any window's present end the swapchain fails present_cases.rs:301",
+      "S2-F3": "partly open: close() still holds its close lock across drain and destruction (owner/lifecycle.rs:180), as the coder stated",
+      "S2-F4": "closed",
+      "S2-F5": "closed",
+      "S2-F6": "parts depending on maintenance1 cannot be exercised here"
+    },
+    "validation_layer": "not installed; no validation or sync validation ran",
+    "needs_native_x64": [
+      "maintenance1 path",
+      "validation and sync-validation layers",
+      "device loss and unavailable state",
+      "non-coherent memory"
+    ]
   }
 }
