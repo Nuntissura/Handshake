@@ -273,7 +273,7 @@ struct OriginalLoomSessionScope {
 }
 
 #[derive(SurrealValue)]
-struct LoomScopeSessionBinding { session: RecordId }
+struct LoomScopeSessionBinding { session_record: RecordId }
 
 pub(crate) async fn current_loom_exact_scope(
     database: &super::SurrealDataContext<'_>,
@@ -285,8 +285,8 @@ pub(crate) async fn current_loom_exact_scope(
     };
     let authority = super::current_record_user_scope().ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
     let rows = database.query_values::<OriginalLoomSessionScope, _>(
-        "SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, record::id(id) AS authenticated_session_id, record::id(access_space_id) AS access_space_id FROM authenticated_sessions WHERE id = $auth.id AND id = $session LIMIT 2;",
-        LoomScopeSessionBinding { session: RecordId::new("authenticated_sessions", authority.session_id) },
+        "SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, record::id(id) AS authenticated_session_id, record::id(access_space_id) AS access_space_id FROM authenticated_sessions WHERE id = $auth.id AND id = $session_record LIMIT 2;",
+        LoomScopeSessionBinding { session_record: RecordId::new("authenticated_sessions", authority.session_id) },
     ).await?;
     if rows.len() != 1 { return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")); }
     let row = rows.into_iter().next().expect("one canonical session");
@@ -1804,5 +1804,77 @@ mod tests {
         );
 
         storage.shutdown().await.expect("close embedded store");
+    }
+}
+
+#[cfg(test)]
+mod protected_session_binding_tests {
+    //! PROTECTED-SESSION-BINDINGS: SurrealDB 3.2.0 refuses to set a variable named `session`
+    //! (surrealdb-core cnf/mod.rs PROTECTED_PARAM_NAMES), so `current_loom_exact_scope` binds
+    //! `$session_record`. Runs the real query as the authenticated record user on the production
+    //! schema composition: a protected name fails before any statement, a dropped binding finds no row.
+    use super::super::resource_authority::{RecordUserScope, ResourceAction, ResourceGrantSpec};
+    use super::SurrealStorage;
+
+    const BINDING: &str = "protected-session-loom-binding";
+
+    async fn body(storage: &SurrealStorage) {
+        let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
+        let principal = storage
+            .provision_principal(
+                "protected-session-loom-account", "protected-session-loom-principal", "human_account",
+                "protected-session-loom-actor", "Operator", &capabilities, "protected-session-loom-space",
+                Some(BINDING), std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("provision the Loom scope principal");
+        let workspace = uuid::Uuid::now_v7().to_string();
+        let resource = storage
+            .register_workspace_resource(&principal.identity, &workspace)
+            .await
+            .expect("register the Loom scope workspace");
+        let grant = storage
+            .grant_resource(&principal.identity.account_id, &principal.identity.access_space_id, ResourceGrantSpec {
+                principal_id: principal.identity.principal_id.clone(), resource_id: resource.resource_id.clone(),
+                actions: vec![ResourceAction::Read, ResourceAction::Create, ResourceAction::Update],
+                capability_ids: capabilities, expires_at: Some(principal.session.expires_at), delegation_chain: vec![],
+            })
+            .await
+            .expect("grant the Loom scope workspace");
+        let scope = RecordUserScope {
+            grant_id: Some(grant.grant_id), workspace_id: Some(workspace.clone()),
+            session_token: principal.session.token.clone(), channel_binding_hash: Some(BINDING.to_owned()),
+            resource_id: resource.resource_id, session_id: principal.session.session_id.clone(),
+            capability_id: "fs.write".to_owned(), action: ResourceAction::Update,
+        };
+        let read_workspace = workspace.clone();
+        let exact = storage
+            .with_record_user_scope(scope, storage.with_data_operation(move |database| Box::pin(async move {
+                Ok::<_, super::super::SurrealStorageError>(super::current_loom_exact_scope(&database, &read_workspace).await)
+            })))
+            .await
+            .expect("open the record-user data operation")
+            .expect("the exact Loom scope query binds no protected parameter and finds its session");
+        assert_eq!(exact.owner_account_id.to_string(), principal.identity.account_id);
+        assert_eq!(exact.actor_principal_id.to_string(), principal.identity.principal_id);
+        assert_eq!(exact.authenticated_session_id.to_string(), principal.session.session_id);
+        assert_eq!(exact.access_space_id.to_string(), principal.identity.access_space_id);
+        assert_eq!(exact.workspace_id.as_str(), workspace);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn current_loom_exact_scope_binds_session_record_not_protected_session() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the exact Loom scope proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        backend
+            .close_and_remove()
+            .await
+            .expect("remove the exact Loom scope store");
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
     }
 }

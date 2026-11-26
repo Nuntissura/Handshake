@@ -909,8 +909,8 @@ impl SurrealDataContext<'_> {
     async fn work_profile_identity(&self, workspace_id: &str) -> Result<WorkProfileIdentity, SurrealStorageError> {
         let scope = super::current_record_user_scope().ok_or_else(|| invalid_authority("authenticated workspace scope required"))?;
         if scope.workspace_id.as_deref() != Some(workspace_id) { return Err(invalid_authority("workspace scope mismatch")); }
-        let mut result = self.client.query("SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, principal_id.actor_id AS actor_id FROM authenticated_sessions WHERE id = $auth.id AND id = $session LIMIT 2;")
-            .bind(("session", RecordId::new("authenticated_sessions", scope.session_id))).await?.check()?;
+        let mut result = self.client.query("SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, principal_id.actor_id AS actor_id FROM authenticated_sessions WHERE id = $auth.id AND id = $session_record LIMIT 2;")
+            .bind(("session_record", RecordId::new("authenticated_sessions", scope.session_id))).await?.check()?;
         let mut rows: Vec<WorkProfileIdentity> = result.take(0)?;
         if rows.len() != 1 { return Err(invalid_authority("authenticated identity missing or ambiguous")); }
         Ok(rows.remove(0))
@@ -1002,4 +1002,72 @@ pub mod mt196_local_execution_authority_contract {
     use crate as handshake_core;
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local_execution_authority_surreal_tests.rs"));
     authenticated_store_contract_tests!();
+}
+
+#[cfg(test)]
+mod protected_session_binding_tests {
+    //! PROTECTED-SESSION-BINDINGS: SurrealDB 3.2.0 refuses to set a variable named `session`
+    //! (surrealdb-core cnf/mod.rs PROTECTED_PARAM_NAMES), so the work-profile identity query binds
+    //! `$session_record`. Runs the real query as the authenticated record user on the production
+    //! schema composition: a protected name fails before any statement, a dropped binding finds no row.
+    use super::super::resource_authority::{RecordUserScope, ResourceAction, ResourceGrantSpec};
+    use super::SurrealStorage;
+
+    const BINDING: &str = "protected-session-preference-binding";
+
+    async fn body(storage: &SurrealStorage) {
+        let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
+        let principal = storage
+            .provision_principal(
+                "protected-session-pref-account", "protected-session-pref-principal", "human_account",
+                "protected-session-pref-actor", "Operator", &capabilities, "protected-session-pref-space",
+                Some(BINDING), std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("provision the work-profile identity principal");
+        let workspace = uuid::Uuid::now_v7().to_string();
+        let resource = storage
+            .register_workspace_resource(&principal.identity, &workspace)
+            .await
+            .expect("register the work-profile workspace");
+        let grant = storage
+            .grant_resource(&principal.identity.account_id, &principal.identity.access_space_id, ResourceGrantSpec {
+                principal_id: principal.identity.principal_id.clone(), resource_id: resource.resource_id.clone(),
+                actions: vec![ResourceAction::Read, ResourceAction::Create, ResourceAction::Update],
+                capability_ids: capabilities, expires_at: Some(principal.session.expires_at), delegation_chain: vec![],
+            })
+            .await
+            .expect("grant the work-profile workspace");
+        let scope = RecordUserScope {
+            grant_id: Some(grant.grant_id), workspace_id: Some(workspace.clone()),
+            session_token: principal.session.token.clone(), channel_binding_hash: Some(BINDING.to_owned()),
+            resource_id: resource.resource_id, session_id: principal.session.session_id.clone(),
+            capability_id: "fs.write".to_owned(), action: ResourceAction::Update,
+        };
+        let identity = storage
+            .with_record_user_scope(scope, storage.with_data_operation(move |database| Box::pin(async move {
+                database.work_profile_identity(&workspace).await
+            })))
+            .await
+            .expect("the work-profile identity query binds no protected parameter and finds its session");
+        assert_eq!(identity.owner_account_id, principal.identity.account_id);
+        assert_eq!(identity.actor_principal_id, principal.identity.principal_id);
+        assert_eq!(identity.actor_id, "protected-session-pref-actor");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn work_profile_identity_binds_session_record_not_protected_session() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the work-profile identity proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        backend
+            .close_and_remove()
+            .await
+            .expect("remove the work-profile identity store");
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+    }
 }

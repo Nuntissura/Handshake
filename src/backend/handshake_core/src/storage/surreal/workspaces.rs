@@ -1652,7 +1652,7 @@ struct FirstOwnerWorkspaceRecoveryRead {
     account: RecordId,
     principal: RecordId,
     space: RecordId,
-    session: RecordId,
+    session_record: RecordId,
     channel_hash: String,
 }
 impl SurrealStorage {
@@ -1672,7 +1672,7 @@ impl SurrealStorage {
                 account: RecordId::new("local_accounts", session.identity.account_id.clone()),
                 principal: RecordId::new("principals", session.identity.principal_id.clone()),
                 space: RecordId::new("access_spaces", session.identity.access_space_id.clone()),
-                session: RecordId::new("authenticated_sessions", session.session_id.clone()),
+                session_record: RecordId::new("authenticated_sessions", session.session_id.clone()),
                 channel_hash: channel_hash.to_owned(),
             }, 0,
         ).await?;
@@ -1759,5 +1759,51 @@ FROM first_owner_administration_origins:primary
  AND account.first_owner_administration_origin = first_owner_administration_origins:primary
  AND first_workspace_state = 'created' AND first_workspace_receipt_nonce = 1
  AND first_workspace_operation_id = $operation_id AND first_workspace_original != NONE
- AND first_workspace_session = $session AND first_workspace_channel_hash = $channel_hash;
+ AND first_workspace_session = $session_record AND first_workspace_channel_hash = $channel_hash;
 "#;
+
+#[cfg(test)]
+mod protected_session_binding_tests {
+    //! PROTECTED-SESSION-BINDINGS: SurrealDB 3.2.0 refuses to set a variable named `session`
+    //! (surrealdb-core cnf/mod.rs PROTECTED_PARAM_NAMES) before any statement runs. Runs the real
+    //! first-owner workspace recovery read with its production bindings on the production schema
+    //! composition.
+    use super::*;
+
+    fn record(table: &str) -> RecordId {
+        RecordId::new(table, Uuid::now_v7().to_string())
+    }
+
+    async fn body(storage: &SurrealStorage) {
+        let namespace = storage.config().namespace().to_owned();
+        let database = storage.config().database().to_owned();
+        let rows = storage.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = authority.query(FIRST_OWNER_WORKSPACE_RECOVERY_READ).bind(FirstOwnerWorkspaceRecoveryRead {
+                operation_id: Uuid::now_v7().to_string(), account: record("local_accounts"),
+                principal: record("principals"), space: record("access_spaces"),
+                session_record: record("authenticated_sessions"), channel_hash: "1".repeat(64),
+            }).await?.check()?;
+            let rows: Vec<FirstOwnerWorkspaceReceipt> = response.take(0)?;
+            Ok(rows.len())
+        })).await.expect("the engine accepts every first-owner workspace recovery binding name");
+        assert_eq!(rows, 0, "no first-owner origin exists in a fresh store");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn first_owner_workspace_recovery_read_binds_session_record_not_protected_session() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the workspace recovery binding proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        backend
+            .close_and_remove()
+            .await
+            .expect("remove the workspace recovery binding store");
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+    }
+}

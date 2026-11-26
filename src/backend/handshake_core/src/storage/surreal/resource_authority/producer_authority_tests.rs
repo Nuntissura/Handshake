@@ -64,7 +64,7 @@ struct ProducerRunRecovery {
 
 #[derive(surrealdb::types::SurrealValue)]
 struct OpenRows {
-    runtime: Uuid, account: String, principal: String, session: String, space: String, workspace: String,
+    runtime: Uuid, account: String, principal: String, session_record: String, space: String, workspace: String,
 }
 
 impl Fixture {
@@ -216,13 +216,13 @@ impl Fixture {
             runtime: runtime.runtime_instance().instance_id,
             account: field(session, "account_id")?.into(),
             principal: field(session, "principal_id")?.into(),
-            session: field(session, "session_id")?.into(),
+            session_record: field(session, "session_id")?.into(),
             space: field(session, "access_space_id")?.into(),
             workspace: self.workspace.clone().unwrap(),
         };
         let count = self.bootstrap.surreal.with_data_operation(move |database| Box::pin(async move {
             database.query_first::<i64, _>(
-                "RETURN array::len(SELECT VALUE id FROM kernel_process_lifecycle WHERE stopped_at = NONE AND owner_runtime_instance_id = $runtime AND owner_account_id = $account AND actor_principal_id = $principal AND authenticated_session_id = $session AND access_space_id = $space AND workspace_id = $workspace);",
+                "RETURN array::len(SELECT VALUE id FROM kernel_process_lifecycle WHERE stopped_at = NONE AND owner_runtime_instance_id = $runtime AND owner_account_id = $account AND actor_principal_id = $principal AND authenticated_session_id = $session_record AND access_space_id = $space AND workspace_id = $workspace);",
                 bindings,
             ).await
         })).await?.ok_or("missing independent exact-scope open-row result")?;

@@ -185,7 +185,7 @@ impl AuthorizedActivationObservation<'_> {
 struct NavigationActivationBindings {
     token_hash: String,
     channel_hash: String,
-    session: RecordId,
+    session_record: RecordId,
     resource: RecordId,
     original_grant: Option<RecordId>,
     workspace: String,
@@ -194,7 +194,7 @@ struct NavigationActivationBindings {
 // This server-only transaction never authenticates a client as a privileged user.
 // Every bookkeeping statement is bracketed by the same canonical session/grant snapshot.
 const NAVIGATION_ACTIVATION_FACTS: &str = "
-LET $activation_session = (SELECT * FROM authenticated_sessions WHERE id = $session AND token_hash = $token_hash AND channel_binding_hash = $channel_hash AND revoked_at = NONE AND expires_at > time::now() AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND principal_id.account_id = account_id AND access_space_id.account_id = account_id AND account_revocation_epoch = account_id.revocation_epoch AND principal_revocation_epoch = principal_id.revocation_epoch AND space_revocation_epoch = access_space_id.revocation_epoch AND policy_version >= account_id.policy_version AND policy_version >= principal_id.policy_version AND policy_version >= access_space_id.policy_version LIMIT 1)[0];
+LET $activation_session = (SELECT * FROM authenticated_sessions WHERE id = $session_record AND token_hash = $token_hash AND channel_binding_hash = $channel_hash AND revoked_at = NONE AND expires_at > time::now() AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND principal_id.account_id = account_id AND access_space_id.account_id = account_id AND account_revocation_epoch = account_id.revocation_epoch AND principal_revocation_epoch = principal_id.revocation_epoch AND space_revocation_epoch = access_space_id.revocation_epoch AND policy_version >= account_id.policy_version AND policy_version >= principal_id.policy_version AND policy_version >= access_space_id.policy_version LIMIT 1)[0];
 SELECT id AS grant_id, resource_id, account_id, principal_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, $activation_session.id AS session_id, access_space_id, grant_version, [policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version, $activation_session.policy_version] AS policy_versions, [account_id.revocation_epoch, principal_id.revocation_epoch, access_space_id.revocation_epoch, $activation_session.account_revocation_epoch, $activation_session.principal_revocation_epoch, $activation_session.space_revocation_epoch] AS revocation_epochs, actions, capability_ids, delegation_chain, $activation_session.delegated_capabilities AS session_capabilities, principal_id.delegated_capabilities AS principal_capabilities, principal_id.capability_profile_id AS capability_profile_id, [status, resource_id.lifecycle_state, account_id.status, principal_id.status, access_space_id.status] AS statuses, resource_id.resource_kind AS resource_kind, expires_at AS grant_expires_at, $activation_session.expires_at AS session_expires_at FROM resource_grants WHERE $activation_session.id != NONE AND account_id = $activation_session.account_id AND principal_id = $activation_session.principal_id AND access_space_id = $activation_session.access_space_id AND resource_id = $resource AND ($original_grant = NONE OR id = $original_grant) AND resource_id.resource_kind = 'workspace' AND resource_id.external_resource_id = $workspace AND resource_id.owner_account_id = account_id AND resource_id.access_space_id = access_space_id AND resource_id.lifecycle_state = 'active' AND resource_id.created_by_principal_id.status = 'enabled' AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'model_lane.navigation.read' AND delegation_chain = $activation_session.delegation_chain AND policy_version <= $activation_session.policy_version AND resource_id.policy_version <= policy_version AND $activation_session.delegated_capabilities CONTAINS 'model_lane.navigation.read' AND principal_id.delegated_capabilities CONTAINS 'model_lane.navigation.read' ORDER BY id ASC LIMIT 2;";
 
 async fn navigation_activation_facts(
@@ -217,7 +217,7 @@ impl CapturedActivationAuthority {
         Ok(NavigationActivationBindings {
             token_hash: sha256_hex(self.scope.session_token.as_bytes()),
             channel_hash: self.scope.channel_binding_hash.clone().ok_or(ResourceAuthorityError::InvalidInput("activation channel unavailable"))?,
-            session: RecordId::new("authenticated_sessions", self.scope.session_id.clone()),
+            session_record: RecordId::new("authenticated_sessions", self.scope.session_id.clone()),
             resource: self.facts.resource_id.clone(), original_grant: Some(self.facts.grant_id.clone()),
             workspace: self.association.exact.workspace_id.as_str().to_owned(),
         })
@@ -774,7 +774,7 @@ struct ArtifactResourceRegistrationBindings {
     external: String,
     account: RecordId,
     principal: RecordId,
-    session: RecordId,
+    session_record: RecordId,
     space: RecordId,
     parent: RecordId,
     classification: String,
@@ -914,10 +914,10 @@ impl<'tx> WorkspaceArtifactPublicationPermit<'tx> {
         let facts = &self.authorization.capture.sources[0].authority;
         let locator_hash = sha256_hex(format!("artifact:{external}").as_bytes());
         let rows: Vec<ArtifactRegisteredResourceRow> = self.transaction.query_values_at(
-            "IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'artifact' AND external_resource_id = $external LIMIT 2) = 0 { CREATE $resource SET resource_kind = 'artifact', external_resource_id = $external, owner_account_id = $account, created_by_principal_id = $principal, created_in_session_id = $session, access_space_id = $space, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = 1, classification = $classification, storage_locator_hash = $locator_hash, created_at = $now, updated_at = $now; }; SELECT id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version, created_by_principal_id, created_in_session_id, classification, schema_version, storage_locator_hash FROM protected_resources WHERE resource_kind = 'artifact' AND external_resource_id = $external LIMIT 2;",
+            "IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'artifact' AND external_resource_id = $external LIMIT 2) = 0 { CREATE $resource SET resource_kind = 'artifact', external_resource_id = $external, owner_account_id = $account, created_by_principal_id = $principal, created_in_session_id = $session_record, access_space_id = $space, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = 1, classification = $classification, storage_locator_hash = $locator_hash, created_at = $now, updated_at = $now; }; SELECT id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version, created_by_principal_id, created_in_session_id, classification, schema_version, storage_locator_hash FROM protected_resources WHERE resource_kind = 'artifact' AND external_resource_id = $external LIMIT 2;",
             ArtifactResourceRegistrationBindings {
                 resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()), external: external.clone(),
-                account: facts.account_id.clone(), principal: facts.principal_id.clone(), session: facts.session_id.clone(),
+                account: facts.account_id.clone(), principal: facts.principal_id.clone(), session_record: facts.session_id.clone(),
                 space: facts.access_space_id.clone(), parent: self.authorization.workspace.id.clone(),
                 classification: classification.clone(), locator_hash: locator_hash.clone(), now: Datetime::from(Utc::now()),
             }, 1,
@@ -6137,7 +6137,7 @@ impl SurrealStorage {
         let bindings = NavigationActivationBindings {
             token_hash:sha256_hex(scope.session_token.as_bytes()),
             channel_hash:scope.channel_binding_hash.clone().ok_or(ResourceAuthorityError::InvalidInput("activation channel unavailable"))?,
-            session:RecordId::new("authenticated_sessions",scope.session_id.clone()),
+            session_record:RecordId::new("authenticated_sessions",scope.session_id.clone()),
             resource:RecordId::new("protected_resources",association.resource_id.clone()),
             original_grant:Some(RecordId::new("resource_grants",association.grant_id.clone())),
             workspace:association.exact.workspace_id.as_str().to_owned(),
@@ -6279,7 +6279,7 @@ impl SurrealStorage {
         let lifecycle=self.resource_access_lifecycle();
         let bindings=NavigationActivationBindings {
             token_hash:sha256_hex(token.as_bytes()),channel_hash:channel_hash.to_owned(),
-            session:RecordId::new("authenticated_sessions",session.session_id.clone()),resource:locator.id,
+            session_record:RecordId::new("authenticated_sessions",session.session_id.clone()),resource:locator.id,
             original_grant:None,workspace:workspace_id.to_owned(),
         };
         let registry=registry.clone();let exact_for_read=exact.clone();
@@ -7633,7 +7633,7 @@ struct AdministrationRegistrationBindings {
     resource: RecordId,
     account: RecordId,
     principal: RecordId,
-    session: RecordId,
+    session_record: RecordId,
     space: RecordId,
     parent: RecordId,
     external: String,
@@ -7750,7 +7750,7 @@ impl SurrealStorage {
              IF array::len($existing) > 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
              IF array::len($existing) = 0 { \
                  CREATE $resource SET resource_kind = 'account_administration', external_resource_id = $external, \
-                 owner_account_id = $account, created_by_principal_id = $principal, created_in_session_id = $session, \
+                 owner_account_id = $account, created_by_principal_id = $principal, created_in_session_id = $session_record, \
                  access_space_id = $space, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', \
                  policy_version = $policy_version, classification = $classification, \
                  account_administration_lifetime = $lifetime, \
@@ -7763,7 +7763,7 @@ impl SurrealStorage {
             AdministrationRegistrationBindings {
                 resource: original_resource.clone(),
                 account: account.clone(), principal: RecordId::new("principals", owner.principal_id.clone()),
-                session: RecordId::new("authenticated_sessions", authority.session_id().to_owned()),
+                session_record: RecordId::new("authenticated_sessions", authority.session_id().to_owned()),
                 space: space.clone(), parent: expected_parent.clone(), external: input.external_resource_id,
                 classification: input.classification, policy_version: expected_policy, lifetime,
             }, 3,
@@ -12225,7 +12225,7 @@ struct MemberExchangeWrite {
     input: MemberExchangeQuery,
     credential: RecordId,
     binding: MemberPasswordLoginBinding,
-    session: RecordId,
+    session_record: RecordId,
     session_token_hash: String,
     channel: String,
     issued_at: Datetime,
@@ -12261,9 +12261,9 @@ LET $used = UPDATE $credential SET status = 'consumed'
  WHERE account_id = $input.account AND principal_id = $input.principal AND access_space_id = $input.space
  AND token_hash = $input.credential_token_hash AND status = 'active' AND revoked_at = NONE
  AND expires_at > time::now() AND member_login_binding = $binding RETURN AFTER;
-IF array::len($used) != 1 OR record::exists($session) OR $expires_at <= time::now()
+IF array::len($used) != 1 OR record::exists($session_record) OR $expires_at <= time::now()
  { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
-CREATE $session SET account_id = $binding.account, principal_id = $binding.principal,
+CREATE $session_record SET account_id = $binding.account, principal_id = $binding.principal,
  access_space_id = $binding.space, token_hash = $session_token_hash, channel_binding_hash = $channel,
  authentication_strength = 'credential_exchange', delegated_capabilities = $binding.capabilities,
  delegation_chain = [$principal_key], account_revocation_epoch = $binding.account_epoch,
@@ -12272,18 +12272,18 @@ CREATE $session SET account_id = $binding.account, principal_id = $binding.princ
  issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;
 ";
 const MEMBER_EXCHANGE_CANONICAL: &str = "
-RETURN record::exists($session) AND $credential.status = 'consumed'
+RETURN record::exists($session_record) AND $credential.status = 'consumed'
  AND $credential.member_login_binding = $binding AND $credential.token_hash = $input.credential_token_hash
- AND $session.account_id = $binding.account AND $session.principal_id = $binding.principal
- AND $session.access_space_id = $binding.space AND $session.token_hash = $session_token_hash
- AND $session.channel_binding_hash = $channel AND $session.authentication_strength = 'credential_exchange'
- AND $session.delegated_capabilities = $binding.capabilities AND $session.delegation_chain = [$principal_key]
- AND $session.account_revocation_epoch = $binding.account_epoch
- AND $session.principal_revocation_epoch = $binding.principal_epoch
- AND $session.space_revocation_epoch = $binding.space_epoch
- AND $session.policy_version = math::max([$binding.account_policy, $binding.principal_policy, $binding.space_policy])
- AND $session.issued_at = $issued_at AND $session.expires_at = $expires_at
- AND $session.expires_at > time::now() AND $session.revoked_at = NONE
+ AND $session_record.account_id = $binding.account AND $session_record.principal_id = $binding.principal
+ AND $session_record.access_space_id = $binding.space AND $session_record.token_hash = $session_token_hash
+ AND $session_record.channel_binding_hash = $channel AND $session_record.authentication_strength = 'credential_exchange'
+ AND $session_record.delegated_capabilities = $binding.capabilities AND $session_record.delegation_chain = [$principal_key]
+ AND $session_record.account_revocation_epoch = $binding.account_epoch
+ AND $session_record.principal_revocation_epoch = $binding.principal_epoch
+ AND $session_record.space_revocation_epoch = $binding.space_epoch
+ AND $session_record.policy_version = math::max([$binding.account_policy, $binding.principal_policy, $binding.space_policy])
+ AND $session_record.issued_at = $issued_at AND $session_record.expires_at = $expires_at
+ AND $session_record.expires_at > time::now() AND $session_record.revoked_at = NONE
  AND fn::wp012_member_login_binding_current($binding);
 ";
 fn require_canonical_member_login_binding(
@@ -12368,7 +12368,7 @@ impl MemberSessionExchangeAttempt {
     {
         Ok(MemberExchangeWrite {
             input: self.input.clone(), credential, binding,
-            session: RecordId::new("authenticated_sessions", self.session_id.to_string()),
+            session_record: RecordId::new("authenticated_sessions", self.session_id.to_string()),
             session_token_hash: self.token_hash.clone(), channel: self.channel.clone(),
             issued_at: Datetime::from(self.issued_at), expires_at: Datetime::from(self.expires_at),
             principal_key: record_key(self.input.principal.clone())?,
@@ -13150,7 +13150,7 @@ struct AdministratorExchangeWrite {
     input: AdministratorExchangeQuery,
     credential: RecordId,
     binding: AdministratorPasswordLoginBinding,
-    session: RecordId,
+    session_record: RecordId,
     session_token_hash: String,
     channel: String,
     issued_at: Datetime,
@@ -13158,8 +13158,8 @@ struct AdministratorExchangeWrite {
     principal_key: String,
 }
 const ADMINISTRATOR_EXCHANGE_ELIGIBLE: &str = "SELECT id AS credential, administrator_login_binding AS binding FROM session_exchange_credentials WHERE account_id = $account AND principal_id = $principal AND access_space_id = $space AND token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND member_login_binding = NONE AND administrator_login_binding != NONE AND administrator_login_binding.account = account_id AND administrator_login_binding.principal = principal_id AND administrator_login_binding.space = access_space_id AND fn::wp012_administrator_login_binding_current(administrator_login_binding) LIMIT 2;";
-const ADMINISTRATOR_EXCHANGE_WRITE: &str = "IF !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $a = UPDATE $binding.account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE status = 'enabled' AND account_role = 'Owner' AND account_key = $binding.name AND credential_revision = $binding.credential_revision AND password_verifier != NONE AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN VALUE id;\nLET $p = UPDATE $binding.principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND principal_kind = 'human_account' AND status = 'enabled' AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN VALUE id;\nLET $s = UPDATE $binding.space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND status = 'active' AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN VALUE id;\nLET $r = UPDATE $binding.administration.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $w = UPDATE $binding.parent.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $e = UPDATE $binding.enroll.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $v = UPDATE $binding.revoke.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $g = UPDATE $binding.assign.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nIF array::len($a) != 1 OR array::len($p) != 1 OR array::len($s) != 1 OR array::len($r) != 1 OR array::len($w) != 1 OR array::len($e) != 1 OR array::len($v) != 1 OR array::len($g) != 1 OR !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $used = UPDATE $credential SET status = 'consumed' WHERE account_id = $input.account AND principal_id = $input.principal AND access_space_id = $input.space AND token_hash = $input.credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND member_login_binding = NONE AND administrator_login_binding = $binding RETURN AFTER;\nIF array::len($used) != 1 OR record::exists($session) OR $expires_at <= time::now() { THROW 'HSK-ADMINISTRATOR-EXCHANGE-DENIED'; };\nCREATE $session SET account_id = $binding.account, principal_id = $binding.principal, access_space_id = $binding.space, token_hash = $session_token_hash, channel_binding_hash = $channel, authentication_strength = 'credential_exchange', delegated_capabilities = $binding.capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $binding.account_epoch, principal_revocation_epoch = $binding.principal_epoch, space_revocation_epoch = $binding.space_epoch, policy_version = math::max([$binding.account_policy,$binding.principal_policy,$binding.space_policy]), administrator_login_binding = $binding, issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;\n";
-const ADMINISTRATOR_EXCHANGE_CANONICAL: &str = "RETURN record::exists($session) AND $credential.status = 'consumed' AND $credential.administrator_login_binding = $binding AND $credential.member_login_binding = NONE AND $credential.token_hash = $input.credential_token_hash AND $session.account_id = $binding.account AND $session.principal_id = $binding.principal AND $session.access_space_id = $binding.space AND $session.token_hash = $session_token_hash AND $session.channel_binding_hash = $channel AND $session.authentication_strength = 'credential_exchange' AND $session.delegated_capabilities = $binding.capabilities AND $session.delegation_chain = [$principal_key] AND $session.account_revocation_epoch = $binding.account_epoch AND $session.principal_revocation_epoch = $binding.principal_epoch AND $session.space_revocation_epoch = $binding.space_epoch AND $session.policy_version = math::max([$binding.account_policy,$binding.principal_policy,$binding.space_policy]) AND $session.issued_at = $issued_at AND $session.expires_at = $expires_at AND $session.expires_at > time::now() AND $session.revoked_at = NONE AND $session.administrator_login_binding = $binding AND fn::wp012_administrator_login_binding_current($binding);";
+const ADMINISTRATOR_EXCHANGE_WRITE: &str = "IF !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $a = UPDATE $binding.account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE status = 'enabled' AND account_role = 'Owner' AND account_key = $binding.name AND credential_revision = $binding.credential_revision AND password_verifier != NONE AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN VALUE id;\nLET $p = UPDATE $binding.principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND principal_kind = 'human_account' AND status = 'enabled' AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN VALUE id;\nLET $s = UPDATE $binding.space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND status = 'active' AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN VALUE id;\nLET $r = UPDATE $binding.administration.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $w = UPDATE $binding.parent.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $e = UPDATE $binding.enroll.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $v = UPDATE $binding.revoke.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $g = UPDATE $binding.assign.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nIF array::len($a) != 1 OR array::len($p) != 1 OR array::len($s) != 1 OR array::len($r) != 1 OR array::len($w) != 1 OR array::len($e) != 1 OR array::len($v) != 1 OR array::len($g) != 1 OR !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $used = UPDATE $credential SET status = 'consumed' WHERE account_id = $input.account AND principal_id = $input.principal AND access_space_id = $input.space AND token_hash = $input.credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND member_login_binding = NONE AND administrator_login_binding = $binding RETURN AFTER;\nIF array::len($used) != 1 OR record::exists($session_record) OR $expires_at <= time::now() { THROW 'HSK-ADMINISTRATOR-EXCHANGE-DENIED'; };\nCREATE $session_record SET account_id = $binding.account, principal_id = $binding.principal, access_space_id = $binding.space, token_hash = $session_token_hash, channel_binding_hash = $channel, authentication_strength = 'credential_exchange', delegated_capabilities = $binding.capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $binding.account_epoch, principal_revocation_epoch = $binding.principal_epoch, space_revocation_epoch = $binding.space_epoch, policy_version = math::max([$binding.account_policy,$binding.principal_policy,$binding.space_policy]), administrator_login_binding = $binding, issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;\n";
+const ADMINISTRATOR_EXCHANGE_CANONICAL: &str = "RETURN record::exists($session_record) AND $credential.status = 'consumed' AND $credential.administrator_login_binding = $binding AND $credential.member_login_binding = NONE AND $credential.token_hash = $input.credential_token_hash AND $session_record.account_id = $binding.account AND $session_record.principal_id = $binding.principal AND $session_record.access_space_id = $binding.space AND $session_record.token_hash = $session_token_hash AND $session_record.channel_binding_hash = $channel AND $session_record.authentication_strength = 'credential_exchange' AND $session_record.delegated_capabilities = $binding.capabilities AND $session_record.delegation_chain = [$principal_key] AND $session_record.account_revocation_epoch = $binding.account_epoch AND $session_record.principal_revocation_epoch = $binding.principal_epoch AND $session_record.space_revocation_epoch = $binding.space_epoch AND $session_record.policy_version = math::max([$binding.account_policy,$binding.principal_policy,$binding.space_policy]) AND $session_record.issued_at = $issued_at AND $session_record.expires_at = $expires_at AND $session_record.expires_at > time::now() AND $session_record.revoked_at = NONE AND $session_record.administrator_login_binding = $binding AND fn::wp012_administrator_login_binding_current($binding);";
 fn require_canonical_administrator_login_binding(binding: &AdministratorPasswordLoginBinding) -> Result<(), ResourceAuthorityError> {
  if binding.credential_revision <= 0 || binding.profile != "MemberEnrollmentAdministrator"
   || !binding.capabilities.iter().map(String::as_str).eq(["account.identity.enroll", "account.identity.enrollment.revoke", "account.identity.member_profile.assign"]) {
@@ -13231,7 +13231,7 @@ impl AdministratorSessionExchangeAttempt {
         let expires_at = administrator_binding_expiry(&binding, self.expires_at)?;
         Ok(AdministratorExchangeWrite {
             input: self.input.clone(), credential, binding,
-            session: RecordId::new("authenticated_sessions", self.session_id.to_string()),
+            session_record: RecordId::new("authenticated_sessions", self.session_id.to_string()),
             session_token_hash: self.token_hash.clone(), channel: self.channel.clone(),
             issued_at: Datetime::from(self.issued_at), expires_at: Datetime::from(expires_at),
             principal_key: record_key(self.input.principal.clone())?,
@@ -13445,5 +13445,120 @@ impl FirstOwnerConfirmationPreparedCredential {
             principal_id: record_key(self.binding.principal.clone())?,
             access_space_id: record_key(self.binding.space.clone())?, expires_at: self.expires_at,
         })
+    }
+}
+
+#[cfg(test)]
+mod protected_session_binding_tests {
+    //! PROTECTED-SESSION-BINDINGS: SurrealDB 3.2.0 refuses to set a variable named `session`
+    //! (surrealdb-core cnf/mod.rs PROTECTED_PARAM_NAMES) before any statement runs, which failed every
+    //! navigation activation read, Member and administrator session exchange, and artifact and
+    //! administration registration. Runs the real navigation read and both exchange readbacks on the
+    //! production schema composition with their production bindings, and binds the registration
+    //! binding sets, whose statements write, to a statement that only returns.
+    use super::*;
+
+    fn record(table: &str) -> RecordId {
+        RecordId::new(table, Uuid::now_v7().to_string())
+    }
+
+    fn member_write() -> MemberExchangeWrite {
+        MemberExchangeWrite {
+            input: MemberExchangeQuery {
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                credential_token_hash: "0".repeat(64),
+            },
+            credential: record("session_exchange_credentials"),
+            binding: MemberPasswordLoginBinding {
+                enrollment: record("member_enrollments"), operation_id: Uuid::now_v7().to_string(),
+                descriptor_hex: String::new(), descriptor_sha256: "0".repeat(64),
+                redemption_attempt_id: Uuid::now_v7().to_string(), consumed_at: Datetime::from(Utc::now()),
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                name: "protected-session-member".to_owned(), credential_revision: 1, account_epoch: 0,
+                principal_epoch: 0, space_epoch: 0, account_policy: 1, principal_policy: 1, space_policy: 1,
+                profile: "Member".to_owned(), capabilities: Vec::new(),
+            },
+            session_record: record("authenticated_sessions"), session_token_hash: "1".repeat(64),
+            channel: "2".repeat(64), issued_at: Datetime::from(Utc::now()),
+            expires_at: Datetime::from(Utc::now() + chrono::Duration::hours(1)), principal_key: Uuid::now_v7().to_string(),
+        }
+    }
+
+    fn administrator_write() -> AdministratorExchangeWrite {
+        AdministratorExchangeWrite {
+            input: AdministratorExchangeQuery {
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                credential_token_hash: "0".repeat(64),
+            },
+            credential: record("session_exchange_credentials"),
+            binding: AdministratorPasswordLoginBinding {
+                origin: surrealdb::types::Object::new(), administration: surrealdb::types::Object::new(),
+                parent: surrealdb::types::Object::new(), enroll: surrealdb::types::Object::new(),
+                revoke: surrealdb::types::Object::new(), assign: surrealdb::types::Object::new(),
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                name: "protected-session-administrator".to_owned(), credential_revision: 1, account_epoch: 0,
+                principal_epoch: 0, space_epoch: 0, account_policy: 1, principal_policy: 1, space_policy: 1,
+                profile: "MemberEnrollmentAdministrator".to_owned(), capabilities: Vec::new(),
+            },
+            session_record: record("authenticated_sessions"), session_token_hash: "1".repeat(64),
+            channel: "2".repeat(64), issued_at: Datetime::from(Utc::now()),
+            expires_at: Datetime::from(Utc::now() + chrono::Duration::hours(1)), principal_key: Uuid::now_v7().to_string(),
+        }
+    }
+
+    async fn body(storage: &SurrealStorage) {
+        let namespace = storage.config().namespace().to_owned();
+        let database = storage.config().database().to_owned();
+        let (navigation, member, administrator, artifact, administration) = storage.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = authority.query(NAVIGATION_ACTIVATION_FACTS).bind(NavigationActivationBindings {
+                token_hash: "0".repeat(64), channel_hash: "1".repeat(64), session_record: record("authenticated_sessions"),
+                resource: record("protected_resources"), original_grant: None, workspace: Uuid::now_v7().to_string(),
+            }).await?.check()?;
+            let navigation: Vec<NavigationPublicationFacts> = response.take(1)?;
+            let mut response = authority.query(MEMBER_EXCHANGE_CANONICAL).bind(member_write()).await?.check()?;
+            let member: surrealdb::types::Value = response.take(0)?;
+            let mut response = authority.query(ADMINISTRATOR_EXCHANGE_CANONICAL).bind(administrator_write()).await?.check()?;
+            let administrator: surrealdb::types::Value = response.take(0)?;
+            let mut response = authority.query("RETURN true;").bind(ArtifactResourceRegistrationBindings {
+                resource: record("protected_resources"), external: Uuid::now_v7().to_string(),
+                account: record("local_accounts"), principal: record("principals"),
+                session_record: record("authenticated_sessions"), space: record("access_spaces"),
+                parent: record("protected_resources"), classification: "internal".to_owned(),
+                locator_hash: "0".repeat(64), now: Datetime::from(Utc::now()),
+            }).await?.check()?;
+            let artifact: surrealdb::types::Value = response.take(0)?;
+            let mut response = authority.query("RETURN true;").bind(AdministrationRegistrationBindings {
+                resource: record("protected_resources"), account: record("local_accounts"),
+                principal: record("principals"), session_record: record("authenticated_sessions"),
+                space: record("access_spaces"), parent: record("protected_resources"),
+                external: Uuid::now_v7().to_string(), classification: "internal".to_owned(), policy_version: 1,
+                lifetime: AdministrationLifetimeRow::NoExpiry,
+            }).await?.check()?;
+            let administration: surrealdb::types::Value = response.take(0)?;
+            Ok((navigation.len(), member, administrator, artifact, administration))
+        })).await.expect("the engine accepts every navigation, exchange and registration binding name");
+        assert_eq!(navigation, 0, "no session matches the fabricated navigation bindings");
+        assert_ne!(member, surrealdb::types::Value::Bool(true), "no Member session exists for the fabricated exchange");
+        assert_ne!(administrator, surrealdb::types::Value::Bool(true), "no administrator session exists for the fabricated exchange");
+        assert_eq!(artifact, surrealdb::types::Value::Bool(true));
+        assert_eq!(administration, surrealdb::types::Value::Bool(true));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn navigation_exchange_and_registration_bind_session_record_not_protected_session() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the resource-authority binding proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        backend
+            .close_and_remove()
+            .await
+            .expect("remove the resource-authority binding store");
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
     }
 }

@@ -17237,3 +17237,329 @@ mod routing_catalog_header_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod protected_parameter_guard_tests {
+    //! PROTECTED-SESSION-BINDINGS guard. SurrealDB 3.2.0 refuses to set a variable named `access`,
+    //! `auth`, `token` or `session` (surrealdb-core-3.2.0 cnf/mod.rs PROTECTED_PARAM_NAMES, checked in
+    //! ctx/context.rs attach_variables and by every LET executor), so a query binding one fails before
+    //! any statement runs, and an unbound `$session` silently reads the built-in session object.
+    //! This static scan of every backend crate keeps those names out of bindings and LET statements.
+    use regex::Regex;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::{Path, PathBuf};
+
+    /// SurrealValue structs whose protected-name field is a decoded row or a value nested under
+    /// another binding, never a top-level binding (each verified for PROTECTED-SESSION-BINDINGS).
+    const DECODED_OR_NESTED_STRUCTS: &[(&str, &str)] = &[
+        ("handshake_core/src/atelier/downloader.rs", "ReceiptWrite"), // bound under $domain
+        ("handshake_core/src/knowledge_memory/visual_debug.rs", "CountByToken"), // decoded row
+        ("handshake_core/src/storage/surreal/model_lane.rs", "ModelLaneSchemaRegistrySource"), // under $sources
+        ("handshake_core/src/storage/surreal/palmistry.rs", "PalmistryWatcherAdmissionIdentity"), // decoded row
+        ("handshake_core/src/storage/surreal/resource_authority.rs", "OwnedIndexResource"), // under $owned_resources
+        ("handshake_core/src/storage/surreal/resource_authority.rs", "MemberRecipientIdentity"), // decoded row
+        ("handshake_core/src/storage/surreal/resource_authority/validator_sessions.rs", "CanonicalValidatorChildRows"), // decoded row
+    ];
+    /// Protected-name object keys inserted into a value nested under another binding.
+    const NESTED_OBJECT_KEYS: &[(&str, &str, usize)] = &[
+        ("handshake_core/src/storage/surreal/model_lane.rs", "token", 1), // ContextFenceProof under $wp012_fences
+    ];
+    const NAMES: &str = "access|auth|token|session";
+
+    struct Rules {
+        tuple_bind: Regex,
+        json_bind: Regex,
+        let_statement: Regex,
+        derive: Regex,
+        struct_header: Regex,
+        rename: Regex,
+        insert: Regex,
+        session_param: Regex,
+    }
+
+    impl Rules {
+        fn new() -> Self {
+            let compile = |pattern: String| Regex::new(&pattern).expect("guard pattern compiles");
+            Self {
+                tuple_bind: compile(format!(r#"\.bind\(\s*\(\s*"({NAMES})""#)),
+                json_bind: compile(r"\.bind\(\s*(?:serde_json::)?json!\(\s*\{".to_owned()),
+                let_statement: compile(format!(r"(?i)\bLET\s+\$({NAMES})\b")),
+                derive: compile(r"#\[derive\(([^)]*)\)\]".to_owned()),
+                struct_header: compile(
+                    r"^\s*(?:(?:#\[[^\]]*\]|//[^\n]*)\s*)*(?:pub(?:\([^)]*\))?\s+)?struct\s+(\w+)[^{;(]*\{".to_owned(),
+                ),
+                rename: compile(format!(r#"#\[surreal\([^\]]*rename\s*=\s*"({NAMES})""#)),
+                insert: compile(format!(r#"\.insert\(\s*"({NAMES})""#)),
+                session_param: compile(r"\$session\b".to_owned()),
+            }
+        }
+    }
+
+    fn is_protected(name: &str) -> bool {
+        NAMES.split('|').any(|protected| protected == name)
+    }
+
+    fn line_of(text: &str, offset: usize) -> usize {
+        text[..offset].matches('\n').count() + 1
+    }
+
+    /// Text strictly between the brace at `open` and its matching closing brace.
+    fn braced(text: &str, open: usize) -> Option<&str> {
+        let mut depth = 0usize;
+        for (index, byte) in text.bytes().enumerate().skip(open) {
+            match byte {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(&text[open + 1..index]);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    fn field_name(segment: &str) -> Option<String> {
+        let mut rest = segment.trim();
+        while rest.starts_with("#[") {
+            rest = rest[rest.find(']')? + 1..].trim_start();
+        }
+        if rest.starts_with("pub(") {
+            rest = rest[rest.find(')')? + 1..].trim_start();
+        } else if let Some(stripped) = rest.strip_prefix("pub ") {
+            rest = stripped.trim_start();
+        }
+        let (name, _) = rest.split_once(':')?;
+        Some(name.trim().trim_start_matches("r#").to_owned())
+    }
+
+    /// Field names at the top level of a named-field struct body.
+    fn top_level_fields(body: &str) -> Vec<String> {
+        let cleaned = body
+            .lines()
+            .map(|line| line.find("//").map_or(line, |comment| &line[..comment]))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut fields = Vec::new();
+        let mut depth = 0i32;
+        let mut segment = String::new();
+        let mut chars = cleaned.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '-' && chars.peek() == Some(&'>') {
+                chars.next();
+                segment.push_str("->");
+                continue;
+            }
+            match c {
+                '{' | '(' | '[' | '<' => depth += 1,
+                '}' | ')' | ']' | '>' => depth -= 1,
+                ',' if depth == 0 => {
+                    fields.extend(field_name(&segment));
+                    segment.clear();
+                    continue;
+                }
+                _ => {}
+            }
+            segment.push(c);
+        }
+        fields.extend(field_name(&segment));
+        fields
+    }
+
+    /// Top-level keys of the object literal whose opening brace is at `open`.
+    fn object_keys(text: &str, open: usize) -> Vec<String> {
+        let Some(body) = braced(text, open) else { return Vec::new() };
+        let mut keys = Vec::new();
+        let mut depth = 0i32;
+        let mut chars = body.char_indices();
+        while let Some((index, c)) = chars.next() {
+            match c {
+                '{' | '[' | '(' => depth += 1,
+                '}' | ']' | ')' => depth -= 1,
+                '"' => {
+                    let mut end = None;
+                    let mut escaped = false;
+                    for (position, inner) in chars.by_ref() {
+                        if escaped {
+                            escaped = false;
+                        } else if inner == '\\' {
+                            escaped = true;
+                        } else if inner == '"' {
+                            end = Some(position);
+                            break;
+                        }
+                    }
+                    let Some(end) = end else { break };
+                    if depth == 0 && body[end + 1..].trim_start().starts_with(':') {
+                        keys.push(body[index + 1..end].to_owned());
+                    }
+                }
+                _ => {}
+            }
+        }
+        keys
+    }
+
+    /// Violations in one file; protected-name object inserts are counted into `inserts`.
+    fn scan(
+        rules: &Rules,
+        relative: &str,
+        text: &str,
+        seen_allowed: &mut BTreeSet<(String, String)>,
+        inserts: &mut BTreeMap<(String, String), usize>,
+    ) -> Vec<String> {
+        let mut violations = Vec::new();
+        let mut report = |offset: usize, rule: &str, detail: &str| {
+            violations.push(format!("{relative}:{}: {rule}: {detail}", line_of(text, offset)));
+        };
+        for found in rules.let_statement.captures_iter(text) {
+            report(found.get(0).expect("match").start(), "LET of a protected name", &found[1]);
+        }
+        if relative.ends_with(".rs") {
+            scan_rust(rules, relative, text, seen_allowed, inserts, &mut report);
+        }
+        violations
+    }
+
+    /// Rust-only shapes: bindings, SurrealValue structs, object inserts and `$session` parameters.
+    fn scan_rust(
+        rules: &Rules,
+        relative: &str,
+        text: &str,
+        seen_allowed: &mut BTreeSet<(String, String)>,
+        inserts: &mut BTreeMap<(String, String), usize>,
+        report: &mut dyn FnMut(usize, &str, &str),
+    ) {
+        for found in rules.tuple_bind.captures_iter(text) {
+            report(found.get(0).expect("match").start(), "tuple binding of a protected name", &found[1]);
+        }
+        for found in rules.json_bind.find_iter(text) {
+            for key in object_keys(text, found.end() - 1) {
+                if is_protected(&key) {
+                    report(found.start(), "json binding of a protected name", &key);
+                }
+            }
+        }
+        for found in rules.rename.captures_iter(text) {
+            report(found.get(0).expect("match").start(), "SurrealValue rename to a protected name", &found[1]);
+        }
+        for found in rules.insert.captures_iter(text) {
+            *inserts.entry((relative.to_owned(), found[1].to_owned())).or_default() += 1;
+        }
+        for derive in rules.derive.captures_iter(text) {
+            if !derive[1].contains("SurrealValue") {
+                continue;
+            }
+            let after = derive.get(0).expect("match").end();
+            let Some(header) = rules.struct_header.captures(&text[after..]) else { continue };
+            let name = header[1].to_owned();
+            let open = after + header.get(0).expect("match").end() - 1;
+            let Some(body) = braced(text, open) else { continue };
+            let protected: Vec<String> = top_level_fields(body).into_iter().filter(|field| is_protected(field)).collect();
+            if protected.is_empty() {
+                continue;
+            }
+            if DECODED_OR_NESTED_STRUCTS.iter().any(|(path, allowed)| *path == relative && *allowed == name) {
+                seen_allowed.insert((relative.to_owned(), name));
+                continue;
+            }
+            report(after, "SurrealValue struct with a protected top-level field", &format!("{name} {protected:?}"));
+        }
+        // Schema sources declare `$session` as a function parameter, which SurrealDB permits.
+        if !relative.contains("/storage/surreal/schema") {
+            let mut offset = 0;
+            for line in text.split_inclusive('\n') {
+                if !line.trim_start().starts_with("//") && rules.session_param.is_match(line) {
+                    report(offset, "query parameter named $session", line.trim());
+                }
+                offset += line.len();
+            }
+        }
+    }
+
+    fn sources(directory: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(directory) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if path.is_dir() {
+                if name != "target" && name != "node_modules" && !name.starts_with('.') {
+                    sources(&path, out);
+                }
+            } else if name.ends_with(".rs") || name.ends_with(".surql") {
+                out.push(path);
+            }
+        }
+    }
+
+    #[test]
+    fn guard_rules_flag_each_protected_binding_shape() {
+        let rules = Rules::new();
+        let probe = "handshake_core/src/protected_probe.rs";
+        for (text, rule) in [
+            (concat!("client.query(Q).bind(", "(\"session\", record));"), "tuple binding"),
+            (concat!("client.query(Q).bind(", "json!({ \"token\": 1, \"ok\": { \"auth\": 2 } }));"), "json binding"),
+            (concat!("const Q: &str = \"LET $", "access = 1;\";"), "LET of"),
+            (concat!("#[derive(Clone, SurrealValue)]\nstruct Probe {\n    pub ", "auth: RecordId,\n    other: String,\n}"), "SurrealValue struct"),
+            (concat!("#[derive(SurrealValue)]\nstruct Probe {\n    #[surreal(rename = \"", "session\")]\n    value: String,\n}"), "SurrealValue rename"),
+            (concat!("const Q: &str = \"WHERE id = $", "session;\";"), "$session"),
+        ] {
+            let violations = scan(&rules, probe, text, &mut BTreeSet::new(), &mut BTreeMap::new());
+            assert!(violations.iter().any(|violation| violation.contains(rule)), "{rule} not flagged: {violations:?}");
+        }
+        let mut inserts = BTreeMap::new();
+        scan(&rules, probe, concat!("object.insert(", "\"access\", value);"), &mut BTreeSet::new(), &mut inserts);
+        assert_eq!(inserts.get(&(probe.to_owned(), "access".to_owned())), Some(&1));
+        let clean = "#[derive(SurrealValue)]\nstruct Probe { session_record: RecordId, token_hash: String }\n\
+            const Q: &str = \"WHERE id = $session_record AND token_hash = $token_hash AND $auth.id = id\";\n\
+            fn f() { client.query(Q).bind((\"session_record\", 1)); }";
+        assert!(scan(&rules, probe, clean, &mut BTreeSet::new(), &mut BTreeMap::new()).is_empty());
+    }
+
+    #[test]
+    fn backend_queries_bind_no_protected_surreal_parameter() {
+        let rules = Rules::new();
+        let backend = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("backend crates root");
+        let mut files = Vec::new();
+        for crate_dir in std::fs::read_dir(backend).expect("list backend crates").flatten() {
+            for part in ["src", "tests"] {
+                sources(&crate_dir.path().join(part), &mut files);
+            }
+        }
+        assert!(files.len() > 500, "scan found only {} backend sources", files.len());
+        let mut violations = Vec::new();
+        let mut seen_allowed = BTreeSet::new();
+        let mut inserts = BTreeMap::new();
+        for path in &files {
+            let relative = path
+                .strip_prefix(backend)
+                .expect("source under the backend root")
+                .to_string_lossy()
+                .replace('\\', "/");
+            let text = String::from_utf8_lossy(&std::fs::read(path).expect("read backend source")).into_owned();
+            violations.extend(scan(&rules, &relative, &text, &mut seen_allowed, &mut inserts));
+        }
+        for (relative, name) in DECODED_OR_NESTED_STRUCTS {
+            if !seen_allowed.contains(&((*relative).to_owned(), (*name).to_owned())) {
+                violations.push(format!("{relative}: stale allowlist entry {name}: remove it"));
+            }
+        }
+        for ((relative, key), count) in &inserts {
+            let allowed = NESTED_OBJECT_KEYS
+                .iter()
+                .find(|(path, name, _)| path == relative && name == key)
+                .map(|(_, _, allowed)| *allowed);
+            if allowed != Some(*count) {
+                violations.push(format!("{relative}: {count} object insert(s) of protected key {key:?} (allowed {allowed:?})"));
+            }
+        }
+        for (relative, key, allowed) in NESTED_OBJECT_KEYS {
+            if !inserts.contains_key(&((*relative).to_owned(), (*key).to_owned())) {
+                violations.push(format!("{relative}: stale nested-key allowance {key:?} x{allowed}: remove it"));
+            }
+        }
+        assert!(violations.is_empty(), "protected SurrealDB parameter names:\n{}", violations.join("\n"));
+    }
+}

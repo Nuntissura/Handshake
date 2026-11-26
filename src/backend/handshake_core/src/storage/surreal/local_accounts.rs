@@ -838,7 +838,7 @@ struct CurrentActorPasswordBindings {
     account: RecordId,
     principal: RecordId,
     space: RecordId,
-    session: RecordId,
+    session_record: RecordId,
     token_hash: String,
     channel_hash: String,
 }
@@ -879,7 +879,7 @@ impl SurrealStorage {
             account: RecordId::new("local_accounts", session.identity.account_id.clone()),
             principal: RecordId::new("principals", session.identity.principal_id.clone()),
             space: RecordId::new("access_spaces", session.identity.access_space_id.clone()),
-            session: RecordId::new("authenticated_sessions", session.session_id.clone()),
+            session_record: RecordId::new("authenticated_sessions", session.session_id.clone()),
             token_hash, channel_hash,
         };
         let namespace = self.config().namespace().to_owned();
@@ -895,7 +895,7 @@ impl SurrealStorage {
                  principal_id.actor_id AS actor_id, principal_id.actor_kind AS actor_kind, principal_id.principal_kind AS principal_kind,
                  principal_id.capability_profile_id AS principal_profile, principal_id.delegated_capabilities AS principal_capabilities,
                  delegated_capabilities AS session_capabilities, delegation_chain, expires_at AS session_expires_at, channel_binding_hash
-                 FROM authenticated_sessions WHERE id = $session AND account_id = $account AND principal_id = $principal AND access_space_id = $space
+                 FROM authenticated_sessions WHERE id = $session_record AND account_id = $account AND principal_id = $principal AND access_space_id = $space
                  AND principal_id.account_id = $account AND access_space_id.account_id = $account
                  AND token_hash = $token_hash AND (channel_binding_hash = NONE OR channel_binding_hash = $channel_hash)
                  AND account_id.password_verifier != NONE AND account_id.credential_revision > 0 AND fn::mt109_session_lineage_live(id) LIMIT 2;"
@@ -1002,7 +1002,7 @@ struct CurrentActorCredentialFenceBindings {
     account: RecordId,
     principal: RecordId,
     space: RecordId,
-    session: RecordId,
+    session_record: RecordId,
     credential_revision: i64,
     account_epoch: i64,
     account_policy: i64,
@@ -1032,7 +1032,7 @@ impl CurrentActorPasswordReauthentication {
         transaction.require_authenticated_scope(storage, scope)?;
         let rows: Vec<CurrentActorCredentialFenceRow> = transaction.query_values_at(
             "UPDATE $account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
-             WHERE id = $auth.account_id AND $auth.id = $session
+             WHERE id = $auth.account_id AND $auth.id = $session_record
              AND $auth.principal_id = $principal AND $auth.access_space_id = $space
              AND $principal.account_id = id AND $space.account_id = id
              AND fn::mt109_live_session() AND $auth.id.policy_version = $session_policy
@@ -1040,7 +1040,7 @@ impl CurrentActorPasswordReauthentication {
              RETURN id, credential_revision;",
             CurrentActorCredentialFenceBindings {
                 account: self.observed.account_id.clone(), principal: self.observed.principal_id.clone(),
-                space: self.observed.access_space_id.clone(), session: self.observed.session_id.clone(),
+                space: self.observed.access_space_id.clone(), session_record: self.observed.session_id.clone(),
                 credential_revision: self.observed.credential_revision, account_epoch: self.observed.account_epoch,
                 account_policy: self.observed.account_policy, session_policy: self.observed.session_policy,
             }, 0,
@@ -1384,7 +1384,7 @@ impl SurrealStorage {
 
 #[derive(SurrealValue)]
 struct AdministratorConfirmationPasswordBinding {
-    account: RecordId, principal: RecordId, space: RecordId, session: RecordId,
+    account: RecordId, principal: RecordId, space: RecordId, session_record: RecordId,
     operation: String, token_hash: String, channel: String, verifier: String,
     credential_revision: i64, account_epoch: i64, account_policy: i64,
     principal_epoch: i64, principal_policy: i64, space_epoch: i64, space_policy: i64,
@@ -1403,7 +1403,7 @@ impl AdministratorPasswordVerifiedAccount {
         }
         let bindings = AdministratorConfirmationPasswordBinding {
             account: proof.observed.account_id.clone(), principal: proof.observed.principal_id.clone(),
-            space: proof.observed.access_space_id.clone(), session: proof.observed.session_id.clone(),
+            space: proof.observed.access_space_id.clone(), session_record: proof.observed.session_id.clone(),
             operation: proof.operation_id.to_string(), token_hash: proof.token_hash.clone(),
             channel: proof.requested_channel_hash.clone(), verifier: proof.observed.password_verifier.clone(),
             credential_revision: proof.observed.credential_revision,
@@ -1432,15 +1432,15 @@ impl AdministratorPasswordVerifiedAccount {
                AND first_owner_administration_origins:primary.version = 1
                AND first_owner_administration_origins:primary.confirmation_state = 'confirmed'
                AND first_owner_administration_origins:primary.confirmation_operation_id = $operation
-               AND first_owner_administration_origins:primary.confirmation_actor_session = $session
+               AND first_owner_administration_origins:primary.confirmation_actor_session = $session_record
                AND first_owner_administration_origins:primary.confirmation_channel_hash = $channel
-               AND $session.account_id = id AND $session.principal_id = $principal AND $session.access_space_id = $space
-               AND $session.token_hash = $token_hash AND $session.channel_binding_hash = $channel
-               AND $session.revoked_at = NONE AND $session.expires_at > time::now() AND $session.expires_at = $session_expires_at
-               AND $session.policy_version = $session_policy AND $session.delegated_capabilities = $capabilities
-               AND $session.delegation_chain = $chain
-               AND $session.account_revocation_epoch = $account_epoch
-               AND $session.principal_revocation_epoch = $principal_epoch AND $session.space_revocation_epoch = $space_epoch
+               AND $session_record.account_id = id AND $session_record.principal_id = $principal AND $session_record.access_space_id = $space
+               AND $session_record.token_hash = $token_hash AND $session_record.channel_binding_hash = $channel
+               AND $session_record.revoked_at = NONE AND $session_record.expires_at > time::now() AND $session_record.expires_at = $session_expires_at
+               AND $session_record.policy_version = $session_policy AND $session_record.delegated_capabilities = $capabilities
+               AND $session_record.delegation_chain = $chain
+               AND $session_record.account_revocation_epoch = $account_epoch
+               AND $session_record.principal_revocation_epoch = $principal_epoch AND $session_record.space_revocation_epoch = $space_epoch
                AND $principal.account_id = id AND $principal.status = 'enabled'
                AND $principal.capability_profile_id = 'Operator' AND $principal.policy_version = $principal_policy
                AND $principal.delegated_capabilities = $principal_capabilities AND $principal.principal_kind = $principal_kind
@@ -1448,7 +1448,7 @@ impl AdministratorPasswordVerifiedAccount {
                AND $principal.revocation_epoch = $principal_epoch
                AND $space.account_id = id AND $space.status = 'active'
                AND $space.policy_version = $space_policy AND $space.revocation_epoch = $space_epoch
-               AND fn::mt109_session_lineage_live($session) LIMIT 2;"
+               AND fn::mt109_session_lineage_live($session_record) LIMIT 2;"
             ).bind(bindings).await?.check()?;
             let mut rows: Vec<PasswordLoginAccountRow> = response.take(0)?;
             Ok(if rows.len() == 1 { rows.pop() } else { None })
@@ -1704,7 +1704,7 @@ struct FirstOwnerBootstrapOriginRead {
     account: RecordId,
     principal: RecordId,
     space: RecordId,
-    session: RecordId,
+    session_record: RecordId,
     channel: String,
     setup_operation_id: String,
     workspace_operation_id: String,
@@ -1724,7 +1724,7 @@ SELECT VALUE $this FROM first_owner_administration_origins:primary
  AND local_account_setup:primary.access_space_id = space
  AND first_workspace_state = 'created' AND first_workspace_operation_id = $workspace_operation_id
  AND first_workspace_resource = $parent AND first_workspace = type::record('workspaces', $external)
- AND first_workspace_session = $session AND first_workspace_channel_hash = $channel
+ AND first_workspace_session = $session_record AND first_workspace_channel_hash = $channel
  AND first_workspace_policy_version = $policy AND first_workspace_receipt_nonce > 0
  AND confirmation_state = 'unconfirmed' AND confirmation_operation_id = NONE;
 "#;
@@ -1765,7 +1765,7 @@ LET $o = UPDATE first_owner_administration_origins:primary
 IF array::len($o) != 1 { THROW 'HSK-FIRST-OWNER-CONFIRMATION-DENIED'; };
 RETURN true;
 "#;
-const FIRST_OWNER_CURRENT_PASSWORD_READ: &str = "SELECT account_id, principal_id, access_space_id, id AS session_id, account_id.password_verifier AS password_verifier, account_id.credential_revision AS credential_revision,\n                 account_id.revocation_epoch AS account_epoch, principal_id.revocation_epoch AS principal_epoch, access_space_id.revocation_epoch AS space_epoch,\n                 account_revocation_epoch AS session_account_epoch, principal_revocation_epoch AS session_principal_epoch, space_revocation_epoch AS session_space_epoch,\n                 account_id.policy_version AS account_policy, principal_id.policy_version AS principal_policy, access_space_id.policy_version AS space_policy, policy_version AS session_policy,\n                 principal_id.actor_id AS actor_id, principal_id.actor_kind AS actor_kind, principal_id.principal_kind AS principal_kind,\n                 principal_id.capability_profile_id AS principal_profile, principal_id.delegated_capabilities AS principal_capabilities,\n                 delegated_capabilities AS session_capabilities, delegation_chain, expires_at AS session_expires_at, channel_binding_hash\n                 FROM authenticated_sessions WHERE id = $session AND account_id = $account AND principal_id = $principal AND access_space_id = $space\n                 AND principal_id.account_id = $account AND access_space_id.account_id = $account\n                 AND token_hash = $token_hash AND (channel_binding_hash = NONE OR channel_binding_hash = $channel_hash)\n                 AND account_id.password_verifier != NONE AND account_id.credential_revision > 0 AND fn::mt109_session_lineage_live(id) LIMIT 2;";
+const FIRST_OWNER_CURRENT_PASSWORD_READ: &str = "SELECT account_id, principal_id, access_space_id, id AS session_id, account_id.password_verifier AS password_verifier, account_id.credential_revision AS credential_revision,\n                 account_id.revocation_epoch AS account_epoch, principal_id.revocation_epoch AS principal_epoch, access_space_id.revocation_epoch AS space_epoch,\n                 account_revocation_epoch AS session_account_epoch, principal_revocation_epoch AS session_principal_epoch, space_revocation_epoch AS session_space_epoch,\n                 account_id.policy_version AS account_policy, principal_id.policy_version AS principal_policy, access_space_id.policy_version AS space_policy, policy_version AS session_policy,\n                 principal_id.actor_id AS actor_id, principal_id.actor_kind AS actor_kind, principal_id.principal_kind AS principal_kind,\n                 principal_id.capability_profile_id AS principal_profile, principal_id.delegated_capabilities AS principal_capabilities,\n                 delegated_capabilities AS session_capabilities, delegation_chain, expires_at AS session_expires_at, channel_binding_hash\n                 FROM authenticated_sessions WHERE id = $session_record AND account_id = $account AND principal_id = $principal AND access_space_id = $space\n                 AND principal_id.account_id = $account AND access_space_id.account_id = $account\n                 AND token_hash = $token_hash AND (channel_binding_hash = NONE OR channel_binding_hash = $channel_hash)\n                 AND account_id.password_verifier != NONE AND account_id.credential_revision > 0 AND fn::mt109_session_lineage_live(id) LIMIT 2;";
 impl FirstOwnerConfirmationAuthorization<'_> {
     fn live(&self) -> Result<(), ResourceAuthorityError> {
         if std::time::Instant::now() >= self.original.deadline
@@ -1790,7 +1790,7 @@ impl FirstOwnerConfirmationAuthorization<'_> {
     fn origin_query(&self) -> FirstOwnerBootstrapOriginRead {
         FirstOwnerBootstrapOriginRead {
             account: self.password.observed.account_id.clone(), principal: self.password.observed.principal_id.clone(),
-            space: self.password.observed.access_space_id.clone(), session: self.password.observed.session_id.clone(),
+            space: self.password.observed.access_space_id.clone(), session_record: self.password.observed.session_id.clone(),
             channel: self.password.requested_channel_hash.clone(),
             setup_operation_id: self.workspace.setup_operation_id().to_string(),
             workspace_operation_id: self.workspace.operation_id().to_string(),
@@ -1811,7 +1811,7 @@ impl FirstOwnerConfirmationAuthorization<'_> {
         let current: Vec<CurrentActorPasswordRow> = transaction.query_values_at(
             FIRST_OWNER_CURRENT_PASSWORD_READ, CurrentActorPasswordBindings {
                 account: self.password.observed.account_id.clone(), principal: self.password.observed.principal_id.clone(),
-                space: self.password.observed.access_space_id.clone(), session: self.password.observed.session_id.clone(),
+                space: self.password.observed.access_space_id.clone(), session_record: self.password.observed.session_id.clone(),
                 token_hash: self.password.token_hash.clone(), channel_hash: self.password.requested_channel_hash.clone(),
             }, 0,
         ).await?;
@@ -1883,7 +1883,7 @@ impl SurrealStorage {
         { return Err(current_actor_password_denied()); }
         let query = FirstOwnerBootstrapOriginRead {
             account: reauthentication.observed.account_id.clone(), principal: reauthentication.observed.principal_id.clone(),
-            space: reauthentication.observed.access_space_id.clone(), session: reauthentication.observed.session_id.clone(),
+            space: reauthentication.observed.access_space_id.clone(), session_record: reauthentication.observed.session_id.clone(),
             channel: channel_hash.to_owned(), setup_operation_id: workspace.setup_operation_id().to_string(),
             workspace_operation_id: workspace.operation_id().to_string(), parent: workspace.parent_workspace().id.clone(),
             external: workspace.parent_workspace_external_id().to_owned(), policy: session.policy_version,
@@ -2256,7 +2256,7 @@ async fn confirmation_require_actor_current(
     let current: Vec<CurrentActorPasswordRow> = tx.query_values_at(
         FIRST_OWNER_CURRENT_PASSWORD_READ, CurrentActorPasswordBindings {
             account: password.observed.account_id.clone(), principal: password.observed.principal_id.clone(),
-            space: password.observed.access_space_id.clone(), session: password.observed.session_id.clone(),
+            space: password.observed.access_space_id.clone(), session_record: password.observed.session_id.clone(),
             token_hash: password.token_hash.clone(), channel_hash: password.requested_channel_hash.clone(),
         }, 0,
     ).await?;
@@ -2559,7 +2559,7 @@ impl FirstOwnerAdministrationConfirmationOperation {
         let actor=std::sync::Arc::new(async {
             let mut response=client.query(FIRST_OWNER_CURRENT_PASSWORD_READ).bind(CurrentActorPasswordBindings {
                 account:prepared.password.observed.account_id.clone(),principal:prepared.password.observed.principal_id.clone(),
-                space:prepared.password.observed.access_space_id.clone(),session:prepared.password.observed.session_id.clone(),
+                space:prepared.password.observed.access_space_id.clone(),session_record:prepared.password.observed.session_id.clone(),
                 token_hash:prepared.password.token_hash.clone(),channel_hash:prepared.password.requested_channel_hash.clone(),
             }).await?.check()?;
             let rows:Vec<CurrentActorPasswordRow>=response.take(0)?;
@@ -2620,7 +2620,7 @@ impl FirstOwnerAdministrationConfirmationOperation {
         let snapshot=std::sync::Arc::new(self.frame.storage.with_lease(move |client|Box::pin(async move {
             let authority=client.clone(); authority.use_ns(namespace).use_db(database).await?;
             let mut current=authority.query(FIRST_OWNER_CURRENT_PASSWORD_READ).bind(CurrentActorPasswordBindings {
-                account,principal,space,session:session_id,token_hash,channel_hash,
+                account,principal,space,session_record:session_id,token_hash,channel_hash,
             }).await?.check()?;
             let actor:Vec<CurrentActorPasswordRow>=current.take(0)?;
             let mut response=authority.query(FIRST_OWNER_CONFIRMATION_READ).bind(expected.read.clone()).await?.check()?;
@@ -2723,5 +2723,78 @@ impl SurrealStorage {
         let mut first=None;
         for owner in owners { if let Err(error)=owner.drain().await { if first.is_none() { first=Some(error); } } }
         first.map_or(Ok(()),Err)
+    }
+}
+
+#[cfg(test)]
+mod protected_session_binding_tests {
+    //! PROTECTED-SESSION-BINDINGS: SurrealDB 3.2.0 refuses to set a variable named `session`
+    //! (surrealdb-core cnf/mod.rs PROTECTED_PARAM_NAMES) before any statement runs. Runs the real
+    //! current-actor password read and first-owner origin read on the production schema composition
+    //! with their production bindings, and binds the fence and confirmation binding sets, whose
+    //! statements write, to a statement that only returns: the engine checks every name first.
+    use super::*;
+
+    fn record(table: &str) -> RecordId {
+        RecordId::new(table, Uuid::now_v7().to_string())
+    }
+
+    async fn body(storage: &SurrealStorage) {
+        let namespace = storage.config().namespace().to_owned();
+        let database = storage.config().database().to_owned();
+        let (passwords, origins, fence, confirmation) = storage.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = authority.query(FIRST_OWNER_CURRENT_PASSWORD_READ).bind(CurrentActorPasswordBindings {
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                session_record: record("authenticated_sessions"), token_hash: "0".repeat(64), channel_hash: "1".repeat(64),
+            }).await?.check()?;
+            let passwords: Vec<CurrentActorPasswordRow> = response.take(0)?;
+            let mut response = authority.query(FIRST_OWNER_CONFIRMATION_ORIGIN).bind(FirstOwnerBootstrapOriginRead {
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                session_record: record("authenticated_sessions"), channel: "1".repeat(64),
+                setup_operation_id: Uuid::now_v7().to_string(), workspace_operation_id: Uuid::now_v7().to_string(),
+                parent: record("protected_resources"), external: Uuid::now_v7().to_string(), policy: 1,
+            }).await?.check()?;
+            let origins: Vec<surrealdb::types::Object> = response.take(0)?;
+            let mut response = authority.query("RETURN true;").bind(CurrentActorCredentialFenceBindings {
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                session_record: record("authenticated_sessions"), credential_revision: 1, account_epoch: 0,
+                account_policy: 1, session_policy: 1,
+            }).await?.check()?;
+            let fence: surrealdb::types::Value = response.take(0)?;
+            let mut response = authority.query("RETURN true;").bind(AdministratorConfirmationPasswordBinding {
+                account: record("local_accounts"), principal: record("principals"), space: record("access_spaces"),
+                session_record: record("authenticated_sessions"), operation: Uuid::now_v7().to_string(),
+                token_hash: "0".repeat(64), channel: "1".repeat(64), verifier: "verifier".to_owned(),
+                credential_revision: 1, account_epoch: 0, account_policy: 1, principal_epoch: 0, principal_policy: 1,
+                space_epoch: 0, space_policy: 1, session_policy: 1, capabilities: Vec::new(), chain: Vec::new(),
+                principal_capabilities: Vec::new(), principal_kind: "human_account".to_owned(),
+                actor_kind: "operator".to_owned(), actor_id: "protected-session-actor".to_owned(),
+                session_expires_at: surrealdb::types::Datetime::from(chrono::Utc::now()),
+            }).await?.check()?;
+            let confirmation: surrealdb::types::Value = response.take(0)?;
+            Ok((passwords.len(), origins.len(), fence, confirmation))
+        })).await.expect("the engine accepts every current-actor and first-owner binding name");
+        assert_eq!(passwords, 0, "no session matches the fabricated current-actor bindings");
+        assert_eq!(origins, 0, "no first-owner origin exists in a fresh store");
+        assert_eq!(fence, surrealdb::types::Value::Bool(true));
+        assert_eq!(confirmation, surrealdb::types::Value::Bool(true));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn current_actor_and_first_owner_reads_bind_session_record_not_protected_session() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the local-account binding proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        backend
+            .close_and_remove()
+            .await
+            .expect("remove the local-account binding store");
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
     }
 }
