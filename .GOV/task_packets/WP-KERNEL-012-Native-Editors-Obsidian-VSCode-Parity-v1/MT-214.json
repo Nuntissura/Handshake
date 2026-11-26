@@ -1896,5 +1896,39 @@
       "a read from a hung clipboard owner (blocked by E5-F1)",
       "maintenance1 path"
     ]
+  },
+  "remediation6_clipboard_harness_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "implements": "clipboard_adversarial_decision_20261126 (E5-F1 and E5-F1-S)",
+    "commit": "b8105b7b8ef420dccafc533c5aca7623b2a43337 (parent bc954d50c)",
+    "paths": "src/frontend/handshake_shell/window/{Cargo.toml (comment only), README.md, tests/support/mod.rs, tests/test_clipboard.rs, tests/test_focus_ban.rs}; verified by git diff --name-only",
+    "changes": {
+      "station": "PrivateStation::enter (support/mod.rs:200) creates a fresh station through created_as_anonymous (:257): anonymous impersonation then CreateWindowStationW(null, CWF_CREATE_ONLY, WINSTA_ALL_ACCESS, attributes) (:261); 183 stops BLOCKED(busy), other failures BLOCKED(environment); DACL gives the current user and SYSTEM full rights plus OWNER RIGHTS with READ_CONTROL only; Anonymous Drop guard (:287) checks RevertToSelf and aborts on failure; nothing between impersonation and revert can panic; enter refuses WinSta0 and the logon session's unnamed station by name",
+      "preflight": "preflight (:399) binds a thread to a desktop of the station and calls OpenClipboard(0) then CloseClipboard; failure stops BLOCKED(environment) before any write; the station is recorded as the tests' only after the preflight passes; EmptiedAtEnd (:474) and clipboard_is_private depend on that record; ClipboardTurn kept",
+      "test_clipboard": "#[ignore = ...] at :372; writes check the station first in the render path (:100), Other::put (:173) and write (:294); no WinSta0 path, no environment-variable gate",
+      "readme": "proof section gives the x64 gate command (:107-110)"
+    },
+    "guard_tests": [
+      "test_focus_ban.rs:565 the_clipboard_tests_make_a_fresh_station_and_write_only_after_its_preflight (via station_faults :491 and unchecked_writes :466): fails on any station call other than the exact CWF_CREATE_ONLY one, OpenWindowStation*, recording before preflight, a possible panic while impersonating, or a write without the station check",
+      "test_focus_ban.rs:597 the_clipboard_scan_catches_a_shared_station_and_a_write_before_the_preflight: edits in-memory copies of the real harness (including the old flag-0 call) and asserts each is caught"
+    ],
+    "implementer_checks": {
+      "check --workspace --all-targets": "exit 0, no warnings (MT-214/gui-agent/logs/e6-check-1.log)",
+      "clippy --all-targets -D warnings": "exit 0 (e6-clippy-1.log)",
+      "tree -e all --target x86_64-pc-windows-msvc": "no egui, eframe, wgpu, glow or kumihimo (e6-tree-1.log)",
+      "Cargo.lock": "unchanged (157cf9d212ee67bf)"
+    },
+    "x64_gate_commands": [
+      "in src/frontend/handshake_shell/window: cargo test --locked --test test_clipboard -- --ignored",
+      "cargo test --locked (includes the two scan tests)"
+    ],
+    "ac214_2_clipboard_evidence": "on the ARM64 dev machine the clipboard part of AC214-2 has unit evidence only (fake board); the real-OS proof runs at the MT-213 x64 gate; if that machine's private-station preflight also fails, the deferred Operator question in clipboard_adversarial_decision_20261126 applies",
+    "question_for_next_eval": {
+      "id": "E6-Q1",
+      "what": "test_operator_window.rs:212 reads the clipboard of WinSta0 (the Operator's clipboard) and :245 withdraws from it; the coder says writes there are refused by authority before any OS call; the read may open the Operator's clipboard and pull its text into test memory (E3-F2 privacy) and briefly block the Operator's own clipboard use",
+      "route": "next GUI eval to confirm from code and runtime evidence and say whether it must change"
+    },
+    "tests": "nothing run; independent run pending"
   }
 }
