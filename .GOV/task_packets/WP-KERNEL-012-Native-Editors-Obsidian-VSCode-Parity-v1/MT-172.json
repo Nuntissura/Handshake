@@ -14108,5 +14108,49 @@
       "the SC2-F1 field-permission interaction"
     ],
     "eval_batch_update": "the batched backend eval adds the three navigation test binaries from SC2-F1; sites 1 and 4 count as parse-only proof"
+  },
+  "sc3_receipt_writers_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report; named check result verified by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "picotask": "SC-3 model-lane receipt writers, user_manual 239/373 and tests_to_fix (schema_repair_spec_20261125)",
+    "commit": "3ab0c671f (tree b5fe2fd78)",
+    "paths": {
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs": "MT-172 and MT-173",
+      "src/backend/handshake_core/src/storage/surreal/user_manual_knowledge.rs": "MT-173",
+      "tests/restart_resume_surreal_tests.rs": "MT-172",
+      "tests/worktree_vm_registry_surreal_tests.rs": "MT-172",
+      "waiver": "none needed"
+    },
+    "defect": "13 receipt writer sites in storage model_lane.rs omitted wsids, which the schema makes a required array<string> with no default on a SCHEMAFULL table (schema.surql:7382); all 13 confirmed, none already fixed",
+    "sites": {
+      "46_49_PAIR_IMMUTABLE_QUERY": "dead (only user put_pair_immutable has no caller per git grep; the baseline compile warns the constant is unused); fixed as line 76: five authority fields plus wsids: [$workspace_id]",
+      "80": "live (record_message_with_payload_binding); line-76 form",
+      "131_132_133_137": "live (commit_routing_atomic); line-76 form, as fn::wp012_routing_receipt and fn::wp012_routing_extra_receipt require on write",
+      "144_148": "live; DEVIATION for review: uses the existing but unused $routing_source_* bindings in RoutingCommitBindings (from create_scope(): Create plus fs.write) because fn::wp012_routing_model_lane_receipt demands action create, capability fs.write and the source-create resource and grant; on a transition the routing original is Update, so copying line 76 would fail that check",
+      "6570_6653": "live (replace_with_event_id, replace_if_version_with_event_id); the spec's guarded form: resource and grant NONE when $wp012_original_* is NONE",
+      "11201_11230": "live (profile admission origin and transition); added session, capability, action and wsids ([$transition.workspace_id] for the transition)"
+    },
+    "new_finding": {
+      "id": "SC3-N1",
+      "severity": "UNVERIFIED, outside SC-3",
+      "at": "storage model_lane.rs:144",
+      "defect": "writes event_type MODEL_LANE_AUTHORITY_RECORDED for a message while the routing receipt check wants MODEL_LANE_MESSAGE_RECORDED",
+      "status": "unfixed; routed to the code checker"
+    },
+    "route_caveat": "these pass as root, not on the record-user route",
+    "user_manual_knowledge": "239 (dead: no production caller, tests only) and 373 (test-utils fixture) now write wsids: [$event.workspace_id]",
+    "tests_to_fix": {
+      "restart_resume_surreal_tests.rs SEED_EVENT": "adds wsids",
+      "worktree_vm_registry_surreal_tests.rs ~1803": "fixture writes wsids; is_err replaced by a check that the error is the probe's own THROW (MT-023 deterministic failure after event write)",
+      "user_manual 373": "fixed as above"
+    },
+    "new_tests": "storage::surreal::model_lane::receipt_writer_schema_tests (7, root, embedded_test_backend(); each reads the receipt back and fails on old code): replace and replace_if_version (also assert no authority stored as root), guarded message with binding, commit_routing_atomic, routing message and binding (production query text with source bindings, since root cannot hold routing sources), profile admission origin and transition (production text; the transition test expects PROFILE_ADMISSION_TRANSITION_PREIMAGE_MISMATCH after the receipt is stored); seeds written by the production put_immutable and origin piece; the only OPTION IMPORT is the admission state row, whose CREATE event needs the record-user purpose",
+    "compile_runs": {
+      "compile-check-20261126-14": "ITERATION: exit 0, 25m37s, inputs unchanged, peak 208.195 GB, no new warnings (lib 560, lib test 507)",
+      "compile-check-20261126-15": "unmodified launcher refused (another agent's cargo running); nothing launched",
+      "compile-check-20261126-16": "unmodified launcher (005406f6...) WP012-P1-MT-172-COMPILE on 3ab0c671f: exit 0, 23m41s, inputs_unchanged true, dirty none, peak 208.195 GB, cargo.log sha256 94ddce6b544766a74c35c4b8f4982f06ac012127c3eebc056bc4cfa1b1a882a2; verified by the orchestrator"
+    },
+    "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib --test restart_resume_surreal_tests --test worktree_vm_registry_surreal_tests --test user_manual_knowledge_surreal_tests -E 'test(/receipt_writer_schema_tests/) | (binary(restart_resume_surreal_tests) & test(/startup_runner_resumes_persists_report_and_is_idempotent|startup_runner_replays_only_the_exact_scoped_session_when_sequences_interleave|startup_pass_with_failed_completed_write_is_repeat_safe_on_the_next_pass/)) | (binary(worktree_vm_registry_surreal_tests) & test(=deterministic_failure_between_event_and_state_writes_rolls_back_both)) | (binary(user_manual_knowledge_surreal_tests) & test(=orphan_receipt_blocks_entity_mutation_without_disclosure))' (exactly 12 tests: 7 lib, 3 restart_resume, 1 worktree_vm, 1 user_manual)",
+    "eval_status": "blocked with the other backend evals on the builder target cap (Operator decision pending)"
   }
 }
