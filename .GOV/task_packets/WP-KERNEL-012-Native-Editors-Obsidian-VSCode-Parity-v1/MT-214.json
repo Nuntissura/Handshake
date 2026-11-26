@@ -2242,5 +2242,51 @@
       "origin from a hardware key",
       "real Alt+F4"
     ]
+  },
+  "remediation8_accessibility_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet)",
+    "recorded_on": "2026-11-26",
+    "remediates": "eval7_accessibility_20261126 E7-F1..F9 (all confirmed in code, none refuted)",
+    "commit": "64f8b250f (only src/frontend/handshake_shell)",
+    "fixes": {
+      "F1": "tests/uia_client.rs read() skips the title bar (UIA_TitleBarControlTypeId); step 2 posts WM_NCACTIVATE(1) before WM_SETFOCUS",
+      "F2": "src/tree.rs relate_all builds each list relation as one list and set_* it",
+      "F3": "src/frame.rs line_fault refuses LineCycle(key) and LineNotRun{from,to} (new FrameRefusal variants) before the adapter",
+      "F4": "tests/source_scan.rs finds [patch.crates-io] by its header line",
+      "F5": "src/request.rs purge and purge_all, called from close, close_all, Destroyed and LoopEnding in src/hub.rs",
+      "F6": "src/hub.rs records displayed windows from the fed Created and DisplayChanged events; attach returns AlreadyShown for any window shown once; limit (README): a Show and Hide within one handler before the loop reports either still reads as never shown",
+      "F7": "tests for M-B1 and M-B2",
+      "F8": "scans add thread::Builder, thread::scope, ShowWindowAsync, SetWindowPlacement, MoveWindow, DeferWindowPos, OpenIcon, CloseWindow; every impl AccessRequest block and trait impl read, flagging a signature that makes a request or takes an Origin; clippy.toml gains two disallowed methods",
+      "F9_host_part": "src/platform.rs guarded() refuses a window that already has the AccessKitAdapter property and on a panic calls RemovePropW (safe because the property was null before); asset untouched (RQ-AKW-01 requested); a failed RemovePropW is not reported"
+    },
+    "step5_decision": "asserts the safety outcome, not a root request: the asset reports ProviderOwnsSetFocus for the root (node.rs:699) but the probe saw no request from root SetFocus; the test requires Invoke's Click first, then the child's Focus request (OtherProgram); anything after Click must be a Focus request of the second window; no_activation holds throughout; a child SetFocus on 'Open' added",
+    "tests_added": [
+      "tree_tests list_relations_by_key (F2)",
+      "tree_tests line_relations_that_would_hang (F3)",
+      "hub the_update_after_a_placeholder_is_whole_once with new next_update fn (M-B2)",
+      "hub requests_of_a_window_that_went... (F5)",
+      "hub a_window_displayed_once_is_shown_for_good (F6)",
+      "input tracker_tests another_program_cannot_take_the_focus... (M-B1)",
+      "platform a_failed_install_leaves_no_property... on a message-only window (F9)",
+      "source_scan a_comment_naming_a_table... (F4) and F8 controls",
+      "uia_client: a spare window shown then hidden must make attach return AlreadyShown"
+    ],
+    "implementer_checks": {
+      "check --workspace --all-targets": "exit 0 (MT-214/gui-agent/logs/e7-check-1.log)",
+      "clippy --workspace --all-targets -D warnings": "exit 0 (e7-clippy-1.log)",
+      "tree": "only the window crate's winit; no egui, eframe, wgpu, glow, kumihimo or accesskit_winit (e7-tree-1.log)",
+      "Cargo.lock": "unchanged"
+    },
+    "tests_run": "none; independent run pending",
+    "needs_real_run_or_desktop": [
+      "all new tests",
+      "uia_client on a private desktop",
+      "whether the window crate reports DisplayChanged Normal then Hidden for the spare window",
+      "native x64",
+      "a real screen reader",
+      "real input-desktop SetFocus on an Operator window",
+      "real per-monitor DPI move",
+      "WM_GETOBJECT during modal loops"
+    ]
   }
 }
