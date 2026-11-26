@@ -135,9 +135,11 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
             BoundedRestartResumeOutcome::Completed(_) => panic!("zero-bound fault completed"),
         }
     }
+    // `$session` is a protected SurrealDB parameter (surrealdb-core-3.2.0
+    // cnf/mod.rs:23, PROTECTED_PARAM_NAMES), so the candidate id binds as `$session_run`.
     #[derive(SurrealValue)]
     struct BlockedBindings {
-        session: String,
+        session_run: String,
         owner: String,
         actor: String,
         authenticated: String,
@@ -147,8 +149,8 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
     let candidate = uuid::Uuid::now_v7().to_string();
     let origin = harness.resource_scope().clone();
     storage.with_data_operation(|database| {
-        let bindings = BlockedBindings { session: candidate.clone(), owner: origin.account_uuid.to_string(), actor: origin.actor_uuid.to_string(), authenticated: origin.session_uuid.to_string(), space: origin.access_space_uuid.to_string(), workspace: origin.workspace_id.clone() };
-        Box::pin(async move { database.query_values::<surrealdb::types::Value, _>("CREATE type::record('kernel_session_queue', $session) SET session_run_id=$session, kernel_task_run_id='bounded-cleanup-fixture', adapter_id='bounded-cleanup-fixture', state='RUNNING', owner_account_id=$owner, actor_principal_id=$actor, authenticated_session_id=$authenticated, access_space_id=$space, workspace_id=$workspace;", bindings).await.map(|rows| rows.len()) })
+        let bindings = BlockedBindings { session_run: candidate.clone(), owner: origin.account_uuid.to_string(), actor: origin.actor_uuid.to_string(), authenticated: origin.session_uuid.to_string(), space: origin.access_space_uuid.to_string(), workspace: origin.workspace_id.clone() };
+        Box::pin(async move { database.query_values::<surrealdb::types::Value, _>("CREATE type::record('kernel_session_queue', $session_run) SET session_run_id=$session_run, kernel_task_run_id='bounded-cleanup-fixture', adapter_id='bounded-cleanup-fixture', state='RUNNING', owner_account_id=$owner, actor_principal_id=$actor, authenticated_session_id=$authenticated, access_space_id=$space, workspace_id=$workspace;", bindings).await.map(|rows| rows.len()) })
     }).await.expect("seed exact-scope blocking-cleanup candidate");
     let old_lease = handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
         uuid::Uuid::now_v7(), harness.restart_host_scope())
