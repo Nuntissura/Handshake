@@ -2198,5 +2198,49 @@
       "WM_GETOBJECT during modal loops or STA re-entrancy (a borrow panic inside the adapter's window procedure would abort the process)",
       "native x64"
     ]
+  },
+  "remediation7_input_ime_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet, finishing an Opus agent's draft stopped by the usage limit)",
+    "recorded_on": "2026-11-26",
+    "remediates": "eval6_20261126 E6-F1..F8 and s3_q1_decision (commit on focus loss)",
+    "commit": "7f9ec7de2 (fast-forward from fda3f89ff); loom_search.rs untouched",
+    "draft_state": "the stopped agent's draft had most of the window crate (CompleteIme command, ImeChange::Completed, platform/ime.rs, WM_KILLFOCUS hook, WM_IME_* origin and refusal, closing.rs Alt bit, frame_loop change, a first test_focus_ban check) and the ImeRouter changes; it had no input-crate tests, source scan, real_loop or README changes and did not compile (quiet_tests.rs used the old Closing::before signature)",
+    "fixes": {
+      "E6-F1": "input/tests/real_loop.rs posts WM_NCACTIVATE before every focus (ACTIVE constant at steps 1, 4 and 5); a new step-3 assert fails if the window reports no focus",
+      "E6-F2_E6-F3": "S3-Q1 design below",
+      "E6-F4": "window.rs attributed(), refuses_ime() and the hook's dispatching_key: WM_IME_* take the key's origin only during that real key message's own dispatch (not translated WM_CHAR); sent WM_IME_* refused; operator_composing in input/src/ime.rs true for any composition that is not a model's",
+      "E6-F5": "README: old IMM32 Chromium completed on a text-target change and before turning the IME off; current Chromium is TSF-only (taken from the eval record, Chromium not re-read)",
+      "E6-F6": "surface/tests/frame_loop.rs hidden_while_proving reads closes_unproven, not the swapchain",
+      "E6-F7": "closing.rs press() requires ALT_DOWN (lParam bit 29)",
+      "E6-F8": "test_focus_ban.rs guards() and block_around(); checked with a Python port: real files pass and all 8 mutations caught"
+    },
+    "ime_completion_design": [
+      "before a host focus move or turning the IME off the tracker emits ImeRequest::Complete (maps to CompleteIme) ahead of Allow(false)",
+      "on WM_KILLFOCUS while composing the window completes first; ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0) lives only in window/src/platform/ime.rs; the window then reports ImeChange::Completed",
+      "the composition waits at its own target; a commit goes only to that target, including one after WM_KILLFOCUS; its preedit is shown nowhere",
+      "it ends on Completed, the IME's own end, the keyboard returning, events lost, window gone or a new composition; a cancel only if no result came",
+      "a stale commit of no composition reaches no target"
+    ],
+    "tests": [
+      "ime_tests: window-completion commit; late result after keyboard loss; no result gives one cancel (five end paths); move completes first; stale result reaches no target; turn-off order Complete then Allow(false); unattributed composition protected; the 400-seed interleaving now includes Completed",
+      "source_scan the_window_crate_makes_the_one_completion_call_and_no_other_composition_call (second call, other shape or other module fails); the input crate's ImmNotifyIME ban and control kept",
+      "window.rs origin-rule and sent-message refusal tests",
+      "closing.rs: F4 without the Alt bit is no close gesture",
+      "frame_loop a_hide_before_the_proof_is_caught_without_the_swapchain",
+      "test_focus_ban C-M2-style mutations"
+    ],
+    "implementer_checks": {
+      "check": "MT-214/gui-agent/logs/r7-check-2.log pass (r7-check-1 failed on the quiet_tests signature, fixed)",
+      "clippy -D warnings": "r7-clippy-1.log pass",
+      "tree": "r7-tree-1.log: no egui, eframe, wgpu, glow or kumihimo",
+      "Cargo.lock": "unchanged"
+    },
+    "tests_run": "none; independent run pending",
+    "needs_real_ime_x64_or_real_desktop": [
+      "how a real IME answers CPS_COMPLETE (timing, late results, stale GCS_RESULTSTR, S3-Q3)",
+      "the new real_loop expectations (inferred from winit: ImmNotifyIME with no real composition produces no extra events; nested IME events delivered synchronously so the commit precedes Completed)",
+      "origin from a hardware key",
+      "real Alt+F4"
+    ]
   }
 }
