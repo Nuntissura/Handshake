@@ -42,7 +42,7 @@ pub use crate::session_checkpoint::{
 };
 
 pub const RESTART_RESUME_BOOT_TIMEOUT_DEFAULT: Duration = Duration::from_secs(30);
-const RESTART_RESUME_ABORT_REPORT_GRACE: Duration = Duration::from_secs(1);
+const RESTART_RESUME_REPORT_GRACE: Duration = Duration::from_secs(1);
 
 #[derive(Debug)]
 pub enum BoundedRestartResumeOutcome {
@@ -490,34 +490,66 @@ impl SurrealRestartResumeRunner {
         self.run_with_preface_events(&[]).await
     }
 
+    /// Runs one pass under `timeout`. The bound cancels only the pass body, which
+    /// never writes the COMPLETED report: a report write already handed to the
+    /// embedded engine can still commit after its caller future is dropped. The
+    /// COMPLETED report is written only for a pass that finished strictly inside
+    /// the bound, and that write gets the same report grace as the incomplete
+    /// report; an unconfirmed COMPLETED write is an error, never `TimedOut`. So a
+    /// pass the bound cancels never commits COMPLETED, and `TimedOut` never
+    /// coexists with a COMPLETED report of the same pass.
     pub async fn run_with_bound(
         &self,
         timeout: Duration,
     ) -> Result<BoundedRestartResumeOutcome, RestartResumeRuntimeError> {
         let started_at_utc = Utc::now();
         let started = std::time::Instant::now();
-        match tokio::time::timeout(timeout, self.run()).await {
-            Ok(Ok(report)) => Ok(BoundedRestartResumeOutcome::Completed(report)),
+        let now = tokio::time::Instant::now();
+        // An unrepresentable bound saturates to the far future, as in `tokio::time::timeout`.
+        let deadline = now
+            .checked_add(timeout)
+            .unwrap_or_else(|| now + Duration::from_secs(86_400 * 365 * 30));
+        match tokio::time::timeout_at(deadline, self.resume_pass(&[])).await {
+            Ok(Ok(report)) if tokio::time::Instant::now() < deadline => {
+                match tokio::time::timeout(
+                    RESTART_RESUME_REPORT_GRACE,
+                    self.persist_report(&report),
+                )
+                .await
+                {
+                    Ok(Ok(())) => Ok(BoundedRestartResumeOutcome::Completed(report)),
+                    Ok(Err(error)) => Err(error),
+                    Err(_) => Err(RestartResumeRuntimeError::Store(format!(
+                        "restart-resume pass {} finished inside the {} ms bound, but its \
+                         COMPLETED report write was not acknowledged within the {} ms grace",
+                        report.report_id,
+                        timeout.as_millis(),
+                        RESTART_RESUME_REPORT_GRACE.as_millis()
+                    ))),
+                }
+            }
             Ok(Err(error)) => Err(error),
-            Err(_) => {
+            // The pass did not finish strictly inside the bound (for a zero bound it
+            // never does), or it was cancelled; its COMPLETED report was never written.
+            Ok(Ok(_)) | Err(_) => {
                 let mut report = empty_report(started_at_utc, started.elapsed());
                 emit_report_event(&mut report, FrEventId::RestartResumeStarted);
                 let evidence_persisted = match tokio::time::timeout(
-                    RESTART_RESUME_ABORT_REPORT_GRACE,
-                    self.persist_report(&report),
+                    RESTART_RESUME_REPORT_GRACE,
+                    self.persist_abort_report(&report),
                 )
                 .await
                 {
                     Ok(Ok(())) => true,
                     Ok(Err(error)) => {
                         tracing::error!(report_id = %report.report_id,
-                            grace_ms = RESTART_RESUME_ABORT_REPORT_GRACE.as_millis() as u64,
+                            grace_ms = RESTART_RESUME_REPORT_GRACE.as_millis() as u64,
                             error = %error, "incomplete restart report persistence unconfirmed");
                         false
                     }
                     Err(_) => {
                         tracing::error!(report_id = %report.report_id,
-                            grace_ms = RESTART_RESUME_ABORT_REPORT_GRACE.as_millis() as u64,
+                            grace_ms = RESTART_RESUME_REPORT_GRACE.as_millis() as u64,
                             "incomplete restart report write deadline elapsed; acknowledgement unconfirmed");
                         false
                     }
@@ -598,6 +630,17 @@ impl SurrealRestartResumeRunner {
     }
 
     async fn run_with_preface_events(
+        &self,
+        preface_events: &[FrEventId],
+    ) -> Result<ResumeReport, RestartResumeRuntimeError> {
+        let report = self.resume_pass(preface_events).await?;
+        self.persist_report(&report).await?;
+        Ok(report)
+    }
+
+    /// One restart-resume pass, ending with the COMPLETED event in the returned
+    /// report; the caller writes that report.
+    async fn resume_pass(
         &self,
         preface_events: &[FrEventId],
     ) -> Result<ResumeReport, RestartResumeRuntimeError> {
@@ -698,7 +741,6 @@ impl SurrealRestartResumeRunner {
         report.total_duration_ms = started.elapsed().as_millis() as u64;
         report.completed_at_utc = Utc::now();
         emit_report_event(&mut report, FrEventId::RestartResumeCompleted);
-        self.persist_report(&report).await?;
         Ok(report)
     }
 
@@ -1311,7 +1353,13 @@ impl SurrealRestartResumeRunner {
         Ok(outcome)
     }
 
-    async fn persist_report(&self, report: &ResumeReport) -> Result<(), RestartResumeRuntimeError> {
+    /// Writes the bounded abort path's incomplete report. The test-only abort-report
+    /// fault is consumed here and nowhere else, so a main pass that reaches its own
+    /// report write before the bound elapses cannot use it up.
+    async fn persist_abort_report(
+        &self,
+        report: &ResumeReport,
+    ) -> Result<(), RestartResumeRuntimeError> {
         #[cfg(feature = "test-utils")]
         match self.abort_report_fault.swap(0, Ordering::AcqRel) {
             1 => std::future::pending::<()>().await,
@@ -1327,6 +1375,10 @@ impl SurrealRestartResumeRunner {
             }
             _ => {}
         }
+        self.persist_report(report).await
+    }
+
+    async fn persist_report(&self, report: &ResumeReport) -> Result<(), RestartResumeRuntimeError> {
         #[derive(SurrealValue)]
         struct ReportBindings {
             report_record: surrealdb::types::RecordId,
