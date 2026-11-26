@@ -5,41 +5,74 @@ use std::time::Duration;
 use crate::command::{Refusal, WindowClass};
 use crate::origin::{Authority, EventTime};
 
-/// How long after the Operator's close gesture the system's close command for it may come (MT-214 E3-F6). A posted
-/// command comes out of the queue ahead of input (PeekMessage, Remarks); a sent one at once.
+/// How long after the handling of the Operator's close gesture posted its close command that command may come out of the
+/// queue (MT-214 E3-F6, E4-F2). A posted command comes out of the queue ahead of input (PeekMessage, Remarks).
 pub(crate) const CLOSE_GESTURE_LIFETIME: Duration = Duration::from_secs(1);
 
-/// Whether a request to close a window is the Operator's (MT-214 E3-F6). Only the Operator's own close gesture on the
-/// window makes one: Alt+F4, its close button or a double-click on its system menu, which the operating system reported
-/// as hardware and the loop took out of its queue. The system turns the gesture into a close command (`WM_SYSCOMMAND`,
-/// `SC_CLOSE`), posted or sent, and the command into the close message (`WM_CLOSE`), sent from within it on the same
-/// thread (so Wine's default window procedure; should Windows' post it, the Operator's close would count as anybody's,
-/// which only withholds the hand-on). A close message posted or sent by another program, or by this one, and a close
-/// command another thread sends, are nobody's approval; such a request still lets a model remove the window once, and
-/// hands nothing on.
+/// How a close command reached the window procedure.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CommandFrom {
+    /// Taken out of the thread's queue: posted, by anybody.
+    Queue,
+    /// Sent by this thread, or by the system on its behalf.
+    ThisThread,
+    /// Sent by another thread.
+    OtherThread,
+}
+
+/// Whether a request to close a window is the Operator's (MT-214 E3-F6, E4-F2). Only the Operator's own close gesture on
+/// the window makes one: Alt+F4, its close button or a double-click on its system menu, which the operating system
+/// reported as hardware and the loop took out of its queue. The system turns the gesture into a close command
+/// (`WM_SYSCOMMAND`, `SC_CLOSE`) while it handles the gesture's own message, and the command into the close message
+/// (`WM_CLOSE`), sent from within it on the same thread (so Wine's default window procedure; should Windows' post it,
+/// the Operator's close would count as anybody's, which only withholds the hand-on).
+///
+/// The command counts only when it is the one the system made of the gesture (E4-F2): sent by this thread while the
+/// gesture's message is being handled, or the first one taken out of the queue after that handling posted one, when
+/// none was queued before it. A gesture whose handling made no command, a press on the close button dragged off it or
+/// F4 without Alt, approves nothing, and a close command another program posts after it is nobody's. A close message
+/// posted or sent by another program, or by this one, and a close command another thread sends, are nobody's approval;
+/// such a request still lets a model remove the window once, and hands nothing on.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct CloseWatch {
-    /// The Operator's newest close gesture, until a close command uses it.
-    gesture: Option<EventTime>,
-    /// A close command that used a gesture is being carried out.
+    /// The message of the Operator's close gesture is being handled.
+    handling: bool,
+    /// The handling of the Operator's close gesture posted a close command, then: the next one out of the queue is it.
+    posted: Option<EventTime>,
+    /// A close command that the Operator's gesture made is being carried out.
     closing: bool,
 }
 
 impl CloseWatch {
-    /// The Operator's own press of a key or button, taken out of the queue. Any other press ends a gesture.
-    pub(crate) fn operator_pressed(&mut self, now: EventTime, close_gesture: bool) {
-        self.gesture = close_gesture.then_some(now);
+    /// The handling of the Operator's own press of a key or button, taken out of the queue, begins. Any press ends what
+    /// an earlier gesture left. Returns what [`CloseWatch::press_ends`] puts back.
+    pub(crate) fn press_begins(&mut self, close_gesture: bool) -> bool {
+        self.posted = None;
+        std::mem::replace(&mut self.handling, close_gesture)
     }
 
-    /// A close command begins. One another thread sent uses no gesture. Returns what [`CloseWatch::command_ends`] puts
-    /// back.
-    pub(crate) fn command_begins(&mut self, now: EventTime, from_other_thread: bool) -> bool {
+    /// The handling of the press ended.
+    pub(crate) fn press_ends(&mut self, before: bool) {
+        self.handling = before;
+    }
+
+    /// The handling of the Operator's close gesture just ended, and a close command for the window waits in the queue
+    /// now that did not before it: the system posted it for the gesture.
+    pub(crate) fn command_posted(&mut self, now: EventTime) {
+        self.posted = Some(now);
+    }
+
+    /// A close command begins. Returns what [`CloseWatch::command_ends`] puts back.
+    pub(crate) fn command_begins(&mut self, now: EventTime, from: CommandFrom) -> bool {
         let before = self.closing;
-        self.closing = !from_other_thread
-            && self
-                .gesture
+        self.closing = match from {
+            CommandFrom::ThisThread => self.handling,
+            CommandFrom::Queue => self
+                .posted
                 .take()
-                .is_some_and(|at| now.since(at) <= CLOSE_GESTURE_LIFETIME);
+                .is_some_and(|at| now.since(at) <= CLOSE_GESTURE_LIFETIME),
+            CommandFrom::OtherThread => false,
+        };
         before
     }
 
@@ -413,53 +446,92 @@ mod tests {
         }
     }
 
-    /// A gesture, then a close command and the close message inside it.
-    fn close(watch: &mut CloseWatch, command_at: u64, other_thread: bool, message_same_thread: bool) -> bool {
-        let before = watch.command_begins(at(command_at), other_thread);
+    /// A close command and the close message inside it.
+    fn close(watch: &mut CloseWatch, command_at: u64, from: CommandFrom, message_same_thread: bool) -> bool {
+        let before = watch.command_begins(at(command_at), from);
         let operators = watch.message_is_operators(message_same_thread);
         watch.command_ends(before);
         operators
     }
 
+    /// The Operator's close gesture whose handling sends the close command, as the close button and a double-click on
+    /// the system menu do: the command, and the message inside it, inside the gesture's handling.
+    fn sent_inside(watch: &mut CloseWatch, at_millis: u64, message_same_thread: bool) -> bool {
+        let before = watch.press_begins(true);
+        let operators = close(watch, at_millis, CommandFrom::ThisThread, message_same_thread);
+        watch.press_ends(before);
+        operators
+    }
+
+    /// The Operator's close gesture whose handling posts the close command, as Alt+F4 in Wine.
+    fn posted_by(watch: &mut CloseWatch, at_millis: u64) {
+        let before = watch.press_begins(true);
+        watch.press_ends(before);
+        watch.command_posted(at(at_millis));
+    }
+
     /// MT-214 E3-F6: only the Operator's own close gesture makes a close request that approves the hand-on.
     #[test]
-    fn a_close_is_the_operators_only_after_the_operators_own_close_gesture() {
+    fn a_close_is_the_operators_only_when_the_operators_own_close_gesture_made_it() {
         let mut watch = CloseWatch::default();
-        assert!(!close(&mut watch, 0, false, true), "no gesture: a close of anybody's");
-        watch.operator_pressed(at(10), true);
+        assert!(!close(&mut watch, 0, CommandFrom::ThisThread, true), "no gesture: a close of anybody's");
+        assert!(sent_inside(&mut watch, 10, true), "the close button");
+        posted_by(&mut watch, 20);
         assert!(!watch.message_is_operators(true), "a close message outside the command");
-        assert!(close(&mut watch, 20, false, true), "Alt+F4 or the close button");
-        assert!(!close(&mut watch, 30, false, true), "the gesture was used");
-        // A close command another thread sends uses no gesture; one this thread then carries out does.
-        watch.operator_pressed(at(40), true);
-        assert!(!close(&mut watch, 41, true, true));
-        assert!(close(&mut watch, 42, false, true));
+        assert!(close(&mut watch, 21, CommandFrom::Queue, true), "Alt+F4, posted");
+        assert!(!close(&mut watch, 22, CommandFrom::Queue, true), "the posted command was used");
+        // A close command another thread sends is nobody's, inside the gesture's handling too.
+        let before = watch.press_begins(true);
+        assert!(!close(&mut watch, 30, CommandFrom::OtherThread, true));
+        watch.press_ends(before);
         // A close message posted or sent from another thread inside the command is nobody's.
-        watch.operator_pressed(at(50), true);
-        assert!(!close(&mut watch, 51, false, false));
-        // A gesture ends with its lifetime and with any other press of the Operator's.
+        assert!(!sent_inside(&mut watch, 40, false));
+        // A posted command waits its lifetime at most, and any other press of the Operator's ends it.
         let late = u64::try_from(CLOSE_GESTURE_LIFETIME.as_millis()).unwrap();
-        watch.operator_pressed(at(100), true);
-        assert!(!close(&mut watch, 101 + late, false, true));
-        watch.operator_pressed(at(200), true);
-        watch.operator_pressed(at(201), false);
-        assert!(!close(&mut watch, 202, false, true));
-        // Within its lifetime, to the end.
-        watch.operator_pressed(at(300), true);
-        assert!(close(&mut watch, 300 + late, false, true));
+        posted_by(&mut watch, 100);
+        assert!(!close(&mut watch, 101 + late, CommandFrom::Queue, true));
+        posted_by(&mut watch, 200);
+        let before = watch.press_begins(false);
+        watch.press_ends(before);
+        assert!(!close(&mut watch, 202, CommandFrom::Queue, true));
+        posted_by(&mut watch, 300);
+        assert!(close(&mut watch, 300 + late, CommandFrom::Queue, true), "within its lifetime, to the end");
+    }
+
+    /// MT-214 E4-F2: a gesture whose handling made no command approves nothing: a press on the close button dragged off
+    /// it, F4 without Alt. Neither a close command another program posts after it, at once, nor one taken out of the
+    /// queue while the gesture is handled.
+    #[test]
+    fn a_gesture_that_made_no_command_lends_nothing_to_anybody_elses() {
+        let mut watch = CloseWatch::default();
+        let before = watch.press_begins(true);
+        assert!(!close(&mut watch, 1, CommandFrom::Queue, true), "posted by another program, taken out inside");
+        watch.press_ends(before);
+        assert!(!close(&mut watch, 2, CommandFrom::Queue, true), "posted by another program, right after");
+        assert!(!close(&mut watch, 3, CommandFrom::ThisThread, true), "sent after the handling");
+        // A press that is no close gesture, and its handling sends one: nobody's either.
+        let before = watch.press_begins(false);
+        assert!(!close(&mut watch, 4, CommandFrom::ThisThread, true));
+        watch.press_ends(before);
     }
 
     #[test]
     fn a_close_command_inside_another_puts_back_what_was_there() {
         let mut watch = CloseWatch::default();
-        watch.operator_pressed(at(0), true);
-        let outer = watch.command_begins(at(1), false);
-        let inner = watch.command_begins(at(2), true);
+        let press = watch.press_begins(true);
+        let outer = watch.command_begins(at(1), CommandFrom::ThisThread);
+        let inner = watch.command_begins(at(2), CommandFrom::OtherThread);
         assert!(!watch.message_is_operators(true), "inside the inner one");
         watch.command_ends(inner);
         assert!(watch.message_is_operators(true), "the outer one again");
         watch.command_ends(outer);
         assert!(!watch.message_is_operators(true));
+        // A press inside the gesture's handling, and back.
+        let nested = watch.press_begins(false);
+        assert!(!close(&mut watch, 3, CommandFrom::ThisThread, true));
+        watch.press_ends(nested);
+        assert!(close(&mut watch, 4, CommandFrom::ThisThread, true));
+        watch.press_ends(press);
     }
 
     #[test]

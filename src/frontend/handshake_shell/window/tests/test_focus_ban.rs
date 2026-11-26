@@ -249,6 +249,13 @@ fn calls_of_run_script(code: &str) -> Vec<usize> {
         .collect()
 }
 
+/// The one file of the crate's own source that binds a thread to a desktop, and the desktop: the calling thread's, which
+/// is the loop's (`platform/clipboard.rs`, the keeper thread of a write, MT-214 E4-F3).
+const KEEPER: (&str, &str) = (
+    "src/platform/clipboard.rs",
+    "GetThreadDesktop(GetCurrentThreadId())",
+);
+
 /// The calls that run their closure on a private desktop; the second also on a window station of its own.
 const PRIVATE: [&str; 2] = ["on_private_desktop(", "on_private_window_station("];
 
@@ -315,12 +322,17 @@ fn every_test_that_runs_a_loop_runs_it_on_a_private_desktop() {
         assert!(elsewhere.is_empty(), "{elsewhere:#?}");
     }
     assert!(runs >= 7, "the scan sees the loops: {runs}");
-    // In the crate's own source only its unit tests bind a thread to a desktop, and nothing switches window stations.
+    // In the crate's own source only its unit tests bind a thread to a desktop, and the clipboard's keeper thread binds
+    // itself to the loop thread's own desktop (MT-214 E4-F3); nothing makes a desktop or switches window stations.
     let src = below("src");
-    let bound = found(&src, &["SetThreadDesktop", "CreateDesktopW"], |source, _, _| {
-        source.path == TEST_ONLY
+    let bound = found(&src, &["SetThreadDesktop", "CreateDesktopW"], |source, word, _| {
+        source.path == TEST_ONLY || (source.path == KEEPER.0 && word == "SetThreadDesktop")
     });
     assert!(bound.is_empty(), "{bound:#?}");
+    let keeper = &source(&src, KEEPER.0).code;
+    assert_eq!(keeper.matches("SetThreadDesktop(").count(), 1, "one binding");
+    assert_eq!(keeper.matches("GetThreadDesktop(").count(), 1, "of one desktop");
+    assert_eq!(keeper.matches(KEEPER.1).count(), 1, "the loop thread's own");
     let stations = found(&src, &["CreateWindowStationW", "SetProcessWindowStation"], |_, _, _| false);
     assert!(stations.is_empty(), "{stations:#?}");
 }

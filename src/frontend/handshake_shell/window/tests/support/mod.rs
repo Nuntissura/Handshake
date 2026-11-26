@@ -27,13 +27,20 @@ use std::time::{Duration, Instant};
 use handshake_shell_window::{
     Control, DispatchedWake, Event, LoopConfig, LoopError, RunReport, ShellHost,
 };
-use windows_sys::Win32::Foundation::{GetLastError, BOOL, HANDLE, HWND, LPARAM, WPARAM};
+use windows_sys::Win32::Foundation::{
+    CloseHandle, GetLastError, BOOL, HANDLE, HWND, LPARAM, WAIT_ABANDONED, WAIT_OBJECT_0, WPARAM,
+};
+use windows_sys::Win32::System::DataExchange::{
+    CloseClipboard, EmptyClipboard, GetClipboardSequenceNumber, OpenClipboard,
+};
 use windows_sys::Win32::System::StationsAndDesktops::{
     CloseDesktop, CloseWindowStation, CreateDesktopW, CreateWindowStationW,
     GetProcessWindowStation, GetThreadDesktop, GetUserObjectInformationW, SetProcessWindowStation,
     SetThreadDesktop, HDESK, HWINSTA, UOI_FLAGS, UOI_IO, UOI_NAME, USEROBJECTFLAGS,
 };
-use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+use windows_sys::Win32::System::Threading::{
+    CreateMutexW, GetCurrentThreadId, ReleaseMutex, WaitForSingleObject,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DestroyWindow, GetDesktopWindow, GetGUIThreadInfo, GetWindow, PeekMessageW,
     SendMessageW, SetWindowPos, GUITHREADINFO, GW_HWNDNEXT, HWND_TOP, MSG, PM_NOREMOVE, SWP_NOMOVE,
@@ -44,9 +51,6 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 use watches::{is_ours, FocusWatch, Watchdog};
 
 const GENERIC_ALL: u32 = 0x1000_0000;
-
-/// CreateWindowStation fails when the name exists.
-const CWF_CREATE_ONLY: u32 = 1;
 
 pub fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(Some(0)).collect()
@@ -150,11 +154,17 @@ pub fn on_private_desktop<T: Send + 'static>(
 /// The name of the window station [`on_private_window_station`] switched the process to, in lower case, while it is.
 static STATION: Mutex<Option<String>> = Mutex::new(None);
 
-/// A window station of the test's own, the process's for as long as this lives. "A window station contains a
-/// clipboard, an atom table, and one or more desktop objects"; one that is not WinSta0 "cannot display a user interface
-/// or receive user input" (learn.microsoft.com/windows/win32/winstation/window-stations). SetProcessWindowStation
-/// "enables the process to access objects in the window station such as desktops, the clipboard, and global atoms",
-/// and a desktop CreateDesktop makes then belongs to it, as SetThreadDesktop requires.
+/// The window station of the clipboard tests, the process's for as long as this lives (MT-214 E4-F1). "A window station
+/// contains a clipboard, an atom table, and one or more desktop objects"; one that is not WinSta0 "cannot display a user
+/// interface or receive user input" (learn.microsoft.com/windows/win32/winstation/window-stations).
+/// SetProcessWindowStation "enables the process to access objects in the window station such as desktops, the
+/// clipboard, and global atoms", and a desktop CreateDesktop makes then belongs to it, as SetThreadDesktop requires.
+///
+/// It is the unnamed one, so no elevation is needed: CreateWindowStationW allows only members of the Administrators
+/// group to name one, and for none "the system forms a window station name using the logon session identifier for the
+/// calling process"; when it exists, "the function succeeds and returns a new handle to the existing window station".
+/// Other processes of the logon session may use it too (the Chromium sandbox does), so the tests that use its clipboard
+/// take their turn one at a time across processes ([`ClipboardTurn`]) and empty its clipboard when they end.
 struct PrivateStation {
     station: HWINSTA,
     before: HWINSTA,
@@ -162,22 +172,20 @@ struct PrivateStation {
 
 impl PrivateStation {
     fn enter() -> Self {
-        let name = format!("hsk-shell-test-station-{}", std::process::id());
-        let wide_name = wide(&name);
-        // SAFETY: the name outlives the call; the station gets the default security.
-        let station = unsafe {
-            CreateWindowStationW(wide_name.as_ptr(), CWF_CREATE_ONLY, GENERIC_ALL, ptr::null())
-        };
+        // SAFETY: no name; the station gets the default security when it is made here.
+        let station = unsafe { CreateWindowStationW(ptr::null(), 0, GENERIC_ALL, ptr::null()) };
         // SAFETY: no arguments.
         assert_ne!(station, 0, "no window station: error {}", unsafe { GetLastError() });
+        let name = object_name(station).to_lowercase();
+        assert_ne!(name, "winsta0", "not the Operator's window station");
         // SAFETY: no arguments, then a station of this process's session.
         let (before, switched) = unsafe { (GetProcessWindowStation(), SetProcessWindowStation(station)) };
         if switched == 0 {
-            // SAFETY: created above and not in use.
+            // SAFETY: opened above and not in use.
             unsafe { CloseWindowStation(station) };
             panic!("the process was not switched to the test's window station");
         }
-        *STATION.lock().unwrap_or_else(PoisonError::into_inner) = Some(name.to_lowercase());
+        *STATION.lock().unwrap_or_else(PoisonError::into_inner) = Some(name);
         Self { station, before }
     }
 }
@@ -185,7 +193,7 @@ impl PrivateStation {
 impl Drop for PrivateStation {
     fn drop(&mut self) {
         *STATION.lock().unwrap_or_else(PoisonError::into_inner) = None;
-        // SAFETY: the station the process had, then the one made here, which nothing uses any more.
+        // SAFETY: the station the process had, then the handle opened here, which nothing uses any more.
         unsafe {
             SetProcessWindowStation(self.before);
             CloseWindowStation(self.station);
@@ -193,16 +201,83 @@ impl Drop for PrivateStation {
     }
 }
 
-/// Run `work` as [`on_private_desktop`] does, with the process on a window station of the test's own: its clipboard is
-/// no other program's. The only place a test may use the operating system's clipboard; see
-/// [`assert_clipboard_is_private`].
+/// The turn of one clipboard test among the processes of this session: the window station they share is the logon
+/// session's. A named mutex, which an owner's ending process gives up too (then the wait says abandoned).
+struct ClipboardTurn(HANDLE);
+
+impl ClipboardTurn {
+    fn take(limit: Duration) -> Self {
+        let name = wide("Local\\hsk-shell-test-clipboard-turn");
+        // SAFETY: the name outlives the call; default security, not owned at creation.
+        let mutex = unsafe { CreateMutexW(ptr::null(), 0, name.as_ptr()) };
+        // SAFETY: no arguments.
+        assert_ne!(mutex, 0, "no turn: error {}", unsafe { GetLastError() });
+        let millis = u32::try_from(limit.as_millis()).unwrap_or(u32::MAX - 1);
+        // SAFETY: a handle opened above.
+        let waited = unsafe { WaitForSingleObject(mutex, millis) };
+        if !matches!(waited, WAIT_OBJECT_0 | WAIT_ABANDONED) {
+            // SAFETY: opened above, not owned.
+            unsafe { CloseHandle(mutex) };
+            panic!("another clipboard test kept its turn for {limit:?}: {waited:#x}");
+        }
+        Self(mutex)
+    }
+}
+
+impl Drop for ClipboardTurn {
+    fn drop(&mut self) {
+        // SAFETY: owned by this thread, which took it; then the handle opened by `take`.
+        unsafe {
+            ReleaseMutex(self.0);
+            CloseHandle(self.0);
+        }
+    }
+}
+
+/// Empties the clipboard of the test's window station when the test's work ends, also when it panics: nothing a test
+/// put there stays on the logon session's station (CX-GIT-003).
+struct EmptiedAtEnd;
+
+impl Drop for EmptiedAtEnd {
+    fn drop(&mut self) {
+        // SAFETY: on the test's thread, whose desktop is on the test's station; no window owns what is emptied. Fails
+        // at once while another thread has it open, and then nothing is emptied.
+        unsafe {
+            if OpenClipboard(0) != 0 {
+                EmptyClipboard();
+                CloseClipboard();
+            }
+        }
+    }
+}
+
+/// Run `work` as [`on_private_desktop`] does, with the process on a window station that is not the Operator's, taken in
+/// turn with every other clipboard test of the session: its clipboard is not the Operator's. The only place a test may
+/// use the operating system's clipboard; see [`assert_clipboard_is_private`]. Fails unless the clipboard of the
+/// window station the process had, the Operator's WinSta0 when run from the Operator's session, kept its sequence
+/// number ("incremented whenever the contents of the clipboard change or the clipboard is emptied",
+/// GetClipboardSequenceNumber).
 pub fn on_private_window_station<T: Send + 'static>(
     limit: Duration,
     work: impl FnOnce() -> T + Send + 'static,
 ) -> T {
+    let turn = ClipboardTurn::take(limit);
+    // SAFETY: no arguments; the window station the process has before the switch.
+    let operators_before = unsafe { GetClipboardSequenceNumber() };
     let station = PrivateStation::enter();
-    let value = on_private_desktop(limit, work);
+    let value = on_private_desktop(limit, move || {
+        assert_clipboard_is_private();
+        let _emptied = EmptiedAtEnd;
+        work()
+    });
     drop(station);
+    // SAFETY: no arguments; the process is back on its own window station.
+    let operators_after = unsafe { GetClipboardSequenceNumber() };
+    drop(turn);
+    assert_eq!(
+        operators_after, operators_before,
+        "the clipboard of the process's own window station changed"
+    );
     value
 }
 

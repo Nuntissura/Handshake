@@ -5,9 +5,10 @@ use handshake_shell_window::{PhysicalSize, WindowKey};
 use handshake_vulkan_renderer::{
     AuthorizationProvenance, Claim, ClaimDisposition, ClaimRequest, ClientId, Extent, GpuClient,
     GpuOwner, ImageLayout, OperationId, OperationKind, OwnerSurface, PresentRefusal,
-    PresentResult, Presented, RecordAborted, SettleOutcome, SettleRefusal, Settlement,
-    SurfaceTarget, SwapchainInfo, SwapchainRequest, SwapchainStatus,
+    PresentResult, Presented, PresentsProof, RecordAborted, SettleOutcome, SettleRefusal,
+    Settlement, SurfaceTarget, SwapchainInfo, SwapchainRequest, SwapchainStatus,
 };
+use std::time::Instant;
 
 use crate::clear::ClearFrame;
 use crate::decide::{Swap, Tried};
@@ -59,6 +60,8 @@ pub(crate) struct Slot {
     pub(crate) not_ready: u32,
     pub(crate) retire_frames: u32,
     pub(crate) capture: Capture,
+    /// Closing, its presents are being proven ended before the surface is released, until this time (MT-214 SF-2).
+    pub(crate) proving: Option<Instant>,
 }
 
 impl Slot {
@@ -98,6 +101,7 @@ impl Slot {
             not_ready: 0,
             retire_frames: 0,
             capture: Capture::None,
+            proving: None,
         })
     }
 
@@ -112,6 +116,19 @@ impl Slot {
     /// A swapchain of the window exists, suspended ones included: the owner counts it as live.
     pub(crate) fn holds_swapchain(&self) -> bool {
         self.surface.is_some() && self.info.is_some()
+    }
+
+    /// The current swapchain was presented.
+    pub(crate) fn presented_on_current(&self) -> bool {
+        self.presented_on_current
+    }
+
+    /// Acquire back images of the surface, so that the owner proves its presents ended (`OwnerSurface::prove_presents`).
+    pub(crate) fn prove(&self) -> Result<PresentsProof, PresentRefusal> {
+        self.surface
+            .as_ref()
+            .ok_or(PresentRefusal::Released)?
+            .prove_presents()
     }
 
     /// Create the swapchain for the window's size now, or create it again with the current one as `oldSwapchain`
@@ -270,6 +287,7 @@ impl Slot {
     /// Release the surface: the owner destroys its swapchains and the surface once their work and presents ended, and
     /// then drops the window's target. Returns whether there was one.
     pub(crate) fn release_surface(&mut self) -> bool {
+        self.proving = None;
         self.info = None;
         self.swap = Swap::None;
         self.presented_on_current = false;

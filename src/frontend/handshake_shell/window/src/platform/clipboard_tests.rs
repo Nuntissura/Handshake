@@ -14,7 +14,7 @@ use super::*;
 /// A registered format, as "HTML Format" is.
 const HTML: u32 = 0xC100;
 
-/// A registered format named as one of the markers of the clipboard history.
+/// A registered format, as the markers of the clipboard history are ("ExcludeClipboardContentFromMonitorProcessing").
 const MARKER: u32 = 0xC200;
 
 fn text() -> Vec<u32> {
@@ -78,10 +78,6 @@ impl Board for Pad {
         self.formats.iter().copied().take(most).collect()
     }
 
-    fn is_marker(&self, format: u32) -> bool {
-        format == MARKER
-    }
-
     fn copy_text(&self, limit: usize) -> Copied<u32> {
         self.asked.set(self.asked.get() + 1);
         match self.text {
@@ -112,8 +108,13 @@ impl Board for Pad {
     }
 }
 
+fn write_as(pad: &mut Pad, unkept: Unkept) -> Result<(), ClipboardError> {
+    let kept = keep(pad);
+    replace(pad, FORMAT, 9, unkept, kept)
+}
+
 fn write(pad: &mut Pad) -> Result<(), ClipboardError> {
-    replace(pad, FORMAT, 9, Unkept::ReplaceAnyway)
+    write_as(pad, Unkept::ReplaceAnyway)
 }
 
 #[test]
@@ -155,7 +156,8 @@ fn nothing_but_plain_text_is_asked_for_or_kept() {
     }
 }
 
-/// MT-214 E3-F2: what a password manager marks for the clipboard history is never copied, wherever the marker is.
+/// MT-214 E3-F2, E4-F4: what a password manager marks for the clipboard history is never copied, wherever the marker
+/// is: a marker is a registered format, so the clipboard holds more than plain text. No check of its own is needed.
 #[test]
 fn a_clipboard_with_a_marker_of_the_clipboard_history_keeps_nothing() {
     let mut first = vec![MARKER];
@@ -164,7 +166,7 @@ fn a_clipboard_with_a_marker_of_the_clipboard_history_keeps_nothing() {
     last.push(MARKER);
     for formats in [first, last, vec![MARKER]] {
         let pad = Pad::holding(formats.clone());
-        assert_eq!(keep(&pad), Err(Skipped::Marked), "{formats:x?}");
+        assert_eq!(keep(&pad), Err(Skipped::NotPlainText), "{formats:x?}");
         assert_eq!(pad.asked.get(), 0);
         let mut pad = Pad::refusing(formats);
         assert_eq!(write(&mut pad), Err(ClipboardError::NotRestored(8)));
@@ -191,7 +193,7 @@ fn text_beyond_the_limit_or_unreadable_text_is_not_kept() {
 /// The other choice the policy names: what cannot be kept is left as it is, and the write refused.
 #[test]
 fn leave_as_is_refuses_a_write_that_keeps_nothing_and_touches_nothing() {
-    let leave = |pad: &mut Pad| replace(pad, FORMAT, 9, Unkept::LeaveAsIs);
+    let leave = |pad: &mut Pad| write_as(pad, Unkept::LeaveAsIs);
     for (what, formats) in not_plain_text() {
         let mut pad = Pad::holding(formats.clone());
         assert_eq!(leave(&mut pad), Err(ClipboardError::CannotKeep), "{what}");
@@ -201,6 +203,24 @@ fn leave_as_is_refuses_a_write_that_keeps_nothing_and_touches_nothing() {
     let mut pad = Pad::holding(text());
     assert_eq!(leave(&mut pad), Ok(()));
     assert_eq!(UNKEPT, Unkept::ReplaceAnyway, "KEEP_PLAIN_TEXT_OR_NOTHING writes all the same");
+}
+
+/// MT-214 E4-F3: a copy of plain text that is no longer what the clipboard holds is not put back.
+#[test]
+fn a_copy_the_clipboard_changed_since_keeps_nothing() {
+    let mut pad = Pad::refusing(text());
+    assert_eq!(
+        replace(&mut pad, FORMAT, 9, Unkept::ReplaceAnyway, Err(Skipped::Changed)),
+        Err(ClipboardError::NotRestored(8))
+    );
+    assert!(pad.emptied && pad.on.is_empty(), "nothing put back");
+    assert_eq!(pad.asked.get(), 0, "the copy is the keeper thread's, never made here");
+    let mut pad = Pad::holding(text());
+    assert_eq!(
+        replace(&mut pad, FORMAT, 9, Unkept::LeaveAsIs, Err(Skipped::Changed)),
+        Err(ClipboardError::CannotKeep)
+    );
+    assert!(!pad.emptied);
 }
 
 #[test]

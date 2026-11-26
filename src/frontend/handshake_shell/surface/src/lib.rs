@@ -38,9 +38,12 @@
 //!   `VK_EXT_swapchain_maintenance1` its present fences prove it and the presenter only lets the owner look; without
 //!   it, a later present of the same surface proven by the re-acquire of its image does, so the presenter draws a
 //!   bounded burst of frames after a replacement ([`PresentReport::retire_frames`]).
-//! - Close: the surface is released, the window hidden, its claim settled, and the window destroyed once the owner let
-//!   go of its target, which it does once after it destroyed the surface. Without the extension that is when the owner
-//!   is closed, for a surface that presented (the owner's rule).
+//! - Close: the window hidden, the surface released, its claim settled, and the window destroyed once the owner let go
+//!   of its target, which it does once after it destroyed the surface. Without the extension a surface that presented
+//!   first proves its presents ended (MT-214 SF-2): one present on a new swapchain before the hide, then its images
+//!   acquired back on the presenter's looks until the owner says [`handshake_vulkan_renderer::PresentsProof::Proven`];
+//!   one not proven within two seconds is kept with its window until the owner closes
+//!   ([`PresentReport::closes_unproven`]).
 //!
 //! # Present progress
 //!

@@ -86,7 +86,7 @@ pub struct PresentReport {
     pub frames_failed: u64,
     /// Acquires that found no free image (none waits).
     pub not_ready: u64,
-    /// Frames drawn only so that the owner can end a replaced swapchain.
+    /// Frames drawn only so that the owner can end a replaced swapchain, or prove the presents of a closing window.
     pub retire_frames: u64,
     /// Looks at the owner on the presenter's timer.
     pub polls: u64,
@@ -106,6 +106,9 @@ pub struct PresentReport {
     pub shutdown: Option<ShutdownReport>,
     /// Times the loop refused to end because a window target was still held.
     pub finish_refused: u64,
+    /// Closed windows whose presents were not proven ended in time, without `VK_EXT_swapchain_maintenance1`: their last
+    /// swapchain and the window are kept until the owner closes (MT-214 SF-2).
+    pub closes_unproven: u64,
 }
 
 /// How one window presents now.
@@ -180,10 +183,12 @@ impl<'a> Shell<'a> {
         Ok(())
     }
 
-    /// Close a window: release its surface, hide it, settle its claim, and destroy it once the owner let go of its
-    /// target. Without `VK_EXT_swapchain_maintenance1` a surface that presented keeps its target until the owner is
-    /// closed (the owner's rule), so the window stays hidden until shutdown. A window that does not present is
-    /// destroyed at once.
+    /// Close a window: hide it, release its surface, settle its claim, and destroy it once the owner let go of its
+    /// target. Without `VK_EXT_swapchain_maintenance1` a surface that presented first proves its presents ended: one
+    /// present on a new swapchain, before the hide, whose image the owner acquires back on the presenter's later looks
+    /// (MT-214 SF-2); then it is released and the window goes. One whose proof does not come within two seconds is
+    /// released all the same and kept, hidden, until the owner closes ([`PresentReport::closes_unproven`]). A window that
+    /// does not present is destroyed at once.
     ///
     /// # Errors
     ///

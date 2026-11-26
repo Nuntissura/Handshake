@@ -8,13 +8,16 @@
 //! - Only plain text, and only when the clipboard holds nothing else: every format it lists is a standard text format
 //!   (`CF_UNICODETEXT`, `CF_TEXT`, `CF_OEMTEXT`, `CF_LOCALE`), and the text is at most [`KEEP_MAX_BYTES`]. One copy,
 //!   in `CF_UNICODETEXT`; the system makes the other text formats from it again (Synthesized Clipboard Formats).
-//! - Nothing from a clipboard that carries a format of the clipboard history and the cloud clipboard,
+//! - So nothing from a clipboard that carries a format of the clipboard history and the cloud clipboard,
 //!   `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory` or `CanUploadToCloudClipboard`
 //!   (learn.microsoft.com/windows/win32/dataxchg/clipboard-formats, "Cloud Clipboard and Clipboard History Formats"),
-//!   whatever its value: password managers mark their entries so.
+//!   whatever its value: these are registered formats, not plain text (MT-214 E4-F4). Password managers mark their
+//!   entries so.
 //! - No other format is asked for, so no program is made to render a format it promised and did not render yet
 //!   (Clipboard Operations, "Delayed Rendering"), with one exception: promised plain text, when the clipboard holds
-//!   nothing but plain text.
+//!   nothing but plain text. That request is made on a thread of its own, and the write waits for it at most a quarter
+//!   of a second: a program that does not render in time makes the write [`ClipboardError::Busy`] and never makes the
+//!   loop wait (MT-214 E4-F3).
 //! - When nothing is kept, the write replaces the clipboard all the same. Should the system then refuse the new text,
 //!   the clipboard stays empty and the write says so ([`ClipboardError::NotRestored`]). Refusing such writes instead
 //!   ([`ClipboardError::CannotKeep`], clipboard untouched) would make most copies fail: after a copy in a browser, an
@@ -35,7 +38,8 @@ pub const KEEP_MAX_BYTES: usize = 1024 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ClipboardError {
-    /// Another program has it open. Try again later; nothing here waits for it.
+    /// Another program has it open, or a program that promised the text a write keeps did not render it in time. Try
+    /// again later; nothing here waits for it.
     Busy,
     /// More than [`MAX_CLIPBOARD_BYTES`].
     TooLarge,

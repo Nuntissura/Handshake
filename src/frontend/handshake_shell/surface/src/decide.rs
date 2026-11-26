@@ -189,6 +189,12 @@ pub(crate) const POLL_LOOKS: u32 = 24;
 /// How long the presenter waits between frames it draws only to end an old swapchain.
 pub(crate) const RETIRE_FRAME_DELAY: Duration = Duration::from_millis(16);
 
+/// How long a closing window's presents may take to be proven ended, without `VK_EXT_swapchain_maintenance1`, before
+/// its surface is released all the same and kept with its window until the owner closes (MT-214 SF-2): one present on a
+/// new swapchain, a few vertical blanks at most, and the acquire that brings its image back. The presenter's looks run
+/// meanwhile (8 ms doubling), and nothing waits for the device.
+pub(crate) const PROVE_WINDOW: Duration = Duration::from_secs(2);
+
 /// What the presenter's own timer is for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Need {
@@ -413,6 +419,7 @@ mod tests {
         assert_eq!(poll_delay(99), Duration::from_millis(512));
         let total: Duration = (0..POLL_LOOKS).map(poll_delay).sum();
         assert!(total < Duration::from_secs(12), "{total:?}");
+        assert!(total > PROVE_WINDOW, "the looks outlast the proof of a closing window");
     }
 
     #[test]

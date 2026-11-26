@@ -14,18 +14,22 @@ use windows_sys::Win32::System::StationsAndDesktops::{
     UOI_IO,
 };
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetActiveWindow, VK_F4};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, GetWindow, GetWindowLongPtrW, SetWindowPos, ShowWindow,
-    GWL_EXSTYLE, GW_HWNDNEXT, HWND_TOP, SHOW_WINDOW_CMD, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_SHOWWINDOW, SW_HIDE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWMAXIMIZED,
-    SW_SHOWMINNOACTIVE, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WS_EX_TOPMOST, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindow, GetWindowLongPtrW, PeekMessageW,
+    PostMessageW, SetWindowPos, ShowWindow, GWL_EXSTYLE, GW_HWNDNEXT, HWND_TOP, MSG, PM_REMOVE,
+    SC_CLOSE, SC_MINIMIZE, SHOW_WINDOW_CMD, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+    SW_HIDE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWMAXIMIZED, SW_SHOWMINNOACTIVE,
+    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_SYSCOMMAND, WM_SYSKEYDOWN, WS_EX_TOPMOST,
+    WS_POPUP,
 };
 
+use super::closing::{self, Closing};
 use super::guard::{self, ActivationGuard, GuardRefused};
 use super::place::{self, Target};
+use super::retrieval::Arrival;
 use crate::command::WindowClass;
-use crate::origin::Authority;
+use crate::origin::{Authority, EventTime};
 use crate::policy::{self, Foreground, MinimizePlan, ZPlace};
 
 const GENERIC_ALL: u32 = 0x1000_0000;
@@ -420,6 +424,62 @@ fn a_hidden_maximised_window_is_not_at_its_own_size() {
         show(hwnd, SW_SHOWMINNOACTIVE);
         show(hwnd, SW_HIDE);
         assert!(!place::is_normal_size(hwnd));
+        destroy(hwnd);
+    });
+}
+
+/// A system command taken out of the queue of `hwnd`, not dispatched.
+fn take_command(hwnd: HWND) -> Option<usize> {
+    // SAFETY: a message structure of this function; a window of this thread.
+    unsafe {
+        let mut message: MSG = std::mem::zeroed();
+        (PeekMessageW(&mut message, hwnd, WM_SYSCOMMAND, WM_SYSCOMMAND, PM_REMOVE) != 0)
+            .then_some(message.wParam)
+    }
+}
+
+/// MT-214 E4-F2 against a real window and its queue: a close command waiting for the window is seen only when it is
+/// the first system command that waits, and is left there. F4 without Alt, as the Operator presses it where no window
+/// has the focus, handled by the system's own default window procedure, queues no close command; so a close command
+/// another program posts after it is nobody's. (A press on the close button dragged off it needs the mouse button held
+/// in the system's tracking, which a desktop without input never has; `closing.rs` proves that case without the system.)
+#[test]
+fn f4_alone_makes_no_close_command_and_lends_nothing_to_a_posted_one() {
+    on_private_desktop(|| {
+        let hwnd = plain(0, 0);
+        let at = |millis: u64| EventTime {
+            nanos: millis * 1_000_000,
+        };
+        let post = |command: u32| {
+            // SAFETY: plain values, to a window of this thread.
+            assert_ne!(unsafe { PostMessageW(hwnd, WM_SYSCOMMAND, command as usize, 0) }, 0);
+        };
+        assert!(!closing::queued_close(hwnd));
+        post(SC_MINIMIZE);
+        post(SC_CLOSE);
+        assert!(!closing::queued_close(hwnd), "a minimise waits first");
+        assert_eq!(take_command(hwnd), Some(SC_MINIMIZE as usize));
+        assert!(closing::queued_close(hwnd));
+        assert!(closing::queued_close(hwnd), "looked at, not taken out");
+        assert_eq!(take_command(hwnd), Some(SC_CLOSE as usize));
+        assert!(!closing::queued_close(hwnd));
+        // F4 alone, the Operator's, through the system's own handling: scan code 0x3E, no KF_ALTDOWN (lParam bit 29).
+        let requests = Closing::default();
+        let f4 = usize::from(VK_F4);
+        let pending = requests
+            .before(at(1), WM_SYSKEYDOWN, f4, Arrival::Queue, true, || closing::queued_close(hwnd))
+            .expect("a press");
+        // SAFETY: plain values, for a window of this thread; the system's default handling of the key.
+        unsafe { DefWindowProcW(hwnd, WM_SYSKEYDOWN, f4, 0x003E_0001) };
+        requests.after(at(2), pending, || closing::queued_close(hwnd));
+        assert!(!closing::queued_close(hwnd), "F4 alone made no close command");
+        // Another program's close command, posted right after, taken out and carried out.
+        post(SC_CLOSE);
+        assert_eq!(take_command(hwnd), Some(SC_CLOSE as usize));
+        let ends = requests.before(at(3), WM_SYSCOMMAND, SC_CLOSE as usize, Arrival::Queue, false, || false);
+        requests.before(at(3), WM_CLOSE, 0, Arrival::ThisThread, false, || false);
+        requests.after(at(3), ends.expect("a close command"), || false);
+        assert_eq!(requests.open(at(4)), Some(false), "nobody's");
         destroy(hwnd);
     });
 }

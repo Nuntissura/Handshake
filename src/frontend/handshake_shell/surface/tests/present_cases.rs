@@ -9,6 +9,8 @@
 //!   surface's proof (AC214-3, MT-203 S2-F2).
 //! - `minimise_suspends_and_restore_resumes`: no swapchain of no size; restore recreates (AC214-3).
 //! - `a_dropped_frame_needs_a_new_configuration`: a frame dropped unpresented leaves the swapchain out of date.
+//! - `a_surface_proven_before_release_lets_its_window_go`: one present on a new swapchain whose image comes back ends
+//!   both swapchains, and the window's target is dropped before the close (MT-214 SF-2).
 //! - `a_released_surface_lets_its_window_go`: the window's target is dropped once, after the surface ended.
 //! - `another_windows_presents_never_end_this_ones_swapchain`: retirement stays per surface (AC214-8, S2-F2).
 //! - `a_blocked_present_does_not_stall_another_windows_acquire`: a FIFO present that waits for the vertical blank holds
@@ -299,6 +301,14 @@ fn a_dropped_frame_needs_a_new_configuration() {
     in_own_process!();
     run_case(1, |_, client, windows| {
         cases::a_dropped_frame_needs_a_new_configuration(client, &windows[0])
+    });
+}
+
+#[test]
+fn a_surface_proven_before_release_lets_its_window_go() {
+    in_own_process!();
+    run_case(1, |owner, client, windows| {
+        cases::a_surface_proven_before_release_lets_its_window_go(owner, client, &windows[0])
     });
 }
 

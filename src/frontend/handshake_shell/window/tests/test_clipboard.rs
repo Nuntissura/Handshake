@@ -1,9 +1,11 @@
-//! The operating system's clipboard under KEEP_PLAIN_TEXT_OR_NOTHING (MT-214 E3-F2, E3-F3), on a window station of
-//! the test's own, whose clipboard no other program uses: the Operator's is never opened. Another thread stands for
-//! another program: it puts text there, or promises formats and renders one only when the clipboard asks it to, and
-//! counts each time it is asked. A write must make it render nothing but promised plain text, and only when the
-//! clipboard holds nothing else. A withdrawal takes back only this process's own write. A process has one loop, so
-//! this is a target of its own.
+//! The operating system's clipboard under KEEP_PLAIN_TEXT_OR_NOTHING (MT-214 E3-F2, E3-F3, E4-F3), on a window station
+//! that is not the Operator's: the unnamed one of the logon session, which needs no elevation, taken in turn with every
+//! other clipboard test of the session and emptied at the end (E4-F1). The Operator's clipboard is never opened, and
+//! the test fails unless its sequence number stayed the same. Another thread stands for another program: it puts text
+//! there, or promises formats and renders one only when the clipboard asks it to, and counts each time it is asked. A
+//! write must make it render nothing but promised plain text, and only when the clipboard holds nothing else; a
+//! program that hangs instead makes the write busy within a quarter of a second, never makes the loop wait. A
+//! withdrawal takes back only this process's own write. A process has one loop, so this is a target of its own.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -17,8 +19,9 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use handshake_shell_window::{
-    CommandSource, Control, Event, InputStamp, LogicalSize, LoopConfig, PhysicalPosition,
-    Placement, PressState, WindowClass, WindowCommand, WindowEvent, WindowKey, WindowSpec,
+    ClipboardError, CommandSource, Control, Event, InputStamp, LogicalSize, LoopConfig,
+    PhysicalPosition, Placement, PressState, WindowClass, WindowCommand, WindowEvent, WindowKey,
+    WindowSpec,
 };
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::DataExchange::{
@@ -41,17 +44,22 @@ use support::{
 
 const TEXT: u32 = CF_UNICODETEXT as u32;
 
+/// How long the other program hangs in the E4-F3 step. The write may wait a quarter of a second at most.
+const HANG: Duration = Duration::from_secs(3);
+
 /// What the other program puts on the clipboard.
 #[derive(Clone, Copy, Debug)]
 enum Put {
     /// Plain text, rendered at once.
     Text(&'static str),
-    /// Plain text promised, with a promised format of its own, a marker of the clipboard history, or neither.
-    Promised { rich: bool, marker: bool },
+    /// Plain text promised, with a promised format of its own or alone.
+    Promised { rich: bool },
 }
 
 enum Ask {
     Put(Put),
+    /// Look at no message for this long, as a hung program, from right after the answer.
+    Hang(Duration),
     /// How often the clipboard asked it to render a promised format so far.
     Renders,
     Quit,
@@ -121,15 +129,17 @@ impl Other {
                 CreateWindowExW(0, class.as_ptr(), ptr::null(), WS_POPUP, 0, 0, 10, 10, 0, 0, 0, ptr::null())
             };
             assert_ne!(hwnd, 0);
-            let (rich, marker) = (
-                registered("HSK test rich"),
-                registered("ExcludeClipboardContentFromMonitorProcessing"),
-            );
+            let rich = registered("HSK test rich");
             loop {
                 match asked.try_recv() {
                     Ok(Ask::Put(put)) => {
-                        Self::put(hwnd, put, rich, marker);
+                        Self::put(hwnd, put, rich);
                         let _ = answered.send(0);
+                    }
+                    Ok(Ask::Hang(hang)) => {
+                        let _ = answered.send(0);
+                        // What the clipboard sends meanwhile waits; it is handled below, before the next question.
+                        std::thread::sleep(hang);
                     }
                     Ok(Ask::Renders) => {
                         let _ = answered.send(RENDERS.get());
@@ -156,7 +166,7 @@ impl Other {
         }
     }
 
-    fn put(hwnd: HWND, put: Put, rich: u32, marker: u32) {
+    fn put(hwnd: HWND, put: Put, rich: u32) {
         assert_clipboard_is_private();
         // SAFETY: the clipboard of the test's window station, opened by this thread's window and closed below.
         unsafe {
@@ -168,13 +178,10 @@ impl Other {
             assert_ne!(EmptyClipboard(), 0);
             match put {
                 Put::Text(text) => assert_ne!(SetClipboardData(TEXT, memory(text)), 0),
-                Put::Promised { rich: with_rich, marker: with_marker } => {
+                Put::Promised { rich: with_rich } => {
                     SetClipboardData(TEXT, 0);
                     if with_rich {
                         SetClipboardData(rich, 0);
-                    }
-                    if with_marker {
-                        assert_ne!(SetClipboardData(marker, memory("")), 0);
                     }
                 }
             }
@@ -300,22 +307,44 @@ impl State {
                 assert_eq!(other.renders(), before);
             }
             2 => {
-                // A promised format of its own beside promised text: the write asks for neither.
-                put(Put::Promised { rich: true, marker: false });
+                // A promised format of its own beside promised text: the write asks for neither. A marker of the
+                // clipboard history is such a format too (MT-214 E4-F4): the unit tests list it.
+                put(Put::Promised { rich: true });
                 self.write(control, stamp, "two");
                 assert_eq!(other.renders(), before, "no promised format rendered for a write");
             }
             3 => {
-                // Promised text beside a marker of the clipboard history: nothing of it is asked for.
-                put(Put::Promised { rich: false, marker: true });
+                // The one exception: promised plain text, alone, is asked for once, to be kept.
+                put(Put::Promised { rich: false });
                 self.write(control, stamp, "three");
-                assert_eq!(other.renders(), before);
+                assert_eq!(other.renders(), before + 1);
             }
             4 => {
-                // The one exception: promised plain text, alone, is asked for once, to be kept.
-                put(Put::Promised { rich: false, marker: false });
-                self.write(control, stamp, "four");
+                // MT-214 E4-F3: promised plain text alone, and its program hangs. Its text is asked for on a thread of
+                // the write's own, which waits for it a quarter of a second at most: the write is busy, and so is the
+                // next while that thread still holds the clipboard open; the loop never waits for the program.
+                put(Put::Promised { rich: false });
+                other.ask(Ask::Hang(HANG));
+                let source = CommandSource::from_input(stamp, 100 + self.step.get());
+                let started = Instant::now();
+                assert_eq!(control.write_clipboard(&source, "four"), Err(ClipboardError::Busy));
+                assert_eq!(control.write_clipboard(&source, "four"), Err(ClipboardError::Busy));
+                let waited = started.elapsed();
+                assert!(waited < HANG / 3, "the write waited for the hung program: {waited:?}");
+                // Once the program answers, it renders once and the copy ends; then a write goes through.
                 assert_eq!(other.renders(), before + 1);
+                let until = Instant::now() + Duration::from_secs(5);
+                loop {
+                    match control.write_clipboard(&source, "four") {
+                        Ok(()) => break,
+                        Err(ClipboardError::Busy) if Instant::now() < until => {
+                            std::thread::sleep(Duration::from_millis(10));
+                        }
+                        other => panic!("after the program answered: {other:?}"),
+                    }
+                }
+                assert_eq!(control.read_clipboard(), Ok(Some("four".to_owned())));
+                assert_eq!(other.renders(), before + 1, "rendered once");
             }
             5 => {
                 // MT-214 E3-F3: this process's own write is withdrawn; another program's is not.

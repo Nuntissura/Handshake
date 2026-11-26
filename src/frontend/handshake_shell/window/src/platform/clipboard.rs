@@ -3,8 +3,15 @@
 //! A write has to empty the clipboard before it puts its text there: `EmptyClipboard` "assigns clipboard ownership to
 //! the window that has the clipboard open", and only then may that window put data on it (Clipboard Operations, "Cut
 //! and Copy Operations"). Which of the old content it keeps, to put back should the put be refused (R2-N6), is the
-//! policy: [`keep`] lists the formats (`EnumClipboardFormats` renders nothing), looks at the names of the registered
-//! ones, and asks for data only when everything there is plain text, and then for `CF_UNICODETEXT` alone.
+//! policy: [`keep`] lists the formats (`EnumClipboardFormats` renders nothing) and asks for data only when everything
+//! there is plain text, and then for `CF_UNICODETEXT` alone.
+//!
+//! That one request may make another program render text it promised: the system sends it `WM_RENDERFORMAT` and the
+//! request waits for it (Clipboard Operations, "Delayed Rendering"), and Microsoft's documentation of
+//! `GetClipboardData`, `WM_RENDERFORMAT` and Delayed Rendering names no time after which it gives up. So the copy is
+//! made on a thread of its own, on the loop thread's desktop, and the write waits for it at most [`KEEP_WAIT`]: a
+//! program that does not render in time makes the write [`ClipboardError::Busy`], and never makes the loop wait
+//! (MT-214 E4-F3). One copy runs at a time; while one still runs it holds the clipboard open, and writes are busy.
 //!
 //! A withdrawal empties the clipboard only while it holds this window's own last write: its owner is this window
 //! ("A window becomes the clipboard owner when it ... calls the EmptyClipboard function. The window remains the
@@ -14,16 +21,21 @@
 use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
+use std::sync::mpsc::{sync_channel, RecvTimeoutError};
+use std::thread::JoinHandle;
+use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{GlobalFree, HGLOBAL, HWND};
 use windows_sys::Win32::System::DataExchange::{
-    CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, GetClipboardFormatNameW,
-    GetClipboardOwner, IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
+    CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, GetClipboardOwner,
+    GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
 };
 use windows_sys::Win32::System::Memory::{
     GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE,
 };
 use windows_sys::Win32::System::Ole::{CF_LOCALE, CF_OEMTEXT, CF_TEXT, CF_UNICODETEXT};
+use windows_sys::Win32::System::StationsAndDesktops::{GetThreadDesktop, SetThreadDesktop, HDESK};
+use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
 use super::last_error;
 use crate::clipboard::{ClipboardError, TextClipboard, KEEP_MAX_BYTES, MAX_CLIPBOARD_BYTES};
@@ -39,19 +51,10 @@ const MAX_FORMATS: usize = 1_024;
 /// The formats of plain text, as the clipboard lists them: the one placed, and those the system makes from it.
 const PLAIN_TEXT: [u32; 4] = [FORMAT, CF_TEXT as u32, CF_OEMTEXT as u32, CF_LOCALE as u32];
 
-/// The registered formats with which a program keeps the clipboard history and the cloud clipboard away from what it
-/// copies (Clipboard Formats, "Cloud Clipboard and Clipboard History Formats").
-const MARKERS: [&str; 3] = [
-    "ExcludeClipboardContentFromMonitorProcessing",
-    "CanIncludeInClipboardHistory",
-    "CanUploadToCloudClipboard",
-];
-
-/// Registered formats are numbered from 0xC000 up to 0xFFFF (RegisterClipboardFormat).
-const REGISTERED_FIRST: u32 = 0xC000;
-
-/// The longest marker name, with room.
-const NAME_UNITS: usize = 64;
+/// How long a write waits for the copy of what it keeps (E4-F3). Text already on the clipboard is copied in far less;
+/// the rest is the program that promised it, rendering on request (Microsoft's estimate of the overhead of a render on
+/// request is 10 to 100 microseconds, Clipboard Operations, "Delayed Rendering Guidance").
+pub(super) const KEEP_WAIT: Duration = Duration::from_millis(250);
 
 /// What a write does when it keeps nothing of a clipboard that holds something (`crate::clipboard`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,6 +72,14 @@ pub(super) struct SystemClipboard {
     /// Owns what is put on the clipboard. Never shown.
     owner: HWND,
     last: LastWrite,
+    /// The thread of a copy of what a write keeps that did not end within [`KEEP_WAIT`]: it holds the clipboard open.
+    keeper: Option<JoinHandle<()>>,
+}
+
+/// A copy of what a write keeps, made on a thread of its own (E4-F3), and the clipboard's sequence number then.
+struct Keeping {
+    kept: Result<Vec<(u32, Held)>, Skipped>,
+    sequence: u32,
 }
 
 impl SystemClipboard {
@@ -76,6 +87,43 @@ impl SystemClipboard {
         Self {
             owner,
             last: LastWrite::default(),
+            keeper: None,
+        }
+    }
+
+    /// What a write keeps, copied on a thread of its own on this thread's desktop; waits at most [`KEEP_WAIT`]. A copy
+    /// that runs on keeps the clipboard open, so the write is [`ClipboardError::Busy`], and so is every write until it
+    /// ended. Nobody waits for its answer any more: its thread wipes and frees the copy when it ends.
+    fn keep_within_bound(&mut self) -> Result<Keeping, ClipboardError> {
+        if let Some(keeper) = self.keeper.take() {
+            if !keeper.is_finished() {
+                self.keeper = Some(keeper);
+                return Err(ClipboardError::Busy);
+            }
+            let _ = keeper.join();
+        }
+        // SAFETY: no arguments, then this thread's own id. The handle need not be closed (GetThreadDesktop).
+        let desktop = unsafe { GetThreadDesktop(GetCurrentThreadId()) };
+        let (answered, answer) = sync_channel(1);
+        let thread = std::thread::Builder::new()
+            .name("hsk-clipboard-keep".to_owned())
+            .spawn(move || {
+                let _ = answered.send(copy_to_keep(desktop));
+            })
+            .map_err(|_| ClipboardError::Busy)?;
+        match answer.recv_timeout(KEEP_WAIT) {
+            Ok(Some(keeping)) => {
+                let _ = thread.join();
+                Ok(keeping)
+            }
+            Ok(None) | Err(RecvTimeoutError::Disconnected) => {
+                let _ = thread.join();
+                Err(ClipboardError::Busy)
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                self.keeper = Some(thread);
+                Err(ClipboardError::Busy)
+            }
         }
     }
 
@@ -185,8 +233,17 @@ impl TextClipboard for SystemClipboard {
         let units: Vec<u16> = text.encode_utf16().chain(Some(0)).collect();
         // Before the clipboard is opened, so it is open for the swap only.
         let data = text_memory(&units)?;
+        let keeping = self.keep_within_bound()?;
         let opened = self.open()?;
-        let written = replace(&mut SystemBoard::of(&opened), FORMAT, data, UNKEPT);
+        // The copy is of what is there only if nothing changed the clipboard since it was made.
+        // SAFETY: no arguments.
+        let unchanged = unsafe { GetClipboardSequenceNumber() } == keeping.sequence;
+        let kept = if unchanged {
+            keeping.kept
+        } else {
+            Err(Skipped::Changed)
+        };
+        let written = replace(&mut SystemBoard::of(&opened), FORMAT, data, UNKEPT, kept);
         drop(opened);
         self.last.wrote(&written);
         written
@@ -238,12 +295,14 @@ enum Copied<D> {
 /// Why a write keeps nothing of what is there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Skipped {
-    /// A marker of the clipboard history or the cloud clipboard.
-    Marked,
-    /// A format that is not plain text, or more formats than are looked at.
+    /// A format that is not plain text, or more formats than are looked at. The registered formats with which a
+    /// program keeps what it copies from the clipboard history and the cloud clipboard are among them (Clipboard Formats,
+    /// "Cloud Clipboard and Clipboard History Formats"), so a password manager's entry is never kept (E4-F4).
     NotPlainText,
     TooLarge,
     Unreadable,
+    /// The clipboard changed after the copy was made.
+    Changed,
 }
 
 /// What a write needs of the open clipboard. Tests give their own.
@@ -252,9 +311,6 @@ trait Board {
 
     /// The formats on it, in their order, at most `most` of them.
     fn formats(&self, most: usize) -> Vec<u32>;
-
-    /// Whether `format` is a registered format named as one of [`MARKERS`].
-    fn is_marker(&self, format: u32) -> bool;
 
     /// A copy of its `CF_UNICODETEXT`, when that is at most `limit` bytes.
     fn copy_text(&self, limit: usize) -> Copied<Self::Data>;
@@ -266,14 +322,14 @@ trait Board {
     fn put(&mut self, format: u32, data: Self::Data) -> Result<(), (Self::Data, u32)>;
 }
 
-/// Put `data` on the board in place of what is there.
+/// Put `data` on the board in place of what is there, of which `kept` is what [`keep`] copied.
 fn replace<B: Board>(
     board: &mut B,
     format: u32,
     data: B::Data,
     unkept: Unkept,
+    kept: Result<Vec<(u32, B::Data)>, Skipped>,
 ) -> Result<(), ClipboardError> {
-    let kept = keep(board);
     if kept.is_err() && unkept == Unkept::LeaveAsIs {
         return Err(ClipboardError::CannotKeep);
     }
@@ -299,9 +355,6 @@ fn keep<B: Board>(board: &B) -> Result<Vec<(u32, B::Data)>, Skipped> {
     if formats.is_empty() {
         return Ok(Vec::new());
     }
-    if formats.iter().any(|format| board.is_marker(*format)) {
-        return Err(Skipped::Marked);
-    }
     let plain = formats.iter().all(|format| PLAIN_TEXT.contains(format));
     if !plain || formats.len() >= MAX_FORMATS {
         return Err(Skipped::NotPlainText);
@@ -313,8 +366,36 @@ fn keep<B: Board>(board: &B) -> Result<Vec<(u32, B::Data)>, Skipped> {
     }
 }
 
+/// The copy of what a write keeps, made on the thread of [`SystemClipboard::keep_within_bound`], which runs it on the
+/// desktop of the loop's thread (`desktop`): the program that promised text is sent `WM_RENDERFORMAT`, and window
+/// messages pass only between threads of one desktop (Desktops). `None` when another program has the clipboard open.
+fn copy_to_keep(desktop: HDESK) -> Option<Keeping> {
+    // SAFETY: a thread of its own that has no window or hook yet; the desktop is the loop thread's, of this process's
+    // window station, and stays open while that thread runs.
+    if unsafe { SetThreadDesktop(desktop) } == 0 {
+        return Some(Keeping {
+            kept: Err(Skipped::Unreadable),
+            sequence: 0,
+        });
+    }
+    // SAFETY: no window: the clipboard is read here, never emptied or written. Fails at once while it is open.
+    if unsafe { OpenClipboard(0) } == 0 {
+        return None;
+    }
+    let opened = OpenedClipboard;
+    let kept = keep(&SystemBoard::of(&opened));
+    // SAFETY: no arguments. Read while the clipboard is still open, so no other program changed it since the copy.
+    let sequence = unsafe { GetClipboardSequenceNumber() };
+    drop(opened);
+    Some(Keeping { kept, sequence })
+}
+
 /// Clipboard data this process holds. Wiped and freed unless the clipboard takes it.
 struct Held(Option<HGLOBAL>);
+
+// SAFETY: global memory is the process's, valid on every thread; a `Held` is its one owner, and moves between threads
+// only as a whole.
+unsafe impl Send for Held {}
 
 impl Drop for Held {
     fn drop(&mut self) {
@@ -356,23 +437,9 @@ impl Board for SystemBoard<'_> {
         formats
     }
 
-    fn is_marker(&self, format: u32) -> bool {
-        if format < REGISTERED_FIRST {
-            return false;
-        }
-        let mut name = [0u16; NAME_UNITS];
-        // SAFETY: the buffer outlives the call, which writes at most its length, the ending 0 included.
-        let length = unsafe { GetClipboardFormatNameW(format, name.as_mut_ptr(), NAME_UNITS as i32) };
-        let Ok(length) = usize::try_from(length) else {
-            return false;
-        };
-        let name = String::from_utf16_lossy(&name[..length.min(name.len())]);
-        // Registered names are atoms, which ignore case.
-        MARKERS.iter().any(|marker| marker.eq_ignore_ascii_case(&name))
-    }
-
     fn copy_text(&self, limit: usize) -> Copied<Held> {
-        // SAFETY: the clipboard is open; the handle stays the clipboard's while it is.
+        // SAFETY: the clipboard is open, by this thread; the handle stays the clipboard's while it is. Promised text is
+        // rendered on request, which the caller bounds ([`KEEP_WAIT`]).
         let source = unsafe { GetClipboardData(FORMAT) } as HGLOBAL;
         if source.is_null() {
             return Copied::Unreadable;

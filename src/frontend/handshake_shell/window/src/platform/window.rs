@@ -28,7 +28,7 @@ use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{WindowAttributes, WindowId};
 
-use super::closing::{Closing, CommandEnds};
+use super::closing::{self, Closing, Pending};
 use super::key_gate::{self, KeyGate, Kept, Passed};
 use super::loop_core::{Core, Creation, MessageOrigin};
 use super::place::Target;
@@ -50,7 +50,6 @@ const HOOK: usize = 1;
 #[derive(Default)]
 struct After {
     key: Option<Passed>,
-    close_command: Option<CommandEnds>,
 }
 
 pub(super) struct Window {
@@ -378,6 +377,27 @@ impl Window {
         }
     }
 
+    /// Before the window library sees a message: what it says of a request to close the window (`closing.rs`). Whatever
+    /// the hook then does with the message, [`Window::close_after`] follows.
+    fn close_before(
+        &self,
+        core: &Core,
+        message: u32,
+        wparam: WPARAM,
+        arrival: Arrival,
+    ) -> Option<Pending> {
+        let operators_input =
+            arrival == Arrival::Queue && core.message().origin == Origin::OperatorDevice;
+        self.closing.before(core.now(), message, wparam, arrival, operators_input, || {
+            closing::queued_close(self.hwnd)
+        })
+    }
+
+    fn close_after(&self, core: &Core, pending: Pending) {
+        self.closing
+            .after(core.now(), pending, || closing::queued_close(self.hwnd));
+    }
+
     /// Before the window library sees a message. An error answers it in the library's place.
     fn before(
         &self,
@@ -387,17 +407,6 @@ impl Window {
         lparam: LPARAM,
         arrival: Arrival,
     ) -> Result<After, LRESULT> {
-        let operators_input =
-            arrival == Arrival::Queue && core.message().origin == Origin::OperatorDevice;
-        let close_command = self
-            .closing
-            .before(core.now(), message, wparam, arrival, operators_input);
-        if close_command.is_some() {
-            return Ok(After {
-                close_command,
-                ..After::default()
-            });
-        }
         match message {
             WM_WINDOWPOSCHANGING => {
                 // SAFETY: the message carries a writable WINDOWPOS.
@@ -426,7 +435,6 @@ impl Window {
             _ => {
                 return Ok(After {
                     key: self.gate_keys(core, message, wparam, arrival)?,
-                    ..After::default()
                 })
             }
         }
@@ -437,9 +445,6 @@ impl Window {
     fn after(&self, after: After) {
         if let Some(passed) = after.key {
             self.keys.done(passed);
-        }
-        if let Some(ends) = after.close_command {
-            self.closing.after(ends);
         }
     }
 
@@ -540,6 +545,9 @@ unsafe extern "system" fn hook(
     let arrival = retrieval::arrival(hwnd, message, wparam, lparam);
     // Nested messages have origins of their own; this one's is put back when they are done.
     let outer = core.set_message(window.origin_of(message));
+    let close = core
+        .guarded(|| window.close_before(&core, message, wparam, arrival))
+        .flatten();
     let before = core.guarded(|| window.before(&core, message, wparam, lparam, arrival));
     let (answer, after) = match before {
         Some(Ok(after)) => (None, after),
@@ -557,6 +565,9 @@ unsafe extern "system" fn hook(
         None => unsafe { DefSubclassProc(hwnd, message, wparam, lparam) },
     };
     window.after(after);
+    if let Some(pending) = close {
+        core.guarded(|| window.close_after(&core, pending));
+    }
     match message {
         WM_WINDOWPOSCHANGED => {
             core.guarded(|| window.report_display(&core));

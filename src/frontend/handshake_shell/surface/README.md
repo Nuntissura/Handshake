@@ -43,6 +43,7 @@ Damage-driven (AC214-4). Nothing is drawn unless the window crate hands out a fr
 | Acquire not ready (timeout 0) | on the presenter's timer, 4 ms later (250 in a row stop it) | as it is |
 | A presented swapchain was replaced, without `VK_EXT_swapchain_maintenance1` | up to 2 x images + 2 frames, 16 ms apart, until the owner ended the old one | as it is |
 | Input, focus, moves, monitor changes, a close request | no | as it is |
+| A window that presented is closed, without `VK_EXT_swapchain_maintenance1` | one frame, before the hide | configured again once, then its images acquired back until the owner proved its presents ended |
 
 An idle window submits no GPU work. The presenter's timer also lets the owner look (`GpuOwner::poll`, without waiting)
 while old swapchains, captures or closing windows wait for it: 8 ms doubling to 512 ms, 24 looks in a row at most.
@@ -53,10 +54,14 @@ while old swapchains, captures or closing windows wait for it: 8 ms doubling to 
   the window's, and (0, 0) when minimised, which suspends (Vulkan specification, WSI, Win32 Platform).
 - The owner destroys a replaced swapchain once (VUID-vkDestroySwapchainKHR-swapchain-01282), after its work and
   presents are proven ended by its own surface. The presenter never destroys or waits for anything itself.
-- Close: the surface is released, the window hidden (`WindowCommand::Hide`), the claim settled with what the owner
+- Close: the window is hidden (`WindowCommand::Hide`), the surface released, the claim settled with what the owner
   observed, and the window destroyed once its native token count is 0, which is when the owner dropped the target. The
-  target counts its own drop: `PresentReport::targets_released`. Without the extension, a surface that presented keeps
-  its last swapchain, target and window until the owner closes.
+  target counts its own drop: `PresentReport::targets_released`. Without the extension, a surface that presented first
+  proves its presents ended (MT-214 SF-2): a new swapchain and one present on it before the hide, then the presenter's
+  looks call `OwnerSurface::prove_presents` until the image of that present came back, which ends the old swapchain by
+  its successor's present and the new one by its own image; then the surface is released. No wait for the device; a
+  proof that does not come within `PROVE_WINDOW` (2 s) releases the surface all the same, which then keeps its last
+  swapchain, target and window until the owner closes, counted in `PresentReport::closes_unproven`.
 - Shutdown (`Shell::shutdown`): after the application heard `ShutdownBegan`, every surface is released, claims settled,
   the owner closed (bounded by its own deadline), claims still open let go, and `Control::finish` tried until no target
   is held.
@@ -88,8 +93,8 @@ test touches the Operator's desktop, focus or clipboard, and none runs the examp
 | --- | --- |
 | unit tests | expected texels per format and channel order, sRGB and half-float conversion, the comparison and its control; events to steps (idle events draw nothing); frame results to what follows; bounded retirement burst and looks; the schedule; the watch |
 | `headless` | the frame in every owner format at three sizes, read back and compared texel by texel; another background differs in every texel; the claim settles |
-| `present_cases` | the owner's seven presentation cases with real windows: present loop and counts, a resize ending the old swapchain once, minimise and restore, a dropped frame, a released surface letting its window go once, multiwindow retirement, a FIFO-blocked present not stalling another window's acquire |
-| `frame_loop` | an idle window submits nothing for 500 ms and one damage is one frame and one submission; the captured presented frame matches texel by texel; resize, minimise, restore and a scale change each recreate, nothing is drawn while minimised, every replaced swapchain ends; closing one of two windows releases its target once, the other keeps presenting |
+| `present_cases` | the owner's eight presentation cases with real windows: present loop and counts, a resize ending the old swapchain once, minimise and restore, a dropped frame, a surface proven before release letting its window go before the close (SF-2), a released surface letting its window go once, multiwindow retirement, a FIFO-blocked present not stalling another window's acquire |
+| `frame_loop` | an idle window submits nothing for 500 ms, nor for 500 ms more while input, focus and move messages reach it on the real loop (SF-1), and one damage is one frame and one submission; the captured presented frame matches texel by texel; resize, minimise, restore and a scale change each recreate, nothing is drawn while minimised, every replaced swapchain ends; closing one of two windows releases its target once and destroys it before shutdown, the other keeps presenting; six windows opened and closed one after another leave no swapchain or target behind (SF-2) |
 | `source_scan` | no window library, binding or `unsafe` in the code; no focus, cursor or input call anywhere; every loop on a private desktop; the example gated by its flag and never named by a test; no banned crate locked |
 
 Not provable here: presentation on a desktop the Operator sees (a private desktop is never composed on screen), real

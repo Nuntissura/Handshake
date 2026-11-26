@@ -49,8 +49,8 @@ Win32 is needed beside it:
 | Precision touchpad | a fractional wheel delta | the same delta in whole 1/120 detents, and `IMDT_TOUCHPAD` |
 | File drop | one path at a time, no position, needs COM | `WM_DROPFILES`: all paths and the position |
 | Sleep, session end, display change | not reported | a hidden top-level service window |
-| Clipboard, work areas, wheel settings | none | Win32; a write keeps the old content only when it is plain text alone, up to 1 MiB and with no marker of the clipboard history, and puts it back if its own put fails (KEEP_PLAIN_TEXT_OR_NOTHING, `src/clipboard.rs`, R2-N6, E3-F2); a withdrawal empties only this process's own last write (E3-F3) |
-| The Operator's close, told from anybody else's | `CloseRequested` for every `WM_CLOSE`, whoever sent or posted it | `window.rs` and `policy::CloseWatch`: only a close message the system sends inside a close command that the Operator's own Alt+F4, close button or system-menu double-click on that window started approves ACTIVATION_AFTER_REMOVAL (E3-F6) |
+| Clipboard, work areas, wheel settings | none | Win32; a write keeps the old content only when it is plain text alone (a marker of the clipboard history is a registered format, so it keeps nothing, E4-F4), up to 1 MiB, and puts it back if its own put fails (KEEP_PLAIN_TEXT_OR_NOTHING, `src/clipboard.rs`, R2-N6, E3-F2); the copy is made on a thread of its own on the loop thread's desktop and waited for 250 ms at most, since Microsoft documents no bound on a program's rendering of promised text: a hung program makes the write `clipboard.busy`, never the loop wait (E4-F3); a withdrawal empties only this process's own last write (E3-F3) |
+| The Operator's close, told from anybody else's | `CloseRequested` for every `WM_CLOSE`, whoever sent or posted it | `window.rs`, `platform/closing.rs` and `policy::CloseWatch`: only a close message the system sends inside the close command it made of the Operator's own Alt+F4, close button or system-menu double-click on that window approves ACTIVATION_AFTER_REMOVAL (E3-F6): the command sent while the gesture's message is handled, or the one that handling posted, seen in the queue right after it (E4-F2) |
 
 Not needed in this slice, for the next ones to know: winit's IME is IMM32 only (`ime.rs`, `WM_IME_*`), off until asked;
 it has no TSF. AccessKit's Windows adapter subclasses a window handle that was not shown yet, so it attaches through
@@ -63,9 +63,9 @@ which `run` turns off.
 Decisions: ACTIVATION_AFTER_REMOVAL (`policy.rs`, confirmed by the Operator 2026-11-26) sends the keyboard, after a
 minimise, hide or destroy the Operator approved that left it nowhere, to the removed window's owner, else to the topmost
 other Operator window, and never while another program is in front; a close request another program made approves
-nothing (E3-F6). KEEP_PLAIN_TEXT_OR_NOTHING (`src/clipboard.rs`, for the Operator to confirm, E3-F2): a write copies
-the old clipboard only when it holds plain text alone (no other format, no history or cloud marker, at most 1 MiB), and
-otherwise copies nothing and writes all the same, so a write the system refuses after emptying leaves the clipboard
+nothing (E3-F6). KEEP_PLAIN_TEXT_OR_NOTHING (`src/clipboard.rs`, R3-D1, E3-F2): a write copies the old clipboard only
+when it holds plain text alone (no other format, so no history or cloud marker either, at most 1 MiB), within 250 ms
+(E4-F3), and otherwise copies nothing and writes all the same, so a write the system refuses after emptying leaves the clipboard
 empty and says `clipboard.not_restored`. The other choice, refusing such writes (`clipboard.cannot_keep`), is one
 constant in `platform/clipboard.rs` and would make copies fail after the Operator copied in a browser, an office
 program, an image editor or a password manager.
@@ -105,14 +105,14 @@ for it, so the paths that need one run. One loop per test binary.
 
 | Target | Rule |
 | --- | --- |
-| unit tests | policy (restore is geometry, activation after removal, the Operator's close gesture, a foreign close approves nothing), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys, dead keys inside a key the library handles), how a message arrived, the clipboard policy against a clipboard that lists formats as the system does (only plain text asked for and kept, markers, the limit, the other choice, withdrawal after a restore), key mapping against winit's own tables, wheel, drop parsing, key events print no key |
-| unit tests, `platform/quiet_tests.rs` | the guard against every sequence that activates a plain window (with that control, each one counted as refused), sections, minimise hand-off, lifetime; behind the foreground below its owner chain; topmost foreground; the keyboard after an approved removal |
+| unit tests | policy (restore is geometry, activation after removal, the Operator's close gesture only through the command the system made of it, a gesture that made none lends nothing, a foreign close approves nothing), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys, dead keys inside a key the library handles), how a message arrived, the clipboard policy against a clipboard that lists formats as the system does (only plain text asked for and kept, markers as registered formats, the limit, the other choice, a copy the clipboard changed since, withdrawal after a restore), key mapping against winit's own tables, wheel, drop parsing, key events print no key |
+| unit tests, `platform/quiet_tests.rs` | the guard against every sequence that activates a plain window (with that control, each one counted as refused), sections, minimise hand-off, lifetime; behind the foreground below its owner chain; topmost foreground; the keyboard after an approved removal; a close command in a real queue seen where it waits, and F4 alone through the system's own handling making none, so a close posted after it is nobody's (E4-F2) |
 | `test_geometry` | scale and size arithmetic |
-| `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hooks are the loop thread's own two, each for that thread |
+| `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hooks are the loop thread's own two, each for that thread; the only desktop binding in the crate's source is the clipboard keeper thread's, to the loop thread's own desktop |
 | `test_wakes` | wakes on the loop's thread, not early, through a full queue, through five thrown-away posts (one more than go out before a sign), not from forged or sent messages (a genuine post sent back from another thread is refused and counted), not from the posts 200 dropped lanes left under the number in use again, four posts and no more while the loop waits in a SendMessage to a hung thread, in a nested loop, in a dialog, during shutdown, none after `finish`, refused after the end |
 | `test_menu_loop` | wakes inside the system's menu loop |
 | `test_sent_keys` | keys a loop inside a message another thread sent takes out reach the library and are not counted as sent; keys another thread sends are refused and counted |
-| `test_clipboard` | on a window station of its own: a write asks no program to render a promised format, but promised plain text alone; withdrawal takes back only this process's own write |
+| `test_clipboard` | on the unnamed window station of the logon session (no elevation; E4-F1), one clipboard test of the session at a time, emptied at the end, the Operator's clipboard sequence number unchanged: a write asks no program to render a promised format, but promised plain text alone; a program that hangs on that request makes the write busy within the bound, not the loop wait (E4-F3); withdrawal takes back only this process's own write |
 | `test_quiet_window` | a quiet window through every command, against each direct call that activated it (each refused by the guard), against foreign dead keys, and against keyboard messages another thread sends |
 | `test_operator_window` | activation and clipboard need the Operator, once; a model cannot move, size, restore or remove the Operator's window or the owner of its dialog; behind the foreground; the close request; a shell's minimise hands on to no window of ours; a close another program asked for lets a model destroy the window but hands the keyboard nowhere |
 | `test_scale_change` | logical size exact over many scale changes; a requested frame is due; a hidden maximised window stays so |
@@ -120,6 +120,6 @@ for it, so the paths that need one run. One loop per test binary.
 
 Left out, because they cannot run quietly: the move and size loop (needs a pressed button or moves the cursor), real
 keyboard, pointer, wheel and touchpad input (needs injection), and with it the Operator's close gesture and the hand-on
-after it inside the loop, dragging files in, the Operator's clipboard (the operating system's clipboard runs on a window
-station of the test's own), real monitor changes, sleep and session end. They need the Operator (HBR-QUIET-004) or
+after it inside the loop, dragging files in, the Operator's clipboard (the operating system's clipboard runs on the logon
+session's unnamed window station), real monitor changes, sleep and session end. They need the Operator (HBR-QUIET-004) or
 MT-202.
