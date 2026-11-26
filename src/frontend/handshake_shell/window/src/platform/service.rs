@@ -12,16 +12,16 @@ use windows_sys::Win32::System::Power::{
     RegisterSuspendResumeNotification, UnregisterSuspendResumeNotification, HPOWERNOTIFY,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, InSendMessageEx,
-    RegisterClassExW, SetWindowLongPtrW, DEVICE_NOTIFY_WINDOW_HANDLE, GWLP_USERDATA, ISMEX_NOSEND,
-    PBT_APMRESUMEAUTOMATIC, PBT_APMSUSPEND, SPI_SETWORKAREA, WM_DISPLAYCHANGE, WM_ENDSESSION,
-    WM_POWERBROADCAST, WM_QUERYENDSESSION, WM_SETTINGCHANGE, WNDCLASSEXW, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, RegisterClassExW,
+    SetWindowLongPtrW, DEVICE_NOTIFY_WINDOW_HANDLE, GWLP_USERDATA, PBT_APMRESUMEAUTOMATIC,
+    PBT_APMSUSPEND, SPI_SETWORKAREA, WM_DISPLAYCHANGE, WM_ENDSESSION, WM_POWERBROADCAST,
+    WM_QUERYENDSESSION, WM_SETTINGCHANGE, WNDCLASSEXW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_POPUP,
 };
 
 use super::loop_core::Core;
+use super::wake::{WM_PROBE, WM_WAKE};
 use super::{guard, last_error};
-use super::wake::WM_WAKE;
 use crate::event::Event;
 use crate::host::LoopError;
 use crate::queue::MAX_EVENTS;
@@ -144,12 +144,20 @@ fn answer(core: &Rc<Core>, message: u32, wparam: WPARAM, lparam: LPARAM) -> Opti
     match message {
         WM_WAKE => {
             // A wake is a posted message the loop took out of its queue. One sent from another thread is not
-            // (InSendMessageEx); one sent from this thread carries no number of an open post (`Lane::take`).
-            // SAFETY: no arguments that are used.
-            let posted = unsafe { InSendMessageEx(std::ptr::null()) } == ISMEX_NOSEND;
-            if let (true, Ok(lane)) = (posted, u32::try_from(wparam)) {
+            // (InSendMessageEx), even with a genuine number; one sent from this thread carries no number of an open
+            // post (`Lane::take`).
+            if super::sent_by_another_thread() {
+                core.update_report(|report| {
+                    report.sent_wakes_refused = report.sent_wakes_refused.saturating_add(1);
+                });
+            } else if let Ok(lane) = u32::try_from(wparam) {
                 core.dispatch_wake(lane, lparam);
             }
+            Some(0)
+        }
+        // Sent, so it comes inside any call that looks at the queue. It runs nothing of the host's.
+        WM_PROBE => {
+            core.probe_answered(lparam);
             Some(0)
         }
         WM_POWERBROADCAST => {

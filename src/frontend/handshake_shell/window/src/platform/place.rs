@@ -10,12 +10,13 @@ use std::mem;
 use windows_sys::Win32::Foundation::{BOOL, FALSE, HWND, LPARAM, RECT, TRUE};
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetActiveWindow, IsWindowEnabled};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DestroyWindow, EnumThreadWindows, GetAncestor, GetClientRect, GetForegroundWindow, GetWindow,
-    GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindow,
-    IsWindowVisible, IsZoomed, SetWindowLongPtrW, SetWindowPos, ShowWindow, GA_ROOTOWNER,
-    GWL_EXSTYLE, GWL_STYLE, GW_OWNER, HWND_BOTTOM, HWND_TOP, SET_WINDOW_POS_FLAGS,
+    DestroyWindow, EnumThreadWindows, GetAncestor, GetClientRect, GetForegroundWindow,
+    GetTopWindow, GetWindow, GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsIconic,
+    IsWindow, IsWindowVisible, IsZoomed, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+    GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE, GW_HWNDNEXT, GW_OWNER, HWND_BOTTOM, HWND_TOP,
+    SET_WINDOW_POS_FLAGS,
     SHOW_WINDOW_CMD, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE,
     SWP_NOZORDER, SWP_SHOWWINDOW, SW_HIDE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWMINNOACTIVE,
     SW_SHOWNOACTIVATE, WINDOWPOS, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
@@ -26,7 +27,7 @@ use super::{guard, last_error};
 use crate::command::{Refusal, WindowClass};
 use crate::event::Display;
 use crate::geometry::{PhysicalPosition, PhysicalRect, PhysicalSize, ScaleFactor};
-use crate::policy::{Foreground, MinimizePlan, ShowPlan, ZPlace};
+use crate::policy::{self, Foreground, MinimizePlan, ShowPlan, ZPlace};
 
 /// Never activates, never changes the order of owner windows.
 const QUIETLY: SET_WINDOW_POS_FLAGS = SWP_NOACTIVATE | SWP_NOOWNERZORDER;
@@ -34,6 +35,9 @@ const IN_PLACE: SET_WINDOW_POS_FLAGS = SWP_NOMOVE | SWP_NOSIZE;
 
 /// The longest owner chain followed.
 const MAX_OWNERS: usize = 32;
+
+/// The most top-level windows walked down the Z order.
+const MAX_Z_ORDER: usize = 10_000;
 
 /// A window as [`show`] and [`keep_quiet`] see it.
 pub(super) struct Target<'a> {
@@ -85,11 +89,16 @@ fn show_command(hwnd: HWND, command: SHOW_WINDOW_CMD) {
     unsafe { ShowWindow(hwnd, command) };
 }
 
+/// A show ends a minimised state, and with `to_normal` a maximised one: the window gets another size and position.
+pub(super) fn changes_size(hwnd: HWND, to_normal: bool) -> bool {
+    // SAFETY: plain values, read only. Also true of a hidden window.
+    unsafe { IsIconic(hwnd) != 0 || (to_normal && IsZoomed(hwnd) != 0) }
+}
+
 /// Show a window as planned; `to_normal` also ends minimised and maximised.
 pub(super) fn show(target: &Target<'_>, plan: ShowPlan, to_normal: bool) -> Result<(), Refusal> {
     let hwnd = target.hwnd;
-    // SAFETY: plain values, read only. Also true of a hidden window.
-    let leaves_size = unsafe { IsIconic(hwnd) != 0 || (to_normal && IsZoomed(hwnd) != 0) };
+    let leaves_size = changes_size(hwnd, to_normal);
     if plan.activate {
         return guard::allowing(hwnd, || {
             if leaves_size {
@@ -215,6 +224,80 @@ unsafe extern "system" fn lower(hwnd: HWND, _: LPARAM) -> BOOL {
 pub(super) fn destroy(hwnd: HWND) -> bool {
     // SAFETY: a plain value; fails for a window that is gone or not of this thread.
     guard::still(|| unsafe { DestroyWindow(hwnd) != 0 })
+}
+
+/// What a window was like before it was minimised, hidden or destroyed, for [`hand_on`].
+pub(super) struct Before {
+    removed: HWND,
+    held_activation: bool,
+    owner: HWND,
+}
+
+pub(super) fn before_removal(hwnd: HWND) -> Before {
+    // SAFETY: plain values, read only; 0 where there is none.
+    let (active, owner) = unsafe { (GetActiveWindow(), GetWindow(hwnd, GW_OWNER)) };
+    Before {
+        removed: hwnd,
+        held_activation: active != 0 && (active == hwnd || owns(hwnd, active)),
+        owner,
+    }
+}
+
+/// Carry out [`policy::activation_after_removal`] once the removal is done, among `operators`: the windows of the
+/// Operator's class of this loop. Returns whether one was activated.
+///
+/// The activation went nowhere when this thread has no active window left, or only one that is gone, hidden or
+/// minimised; a dialog the removed window owns that is still shown keeps it.
+pub(super) fn hand_on(before: &Before, approved: bool, operators: &[HWND]) -> bool {
+    let removed = before.removed;
+    let shown = |hwnd: HWND| {
+        // SAFETY: plain values, read only; false for a window that is gone.
+        unsafe { IsWindow(hwnd) != 0 && IsWindowVisible(hwnd) != 0 && IsIconic(hwnd) == 0 }
+    };
+    let usable = |hwnd: HWND| {
+        hwnd != removed
+            && operators.contains(&hwnd)
+            && shown(hwnd)
+            // SAFETY: a plain value, read only.
+            && unsafe { IsWindowEnabled(hwnd) } != 0
+    };
+    // SAFETY: no arguments, read only.
+    let (active, foreground) = unsafe { (GetActiveWindow(), GetForegroundWindow()) };
+    let lost = before.held_activation && (active == 0 || active == removed || !shown(active));
+    let other_program_in_front = foreground != 0 && !belongs_to_us(foreground);
+    let owner = Some(before.owner).filter(|owner| *owner != 0 && usable(*owner));
+    let next = policy::activation_after_removal(
+        approved,
+        lost,
+        other_program_in_front,
+        owner,
+        top_down(operators).into_iter().filter(|hwnd| usable(*hwnd)),
+    );
+    let Some(next) = next else {
+        return false;
+    };
+    // As an activating show does it: to the top, and only this window may be activated meanwhile.
+    let done = guard::allowing(next, || set_order(next, HWND_TOP, 0));
+    // SAFETY: no arguments, read only.
+    done.is_ok() && unsafe { GetActiveWindow() } == next
+}
+
+/// `windows` as they are in the Z order, topmost first.
+fn top_down(windows: &[HWND]) -> Vec<HWND> {
+    let mut found = Vec::new();
+    // SAFETY: plain values, read only: the top-level windows of this thread's desktop, from the top.
+    let mut current = unsafe { GetTopWindow(0) };
+    for _ in 0..MAX_Z_ORDER {
+        if current == 0 || found.len() == windows.len() {
+            break;
+        }
+        if windows.contains(&current) {
+            found.push(current);
+        }
+        // SAFETY: as above; 0 below the last.
+        current = unsafe { GetWindow(current, GW_HWNDNEXT) };
+    }
+    found
 }
 
 /// The window still exists.

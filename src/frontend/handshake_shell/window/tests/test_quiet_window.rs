@@ -1,6 +1,6 @@
 //! A real quiet window, on a desktop that receives no input: through every command, and against whoever asks the
-//! operating system for something else: each call the evaluation found to activate it (MT-214 W1), and dead keys
-//! another program posts (W6).
+//! operating system for something else: each call the evaluation found to activate it (MT-214 W1), each refused by
+//! the guard, dead keys another program posts (W6), and keyboard messages another thread sends (R2-N2).
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -16,18 +16,19 @@ use handshake_shell_window::{
     WindowEvent, WindowKey, WindowSpec, WindowState,
 };
 use windows_sys::Win32::Foundation::HWND;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetActiveWindow, VK_F4};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, IsWindow, IsWindowVisible, IsZoomed, PostMessageW, SendMessageW,
     SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, HWND_TOP, HWND_TOPMOST, SHOW_WINDOW_CMD,
     SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_RESTORE, SW_SHOW, SW_SHOWMAXIMIZED, SW_SHOWMINNOACTIVE,
-    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_DEADCHAR, WM_SYSDEADCHAR, WS_EX_APPWINDOW,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CHAR, WM_CLOSE, WM_DEADCHAR, WM_KEYDOWN, WM_KEYUP,
+    WM_SYSDEADCHAR, WM_SYSKEYDOWN, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST,
 };
 
 use support::{
-    control_the_watch, must_stay_inactive, on_private_desktop, run_script, stop_watching, Decoy,
-    Log,
+    control_the_watch, must_stay_inactive, on_private_desktop, run_script,
+    send_from_another_thread, stop_watching, Decoy, Log,
 };
 
 const INNER: LogicalSize = LogicalSize::new(400.0, 300.0);
@@ -159,6 +160,8 @@ impl State {
                 assert!(!focused, "a quiet window got the keyboard")
             }
             WindowEvent::QuietBroken => panic!("a quiet window was activated"),
+            // None is typed here: every key message comes from another program or thread.
+            WindowEvent::Key(_) | WindowEvent::Text(_) => self.events.add("key"),
             WindowEvent::FrameDue { ticket, .. } => {
                 let outcome = handshake_shell_window::FrameOutcome::Unchanged;
                 control.frame_done(self.window(), ticket, outcome).unwrap();
@@ -168,6 +171,12 @@ impl State {
     }
 
     fn step(&self, control: &Control) {
+        let refused = control.report().activations_refused;
+        // Each call the evaluation saw activate the window is refused by the guard, not missed by the system.
+        let refused_since = |what: &str| {
+            let now = control.report().activations_refused;
+            assert!(now > refused, "step {}: {what} was refused by the guard", self.step.get());
+        };
         match self.step.get() {
             1 => {
                 // Nobody activates it, not even the Operator who launched the process.
@@ -202,11 +211,13 @@ impl State {
                 }
                 self.show_directly(SW_SHOW);
                 self.assert_quiet();
+                refused_since("SetWindowPos without SWP_NOACTIVATE");
             }
             3 => {
                 self.show_directly(SW_HIDE);
                 self.show_directly(SW_SHOW);
                 self.assert_quiet();
+                refused_since("SW_SHOW after SW_HIDE");
             }
             4 => {
                 self.show_directly(SW_SHOWMINNOACTIVE);
@@ -221,6 +232,7 @@ impl State {
                 self.show_directly(SW_SHOWMINNOACTIVE);
                 self.show_directly(SW_RESTORE);
                 self.assert_quiet();
+                refused_since("SW_RESTORE after SW_SHOWMINNOACTIVE");
             }
             6 => {
                 self.show_directly(SW_SHOWNORMAL);
@@ -260,6 +272,19 @@ impl State {
                     assert_ne!(PostMessageW(hwnd, WM_SYSDEADCHAR, '`' as usize, 1), 0);
                     SendMessageW(hwnd, WM_DEADCHAR, '~' as usize, 1);
                 }
+                // Keyboard messages another thread sends never reach the window library (MT-214 R2-N2): not a key
+                // down and its dead key, as they come inside the library's look at the queue, and not Alt+F4.
+                let sent = control.report().sent_keys_refused;
+                let keys = vec![
+                    (WM_KEYDOWN, 0x41, 1),
+                    (WM_DEADCHAR, '^' as usize, 1),
+                    (WM_CHAR, 'a' as usize, 1),
+                    (WM_KEYUP, 0x41, 1),
+                    (WM_SYSKEYDOWN, usize::from(VK_F4), 0x2000_0001),
+                ];
+                let count = keys.len() as u64;
+                send_from_another_thread(hwnd, keys);
+                assert_eq!(control.report().sent_keys_refused, sent + count);
                 // From here on only what the commands do is displayed.
                 self.displays.clear();
             }

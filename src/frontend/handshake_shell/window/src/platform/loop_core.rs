@@ -18,10 +18,11 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 use winit::event_loop::EventLoopProxy;
 
+use super::lanes::{Lanes, EVENT_LANE};
 use super::window::Window;
-use super::{clipboard, commands, guard, place, wake::Lane};
+use super::{clipboard, commands, guard, place};
 use crate::clipboard::{ClipboardError, TextClipboard};
-use crate::command::{CreateFailure, Refusal, WindowSpec, WindowState};
+use crate::command::{CreateFailure, Refusal, WindowClass, WindowSpec, WindowState};
 use crate::event::{Event, WindowEvent, WindowKey};
 use crate::host::{Control, LoopConfig, LoopError, RunReport, ShellHost};
 use crate::origin::{Authority, AuthorityLedger, CommandSource, DeviceKind, EventTime, Origin};
@@ -32,12 +33,6 @@ use crate::wake_slot::nanos;
 
 /// The most windows that exist or are being created at once.
 const MAX_WINDOWS: usize = 32;
-
-/// The most lanes one loop opens. Their numbers are not used again.
-const MAX_LANES: usize = 64;
-
-/// The lane that hands events to the host.
-const EVENT_LANE: u32 = 0;
 
 /// The most events handed over in one go, so that wakes get their turn.
 const EVENTS_PER_TURN: usize = 64;
@@ -89,7 +84,7 @@ pub(crate) struct Core {
     host_busy: Cell<bool>,
     phase: Cell<Phase>,
     next_window: Cell<u64>,
-    lanes: RefCell<Vec<Option<Lane>>>,
+    lanes: Lanes,
     message: Cell<MessageOrigin>,
     /// The number of the newest input stamp.
     serial: Cell<u64>,
@@ -120,7 +115,7 @@ impl Core {
             host_busy: Cell::new(false),
             phase: Cell::new(Phase::Running),
             next_window: Cell::new(1),
-            lanes: RefCell::default(),
+            lanes: Lanes::default(),
             message: Cell::new(MessageOrigin::NONE),
             serial: Cell::new(0),
             authority: RefCell::default(),
@@ -137,19 +132,19 @@ impl Core {
         self.clipboard
             .borrow_mut()
             .get_or_insert_with(|| Box::new(clipboard::SystemClipboard::new(service)));
-        // The host's events are input; this lane does not wait for more.
-        let lane = Lane::open(EVENT_LANE, service, self.thread, self.epoch, false)
-            .ok_or_else(|| LoopError::System(super::last_error()))?;
-        self.lanes.borrow_mut().push(Some(lane));
-        Ok(())
+        self.lanes
+            .attach(service, self.thread, self.epoch)
+            .ok_or_else(|| LoopError::System(super::last_error()))
+    }
+
+    /// The service window got a probe (`wake::Pulse`).
+    pub(super) fn probe_answered(&self, token: LPARAM) {
+        self.lanes.probe_answered(token);
     }
 
     /// The loop is over. Wakes are refused from here on, by any thread.
     pub(super) fn detach(&self) -> RunReport {
-        let lanes = std::mem::take(&mut *self.lanes.borrow_mut());
-        for lane in lanes.iter().flatten() {
-            lane.close();
-        }
+        self.lanes.close_all();
         self.phase.set(Phase::Ended);
         self.library.borrow_mut().take();
         self.host.borrow_mut().take();
@@ -158,7 +153,7 @@ impl Core {
     }
 
     /// What the run was like so far.
-    pub(super) fn report(&self) -> RunReport {
+    pub(crate) fn report(&self) -> RunReport {
         self.update_report(|report| report.activations_refused = guard::refused());
         self.report.get()
     }
@@ -218,8 +213,8 @@ impl Core {
         self.drain_requested.set(requested);
     }
 
-    fn lane(&self, id: u32) -> Option<Lane> {
-        self.lanes.borrow().get(id as usize).cloned().flatten()
+    fn lane(&self, id: u32) -> Option<super::wake::Lane> {
+        self.lanes.get(id)
     }
 
     /// Hand queued events to the host. Does nothing inside a call of the host's own; that call's turn goes on when it
@@ -471,6 +466,16 @@ impl Core {
         self.window_by_key(key).map(|window| window.state())
     }
 
+    /// The windows of the Operator's class that exist.
+    pub(super) fn operator_windows(&self) -> Vec<HWND> {
+        self.windows
+            .borrow()
+            .iter()
+            .filter(|window| window.class == WindowClass::Operator && place::exists(window.hwnd))
+            .map(|window| window.hwnd)
+            .collect()
+    }
+
     pub(crate) fn window_keys(&self) -> Vec<WindowKey> {
         self.windows
             .borrow()
@@ -496,26 +501,12 @@ impl Core {
         if self.phase.get() == Phase::Ended || self.service.get() == 0 {
             return Err(WakeRefused::Closed);
         }
-        let id = self.lanes.borrow().len();
-        if id >= MAX_LANES {
-            return Err(WakeRefused::LaneLimit);
-        }
-        let lane = u32::try_from(id)
-            .ok()
-            .and_then(|id| Lane::open(id, self.service.get(), self.thread, self.epoch, true))
-            .ok_or(WakeRefused::LaneLimit)?;
-        self.lanes.borrow_mut().push(Some(lane.clone()));
+        let lane = self.lanes.open()?;
         Ok(WakeLane::new(lane, Rc::downgrade(self)))
     }
 
     pub(crate) fn forget_lane(&self, id: LaneId) {
-        let forgotten = self
-            .lanes
-            .borrow_mut()
-            .get_mut(id.0 as usize)
-            .and_then(Option::take);
-        // Dropped outside the borrow: closing its timer waits for a callback that is running.
-        drop(forgotten);
+        self.lanes.forget(id);
     }
 
     pub(crate) fn read_clipboard(&self) -> Result<Option<String>, ClipboardError> {

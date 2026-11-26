@@ -13,7 +13,10 @@ pub enum ClipboardError {
     TooLarge,
     /// Only the Operator replaces the clipboard.
     NeedsOperator,
-    /// The operating system refused, with its error number.
+    /// What is on the clipboard could not be kept to be put back should the write fail, so it was left as it is.
+    CannotKeep,
+    /// The operating system refused, with its error number. A write that failed put back what it could of what was
+    /// there before.
     System(u32),
 }
 
@@ -24,6 +27,7 @@ impl ClipboardError {
             Self::Busy => "clipboard.busy",
             Self::TooLarge => "clipboard.too_large",
             Self::NeedsOperator => "clipboard.needs_operator",
+            Self::CannotKeep => "clipboard.cannot_keep",
             Self::System(_) => "clipboard.system",
         }
     }
@@ -39,7 +43,8 @@ pub trait TextClipboard {
     /// [`ClipboardError`].
     fn read(&mut self) -> Result<Option<String>, ClipboardError>;
 
-    /// Replace the clipboard with `text`.
+    /// Replace the clipboard with `text`. A write that fails puts back what was there before; when nothing of that can
+    /// be kept, the clipboard is not touched.
     ///
     /// # Errors
     ///

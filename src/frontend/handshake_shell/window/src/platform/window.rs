@@ -10,17 +10,16 @@ use std::sync::Arc;
 
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::UI::Controls::WM_MOUSELEAVE;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetActiveWindow, VK_F4};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
 use windows_sys::Win32::UI::Input::{GetCurrentInputMessageSource, INPUT_MESSAGE_SOURCE};
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DefWindowProcW, GetMessageTime, PeekMessageW, GWL_EXSTYLE, MA_NOACTIVATE, MSG, PM_NOREMOVE,
-    STYLESTRUCT, WA_INACTIVE, WINDOWPOS, WM_ACTIVATE, WM_CHAR, WM_DEADCHAR, WM_DPICHANGED,
-    WM_DROPFILES, WM_ENTERMENULOOP, WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE,
-    WM_KEYDOWN, WM_KEYFIRST, WM_KEYLAST, WM_KEYUP, WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST,
-    WM_NCDESTROY, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_STYLECHANGING, WM_SYSCHAR,
-    WM_SYSDEADCHAR, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_TOUCH, WM_WINDOWPOSCHANGED,
-    WM_WINDOWPOSCHANGING,
+    DefWindowProcW, GetMessageTime, GWL_EXSTYLE, MA_NOACTIVATE, STYLESTRUCT, WA_INACTIVE,
+    WINDOWPOS, WM_ACTIVATE, WM_CHAR, WM_DEADCHAR, WM_DPICHANGED, WM_DROPFILES, WM_ENTERMENULOOP,
+    WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE, WM_KEYFIRST, WM_KEYLAST,
+    WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST, WM_NCDESTROY, WM_POINTERDOWN, WM_POINTERUP,
+    WM_POINTERUPDATE, WM_STYLECHANGING, WM_SYSCHAR, WM_SYSDEADCHAR, WM_TOUCH,
+    WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING,
 };
 use winit::dpi::LogicalSize as LibrarySize;
 use winit::event_loop::ActiveEventLoop;
@@ -28,6 +27,7 @@ use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{CursorIcon, WindowAttributes, WindowId};
 
+use super::key_gate::{self, KeyGate, Kept};
 use super::loop_core::{Core, Creation, MessageOrigin};
 use super::place::Target;
 use super::{drops, guard, last_error, monitors, place, translate};
@@ -69,8 +69,8 @@ pub(super) struct Window {
     position_reported: Cell<PhysicalPosition>,
     /// Where the newest key message came from. Its text messages are posted by the system and no longer say.
     key_origin: Cell<Option<(Origin, DeviceKind)>>,
-    /// The window library holds a key press open for a dead key; see [`Window::keep_keys`].
-    key_open: Cell<bool>,
+    /// What keyboard messages the window library sees.
+    keys: KeyGate,
     library: RefCell<Option<winit::window::Window>>,
     core: Weak<Core>,
 }
@@ -142,7 +142,7 @@ impl Window {
             size_reported: Cell::new((PhysicalSize::default(), ScaleFactor::ONE)),
             position_reported: Cell::default(),
             key_origin: Cell::new(None),
-            key_open: Cell::new(false),
+            keys: KeyGate::default(),
             library: RefCell::new(Some(library)),
             core: Rc::downgrade(core),
         });
@@ -411,35 +411,27 @@ impl Window {
                 );
                 Some(0)
             }
-            _ => self.keep_keys(message, wparam),
+            _ => self.gate_keys(core, message, wparam),
         }
     }
 
-    /// The window library holds a key press open after a key down that a character message follows in the queue,
-    /// until a dead key or the last character takes it, and panics on a dead key without one; its panic ends the loop
-    /// (winit 0.30.13 `keyboard.rs`, `WM_DEADCHAR`). This follows it the way it decides, looking at the queue before
-    /// it does, and keeps from it a dead key that would find none: posted by another program, or out of order.
-    fn keep_keys(&self, message: u32, wparam: WPARAM) -> Option<LRESULT> {
-        match message {
-            WM_KEYDOWN | WM_SYSKEYDOWN => {
-                // The library leaves Alt+F4 alone.
-                if !(message == WM_SYSKEYDOWN && wparam == usize::from(VK_F4)) {
-                    let next = next_key_message(self.hwnd);
-                    let belongs = next.is_some_and(|next| {
-                        !matches!(next, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP)
+    /// Keep from the window library what would end its loop or start a key nobody typed (`key_gate.rs`).
+    fn gate_keys(&self, core: &Core, message: u32, wparam: WPARAM) -> Option<LRESULT> {
+        let keyboard = (WM_KEYFIRST..=WM_KEYLAST).contains(&message);
+        let sent = keyboard && super::sent_by_another_thread();
+        let checked = self.keys.check(message, wparam, sent, || {
+            key_gate::next_key_message(self.hwnd)
+        });
+        match checked {
+            Ok(()) => None,
+            Err(kept) => {
+                if kept == Kept::Sent {
+                    core.update_report(|report| {
+                        report.sent_keys_refused = report.sent_keys_refused.saturating_add(1);
                     });
-                    self.key_open.set(belongs);
                 }
-                None
+                Some(0)
             }
-            WM_DEADCHAR | WM_SYSDEADCHAR if !self.key_open.replace(false) => Some(0),
-            WM_CHAR | WM_SYSCHAR => {
-                let more = next_key_message(self.hwnd)
-                    .is_some_and(|next| matches!(next, WM_CHAR | WM_SYSCHAR));
-                self.key_open.set(self.key_open.get() && more);
-                None
-            }
-            _ => None,
         }
     }
 
@@ -487,16 +479,6 @@ impl Window {
             origin: from.0,
             device: from.1,
         }
-    }
-}
-
-/// The next keyboard message of `hwnd` in the queue, as the window library looks for it.
-fn next_key_message(hwnd: HWND) -> Option<u32> {
-    // SAFETY: a message structure that outlives the call; nothing is taken out of the queue.
-    unsafe {
-        let mut message: MSG = std::mem::zeroed();
-        (PeekMessageW(&mut message, hwnd, WM_KEYFIRST, WM_KEYLAST, PM_NOREMOVE) != 0)
-            .then_some(message.message)
     }
 }
 

@@ -1,6 +1,7 @@
 //! Wakes of a real loop: on its thread, in order, when due, through a full queue, through posts another loop throws
-//! away, not from a message anybody else posts or sends, inside loops that run inside the host, and never after
-//! `finish`. One test, because a process has one loop.
+//! away, not from a message anybody else posts or sends (a genuine post sent back from another thread included),
+//! through lanes whose numbers are used again, inside loops that run inside the host, and never after `finish`. One
+//! test, because a process has one loop.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -22,7 +23,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     PM_REMOVE, WM_APP, WM_DISPLAYCHANGE, WM_INITDIALOG, WM_NULL, WM_TIMER, WS_POPUP,
 };
 
-use support::{on_private_desktop, run_script, wide, Decoy, Log};
+use support::{on_private_desktop, run_script, send_from_another_thread, wide, Decoy, Log};
 
 const LIMIT: Duration = Duration::from_secs(60);
 const DIALOG_RESULT: isize = 7;
@@ -127,6 +128,20 @@ impl State {
         assert_eq!(self.nested_wakes.get(), 3);
     }
 
+    /// Every wake post in the queue, taken out.
+    fn take_wake_posts(&self) -> Vec<(WPARAM, LPARAM)> {
+        let service = service_window();
+        let mut posts = Vec::new();
+        // SAFETY: a message structure of this function; only wake messages of the loop's own window are taken.
+        unsafe {
+            let mut message: MSG = std::mem::zeroed();
+            while PeekMessageW(&mut message, service, WM_WAKE, WM_WAKE, PM_REMOVE) != 0 {
+                posts.push((message.wParam, message.lParam));
+            }
+        }
+        posts
+    }
+
     /// A loop that takes the wake posts out of the queue and throws them away, as somebody else's loop may.
     fn throw_posts_away(&self) -> u32 {
         let service = service_window();
@@ -200,8 +215,18 @@ impl State {
         match event {
             Event::LoopStarted => {
                 *self.decoy.borrow_mut() = Some(Decoy::create());
+                // More lanes than may be open at once, each dropped with its wake posted: the numbers are used again
+                // (MT-214 R2-N4), and none of the posts left in the queue dispatches a wake of the lane that has the
+                // number now.
+                let mut first = None;
+                for _ in 0..200 {
+                    let lane = control.open_wake_lane().unwrap();
+                    first.get_or_insert(lane.id());
+                    lane.request(99, Duration::ZERO).unwrap();
+                }
                 let a = control.open_wake_lane().unwrap();
                 let b = control.open_wake_lane().unwrap();
+                assert_eq!(Some(a.id()), first, "the number of a dropped lane");
                 assert!(a.on_loop_thread());
                 assert_ne!(a.id(), b.id());
                 *self.waker.borrow_mut() = Some(a.waker());
@@ -290,7 +315,26 @@ impl State {
                     self.requested_at.get().elapsed() >= THROWN_AWAY_FOR,
                     "posted again after the posts were thrown away"
                 );
-                // The post of the next wake is refused, and so is every other until the loop has caught up.
+                // The genuine post of the next wake, taken out of the queue and sent back from another thread,
+                // dispatches nothing: a wake comes out of the loop's own queue (InSendMessageEx).
+                self.request(16, 0);
+                let refused = control.report().sent_wakes_refused;
+                let posts = self.take_wake_posts();
+                assert!(!posts.is_empty(), "the post of wake 16");
+                let sent = posts
+                    .iter()
+                    .map(|(wparam, lparam)| (WM_WAKE, *wparam, *lparam))
+                    .collect();
+                send_from_another_thread(service_window(), sent);
+                assert_eq!(
+                    control.report().sent_wakes_refused,
+                    refused + posts.len() as u64
+                );
+                assert!(!self.wakes.all().contains(&16), "not from the sent copy");
+            }
+            16 => {
+                // Posted again, since its post was taken out. The post of the next wake is refused, and so is every
+                // other until the loop has caught up.
                 self.fill_queue();
                 self.request(20, 0);
             }
@@ -356,7 +400,7 @@ fn a_wake_is_dispatched_by_every_loop_of_its_thread_and_by_nothing_else() {
         .unwrap();
 
         let seen = state.wakes.all();
-        assert_eq!(&seen[..7], &[1, 2, 12, 14, 15, 20, 21], "{seen:?}");
+        assert_eq!(&seen[..8], &[1, 2, 12, 14, 15, 16, 20, 21], "{seen:?}");
         assert!(!seen.contains(&60));
         assert_eq!(state.wakes.count(&30), 3);
         assert_eq!(state.wakes.count(&40), 3);

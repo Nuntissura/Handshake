@@ -83,6 +83,11 @@ pub struct RunReport {
     pub activations_refused: u64,
     /// Windows left hidden at the end because a native token still named them; they go when the thread ends.
     pub windows_left: u64,
+    /// Wake messages another thread sent, refused: a wake comes out of the loop's own queue only.
+    pub sent_wakes_refused: u64,
+    /// Keyboard messages another thread sent, refused: input comes through the queue, and the window library is not
+    /// entered with a key while it looks at the queue for one (MT-214 R2-N2).
+    pub sent_keys_refused: u64,
 }
 
 /// The loop, as the host's handlers use it.
@@ -99,6 +104,11 @@ impl Control {
     /// The time on the clock of the events.
     pub fn now(&self) -> EventTime {
         self.core.now()
+    }
+
+    /// The numbers of the run so far; [`run`] returns them at the end.
+    pub fn report(&self) -> RunReport {
+        self.core.report()
     }
 
     /// Ask for a window. It is created hidden; [`crate::WindowEvent::Created`] or

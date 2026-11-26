@@ -191,7 +191,7 @@ fn sequences() -> [Sequence; 7] {
 fn behind_plan(hwnd: HWND) -> policy::ShowPlan {
     let foreground = place::foreground(hwnd);
     assert_eq!(foreground, Foreground::OurOther);
-    let plan = policy::plan_show(WindowClass::Operator, false, Authority::Host, foreground);
+    let plan = policy::plan_show(WindowClass::Operator, false, Authority::Host, foreground, false);
     let plan = plan.unwrap();
     assert_eq!(plan.place, ZPlace::BehindForeground);
     plan
@@ -214,18 +214,74 @@ fn every_call_that_activates_a_plain_window_leaves_a_quiet_one_inactive() {
             destroy(control);
             let quiet = plain(0, 0);
             assert!(guard::mark_quiet(quiet));
+            let refused = guard::refused();
             sequence(quiet);
             assert_ne!(active(), quiet, "{name}");
+            if documented {
+                // The control took the activation along the same path, so the hook was asked and said no.
+                assert!(guard::refused() > refused, "{name}: refused by the guard");
+            }
             destroy(quiet);
         }
         let quiet = plain(0, 0);
         assert!(guard::mark_quiet(quiet));
         let owned = plain(0, quiet);
+        let refused = guard::refused();
         raise(owned);
         assert_ne!(active(), owned, "a window a quiet one owns");
+        assert!(guard::refused() > refused, "refused by the guard");
         destroy(owned);
         destroy(quiet);
-        assert!(guard::refused() >= 5, "{}", guard::refused());
+    });
+}
+
+/// MT-214 R2-N5: ACTIVATION_AFTER_REMOVAL against real windows.
+#[test]
+fn an_approved_removal_hands_the_keyboard_on_only_where_it_went_nowhere() {
+    on_private_desktop(|| {
+        let _guard = ActivationGuard::install().unwrap();
+        let (lower, upper) = (plain(0, 0), plain(0, 0));
+        shown_quietly(lower);
+        shown_quietly(upper);
+        // The Operator closes the window it works in: the keyboard goes to the topmost other one.
+        let removed = plain(0, 0);
+        raise(removed);
+        assert_eq!(active(), removed);
+        let before = place::before_removal(removed);
+        assert!(place::destroy(removed));
+        assert_ne!(active(), upper, "the guard kept the system from handing it on");
+        assert!(place::hand_on(&before, true, &[removed, lower, upper]));
+        assert_eq!(active(), upper, "the topmost");
+        // Without the Operator's approval nothing is handed on.
+        let removed = plain(0, 0);
+        raise(removed);
+        let before = place::before_removal(removed);
+        place::hide(removed);
+        assert!(!place::hand_on(&before, false, &[lower, upper]));
+        assert!(![lower, upper].contains(&active()));
+        destroy(removed);
+        // A dialog of the hidden window is still shown and keeps the activation.
+        let owner = plain(0, 0);
+        shown_quietly(owner);
+        let dialog = plain(0, owner);
+        raise(dialog);
+        let before = place::before_removal(owner);
+        place::hide(owner);
+        assert_eq!(active(), dialog);
+        assert!(!place::hand_on(&before, true, &[owner, lower, upper]));
+        assert_eq!(active(), dialog);
+        // The owner comes before a window that is higher.
+        let owned = plain(0, lower);
+        raise(owned);
+        shown_quietly(upper);
+        assert!(is_above(upper, lower) && active() == owned);
+        let before = place::before_removal(owned);
+        assert!(place::destroy(owned));
+        assert!(place::hand_on(&before, true, &[lower, upper]));
+        assert_eq!(active(), lower, "its owner");
+        for hwnd in [dialog, owner, lower, upper] {
+            destroy(hwnd);
+        }
     });
 }
 

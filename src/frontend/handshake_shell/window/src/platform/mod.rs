@@ -9,6 +9,8 @@ mod clipboard;
 mod commands;
 mod drops;
 mod guard;
+mod key_gate;
+mod lanes;
 mod loop_core;
 mod monitors;
 mod place;
@@ -27,4 +29,12 @@ pub(crate) use self::wake::Lane;
 fn last_error() -> u32 {
     // SAFETY: no arguments.
     unsafe { windows_sys::Win32::Foundation::GetLastError() }
+}
+
+/// The message the current window procedure handles was sent from another thread, of this process or another one
+/// (InSendMessageEx: anything but `ISMEX_NOSEND`). A message this thread sends is a call, and reports nothing.
+fn sent_by_another_thread() -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{InSendMessageEx, ISMEX_NOSEND};
+    // SAFETY: the one argument is reserved and must be null.
+    unsafe { InSendMessageEx(std::ptr::null()) != ISMEX_NOSEND }
 }

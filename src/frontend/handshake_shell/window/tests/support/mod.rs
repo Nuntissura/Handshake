@@ -5,7 +5,9 @@
 //! the whole test and fails it if a window of this process ever is in the foreground or holds the focus there; it
 //! cannot see a window on the private desktop, so it guards the Operator and proves nothing about the code. The other
 //! runs on the private desktop and fails the test if a window the test named with [`must_stay_inactive`] is ever the
-//! active or focused window of the test's thread; [`control_the_watch`] proves that it sees an activation.
+//! active or focused window of the test's thread; [`control_the_watch`] proves that it sees an activation. The first
+//! watch's own control can only be that it recognises a window of this process, since none may ever be in front of
+//! the Operator. Whatever runs a loop or makes a window here fails at once on a desktop that receives input.
 
 #![allow(dead_code)] // Each test target uses a part.
 #![allow(unsafe_code)]
@@ -23,16 +25,17 @@ use std::time::{Duration, Instant};
 use handshake_shell_window::{
     Control, DispatchedWake, Event, LoopConfig, LoopError, RunReport, ShellHost,
 };
-use windows_sys::Win32::Foundation::{GetLastError, BOOL, HWND};
+use windows_sys::Win32::Foundation::{GetLastError, BOOL, HWND, LPARAM, WPARAM};
 use windows_sys::Win32::System::StationsAndDesktops::{
     CloseDesktop, CreateDesktopW, GetThreadDesktop, GetUserObjectInformationW, SetThreadDesktop,
     HDESK, UOI_IO,
 };
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, GetForegroundWindow, GetGUIThreadInfo, GetWindow,
-    GetWindowThreadProcessId, SetWindowPos, GUITHREADINFO, GW_HWNDNEXT, HWND_TOP, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_SHOWWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
+    CreateWindowExW, DestroyWindow, GetDesktopWindow, GetForegroundWindow, GetGUIThreadInfo,
+    GetWindow, GetWindowThreadProcessId, PeekMessageW, SendMessageW, SetWindowPos, GUITHREADINFO,
+    GW_HWNDNEXT, HWND_TOP, MSG, PM_NOREMOVE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
 };
 
 const GENERIC_ALL: u32 = 0x1000_0000;
@@ -100,6 +103,7 @@ pub fn on_private_desktop<T: Send + 'static>(
             !receives_input(),
             "the private desktop must not be the Operator's"
         );
+        control_the_operators_watch();
         QUIET.with(|watch| *watch.borrow_mut() = Some(for_work));
         // SAFETY: no arguments.
         let _ = thread.send(unsafe { GetCurrentThreadId() });
@@ -194,9 +198,26 @@ pub fn stop_watching(hwnd: HWND) {
     with_quiet_watch(|watch| watch.windows.lock().unwrap().retain(|kept| *kept != hwnd));
 }
 
+/// The control of the watch on the Operator's desktop, on the private one: what it counts, a window of this process,
+/// it recognises, and the desktop's own window it does not.
+fn control_the_operators_watch() {
+    let class = wide("STATIC");
+    // SAFETY: a class of the system's; hidden, on the private desktop; every pointer outlives the call.
+    let hwnd = unsafe {
+        CreateWindowExW(0, class.as_ptr(), ptr::null(), WS_POPUP, 0, 0, 10, 10, 0, 0, 0, ptr::null())
+    };
+    assert_ne!(hwnd, 0);
+    let recognised = is_ours(hwnd);
+    // SAFETY: created above, on this thread; the other call has no arguments.
+    let (_, desktop) = unsafe { (DestroyWindow(hwnd), GetDesktopWindow()) };
+    assert!(recognised, "the Operator's watch sees a window of this process");
+    assert!(!is_ours(desktop) && !is_ours(0));
+}
+
 /// The control of the private watch: a plain window it watches is activated (SetWindowPos without SWP_NOACTIVATE),
 /// and the watch counts it. Call on the test's thread before the loop runs; afterwards the count is 0 again.
 pub fn control_the_watch() {
+    assert!(!receives_input(), "only on a private desktop");
     let class = wide("STATIC");
     // SAFETY: a class of the system's; every pointer outlives the call.
     let hwnd = unsafe {
@@ -340,6 +361,7 @@ pub struct Decoy(pub HWND);
 
 impl Decoy {
     pub fn create() -> Self {
+        assert!(!receives_input(), "only on a private desktop");
         let class = wide("STATIC");
         // SAFETY: a class of the system's; every pointer outlives the call.
         let hwnd = unsafe {
@@ -406,13 +428,41 @@ where
     }
 }
 
-/// Run the loop with a host made of two closures.
+/// Run the loop with a host made of two closures. Only on a private desktop: the source scan finds a call outside
+/// [`on_private_desktop`], and this finds one it missed.
 pub fn run_script(
     config: LoopConfig,
     on_event: impl Fn(&Control, Event) + 'static,
     on_wake: impl Fn(&Control, &DispatchedWake<'_>) + 'static,
 ) -> Result<RunReport, LoopError> {
+    assert!(!receives_input(), "a loop runs only on a private desktop");
     handshake_shell_window::run(config, Rc::new(Script { on_event, on_wake }))
+}
+
+/// Send `messages` to `hwnd` from another thread on this thread's desktop, one after the other, while this thread
+/// takes them in: the system hands a sent message over inside the receiving thread's next look at its queue.
+pub fn send_from_another_thread(hwnd: HWND, messages: Vec<(u32, WPARAM, LPARAM)>) {
+    // SAFETY: no arguments.
+    let desktop = unsafe { GetThreadDesktop(GetCurrentThreadId()) };
+    let sender = std::thread::spawn(move || {
+        // SAFETY: the thread is new and has no window; the desktop outlives it, its caller's thread being on it.
+        assert_ne!(unsafe { SetThreadDesktop(desktop) }, 0);
+        for (message, wparam, lparam) in messages {
+            // SAFETY: plain values, to the caller's window.
+            unsafe { SendMessageW(hwnd, message, wparam, lparam) };
+        }
+    });
+    while !sender.is_finished() {
+        // SAFETY: a structure of this function; nothing is taken out of the queue, sent messages are handled.
+        unsafe {
+            let mut message: MSG = std::mem::zeroed();
+            PeekMessageW(&mut message, 0, 0, 0, PM_NOREMOVE);
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    if let Err(panic) = sender.join() {
+        std::panic::resume_unwind(panic);
+    }
 }
 
 /// A list that a test's closures share.

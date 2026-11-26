@@ -246,6 +246,18 @@ fn runs_outside_a_private_desktop(code: &str) -> Vec<usize> {
         .collect()
 }
 
+/// The crate's `run` named in a test, by path: only `run_script` may call it, which checks its desktop too.
+const DIRECT_RUN: &str = "handshake_shell_window::run";
+
+/// Whether `code` imports the crate's `run`.
+fn imports_run(code: &str) -> bool {
+    code.match_indices("use handshake_shell_window::").any(|(at, _)| {
+        let statement = &code[at..];
+        let end = statement.find(';').unwrap_or(statement.len());
+        !lines_with(&statement[..end], "run").is_empty()
+    })
+}
+
 #[test]
 fn every_test_that_runs_a_loop_runs_it_on_a_private_desktop() {
     let tests = below("tests");
@@ -253,6 +265,9 @@ fn every_test_that_runs_a_loop_runs_it_on_a_private_desktop() {
     for test in &tests {
         let outside = runs_outside_a_private_desktop(&test.code);
         assert!(outside.is_empty(), "{}:{outside:?}", test.path);
+        let support = test.path == "tests/support/mod.rs";
+        let direct = found(std::slice::from_ref(test), &[DIRECT_RUN], |_, _, _| support);
+        assert!(direct.is_empty() && !imports_run(&test.code), "{}: {direct:?}", test.path);
         runs += calls_of_run_script(&test.code).len();
         let switches = ["SetThreadDesktop", "OpenInputDesktop", "OpenDesktopW", "CreateDesktopW"];
         let elsewhere = found(std::slice::from_ref(test), &switches, |source, word, _| {
@@ -282,6 +297,15 @@ fn the_private_desktop_scan_sees_a_loop_outside_one() {
     assert_eq!(runs_outside_a_private_desktop(&one_of_two), [3]);
     let before = code_only("fn a() {\n    run_script(c, e, w);\n    on_private_desktop(LIMIT, || {});\n}\n");
     assert_eq!(runs_outside_a_private_desktop(&before), [2]);
+    // The loop started without `run_script`.
+    let direct = Source {
+        path: "tests/sample.rs".to_owned(),
+        code: code_only("let r = handshake_shell_window::run(c, h);\n"),
+    };
+    assert_eq!(found(&[direct], &[DIRECT_RUN], |_, _, _| false).len(), 1);
+    assert!(imports_run(&code_only("use handshake_shell_window::{run, Control};\n")));
+    assert!(imports_run(&code_only("use handshake_shell_window::{\n    Control,\n    run,\n};\n")));
+    assert!(!imports_run(&code_only("use handshake_shell_window::{Control, RunReport};\nfn run() {}\n")));
 }
 
 #[test]

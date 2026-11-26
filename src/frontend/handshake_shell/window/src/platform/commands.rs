@@ -1,8 +1,10 @@
 //! What the host's commands do to a window: the policy decides, `place` carries it out.
 //!
 //! The Operator's authority is used up by the command that needed it (MT-214 W4): an activation, a minimise that hands
-//! the activation on, or a clipboard write. A model command may not move, size, hide, minimise or destroy the window
-//! the Operator works in; a request to close it lets a model remove it once, while the request is open.
+//! the activation on, or a clipboard write. A model command may not move, size, restore, hide, minimise or destroy the
+//! window the Operator works in, nor show it back from minimised (R2-N1); a request to close it lets a model remove it
+//! once, while the request is open. After a removal the Operator approved, the keyboard goes where
+//! `policy::activation_after_removal` says (R2-N5).
 
 use super::loop_core::Core;
 use super::{monitors, place};
@@ -85,7 +87,9 @@ fn carry_out(
     match command {
         WindowCommand::Show { activate } | WindowCommand::Restore { activate } => {
             let to_normal = matches!(command, WindowCommand::Restore { .. });
-            let plan = policy::plan_show(window.class, activate, authority, foreground)?;
+            // A restore is geometry, and so is a show that brings a minimised window back (MT-214 R2-N1).
+            let resizes = to_normal || place::changes_size(hwnd, false);
+            let plan = policy::plan_show(window.class, activate, authority, foreground, resizes)?;
             if plan.activate && authority.is_operators() {
                 core.use_up(source);
             }
@@ -94,16 +98,21 @@ fn carry_out(
             place::show(&window.target(), plan, to_normal)
         }
         WindowCommand::Hide => {
-            remove(core, &window, authority, foreground)?;
+            let approved = remove(core, &window, authority, foreground)?;
+            let before = place::before_removal(hwnd);
             place::hide(hwnd);
+            hand_on(core, source, authority, &before, approved);
             Ok(())
         }
         WindowCommand::Minimize => {
             let plan = policy::plan_minimize(window.class, authority, foreground)?;
-            if plan == MinimizePlan::ActivateNext && authority.is_operators() {
+            let approved = plan == MinimizePlan::ActivateNext;
+            if approved && authority.is_operators() {
                 core.use_up(source);
             }
+            let before = place::before_removal(hwnd);
             place::minimize(hwnd, plan);
+            hand_on(core, source, authority, &before, approved);
             Ok(())
         }
         WindowCommand::SetInnerSize(size) => {
@@ -150,30 +159,45 @@ fn carry_out(
             if window.tokens() > 0 {
                 return Err(Refusal::NativeTokensHeld);
             }
-            remove(core, &window, authority, foreground)?;
-            if place::destroy(hwnd) {
-                Ok(())
-            } else {
-                Err(Refusal::System(super::last_error()))
+            let approved = remove(core, &window, authority, foreground)?;
+            let before = place::before_removal(hwnd);
+            if !place::destroy(hwnd) {
+                return Err(Refusal::System(super::last_error()));
             }
+            hand_on(core, source, authority, &before, approved);
+            Ok(())
         }
     }
 }
 
-/// Whether the window may be hidden or destroyed. A model that removes the Operator's window on a close request uses
-/// the request up.
+/// Whether the window may be hidden or destroyed, and whether the Operator approved it: the Operator's own command, or
+/// an open request to close it. A model that removes the Operator's window on a close request uses the request up.
 fn remove(
     core: &Core,
     window: &super::window::Window,
     authority: Authority,
     foreground: Foreground,
-) -> Result<(), Refusal> {
+) -> Result<bool, Refusal> {
     let open = window.close_open(core.now());
     policy::may_remove(authority, foreground, open)?;
     if authority == Authority::Model && foreground == Foreground::This {
         window.set_close_requested(None);
     }
-    Ok(())
+    Ok(authority == Authority::Operator || open)
+}
+
+/// ACTIVATION_AFTER_REMOVAL (`policy::activation_after_removal`, MT-214 R2-N5). An activation on the Operator's
+/// authority uses it up.
+fn hand_on(
+    core: &Core,
+    source: &CommandSource,
+    authority: Authority,
+    before: &place::Before,
+    approved: bool,
+) {
+    if place::hand_on(before, approved, &core.operator_windows()) && authority.is_operators() {
+        core.use_up(source);
+    }
 }
 
 /// Whether `source` may replace the clipboard now; using the Operator's authority for it uses it up.

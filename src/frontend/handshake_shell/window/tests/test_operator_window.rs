@@ -1,7 +1,7 @@
-//! Real windows of the Operator's class on a desktop that receives no input: who may activate them, move or size the
-//! one the Operator works in, and replace the clipboard; where a window shown without activation goes; and what a
-//! minimise hands on (MT-214 W1, W4). It is also the control for the quiet window's test: the probe used there does
-//! see an activation.
+//! Real windows of the Operator's class on a desktop that receives no input: who may activate them, move, size or
+//! restore the one the Operator works in, and replace the clipboard; where a window shown without activation goes;
+//! what a minimise hands on, and where the keyboard goes when the window the Operator works in is closed (MT-214 W1,
+//! W4, R2-N1, R2-N5). It is also the control for the quiet window's test: the probe used there does see an activation.
 //!
 //! The desktop has no foreground window, so the active window of the loop's thread stands for it: the window the
 //! launch activated, and later a dialog that window owns.
@@ -23,8 +23,9 @@ use handshake_shell_window::{
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, GetWindow, PostMessageW, SetWindowPos, GW_HWNDNEXT, HWND_TOP, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_SHOWWINDOW, WM_CLOSE, WS_POPUP,
+    CreateWindowExW, DestroyWindow, GetWindow, PostMessageW, SetWindowPos, ShowWindow,
+    GW_HWNDNEXT, HWND_TOP, SHOW_WINDOW_CMD, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+    SW_SHOWMAXIMIZED, SW_SHOWMINIMIZED, WM_CLOSE, WS_POPUP,
 };
 
 use support::{on_private_desktop, run_script, wide, Decoy};
@@ -124,7 +125,11 @@ impl State {
             } => {
                 assert_eq!(window, self.key(0));
                 self.closes.set(self.closes.get() + 1);
-                self.closed(control);
+                if self.closes.get() == 1 {
+                    self.closed(control);
+                } else {
+                    self.closed_again(control);
+                }
             }
             Event::Window {
                 window,
@@ -157,7 +162,21 @@ impl State {
                 assert_eq!(control.window_state(first).unwrap().display, Display::Minimized);
                 assert_ne!(active_window(), self.hwnd(1), "not handed to the other window");
                 assert!(!control.window_state(second).unwrap().focused);
-                control.begin_shutdown().unwrap();
+            }
+            5 => self.what_a_model_may_not_restore(control),
+            6 => {
+                // The first window is shown again by the shell, and the Operator clicks into it (a direct call
+                // activates it, as in step 3). Then it is asked to close: `closed_again`.
+                let host = CommandSource::host(50);
+                let show = WindowCommand::Show { activate: false };
+                control.command(&host, self.key(0), show).unwrap();
+                // SAFETY: plain values, for a window of this thread on the private desktop.
+                unsafe {
+                    SetWindowPos(self.hwnd(0), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
+                };
+                assert_eq!(active_window(), self.hwnd(0));
+                // SAFETY: plain values, to a window of this thread.
+                assert_ne!(unsafe { PostMessageW(self.hwnd(0), WM_CLOSE, 0, 0) }, 0);
                 return;
             }
             other => panic!("step {other}"),
@@ -321,6 +340,58 @@ impl State {
             .command(&CommandSource::host(26), first, WindowCommand::Show { activate: false })
             .unwrap();
     }
+
+    /// MT-214 R2-N1: the Operator maximises the second window, then minimises it, and works in it all along (the
+    /// direct calls activate it). A model may neither restore it nor show it back from minimised; the shell may.
+    fn what_a_model_may_not_restore(&self, control: &Control) {
+        let second = self.key(1);
+        let display = || control.window_state(second).unwrap().display;
+        // SAFETY: the test's own window, of this thread.
+        assert_ne!(unsafe { DestroyWindow(self.dialog.get()) }, 0);
+        show_directly(self.hwnd(1), SW_SHOWMAXIMIZED);
+        assert_eq!(active_window(), self.hwnd(1));
+        let model = || CommandSource::model(MODEL, 40);
+        let restore = WindowCommand::Restore { activate: false };
+        let show = WindowCommand::Show { activate: false };
+        assert_eq!(
+            control.command(&model(), second, restore.clone()),
+            Err(Refusal::OperatorsWindow),
+            "not un-maximised"
+        );
+        assert_eq!(display(), Display::Maximized);
+        control.command(&model(), second, show.clone()).unwrap();
+        assert_eq!(display(), Display::Maximized, "a show that keeps the size");
+        show_directly(self.hwnd(1), SW_SHOWMINIMIZED);
+        assert_eq!(active_window(), self.hwnd(1));
+        for command in [show, restore.clone()] {
+            assert_eq!(
+                control.command(&model(), second, command.clone()),
+                Err(Refusal::OperatorsWindow),
+                "{command:?}"
+            );
+        }
+        assert_eq!(display(), Display::Minimized);
+        control
+            .command(&CommandSource::host(41), second, restore)
+            .unwrap();
+        assert_ne!(display(), Display::Minimized);
+    }
+
+    /// MT-214 R2-N5: asked to close, the window the Operator works in is destroyed by a model on that request, and the
+    /// keyboard goes to the other Operator window (ACTIVATION_AFTER_REMOVAL), not nowhere.
+    fn closed_again(&self, control: &Control) {
+        assert_eq!(active_window(), self.hwnd(0));
+        control
+            .command(&CommandSource::model(MODEL, 51), self.key(0), WindowCommand::Destroy)
+            .unwrap();
+        assert_eq!(active_window(), self.hwnd(1));
+        control.begin_shutdown().unwrap();
+    }
+}
+
+fn show_directly(hwnd: HWND, command: SHOW_WINDOW_CMD) {
+    // SAFETY: plain values, for a window of this thread on the private desktop.
+    unsafe { ShowWindow(hwnd, command) };
 }
 
 /// The active window of this thread, on its own desktop.
@@ -345,10 +416,12 @@ fn only_the_operators_authority_activates_a_window_or_replaces_the_clipboard() {
             move |control, _| wakes.step(control),
         )
         .unwrap();
-        assert_eq!(state.step.get(), 4, "every step ran");
+        assert_eq!(state.step.get(), 6, "every step ran");
+        assert_eq!(state.closes.get(), 2);
         assert_eq!((report.windows_created, report.windows_destroyed), (2, 2));
-        // 6 without the Operator, 2 after the launch was used, 5 of a model, 1 through the owner, 1 after the close.
-        assert_eq!(report.refusals, 15, "each refused command is counted");
+        // 6 without the Operator, 2 after the launch was used, 5 of a model, 1 through the owner, 1 after the close,
+        // 3 restores of a model.
+        assert_eq!(report.refusals, 18, "each refused command is counted");
         assert_eq!(report.quiet_broken, 0);
         assert_eq!(*pad.0.borrow(), None);
     });

@@ -46,12 +46,18 @@ pub(crate) enum MinimizePlan {
     ActivateNothing,
 }
 
+/// `resizes`: the show ends a minimised or maximised state, so it changes the window's size and position. That needs
+/// the authority a move or a resize needs (MT-214 R2-N1).
 pub(crate) fn plan_show(
     class: WindowClass,
     activate: bool,
     authority: Authority,
     foreground: Foreground,
+    resizes: bool,
 ) -> Result<ShowPlan, Refusal> {
+    if resizes {
+        may_change_geometry(authority, foreground)?;
+    }
     if activate {
         if class == WindowClass::Quiet {
             return Err(Refusal::QuietWindow);
@@ -126,6 +132,25 @@ pub(crate) fn may_change_geometry(
     }
 }
 
+/// ACTIVATION_AFTER_REMOVAL (MT-214 R2-N5, proposed for the Operator to confirm): where the keyboard goes when a window
+/// that held the activation is minimised, hidden or destroyed with the Operator's approval (the Operator's own command,
+/// or an open request to close it) and the activation went nowhere. To the window's owner, else to the topmost other
+/// window of this loop that the Operator may work in, else nowhere; and never while another program is in the
+/// foreground, so a window the system gave the activation to keeps it. The caller passes only windows that may take
+/// it: of the Operator's class, shown, not minimised, enabled. Without the approval nothing is handed on.
+pub(crate) fn activation_after_removal<W>(
+    approved: bool,
+    activation_lost: bool,
+    other_program_in_front: bool,
+    owner: Option<W>,
+    top_down: impl IntoIterator<Item = W>,
+) -> Option<W> {
+    if !approved || !activation_lost || other_program_in_front {
+        return None;
+    }
+    owner.or_else(|| top_down.into_iter().next())
+}
+
 /// Whether the clipboard may be replaced. It belongs to the Operator; the launch of the process is no request to
 /// replace it.
 pub(crate) fn may_write_clipboard(
@@ -166,11 +191,11 @@ mod tests {
         for authority in AUTHORITIES {
             for foreground in FOREGROUNDS {
                 assert_eq!(
-                    plan_show(WindowClass::Quiet, true, authority, foreground),
+                    plan_show(WindowClass::Quiet, true, authority, foreground, false),
                     Err(Refusal::QuietWindow)
                 );
                 assert_eq!(
-                    plan_show(WindowClass::Quiet, false, authority, foreground),
+                    plan_show(WindowClass::Quiet, false, authority, foreground, false),
                     Ok(ShowPlan {
                         activate: false,
                         place: ZPlace::Bottom
@@ -192,7 +217,7 @@ mod tests {
             Foreground::Other { topmost: true },
         ] {
             for authority in AUTHORITIES {
-                let shown = plan_show(WindowClass::Operator, true, authority, foreground);
+                let shown = plan_show(WindowClass::Operator, true, authority, foreground, false);
                 assert_eq!(
                     shown.is_ok(),
                     authority.is_operators(),
@@ -205,7 +230,7 @@ mod tests {
     #[test]
     fn another_programs_input_activates_only_among_our_own_windows() {
         for foreground in [Foreground::This, Foreground::OurOther] {
-            let shown = |authority| plan_show(WindowClass::Operator, true, authority, foreground);
+            let shown = |authority| plan_show(WindowClass::Operator, true, authority, foreground, false);
             assert!(shown(Authority::OwnForeground).is_ok());
             assert_eq!(shown(Authority::Host), Err(Refusal::NeedsOperator));
             assert_eq!(shown(Authority::Model), Err(Refusal::NeedsOperator));
@@ -216,7 +241,7 @@ mod tests {
     fn without_activation_no_window_is_put_above_the_foreground() {
         for authority in AUTHORITIES {
             let place = |foreground| {
-                plan_show(WindowClass::Operator, false, authority, foreground)
+                plan_show(WindowClass::Operator, false, authority, foreground, false)
                     .unwrap()
                     .place
             };
@@ -288,6 +313,41 @@ mod tests {
             may_change_geometry(Authority::Model, Foreground::This),
             Err(Refusal::OperatorsWindow)
         );
+    }
+
+    /// MT-214 R2-N1: a restore, or a show that ends a minimised state, is geometry.
+    #[test]
+    fn a_model_neither_restores_nor_unminimises_the_operators_window() {
+        for authority in AUTHORITIES {
+            for foreground in FOREGROUNDS {
+                let refused = authority == Authority::Model && foreground == Foreground::This;
+                for activate in [false, true] {
+                    let resized = plan_show(WindowClass::Operator, activate, authority, foreground, true);
+                    if refused {
+                        assert_eq!(resized, Err(Refusal::OperatorsWindow), "{activate}");
+                    } else {
+                        let kept = plan_show(WindowClass::Operator, activate, authority, foreground, false);
+                        assert_eq!(resized, kept, "{authority:?} {foreground:?} {activate}");
+                    }
+                }
+            }
+        }
+        let shown = plan_show(WindowClass::Operator, false, Authority::Model, Foreground::This, false);
+        assert!(shown.is_ok(), "a show that keeps the size is no geometry");
+    }
+
+    /// MT-214 R2-N5.
+    #[test]
+    fn the_keyboard_goes_to_the_owner_then_the_topmost_operator_window_and_never_from_another_program() {
+        let after = |approved, lost, other, owner, rest: &[u8]| {
+            activation_after_removal(approved, lost, other, owner, rest.iter().copied())
+        };
+        assert_eq!(after(true, true, false, Some(1), &[2, 3]), Some(1), "the owner first");
+        assert_eq!(after(true, true, false, None, &[2, 3]), Some(2), "then the topmost");
+        assert_eq!(after(true, true, false, None, &[]), None, "else nowhere");
+        assert_eq!(after(false, true, false, Some(1), &[2]), None, "not approved");
+        assert_eq!(after(true, false, false, Some(1), &[2]), None, "the activation is where it was");
+        assert_eq!(after(true, true, true, Some(1), &[2]), None, "another program is in front");
     }
 
     #[test]
