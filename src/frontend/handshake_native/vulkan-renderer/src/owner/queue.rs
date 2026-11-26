@@ -19,7 +19,10 @@ use crate::outcome::{
     AuthorizeRefusal, DeviceFault, DeviceHealth, RecordAborted, SubmissionRefusal, SubmitRefusal,
 };
 use crate::records::SubmissionState;
-use crate::vulkan::{Backoff, PresentEnd, QueueFault, RecordedWork, SubmitFault, SubmitSync};
+use crate::resource::FrameKey;
+use crate::vulkan::{
+    Backoff, PresentEnd, QueueFault, RecordedWork, SubmitFault, SubmitSync, Targets,
+};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -73,7 +76,8 @@ impl OwnerShared {
         result
     }
 
-    /// Destroy what was released and can no longer be in use, and release its charge once.
+    /// Destroy what was released and can no longer be in use, and release its charge once. The targets of windows whose
+    /// surfaces ended are dropped once this thread holds no lock of the owner.
     pub(super) fn end_resources(&self, live: &Live) {
         let mut ended: Vec<OwnedEnd> = live
             .vulkan
@@ -85,6 +89,7 @@ impl OwnerShared {
                 bytes: owned.bytes,
             })
             .collect();
+        let mut targets = Targets::new();
         for end in live.vulkan.retire_presentation() {
             match end {
                 PresentEnd::Swapchain { claim, swapchain } => {
@@ -93,14 +98,18 @@ impl OwnerShared {
                         swapchain,
                     });
                 }
-                PresentEnd::Surface(owned) => ended.push(OwnedEnd {
-                    claim: owned.claim,
-                    class: owned.class,
-                    bytes: owned.bytes,
-                }),
+                PresentEnd::Surface { owned, target } => {
+                    targets.extend(target);
+                    ended.push(OwnedEnd {
+                        claim: owned.claim,
+                        class: owned.class,
+                        bytes: owned.bytes,
+                    });
+                }
             }
         }
         self.core.ledger().owned_ended(&ended);
+        self.outbox.bury(targets);
     }
 
     pub(super) fn poll(&self) -> Result<(), DeviceFault> {
@@ -172,7 +181,7 @@ impl OwnerShared {
     where
         F: FnOnce(&Recording<'_>) -> Result<(), RecordAborted>,
     {
-        let work = self.record(client, claim, record)?;
+        let work = self.record(client, claim, None, record)?;
         let generation = Arc::clone(work.generation());
         // Declared first, so it ends last: nothing reaches the sink while the lane is held.
         let _quiet = Quiet::begin(&self.outbox);
@@ -244,11 +253,12 @@ impl OwnerShared {
     }
 
     /// Authorize `claim` for one more submission, begin a command buffer on its generation and let the client record
-    /// into it.
+    /// into it. `frame` is the frame of a present, the only one the recording may use.
     pub(super) fn record<F>(
         &self,
         client: &LedgerClient,
         claim: &Claim,
+        frame: Option<FrameKey>,
         record: F,
     ) -> Result<RecordedWork, SubmitRefusal>
     where
@@ -281,7 +291,7 @@ impl OwnerShared {
         let number = live.number;
         // The recording holds the device now.
         drop(live);
-        let recording = Recording::new(&work, number, client.ledger_key(), client.seat());
+        let recording = Recording::new(&work, number, client.ledger_key(), client.seat(), frame);
         match record(&recording) {
             Ok(()) => Ok(work),
             Err(RecordAborted) => Err(refuse(client, claim, SubmitRefusal::RecordAborted)),

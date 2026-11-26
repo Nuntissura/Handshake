@@ -8,6 +8,7 @@
 //!   driver does, so no wait of this crate can rely on one.
 //! - The creation of a device is held until the test lets it go on, or refused.
 //! - A submission can be held inside the call that hands it to the driver, as a driver that stalls there would hold it.
+//! - The next memory object can be over the driver's budget, and invalidations of mapped memory are counted.
 
 #[cfg(not(test))]
 use crate::outcome::Unavailable;
@@ -40,6 +41,14 @@ impl Faults {
     pub(super) const fn gate(&self) -> Option<vk::Semaphore> {
         None
     }
+
+    /// Whether the next memory object is over the driver's budget whatever the driver says.
+    pub(super) const fn over_budget(&self) -> bool {
+        false
+    }
+
+    /// A range of mapped memory was invalidated.
+    pub(super) const fn invalidated(&self) {}
 }
 
 /// A device is about to be created.
@@ -69,6 +78,7 @@ pub(crate) use injected::{AfterLoss, Faults};
 mod injected {
     use super::Call;
     use ash::vk;
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
     use std::time::Duration;
 
@@ -134,11 +144,33 @@ mod injected {
     pub(crate) struct Faults {
         plan: Mutex<Plan>,
         changed: Condvar,
+        /// The next memory object is over budget.
+        over_budget: AtomicBool,
+        invalidations: AtomicU64,
     }
 
     impl Faults {
         fn lock(&self) -> MutexGuard<'_, Plan> {
             self.plan.lock().unwrap_or_else(PoisonError::into_inner)
+        }
+
+        /// Whether the next memory object is over the driver's budget; answered once.
+        pub(crate) fn over_budget(&self) -> bool {
+            self.over_budget.swap(false, Ordering::SeqCst)
+        }
+
+        /// The next memory object is over budget, as a driver that says so would have it.
+        pub(crate) fn refuse_budget_once(&self) {
+            self.over_budget.store(true, Ordering::SeqCst);
+        }
+
+        pub(crate) fn invalidated(&self) {
+            self.invalidations.fetch_add(1, Ordering::SeqCst);
+        }
+
+        /// Ranges of mapped memory invalidated on this generation.
+        pub(crate) fn invalidations(&self) -> u64 {
+            self.invalidations.load(Ordering::SeqCst)
         }
 
         pub(crate) fn answer(&self, call: Call) -> Option<vk::Result> {

@@ -16,15 +16,24 @@
 //! [`OwnerSurface::configure`] creates the swapchain for the window's current size, and creates it again on resize and
 //! restore, passing the current one as `oldSwapchain` (which retires it, VUID-VkSwapchainCreateInfoKHR-oldSwapchain-01933).
 //! A window without size (minimised) suspends it: no image is acquired until it is configured with a size again. A
-//! retired swapchain is destroyed once, after the owner observed both (VUID-vkDestroySwapchainKHR-swapchain-01282,
-//! VUID-vkDestroySemaphore-semaphore-05149):
-//! - the fences of every submission that rendered into its images, and
-//! - that its presents have ended: by a present fence (`VK_EXT_swapchain_maintenance1`) when the device offers it,
-//!   otherwise by the fence of a later acquire that hands back an image whose earlier present came after them
-//!   ("presentation requests sent to a particular queue are always performed in order", vkQueuePresentKHR; the
-//!   Khronos swapchain-recreation sample). A present on any window of the owner's queue counts.
+//! retired swapchain is destroyed once (VUID-vkDestroySwapchainKHR-swapchain-01282,
+//! VUID-vkDestroySemaphore-semaphore-05149), after the owner observed that no frame of it is out, the fences of every
+//! submission that rendered into its images and of its acquires, and that its presents have ended. That proof is the
+//! swapchain's own surface's, never another window's:
+//! - with `VK_EXT_swapchain_maintenance1`, the fences of all its presents (VkSwapchainPresentFenceInfoKHR);
+//! - without it, a present of a later swapchain of the same surface that is proven ended by an acquire handing back
+//!   the same image (the Khronos `swapchain_recreation` sample: when "the first present operation of the new swapchain
+//!   is done ... the old swapchain is no longer being presented").
 //!
-//! Without such a proof a swapchain waits, observable, until one comes or its device is destroyed.
+//! A swapchain that was never presented waits only for its work. Without the extension, the last swapchain of a
+//! released surface that was presented has nothing to prove its presents (the Vulkan guide: no good solution in
+//! unextended Vulkan): it is kept, observable in [`crate::OwnerMemoryUse::swapchains`], with its surface and its
+//! window's target, until its device is destroyed after its queue drained.
+//!
+//! # Frames
+//!
+//! A frame is recorded on only in its own [`crate::GpuClient::present`], whose submission waits for its acquire and is
+//! the last use of its swapchain; a plain submit refuses it ([`crate::RecordRefusal::FrameNotPresented`]).
 //!
 //! # No waits
 //!
@@ -36,7 +45,9 @@ use crate::owner::OwnerShared;
 use crate::records::{ByteQuantity, ClaimInfo};
 use crate::refusal::PresentRefusal;
 use crate::resource::sealed::{Target, TargetOf};
-use crate::resource::{AttachmentFormat, Extent, ImageTarget, ImageUsage, RenderAttachment};
+use crate::resource::{
+    AttachmentFormat, Extent, FrameKey, ImageTarget, ImageUsage, RenderAttachment,
+};
 use crate::Submission;
 use std::num::NonZeroIsize;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -368,6 +379,10 @@ impl Frame {
     pub fn is_suboptimal(&self) -> bool {
         self.suboptimal
     }
+
+    pub(crate) fn key(&self) -> FrameKey {
+        (self.surface.key, self.swapchain, self.index)
+    }
 }
 
 impl Target for Frame {
@@ -380,6 +395,7 @@ impl Target for Frame {
             extent: self.attachment.extent,
             format: self.attachment.format,
             usage: self.attachment.usage,
+            frame: Some(self.key()),
         }
     }
 }
@@ -398,9 +414,12 @@ impl Drop for Frame {
 #[cfg(test)]
 mod tests {
     use super::{PresentCounters, PresentProbe};
+    use crate::vulkan::{QueueFault, Shown};
     use std::sync::Arc;
     use std::time::Duration;
 
+    /// The counting a present does (`vulkan/present/frames.rs` ends every present with `Shown::count`), read through
+    /// the probe a watcher holds.
     #[test]
     fn a_probe_shows_a_loop_that_stops_presenting() {
         let counters = Arc::new(PresentCounters::new());
@@ -410,19 +429,29 @@ mod tests {
         let never = probe.read();
         assert_eq!((never.presented, never.since_last_present), (0, None));
         PresentCounters::bump(&counters.acquired);
-        counters.mark_presented();
+        Shown::Presented.count(&counters);
         let fresh = probe.read();
         assert_eq!((fresh.acquired, fresh.presented), (1, 1));
         let since = fresh.since_last_present.expect("presented");
         std::thread::sleep(Duration::from_millis(30));
+        // Presents that are not shown move nothing but the failures.
+        for failed in [
+            Shown::OutOfDate,
+            Shown::SurfaceLost,
+            Shown::Fault(QueueFault::OutOfMemory),
+        ] {
+            failed.count(&counters);
+        }
         let stale = probe.read();
-        assert_eq!(stale.presented, 1, "standing still");
+        assert_eq!((stale.presented, stale.failed), (1, 3), "standing still");
         let later = stale.since_last_present.expect("presented");
         assert!(
             later >= since + Duration::from_millis(30),
             "{since:?} {later:?}"
         );
-        counters.mark_presented();
-        assert!(probe.read().since_last_present.expect("presented") < later);
+        Shown::Suboptimal.count(&counters);
+        let again = probe.read();
+        assert_eq!((again.presented, again.suboptimal), (2, 1));
+        assert!(again.since_last_present.expect("presented") < later);
     }
 }

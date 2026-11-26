@@ -8,7 +8,7 @@ use crate::owner::OwnerShared;
 use crate::records::ByteQuantity;
 use crate::refusal::RecordRefusal;
 use crate::resource::sealed::TargetOf;
-use crate::resource::{ImageLayout, ImageTarget, OwnerBuffer};
+use crate::resource::{FrameKey, ImageLayout, ImageTarget, OwnerBuffer};
 use crate::select::DeviceClass;
 use crate::vulkan::{ImageCommand, RecordedWork, VulkanGeneration};
 use std::sync::Arc;
@@ -237,12 +237,45 @@ impl DeviceLease {
 /// only records commands into it, only during the recording call, and leaves it in the recording state; the owner
 /// ends, submits and frees it. The owner also records into it on request: layout transitions, clears and readbacks of
 /// the client's own images ([`Self::transition`], [`Self::clear`], [`Self::read_back`]).
+///
+/// A [`crate::Frame`] is recorded on only inside the [`crate::GpuClient::present`] of that frame, whose submission
+/// waits for the frame's acquire and counts as the last use of its swapchain; anywhere else it is
+/// [`RecordRefusal::FrameNotPresented`].
+///
+/// Layouts: the owner cannot see what the client's own commands do to an image, so the layout an image is in now is
+/// the caller's statement. The owner refuses a layout the image cannot be in with its use, before or after a command
+/// ([`RecordRefusal::LayoutInvalid`]: VUID-VkImageMemoryBarrier-oldLayout-01208/01211/01212/01213, and
+/// `PRESENT_SRC_KHR` only for a frame); [`ImageLayout::Undefined`] is always a valid "now" and discards the contents.
 pub struct Recording<'a> {
     work: &'a RecordedWork,
     generation: u64,
     /// The ledger and attachment of the recording client.
     ledger: u64,
     seat: u64,
+    /// The frame a present records for: the only one this recording may use.
+    frame: Option<FrameKey>,
+}
+
+/// Whether an image with the use of `target` may be in `layout`.
+fn layout_allowed(target: &TargetOf, layout: ImageLayout) -> bool {
+    let usage = target.usage;
+    match layout {
+        ImageLayout::Undefined | ImageLayout::General => true,
+        ImageLayout::ColorAttachment => usage.color_attachment,
+        ImageLayout::ShaderRead => usage.sampled,
+        ImageLayout::TransferSrc => usage.transfer_src,
+        ImageLayout::TransferDst => usage.transfer_dst,
+        ImageLayout::Present => target.frame.is_some(),
+    }
+}
+
+/// `from` and `to` are layouts the image may be in, and `to` is not `UNDEFINED` (VUID-VkImageMemoryBarrier-newLayout-01198).
+fn layouts(target: &TargetOf, from: ImageLayout, to: ImageLayout) -> Result<(), RecordRefusal> {
+    if to == ImageLayout::Undefined || !layout_allowed(target, from) || !layout_allowed(target, to)
+    {
+        return Err(RecordRefusal::LayoutInvalid);
+    }
+    Ok(())
 }
 
 impl std::fmt::Debug for Recording<'_> {
@@ -254,12 +287,19 @@ impl std::fmt::Debug for Recording<'_> {
 }
 
 impl<'a> Recording<'a> {
-    pub(crate) fn new(work: &'a RecordedWork, generation: u64, ledger: u64, seat: u64) -> Self {
+    pub(crate) fn new(
+        work: &'a RecordedWork,
+        generation: u64,
+        ledger: u64,
+        seat: u64,
+        frame: Option<FrameKey>,
+    ) -> Self {
         Self {
             work,
             generation,
             ledger,
             seat,
+            frame,
         }
     }
 
@@ -281,6 +321,9 @@ impl<'a> Recording<'a> {
         if target.generation != self.generation {
             return Err(RecordRefusal::OtherGeneration);
         }
+        if target.frame.is_some() && target.frame != self.frame {
+            return Err(RecordRefusal::FrameNotPresented);
+        }
         Ok(ImageCommand::new(
             target.image,
             target.extent.width,
@@ -296,10 +339,9 @@ impl<'a> Recording<'a> {
         from: ImageLayout,
         to: ImageLayout,
     ) -> Result<(), RecordRefusal> {
-        let command = self.mine(image.target())?;
-        if to == ImageLayout::Undefined {
-            return Err(RecordRefusal::LayoutInvalid);
-        }
+        let target = image.target();
+        let command = self.mine(target)?;
+        layouts(&target, from, to)?;
         self.work
             .transition(command, from.vk_layout(), to.vk_layout());
         Ok(())
@@ -318,9 +360,7 @@ impl<'a> Recording<'a> {
         if !target.usage.transfer_dst {
             return Err(RecordRefusal::UsageMissing);
         }
-        if to == ImageLayout::Undefined {
-            return Err(RecordRefusal::LayoutInvalid);
-        }
+        layouts(&target, from, to)?;
         self.work
             .clear(command, from.vk_layout(), color, to.vk_layout());
         Ok(())
@@ -348,9 +388,7 @@ impl<'a> Recording<'a> {
         if !target.usage.transfer_src || !buffer.handles.usage.transfer_dst {
             return Err(RecordRefusal::UsageMissing);
         }
-        if to == ImageLayout::Undefined {
-            return Err(RecordRefusal::LayoutInvalid);
-        }
+        layouts(&target, from, to)?;
         let needed = target
             .extent
             .texels()

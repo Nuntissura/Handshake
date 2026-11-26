@@ -82,7 +82,8 @@ impl OwnerShared {
             Ok(generation) if closed.is_some() => {
                 // Closed meanwhile, and said so. It was never bound and never had work, so it ends here.
                 drop(closed);
-                generation.dispose();
+                let (_, targets) = generation.dispose();
+                self.outbox.bury(targets);
                 Err(DeviceRebindRefusal::Closed)
             }
             Ok(generation) => {
@@ -144,7 +145,7 @@ impl OwnerShared {
     /// Destroy the lost device, which nobody else holds.
     fn end_lost(&self, live: Live) {
         let number = live.number;
-        if destroy(live) {
+        if self.destroy(live) {
             self.core.generation_retired(number);
         } else {
             // It was drained when it was taken, and that is for good.
@@ -234,7 +235,7 @@ impl OwnerShared {
         }
         slot.retained.retain(|kept| kept.number != live.number);
         drop(slot);
-        let fate = if destroy(live) {
+        let fate = if self.destroy(live) {
             DeviceFate::Destroyed
         } else {
             // It was drained, and that is for good.
@@ -244,8 +245,15 @@ impl OwnerShared {
     }
 }
 
-/// Destroy the device of `live`, the last share of it. `false` when it is not the last or did not confirm that its
-/// work has ended.
-pub(super) fn destroy(live: Live) -> bool {
-    Arc::into_inner(live.vulkan).is_some_and(VulkanGeneration::dispose)
+impl OwnerShared {
+    /// Destroy the device of `live`, the last share of it. `false` when it is not the last or did not confirm that its
+    /// work has ended. The targets of its windows are dropped once this thread holds no lock of the owner.
+    pub(super) fn destroy(&self, live: Live) -> bool {
+        let Some(generation) = Arc::into_inner(live.vulkan) else {
+            return false;
+        };
+        let (destroyed, targets) = generation.dispose();
+        self.outbox.bury(targets);
+        destroyed
+    }
 }

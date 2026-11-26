@@ -2,11 +2,18 @@
 //!
 //! Every event of the owner, its ledger and its handles goes through [`Outbox`]. An event that is emitted while the
 //! emitting thread holds the owner's slot or close lock ([`Held`]), or a generation's lane ([`Quiet`]), waits in the
-//! outbox until that thread let go of its last such lock, and is then delivered on that thread. Every other event is delivered at once. Events are delivered in
-//! the order they were emitted, one at a time: a sink that calls back into the owner, also one that emits more events
-//! that way, never meets a lock of the owner held by its own thread, and what it causes is delivered after it returns.
+//! outbox until that thread let go of its last such lock, and is then delivered by that thread, or by another one that
+//! is delivering at that moment: a sink may be called on any thread that emits events. Every other event is delivered
+//! at once. Events are delivered in the order they were emitted, one at a time: a sink that calls back into the owner,
+//! also one that emits more events that way, never meets a lock of the owner held by its own thread, and what it causes
+//! is delivered after it returns.
+//!
+//! The windows' targets of destroyed surfaces take the same way ([`Outbox::bury`]): a target is dropped by a thread that
+//! holds no lock of the owner, the one that destroyed its surface once it let go of its last one or another one that
+//! delivers first, so whatever the window crate does in the drop never runs under one.
 
 use crate::diag::{OwnerDiagnostics, OwnerEvent};
+use crate::vulkan::Targets;
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
@@ -27,6 +34,8 @@ pub(crate) struct Outbox {
     queue: Mutex<VecDeque<OwnerEvent>>,
     /// Taken by the one thread that delivers now. Never waited for.
     turn: Mutex<()>,
+    /// Targets to drop. Held for a push or a take only.
+    graves: Mutex<Targets>,
 }
 
 impl Outbox {
@@ -35,6 +44,7 @@ impl Outbox {
             sink,
             queue: Mutex::new(VecDeque::new()),
             turn: Mutex::new(()),
+            graves: Mutex::new(Targets::new()),
         }
     }
 
@@ -42,9 +52,26 @@ impl Outbox {
         self.queue.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    fn lock_graves(&self) -> MutexGuard<'_, Targets> {
+        self.graves.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Drop `targets` as soon as this thread holds no lock of the owner: now, or when it lets go of its last one.
+    pub(crate) fn bury(&self, targets: Targets) {
+        if targets.is_empty() {
+            return;
+        }
+        self.lock_graves().extend(targets);
+        self.deliver();
+    }
+
     /// Deliver what waits, unless this thread holds a lock of the owner or another delivery runs: that one, or the
-    /// release of the last lock, delivers it then.
+    /// release of the last lock, delivers it then. Targets that wait are dropped first, with no lock held.
     pub(crate) fn deliver(&self) {
+        if held() == 0 {
+            let graves = std::mem::take(&mut *self.lock_graves());
+            drop(graves);
+        }
         while held() == 0 {
             let turn = match self.turn.try_lock() {
                 Ok(turn) => turn,

@@ -1,11 +1,18 @@
 //! Surfaces and swapchains of one generation: creation, recreation, acquire and present, and their destruction after
 //! settlement. The rules are in the documentation of `crate::present`; this module holds the Vulkan calls.
 //!
-//! One lock (`surfaces`) is the external synchronization of every surface and swapchain (vkAcquireNextImageKHR,
-//! vkQueuePresentKHR, vkCreateSwapchainKHR and vkDestroySwapchainKHR require it) and guards the books: which images are
-//! acquired, which semaphores wait for which submission, which fences prove which present. A present takes it after the
-//! lane; nothing that holds it takes the lane. The owner's look at the device takes it only if it is free, and a dropped
-//! surface or frame never waits for it: they leave a note ([`Note`]) that whoever takes the lock next applies first.
+//! # Locks (MT-203 E3-1)
+//!
+//! Every surface has a lock of its own ([`SurfaceSlot`]). It is the external synchronization of that surface, its
+//! swapchains and their semaphores and fences (vkAcquireNextImageKHR, vkCreateSwapchainKHR, vkDestroySwapchainKHR and
+//! the swapchains of vkQueuePresentKHR require it), and it guards their books: which images are acquired, which
+//! semaphores wait for which submission, which fences prove what. A present takes the lane and then its own surface's
+//! lock and nothing else, so a present that blocks in the driver (a full FIFO queue) keeps waiting other presents and
+//! submissions, which need the queue, and calls on that same surface, but never another window's acquire or configure.
+//! Nothing that holds a surface's lock takes the lane or another surface's lock. The registry of surfaces has its own
+//! lock, held to find, insert or remove one and never across a Vulkan call. The owner's look takes a surface's lock only
+//! if it is free; a dropped surface or frame never waits for it: they leave a note ([`Note`]) that whoever takes that
+//! surface's lock next applies first.
 
 mod frames;
 mod retire;
@@ -21,9 +28,14 @@ use crate::resource::{AttachmentFormat, Extent, ImageUsage};
 use ash::vk::{self, Handle};
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
+
+pub(crate) use retire::Retirement;
 
 static NEXT_SURFACE: AtomicU64 = AtomicU64::new(1);
+
+/// Windows' targets, dropped by the owner after it let go of its locks.
+pub(crate) type Targets = Vec<Box<dyn SurfaceTarget>>;
 
 /// The presentation functions of a generation that was opened with presentation.
 pub(crate) struct PresentFns {
@@ -46,6 +58,15 @@ impl PresentFns {
             win32: ash::khr::win32_surface::Instance::new(entry, instance),
             swapchain: ash::khr::swapchain::Device::new(instance, device),
             present_fences,
+        }
+    }
+
+    /// How a retired swapchain's presents are proven ended on this device.
+    pub(crate) fn retirement(&self) -> Retirement {
+        if self.present_fences {
+            Retirement::PresentFences
+        } else {
+            Retirement::SuccessorPresent
         }
     }
 }
@@ -79,30 +100,33 @@ struct Swapchain {
     /// Signalled by the submission that rendered an image, waited for by its present; one per image (the Vulkan guide,
     /// "Swapchain Semaphore Reuse").
     rendered: Vec<vk::Semaphore>,
-    /// Queue-wide number of the last present of each image, 0 for none.
+    /// Number, within this swapchain and from 1, of the last present of each image; 0 for none.
     last_present_of: Vec<u64>,
     acquired: Vec<bool>,
+    /// Frames handed out and neither presented nor dropped: their client may still record with the image.
+    out: u32,
+    /// Acquire semaphores of frames that were dropped or whose submission the queue did not take: given a signal by
+    /// their acquire, waited for by nothing. Destroyed with the swapchain, when all its acquires have ended.
+    stranded: Vec<vk::Semaphore>,
+    /// Presents the queue took.
+    presents: u64,
+    /// Presents whose present fence has not signalled (`VK_EXT_swapchain_maintenance1`).
+    unproven: u32,
+    /// Acquires whose fence has not signalled.
+    acquiring: u32,
     format: AttachmentFormat,
     extent: Extent,
     mode: PresentMode,
     usage: ImageUsage,
     /// Highest submission value that used its images.
     last_use: u64,
-    /// Queue-wide number of its last present.
-    last_present: u64,
-    /// Fences of its acquires and presents that have not signalled.
-    pending_proofs: u32,
     suspended: bool,
+    /// Estimated bytes of its images: the presentation engine allocates them and does not say.
+    image_bytes: u64,
 }
 
 impl Swapchain {
     fn info(&self) -> SwapchainInfo {
-        let count = u64::try_from(self.images.len()).unwrap_or(u64::MAX);
-        let bytes = self
-            .extent
-            .texels()
-            .saturating_mul(u64::from(self.format.texel_bytes()))
-            .saturating_mul(count);
         SwapchainInfo {
             swapchain: self.number,
             extent: self.extent,
@@ -110,22 +134,32 @@ impl Swapchain {
             mode: self.mode,
             images: u32::try_from(self.images.len()).unwrap_or(u32::MAX),
             usage: self.usage,
-            image_bytes: ByteQuantity::Estimated(bytes),
+            image_bytes: ByteQuantity::Estimated(self.image_bytes),
         }
     }
 }
 
-/// A fence whose signal proves that every present up to `proves` has ended.
+/// What a fence proves once it has signalled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ProofKind {
+    /// The acquire of an image has ended, and with it the image's earlier present `previous` of the same swapchain (0
+    /// for none): the image is acquired again only once the presentation engine let go of it (the Vulkan guide,
+    /// "Swapchain Semaphore Reuse").
+    Acquire { previous: u64 },
+    /// A present of `VK_EXT_swapchain_maintenance1` released what it used.
+    Present,
+}
+
 struct Proof {
     fence: vk::Fence,
-    proves: u64,
     swapchain: u64,
+    kind: ProofKind,
 }
 
 struct SurfaceEntry {
     surface: vk::SurfaceKHR,
-    /// Keeps the window alive. Dropped only after the surface is destroyed.
-    target: Box<dyn SurfaceTarget>,
+    /// Keeps the window alive. Taken only after the surface is destroyed.
+    target: Option<Box<dyn SurfaceTarget>>,
     owned: Owned,
     claim: ClaimInfo,
     counters: Arc<PresentCounters>,
@@ -136,74 +170,177 @@ struct SurfaceEntry {
     /// Semaphores of acquires, and the submission value that waits for each.
     waiting: Vec<(vk::Semaphore, u64)>,
     proofs: Vec<Proof>,
+    /// Highest number of a swapchain of this surface one of whose presents is proven ended (0 for none).
+    proven_present: u64,
     released: bool,
     lost: bool,
     stale: bool,
+    /// The surface was destroyed: the entry only waits to leave the registry.
+    ended: bool,
 }
 
-/// The surfaces of one generation, and what is known of the presents on its queue.
-#[derive(Default)]
-pub(crate) struct Surfaces {
-    entries: BTreeMap<u64, SurfaceEntry>,
-    /// Presents queued on the queue, numbered from 1.
-    queued: u64,
-    /// Presents up to this number are known to have ended (they are performed in queue order).
-    proven: u64,
-    next_swapchain: u64,
-    /// Semaphores with an acquire signal nobody waits for, and fences of failed acquires: destroyed with the device.
-    stranded: Vec<vk::Semaphore>,
-    stranded_fences: Vec<vk::Fence>,
+impl SurfaceEntry {
+    fn swapchain_mut(&mut self, number: u64) -> Option<&mut Swapchain> {
+        self.current
+            .iter_mut()
+            .chain(self.retired.iter_mut())
+            .find(|swapchain| swapchain.number == number)
+    }
+
+    /// Whether it takes no more calls: released, ending, or ended.
+    fn is_closed(&self) -> bool {
+        self.released || self.ended
+    }
 }
 
-/// What a dropped handle leaves for the next holder of the surfaces lock.
+/// One surface: its lock, and the notes that wait for it.
+pub(super) struct SurfaceSlot {
+    entry: Mutex<SurfaceEntry>,
+    /// Held for nothing but a push or a take.
+    notes: Mutex<Vec<Note>>,
+}
+
+/// What a dropped handle leaves for the next holder of its surface's lock.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Note {
-    /// The client let go of a surface.
-    Released(u64),
+    /// The client let go of the surface.
+    Released,
     /// A frame was dropped without a present.
     Dropped(FrameRef),
 }
 
-/// Notes waiting for the surfaces lock. Their own lock is held for nothing but a push or a take.
+/// Semaphores and fences whose state is not known: destroyed with the device.
 #[derive(Default)]
-pub(crate) struct Notes(Mutex<Vec<Note>>);
+struct Unknown {
+    semaphores: Vec<vk::Semaphore>,
+    fences: Vec<vk::Fence>,
+}
 
-impl Notes {
-    fn take(&self) -> Vec<Note> {
-        std::mem::take(&mut *self.0.lock().unwrap_or_else(PoisonError::into_inner))
-    }
-
-    fn push(&self, note: Note) {
-        self.0
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(note);
-    }
+/// The surfaces of one generation.
+#[derive(Default)]
+pub(crate) struct Surfaces {
+    slots: Mutex<BTreeMap<u64, Arc<SurfaceSlot>>>,
+    next_swapchain: AtomicU64,
+    /// Swapchains that exist, and the estimated bytes of their images: reported beside the measured memory.
+    swapchains: AtomicU64,
+    image_bytes: AtomicU64,
+    unknown: Mutex<Unknown>,
 }
 
 impl Surfaces {
-    /// Apply what dropped handles left.
-    fn apply(&mut self, notes: Vec<Note>) {
+    fn slot(&self, key: u64) -> Option<Arc<SurfaceSlot>> {
+        self.slots
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(&key)
+            .cloned()
+    }
+
+    fn all(&self) -> Vec<(u64, Arc<SurfaceSlot>)> {
+        let slots = self.slots.lock().unwrap_or_else(PoisonError::into_inner);
+        slots
+            .iter()
+            .map(|(key, slot)| (*key, Arc::clone(slot)))
+            .collect()
+    }
+
+    fn remove(&self, key: u64) {
+        self.slots
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&key);
+    }
+
+    fn lock_unknown(&self) -> MutexGuard<'_, Unknown> {
+        self.unknown.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// A semaphore whose state is not known any more.
+    fn strand(&self, semaphore: vk::Semaphore) {
+        self.lock_unknown().semaphores.push(semaphore);
+    }
+
+    fn counted(&self, swapchain: &Swapchain) {
+        self.swapchains.fetch_add(1, Ordering::Relaxed);
+        self.image_bytes
+            .fetch_add(swapchain.image_bytes, Ordering::Relaxed);
+    }
+
+    fn uncounted(&self, swapchain: &Swapchain) {
+        self.swapchains.fetch_sub(1, Ordering::Relaxed);
+        self.image_bytes
+            .fetch_sub(swapchain.image_bytes, Ordering::Relaxed);
+    }
+
+    /// Swapchains that exist, retired ones included, and the estimated bytes of their images.
+    pub(crate) fn estimate(&self) -> (u64, u64) {
+        (
+            self.swapchains.load(Ordering::Relaxed),
+            self.image_bytes.load(Ordering::Relaxed),
+        )
+    }
+}
+
+impl SurfaceSlot {
+    /// The surface's lock, with every note applied.
+    fn lock(&self, surfaces: &Surfaces) -> MutexGuard<'_, SurfaceEntry> {
+        let mut entry = self.entry.lock().unwrap_or_else(PoisonError::into_inner);
+        self.apply(&mut entry, surfaces);
+        entry
+    }
+
+    /// The surface's lock when it is free now, with every note applied.
+    fn try_lock(&self, surfaces: &Surfaces) -> Option<MutexGuard<'_, SurfaceEntry>> {
+        let mut entry = match self.entry.try_lock() {
+            Ok(entry) => entry,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => return None,
+        };
+        self.apply(&mut entry, surfaces);
+        Some(entry)
+    }
+
+    fn apply(&self, entry: &mut SurfaceEntry, surfaces: &Surfaces) {
+        let notes = std::mem::take(&mut *self.notes.lock().unwrap_or_else(PoisonError::into_inner));
         for note in notes {
             match note {
-                Note::Released(key) => {
-                    if let Some(entry) = self.entries.get_mut(&key) {
-                        entry.released = true;
-                        if let Some(current) = entry.current.take() {
-                            entry.retired.push(current);
-                        }
+                Note::Released => {
+                    entry.released = true;
+                    if let Some(current) = entry.current.take() {
+                        entry.retired.push(current);
                     }
                 }
                 Note::Dropped(frame) => {
-                    // Its image stays acquired and its semaphore signalled: the swapchain has to be configured again,
-                    // and the semaphore goes with the device.
-                    self.stranded.push(vk::Semaphore::from_raw(frame.semaphore));
-                    if let Some(entry) = self.entries.get_mut(&frame.surface) {
+                    // Its image stays acquired and its semaphore keeps the signal of the acquire: the swapchain has to
+                    // be configured again, and the semaphore ends with it.
+                    let semaphore = vk::Semaphore::from_raw(frame.semaphore);
+                    match entry.swapchain_mut(frame.swapchain) {
+                        Some(swapchain) => {
+                            swapchain.out = swapchain.out.saturating_sub(1);
+                            swapchain.stranded.push(semaphore);
+                        }
+                        None => surfaces.strand(semaphore),
+                    }
+                    if entry
+                        .current
+                        .as_ref()
+                        .is_some_and(|current| current.number == frame.swapchain)
+                    {
                         entry.stale = true;
                     }
                 }
             }
         }
+    }
+
+    /// Leave a note for the next holder of this surface's lock, without waiting for it.
+    fn note(&self, note: Note, surfaces: &Surfaces) {
+        self.notes
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(note);
+        // Applied at once when nobody holds the lock.
+        drop(self.try_lock(surfaces));
     }
 }
 
@@ -231,11 +368,33 @@ pub(crate) enum Shown {
     Fault(QueueFault),
 }
 
+impl Shown {
+    /// Count it on the surface's counters, which a [`crate::PresentProbe`] reads.
+    pub(crate) fn count(self, counters: &PresentCounters) {
+        match self {
+            Self::Presented => counters.mark_presented(),
+            Self::Suboptimal => {
+                counters.mark_presented();
+                PresentCounters::bump(&counters.suboptimal);
+            }
+            Self::OutOfDate | Self::SurfaceLost | Self::Fault(_) => {
+                PresentCounters::bump(&counters.failed)
+            }
+        }
+    }
+}
+
 /// What the owner destroyed of the presentation.
-#[derive(Clone, Copy, Debug)]
 pub(crate) enum PresentEnd {
-    Swapchain { claim: ClaimInfo, swapchain: u64 },
-    Surface(Owned),
+    Swapchain {
+        claim: ClaimInfo,
+        swapchain: u64,
+    },
+    /// The surface; its window's target is the owner's to drop once it holds no lock.
+    Surface {
+        owned: Owned,
+        target: Option<Box<dyn SurfaceTarget>>,
+    },
 }
 
 /// The identity of an acquired frame.
@@ -263,26 +422,22 @@ fn refused(refusal: PresentRefusal) -> PresentFault {
 }
 
 impl VulkanGeneration {
-    /// The surfaces lock, with every note applied.
-    fn lock_surfaces(&self) -> MutexGuard<'_, Surfaces> {
-        let mut surfaces = self.surfaces.lock().unwrap_or_else(PoisonError::into_inner);
-        surfaces.apply(self.notes.take());
-        surfaces
-    }
-
-    /// Leave a note for the next holder of the surfaces lock, without waiting for it.
-    pub(super) fn note(&self, note: Note) {
-        self.notes.push(note);
-        // Applied at once when nobody holds the lock.
-        if let Ok(mut surfaces) = self.surfaces.try_lock() {
-            surfaces.apply(self.notes.take());
-        }
-    }
-
     fn fns(&self) -> Result<&PresentFns, PresentFault> {
         self.presentation
             .as_ref()
             .ok_or(PresentFault::Refused(PresentRefusal::Foreign))
+    }
+
+    /// The slot of surface `key`, when it exists.
+    fn surface_slot(&self, key: u64) -> Result<Arc<SurfaceSlot>, PresentFault> {
+        self.surfaces
+            .slot(key)
+            .ok_or(refused(PresentRefusal::Released))
+    }
+
+    /// Swapchains of this generation that exist, and the estimated bytes of their images.
+    pub(crate) fn swapchain_estimate(&self) -> (u64, u64) {
+        self.surfaces.estimate()
     }
 
     /// Create a surface on the target's window and check that the owner's queue can present to it
@@ -346,11 +501,10 @@ impl VulkanGeneration {
         counters: Arc<PresentCounters>,
     ) -> u64 {
         let key = NEXT_SURFACE.fetch_add(1, Ordering::Relaxed);
-        self.lock_surfaces().entries.insert(
-            key,
-            SurfaceEntry {
+        let slot = SurfaceSlot {
+            entry: Mutex::new(SurfaceEntry {
                 surface: made.surface,
-                target: made.target,
+                target: Some(made.target),
                 owned,
                 claim,
                 counters,
@@ -359,20 +513,28 @@ impl VulkanGeneration {
                 free: Vec::new(),
                 waiting: Vec::new(),
                 proofs: Vec::new(),
+                proven_present: 0,
                 released: false,
                 lost: false,
                 stale: false,
-            },
-        );
+                ended: false,
+            }),
+            notes: Mutex::new(Vec::new()),
+        };
+        self.surfaces
+            .slots
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(key, Arc::new(slot));
         key
     }
 
-    /// Destroy a surface that was never handed out.
-    pub(crate) fn discard_surface(&self, made: MadeSurface) {
+    /// Destroy a surface that was never handed out. Returns the window's target for the caller to drop.
+    pub(crate) fn discard_surface(&self, made: MadeSurface) -> Box<dyn SurfaceTarget> {
         if let Some(fns) = &self.presentation {
             // SAFETY: no swapchain was made on it.
             unsafe { fns.surface.destroy_surface(made.surface, None) };
         }
-        drop(made.target);
+        made.target
     }
 }

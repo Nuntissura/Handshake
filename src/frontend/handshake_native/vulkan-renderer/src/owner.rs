@@ -291,10 +291,13 @@ impl GpuOwner {
                 memory_objects: book.objects,
             })
             .collect();
+        let (swapchains, swapchain_image_bytes) = live.vulkan.swapchain_estimate();
         Ok(OwnerMemoryUse {
             generation: live.number,
             heaps,
             resources: u64::try_from(live.vulkan.resource_count()).unwrap_or(u64::MAX),
+            swapchains,
+            swapchain_image_bytes: ByteQuantity::Estimated(swapchain_image_bytes),
         })
     }
 

@@ -9,7 +9,8 @@
 //!
 //! Nothing here waits inside Vulkan for the device (see `queue`). The calls without a bound of their own are the
 //! creation of an instance and a device, which runs with no lock held, their destruction, which is reached only with the
-//! evidence that nothing is left in use, and `vkQueueSubmit` and `vkQueuePresentKHR`, which hold only the queue's lane.
+//! evidence that nothing is left in use, and `vkQueueSubmit` and `vkQueuePresentKHR`, which hold only the queue's lane
+//! (and a present its own surface's lock).
 #![allow(unsafe_code)]
 
 mod backoff;
@@ -24,7 +25,9 @@ mod resources;
 
 pub(crate) use backoff::Backoff;
 pub(crate) use memory::{HeapBook, MemoryRefused};
-pub(crate) use present::{FrameRef, PresentEnd, PresentFault, Shown, SurfaceFault};
+#[cfg(test)]
+pub(crate) use present::Retirement;
+pub(crate) use present::{FrameRef, PresentEnd, PresentFault, Shown, SurfaceFault, Targets};
 pub(crate) use queue::{QueueFault, RecordedWork, SubmitFault, SubmitSync};
 pub(crate) use record::ImageCommand;
 pub(crate) use resources::{BufferSpec, ImageSpec, Owned, ResourceFault};
@@ -40,8 +43,8 @@ use crate::select::{self, BASELINE_API_VERSION};
 use ash::vk::{self, Handle};
 use fault::Faults;
 use loader::LoaderLibrary;
-use memory::MemoryPool;
-use present::{Notes, PresentFns, Surfaces};
+use memory::Memory;
+use present::{PresentFns, Surfaces};
 use queue::{Lane, QueueState, Quiescent};
 use resources::Resources;
 use std::sync::{Arc, Mutex};
@@ -71,14 +74,15 @@ pub(crate) struct VulkanGeneration {
     state: Mutex<QueueState>,
     /// The queue itself: the external synchronization of `vkQueueSubmit` and `vkQueuePresentKHR`.
     lane: Mutex<Lane>,
-    /// The allocator of the owner's resources and its books.
-    memory: Mutex<MemoryPool>,
+    /// The allocator of the owner's resources and its books, each behind its own lock (`memory`).
+    memory: Memory,
     resources: Resources,
     /// Present only when the generation was opened with presentation.
     presentation: Option<PresentFns>,
-    surfaces: Mutex<Surfaces>,
-    /// What dropped surfaces and frames left for the next holder of `surfaces`.
-    notes: Notes,
+    /// One lock per surface (`present`).
+    surfaces: Surfaces,
+    /// Windows' targets of the surfaces destroyed with the generation, for the owner to drop with no lock held.
+    buried: Targets,
     identity: DeviceIdentity,
     memory_budget: bool,
     end: End,
@@ -124,7 +128,7 @@ impl VulkanGeneration {
                 let presentation = features.presentation.then(|| {
                     PresentFns::new(&entry, &instance, &parts.device, parts.present_fences)
                 });
-                let memory = MemoryPool::new(&instance, parts.physical, parts.memory_budget);
+                let memory = Memory::new(&instance, parts.physical, parts.memory_budget);
                 Ok(Self {
                     entry,
                     instance,
@@ -133,11 +137,11 @@ impl VulkanGeneration {
                     sentinel: parts.sentinel,
                     state: Mutex::new(QueueState::new()),
                     lane: Mutex::new(Lane { queue: parts.queue }),
-                    memory: Mutex::new(memory),
+                    memory,
                     resources: Resources::default(),
                     presentation,
-                    surfaces: Mutex::new(Surfaces::default()),
-                    notes: Notes::default(),
+                    surfaces: Surfaces::default(),
+                    buried: Targets::new(),
                     identity: parts.identity,
                     memory_budget: parts.memory_budget,
                     end: End::Not,
@@ -235,10 +239,11 @@ impl VulkanGeneration {
 
     /// Destroy the generation when its device confirms, without being waited for, that its work has ended. `false`
     /// when it does not: then nothing is destroyed, because objects that may be in use never are. Every object stays
-    /// alive, the loader loaded and the process's owner slot taken.
-    pub(crate) fn dispose(mut self) -> bool {
+    /// alive, the loader loaded and the process's owner slot taken. Returns the targets of the windows whose surfaces
+    /// were destroyed, for the caller to drop once it holds no lock.
+    pub(crate) fn dispose(mut self) -> (bool, Targets) {
         self.end_or_leave();
-        self.end == End::Destroyed
+        (self.end == End::Destroyed, std::mem::take(&mut self.buried))
     }
 
     fn end_or_leave(&mut self) {
@@ -253,6 +258,7 @@ impl VulkanGeneration {
             None => {
                 self.end = End::Left;
                 self.abandon_resources();
+                self.abandon_returned();
                 self.abandon_presentation();
                 std::mem::forget(Arc::clone(&self.library));
                 std::mem::forget(Arc::clone(&self.process));
@@ -279,7 +285,7 @@ impl VulkanGeneration {
         // VUID-vkDestroyFence-fence-01120, VUID-vkDestroyDevice-device-05137, VUID-vkDestroySurfaceKHR-surface-01266,
         // VUID-vkDestroyInstance-instance-00629).
         unsafe {
-            self.destroy_presentation();
+            self.buried = self.destroy_presentation();
             self.destroy_all_resources();
             self.free_memory_leftovers();
             for one in objects {
@@ -311,5 +317,15 @@ impl VulkanGeneration {
 
     pub(crate) fn open_gate(&self) {
         self.faults.open_gate(&self.device);
+    }
+
+    /// Whether nobody holds the lane now.
+    pub(crate) fn lane_is_free(&self) -> bool {
+        self.lane.try_lock().is_ok()
+    }
+
+    /// How retired swapchains end on this generation; `None` without presentation.
+    pub(crate) fn retirement(&self) -> Option<Retirement> {
+        self.presentation.as_ref().map(PresentFns::retirement)
     }
 }

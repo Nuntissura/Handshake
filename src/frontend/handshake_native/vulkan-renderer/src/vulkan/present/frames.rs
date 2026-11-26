@@ -1,39 +1,51 @@
 //! Acquire and present: the frame path. Nothing here waits for the device: the acquire has timeout 0 and the present
-//! returns behind its submission.
+//! returns behind its submission. Each takes only its own surface's lock, and a present the lane before it.
 
 use super::super::queue::{
     create_fence, LaneGuard, QueueFault, RecordedWork, SubmitFault, SubmitSync,
 };
 use super::super::VulkanGeneration;
-use super::{fault, refused, Acquired, FrameRef, Note, PresentFault, Proof, Shown, SurfaceEntry};
+use super::{
+    fault, refused, Acquired, FrameRef, Note, PresentFault, Proof, ProofKind, Shown, SurfaceEntry,
+};
 use crate::present::PresentCounters;
 use crate::refusal::PresentRefusal;
 use ash::vk::{self, Handle};
 
 impl VulkanGeneration {
     /// Acquire the next image of surface `key` without waiting (`timeout` 0), with a semaphore for the submission that
-    /// renders it and a fence that proves, once signalled, that the image's earlier present has ended.
+    /// renders it and a fence that proves, once signalled, that the acquire and the image's earlier present have ended.
     pub(crate) fn acquire(&self, key: u64) -> Result<Acquired, PresentFault> {
         let fns = self.fns()?;
-        let mut guard = self.lock_surfaces();
-        let surfaces = &mut *guard;
-        let entry = match surfaces.entries.get_mut(&key) {
-            Some(entry) if !entry.released => entry,
-            _ => return Err(refused(PresentRefusal::Released)),
-        };
-        if entry.lost {
+        let slot = self.surface_slot(key)?;
+        let mut guard = slot.lock(&self.surfaces);
+        let SurfaceEntry {
+            current,
+            free,
+            proofs,
+            counters,
+            stale,
+            lost,
+            released,
+            ended,
+            ..
+        } = &mut *guard;
+        if *released || *ended {
+            return Err(refused(PresentRefusal::Released));
+        }
+        if *lost {
             return Err(refused(PresentRefusal::SurfaceLost));
         }
-        if entry.stale {
+        if *stale {
             return Err(refused(PresentRefusal::OutOfDate));
         }
-        let Some(swapchain) = entry.current.as_mut() else {
+        let Some(swapchain) = current.as_mut() else {
             return Err(refused(PresentRefusal::NoSwapchain));
         };
         if swapchain.suspended {
             return Err(refused(PresentRefusal::Suspended));
         }
-        let semaphore = match entry.free.pop() {
+        let semaphore = match free.pop() {
             Some(semaphore) => semaphore,
             // SAFETY: valid device; a binary semaphore.
             None => unsafe {
@@ -45,13 +57,13 @@ impl VulkanGeneration {
         let fence = match create_fence(&self.device) {
             Ok(fence) => fence,
             Err(result) => {
-                entry.free.push(semaphore);
+                free.push(semaphore);
                 return Err(fault(result));
             }
         };
         // SAFETY: a non-retired swapchain of this device (VUID-vkAcquireNextImageKHR-swapchain-01285); the semaphore is
         // binary, unsignalled and has nothing pending (VUID-...-semaphore-01286/01779/03265); the fence is new
-        // (VUID-...-fence-01287/10066); timeout 0 waits for nothing; the surfaces lock synchronizes swapchain, semaphore
+        // (VUID-...-fence-01287/10066); timeout 0 waits for nothing; the surface's lock synchronizes swapchain, semaphore
         // and fence.
         let acquired = unsafe {
             fns.swapchain
@@ -60,14 +72,17 @@ impl VulkanGeneration {
         match acquired {
             Ok((index, suboptimal)) if (index as usize) < swapchain.images.len() => {
                 let at = index as usize;
-                entry.proofs.push(Proof {
+                proofs.push(Proof {
                     fence,
-                    proves: swapchain.last_present_of[at],
                     swapchain: swapchain.number,
+                    kind: ProofKind::Acquire {
+                        previous: swapchain.last_present_of[at],
+                    },
                 });
-                swapchain.pending_proofs += 1;
+                swapchain.acquiring += 1;
                 swapchain.acquired[at] = true;
-                PresentCounters::bump(&entry.counters.acquired);
+                swapchain.out += 1;
+                PresentCounters::bump(&counters.acquired);
                 Ok(Acquired {
                     swapchain: swapchain.number,
                     index,
@@ -87,13 +102,13 @@ impl VulkanGeneration {
                 | vk::Result::ERROR_SURFACE_LOST_KHR),
             ) => {
                 // No image was acquired, so neither the semaphore nor the fence was given a signal.
-                entry.free.push(semaphore);
+                free.push(semaphore);
                 // SAFETY: the fence was never associated with an operation that runs.
                 unsafe { self.device.destroy_fence(fence, None) };
                 match result {
-                    vk::Result::ERROR_OUT_OF_DATE_KHR => entry.stale = true,
-                    vk::Result::ERROR_SURFACE_LOST_KHR => entry.lost = true,
-                    _ => PresentCounters::bump(&entry.counters.not_ready),
+                    vk::Result::ERROR_OUT_OF_DATE_KHR => *stale = true,
+                    vk::Result::ERROR_SURFACE_LOST_KHR => *lost = true,
+                    _ => PresentCounters::bump(&counters.not_ready),
                 }
                 Err(match result {
                     vk::Result::NOT_READY | vk::Result::TIMEOUT => {
@@ -105,9 +120,12 @@ impl VulkanGeneration {
             other => {
                 // A lost device, or an index the driver should not give: what the semaphore and fence carry now is not
                 // known, so they go with the device.
-                surfaces.stranded.push(semaphore);
-                surfaces.stranded_fences.push(fence);
-                entry.stale = true;
+                {
+                    let mut unknown = self.surfaces.lock_unknown();
+                    unknown.semaphores.push(semaphore);
+                    unknown.fences.push(fence);
+                }
+                *stale = true;
                 Err(match other {
                     Err(result) => fault(result),
                     Ok(_) => {
@@ -119,13 +137,23 @@ impl VulkanGeneration {
     }
 
     /// A frame was dropped without a present: its image stays acquired and its semaphore signalled, so the swapchain
-    /// has to be configured again and the semaphore goes with the device.
+    /// has to be configured again and the semaphore ends with it.
     pub(crate) fn frame_dropped(&self, frame: FrameRef) {
-        self.note(Note::Dropped(frame));
+        match self.surfaces.slot(frame.surface) {
+            Some(slot) => slot.note(Note::Dropped(frame), &self.surfaces),
+            None => self
+                .surfaces
+                .strand(vk::Semaphore::from_raw(frame.semaphore)),
+        }
     }
 
     /// Submit `work`, which rendered the frame, waiting for its acquire and signalling its render semaphore, and present
-    /// the frame behind it. The caller holds the lane and hands out `value` in order.
+    /// the frame behind it. The caller holds the lane and hands out `value` in order; this takes the frame's surface's
+    /// lock and nothing else.
+    ///
+    /// No present is made without its proof: with `VK_EXT_swapchain_maintenance1` a present whose fence cannot be made
+    /// is not made; without it the proof is the acquire fence of the image's next acquire, and a retired swapchain ends
+    /// by the rule of [`super::Retirement::SuccessorPresent`].
     pub(crate) fn present(
         &self,
         lane: &LaneGuard<'_>,
@@ -134,55 +162,69 @@ impl VulkanGeneration {
         frame: FrameRef,
     ) -> Result<Shown, Result<SubmitFault, PresentFault>> {
         let fns = self.fns().map_err(Err)?;
-        let mut guard = self.lock_surfaces();
-        let surfaces = &mut *guard;
         let acquire = vk::Semaphore::from_raw(frame.semaphore);
-        let found = surfaces.entries.get_mut(&frame.surface).and_then(|entry| {
-            let at = frame.index as usize;
-            let SurfaceEntry {
-                current,
-                retired,
-                proofs,
-                waiting,
-                stale,
-                lost,
-                counters,
-                ..
-            } = entry;
-            let swapchain = current
-                .iter_mut()
-                .chain(retired.iter_mut())
-                .find(|swapchain| swapchain.number == frame.swapchain)
-                .filter(|swapchain| swapchain.acquired.get(at) == Some(&true))?;
-            Some((swapchain, proofs, waiting, stale, lost, counters))
-        });
-        let Some((swapchain, proofs, waiting, stale, lost, counters)) = found else {
-            // Its swapchain is gone: nothing waits for the acquire any more.
-            surfaces.stranded.push(acquire);
+        let Some(slot) = self.surfaces.slot(frame.surface) else {
+            // Its surface is gone: nothing waits for the acquire any more.
+            self.surfaces.strand(acquire);
             return Err(Err(refused(PresentRefusal::Foreign)));
         };
+        let mut guard = slot.lock(&self.surfaces);
         let at = frame.index as usize;
+        let SurfaceEntry {
+            current,
+            retired,
+            proofs,
+            waiting,
+            stale,
+            lost,
+            counters,
+            ..
+        } = &mut *guard;
+        let is_current = current
+            .as_ref()
+            .is_some_and(|current| current.number == frame.swapchain);
+        let found = current
+            .iter_mut()
+            .chain(retired.iter_mut())
+            .find(|swapchain| swapchain.number == frame.swapchain)
+            .filter(|swapchain| swapchain.acquired.get(at) == Some(&true));
+        let Some(swapchain) = found else {
+            self.surfaces.strand(acquire);
+            return Err(Err(refused(PresentRefusal::Foreign)));
+        };
+        // From here on the frame is the owner's: presented, or its semaphore ends with its swapchain.
+        swapchain.out = swapchain.out.saturating_sub(1);
+        let fence = if fns.present_fences {
+            match create_fence(&self.device) {
+                Ok(fence) => Some(fence),
+                Err(result) => {
+                    swapchain.stranded.push(acquire);
+                    *stale |= is_current;
+                    PresentCounters::bump(&counters.failed);
+                    return Err(Err(fault(result)));
+                }
+            }
+        } else {
+            None
+        };
         let rendered = swapchain.rendered[at];
         let sync = SubmitSync {
             waits: &[acquire],
             signals: &[rendered],
         };
         if let Err(submit) = work.submit(lane, value, sync) {
-            // The acquire's signal stays unwaited, and the image acquired.
-            surfaces.stranded.push(acquire);
-            *stale = true;
+            // The acquire's signal stays unwaited and the image acquired.
+            swapchain.stranded.push(acquire);
+            if let Some(fence) = fence {
+                // SAFETY: never associated with an operation.
+                unsafe { self.device.destroy_fence(fence, None) };
+            }
+            *stale |= is_current;
             PresentCounters::bump(&counters.failed);
             return Err(Ok(submit));
         }
         waiting.push((acquire, value));
         swapchain.last_use = swapchain.last_use.max(value);
-        surfaces.queued += 1;
-        let number = surfaces.queued;
-        let fence = if fns.present_fences {
-            create_fence(&self.device).ok()
-        } else {
-            None
-        };
         let waits = [rendered];
         let swapchains = [swapchain.handle];
         let indices = [frame.index];
@@ -195,43 +237,57 @@ impl VulkanGeneration {
         if fence.is_some() {
             info = info.push_next(&mut fenced);
         }
-        // SAFETY: the lane synchronizes the queue and the surfaces lock the swapchain; the image index was acquired and
-        // not presented since; the render semaphore's signal was submitted just before and nothing else waits for it
-        // (VUID-vkQueuePresentKHR-pWaitSemaphores-01294/03268); the present fence is new and unsignalled
-        // (VUID-VkSwapchainPresentFenceInfoEXT-pFences-07758/07759); all arrays outlive the call.
+        // SAFETY: the lane synchronizes the queue and the surface's lock the swapchain; the image index was acquired and
+        // not presented since (VUID-VkPresentInfoKHR-pImageIndices-01430); the render semaphore's signal was submitted
+        // just before and nothing else waits for it (VUID-vkQueuePresentKHR-pWaitSemaphores-01294/03268); the present
+        // fence is new and unsignalled (VUID-VkSwapchainPresentFenceInfoEXT-pFences-07758/07759); all arrays outlive the
+        // call.
         let result = unsafe { fns.swapchain.queue_present(lane.guard.queue, &info) };
-        swapchain.acquired[at] = false;
-        swapchain.last_present_of[at] = number;
-        swapchain.last_present = number;
-        if let Some(fence) = fence {
-            proofs.push(Proof {
-                fence,
-                proves: number,
-                swapchain: swapchain.number,
-            });
-            swapchain.pending_proofs += 1;
-        }
         let shown = match result {
-            Ok(false) => Shown::Presented,
-            Ok(true) => Shown::Suboptimal,
-            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                *stale = true;
-                Shown::OutOfDate
+            Err(vk::Result::ERROR_OUT_OF_HOST_MEMORY | vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {
+                // Not enqueued, and every resource and synchronization primitive it names is unaffected
+                // (vkQueuePresentKHR): the image stays acquired, the fence was never given a signal, and the render
+                // semaphore's signal is waited for by nothing, so the image is not used again from this swapchain.
+                if let Some(fence) = fence {
+                    // SAFETY: unaffected by the failed call, so never associated with an operation.
+                    unsafe { self.device.destroy_fence(fence, None) };
+                }
+                *stale |= is_current;
+                Shown::Fault(QueueFault::OutOfMemory)
             }
-            Err(vk::Result::ERROR_SURFACE_LOST_KHR) => {
-                *lost = true;
-                Shown::SurfaceLost
+            result => {
+                // Taken by the queue: also out of date and surface lost are enqueued and release the acquisition
+                // (vkQueuePresentKHR). Another fault is counted as taken too, so the swapchain waits for its proof.
+                swapchain.acquired[at] = false;
+                swapchain.presents += 1;
+                swapchain.last_present_of[at] = swapchain.presents;
+                if let Some(fence) = fence {
+                    proofs.push(Proof {
+                        fence,
+                        swapchain: swapchain.number,
+                        kind: ProofKind::Present,
+                    });
+                    swapchain.unproven += 1;
+                }
+                match result {
+                    Ok(false) => Shown::Presented,
+                    Ok(true) => Shown::Suboptimal,
+                    Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
+                        *stale |= is_current;
+                        Shown::OutOfDate
+                    }
+                    Err(vk::Result::ERROR_SURFACE_LOST_KHR) => {
+                        *lost = true;
+                        Shown::SurfaceLost
+                    }
+                    Err(other) => {
+                        *stale |= is_current;
+                        Shown::Fault(QueueFault::of(other))
+                    }
+                }
             }
-            Err(other) => Shown::Fault(QueueFault::of(other)),
         };
-        match shown {
-            Shown::Presented => counters.mark_presented(),
-            Shown::Suboptimal => {
-                counters.mark_presented();
-                PresentCounters::bump(&counters.suboptimal);
-            }
-            _ => PresentCounters::bump(&counters.failed),
-        }
+        shown.count(counters);
         Ok(shown)
     }
 }

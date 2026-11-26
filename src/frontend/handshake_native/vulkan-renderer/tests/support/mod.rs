@@ -1,8 +1,10 @@
-//! Shared fixtures. Nothing here opens a window or leaves a file.
+//! Shared fixtures. Nothing here opens a window or leaves a file. `present_cases` holds the cases a window host runs
+//! with its own windows; here they are only compiled.
 #![allow(dead_code, unused_imports, unused_macros)]
 
 pub mod gpu_env;
 pub mod gpu_work;
+pub mod present_cases;
 
 use handshake_vulkan_renderer::{
     AuthorizationProvenance, Claim, ClaimInfo, ClaimLedger, ClaimRequest, ClientId, DeviceKey,

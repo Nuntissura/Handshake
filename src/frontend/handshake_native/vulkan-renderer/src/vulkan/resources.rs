@@ -15,6 +15,10 @@
 //!
 //! Each is destroyed exactly once: it leaves the registry under its lock, and only the thread that took it out destroys
 //! it and reports it.
+//!
+//! The host reads and writes a buffer within the buffer's own size (its `VkBuffer`), never within its block, which
+//! `gpu-alloc` may have made larger (a power of two). The block is mapped under the buffer's own lock; the registry's
+//! lock is held only to find it (MT-203 E3-1).
 
 use super::memory::{Block, MemoryRefused, Placement, Use};
 use super::queue::QueueFault;
@@ -25,7 +29,7 @@ use ash::vk::{self, Handle};
 use gpu_alloc::Dedicated;
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 /// Process-unique resource identities.
 static NEXT_KEY: AtomicU64 = AtomicU64::new(1);
@@ -101,8 +105,25 @@ enum Objects {
     },
     Buffer {
         buffer: vk::Buffer,
-        block: Block,
+        /// The buffer's own size (`VkBufferCreateInfo::size`): the bound of every host access.
+        size: u64,
+        /// Shared only for the length of a host access, which holds the buffer's handle, so never at its release.
+        block: Arc<Mutex<Block>>,
     },
+}
+
+fn lock_block(block: &Mutex<Block>) -> MutexGuard<'_, Block> {
+    block.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+impl Objects {
+    /// No host access of it runs: it may be destroyed.
+    fn is_unshared(&self) -> bool {
+        match self {
+            Self::Image { .. } => true,
+            Self::Buffer { block, .. } => Arc::strong_count(block) == 1,
+        }
+    }
 }
 
 /// A resource that exists and is not kept yet: [`VulkanGeneration::keep`] or [`VulkanGeneration::discard`] it.
@@ -122,7 +143,8 @@ impl Made {
     /// Bytes of device memory placed for it.
     pub(crate) fn bytes(&self) -> u64 {
         match &self.objects {
-            Objects::Image { block, .. } | Objects::Buffer { block, .. } => block.size(),
+            Objects::Image { block, .. } => block.size(),
+            Objects::Buffer { block, .. } => lock_block(block).size(),
         }
     }
 }
@@ -175,7 +197,7 @@ impl VulkanGeneration {
     /// Destroy objects that are no longer in use, and give their memory back.
     ///
     /// # Safety
-    /// Nothing refers to the objects any more and no work that used them may still run.
+    /// Nothing refers to the objects any more ([`Objects::is_unshared`]) and no work that used them may still run.
     unsafe fn destroy_objects(&self, objects: Objects) {
         match objects {
             Objects::Image { image, view, block } => {
@@ -186,11 +208,16 @@ impl VulkanGeneration {
                     self.free_block(block);
                 }
             }
-            Objects::Buffer { buffer, block } => {
+            Objects::Buffer { buffer, block, .. } => {
                 // SAFETY: the caller's.
-                unsafe {
-                    self.device.destroy_buffer(buffer, None);
-                    self.free_block(block);
+                unsafe { self.device.destroy_buffer(buffer, None) };
+                match Arc::try_unwrap(block) {
+                    // SAFETY: the caller's; the buffer is gone, so nothing is bound to the block.
+                    Ok(block) => unsafe {
+                        self.free_block(block.into_inner().unwrap_or_else(PoisonError::into_inner))
+                    },
+                    // Unreachable under the caller's contract; a block that is still shared is left, not freed.
+                    Err(shared) => std::mem::forget(shared),
                 }
             }
         }
@@ -336,7 +363,11 @@ impl VulkanGeneration {
         };
         match bound {
             Ok(()) => Ok(Made {
-                objects: Objects::Buffer { buffer, block },
+                objects: Objects::Buffer {
+                    buffer,
+                    size: spec.size,
+                    block: Arc::new(Mutex::new(block)),
+                },
             }),
             Err(result) => {
                 // SAFETY: never recorded or submitted.
@@ -406,7 +437,22 @@ impl VulkanGeneration {
         };
         let mut ended = Vec::with_capacity(due.len());
         for key in due {
-            let Some(entry) = self.resources.lock_live().remove(&key) else {
+            let entry = {
+                let mut live = self.resources.lock_live();
+                match live.get(&key) {
+                    Some(entry) if entry.objects.is_unshared() => live.remove(&key),
+                    Some(_) => {
+                        // A host access that began before the release still runs: the next look takes it.
+                        self.resources.lock_retiring().push(Retiring {
+                            key,
+                            after: Some(0),
+                        });
+                        None
+                    }
+                    None => None,
+                }
+            };
+            let Some(entry) = entry else {
                 continue;
             };
             // SAFETY: released by its client, so nothing refers to it any more, and the queue says that every
@@ -417,57 +463,80 @@ impl VulkanGeneration {
         ended
     }
 
-    /// Read from a host-visible buffer. `None` when there is no such buffer here, or the range does not fit.
+    /// The block of buffer `key` when `length` bytes at `offset` lie inside the buffer itself (not merely inside its
+    /// block, which may be larger), found under the registry's lock and returned without it.
+    fn buffer_range(&self, key: u64, offset: u64, length: usize) -> Option<Arc<Mutex<Block>>> {
+        let live = self.resources.lock_live();
+        let Some(Entry {
+            objects: Objects::Buffer { size, block, .. },
+            ..
+        }) = live.get(&key)
+        else {
+            return None;
+        };
+        let length = u64::try_from(length).ok()?;
+        // VkMappedMemoryRange and the buffer's binding cover `size` bytes; what lies beyond belongs to no resource.
+        (offset.checked_add(length)? <= *size).then(|| Arc::clone(block))
+    }
+
+    /// Read from a host-visible buffer. `None` when there is no such buffer here, or the range does not lie inside it.
     ///
     /// The owner calls this only after it observed that no submission of the buffer's client on this generation is
     /// pending (`owner/resources.rs`), which is the condition of [`VulkanGeneration::read_block`]; a submission the same
     /// client starts meanwhile with this buffer breaks the documented rule of [`crate::OwnerBuffer::read`].
     pub(crate) fn read_buffer(&self, key: u64, offset: u64, out: &mut [u8]) -> Option<bool> {
-        let mut live = self.resources.lock_live();
-        let Some(Entry {
-            objects: Objects::Buffer { block, .. },
-            ..
-        }) = live.get_mut(&key)
-        else {
-            return None;
-        };
-        let length = u64::try_from(out.len()).ok()?;
-        if offset.checked_add(length)? > block.size() {
-            return None;
+        let block = self.buffer_range(key, offset, out.len())?;
+        if out.is_empty() {
+            return Some(true);
         }
+        let mut block = lock_block(&block);
         // SAFETY: no submission that may write the block is pending (see above), and the commands that wrote it for the
-        // host recorded a dependency to HOST_READ (`Recording::read_back`); the range lies inside the block.
-        Some(unsafe { self.read_block(block, offset, out) })
+        // host recorded a dependency to HOST_READ (`Recording::read_back`); the buffer's lock is held; the range lies
+        // inside the buffer, which lies inside the block.
+        Some(unsafe { self.read_block(&mut block, offset, out) })
     }
 
-    /// Write into a host-visible buffer. `None` when there is no such buffer here, or the range does not fit. Called on
-    /// the same condition as [`Self::read_buffer`].
+    /// Write into a host-visible buffer. `None` when there is no such buffer here, or the range does not lie inside it.
+    /// Called on the same condition as [`Self::read_buffer`].
     pub(crate) fn write_buffer(&self, key: u64, offset: u64, data: &[u8]) -> Option<bool> {
-        let mut live = self.resources.lock_live();
-        let Some(Entry {
-            objects: Objects::Buffer { block, .. },
-            ..
-        }) = live.get_mut(&key)
-        else {
-            return None;
-        };
-        let length = u64::try_from(data.len()).ok()?;
-        if offset.checked_add(length)? > block.size() {
-            return None;
+        let block = self.buffer_range(key, offset, data.len())?;
+        if data.is_empty() {
+            return Some(true);
         }
-        // SAFETY: no submission that may use the block is pending (see `read_buffer`); the range lies inside it. A later
-        // submission sees the write: submitting is a host-to-device memory dependency for host-coherent memory, and
-        // memory that is not coherent is flushed by `write_bytes` ("Host Write Ordering Guarantees").
-        Some(unsafe { self.write_block(block, offset, data) })
+        let mut block = lock_block(&block);
+        // SAFETY: no submission that may use the block is pending (see `read_buffer`); the buffer's lock is held; the
+        // range lies inside the buffer. A later submission sees the write: submitting is a host-to-device memory
+        // dependency for host-coherent memory, and memory that is not coherent is flushed by `write_bytes` ("Host Write
+        // Ordering Guarantees").
+        Some(unsafe { self.write_block(&mut block, offset, data) })
+    }
+
+    /// The memory properties of a buffer's block, when it is a buffer here.
+    fn buffer_props(&self, key: u64) -> Option<gpu_alloc::MemoryPropertyFlags> {
+        let block = match self.resources.lock_live().get(&key) {
+            Some(Entry {
+                objects: Objects::Buffer { block, .. },
+                ..
+            }) => Arc::clone(block),
+            _ => return None,
+        };
+        let props = lock_block(&block).props();
+        Some(props)
     }
 
     /// Whether a buffer's memory is visible to the host.
     pub(crate) fn is_host_visible(&self, key: u64) -> bool {
-        matches!(
-            self.resources.lock_live().get(&key),
-            Some(Entry { objects: Objects::Buffer { block, .. }, .. })
-                if block.props().contains(gpu_alloc::MemoryPropertyFlags::HOST_VISIBLE)
-        )
+        self.buffer_props(key)
+            .is_some_and(|props| props.contains(gpu_alloc::MemoryPropertyFlags::HOST_VISIBLE))
+    }
+
+    /// Whether a buffer's memory is host-visible and not coherent, so that reading it needs an invalidate.
+    #[cfg(test)]
+    pub(crate) fn needs_invalidate(&self, key: u64) -> bool {
+        use gpu_alloc::MemoryPropertyFlags as Props;
+        self.buffer_props(key).is_some_and(|props| {
+            props.contains(Props::HOST_VISIBLE) && !props.contains(Props::HOST_COHERENT)
+        })
     }
 
     /// Everything that is left, destroyed at the end of the generation.

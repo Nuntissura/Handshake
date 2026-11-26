@@ -48,7 +48,8 @@ impl OwnerShared {
             self.resource_refused(client, claim, Some(&live), refusal)
         })?;
         if let Err(refusal) = client.own(claim, ChargeClass::Committed, 0) {
-            live.vulkan.discard_surface(made);
+            // No lock of the owner is held here: the window's target may go at once.
+            drop(live.vulkan.discard_surface(made));
             let refusal = ResourceRefusal::Charge(refusal);
             return Err(self.resource_refused(client, claim, None, refusal));
         }
@@ -253,8 +254,12 @@ impl OwnerShared {
             let refusal = PresentFault::Refused(PresentRefusal::Foreign);
             return Err(self.present_refused(&origin, None, refusal));
         }
+        // The one recording in which the frame may be used: its submission waits for the frame's acquire.
+        let key = frame.key();
         let work = self
-            .record(client, claim, |recording| record(recording, &*frame))
+            .record(client, claim, Some(key), |recording| {
+                record(recording, &*frame)
+            })
             .map_err(|refusal| match refusal {
                 SubmitRefusal::RecordAborted => PresentRefusal::RecordAborted,
                 SubmitRefusal::NotAuthorized(refusal) => PresentRefusal::NotAuthorized(refusal),

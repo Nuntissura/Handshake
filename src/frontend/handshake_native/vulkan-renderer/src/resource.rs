@@ -258,6 +258,9 @@ impl Origin {
     }
 }
 
+/// An acquired frame: its surface, swapchain and image index.
+pub(crate) type FrameKey = (u64, u64, u32);
+
 pub(crate) mod sealed {
     /// What a recorded command needs to know of an image.
     #[derive(Clone, Copy, Debug)]
@@ -269,6 +272,8 @@ pub(crate) mod sealed {
         pub(crate) extent: super::Extent,
         pub(crate) format: super::AttachmentFormat,
         pub(crate) usage: super::ImageUsage,
+        /// The frame, for an acquired swapchain image.
+        pub(crate) frame: Option<super::FrameKey>,
     }
 
     pub trait Target {
@@ -330,6 +335,7 @@ impl sealed::Target for OwnerImage {
             extent: self.attachment.extent,
             format: self.attachment.format,
             usage: self.attachment.usage,
+            frame: None,
         }
     }
 }
@@ -421,4 +427,10 @@ pub struct OwnerMemoryUse {
     pub heaps: Vec<OwnerHeapUse>,
     /// Owner images and buffers that exist on the generation, released ones that wait for their work included.
     pub resources: u64,
+    /// Swapchains that exist on the generation, retired ones that wait for their end included.
+    pub swapchains: u64,
+    /// Their images, which the presentation engine allocates without saying how much: estimated from extent, format and
+    /// count, never measured, so never added to [`Self::heaps`] nor charged to a claim. A surface's claim reserves for
+    /// them.
+    pub swapchain_image_bytes: ByteQuantity,
 }

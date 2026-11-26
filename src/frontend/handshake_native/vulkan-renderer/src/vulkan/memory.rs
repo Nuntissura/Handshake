@@ -5,13 +5,29 @@
 //! only `bitflags` besides its types crate, and backend-agnostic, so the owner supplies the calls (`MemoryDevice`) as
 //! wgpu-hal does and nothing of it reaches the public surface. It selects among the memory types the resource allows by
 //! usage (device-local for attachments, host-visible coherent for uploads, host-cached for readback), sub-allocates
-//! small requests from power-of-two buddy chunks and gives large ones an object of their own. `gpu-allocator` was not
-//! taken: its 0.27 ignores the configured block sizes (fixed 256 MiB device blocks) and brings proc macros and `log`.
+//! small requests from power-of-two buddy chunks and gives large ones an object of their own. A block can therefore be
+//! larger than its resource: every host access is bounded by the resource's own size, never by the block's
+//! (`resources.rs`). `gpu-allocator` was not taken: its 0.27 ignores the configured block sizes (fixed 256 MiB device
+//! blocks) and brings proc macros and `log`.
 //!
 //! What the books say is measured, never estimated: every `vkAllocateMemory` and `vkFreeMemory` of the owner passes
-//! here. The driver's own budget and usage (`VK_EXT_memory_budget`) are a separate view ([`crate::MemorySnapshot`]); a
-//! new memory object that would take a heap past the driver's budget is refused. Without the extension the budget is
-//! unknown and nothing is refused for it.
+//! here. The driver's own budget and usage (`VK_EXT_memory_budget`) are a separate view ([`crate::MemorySnapshot`]). A
+//! new memory object that would take a heap past the driver's budget ends the placement: the resource is refused
+//! [`MemoryRefused::OverBudget`] and never placed in another memory type behind the caller's back. Without the
+//! extension the budget is unknown and nothing is refused for it.
+//!
+//! # Locks (MT-203 E3-1)
+//!
+//! Three, none held across a wait for the device and none while another of them is taken:
+//! - the pool: the allocator. Only placing and returning blocks take it; `gpu-alloc` makes its `vkAllocateMemory`,
+//!   `vkMapMemory` (of a new host-visible chunk) and `vkFreeMemory` inside those, so it is held across them and is the
+//!   narrowest lock that can be. A block returned while it is busy waits in `returned` and is given back by its next
+//!   holder, so the owner's look at the device never waits for an allocation.
+//! - the books: held for an entry or a copy only.
+//! - `returned`: held for a push or a take only.
+//!
+//! Reading and writing a buffer take none of them: the block is mapped with calls that touch neither allocator nor
+//! books, under the buffer's own lock (`resources.rs`).
 
 use super::VulkanGeneration;
 use ash::vk::{self, Handle};
@@ -20,11 +36,14 @@ use gpu_alloc::{
     GpuAllocator, MappedMemoryRange, MemoryBlock, MemoryDevice, MemoryHeap, MemoryPropertyFlags,
     MemoryType, OutOfMemory, Request, UsageFlags,
 };
+use host::{flush, invalidate, map};
 use std::borrow::Cow;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::ptr::NonNull;
-use std::sync::{MutexGuard, PoisonError};
+use std::sync::{Mutex, MutexGuard, PoisonError, TryLockError};
+
+mod host;
 
 /// One block of device memory the owner placed for a resource.
 pub(crate) type Block = MemoryBlock<vk::DeviceMemory>;
@@ -70,13 +89,43 @@ struct Books {
     objects: BTreeMap<u64, (u64, usize)>,
 }
 
-/// The allocator and its books. Behind the generation's memory lock, which is held for placing and returning blocks
-/// and for nothing that waits for the device.
-pub(crate) struct MemoryPool {
+impl Books {
+    fn allocated(&mut self, memory: vk::DeviceMemory, size: u64, heap: usize) {
+        if let Some(book) = self.heaps.get_mut(heap) {
+            book.bytes = book.bytes.saturating_add(size);
+            book.objects = book.objects.saturating_add(1);
+        }
+        self.objects.insert(memory.as_raw(), (size, heap));
+    }
+
+    fn freed(&mut self, memory: vk::DeviceMemory) {
+        if let Some((size, heap)) = self.objects.remove(&memory.as_raw()) {
+            if let Some(book) = self.heaps.get_mut(heap) {
+                book.bytes = book.bytes.saturating_sub(size);
+                book.objects = book.objects.saturating_sub(1);
+            }
+        }
+    }
+}
+
+/// The allocator and the rules every placement keeps to.
+struct MemoryPool {
     allocator: GpuAllocator<vk::DeviceMemory>,
-    books: Books,
     /// Heap of each memory type.
     type_heaps: Vec<usize>,
+    rules: Rules,
+    budget: bool,
+}
+
+/// The owner's memory on one generation: see the module documentation for its locks.
+pub(crate) struct Memory {
+    pool: Mutex<MemoryPool>,
+    books: Mutex<Books>,
+    returned: Mutex<Vec<Block>>,
+}
+
+#[derive(Clone, Copy)]
+struct Rules {
     /// Memory types the owner may use.
     usable: u32,
     /// `bufferImageGranularity`: every block starts and ends on such a page, so a buffer and an optimally tiled image
@@ -85,21 +134,11 @@ pub(crate) struct MemoryPool {
     /// `nonCoherentAtomSize`: sizes are whole atoms, so a flush or invalidate of a block's last bytes stays inside its
     /// memory object (VUID-VkMappedMemoryRange-size-01390).
     atom: u64,
-    budget: bool,
 }
 
-/// The rules every placement keeps to.
-#[derive(Clone, Copy)]
-struct Rules {
-    usable: u32,
-    granularity: u64,
-    atom: u64,
-}
-
-/// The calls `gpu-alloc` makes, on the generation's device, entered in the books.
+/// The calls `gpu-alloc` makes when it places and returns blocks, on the generation's device, entered in the books.
 struct Calls<'a> {
     generation: &'a VulkanGeneration,
-    books: RefCell<&'a mut Books>,
     type_heaps: &'a [usize],
     budget: bool,
     /// Allocate the next memory object for this image only (VkMemoryDedicatedAllocateInfo).
@@ -111,6 +150,9 @@ struct Calls<'a> {
 impl Calls<'_> {
     /// Whether `size` more bytes on `heap` stay within the driver's budget. Always, without the extension.
     fn within_budget(&self, heap: usize, size: u64) -> bool {
+        if self.generation.faults.over_budget() {
+            return false;
+        }
         if !self.budget {
             return true;
         }
@@ -150,8 +192,9 @@ impl MemoryDevice<vk::DeviceMemory> for Calls<'_> {
             self.refused.set(Some(MemoryRefused::OverBudget {
                 heap: u32::try_from(heap).unwrap_or(u32::MAX),
             }));
-            // Lets `gpu-alloc` try the next memory type that serves the use.
-            return Err(OutOfMemory::OutOfDeviceMemory);
+            // Ends the search (`gpu-alloc` tries the next memory type only after `OutOfDeviceMemory`): the resource is
+            // refused, not moved to another memory type.
+            return Err(OutOfMemory::OutOfHostMemory);
         }
         let mut dedicated = vk::MemoryDedicatedAllocateInfo::default();
         let mut info = vk::MemoryAllocateInfo::default()
@@ -166,12 +209,10 @@ impl MemoryDevice<vk::DeviceMemory> for Calls<'_> {
         // the chain lives for the call.
         match unsafe { self.generation.device.allocate_memory(&info, None) } {
             Ok(memory) => {
-                let mut books = self.books.borrow_mut();
-                if let Some(book) = books.heaps.get_mut(heap) {
-                    book.bytes = book.bytes.saturating_add(size);
-                    book.objects = book.objects.saturating_add(1);
-                }
-                books.objects.insert(memory.as_raw(), (size, heap));
+                self.generation
+                    .memory
+                    .lock_books()
+                    .allocated(memory, size, heap);
                 Ok(memory)
             }
             Err(vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => Err(OutOfMemory::OutOfDeviceMemory),
@@ -193,13 +234,7 @@ impl MemoryDevice<vk::DeviceMemory> for Calls<'_> {
         // SAFETY: `gpu-alloc` returns a memory object once, after its last block was returned, and the owner returns a
         // block only when nothing that may use it runs any more. A mapped object is unmapped by being freed.
         unsafe { self.generation.device.free_memory(memory, None) };
-        let mut books = self.books.borrow_mut();
-        if let Some((size, heap)) = books.objects.remove(&memory.as_raw()) {
-            if let Some(book) = books.heaps.get_mut(heap) {
-                book.bytes = book.bytes.saturating_sub(size);
-                book.objects = book.objects.saturating_sub(1);
-            }
-        }
+        self.generation.memory.lock_books().freed(memory);
     }
 
     unsafe fn map_memory(
@@ -208,19 +243,7 @@ impl MemoryDevice<vk::DeviceMemory> for Calls<'_> {
         offset: u64,
         size: u64,
     ) -> Result<NonNull<u8>, DeviceMapError> {
-        // SAFETY: host-visible memory of this device, not mapped now (`gpu-alloc` maps each object once), and the range
-        // lies inside it.
-        let mapped = unsafe {
-            self.generation
-                .device
-                .map_memory(*memory, offset, size, vk::MemoryMapFlags::empty())
-        };
-        match mapped {
-            Ok(pointer) => NonNull::new(pointer.cast::<u8>()).ok_or(DeviceMapError::MapFailed),
-            Err(vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => Err(DeviceMapError::OutOfDeviceMemory),
-            Err(vk::Result::ERROR_OUT_OF_HOST_MEMORY) => Err(DeviceMapError::OutOfHostMemory),
-            Err(_) => Err(DeviceMapError::MapFailed),
-        }
+        map(&self.generation.device, *memory, offset, size)
     }
 
     unsafe fn unmap_memory(&self, memory: &mut vk::DeviceMemory) {
@@ -232,44 +255,14 @@ impl MemoryDevice<vk::DeviceMemory> for Calls<'_> {
         &self,
         ranges: &[MappedMemoryRange<'_, vk::DeviceMemory>],
     ) -> Result<(), OutOfMemory> {
-        let ranges = vk_ranges(ranges);
-        // SAFETY: mapped ranges of this device's memory, aligned to `nonCoherentAtomSize` by `gpu-alloc`.
-        unsafe {
-            self.generation
-                .device
-                .invalidate_mapped_memory_ranges(&ranges)
-        }
-        .map_err(out_of_memory)
+        invalidate(&self.generation.device, &self.generation.faults, ranges)
     }
 
     unsafe fn flush_memory_ranges(
         &self,
         ranges: &[MappedMemoryRange<'_, vk::DeviceMemory>],
     ) -> Result<(), OutOfMemory> {
-        let ranges = vk_ranges(ranges);
-        // SAFETY: as for `invalidate_memory_ranges`.
-        unsafe { self.generation.device.flush_mapped_memory_ranges(&ranges) }.map_err(out_of_memory)
-    }
-}
-
-fn vk_ranges<'a>(
-    ranges: &[MappedMemoryRange<'_, vk::DeviceMemory>],
-) -> Vec<vk::MappedMemoryRange<'a>> {
-    ranges
-        .iter()
-        .map(|range| {
-            vk::MappedMemoryRange::default()
-                .memory(*range.memory)
-                .offset(range.offset)
-                .size(range.size)
-        })
-        .collect()
-}
-
-fn out_of_memory(result: vk::Result) -> OutOfMemory {
-    match result {
-        vk::Result::ERROR_OUT_OF_DEVICE_MEMORY => OutOfMemory::OutOfDeviceMemory,
-        _ => OutOfMemory::OutOfHostMemory,
+        flush(&self.generation.device, ranges)
     }
 }
 
@@ -287,8 +280,8 @@ fn config() -> Config {
     }
 }
 
-impl MemoryPool {
-    /// The pool of the device created on `physical`.
+impl Memory {
+    /// The memory of the device created on `physical`.
     pub(super) fn new(
         instance: &ash::Instance,
         physical: vk::PhysicalDevice,
@@ -333,31 +326,40 @@ impl MemoryPool {
             .take(heap_count)
             .map(|heap| MemoryHeap { size: heap.size })
             .collect();
+        let atom = limits.non_coherent_atom_size.max(1).next_power_of_two();
         let properties = DeviceProperties {
             memory_types: Cow::Owned(kinds),
             memory_heaps: Cow::Owned(heaps),
             max_memory_allocation_count: limits.max_memory_allocation_count,
             max_memory_allocation_size: max_allocation.max(1),
-            non_coherent_atom_size: limits.non_coherent_atom_size.max(1).next_power_of_two(),
+            non_coherent_atom_size: atom,
             buffer_device_address: false,
         };
         Self {
-            allocator: GpuAllocator::new(config(), properties),
-            books: Books {
+            pool: Mutex::new(MemoryPool {
+                allocator: GpuAllocator::new(config(), properties),
+                type_heaps,
+                rules: Rules {
+                    usable,
+                    granularity: limits.buffer_image_granularity.max(1).next_power_of_two(),
+                    atom,
+                },
+                budget,
+            }),
+            books: Mutex::new(Books {
                 heaps: vec![HeapBook::default(); heap_count],
                 objects: BTreeMap::new(),
-            },
-            type_heaps,
-            usable,
-            granularity: limits.buffer_image_granularity.max(1).next_power_of_two(),
-            atom: limits.non_coherent_atom_size.max(1).next_power_of_two(),
-            budget,
+            }),
+            returned: Mutex::new(Vec::new()),
         }
     }
 
-    /// What each heap holds of the owner's memory objects, by heap index.
-    pub(crate) fn books(&self) -> Vec<HeapBook> {
-        self.books.heaps.clone()
+    fn lock_books(&self) -> MutexGuard<'_, Books> {
+        self.books.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn lock_returned(&self) -> MutexGuard<'_, Vec<Block>> {
+        self.returned.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -401,49 +403,51 @@ fn refused_by(error: AllocationError, refused: Option<MemoryRefused>) -> MemoryR
 }
 
 impl VulkanGeneration {
-    fn lock_memory(&self) -> MutexGuard<'_, MemoryPool> {
-        self.memory.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-
-    /// Run `call` with the allocator and the calls it may make.
+    /// Run `call` with the allocator and the calls it may make, then give back what waits in `returned`.
     fn with_pool<T>(
         &self,
+        pool: MutexGuard<'_, MemoryPool>,
         dedicated: Option<vk::Image>,
         call: impl FnOnce(&mut GpuAllocator<vk::DeviceMemory>, &Calls<'_>, Rules) -> T,
     ) -> (T, Option<MemoryRefused>) {
-        let mut pool = self.lock_memory();
+        let mut pool = pool;
         let MemoryPool {
             allocator,
-            books,
             type_heaps,
-            usable,
-            granularity,
-            atom,
+            rules,
             budget,
         } = &mut *pool;
-        let rules = Rules {
-            usable: *usable,
-            granularity: *granularity,
-            atom: *atom,
-        };
         let calls = Calls {
             generation: self,
-            books: RefCell::new(books),
             type_heaps,
             budget: *budget,
             dedicated,
             refused: Cell::new(None),
         };
-        let result = call(allocator, &calls, rules);
-        (result, calls.refused.get())
+        let result = call(allocator, &calls, *rules);
+        let refused = calls.refused.get();
+        let returned = std::mem::take(&mut *self.memory.lock_returned());
+        for block in returned {
+            // SAFETY: returned by `free_block` under its contract while the pool was busy.
+            unsafe { allocator.dealloc(&calls, block) };
+        }
+        drop(pool);
+        (result, refused)
+    }
+
+    fn lock_pool(&self) -> MutexGuard<'_, MemoryPool> {
+        self.memory
+            .pool
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     /// Place memory for one resource. The block is the caller's until it gives it back with [`Self::free_block`].
     pub(crate) fn place(&self, placement: &Placement) -> Result<Block, MemoryRefused> {
         let requirements = placement.requirements;
-        let (result, refused) = self.with_pool(
-            placement.image.map(|(image, _)| image),
-            |allocator, calls, rules| {
+        let dedicated = placement.image.map(|(image, _)| image);
+        let (result, refused) =
+            self.with_pool(self.lock_pool(), dedicated, |allocator, calls, rules| {
                 let alignment = requirements.alignment.max(1);
                 if !alignment.is_power_of_two() {
                     return Err(AllocationError::NoCompatibleMemoryTypes);
@@ -473,73 +477,72 @@ impl VulkanGeneration {
                         None => allocator.alloc(calls, request),
                     }
                 }
-            },
-        );
+            });
+        self.give_back_returned();
         result.map_err(|error| refused_by(error, refused))
     }
 
-    /// Give a block back.
+    /// Give a block back. When the pool is busy (placing, maybe inside `vkAllocateMemory`) the block waits for its
+    /// next holder: the caller does not wait for the driver.
     ///
     /// # Safety
     /// The block was placed by this generation, nothing bound to it exists any more, and no work that used it may
     /// still run.
     pub(crate) unsafe fn free_block(&self, block: Block) {
-        let ((), _) = self.with_pool(None, |allocator, calls, _| {
-            // SAFETY: the caller's.
-            unsafe { allocator.dealloc(calls, block) }
-        });
+        self.memory.lock_returned().push(block);
+        self.give_back_returned();
     }
 
-    /// Read `out.len()` bytes at `offset` of a host-visible block, after making the device's writes visible to the host
-    /// (invalidate on memory that is not coherent).
-    ///
-    /// # Safety
-    /// No work that may write the block runs now, and the device's writes were made available to the host by a memory
-    /// dependency with destination `VK_ACCESS_HOST_READ_BIT` before the fence that was observed signalled.
-    pub(crate) unsafe fn read_block(&self, block: &mut Block, offset: u64, out: &mut [u8]) -> bool {
-        let (read, _) = self.with_pool(None, |_, calls, _| {
-            // SAFETY: the caller's; the block is this generation's and `offset + len` lies in it (checked by the
-            // caller).
-            unsafe { block.read_bytes(calls, offset, out) }.is_ok()
-        });
-        read
+    /// Give back what waits in `returned`, when the pool is free now.
+    fn give_back_returned(&self) {
+        if self.memory.lock_returned().is_empty() {
+            return;
+        }
+        let pool = match self.memory.pool.try_lock() {
+            Ok(pool) => pool,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            // Its holder gives them back when it is done.
+            Err(TryLockError::WouldBlock) => return,
+        };
+        let ((), _) = self.with_pool(pool, None, |_, _, _| ());
     }
 
-    /// Write `data` at `offset` of a host-visible block, flushing memory that is not coherent.
-    ///
-    /// # Safety
-    /// No work that may use the block runs now.
-    pub(crate) unsafe fn write_block(&self, block: &mut Block, offset: u64, data: &[u8]) -> bool {
-        let (written, _) = self.with_pool(None, |_, calls, _| {
-            // SAFETY: as in `read_block`.
-            unsafe { block.write_bytes(calls, offset, data) }.is_ok()
-        });
-        written
+    /// Leave the blocks that wait in `returned` alive with a device that is left alive, as its resources are.
+    pub(super) fn abandon_returned(&mut self) {
+        let returned = std::mem::take(
+            self.memory
+                .returned
+                .get_mut()
+                .unwrap_or_else(PoisonError::into_inner),
+        );
+        std::mem::forget(returned);
     }
 
     /// What each heap holds of the owner's memory objects.
     pub(crate) fn memory_books(&self) -> Vec<HeapBook> {
-        self.lock_memory().books()
+        self.memory.lock_books().heaps.clone()
     }
 
-    /// The final step of the memory: every block is back, so this frees only what `gpu-alloc` still keeps (nothing,
-    /// by its rules), and then the allocator itself goes.
+    /// The final step of the memory: what waits in `returned` goes back to the allocator, then whatever memory object
+    /// is still in the books (nothing, by `gpu-alloc`'s rules) is freed, and the allocator goes with the generation.
     ///
     /// # Safety
     /// `&mut self` at the destruction of the generation, after every resource was destroyed and its block returned.
     pub(super) unsafe fn free_memory_leftovers(&mut self) {
-        let pool = self
+        let ((), _) = self.with_pool(self.lock_pool(), None, |_, _, _| ());
+        let books = self
             .memory
+            .books
             .get_mut()
             .unwrap_or_else(PoisonError::into_inner);
-        for memory in std::mem::take(&mut pool.books.objects).into_keys() {
+        for memory in std::mem::take(&mut books.objects).into_keys() {
             // SAFETY: the caller's: nothing uses the memory, and `gpu-alloc` is dropped right after without touching it.
             unsafe {
                 self.device
                     .free_memory(vk::DeviceMemory::from_raw(memory), None)
             };
         }
-        pool.books
+        books
             .heaps
             .iter_mut()
             .for_each(|book| *book = HeapBook::default());

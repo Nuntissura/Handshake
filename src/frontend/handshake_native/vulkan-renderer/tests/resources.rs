@@ -143,11 +143,25 @@ fn an_offscreen_image_reads_back_the_colour_it_was_cleared_to() {
             "{}",
             format.key()
         );
+        // The host's reach ends with the buffer, not with its block: `gpu-alloc` rounds the block up to a power of two.
+        assert!(buffer.bytes() > bytes, "{} {bytes}", buffer.bytes());
         let mut two = [0u8; 2];
         assert_eq!(
             buffer.read(bytes - 1, &mut two),
             Err(AccessRefusal::OutOfRange)
         );
+        assert_eq!(
+            buffer.write(bytes - 1, &two),
+            Err(AccessRefusal::OutOfRange)
+        );
+        assert_eq!(buffer.read(bytes, &mut []), Ok(()));
+        assert_eq!(
+            buffer.read(bytes + 1, &mut []),
+            Err(AccessRefusal::OutOfRange)
+        );
+        // The last byte is the buffer's.
+        assert_eq!(buffer.read(bytes - 1, &mut two[..1]), Ok(()));
+        assert_eq!(two[0], second[3]);
         drop(image);
         drop(buffer);
         assert_eq!(client.poll(), Ok(()));
@@ -296,8 +310,10 @@ fn buffers_round_trip_through_the_host_and_stay_with_their_client() {
     let client = attach(&owner, 1);
     let other = attach(&owner, 2);
     let claim = client.admit(&request(16 << 20)).expect("fits");
+    // Not a power of two, so its block is larger than the buffer.
+    let size = 4000;
     let upload = BufferRequest {
-        size: 4096,
+        size,
         usage: BufferUsage {
             transfer_src: true,
             ..BufferUsage::default()
@@ -305,11 +321,27 @@ fn buffers_round_trip_through_the_host_and_stay_with_their_client() {
         memory: BufferMemory::Upload,
     };
     let staging = client.create_buffer(&claim, &upload).expect("made");
-    let written: Vec<u8> = (0..4096u32).map(|index| (index % 251) as u8).collect();
+    let written: Vec<u8> = (0..4000u32).map(|index| (index % 251) as u8).collect();
     staging.write(0, &written).expect("nothing runs");
-    let mut read = vec![0u8; 4096];
+    let mut read = vec![0u8; 4000];
     staging.read(0, &mut read).expect("nothing runs");
     assert_eq!(read, written);
+    // Neither side reaches past the buffer into the rest of its block.
+    assert_eq!(
+        staging.write(size - 1, &[1, 2]),
+        Err(AccessRefusal::OutOfRange)
+    );
+    assert_eq!(
+        staging.read(size - 1, &mut [0u8; 2]),
+        Err(AccessRefusal::OutOfRange)
+    );
+    staging
+        .write(size - 1, &[9])
+        .expect("the last byte is the buffer's");
+    staging
+        .read(size - 1, &mut read[..1])
+        .expect("nothing runs");
+    assert_eq!(read[0], 9);
     let device = BufferRequest {
         memory: BufferMemory::Device,
         ..upload
@@ -348,6 +380,105 @@ fn buffers_round_trip_through_the_host_and_stay_with_their_client() {
         .expect("settles");
     other
         .settle(&other_claim, Settlement::clean(SettleOutcome::Completed))
+        .expect("settles");
+    assert!(owner.close().is_settled());
+}
+
+#[test]
+fn a_recording_refuses_what_an_image_or_buffer_was_not_made_for() {
+    in_own_process!();
+    let Some((owner, _log)) = open(policy(QUOTA)) else {
+        return;
+    };
+    let client = attach(&owner, 1);
+    let claim = client.admit(&request(16 << 20)).expect("fits");
+    let drawn = ImageRequest {
+        usage: ImageUsage {
+            color_attachment: true,
+            sampled: true,
+            ..ImageUsage::default()
+        },
+        ..target(AttachmentFormat::Rgba8Unorm)
+    };
+    // Drawn into and sampled, never cleared or copied.
+    let attachment = client.create_image(&claim, &drawn).expect("made");
+    let image = client
+        .create_image(&claim, &target(AttachmentFormat::Rgba8Unorm))
+        .expect("made");
+    let bytes = u64::from(WIDTH * HEIGHT * 4);
+    // Room for every texel but one.
+    let short = client
+        .create_buffer(&claim, &readback(bytes - 4))
+        .expect("made");
+    let upload = BufferRequest {
+        size: bytes,
+        usage: BufferUsage {
+            transfer_src: true,
+            ..BufferUsage::default()
+        },
+        memory: BufferMemory::Upload,
+    };
+    // Not a copy's destination.
+    let source = client.create_buffer(&claim, &upload).expect("made");
+    let submission = client
+        .submit(&claim, |recording| {
+            use ImageLayout::{
+                ColorAttachment, General, Present, ShaderRead, TransferDst, TransferSrc, Undefined,
+            };
+            let none = [0.0; 4];
+            assert_eq!(
+                recording.clear(&attachment, Undefined, none, ShaderRead),
+                Err(RecordRefusal::UsageMissing)
+            );
+            assert_eq!(
+                recording.read_back(&attachment, Undefined, &short, ShaderRead),
+                Err(RecordRefusal::UsageMissing)
+            );
+            assert_eq!(
+                recording.read_back(&image, Undefined, &source, ShaderRead),
+                Err(RecordRefusal::UsageMissing)
+            );
+            assert_eq!(
+                recording.read_back(&image, Undefined, &short, ShaderRead),
+                Err(RecordRefusal::BufferTooSmall)
+            );
+            // Layouts the image cannot be in with its use (VUID-VkImageMemoryBarrier-oldLayout-01212/01213), PRESENT for
+            // an image that is not a frame, and UNDEFINED to leave it in.
+            for (from, to) in [
+                (Undefined, TransferDst),
+                (TransferSrc, General),
+                (Undefined, Present),
+                (Undefined, Undefined),
+            ] {
+                assert_eq!(
+                    recording.transition(&attachment, from, to),
+                    Err(RecordRefusal::LayoutInvalid),
+                    "{from:?} {to:?}"
+                );
+            }
+            assert_eq!(
+                recording.clear(&image, Undefined, none, Undefined),
+                Err(RecordRefusal::LayoutInvalid)
+            );
+            assert_eq!(
+                recording.clear(&image, Present, none, General),
+                Err(RecordRefusal::LayoutInvalid)
+            );
+            // What the image may be in is recorded.
+            recording
+                .transition(&attachment, Undefined, ColorAttachment)
+                .map_err(|_| RecordAborted)?;
+            recording
+                .transition(&attachment, ColorAttachment, ShaderRead)
+                .map_err(|_| RecordAborted)
+        })
+        .expect("submits");
+    assert_eq!(client.wait(&submission, MAX_WAIT), Ok(COMPLETED));
+    drop((attachment, image, short, source));
+    assert_eq!(client.poll(), Ok(()));
+    assert_eq!(owner.usage().owned_resources, 0);
+    client
+        .settle(&claim, Settlement::clean(SettleOutcome::Completed))
         .expect("settles");
     assert!(owner.close().is_settled());
 }

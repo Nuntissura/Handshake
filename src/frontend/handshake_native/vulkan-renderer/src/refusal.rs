@@ -122,10 +122,14 @@ pub enum RecordRefusal {
     OtherGeneration,
     /// The image or buffer was not made with the use the command needs.
     UsageMissing,
-    /// `UNDEFINED` was given as the layout to leave the image in.
+    /// `UNDEFINED` was given as the layout to leave the image in, or a layout the image cannot be in with its use
+    /// (`PRESENT` for an image that is not a frame).
     LayoutInvalid,
     /// The buffer is smaller than the image's texels.
     BufferTooSmall,
+    /// The image is a frame, and this is not the recording of its present: only that submission waits for the frame's
+    /// acquire.
+    FrameNotPresented,
 }
 
 impl RecordRefusal {
@@ -136,6 +140,7 @@ impl RecordRefusal {
             Self::UsageMissing => "record_usage_missing",
             Self::LayoutInvalid => "record_layout_invalid",
             Self::BufferTooSmall => "record_buffer_too_small",
+            Self::FrameNotPresented => "record_frame_not_presented",
         }
     }
 
@@ -146,6 +151,7 @@ impl RecordRefusal {
             Self::UsageMissing => 3,
             Self::LayoutInvalid => 4,
             Self::BufferTooSmall => 5,
+            Self::FrameNotPresented => 6,
         }
     }
 }

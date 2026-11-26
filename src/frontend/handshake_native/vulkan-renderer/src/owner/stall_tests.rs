@@ -7,9 +7,10 @@ use super::fault_tests::support::gpu_env::{
 use super::fault_tests::support::{policy, request};
 use super::fault_tests::{attach, rig, LATE, QUOTA};
 use super::{GpuClient, GpuOwner, MAX_WAIT};
+use crate::vulkan::VulkanGeneration;
 use crate::{
-    AuthorizeRefusal, DeviceFate, OwnerDiagnostics, OwnerEvent, SettleOutcome, Settlement,
-    SubmissionState, Unavailable,
+    AuthorizeRefusal, ClientId, DeviceFate, ModuleId, OwnerDiagnostics, OwnerEvent, SettleOutcome,
+    Settlement, SubmissionState, SubmitRefusal, Unavailable,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, Weak};
@@ -93,6 +94,91 @@ impl OwnerDiagnostics for CallsBack {
             self.calls.fetch_add(1, Ordering::SeqCst);
         }
     }
+}
+
+/// Looks at the bound generation's lane whenever an authorization refusal is delivered.
+#[derive(Default)]
+struct LaneWatch {
+    device: OnceLock<Weak<VulkanGeneration>>,
+    refusals: AtomicU64,
+    under_the_lane: AtomicU64,
+}
+
+impl OwnerDiagnostics for LaneWatch {
+    fn record(&self, event: OwnerEvent) {
+        if !matches!(event, OwnerEvent::AuthorizeRefused { .. }) {
+            return;
+        }
+        self.refusals.fetch_add(1, Ordering::SeqCst);
+        let device = self.device.get().and_then(Weak::upgrade);
+        if device.is_some_and(|device| !device.lane_is_free()) {
+            self.under_the_lane.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+}
+
+fn open_owner(sink: Arc<dyn OwnerDiagnostics>) -> Option<GpuOwner> {
+    match GpuOwner::open(policy(QUOTA), sink) {
+        Ok(owner) => Some(owner),
+        Err(reason @ (Unavailable::OwnerAlreadyOpen | Unavailable::DeviceCreationRefused)) => {
+            panic!("{}", reason.key())
+        }
+        Err(reason) => {
+            assert!(
+                !is_required(std::env::var_os(REQUIRE_GPU).as_deref()),
+                "no acceptable device ({})",
+                reason.key()
+            );
+            println!("HSK_GPU_SKIP reason={}", reason.key());
+            None
+        }
+    }
+}
+
+/// MT-203 E3-2 for the one section that holds the lane: a refusal met while the lane is held (the claim is authorized
+/// again under it) reaches the sink only after the lane is let go.
+#[test]
+fn an_event_met_while_the_lane_is_held_is_delivered_after_it() {
+    in_own_process!();
+    let sink = Arc::new(LaneWatch::default());
+    let Some(owner) = open_owner(sink.clone()) else {
+        return;
+    };
+    let device = Arc::downgrade(
+        &owner
+            .shared
+            .lock_slot()
+            .live
+            .as_ref()
+            .expect("bound")
+            .vulkan,
+    );
+    assert!(sink.device.set(device).is_ok());
+    let client = attach(&owner, 1);
+    let claim = client.admit(&request(1 << 20)).expect("fits");
+    // The host revokes the client while it records: the authorization under the lane refuses the submission.
+    let refused = client.submit(&claim, |_| {
+        assert_eq!(owner.revoke_client(ModuleId(1), ClientId(1)), 1);
+        Ok(())
+    });
+    assert!(
+        matches!(refused, Err(SubmitRefusal::NotAuthorized(_))),
+        "{refused:?}"
+    );
+    assert_eq!(
+        sink.refusals.load(Ordering::SeqCst),
+        1,
+        "the refusal was told"
+    );
+    assert_eq!(
+        sink.under_the_lane.load(Ordering::SeqCst),
+        0,
+        "told while the lane was held"
+    );
+    client
+        .settle(&claim, Settlement::clean(SettleOutcome::NoEffect))
+        .expect("settles");
+    assert!(owner.close().is_settled());
 }
 
 #[test]
