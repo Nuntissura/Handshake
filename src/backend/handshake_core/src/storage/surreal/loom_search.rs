@@ -477,7 +477,7 @@ LIMIT 2);
 LET $existing = (SELECT
     record::id(block_id) AS block_id,
     embedding_model,
-    record::id(index_event_id) AS index_event_id,
+    IF index_event_id = NONE { NONE } ELSE { record::id(index_event_id) } AS index_event_id,
     mutation_fingerprint
 FROM $index_record LIMIT 2);
 LET $receipt = IF array::len($existing) = 1 {
@@ -1680,4 +1680,308 @@ async fn set_lifecycle_fixture(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod reindex_unattributed_index_row_tests {
+    //! SC-4 (MT-173), schema repair spec row 4 code guard: REINDEX_QUERY read the stored row's receipt
+    //! as `record::id(index_event_id)`, which SurrealDB 3.2.0 rejects for NONE (InvalidFunctionArguments:
+    //! the argument must coerce to a record), so re-indexing a block whose index row has no receipt
+    //! aborted the whole transaction. Runs the production storage reindex
+    //! (`SurrealLoomSearchStore::reindex_block`, called by `loom_search::reindex_block` when no
+    //! embedding model is selected) as the account record user inside the Loom session receipt scope
+    //! the journal route sets, on the full production schema composition. On the old text it fails at
+    //! the unattributed reindex `expect`.
+    //!
+    //! The workspace, both blocks and their protected resources and grants are root writes with full
+    //! field processing. The attributed index row is written by the production reindex. The
+    //! unattributed row has the shape the row-4 writers store (block, workspace, content type, search
+    //! text, lifecycle, indexed_at; no scope, hash, fingerprint or receipt). The current schema requires
+    //! all of those, so that one row is written under `OPTION IMPORT` (no field processing, indexes
+    //! still maintained).
+    use super::super::resource_authority::{
+        RecordUserScope, ResourceAction, ResourceGrantSpec, ResourceKind,
+    };
+    use super::*;
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, WorkspaceScopeRef,
+    };
+    use uuid::Uuid;
+
+    const BINDING: &str = "sc4-loom-reindex-binding";
+    const ACTOR: &str = "sc4-loom-reindex-actor";
+    const SEED_WORKSPACE: &str = "CREATE $workspace SET name = 'SC-4 Loom reindex workspace';";
+    const SEED_BLOCK: &str = "CREATE $block CONTENT { block_id: record::id($block), workspace_id: $workspace, \
+        created_in_session_id: $session_record, owner_account_id: $owner_account_id, \
+        actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, \
+        access_space_id: $access_space_id, content_type: 'note', title: $title };";
+    const IMPORT_UNATTRIBUTED_INDEX_ROW: &str = "OPTION IMPORT; CREATE $index_record CONTENT { \
+        block_id: $block, workspace_id: $workspace, content_type: 'note', search_text: $search_text, \
+        lifecycle_state: 'active', indexed_at: time::now() };";
+    const READ_INDEX_ROW: &str = "SELECT record::id(block_id) AS block_id, index_event_id, \
+        mutation_fingerprint, owner_account_id FROM $index_record;";
+    const READ_RECEIPT: &str = "SELECT event_type, aggregate_type, aggregate_id, source_component, wsids \
+        FROM type::record('kernel_event_ledger', $event_id);";
+
+    #[derive(SurrealValue)]
+    struct WorkspaceSeed {
+        workspace: RecordId,
+    }
+
+    #[derive(SurrealValue)]
+    struct BlockSeed {
+        block: RecordId,
+        index_record: RecordId,
+        workspace: RecordId,
+        session_record: RecordId,
+        owner_account_id: String,
+        actor_principal_id: String,
+        authenticated_session_id: String,
+        access_space_id: String,
+        title: Option<String>,
+        search_text: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct IndexKey {
+        index_record: RecordId,
+    }
+
+    #[derive(Debug, SurrealValue)]
+    struct StoredIndexRow {
+        block_id: String,
+        index_event_id: Option<RecordId>,
+        mutation_fingerprint: Option<String>,
+        owner_account_id: Option<String>,
+    }
+
+    #[derive(SurrealValue)]
+    struct ReceiptKey {
+        event_id: String,
+    }
+
+    #[derive(Debug, SurrealValue)]
+    struct StoredReceipt {
+        event_type: String,
+        aggregate_type: String,
+        aggregate_id: String,
+        source_component: String,
+        wsids: Vec<String>,
+    }
+
+    fn note(workspace: &str, title: &str) -> LoomBlock {
+        let now = Utc::now();
+        LoomBlock {
+            block_id: Uuid::now_v7().to_string(),
+            workspace_id: workspace.to_owned(),
+            content_type: LoomBlockContentType::Note,
+            document_id: None,
+            asset_id: None,
+            title: Some(title.to_owned()),
+            original_filename: None,
+            content_hash: None,
+            pinned: false,
+            favorite: false,
+            pin_order: None,
+            journal_date: None,
+            created_at: now,
+            updated_at: now,
+            imported_at: None,
+            derived: LoomBlockDerived::default(),
+        }
+    }
+
+    async fn root<B>(storage: &SurrealStorage, statement: &'static str, bindings: B)
+    where
+        B: SurrealValue + Send + 'static,
+    {
+        storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_bound(statement, bindings).await })
+            })
+            .await
+            .expect("root seed write");
+    }
+
+    async fn stored_row(storage: &SurrealStorage, block_id: &str) -> StoredIndexRow {
+        let key = IndexKey {
+            index_record: RecordId::new("loom_block_search_index", block_id.to_owned()),
+        };
+        let mut rows = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values::<StoredIndexRow, _>(READ_INDEX_ROW, key).await })
+            })
+            .await
+            .expect("read the stored index row as root");
+        assert_eq!(rows.len(), 1, "exactly one index row for block {block_id}");
+        rows.remove(0)
+    }
+
+    async fn stored_receipt(storage: &SurrealStorage, event_id: &str) -> StoredReceipt {
+        let key = ReceiptKey { event_id: event_id.to_owned() };
+        let mut rows = storage
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values::<StoredReceipt, _>(READ_RECEIPT, key).await })
+            })
+            .await
+            .expect("read the stored receipt as root");
+        assert_eq!(rows.len(), 1, "exactly one stored receipt {event_id}");
+        rows.remove(0)
+    }
+
+    async fn reindex(
+        storage: &SurrealStorage,
+        scope: &RecordUserScope,
+        exact: &ExactResourceScopeAttribution,
+        block: &LoomBlock,
+    ) -> StorageResult<SurrealLoomIndexMutation> {
+        let store = SurrealLoomSearchStore::new(storage.clone());
+        storage
+            .with_record_user_scope(
+                scope.clone(),
+                super::super::event_ledger::with_loom_session_receipt(
+                    KernelActor::Operator(ACTOR.to_owned()),
+                    exact.workspace_id.as_str().to_owned(),
+                    store.reindex_block(exact, block, None, None),
+                ),
+            )
+            .await
+    }
+
+    async fn body(storage: &SurrealStorage) {
+        let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
+        let principal = storage
+            .provision_principal(
+                "sc4-loom-reindex-account", "sc4-loom-reindex-principal", "human_account", ACTOR, "Operator",
+                &capabilities, "sc4-loom-reindex-space", Some(BINDING), std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("provision the Loom account principal");
+        let identity = &principal.identity;
+        let workspace = Uuid::now_v7().to_string();
+        let workspace_resource = storage
+            .register_workspace_resource(identity, &workspace)
+            .await
+            .expect("register the Loom workspace resource");
+        let workspace_grant = storage
+            .grant_resource(&identity.account_id, &identity.access_space_id, ResourceGrantSpec {
+                principal_id: identity.principal_id.clone(), resource_id: workspace_resource.resource_id.clone(),
+                actions: vec![ResourceAction::Read, ResourceAction::Create, ResourceAction::Update],
+                capability_ids: capabilities.clone(), expires_at: Some(principal.session.expires_at),
+                delegation_chain: vec![],
+            })
+            .await
+            .expect("grant the Loom workspace");
+        let uuid = |value: &str| Uuid::parse_str(value).expect("provisioned identities are UUIDs");
+        let exact = ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::from_uuid(uuid(&identity.account_id)),
+            actor_principal_id: ActorPrincipalId::from_uuid(uuid(&identity.principal_id)),
+            authenticated_session_id: AuthenticatedSessionRef::from_uuid(uuid(&principal.session.session_id)),
+            access_space_id: AccessSpaceRef::from_uuid(uuid(&identity.access_space_id)),
+            workspace_id: WorkspaceScopeRef::new(workspace.clone()).expect("Loom workspace scope"),
+        };
+        // The journal route's account authority for its reindex: workspace grant, Create, fs.write.
+        let scope = RecordUserScope {
+            grant_id: Some(workspace_grant.grant_id), workspace_id: Some(workspace.clone()),
+            session_token: principal.session.token.clone(), channel_binding_hash: Some(BINDING.to_owned()),
+            resource_id: workspace_resource.resource_id.clone(), session_id: principal.session.session_id.clone(),
+            capability_id: "fs.write".to_owned(), action: ResourceAction::Create,
+        };
+
+        let workspace_record = RecordId::new("workspaces", workspace.clone());
+        root(storage, SEED_WORKSPACE, WorkspaceSeed { workspace: workspace_record.clone() }).await;
+        let unattributed = note(&workspace, "SC-4 note whose index row has no receipt");
+        let attributed = note(&workspace, "SC-4 note indexed with a receipt");
+        let seed = |block: &LoomBlock| {
+            let bound = exact_scope_bindings(&exact);
+            BlockSeed {
+                block: RecordId::new("loom_blocks", block.block_id.clone()),
+                index_record: RecordId::new("loom_block_search_index", block.block_id.clone()),
+                workspace: workspace_record.clone(),
+                session_record: RecordId::new("authenticated_sessions", principal.session.session_id.clone()),
+                owner_account_id: bound.owner_account_id,
+                actor_principal_id: bound.actor_principal_id,
+                authenticated_session_id: bound.authenticated_session_id,
+                access_space_id: bound.access_space_id,
+                title: block.title.clone(),
+                search_text: block_search_text(block),
+            }
+        };
+        for block in [&unattributed, &attributed] {
+            root(storage, SEED_BLOCK, seed(block)).await;
+            let resource = storage
+                .register_protected_resource(
+                    identity, ResourceKind::LoomBlock, &block.block_id,
+                    Some(workspace_resource.resource_id.as_str()), "account_private",
+                )
+                .await
+                .expect("register the Loom block resource under the workspace");
+            storage
+                .grant_resource(&identity.account_id, &identity.access_space_id, ResourceGrantSpec {
+                    principal_id: identity.principal_id.clone(), resource_id: resource.resource_id,
+                    actions: vec![ResourceAction::Read, ResourceAction::Create, ResourceAction::Update, ResourceAction::Delete],
+                    capability_ids: capabilities.clone(), expires_at: None, delegation_chain: vec![],
+                })
+                .await
+                .expect("grant the Loom block");
+        }
+
+        // Attributed row, written by the production reindex.
+        let indexed = reindex(storage, &scope, &exact, &attributed)
+            .await
+            .expect("index the attributed note as the account record user");
+        assert!(indexed.changed, "the first reindex writes the attributed row");
+        assert_eq!(indexed.block_id, attributed.block_id);
+        let stored = stored_row(storage, &attributed.block_id).await;
+        assert_eq!(stored.index_event_id, Some(RecordId::new("kernel_event_ledger", indexed.index_event_id.clone())));
+        assert_eq!(stored.mutation_fingerprint.as_deref(), Some(indexed.mutation_fingerprint.as_str()));
+
+        // Unattributed row, the shape the row-4 writers store.
+        root(storage, IMPORT_UNATTRIBUTED_INDEX_ROW, seed(&unattributed)).await;
+        let seeded = stored_row(storage, &unattributed.block_id).await;
+        assert_eq!(seeded.block_id, unattributed.block_id);
+        assert_eq!(seeded.index_event_id, None, "the seeded index row has no receipt");
+        assert_eq!(seeded.mutation_fingerprint, None);
+        assert_eq!(seeded.owner_account_id, None);
+
+        let repaired = reindex(storage, &scope, &exact, &unattributed)
+            .await
+            .expect("re-index the note whose index row has no receipt (SC-4 guard)");
+        assert!(repaired.changed, "the unattributed row is replaced by an attributed one");
+        assert_eq!(repaired.block_id, unattributed.block_id);
+        assert_ne!(repaired.index_event_id, indexed.index_event_id);
+        let stored = stored_row(storage, &unattributed.block_id).await;
+        assert_eq!(stored.index_event_id, Some(RecordId::new("kernel_event_ledger", repaired.index_event_id.clone())));
+        assert_eq!(stored.mutation_fingerprint.as_deref(), Some(repaired.mutation_fingerprint.as_str()));
+        assert_eq!(stored.owner_account_id.as_deref(), Some(identity.account_id.as_str()));
+        let receipt = stored_receipt(storage, &repaired.index_event_id).await;
+        assert_eq!(
+            (receipt.event_type.as_str(), receipt.aggregate_type.as_str(), receipt.aggregate_id.as_str(), receipt.source_component.as_str()),
+            ("KNOWLEDGE_LOOM_BLOCK_INDEXED", "loom_block_search_index", unattributed.block_id.as_str(), "loom_search_v2"),
+        );
+        assert_eq!(receipt.wsids, vec![workspace.clone()]);
+
+        // Unchanged re-runs take the receipt branch, which reads each stored id through the guard.
+        for (block, expected) in [(&attributed, &indexed), (&unattributed, &repaired)] {
+            let again = reindex(storage, &scope, &exact, block)
+                .await
+                .expect("re-index an unchanged attributed note");
+            assert_eq!(again, SurrealLoomIndexMutation { changed: false, ..expected.clone() });
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reindex_replaces_an_index_row_without_receipt_and_keeps_stored_receipt_ids() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the SC-4 reindex proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        // Close before re-raising so a failed reindex cannot leave the store open.
+        let removed = backend.close_and_remove().await;
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+        removed.expect("remove the SC-4 reindex store");
+    }
 }
