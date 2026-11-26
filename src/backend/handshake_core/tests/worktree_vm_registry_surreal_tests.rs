@@ -1800,6 +1800,7 @@ async fn deterministic_failure_between_event_and_state_writes_rolls_back_both() 
                             payload: { transition_event_type: 'SESSION_FAILED',
                                 record_id: $record_id, worktree_id: $worktree_id,
                                 binding_id: $binding_id, binding_state: 'failed' },
+                            wsids: [$workspace_id],
                             owner_account_id: $owner_account_id,
                             actor_principal_id: $actor_principal_id,
                             authenticated_session_id: $authenticated_session_id,
@@ -1824,7 +1825,14 @@ async fn deterministic_failure_between_event_and_state_writes_rolls_back_both() 
             })
         })
         .await;
-    assert!(failed.is_err(), "deterministic transaction probe must fail");
+    // The event write must be accepted by the schema so that the rollback is caused by the
+    // deterministic THROW after it; a schema rejection of the event fails earlier and proves nothing.
+    let failed = failed.expect_err("deterministic transaction probe must fail");
+    assert!(
+        matches!(&failed, handshake_core::storage::surreal::SurrealStorageError::Database(error)
+            if error.is_thrown() && error.message().contains("MT-023 deterministic failure after event write")),
+        "probe must fail at its THROW after the event write, not earlier: {failed}"
+    );
     assert_eq!(
         registry
             .durable_binding(&worktree_id)

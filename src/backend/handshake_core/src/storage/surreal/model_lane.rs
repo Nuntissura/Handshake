@@ -43,10 +43,10 @@ IF array::len($first_existing) = 1 AND array::len($second_existing) = 1 {\
   IF array::len($first_existing) > 0 OR array::len($second_existing) > 0 {\
     THROW 'model-lane immutable pair is partially present';\
   } ELSE {\
-  LET $first_ledger = CREATE type::record('kernel_event_ledger', $first_event_id) CONTENT { event_id: $first_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $first_run_id, session_run_id: IF $first_event_ledger_stream_id = NONE { $first_run_id } ELSE { $first_event_ledger_stream_id }, aggregate_type: $first_record_kind, aggregate_id: $first_aggregate_id, idempotency_key: $first_event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $first_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $first_record_kind, run_id: $first_run_id, event_stream_version: 1, event_payload_json: $first_event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+  LET $first_ledger = CREATE type::record('kernel_event_ledger', $first_event_id) CONTENT { event_id: $first_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $first_run_id, session_run_id: IF $first_event_ledger_stream_id = NONE { $first_run_id } ELSE { $first_event_ledger_stream_id }, aggregate_type: $first_record_kind, aggregate_id: $first_aggregate_id, idempotency_key: $first_event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $first_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $first_record_kind, run_id: $first_run_id, event_stream_version: 1, event_payload_json: $first_event_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
   LET $first_seq = $first_ledger[0].event_sequence;\
   LET $first_row = CREATE type::record('model_lane_authority', $first_record_id) CONTENT { record_kind: $first_record_kind, aggregate_id: $first_aggregate_id, run_id: $first_run_id, idempotency_key: $first_idempotency_key, record_json: $first_record_json, search_terms: $first_search_terms, event_id: $first_event_id, event_ledger_event_id: type::record('kernel_event_ledger', $first_event_id), event_seq: $first_seq, event_stream_version: 1, transaction_seq: $first_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
-  LET $second_ledger = CREATE type::record('kernel_event_ledger', $second_event_id) CONTENT { event_id: $second_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $second_run_id, session_run_id: IF $second_event_ledger_stream_id = NONE { $second_run_id } ELSE { $second_event_ledger_stream_id }, aggregate_type: $second_record_kind, aggregate_id: $second_aggregate_id, idempotency_key: $second_event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $first_event_id, correlation_id: NONE, payload_hash: $second_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $second_record_kind, run_id: $second_run_id, event_stream_version: 1, event_payload_json: $second_event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+  LET $second_ledger = CREATE type::record('kernel_event_ledger', $second_event_id) CONTENT { event_id: $second_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $second_run_id, session_run_id: IF $second_event_ledger_stream_id = NONE { $second_run_id } ELSE { $second_event_ledger_stream_id }, aggregate_type: $second_record_kind, aggregate_id: $second_aggregate_id, idempotency_key: $second_event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $first_event_id, correlation_id: NONE, payload_hash: $second_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $second_record_kind, run_id: $second_run_id, event_stream_version: 1, event_payload_json: $second_event_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
   LET $second_seq = $second_ledger[0].event_sequence;\
   LET $second_row = CREATE type::record('model_lane_authority', $second_record_id) CONTENT { record_kind: $second_record_kind, aggregate_id: $second_aggregate_id, run_id: $second_run_id, idempotency_key: $second_idempotency_key, record_json: $second_record_json, search_terms: $second_search_terms, event_id: $second_event_id, event_ledger_event_id: type::record('kernel_event_ledger', $second_event_id), event_seq: $second_seq, event_stream_version: 1, transaction_seq: $second_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
     RETURN array::concat($first_row, $second_row);\
@@ -77,7 +77,7 @@ IF array::len($existing_message) = 1 {\
     LET $message_seq = $message_ledger[0].event_sequence;\
     LET $message = CREATE type::record('model_lane_authority', $message_record_id) CONTENT { record_kind: 'message', aggregate_id: $message_aggregate_id, run_id: $message_run_id, idempotency_key: $message_idempotency_key, record_json: $message_record_json, search_terms: $message_search_terms, event_id: $message_event_id, event_ledger_event_id: type::record('kernel_event_ledger', $message_event_id), event_seq: $message_seq, event_stream_version: 1, transaction_seq: $message_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
     IF $has_payload_binding {\
-      LET $binding_ledger = CREATE type::record('kernel_event_ledger', $binding_event_id) CONTENT { event_id: $binding_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $binding_run_id, session_run_id: IF $binding_event_ledger_stream_id = NONE { $binding_run_id } ELSE { $binding_event_ledger_stream_id }, aggregate_type: $binding_record_kind, aggregate_id: $binding_aggregate_id, idempotency_key: $binding_event_id, event_type: 'MODEL_LANE_PAYLOAD_BOUND', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $message_event_id, correlation_id: NONE, payload_hash: $binding_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $binding_record_kind, run_id: $binding_run_id, event_stream_version: 1, event_payload_json: $binding_event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+      LET $binding_ledger = CREATE type::record('kernel_event_ledger', $binding_event_id) CONTENT { event_id: $binding_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $binding_run_id, session_run_id: IF $binding_event_ledger_stream_id = NONE { $binding_run_id } ELSE { $binding_event_ledger_stream_id }, aggregate_type: $binding_record_kind, aggregate_id: $binding_aggregate_id, idempotency_key: $binding_event_id, event_type: 'MODEL_LANE_PAYLOAD_BOUND', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $message_event_id, correlation_id: NONE, payload_hash: $binding_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $binding_record_kind, run_id: $binding_run_id, event_stream_version: 1, event_payload_json: $binding_event_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
       LET $binding_seq = $binding_ledger[0].event_sequence;\
       LET $binding = CREATE type::record('model_lane_authority', $binding_record_id) CONTENT { record_kind: $binding_record_kind, aggregate_id: $binding_aggregate_id, run_id: $binding_run_id, idempotency_key: $binding_idempotency_key, record_json: $binding_record_json, search_terms: $binding_search_terms, event_id: $binding_event_id, event_ledger_event_id: type::record('kernel_event_ledger', $binding_event_id), event_seq: $binding_seq, event_stream_version: 1, transaction_seq: $binding_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
       RETURN array::concat($message, $binding);\
@@ -128,24 +128,24 @@ LET $result = IF array::len($current) > 1 OR array::len($attempt_existing) > 1 O
     LET $attempt_event_existing = (SELECT id FROM kernel_event_ledger WHERE idempotency_key = $attempt_event.idempotency_key AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);
     LET $outbox_event_existing = (SELECT id FROM kernel_event_ledger WHERE idempotency_key = $outbox_event.idempotency_key AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);
     IF array::len($execution_event_existing) != 0 OR array::len($attempt_event_existing) != 0 OR array::len($outbox_event_existing) != 0 { THROW 'model-lane routing event exists without its complete projection'; };
-    LET $execution_ledger = CREATE type::record('kernel_event_ledger', $execution_event.event_id) CONTENT { event_id: $execution_event.event_id, event_version: $execution_event.event_version, kernel_task_run_id: $execution_event.kernel_task_run_id, session_run_id: $execution_event.session_run_id, aggregate_type: $execution_event.aggregate_type, aggregate_id: $execution_event.aggregate_id, idempotency_key: $execution_event.idempotency_key, event_type: $execution_event.event_type, actor_kind: $execution_event.actor_kind, actor_id: $execution_event.actor_id, causation_id: $execution_event.causation_id, correlation_id: $execution_event.correlation_id, payload_hash: $execution_event.payload_hash, source_component: $execution_event.source_component, payload: $execution_event.payload, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $execution_event.created_at };
-    LET $attempt_ledger = CREATE type::record('kernel_event_ledger', $attempt_event.event_id) CONTENT { event_id: $attempt_event.event_id, event_version: $attempt_event.event_version, kernel_task_run_id: $attempt_event.kernel_task_run_id, session_run_id: $attempt_event.session_run_id, aggregate_type: $attempt_event.aggregate_type, aggregate_id: $attempt_event.aggregate_id, idempotency_key: $attempt_event.idempotency_key, event_type: $attempt_event.event_type, actor_kind: $attempt_event.actor_kind, actor_id: $attempt_event.actor_id, causation_id: $attempt_event.causation_id, correlation_id: $attempt_event.correlation_id, payload_hash: $attempt_event.payload_hash, source_component: $attempt_event.source_component, payload: $attempt_event.payload, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $attempt_event.created_at };
-    LET $outbox_ledger = CREATE type::record('kernel_event_ledger', $outbox_event.event_id) CONTENT { event_id: $outbox_event.event_id, event_version: $outbox_event.event_version, kernel_task_run_id: $outbox_event.kernel_task_run_id, session_run_id: $outbox_event.session_run_id, aggregate_type: $outbox_event.aggregate_type, aggregate_id: $outbox_event.aggregate_id, idempotency_key: $outbox_event.idempotency_key, event_type: $outbox_event.event_type, actor_kind: $outbox_event.actor_kind, actor_id: $outbox_event.actor_id, causation_id: $outbox_event.causation_id, correlation_id: $outbox_event.correlation_id, payload_hash: $outbox_event.payload_hash, source_component: $outbox_event.source_component, payload: $outbox_event.payload, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $outbox_event.created_at };
+    LET $execution_ledger = CREATE type::record('kernel_event_ledger', $execution_event.event_id) CONTENT { event_id: $execution_event.event_id, event_version: $execution_event.event_version, kernel_task_run_id: $execution_event.kernel_task_run_id, session_run_id: $execution_event.session_run_id, aggregate_type: $execution_event.aggregate_type, aggregate_id: $execution_event.aggregate_id, idempotency_key: $execution_event.idempotency_key, event_type: $execution_event.event_type, actor_kind: $execution_event.actor_kind, actor_id: $execution_event.actor_id, causation_id: $execution_event.causation_id, correlation_id: $execution_event.correlation_id, payload_hash: $execution_event.payload_hash, source_component: $execution_event.source_component, payload: $execution_event.payload, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $execution_event.created_at };
+    LET $attempt_ledger = CREATE type::record('kernel_event_ledger', $attempt_event.event_id) CONTENT { event_id: $attempt_event.event_id, event_version: $attempt_event.event_version, kernel_task_run_id: $attempt_event.kernel_task_run_id, session_run_id: $attempt_event.session_run_id, aggregate_type: $attempt_event.aggregate_type, aggregate_id: $attempt_event.aggregate_id, idempotency_key: $attempt_event.idempotency_key, event_type: $attempt_event.event_type, actor_kind: $attempt_event.actor_kind, actor_id: $attempt_event.actor_id, causation_id: $attempt_event.causation_id, correlation_id: $attempt_event.correlation_id, payload_hash: $attempt_event.payload_hash, source_component: $attempt_event.source_component, payload: $attempt_event.payload, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $attempt_event.created_at };
+    LET $outbox_ledger = CREATE type::record('kernel_event_ledger', $outbox_event.event_id) CONTENT { event_id: $outbox_event.event_id, event_version: $outbox_event.event_version, kernel_task_run_id: $outbox_event.kernel_task_run_id, session_run_id: $outbox_event.session_run_id, aggregate_type: $outbox_event.aggregate_type, aggregate_id: $outbox_event.aggregate_id, idempotency_key: $outbox_event.idempotency_key, event_type: $outbox_event.event_type, actor_kind: $outbox_event.actor_kind, actor_id: $outbox_event.actor_id, causation_id: $outbox_event.causation_id, correlation_id: $outbox_event.correlation_id, payload_hash: $outbox_event.payload_hash, source_component: $outbox_event.source_component, payload: $outbox_event.payload, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $outbox_event.created_at };
     FOR $event IN $extra_events {
         LET $event_existing = (SELECT id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);
         IF array::len($event_existing) != 0 { THROW 'model-lane routing extra event exists without its complete projection'; };
-        LET $extra_ledger = CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $event.created_at };
+        LET $extra_ledger = CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: $event.created_at };
         LET $extra_link = CREATE type::record('model_lane_routing_extra_event_link', $event.idempotency_key) CONTENT { execution_id: $execution.execution_id, run_id: $execution.run_id, revision: $execution.revision, idempotency_key: $event.idempotency_key, event_ledger_event_id: type::record('kernel_event_ledger', $event.event_id), event_ledger_seq: $extra_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
     };
     LET $stored_execution = IF array::len($current) = 0 { CREATE type::record('model_lane_routing_execution', $execution_record_id) CONTENT { execution_id: $execution.execution_id, run_id: $execution.run_id, revision: $execution.revision, context_hash: $execution.context_hash, record_json: $execution.record_json, event_ledger_event_id: type::record('kernel_event_ledger', $execution_event.event_id), event_ledger_seq: $execution_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id } } ELSE { UPDATE type::record('model_lane_routing_execution', $execution_record_id) CONTENT { execution_id: $execution.execution_id, run_id: $execution.run_id, revision: $execution.revision, context_hash: $execution.context_hash, record_json: $execution.record_json, event_ledger_event_id: type::record('kernel_event_ledger', $execution_event.event_id), event_ledger_seq: $execution_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id } };
     LET $stored_attempt = IF array::len($current) = 0 { CREATE type::record('model_lane_routing_stage_attempt', $attempt_record_id) CONTENT { attempt_id: $attempt.attempt_id, execution_id: $attempt.execution_id, run_id: $attempt.run_id, stage_id: $attempt.stage_id, attempt: $attempt.attempt, state: $attempt.state, lease_owner: $attempt.lease_owner, fencing_token: $attempt.fencing_token, lease_expires_at_unix_ms: $attempt.lease_expires_at_unix_ms, record_json: $attempt.record_json, event_ledger_event_id: type::record('kernel_event_ledger', $attempt_event.event_id), event_ledger_seq: $attempt_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id } } ELSE { UPSERT type::record('model_lane_routing_stage_attempt', $attempt_record_id) CONTENT { attempt_id: $attempt.attempt_id, execution_id: $attempt.execution_id, run_id: $attempt.run_id, stage_id: $attempt.stage_id, attempt: $attempt.attempt, state: $attempt.state, lease_owner: $attempt.lease_owner, fencing_token: $attempt.fencing_token, lease_expires_at_unix_ms: $attempt.lease_expires_at_unix_ms, record_json: $attempt.record_json, event_ledger_event_id: type::record('kernel_event_ledger', $attempt_event.event_id), event_ledger_seq: $attempt_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id } };
     LET $stored_outbox = IF array::len($current) = 0 { CREATE type::record('model_lane_routing_outbox', $outbox_record_id) CONTENT { command_id: $outbox.command_id, execution_id: $outbox.execution_id, run_id: $outbox.run_id, stage_id: $outbox.stage_id, attempt: $outbox.attempt, status: $outbox.status, lease_owner: $outbox.lease_owner, fencing_token: $outbox.fencing_token, lease_expires_at_unix_ms: $outbox.lease_expires_at_unix_ms, event_ledger_event_id: type::record('kernel_event_ledger', $outbox_event.event_id), event_ledger_seq: $outbox_ledger[0].event_sequence, created_at_unix_ms: $outbox.created_at_unix_ms, updated_at_unix_ms: $outbox.updated_at_unix_ms, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id } } ELSE { UPSERT type::record('model_lane_routing_outbox', $outbox_record_id) CONTENT { command_id: $outbox.command_id, execution_id: $outbox.execution_id, run_id: $outbox.run_id, stage_id: $outbox.stage_id, attempt: $outbox.attempt, status: $outbox.status, lease_owner: $outbox.lease_owner, fencing_token: $outbox.fencing_token, lease_expires_at_unix_ms: $outbox.lease_expires_at_unix_ms, event_ledger_event_id: type::record('kernel_event_ledger', $outbox_event.event_id), event_ledger_seq: $outbox_ledger[0].event_sequence, created_at_unix_ms: IF array::len($outbox_existing) = 1 { $outbox_existing[0].created_at_unix_ms } ELSE { $outbox.created_at_unix_ms }, updated_at_unix_ms: $outbox.updated_at_unix_ms, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id } };
     IF $has_message {
-        LET $message_ledger = CREATE type::record('kernel_event_ledger', $message.event_id) CONTENT { event_id: $message.event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $message.run_id, session_run_id: $message.event_ledger_stream_id, aggregate_type: 'message', aggregate_id: $message.aggregate_id, idempotency_key: $message.event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $message.event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'message', run_id: $message.run_id, event_stream_version: 1, event_payload_json: $message.event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+        LET $message_ledger = CREATE type::record('kernel_event_ledger', $message.event_id) CONTENT { event_id: $message.event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $message.run_id, session_run_id: $message.event_ledger_stream_id, aggregate_type: 'message', aggregate_id: $message.aggregate_id, idempotency_key: $message.event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $message.event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'message', run_id: $message.run_id, event_stream_version: 1, event_payload_json: $message.event_payload_json }, authority_resource_id: type::record('protected_resources', $routing_source_resource), authority_grant_id: type::record('resource_grants', $routing_source_grant), authority_session_id: $auth.id, authority_capability_id: $routing_source_capability, authority_action: $routing_source_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
         LET $stored_message = CREATE type::record('model_lane_authority', $message.record_id) CONTENT { record_kind: 'message', aggregate_id: $message.aggregate_id, run_id: $message.run_id, idempotency_key: $message.idempotency_key, record_json: $message.record_json, search_terms: $message.search_terms, event_id: $message.event_id, event_ledger_event_id: type::record('kernel_event_ledger', $message.event_id), event_seq: $message_ledger[0].event_sequence, event_stream_version: 1, transaction_seq: $message_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
     };
     IF $has_binding {
-        LET $binding_ledger = CREATE type::record('kernel_event_ledger', $binding.event_id) CONTENT { event_id: $binding.event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $binding.run_id, session_run_id: $binding.event_ledger_stream_id, aggregate_type: $binding.record_kind, aggregate_id: $binding.aggregate_id, idempotency_key: $binding.event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $binding.event_payload_hash, source_component: 'model_lane', payload: { record_kind: $binding.record_kind, run_id: $binding.run_id, event_stream_version: 1, event_payload_json: $binding.event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+        LET $binding_ledger = CREATE type::record('kernel_event_ledger', $binding.event_id) CONTENT { event_id: $binding.event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $binding.run_id, session_run_id: $binding.event_ledger_stream_id, aggregate_type: $binding.record_kind, aggregate_id: $binding.aggregate_id, idempotency_key: $binding.event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $binding.event_payload_hash, source_component: 'model_lane', payload: { record_kind: $binding.record_kind, run_id: $binding.run_id, event_stream_version: 1, event_payload_json: $binding.event_payload_json }, authority_resource_id: type::record('protected_resources', $routing_source_resource), authority_grant_id: type::record('resource_grants', $routing_source_grant), authority_session_id: $auth.id, authority_capability_id: $routing_source_capability, authority_action: $routing_source_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
         LET $stored_binding = CREATE type::record('model_lane_authority', $binding.record_id) CONTENT { record_kind: $binding.record_kind, aggregate_id: $binding.aggregate_id, run_id: $binding.run_id, idempotency_key: $binding.idempotency_key, record_json: $binding.record_json, search_terms: $binding.search_terms, event_id: $binding.event_id, event_ledger_event_id: type::record('kernel_event_ledger', $binding.event_id), event_seq: $binding_ledger[0].event_sequence, event_stream_version: 1, transaction_seq: $binding_ledger[0].event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
     };
     SELECT execution_id, run_id, revision, context_hash, record_json, record::id(event_ledger_event_id) AS event_ledger_event_id, event_ledger_seq FROM type::record('model_lane_routing_execution', $execution_record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.aggregate_type = 'model_lane_routing_execution' AND event_ledger_event_id.aggregate_id = $execution.execution_id AND event_ledger_seq = event_ledger_event_id.event_sequence
@@ -6567,7 +6567,7 @@ COMMIT TRANSACTION;
                  LET $current = (SELECT * FROM ONLY $target WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
                  IF $current IS NONE { RETURN []; } ELSE {\
                    IF $record_kind != 'session_cleanup_receipt' AND (IF $record_kind = 'message' { encoding::json::decode($current.record_json).inner.event_ledger_stream_id } ELSE { encoding::json::decode($current.record_json).event_ledger_stream_id }) != $event_ledger_stream_id { THROW 'model-lane immutable declared stream changed'; };\
-                   LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $current.run_id, session_run_id: IF $event_ledger_stream_id = NONE { $current.run_id } ELSE { $event_ledger_stream_id }, aggregate_type: $record_kind, aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_REPLACED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $current.event_id, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: $record_kind, run_id: $current.run_id, event_stream_version: $current.event_stream_version + 1, event_payload_json: $event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+                   LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $current.run_id, session_run_id: IF $event_ledger_stream_id = NONE { $current.run_id } ELSE { $event_ledger_stream_id }, aggregate_type: $record_kind, aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_REPLACED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $current.event_id, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: $record_kind, run_id: $current.run_id, event_stream_version: $current.event_stream_version + 1, event_payload_json: $event_payload_json }, authority_resource_id: IF $wp012_original_resource = NONE { NONE } ELSE { type::record('protected_resources', $wp012_original_resource) }, authority_grant_id: IF $wp012_original_grant = NONE { NONE } ELSE { type::record('resource_grants', $wp012_original_grant) }, authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
                    LET $seq = $ledger[0].event_sequence;\
                    RETURN UPDATE $target SET record_json = $record_json, search_terms = $search_terms, event_id = $event_id, event_ledger_event_id = type::record('kernel_event_ledger', $event_id), event_seq = $seq, event_stream_version += 1, transaction_seq = $seq;\
                  };\
@@ -6650,7 +6650,7 @@ COMMIT TRANSACTION;
                  LET $current = (SELECT * FROM ONLY $target WHERE record_kind = $record_kind AND aggregate_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
                  IF $current IS NONE OR $current.event_stream_version != $expected_event_stream_version { RETURN []; } ELSE {\
                    IF $record_kind != 'session_cleanup_receipt' AND (IF $record_kind = 'message' { encoding::json::decode($current.record_json).inner.event_ledger_stream_id } ELSE { encoding::json::decode($current.record_json).event_ledger_stream_id }) != $event_ledger_stream_id { THROW 'model-lane immutable declared stream changed'; };\
-                   LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $current.run_id, session_run_id: IF $event_ledger_stream_id = NONE { $current.run_id } ELSE { $event_ledger_stream_id }, aggregate_type: $record_kind, aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_REPLACED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $current.event_id, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: $record_kind, run_id: $current.run_id, event_stream_version: $current.event_stream_version + 1, event_payload_json: $event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+                   LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $current.run_id, session_run_id: IF $event_ledger_stream_id = NONE { $current.run_id } ELSE { $event_ledger_stream_id }, aggregate_type: $record_kind, aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_REPLACED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $current.event_id, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: $record_kind, run_id: $current.run_id, event_stream_version: $current.event_stream_version + 1, event_payload_json: $event_payload_json }, authority_resource_id: IF $wp012_original_resource = NONE { NONE } ELSE { type::record('protected_resources', $wp012_original_resource) }, authority_grant_id: IF $wp012_original_grant = NONE { NONE } ELSE { type::record('resource_grants', $wp012_original_grant) }, authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
                    LET $seq = $ledger[0].event_sequence;\
                    RETURN UPDATE $target SET record_json = $record_json, search_terms = $search_terms, event_id = $event_id, event_ledger_event_id = type::record('kernel_event_ledger', $event_id), event_seq = $seq, event_stream_version += 1, transaction_seq = $seq;\
                  };\
@@ -11206,6 +11206,8 @@ IF array::len($existing) > 0 { RETURN $existing; } ELSE {
         payload: { record_kind: $record_kind, run_id: $run_id, event_stream_version: 1, event_payload_json: $event_payload_json },
         authority_resource_id: type::record('protected_resources', $wp012_original_resource),
         authority_grant_id: type::record('resource_grants', $wp012_original_grant),
+        authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability,
+        authority_action: $wp012_original_action, wsids: [$workspace_id],
         owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
         authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id
     };
@@ -11235,6 +11237,8 @@ LET $ledger = CREATE type::record('kernel_event_ledger', $transition.event_id) C
     payload: { record_kind: $transition.record_kind, run_id: $transition.run_id, event_stream_version: 1, event_payload_json: $transition.event_payload_json },
     authority_resource_id: type::record('protected_resources', $wp012_original_resource),
     authority_grant_id: type::record('resource_grants', $wp012_original_grant),
+    authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability,
+    authority_action: $wp012_original_action, wsids: [$transition.workspace_id],
     owner_account_id: $transition.owner_account_id, actor_principal_id: $transition.actor_principal_id,
     authenticated_session_id: $transition.authenticated_session_id, access_space_id: $transition.access_space_id, workspace_id: $transition.workspace_id
 };
@@ -11531,5 +11535,521 @@ mod order_by_projection_tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn crdt_seen_update_ids_order_by_projected_update_seq() {
         on_production_schema(crdt_seen_update_ids_body).await;
+    }
+}
+
+#[cfg(test)]
+mod receipt_writer_schema_tests {
+    //! SC-3 (MT-172, MT-173), schema repair spec item `wsids`: `kernel_event_ledger.wsids` is a required
+    //! `array<string>` without a default on a SCHEMAFULL table, so every model-lane receipt CREATE that
+    //! omitted it was rejected and its whole write failed. Each test runs a live writer on the full
+    //! production schema composition as root and reads the stored receipt back; on the old text each
+    //! fails at the writer's `expect`.
+    //!
+    //! Rows a writer does not write itself are created by the production create path (`put_immutable`,
+    //! `PROFILE_ADMISSION_ORIGIN_PIECE`) with full field processing. Only the profile admission state row is
+    //! imported (`OPTION IMPORT`), because its CREATE event needs the record-user profile admission purpose;
+    //! the transition under test never writes that row's creation.
+    //!
+    //! Root proves that the writers match the schema, not the record-user route: root binds no
+    //! `$wp012_original_*`, so the guarded writers store no authority and the others store what the
+    //! unbound parameters yield. Two writers cannot run as root at all (routing message/binding needs the
+    //! routing original sources, profile admission needs an authenticated transaction); their production
+    //! text runs here with the bindings the record-user path would supply.
+    use super::*;
+    use serde_json::json;
+    use surrealdb::types::RecordId;
+
+    const RUN: &str = "sc3-run";
+    const STREAM: &str = "sc3-stream";
+    const LANE: &str = "sc3-lane";
+    const SESSION: &str = "sc3-session";
+    const MODEL_SESSION: &str = "sc3-model-session";
+    const ORIGIN: &str = "sc3-admission";
+    const SOURCE_RESOURCE: &str = "sc3-source-resource";
+    const SOURCE_GRANT: &str = "sc3-source-grant";
+    const READ_RECEIPT: &str = "SELECT aggregate_type, wsids, workspace_id, authority_resource_id, authority_grant_id, \
+        authority_session_id, authority_capability_id, authority_action FROM type::record('kernel_event_ledger', $event_id);";
+    const IMPORT_ADMISSION_STATE: &str = "OPTION IMPORT; INSERT INTO model_lane_profile_admission_state $rows;";
+
+    #[derive(Debug, SurrealValue)]
+    struct Receipt {
+        aggregate_type: String,
+        wsids: Vec<String>,
+        workspace_id: Option<String>,
+        authority_resource_id: Option<RecordId>,
+        authority_grant_id: Option<RecordId>,
+        authority_session_id: Option<RecordId>,
+        authority_capability_id: Option<String>,
+        authority_action: Option<String>,
+    }
+
+    #[derive(SurrealValue)]
+    struct ReceiptKey {
+        event_id: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct AdmissionStateImport {
+        id: RecordId,
+        origin_id: RecordId,
+        generation: i64,
+        status: String,
+        receipt_id: RecordId,
+    }
+
+    #[derive(SurrealValue)]
+    struct AdmissionStateSeed {
+        rows: Vec<AdmissionStateImport>,
+    }
+
+    fn scope() -> ModelLaneScope {
+        ModelLaneScope {
+            owner_account_id: "sc3-account".into(),
+            actor_principal_id: "sc3-principal".into(),
+            authenticated_session_id: "sc3-authenticated-session".into(),
+            access_space_id: "sc3-space".into(),
+            workspace_id: "sc3-workspace".into(),
+        }
+    }
+
+    async fn on_production_schema<F, Fut>(body: F)
+    where
+        F: FnOnce(SurrealStorage) -> Fut,
+        Fut: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("an isolated store with the full production schema composition");
+        let outcome = tokio::spawn(body(backend.storage.clone())).await;
+        // Close before re-raising so a failed assertion cannot leave the store open.
+        let removed = backend.close_and_remove().await;
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+        removed.expect("remove the isolated production-schema store");
+    }
+
+    async fn open_store(storage: &SurrealStorage) -> SurrealModelLaneStore {
+        SurrealModelLaneStore::initialize(storage.clone()).await.expect("model-lane store")
+    }
+
+    async fn receipt(storage: &SurrealStorage, event_id: &str) -> Receipt {
+        let key = ReceiptKey { event_id: event_id.to_owned() };
+        let mut rows = storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values::<Receipt, _>(READ_RECEIPT, key).await
+            }))
+            .await
+            .expect("read the stored receipt as root");
+        assert_eq!(rows.len(), 1, "exactly one stored receipt {event_id}");
+        rows.remove(0)
+    }
+
+    fn assert_scoped(receipt: &Receipt, aggregate_type: &str, scope: &ModelLaneScope) {
+        assert_eq!(receipt.aggregate_type, aggregate_type);
+        assert_eq!(receipt.workspace_id.as_deref(), Some(scope.workspace_id.as_str()));
+        assert_eq!(receipt.wsids, vec![scope.workspace_id.clone()], "wsids holds exactly the receipt's own workspace");
+    }
+
+    fn assert_no_record_user(receipt: &Receipt) {
+        assert_eq!(receipt.authority_session_id, None, "root has no authenticated record-user session");
+        assert_eq!(receipt.authority_capability_id, None);
+        assert_eq!(receipt.authority_action, None);
+    }
+
+    fn lane_json(failstate_code: Option<&str>) -> String {
+        let mut lane = json!({
+            "lane_id": LANE, "run_id": RUN, "session_id": SESSION, "model_session_id": MODEL_SESSION,
+            "trace_id": "sc3-trace", "kind": "worker", "event_ledger_stream_id": STREAM
+        });
+        if let Some(code) = failstate_code {
+            lane["failstate_code"] = json!(code);
+        }
+        lane.to_string()
+    }
+
+    async fn put_lane(store: &SurrealModelLaneStore, scope: &ModelLaneScope) -> SurrealModelLaneRecord {
+        let record_json = lane_json(None);
+        store
+            .put_immutable(
+                ModelLaneRecordKind::Lane, LANE, RUN, "sc3-lane-idempotency", record_json.clone(),
+                vec![format!("session_id={SESSION}"), format!("model_session_id={MODEL_SESSION}")], record_json, scope,
+            )
+            .await
+            .expect("the production create path writes the source lane")
+    }
+
+    async fn put_run(store: &SurrealModelLaneStore, scope: &ModelLaneScope) {
+        let record_json = json!({ "run_id": RUN, "event_ledger_stream_id": STREAM }).to_string();
+        store
+            .put_immutable(ModelLaneRecordKind::Run, RUN, RUN, "sc3-run-idempotency", record_json.clone(), Vec::new(), record_json, scope)
+            .await
+            .expect("the production create path writes the run authority");
+    }
+
+    fn message_write() -> SurrealModelLaneWrite {
+        let record_json = json!({ "inner": {
+            "message_id": "sc3-message", "run_id": RUN, "from_lane_id": LANE, "kind": "handoff",
+            "event_ledger_stream_id": STREAM
+        } })
+        .to_string();
+        SurrealModelLaneWrite {
+            kind: ModelLaneRecordKind::Message, aggregate_id: "sc3-message".into(), run_id: RUN.into(),
+            event_ledger_stream_id: Some(STREAM.into()), idempotency_key: "sc3-message-idempotency".into(),
+            record_json: record_json.clone(), search_terms: Vec::new(), event_payload_json: record_json,
+        }
+    }
+
+    fn binding_write() -> SurrealModelLaneWrite {
+        let record_json = json!({
+            "artifact_binding_id": "sc3-binding", "run_id": RUN, "event_ledger_stream_id": STREAM,
+            "artifact_ref": "artifact://sc3", "artifact_manifest_ref": "manifest://sc3", "artifact_payload_ref": "payload://sc3",
+            "artifact_sha256": "a".repeat(64), "content_hash": "b".repeat(64), "payload_json": { "sc3": true }
+        })
+        .to_string();
+        SurrealModelLaneWrite {
+            kind: ModelLaneRecordKind::ContextArtifact, aggregate_id: "sc3-binding".into(), run_id: RUN.into(),
+            event_ledger_stream_id: Some(STREAM.into()), idempotency_key: "sc3-binding-idempotency".into(),
+            record_json: record_json.clone(), search_terms: Vec::new(), event_payload_json: record_json,
+        }
+    }
+
+    fn message_guard() -> SurrealModelLaneMessageGuard {
+        SurrealModelLaneMessageGuard {
+            source_lane_id: LANE.into(), source_lane_record_json: lane_json(None), source_session_id: SESSION.into(),
+            source_model_session_id: MODEL_SESSION.into(), promotion_decision_id: None, promotion_record_json: None, crdt: None,
+        }
+    }
+
+    fn routing_commit() -> SurrealModelLaneRoutingCommit {
+        let record_json = json!({
+            "schema_id": "hsk.model_lane_routing_execution@5", "execution_id": "sc3-execution", "run_id": RUN, "revision": 1,
+            "selecting_decision_id": "sc3-decision", "selecting_decision_event_id": "sc3-decision-event",
+            "selecting_decision_event_seq": 1, "trace_id": "sc3-trace", "run_span_id": "sc3-span",
+            "coordinator_session_id": "sc3-coordinator", "locus_ref": "sc3-locus", "work_packet_id": "WP-KERNEL-012",
+            "micro_task_id": "MT-172", "task_board_id": "sc3-board", "owner_session": "sc3-owner-session",
+            "canonical_graph": { "stages": ["sc3-stage"] }, "canonical_graph_sha256": "c".repeat(64),
+            "canonical_launch_plan": { "stages": ["sc3-stage"] }, "canonical_launch_plan_sha256": "d".repeat(64),
+            "authority": { "kind": "sc3" }, "initial_input_ref": "sc3-input", "initial_input_sha256": "e".repeat(64)
+        });
+        let context_hash = canonical_routing_context_hash(&record_json).expect("complete immutable routing context");
+        let event = |aggregate_type: &str, aggregate_id: &str, event_type: &str, correlation_id: Option<&str>| {
+            let payload = json!({ "schema_id": "sc3.routing_event", "aggregate_id": aggregate_id });
+            SurrealModelLaneRoutingEventWrite {
+                event_id: format!("sc3-input-{aggregate_type}"),
+                event_version: "kernel_event_v1".into(),
+                kernel_task_run_id: RUN.into(),
+                session_run_id: "sc3-execution".into(),
+                aggregate_type: aggregate_type.into(),
+                aggregate_id: aggregate_id.into(),
+                idempotency_key: format!("sc3-{aggregate_type}-1"),
+                event_type: event_type.into(),
+                actor_kind: "model_adapter".into(),
+                actor_id: "DexterityRoutingExecutor".into(),
+                causation_id: None,
+                correlation_id: correlation_id.map(str::to_owned),
+                payload_hash: canonical_routing_payload_hash(&payload),
+                source_component: "model_lane_routing_executor".into(),
+                payload,
+                created_at: Utc::now(),
+            }
+        };
+        SurrealModelLaneRoutingCommit {
+            expected_revision: 0,
+            expected_claim: None,
+            execution: SurrealModelLaneRoutingExecutionWrite {
+                execution_id: "sc3-execution".into(), run_id: RUN.into(), revision: 1, context_hash, record_json,
+            },
+            attempt: SurrealModelLaneRoutingAttemptWrite {
+                attempt_id: "sc3-attempt".into(), execution_id: "sc3-execution".into(), run_id: RUN.into(),
+                stage_id: "sc3-stage".into(), attempt: 1, state: "pending".into(), lease_owner: None,
+                fencing_token: None, lease_expires_at_unix_ms: None,
+                record_json: json!({ "stage_id": "sc3-stage", "attempt": 1, "state": "pending" }),
+            },
+            outbox: SurrealModelLaneRoutingOutboxWrite {
+                command_id: "sc3-command".into(), execution_id: "sc3-execution".into(), run_id: RUN.into(),
+                stage_id: "sc3-stage".into(), attempt: 1, status: "pending".into(), lease_owner: None,
+                fencing_token: None, lease_expires_at_unix_ms: None, created_at_unix_ms: 1, updated_at_unix_ms: 1,
+            },
+            events: vec![
+                event("model_lane_routing_execution", "sc3-execution", "MODEL_ADAPTER_INVOKED", None),
+                event("model_lane_routing_stage_attempt", "sc3-attempt", "MODEL_ADAPTER_INVOKED", None),
+                event("model_lane_routing_outbox", "sc3-command", "MODEL_ADAPTER_INVOKED", None),
+                event("model_lane_routing_stage", "sc3-stage", "MODEL_RESPONSE_RECORDED", Some("sc3-correlation")),
+            ],
+            message: None,
+            binding: None,
+            message_guard: None,
+        }
+    }
+
+    fn profile_write(kind: ModelLaneRecordKind, aggregate_id: &str, event_id: &str, record_json: String, event_payload_json: String, scope: &ModelLaneScope) -> WriteBindings {
+        WriteBindings {
+            record_id: stable_record_id(kind.as_str(), aggregate_id, scope),
+            event_id: event_id.to_owned(),
+            record_kind: kind.as_str().to_owned(),
+            aggregate_id: aggregate_id.to_owned(),
+            run_id: RUN.into(),
+            event_ledger_stream_id: Some(STREAM.into()),
+            idempotency_key: aggregate_id.to_owned(),
+            record_json,
+            search_terms: Vec::new(),
+            event_payload_hash: sha256_hex(event_payload_json.as_bytes()),
+            event_payload_json,
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        }
+    }
+
+    fn origin_write(scope: &ModelLaneScope) -> WriteBindings {
+        let record_json = json!({ "admission_id": ORIGIN, "run_id": RUN, "event_ledger_stream_id": STREAM, "status": "staged" }).to_string();
+        profile_write(ModelLaneRecordKind::LaunchAdmission, ORIGIN, "evt-model-lane-sc3-admission", record_json.clone(), record_json, scope)
+    }
+
+    async fn put_origin(storage: &SurrealStorage, origin: WriteBindings) -> Vec<StoredRow> {
+        storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values_at::<StoredRow, _>(PROFILE_ADMISSION_ORIGIN_PIECE, origin, 1).await
+            }))
+            .await
+            .expect("the profile admission origin receipt is accepted by the production schema")
+    }
+
+    /// `replace` (live: swarm `record_session_cleanup_receipt`, `record_lane_authorized`) wrote its
+    /// MODEL_LANE_AUTHORITY_REPLACED receipt without wsids.
+    async fn replace_body(storage: SurrealStorage) {
+        let scope = scope();
+        let store = open_store(&storage).await;
+        let recorded = json!({ "instance_id": "sc3-cleanup", "state": "recorded" }).to_string();
+        let created = store
+            .put_immutable(ModelLaneRecordKind::SessionCleanupReceipt, "sc3-cleanup", RUN, "sc3-cleanup-idempotency",
+                recorded.clone(), Vec::new(), recorded, &scope)
+            .await
+            .expect("the production create path writes the row that replace updates");
+        let cleaned = json!({ "instance_id": "sc3-cleanup", "state": "cleaned" }).to_string();
+        let replaced = store
+            .replace(ModelLaneRecordKind::SessionCleanupReceipt, "sc3-cleanup", cleaned.clone(), Vec::new(), cleaned.clone(), &scope)
+            .await
+            .expect("the replacement receipt is accepted by the production schema")
+            .expect("the replaced row is in scope");
+        assert_eq!(replaced.record_json, cleaned);
+        assert_eq!(replaced.event_stream_version, created.event_stream_version + 1);
+        assert_ne!(replaced.event_id, created.event_id);
+        let receipt = receipt(&storage, &replaced.event_id).await;
+        assert_scoped(&receipt, "session_cleanup_receipt", &scope);
+        assert_no_record_user(&receipt);
+        assert_eq!((receipt.authority_resource_id, receipt.authority_grant_id), (None, None),
+            "without a record-user scope the receipt names no resource or grant");
+    }
+
+    /// `replace_if_version_with_event_id` (live: swarm `record_lane_terminal_status`) had the same omission.
+    async fn replace_if_version_body(storage: SurrealStorage) {
+        let scope = scope();
+        let store = open_store(&storage).await;
+        let lane = put_lane(&store, &scope).await;
+        let terminal = lane_json(Some("sc3-terminal"));
+        let replaced = store
+            .replace_if_version_with_event_id(ModelLaneRecordKind::Lane, LANE, lane.event_stream_version, terminal.clone(),
+                vec![format!("session_id={SESSION}")], terminal.clone(), "evt-model-lane-sc3-terminal".into(), &scope)
+            .await
+            .expect("the compare-and-swap receipt is accepted by the production schema")
+            .expect("the lane is at the expected version");
+        assert_eq!(replaced.event_id, "evt-model-lane-sc3-terminal");
+        assert_eq!(replaced.event_stream_version, lane.event_stream_version + 1);
+        let receipt = receipt(&storage, "evt-model-lane-sc3-terminal").await;
+        assert_scoped(&receipt, "lane", &scope);
+        assert_no_record_user(&receipt);
+        assert_eq!((receipt.authority_resource_id, receipt.authority_grant_id), (None, None),
+            "without a record-user scope the receipt names no resource or grant");
+    }
+
+    /// `put_message_immutable_guarded` with a payload binding (live: swarm
+    /// `record_message_with_payload_binding`) wrote the MODEL_LANE_PAYLOAD_BOUND receipt without wsids.
+    async fn guarded_message_binding_body(storage: SurrealStorage) {
+        let scope = scope();
+        let store = open_store(&storage).await;
+        put_lane(&store, &scope).await;
+        let (message, binding) = store
+            .put_message_immutable_guarded(message_write(), Some(binding_write()), message_guard(), &scope)
+            .await
+            .expect("the message and payload-binding receipts are accepted by the production schema");
+        let binding = binding.expect("the payload binding is written with its message");
+        assert_scoped(&receipt(&storage, &binding.event_id).await, "context_artifact", &scope);
+        assert_scoped(&receipt(&storage, &message.event_id).await, "message", &scope);
+    }
+
+    /// `commit_routing_atomic` (live: the routing executor) wrote the execution, attempt, outbox and extra
+    /// routing receipts without wsids.
+    async fn routing_commit_body(storage: SurrealStorage) {
+        let scope = scope();
+        let store = open_store(&storage).await;
+        put_run(&store, &scope).await;
+        let commit = routing_commit();
+        let mut scoped_events = commit.events.clone();
+        scope_routing_event_identities(&mut scoped_events, &scope);
+        let committed = store
+            .commit_routing_atomic(commit, &scope)
+            .await
+            .expect("every routing receipt is accepted by the production schema");
+        assert_eq!(committed.event_ledger_event_id, scoped_events[0].event_id);
+        assert_eq!((committed.revision, committed.run_id.as_str()), (1, RUN));
+        for event in &scoped_events {
+            let receipt = receipt(&storage, &event.event_id).await;
+            assert_scoped(&receipt, &event.aggregate_type, &scope);
+            assert_eq!(receipt.authority_session_id, None, "root has no authenticated record-user session");
+        }
+    }
+
+    /// The routing message and payload-binding receipts (ROUTING_COMMIT_QUERY `$has_message`/`$has_binding`)
+    /// omitted wsids. They carry the routing source Create authority (`$routing_source_*`, from
+    /// `RoutingOriginalSources::create_scope`), which `fn::wp012_routing_model_lane_receipt` requires.
+    /// `routing_commit_bindings` binds those only under routing original sources, which root cannot hold,
+    /// so this runs the production text with the bindings that path supplies.
+    async fn routing_message_binding_body(storage: SurrealStorage) {
+        let scope = scope();
+        let store = open_store(&storage).await;
+        put_run(&store, &scope).await;
+        put_lane(&store, &scope).await;
+        let mut with_message = routing_commit();
+        with_message.message = Some(message_write());
+        with_message.binding = Some(binding_write());
+        with_message.message_guard = Some(message_guard());
+        validate_routing_commit(&with_message, &scope).expect("the routing commit with message and binding is well formed");
+        let mut bindings = routing_commit_bindings(routing_commit(), &scope).expect("routing bindings");
+        bindings.routing_source_resource = SOURCE_RESOURCE.into();
+        bindings.routing_source_grant = SOURCE_GRANT.into();
+        bindings.routing_source_capability = "fs.write".into();
+        bindings.routing_source_action = "create".into();
+        bindings.has_message = true;
+        bindings.message = routing_authority_write_bindings(message_write(), &scope).expect("message bindings");
+        bindings.has_binding = true;
+        bindings.binding = routing_authority_write_bindings(binding_write(), &scope).expect("binding bindings");
+        bindings.message_guard = routing_message_guard_bindings(message_guard(), &scope);
+        let message_event = bindings.message.event_id.clone();
+        let binding_event = bindings.binding.event_id.clone();
+        let rows = storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values_at::<SurrealModelLaneRoutingExecutionRow, _>(ROUTING_COMMIT_QUERY, bindings, 11).await
+            }))
+            .await
+            .expect("the routing message and binding receipts are accepted by the production schema");
+        assert_eq!(rows.len(), 1, "one committed execution");
+        for (event_id, aggregate_type) in [(message_event, "message"), (binding_event, "context_artifact")] {
+            let receipt = receipt(&storage, &event_id).await;
+            assert_scoped(&receipt, aggregate_type, &scope);
+            assert_eq!(receipt.authority_resource_id, Some(RecordId::new("protected_resources", SOURCE_RESOURCE.to_owned())));
+            assert_eq!(receipt.authority_grant_id, Some(RecordId::new("resource_grants", SOURCE_GRANT.to_owned())));
+            assert_eq!(receipt.authority_capability_id.as_deref(), Some("fs.write"));
+            assert_eq!(receipt.authority_action.as_deref(), Some("create"));
+        }
+    }
+
+    /// `stage_profile_admission_atomic` (live: operator chat profile launch) runs PROFILE_ADMISSION_ORIGIN_PIECE
+    /// inside an authenticated transaction, which root cannot open; the piece's receipt omitted wsids.
+    async fn profile_admission_origin_body(storage: SurrealStorage) {
+        let scope = scope();
+        let origin = origin_write(&scope);
+        let event_id = origin.event_id.clone();
+        let rows = put_origin(&storage, origin).await;
+        assert_eq!(rows.len(), 1, "one admission origin row");
+        assert_eq!((rows[0].event_id.as_str(), rows[0].event_stream_version), (event_id.as_str(), 1));
+        let receipt = receipt(&storage, &event_id).await;
+        assert_scoped(&receipt, "launch_admission", &scope);
+        assert_no_record_user(&receipt);
+    }
+
+    /// `transition_profile_admission_atomic` (live: operator chat profile transition) runs
+    /// PROFILE_ADMISSION_TRANSITION inside an authenticated transaction; its receipt omitted wsids. As root the
+    /// receipt now stores and the state update after it is refused by the preimage guard event (root holds
+    /// no profile admission purpose); on the old text the receipt itself was refused first.
+    async fn profile_admission_transition_body(storage: SurrealStorage) {
+        let scope = scope();
+        let origin = origin_write(&scope);
+        let origin_record = origin.record_id.clone();
+        let origin_json = origin.record_json.clone();
+        let origin_event = origin.event_id.clone();
+        put_origin(&storage, origin).await;
+        let seed = AdmissionStateSeed {
+            rows: vec![AdmissionStateImport {
+                id: RecordId::new("model_lane_profile_admission_state", origin_record.clone()),
+                origin_id: RecordId::new("model_lane_authority", origin_record.clone()),
+                generation: 1,
+                status: "staged".into(),
+                receipt_id: RecordId::new("kernel_event_ledger", origin_event),
+            }],
+        };
+        storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values::<surrealdb::types::Value, _>(IMPORT_ADMISSION_STATE, seed).await
+            }))
+            .await
+            .expect("import the staged admission state the transition compares against");
+        let transition_id = format!("{ORIGIN}:2");
+        let record = json!({ "transition_id": transition_id, "run_id": RUN, "event_ledger_stream_id": STREAM,
+            "before": { "generation": 1, "status": "staged" }, "after": { "generation": 2, "status": "consumed" } });
+        let binding = ProfileAdmissionStateBindings {
+            state_record: origin_record.clone(),
+            origin_record,
+            expected_origin_json: origin_json,
+            expected_generation: 1,
+            expected_status: "staged".into(),
+            next_status: "consumed".into(),
+            transition: profile_write(ModelLaneRecordKind::LaunchAdmissionTransition, &transition_id,
+                "evt-model-lane-sc3-transition", record.to_string(), json!({ "record": record }).to_string(), &scope),
+        };
+        let refused = storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values_at::<ProfileAdmissionGenerationRow, _>(PROFILE_ADMISSION_TRANSITION, binding, 4).await
+            }))
+            .await
+            .err()
+            .expect("root holds no profile admission purpose, so the state update is refused");
+        assert!(
+            matches!(&refused, SurrealStorageError::Database(error)
+                if error.message().contains("PROFILE_ADMISSION_TRANSITION_PREIMAGE_MISMATCH")),
+            "refused at the state update after the receipt, not at the receipt: {refused}"
+        );
+        let receipt = receipt(&storage, "evt-model-lane-sc3-transition").await;
+        assert_scoped(&receipt, "launch_admission_transition", &scope);
+        assert_no_record_user(&receipt);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn replace_receipt_carries_its_workspace() {
+        on_production_schema(replace_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn replace_if_version_receipt_carries_its_workspace() {
+        on_production_schema(replace_if_version_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn guarded_message_payload_binding_receipt_carries_its_workspace() {
+        on_production_schema(guarded_message_binding_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn routing_commit_receipts_carry_their_workspace() {
+        on_production_schema(routing_commit_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn routing_message_and_binding_receipts_carry_workspace_and_source_create_authority() {
+        on_production_schema(routing_message_binding_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn profile_admission_origin_receipt_carries_its_workspace() {
+        on_production_schema(profile_admission_origin_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn profile_admission_transition_receipt_carries_its_workspace() {
+        on_production_schema(profile_admission_transition_body).await;
     }
 }
