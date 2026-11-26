@@ -2509,7 +2509,8 @@ struct GuardedMessageBindings {
 // The original envelope is supplied by the transaction controller, never minted here.
 const NAVIGATION_AUTHORITY_SNAPSHOT: &str = "SELECT type::record('resource_grants', $wp012_original_grant).grant_version AS grant_version, type::record('resource_grants', $wp012_original_grant).policy_version AS grant_policy_version, type::record('protected_resources', $wp012_original_resource).policy_version AS resource_policy_version, $auth.policy_version AS session_policy_version, $auth.account_id.policy_version AS account_policy_version, $auth.principal_id.policy_version AS principal_policy_version, $auth.access_space_id.policy_version AS space_policy_version, $auth.account_id.revocation_epoch AS account_revocation_epoch, $auth.principal_id.revocation_epoch AS principal_revocation_epoch, $auth.access_space_id.revocation_epoch AS space_revocation_epoch, type::record('resource_grants', $wp012_original_grant).status AS grant_status, type::record('resource_grants', $wp012_original_grant).expires_at AS grant_expires_at, type::record('resource_grants', $wp012_original_grant).revoked_at AS grant_revoked_at, type::record('protected_resources', $wp012_original_resource).lifecycle_state AS resource_lifecycle_state, $auth.status AS session_status, $auth.expires_at AS session_expires_at, $auth.revoked_at AS session_revoked_at FROM model_lane_schema_registry WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 1;";
 
-const NAVIGATION_GRANT_SNAPSHOT: &str = "SELECT record::id(id) AS grant_id, record::id(resource_id) AS resource_id, grant_version, policy_version AS grant_policy_version, status, expires_at, revoked_at, actions, capability_ids, delegation_chain, resource_id.policy_version AS resource_policy_version, resource_id.lifecycle_state AS resource_lifecycle_state FROM resource_grants WHERE grant_version != NONE ORDER BY id ASC;";
+// SurrealDB 3.2 rejects an ORDER BY idiom absent from the projection; grant_id is the projected key of id.
+const NAVIGATION_GRANT_SNAPSHOT: &str = "SELECT record::id(id) AS grant_id, record::id(resource_id) AS resource_id, grant_version, policy_version AS grant_policy_version, status, expires_at, revoked_at, actions, capability_ids, delegation_chain, resource_id.policy_version AS resource_policy_version, resource_id.lifecycle_state AS resource_lifecycle_state FROM resource_grants WHERE grant_version != NONE ORDER BY grant_id ASC;";
 
 #[derive(PartialEq, Eq, SurrealValue)]
 struct NavigationGrantSnapshot {
@@ -2652,7 +2653,8 @@ struct NavigationDependencyReceipt {
 }
 
 const NAVIGATION_RECEIPT_SNAPSHOT: &str = "SELECT event_id, event_sequence, event_version, aggregate_type, aggregate_id, event_type, source_component FROM kernel_event_ledger WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
-const NAVIGATION_INPUT_SNAPSHOT: &str = "SELECT navigation_source_input AS input FROM model_lane_authority WHERE navigation_source_input != NONE AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
+// event_id is projected only so ORDER BY parses; NavigationSourceInputRow does not decode it.
+const NAVIGATION_INPUT_SNAPSHOT: &str = "SELECT navigation_source_input AS input, event_id FROM model_lane_authority WHERE navigation_source_input != NONE AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
 const NAVIGATION_MEMORY_DOCUMENT_LINK_SNAPSHOT: &str = "RETURN fn::wp012_model_lane_navigation_memory_document_links({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection);";
 const NAVIGATION_MEMORY_PACK_SNAPSHOT: &str = "RETURN fn::wp012_model_lane_navigation_memory_packs({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection);";
 const NAVIGATION_SOURCE_SNAPSHOT: &str = "SELECT record_kind, aggregate_id, run_id, event_id, event_seq, ordering_seq FROM model_lane_authority WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
@@ -8225,8 +8227,9 @@ COMMIT TRANSACTION;
             covered_update_seq,
             update_seq: covered_update_seq,
         };
+        // update_seq is projected only so ORDER BY parses; CrdtUpdateIdRow does not decode it.
         let rows = query.query_values::<CrdtUpdateIdRow, _>(
-                "SELECT update_id FROM kernel_crdt_updates WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND document_id = $document_id AND crdt_document_id = $crdt_document_id AND update_seq <= $covered_update_seq ORDER BY update_seq ASC;",
+                "SELECT update_id, update_seq FROM kernel_crdt_updates WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND document_id = $document_id AND crdt_document_id = $crdt_document_id AND update_seq <= $covered_update_seq ORDER BY update_seq ASC;",
                 bindings,
             ).await?;
         Ok(rows.into_iter().map(|row| row.update_id).collect())
@@ -11239,3 +11242,294 @@ UPDATE type::record('model_lane_profile_admission_state', $state_record)
     SET generation = $expected_generation + 1, status = $next_status, receipt_id = type::record('kernel_event_ledger', $transition.event_id)
     WHERE generation = $expected_generation AND status = $expected_status RETURN generation;
 "#;
+
+#[cfg(test)]
+mod order_by_projection_tests {
+    //! SC-2 (MT-172), schema repair spec `parse_errors`: SurrealDB 3.2 rejects a SELECT whose ORDER BY
+    //! idiom is neither a projected field nor an alias (surrealdb-core syn/parser/stmt/parts.rs
+    //! `check_idiom`), so the navigation grant and input snapshots and the CRDT seen-update read failed
+    //! before any statement ran. Each test runs the production text on the full production schema
+    //! composition and requires the intended order.
+    //!
+    //! Rows are stored state written as root under `OPTION IMPORT` (no field processing or events,
+    //! indexes kept). Record keys are chosen so that key order differs from the requested order
+    //! wherever the ordering field is not the key.
+    use super::*;
+    use surrealdb::types::RecordId;
+
+    const IMPORT_GRANTS: &str =
+        "OPTION IMPORT; INSERT INTO protected_resources $resources; INSERT INTO resource_grants $grants;";
+    const IMPORT_NAVIGATION_INPUTS: &str = "OPTION IMPORT; INSERT INTO model_lane_authority $rows;";
+    const IMPORT_CRDT_UPDATES: &str =
+        "OPTION IMPORT; INSERT INTO kernel_event_ledger $ledger; INSERT INTO kernel_crdt_updates $updates;";
+
+    #[derive(SurrealValue)]
+    struct ResourceImport {
+        id: RecordId,
+        policy_version: i64,
+        lifecycle_state: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct GrantImport {
+        id: RecordId,
+        resource_id: RecordId,
+        grant_version: Option<i64>,
+        policy_version: i64,
+        status: String,
+        actions: Vec<String>,
+        capability_ids: Vec<String>,
+        delegation_chain: Vec<String>,
+    }
+
+    #[derive(SurrealValue)]
+    struct GrantSeed {
+        resources: Vec<ResourceImport>,
+        grants: Vec<GrantImport>,
+    }
+
+    #[derive(SurrealValue)]
+    struct NavigationInputImport {
+        id: RecordId,
+        event_id: String,
+        navigation_source_input: Option<Value>,
+        owner_account_id: String,
+        actor_principal_id: String,
+        authenticated_session_id: String,
+        access_space_id: String,
+        workspace_id: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct NavigationInputSeed {
+        rows: Vec<NavigationInputImport>,
+    }
+
+    #[derive(SurrealValue)]
+    struct LedgerImport {
+        id: RecordId,
+        event_id: String,
+        owner_account_id: String,
+        actor_principal_id: String,
+        authenticated_session_id: String,
+        access_space_id: String,
+        workspace_id: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct CrdtUpdateImport {
+        id: RecordId,
+        update_id: String,
+        update_seq: i64,
+        document_id: String,
+        crdt_document_id: String,
+        event_ledger_event_id: RecordId,
+        owner_account_id: String,
+        actor_principal_id: String,
+        authenticated_session_id: String,
+        access_space_id: String,
+        workspace_id: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct CrdtUpdateSeed {
+        ledger: Vec<LedgerImport>,
+        updates: Vec<CrdtUpdateImport>,
+    }
+
+    fn scope(workspace_id: &str) -> ModelLaneScope {
+        ModelLaneScope {
+            owner_account_id: "sc2-account".into(),
+            actor_principal_id: "sc2-principal".into(),
+            authenticated_session_id: "sc2-session".into(),
+            access_space_id: "sc2-space".into(),
+            workspace_id: workspace_id.into(),
+        }
+    }
+
+    fn read_bindings(scope: &ModelLaneScope) -> NavigationReadBindings {
+        NavigationReadBindings {
+            navigation_selection: NavigationReadSelector {
+                lookup_kind: "run_id".into(),
+                lookup_ref: "sc2-run".into(),
+                run_id: Some("sc2-run".into()),
+                span_id: None,
+                behavior_id: None,
+                tier: None,
+                micro_task_id: None,
+                artifact_ref: None,
+                context_bundle_id: None,
+            },
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        }
+    }
+
+    async fn import<B: SurrealValue + Send + 'static>(storage: &SurrealStorage, statement: &'static str, seed: B) {
+        storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values::<surrealdb::types::Value, _>(statement, seed).await
+            }))
+            .await
+            .expect("import the stored rows the read selects");
+    }
+
+    async fn on_production_schema<F, Fut>(body: F)
+    where
+        F: FnOnce(SurrealStorage) -> Fut,
+        Fut: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("an isolated store with the full production schema composition");
+        let outcome = tokio::spawn(body(backend.storage.clone())).await;
+        // Close before re-raising so a failed assertion cannot leave the store open.
+        let removed = backend.close_and_remove().await;
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+        removed.expect("remove the isolated production-schema store");
+    }
+
+    async fn grant_snapshot_body(storage: SurrealStorage) {
+        let prefix = format!("sc2-{}-", uuid::Uuid::now_v7().simple());
+        let resource = RecordId::new("protected_resources", format!("{prefix}resource"));
+        let grant = |suffix: &str, grant_version: Option<i64>| GrantImport {
+            id: RecordId::new("resource_grants", format!("{prefix}{suffix}")),
+            resource_id: resource.clone(),
+            grant_version,
+            policy_version: 1,
+            status: "active".into(),
+            actions: vec!["read".into()],
+            capability_ids: vec!["model_lane.navigation.read".into()],
+            delegation_chain: vec!["sc2-principal".into()],
+        };
+        let seed = GrantSeed {
+            resources: vec![ResourceImport { id: resource.clone(), policy_version: 1, lifecycle_state: "active".into() }],
+            // Inserted c, a, b; the unversioned grant is outside the snapshot.
+            grants: vec![grant("c", Some(1)), grant("a", Some(1)), grant("b", Some(1)), grant("unversioned", None)],
+        };
+        import(&storage, IMPORT_GRANTS, seed).await;
+        let bindings = read_bindings(&scope("sc2-workspace"));
+        let rows = storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values::<NavigationGrantSnapshot, _>(NAVIGATION_GRANT_SNAPSHOT, bindings).await
+            }))
+            .await
+            .expect("NAVIGATION_GRANT_SNAPSHOT parses and runs on the production schema");
+        let all: Vec<&str> = rows.iter().map(|row| row.grant_id.as_str()).collect();
+        assert!(all.windows(2).all(|pair| pair[0] <= pair[1]), "snapshot ordered by grant id: {all:?}");
+        let seeded: Vec<&NavigationGrantSnapshot> = rows.iter().filter(|row| row.grant_id.starts_with(&prefix)).collect();
+        assert_eq!(
+            seeded.iter().map(|row| row.grant_id.clone()).collect::<Vec<_>>(),
+            ["a", "b", "c"].map(|suffix| format!("{prefix}{suffix}")).to_vec(),
+            "versioned grants only, ascending grant id",
+        );
+        for row in seeded {
+            assert_eq!(row.resource_id, format!("{prefix}resource"));
+            assert_eq!((row.grant_version, row.grant_policy_version, row.resource_policy_version), (1, 1, 1));
+            assert_eq!(row.resource_lifecycle_state, "active");
+        }
+    }
+
+    async fn input_snapshot_body(storage: SurrealStorage) {
+        let prefix = format!("sc2-{}-", uuid::Uuid::now_v7().simple());
+        let scope = scope("sc2-workspace");
+        let row = |key: &str, event: &str, run: Option<&str>, workspace_id: &str| NavigationInputImport {
+            id: RecordId::new("model_lane_authority", format!("{prefix}{key}")),
+            event_id: format!("{prefix}{event}"),
+            navigation_source_input: run.map(|run| serde_json::json!({ "source_kind": "run", "kind": "run", "run_id": run })),
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: workspace_id.into(),
+        };
+        let seed = NavigationInputSeed {
+            rows: vec![
+                // Key order 1, 2, 3 against event order c, a, b.
+                row("1", "event-c", Some("run-c"), "sc2-workspace"),
+                row("2", "event-a", Some("run-a"), "sc2-workspace"),
+                row("3", "event-b", Some("run-b"), "sc2-workspace"),
+                row("4", "event-0", None, "sc2-workspace"),
+                row("5", "event-00", Some("run-other"), "sc2-other-workspace"),
+            ],
+        };
+        import(&storage, IMPORT_NAVIGATION_INPUTS, seed).await;
+        let bindings = read_bindings(&scope);
+        let rows = storage
+            .with_data_operation(|database| Box::pin(async move {
+                database.query_values::<NavigationSourceInputRow, _>(NAVIGATION_INPUT_SNAPSHOT, bindings).await
+            }))
+            .await
+            .expect("NAVIGATION_INPUT_SNAPSHOT parses and runs on the production schema");
+        assert_eq!(
+            rows.iter().map(|row| row.input["run_id"].clone()).collect::<Vec<_>>(),
+            ["run-a", "run-b", "run-c"].map(Value::from).to_vec(),
+            "inputs of this scope only, ascending event id",
+        );
+    }
+
+    async fn crdt_seen_update_ids_body(storage: SurrealStorage) {
+        let prefix = format!("sc2-{}-", uuid::Uuid::now_v7().simple());
+        let scope = scope("sc2-workspace");
+        let ledger = RecordId::new("kernel_event_ledger", format!("{prefix}ledger"));
+        let update = |key: &str, update_seq: i64, document_id: &str| CrdtUpdateImport {
+            id: RecordId::new("kernel_crdt_updates", format!("{prefix}{key}")),
+            update_id: format!("update-{key}"),
+            update_seq,
+            document_id: document_id.into(),
+            crdt_document_id: "sc2-crdt-document".into(),
+            event_ledger_event_id: ledger.clone(),
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let seed = CrdtUpdateSeed {
+            ledger: vec![LedgerImport {
+                id: ledger.clone(),
+                event_id: format!("{prefix}ledger"),
+                owner_account_id: scope.owner_account_id.clone(),
+                actor_principal_id: scope.actor_principal_id.clone(),
+                authenticated_session_id: scope.authenticated_session_id.clone(),
+                access_space_id: scope.access_space_id.clone(),
+                workspace_id: scope.workspace_id.clone(),
+            }],
+            updates: vec![
+                // Key order a, b, c against sequence order b, c, a.
+                update("a", 3, "sc2-document"),
+                update("b", 1, "sc2-document"),
+                update("c", 2, "sc2-document"),
+                update("d", 4, "sc2-document"),
+                update("e", 1, "sc2-other-document"),
+            ],
+        };
+        import(&storage, IMPORT_CRDT_UPDATES, seed).await;
+        let store = SurrealModelLaneStore::initialize(storage.clone()).await.expect("model-lane store");
+        let seen = store
+            .crdt_seen_update_ids("sc2-document", "sc2-crdt-document", 3, &scope)
+            .await
+            .expect("the seen-update read parses and runs on the production schema");
+        assert_eq!(seen, ["update-b", "update-c", "update-a"], "updates up to the covered sequence, ascending update_seq");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn navigation_grant_snapshot_orders_by_projected_grant_id() {
+        on_production_schema(grant_snapshot_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn navigation_input_snapshot_orders_by_projected_event_id() {
+        on_production_schema(input_snapshot_body).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn crdt_seen_update_ids_order_by_projected_update_seq() {
+        on_production_schema(crdt_seen_update_ids_body).await;
+    }
+}

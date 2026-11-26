@@ -55,6 +55,9 @@ struct NavigationGrantBindings { resource_id: surrealdb::types::RecordId }
 #[derive(SurrealValue)]
 struct NavigationGrant { grant_id: String, resource_id: String, grant_version: i64, policy_version: i64, capability_profile_id: String }
 
+// SurrealDB 3.2 rejects an ORDER BY idiom absent from the projection; grant_id is the projected key of id.
+const NAVIGATION_GRANT_QUERY: &str = "SELECT record::id(id) AS grant_id, record::id(resource_id) AS resource_id, grant_version, policy_version, principal_id.capability_profile_id AS capability_profile_id FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource_id AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'model_lane.navigation.read' AND delegation_chain = $auth.delegation_chain AND policy_version <= $auth.policy_version AND resource_id.policy_version <= policy_version AND resource_id.created_by_principal_id.status = 'enabled' AND $auth.principal_id.delegated_capabilities CONTAINS 'model_lane.navigation.read' ORDER BY grant_id ASC LIMIT 2;";
+
 // Select an existing canonical grant as the native record user, without the
 // audit-writing authorization helper. The provider revalidates this original
 // envelope inside the read transaction before and after acquiring the projection.
@@ -109,7 +112,7 @@ pub(crate) async fn resolve_navigation_authorization(
     };
     let rows = surreal.with_record_user_scope(original.clone(), surreal.with_data_operation(|database| Box::pin(async move {
         database.query_values::<NavigationGrant, _>(
-            "SELECT record::id(id) AS grant_id, record::id(resource_id) AS resource_id, grant_version, policy_version, principal_id.capability_profile_id AS capability_profile_id FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource_id AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'model_lane.navigation.read' AND delegation_chain = $auth.delegation_chain AND policy_version <= $auth.policy_version AND resource_id.policy_version <= policy_version AND resource_id.created_by_principal_id.status = 'enabled' AND $auth.principal_id.delegated_capabilities CONTAINS 'model_lane.navigation.read' ORDER BY id ASC LIMIT 2;",
+            NAVIGATION_GRANT_QUERY,
             NavigationGrantBindings { resource_id: locator.id },
         ).await
     }))).await;
@@ -403,5 +406,89 @@ fn artifact_selector(query: &ArtifactNavigationQuery) -> Result<Option<String>, 
             "artifact navigation accepts one artifact selector value; use artifact_ref, artifact_binding_id, artifact_manifest_ref, artifact_payload_ref, artifact_sha256, or content_hash"
                 .into(),
         )),
+    }
+}
+
+#[cfg(test)]
+mod navigation_grant_query_tests {
+    //! SC-2 (MT-172), schema repair spec `parse_errors`: NAVIGATION_GRANT_QUERY ordered by `id`, which its
+    //! projection exposes only as the `grant_id` alias, and SurrealDB 3.2 rejects that ORDER BY at parse
+    //! time (surrealdb-core syn/parser/stmt/parts.rs `check_idiom`), so every navigation authorization
+    //! failed. Runs the query as the authenticated record user with the scope and bindings
+    //! resolve_navigation_authorization uses, on the full production schema composition, with two
+    //! eligible grants: the LIMIT 2 ambiguity probe returns both in ascending grant id.
+    use super::*;
+    use crate::storage::surreal::resource_authority::ResourceGrantSpec;
+    use crate::storage::surreal::SurrealStorage;
+
+    const BINDING: &str = "sc2-navigation-grant-binding";
+    const CAPABILITY: &str = "model_lane.navigation.read";
+
+    async fn body(storage: SurrealStorage) {
+        let tag = uuid::Uuid::now_v7().simple().to_string();
+        let capabilities = vec![CAPABILITY.to_owned()];
+        let principal = storage
+            .provision_principal(
+                &format!("sc2-navigation-account-{tag}"), &format!("sc2-navigation-principal-{tag}"),
+                "human_account", &format!("sc2-navigation-actor-{tag}"), "Operator", &capabilities,
+                &format!("sc2-navigation-space-{tag}"), Some(BINDING), std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("provision the navigation reader");
+        let workspace = uuid::Uuid::now_v7().to_string();
+        let resource = storage
+            .register_workspace_resource(&principal.identity, &workspace)
+            .await
+            .expect("register the navigated workspace");
+        let mut expected = Vec::new();
+        for _ in 0..2 {
+            let grant = storage
+                .grant_resource(&principal.identity.account_id, &principal.identity.access_space_id, ResourceGrantSpec {
+                    principal_id: principal.identity.principal_id.clone(), resource_id: resource.resource_id.clone(),
+                    actions: vec![ResourceAction::Read], capability_ids: capabilities.clone(),
+                    expires_at: Some(principal.session.expires_at), delegation_chain: vec![],
+                })
+                .await
+                .expect("grant navigation read on the workspace");
+            expected.push(grant.grant_id);
+        }
+        expected.sort();
+        let scope = RecordUserScope { grant_id: None, workspace_id: Some(workspace.clone()),
+            resource_id: workspace.clone(), session_id: principal.session.session_id.clone(),
+            session_token: principal.session.token.clone(), channel_binding_hash: Some(BINDING.to_owned()),
+            capability_id: CAPABILITY.into(), action: ResourceAction::Read };
+        let resource_record = surrealdb::types::RecordId::new("protected_resources", resource.resource_id.clone());
+        let rows = storage
+            .with_record_user_scope(scope, storage.with_data_operation(|database| Box::pin(async move {
+                database.query_values::<NavigationGrant, _>(
+                    NAVIGATION_GRANT_QUERY, NavigationGrantBindings { resource_id: resource_record },
+                ).await
+            })))
+            .await
+            .expect("NAVIGATION_GRANT_QUERY parses and runs as the record user");
+        assert_eq!(
+            rows.iter().map(|row| row.grant_id.clone()).collect::<Vec<_>>(),
+            expected,
+            "both eligible grants, ascending grant id",
+        );
+        for row in &rows {
+            assert_eq!(row.resource_id, resource.resource_id);
+            assert_eq!((row.grant_version, row.policy_version), (1, 1));
+            assert_eq!(row.capability_profile_id, "Operator");
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn navigation_grant_query_orders_eligible_grants_by_projected_grant_id() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("an isolated store with the full production schema composition");
+        let outcome = tokio::spawn(body(backend.storage.clone())).await;
+        // Close before re-raising so a failed assertion cannot leave the store open.
+        let removed = backend.close_and_remove().await;
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+        removed.expect("remove the navigation grant store");
     }
 }

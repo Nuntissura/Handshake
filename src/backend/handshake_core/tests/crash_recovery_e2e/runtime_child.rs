@@ -457,6 +457,14 @@ struct OriginalScopeRow {
 struct OriginalScopeRead {
     record: RecordId,
 }
+#[derive(SurrealValue)]
+struct SessionRead {
+    session_run_id: String,
+}
+
+// SurrealDB 3.2 rejects an ORDER BY idiom absent from the projection; event_sequence is projected
+// only for the ordering and OriginalScopeRow does not decode it.
+const ORIGINAL_REPLAY_SCOPE_READ: &str = "SELECT event_sequence, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_event_ledger WHERE session_run_id = $session_run_id ORDER BY event_sequence;";
 
 pub async fn verify_original_seed_rows(
     storage: &SurrealStorage,
@@ -497,16 +505,12 @@ pub async fn verify_original_seed_rows(
         );
         assert_original_row(&rows[0], &scope);
     }
-    #[derive(SurrealValue)]
-    struct SessionRead {
-        session_run_id: String,
-    }
     let session_run_id = format!("SR-{session_id}");
     let rows = storage
         .with_data_operation(|database| {
             Box::pin(async move {
                 database.query_values::<OriginalScopeRow, _>(
-                    "SELECT owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_event_ledger WHERE session_run_id = $session_run_id ORDER BY event_sequence;",
+                    ORIGINAL_REPLAY_SCOPE_READ,
                     SessionRead { session_run_id },
                 ).await
             })
@@ -770,6 +774,119 @@ fn apply_quiet_process_flags(_command: &mut Command) {}
 #[ignore = "internal MT-195 child entrypoint; the parent test hard-kills this process"]
 async fn mt195_runtime_child_entrypoint() {
     run_child_entrypoint_from_env().await;
+}
+
+// SC-2 (MT-172), schema repair spec `parse_errors`: the replay scope reread ordered by event_sequence
+// without projecting it, which SurrealDB 3.2 rejects at parse time (surrealdb-core
+// syn/parser/stmt/parts.rs `check_idiom`). The rows are stored state written as root under
+// `OPTION IMPORT` (no field processing or events, indexes kept), with record keys whose order
+// differs from event_sequence.
+const IMPORT_REPLAY_ROWS: &str = "OPTION IMPORT; INSERT INTO kernel_event_ledger $rows;";
+const REPLAY_SEQUENCE_BASE: i64 = 7_100_000_000;
+
+#[derive(SurrealValue)]
+struct ReplayImportRow {
+    id: RecordId,
+    event_id: String,
+    session_run_id: String,
+    event_sequence: i64,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+#[derive(SurrealValue)]
+struct ReplayImport {
+    rows: Vec<ReplayImportRow>,
+}
+#[derive(SurrealValue)]
+struct ReplaySequenceRow {
+    event_sequence: i64,
+}
+
+async fn replay_scope_read_order_body(storage: SurrealStorage) {
+    let origin = mint_original_scope();
+    let scope = ReclaimResourceScope::from_exact(&origin)
+        .expect("original seed attribution is an exact reclaim scope");
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let other_session_run_id = format!("SR-{}", Uuid::now_v7());
+    let row = |key: &str, session: &str, offset: i64| {
+        let event_id = format!("{session_run_id}-{key}");
+        ReplayImportRow {
+            id: RecordId::new("kernel_event_ledger", event_id.clone()),
+            event_id,
+            session_run_id: session.to_owned(),
+            event_sequence: REPLAY_SEQUENCE_BASE + offset,
+            owner_account_id: origin.owner_account_id.to_string(),
+            actor_principal_id: origin.actor_principal_id.to_string(),
+            authenticated_session_id: origin.authenticated_session_id.to_string(),
+            access_space_id: origin.access_space_id.to_string(),
+            workspace_id: origin.workspace_id.to_string(),
+        }
+    };
+    // Key order a, b, c against sequence order b, c, a; d belongs to another session run.
+    let rows = vec![
+        row("a", &session_run_id, 3),
+        row("b", &session_run_id, 1),
+        row("c", &session_run_id, 2),
+        row("d", &other_session_run_id, 4),
+    ];
+    storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<surrealdb::types::Value, _>(IMPORT_REPLAY_ROWS, ReplayImport { rows })
+                    .await
+            })
+        })
+        .await
+        .expect("import replay ledger rows out of sequence order");
+    let read = SessionRead { session_run_id: session_run_id.clone() };
+    let ordered = storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<ReplaySequenceRow, _>(ORIGINAL_REPLAY_SCOPE_READ, read)
+                    .await
+            })
+        })
+        .await
+        .expect("the replay scope read parses and runs on the production schema");
+    assert_eq!(
+        ordered.iter().map(|row| row.event_sequence).collect::<Vec<_>>(),
+        [1, 2, 3].map(|offset| REPLAY_SEQUENCE_BASE + offset).to_vec(),
+        "this session run only, ascending event_sequence",
+    );
+    let read = SessionRead { session_run_id };
+    let scoped = storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<OriginalScopeRow, _>(ORIGINAL_REPLAY_SCOPE_READ, read)
+                    .await
+            })
+        })
+        .await
+        .expect("the replay scope read decodes into the production row type");
+    assert_eq!(scoped.len(), 3);
+    for row in &scoped {
+        assert_original_row(row, &scope);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn original_replay_scope_read_orders_by_projected_event_sequence() {
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("an isolated store with the full production schema composition");
+    let outcome = tokio::spawn(replay_scope_read_order_body(backend.storage.clone())).await;
+    // Close before re-raising so a failed assertion cannot leave the store open.
+    let removed = backend.close_and_remove().await;
+    if let Err(panic) = outcome {
+        std::panic::resume_unwind(panic.into_panic());
+    }
+    removed.expect("remove the replay scope read store");
 }
 
 #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
