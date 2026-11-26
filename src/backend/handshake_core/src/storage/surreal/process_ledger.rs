@@ -12,10 +12,9 @@ use surrealdb::types::{RecordId, SurrealValue};
 use uuid::Uuid;
 
 use crate::process_ledger::reclaim::{
-    default_dead_owner_confirmation_gap, is_surreal_retryable_transaction_conflict,
-    runtime_owner_loopback_lease_is_free, surreal_claim_retry_delay, ReclaimResourceScope,
-    ScopedReclaimProcessStore, ScopedReclaimableProcess, StaleSessionProcessSet,
-    SURREAL_CLAIM_MAX_ATTEMPTS,
+    default_dead_owner_confirmation_gap, runtime_owner_loopback_lease_is_free,
+    ReclaimResourceScope, ScopedReclaimProcessStore, ScopedReclaimableProcess,
+    StaleSessionProcessSet,
 };
 use crate::process_ledger::{
     EmbeddedRuntimeInstanceDescriptor, LedgerEvent, LedgerEventKind, ProcessEngineKind,
@@ -25,7 +24,7 @@ use crate::process_ledger::{
     EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL, PROCESS_LEDGER_TABLE_NAME,
 };
 
-use super::{SurrealStorage, SurrealStorageError};
+use super::{retry::retry_transaction_conflicts, SurrealStorage, SurrealStorageError};
 
 const SCHEMA: &str = include_str!("process_ledger_schema.surql");
 
@@ -954,34 +953,28 @@ impl SurrealProcessLedgerStore {
         // claim's transaction fail with a retryable conflict, and none of it commits.
         // The retry re-runs the same claim on fresh state: rows the other claimant now
         // holds no longer match, so no row is returned to two claimants. Same bounded
-        // retry as the unscoped claim in process_ledger/reclaim.rs.
-        let retry_seed = Uuid::now_v7();
-        let mut failed_attempt = 0;
-        let rows = loop {
-            let attempt_bindings = bindings.clone();
-            let outcome = self
-                .storage
-                .with_data_operation(move |database| {
-                    Box::pin(async move {
-                        database
-                            .query_values::<ReclaimRow, _>(statement, attempt_bindings)
-                            .await
-                    })
-                })
-                .await;
-            match outcome {
-                Ok(rows) => break rows,
-                Err(error)
-                    if failed_attempt + 1 < SURREAL_CLAIM_MAX_ATTEMPTS
-                        && is_surreal_retryable_transaction_conflict(&error) =>
-                {
-                    tokio::time::sleep(surreal_claim_retry_delay(retry_seed, failed_attempt))
-                        .await;
-                    failed_attempt += 1;
+        // shared retry as the unscoped claim in process_ledger/reclaim.rs.
+        let storage = &self.storage;
+        let rows = retry_transaction_conflicts(
+            storage,
+            format!("scoped-reclaim-claim:{}", bindings.session_id),
+            || {
+                let attempt_bindings = bindings.clone();
+                async move {
+                    storage
+                        .with_data_operation(move |database| {
+                            Box::pin(async move {
+                                database
+                                    .query_values::<ReclaimRow, _>(statement, attempt_bindings)
+                                    .await
+                            })
+                        })
+                        .await
                 }
-                Err(error) => return Err(surreal_store_error(error)),
-            }
-        };
+            },
+        )
+        .await
+        .map_err(surreal_store_error)?;
         rows.into_iter()
             .map(ScopedReclaimableProcess::try_from)
             .collect()

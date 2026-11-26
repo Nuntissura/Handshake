@@ -16,7 +16,7 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use crate::storage::surreal::SurrealStorage;
+use crate::storage::surreal::{retry::retry_transaction_conflicts, SurrealStorage};
 
 use super::{
     LedgerEvent, LedgerEventKind, ProcessEngineKind, ProcessLedgerError, ProcessLedgerStore,
@@ -38,41 +38,10 @@ pub(crate) use handshake_runtime_instance::runtime_owner_loopback_lease_is_free;
 /// un-claim uses.
 const RECLAIM_CLAIM_STOP_REASON: &str = "reclaim_claimed";
 const RECLAIM_KILLED_STOP_REASON: &str = "reclaim_killed";
-pub(crate) const SURREAL_CLAIM_MAX_ATTEMPTS: usize = 10;
-const SURREAL_CLAIM_BACKOFF_CAP_MS: u64 = 32;
 static RECLAIM_BOOT_OWNER_ID: OnceLock<Uuid> = OnceLock::new();
 
 fn reclaim_boot_owner_id() -> Uuid {
     *RECLAIM_BOOT_OWNER_ID.get_or_init(Uuid::now_v7)
-}
-
-pub(crate) fn is_surreal_retryable_transaction_conflict(
-    error: &crate::storage::surreal::SurrealStorageError,
-) -> bool {
-    matches!(
-        error,
-        crate::storage::surreal::SurrealStorageError::Database(source)
-            if source
-                .to_string()
-                .contains("Transaction conflict: Resource busy. This transaction can be retried")
-    )
-}
-
-pub(crate) fn surreal_claim_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
-    let exponential_cap = 1_u64
-        .checked_shl(failed_attempt.min(5) as u32)
-        .unwrap_or(SURREAL_CLAIM_BACKOFF_CAP_MS)
-        .min(SURREAL_CLAIM_BACKOFF_CAP_MS);
-    let seed = seed.as_u128();
-    let mut mixed = (seed as u64)
-        ^ ((seed >> 64) as u64)
-        ^ (failed_attempt as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
-    mixed ^= mixed >> 30;
-    mixed = mixed.wrapping_mul(0xbf58_476d_1ce4_e5b9);
-    mixed ^= mixed >> 27;
-    mixed = mixed.wrapping_mul(0x94d0_49bb_1331_11eb);
-    mixed ^= mixed >> 31;
-    Duration::from_millis(mixed % (exponential_cap + 1))
 }
 
 /// MT-008: atomically claim the active (un-stopped) rows for a session.
@@ -2512,32 +2481,32 @@ impl SurrealProcessLedgerStore {
             claim_reason: format!("{RECLAIM_CLAIM_STOP_REASON}:{owner_id}"),
             killed_reason: format!("{RECLAIM_KILLED_STOP_REASON}:{owner_id}"),
         };
-        let retry_seed = Uuid::now_v7();
-        let mut failed_attempt = 0;
-        let mut raw_rows: Vec<SurrealDataValue> = loop {
-            let attempt_bindings = bindings.clone();
-            let outcome = self
-                .storage()
-                .with_data_operation(move |database| {
-                    Box::pin(async move {
-                        database
-                            .query_values(SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY, attempt_bindings)
-                            .await
-                    })
-                })
-                .await;
-            match outcome {
-                Ok(rows) => break rows,
-                Err(error)
-                    if failed_attempt + 1 < SURREAL_CLAIM_MAX_ATTEMPTS
-                        && is_surreal_retryable_transaction_conflict(&error) =>
-                {
-                    tokio::time::sleep(surreal_claim_retry_delay(retry_seed, failed_attempt)).await;
-                    failed_attempt += 1;
+        // A commit conflict wrote nothing, so the bounded shared retry re-runs the same
+        // claim on fresh state; rows another claimant now holds no longer match.
+        let storage = self.storage();
+        let mut raw_rows: Vec<SurrealDataValue> = retry_transaction_conflicts(
+            storage,
+            format!("reclaim-claim:{session_id}"),
+            || {
+                let attempt_bindings = bindings.clone();
+                async move {
+                    storage
+                        .with_data_operation(move |database| {
+                            Box::pin(async move {
+                                database
+                                    .query_values::<SurrealDataValue, _>(
+                                        SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY,
+                                        attempt_bindings,
+                                    )
+                                    .await
+                            })
+                        })
+                        .await
                 }
-                Err(error) => return Err(ProcessLedgerError::from(error)),
-            }
-        };
+            },
+        )
+        .await
+        .map_err(ProcessLedgerError::from)?;
 
         #[cfg(feature = "surreal-test-support")]
         if let Some(process_uuid) = corrupt_raw_receipt_for {
@@ -2760,74 +2729,68 @@ impl SurrealProcessLedgerStore {
                 stop_reason: receipt.previous_stop_reason.clone(),
                 claim_reason: claim_reason.clone(),
             };
-            let retry_seed = Uuid::now_v7();
-            let mut failed_attempt = 0;
-            loop {
-                let attempt_bindings = bindings.clone();
-                let outcome = self
-                    .storage()
-                    .with_data_operation(move |database| {
-                        Box::pin(async move {
-                            database
-                                .execute_returning(
-                                    SURREAL_ACTIVE_RECLAIM_RELEASE_QUERY,
-                                    attempt_bindings,
-                                )
-                                .await
-                        })
-                    })
-                    .await;
-                match outcome {
-                    Ok(1) => break,
-                    Ok(0) => {
-                        let convergence = self
-                            .verify_reclaim_release_converged(
-                                receipt.record.clone(),
-                                receipt.previous_stopped_at,
-                                receipt.previous_stop_reason.as_deref(),
-                                &claim_reason,
-                            )
-                            .await;
-                        match convergence {
-                            Ok(()) => {}
-                            Err(error) => failures.push(format!(
-                                "{:?}: zero-row release did not converge: {error}",
-                                receipt.record
-                            )),
-                        }
-                        break;
+            let storage = self.storage();
+            let outcome = retry_transaction_conflicts(
+                storage,
+                format!("reclaim-release:{:?}", receipt.record),
+                || {
+                    let attempt_bindings = bindings.clone();
+                    async move {
+                        storage
+                            .with_data_operation(move |database| {
+                                Box::pin(async move {
+                                    database
+                                        .execute_returning(
+                                            SURREAL_ACTIVE_RECLAIM_RELEASE_QUERY,
+                                            attempt_bindings,
+                                        )
+                                        .await
+                                })
+                            })
+                            .await
                     }
-                    Ok(count) => {
+                },
+            )
+            .await;
+            match outcome {
+                Ok(1) => {}
+                Ok(0) => {
+                    let convergence = self
+                        .verify_reclaim_release_converged(
+                            receipt.record.clone(),
+                            receipt.previous_stopped_at,
+                            receipt.previous_stop_reason.as_deref(),
+                            &claim_reason,
+                        )
+                        .await;
+                    match convergence {
+                        Ok(()) => {}
+                        Err(error) => failures.push(format!(
+                            "{:?}: zero-row release did not converge: {error}",
+                            receipt.record
+                        )),
+                    }
+                }
+                Ok(count) => {
+                    failures.push(format!(
+                        "{:?} returned impossible affected-row count {count}",
+                        receipt.record
+                    ));
+                }
+                Err(error) => {
+                    let convergence = self
+                        .verify_reclaim_release_converged(
+                            receipt.record.clone(),
+                            receipt.previous_stopped_at,
+                            receipt.previous_stop_reason.as_deref(),
+                            &claim_reason,
+                        )
+                        .await;
+                    if let Err(convergence_error) = convergence {
                         failures.push(format!(
-                            "{:?} returned impossible affected-row count {count}",
+                            "{:?}: {error}; canonical convergence failed: {convergence_error}",
                             receipt.record
                         ));
-                        break;
-                    }
-                    Err(error)
-                        if failed_attempt + 1 < SURREAL_CLAIM_MAX_ATTEMPTS
-                            && is_surreal_retryable_transaction_conflict(&error) =>
-                    {
-                        tokio::time::sleep(surreal_claim_retry_delay(retry_seed, failed_attempt))
-                            .await;
-                        failed_attempt += 1;
-                    }
-                    Err(error) => {
-                        let convergence = self
-                            .verify_reclaim_release_converged(
-                                receipt.record.clone(),
-                                receipt.previous_stopped_at,
-                                receipt.previous_stop_reason.as_deref(),
-                                &claim_reason,
-                            )
-                            .await;
-                        if let Err(convergence_error) = convergence {
-                            failures.push(format!(
-                                "{:?}: {error}; canonical convergence failed: {convergence_error}",
-                                receipt.record
-                            ));
-                        }
-                        break;
                     }
                 }
             }
@@ -2944,73 +2907,67 @@ impl SurrealProcessLedgerStore {
                 previous_stopped_at: receipt.previous_stopped_at,
                 previous_stop_reason: receipt.previous_stop_reason.clone(),
             };
-            let retry_seed = Uuid::now_v7();
-            let mut failed_attempt = 0;
-            loop {
-                let attempt_bindings = bindings.clone();
-                let outcome = self
-                    .storage()
-                    .with_data_operation(move |database| {
-                        Box::pin(async move {
-                            database
-                                .execute_returning(
-                                    SURREAL_ACTIVE_RECLAIM_ABANDON_QUERY,
-                                    attempt_bindings,
-                                )
-                                .await
-                        })
-                    })
-                    .await;
-                match outcome {
-                    Ok(1) => break,
-                    Ok(0) => {
-                        if let Err(error) = self
-                            .verify_reclaim_release_converged(
-                                record.clone(),
-                                receipt.previous_stopped_at,
-                                receipt.previous_stop_reason.as_deref(),
-                                &claim_reason,
-                            )
+            let storage = self.storage();
+            let outcome = retry_transaction_conflicts(
+                storage,
+                format!("reclaim-abandon:{}", process.process_uuid),
+                || {
+                    let attempt_bindings = bindings.clone();
+                    async move {
+                        storage
+                            .with_data_operation(move |database| {
+                                Box::pin(async move {
+                                    database
+                                        .execute_returning(
+                                            SURREAL_ACTIVE_RECLAIM_ABANDON_QUERY,
+                                            attempt_bindings,
+                                        )
+                                        .await
+                                })
+                            })
                             .await
-                        {
-                            failures.push(format!(
-                                "kernel_process_lifecycle:{}: zero-row abandon did not converge: {error}",
-                                process.process_uuid
-                            ));
-                        }
-                        break;
                     }
-                    Ok(count) => {
+                },
+            )
+            .await;
+            match outcome {
+                Ok(1) => {}
+                Ok(0) => {
+                    if let Err(error) = self
+                        .verify_reclaim_release_converged(
+                            record.clone(),
+                            receipt.previous_stopped_at,
+                            receipt.previous_stop_reason.as_deref(),
+                            &claim_reason,
+                        )
+                        .await
+                    {
                         failures.push(format!(
-                            "kernel_process_lifecycle:{}: impossible affected-row count {count}",
+                            "kernel_process_lifecycle:{}: zero-row abandon did not converge: {error}",
                             process.process_uuid
                         ));
-                        break;
                     }
-                    Err(error)
-                        if failed_attempt + 1 < SURREAL_CLAIM_MAX_ATTEMPTS
-                            && is_surreal_retryable_transaction_conflict(&error) =>
+                }
+                Ok(count) => {
+                    failures.push(format!(
+                        "kernel_process_lifecycle:{}: impossible affected-row count {count}",
+                        process.process_uuid
+                    ));
+                }
+                Err(error) => {
+                    if let Err(convergence_error) = self
+                        .verify_reclaim_release_converged(
+                            record.clone(),
+                            receipt.previous_stopped_at,
+                            receipt.previous_stop_reason.as_deref(),
+                            &claim_reason,
+                        )
+                        .await
                     {
-                        tokio::time::sleep(surreal_claim_retry_delay(retry_seed, failed_attempt))
-                            .await;
-                        failed_attempt += 1;
-                    }
-                    Err(error) => {
-                        if let Err(convergence_error) = self
-                            .verify_reclaim_release_converged(
-                                record.clone(),
-                                receipt.previous_stopped_at,
-                                receipt.previous_stop_reason.as_deref(),
-                                &claim_reason,
-                            )
-                            .await
-                        {
-                            failures.push(format!(
-                                "kernel_process_lifecycle:{}: {error}; canonical convergence failed: {convergence_error}",
-                                process.process_uuid
-                            ));
-                        }
-                        break;
+                        failures.push(format!(
+                            "kernel_process_lifecycle:{}: {error}; canonical convergence failed: {convergence_error}",
+                            process.process_uuid
+                        ));
                     }
                 }
             }
