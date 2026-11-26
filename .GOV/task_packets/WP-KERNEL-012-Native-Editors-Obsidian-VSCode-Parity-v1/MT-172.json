@@ -13793,5 +13793,80 @@
     "open_check": "whether a repeated recovery pass on the next start is safe (idempotent) is to be verified by the eval agent",
     "applies_to": "MT-172 PT019, commit 3abee6f9f and successors",
     "standing_direction": "focus on finishing the picotasks and microtasks"
+  },
+  "owning_tests_eval2_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "run_id": "WP012-MT172-EVAL-RECLAIM-20261126-02",
+    "commit": "71581cfe0",
+    "tree": "ecb99d57f",
+    "inputs_unchanged": true,
+    "result": "36 run, 35 passed, 1 failed, 0 timeouts; build 44m20s, tests 751 s",
+    "per_target": {
+      "process_ledger_surreal_tests": "13/13",
+      "process_reclaim_real_lifecycle_surreal_tests": "22/22",
+      "restart_resume_boot_bound_surreal_tests": "0/1"
+    },
+    "failure": {
+      "test": "restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker",
+      "at": "tests/restart_resume_boot_bound_surreal_tests.rs:261",
+      "cause": "tests/process_ledger_surreal_support/mod.rs:346-349,362,430-431 binds the protected $session (same bug 24793fe94 fixed only in the seed); every test that runs harness.restart_runner() over a candidate fails the same way; six test files use this module",
+      "class": "test support"
+    },
+    "log_sha256": "638f701fd412c739a54ddd809efbc9805199f62f6a14be399f921b259c927a79",
+    "junit_sha256": "7a4cb30ee9f7696416dd7788bdfc2363a1b15d2821f74efbcfb804c913d7d0fa",
+    "result_sha256": "e85b8dd9324b3b6e0527b200ac80a241cb995e5f1e992aa58eff06cc7c7df615",
+    "review": [
+      {
+        "id": "R4-1",
+        "severity": "medium",
+        "finding": "the $session binding in the shared support module blocks R3-2 and every restart-runner test with a candidate"
+      },
+      {
+        "id": "R4-2",
+        "severity": "medium",
+        "finding": "R3-1 code correct (restart_resume.rs:580-607) but no test pins it: the test asserts only elapsed < bound+2s; needs a lower bound for Block or a fault acknowledging after more than 1 s but before the deadline that must return Completed"
+      },
+      {
+        "id": "R4-3",
+        "severity": "low",
+        "finding": "the COMPLETED-count query has no positive control in this test"
+      },
+      {
+        "id": "R4-4",
+        "severity": "low",
+        "finding": "retry wall-clock budget now 2 s; scoped claim computes now and lease once before retries, shortening the effective lease by about 2 s; renewal every 10 s against 30 s TTL, so no assumption breaks; release and abandon re-runs are safe"
+      },
+      {
+        "id": "R4-5",
+        "finding": "R3-6 boundary consistent; no double report"
+      },
+      {
+        "id": "R4-6",
+        "finding": "R3-3 seam test-utils only; fault tests can fail"
+      },
+      {
+        "id": "R4-7",
+        "finding": "no weakened assertions"
+      }
+    ],
+    "repeat_safety": {
+      "answer": "safe for the Operator's decided case, by code reading; no passing test proves it yet",
+      "evidence": [
+        "a pass whose COMPLETED write went unacknowledged already committed everything else",
+        "resumed sessions are RETRY_SCHEDULED and failed ones FAILED, neither resumable (restart_resume.rs:69-75)",
+        "resume_candidate is one atomic statement with paired claims (:1045-1115)",
+        "re-acquired killed markers skip external cleanup (reclaim.rs:2264; restart_resume.rs:298); adapter cleanup is repeat-safe (sandbox/adapter.rs:417-418)"
+      ],
+      "gaps": [
+        "a late-committing COMPLETED write can leave a report for the failed boot beside the new boot's report (different ids, no duplicate actions)",
+        "the first pass's actions may appear in no durable report",
+        "after a bound-cancelled pass (not the decided case): duplicate recovery_failed checkpoint row possible after the 30 s pending lease (restart_resume.rs:1148,1173); a cut between mailbox thread create and message append can leave an empty thread (:1312,1364)"
+      ],
+      "tests": [
+        "restart_resume_surreal_tests.rs:468-473 asserts a second pass examines 0 sessions; blocked by R4-1",
+        "missing: candidates, COMPLETED write fails, second pass, zero new resumes, kills, STOPs, mailbox messages and checkpoints"
+      ]
+    }
   }
 }
