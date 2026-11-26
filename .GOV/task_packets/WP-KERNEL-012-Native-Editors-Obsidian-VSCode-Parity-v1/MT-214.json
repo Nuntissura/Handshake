@@ -1303,5 +1303,49 @@
       "E3-F3, E3-F4, E3-F5 and the named weak tests"
     ],
     "not_a_verdict": "the slice keeps its recorded eval result; this waiver records an Operator scope decision, not a validator PASS"
+  },
+  "slice2_implementation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "slice": "S2 surface crate: first zero-egui Vulkan frame",
+    "commit": "6f71cac070e97eeda135ca67ebc1aeee05d128cb",
+    "crate": "handshake_shell_surface at src/frontend/handshake_shell/surface/ (workspace member); depends on the window crate and the GPU owner; neither depends on the other; forbid(unsafe_code); no winit, ash or Win32 in its own code",
+    "frames": "damage-driven: only FrameDue from exposure, damage/capture_next, resize, restore, scale change or a frame still owed; input and idle draw nothing; acquire timeout 0 retried after 4 ms at most 250 times; out-of-date and suboptimal reconfigured and bounded; lost surface replaced",
+    "recreate_retire": "resize and restore mark the swapchain stale and configure with oldSwapchain before the next frame; minimise suspends; scale change counts as damage; retirement by the owner (maintenance1: poll only; without: at most 2xImages+2 extra frames until the owner ends the old swapchain); close releases surface, hides, settles the claim, destroys when the token count reaches 0; shutdown releases, settles, closes the owner, then finishes; no device-wide wait on the frame path",
+    "headless_readback": "render_offscreen clears an owner image and reads it back; capture_next reads back the presented swapchain image; compare_texels checks every texel with one step per channel",
+    "hb4": "Shell::watch gives a PresentWatch readable on any thread; not yet wired into ui_heartbeat",
+    "hosted_present_cases": [
+      "present loop",
+      "resize retiring once (S2-F2)",
+      "minimise and restore",
+      "dropped frame",
+      "surface release once",
+      "multiwindow retirement (S2-F2)",
+      "FIFO-blocked present isolation (S2-F5)"
+    ],
+    "other_tests": [
+      "frame_loop.rs",
+      "headless.rs",
+      "source_scan.rs",
+      "unit tests"
+    ],
+    "example_for_operator": "cargo run --manifest-path src/frontend/handshake_shell/Cargo.toml -p handshake_shell_surface --example first_frame -- --show-on-my-desktop [--seconds N]; opens nothing without the flag; quiet window; prints HSK_SHELL_* receipts; not the product (no device.gpu.shell)",
+    "implementer_checks": {
+      "check --locked --offline --tests --examples -j 2": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "doc": "clean",
+      "cargo tree -e all --target all": "no egui, eframe, wgpu, glow or kumihimo"
+    },
+    "lock": "only five new packages added (+46 lines); cargo's own resolve that re-pointed winapi-util was rejected; gpu-alloc resolves bitflags 2.13.0 here versus 2.13.2 in the owner's own lock",
+    "process_slips": "two ~2 s checks at 05:10 and 05:17 started while a backend cargo check ran",
+    "tests": "nothing run; independent run pending (with the MT-203 slice 2 remediation)",
+    "needs_native_x64_and_real_desktop": [
+      "whether drivers present to a private non-composed desktop",
+      "the Operator's own desktop",
+      "real monitors and DPI",
+      "occlusion",
+      "device loss and rebind (AC214-9)",
+      "unavailable-device state"
+    ]
   }
 }
