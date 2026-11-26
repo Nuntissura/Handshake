@@ -11920,17 +11920,17 @@ struct MemberPasswordLoginWrite {
     expires_at: Datetime,
 }
 const MEMBER_PASSWORD_LOGIN_WRITE: &str = "
-LET $a = UPDATE $binding.account SET auth_transition_nonce += 1
+LET $a = UPDATE $binding.account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
  WHERE account_key = $binding.name AND account_role = 'Member' AND status = 'enabled'
  AND password_verifier = $verifier AND credential_revision = $binding.credential_revision
  AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN AFTER;
 IF array::len($a) != 1 { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
-LET $p = UPDATE $binding.principal SET auth_transition_nonce += 1
+LET $p = UPDATE $binding.principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
  WHERE account_id = $binding.account AND principal_kind = 'human_account' AND status = 'enabled'
  AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy
  AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN AFTER;
 IF array::len($p) != 1 { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
-LET $s = UPDATE $binding.space SET auth_transition_nonce += 1
+LET $s = UPDATE $binding.space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
  WHERE account_id = $binding.account AND status = 'active'
  AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN AFTER;
 IF array::len($s) != 1 { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
@@ -12243,17 +12243,17 @@ SELECT id AS credential, member_login_binding AS binding FROM session_exchange_c
 ";
 const MEMBER_EXCHANGE_WRITE: &str = "
 IF !fn::wp012_member_login_binding_current($binding) { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
-LET $a = UPDATE $binding.account SET auth_transition_nonce += 1
+LET $a = UPDATE $binding.account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
  WHERE status = 'enabled' AND account_role = 'Member' AND account_key = $binding.name
  AND credential_revision = $binding.credential_revision AND password_verifier != NONE
  AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN AFTER;
 IF array::len($a) != 1 { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
-LET $p = UPDATE $binding.principal SET auth_transition_nonce += 1
+LET $p = UPDATE $binding.principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
  WHERE account_id = $binding.account AND status = 'enabled' AND principal_kind = 'human_account'
  AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy
  AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN AFTER;
 IF array::len($p) != 1 { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
-LET $s = UPDATE $binding.space SET auth_transition_nonce += 1
+LET $s = UPDATE $binding.space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1
  WHERE account_id = $binding.account AND status = 'active'
  AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN AFTER;
 IF array::len($s) != 1 { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
@@ -13560,5 +13560,215 @@ mod protected_session_binding_tests {
         if let Err(panic) = outcome {
             std::panic::resume_unwind(panic.into_panic());
         }
+    }
+}
+
+#[cfg(test)]
+mod member_login_nonce_tests {
+    //! SC-1, schema repair spec row 3: Member login (MEMBER_PASSWORD_LOGIN_WRITE) and Member session
+    //! exchange (MEMBER_EXCHANGE_WRITE) incremented `auth_transition_nonce`, which no production
+    //! schema defines on the SCHEMAFULL local_accounts, principals and access_spaces tables, so both
+    //! writes failed with FieldUndefined and every Member login was denied. Runs the storage entry
+    //! points behind POST /authority/login and POST /authority/session on the production schema
+    //! composition and requires both to succeed and to advance the defined
+    //! `authorization_touch_nonce` by one on each of the three identity rows.
+    //!
+    //! The redeemed Member is seeded as stored state. The account, principal and space are root
+    //! writes under the full schema. The consumed enrollment is written under `OPTION IMPORT`
+    //! (SurrealDB's restore mode: no events or field processing, indexes still maintained),
+    //! because the enrollment vault phase guard admits a row only from a live issuer session.
+    use super::*;
+
+    const SEED_REDEEMED_IDENTITY: &str = "
+CREATE $account SET account_key = $name, account_role = 'Member', status = 'enabled',
+ password_verifier = $verifier, credential_revision = 1, member_enrollment_origin = $enrollment,
+ revocation_epoch = 0, policy_version = 1, authorization_touch_nonce = 1,
+ created_at = time::now(), updated_at = time::now();
+CREATE $principal SET principal_key = $actor, account_id = $account, principal_kind = 'human_account',
+ actor_kind = 'operator', actor_id = $actor, capability_profile_id = 'MemberEnrollment',
+ delegated_capabilities = $capabilities, status = 'enabled', member_enrollment_origin = $enrollment,
+ revocation_epoch = 0, policy_version = 1, authorization_touch_nonce = 1,
+ created_at = time::now(), updated_at = time::now();
+CREATE $space SET space_key = $actor, account_id = $account, name = 'Private', status = 'active',
+ member_enrollment_origin = $enrollment, revocation_epoch = 0, policy_version = 1,
+ authorization_touch_nonce = 1, created_at = time::now(), updated_at = time::now();
+";
+    const SEED_CONSUMED_ENROLLMENT: &str = "
+OPTION IMPORT;
+CREATE $enrollment CONTENT {
+ operation_id: $operation, descriptor_hex: $descriptor_hex, descriptor_sha256: $descriptor_sha256,
+ account_id: $account, principal_id: $principal, access_space_id: $space, account_name: $name,
+ token_digest: $token_digest, purpose: 'identity_enrollment', issued_at: $issued_at,
+ expires_at: $expires_at, status: 'consumed', password_verifier: $verifier,
+ redemption_attempt_id: $attempt, consumed_at: time::now(),
+ vault_issue_state: 'bound', vault_issue_revision: 4
+};
+";
+    const CONSUMED_ENROLLMENT_COUNT: &str = "
+RETURN array::len(SELECT VALUE id FROM member_enrollments WHERE account_id = $account
+ AND status = 'consumed' AND password_verifier != NONE);
+";
+    const IDENTITY_NONCES: &str = "
+RETURN [$account.authorization_touch_nonce, $principal.authorization_touch_nonce,
+ $space.authorization_touch_nonce];
+";
+
+    #[derive(Clone, SurrealValue)]
+    struct RedeemedMemberSeed {
+        enrollment: RecordId,
+        operation: String,
+        descriptor_hex: String,
+        descriptor_sha256: String,
+        token_digest: String,
+        account: RecordId,
+        principal: RecordId,
+        space: RecordId,
+        name: String,
+        actor: String,
+        verifier: String,
+        attempt: String,
+        capabilities: Vec<String>,
+        issued_at: Datetime,
+        expires_at: Datetime,
+    }
+
+    #[derive(Clone, SurrealValue)]
+    struct MemberIdentityRows {
+        account: RecordId,
+        principal: RecordId,
+        space: RecordId,
+    }
+
+    async fn seed(storage: &SurrealStorage, seed: RedeemedMemberSeed) {
+        let namespace = storage.config().namespace().to_owned();
+        let database = storage.config().database().to_owned();
+        let consumed = storage.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            authority.query(SEED_REDEEMED_IDENTITY).bind(seed.clone()).await?.check()?;
+            authority.query(SEED_CONSUMED_ENROLLMENT).bind(seed.clone()).await?.check()?;
+            let mut response = authority.query(CONSUMED_ENROLLMENT_COUNT).bind(seed).await?.check()?;
+            let consumed: Option<i64> = response.take(0)?;
+            Ok(consumed)
+        })).await.expect("seed the redeemed Member identity and its consumed enrollment");
+        assert_eq!(consumed, Some(1), "the consumed enrollment is stored and indexed by account");
+    }
+
+    async fn nonces(storage: &SurrealStorage, rows: &MemberIdentityRows) -> Vec<i64> {
+        let namespace = storage.config().namespace().to_owned();
+        let database = storage.config().database().to_owned();
+        let rows = rows.clone();
+        storage.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = authority.query(IDENTITY_NONCES).bind(rows).await?.check()?;
+            let nonces: Vec<i64> = response.take(0)?;
+            Ok(nonces)
+        })).await.expect("read authorization_touch_nonce on the Member account, principal and space")
+    }
+
+    async fn body(storage: &SurrealStorage) {
+        let password = "member login nonce proof password".to_owned();
+        let verifier = crate::storage::surreal::local_accounts::new_password_verifier(password.clone())
+            .await
+            .expect("production password verifier");
+        let operation = Uuid::now_v7();
+        let account_key = Uuid::now_v7().to_string();
+        let principal_key = Uuid::now_v7().to_string();
+        let space_key = Uuid::now_v7().to_string();
+        let name = format!("member-{}", Uuid::now_v7().simple());
+        let issued_at = Utc::now() - chrono::Duration::hours(1);
+        let expires_at = issued_at + chrono::Duration::hours(24);
+        let timestamp = |value: DateTime<Utc>| {
+            enrollment::Timestamp::new(value.timestamp(), value.timestamp_subsec_nanos())
+                .expect("enrollment timestamp")
+        };
+        let administrator_resource = Uuid::now_v7().to_string();
+        let source = || {
+            enrollment::SourceRef::new(
+                administrator_resource.clone(), Uuid::now_v7().to_string(), 1, vec![1], vec![0], None,
+            ).expect("enrollment source")
+        };
+        let mut token_digest = [0u8; 32];
+        getrandom::getrandom(&mut token_digest[..]).expect("token digest entropy");
+        let descriptor = enrollment::EnrollmentDescriptor::new(
+            operation,
+            enrollment::IdentityScope::new(
+                Uuid::now_v7().to_string(), Uuid::now_v7().to_string(), Uuid::now_v7().to_string(),
+                Uuid::now_v7().to_string(), Uuid::now_v7().to_string(),
+            ).expect("original enroller"),
+            enrollment::StagedIdentity::new(account_key.clone(), principal_key.clone(), space_key.clone())
+                .expect("staged identity"),
+            name.clone(), administrator_resource.clone(), source(), source(),
+            timestamp(issued_at), timestamp(expires_at), timestamp(expires_at), None, token_digest,
+        ).expect("enrollment descriptor");
+        let encoded = enrollment::encode_enrollment(&descriptor).expect("encode enrollment descriptor");
+        let rows = MemberIdentityRows {
+            account: RecordId::new("local_accounts", account_key.clone()),
+            principal: RecordId::new("principals", principal_key.clone()),
+            space: RecordId::new("access_spaces", space_key.clone()),
+        };
+        seed(storage, RedeemedMemberSeed {
+            enrollment: RecordId::new("member_enrollments", operation.to_string()),
+            operation: operation.to_string(),
+            descriptor_hex: hex::encode(&encoded),
+            descriptor_sha256: sha256_hex(&encoded),
+            token_digest: hex::encode(descriptor.token_digest()),
+            account: rows.account.clone(),
+            principal: rows.principal.clone(),
+            space: rows.space.clone(),
+            name: name.clone(),
+            actor: principal_key.clone(),
+            verifier,
+            attempt: Uuid::now_v7().to_string(),
+            capabilities: enrollment::MEMBER_CAPABILITIES.iter().map(|value| (*value).to_owned()).collect(),
+            issued_at: Datetime::from(issued_at),
+            expires_at: Datetime::from(expires_at),
+        }).await;
+        assert_eq!(nonces(storage, &rows).await, vec![1, 1, 1], "seeded redeemed nonces");
+
+        let credential = storage
+            .login_local_account_target(
+                &name, password, crate::storage::surreal::local_accounts::LocalAccountLoginTarget::Default,
+            )
+            .await
+            .expect("Member login issues an exchange credential");
+        assert_eq!(
+            [credential.account_id.as_str(), credential.principal_id.as_str(), credential.access_space_id.as_str()],
+            [account_key.as_str(), principal_key.as_str(), space_key.as_str()],
+            "the credential names the redeemed Member identity",
+        );
+        assert_eq!(nonces(storage, &rows).await, vec![2, 2, 2], "login advances each identity nonce by one");
+
+        let channel = sha256_hex(b"member-login-nonce-proof-channel");
+        let issued = storage
+            .exchange_session_credential(
+                &credential.account_id, &credential.principal_id, &credential.access_space_id,
+                &credential.token, &channel, Duration::from_secs(60 * 60),
+            )
+            .await
+            .expect("Member credential exchange issues a session");
+        assert_eq!(
+            [issued.account_id.as_str(), issued.principal_id.as_str(), issued.access_space_id.as_str()],
+            [account_key.as_str(), principal_key.as_str(), space_key.as_str()],
+            "the session names the redeemed Member identity",
+        );
+        assert_eq!(nonces(storage, &rows).await, vec![3, 3, 3], "exchange advances each identity nonce by one");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn member_login_and_exchange_advance_the_defined_authorization_touch_nonce() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("the Member login proof requires an isolated production-schema store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        // Close before re-raising so a failed login cannot leave the store open; the test's own
+        // failure is reported first.
+        let removed = backend.close_and_remove().await;
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+        removed.expect("remove the Member login store");
     }
 }
