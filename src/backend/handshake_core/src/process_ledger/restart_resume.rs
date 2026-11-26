@@ -494,9 +494,11 @@ impl SurrealRestartResumeRunner {
     /// never writes the COMPLETED report: a report write already handed to the
     /// embedded engine can still commit after its caller future is dropped. The
     /// COMPLETED report is written only for a pass that finished strictly inside
-    /// the bound, and that write gets the same report grace as the incomplete
-    /// report; an unconfirmed COMPLETED write is an error, never `TimedOut`. So a
-    /// pass the bound cancels never commits COMPLETED, and `TimedOut` never
+    /// the bound; that write is part of the primary run, so it is awaited until the
+    /// bound's deadline and, only if the deadline passes first, for the report grace
+    /// (the routed budget: primary run deadline, then only on timeout the 1 s
+    /// report grace). An unconfirmed COMPLETED write is an error, never `TimedOut`.
+    /// So a pass the bound cancels never commits COMPLETED, and `TimedOut` never
     /// coexists with a COMPLETED report of the same pass.
     pub async fn run_with_bound(
         &self,
@@ -511,22 +513,8 @@ impl SurrealRestartResumeRunner {
             .unwrap_or_else(|| now + Duration::from_secs(86_400 * 365 * 30));
         match tokio::time::timeout_at(deadline, self.resume_pass(&[])).await {
             Ok(Ok(report)) if tokio::time::Instant::now() < deadline => {
-                match tokio::time::timeout(
-                    RESTART_RESUME_REPORT_GRACE,
-                    self.persist_report(&report),
-                )
-                .await
-                {
-                    Ok(Ok(())) => Ok(BoundedRestartResumeOutcome::Completed(report)),
-                    Ok(Err(error)) => Err(error),
-                    Err(_) => Err(RestartResumeRuntimeError::Store(format!(
-                        "restart-resume pass {} finished inside the {} ms bound, but its \
-                         COMPLETED report write was not acknowledged within the {} ms grace",
-                        report.report_id,
-                        timeout.as_millis(),
-                        RESTART_RESUME_REPORT_GRACE.as_millis()
-                    ))),
-                }
+                self.write_completed_report_within(report, timeout, deadline)
+                    .await
             }
             Ok(Err(error)) => Err(error),
             // The pass did not finish strictly inside the bound (for a zero bound it
@@ -560,6 +548,41 @@ impl SurrealRestartResumeRunner {
                     evidence_persisted,
                 })
             }
+        }
+    }
+
+    /// Writes the COMPLETED report of a pass that finished inside the bound. The
+    /// write gets the remaining time to `deadline`; only if that deadline passes
+    /// first does it get the report grace on top. The same write future is awaited
+    /// throughout, never dropped and re-issued, and nothing is detached. A failed
+    /// or unacknowledged write is an error, never `TimedOut`, because the write
+    /// may still commit.
+    async fn write_completed_report_within(
+        &self,
+        report: ResumeReport,
+        timeout: Duration,
+        deadline: tokio::time::Instant,
+    ) -> Result<BoundedRestartResumeOutcome, RestartResumeRuntimeError> {
+        let acknowledged = {
+            let mut write = std::pin::pin!(self.persist_report(&report));
+            match tokio::time::timeout_at(deadline, write.as_mut()).await {
+                Ok(result) => Some(result),
+                Err(_) => tokio::time::timeout(RESTART_RESUME_REPORT_GRACE, write.as_mut())
+                    .await
+                    .ok(),
+            }
+        };
+        match acknowledged {
+            Some(Ok(())) => Ok(BoundedRestartResumeOutcome::Completed(report)),
+            Some(Err(error)) => Err(error),
+            None => Err(RestartResumeRuntimeError::Store(format!(
+                "restart-resume pass {} finished inside the {} ms bound, but its COMPLETED \
+                 report write was not acknowledged by the bound's deadline nor within the \
+                 {} ms grace after it",
+                report.report_id,
+                timeout.as_millis(),
+                RESTART_RESUME_REPORT_GRACE.as_millis()
+            ))),
         }
     }
 
