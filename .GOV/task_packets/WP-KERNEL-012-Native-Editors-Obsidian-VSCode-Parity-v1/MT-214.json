@@ -1772,5 +1772,54 @@
       "focus loss with the input method's own completion",
       "precision touchpad and pen"
     ]
+  },
+  "clipboard_specialist_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the clipboard specialist's report",
+    "recorded_on": "2026-11-26",
+    "subject": "E5-F1 (second failed fix of the real-OS clipboard test)",
+    "answer": "on this machine (Windows 11 Home ARM64 build 28000, medium integrity, unrestricted token, no AppContainer, job UI limits 0) a standard user cannot open the clipboard of any non-interactive window station: OpenClipboard returns error 5 on every reachable station, including a fresh unshared one with WINSTA_ACCESSCLIPBOARD granted; cause inside win32k not inspected; Microsoft docs list WINSTA_ACCESSCLIPBOARD among noninteractive GENERIC_ALL rights and do not mention this limit",
+    "evidence_folder": "Handshake_Artifacts/WP-KERNEL-012/MT-214/specialist-clipboard/ (specialist-results.jsonl sha256 f62c56d8...); a separate observer read WinSta0's clipboard sequence as 95 before and after all 17 probes",
+    "probes": {
+      "shared_unnamed_station": "Service-0x0-198af59$ belongs to the logon session; its desktops are the Chromium sandbox desktops of Chrome, ChatGPT, Claude and Discord (info_probe.py, enum_stations.py)",
+      "a_switch_and_b_child": "SetProcessWindowStation (early or late) and a child started on the station through lpDesktop both get OpenClipboard error 5 with NULL or window owner",
+      "c_access": "with handle access 0x37f, sequence number, format count, format check and AddClipboardFormatListener succeed; with 0x37b (no clipboard right) all fail with 5; access is granted",
+      "d_fresh_station": "ImpersonateAnonymousToken around CreateWindowStationW(NULL, CWF_CREATE_ONLY, ...) creates an unshared Service-0x0-3e6$; OpenClipboard still returns 5 for NULL, popup, message-only, desktop and WS_VISIBLE windows (nothing displayable); child_poll.py failed 979 attempts over 20 s; another program holding the clipboard ruled out",
+      "which_station": "clipboard calls follow the process's station, not the thread's desktop (0 versus 95 when crossed); the harness's process-station check is the right guard"
+    },
+    "safety_finding": {
+      "id": "E5-F1-S",
+      "severity": "medium, latent",
+      "defect": "the current harness (29763b430) uses the unnamed station, which is shared with browser and app sandbox desktops of the same logon session; on a machine where its clipboard opens, EmptiedAtEnd would empty a clipboard those apps share",
+      "status": "latent here (OpenClipboard fails before any write); must be removed before the test runs on any other machine"
+    },
+    "prior_art": [
+      "Wine clipboard tests expect ERROR_ACCESS_DENIED when another thread holds the clipboard",
+      "arboard tests the real clipboard on the windows-latest CI runner",
+      "vercel-labs/agent-desktop probe 22 got 1314 on a named station and fell back to save and restore under a lock",
+      "Submarine marks its clipboard round trip #[ignore]"
+    ],
+    "recommendation": {
+      "summary": "run the real-OS clipboard proof as one declared HBR-QUIET-004 step in the MT-213 x64 gate session; if the x64 machine allows a private station (UNVERIFIED) the test runs there quietly",
+      "code_change_tests_support_mod_rs": [
+        "PrivateStation::enter: ImpersonateAnonymousToken(GetCurrentThread()), CreateWindowStationW(null, CWF_CREATE_ONLY, WINSTA_ALL_ACCESS, &sa) with DACL D:(A;;GA;;;<user SID>)(A;;GA;;;SY), RevertToSelf() before any assert (stops sharing with browser sandboxes); keep ClipboardTurn",
+        "preflight: a thread bound to a desktop of that station calls OpenClipboard(0) then CloseClipboard",
+        "on error 5 panic BLOCKED(environment) unless HSK_CLIPBOARD_QUIET004=<declared step id>; in that declared case stay on WinSta0 with windows on the private desktop, save CF_UNICODETEXT, run, restore with ExcludeClipboardContentFromMonitorProcessing and assert the restored text",
+        "assert_clipboard_is_private accepts the declared mode; EmptiedAtEnd only on the private station",
+        "windows-sys features Win32_Security and Win32_Security_Authorization"
+      ]
+    },
+    "strongest_argument_against": [
+      "the declared mode writes to the Operator's real clipboard while E3-F2 privacy is not waived",
+      "the product's own test writes cannot carry exclusion formats, so they reach Win+V history and possibly cloud sync",
+      "restore keeps only text; other formats are lost",
+      "the clipboard part of AC214-2 stays unproven until MT-213"
+    ],
+    "other_options": [
+      "x64 CI runner (arboard precedent): needs a .github workflow and Operator consent to run product tests on hosted runners",
+      "a second local account via fast user switching: Operator setup",
+      "Windows Sandbox or Hyper-V: availability on this Home edition not checked"
+    ],
+    "cleanup": "all probes exited; both test stations disappeared; no processes stopped",
+    "next": "adversarial review of the recommendation before any change"
   }
 }
