@@ -1,6 +1,8 @@
 //! HBR-QUIET as a source scan: no call in this crate, its tests included, moves the Operator's focus or cursor or injects
 //! input, only one file can show or order a window, and the only hooks are the loop thread's own: its activation guard
-//! and its watch of what it takes out of its own queue (MT-214 E3-F5), each for that thread alone.
+//! and its watch of what it takes out of its own queue (MT-214 E3-F5), each for that thread alone. The clipboard tests'
+//! window station is made fresh and never opened, and nothing writes a clipboard before its preflight passed (MT-214
+//! E5-F1, E5-F1-S).
 
 mod source;
 
@@ -218,17 +220,20 @@ fn a_window_is_created_hidden_and_inactive() {
 
 /// The text from an opening parenthesis to its match.
 fn arguments(code: &str) -> &str {
+    enclosed(code, '(', ')')
+}
+
+/// The text from an opening bracket to its match.
+fn enclosed(code: &str, open: char, close: char) -> &str {
     let mut depth = 0;
     for (at, c) in code.char_indices() {
-        match c {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return &code[..=at];
-                }
+        if c == open {
+            depth += 1;
+        } else if c == close {
+            depth -= 1;
+            if depth == 0 {
+                return &code[..=at];
             }
-            _ => {}
         }
     }
     code
@@ -261,7 +266,12 @@ const PRIVATE: [&str; 2] = ["on_private_desktop(", "on_private_window_station("]
 
 /// Lines with a call of `run_script` that is not inside the closure of a [`PRIVATE`] call.
 fn runs_outside_a_private_desktop(code: &str) -> Vec<usize> {
-    let spans: Vec<(usize, usize)> = PRIVATE
+    runs_outside(code, &PRIVATE)
+}
+
+/// Lines with a call of `run_script` that is not inside the arguments of one of `calls`.
+fn runs_outside(code: &str, calls: &[&str]) -> Vec<usize> {
+    let spans: Vec<(usize, usize)> = calls
         .iter()
         .flat_map(|call| code.match_indices(call))
         .map(|(at, word)| {
@@ -392,4 +402,225 @@ fn the_scan_finds_a_call_and_is_not_fooled_by_a_mention() {
     assert_eq!(hits("fn life<'a>(x: &'a str) { SetFocus(x) }"), 1);
     assert_eq!(hits("MySetFocusHelper(w); SetFocus2(w);"), 0, "other words");
     assert_eq!(hits("SetFocus(a); SetFocus(b);"), 1, "one line");
+}
+
+/// The only test files that use the operating system's clipboard: the harness, then the clipboard test.
+const HARNESS: [&str; 2] = ["tests/support/mod.rs", "tests/test_clipboard.rs"];
+
+/// The arguments of the one call that makes a window station: no name and CWF_CREATE_ONLY, so it fails rather than open
+/// a station that exists, the logon session's shared one among them (MT-214 E5-F1-S).
+const FRESH_STATION: &str = "(ptr::null(),CWF_CREATE_ONLY,WINSTA_ALL_ACCESS,attributes)";
+
+/// Calls that put something on a clipboard or take something off it.
+const CLIPBOARD_WRITES: [&str; 4] = [
+    "EmptyClipboard(",
+    "SetClipboardData(",
+    "write_clipboard(",
+    "withdraw_clipboard(",
+];
+
+/// The check that passes on the fresh window station only, and only once its preflight passed
+/// (`assert_clipboard_is_private` or `clipboard_is_private`).
+const STATION_CHECK: &str = "clipboard_is_private(";
+
+/// What can panic.
+const PANICS: [&str; 7] = [
+    "assert",
+    "panic!",
+    "unwrap(",
+    "expect(",
+    "unreachable!",
+    "todo!",
+    "unimplemented!",
+];
+
+fn is_word_end(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+/// The body of the first `fn name` in `code`, braces included.
+fn body_of<'a>(code: &'a str, name: &str) -> Option<&'a str> {
+    let named = format!("fn {name}");
+    let after = code
+        .match_indices(&named)
+        .map(|(at, _)| at + named.len())
+        .find(|end| code[*end..].starts_with(['(', '<']))?;
+    let open = after + code[after..].find('{')?;
+    Some(enclosed(&code[open..], '{', '}'))
+}
+
+/// Where each function body in `code` starts and ends, braces included.
+fn bodies(code: &str) -> Vec<(usize, usize)> {
+    code.match_indices("fn ")
+        .filter(|(at, _)| !code[..*at].chars().next_back().is_some_and(is_word_end))
+        .filter_map(|(at, _)| {
+            let end = at + code[at..].find(['{', ';'])?;
+            code[end..]
+                .starts_with('{')
+                .then(|| (end, end + enclosed(&code[end..], '{', '}').len()))
+        })
+        .collect()
+}
+
+/// Lines of `code` with a clipboard write that no [`STATION_CHECK`] earlier in its own function guards.
+fn unchecked_writes(code: &str) -> Vec<usize> {
+    let bodies = bodies(code);
+    let mut lines: Vec<usize> = CLIPBOARD_WRITES
+        .iter()
+        .flat_map(|call| code.match_indices(call))
+        .map(|(at, _)| at)
+        .filter(|at| !code[..*at].chars().next_back().is_some_and(is_word_end))
+        .filter(|at| {
+            let inner = bodies
+                .iter()
+                .filter(|(from, to)| (*from..*to).contains(at))
+                .max_by_key(|(from, _)| *from);
+            !inner.is_some_and(|(from, _)| code[*from..*at].contains(STATION_CHECK))
+        })
+        .map(|at| code[..at].matches('\n').count() + 1)
+        .collect();
+    lines.sort_unstable();
+    lines.dedup();
+    lines
+}
+
+/// What is wrong with how the harness's code makes the clipboard tests' window station and lets them write: it must
+/// make it with [`FRESH_STATION`] and never open one; switch to it and open its clipboard ("preflight") before it is
+/// recorded as the tests' station, which [`STATION_CHECK`] reads; let nothing panic while the thread is the anonymous
+/// user, and abort when it cannot stop being it; and run the test's work only after all that.
+fn station_faults(support: &str) -> Vec<String> {
+    let mut faults = Vec::new();
+    let creates: Vec<String> = support
+        .match_indices("CreateWindowStationW(")
+        .map(|(at, word)| {
+            let call = arguments(&support[at + word.len() - 1..]);
+            call.split_whitespace().collect()
+        })
+        .collect();
+    if creates != [FRESH_STATION] {
+        faults.push(format!("CreateWindowStationW{creates:?}"));
+    }
+    let enter = body_of(support, "enter").unwrap_or_default();
+    let order = [
+        "created_as_anonymous(",
+        "SetProcessWindowStation(",
+        "preflight(",
+        "*STATION.lock()",
+    ];
+    let at: Vec<Option<usize>> = order.iter().map(|word| enter.find(word)).collect();
+    if at.iter().any(Option::is_none) || at.windows(2).any(|pair| pair[0] >= pair[1]) {
+        faults.push(format!("enter: {order:?} at {at:?}"));
+    }
+    let records = support
+        .match_indices("*STATION.lock()")
+        .filter(|(at, _)| {
+            support[*at..]
+                .split(';')
+                .next()
+                .is_some_and(|statement| statement.contains("Some("))
+        })
+        .count();
+    if records != 1 {
+        faults.push(format!("the station is recorded as the tests' {records} times"));
+    }
+    let impersonated = body_of(support, "created_as_anonymous").and_then(|made| {
+        let from = made.find("Anonymous::impersonate()")?;
+        let to = from + made[from..].find("drop(anonymous)")?;
+        Some(&made[from..to])
+    });
+    match impersonated {
+        Some(span) if !PANICS.iter().any(|word| span.contains(word)) => {}
+        _ => faults.push(format!("the impersonated span can panic: {impersonated:?}")),
+    }
+    let revert = support.find("impl Drop for Anonymous").and_then(|at| {
+        let open = at + support[at..].find('{')?;
+        Some(enclosed(&support[open..], '{', '}'))
+    });
+    match revert {
+        Some(revert)
+            if revert.contains("RevertToSelf()") && revert.contains("std::process::abort()") => {}
+        _ => faults.push("a failed RevertToSelf does not abort".to_owned()),
+    }
+    let run = body_of(support, "on_private_window_station").unwrap_or_default();
+    match (run.find("PrivateStation::enter()"), run.find("on_private_desktop(")) {
+        (Some(entered), Some(work)) if entered < work => {}
+        _ => faults.push("the work does not run after the station is entered".to_owned()),
+    }
+    faults
+}
+
+/// `code` with the first `from` after `anchor` replaced by `to`.
+fn mutated(code: &str, anchor: &str, from: &str, to: &str) -> String {
+    let at = code
+        .find(anchor)
+        .unwrap_or_else(|| panic!("{anchor:?} is in the code"));
+    let at = at
+        + code[at..]
+            .find(from)
+            .unwrap_or_else(|| panic!("{from:?} follows {anchor:?}"));
+    format!("{}{to}{}", &code[..at], &code[at + from.len()..])
+}
+
+#[test]
+fn the_clipboard_tests_make_a_fresh_station_and_write_only_after_its_preflight() {
+    let sources = every_source();
+    let faults = station_faults(&source(&sources, HARNESS[0]).code);
+    assert!(faults.is_empty(), "{faults:#?}");
+    // No other call makes a window station or opens one by name, the logon session's shared one included.
+    let stations = [
+        "CreateWindowStationW",
+        "CreateWindowStationA",
+        "OpenWindowStationW",
+        "OpenWindowStationA",
+    ];
+    let elsewhere = found(&sources, &stations, |source, word, _| {
+        source.path == HARNESS[0] && word == "CreateWindowStationW"
+    });
+    assert!(elsewhere.is_empty(), "{elsewhere:#?}");
+    for path in HARNESS {
+        let unchecked = unchecked_writes(&source(&sources, path).code);
+        assert!(unchecked.is_empty(), "{path}:{unchecked:?}");
+    }
+    let clipboard_test = &source(&sources, HARNESS[1]).code;
+    assert!(!calls_of_run_script(clipboard_test).is_empty(), "the scan sees its loop");
+    let outside = runs_outside(clipboard_test, &["on_private_window_station("]);
+    assert!(outside.is_empty(), "{}:{outside:?}", HARNESS[1]);
+    // No other test opens or writes the operating system's clipboard.
+    let os_clipboard = ["OpenClipboard", "EmptyClipboard", "SetClipboardData"];
+    let elsewhere = found(&sources, &os_clipboard, |source, _, _| {
+        source.path.starts_with("src/") || HARNESS.contains(&source.path.as_str())
+    });
+    assert!(elsewhere.is_empty(), "{elsewhere:#?}");
+}
+
+#[test]
+fn the_clipboard_scan_catches_a_shared_station_and_a_write_before_the_preflight() {
+    let sources = every_source();
+    let support = &source(&sources, HARNESS[0]).code;
+    let clipboard_test = &source(&sources, HARNESS[1]).code;
+    let caught = |mutant: String| !station_faults(&mutant).is_empty();
+    // The harness at 29763b430: the logon session's unnamed station, opened when it exists.
+    assert!(caught(mutated(support, "CreateWindowStationW(", "CWF_CREATE_ONLY", "0")));
+    // No preflight, or the station recorded as the tests' before it.
+    assert!(caught(mutated(support, "fn enter(", "preflight(", "drop(")));
+    let early = "*STATION.lock().unwrap() = Some(x); let shared";
+    assert!(caught(mutated(support, "fn enter(", "let shared", early)));
+    // Something that can panic while the thread is the anonymous user; a failed revert that lets it go on.
+    let span = "assert_ne!(station, 0); drop(anonymous)";
+    assert!(caught(mutated(support, "Anonymous::impersonate()", "drop(anonymous)", span)));
+    assert!(caught(mutated(support, "impl Drop for Anonymous", "std::process::abort()", "()")));
+    // The work before the station.
+    let run = "fn on_private_window_station";
+    assert!(caught(mutated(support, run, "PrivateStation::enter()", "PrivateStation::default()")));
+    // A write without the check before it.
+    let emptied = mutated(support, "impl Drop for EmptiedAtEnd", "if !clipboard_is_private()", "if false");
+    assert!(!unchecked_writes(&emptied).is_empty());
+    let put = mutated(clipboard_test, "fn put(", "assert_clipboard_is_private();", "");
+    assert!(!unchecked_writes(&put).is_empty());
+    let rendered = mutated(clipboard_test, "fn other_program(", "&& clipboard_is_private()", "");
+    assert!(!unchecked_writes(&rendered).is_empty());
+    // The clipboard test's loop on a desktop of the station the process had.
+    let station = "on_private_window_station(";
+    let moved = mutated(clipboard_test, "fn a_write_asks", station, "on_private_desktop(");
+    assert_eq!(runs_outside(&moved, &[station]).len(), 1);
 }

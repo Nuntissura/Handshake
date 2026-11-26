@@ -16,6 +16,8 @@ mod watches;
 
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::io::Write as _;
+use std::marker::PhantomData;
 use std::ptr;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -28,7 +30,15 @@ use handshake_shell_window::{
     Control, DispatchedWake, Event, LoopConfig, LoopError, RunReport, ShellHost,
 };
 use windows_sys::Win32::Foundation::{
-    CloseHandle, GetLastError, BOOL, HANDLE, HWND, LPARAM, WAIT_ABANDONED, WAIT_OBJECT_0, WPARAM,
+    CloseHandle, GetLastError, BOOL, ERROR_ALREADY_EXISTS, HANDLE, HWND, LPARAM, WAIT_ABANDONED,
+    WAIT_OBJECT_0, WPARAM,
+};
+use windows_sys::Win32::Security::{
+    AddAccessAllowedAce, CreateWellKnownSid, GetTokenInformation, ImpersonateAnonymousToken,
+    InitializeAcl, InitializeSecurityDescriptor, RevertToSelf, SetSecurityDescriptorDacl,
+    TokenStatistics, TokenUser, WinCreatorOwnerRightsSid, WinLocalSystemSid, ACL, ACL_REVISION,
+    PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR, TOKEN_INFORMATION_CLASS,
+    TOKEN_QUERY, TOKEN_STATISTICS, TOKEN_USER, WELL_KNOWN_SID_TYPE,
 };
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardSequenceNumber, OpenClipboard,
@@ -39,18 +49,25 @@ use windows_sys::Win32::System::StationsAndDesktops::{
     SetThreadDesktop, HDESK, HWINSTA, UOI_FLAGS, UOI_IO, UOI_NAME, USEROBJECTFLAGS,
 };
 use windows_sys::Win32::System::Threading::{
-    CreateMutexW, GetCurrentThreadId, ReleaseMutex, WaitForSingleObject,
+    CreateMutexW, GetCurrentProcess, GetCurrentThread, GetCurrentThreadId, OpenProcessToken,
+    ReleaseMutex, WaitForSingleObject,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DestroyWindow, GetDesktopWindow, GetGUIThreadInfo, GetWindow, PeekMessageW,
-    SendMessageW, SetWindowPos, GUITHREADINFO, GW_HWNDNEXT, HWND_TOP, MSG, PM_NOREMOVE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_SHOWWINDOW, WM_NULL, WSF_VISIBLE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP,
-    WS_VISIBLE,
+    SendMessageW, SetWindowPos, CWF_CREATE_ONLY, GUITHREADINFO, GW_HWNDNEXT, HWND_TOP, MSG,
+    PM_NOREMOVE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WM_NULL, WSF_VISIBLE, WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
 };
 
 use watches::{is_ours, FocusWatch, Watchdog};
 
 const GENERIC_ALL: u32 = 0x1000_0000;
+/// Every right to a window station (WINSTA_ALL_ACCESS, winuser.h).
+const WINSTA_ALL_ACCESS: u32 = 0x37f;
+/// READ_CONTROL (winnt.h): all the fresh window station's owner may do.
+const READ_CONTROL: u32 = 0x0002_0000;
+/// SECURITY_DESCRIPTOR_REVISION (winnt.h).
+const SECURITY_DESCRIPTOR_REVISION: u32 = 1;
 
 pub fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(Some(0)).collect()
@@ -151,20 +168,29 @@ pub fn on_private_desktop<T: Send + 'static>(
     value
 }
 
-/// The name of the window station [`on_private_window_station`] switched the process to, in lower case, while it is.
-static STATION: Mutex<Option<String>> = Mutex::new(None);
+/// The fresh window station [`on_private_window_station`] switched the process to, its name in lower case and its
+/// handle, from the moment its clipboard opened ([`preflight`]) until the process leaves it. Every clipboard write of
+/// the tests checks it first ([`assert_clipboard_is_private`], [`clipboard_is_private`]).
+static STATION: Mutex<Option<(String, HWINSTA)>> = Mutex::new(None);
 
-/// The window station of the clipboard tests, the process's for as long as this lives (MT-214 E4-F1). "A window station
-/// contains a clipboard, an atom table, and one or more desktop objects"; one that is not WinSta0 "cannot display a user
-/// interface or receive user input" (learn.microsoft.com/windows/win32/winstation/window-stations).
+/// The window station of the clipboard tests, the process's for as long as this lives (MT-214 E4-F1, E5-F1, E5-F1-S).
+/// "A window station contains a clipboard, an atom table, and one or more desktop objects"; one that is not WinSta0
+/// "cannot display a user interface or receive user input" (learn.microsoft.com/windows/win32/winstation/window-stations).
 /// SetProcessWindowStation "enables the process to access objects in the window station such as desktops, the
 /// clipboard, and global atoms", and a desktop CreateDesktop makes then belongs to it, as SetThreadDesktop requires.
 ///
-/// It is the unnamed one, so no elevation is needed: CreateWindowStationW allows only members of the Administrators
-/// group to name one, and for none "the system forms a window station name using the logon session identifier for the
-/// calling process"; when it exists, "the function succeeds and returns a new handle to the existing window station".
-/// Other processes of the logon session may use it too (the Chromium sandbox does), so the tests that use its clipboard
-/// take their turn one at a time across processes ([`ClipboardTurn`]) and empty its clipboard when they end.
+/// Made here and never opened: CreateWindowStationW with CWF_CREATE_ONLY fails when the station exists, so the logon
+/// session's unnamed station, which the sandbox desktops of browsers and other programs of the session share, is never
+/// the tests'. Naming a station needs elevation, and without a name "the system forms a window station name using the
+/// logon session identifier", so the thread makes it as the anonymous user ([`created_as_anonymous`]) and is itself
+/// again at once ([`Anonymous`]). Its access list gives this user and SYSTEM every right and its owner, the anonymous
+/// user, READ_CONTROL only: an OWNER RIGHTS entry takes away the owner's implicit WRITE_DAC. That name is fixed
+/// ("Service-0x0-3e6$" on the ARM64 development machine), so only one such station exists at a time: [`ClipboardTurn`]
+/// keeps the clipboard tests of the session in turn, and a station someone else holds under it stops the test
+/// BLOCKED(busy). Then a thread on a desktop of the station must open its clipboard and close it again ([`preflight`])
+/// before anything is put on any clipboard; where it cannot, as on the ARM64 development machine (error 5, MT-214
+/// clipboard_specialist_20261126), the test stops BLOCKED(environment). The station and its clipboard disappear when
+/// this is dropped.
 struct PrivateStation {
     station: HWINSTA,
     before: HWINSTA,
@@ -172,22 +198,228 @@ struct PrivateStation {
 
 impl PrivateStation {
     fn enter() -> Self {
-        // SAFETY: no name; the station gets the default security when it is made here.
-        let station = unsafe { CreateWindowStationW(ptr::null(), 0, GENERIC_ALL, ptr::null()) };
-        // SAFETY: no arguments.
-        assert_ne!(station, 0, "no window station: error {}", unsafe { GetLastError() });
-        let name = object_name(station).to_lowercase();
-        assert_ne!(name, "winsta0", "not the Operator's window station");
-        // SAFETY: no arguments, then a station of this process's session.
+        let shared = shared_station_name();
+        let security = StationSecurity::new();
+        let station = match created_as_anonymous(&security.attributes) {
+            Ok(station) => station,
+            Err(Unmade::NotAnonymous(error)) => {
+                panic!("BLOCKED(environment): the thread cannot act as the anonymous user: error {error}")
+            }
+            Err(Unmade::Exists) => panic!(
+                "BLOCKED(busy): a window station of the anonymous logon session exists (error 183); no clipboard was \
+                 opened"
+            ),
+            Err(Unmade::Refused(error)) => {
+                panic!("BLOCKED(environment): no fresh window station: error {error}")
+            }
+        };
+        drop(security);
+        let name = object_name(station).unwrap_or_default().to_lowercase();
+        if name.is_empty() || name == "winsta0" || name == shared {
+            // SAFETY: made above and not in use.
+            unsafe { CloseWindowStation(station) };
+            panic!("refused: the window station {name:?} is not a fresh one of the tests' own");
+        }
+        // SAFETY: no arguments, then the station made above, in this process's session.
         let (before, switched) = unsafe { (GetProcessWindowStation(), SetProcessWindowStation(station)) };
         if switched == 0 {
-            // SAFETY: opened above and not in use.
+            // SAFETY: no arguments; then the station made above, not in use.
+            let error = unsafe { GetLastError() };
+            // SAFETY: as above.
             unsafe { CloseWindowStation(station) };
-            panic!("the process was not switched to the test's window station");
+            panic!("BLOCKED(environment): the process was not switched to the fresh window station: error {error}");
         }
-        *STATION.lock().unwrap_or_else(PoisonError::into_inner) = Some(name);
-        Self { station, before }
+        // From here a panic switches the process back and closes the station.
+        let entered = Self { station, before };
+        if let Err(failed) = preflight(station) {
+            panic!(
+                "BLOCKED(environment): the clipboard of the fresh window station {name} does not open ({failed}); \
+                 nothing was put on any clipboard (MT-214 E5-F1)"
+            );
+        }
+        *STATION.lock().unwrap_or_else(PoisonError::into_inner) = Some((name, station));
+        entered
     }
+}
+
+/// Why [`created_as_anonymous`] made no window station.
+enum Unmade {
+    /// ImpersonateAnonymousToken failed, with this error; the thread stayed itself.
+    NotAnonymous(u32),
+    /// One of that name exists (ERROR_ALREADY_EXISTS).
+    Exists,
+    /// CreateWindowStationW failed otherwise, with this error.
+    Refused(u32),
+}
+
+/// A window station the calling thread makes as the anonymous user, with no name and CWF_CREATE_ONLY: a new one, or
+/// none. Nothing between the impersonation and its end can panic.
+fn created_as_anonymous(attributes: &SECURITY_ATTRIBUTES) -> Result<HWINSTA, Unmade> {
+    let anonymous = Anonymous::impersonate().map_err(Unmade::NotAnonymous)?;
+    // SAFETY: no name, so the system forms one from the anonymous logon session; the attributes, their descriptor and
+    // its access list outlive the call, which copies them.
+    let station = unsafe { CreateWindowStationW(ptr::null(), CWF_CREATE_ONLY, WINSTA_ALL_ACCESS, attributes) };
+    // SAFETY: no arguments; read before the revert.
+    let error = unsafe { GetLastError() };
+    drop(anonymous);
+    match (station, error) {
+        (0, ERROR_ALREADY_EXISTS) => Err(Unmade::Exists),
+        (0, error) => Err(Unmade::Refused(error)),
+        (station, _) => Ok(station),
+    }
+}
+
+/// The calling thread acts as the anonymous user while this lives (ImpersonateAnonymousToken). Not `Send`: the
+/// impersonation is the thread's.
+struct Anonymous(PhantomData<*const ()>);
+
+impl Anonymous {
+    fn impersonate() -> Result<Self, u32> {
+        // SAFETY: the pseudo-handle of the calling thread.
+        if unsafe { ImpersonateAnonymousToken(GetCurrentThread()) } == 0 {
+            // SAFETY: no arguments.
+            return Err(unsafe { GetLastError() });
+        }
+        Ok(Self(PhantomData))
+    }
+}
+
+impl Drop for Anonymous {
+    fn drop(&mut self) {
+        // SAFETY: no arguments; ends the calling thread's impersonation.
+        let reverted = unsafe { RevertToSelf() };
+        if reverted == 0 {
+            // The thread, and every test after it, would go on as the anonymous user: nothing more may run.
+            // SAFETY: no arguments.
+            let error = unsafe { GetLastError() };
+            let _ = writeln!(std::io::stderr(), "RevertToSelf failed: error {error}; aborting");
+            std::process::abort();
+        }
+    }
+}
+
+/// The security the fresh window station is made with ([`PrivateStation`]): an access list of this user and SYSTEM
+/// with every right, and OWNER RIGHTS with READ_CONTROL. The system copies it.
+struct StationSecurity {
+    attributes: SECURITY_ATTRIBUTES,
+    _descriptor: Box<SECURITY_DESCRIPTOR>,
+    _list: Box<[u64; 32]>,
+}
+
+impl StationSecurity {
+    fn new() -> Self {
+        let user = token_information(TokenUser);
+        // SAFETY: the buffer holds the TOKEN_USER asked for, aligned for it, and the SID it points to.
+        let user_sid = unsafe { (*user.as_ptr().cast::<TOKEN_USER>()).User.Sid };
+        let mut system = well_known_sid(WinLocalSystemSid);
+        let mut owner_rights = well_known_sid(WinCreatorOwnerRightsSid);
+        let mut list = Box::new([0u64; 32]);
+        let acl = list.as_mut_ptr().cast::<ACL>();
+        // SAFETY: the list's buffer, of the size given; each entry copies its SID, and each SID is valid here.
+        let built = unsafe {
+            InitializeAcl(acl, size_of::<[u64; 32]>() as u32, ACL_REVISION) != 0
+                && AddAccessAllowedAce(acl, ACL_REVISION, GENERIC_ALL, user_sid) != 0
+                && AddAccessAllowedAce(acl, ACL_REVISION, GENERIC_ALL, system.as_mut_ptr().cast()) != 0
+                && AddAccessAllowedAce(acl, ACL_REVISION, READ_CONTROL, owner_rights.as_mut_ptr().cast()) != 0
+        };
+        // SAFETY: no arguments.
+        assert!(built, "no access list: error {}", unsafe { GetLastError() });
+        // SAFETY: plain data, initialised below.
+        let mut descriptor: Box<SECURITY_DESCRIPTOR> = Box::new(unsafe { std::mem::zeroed() });
+        let at: PSECURITY_DESCRIPTOR = (&mut *descriptor as *mut SECURITY_DESCRIPTOR).cast();
+        // SAFETY: the descriptor and the list are boxed and live as long as the attributes that point at them.
+        let made = unsafe {
+            InitializeSecurityDescriptor(at, SECURITY_DESCRIPTOR_REVISION) != 0
+                && SetSecurityDescriptorDacl(at, 1, acl, 0) != 0
+        };
+        // SAFETY: no arguments.
+        assert!(made, "no security descriptor: error {}", unsafe { GetLastError() });
+        Self {
+            attributes: SECURITY_ATTRIBUTES {
+                nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
+                lpSecurityDescriptor: at,
+                bInheritHandle: 0,
+            },
+            _descriptor: descriptor,
+            _list: list,
+        }
+    }
+}
+
+/// One class of information about this process's own token, in a buffer of 8-byte units that holds what it points to.
+fn token_information(class: TOKEN_INFORMATION_CLASS) -> Box<[u64; 16]> {
+    let mut token: HANDLE = 0;
+    // SAFETY: the pseudo-handle of this process, and a handle of this function.
+    let opened = unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) };
+    // SAFETY: no arguments.
+    assert_ne!(opened, 0, "no token: error {}", unsafe { GetLastError() });
+    let mut information = Box::new([0u64; 16]);
+    let mut needed = 0;
+    // SAFETY: the buffer and the number outlive the call, which writes at most the buffer's size; then the handle
+    // opened above.
+    let asked = unsafe {
+        let asked = GetTokenInformation(
+            token,
+            class,
+            information.as_mut_ptr().cast(),
+            size_of::<[u64; 16]>() as u32,
+            &mut needed,
+        );
+        CloseHandle(token);
+        asked
+    };
+    assert_ne!(asked, 0, "the token did not answer {class}: {needed} bytes needed");
+    information
+}
+
+/// A well-known SID, in a buffer as large as any SID (SECURITY_MAX_SID_SIZE, 68 bytes).
+fn well_known_sid(kind: WELL_KNOWN_SID_TYPE) -> Box<[u64; 9]> {
+    let mut sid = Box::new([0u64; 9]);
+    let mut size = size_of::<[u64; 9]>() as u32;
+    // SAFETY: no domain; the buffer and its size outlive the call, which writes at most that size.
+    let made = unsafe { CreateWellKnownSid(kind, ptr::null_mut(), sid.as_mut_ptr().cast(), &mut size) };
+    // SAFETY: no arguments.
+    assert_ne!(made, 0, "no SID {kind}: error {}", unsafe { GetLastError() });
+    sid
+}
+
+/// In lower case, the name of the station the system forms for this process's logon session when CreateWindowStationW
+/// is given none: "Service-0x" and the session's identifier, as the services' own "Service-0x0-3e7$". The shared one,
+/// which [`PrivateStation`] refuses.
+fn shared_station_name() -> String {
+    let information = token_information(TokenStatistics);
+    // SAFETY: the buffer holds the TOKEN_STATISTICS asked for, aligned for it.
+    let session = unsafe { information.as_ptr().cast::<TOKEN_STATISTICS>().read() }.AuthenticationId;
+    format!("service-0x{:x}-{:x}$", session.HighPart, session.LowPart)
+}
+
+/// Whether a thread on a desktop of `station`, the process's, can open its clipboard; it closes it again at once and
+/// puts nothing there. Microsoft lists WINSTA_ACCESSCLIPBOARD among the rights of a station that is not interactive,
+/// yet on the ARM64 development machine OpenClipboard returns error 5 on every such station.
+fn preflight(station: HWINSTA) -> Result<(), String> {
+    let desktop = PrivateDesktop::create();
+    let handle = desktop.0;
+    let opened = std::thread::spawn(move || {
+        // SAFETY: no arguments.
+        let process = unsafe { GetProcessWindowStation() };
+        assert_eq!(process, station, "the process is on the fresh window station");
+        // SAFETY: the thread is new and has no window, and the desktop outlives it.
+        if unsafe { SetThreadDesktop(handle) } == 0 {
+            // SAFETY: no arguments.
+            return Err(format!("SetThreadDesktop: error {}", unsafe { GetLastError() }));
+        }
+        // SAFETY: no window owns the clipboard opened here, and it is closed at once with nothing put on it.
+        unsafe {
+            if OpenClipboard(0) == 0 {
+                return Err(format!("OpenClipboard: error {}", GetLastError()));
+            }
+            CloseClipboard();
+        }
+        Ok(())
+    })
+    .join();
+    drop(desktop);
+    opened.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
 }
 
 impl Drop for PrivateStation {
@@ -201,8 +433,9 @@ impl Drop for PrivateStation {
     }
 }
 
-/// The turn of one clipboard test among the processes of this session: the window station they share is the logon
-/// session's. A named mutex, which an owner's ending process gives up too (then the wait says abandoned).
+/// The turn of one clipboard test among the processes of this session: the fresh window station's name is fixed, so
+/// one exists at a time ([`PrivateStation`]). A named mutex, which an owner's ending process gives up too (then the wait
+/// says abandoned).
 struct ClipboardTurn(HANDLE);
 
 impl ClipboardTurn {
@@ -234,13 +467,16 @@ impl Drop for ClipboardTurn {
     }
 }
 
-/// Empties the clipboard of the test's window station when the test's work ends, also when it panics: nothing a test
-/// put there stays on the logon session's station (CX-GIT-003).
+/// Empties the clipboard of the test's window station when the test's work ends, also when it panics (CX-GIT-003), and
+/// only while the process is on that fresh station: never another's clipboard (E5-F1-S).
 struct EmptiedAtEnd;
 
 impl Drop for EmptiedAtEnd {
     fn drop(&mut self) {
-        // SAFETY: on the test's thread, whose desktop is on the test's station; no window owns what is emptied. Fails
+        if !clipboard_is_private() {
+            return;
+        }
+        // SAFETY: on the test's thread, whose desktop is on the fresh station; no window owns what is emptied. Fails
         // at once while another thread has it open, and then nothing is emptied.
         unsafe {
             if OpenClipboard(0) != 0 {
@@ -251,12 +487,13 @@ impl Drop for EmptiedAtEnd {
     }
 }
 
-/// Run `work` as [`on_private_desktop`] does, with the process on a window station that is not the Operator's, taken in
-/// turn with every other clipboard test of the session: its clipboard is not the Operator's. The only place a test may
-/// use the operating system's clipboard; see [`assert_clipboard_is_private`]. Fails unless the clipboard of the
-/// window station the process had, the Operator's WinSta0 when run from the Operator's session, kept its sequence
-/// number ("incremented whenever the contents of the clipboard change or the clipboard is emptied",
-/// GetClipboardSequenceNumber).
+/// Run `work` as [`on_private_desktop`] does, with the process on a window station made fresh for the test
+/// ([`PrivateStation`]), taken in turn with every other clipboard test of the session: its clipboard is nobody else's.
+/// `work` runs only once that station's clipboard opened ([`preflight`]); otherwise the test stops BLOCKED before
+/// anything is put on any clipboard. The only place a test may use the operating system's clipboard; see
+/// [`assert_clipboard_is_private`]. Fails unless the clipboard of the window station the process had, the Operator's
+/// WinSta0 when run from the Operator's session, kept its sequence number ("incremented whenever the contents of the
+/// clipboard change or the clipboard is emptied", GetClipboardSequenceNumber).
 pub fn on_private_window_station<T: Send + 'static>(
     limit: Duration,
     work: impl FnOnce() -> T + Send + 'static,
@@ -281,19 +518,30 @@ pub fn on_private_window_station<T: Send + 'static>(
     value
 }
 
-/// Panics unless the process is on the window station of [`on_private_window_station`], which is not interactive.
-/// Call before the operating system's clipboard is used, so the Operator's is never opened.
+/// Panics unless the process is on the fresh window station of [`on_private_window_station`], whose clipboard opened,
+/// and which is not interactive. Call before the operating system's clipboard is written, so nothing reaches another's.
 pub fn assert_clipboard_is_private() {
-    let expected = STATION
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .clone()
-        .expect("only inside on_private_window_station");
+    if let Some(why) = not_private() {
+        panic!("{why}");
+    }
+}
+
+/// [`assert_clipboard_is_private`] for code that must not panic: a destructor, a window procedure.
+pub fn clipboard_is_private() -> bool {
+    not_private().is_none()
+}
+
+/// Why the process is not on the fresh window station of [`on_private_window_station`] after its preflight, if not.
+fn not_private() -> Option<String> {
+    let Some((expected, fresh)) = STATION.lock().unwrap_or_else(PoisonError::into_inner).clone() else {
+        return Some("only inside on_private_window_station, once its preflight passed".to_owned());
+    };
     // SAFETY: no arguments.
     let station = unsafe { GetProcessWindowStation() };
-    let name = object_name(station).to_lowercase();
-    assert_eq!(name, expected, "the process's window station is the test's");
-    assert_ne!(name, "winsta0");
+    let name = object_name(station).unwrap_or_default().to_lowercase();
+    if station != fresh || name != expected || name == "winsta0" {
+        return Some(format!("the process is on the window station {name:?}, not the test's {expected:?}"));
+    }
     // SAFETY: integers; the result outlives the call and says its size.
     let (asked, flags) = unsafe {
         let mut flags: USEROBJECTFLAGS = std::mem::zeroed();
@@ -306,11 +554,13 @@ pub fn assert_clipboard_is_private() {
         );
         (asked, flags)
     };
-    assert_ne!(asked, 0, "the station did not say whether it is interactive");
-    assert_eq!(flags.dwFlags & WSF_VISIBLE as u32, 0, "not interactive");
+    if asked == 0 || (flags.dwFlags & WSF_VISIBLE as u32) != 0 {
+        return Some("the test's window station may be interactive".to_owned());
+    }
+    None
 }
 
-fn object_name(object: HANDLE) -> String {
+fn object_name(object: HANDLE) -> Option<String> {
     let mut name = [0u16; 256];
     let mut needed = 0;
     // SAFETY: the buffer and the number outlive the call, which writes at most the buffer's size in bytes.
@@ -323,9 +573,11 @@ fn object_name(object: HANDLE) -> String {
             &mut needed,
         )
     };
-    assert_ne!(asked, 0, "the object has no name");
+    if asked == 0 {
+        return None;
+    }
     let end = name.iter().position(|unit| *unit == 0).unwrap_or(name.len());
-    String::from_utf16_lossy(&name[..end])
+    Some(String::from_utf16_lossy(&name[..end]))
 }
 
 /// Run `work` on a new thread on the calling thread's desktop: another program, as far as the loop can tell.

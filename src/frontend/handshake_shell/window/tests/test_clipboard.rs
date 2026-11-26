@@ -1,7 +1,9 @@
 //! The operating system's clipboard under KEEP_PLAIN_TEXT_OR_NOTHING (MT-214 E3-F2, E3-F3, E4-F3), on a window station
-//! that is not the Operator's: the unnamed one of the logon session, which needs no elevation, taken in turn with every
-//! other clipboard test of the session and emptied at the end (E4-F1). The Operator's clipboard is never opened, and
-//! the test fails unless its sequence number stayed the same. Another thread stands for another program: it puts text
+//! made fresh for the test, never the logon session's shared one (E5-F1-S), taken in turn with every other clipboard
+//! test of the session and emptied at the end (E4-F1); nothing is written before its clipboard opened, and otherwise the
+//! test stops BLOCKED (E5-F1, tests/support). The Operator's clipboard is never opened, and the test fails unless its
+//! sequence number stayed the same. Ignored by default: the proof runs at the MT-213 x64 gate with the command in the
+//! README. Another thread stands for another program: it puts text
 //! there, or promises formats and renders one only when the clipboard asks it to, and counts each time it is asked. A
 //! write must make it render nothing but promised plain text, and only when the clipboard holds nothing else; a
 //! program that hangs instead makes the write busy within a quarter of a second, never makes the loop wait. A
@@ -38,8 +40,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use support::{
-    assert_clipboard_is_private, on_private_window_station, run_script, spawn_on_this_desktop,
-    wide,
+    assert_clipboard_is_private, clipboard_is_private, on_private_window_station, run_script,
+    spawn_on_this_desktop, wide,
 };
 
 const TEXT: u32 = CF_UNICODETEXT as u32;
@@ -94,7 +96,8 @@ fn memory(text: &str) -> isize {
 }
 
 unsafe extern "system" fn other_program(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if message == WM_RENDERFORMAT {
+    // Only on the test's fresh window station; a window procedure must not panic.
+    if message == WM_RENDERFORMAT && clipboard_is_private() {
         RENDERS.set(RENDERS.get() + 1);
         // Rendered as Delayed Rendering says: no OpenClipboard, the clipboard is held open by who asked.
         let data = if wparam as u32 == TEXT { memory("promised") } else { memory("rich") };
@@ -288,6 +291,7 @@ impl State {
     }
 
     fn write(&self, control: &Control, stamp: &InputStamp, text: &str) {
+        assert_clipboard_is_private();
         let source = CommandSource::from_input(stamp, 100 + self.step.get());
         assert_eq!(control.write_clipboard(&source, text), Ok(()), "step {}", self.step.get());
         assert_eq!(control.read_clipboard(), Ok(Some(text.to_owned())));
@@ -365,6 +369,7 @@ impl State {
 }
 
 #[test]
+#[ignore = "real-OS clipboard proof runs at the MT-213 x64 gate; private-station preflight blocked on the ARM64 dev machine"]
 fn a_write_asks_no_program_to_render_anything_but_plain_text_and_withdraws_only_its_own() {
     on_private_window_station(Duration::from_secs(60), || {
         let state = Rc::new(State::default());

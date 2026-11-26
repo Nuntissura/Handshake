@@ -104,16 +104,27 @@ fails the test if a window the test named is ever the active or focused window o
 sees an activation (`tests/support`). The private desktop has no foreground window; the thread's active window stands
 for it, so the paths that need one run. One loop per test binary.
 
+`test_clipboard` is ignored there: its real-OS clipboard proof runs at the MT-213 x64 gate, on the x64 PC, with
+
+```
+cargo test --locked --test test_clipboard -- --ignored
+```
+
+in this folder (validator only). It needs a window station made fresh for it whose clipboard opens; where none does, as
+on the ARM64 development machine (OpenClipboard error 5 on every station that is not interactive), it stops
+`BLOCKED(environment)` before anything is put on any clipboard, and a name collision stops it `BLOCKED(busy)` (MT-214
+E5-F1, E5-F1-S).
+
 | Target | Rule |
 | --- | --- |
 | unit tests | policy (restore is geometry, activation after removal, the Operator's close gesture only through the command the system made of it, a gesture that made none lends nothing, a foreign close approves nothing), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys, dead keys inside a key the library handles), how a message arrived, the clipboard policy against a clipboard that lists formats as the system does (only plain text asked for and kept, markers as registered formats, the limit, the other choice, a copy the clipboard changed since, withdrawal after a restore), key mapping against winit's own tables, every winit IME event to one change, wheel, drop parsing, key and IME events print no key or text |
 | unit tests, `platform/quiet_tests.rs` | the guard against every sequence that activates a plain window (with that control, each one counted as refused), sections, minimise hand-off, lifetime; behind the foreground below its owner chain; topmost foreground; the keyboard after an approved removal; a close command in a real queue seen where it waits, and F4 alone through the system's own handling making none, so a close posted after it is nobody's (E4-F2) |
 | `test_geometry` | scale and size arithmetic |
-| `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hooks are the loop thread's own two, each for that thread; the only desktop binding in the crate's source is the clipboard keeper thread's, to the loop thread's own desktop |
+| `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hooks are the loop thread's own two, each for that thread; the only desktop binding in the crate's source is the clipboard keeper thread's, to the loop thread's own desktop; the clipboard tests' window station is made by one call with no name and `CWF_CREATE_ONLY`, never opened, switched to and its clipboard opened before it counts as theirs, with nothing that can panic while the thread is the anonymous user, and every clipboard write in the harness comes after that check, with mutations of the harness it catches (E5-F1, E5-F1-S) |
 | `test_wakes` | wakes on the loop's thread, not early, through a full queue, through five thrown-away posts (one more than go out before a sign), not from forged or sent messages (a genuine post sent back from another thread is refused and counted), not from the posts 200 dropped lanes left under the number in use again, four posts and no more while the loop waits in a SendMessage to a hung thread, in a nested loop, in a dialog, during shutdown, none after `finish`, refused after the end |
 | `test_menu_loop` | wakes inside the system's menu loop |
 | `test_sent_keys` | keys a loop inside a message another thread sent takes out reach the library and are not counted as sent; keys another thread sends are refused and counted |
-| `test_clipboard` | on the unnamed window station of the logon session (no elevation; E4-F1), one clipboard test of the session at a time, emptied at the end, the Operator's clipboard sequence number unchanged: a write asks no program to render a promised format, but promised plain text alone; a program that hangs on that request makes the write busy within the bound, not the loop wait (E4-F3); withdrawal takes back only this process's own write |
+| `test_clipboard` (ignored; the command above) | on a window station made fresh for the test as the anonymous user (`CWF_CREATE_ONLY`, no elevation; never the logon session's shared one, E5-F1-S), only after a thread there opened and closed its clipboard (E5-F1), one clipboard test of the session at a time, emptied at the end, the Operator's clipboard sequence number unchanged: a write asks no program to render a promised format, but promised plain text alone; a program that hangs on that request makes the write busy within the bound, not the loop wait (E4-F3); withdrawal takes back only this process's own write |
 | `test_quiet_window` | a quiet window through every command, against each direct call that activated it (each refused by the guard), against foreign dead keys, and against keyboard messages another thread sends |
 | `test_operator_window` | activation and clipboard need the Operator, once; a model cannot move, size, restore or remove the Operator's window or the owner of its dialog; behind the foreground; the close request; a shell's minimise hands on to no window of ours; a close another program asked for lets a model destroy the window but hands the keyboard nowhere |
 | `test_scale_change` | logical size exact over many scale changes; a requested frame is due; a hidden maximised window stays so |
@@ -121,6 +132,6 @@ for it, so the paths that need one run. One loop per test binary.
 
 Left out, because they cannot run quietly: the move and size loop (needs a pressed button or moves the cursor), real
 keyboard, pointer, wheel and touchpad input (needs injection), and with it the Operator's close gesture and the hand-on
-after it inside the loop, dragging files in, the Operator's clipboard (the operating system's clipboard runs on the logon
-session's unnamed window station), real monitor changes, sleep and session end. They need the Operator (HBR-QUIET-004) or
+after it inside the loop, dragging files in, the Operator's clipboard (the operating system's clipboard runs on a window
+station made fresh for the test), real monitor changes, sleep and session end. They need the Operator (HBR-QUIET-004) or
 MT-202.

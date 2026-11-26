@@ -34,5 +34,6 @@ windows-sys = { version = "=0.52.0", features = [
 ] }
 
 [target.'cfg(windows)'.dev-dependencies]
-# Tests only: a private desktop, so a test window can neither be seen nor take the Operator's focus.
+# Tests only: a private desktop, so a test window can neither be seen nor take the Operator's focus; and the clipboard
+# tests' fresh window station, made as the anonymous user with an access list of its own (Win32_Security).
 windows-sys = { version = "=0.52.0", features = ["Win32_Security", "Win32_System_StationsAndDesktops"] }
