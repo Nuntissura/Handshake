@@ -37,12 +37,31 @@
 //! (MT-215 HB-3). A shutdown that is not settled is never acknowledged and ends with [`ExitKind::ShutdownUnsettled`].
 //! A crash leaves the operating system's exception handler and the panic hook as they are: this crate installs neither.
 //!
+//! # Several windows (AC214-8)
+//!
+//! The root window and the detached windows ([`WindowKind`]: detached panes and the detached Settings window) share the
+//! one presenter, and so one device and one owner ledger: each has its own claim, surface and accessibility tree.
+//! [`ProgramConfig::plan`] opens and closes detached windows in order ([`Action`]); the UI layer's requests to detach or
+//! close take the same road when it exists. Closing a detached window releases only its surface and claim: the others
+//! keep presenting, and the program records that they did ([`ProgramReport::survivors_presented`]). Closing the root
+//! window ends the program, with every other window closed in the drain. A window key is never used again in a run, and
+//! the program checks it ([`ProgramReport::key_reuse`]).
+//!
+//! # Device loss and the unavailable state (AC214-9)
+//!
+//! The presenter recovers a lost device (the surface crate's module documentation): every window's surface is released,
+//! the owner replaces the device, each claim moves onto it and each window draws again. This program only counts what it
+//! is told ([`ProgramReport::present`]). When no device comes back it ends with [`ExitKind::DeviceUnavailable`] and an
+//! [`UnavailableState`], as it does when no device opened at the start. The state is typed and readable; the drawn
+//! presentation waits for the UI layer, and no other renderer is tried.
+//!
 //! # Not here yet
 //!
-//! More than one window, device loss and rebind, and the readable unavailable state are MT-214 S6. The product's
-//! authority and quota come from the kernel issuer and Core's ledger, which do not exist ([`crate::MISSING`]).
+//! The product's authority and quota come from the kernel issuer and Core's ledger, which do not exist
+//! ([`crate::MISSING`]). The UI layer's requests to detach and close are not published; [`ProgramConfig::plan`] stands in.
 
 use std::cell::{Cell, RefCell};
+use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -50,7 +69,9 @@ use std::time::{Duration, Instant};
 use handshake_diag_ring::{DiagEvent, DiagEventCode, DiagPhase, DiagRingWriter, DiagSeverity};
 use handshake_shell_accessibility::{AccessReport, Accessibility, SemanticFrame};
 use handshake_shell_input::{InputReport, InputTracker};
-use handshake_shell_surface::{PresentConfig, PresentHost, PresentReport, Shell, ShellApp};
+use handshake_shell_surface::{
+    DeviceEvent, PresentConfig, PresentHost, PresentReport, Shell, ShellApp,
+};
 use handshake_shell_window::{
     CommandSource, Control, DispatchedWake, Event, LogicalSize, LoopConfig, LoopError, Placement,
     RunReport, WakeLane, WindowClass, WindowCommand, WindowEvent, WindowKey, WindowSpec,
@@ -61,6 +82,8 @@ use crate::authority::DeviceAuthority;
 use crate::heartbeat::ShellHeartbeat;
 use crate::outcome::{conclude, may_acknowledge, shutdown_settled, ExitKind};
 use crate::shutdown::{ShutdownWatcher, WatcherAck};
+use crate::unavailable::{unavailable_after, UnavailableState};
+use crate::windows::{survivors_presented, Action, DetachedSpec, KindCounts, WindowBook, WindowKind};
 
 /// The module number the shell's claims carry. Attribution only; no canonical number is verified here.
 const MODULE: ModuleId = ModuleId(214);
@@ -96,6 +119,8 @@ pub struct ProgramConfig {
     pub ring: Option<DiagRingWriter>,
     /// When the program ends by itself.
     pub end_after: EndAfter,
+    /// What the program does by itself after it starts: detached windows opened and closed, in order (AC214-8).
+    pub plan: Vec<Action>,
 }
 
 impl ProgramConfig {
@@ -108,6 +133,7 @@ impl ProgramConfig {
             placement: None,
             ring,
             end_after: EndAfter::default(),
+            plan: Vec::new(),
         }
     }
 }
@@ -145,6 +171,25 @@ pub struct ProgramReport {
     pub ring_marked: bool,
     /// What the watcher answered; `None` when the shutdown was not settled and nothing was asked.
     pub watcher: Option<WatcherAck>,
+    /// Windows the program opened, by kind.
+    pub windows: KindCounts,
+    /// Windows that were destroyed before the shutdown began.
+    pub windows_closed_early: u64,
+    /// Keys the window crate gave out twice in this run. Must be 0.
+    pub key_reuse: u64,
+    /// Whether every window that was open when the plan's last close ran presented a frame after it; `None` when no
+    /// [`Action::AwaitSurvivors`] finished.
+    pub survivors_presented: Option<bool>,
+    /// Steps of the plan that named a window or a baseline that did not exist.
+    pub plan_refused: u64,
+    /// Whether every step of the plan ran.
+    pub plan_done: bool,
+    /// The most claims the owner's ledger held open at once, sampled as each window was created.
+    pub claims_peak: u64,
+    /// Claims the owner's one ledger admitted in the run.
+    pub ledger_admitted: u64,
+    /// Device generations the owner's ledger bound in the run: 1, plus one for each replacement after a loss.
+    pub ledger_generations: u64,
 }
 
 /// How the program ended.
@@ -156,6 +201,8 @@ pub struct ProgramOutcome {
     pub detail: Option<&'static str>,
     /// What was counted; `None` when the loop did not run.
     pub report: Option<ProgramReport>,
+    /// Set when the end is [`ExitKind::DeviceUnavailable`]: the typed, readable state (AC214-9).
+    pub unavailable: Option<UnavailableState>,
 }
 
 impl ProgramOutcome {
@@ -164,6 +211,7 @@ impl ProgramOutcome {
             kind,
             detail,
             report: None,
+            unavailable: None,
         }
     }
 
@@ -178,7 +226,8 @@ impl ProgramOutcome {
         if let Some(report) = &self.report {
             line.push_str(&format!(
                 " windows_created={} windows_destroyed={} quiet_broken={} frames_presented={} frames_failed={} beats={} \
-                 access_updates={} attach_refused={} settled={} ring_marked={} watcher={}",
+                 access_updates={} attach_refused={} settled={} ring_marked={} watcher={} windows_opened={} key_reuse={} \
+                 device_losses={} device_rebinds={} windows_rebound={} windows_unrecovered={}",
                 report.run.windows_created,
                 report.run.windows_destroyed,
                 report.run.quiet_broken,
@@ -189,7 +238,13 @@ impl ProgramOutcome {
                 report.attach_refused,
                 report.settled,
                 report.ring_marked,
-                report.watcher.map_or("not_asked", WatcherAck::name)
+                report.watcher.map_or("not_asked", WatcherAck::name),
+                report.windows.total(),
+                report.key_reuse,
+                report.present.device_losses,
+                report.present.device_rebinds,
+                report.present.windows_rebound,
+                report.present.windows_unrecovered
             ));
         }
         line
@@ -223,7 +278,10 @@ pub fn run_program(
     let host = match PresentHost::open(present, Arc::new(NullDiagnostics), app.clone()) {
         Ok(host) => host,
         Err(reason) => {
-            return ProgramOutcome::without_loop(ExitKind::DeviceUnavailable, Some(reason.key()));
+            return ProgramOutcome {
+                unavailable: Some(UnavailableState::at_start(reason)),
+                ..ProgramOutcome::without_loop(ExitKind::DeviceUnavailable, Some(reason.key()))
+            };
         }
     };
     let loop_config = LoopConfig {
@@ -243,6 +301,8 @@ struct Ended {
     beats: u64,
     overdue_beats: u64,
     present_stalls: u64,
+    ledger_admitted: u64,
+    ledger_generations: u64,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -251,6 +311,8 @@ struct Counts {
     access_requests: u64,
     attach_refused: u64,
     watch_refused: u64,
+    plan_refused: u64,
+    claims_peak: u64,
 }
 
 struct ProgramApp {
@@ -272,6 +334,18 @@ struct ProgramApp {
     commands: Cell<u64>,
     counts: Cell<Counts>,
     ended: Cell<Ended>,
+    book: RefCell<WindowBook>,
+    /// Each window's title, which is its accessibility name.
+    titles: RefCell<BTreeMap<WindowKey, String>>,
+    /// Windows the presenter has created: a close of one waits for it.
+    created: RefCell<Vec<WindowKey>>,
+    plan: RefCell<VecDeque<Action>>,
+    /// (window number, frames the queue took) of the windows that stayed open at the last close of the plan.
+    baseline: RefCell<Option<Vec<(u64, u64)>>>,
+    survivors: Cell<Option<bool>>,
+    unavailable: Cell<Option<UnavailableState>>,
+    /// Windows the book had closed when the shutdown began: the rest were closed before it.
+    closed_at_shutdown: Cell<u64>,
 }
 
 struct Config {
@@ -291,6 +365,7 @@ impl ProgramApp {
             placement,
             ring,
             end_after,
+            plan,
         } = config;
         Self {
             config: Config {
@@ -317,6 +392,14 @@ impl ProgramApp {
             commands: Cell::new(0),
             counts: Cell::new(Counts::default()),
             ended: Cell::new(Ended::default()),
+            book: RefCell::new(WindowBook::default()),
+            titles: RefCell::new(BTreeMap::new()),
+            created: RefCell::new(Vec::new()),
+            plan: RefCell::new(plan.into()),
+            baseline: RefCell::new(None),
+            survivors: Cell::new(None),
+            unavailable: Cell::new(None),
+            closed_at_shutdown: Cell::new(0),
         }
     }
 
@@ -415,15 +498,131 @@ impl ProgramApp {
             placement,
             class: self.config.class,
         };
+        if let Some(window) = self.open_window(shell, WindowKind::Root, spec) {
+            self.root.set(Some(window));
+        }
+    }
+
+    /// Open a window of `kind` through the presenter, and enter it in the book: a key used twice ends the program.
+    fn open_window(&self, shell: &Shell<'_>, kind: WindowKind, spec: WindowSpec) -> Option<WindowKey> {
+        let title = spec.title.clone();
         match shell.open_window(&self.source(), spec) {
-            Ok(window) => self.root.set(Some(window)),
-            Err(refusal) => self.fail(shell, ExitKind::NoWindow, refusal.code()),
+            Ok(window) => {
+                if self.book.borrow_mut().opened(window, kind) {
+                    self.titles.borrow_mut().insert(window, title);
+                    Some(window)
+                } else {
+                    self.fail(shell, ExitKind::LoopFailed, "window.key_reused");
+                    None
+                }
+            }
+            Err(refusal) => {
+                self.fail(shell, ExitKind::NoWindow, refusal.code());
+                None
+            }
+        }
+    }
+
+    fn open_detached(&self, shell: &Shell<'_>, detached: &DetachedSpec) {
+        let spec = WindowSpec {
+            title: detached.title.clone(),
+            inner: detached.size,
+            min_inner: None,
+            placement: Placement::System,
+            class: self.config.class,
+        };
+        let _ = self.open_window(shell, detached.kind(), spec);
+    }
+
+    /// Close one detached window: its tree lets go, then the presenter releases its surface and claim and destroys it.
+    /// The other windows are not touched.
+    fn close_detached(&self, shell: &Shell<'_>, window: WindowKey) {
+        self.access.borrow_mut().close(window);
+        let _ = shell.close_window(window);
+    }
+
+    /// The (window number, frames the queue took) of every open window the presenter is not closing.
+    fn presenting(&self, shell: &Shell<'_>) -> Vec<(u64, u64)> {
+        let live = self.book.borrow().live_keys();
+        live.into_iter()
+            .filter_map(|window| {
+                let presentation = shell.presentation(window)?;
+                (!presentation.closing).then(|| {
+                    let taken = presentation.progress.map_or(0, |progress| progress.presented);
+                    (window.number(), taken)
+                })
+            })
+            .collect()
+    }
+
+    /// One step of the plan; whether it is finished.
+    fn plan_step(&self, shell: &Shell<'_>, action: &Action) -> bool {
+        match action {
+            Action::Open(spec) => {
+                self.open_detached(shell, spec);
+                true
+            }
+            Action::CloseDetached(n) => {
+                let target = self.book.borrow().detached(*n);
+                let Some(window) = target else {
+                    self.count(|counts| counts.plan_refused += 1);
+                    return true;
+                };
+                if !self.book.borrow().live_keys().contains(&window) {
+                    self.count(|counts| counts.plan_refused += 1);
+                    return true;
+                }
+                if !self.created.borrow().contains(&window) {
+                    return false;
+                }
+                let others: Vec<(u64, u64)> = self
+                    .presenting(shell)
+                    .into_iter()
+                    .filter(|(number, _)| *number != window.number())
+                    .collect();
+                self.close_detached(shell, window);
+                // The windows that stay are asked for a frame: idle windows draw nothing, so this is what shows that the
+                // close did not take their surfaces, claims or the device with it.
+                for (number, _) in &others {
+                    let _ = shell.damage(WindowKey::from_number(*number));
+                }
+                *self.baseline.borrow_mut() = Some(others);
+                true
+            }
+            Action::AwaitCreated(windows) => self.created.borrow().len() >= *windows,
+            Action::AwaitPresented(frames) => shell.report().frames_presented >= *frames,
+            Action::AwaitSurvivors => {
+                let Some(before) = self.baseline.borrow().clone() else {
+                    self.count(|counts| counts.plan_refused += 1);
+                    return true;
+                };
+                if survivors_presented(&before, &self.presenting(shell)) {
+                    self.survivors.set(Some(true));
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    /// The plan, in order, as far as each step allows.
+    fn run_plan(&self, shell: &Shell<'_>) {
+        loop {
+            let next = self.plan.borrow().front().cloned();
+            let Some(action) = next else {
+                break;
+            };
+            if !self.plan_step(shell, &action) {
+                break;
+            }
+            self.plan.borrow_mut().pop_front();
         }
     }
 
     fn arm_tick(&self) {
         let asked = self.config.end_after;
-        if asked.time.is_some() || asked.frames_presented.is_some() {
+        if asked.time.is_some() || asked.frames_presented.is_some() || !self.plan.borrow().is_empty() {
             if let Some(lane) = self.tick.borrow().as_ref() {
                 let _ = lane.request(TICK, TICK_EVERY);
             }
@@ -439,7 +638,21 @@ impl ProgramApp {
             self.count(|counts| counts.attach_refused += 1);
             self.access_code.set(self.access_code.get().or(Some(refusal.code())));
         }
-        let frame = SemanticFrame::named_group(&self.config.title, SHELL_FRAME_NAME);
+        let kind = self.book.borrow().kind_of(window);
+        self.created.borrow_mut().push(window);
+        let usage = shell.owner().usage();
+        self.count(|counts| counts.claims_peak = counts.claims_peak.max(usage.open_claims));
+        let title = self
+            .titles
+            .borrow()
+            .get(&window)
+            .cloned()
+            .unwrap_or_else(|| self.config.title.clone());
+        let group = match kind {
+            Some(kind) if kind != WindowKind::Root => format!("{SHELL_FRAME_NAME} {}", kind.name()),
+            _ => SHELL_FRAME_NAME.to_owned(),
+        };
+        let frame = SemanticFrame::named_group(&title, &group);
         let given = self.access.borrow_mut().update(window, frame);
         if let Err(refusal) = given {
             self.access_code.set(self.access_code.get().or(Some(refusal.code())));
@@ -459,8 +672,7 @@ impl ProgramApp {
             self.end(shell, 0);
         } else {
             // Another window of the program: its tree lets go first, then the presenter closes it.
-            self.access.borrow_mut().close(window);
-            let _ = shell.close_window(window);
+            self.close_detached(shell, window);
         }
     }
 
@@ -481,6 +693,7 @@ impl ProgramApp {
     }
 
     fn tick(&self, shell: &Shell<'_>) {
+        self.run_plan(shell);
         let asked = self.config.end_after;
         let timed_out = match (asked.time, self.started.get()) {
             (Some(time), Some(started)) => started.elapsed() >= time,
@@ -509,6 +722,9 @@ impl ProgramApp {
         }
         let present = shell.report();
         let run = shell.control().report();
+        let ledger = shell.owner().counters();
+        ended.ledger_admitted = ledger.admitted;
+        ended.ledger_generations = ledger.generations;
         ended.settled = shutdown_settled(
             present.shutdown.map(|report| report.is_settled()),
             present.claims_abandoned,
@@ -561,6 +777,17 @@ impl ProgramApp {
             settled: ended.settled,
             ring_marked: ended.ring_marked,
             watcher: ended.watcher,
+            windows: self.book.borrow().counts(),
+            windows_closed_early: self
+                .closed_at_shutdown
+                .get(),
+            key_reuse: self.book.borrow().reused(),
+            survivors_presented: self.survivors.get(),
+            plan_refused: counts.plan_refused,
+            plan_done: self.plan.borrow().is_empty(),
+            claims_peak: counts.claims_peak,
+            ledger_admitted: ended.ledger_admitted,
+            ledger_generations: ended.ledger_generations,
         };
         let kind = conclude(ended.settled, self.failure.get(), ended.watcher);
         let detail = match kind {
@@ -571,6 +798,7 @@ impl ProgramApp {
             kind,
             detail,
             report: Some(report),
+            unavailable: self.unavailable.get(),
         }
     }
 }
@@ -599,9 +827,27 @@ impl ShellApp for ProgramApp {
                 window,
                 event: WindowEvent::CloseRequested,
             } => self.close_requested(shell, *window),
-            Event::ShutdownBegan => self.access.borrow_mut().close_all(),
+            Event::Window {
+                window,
+                event: WindowEvent::Destroyed,
+            } => self.book.borrow_mut().closed(*window),
+            Event::ShutdownBegan => {
+                self.closed_at_shutdown.set(self.book.borrow().closed_count());
+                self.access.borrow_mut().close_all();
+            }
             Event::LoopEnding => self.ended(shell),
             _ => {}
+        }
+    }
+
+    fn on_device(&self, shell: &Shell<'_>, event: DeviceEvent) {
+        // The presenter recovered or gave up; what it did to the windows is in its report. When no device is left the
+        // program ends with the typed, readable state and nothing else draws.
+        if let Some(state) = unavailable_after(event) {
+            if self.unavailable.get().is_none() {
+                self.unavailable.set(Some(state));
+            }
+            self.fail(shell, state.end(), state.code());
         }
     }
 

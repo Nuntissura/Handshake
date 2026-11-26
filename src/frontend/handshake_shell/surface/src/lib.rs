@@ -45,6 +45,18 @@
 //!   one not proven within two seconds is kept with its window until the owner closes
 //!   ([`PresentReport::closes_unproven`]).
 //!
+//! # Device loss (AC214-9)
+//!
+//! When the owner reports the device lost (a frame refused with `DeviceFault::Lost` or as lost, or
+//! [`handshake_vulkan_renderer::GpuOwner::poll`] saying so), one recovery begins, however many windows saw it: every window's surface is released and a pending
+//! capture ends with [`ReadbackError::Ended`]; then, on the presenter's own timer and never waiting, the owner replaces the
+//! device (`rebind_device`), each window's claim is moved onto it (`rebind_claim`), a surface and swapchain are made on the
+//! new device and each window is asked for a frame. A refusal that can pass (a held device, work not yet ended, a claim
+//! that still holds resources) is looked at again, a bounded number of times. Losses with no frame presented between them
+//! are bounded as well. When it ends without a device ([`DeviceEvent::GaveUp`]) nothing else renders: the host shows the
+//! typed reason. The owner's own fault seam is for its unit tests only, so no test here can lose a real device; the
+//! decisions are plain functions with tests of their own.
+//!
 //! # Present progress
 //!
 //! [`Shell::watch`] gives a [`PresentWatch`] per window: the owner's `PresentProbe` and since when a frame is wanted
@@ -65,7 +77,11 @@
 //! | [`PresentError::Surface`] | the owner made no surface on the window | read the owner's key; the window stays without frames |
 //! | [`PresentError::NotClearable`] | the surface's images lack transfer destination use | none here: needs a render-pass clear (Kumihimo's pipelines) |
 //! | [`PresentError::Failing`] | eight frames in a row failed, or no image was free for about a second | the window asks for none on its own; the next change or damage tries again |
-//! | [`PresentError::Frame`] with a device fault | the device was lost | rebind through the owner (AC214-9, a later slice) |
+//! | [`PresentError::Frame`] with a device fault | `OutOfMemory`, `NoDevice` or a driver result: not a loss | none here: the window asks for no frame on its own |
+//! | [`DeviceEvent::Lost`] | the owner reported the device lost; every window's surface is released | none: the presenter recovers it |
+//! | [`DeviceEvent::Rebound`] | the owner replaced the device; each window has a surface on it and draws again | none |
+//! | [`DeviceEvent::GaveUp`] | the owner or a claim kept refusing, or the device was lost again and again | the host shows the typed reason; no other renderer exists |
+//! | [`PresentError::Rebind`] | one window's claim could not be moved or its surface not made on the new device | the window stays without frames; the others are unaffected |
 //! | [`PresentReport::finish_refused`] grows | a window target is still held at the end | the owner's device is held or still runs work; the process may end itself |
 //! | [`PresentReading::never_presents`] | frames are wanted and none is presented | the renderer's or the GPU's failure, or the loop stopped |
 
@@ -77,6 +93,8 @@ mod clear;
 mod decide;
 mod error;
 mod readback;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod recovery;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod watch;
 
@@ -95,6 +113,7 @@ pub use clear::{
 };
 pub use error::PresentError;
 pub use readback::{render_offscreen, FrameReadback, PendingReadback, ReadbackError};
+pub use recovery::{DeviceEvent, DeviceState, GaveUp};
 pub use watch::{PresentReading, PresentWatch};
 
 #[cfg(windows)]

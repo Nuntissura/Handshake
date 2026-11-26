@@ -6,7 +6,9 @@
 //! typed outcome without them), the heartbeat, the accessibility hub, the input tracker, and a shutdown that drains,
 //! settles claims and acknowledges the watcher only when the owner reported everything settled; [`outcome`] gives every
 //! end a typed kind and exit code. The binary is `handshake_shell` (`src/main.rs`); `examples/shell_program.rs` is the
-//! test binary for a manual run. And MT-215 slice 2: [`ShellHeartbeat`], the UI heartbeat port bound to the window
+//! test binary for a manual run. MT-214 S6 adds [`windows`] (the root window, detached panes and the detached Settings
+//! window on one device and one owner ledger, AC214-8) and [`unavailable`] (the typed, readable state when no device is
+//! available, AC214-9; a lost device is recovered by the presenter). And MT-215 slice 2: [`ShellHeartbeat`], the UI heartbeat port bound to the window
 //! crate's event loop and the surface crate's present path, so that a frozen UI thread or a stalled present reaches the
 //! diagnostics ring that the internal diagnostics and the standalone Palmistry watcher read. The module documentation
 //! of [`heartbeat`] is its manual: how a host uses it, what it proves and what reads it.
@@ -32,6 +34,8 @@
 pub mod authority;
 pub mod outcome;
 pub mod shutdown;
+pub mod unavailable;
+pub mod windows;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod watches;
 
@@ -49,4 +53,6 @@ pub use outcome::{conclude, may_acknowledge, shutdown_settled, ExitKind};
 #[cfg(windows)]
 pub use program::{run_program, EndAfter, ProgramConfig, ProgramOutcome, ProgramReport};
 pub use shutdown::{NoWatcher, ShutdownWatcher, WatcherAck};
+pub use unavailable::{unavailable_after, Cause, UnavailableState, When, HEADLINE};
+pub use windows::{Action, DetachedSpec, KindCounts, WindowKind};
 pub use watches::{WatchRefused, MAX_WATCHED_WINDOWS};

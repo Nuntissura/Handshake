@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use handshake_shell_window::{Display, FrameOutcome, WindowEvent, WindowKey};
-use handshake_vulkan_renderer::{PresentRefusal, PresentResult};
+use handshake_vulkan_renderer::{AuthorizeRefusal, DeviceFault, PresentRefusal, PresentResult};
 
 /// The swapchain of one window, as the presenter knows it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,6 +93,8 @@ pub(crate) struct After {
     pub(crate) again: Again,
     /// Not retried on its own: recorded as the window's error.
     pub(crate) stop: bool,
+    /// The device is lost: the presenter recovers it (`recovery.rs`) and every window draws again after it.
+    pub(crate) lost: bool,
 }
 
 /// How long after an acquire found no free image the frame is tried again. FIFO at 60 Hz frees one each 16.7 ms.
@@ -115,6 +117,7 @@ pub(crate) fn after_frame(tried: Tried) -> After {
         new_surface: false,
         again: Again::No,
         stop: false,
+        lost: false,
     };
     match tried {
         Tried::Shown(PresentResult::Presented) => After {
@@ -154,6 +157,15 @@ pub(crate) fn after_frame(tried: Tried) -> After {
         // The window has no size after all: nothing to show until it has one, which configures it again.
         Tried::Refused(PresentRefusal::Suspended) => After {
             outcome: FrameOutcome::Unchanged,
+            ..failed
+        },
+        // A lost device is recovered, not stopped on (AC214-9): the window draws again once it has a surface on the
+        // device that replaced it, so nothing is retried on its own meanwhile.
+        Tried::Refused(
+            PresentRefusal::Device(DeviceFault::Lost { .. })
+            | PresentRefusal::NotAuthorized(AuthorizeRefusal::Lost { .. }),
+        ) => After {
+            lost: true,
             ..failed
         },
         Tried::NotClearable
@@ -204,6 +216,8 @@ pub(crate) enum Need {
     Poll,
     /// Another try to end the loop.
     Finish,
+    /// Another try to replace a lost device and move the windows' claims onto it.
+    Rebind,
 }
 
 /// When each need is due. The earliest one is what the presenter's wake lane is asked for.
@@ -389,25 +403,54 @@ mod tests {
 
     #[test]
     fn what_cannot_get_better_by_itself_is_not_retried() {
-        use handshake_vulkan_renderer::{AuthorizeRefusal, DeviceFault};
         for tried in [
             Tried::NotClearable,
             Tried::Refused(PresentRefusal::FormatUnsupported),
             Tried::Refused(PresentRefusal::Released),
             Tried::Refused(PresentRefusal::Foreign),
-            Tried::Refused(PresentRefusal::Device(DeviceFault::Lost { generation: 1 })),
+            Tried::Refused(PresentRefusal::Device(DeviceFault::NoDevice)),
+            Tried::Refused(PresentRefusal::Device(DeviceFault::OutOfMemory)),
+            Tried::Refused(PresentRefusal::Device(DeviceFault::Driver(-1))),
             Tried::Refused(PresentRefusal::NotAuthorized(
                 AuthorizeRefusal::DeviceUnavailable,
             )),
         ] {
             let after = after_frame(tried);
-            assert!(after.stop && after.again == Again::No, "{tried:?}");
+            assert!(
+                after.stop && after.again == Again::No && !after.lost,
+                "{tried:?}"
+            );
         }
         let suspended = after_frame(Tried::Refused(PresentRefusal::Suspended));
         assert_eq!(
             (suspended.outcome, suspended.again),
             (FrameOutcome::Unchanged, Again::No)
         );
+    }
+
+    #[test]
+    fn a_lost_device_is_recovered_and_not_stopped_on_or_retried_alone() {
+        for tried in [
+            Tried::Refused(PresentRefusal::Device(DeviceFault::Lost { generation: 1 })),
+            Tried::Refused(PresentRefusal::NotAuthorized(AuthorizeRefusal::Lost {
+                generation: 1,
+            })),
+        ] {
+            let after = after_frame(tried);
+            assert!(after.lost, "{tried:?}");
+            assert!(
+                !after.stop && after.again == Again::No,
+                "nothing is drawn or retried until a surface exists on the new device: {tried:?}"
+            );
+            assert_eq!(after.outcome, FrameOutcome::Failed, "the frame is still owed: {tried:?}");
+        }
+        for tried in [
+            Tried::Shown(PresentResult::Presented),
+            Tried::Refused(PresentRefusal::SurfaceLost),
+            Tried::Refused(PresentRefusal::NotReady),
+        ] {
+            assert!(!after_frame(tried).lost, "{tried:?}");
+        }
     }
 
     #[test]

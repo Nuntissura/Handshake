@@ -77,6 +77,11 @@ fn no_device(outcome: &handshake_shell::ProgramOutcome) -> bool {
         "no device to run on ({:?}), and {REQUIRE_GPU} is not 0",
         outcome.detail
     );
+    // AC214-9: no device is a typed, readable state with the owner's own code, ending with the typed code.
+    let state = outcome.unavailable.expect("a missing device is a typed, readable state");
+    assert_eq!(state.code(), outcome.detail.expect("the owner's key"));
+    assert_eq!(state.end().code(), ExitKind::DeviceUnavailable.code());
+    assert!(outcome.report.is_none(), "no loop ran without a device");
     println!("HSK_GPU_SKIP reason={}", outcome.detail.unwrap_or("none"));
     true
 }

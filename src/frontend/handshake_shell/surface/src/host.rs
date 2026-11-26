@@ -16,18 +16,21 @@ use handshake_shell_window::{
     Refusal, ShellHost, WakeLane, WindowEvent, WindowKey,
 };
 use handshake_vulkan_renderer::{
-    GpuOwner, OwnerDiagnostics, OwnerOptions, PresentRefusal, PresentResult, Unavailable,
+    AuthorizeRefusal, DeviceFault, GpuOwner, OwnerDiagnostics, OwnerOptions, PresentRefusal,
+    PresentResult, Unavailable,
 };
 
 use crate::decide::{self, Again, Need, Schedule, Swap, Tried};
 use crate::error::PresentError;
 use crate::readback::{FrameReadback, ReadbackError};
+use crate::recovery::{DeviceEvent, Recovery};
 use crate::shell::{PresentConfig, PresentReport, Shell, ShellApp, WindowPresentation};
 use crate::slot::{Capture, Slot};
 use crate::target::ShellWindowTarget;
 use crate::watch::PresentWatch;
 
 mod ending;
+mod loss;
 
 /// The window crate's host that presents. Run it with `handshake_shell_window::run(config, host)`.
 pub struct PresentHost {
@@ -81,6 +84,7 @@ impl ShellHost for PresentHost {
         if matches!(event, Event::ShutdownBegan) {
             self.core.tear_down(control);
         }
+        self.tell_device(control);
         self.core.rearm();
     }
 
@@ -94,7 +98,21 @@ impl ShellHost for PresentHost {
             };
             self.app.on_wake(&shell, wake);
         }
+        self.tell_device(control);
         self.core.rearm();
+    }
+}
+
+impl PresentHost {
+    /// Tell the application what happened to the device since it was last told (AC214-9).
+    fn tell_device(&self, control: &Control) {
+        for event in self.core.take_device_events() {
+            let shell = Shell {
+                control,
+                core: &self.core,
+            };
+            self.app.on_device(&shell, event);
+        }
     }
 }
 
@@ -121,6 +139,10 @@ pub(crate) struct Core {
     exit_code: Cell<Option<i32>>,
     torn_down: Cell<bool>,
     commands: Cell<u64>,
+    /// How a lost device is being recovered (AC214-9).
+    recovery: Cell<Recovery>,
+    /// What the application has not been told yet.
+    device_events: RefCell<Vec<DeviceEvent>>,
 }
 
 impl Core {
@@ -147,6 +169,8 @@ impl Core {
             exit_code: Cell::new(None),
             torn_down: Cell::new(false),
             commands: Cell::new(0),
+            recovery: Cell::new(Recovery::new()),
+            device_events: RefCell::new(Vec::new()),
         }
     }
 
@@ -345,6 +369,9 @@ impl Core {
             }
         };
         let mut after = decide::after_frame(tried);
+        if after.outcome == FrameOutcome::Presented {
+            self.note_presented();
+        }
         self.count(|report| match tried {
             Tried::Shown(PresentResult::Presented) => report.frames_presented += 1,
             Tried::Shown(PresentResult::Suboptimal) => {
@@ -400,6 +427,10 @@ impl Core {
             self.want_looks();
         }
         drop(slot);
+        if after.lost {
+            // After the slot is let go: the recovery releases every window's surface, this one's too.
+            self.device_lost(loss_generation(tried));
+        }
         match after.again {
             Again::No => {}
             Again::Now => {
@@ -447,6 +478,7 @@ impl Core {
                 }
                 Need::Poll => self.look(control),
                 Need::Finish => self.try_finish(control),
+                Need::Rebind => self.rebind_step(control),
             }
         }
         for key in self.slots.borrow().keys() {
@@ -457,7 +489,9 @@ impl Core {
     /// Let the owner end what ended, then do what that allows: frames that end old swapchains, captures, closing windows.
     fn look(&self, control: &Control) {
         self.count(|report| report.polls += 1);
-        let _ = self.owner.poll();
+        if let Err(DeviceFault::Lost { generation }) = self.owner.poll() {
+            self.device_lost(Some(generation));
+        }
         let slots = self.all_slots();
         let existing = self.owner.memory_use().map_or(0, |usage| usage.swapchains);
         let live = slots
@@ -592,5 +626,16 @@ impl Core {
                 self.armed.set(None);
             }
         }
+    }
+}
+
+/// The generation a frame's refusal names as lost, when it names one.
+fn loss_generation(tried: Tried) -> Option<u64> {
+    match tried {
+        Tried::Refused(
+            PresentRefusal::Device(DeviceFault::Lost { generation })
+            | PresentRefusal::NotAuthorized(AuthorizeRefusal::Lost { generation }),
+        ) => Some(generation),
+        _ => None,
     }
 }

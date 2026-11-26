@@ -1,7 +1,7 @@
 //! Why a window shows no frame. Closed codes carrying the owner's own refusals; no driver text, title or content.
 
 use handshake_vulkan_renderer::{
-    AdmissionDenial, AttachRefusal, PresentRefusal, ResourceRefusal, SettleRefusal,
+    AdmissionDenial, AttachRefusal, PresentRefusal, RebindRefusal, ResourceRefusal, SettleRefusal,
 };
 
 use crate::readback::ReadbackError;
@@ -32,6 +32,9 @@ pub enum PresentError {
     Settle(SettleRefusal),
     /// A capture of a presented frame failed.
     Capture(ReadbackError),
+    /// The window's claim could not be moved onto the device that replaced the lost one, or its surface could not be
+    /// made on it: the window stays without frames (AC214-9).
+    Rebind(RebindRefusal),
 }
 
 impl PresentError {
@@ -48,6 +51,7 @@ impl PresentError {
             Self::Failing => "surface.failing",
             Self::Settle(_) => "surface.settle",
             Self::Capture(_) => "surface.capture",
+            Self::Rebind(_) => "surface.rebind",
         }
     }
 
@@ -60,6 +64,7 @@ impl PresentError {
             Self::Configure(refusal) | Self::Frame(refusal) => Some(refusal.key()),
             Self::Settle(refusal) => Some(refusal.key()),
             Self::Capture(error) => Some(error.code()),
+            Self::Rebind(refusal) => Some(refusal.key()),
             Self::NoToken | Self::NotClearable | Self::Failing => None,
         }
     }

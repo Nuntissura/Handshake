@@ -24,6 +24,9 @@ use source::{below, code_only, lines_with, Source};
 /// The time limit of a scan: it reads a few hundred files.
 const LIMIT: Duration = Duration::from_secs(60);
 
+/// The five crates of the shell, as folders relative to this crate.
+const CRATE_FOLDERS: &[&str] = &["../window", "../surface", "../input", "../accessibility", "../shell"];
+
 /// The workspaces whose members are scanned, as folders relative to this crate.
 const WORKSPACES: &[&str] = &["..", "../../handshake_host_ports"];
 
@@ -690,7 +693,7 @@ fn every_loop_of_a_test_runs_on_a_private_desktop() {
         assert!(direct.is_empty(), "{direct:#?}");
     }
     assert_eq!(loops, 2, "the scan sees both loops");
-    assert_eq!(program_loops, 2, "the scan sees both program loops");
+    assert_eq!(program_loops, 3, "the scan sees the three program loops: two of the program, one of several windows");
 }
 
 /// What leaves a test's ring file to chance: removing it by hand, which a failure skips, or making a ring without the
@@ -825,4 +828,113 @@ fn the_shell_holds_no_widget_pane_or_layout_logic() {
     assert!(found.is_empty(), "{found:#?}");
     let widget = sample("src/sample.rs", "struct Pane;");
     assert_eq!(lines(&[widget], &words).len(), 1);
+}
+
+/// What a second way to draw would be named: Direct3D, OpenGL and the operating system's software drawing, or a crate for
+/// them (MT-214 AC214-9: "no D3D, OpenGL or software fallback exists in the code"). Substrings, case-insensitive, over
+/// code with comments and literals blanked, so naming what is refused in a comment or a message is not having it.
+const FALLBACK_RENDERERS: &[&str] = &[
+    "d3d",
+    "direct3d",
+    "dxgi",
+    "directx",
+    "opengl",
+    "wgl",
+    "glutin",
+    "softbuffer",
+    "tiny_skia",
+    "swiftshader",
+    "llvmpipe",
+    "bitblt",
+    "stretchdibits",
+    "dibsection",
+    "software_render",
+    "softwarerender",
+    "software_raster",
+    "cpu_render",
+    "cpu_raster",
+    "swrast",
+    "fallback_render",
+    "fallbackrender",
+    "render_fallback",
+];
+
+/// The same names in a manifest's dependency names and features, with `-` as `_`.
+const FALLBACK_CRATES: &[&str] = &["d3d", "direct3d", "dxgi", "directx", "opengl", "wgl", "glutin", "softbuffer", "tiny_skia"];
+
+fn fallback_renderers(sources: &[Source]) -> Vec<String> {
+    let mut found = Vec::new();
+    for source in sources {
+        for (number, line) in source.code.lines().enumerate() {
+            let lower = line.to_lowercase();
+            for word in FALLBACK_RENDERERS {
+                if lower.contains(word) {
+                    found.push(format!("{}:{}: {word}", source.path, number + 1));
+                }
+            }
+        }
+    }
+    found
+}
+
+fn fallback_crates(path: &str, manifest: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for (number, line) in manifest.lines().enumerate() {
+        let line = line.split('#').next().unwrap_or("").to_lowercase().replace('-', "_");
+        for word in FALLBACK_CRATES {
+            if line.contains(word) {
+                found.push(format!("{path}:{}: {word}", number + 1));
+            }
+        }
+    }
+    found
+}
+
+#[test]
+fn no_direct3d_opengl_or_software_fallback_renderer_exists_in_the_shell_crates() {
+    let _limit = TimeLimit::new(LIMIT);
+    let mut sources = Vec::new();
+    for folder in CRATE_FOLDERS {
+        sources.extend(below(&format!("{folder}/src")));
+    }
+    assert!(sources.len() >= 60, "the scan reads the five crates: {}", sources.len());
+    for known in ["window", "surface", "input", "accessibility", "shell"] {
+        assert!(
+            sources.iter().any(|source| source.path.starts_with(&format!("../{known}/src/"))),
+            "{known} is scanned"
+        );
+    }
+    let found = fallback_renderers(&sources);
+    assert!(found.is_empty(), "a second way to draw: {found:#?}");
+
+    // The manifests of the five crates and of the GPU owner name no such crate or feature either.
+    let mut manifests = 0;
+    for folder in CRATE_FOLDERS.iter().chain(&["../../handshake_native/vulkan-renderer"]) {
+        let path = format!("{folder}/Cargo.toml");
+        let text = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(&path)).expect("a manifest");
+        let found = fallback_crates(&path, &text);
+        assert!(found.is_empty(), "a crate or feature for a second way to draw: {found:#?}");
+        manifests += 1;
+    }
+    assert_eq!(manifests, 6);
+
+    // The one way to draw is the GPU owner's device, and the owner has no way to fall back either: it refuses software and
+    // layered drivers, by typed reason.
+    let reasons: Vec<&str> = handshake_vulkan_renderer::Unavailable::ALL.iter().map(|reason| reason.key()).collect();
+    assert!(reasons.contains(&"software_device_refused") && reasons.contains(&"layered_driver_refused"), "{reasons:?}");
+
+    // Each rule finds what it looks for, in code, and not in a comment or a message.
+    let drawn = sample("src/sample.rs", "let device = D3D11CreateDevice(None, 0);");
+    assert_eq!(fallback_renderers(&[drawn]).len(), 1);
+    let software = sample("src/sample.rs", "fn software_rasterize(frame: &Frame) {}");
+    assert_eq!(fallback_renderers(&[software]).len(), 1);
+    let named = sample(
+        "src/sample.rs",
+        "// no Direct3D, OpenGL or software fallback
+let reason = \"software device refused\";",
+    );
+    assert!(fallback_renderers(&[named]).is_empty(), "a comment and a message are not a renderer");
+    assert_eq!(fallback_crates("Cargo.toml", "tiny-skia = \"0.11\"").len(), 1);
+    assert_eq!(fallback_crates("Cargo.toml", "features = [\"Win32_Graphics_Direct3D11\"]").len(), 1, "a feature too");
+    assert!(fallback_crates("Cargo.toml", "features = [\"Win32_Graphics_Gdi\"] # no Direct3D here").is_empty());
 }

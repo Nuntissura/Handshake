@@ -5,8 +5,9 @@ use handshake_shell_window::{PhysicalSize, Refusal, WindowKey};
 use handshake_vulkan_renderer::{
     AuthorizationProvenance, Claim, ClaimDisposition, ClaimRequest, ClientId, Extent, GpuClient,
     GpuOwner, ImageLayout, OperationId, OperationKind, OwnerSurface, PresentRefusal,
-    PresentResult, Presented, PresentsProof, RecordAborted, SettleOutcome, SettleRefusal,
-    Settlement, SurfaceTarget, SwapchainInfo, SwapchainRequest, SwapchainStatus,
+    PresentResult, Presented, PresentsProof, RebindRefusal, RecordAborted, SettleOutcome,
+    SettleRefusal, Settlement, SubmissionObservation, SurfaceTarget, SwapchainInfo,
+    SwapchainRequest, SwapchainStatus,
 };
 use std::time::Instant;
 
@@ -50,6 +51,9 @@ pub(crate) struct Slot {
     presented_on_current: bool,
     pub(crate) watch: PresentWatch,
     pub(crate) closing: bool,
+    /// The device was lost: the surface is released and the claim waits to be moved onto the device that replaces it
+    /// (AC214-9).
+    pub(crate) lost: bool,
     pub(crate) destroy_asked: bool,
     pub(crate) error: Option<PresentError>,
     pub(crate) failures: u32,
@@ -96,6 +100,7 @@ impl Slot {
             presented_on_current: false,
             watch,
             closing: false,
+            lost: false,
             destroy_asked: false,
             error: None,
             failures: 0,
@@ -315,7 +320,41 @@ impl Slot {
         self.watch.set_probe(Some(surface.probe()));
         self.surface = Some(surface);
         self.swap = Swap::Stale;
+        self.lost = false;
         Ok(())
+    }
+
+    /// The device was lost: let go of the surface (the owner ends it with the lost device), and end what cannot survive
+    /// with a typed outcome: a capture that was pending ends as the lost device's submission did. The claim stays; it is
+    /// moved by [`Self::rebind`]. Returns whether there was a surface.
+    pub(crate) fn lose(&mut self) -> bool {
+        let pending = matches!(self.capture, Capture::Pending(_));
+        let had = self.release_surface();
+        if pending {
+            self.capture = Capture::Done(Err(ReadbackError::Ended(SubmissionObservation::DeviceLost)));
+        }
+        self.lost = true;
+        had
+    }
+
+    /// Move the claim onto the device that replaced the lost one (`GpuClient::rebind_claim`). A claim that is already on
+    /// the current generation stays as it is.
+    ///
+    /// # Errors
+    ///
+    /// The owner's refusal; the claim stays as it was.
+    pub(crate) fn rebind(&mut self) -> Result<(), RebindRefusal> {
+        let Some(claim) = self.claim.as_ref() else {
+            return Err(RebindRefusal::NotOpen);
+        };
+        match self.client.rebind_claim(claim) {
+            Ok(moved) => {
+                self.claim = Some(moved);
+                Ok(())
+            }
+            Err(RebindRefusal::NotLost) => Ok(()),
+            Err(refusal) => Err(refusal),
+        }
     }
 
     /// Settle the window's claim once, with what the owner observed, and release what it retains. Only after the

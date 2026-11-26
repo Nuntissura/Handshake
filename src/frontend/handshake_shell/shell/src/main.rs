@@ -43,6 +43,10 @@ fn run() -> ExitCode {
             ExitCode::from(ExitKind::NoDeviceAuthority.code())
         }
         Ok(outcome) => {
+            if let Some(state) = &outcome.unavailable {
+                println!("{}", state.line());
+                eprintln!("{}", state.text());
+            }
             println!("{}", outcome.line());
             ExitCode::from(outcome.kind.code())
         }

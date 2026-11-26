@@ -65,6 +65,10 @@ fn show(arguments: &[String]) -> ExitCode {
         frames_presented: None,
     };
     let outcome = run_program(config, authority, Box::new(NoWatcher));
+    if let Some(state) = &outcome.unavailable {
+        println!("{}", state.line());
+        eprintln!("{}", state.text());
+    }
     println!("{}", outcome.line());
     ExitCode::from(outcome.kind.code())
 }

@@ -12,6 +12,7 @@ use crate::clear::{Background, ClearFrame};
 use crate::error::PresentError;
 use crate::host::Core;
 use crate::readback::{FrameReadback, ReadbackError};
+use crate::recovery::{DeviceEvent, DeviceState};
 use crate::watch::PresentWatch;
 
 /// Bytes each window's Display claim reserves unless the host says otherwise: four BGRA8 swapchain images of a
@@ -60,7 +61,7 @@ impl PresentConfig {
 }
 
 /// Counters of the presenter. Mechanical numbers only.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PresentReport {
     /// Surfaces made on windows, made again after a loss included.
     pub surfaces_made: u64,
@@ -109,6 +110,58 @@ pub struct PresentReport {
     /// Closed windows whose presents were not proven ended in time, without `VK_EXT_swapchain_maintenance1`: their last
     /// swapchain and the window are kept until the owner closes (MT-214 SF-2).
     pub closes_unproven: u64,
+    /// Device losses the owner reported and the presenter recovered from or gave up on (AC214-9). One per loss, however
+    /// many windows saw it.
+    pub device_losses: u64,
+    /// Times the owner replaced the lost device for the presenter.
+    pub device_rebinds: u64,
+    /// Window claims moved onto the replacing device, with a surface made on it: each window draws again.
+    pub windows_rebound: u64,
+    /// Windows that stayed without a surface because their claim could not be moved or a surface not made.
+    pub windows_unrecovered: u64,
+    /// Captures that ended with a typed outcome because the device was lost under them.
+    pub captures_lost: u64,
+    /// Looks at the owner while it or a claim refused to move.
+    pub rebind_looks: u64,
+    /// Where the device stands.
+    pub device: DeviceState,
+}
+
+impl Default for PresentReport {
+    fn default() -> Self {
+        Self {
+            surfaces_made: 0,
+            surfaces_released: 0,
+            surfaces_remade: 0,
+            targets_released: 0,
+            configures: 0,
+            swapchains_replaced: 0,
+            suspends: 0,
+            frames_due: 0,
+            frames_presented: 0,
+            frames_suboptimal: 0,
+            frames_failed: 0,
+            not_ready: 0,
+            retire_frames: 0,
+            polls: 0,
+            timed_frames: 0,
+            captures: 0,
+            claims_settled: 0,
+            claims_abandoned: 0,
+            errors: 0,
+            last_error: None,
+            shutdown: None,
+            finish_refused: 0,
+            closes_unproven: 0,
+            device_losses: 0,
+            device_rebinds: 0,
+            windows_rebound: 0,
+            windows_unrecovered: 0,
+            captures_lost: 0,
+            rebind_looks: 0,
+            device: DeviceState::Healthy,
+        }
+    }
 }
 
 /// How one window presents now.
@@ -136,6 +189,12 @@ pub trait ShellApp {
     /// A wake of a lane the application opened itself.
     fn on_wake(&self, shell: &Shell<'_>, wake: &DispatchedWake<'_>) {
         let _ = (shell, wake);
+    }
+
+    /// The device was lost, replaced or given up on (AC214-9). Called after the event or wake that caused it, with the
+    /// windows' surfaces already released or made again. The default does nothing.
+    fn on_device(&self, shell: &Shell<'_>, event: DeviceEvent) {
+        let _ = (shell, event);
     }
 }
 
@@ -228,6 +287,11 @@ impl<'a> Shell<'a> {
     /// The presenter's counters so far.
     pub fn report(&self) -> PresentReport {
         self.core.report()
+    }
+
+    /// Where the device stands: healthy, recovering from a loss, or failed (no other renderer is tried).
+    pub fn device_state(&self) -> DeviceState {
+        self.core.device_state()
     }
 
     /// End the loop with `exit_code`: shutdown begins, [`Event::ShutdownBegan`] reaches the application, which ends
