@@ -343,9 +343,11 @@ struct ScopedRestartBridge {
     _resources: Arc<RestartResources>,
 }
 
+// `$session` is a protected SurrealDB parameter (surrealdb-core-3.2.0 cnf/mod.rs:23,
+// PROTECTED_PARAM_NAMES), so the restart session id binds as `$session_run`.
 #[derive(SurrealValue)]
 struct RestartProbeBindings {
-    session: String, owner: String, actor: String, authenticated: String, space: String, workspace: String,
+    session_run: String, owner: String, actor: String, authenticated: String, space: String, workspace: String,
 }
 
 #[derive(SurrealValue)]
@@ -359,7 +361,7 @@ struct RestartProbe {
 impl ScopedRestartBridge {
     async fn rows(&self, session: &str, statement: &'static str) -> Result<Vec<RestartProbe>,
         handshake_core::process_ledger::restart_resume::RestartResumeRuntimeError> {
-        let bindings = RestartProbeBindings { session: session.into(), owner: self.scope.account_uuid.to_string(),
+        let bindings = RestartProbeBindings { session_run: session.into(), owner: self.scope.account_uuid.to_string(),
             actor: self.scope.actor_uuid.to_string(), authenticated: self.scope.session_uuid.to_string(),
             space: self.scope.access_space_uuid.to_string(), workspace: self.scope.workspace_id.clone() };
         Ok(self.storage.with_data_operation(|database| Box::pin(async move {
@@ -427,8 +429,8 @@ impl handshake_core::process_ledger::restart_resume::RestartOrphanReclaimer for 
     }
 }
 
-const READ_RESTART_SESSION: &str = "SELECT process_uuid, started_at, stopped_at, reclaim_generation, parent_session_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_process_lifecycle WHERE parent_session_id = $session;";
-const READ_EXACT_RESTART_SESSION: &str = "SELECT process_uuid, started_at, stopped_at, reclaim_generation, parent_session_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_process_lifecycle WHERE parent_session_id = $session AND owner_account_id = $owner AND actor_principal_id = $actor AND authenticated_session_id = $authenticated AND access_space_id = $space AND workspace_id = $workspace;";
+const READ_RESTART_SESSION: &str = "SELECT process_uuid, started_at, stopped_at, reclaim_generation, parent_session_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_process_lifecycle WHERE parent_session_id = $session_run;";
+const READ_EXACT_RESTART_SESSION: &str = "SELECT process_uuid, started_at, stopped_at, reclaim_generation, parent_session_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_process_lifecycle WHERE parent_session_id = $session_run AND owner_account_id = $owner AND actor_principal_id = $actor AND authenticated_session_id = $authenticated AND access_space_id = $space AND workspace_id = $workspace;";
 
 pub fn exact_scope() -> ReclaimResourceScope {
     ReclaimResourceScope {
