@@ -1125,5 +1125,60 @@
       "drivers on the real desktop",
       "seqlock fences on native ARM64"
     ]
+  },
+  "slice2_remediation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "slice2_eval_20261126 (E1..E7 and ac215_6_stall_decision); all confirmed in code, none refuted",
+    "commit": "e749ee2e9",
+    "paths": "18 files under src/frontend/handshake_host_ports/** and src/frontend/handshake_shell/shell/**; verified by git diff --name-only a0e0ee43b e749ee2e9; window and surface unchanged",
+    "fixes": {
+      "E2": "on_wake publishes a beat for every dispatched wake (ui_heartbeat/src/port.rs:231-243); Withheld, after_withheld and withheld_beats removed; a present stall gives one Degraded and one Recovered event (port.rs:336); docs and the three stall tests rewritten: stalled present = fresh heartbeat plus stall event, frozen UI thread = stale heartbeat",
+      "E4": "counter_a and counter_b now 0, metric_micros holds the wait (shell/src/events.rs:51); diag_ring outside MT-215 write paths, so only the request was written",
+      "E1": "test polls once before the clock jump (tests/test_watcher_agreement.rs:236-246)",
+      "E3": "HeartbeatSink::publish and record need a PortToken only the port can make (sink.rs:23,46); ShellHeartbeat::open refuses a second heartbeat on the same loop with OpenRefused::AlreadyOpen (shell/src/heartbeat.rs:62,164); source scan reads every workspace member from both manifests and rejects a second slot writer, port, sink user or ring writer",
+      "E5": "loops at tests/test_port_rules.rs:667, :747 and dispatch_due bounded; every port and shell test starts its own time limit (tests/support/limits.rs:65) that writes a TIMEOUT line, removes ring files and exits 124",
+      "E6": "beat path counted for allocations on the real loop with a watched window; lane-slot and PresentWatch reads left as bounded locks (stated at shell/src/heartbeat.rs:36: one slot step, one PostMessageW and one SetThreadpoolTimer under the lock, plus an Arc/Instant copy)",
+      "E7": "RingFile guard removes ring files on success, panic and time-limit expiry"
+    },
+    "question_for_review": {
+      "id": "AC215-6-WAITFREE",
+      "what": "the adapter's beat path is bounded but not literally wait-free as AC215-6 says; wait-free reads would need window and surface changes",
+      "route": "adjudicated by the next independent eval against the contract text"
+    },
+    "diag_ring_request": {
+      "path": "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/diag-ring-typed-addition-request.json",
+      "R1": "PresentStalled code 14, ordinary and survivable, phases Degraded/Recovered; counter_a = last beat counter, counter_b = watched windows, metric_micros = wait",
+      "R2": "serde and three_tier_evidence behind a default feature; default-features = false in ui_heartbeat and the shell dev-dependency (removes serde_json 1.0.151, itoa, zmij, serde_derive from the shell)",
+      "R3": "version drift re-read from four lock files; no lock changed",
+      "owner": "diag-ring is the shared MT-081/MT-095 crate; request pending its owner"
+    },
+    "tests_added": [
+      "port and watcher stall tests (catch withheld beats and the port ignoring frames)",
+      "counter_a == 0 checks (E4)",
+      "two compile_fail doctests (token removed or made public)",
+      "eval mutation S4 no longer compiles and a new scan rule also catches it",
+      "second-open check in heartbeat_loop plus a unit test",
+      "scan rules with control samples (second port, second ring writer)",
+      "a_ring_file_is_removed_however_its_test_ends in a child process with no window",
+      "allocation tallies on the beat path"
+    ],
+    "implementer_checks": {
+      "check --all-targets": "pass on both workspaces",
+      "clippy --all-targets -D warnings": "pass on both",
+      "tree -e all --target x86_64-pc-windows-msvc": "no banned crates",
+      "logs": "MT-215/gui-agent/logs/s2r-*.log"
+    },
+    "vctip": "a vctip.exe (PID 47932) was alive during clippy; not provably the agent's (its steps linked nothing), not stopped; exited by 09:03",
+    "left_for_owner": "the eval's three leftover ring files in MT-214/eval-agent/target/tmp untouched",
+    "tests": "nothing run; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "250 ms cadence",
+      "real GPU present stalls",
+      "Palmistry attached to the real process",
+      "sleep and resume",
+      "lock bound under real load",
+      "deleting a still-mapped ring file on time-limit expiry (control test not yet run)"
+    ]
   }
 }
