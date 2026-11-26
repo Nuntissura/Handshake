@@ -1,4 +1,4 @@
-//! AC215-6: the hot path allocates nothing, present stalls and their events included; and MT-215 F2: a beat before the
+//! AC215-6: the hot path allocates nothing, beats during present stalls and the stall events included; and MT-215 F2: a beat before the
 //! diagnostics recorder has its ring writer neither creates the recorder nor allocates, so the writer can still be
 //! installed and the next beat reaches the ring.
 
@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use handshake_diag_ring::{DiagRingReader, DiagRingWriter, DEFAULT_CAPACITY};
-use support::RingFile;
+use support::{RingFile, TimeLimit, VIRTUAL_LIMIT};
 use ui_heartbeat::{
     EventLoopWake, FrameWait, ProcessClock, RecorderHeartbeat, UiHeartbeat, WakeOutcome,
     WakeRefused, WakeTicket, PRESENT_STALL,
@@ -96,6 +96,7 @@ impl FrameWait for &Stalls {
 
 #[test]
 fn wakes_turns_refusals_stalls_and_ignored_wakes_allocate_nothing() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let ring = RingFile::new("allocation");
     let writer = DiagRingWriter::create(ring.path(), DEFAULT_CAPACITY).expect("ring");
     let event_loop = SlotLoop::default();
@@ -109,6 +110,7 @@ fn wakes_turns_refusals_stalls_and_ignored_wakes_allocate_nothing() {
     heartbeat.start().expect("starts");
 
     let mut beats = 0_u64;
+    let mut beats_during_stalls = 0_u64;
     let before = allocations();
     for round in 0..10_000_u64 {
         event_loop.refuse.set(round % 7 == 0);
@@ -119,6 +121,9 @@ fn wakes_turns_refusals_stalls_and_ignored_wakes_allocate_nothing() {
         if let Some(ticket) = event_loop.slot.take() {
             if let WakeOutcome::Beat(_) = heartbeat.on_wake(&ticket) {
                 beats += 1;
+                if heartbeat.present_stalled() {
+                    beats_during_stalls += 1;
+                }
             }
             heartbeat.on_wake(&ticket);
         }
@@ -133,7 +138,10 @@ fn wakes_turns_refusals_stalls_and_ignored_wakes_allocate_nothing() {
     let counters = heartbeat.counters();
     assert!(counters.refused_wakes > 0);
     assert!(counters.present_stalls > 10, "{counters:?}");
-    assert!(counters.withheld_beats > 1_000, "{counters:?}");
+    assert!(
+        beats_during_stalls > 1_000,
+        "beats went on during the stalls (AC215-6): {beats_during_stalls}"
+    );
 
     // The counter itself works.
     let probe = std::hint::black_box(Box::new(1_u64));
@@ -184,6 +192,7 @@ fn install(writer: DiagRingWriter) -> bool {
 /// the recorder writerless, which would keep the ring silent for the whole session, nor allocate on the UI thread.
 #[test]
 fn a_beat_before_the_ring_writer_is_installed_leaves_the_recorder_to_be_installed() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let ring = RingFile::new("recorder-order");
     let writer = DiagRingWriter::create(ring.path(), DEFAULT_CAPACITY).expect("ring");
     let reader = DiagRingReader::open(ring.path()).expect("reader");

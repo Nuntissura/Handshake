@@ -10,9 +10,11 @@
 //!
 //! | Seen | Meaning | What to do |
 //! | --- | --- | --- |
-//! | `ShellHeartbeat::open` refused | the loop has ended, or has no lane left | none: the window crate's refusal |
+//! | `OpenRefused::AlreadyOpen` | a heartbeat of this loop lives already; one publisher per ring | keep the first |
+//! | `OpenRefused::Lane` | the loop has ended, or has no lane left | none: the window crate's refusal |
 //! | `StartRefused::NotLoopThread` | started off the loop's thread | start it in a handler |
-//! | `WakeOutcome::Withheld` | a watched window wanted a frame for 2 s and none was presented | the renderer's or the GPU's failure; Palmistry suspects, the ring holds a `SlowFrame` `Degraded` event |
+//! | a stale heartbeat | the UI thread is frozen, blocked or stuck in a handler | Palmistry confirms a freeze once the window does not answer |
+//! | `ShellHeartbeat::present_stalled`, a `SlowFrame` `Degraded` event in the ring | a watched window wanted a frame for 2 s and none was presented, while the heartbeat stays fresh | the renderer's or the GPU's failure; one `SlowFrame` `Recovered` event follows when frames present again |
 //! | `WakeOutcome::Ignored` | a wake of the heartbeat's lane that was late, duplicate or not asked for | nothing |
 //! | [`WatchRefused::Full`] | [`MAX_WATCHED_WINDOWS`] are watched | that window's presents are not watched |
 //! | `HeartbeatCounters::loop_closed` | the loop ended | none |
@@ -29,5 +31,5 @@ mod watches;
 pub mod heartbeat;
 
 #[cfg(windows)]
-pub use heartbeat::ShellHeartbeat;
+pub use heartbeat::{OpenRefused, ShellHeartbeat};
 pub use watches::{WatchRefused, MAX_WATCHED_WINDOWS};

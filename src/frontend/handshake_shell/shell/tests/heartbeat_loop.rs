@@ -2,8 +2,8 @@
 //! own: beats reach a real version 2 ring read from another thread; a wake of another lane never beats, whatever value
 //! it carries (MT-215 HB-7); posts of the heartbeat's wake that another loop throws away are posted again by the lane,
 //! with no loop turn to replace them (F1); a UI thread that blocks goes stale for longer than the watcher's threshold
-//! while another thread posts forged wake messages, and comes back with its cadence and no burst. One test, because a
-//! process has one loop.
+//! while another thread posts forged wake messages, and comes back with its cadence and no burst. A second heartbeat on
+//! the loop is refused (MT-215 E3), and the beat path allocates nothing (E6). One test, because a process has one loop.
 //!
 //! The host forwards no event but the loop's start and end to the heartbeat, so nothing but a dispatched wake of its
 //! lane can make it beat or ask for a wake.
@@ -12,6 +12,11 @@
 
 #[path = "../../surface/tests/support/mod.rs"]
 mod support;
+
+#[path = "../../../handshake_host_ports/ui_heartbeat/tests/support/limits.rs"]
+mod limits;
+
+mod allocations;
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -24,7 +29,7 @@ use std::time::{Duration, Instant};
 
 use handshake_diag_ring::ring::{DiagRingReaderV2, DiagRingWriterV2};
 use handshake_diag_ring::DEFAULT_CAPACITY;
-use handshake_shell::ShellHeartbeat;
+use handshake_shell::{OpenRefused, ShellHeartbeat};
 use handshake_shell_window::{Control, DispatchedWake, Event, LoopConfig, WakeLane};
 use ui_heartbeat::{WakeOutcome, MAX_BEAT_GAP, WAKE_DELAY};
 use windows_sys::Win32::Foundation::HWND;
@@ -32,9 +37,13 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     FindWindowW, PeekMessageW, PostMessageW, MSG, PM_REMOVE, WM_APP,
 };
 
+use allocations::Tally;
+use limits::{RingFile, TimeLimit};
 use support::desktop::{on_private_desktop, run_script, spawn_on_this_desktop, wide};
 
 const LIMIT: Duration = Duration::from_secs(120);
+/// Ends the test before the private desktop's watchdog does, so its ring file is removed first (MT-215 E7).
+const TIME_LIMIT: Duration = Duration::from_secs(110);
 const STEP_LIMIT: Duration = Duration::from_secs(20);
 const TICK: Duration = Duration::from_millis(10);
 const NONCE: [u8; 16] = [0x15; 16];
@@ -75,18 +84,6 @@ fn throw_wake_posts_away(span: Duration) -> usize {
         std::thread::sleep(Duration::from_millis(5));
     }
     thrown
-}
-
-/// A ring file in Cargo's temporary folder of the test target, inside the artifact root.
-fn ring_path(label: &str) -> PathBuf {
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("clock after 1970")
-        .as_nanos();
-    PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "shell-heartbeat-{label}-{}-{unique}.ring",
-        std::process::id()
-    ))
 }
 
 /// The heartbeat counter as another thread sees it, sampled every 20 ms until stopped.
@@ -165,6 +162,8 @@ struct Test {
     /// The value this lane's next wake carries.
     next_value: Cell<u64>,
     finished: Cell<bool>,
+    /// Allocations on the loop's thread inside the heartbeat's beats (MT-215 E6).
+    beats: Tally,
 }
 
 impl Test {
@@ -191,6 +190,13 @@ impl Test {
                     .expect("a lane for the heartbeat");
                 heartbeat.start().expect("starts on the loop's thread");
                 assert!(heartbeat.is_running());
+                // One heartbeat per loop (MT-215 E3): a second is refused before it takes a lane, its sink handed back.
+                let second = ShellHeartbeat::open(control, Instant::now(), None::<DiagRingWriterV2>);
+                match second {
+                    Err((OpenRefused::AlreadyOpen, sink)) => assert!(sink.is_none()),
+                    Err((other, _)) => panic!("a second heartbeat refused for {other:?}"),
+                    Ok(_) => panic!("a second heartbeat opened on the loop"),
+                }
                 *self.heartbeat.borrow_mut() = Some(heartbeat);
                 *self.lane.borrow_mut() = Some(control.open_wake_lane().expect("a lane"));
                 self.started.set(Instant::now());
@@ -206,7 +212,10 @@ impl Test {
     }
 
     fn wake(&self, control: &Control, wake: &DispatchedWake<'_>) {
-        let routed = self.with_heartbeat(|heartbeat| heartbeat.on_wake(wake));
+        let routed = self.with_heartbeat(|heartbeat| {
+            self.beats
+                .count(|| heartbeat.on_wake(wake), Option::is_some)
+        });
         if let Some(outcome) = routed {
             assert!(
                 matches!(outcome, WakeOutcome::Beat(_)),
@@ -267,7 +276,7 @@ fn steps() -> Vec<Step> {
                 // The ticket the heartbeat waits for is about one more than its requests so far. This lane's next
                 // wakes carry that number and the ones around it, one per tick.
                 let counters = test.with_heartbeat(ShellHeartbeat::counters);
-                let next = 1 + counters.beats + counters.withheld_beats + counters.replaced_wakes;
+                let next = 1 + counters.beats + counters.replaced_wakes;
                 let (_, since) = mark_b.get();
                 let elapsed = since.elapsed();
                 let offset = (elapsed.as_millis() / TICK.as_millis()) as u64;
@@ -372,8 +381,11 @@ fn steps() -> Vec<Step> {
 
 #[test]
 fn the_heartbeat_beats_from_the_loops_wakes_only() {
-    on_private_desktop(LIMIT, || {
-        let path = ring_path("loop");
+    let _limit = TimeLimit::new(TIME_LIMIT);
+    // Out here, so a failure on the loop's thread still unwinds to it and removes the file (MT-215 E7).
+    let ring = RingFile::new("loop");
+    let path = ring.path().to_owned();
+    on_private_desktop(LIMIT, move || {
         let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, NONCE).expect("the ring");
         let reader = DiagRingReaderV2::open(&path, NONCE).expect("the reader");
         let test = Rc::new(Test {
@@ -387,6 +399,7 @@ fn the_heartbeat_beats_from_the_loops_wakes_only() {
             other_wakes: Cell::new(0),
             next_value: Cell::new(0),
             finished: Cell::new(false),
+            beats: Tally::default(),
         });
         let (events, wakes) = (Rc::clone(&test), Rc::clone(&test));
         let report = run_script(
@@ -413,11 +426,18 @@ fn the_heartbeat_beats_from_the_loops_wakes_only() {
         assert_eq!(counters.replaced_wakes, 0, "{counters:?}");
         assert!(counters.overdue_beats >= 2, "the two long handlers were seen: {counters:?}");
         assert!(!counters.loop_closed);
+        assert!(test.beats.runs() >= 15, "beats counted: {}", test.beats.runs());
+        assert_eq!(
+            test.beats.allocations(),
+            0,
+            "allocations on the beat path over {} beats",
+            test.beats.runs()
+        );
         let last = heartbeat.last_beat();
         let writer = heartbeat.into_sink();
         assert_eq!(test.reader.read_heartbeat(), last);
         drop(writer);
         drop(test);
-        let _ = std::fs::remove_file(&path);
     });
+    drop(ring);
 }

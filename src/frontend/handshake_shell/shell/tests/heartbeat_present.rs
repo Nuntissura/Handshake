@@ -1,18 +1,22 @@
 //! The heartbeat on the presenter's real loop with a real window on this machine's device, quiet, at the bottom of a
 //! private desktop that receives no input, in a process of its own (MT-215 HB-4). The window that presents is watched
 //! from the moment it exists and beats go on while it presents; once the GPU owner revokes the window's client, its
-//! frames fail, the next one is wanted and never presented, and beats are withheld while the loop keeps dispatching,
-//! with one typed stall event in the ring; once the window cannot show a frame any more (minimised), beats come back,
-//! with one recovery event.
+//! frames fail, the next one is wanted and never presented, and the ring holds one typed stall event while the beats
+//! go on, fresh, as the loop keeps dispatching (AC215-6); once the window cannot show a frame any more (minimised), the
+//! stall ends with one recovery event. The beat path, watched windows included, allocates nothing (E6).
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
 #[path = "../../surface/tests/support/mod.rs"]
 mod support;
 
+#[path = "../../../handshake_host_ports/ui_heartbeat/tests/support/limits.rs"]
+mod limits;
+
+mod allocations;
+
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -26,12 +30,17 @@ use handshake_shell_window::{
     ShellHost, WakeLane, WindowClass, WindowCommand, WindowEvent, WindowKey, WindowSpec,
 };
 use handshake_vulkan_renderer::{ClientId, ModuleId};
-use ui_heartbeat::{WakeOutcome, PRESENT_STALL};
+use ui_heartbeat::{WakeOutcome, PRESENT_STALL, WAKE_DELAY};
 
+use allocations::Tally;
+use limits::{RingFile, TimeLimit};
 use support::desktop::{must_stay_inactive, on_private_desktop, run_script, stop_watching};
 use support::gpu_env::{in_own_process, ran_in_its_own_process};
 
 const LIMIT: Duration = Duration::from_secs(100);
+/// Ends the test before the private desktop's watchdog and the parent process's deadline do, so its ring file is
+/// removed first (MT-215 E7).
+const TIME_LIMIT: Duration = Duration::from_secs(90);
 const STEP_LIMIT: Duration = Duration::from_secs(15);
 const TICK: Duration = Duration::from_millis(10);
 const MODULE: ModuleId = ModuleId(215);
@@ -62,6 +71,8 @@ struct App {
     window: Cell<Option<WindowKey>>,
     hwnd: Cell<isize>,
     shut: Cell<bool>,
+    /// Allocations on the loop's thread inside the heartbeat's beats (MT-215 E6).
+    beats: Tally,
 }
 
 impl App {
@@ -166,11 +177,14 @@ impl ShellApp for App {
     }
 
     fn on_wake(&self, shell: &Shell<'_>, wake: &DispatchedWake<'_>) {
-        let routed = self.with_heartbeat(|heartbeat| heartbeat.on_wake(wake));
+        let routed = self.with_heartbeat(|heartbeat| {
+            self.beats
+                .count(|| heartbeat.on_wake(wake), Option::is_some)
+        });
         if let Some(outcome) = routed {
             assert!(
-                matches!(outcome, WakeOutcome::Beat(_) | WakeOutcome::Withheld { .. }),
-                "{outcome:?}"
+                matches!(outcome, WakeOutcome::Beat(_)),
+                "every wake of the heartbeat's lane beats (AC215-6): {outcome:?}"
             );
             return;
         }
@@ -234,23 +248,31 @@ fn steps() -> Vec<Step> {
             shell.damage(app.window()).expect("damaged");
             true
         }),
-        step("beats are withheld", move |_, app| {
+        step("the stall is recorded", move |_, app| {
             if !app.with_heartbeat(ShellHeartbeat::present_stalled) {
                 return false;
             }
             stalled.set((app.counter(), Instant::now()));
             true
         }),
-        step("no beat while the loop dispatches and nothing presents", move |_, app| {
+        step("beats go on while the loop dispatches and nothing presents", move |_, app| {
             let (at, since) = quiet.get();
-            assert_eq!(app.counter(), at, "a beat while the frame waited");
-            if since.elapsed() < Duration::from_secs(1) {
+            let elapsed = since.elapsed();
+            if elapsed < Duration::from_secs(1) {
                 return false;
             }
+            assert!(app.with_heartbeat(ShellHeartbeat::present_stalled), "the stall goes on");
+            // A beat every WAKE_DELAY on an idle loop; a third of them leaves room for a slow, emulated machine, while a
+            // heartbeat held back for the stall would show none.
+            let least = elapsed.as_millis() as u64 / WAKE_DELAY.as_millis() as u64 / 3;
+            let beats = app.counter() - at;
+            assert!(
+                beats >= least,
+                "{beats} beats in {elapsed:?} of a stalled present: the heartbeat must stay fresh (AC215-6)"
+            );
             let counters = app.with_heartbeat(ShellHeartbeat::counters);
-            assert!(counters.withheld_beats >= 5, "{counters:?}");
             assert_eq!(counters.present_stalls, 1);
-            assert_eq!(app.stall_events(DiagPhase::Degraded), 1);
+            assert_eq!(app.stall_events(DiagPhase::Degraded), 1, "the stall is told by its event");
             assert_eq!(app.stall_events(DiagPhase::Recovered), 0);
             true
         }),
@@ -261,33 +283,27 @@ fn steps() -> Vec<Step> {
                 .expect("minimised");
             true
         }),
-        step("beats come back", move |_, app| {
+        step("the stall ends, once", move |_, app| {
             let (at, _) = back.get();
             if app.with_heartbeat(ShellHeartbeat::present_stalled) || app.counter() <= at {
                 return false;
             }
+            assert_eq!(app.stall_events(DiagPhase::Degraded), 1);
             assert_eq!(app.stall_events(DiagPhase::Recovered), 1);
             true
         }),
     ]
 }
 
-fn ring_path() -> PathBuf {
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("clock after 1970")
-        .as_nanos();
-    PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "shell-heartbeat-present-{}-{unique}.ring",
-        std::process::id()
-    ))
-}
-
 #[test]
-fn a_stalled_present_withholds_beats_and_a_recovery_brings_them_back() {
+fn a_stalled_present_keeps_the_beat_and_is_recorded_once_each_way() {
     in_own_process!();
-    on_private_desktop(LIMIT, || {
-        let path = ring_path();
+    // In the test's own process only, so the parent never ends it.
+    let _limit = TimeLimit::new(TIME_LIMIT);
+    // Out here, so a failure on the loop's thread still unwinds to it and removes the file (MT-215 E7).
+    let ring = RingFile::new("present");
+    let path = ring.path().to_owned();
+    on_private_desktop(LIMIT, move || {
         let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, NONCE).expect("the ring");
         let reader = DiagRingReaderV2::open(&path, NONCE).expect("the reader");
         let config = PresentConfig::new(support::policy(), MODULE);
@@ -302,6 +318,7 @@ fn a_stalled_present_withholds_beats_and_a_recovery_brings_them_back() {
             window: Cell::new(None),
             hwnd: Cell::new(0),
             shut: Cell::new(false),
+            beats: Tally::default(),
         });
         let log = Arc::new(support::EventLog::default());
         let host = match PresentHost::open(config, log, app.clone()) {
@@ -326,13 +343,23 @@ fn a_stalled_present_withholds_beats_and_a_recovery_brings_them_back() {
         let counters = heartbeat.counters();
         assert_eq!(counters.present_stalls, 1, "{counters:?}");
         assert_eq!(counters.ignored_wakes, 0, "{counters:?}");
+        assert!(app.beats.runs() >= 10, "beats counted: {}", app.beats.runs());
+        assert_eq!(
+            app.beats.allocations(),
+            0,
+            "allocations on the beat path with a watched window, over {} beats",
+            app.beats.runs()
+        );
         println!(
-            "HSK_SHELL_HEARTBEAT beats={} withheld={} stalls={} overdue={}",
-            counters.beats, counters.withheld_beats, counters.present_stalls, counters.overdue_beats
+            "HSK_SHELL_HEARTBEAT beats={} stalls={} overdue={} counted_allocations={}",
+            counters.beats,
+            counters.present_stalls,
+            counters.overdue_beats,
+            app.beats.allocations()
         );
         drop(heartbeat.into_sink());
         drop(host);
         drop(app);
-        let _ = std::fs::remove_file(&path);
     });
+    drop(ring);
 }

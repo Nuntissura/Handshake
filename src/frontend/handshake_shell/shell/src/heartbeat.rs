@@ -5,18 +5,19 @@
 //! again until the loop dispatches it, with no more than four posts while the loop takes nothing out (MT-215 F1, F4);
 //! a newer request replaces one not dispatched; a message that anybody else posts or sends dispatches nothing; and the
 //! proof of a dispatch, [`DispatchedWake`], only the loop can make, so no handler can stand in for it (HB-7). The frames
-//! are the surface crate's present watches (HB-4): while a watched window has wanted a frame for
-//! `ui_heartbeat::PRESENT_STALL` without a present, beats are withheld.
+//! are the surface crate's present watches (HB-4): once a watched window has wanted a frame for
+//! `ui_heartbeat::PRESENT_STALL` without a present, the port records a typed stall event, and another when it ends.
+//! Beats go on meanwhile: every dispatched wake of the heartbeat's lane is a beat while the loop is alive (AC215-6).
 //!
-//! What reads the result: the standalone Palmistry watcher reads the ring's heartbeat slot (a frozen UI thread or a
-//! present stall goes stale; only the first is confirmed as a freeze, because the window of a live loop still
-//! answers), and the internal diagnostics and Palmistry's survivor record read the typed stall events in the same
-//! ring (`ui_heartbeat::HeartbeatEvent`).
+//! What reads the result: the standalone Palmistry watcher reads the ring's heartbeat slot, which goes stale when the UI
+//! thread freezes (a confirmed freeze once the window does not answer either); the internal diagnostics and
+//! Palmistry's survivor record read the typed stall events in the same ring (`ui_heartbeat::HeartbeatEvent`). A stale
+//! heartbeat is a frozen UI thread; a fresh heartbeat beside a stall event is a stalled present.
 //!
 //! # How a host uses it
 //!
 //! 1. On `Event::LoopStarted`, after the ring writer or the recorder exists: [`ShellHeartbeat::open`] with the sink,
-//!    then [`ShellHeartbeat::start`].
+//!    then [`ShellHeartbeat::start`]. One per loop.
 //! 2. In `ShellApp::on_event` call [`ShellHeartbeat::on_shell_event`] (with the window crate alone,
 //!    [`ShellHeartbeat::on_event`] and [`ShellHeartbeat::watch`]): it watches every window that presents, forgets it
 //!    when it is destroyed, takes resumes and stops at `Event::LoopEnding`.
@@ -24,9 +25,24 @@
 //!    that it belongs to another lane.
 //! 4. End the watcher while the loop still runs (`Event::ShutdownBegan`; MT-215 HB-3), then let the loop end.
 //!
-//! The sink is the port's for good: one publisher per ring. Nothing else in the shell writes the heartbeat slot
-//! (`tests/source_scan.rs`).
+//! # One heartbeat per loop (MT-215 E3)
+//!
+//! The ring's heartbeat slot takes one publisher, and the sink is the port's for good. [`ShellHeartbeat::open`]
+//! refuses a second heartbeat on a loop while the first lives ([`OpenRefused::AlreadyOpen`]); the port reaches its sink
+//! only with a token only the port makes (`ui_heartbeat::PortToken`); and `tests/source_scan.rs` reads every workspace
+//! member from the manifests and fails on any other writer of the slot, a second port or a second ring writer in
+//! product code.
+//!
+//! # What a beat waits for (MT-215 E6)
+//!
+//! The beat path allocates nothing (`tests/heartbeat_loop.rs` and `tests/heartbeat_present.rs` count it). It is
+//! bounded, not wait-free: it takes the heartbeat lane's slot lock, which the lane's pool timer callback holds for one
+//! slot step, at most one `PostMessageW` and one `SetThreadpoolTimer`, none of which waits; and each watched window's
+//! `PresentWatch` lock, which its writers hold for a copy of an `Arc` and an `Instant`. Wait-free reads would need the
+//! window and surface crates to keep that state in atomics.
 
+use std::cell::Cell;
+use std::marker::PhantomData;
 use std::time::Instant;
 
 use handshake_shell_surface::{PresentWatch, Shell};
@@ -40,6 +56,56 @@ use ui_heartbeat::{
 };
 
 use crate::watches::{WatchRefused, Watches};
+
+/// Why [`ShellHeartbeat::open`] opened nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OpenRefused {
+    /// A heartbeat of this loop lives already: the ring's heartbeat slot takes one publisher (MT-215 E3).
+    AlreadyOpen,
+    /// The window crate refused a wake lane: the loop has ended, or has no lane left.
+    Lane(LaneRefused),
+}
+
+impl OpenRefused {
+    /// A stable name, for diagnostics.
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::AlreadyOpen => "heartbeat.already_open",
+            Self::Lane(refused) => refused.code(),
+        }
+    }
+}
+
+thread_local! {
+    /// Whether a [`ShellHeartbeat`] lives on this thread. A loop runs on one thread and its `Control` cannot leave it,
+    /// so this is one heartbeat per loop.
+    static OPEN_ON_THIS_LOOP: Cell<bool> = const { Cell::new(false) };
+}
+
+/// This loop's one heartbeat, held as long as the [`ShellHeartbeat`] lives. Neither `Send` nor `Sync`: released on the
+/// thread that took it.
+struct LoopClaim(PhantomData<*const ()>);
+
+impl LoopClaim {
+    /// `None` while another heartbeat of this loop lives.
+    fn take() -> Option<Self> {
+        let free = OPEN_ON_THIS_LOOP
+            .try_with(|open| !open.replace(true))
+            .unwrap_or(false);
+        // Not `then_some`: a claim made and dropped when the loop is taken would free it.
+        if free {
+            Some(Self(PhantomData))
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for LoopClaim {
+    fn drop(&mut self) {
+        let _ = OPEN_ON_THIS_LOOP.try_with(|open| open.set(false));
+    }
+}
 
 /// The port's loop: one wake lane of the window crate.
 struct LaneWake {
@@ -78,10 +144,12 @@ impl EventLoopWake for LaneWake {
 
 /// The UI heartbeat of the shell: the port on one wake lane, watching the presents of the shell's windows.
 ///
-/// Lives on the loop's thread, as the port does: neither `Send` nor `Sync`.
+/// Lives on the loop's thread, as the port does: neither `Send` nor `Sync`. One per loop.
 pub struct ShellHeartbeat<S: HeartbeatSink> {
     port: UiHeartbeat<ProcessClock, LaneWake, S, Watches<PresentWatch>>,
     lane: LaneId,
+    /// Dropped last, once the lane is gone.
+    _one_per_loop: LoopClaim,
 }
 
 impl<S: HeartbeatSink> ShellHeartbeat<S> {
@@ -90,8 +158,12 @@ impl<S: HeartbeatSink> ShellHeartbeat<S> {
     ///
     /// # Errors
     ///
-    /// The window crate's refusal of a lane, with the sink handed back.
-    pub fn open(control: &Control, origin: Instant, sink: S) -> Result<Self, (LaneRefused, S)> {
+    /// [`OpenRefused`], with the sink handed back: a heartbeat of this loop lives already (then no lane is taken), or
+    /// the window crate refused a lane.
+    pub fn open(control: &Control, origin: Instant, sink: S) -> Result<Self, (OpenRefused, S)> {
+        let Some(claim) = LoopClaim::take() else {
+            return Err((OpenRefused::AlreadyOpen, sink));
+        };
         match control.open_wake_lane() {
             Ok(lane) => {
                 let id = lane.id();
@@ -103,9 +175,10 @@ impl<S: HeartbeatSink> ShellHeartbeat<S> {
                         Watches::new(),
                     ),
                     lane: id,
+                    _one_per_loop: claim,
                 })
             }
-            Err(refused) => Err((refused, sink)),
+            Err(refused) => Err((OpenRefused::Lane(refused), sink)),
         }
     }
 
@@ -203,7 +276,7 @@ impl<S: HeartbeatSink> ShellHeartbeat<S> {
         self.port.is_running()
     }
 
-    /// Whether beats are withheld for a present stall now.
+    /// Whether a present stall is under way, as of the heartbeat's last wake. Beats go on during one.
     pub fn present_stalled(&self) -> bool {
         self.port.present_stalled()
     }
@@ -216,5 +289,34 @@ impl<S: HeartbeatSink> ShellHeartbeat<S> {
     /// Stop, and hand back the sink, so the ring writer outlives the last beat.
     pub fn into_sink(self) -> S {
         self.port.into_sink()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_heartbeat_per_loop_until_it_is_dropped() {
+        let first = LoopClaim::take().expect("the first heartbeat of this loop");
+        assert!(
+            LoopClaim::take().is_none(),
+            "a second heartbeat on the same loop"
+        );
+        let elsewhere = std::thread::spawn(|| LoopClaim::take().is_some())
+            .join()
+            .expect("the other thread");
+        assert!(elsewhere, "a loop on another thread has its own");
+        drop(first);
+        assert!(LoopClaim::take().is_some(), "free once the first is gone");
+    }
+
+    #[test]
+    fn refusals_have_stable_names() {
+        assert_eq!(OpenRefused::AlreadyOpen.code(), "heartbeat.already_open");
+        assert_eq!(
+            OpenRefused::Lane(LaneRefused::Closed).code(),
+            "wake.closed"
+        );
     }
 }

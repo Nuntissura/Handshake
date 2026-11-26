@@ -3,14 +3,18 @@
 //!
 //! Time here is virtual, so nothing sleeps and every run is the same.
 //!
-//! Ring files live in Cargo's temporary folder of the test target, inside the artifact root, so one a failed test leaves
-//! mapped is not left outside it (MT-215 F5, CX-GIT-003).
+//! Ring files live in Cargo's temporary folder of the test target, inside the artifact root, and are removed however a
+//! test ends; every test keeps a time limit of its own ([`limits`]; MT-215 F5, E5, E7, CX-GIT-003).
 
 #![allow(dead_code)]
 
+pub mod limits;
+
+pub use limits::{RingFile, TimeLimit};
+
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -25,34 +29,16 @@ use ui_heartbeat::{
 /// How far the virtual clock moves per simulated step.
 pub const STEP: Duration = Duration::from_millis(5);
 
+/// The time limit of a test on the virtual clock: it sleeps nowhere, so it ends in well under a second when it keeps
+/// its bounds, also under emulation.
+pub const VIRTUAL_LIMIT: Duration = Duration::from_secs(60);
+
+/// The most wakes one call of [`Desk::dispatch_due`] dispatches. A port that keeps its contract has at most
+/// `MAX_OUTSTANDING_WAKES` due at once, and each asks for the next one later, not now.
+pub const MOST_DUE_AT_ONCE: u64 = 64;
+
 pub fn nanos(duration: Duration) -> u64 {
     u64::try_from(duration.as_nanos()).expect("test durations fit")
-}
-
-/// A ring backing file that removes itself. Declare it after everything that maps it.
-pub struct RingFile(PathBuf);
-
-impl RingFile {
-    pub fn new(label: &str) -> Self {
-        let unique = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock after 1970")
-            .as_nanos();
-        Self(Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
-            "ui-heartbeat-{label}-{}-{unique}.ring",
-            std::process::id()
-        )))
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for RingFile {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
 }
 
 #[derive(Clone, Default)]
@@ -335,10 +321,16 @@ impl Desk {
         desk
     }
 
-    /// Dispatch every wake that is due. Returns the beats published.
+    /// Dispatch every wake that is due, at most [`MOST_DUE_AT_ONCE`]. Returns the beats published.
     pub fn dispatch_due(&mut self) -> u64 {
         let mut beats = 0;
+        let mut dispatched = 0;
         while let Some(ticket) = self.event_loop.take_due() {
+            dispatched += 1;
+            assert!(
+                dispatched <= MOST_DUE_AT_ONCE,
+                "wakes keep coming due at once: the port asks for each next wake now"
+            );
             if let WakeOutcome::Beat(_) = self.heartbeat.on_wake(&ticket) {
                 beats += 1;
                 let now = self.clock.now();

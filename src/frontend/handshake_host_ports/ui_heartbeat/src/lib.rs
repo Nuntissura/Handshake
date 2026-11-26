@@ -10,18 +10,21 @@
 //!
 //! When the counter has changed, then since the previous value the event loop of the UI thread took a wake out of its
 //! own queue and ran the host's handler for it on that thread. So at that moment the thread was running, it was not
-//! blocked, deadlocked or stuck in a handler, and the loop (the outer one or a nested modal one) was dispatching. With
-//! a host that reports its frames ([`FrameWait`]), also: no frame had been wanted for [`PRESENT_STALL`] without a
-//! present. While one has, the port withholds its beats (MT-215 HB-4), so a loop that lives and shows nothing looks
-//! stale from a window that still answers, which the watcher reports as suspected, never as a confirmed freeze; the
-//! stall is recorded once as a typed event when it begins and once when it ends ([`HeartbeatEvent`]).
+//! blocked, deadlocked or stuck in a handler, and the loop (the outer one or a nested modal one) was dispatching.
+//! Every dispatched wake the port asked for is a beat while the loop is alive (AC215-6), whatever the host draws.
+//!
+//! With a host that reports its frames ([`FrameWait`]), the port also records, beside the beat and never instead of
+//! it, a typed event when a frame has been wanted for [`PRESENT_STALL`] without a present, and one when that ends
+//! ([`HeartbeatEvent`]; MT-215 HB-4). So the watcher has two independent signals: a stale heartbeat with a window that
+//! does not answer is a frozen UI thread; a fresh heartbeat with a stall event is a stalled present.
 //!
 //! No other thread can supply that proof through this port. [`UiHeartbeat`] is neither `Send` nor `Sync`, so another
 //! thread cannot publish through it, and [`UiHeartbeat::start`] refuses a thread that does not dispatch the loop.
 //! [`UiHeartbeat::on_wake`] takes the loop's own proof of a dispatch, not a ticket ([`EventLoopWake::Dispatched`]):
 //! with a loop whose proof only the loop can make, no handler can report a dispatch that did not happen (MT-215 HB-7).
 //! Wakes that another thread posts publish nothing until the UI thread dispatches one, and then one beat per wake the
-//! port asked for, not per post. Input, redraws and other events publish nothing either.
+//! port asked for, not per post. Input, redraws and other events publish nothing either. A sink is reached only with
+//! a [`PortToken`], which only the port makes, so no other code publishes through a sink it holds (MT-215 E3).
 //!
 //! # What a beat does not prove
 //!
@@ -60,7 +63,7 @@
 //! | [`WakeRefused::Unavailable`] | the loop did not take a wake | the beat goes stale until a loop turn gets one taken |
 //! | [`WakeRefused::LoopClosed`] | the loop has ended | the port stops; [`HeartbeatCounters::loop_closed`] |
 //! | [`IgnoredWake`] | a late, duplicate, foreign or unknown wake | nothing is published |
-//! | [`WakeOutcome::Withheld`] | frames wanted and none presented for [`PRESENT_STALL`] | no beat; one stall event |
+//! | [`HeartbeatEvent::PresentStalled`] in the ring, [`UiHeartbeat::present_stalled`] | a frame wanted and none presented for [`PRESENT_STALL`] | beats go on; one stall event at its start, one [`HeartbeatEvent::PresentRecovered`] at its end |
 //! | [`HeartbeatCounters::held_back_wakes`] | [`MAX_OUTSTANDING_WAKES`] outstanding | no more replacements; the loop broke its contract or takes nothing out |
 //! | [`HeartbeatCounters::overdue_beats`] | the loop was late but came back | recorded; the watcher applies its own threshold |
 //!
@@ -91,7 +94,7 @@ pub use events::HeartbeatEvent;
 pub use frames::{FrameWait, NoFrames};
 pub use handshake_diag_ring::Heartbeat;
 pub use port::{HeartbeatCounters, IgnoredWake, StartRefused, UiHeartbeat, WakeOutcome};
-pub use sink::{HeartbeatSink, RecorderHeartbeat};
+pub use sink::{HeartbeatSink, PortToken, RecorderHeartbeat};
 pub use wake::{EventLoopWake, WakeRefused, WakeTicket};
 
 use std::time::Duration;
@@ -120,8 +123,8 @@ pub const REFUSED_WAKE_RETRY: Duration = Duration::from_millis(50);
 /// contract holds one.
 pub const MAX_OUTSTANDING_WAKES: u64 = 4;
 
-/// How long a wanted frame may wait without a present before beats are withheld (MT-215 HB-4). Below the watcher's
-/// 5 s threshold, so a present stall is suspected within about 7 s of the first frame that was not presented.
+/// How long a wanted frame may wait without a present before the port records a present stall (MT-215 HB-4). Beats go
+/// on (AC215-6). Below the watcher's 5 s threshold, so the stall is in the ring before a freeze could be judged.
 pub const PRESENT_STALL: Duration = Duration::from_secs(2);
 
 const _: () = assert!(

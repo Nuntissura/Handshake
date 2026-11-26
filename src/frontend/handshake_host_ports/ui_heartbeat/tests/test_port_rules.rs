@@ -8,15 +8,17 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use handshake_diag_ring::{
-    DiagEvent, DiagEventCode, DiagPhase, DiagRingReader, DiagRingWriter, Heartbeat,
+    DiagEvent, DiagEventCode, DiagPhase, DiagRingReader, DiagRingWriter, DiagSeverity, Heartbeat,
     DEFAULT_CAPACITY,
 };
-use support::{nanos, ManualClock, ManualFrames, ManualLoop, RingFile, STEP};
+use support::{
+    nanos, ManualClock, ManualFrames, ManualLoop, RingFile, TimeLimit, STEP, VIRTUAL_LIMIT,
+};
 use ui_heartbeat::{
-    EventLoopWake, HeartbeatSink, IgnoredWake, ProcessClock, RecorderHeartbeat, StartRefused,
-    UiHeartbeat, WakeOutcome, WakeRefused, WakeTicket, HANDLER_ALLOWANCE, LOST_WAKE_GRACE,
-    MAX_BEAT_GAP, MAX_OUTSTANDING_WAKES, PRESENT_STALL, REFUSED_WAKE_RETRY, TIMER_GRANULARITY,
-    WAKE_DELAY,
+    EventLoopWake, HeartbeatSink, IgnoredWake, PortToken, ProcessClock, RecorderHeartbeat,
+    StartRefused, UiHeartbeat, WakeOutcome, WakeRefused, WakeTicket, HANDLER_ALLOWANCE,
+    LOST_WAKE_GRACE, MAX_BEAT_GAP, MAX_OUTSTANDING_WAKES, PRESENT_STALL, REFUSED_WAKE_RETRY,
+    TIMER_GRANULARITY, WAKE_DELAY,
 };
 
 /// Compiles only while `$type` does not implement `$trait`.
@@ -79,11 +81,11 @@ impl Published {
 }
 
 impl HeartbeatSink for Published {
-    fn publish(&self, beat: Heartbeat) {
+    fn publish(&self, beat: Heartbeat, _: &PortToken) {
         self.0.borrow_mut().push(beat);
     }
 
-    fn record(&self, event: DiagEvent) {
+    fn record(&self, event: DiagEvent, _: &PortToken) {
         self.1.borrow_mut().push(event);
     }
 }
@@ -185,6 +187,7 @@ fn inline_port() -> (
 
 #[test]
 fn nothing_is_published_before_the_loop_dispatches_the_first_wake() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::new();
     assert_eq!(bench.heartbeat.last_beat(), None);
     assert!(!bench.heartbeat.is_running());
@@ -199,6 +202,7 @@ fn nothing_is_published_before_the_loop_dispatches_the_first_wake() {
 
 #[test]
 fn start_is_refused_when_it_would_prove_nothing_or_again() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::new();
     bench.event_loop.refuse(Some(WakeRefused::Unavailable));
     assert_eq!(
@@ -216,6 +220,7 @@ fn start_is_refused_when_it_would_prove_nothing_or_again() {
 
 #[test]
 fn only_a_wake_the_port_asked_for_and_has_not_seen_beats() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     let (ticket, _) = bench.beat();
     let published = bench.published.count();
@@ -237,6 +242,7 @@ fn only_a_wake_the_port_asked_for_and_has_not_seen_beats() {
 
 #[test]
 fn posting_one_wake_many_times_gives_one_beat() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     bench.clock.advance(WAKE_DELAY);
     let ticket = bench.event_loop.take_due().expect("due");
@@ -250,6 +256,7 @@ fn posting_one_wake_many_times_gives_one_beat() {
 
 #[test]
 fn a_loop_that_dispatches_inside_the_request_does_not_beat() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let (port, looped, published) = inline_port();
     port.start().expect("starts");
     assert_eq!(
@@ -276,6 +283,7 @@ fn a_loop_that_dispatches_inside_the_request_does_not_beat() {
 
 #[test]
 fn stopping_inside_a_request_withdraws_the_wake_just_taken() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let (port, looped, published) = inline_port();
     looped.stop_inside.set(true);
     port.start().expect("the loop took the wake");
@@ -290,6 +298,7 @@ fn stopping_inside_a_request_withdraws_the_wake_just_taken() {
 
 #[test]
 fn a_lost_wake_is_replaced_by_a_turn_that_publishes_nothing() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     bench.event_loop.lose_pending();
     let published = bench.published.count();
@@ -309,6 +318,7 @@ fn a_lost_wake_is_replaced_by_a_turn_that_publishes_nothing() {
 
 #[test]
 fn a_wake_that_was_only_late_still_counts_and_the_chains_merge() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     let late = bench.event_loop.take_any().expect("in flight");
     bench.clock.advance(WAKE_DELAY + LOST_WAKE_GRACE);
@@ -331,6 +341,7 @@ fn a_wake_that_was_only_late_still_counts_and_the_chains_merge() {
 /// make the ones in flight worthless.
 #[test]
 fn a_slow_loop_keeps_beating() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     let turn = Duration::from_millis(900);
     let before = bench.published.count();
@@ -352,6 +363,7 @@ fn a_slow_loop_keeps_beating() {
 
 #[test]
 fn a_refused_wake_costs_no_beat_and_is_asked_for_again() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     bench.event_loop.refuse(Some(WakeRefused::Unavailable));
     bench.beat();
@@ -374,6 +386,7 @@ fn a_refused_wake_costs_no_beat_and_is_asked_for_again() {
 
 #[test]
 fn turns_and_resumes_publish_nothing() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     let before = bench.published.count();
     for _ in 0..1000 {
@@ -388,6 +401,7 @@ fn turns_and_resumes_publish_nothing() {
 /// dropped by the host after the last beat.
 #[test]
 fn stop_publishes_nothing_and_the_ring_outlives_the_last_beat() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let ring = RingFile::new("shutdown");
     let reader;
     {
@@ -429,6 +443,7 @@ fn stop_publishes_nothing_and_the_ring_outlives_the_last_beat() {
 
 #[test]
 fn into_sink_stops_first_and_dropping_publishes_nothing() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     let before = bench.published.count();
     let returned = bench.heartbeat.into_sink();
@@ -445,6 +460,7 @@ fn into_sink_stops_first_and_dropping_publishes_nothing() {
 /// AC215-6, MT-084 AC-004-5: without a ring writer the port runs and writes nowhere.
 #[test]
 fn without_a_ring_writer_it_runs_and_stays_silent() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let clock = ManualClock::default();
     let event_loop = ManualLoop::new(clock.clone());
     let heartbeat = UiHeartbeat::new(clock.clone(), event_loop.clone(), None::<DiagRingWriter>);
@@ -471,6 +487,7 @@ fn recorder_heartbeat(counter: u64, timestamp_nanos: u64) {
 
 #[test]
 fn the_recorder_gets_the_counter_first_and_the_time_second() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let clock = ManualClock::default();
     clock.set(777);
     let event_loop = ManualLoop::new(clock.clone());
@@ -515,6 +532,7 @@ impl EventLoopWake for Vouching {
 /// port waits for, but that the loop did not dispatch for it, publishes nothing and leaves the ticket redeemable.
 #[test]
 fn a_wake_the_loop_does_not_vouch_for_publishes_nothing() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let clock = ManualClock::default();
     let event_loop = ManualLoop::new(clock.clone());
     let published = Published::default();
@@ -551,6 +569,7 @@ fn a_wake_the_loop_does_not_vouch_for_publishes_nothing() {
 /// MT-215 F4: a loop that has ended is asked nothing more, however many turns and resumes follow.
 #[test]
 fn a_closed_loop_ends_the_heartbeat_and_is_asked_nothing_more() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     bench.event_loop.refuse(Some(WakeRefused::LoopClosed));
     bench.beat();
@@ -584,6 +603,7 @@ fn a_closed_loop_ends_the_heartbeat_and_is_asked_nothing_more() {
 /// port's wakes, however many turns and resumes come meanwhile; once it dispatches one, the chain goes on.
 #[test]
 fn outstanding_wakes_are_bounded_however_long_the_loop_takes_nothing_out() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let bench = Bench::running();
     assert_eq!(bench.event_loop.pending(), 1);
     for turn in 0..72_000 {
@@ -618,10 +638,12 @@ fn outstanding_wakes_are_bounded_however_long_the_loop_takes_nothing_out() {
     assert_eq!(bench.event_loop.pending(), 1, "one chain again");
 }
 
-/// MT-215 HB-4: while a frame has waited `PRESENT_STALL` without a present, dispatched wakes go on but publish no beat;
-/// the stall is recorded once when it begins and once when it ends, and the first beat after it is not overdue.
+/// AC215-6 with MT-215 HB-4: while a frame has waited `PRESENT_STALL` without a present, every dispatched wake still
+/// beats; the stall is a typed event beside the beats, recorded once when it begins and once when it ends, with only
+/// the fields `SlowFrame` documents (E4).
 #[test]
-fn a_present_stall_withholds_beats_and_is_recorded_once_each_way() {
+fn a_present_stall_keeps_every_beat_and_is_recorded_once_each_way() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let clock = ManualClock::default();
     clock.set(nanos(Duration::from_secs(1)));
     let event_loop = ManualLoop::new(clock.clone());
@@ -641,48 +663,71 @@ fn a_present_stall_withholds_beats_and_is_recorded_once_each_way() {
     assert!(matches!(dispatch(), WakeOutcome::Beat(_)));
 
     frames.want();
-    let mut beats_while_waiting = 0;
-    let first_withheld = loop {
-        match dispatch() {
-            WakeOutcome::Beat(_) => beats_while_waiting += 1,
-            WakeOutcome::Withheld { frame_wait } => break frame_wait,
-            other => panic!("{other:?}"),
+    // Bounded (MT-215 E5): the stall begins within `PRESENT_STALL` of the want, a wake every `WAKE_DELAY`.
+    let most = PRESENT_STALL.as_millis() / WAKE_DELAY.as_millis() + 2;
+    let mut beats_before_the_stall = 0;
+    for _ in 0..most {
+        let outcome = dispatch();
+        assert!(
+            matches!(outcome, WakeOutcome::Beat(_)),
+            "every dispatched wake beats (AC215-6): {outcome:?}"
+        );
+        if heartbeat.present_stalled() {
+            break;
         }
-    };
-    assert!(first_withheld >= PRESENT_STALL);
-    assert!(first_withheld < PRESENT_STALL + WAKE_DELAY + WAKE_DELAY);
+        beats_before_the_stall += 1;
+    }
+    assert!(heartbeat.present_stalled(), "the stall began within {most} wakes");
     assert!(
-        beats_while_waiting >= 18,
-        "beats go on below the stall: {beats_while_waiting}"
+        beats_before_the_stall >= 18,
+        "a stall only after PRESENT_STALL: {beats_before_the_stall}"
     );
-    let last = heartbeat.last_beat().expect("beat before");
-    assert!(heartbeat.present_stalled());
+    let events = published.events();
+    assert_eq!(events.len(), 1, "the stall is recorded when it begins");
+    let stalled = events[0];
+    assert_eq!(stalled.event_code, DiagEventCode::SlowFrame.as_u16());
+    assert_eq!(stalled.phase_marker, DiagPhase::Degraded.as_u8());
+    assert_eq!(stalled.severity, DiagSeverity::Warn.as_u8());
+    assert!(stalled.metric_micros >= nanos(PRESENT_STALL) / 1_000);
+    assert!(stalled.metric_micros < nanos(PRESENT_STALL + WAKE_DELAY + WAKE_DELAY) / 1_000);
+    assert_eq!(
+        (stalled.counter_a, stalled.counter_b),
+        (0, 0),
+        "SlowFrame's counter_a is a frame index, which the port does not know (MT-215 E4)"
+    );
 
+    let last = heartbeat.last_beat().expect("a beat at the stall's start");
     let published_before = published.count();
     for _ in 0..30 {
-        assert!(matches!(dispatch(), WakeOutcome::Withheld { .. }));
+        let outcome = dispatch();
+        assert!(
+            matches!(outcome, WakeOutcome::Beat(_)),
+            "a stalled present keeps the heartbeat fresh (AC215-6): {outcome:?}"
+        );
     }
-    assert_eq!(published.count(), published_before, "no beat during the stall");
+    assert_eq!(published.count(), published_before + 30, "a beat for every dispatched wake");
+    assert_eq!(heartbeat.last_beat().map(|beat| beat.counter), Some(last.counter + 30));
+    assert!(heartbeat.present_stalled());
     assert_eq!(event_loop.pending(), 1, "the chain goes on");
-    let events = published.events();
-    assert_eq!(events.len(), 1, "the stall is recorded once");
-    assert_eq!(events[0].event_code, DiagEventCode::SlowFrame.as_u16());
-    assert_eq!(events[0].phase_marker, DiagPhase::Degraded.as_u8());
-    assert_eq!(events[0].counter_a, last.counter);
+    assert_eq!(published.events().len(), 1, "the stall is recorded once");
 
     frames.presented();
     let WakeOutcome::Beat(beat) = dispatch() else {
         panic!("a beat once the frame was presented");
     };
-    assert_eq!(beat.counter, last.counter + 1);
+    assert_eq!(beat.counter, last.counter + 31);
     let events = published.events();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 2, "and once when it ends");
+    assert_eq!(events[1].event_code, DiagEventCode::SlowFrame.as_u16());
     assert_eq!(events[1].phase_marker, DiagPhase::Recovered.as_u8());
-    assert!(events[1].metric_micros >= events[0].metric_micros + 3_000_000);
+    assert_eq!(events[1].severity, DiagSeverity::Info.as_u8());
+    assert_eq!((events[1].counter_a, events[1].counter_b), (0, 0));
+    assert!(events[1].metric_micros >= stalled.metric_micros + 3_000_000, "the longest wait seen");
+    assert!(events[1].sequence_id > stalled.sequence_id);
     let counters = heartbeat.counters();
     assert_eq!(counters.present_stalls, 1);
-    assert_eq!(counters.withheld_beats, 31);
-    assert_eq!(counters.overdue_beats, 0, "the gap of a stall is explained");
+    assert_eq!(counters.beats, published.count() as u64);
+    assert_eq!(counters.overdue_beats, 0, "no gap: beats never stopped");
     assert!(!heartbeat.present_stalled());
 }
 
@@ -690,6 +735,7 @@ fn a_present_stall_withholds_beats_and_is_recorded_once_each_way() {
 /// `HANDLER_ALLOWANCE` runs when it comes due; with the earlier 200 ms delay it did not beyond about 35 ms.
 #[test]
 fn the_next_wake_leaves_room_for_the_timer_and_a_handler() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     assert!(HANDLER_ALLOWANCE >= Duration::from_millis(100));
     let bench = Bench::running();
     assert_eq!(bench.event_loop.last_delay(), WAKE_DELAY);
@@ -697,17 +743,22 @@ fn the_next_wake_leaves_room_for_the_timer_and_a_handler() {
         .event_loop
         .set_latency(TIMER_GRANULARITY + HANDLER_ALLOWANCE);
     let mut at = bench.clock.now();
+    // Bounded (MT-215 E5): a wake that is not due a step past `MAX_BEAT_GAP` fails the gap below anyway.
+    let steps = MAX_BEAT_GAP.as_millis() / STEP.as_millis() + 2;
     for _ in 0..100 {
-        loop {
+        let mut beat = false;
+        for _ in 0..steps {
             bench.clock.advance(STEP);
             if let Some(ticket) = bench.event_loop.take_due() {
                 assert!(matches!(
                     bench.heartbeat.on_wake(&ticket),
                     WakeOutcome::Beat(_)
                 ));
+                beat = true;
                 break;
             }
         }
+        assert!(beat, "no wake came due within {steps} steps");
         let gap = Duration::from_nanos(bench.clock.now() - at);
         assert!(gap <= MAX_BEAT_GAP, "{gap:?}");
         at = bench.clock.now();

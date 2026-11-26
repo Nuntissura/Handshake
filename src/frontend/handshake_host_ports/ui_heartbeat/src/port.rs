@@ -9,7 +9,7 @@ use handshake_diag_ring::Heartbeat;
 use crate::clock::MonotonicClock;
 use crate::events::HeartbeatEvent;
 use crate::frames::{FrameWait, NoFrames};
-use crate::sink::HeartbeatSink;
+use crate::sink::{HeartbeatSink, PortToken};
 use crate::wake::{EventLoopWake, WakeRefused, WakeTicket};
 use crate::{
     LOST_WAKE_GRACE, MAX_BEAT_GAP, MAX_OUTSTANDING_WAKES, PRESENT_STALL, REFUSED_WAKE_RETRY,
@@ -33,14 +33,9 @@ pub enum StartRefused {
 /// What became of one dispatched wake.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WakeOutcome {
-    /// The wake proved the loop is being serviced and this beat was published.
+    /// The wake proved the loop is being serviced and this beat was published: every wake the port asked for and the
+    /// loop dispatched, also while a present stalls (AC215-6; the stall is a typed event beside the beat, MT-215 HB-4).
     Beat(Heartbeat),
-    /// The loop is serviced, but a frame has waited [`PRESENT_STALL`] without a present: no beat, so the watcher sees
-    /// the stall (MT-215 HB-4). The next wake was asked for as usual.
-    Withheld {
-        /// How long that frame has waited.
-        frame_wait: Duration,
-    },
     /// Nothing was published.
     Ignored(IgnoredWake),
 }
@@ -65,8 +60,7 @@ pub enum IgnoredWake {
 pub struct HeartbeatCounters {
     /// Beats published.
     pub beats: u64,
-    /// Beats that came more than [`MAX_BEAT_GAP`] after the one before and were not explained by a system resume or a
-    /// present stall.
+    /// Beats that came more than [`MAX_BEAT_GAP`] after the one before and were not explained by a system resume.
     pub overdue_beats: u64,
     /// The longest such gap, in nanoseconds.
     pub longest_gap_nanos: u64,
@@ -80,9 +74,7 @@ pub struct HeartbeatCounters {
     pub refused_wakes: u64,
     /// Dispatched wakes that published nothing.
     pub ignored_wakes: u64,
-    /// Dispatched wakes whose beat was withheld for a present stall (MT-215 HB-4).
-    pub withheld_beats: u64,
-    /// Present stalls that began.
+    /// Present stalls that began (MT-215 HB-4). Each is one typed event when it begins and one when it ends.
     pub present_stalls: u64,
     /// Beats for which the clock read earlier than at the beat before.
     pub clock_regressions: u64,
@@ -108,15 +100,11 @@ struct Wakes {
     replace_at_nanos: u64,
     /// The next beat follows a reported system resume.
     resumed: bool,
-    /// The next beat follows withheld ones, so its gap is explained.
-    after_withheld: bool,
 }
 
 /// A present stall under way.
 #[derive(Clone, Copy)]
 struct Stall {
-    /// The counter of the last beat before it.
-    last_counter: u64,
     /// The longest wait seen.
     longest: Duration,
 }
@@ -165,7 +153,8 @@ where
     S: HeartbeatSink,
     F: FrameWait,
 {
-    /// A heartbeat that has not started and withholds its beats while `frames` reports a present stall.
+    /// A heartbeat that has not started and records a typed event when `frames` reports a present stall, and another
+    /// when it ends. Its beats do not depend on `frames` (AC215-6).
     pub fn with_frames(clock: C, event_loop: L, sink: S, frames: F) -> Self {
         Self {
             clock,
@@ -212,7 +201,8 @@ where
         requested.map_err(StartRefused::Wake)
     }
 
-    /// The loop dispatched `wake`: publish a beat, or withhold it during a present stall, and ask for the next wake.
+    /// The loop dispatched `wake`: publish a beat and ask for the next wake. A present stall that begins or ends here is
+    /// recorded as a typed event beside the beat, never instead of it (AC215-6, MT-215 HB-4).
     ///
     /// `wake` is the loop's own proof of the dispatch ([`EventLoopWake::Dispatched`]); the loop says which ticket it
     /// carries, and a wake it did not dispatch for the port publishes nothing (MT-215 HB-7).
@@ -234,21 +224,13 @@ where
             return self.ignored(IgnoredWake::AlreadyRedeemed);
         }
 
-        // The beat comes before the next request, so a loop that refuses the next wake cannot cost this one.
+        // The beat comes before the next request, so a loop that refuses the next wake cannot cost this one. A present
+        // stall changes what is recorded beside it, not whether it is published: a frozen UI thread goes stale, a
+        // stalled present shows as a fresh heartbeat plus its typed event, and the watcher can tell the two apart.
         let now = self.clock.now_nanos();
-        let outcome = match self.present_stall(now) {
-            Some(frame_wait) => {
-                self.count(|counters| counters.withheld_beats = counters.withheld_beats.saturating_add(1));
-                wakes.after_withheld = true;
-                WakeOutcome::Withheld { frame_wait }
-            }
-            None => {
-                let beat = self.publish(now, wakes.resumed, wakes.after_withheld);
-                wakes.resumed = false;
-                wakes.after_withheld = false;
-                WakeOutcome::Beat(beat)
-            }
-        };
+        self.track_present_stall(now);
+        let beat = self.publish(now, wakes.resumed);
+        wakes.resumed = false;
 
         wakes.redeemed = ticket.number();
         wakes.replace_at_nanos = now.saturating_add(nanos(LOST_WAKE_GRACE));
@@ -258,7 +240,7 @@ where
         if wakes.redeemed == wakes.requested {
             let _ = self.request_wake(now, WAKE_DELAY);
         }
-        outcome
+        WakeOutcome::Beat(beat)
     }
 
     /// The loop dispatched something else (input, resize, redraw, a user event). Publishes nothing.
@@ -334,7 +316,7 @@ where
         self.counters.get()
     }
 
-    /// Whether beats are withheld for a present stall now.
+    /// Whether a present stall is under way, as of the last dispatched wake. Beats go on during one.
     pub fn present_stalled(&self) -> bool {
         self.stall.get().is_some()
     }
@@ -350,46 +332,32 @@ where
         self.counters.set(counters);
     }
 
-    /// `Some` with the frame's wait while beats are withheld. Records the stall once when it begins and once when it
-    /// ends.
-    fn present_stall(&self, now: u64) -> Option<Duration> {
-        let wait = self.frames.longest_wait();
-        let stalled = wait.filter(|wait| *wait >= PRESENT_STALL);
+    /// Records a present stall once when it begins and once when it ends. Decides nothing about the beat.
+    fn track_present_stall(&self, now: u64) {
+        let stalled = self
+            .frames
+            .longest_wait()
+            .filter(|wait| *wait >= PRESENT_STALL);
         match (self.stall.get(), stalled) {
-            (None, None) => None,
+            (None, None) => {}
             (None, Some(waited)) => {
-                let last_counter = self.last_beat.get().counter;
-                self.stall.set(Some(Stall {
-                    last_counter,
-                    longest: waited,
-                }));
+                self.stall.set(Some(Stall { longest: waited }));
                 self.count(|counters| counters.present_stalls = counters.present_stalls.saturating_add(1));
-                self.record(
-                    now,
-                    HeartbeatEvent::PresentStalled {
-                        last_counter,
-                        waited,
-                    },
-                );
-                Some(waited)
+                self.record(now, HeartbeatEvent::PresentStalled { waited });
             }
             (Some(stall), Some(waited)) => {
                 self.stall.set(Some(Stall {
                     longest: stall.longest.max(waited),
-                    ..stall
                 }));
-                Some(waited)
             }
             (Some(stall), None) => {
                 self.stall.set(None);
                 self.record(
                     now,
                     HeartbeatEvent::PresentRecovered {
-                        last_counter: stall.last_counter,
                         waited: stall.longest,
                     },
                 );
-                None
             }
         }
     }
@@ -397,10 +365,11 @@ where
     fn record(&self, now: u64, event: HeartbeatEvent) {
         let sequence = self.events.get().saturating_add(1);
         self.events.set(sequence);
-        self.sink.record(event.to_diag_event(sequence, now));
+        self.sink
+            .record(event.to_diag_event(sequence, now), &PortToken::new());
     }
 
-    fn publish(&self, now: u64, resumed: bool, after_withheld: bool) -> Heartbeat {
+    fn publish(&self, now: u64, resumed: bool) -> Heartbeat {
         let last = self.last_beat.get();
         let mut counters = self.counters.get();
         if self.last_beat().is_some() {
@@ -408,7 +377,7 @@ where
             let gap = now.saturating_sub(previous);
             if resumed {
                 counters.resumes = counters.resumes.saturating_add(1);
-            } else if gap > nanos(MAX_BEAT_GAP) && !after_withheld {
+            } else if gap > nanos(MAX_BEAT_GAP) {
                 counters.overdue_beats = counters.overdue_beats.saturating_add(1);
                 counters.longest_gap_nanos = counters.longest_gap_nanos.max(gap);
             }
@@ -426,7 +395,7 @@ where
         self.last_beat.set(beat);
         self.last_beat_read_nanos.set(now);
         self.counters.set(counters);
-        self.sink.publish(beat);
+        self.sink.publish(beat, &PortToken::new());
         beat
     }
 

@@ -1,9 +1,11 @@
 //! Frames the host wants and has not presented (MT-215 HB-4).
 //!
 //! A dispatched wake proves the loop runs; it cannot tell a loop that wants frames and never presents one. So a host
-//! that presents gives the port what it knows about its frames, and while one has waited [`crate::PRESENT_STALL`] the
-//! port withholds its beats: the watcher sees a stale heartbeat from a window that still answers, which it reports as
-//! suspected, not as a confirmed freeze. The stall is recorded once as a typed event, and once more when it ends.
+//! that presents gives the port what it knows about its frames, and once one has waited [`crate::PRESENT_STALL`] the
+//! port records a typed stall event in the ring, and another when the stall ends. Its beats go on meanwhile (AC215-6):
+//! the heartbeat says whether the UI thread is serviced, the stall event whether it presents, and a watcher reads the
+//! two apart. A stale heartbeat from a window that does not answer is a frozen UI thread; a fresh heartbeat beside a
+//! stall event is a stalled present.
 
 use std::time::Duration;
 

@@ -1,17 +1,48 @@
 //! Source scans with the window crate's scanner (comments and literals blanked, so naming a call is not making one):
-//! one publisher of the ring's heartbeat slot across the shell and the host ports (MT-215 HB-7); no window library,
-//! graphics binding, Win32 type or unsafe code in this crate's code, and only its three dependencies (AC214-1,
-//! AC215-1); nothing here moves focus or the cursor or injects input (HBR-QUIET); every loop of a test on a private
-//! desktop.
+//! over every member of the shell's and the ports' workspaces, read from their manifests so a new member is scanned
+//! without editing this file (MT-215 E3), one publisher of the ring's heartbeat slot, one heartbeat port and one ring
+//! writer in product code (HB-7, E3); no window library, graphics binding, Win32 type or unsafe code in this crate's
+//! code, and only its three dependencies (AC214-1, AC215-1); nothing here moves focus or the cursor or injects input
+//! (HBR-QUIET); every loop of a test on a private desktop; and every ring file of a test removed by its guard (E7).
 
 #[path = "../../window/tests/source/mod.rs"]
 mod source;
 
+#[path = "../../../handshake_host_ports/ui_heartbeat/tests/support/limits.rs"]
+mod limits;
+
+use std::path::Path;
+use std::time::Duration;
+
+use limits::TimeLimit;
 use source::{below, code_only, lines_with, Source};
+
+/// The time limit of a scan: it reads a few hundred files.
+const LIMIT: Duration = Duration::from_secs(60);
+
+/// The workspaces whose members are scanned, as folders relative to this crate.
+const WORKSPACES: &[&str] = &["..", "../../handshake_host_ports"];
+
+/// Members that must be among them, so a manifest the parser misreads cannot shrink the scan unnoticed.
+const KNOWN_MEMBERS: &[&str] = &[
+    "../window",
+    "../surface",
+    "../shell",
+    "../../handshake_host_ports/ui_heartbeat",
+];
+
+/// The port's own code, which defines what the rules below forbid elsewhere.
+const PORT_SRC: &str = "../../handshake_host_ports/ui_heartbeat/src/";
+
+/// The shell's adapter: the one place in product code that makes the port and names its sink.
+const ADAPTER: &str = "../shell/src/heartbeat.rs";
 
 /// What writes the heartbeat slot or stands in for the port's beat: the ring's writer call, the native host's recorder
 /// call and its per-frame bump.
 const PUBLISHERS: &[&str] = &["write_heartbeat", "bump_heartbeat", "RecorderHeartbeat"];
+
+/// What makes a ring writer: the ring's only writer constructors (`handshake_native/diag_ring/src/ring.rs`).
+const RING_WRITERS: &[&str] = &["DiagRingWriter::create", "DiagRingWriterV2::create"];
 
 /// Not in this crate's code at all: they come through the Handshake crates, privately.
 const LIBRARIES: &[&str] = &[
@@ -73,36 +104,201 @@ fn lines(sources: &[Source], words: &[&str]) -> Vec<String> {
     found
 }
 
-#[test]
-fn the_heartbeat_slot_has_one_publisher_in_the_shell_and_the_ports() {
-    let shell: Vec<Source> = ["src", "../window/src", "../surface/src"]
-        .iter()
-        .flat_map(|folder| below(folder))
-        .collect();
-    assert!(shell.len() >= 40, "the scan reads the shell: {}", shell.len());
-    let found = lines(&shell, PUBLISHERS);
-    assert!(found.is_empty(), "the shell writes the heartbeat past the port: {found:#?}");
+fn sample(path: &str, code: &str) -> Source {
+    Source {
+        path: path.to_owned(),
+        code: code_only(code),
+    }
+}
 
-    let port = below("../../handshake_host_ports/ui_heartbeat/src");
+/// The `members` of a manifest's `[workspace]` table.
+fn workspace_members(manifest: &str) -> Vec<String> {
+    let code = manifest
+        .lines()
+        .map(|line| line.split('#').next().unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let table = code
+        .split("[workspace]")
+        .nth(1)
+        .expect("a [workspace] table");
+    let table = table.split("\n[").next().unwrap_or(table);
+    let list = table
+        .split_once("members")
+        .and_then(|(_, rest)| rest.split_once('['))
+        .and_then(|(_, rest)| rest.split_once(']'))
+        .map(|(list, _)| list)
+        .expect("a members list");
+    list.split(',')
+        .map(|member| member.trim().trim_matches('"').to_owned())
+        .filter(|member| !member.is_empty())
+        .collect()
+}
+
+/// Every member of the scanned workspaces, as a folder relative to this crate.
+fn members() -> Vec<String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut folders = Vec::new();
+    for workspace in WORKSPACES {
+        let manifest = std::fs::read_to_string(root.join(workspace).join("Cargo.toml"))
+            .expect("the workspace's manifest");
+        for member in workspace_members(&manifest) {
+            assert!(
+                !member.contains('*'),
+                "{workspace}: the glob member {member} is not expanded by this scan"
+            );
+            folders.push(format!("{workspace}/{member}"));
+        }
+    }
+    folders
+}
+
+/// The product code of every member: its `src`.
+fn product_sources() -> Vec<Source> {
+    let members = members();
+    for known in KNOWN_MEMBERS {
+        assert!(
+            members.iter().any(|member| member == known),
+            "{known} is not among the members read: {members:#?}"
+        );
+    }
+    members
+        .iter()
+        .flat_map(|member| {
+            let sources = below(&format!("{member}/src"));
+            assert!(!sources.is_empty(), "{member}/src holds no Rust code");
+            sources
+        })
+        .collect()
+}
+
+fn outside_the_port(sources: &[Source]) -> Vec<Source> {
+    sources
+        .iter()
+        .filter(|source| !source.path.starts_with(PORT_SRC))
+        .map(|source| Source {
+            path: source.path.clone(),
+            code: source.code.clone(),
+        })
+        .collect()
+}
+
+/// What writes the heartbeat slot past the port.
+fn slot_writers(sources: &[Source]) -> Vec<String> {
+    lines(&outside_the_port(sources), PUBLISHERS)
+}
+
+/// What names the port or its sink outside the port and the shell's adapter: a second port, or a second publisher
+/// through a sink (the eval's mutation S4).
+fn port_users_besides_the_adapter(sources: &[Source]) -> Vec<String> {
+    let besides: Vec<Source> = outside_the_port(sources)
+        .into_iter()
+        .filter(|source| source.path != ADAPTER)
+        .collect();
+    lines(&besides, &["UiHeartbeat", "HeartbeatSink", "PortToken"])
+}
+
+/// Where the port is made.
+fn ports_made(sources: &[Source]) -> Vec<String> {
+    lines(
+        &outside_the_port(sources),
+        &["UiHeartbeat::new", "UiHeartbeat::with_frames"],
+    )
+}
+
+/// Where a shell heartbeat is opened.
+fn shell_heartbeats_opened(sources: &[Source]) -> Vec<String> {
+    lines(sources, &["ShellHeartbeat::open"])
+}
+
+/// Where a ring writer is made.
+fn ring_writers_made(sources: &[Source]) -> Vec<String> {
+    lines(sources, RING_WRITERS)
+}
+
+#[test]
+fn every_member_of_both_workspaces_is_read_from_the_manifests() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = product_sources();
+    assert!(sources.len() >= 50, "the scan reads the members: {}", sources.len());
+    for known in KNOWN_MEMBERS {
+        assert!(
+            sources
+                .iter()
+                .any(|source| source.path.starts_with(&format!("{known}/src/"))),
+            "{known} is scanned"
+        );
+    }
+
+    let manifest = "# a comment naming [workspace]\n[package]\nname = \"x\"\n\n[workspace]\nresolver = \"2\"\n\
+                    members = [\n    \"one\", # the first\n    \"two\",\n]\n\n[profile.dev]\ndebug = 0\n";
+    assert_eq!(workspace_members(manifest), ["one", "two"]);
+}
+
+#[test]
+fn the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = product_sources();
+
+    let found = slot_writers(&sources);
+    assert!(found.is_empty(), "the heartbeat slot is written past the port: {found:#?}");
+    let port: Vec<Source> = below("../../handshake_host_ports/ui_heartbeat/src");
     assert!(port.len() >= 6, "the scan reads the port");
     let writes = lines(&port, &["write_heartbeat"]);
     assert_eq!(writes.len(), 2, "{writes:#?}");
     assert!(
         writes
             .iter()
-            .all(|line| line.starts_with("../../handshake_host_ports/ui_heartbeat/src/sink.rs:")),
+            .all(|line| line.starts_with(&format!("{PORT_SRC}sink.rs:"))),
         "only the port's sinks write the slot: {writes:#?}"
     );
 
-    let control = Source {
-        path: "src/sample.rs".to_owned(),
-        code: code_only("writer.write_heartbeat(1, 2); // write_heartbeat"),
-    };
-    assert_eq!(lines(&[control], PUBLISHERS).len(), 1, "the scan finds a call, not a mention");
+    let found = port_users_besides_the_adapter(&sources);
+    assert!(found.is_empty(), "the port or its sink used past the adapter: {found:#?}");
+    let made = ports_made(&sources);
+    assert_eq!(made.len(), 1, "one port, made by the adapter: {made:#?}");
+    assert!(made[0].starts_with(&format!("{ADAPTER}:")), "{made:#?}");
+    let opened = shell_heartbeats_opened(&sources);
+    assert!(opened.len() <= 1, "a second shell heartbeat in product code: {opened:#?}");
+    let writers = ring_writers_made(&sources);
+    assert!(writers.len() <= 1, "a second ring writer in product code: {writers:#?}");
+
+    // Each rule finds what it looks for, and only calls.
+    let mention = sample(
+        "../surface/src/sample.rs",
+        "writer.write_heartbeat(1, 2); // write_heartbeat",
+    );
+    assert_eq!(slot_writers(&[mention]).len(), 1, "a call, not a mention");
+    let second_publisher = sample(
+        "../shell/src/lib.rs",
+        "pub fn second_publisher<S: ui_heartbeat::HeartbeatSink>(sink: &S) {}",
+    );
+    assert_eq!(port_users_besides_the_adapter(&[second_publisher]).len(), 1);
+    let second_port = sample(
+        ADAPTER,
+        "let a = UiHeartbeat::with_frames(c, l, s, f);\nlet b = UiHeartbeat::new(c, l, s);",
+    );
+    assert_eq!(ports_made(&[second_port]).len(), 2);
+    let elsewhere = sample(
+        "../window/src/sample.rs",
+        "let port = ui_heartbeat::UiHeartbeat::new(c, l, s);",
+    );
+    assert_eq!(port_users_besides_the_adapter(&[elsewhere]).len(), 1);
+    let two_shells = sample(
+        "../surface/src/sample.rs",
+        "let a = ShellHeartbeat::open(control, at, x);\nlet b = ShellHeartbeat::open(control, at, y);",
+    );
+    assert_eq!(shell_heartbeats_opened(&[two_shells]).len(), 2);
+    let two_writers = sample(
+        "../shell/src/sample.rs",
+        "let a = DiagRingWriterV2::create(p, n, k);\nlet b = handshake_diag_ring::DiagRingWriter::create(p, n);",
+    );
+    assert_eq!(ring_writers_made(&[two_writers]).len(), 2);
 }
 
 #[test]
 fn no_window_library_or_graphics_binding_in_the_crates_code() {
+    let _limit = TimeLimit::new(LIMIT);
     let sources: Vec<Source> = below("src")
         .into_iter()
         .map(|source| Source {
@@ -131,6 +327,7 @@ fn no_window_library_or_graphics_binding_in_the_crates_code() {
 
 #[test]
 fn nothing_moves_focus_or_cursor_or_injects_input() {
+    let _limit = TimeLimit::new(LIMIT);
     let sources: Vec<Source> = below("src").into_iter().chain(below("tests")).collect();
     let found = lines(&sources, NEVER);
     assert!(found.is_empty(), "{found:#?}");
@@ -138,6 +335,7 @@ fn nothing_moves_focus_or_cursor_or_injects_input() {
 
 #[test]
 fn every_loop_of_a_test_runs_on_a_private_desktop() {
+    let _limit = TimeLimit::new(LIMIT);
     let mut loops = 0;
     for test in below("tests") {
         let code = &test.code;
@@ -169,4 +367,42 @@ fn every_loop_of_a_test_runs_on_a_private_desktop() {
         assert!(direct.is_empty(), "{direct:#?}");
     }
     assert_eq!(loops, 2, "the scan sees both loops");
+}
+
+/// What leaves a test's ring file to chance: removing it by hand, which a failure skips, or making a ring without the
+/// guard that removes it however the test ends (MT-215 E7).
+fn rings_left_to_chance(tests: &[Source]) -> Vec<String> {
+    let mut found = lines(tests, &["remove_file"]);
+    for test in tests {
+        let makes_a_ring = !lines(std::slice::from_ref(test), RING_WRITERS).is_empty();
+        let guarded = !lines_with(&test.code, "RingFile::new").is_empty();
+        if makes_a_ring && !guarded {
+            found.push(format!("{}: a ring without a RingFile", test.path));
+        }
+    }
+    found
+}
+
+#[test]
+fn every_ring_file_of_a_test_is_removed_by_its_guard() {
+    let _limit = TimeLimit::new(LIMIT);
+    let tests = below("tests");
+    let found = rings_left_to_chance(&tests);
+    assert!(found.is_empty(), "{found:#?}");
+    let rings = tests
+        .iter()
+        .filter(|test| !lines(std::slice::from_ref(test), RING_WRITERS).is_empty())
+        .count();
+    assert_eq!(rings, 2, "the scan sees both tests that make a ring");
+
+    let by_hand = sample(
+        "tests/sample.rs",
+        "let ring = RingFile::new(\"x\");\nlet w = DiagRingWriterV2::create(ring.path(), 1, n);\nlet _ = std::fs::remove_file(&path);",
+    );
+    assert_eq!(rings_left_to_chance(&[by_hand]).len(), 1);
+    let unguarded = sample(
+        "tests/sample.rs",
+        "let w = DiagRingWriterV2::create(&path, 1, n);",
+    );
+    assert_eq!(rings_left_to_chance(&[unguarded]).len(), 1);
 }

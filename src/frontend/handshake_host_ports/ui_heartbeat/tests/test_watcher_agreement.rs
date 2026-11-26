@@ -11,7 +11,10 @@ use palmistry::freeze_detect::{
 };
 use palmistry::hung_window_probe::{FakeHungWindowProbe, ProbeResult};
 use palmistry::ring_reader::PalmistryRingReaderV2;
-use support::{all_healthy, nanos, Desk, ManualClock, ManualLoop, RingFile, Ui, Verdict, STEP};
+use support::{
+    all_healthy, nanos, Desk, ManualClock, ManualLoop, RingFile, TimeLimit, Ui, Verdict, STEP,
+    VIRTUAL_LIMIT,
+};
 use ui_heartbeat::{
     UiHeartbeat, WakeOutcome, LOST_WAKE_GRACE, MAX_BEAT_GAP, PRESENT_STALL, REFUSED_WAKE_RETRY,
     WAKE_DELAY,
@@ -25,6 +28,7 @@ fn first_unhealthy(verdicts: &[Verdict]) -> Option<&Verdict> {
 
 #[test]
 fn cadence_agrees_with_the_watchers_constants() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     assert_eq!(
         MAX_BEAT_GAP, MT084_IDLE_HEARTBEAT_CADENCE,
         "the watcher's idle cadence"
@@ -37,13 +41,14 @@ fn cadence_agrees_with_the_watchers_constants() {
     assert!(REFUSED_WAKE_RETRY < MAX_BEAT_GAP);
     assert!(
         PRESENT_STALL + POLL_INTERVAL < FREEZE_THRESHOLD,
-        "a present stall is withheld well inside the watcher's threshold"
+        "a present stall is in the ring before the watcher could judge a freeze"
     );
 }
 
 /// AC215-6, MT-084 RISK-004-1: an idle UI that draws nothing stays alive.
 #[test]
 fn idle_ui_without_frames_never_looks_frozen() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::new("idle");
     desk.event_loop
         .set_latency(MAX_BEAT_GAP - WAKE_DELAY - STEP);
@@ -70,6 +75,7 @@ fn idle_ui_without_frames_never_looks_frozen() {
 /// AC215-6, HBR-HOST-006: a hung UI thread stops the heartbeat, and the watcher confirms it in its own time.
 #[test]
 fn blocked_ui_thread_is_confirmed_frozen_within_the_watchers_threshold() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("blocked");
     let blocked_at = desk.clock.now();
     let last = desk.heartbeat.last_beat().expect("alive before the block");
@@ -107,6 +113,7 @@ fn blocked_ui_thread_is_confirmed_frozen_within_the_watchers_threshold() {
 /// The watcher's second signal still decides: stale alone is suspected, never confirmed.
 #[test]
 fn stale_heartbeat_alone_is_only_suspected() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     for probe in [ProbeResult::Responding, ProbeResult::WindowNotFound] {
         let mut desk = Desk::running("suspected");
         let verdicts = desk.run(Duration::from_secs(7), Ui::Blocked, probe);
@@ -119,6 +126,7 @@ fn stale_heartbeat_alone_is_only_suspected() {
 /// A thread that comes back is healthy at once, with one beat for the wake it missed and no catch-up burst.
 #[test]
 fn ui_thread_that_returns_is_healthy_with_one_beat() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("returns");
     let before = desk.heartbeat.counters();
     let frozen = desk.run(
@@ -144,6 +152,7 @@ fn ui_thread_that_returns_is_healthy_with_one_beat() {
 /// Drawing and input are not liveness: a loop that never takes its wakes goes stale whatever else it does.
 #[test]
 fn turns_without_dispatched_wakes_do_not_keep_it_alive() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("turns-only");
     let last = desk.heartbeat.last_beat().expect("alive before");
 
@@ -166,6 +175,7 @@ fn turns_without_dispatched_wakes_do_not_keep_it_alive() {
 /// outer loop recovers.
 #[test]
 fn modal_loops() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("modal");
     // The outer handler has not returned: these dispatches are nested in it.
     let nested = desk.run(
@@ -199,6 +209,7 @@ fn modal_loops() {
 /// beats, once, and the gap is recorded as a resume, not as a stall.
 #[test]
 fn system_resume_beats_once_and_is_not_a_stall() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("resume");
     let before = desk.heartbeat.counters();
     desk.clock.advance(Duration::from_secs(8 * 3600));
@@ -223,9 +234,14 @@ fn system_resume_beats_once_and_is_not_a_stall() {
 /// sees a stale counter: with the window answering it only suspects, and the next poll after the dispatch is healthy.
 #[test]
 fn poll_between_resume_and_first_dispatch_is_suspected_at_most_until_the_dispatch() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("resume-race");
-    desk.clock.advance(Duration::from_secs(3600));
     let responding = FakeHungWindowProbe::new(ProbeResult::Responding);
+    // The desk's last beat may come after the watcher's last poll, by up to a poll interval, depending on where the
+    // cadence falls (MT-215 E1). A poll now takes in that beat, so the poll after the jump sees no advance.
+    let now = desk.clock.now();
+    assert_eq!(desk.watcher.poll(now, &responding), FreezeState::Healthy);
+    desk.clock.advance(Duration::from_secs(3600));
     let now = desk.clock.now();
     assert!(desk.watcher.poll(now, &responding).is_suspected());
 
@@ -238,6 +254,7 @@ fn poll_between_resume_and_first_dispatch_is_suspected_at_most_until_the_dispatc
 /// MT-084 AC-004-2: published time strictly rises and never goes back, and the beat does not depend on it.
 #[test]
 fn clock_running_backward_neither_stops_the_beat_nor_turns_time_back() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let desk = Desk::running("backward");
     let mut last = desk.heartbeat.last_beat().expect("alive");
     desk.clock.set(1);
@@ -261,6 +278,7 @@ fn clock_running_backward_neither_stops_the_beat_nor_turns_time_back() {
 /// A clock that ran backward must not postpone the recovery of a lost wake by the size of its jump.
 #[test]
 fn lost_wake_is_replaced_in_bounded_time_after_the_clock_ran_backward() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("backward-lost");
     desk.clock.set(1);
     desk.event_loop.lose_pending();
@@ -277,6 +295,7 @@ fn lost_wake_is_replaced_in_bounded_time_after_the_clock_ran_backward() {
 
 #[test]
 fn clock_jumping_forward_gives_one_beat_not_a_burst() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("forward");
     desk.clock.advance(Duration::from_secs(3600));
     assert_eq!(desk.dispatch_due(), 1);
@@ -288,6 +307,7 @@ fn clock_jumping_forward_gives_one_beat_not_a_burst() {
 /// A new ring reads as counter 0, not as unwritten, so the first beat must differ from 0.
 #[test]
 fn first_beat_is_an_advance_over_a_new_ring() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::new("first");
     let not_responding = FakeHungWindowProbe::new(ProbeResult::NotResponding);
     assert_eq!(desk.watcher.heartbeat().counter, 0);
@@ -314,6 +334,7 @@ fn first_beat_is_an_advance_over_a_new_ring() {
 /// The production ring is version 2, with a launch nonce: the same port, read by the watcher's version 2 reader.
 #[test]
 fn version_2_ring_carries_the_beat() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let ring = RingFile::new("v2");
     let nonce = [0x5a; 16];
     let writer = DiagRingWriterV2::create(ring.path(), DEFAULT_CAPACITY, nonce).expect("v2 ring");
@@ -338,26 +359,31 @@ fn version_2_ring_carries_the_beat() {
     );
 }
 
-/// MT-215 HB-4: a loop that lives and presents nothing goes stale while its window answers: the watcher suspects it
-/// and never confirms a freeze, the ring holds the typed stall, and the watcher is healthy again once frames present.
+/// AC215-6 with MT-215 HB-4: a loop that lives and presents nothing keeps a fresh heartbeat, so the watcher stays
+/// healthy even with a window that does not answer, and the ring holds one typed stall event. A UI thread that then
+/// blocks goes stale as any other and is confirmed frozen within the watcher's threshold of its last beat, not of the
+/// stall's start: the two signals are independent. Frames that present end the stall with one recovery event.
 #[test]
-fn a_present_stall_is_suspected_never_confirmed_and_recovers() {
+fn a_present_stall_keeps_the_heartbeat_fresh_and_is_told_by_its_event() {
+    let _limit = TimeLimit::new(VIRTUAL_LIMIT);
     let mut desk = Desk::running("present-stall");
-    let wanted_at = desk.clock.now();
     desk.frames.want();
-    let verdicts = desk.run(
+    let stalled = desk.run(
         Duration::from_secs(9),
         Ui::Dispatching,
-        ProbeResult::Responding,
+        ProbeResult::NotResponding,
     );
-    assert!(verdicts.iter().all(|verdict| !verdict.state.is_frozen()));
-    let last = verdicts.last().expect("polled").state;
-    assert!(last.is_suspected(), "{last:?}");
-    let first = first_unhealthy(&verdicts).expect("the stall is noticed");
     assert!(
-        Duration::from_nanos(first.at - wanted_at) >= PRESENT_STALL + FREEZE_THRESHOLD - MAX_BEAT_GAP,
-        "only once the beats were withheld for the watcher's threshold"
+        all_healthy(&stalled),
+        "a stalled present is no stale heartbeat: {:?}",
+        first_unhealthy(&stalled)
     );
+    assert!(
+        desk.longest_gap <= nanos(MAX_BEAT_GAP),
+        "the beats kept their cadence, longest gap {} ns",
+        desk.longest_gap
+    );
+    assert!(desk.heartbeat.present_stalled());
     let reader = DiagRingReader::open(desk.ring.path()).expect("reader");
     let stalls = |phase: DiagPhase| {
         reader
@@ -369,17 +395,46 @@ fn a_present_stall_is_suspected_never_confirmed_and_recovers() {
             })
             .count()
     };
-    assert_eq!(stalls(DiagPhase::Degraded), 1);
+    assert_eq!(stalls(DiagPhase::Degraded), 1, "the stall is told by its event");
     assert_eq!(stalls(DiagPhase::Recovered), 0);
 
+    // The UI thread freezes during the stall.
+    let blocked_at = desk.clock.now();
+    let last = desk.heartbeat.last_beat().expect("beats during the stall");
+    let frozen = desk.run(
+        Duration::from_secs(7),
+        Ui::Blocked,
+        ProbeResult::NotResponding,
+    );
+    let first = first_unhealthy(&frozen).expect("the freeze is noticed");
+    let after = Duration::from_nanos(first.at - blocked_at);
+    assert!(
+        after <= FREEZE_THRESHOLD + POLL_INTERVAL + POLL_INTERVAL,
+        "{after:?}"
+    );
+    match first.state {
+        FreezeState::Frozen(report) => {
+            assert_eq!(report.last_heartbeat_counter, last.counter);
+            assert!(
+                Duration::from_millis(report.stale_ms) < FREEZE_THRESHOLD + POLL_INTERVAL + POLL_INTERVAL,
+                "stale from the last beat, not from the stall: {} ms",
+                report.stale_ms
+            );
+        }
+        other => panic!("stale and not responding is a confirmed freeze, got {other:?}"),
+    }
+
+    // Back, and presenting.
     desk.frames.presented();
     let healthy = desk.run(
         Duration::from_secs(2),
         Ui::Dispatching,
         ProbeResult::Responding,
     );
-    assert_eq!(healthy.last().expect("polled").state, FreezeState::Healthy);
-    assert_eq!(stalls(DiagPhase::Recovered), 1);
+    assert!(all_healthy(&healthy), "{:?}", first_unhealthy(&healthy));
+    assert_eq!(stalls(DiagPhase::Degraded), 1);
+    assert_eq!(stalls(DiagPhase::Recovered), 1, "the stall's end is told once");
+    assert!(!desk.heartbeat.present_stalled());
     assert_eq!(desk.heartbeat.counters().present_stalls, 1);
     drop(reader);
 }
