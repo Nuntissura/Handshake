@@ -2099,5 +2099,104 @@
       "a real per-monitor DPI move",
       "WM_GETOBJECT during modal loops"
     ]
+  },
+  "eval7_accessibility_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 slice 4 accessibility crate; not an MT verdict; lifecycle unchanged",
+    "commit": "619e704a8",
+    "method": "fresh git archive copy tmp/tree-619e704a8 (818 blobs, digest 24d38b86...), unchanged after all runs; every file touched first and each crate compiled from the copy; 1.97.1 --locked --offline -j 2; asset resolved offline from checkout 8eadc5b57dc2 (clean apart from .cargo-ok)",
+    "result": "failed: accessibility 18 passed, 3 failed (unit 14/15, source_scan 4/5, uia_client 0/1); input 39 passed, 1 failed (real_loop.rs:257, the known E6-F1, file unchanged); additive input changes broke nothing",
+    "acceptance": {
+      "AC214-1": "passed on the eval's checks: cargo tree -e all of the crate and the 183-package lock contain no AC214-1 crate; 18 packages plus 4 version labels added, no version changed; winapi-util resolves to windows-sys 0.48; --locked accepted in all 16 runs",
+      "AC214-12": "line counts confirmed (src 2,430 of which 731 unit tests; tests 904)",
+      "AC214-7": "failed"
+    },
+    "findings": [
+      {
+        "id": "E7-F1",
+        "severity": "high",
+        "at": "uia_client.rs:484, :394-400",
+        "defect": "UIA lists the window's title bar (control type 50037, no name) as the first child so the read check fails; with it skipped (probe P-UIA-1b) step 3 waits forever because a posted WM_SETFOCUS produces no FocusChanged (E6-F1 cause) and the 90 s limit ends the test; no runtime proof of AC214-7",
+        "repair": "filter to the provider's elements; post WM_NCACTIVATE before WM_SETFOCUS; rerun"
+      },
+      {
+        "id": "E7-F2",
+        "severity": "medium",
+        "at": "tree.rs:164-170",
+        "defect": "after a host-set id is cleared, the relation given by key is silently lost: accesskit 0.21.1 clear_* leaves the property slot empty so a later push_* does nothing (lib.rs:956-961, :1084-1086; confirmed by probe); causes tree_tests.rs:369 to fail",
+        "repair": "build each list relation as a Vec and set_* it"
+      },
+      {
+        "id": "E7-F3",
+        "severity": "medium",
+        "at": "frame.rs:281-302",
+        "defect": "a frame whose text runs form a next/previous-on-line cycle is accepted; the asset's line moves (text.rs:139/152) then loop forever in the consumer (text.rs:151-170) on the UIA thread holding the tree read lock, so the loop's next update would hang on the write lock (probe: frame accepted, no result in 5 s)",
+        "repair": "refuse line-relation cycles and line relations to non-runs"
+      },
+      {
+        "id": "E7-F4",
+        "severity": "low",
+        "at": "source_scan.rs:326",
+        "defect": "splits at the first [patch.crates-io], which is in a workspace Cargo.toml comment, so it fails before its banned-crate loop runs",
+        "repair": "match the table header line"
+      },
+      {
+        "id": "E7-F5",
+        "severity": "low",
+        "at": "hub.rs:163-175; request.rs:203",
+        "defect": "closing and reopening the same WindowKey restarts ids at 2 and queued requests survive the close (an old request reached NodeKey(9) in the probe)",
+        "repair": "purge the window's pending requests on close, Destroyed and LoopEnding"
+      },
+      {
+        "id": "E7-F6",
+        "severity": "low",
+        "at": "platform.rs:52",
+        "defect": "the already-shown check reads current visibility, so Show, Hide, then attach returned Ok (P-UIA-2b)",
+        "repair": "track whether the window was ever shown"
+      },
+      {
+        "id": "E7-F7",
+        "severity": "low",
+        "defect": "two mutations survived: M-B1 FocusBy::OtherProgram no longer yielding to the Operator's composition; M-B2 push ignoring the next-update-whole flag (a partial update after a placeholder panics in Tree::new)",
+        "repair": "a test for each"
+      },
+      {
+        "id": "E7-F8",
+        "severity": "low",
+        "defect": "source-scan gaps: std::thread::Builder (M-S1), ShowWindowAsync/SetWindowPlacement (M-S2), and a second impl AccessRequest block with a public constructor taking any Origin (M-S3) not caught; control M-S4 (SetForegroundWindow) caught",
+        "repair": "extend the scans"
+      },
+      {
+        "id": "E7-F9",
+        "severity": "low, asset behaviour",
+        "at": "platform.rs:59-63; the patched accesskit_windows asset",
+        "defect": "a failed attach is not fully clean: the asset sets its window property before SetWindowLongPtrW, so a failed install leaves the property pointing at freed memory",
+        "repair": "host: remove the property on a failed attach if possible; asset: an asset-owner request to set the property after a successful subclass (asset changes go through the asset dev leader thread)"
+      }
+    ],
+    "s4_q1_observation": {
+      "child_setfocus": "a window Focus request plus a node Focus request, both OtherProgram; no activation refused by the guard, no focus events, Z order held",
+      "root_setfocus_window_b": "no request at all, contradicting uia_client step 5's expectation",
+      "invoke": "a Click request"
+    },
+    "fuzz": "3000 accepted random frames using only the calls the Windows adapter makes: no consumer panic; consumer calls only other platforms' adapters make panicked with 'invalid position' on nested text runs (not counted for Windows)",
+    "asset_diff": "against crates.io 0.29.2 the only code change is node.rs ProviderOptions: the root of a WS_EX_NOACTIVATE window of this process reports ServerSide + ProviderOwnsSetFocus (value 18); also a test in tests/simple.rs and licence/provenance files; Cargo.toml identical; no eframe or egui in the closure",
+    "operator_safety": "HBR-QUIET-001 held: 16 watched runs, 82,484 samples, zero changes to focus, Z order, clipboard (sequence 95), input, cursor, window stations or desktops; no test window on the Operator's desktop; foreground 0 throughout (weaker audit than on an active desktop); 13 vctip.exe stopped after confirming pid, creation time and the chain vctip < link < rustc < own cargo",
+    "logs": {
+      "eval-summary-619e704a8.json": "3c95e2a451f9a018cf89b1c9c899379234458a679c62ff56009e7f8c306ff046",
+      "eval-run-619e704a8-accessibility.log": "6aa9f267...",
+      "eval-run-619e704a8-input.log": "3dd974e5...",
+      "mutations-619e704a8.jsonl": "7a575d71...",
+      "folder": "MT-214/eval-agent/ (probes in probe-619e704a8/)"
+    },
+    "routing": "E7-F1..F8 to the GUI coder after the current input repair round; E7-F9 host part to the GUI coder, asset part as a written request for the asset owner",
+    "needs_native_x64_and_real_desktop": [
+      "whether UIA SetFocus on a child or the root activates an Operator window on the real input desktop (on a private desktop SetForegroundWindow may fail before the guard sees it)",
+      "Narrator or another screen reader against an Operator window",
+      "a real per-monitor DPI move",
+      "WM_GETOBJECT during modal loops or STA re-entrancy (a borrow panic inside the adapter's window procedure would abort the process)",
+      "native x64"
+    ]
   }
 }
