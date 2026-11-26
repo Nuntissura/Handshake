@@ -13868,5 +13868,29 @@
         "missing: candidates, COMPLETED write fails, second pass, zero new resumes, kills, STOPs, mailbox messages and checkpoints"
       ]
     }
+  },
+  "pt019_repeat_safety_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report",
+    "recorded_on": "2026-11-26",
+    "commits": {
+      "7a375b17d": "R4-1 support module $session renamed $session_run",
+      "d673277b7": "R4-3 positive control for the COMPLETED count",
+      "1e74b62dd": "R4-2 DelayedAcknowledgement fault and Block lower bound",
+      "dba6ec308": "repeat-safety test with real candidates and a real orphan child killed through the production path"
+    },
+    "named_check": {
+      "commit": "dba6ec308",
+      "tree": "a3e7fec3c",
+      "exit_code": 0,
+      "inputs_unchanged": true,
+      "folder": "kb-phase02/compile-check-20261126-06"
+    },
+    "item5_stopped": {
+      "checkpoint_id": "a deterministic id would be a derived non-v7 UUID, against HBR-INT-008; the alternative (folding CREATE and claim into one statement) replaces the pending-claim protocol",
+      "mailbox_thread": "a deterministic thread id hits the same rule plus the schema check thread id = record id; atomic create plus append needs a new role_mailbox_v1 method outside PT019; small option: reuse an existing empty thread on retry",
+      "status": "open, low; only in the bound-cancelled case, not the Operator's decided case; to be deliberated with the next review before any change"
+    },
+    "product_suspicion": "storage/surreal/preferences.rs:913 binds the protected $session in product code; other product structs have session, access or auth fields; under eval",
+    "next_eval": "eval-reclaim-20261126-03 on dba6ec308 with eight targets"
   }
 }
