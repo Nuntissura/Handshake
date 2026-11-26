@@ -1690,5 +1690,87 @@
       "any clipboard off WinSta0 and the wait for a hung clipboard owner"
     ],
     "routing": "E5-F1 is the second failure of the same fix: a specialist investigation plus adversarial review per the Operator's direction (GLOBAL-SCOPE-008, GLOBAL-REMEDIATE-005); E5-F2..F4 and R4-D3 queued for the GUI coder after MT-214 slice 3"
+  },
+  "slice3_implementation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "slice": "S3 input crate (AC214-5 input, AC214-6 IME)",
+    "commit": "89617f370c91a0aa0625d67142687ac4fd9790c5",
+    "crate": "handshake_shell_input at src/frontend/handshake_shell/input (workspace member); forbid(unsafe_code); depends only on the window crate",
+    "line_counts_ac214_12": {
+      "input": "src 3,186 (1,492 code + 1,694 in-crate unit tests); tests and examples 740",
+      "window": "src 9,877; tests 3,908",
+      "surface": "src 2,978; tests 1,712",
+      "shell": "src 533; tests 1,288",
+      "accessibility": "not yet"
+    },
+    "input_model": "InputTracker::feed turns each window event into one InputEvent (key Press/Repeat/Release with dead keys, text, modifiers, pointer, wheel for mouse, fine wheel or precision touchpad, contact, IME), each with origin, time and the loop's stamp; private fields and no public constructor; model input only through model_input, stamped as model and never as Operator; an Operator stamp older than one already seen is passed on unattributed; held keys released on focus loss, keys and buttons released on EventsLost and window close with the original press's origin",
+    "ime_model": "composition events to the focused text target, numbered per composition: Enabled, Preedit with byte range, Commit, Cancel, Disabled; a composition that showed preedit ends with exactly one Commit or one Cancel; focus loss ends it immediately with Cancel if not committed, nothing reaches that target afterwards; continued composing restarts as a new composition at the new target; candidate area follows the caret on scroll and DPI change; no preedit text, cursor or anchor kept (state belongs to Kumihimo, KG-03); a model may not move text focus or type while the Operator is composing",
+    "window_crate_additive_changes": [
+      "WindowEvent::Ime(ImeInput) mapped from winit IME events",
+      "WindowCommand::AllowIme and WindowCommand::SetImeArea(ClientRect)",
+      "IME messages take the origin of the window's newest key, as text messages do",
+      "EventTime::from_nanos, WindowKey::from_number, TypedText::new made public (grant nothing)"
+    ],
+    "tests": [
+      "ime_tests: winit-derived IME sequences, focus loss mid-composition and after commit, target change, IME off, lost events, model refusal, candidate area on scroll and DPI change, property test over 400 random interleavings (fail on dropped or doubled end, late commit passed on, events to an unfocused target, missing refusal)",
+      "tracker_tests: mapping and origin per kind, stale-stamp rule, model input always model, repeat, dead keys, one release per held key, held-key limit, no key codes printed",
+      "source_scan: SendInput, keybd_event, mouse_event, Inject*, ImmSetCompositionString*, ImmNotifyIME; no public fields; no composed text kept; private desktop only; banned crates; each scan with a control",
+      "real_loop: posted messages to a quiet window on a private desktop through winit: key with repeat and one release, composition ending once on focus loss, composition continuing at a new target, AllowIme(false)"
+    ],
+    "implementer_checks": {
+      "check --workspace --all-targets": "exit 0, no warnings (MT-214/gui-agent/logs/s3-check-2.log)",
+      "clippy --all-targets -D warnings": "exit 0 (s3-clippy-2.log)",
+      "cargo tree -e all": "none of the AC214-1 crates (s3-tree-1.log, s3-tree-input-normal.log)",
+      "Cargo.lock": "one new entry, 8 lines",
+      "vctip": "seen once, exited on its own"
+    },
+    "research_basis": [
+      "winit 0.30.13 Windows IME source",
+      "Microsoft Learn WM_IME_COMPOSITION (no flags means cancel) and ImmNotifyIME",
+      "Chromium imm32_manager.cc"
+    ],
+    "ac214_coverage": {
+      "this_slice": [
+        "AC214-5",
+        "AC214-6",
+        "AC214-1 and AC214-12 for this crate"
+      ],
+      "remaining": [
+        "AC214-3",
+        "AC214-4",
+        "AC214-7",
+        "AC214-8",
+        "AC214-9",
+        "AC214-10",
+        "AC214-11",
+        "accessibility crate",
+        "shell binary"
+      ]
+    },
+    "open": [
+      {
+        "id": "S3-Q1",
+        "what": "on focus loss the crate cancels the composition; Chromium commits it via ImmNotifyIME(CPS_COMPLETE); AC214-6 allows one cancel or commit; committing needs a new window-crate call and a real input method to prove",
+        "route": "adjudicated by the next eval with the specialist evidence, not decided by the orchestrator"
+      },
+      {
+        "id": "S3-Q2",
+        "what": "the single composition event type MT-216 and MT-217 consume must be agreed with the Kumihimo asset owner (KG-03)",
+        "route": "asset dev leader thread (not reachable from this session; Operator relays)"
+      },
+      {
+        "id": "S3-Q3",
+        "what": "UNVERIFIED whether an input method leaves a stale result string that winit commits again after a cancel"
+      }
+    ],
+    "scope": "all changes inside MT-214 allowed write paths; no waiver needed",
+    "tests_run": "none; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "real layouts (dead keys, AltGr)",
+      "real Japanese, Chinese and Korean input methods with candidate placement at several DPIs and across monitors",
+      "focus loss with the input method's own completion",
+      "precision touchpad and pen"
+    ]
   }
 }
