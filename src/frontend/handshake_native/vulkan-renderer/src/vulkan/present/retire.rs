@@ -14,12 +14,17 @@
 //!   is no longer being presented". A present of a later swapchain of the same surface is known done when an acquire of
 //!   that swapchain hands back the same image and its fence has signalled ("Swapchain Semaphore Reuse": acquiring the
 //!   image index again and waiting on its fence establishes that the earlier present has finished).
+//! - Without it, also by its own images: a swapchain each of whose presented images was acquired back after its last
+//!   present, with the fence of that acquire signalled, has no present left that may run (MT-214 SF-2). The presents
+//!   of one image end in order, since the image is acquired again between two of them.
 //!
 //! A swapchain that was never presented waits for nothing but its work. One that was presented and has no successor
-//! (its surface was released) has nothing that proves its presents without the extension: the Vulkan guide says that
-//! unextended Vulkan has no good solution for it, so it is kept, with its surface and the window's target, until the
-//! device is destroyed with its queue drained. A surface ends once it is released and none of its swapchains, fences or
-//! acquire semaphores is left.
+//! (its surface was released) has nothing else that proves its presents without the extension: the Vulkan guide says
+//! that unextended Vulkan has no good solution for it. A host that releases such a surface first presents once on a new
+//! swapchain and asks [`super::super::VulkanGeneration::prove_presents`] until the image of that present came back,
+//! which ends the old swapchain by the first rule and the new one by the second. A surface released without that is
+//! kept, with the window's target, until the device is destroyed with its queue drained. A surface ends once it is
+//! released and none of its swapchains, fences or acquire semaphores is left.
 
 use super::super::queue::QueueView;
 use super::super::VulkanGeneration;
@@ -45,10 +50,12 @@ pub(super) struct Standing {
     pub(super) acquiring: u32,
     pub(super) out: u32,
     pub(super) last_use: u64,
+    /// Every present of it was proven ended by a re-acquire of its image.
+    pub(super) presents_proven: bool,
 }
 
 impl Swapchain {
-    fn standing(&self) -> Standing {
+    pub(super) fn standing(&self) -> Standing {
         Standing {
             number: self.number,
             presents: self.presents,
@@ -56,8 +63,21 @@ impl Swapchain {
             acquiring: self.acquiring,
             out: self.out,
             last_use: self.last_use,
+            presents_proven: self.all_presents_proven(),
         }
     }
+}
+
+/// Whether the presents of a swapchain are known to have ended, where `proven_present` is the highest swapchain of its
+/// own surface with a present proven ended.
+pub(super) fn presents_ended(standing: Standing, rule: Retirement, proven_present: u64) -> bool {
+    standing.presents == 0
+        || match rule {
+            Retirement::PresentFences => standing.unproven == 0,
+            Retirement::SuccessorPresent => {
+                proven_present > standing.number || standing.presents_proven
+            }
+        }
 }
 
 /// Whether a retired swapchain may be destroyed on a device that is not lost, where submissions up to `observed` were
@@ -69,18 +89,13 @@ pub(super) fn may_end(
     proven_present: u64,
 ) -> bool {
     let used = standing.out == 0 && standing.acquiring == 0 && standing.last_use <= observed;
-    let shown = standing.presents == 0
-        || match rule {
-            Retirement::PresentFences => standing.unproven == 0,
-            Retirement::SuccessorPresent => proven_present > standing.number,
-        };
-    used && shown
+    used && presents_ended(standing, rule, proven_present)
 }
 
 /// The swapchain a signalled proof shows a present of ended, if any.
 pub(super) const fn proves_present(kind: ProofKind, swapchain: u64) -> Option<u64> {
     match kind {
-        ProofKind::Acquire { previous } if previous > 0 => Some(swapchain),
+        ProofKind::Acquire { previous, .. } if previous > 0 => Some(swapchain),
         _ => None,
     }
 }
@@ -91,8 +106,11 @@ impl SurfaceEntry {
     fn settle(&mut self, proof: &Proof, ended: bool) {
         if let Some(swapchain) = self.swapchain_mut(proof.swapchain) {
             match proof.kind {
-                ProofKind::Acquire { .. } => {
-                    swapchain.acquiring = swapchain.acquiring.saturating_sub(1)
+                ProofKind::Acquire { previous, index } => {
+                    swapchain.acquiring = swapchain.acquiring.saturating_sub(1);
+                    if let Some(proven) = swapchain.proven_of.get_mut(index as usize).filter(|_| ended) {
+                        *proven = (*proven).max(previous);
+                    }
                 }
                 ProofKind::Present => swapchain.unproven = swapchain.unproven.saturating_sub(1),
             }
@@ -282,7 +300,7 @@ impl VulkanGeneration {
 
 #[cfg(test)]
 mod tests {
-    use super::super::ProofKind;
+    use super::super::{every_present_proven, ProofKind};
     use super::{may_end, proves_present, Retirement, Standing};
 
     /// A surface's own books, as the owner keeps them: its highest swapchain with a proven present, and a swapchain it
@@ -326,26 +344,26 @@ mod tests {
             retired: presented(4),
         };
         // B's acquire hands back an image B presented: that proves B's present, and nothing of A.
-        b.proof(ProofKind::Acquire { previous: 5 }, 2);
+        b.proof(ProofKind::Acquire { previous: 5, index: 0 }, 2);
         assert!(
             !a.may_end(rule),
             "another window's present ends nothing of this one"
         );
         // A's new swapchain acquires an image it never presented: no present is proven.
-        a.proof(ProofKind::Acquire { previous: 0 }, 3);
+        a.proof(ProofKind::Acquire { previous: 0, index: 0 }, 3);
         assert!(!a.may_end(rule));
         // A maintenance1 present fence of the successor says nothing about the old one's presents either.
         a.proof(ProofKind::Present, 3);
         assert!(!a.may_end(rule));
         // A's successor gets back an image it presented: its first present is done, the old swapchain is not shown.
-        a.proof(ProofKind::Acquire { previous: 1 }, 3);
+        a.proof(ProofKind::Acquire { previous: 1, index: 0 }, 3);
         assert!(a.may_end(rule));
         // A present proven on the retired swapchain itself is no successor's.
         let mut c = Window {
             proven_present: 0,
             retired: presented(6),
         };
-        c.proof(ProofKind::Acquire { previous: 2 }, 6);
+        c.proof(ProofKind::Acquire { previous: 2, index: 0 }, 6);
         assert!(!c.may_end(rule));
     }
 
@@ -391,5 +409,42 @@ mod tests {
             !may_end(done, Retirement::SuccessorPresent, 7, 0),
             "released, nothing proves its presents"
         );
+    }
+
+    /// MT-214 SF-2: without the extension, a released surface's last swapchain ends once each of its presented images
+    /// came back after its last present; one image short, it does not. The extension's rule stays its own fences.
+    #[test]
+    fn a_last_swapchain_whose_presented_images_came_back_ends_without_a_successor() {
+        let proven = Standing {
+            presents_proven: true,
+            ..presented(1)
+        };
+        assert!(may_end(proven, Retirement::SuccessorPresent, 7, 0), "no successor needed");
+        assert!(
+            !may_end(presented(1), Retirement::SuccessorPresent, 7, 0),
+            "an image has not come back"
+        );
+        let unproven = Standing {
+            unproven: 1,
+            ..proven
+        };
+        assert!(
+            !may_end(unproven, Retirement::PresentFences, 7, 0),
+            "with present fences, only they prove"
+        );
+        let acquiring = Standing {
+            acquiring: 1,
+            ..proven
+        };
+        assert!(
+            !may_end(acquiring, Retirement::SuccessorPresent, 7, 0),
+            "the acquire that brought it back has not ended"
+        );
+        // Image by image: the one presented image came back after its last present; an image never presented counts
+        // as proven; an image presented again after it came back does not.
+        assert!(every_present_proven(&[0, 1, 0], &[0, 1, 0]));
+        assert!(every_present_proven(&[0, 0, 0], &[0, 0, 0]), "never presented");
+        assert!(!every_present_proven(&[0, 1, 0], &[0, 0, 0]), "not back yet");
+        assert!(!every_present_proven(&[2, 3, 1], &[2, 1, 1]), "presented again since");
     }
 }

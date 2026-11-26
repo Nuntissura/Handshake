@@ -213,6 +213,8 @@ impl OwnerCore {
                 holders: 0,
             }),
             DeviceFate::Creating => self.emit(OwnerEvent::DeviceCreatingAtClose),
+            // Never the fate of the close that finishes.
+            DeviceFate::Closing => {}
         }
         let usage = self.ledger.usage();
         self.emit(OwnerEvent::ShutdownOutstanding {
@@ -232,6 +234,21 @@ impl OwnerCore {
             leases: usage.leases,
             device: fate,
             lost_devices_held,
+        }
+    }
+
+    /// What a close reports that comes while another one drains and destroys: the ledger as it is now, and
+    /// [`DeviceFate::Closing`]. Emits nothing; the close under way reports once.
+    pub fn closing_report(&self) -> ShutdownReport {
+        let usage = self.ledger.usage();
+        ShutdownReport {
+            open_claims: usage.open_claims,
+            retained_claims: usage.retained_claims,
+            charged_bytes: usage.charged_bytes,
+            in_flight: usage.in_flight,
+            leases: usage.leases,
+            device: DeviceFate::Closing,
+            lost_devices_held: 0,
         }
     }
 }

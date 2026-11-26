@@ -149,6 +149,46 @@ fn a_rebind_and_a_close_of_a_silent_lost_device_are_bounded() {
     assert_eq!(waits(), 0, "a wait inside Vulkan");
 }
 
+/// MT-203 S2-F3: a close holds no lock across its draining and the destruction that follows. While the first close
+/// drains work that does not end, a second close and a rebind return at once; the first one's report is what every
+/// later close returns, and its device, whose work did not end in time, is kept.
+#[test]
+fn a_close_that_drains_keeps_no_other_call_waiting() {
+    in_own_process!();
+    let Some(rig) = rig() else { return };
+    let claim = rig.claim(8);
+    rig.device(|device| device.close_gate());
+    let submission = rig.submit_empty(&claim);
+    let (first, second, rebind, early) = std::thread::scope(|scope| {
+        let first = scope.spawn(|| timed(|| rig.owner.close()));
+        // Admission closes as the close begins; the usage is read with no lock of the close.
+        let begun = Instant::now();
+        while rig.owner.usage().admission_open {
+            assert!(begun.elapsed() < LATE, "the close began");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let second = timed(|| rig.owner.close());
+        let rebind = timed(|| rig.owner.rebind_device());
+        let early = first.is_finished();
+        (first.join().expect("no panic"), second, rebind, early)
+    });
+    assert!(!early, "the first close was still draining");
+    let (second, took) = second;
+    assert_eq!(second.device, DeviceFate::Closing);
+    assert!(!second.is_settled());
+    noticed(took);
+    let (rebind, took) = rebind;
+    assert_eq!(rebind, Err(DeviceRebindRefusal::Closed));
+    noticed(took);
+    let (first, took) = first;
+    assert_eq!(first.device, DeviceFate::Unconfirmed, "kept: its work did not end");
+    ended_at(MAX_WAIT, took);
+    assert_eq!(rig.owner.close(), first, "single-shot");
+    rig.generation(1, |device| device.open_gate());
+    assert_eq!(rig.client.wait(&submission, MAX_WAIT), Ok(COMPLETED));
+    assert_eq!(waits(), 0, "a wait inside Vulkan");
+}
+
 /// The host that drops the owner gets on, whatever the device still does.
 #[test]
 fn a_dropped_owner_over_running_work_is_bounded() {

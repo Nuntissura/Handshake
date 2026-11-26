@@ -13,8 +13,8 @@ use crate::diag::{OwnerEvent, Subject};
 use crate::ledger::{Claim, LedgerClient};
 use crate::outcome::{AuthorizeRefusal, DeviceFault, RecordAborted, SubmitRefusal};
 use crate::present::{
-    Frame, OwnerSurface, PresentCounters, PresentResult, Presented, SurfaceOrigin, SurfaceTarget,
-    SwapchainInfo, SwapchainRequest, SwapchainStatus,
+    Frame, OwnerSurface, PresentCounters, PresentResult, Presented, PresentsProof, SurfaceOrigin,
+    SurfaceTarget, SwapchainInfo, SwapchainRequest, SwapchainStatus,
 };
 use crate::records::ChargeClass;
 use crate::refusal::{PresentRefusal, ResourceRefusal};
@@ -193,6 +193,22 @@ impl OwnerShared {
             counters: Arc::clone(counters),
             pending: true,
         })
+    }
+
+    /// Acquire back images of the surface's current swapchain to prove its presents ended; see
+    /// [`OwnerSurface::prove_presents`].
+    pub(crate) fn prove_surface_presents(
+        &self,
+        origin: &SurfaceOrigin,
+    ) -> Result<PresentsProof, PresentRefusal> {
+        let live = self.surface_device(origin).map_err(|refusal| {
+            self.present_refused(origin, None, PresentFault::Refused(refusal))
+        })?;
+        // Fences of earlier acquires may have signalled: what they proved counts now.
+        let _ = self.look(&live);
+        let proof = live.vulkan.prove_presents(origin.key);
+        let _ = self.look(&live);
+        proof.map_err(|fault| self.present_refused(origin, Some(&live), fault))
     }
 
     /// A frame was dropped without a present.

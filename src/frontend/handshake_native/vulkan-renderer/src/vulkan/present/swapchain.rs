@@ -217,6 +217,7 @@ impl VulkanGeneration {
             views: Vec::new(),
             rendered: Vec::new(),
             last_present_of: Vec::new(),
+            proven_of: Vec::new(),
             acquired: Vec::new(),
             out: 0,
             stranded: Vec::new(),
@@ -258,6 +259,7 @@ impl VulkanGeneration {
         })();
         let images = swapchain.images.len();
         swapchain.last_present_of = vec![0; images];
+        swapchain.proven_of = vec![0; images];
         swapchain.acquired = vec![false; images];
         swapchain.image_bytes = plan
             .extent

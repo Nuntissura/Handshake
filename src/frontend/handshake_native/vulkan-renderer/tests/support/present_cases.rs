@@ -10,8 +10,10 @@
 //!   surface's proof (S2-F2).
 //! - [`minimise_suspends_and_restore_resumes`]: no swapchain of no size; acquire refused while suspended.
 //! - [`a_dropped_frame_needs_a_new_configuration`]: the image stays acquired, the swapchain is out of date.
+//! - [`a_surface_proven_before_release_lets_its_window_go`]: one present on a new swapchain whose image comes back
+//!   ends the old one and the new one, and the window is let go before the close (MT-214 SF-2).
 //! - [`a_released_surface_lets_its_window_go`]: the target is dropped once the surface ended, which without
-//!   `VK_EXT_swapchain_maintenance1` is at the close for a surface that presented.
+//!   `VK_EXT_swapchain_maintenance1` is at the close for a surface that presented and was not proven.
 //! - [`another_windows_presents_never_end_this_ones_swapchain`]: the multiwindow retirement rule (S2-F2).
 //! - [`a_blocked_present_does_not_stall_another_windows_acquire`]: one lock per surface (S2-F5).
 #![allow(dead_code)]
@@ -19,7 +21,7 @@
 use handshake_vulkan_renderer::{
     AttachmentFormat, AuthorizationProvenance, Claim, ClaimRequest, Extent, Frame, GpuClient,
     GpuOwner, ImageLayout, OperationId, OperationKind, OwnerSurface, PresentMode, PresentRefusal,
-    RecordRefusal, Recording, SurfaceTarget, SwapchainRequest, SwapchainStatus,
+    PresentsProof, RecordRefusal, Recording, SurfaceTarget, SwapchainRequest, SwapchainStatus,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -227,6 +229,71 @@ impl Drop for Counted {
     fn drop(&mut self) {
         self.dropped.fetch_add(1, Ordering::SeqCst);
     }
+}
+
+/// MT-214 SF-2: a surface that presented, proven before it is released, lets its window go then and not with the
+/// device. One present on a new swapchain, whose image comes back to `prove_presents`, ends the old swapchain (its
+/// successor's present is done) and the new one (its only present is). With `VK_EXT_swapchain_maintenance1` the present
+/// fences prove the same.
+pub fn a_surface_proven_before_release_lets_its_window_go(
+    owner: &GpuOwner,
+    client: &GpuClient,
+    window: &dyn HostWindow,
+) {
+    let base = swapchains(owner);
+    let claim = display(client);
+    let dropped = Arc::new(AtomicU64::new(0));
+    let target = Counted {
+        inner: window.target(),
+        dropped: Arc::clone(&dropped),
+    };
+    let surface = client
+        .create_surface(&claim, Box::new(target))
+        .expect("surface");
+    ready(&surface, window);
+    for _ in 0..3 {
+        present(client, &claim, &surface, window);
+    }
+    ready(&surface, window);
+    if !has_present_fences(owner) {
+        assert_eq!(
+            surface.prove_presents(),
+            Ok(PresentsProof::NeedsPresent),
+            "the old swapchain waits for a present of the new one"
+        );
+    }
+    present(client, &claim, &surface, window);
+    let mut proven = false;
+    for _ in 0..TRIES {
+        match surface.prove_presents().expect("proving") {
+            PresentsProof::Proven => {
+                proven = true;
+                break;
+            }
+            PresentsProof::Waiting => {
+                window.pump();
+                std::thread::sleep(PAUSE);
+            }
+            PresentsProof::NeedsPresent => panic!("the new swapchain was presented"),
+        }
+    }
+    assert!(proven, "the image of the last present came back");
+    // The old swapchain ends once its work has, too.
+    present_until(owner, base + 1, || std::thread::sleep(PAUSE));
+    if !has_present_fences(owner) {
+        assert_eq!(
+            surface.acquire().err(),
+            Some(PresentRefusal::OutOfDate),
+            "images acquired back are no frames"
+        );
+    }
+    drop(surface);
+    present_until(owner, base, || std::thread::sleep(PAUSE));
+    assert_eq!(
+        dropped.load(Ordering::SeqCst),
+        1,
+        "the window is let go once its surface ended, before the close"
+    );
 }
 
 /// Closes `owner`: run it last.

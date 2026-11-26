@@ -103,18 +103,33 @@ impl Slot {
     }
 }
 
+/// Whether the owner was closed (MT-203 S2-F3).
+#[derive(Clone, Copy, Debug)]
+enum CloseState {
+    Open,
+    /// A close drains the queue and destroys the device now, with no lock of the owner held.
+    Closing,
+    /// With the report of that close, which every later one returns.
+    Closed(ShutdownReport),
+}
+
+impl CloseState {
+    fn is_open(&self) -> bool {
+        matches!(self, Self::Open)
+    }
+}
+
 /// What the owner and the handles it issued share.
 ///
 /// Lock order: `closed`, then `slot`, then the locks inside the ledger and the generation. The client's recording
-/// call, every wait for the device and the creation and destruction of one run with neither `slot` nor a lock inside
-/// held. Of these only what a close itself does, its bounded draining and the destruction that follows, runs with
-/// `closed` held.
+/// call, every wait for the device and the creation and destruction of one run with none of them held: a close holds
+/// `closed` only to change its state, never across its bounded draining or the destruction that follows (S2-F3).
 pub(crate) struct OwnerShared {
     core: Arc<OwnerCore>,
     /// Where every event of the owner, its ledger and its handles goes first.
     outbox: Arc<Outbox>,
     slot: Mutex<Slot>,
-    closed: Mutex<Option<ShutdownReport>>,
+    closed: Mutex<CloseState>,
     rebinding: AtomicBool,
     /// Every generation is opened with presentation.
     presentation: bool,
@@ -127,7 +142,7 @@ impl OwnerShared {
         Held::lock(&self.slot, &self.outbox)
     }
 
-    fn lock_closed(&self) -> Held<'_, Option<ShutdownReport>> {
+    fn lock_closed(&self) -> Held<'_, CloseState> {
         Held::lock(&self.closed, &self.outbox)
     }
 
@@ -204,7 +219,7 @@ impl GpuOwner {
                             identity,
                             process: Some(process),
                         }),
-                        closed: Mutex::new(None),
+                        closed: Mutex::new(CloseState::Open),
                         rebinding: AtomicBool::new(false),
                         presentation: options.presentation,
                     }),
@@ -333,7 +348,9 @@ impl GpuOwner {
     }
 
     /// Stop admitting and attaching, wait at most [`MAX_WAIT`] for the queue to drain, destroy the device generation
-    /// and report what was still held. Idempotent: later calls return the first report.
+    /// and report what was still held. Single-shot: later calls return the first report. A call that comes while the
+    /// first still drains or destroys does not wait for it and reports [`crate::DeviceFate::Closing`]; no other call of
+    /// the owner, a client or a lease waits for that draining or destruction either (MT-203 S2-F3).
     ///
     /// Claims that were not settled stay recorded as held; closing never reports them as settled
     /// (GUI-DESKTOP-035). A device that clients still lease is not destroyed under them, nor one that did not confirm

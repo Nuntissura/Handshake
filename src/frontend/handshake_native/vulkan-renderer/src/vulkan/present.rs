@@ -102,6 +102,8 @@ struct Swapchain {
     rendered: Vec<vk::Semaphore>,
     /// Number, within this swapchain and from 1, of the last present of each image; 0 for none.
     last_present_of: Vec<u64>,
+    /// Number of the latest present of each image that a re-acquire of that image proved ended; 0 for none.
+    proven_of: Vec<u64>,
     acquired: Vec<bool>,
     /// Frames handed out and neither presented nor dropped: their client may still record with the image.
     out: u32,
@@ -137,15 +139,26 @@ impl Swapchain {
             image_bytes: ByteQuantity::Estimated(self.image_bytes),
         }
     }
+
+    /// Every present of it was proven ended by a re-acquire of its image: each image's last present, and with it the
+    /// earlier ones of that image, which each ended before the image was acquired again.
+    fn all_presents_proven(&self) -> bool {
+        every_present_proven(&self.last_present_of, &self.proven_of)
+    }
+}
+
+/// Whether, image by image, the last present (`last`) is at most the latest one proven ended (`proven`).
+fn every_present_proven(last: &[u64], proven: &[u64]) -> bool {
+    last.len() == proven.len() && last.iter().zip(proven).all(|(last, proven)| last <= proven)
 }
 
 /// What a fence proves once it has signalled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ProofKind {
-    /// The acquire of an image has ended, and with it the image's earlier present `previous` of the same swapchain (0
-    /// for none): the image is acquired again only once the presentation engine let go of it (the Vulkan guide,
+    /// The acquire of image `index` has ended, and with it the image's earlier present `previous` of the same swapchain
+    /// (0 for none): the image is acquired again only once the presentation engine let go of it (the Vulkan guide,
     /// "Swapchain Semaphore Reuse").
-    Acquire { previous: u64 },
+    Acquire { previous: u64, index: u32 },
     /// A present of `VK_EXT_swapchain_maintenance1` released what it used.
     Present,
 }

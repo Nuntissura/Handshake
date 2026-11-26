@@ -256,6 +256,10 @@ pub enum DeviceFate {
     /// soon as the driver returns it, and then reports [`crate::OwnerEvent::DeviceRebindRefused`]. Until then the
     /// process's owner slot is taken.
     Creating,
+    /// Another call was closing the owner, and this one did not wait for its draining and destruction (MT-203 S2-F3).
+    /// The counts are the ledger's at that moment and `lost_devices_held` is not counted; the other call's report says
+    /// what became of the device, and every close after it returns that report.
+    Closing,
 }
 
 /// The device generation the ledger admits on.

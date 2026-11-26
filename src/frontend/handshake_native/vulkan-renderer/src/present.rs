@@ -26,9 +26,12 @@
 //!   is done ... the old swapchain is no longer being presented").
 //!
 //! A swapchain that was never presented waits only for its work. Without the extension, the last swapchain of a
-//! released surface that was presented has nothing to prove its presents (the Vulkan guide: no good solution in
-//! unextended Vulkan): it is kept, observable in [`crate::OwnerMemoryUse::swapchains`], with its surface and its
-//! window's target, until its device is destroyed after its queue drained.
+//! surface that was presented has nothing to prove its presents but its own images (the Vulkan guide: no good solution
+//! in unextended Vulkan). Before releasing such a surface the host presents once on a new swapchain, then asks
+//! [`OwnerSurface::prove_presents`] until it says [`PresentsProof::Proven`]: the image of that present, acquired back,
+//! proves the old swapchain no longer shown and the new one's only present ended, and both end with their work (MT-214
+//! SF-2). A surface released without that proof is kept, observable in [`crate::OwnerMemoryUse::swapchains`], with
+//! its window's target, until its device is destroyed after its queue drained.
 //!
 //! # Frames
 //!
@@ -168,6 +171,19 @@ pub enum PresentResult {
     OutOfDate,
     /// Not shown: the surface is lost. Make a new one.
     SurfaceLost,
+}
+
+/// How far the presents of a surface's swapchains are proven ended ([`OwnerSurface::prove_presents`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PresentsProof {
+    /// Nothing waits for a proof of its presents: released now, the surface, its swapchains and its window's target
+    /// end with their work.
+    Proven,
+    /// A present waits for its image to come back, or for its present fence: ask again later. Nothing here waits.
+    Waiting,
+    /// An older swapchain waits for a present of the current one, which has none, or there is no current one: present
+    /// once with it, then ask again.
+    NeedsPresent,
 }
 
 /// What [`crate::GpuClient::present`] returns.
@@ -322,6 +338,23 @@ impl OwnerSurface {
     /// The swapchain, when there is one and it is not suspended.
     pub fn swapchain(&self) -> Option<SwapchainInfo> {
         self.owner.swapchain_info(&self.origin)
+    }
+
+    /// Prove, before the surface is released, that the presents of its swapchains ended, so that it and its window end
+    /// then and not with the device (MT-214 SF-2). Without `VK_EXT_swapchain_maintenance1` it acquires back, without
+    /// waiting, images of the current swapchain: an image acquired here is handed to nobody and stays acquired until
+    /// the swapchain ends, which is out of date from then on ([`Self::configure`] it again to present more). With the
+    /// extension it only says whether the present fences signalled.
+    ///
+    /// The intended use: [`Self::configure`] a new swapchain, present once with it, then ask this on later turns of the
+    /// host's loop, never in a loop that waits, until [`PresentsProof::Proven`], and release. Give up after a bound of
+    /// the host's: a surface released before it is proven is kept, with its window's target, until the device ends.
+    ///
+    /// # Errors
+    ///
+    /// [`PresentRefusal`]: the surface is lost, its claim may not use the device, or the device failed.
+    pub fn prove_presents(&self) -> Result<PresentsProof, PresentRefusal> {
+        self.owner.prove_surface_presents(&self.origin)
     }
 
     pub fn probe(&self) -> PresentProbe {

@@ -1,7 +1,7 @@
 //! Recovery from a device loss, and shutdown: when a device generation ends, and what its holders have to do with it.
 
 use super::queue::{bounded, MAX_WAIT};
-use super::{Live, OwnerShared, Slot};
+use super::{CloseState, Live, OwnerShared, Slot};
 use crate::ids::DeviceKey;
 use crate::outcome::DeviceRebindRefusal;
 use crate::owner_core::ShutdownReport;
@@ -62,7 +62,7 @@ impl OwnerShared {
         let Some(_rebinding) = Rebinding::begin(&self.rebinding) else {
             return Err(DeviceRebindRefusal::InProgress);
         };
-        if self.lock_closed().is_some() {
+        if !self.lock_closed().is_open() {
             return Err(DeviceRebindRefusal::Closed);
         }
         // Asked with no lock held: whatever the lost device does, it keeps no client and no close waiting.
@@ -79,7 +79,7 @@ impl OwnerShared {
         let closed = self.lock_closed();
         drop(creating);
         match opened {
-            Ok(generation) if closed.is_some() => {
+            Ok(generation) if !closed.is_open() => {
                 // Closed meanwhile, and said so. It was never bound and never had work, so it ends here.
                 drop(closed);
                 let (_, targets) = generation.dispose();
@@ -96,7 +96,7 @@ impl OwnerShared {
                 });
                 Ok(number)
             }
-            Err(_) if closed.is_some() => Err(DeviceRebindRefusal::Closed),
+            Err(_) if !closed.is_open() => Err(DeviceRebindRefusal::Closed),
             Err(reason) => {
                 self.core.device_unavailable(reason);
                 Err(DeviceRebindRefusal::Unavailable(reason))
@@ -110,7 +110,7 @@ impl OwnerShared {
         &self,
     ) -> Result<(Arc<ProcessClaim>, DeviceKey, Option<Live>), DeviceRebindRefusal> {
         let closed = self.lock_closed();
-        if closed.is_some() {
+        if !closed.is_open() {
             return Err(DeviceRebindRefusal::Closed);
         }
         let (process, key, lost) = {
@@ -177,17 +177,27 @@ impl OwnerShared {
         Ok(taken.map(|live| (live, holders)))
     }
 
+    /// Single-shot. The close lock is held only to change the close state and to take the device out of the slot as one
+    /// step with respect to a rebind; the draining and the destruction run with no lock of the owner held, so no other
+    /// call waits for them (MT-203 S2-F3). A close that comes meanwhile reports [`DeviceFate::Closing`] at once.
     pub(super) fn close(&self) -> ShutdownReport {
-        let mut closed = self.lock_closed();
-        if let Some(report) = *closed {
-            drop(closed);
-            self.reap();
-            return report;
-        }
-        self.core.begin_shutdown();
-        // From here on nothing is leased, recorded or submitted. What was submitted is still observed, and the slot is
-        // free while the queue drains.
         let live = {
+            let mut closed = self.lock_closed();
+            match *closed {
+                CloseState::Closed(report) => {
+                    drop(closed);
+                    self.reap();
+                    return report;
+                }
+                CloseState::Closing => {
+                    drop(closed);
+                    return self.core.closing_report();
+                }
+                CloseState::Open => *closed = CloseState::Closing,
+            }
+            self.core.begin_shutdown();
+            // From here on nothing is leased, recorded or submitted. What was submitted is still observed, and the
+            // slot is free while the queue drains.
             let mut slot = self.lock_slot();
             slot.process = None;
             let live = slot.live.take();
@@ -203,8 +213,7 @@ impl OwnerShared {
         let (device, lost_devices_held, kept) = self.end_at_close(live);
         let lost_devices_held = u64::try_from(lost_devices_held).unwrap_or(u64::MAX);
         let report = self.core.finish_shutdown(device, lost_devices_held);
-        *closed = Some(report);
-        drop(closed);
+        *self.lock_closed() = CloseState::Closed(report);
         // Its holders may have left meanwhile: then it ends here, reported after the close.
         drop(kept);
         self.reap();
