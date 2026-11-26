@@ -1235,5 +1235,49 @@
       "validation layers",
       "Dozen refusal by driver id"
     ]
+  },
+  "slice2_implementation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "slice": "S2 allocation, owner images and buffers, presentation support; E3-1 and E3-2",
+    "commit": "992ca2b34068931a3787aaaba5b23ef126edd04c",
+    "crate_tree": "dd2003956",
+    "paths": "src/frontend/handshake_native/vulkan-renderer/** (40 files)",
+    "e3_1": "vkQueueSubmit and vkQueuePresentKHR hold only a per-generation lane lock; queue state has its own short lock; a submission is counted before the driver call; close gives up after 5 s and keeps the device (Held or Unconfirmed)",
+    "e3_2": "every event goes through an outbox and is delivered after the slot, close and lane locks are released, in order",
+    "allocator": {
+      "choice": "gpu-alloc =0.6.2 (wgpu-hal's Vulkan sub-allocator; pure Rust; deps bitflags, gpu-alloc-types; offline cache)",
+      "rejected": "gpu-allocator 0.27 (fixed 256 MiB blocks, brings thiserror/syn and log)",
+      "budget": "VK_EXT_memory_budget refuses objects over the heap budget; without it budget is unknown and nothing is refused",
+      "quota": "reserved at admission, charged at allocation, released once after destroy; settle, release and rebind refused while resources exist",
+      "lock_change": "Cargo.lock gained bitflags 2.13.2, gpu-alloc, gpu-alloc-types; existing entries unchanged"
+    },
+    "images_buffers": "GpuClient::create_image/create_buffer; recording transition, clear, read_back; released resources destroyed only after the queue passes the last value given at release; buffer read/write refused while the client's work is pending",
+    "window_token": "renderer defines SurfaceTarget with native_window() -> NativeWindow::Win32 { hwnd, hinstance }; the composing crate wraps the window crate's NativeWindowToken; no shared crate",
+    "presentation": "only with OwnerOptions::presentation: VK_KHR_surface, VK_KHR_win32_surface, optional get_surface_capabilities2 and surface_maintenance1; VK_KHR_swapchain and optional swapchain_maintenance1; configure creates and recreates with oldSwapchain; zero extent suspends; acquire timeout 0; present makes no wait; retired swapchains destroyed once after fences are observed and the last present is proven; PresentProbe gives lock-free present counts for MT-215 HB-4",
+    "implementer_checks": {
+      "check --locked --offline --tests -j 2": "clean",
+      "clippy --all-targets -D warnings": "clean",
+      "fmt": "clean",
+      "closure": "ash, gpu-alloc, bitflags, gpu-alloc-types, libloading, windows-link; no wgpu, egui, eframe, winit; no ash type in the public API"
+    },
+    "left_for_window_host": [
+      "present loop",
+      "resize recreate and SwapchainEnded once",
+      "minimise and restore",
+      "dropped frame",
+      "surface release",
+      "multiwindow",
+      "maintenance1 versus acquire-fence proof",
+      "loss with a surface"
+    ],
+    "open": [
+      "E3-3",
+      "E3-4",
+      "E3-5",
+      "E3-6",
+      "a closed window's surface may be held until a later present or owner close when no present proof exists"
+    ],
+    "tests": "compiled, not run; independent run pending"
   }
 }
