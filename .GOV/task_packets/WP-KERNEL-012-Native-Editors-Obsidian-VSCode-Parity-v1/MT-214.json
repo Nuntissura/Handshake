@@ -1289,5 +1289,19 @@
       "the probe path under a real hang"
     ],
     "next_actor": "GUI coding agent after the first-frame slice: E3-F2, E3-F6, E3-F3, E3-F4, E3-F5 and the named tests; E3-F1 on a real desktop"
+  },
+  "operator_waiver_20261126_real_desktop_handon": {
+    "decision_id": "WP012-MT214-S1-REAL-DESKTOP-HANDON-WAIVER-20261126",
+    "operator_quote": "this seems like a small thing that can be patched later if not working as desired. waive it and keep the work moving",
+    "decided_on": "2026-11-26",
+    "recorded_by": "ORCHESTRATOR root session",
+    "waives": "the real-desktop verification of ACTIVATION_AFTER_REMOVAL (R2-N5 / E3-F1) that made slice1_eval3_20261126 inconclusive",
+    "effect": "the MT-214 slice 1 inconclusive result no longer blocks progress; E3-F1 becomes a deferred item, to be patched later if the behaviour is not as desired",
+    "not_waived": [
+      "E3-F2 clipboard copy scope (privacy)",
+      "E3-F6 a model indirectly triggering the hand-on",
+      "E3-F3, E3-F4, E3-F5 and the named weak tests"
+    ],
+    "not_a_verdict": "the slice keeps its recorded eval result; this waiver records an Operator scope decision, not a validator PASS"
   }
 }
