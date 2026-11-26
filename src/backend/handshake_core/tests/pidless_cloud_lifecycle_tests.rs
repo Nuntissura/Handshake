@@ -240,7 +240,7 @@ async fn pidless_cloud_spawn_acknowledges_durable_start_and_cancel_records_match
         })),
         None,
     ));
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(RunBudget::defaulted(2).with_concurrency(2)),
         factory,
         Arc::new(RecordingSwarmSink::new()),

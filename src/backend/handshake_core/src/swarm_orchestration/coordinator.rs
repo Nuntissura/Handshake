@@ -1339,16 +1339,60 @@ impl SwarmCoordinator {
     }
 
 
-    /// Build a coordinator. `factory`, `sink`, and `ledger` are injected so the
-    /// same coordinator code runs in production (real runtime + flight recorder
-    /// + postgres-backed ledger) and in tests (controllable adapter + recording
-    /// sink + in-memory ledger).
+    /// Build a fail-closed coordinator. `factory`, `sink`, and `ledger` are
+    /// injected so the same coordinator code runs in production and tests, but
+    /// runtime creation still requires a Dexterity launch contract. With no
+    /// ModelLaneStore wired, any Dexterity launch also fails before factory
+    /// creation; callers that need runnable model launches should use
+    /// [`Self::new_with_model_lane_store`].
     pub fn new(
         config: SwarmConfig,
         factory: Arc<dyn ModelSessionFactory>,
         sink: Arc<dyn SwarmEventSink>,
         ledger: LedgerBatcher,
     ) -> Self {
+        Self::new_with_dexterity_launch_requirement(config, factory, sink, ledger, None, true)
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn new_legacy_without_dexterity_for_tests(
+        config: SwarmConfig,
+        factory: Arc<dyn ModelSessionFactory>,
+        sink: Arc<dyn SwarmEventSink>,
+        ledger: LedgerBatcher,
+    ) -> Self {
+        Self::new_with_dexterity_launch_requirement(config, factory, sink, ledger, None, false)
+    }
+
+    pub fn new_with_model_lane_store(
+        config: SwarmConfig,
+        factory: Arc<dyn ModelSessionFactory>,
+        sink: Arc<dyn SwarmEventSink>,
+        ledger: LedgerBatcher,
+        model_lane_store: ModelLaneStore,
+    ) -> Self {
+        Self::new_with_dexterity_launch_requirement(
+            config,
+            factory,
+            sink,
+            ledger,
+            Some(model_lane_store),
+            true,
+        )
+    }
+
+    fn new_with_dexterity_launch_requirement(
+        config: SwarmConfig,
+        factory: Arc<dyn ModelSessionFactory>,
+        sink: Arc<dyn SwarmEventSink>,
+        ledger: LedgerBatcher,
+        model_lane_store: Option<ModelLaneStore>,
+        dexterity_launch_required: bool,
+    ) -> Self {
+        let routing_execution_store = model_lane_store
+            .as_ref()
+            .cloned()
+            .map(super::routing_execution::ModelLaneRoutingExecutionStore::new);
         let semaphore = Arc::new(Semaphore::new(config.budget.max_concurrent.max(1)));
         let cold_start_semaphore = Arc::new(Semaphore::new(
             config.budget.max_concurrent_cold_starts.max(1),
@@ -1370,9 +1414,9 @@ impl SwarmCoordinator {
             effective_max_concurrent: AtomicUsize::new(config.budget.max_concurrent.max(1)),
             desired_max_concurrent: AtomicUsize::new(config.budget.max_concurrent.max(1)),
             checkout_lease_generation: AtomicU64::new(0),
-            routing_execution_store: None,
+            routing_execution_store,
             process_reclaimer: Mutex::new(None),
-            dexterity_launch_required: false,
+            dexterity_launch_required,
             #[cfg(any(test, feature = "test-utils"))]
             terminate_trace_enabled: AtomicBool::new(false),
             #[cfg(any(test, feature = "test-utils"))]
@@ -1401,28 +1445,12 @@ impl SwarmCoordinator {
             factory,
             sink,
             ledger,
-            model_lane_store: None,
+            model_lane_store,
         });
         Self {
             inner,
             reaper: Arc::new(ReaperHandle::new()),
         }
-    }
-
-    pub fn new_with_model_lane_store(
-        config: SwarmConfig,
-        factory: Arc<dyn ModelSessionFactory>,
-        sink: Arc<dyn SwarmEventSink>,
-        ledger: LedgerBatcher,
-        model_lane_store: ModelLaneStore,
-    ) -> Self {
-        let mut coordinator = Self::new(config, factory, sink, ledger);
-        let routing_store = super::routing_execution::ModelLaneRoutingExecutionStore::new(model_lane_store.clone());
-        Arc::get_mut(&mut coordinator.inner)
-            .expect("new coordinator Inner must be uniquely owned")
-            .model_lane_store = Some(model_lane_store);
-        Arc::get_mut(&mut coordinator.inner).expect("new coordinator Inner must be uniquely owned").routing_execution_store = Some(routing_store);
-        coordinator
     }
 
     pub fn session_cancel_token(&self, instance_id: ModelInstanceId) -> Option<CancellationToken> {
