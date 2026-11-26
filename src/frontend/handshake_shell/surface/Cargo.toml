@@ -1,0 +1,29 @@
+# WP-KERNEL-012 MT-214 S2 — the surface crate: shell windows presenting real Vulkan frames.
+#
+# Composes the two crates without either knowing the other (MT-203 present.rs, "The window token"): the window crate's
+# NativeWindowToken becomes the GPU owner's SurfaceTarget here, each window gets an admitted Display claim and a
+# surface on the owner's device, and frames are drawn only when something asked for one (AC214-3, AC214-4).
+#
+# No window library, Vulkan binding or Win32 crate is a dependency of this crate's code: both come through the two
+# Handshake crates, privately. Tests alone use Win32, to pump a window and to give it the operating system's messages.
+[package]
+name = "handshake_shell_surface"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Shell windows presenting Vulkan frames through the central GPU owner: a surface and a swapchain per window under an admitted claim, damage-driven frames, recreation on resize, minimise, restore and scale changes, and a headless readback of the same frame."
+
+[dependencies]
+handshake_shell_window = { path = "../window" }
+handshake-vulkan-renderer = { path = "../../handshake_native/vulkan-renderer" }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Tests only: the private desktop of the window crate's test support, a window pump for the GPU owner's presentation
+# cases, and the operating system's scale-change message. The revision winit 0.30.13 binds, as in the window crate.
+windows-sys = { version = "=0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_StationsAndDesktops",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }

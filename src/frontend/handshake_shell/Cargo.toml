@@ -1,13 +1,14 @@
 # WP-KERNEL-012 MT-214 — the kernel-owned native shell, as small crates.
 #
-# window (S1, here), then surface, input, accessibility and shell (MT-214 AC214-12). Direct Vulkan only: no egui,
-# eframe, wgpu or glow may enter any closure, and no window-library, graphics-API or toolkit type any public
-# signature (AC214-1, HBR-HOST-001).
+# window (S1), surface (S2: the window crate composed with the MT-203 GPU owner), then input, accessibility and shell
+# (MT-214 AC214-12). Direct Vulkan only: no egui, eframe, wgpu or glow may enter any closure, and no window-library,
+# graphics-API or toolkit type any public signature (AC214-1, HBR-HOST-001).
 #
-# Standalone workspace root, as every sibling crate tree here: the repo has no root cargo workspace.
+# Standalone workspace root, as every sibling crate tree here: the repo has no root cargo workspace. The GPU owner
+# (`../handshake_native/vulkan-renderer`) is a path dependency of `surface` only, outside this folder and so no member.
 [workspace]
 resolver = "2"
-members = ["window"]
+members = ["window", "surface"]
 
 [profile.dev]
 debug = "line-tables-only"

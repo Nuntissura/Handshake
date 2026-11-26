@@ -1,0 +1,22 @@
+# HBR-QUIET: the same ban as src/frontend/handshake_native/clippy.toml, plus the calls winit would make for us. Clippy
+# resolves these at the call site; tests/test_focus_ban.rs is the source scan that always runs.
+disallowed-methods = [
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SetForegroundWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::BringWindowToTop", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SwitchToThisWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SetCursorPos", reason = "HBR-QUIET: never move the Operator's cursor", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow", reason = "HBR-QUIET: no activation", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SetFocus", reason = "HBR-QUIET: no focus change", allow-invalid = true },
+    { path = "windows_sys::Win32::System::Threading::AttachThreadInput", reason = "HBR-QUIET: no shared input state", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::keybd_event", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::mouse_event", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SendInput", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+    { path = "winit::window::Window::focus_window", reason = "winit 0.30.13 injects an Alt key press here", allow-invalid = true },
+    { path = "winit::window::Window::set_minimized", reason = "winit 0.30.13 activates on restore", allow-invalid = true },
+    { path = "winit::window::Window::set_maximized", reason = "winit 0.30.13 activates and can hide the window", allow-invalid = true },
+    { path = "winit::window::Window::set_fullscreen", reason = "winit 0.30.13 activates", allow-invalid = true },
+    { path = "winit::window::Window::set_visible", reason = "winit 0.30.13 cannot show at a chosen place in the Z order", allow-invalid = true },
+    { path = "winit::window::Window::set_cursor_position", reason = "HBR-QUIET: never move the Operator's cursor", allow-invalid = true },
+    { path = "winit::window::Window::request_user_attention", reason = "HBR-QUIET: no taskbar flashing", allow-invalid = true },
+]
