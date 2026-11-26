@@ -1821,5 +1821,47 @@
     ],
     "cleanup": "all probes exited; both test stations disappeared; no processes stopped",
     "next": "adversarial review of the recommendation before any change"
+  },
+  "clipboard_adversarial_decision_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the adversarial reviewer's report",
+    "recorded_on": "2026-11-26",
+    "reviews": "clipboard_specialist_20261126",
+    "decision": "fix the harness now; never write to the Operator's clipboard on this ARM64 machine; the real-OS clipboard proof location is one Operator question, asked only if the x64 PC's private-station preflight also fails",
+    "core_claim": {
+      "status": "mostly proven for this host and process context",
+      "own_probe": "scratchpad advrev/ctx_probe.py (no clipboard calls; separate observer read WinSta0 sequence 95 before and after): process session 1 is the active console session; Windows 11 Home 26H1 build 28000.3501; CreateWindowStationW(NULL, CWF_CREATE_ONLY) without impersonation returns 183 (no unshared station without it); job hypothesis refuted (jobs nest only if no job sets UI limits; the immediate job's limits are 0)",
+      "gaps": [
+        "the control case OpenClipboard on WinSta0 from this agent context was never run, so 'non-interactive station' as the cause is inferred",
+        "elevated runs and other Windows builds untested",
+        "the x64 preflight will answer it"
+      ]
+    },
+    "impersonation_conditions": [
+      "RevertToSelf in a Drop guard, result asserted, abort on failure",
+      "no assert inside the impersonated window",
+      "183 treated as busy or BLOCKED (the name Service-0x0-3e6$ is fixed and collides)",
+      "explicit DACL with an OWNER RIGHTS ACE so the anonymous owner gets no implicit WRITE_DAC",
+      "no simpler unshared station: naming needs elevation (split admin, UAC prompt)"
+    ],
+    "e5_f1_s": "confirmed: support/mod.rs:176 opens the logon session's shared station with flag 0; lines 239-252 and 270 empty its clipboard; removing EmptiedAtEnd alone is not enough because Other::put (test_clipboard.rs:174-188) and the product's writes also land on the shared station; fix: refuse the shared station and require CWF_CREATE_ONLY to succeed; needed now because the x64 gate or CI would run the harness as it stands",
+    "declared_winsta0_mode": "rejected on ARM64: HBR-QUIET-004 covers foreground interaction that cannot be eliminated (a clipboard write is neither); breaks the HBR-QUIET-001 WinSta0 sequence audit; saving the Operator's text pulls secrets into test memory (unwaived E3-F2); restore can bring back a password manager entry after auto-clear; drops non-text formats and clobbers copies made during the test; the 3 s hang step stalls the Operator's paste; product writes reach Win+V history and possibly cloud sync; HSK_CLIPBOARD_QUIET004 breaks CX-VAL-007; ARM64 results are not acceptance anyway (AC213-11; SH214-RUNTIME names the x64 PC)",
+    "alternatives": {
+      "windows_sandbox_hyper_v": "not supported on Home (Microsoft Learn)",
+      "ci_runner": "repo is public so standard hosted runners are free (GitHub docs); ci.yml already runs product cargo tests on ubuntu and gov-check on windows-latest on every push; the runner's clipboard is disposable; cost is a new Windows job and runs already over an hour; not the x64 PC",
+      "second_account": "Operator creates it, logs in on every boot, uses fast user switching; a non-interactive scheduled task lands on a non-interactive station"
+    },
+    "now_without_operator": [
+      "harness: anonymous-token fresh station per the conditions above; refuse the shared station; require CWF_CREATE_ONLY",
+      "preflight OpenClipboard/CloseClipboard on the fresh station; stop BLOCKED(environment) before any write",
+      "no WinSta0 write path and no environment-variable gate",
+      "mark test_clipboard #[ignore] with a reason and name the --ignored command in the x64 proof (otherwise it fails as infrastructure every round and CX-EXEC-015(4) stops MT-214 rounds after two)",
+      "record that the clipboard part of AC214-2 has unit evidence only on this machine"
+    ],
+    "operator_question_deferred": {
+      "ask_when": "only if the x64 PC's private-station preflight also fails",
+      "question": "Should the real-OS clipboard proof run (A) as a windows-latest job in the existing public CI, accepted as AC214-2's clipboard evidence, (B) as a declared save-and-restore step on the x64 PC that writes to its clipboard while the Operator watches, or (C) not at all, leaving the clipboard part of AC214-2 open?",
+      "reviewer_recommendation": "A"
+    },
+    "routing": "harness fix queued for the GUI coder after the current E5 repair round (same crate)"
   }
 }
