@@ -34,11 +34,14 @@ pub enum Unavailable {
     OwnerAlreadyOpen,
     /// Any other Vulkan result (raw `VkResult`, never text).
     Driver(i32),
+    /// The host asked for presentation, and the loader, the device or its queue cannot present to windows of this
+    /// platform (`VK_KHR_surface`, `VK_KHR_win32_surface`, `VK_KHR_swapchain`, Win32 presentation support).
+    PresentationUnsupported,
 }
 
 impl Unavailable {
     /// Every reason once, `Driver` with a placeholder result.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::LoaderMissing,
         Self::InstanceRefused,
         Self::ApiBelowBaseline,
@@ -53,6 +56,7 @@ impl Unavailable {
         Self::OwnerAlreadyOpen,
         Self::Driver(0),
         Self::FeatureMissing,
+        Self::PresentationUnsupported,
     ];
 
     pub const fn key(self) -> &'static str {
@@ -71,6 +75,7 @@ impl Unavailable {
             Self::OwnerAlreadyOpen => "owner_already_open",
             Self::FeatureMissing => "feature_missing",
             Self::Driver(_) => "vk_error",
+            Self::PresentationUnsupported => "presentation_unsupported",
         }
     }
 
@@ -90,6 +95,7 @@ impl Unavailable {
             Self::OwnerAlreadyOpen => 12,
             Self::Driver(_) => 13,
             Self::FeatureMissing => 14,
+            Self::PresentationUnsupported => 15,
         }
     }
 }
@@ -334,6 +340,9 @@ pub enum SettleRefusal {
     /// The reported outcome is not what the owner observed: `Completed` needs work that completed and none that was
     /// lost, `NoEffect` that nothing ran, `Lost` a loss.
     OutcomeContradicted { observed: WorkObserved },
+    /// Images, buffers or surfaces the owner made for the claim still exist. Drop them; the owner destroys them once
+    /// nothing that may use them runs ([`crate::GpuClient::poll`] lets it look), then settle or release again.
+    ResourcesOutstanding { resources: u32 },
 }
 
 impl SettleRefusal {
@@ -349,6 +358,7 @@ impl SettleRefusal {
             Self::NotSettled => "not_settled",
             Self::AlreadySettled => "already_settled",
             Self::OutcomeContradicted { .. } => "outcome_contradicted",
+            Self::ResourcesOutstanding { .. } => "settle_resources_outstanding",
         }
     }
 
@@ -364,6 +374,7 @@ impl SettleRefusal {
             Self::LeaseOutstanding { .. } => 8,
             Self::RetainedBelowCharged { .. } => 9,
             Self::OutcomeContradicted { .. } => 10,
+            Self::ResourcesOutstanding { .. } => 11,
         }
     }
 }
@@ -391,6 +402,9 @@ pub enum RebindRefusal {
     MemoryHeld { bytes: u64 },
     /// The claim was not issued by this owner to this client.
     Unknown,
+    /// Resources the owner made for the claim on the lost device still exist. Drop them; they end with the device or
+    /// once the owner sees that nothing uses them, then rebind.
+    ResourcesHeld { resources: u32 },
 }
 
 impl RebindRefusal {
@@ -405,6 +419,7 @@ impl RebindRefusal {
             Self::LeaseOutstanding { .. } => "rebind_lease_outstanding",
             Self::MemoryHeld { .. } => "rebind_memory_held",
             Self::Unknown => "claim_unknown",
+            Self::ResourcesHeld { .. } => "rebind_resources_held",
         }
     }
 
@@ -419,6 +434,7 @@ impl RebindRefusal {
             Self::InFlight { .. } => 7,
             Self::LeaseOutstanding { .. } => 8,
             Self::MemoryHeld { .. } => 9,
+            Self::ResourcesHeld { .. } => 10,
         }
     }
 }

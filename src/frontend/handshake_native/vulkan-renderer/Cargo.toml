@@ -25,6 +25,11 @@ path = "src/lib.rs"
 
 [dependencies]
 ash = { version = "=0.38.0", default-features = false, features = ["loaded", "std"] }
+# Device-memory sub-allocation (buddy blocks and dedicated objects) for owner buffers and images (MT-203 slice 2,
+# G203-H1). Pure Rust, no proc macro, backend-agnostic: the owner supplies the ash calls itself
+# (src/vulkan/memory.rs), as wgpu-hal's Vulkan backend does with the same crate. Only `bitflags` and its own types
+# crate come with it. `std` makes a block that is never returned a printed report instead of a panic.
+gpu-alloc = { version = "=0.6.2", default-features = false, features = ["std"] }
 
 # Already in the closure through `ash`: named here to load the Vulkan loader from the system directory only. Adds no
 # crate to the lock.

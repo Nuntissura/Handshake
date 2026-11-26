@@ -24,11 +24,17 @@ impl ClaimLedger {
             attached_clients: u64::try_from(state.seats.len()).unwrap_or(u64::MAX),
             abandoned_claims: 0,
             leaked_claims: 0,
+            owned_resources: 0,
+            owned_bytes: 0,
             device: state.device,
             admission_open: state.admission_open,
         };
         for record in state.live.values() {
             usage.leases = usage.leases.saturating_add(u64::from(record.leases));
+            usage.owned_resources = usage
+                .owned_resources
+                .saturating_add(u64::from(record.owned));
+            usage.owned_bytes = usage.owned_bytes.saturating_add(record.owned_bytes());
             usage.abandoned_claims = usage
                 .abandoned_claims
                 .saturating_add(u64::from(record.abandoned));

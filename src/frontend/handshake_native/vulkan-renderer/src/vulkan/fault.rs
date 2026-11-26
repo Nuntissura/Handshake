@@ -7,6 +7,7 @@
 //! - Every Vulkan call that waits for the device is replaced by one that ignores its timeout, whatever the machine's
 //!   driver does, so no wait of this crate can rely on one.
 //! - The creation of a device is held until the test lets it go on, or refused.
+//! - A submission can be held inside the call that hands it to the driver, as a driver that stalls there would hold it.
 
 #[cfg(not(test))]
 use crate::outcome::Unavailable;
@@ -68,7 +69,11 @@ pub(crate) use injected::{AfterLoss, Faults};
 mod injected {
     use super::Call;
     use ash::vk;
-    use std::sync::{Mutex, MutexGuard, PoisonError};
+    use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
+    use std::time::Duration;
+
+    /// A test that never lets a held submission go fails by what it finds then.
+    const STALL_LIMIT: Duration = Duration::from_secs(60);
 
     /// What a lost device says from the call after the one that met the loss. Vulkan allows each of these answers.
     #[derive(Clone, Copy, Debug)]
@@ -104,6 +109,10 @@ mod injected {
         gate: Option<vk::Semaphore>,
         /// The queue's last submission met the loss here and was never given to the real queue.
         withheld: bool,
+        /// Submissions are held in the driver call until this is cleared.
+        stall: bool,
+        /// Submissions held now.
+        stalled: u32,
     }
 
     impl Default for Plan {
@@ -115,6 +124,8 @@ mod injected {
                 refuse_submit: None,
                 gate: None,
                 withheld: false,
+                stall: false,
+                stalled: 0,
             }
         }
     }
@@ -122,6 +133,7 @@ mod injected {
     #[derive(Default)]
     pub(crate) struct Faults {
         plan: Mutex<Plan>,
+        changed: Condvar,
     }
 
     impl Faults {
@@ -131,6 +143,16 @@ mod injected {
 
         pub(crate) fn answer(&self, call: Call) -> Option<vk::Result> {
             let mut plan = self.lock();
+            if call == Call::Submit && plan.stall {
+                plan.stalled += 1;
+                self.changed.notify_all();
+                plan = self
+                    .changed
+                    .wait_timeout_while(plan, STALL_LIMIT, |plan| plan.stall)
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .0;
+                plan.stalled -= 1;
+            }
             let meets = plan.lose_at == Some(call);
             if meets {
                 plan.lose_at = None;
@@ -179,6 +201,26 @@ mod injected {
         /// What the device says once it is lost, from now on.
         pub(crate) fn after_loss(&self, after: AfterLoss) {
             self.lock().after = after;
+        }
+
+        /// From now on every submission is held inside the driver call until [`Self::release_submits`].
+        pub(crate) fn stall_submits(&self) {
+            self.lock().stall = true;
+        }
+
+        pub(crate) fn release_submits(&self) {
+            self.lock().stall = false;
+            self.changed.notify_all();
+        }
+
+        /// Until a submission is held. `false` when none came.
+        pub(crate) fn is_stalled(&self) -> bool {
+            let plan = self.lock();
+            let (plan, _) = self
+                .changed
+                .wait_timeout_while(plan, STALL_LIMIT, |plan| plan.stalled == 0)
+                .unwrap_or_else(PoisonError::into_inner);
+            plan.stalled > 0
         }
 
         /// The queue refuses the next submission with `result`.

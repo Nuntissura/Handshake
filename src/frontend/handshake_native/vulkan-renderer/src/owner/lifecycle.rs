@@ -75,7 +75,7 @@ impl OwnerShared {
         if let Some(live) = last {
             self.end_lost(live);
         }
-        let opened = VulkanGeneration::open(process, Some(key));
+        let opened = VulkanGeneration::open(process, Some(key), self.presentation);
         let closed = self.lock_closed();
         drop(creating);
         match opened {

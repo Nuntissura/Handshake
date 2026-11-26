@@ -170,7 +170,7 @@ fn the_descriptor_lists_what_the_code_and_the_lock_have() {
         .map(|reason| reason.number())
         .collect();
     numbers.sort_unstable();
-    assert_eq!(numbers, (1..=14).collect::<Vec<u16>>());
+    assert_eq!(numbers, (1..=15).collect::<Vec<u16>>());
 
     let locked: BTreeSet<_> = include_str!("../Cargo.lock")
         .lines()

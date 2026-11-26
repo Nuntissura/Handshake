@@ -25,6 +25,7 @@
 //! processes and restarts (GPU-QUOTA-006..010) is the Core accounting port and is not implemented here.
 
 mod client;
+mod owned;
 mod rebind;
 mod reclaim;
 mod report;
@@ -32,6 +33,7 @@ mod settle;
 mod submit;
 
 pub use client::LedgerClient;
+pub(crate) use owned::OwnedEnd;
 pub use submit::Submission;
 
 use crate::diag::{OwnerDiagnostics, OwnerEvent, Subject};
@@ -179,6 +181,11 @@ struct Record {
     charged_bytes: u64,
     committed_bytes: u64,
     staging_bytes: u64,
+    /// Resources the owner made for the claim and has not destroyed yet (images, buffers, surfaces).
+    owned: u32,
+    /// Memory of those resources, as the owner placed it. The client's own reports never change it.
+    owned_committed: u64,
+    owned_staging: u64,
     /// Submissions the owner counts as not finished.
     in_flight: u32,
     /// Bound on `in_flight`, from the policy the claim was admitted under.
@@ -208,6 +215,9 @@ impl Record {
             charged_bytes,
             committed_bytes: 0,
             staging_bytes: 0,
+            owned: 0,
+            owned_committed: 0,
+            owned_staging: 0,
             in_flight: 0,
             max_in_flight,
             leases: 0,
@@ -217,9 +227,17 @@ impl Record {
         }
     }
 
-    /// Memory the claim reported inside its reservation. Never above `info.reserved_bytes`.
+    /// Memory the claim holds inside its reservation: what its client reported and what the owner placed for it.
+    /// Never above `info.reserved_bytes`.
     fn held_bytes(&self) -> u64 {
-        self.committed_bytes.saturating_add(self.staging_bytes)
+        self.committed_bytes
+            .saturating_add(self.staging_bytes)
+            .saturating_add(self.owned_bytes())
+    }
+
+    /// Memory the owner placed for the claim's resources.
+    fn owned_bytes(&self) -> u64 {
+        self.owned_committed.saturating_add(self.owned_staging)
     }
 }
 
@@ -338,6 +356,14 @@ impl State {
 
 fn bump(counter: &mut u64) {
     *counter = counter.saturating_add(1);
+}
+
+/// Where the owner books the memory of one of the claim's resources.
+fn slot_of_owned(record: &mut Record, class: crate::records::ChargeClass) -> &mut u64 {
+    match class {
+        crate::records::ChargeClass::Committed => &mut record.owned_committed,
+        crate::records::ChargeClass::Staging => &mut record.owned_staging,
+    }
 }
 
 /// What the ledger, its clients, claims and holds share.

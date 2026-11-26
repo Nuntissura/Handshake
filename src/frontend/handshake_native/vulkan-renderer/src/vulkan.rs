@@ -2,22 +2,32 @@
 //! device and queue, through `ash`. Nothing here is public outside the crate and no `ash` type leaves it.
 //! Every `unsafe` block names the rule it relies on.
 //!
-//! No window, surface or swapchain exists in this slice. The generation's own child objects are its sentinel fence and
-//! the fences and command pools of submitted work. Clients may create further child objects through a
+//! The generation's own child objects are its sentinel fence, the fences and command pools of submitted work, the
+//! images, buffers and memory of its resources (`resources`, `memory`) and, when it was opened with presentation, the
+//! surfaces, swapchains and their semaphores and fences (`present`). Clients may create further child objects through a
 //! [`crate::DeviceLease`], which keeps the generation alive until they returned it.
 //!
 //! Nothing here waits inside Vulkan for the device (see `queue`). The calls without a bound of their own are the
-//! creation of an instance and a device, which runs with no lock held, and their destruction, which is reached only
-//! with the evidence that nothing is left in use.
+//! creation of an instance and a device, which runs with no lock held, their destruction, which is reached only with the
+//! evidence that nothing is left in use, and `vkQueueSubmit` and `vkQueuePresentKHR`, which hold only the queue's lane.
 #![allow(unsafe_code)]
 
 mod backoff;
 pub(crate) mod fault;
 mod loader;
+mod memory;
+mod open;
+mod present;
 mod queue;
+mod record;
+mod resources;
 
 pub(crate) use backoff::Backoff;
-pub(crate) use queue::{QueueFault, RecordedWork};
+pub(crate) use memory::{HeapBook, MemoryRefused};
+pub(crate) use present::{FrameRef, PresentEnd, PresentFault, Shown, SurfaceFault};
+pub(crate) use queue::{QueueFault, RecordedWork, SubmitFault, SubmitSync};
+pub(crate) use record::ImageCommand;
+pub(crate) use resources::{BufferSpec, ImageSpec, Owned, ResourceFault};
 
 use crate::device::{
     DeviceHandles, DeviceIdentity, HeapSample, MemoryBudgetSource, MemoryPlacement, MemorySnapshot,
@@ -26,42 +36,20 @@ use crate::ids::DeviceKey;
 use crate::outcome::Unavailable;
 use crate::process::ProcessClaim;
 use crate::records::ByteQuantity;
-use crate::select::{self, CandidateFacts, DeviceClass, BASELINE_API_VERSION};
+use crate::select::{self, BASELINE_API_VERSION};
 use ash::vk::{self, Handle};
 use fault::Faults;
 use loader::LoaderLibrary;
-use queue::{QueueState, Quiescent};
-use std::ffi::{c_char, CStr};
+use memory::MemoryPool;
+use present::{Notes, PresentFns, Surfaces};
+use queue::{Lane, QueueState, Quiescent};
+use resources::Resources;
 use std::sync::{Arc, Mutex};
 
 const _: () = assert!(BASELINE_API_VERSION == vk::API_VERSION_1_3);
 const _: () = assert!(select::DRIVER_ID_SWIFTSHADER == vk::DriverId::GOOGLE_SWIFTSHADER.as_raw());
 const _: () = assert!(select::DRIVER_ID_LLVMPIPE == vk::DriverId::MESA_LLVMPIPE.as_raw());
 const _: () = assert!(select::DRIVER_ID_DOZEN == vk::DriverId::MESA_DOZEN.as_raw());
-
-/// Bound on the physical devices inspected at startup.
-const MAX_ENUMERATED_DEVICES: usize = 64;
-
-/// The device features the owner enables for its clients.
-const FEATURES: [&str; 2] = ["dynamicRendering", "timelineSemaphore"];
-
-struct Inspected {
-    physical: vk::PhysicalDevice,
-    graphics_family: Option<u32>,
-    facts: CandidateFacts,
-    properties: vk::PhysicalDeviceProperties,
-    driver_name: String,
-    driver_info: String,
-}
-
-struct DeviceParts {
-    physical: vk::PhysicalDevice,
-    device: ash::Device,
-    queue: vk::Queue,
-    sentinel: vk::Fence,
-    identity: DeviceIdentity,
-    memory_budget: bool,
-}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum End {
@@ -79,9 +67,18 @@ pub(crate) struct VulkanGeneration {
     device: ash::Device,
     /// Nothing is ever submitted with it, so it is signalled on no healthy device.
     sentinel: vk::Fence,
-    /// The one queue, and the objects of work that may still run. This lock is the external synchronization of the
-    /// queue.
-    queue: Mutex<QueueState>,
+    /// What the queue was given and what of it may still run.
+    state: Mutex<QueueState>,
+    /// The queue itself: the external synchronization of `vkQueueSubmit` and `vkQueuePresentKHR`.
+    lane: Mutex<Lane>,
+    /// The allocator of the owner's resources and its books.
+    memory: Mutex<MemoryPool>,
+    resources: Resources,
+    /// Present only when the generation was opened with presentation.
+    presentation: Option<PresentFns>,
+    surfaces: Mutex<Surfaces>,
+    /// What dropped surfaces and frames left for the next holder of `surfaces`.
+    notes: Notes,
     identity: DeviceIdentity,
     memory_budget: bool,
     end: End,
@@ -100,43 +97,14 @@ impl std::fmt::Debug for VulkanGeneration {
     }
 }
 
-fn text<E>(value: Result<&CStr, E>) -> String {
-    value
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn class_of(kind: vk::PhysicalDeviceType) -> DeviceClass {
-    match kind {
-        vk::PhysicalDeviceType::DISCRETE_GPU => DeviceClass::Discrete,
-        vk::PhysicalDeviceType::INTEGRATED_GPU => DeviceClass::Integrated,
-        vk::PhysicalDeviceType::VIRTUAL_GPU => DeviceClass::Virtual,
-        vk::PhysicalDeviceType::CPU => DeviceClass::Cpu,
-        _ => DeviceClass::Other,
-    }
-}
-
-/// Map a startup failure. `fallback` names the step for results that only say "refused".
-fn startup_error(result: vk::Result, fallback: Unavailable) -> Unavailable {
-    match result {
-        vk::Result::ERROR_OUT_OF_HOST_MEMORY | vk::Result::ERROR_OUT_OF_DEVICE_MEMORY => {
-            Unavailable::OutOfMemory
-        }
-        vk::Result::ERROR_DEVICE_LOST => Unavailable::PhysicalDeviceLost,
-        vk::Result::ERROR_INCOMPATIBLE_DRIVER
-        | vk::Result::ERROR_INITIALIZATION_FAILED
-        | vk::Result::ERROR_FEATURE_NOT_PRESENT
-        | vk::Result::ERROR_EXTENSION_NOT_PRESENT => fallback,
-        other => Unavailable::Driver(other.as_raw()),
-    }
-}
-
 impl VulkanGeneration {
-    /// Open a generation. With `required`, only that adapter is acceptable. The generation keeps `process`
-    /// until its device is gone.
+    /// Open a generation. With `required`, only that adapter is acceptable; with `presentation`, the surface and
+    /// swapchain extensions are enabled and a device whose queue cannot present is refused. The generation keeps
+    /// `process` until its device is gone.
     pub(crate) fn open(
         process: Arc<ProcessClaim>,
         required: Option<DeviceKey>,
+        presentation: bool,
     ) -> Result<Self, Unavailable> {
         fault::opening()?;
         let (entry, library) = loader::load()?;
@@ -145,35 +113,39 @@ impl VulkanGeneration {
         let loader_version = match unsafe { entry.try_enumerate_instance_version() } {
             Ok(Some(version)) => version,
             Ok(None) => vk::API_VERSION_1_0,
-            Err(result) => return Err(startup_error(result, Unavailable::InstanceRefused)),
+            Err(result) => return Err(open::startup_error(result, Unavailable::InstanceRefused)),
         };
         if !select::meets_baseline(loader_version) {
             return Err(Unavailable::ApiBelowBaseline);
         }
-        let application = vk::ApplicationInfo::default()
-            .application_name(c"Handshake")
-            .engine_name(c"handshake-vulkan-renderer")
-            .api_version(BASELINE_API_VERSION);
-        let create = vk::InstanceCreateInfo::default().application_info(&application);
-        // SAFETY: `create` and the application info it points to outlive the call; no layer and no
-        // instance extension is requested, so no name pointer is involved.
-        let instance = unsafe { entry.create_instance(&create, None) }
-            .map_err(|result| startup_error(result, Unavailable::InstanceRefused))?;
-        match Self::open_device(&instance, required) {
-            Ok(parts) => Ok(Self {
-                entry,
-                instance,
-                physical: parts.physical,
-                device: parts.device,
-                sentinel: parts.sentinel,
-                queue: Mutex::new(QueueState::new(parts.queue)),
-                identity: parts.identity,
-                memory_budget: parts.memory_budget,
-                end: End::Not,
-                faults: Faults::default(),
-                library,
-                process,
-            }),
+        let (instance, features) = open::create_instance(&entry, presentation)?;
+        match open::open_device(&entry, &instance, features, required) {
+            Ok(parts) => {
+                let presentation = features.presentation.then(|| {
+                    PresentFns::new(&entry, &instance, &parts.device, parts.present_fences)
+                });
+                let memory = MemoryPool::new(&instance, parts.physical, parts.memory_budget);
+                Ok(Self {
+                    entry,
+                    instance,
+                    physical: parts.physical,
+                    device: parts.device,
+                    sentinel: parts.sentinel,
+                    state: Mutex::new(QueueState::new()),
+                    lane: Mutex::new(Lane { queue: parts.queue }),
+                    memory: Mutex::new(memory),
+                    resources: Resources::default(),
+                    presentation,
+                    surfaces: Mutex::new(Surfaces::default()),
+                    notes: Notes::default(),
+                    identity: parts.identity,
+                    memory_budget: parts.memory_budget,
+                    end: End::Not,
+                    faults: Faults::default(),
+                    library,
+                    process,
+                })
+            }
             Err(reason) => {
                 // SAFETY: on `Err`, `open_device` left no logical device behind, so the instance has no
                 // child object left.
@@ -183,171 +155,18 @@ impl VulkanGeneration {
         }
     }
 
-    fn inspect(instance: &ash::Instance, physical: vk::PhysicalDevice) -> Inspected {
-        // SAFETY: `physical` was enumerated from `instance`; both are Vulkan 1.0 read-only queries.
-        let (properties, families) = unsafe {
-            (
-                instance.get_physical_device_properties(physical),
-                instance.get_physical_device_queue_family_properties(physical),
-            )
-        };
-        let graphics_family = families
-            .iter()
-            .position(|family| {
-                family.queue_count > 0 && family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-            })
-            .and_then(|index| u32::try_from(index).ok());
-        let mut driver_id = 0;
-        let mut device_uuid = [0u8; 16];
-        let mut driver_name = String::new();
-        let mut driver_info = String::new();
-        // `vkGetPhysicalDeviceProperties2` with the ID and driver structs is core for a 1.2 device; an
-        // older device is rejected by selection anyway and is not asked.
-        if properties.api_version >= vk::API_VERSION_1_2 {
-            let mut id_properties = vk::PhysicalDeviceIDProperties::default();
-            let mut driver_properties = vk::PhysicalDeviceDriverProperties::default();
-            {
-                let mut properties2 = vk::PhysicalDeviceProperties2::default()
-                    .push_next(&mut id_properties)
-                    .push_next(&mut driver_properties);
-                // SAFETY: the instance was created for 1.3 and the device reports at least 1.2; the
-                // chained structs live for the call.
-                unsafe { instance.get_physical_device_properties2(physical, &mut properties2) };
-            }
-            driver_id = driver_properties.driver_id.as_raw();
-            device_uuid = id_properties.device_uuid;
-            driver_name = text(driver_properties.driver_name_as_c_str());
-            driver_info = text(driver_properties.driver_info_as_c_str());
-        }
-        let facts = CandidateFacts {
-            key: DeviceKey {
-                vendor_id: properties.vendor_id,
-                device_id: properties.device_id,
-                device_uuid,
-            },
-            class: class_of(properties.device_type),
-            api_version: properties.api_version,
-            driver_id,
-            has_graphics_queue: graphics_family.is_some(),
-        };
-        Inspected {
-            physical,
-            graphics_family,
-            facts,
-            properties,
-            driver_name,
-            driver_info,
-        }
-    }
-
-    /// Pick and create the logical device. On `Err` nothing created here is left.
-    fn open_device(
-        instance: &ash::Instance,
-        required: Option<DeviceKey>,
-    ) -> Result<DeviceParts, Unavailable> {
-        // SAFETY: valid instance; read-only enumeration.
-        let physicals = unsafe { instance.enumerate_physical_devices() }
-            .map_err(|result| startup_error(result, Unavailable::NoPhysicalDevice))?;
-        let inspected: Vec<Inspected> = physicals
-            .iter()
-            .take(MAX_ENUMERATED_DEVICES)
-            .map(|&physical| Self::inspect(instance, physical))
-            .collect();
-        let facts: Vec<CandidateFacts> = inspected.iter().map(|device| device.facts).collect();
-        let index = select::pick(&facts, required)?;
-        let chosen = inspected.get(index).ok_or(Unavailable::NoSuitableDevice)?;
-        let family = chosen
-            .graphics_family
-            .ok_or(Unavailable::NoSuitableDevice)?;
-
-        // The first planned client (the Vulkan UI pass of the renderer asset) draws with dynamic rendering, and
-        // timeline semaphores order work of clients. A feature cannot be enabled after device creation.
-        let mut supported12 = vk::PhysicalDeviceVulkan12Features::default();
-        let mut supported13 = vk::PhysicalDeviceVulkan13Features::default();
-        {
-            let mut features2 = vk::PhysicalDeviceFeatures2::default()
-                .push_next(&mut supported12)
-                .push_next(&mut supported13);
-            // SAFETY: core query on a device selection accepted as at least 1.3; the chained structs live
-            // for the call.
-            unsafe { instance.get_physical_device_features2(chosen.physical, &mut features2) };
-        }
-        if supported12.timeline_semaphore != vk::TRUE || supported13.dynamic_rendering != vk::TRUE {
-            return Err(Unavailable::FeatureMissing);
-        }
-
-        // SAFETY: `chosen.physical` belongs to `instance`; read-only enumeration.
-        let offered = unsafe { instance.enumerate_device_extension_properties(chosen.physical) }
-            .unwrap_or_default();
-        let memory_budget = offered.iter().any(|extension| {
-            extension
-                .extension_name_as_c_str()
-                .is_ok_and(|name| name == ash::ext::memory_budget::NAME)
-        });
-        let mut extension_names: Vec<*const c_char> = Vec::new();
-        let mut extensions: Vec<&'static str> = Vec::new();
-        if memory_budget {
-            extension_names.push(ash::ext::memory_budget::NAME.as_ptr());
-            extensions.push("VK_EXT_memory_budget");
-        }
-        let mut enable12 = vk::PhysicalDeviceVulkan12Features::default().timeline_semaphore(true);
-        let mut enable13 = vk::PhysicalDeviceVulkan13Features::default().dynamic_rendering(true);
-        let priorities = [1.0f32];
-        let queues = [vk::DeviceQueueCreateInfo::default()
-            .queue_family_index(family)
-            .queue_priorities(&priorities)];
-        let create = vk::DeviceCreateInfo::default()
-            .queue_create_infos(&queues)
-            .enabled_extension_names(&extension_names)
-            .push_next(&mut enable12)
-            .push_next(&mut enable13);
-        // SAFETY: `family` is a queue family of `chosen.physical` with at least one queue; the extension
-        // name is a static C string the device offers; both features were reported as supported; all
-        // referenced arrays outlive the call.
-        let device = unsafe { instance.create_device(chosen.physical, &create, None) }
-            .map_err(|result| startup_error(result, Unavailable::DeviceCreationRefused))?;
-        let device = fault::table(instance, device);
-        // SAFETY: one queue of `family` was requested above, so index 0 exists.
-        let queue = unsafe { device.get_device_queue(family, 0) };
-        let sentinel = match queue::create_fence(&device) {
-            Ok(sentinel) => sentinel,
-            Err(result) => {
-                // SAFETY: the device has no child object (the fence was not created) and no work.
-                unsafe { device.destroy_device(None) };
-                return Err(startup_error(result, Unavailable::DeviceCreationRefused));
-            }
-        };
-
-        let properties = &chosen.properties;
-        let identity = DeviceIdentity {
-            key: chosen.facts.key,
-            class: chosen.facts.class,
-            api_version: [
-                vk::api_version_major(properties.api_version),
-                vk::api_version_minor(properties.api_version),
-                vk::api_version_patch(properties.api_version),
-            ],
-            driver_id: chosen.facts.driver_id,
-            driver_version: properties.driver_version,
-            queue_family: family,
-            features: FEATURES.to_vec(),
-            extensions,
-            name: text(properties.device_name_as_c_str()),
-            driver_name: chosen.driver_name.clone(),
-            driver_info: chosen.driver_info.clone(),
-        };
-        Ok(DeviceParts {
-            physical: chosen.physical,
-            device,
-            queue,
-            sentinel,
-            identity,
-            memory_budget,
-        })
-    }
-
     pub(crate) fn identity(&self) -> &DeviceIdentity {
         &self.identity
+    }
+
+    /// Resources of the owner that exist on this generation.
+    pub(crate) fn resource_count(&self) -> usize {
+        self.resources.count()
+    }
+
+    /// What each heap holds of the owner's own memory objects.
+    pub(crate) fn owner_memory(&self) -> Vec<HeapBook> {
+        self.memory_books()
     }
 
     /// The device's own memory view for `generation`.
@@ -433,6 +252,8 @@ impl VulkanGeneration {
             Some(evidence) => self.end(evidence),
             None => {
                 self.end = End::Left;
+                self.abandon_resources();
+                self.abandon_presentation();
                 std::mem::forget(Arc::clone(&self.library));
                 std::mem::forget(Arc::clone(&self.process));
             }
@@ -450,12 +271,17 @@ impl VulkanGeneration {
         // SAFETY: `&mut self` in `dispose` or `drop`: no lease, recording or wait holds this generation any more
         // (each owns an `Arc` of it), so every client object made from a lease was destroyed first (the rule of
         // `DeviceLease`), and this thread alone uses the device and its queue. `_evidence` says that the queue takes
-        // nothing more and that nothing it took is still in use by the device, so the objects of its work may be
-        // destroyed, and the sentinel was never submitted with; a lost device must still be destroyed (Vulkan "Lost
-        // Device"). Children first, then the device, then the instance; the loader (`library`) is released after this
-        // body (VUID-vkDestroyFence-fence-01120, VUID-vkDestroyDevice-device-05137,
+        // nothing more and that nothing it took is still in use by the device, so the objects of its work, of the
+        // owner's resources and of its presentation may be destroyed, and the sentinel was never submitted with; a lost
+        // device must still be destroyed (Vulkan "Lost Device"). Children first (swapchains, views, images, buffers,
+        // memory, semaphores, fences), then the device, then the instance after its surfaces; the loader (`library`) is
+        // released after this body (VUID-vkDestroySwapchainKHR-swapchain-01282, VUID-vkFreeMemory-memory-00677,
+        // VUID-vkDestroyFence-fence-01120, VUID-vkDestroyDevice-device-05137, VUID-vkDestroySurfaceKHR-surface-01266,
         // VUID-vkDestroyInstance-instance-00629).
         unsafe {
+            self.destroy_presentation();
+            self.destroy_all_resources();
+            self.free_memory_leftovers();
             for one in objects {
                 one.destroy(&self.device);
             }

@@ -33,7 +33,7 @@ const fn code(observation: SubmissionObservation) -> u8 {
 pub(super) struct Flight {
     claim: u64,
     /// The attachment of its claim.
-    seat: u64,
+    pub(super) seat: u64,
     outcome: Arc<AtomicU8>,
 }
 
@@ -290,6 +290,10 @@ impl ClaimLedger {
                     record.device_gone = true;
                     record.committed_bytes = 0;
                     record.staging_bytes = 0;
+                    // The owner's resources on it went with the device.
+                    record.owned = 0;
+                    record.owned_committed = 0;
+                    record.owned_staging = 0;
                 }
             }
             let resolved = resolve_range(

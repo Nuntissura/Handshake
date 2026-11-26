@@ -53,7 +53,7 @@ pub(super) fn reclaim(state: &mut State, id: u64, events: &mut Vec<OwnerEvent>) 
     let Some(record) = state.live.get_mut(&id) else {
         return;
     };
-    if !record.abandoned || record.in_flight > 0 || record.leases > 0 {
+    if !record.abandoned || record.in_flight > 0 || record.leases > 0 || record.owned > 0 {
         return;
     }
     // A settlement that retained memory said it is there; how much may be unknown, and unknown is never zero.

@@ -20,9 +20,12 @@
 //! A device the owner let go of (lost and replaced, or closed) is kept while clients hold it or its work runs, and
 //! destroyed by the first call after that: of the owner, of a client, or the return of a lease.
 //!
+//! Diagnostics reach the host's sink through an outbox ([`outbox`]): never while the emitting thread holds the slot or
+//! close lock, so a sink may call back into the owner (MT-203 E3-2).
+//!
 //! Not in this unit: the kernel issuer that authorizes the renderer-only shell and protected work
 //! (NATIVE-RENDER-BOOT-002/007, GPU-QUOTA-011), the installation-wide persisted quota ledger
-//! (GPU-QUOTA-006..010), windows, surfaces, swapchains and any drawing.
+//! (GPU-QUOTA-006..010), windows and any drawing. Surfaces and swapchains are made on windows the host names.
 
 #[cfg(test)]
 mod bound_tests;
@@ -32,14 +35,21 @@ mod fault_tests;
 mod lifecycle;
 #[cfg(test)]
 mod loss_tests;
+pub(crate) mod outbox;
 #[cfg(test)]
 mod pending_tests;
+mod present;
 mod queue;
 #[cfg(test)]
 mod rebind_tests;
 mod release;
 #[cfg(test)]
 mod release_tests;
+#[cfg(test)]
+mod resource_tests;
+mod resources;
+#[cfg(test)]
+mod stall_tests;
 
 pub use client::GpuClient;
 pub use lifecycle::MAX_HELD_LOST_DEVICES;
@@ -50,11 +60,16 @@ use crate::diag::{OwnerDiagnostics, OwnerEvent, OwnerPhase};
 use crate::ids::{ClientId, ModuleId};
 use crate::outcome::{AttachRefusal, DeviceFault, DeviceHealth, DeviceRebindRefusal, Unavailable};
 use crate::owner_core::{OwnerCore, ShutdownReport};
+use crate::present::OwnerOptions;
 use crate::process::ProcessClaim;
-use crate::records::{DeviceBinding, LedgerCounters, LedgerUsage, ModuleUsage, QuotaPolicy};
+use crate::records::{
+    ByteQuantity, DeviceBinding, LedgerCounters, LedgerUsage, ModuleUsage, QuotaPolicy,
+};
+use crate::resource::{OwnerHeapUse, OwnerMemoryUse};
 use crate::vulkan::VulkanGeneration;
+use outbox::{Held, Outbox};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 /// A device generation and its number.
@@ -96,19 +111,24 @@ impl Slot {
 /// `closed` held.
 pub(crate) struct OwnerShared {
     core: Arc<OwnerCore>,
+    /// Where every event of the owner, its ledger and its handles goes first.
+    outbox: Arc<Outbox>,
     slot: Mutex<Slot>,
     closed: Mutex<Option<ShutdownReport>>,
     rebinding: AtomicBool,
+    /// Every generation is opened with presentation.
+    presentation: bool,
 }
 
 impl OwnerShared {
-    /// A poisoned lock is taken over: what it guards stays consistent at every step that can panic.
-    fn lock_slot(&self) -> MutexGuard<'_, Slot> {
-        self.slot.lock().unwrap_or_else(PoisonError::into_inner)
+    /// A poisoned lock is taken over: what it guards stays consistent at every step that can panic. Events emitted
+    /// while it is held reach the sink after it is released.
+    fn lock_slot(&self) -> Held<'_, Slot> {
+        Held::lock(&self.slot, &self.outbox)
     }
 
-    fn lock_closed(&self) -> MutexGuard<'_, Option<ShutdownReport>> {
-        self.closed.lock().unwrap_or_else(PoisonError::into_inner)
+    fn lock_closed(&self) -> Held<'_, Option<ShutdownReport>> {
+        Held::lock(&self.closed, &self.outbox)
     }
 
     fn identity(&self) -> DeviceIdentity {
@@ -132,7 +152,7 @@ const _: fn() = || {
 };
 
 impl GpuOwner {
-    /// Open the process's one GPU owner on a real hardware Vulkan device.
+    /// Open the process's one GPU owner on a real hardware Vulkan device, for offscreen work only.
     ///
     /// Refusals are typed: no loader, no instance, below the Vulkan baseline, no device, only software
     /// or Direct3D-layered devices, missing feature, device creation refused, or an owner already open.
@@ -140,20 +160,32 @@ impl GpuOwner {
         policy: QuotaPolicy,
         diagnostics: Arc<dyn OwnerDiagnostics>,
     ) -> Result<Self, Unavailable> {
+        Self::open_with(policy, OwnerOptions::default(), diagnostics)
+    }
+
+    /// [`Self::open`], with the surface and swapchain extensions when `options` asks for presentation. A device whose
+    /// queue cannot present to this platform's windows is then [`Unavailable::PresentationUnsupported`].
+    pub fn open_with(
+        policy: QuotaPolicy,
+        options: OwnerOptions,
+        diagnostics: Arc<dyn OwnerDiagnostics>,
+    ) -> Result<Self, Unavailable> {
+        let outbox = Arc::new(Outbox::new(diagnostics));
         let Some(process) = ProcessClaim::take() else {
             let reason = Unavailable::OwnerAlreadyOpen;
-            diagnostics.record(OwnerEvent::Unavailable {
+            outbox.record(OwnerEvent::Unavailable {
                 reason: reason.number(),
                 vk_result: 0,
             });
             return Err(reason);
         };
-        diagnostics.record(OwnerEvent::Phase {
+        outbox.record(OwnerEvent::Phase {
             phase: OwnerPhase::Opening,
             generation: 0,
         });
-        let core = Arc::new(OwnerCore::new(policy, diagnostics));
-        match VulkanGeneration::open(Arc::clone(&process), None) {
+        let sink: Arc<dyn OwnerDiagnostics> = outbox.clone();
+        let core = Arc::new(OwnerCore::new(policy, sink));
+        match VulkanGeneration::open(Arc::clone(&process), None, options.presentation) {
             Ok(generation) => {
                 let identity = generation.identity().clone();
                 let number = core.device_bound(identity.key);
@@ -164,6 +196,7 @@ impl GpuOwner {
                 Ok(Self {
                     shared: Arc::new(OwnerShared {
                         core,
+                        outbox,
                         slot: Mutex::new(Slot {
                             live: Some(live),
                             retained: Vec::new(),
@@ -173,6 +206,7 @@ impl GpuOwner {
                         }),
                         closed: Mutex::new(None),
                         rebinding: AtomicBool::new(false),
+                        presentation: options.presentation,
                     }),
                 })
             }
@@ -236,6 +270,32 @@ impl GpuOwner {
             Some(live) => Ok(live.vulkan.memory(live.number)),
             None => Err(DeviceFault::NoDevice),
         }
+    }
+
+    /// What each memory heap holds of the owner's own memory objects (owner images and buffers), measured. Set beside
+    /// [`Self::memory_snapshot`] (the driver's view) and [`LedgerUsage::owned_bytes`] (the claims' charges), never
+    /// merged with them.
+    pub fn memory_use(&self) -> Result<OwnerMemoryUse, DeviceFault> {
+        let live = self.shared.lock_slot().live.clone();
+        let Some(live) = live else {
+            return Err(DeviceFault::NoDevice);
+        };
+        let heaps = live
+            .vulkan
+            .owner_memory()
+            .into_iter()
+            .enumerate()
+            .map(|(index, book)| OwnerHeapUse {
+                index: u32::try_from(index).unwrap_or(u32::MAX),
+                bytes: ByteQuantity::Measured(book.bytes),
+                memory_objects: book.objects,
+            })
+            .collect();
+        Ok(OwnerMemoryUse {
+            generation: live.number,
+            heaps,
+            resources: u64::try_from(live.vulkan.resource_count()).unwrap_or(u64::MAX),
+        })
     }
 
     /// Ask the device, without waiting, how far its work got: end what finished, reclaim what was dropped and

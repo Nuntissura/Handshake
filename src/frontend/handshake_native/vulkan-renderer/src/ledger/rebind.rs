@@ -38,6 +38,11 @@ impl LedgerClient {
                 leases: record.leases,
             });
         }
+        if record.owned > 0 {
+            return Err(RebindRefusal::ResourcesHeld {
+                resources: record.owned,
+            });
+        }
         let device = match state.device {
             None => return Err(RebindRefusal::DeviceUnavailable),
             Some(device) if device.lost => {

@@ -294,6 +294,11 @@ pub struct LedgerUsage {
     pub abandoned_claims: u64,
     /// Part of `abandoned_claims`: their work ended, but the memory they reported is not known to be freed.
     pub leaked_claims: u64,
+    /// Resources the owner made for claims and has not destroyed yet.
+    pub owned_resources: u64,
+    /// Device memory the owner placed for those resources, inside their claims' reservations. Measured: it is the size
+    /// of every block the allocator gave them.
+    pub owned_bytes: u64,
     pub device: Option<DeviceBinding>,
     pub admission_open: bool,
 }
@@ -339,4 +344,9 @@ pub struct LedgerCounters {
     pub submission_refused: u64,
     /// In-flight submissions resolved by the owner retiring their generation.
     pub retired_in_flight: u64,
+    /// Resources the owner made for claims.
+    pub resources_made: u64,
+    /// Resources the owner destroyed after observing that nothing may use them any more, one by one (not those that
+    /// ended with their device).
+    pub resources_ended: u64,
 }

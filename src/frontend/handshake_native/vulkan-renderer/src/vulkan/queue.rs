@@ -1,7 +1,13 @@
 //! The owner's queue: record, submit and observe, with one fence per submission.
 //!
-//! The queue, the highest value it was given and the objects of work that may still run sit behind one lock, which is
-//! the queue's external synchronization. Nothing outside this module touches the queue.
+//! Two locks, so that a driver that stalls in `vkQueueSubmit` or `vkQueuePresentKHR` keeps nothing but other
+//! submissions and presents waiting (MT-203 E3-1):
+//! - The lane ([`Lane`]) is the external synchronization of the queue that `vkQueueSubmit` and `vkQueuePresentKHR`
+//!   require. It is held across those calls and for nothing else.
+//! - The state ([`QueueState`]): the highest value given, the objects of work that may still run, and the marks
+//!   sealed, lost and drained. It is held only briefly and never across a call that hands work to the device. A
+//!   submission is counted in it (`submitting`) before the call and moved to the pending list after it, so a queue that
+//!   is sealed meanwhile is not drained while it runs, and sealing never waits for it.
 //!
 //! # Nothing here waits inside Vulkan
 //!
@@ -33,7 +39,7 @@ pub(crate) enum QueueFault {
 }
 
 impl QueueFault {
-    fn of(result: vk::Result) -> Self {
+    pub(super) fn of(result: vk::Result) -> Self {
         match result {
             vk::Result::ERROR_DEVICE_LOST => Self::Lost,
             vk::Result::ERROR_OUT_OF_HOST_MEMORY | vk::Result::ERROR_OUT_OF_DEVICE_MEMORY => {
@@ -42,6 +48,17 @@ impl QueueFault {
             other => Self::Driver(other.as_raw()),
         }
     }
+}
+
+/// Why a submission did not reach the queue, or reached it only on a lost device.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SubmitFault {
+    /// The queue takes nothing more (a close, or an earlier loss). Nothing was handed to the device.
+    Sealed,
+    /// The device answered. With [`QueueFault::Lost`] the work may have reached the queue and stays pending until the
+    /// lost device is quiescent; with every other fault the queue did not take it (Vulkan requires a failing submit
+    /// that is not device loss to leave all state unaffected).
+    Device(QueueFault),
 }
 
 /// Evidence that the queue takes nothing more and that nothing it took is still in use by the device.
@@ -77,13 +94,16 @@ struct PendingWork {
 }
 
 pub(super) struct QueueState {
-    queue: vk::Queue,
     /// Highest value the queue was given.
-    last_value: u64,
+    pub(super) last_value: u64,
     /// Value up to which every submission was seen completed.
     observed: u64,
     /// Work whose end was not seen, in submission order.
     pending: Vec<PendingWork>,
+    /// Submissions between the check of `sealed` and their place in `pending`: in `vkQueueSubmit` now.
+    submitting: u32,
+    /// Command buffers being recorded or submitted.
+    pub(super) recording: u32,
     /// Nothing is submitted any more.
     sealed: bool,
     /// The device is known to be lost: what its fences say of the work that was pending then is not that it completed.
@@ -93,12 +113,13 @@ pub(super) struct QueueState {
 }
 
 impl QueueState {
-    pub(super) fn new(queue: vk::Queue) -> Self {
+    pub(super) fn new() -> Self {
         Self {
-            queue,
             last_value: 0,
             observed: 0,
             pending: Vec::new(),
+            submitting: 0,
+            recording: 0,
             sealed: false,
             lost: false,
             drained: false,
@@ -109,6 +130,37 @@ impl QueueState {
         self.sealed = true;
         self.lost = true;
     }
+
+    /// Nothing that was handed to the device can still be in use by it, as far as the pending list knows.
+    fn empty(&self) -> bool {
+        self.pending.is_empty() && self.submitting == 0
+    }
+}
+
+/// What the resources of a generation need of its queue: how far the device got and whether it may still run work.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct QueueView {
+    pub(crate) observed: u64,
+    pub(crate) recording: u32,
+    pub(crate) lost: bool,
+    pub(crate) drained: bool,
+}
+
+/// The queue, behind its own lock: the external synchronization `vkQueueSubmit` and `vkQueuePresentKHR` require.
+pub(crate) struct Lane {
+    pub(super) queue: vk::Queue,
+}
+
+/// The lane, held: submissions and presents run one at a time and in the order the owner hands out their values.
+pub(crate) struct LaneGuard<'a> {
+    pub(super) guard: MutexGuard<'a, Lane>,
+}
+
+/// Binary semaphores one submission waits for and signals (presentation).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct SubmitSync<'a> {
+    pub(crate) waits: &'a [vk::Semaphore],
+    pub(crate) signals: &'a [vk::Semaphore],
 }
 
 /// A fence that nothing is submitted with yet.
@@ -135,7 +187,8 @@ impl RecordedWork {
         // SAFETY: valid device; the family is the one its queue was created from.
         let pool = unsafe { generation.device.create_command_pool(&create, None) }
             .map_err(QueueFault::of)?;
-        // From here on every early return drops `work`, which destroys what there is.
+        generation.lock_state().recording += 1;
+        // From here on every early return drops `work`, which destroys what there is and ends the recording.
         let mut work = Self {
             generation,
             objects: Some(WorkObjects {
@@ -168,53 +221,56 @@ impl RecordedWork {
         self.commands.as_raw()
     }
 
+    pub(crate) fn commands(&self) -> vk::CommandBuffer {
+        self.commands
+    }
+
+    pub(crate) fn generation(&self) -> &Arc<VulkanGeneration> {
+        &self.generation
+    }
+
     /// Whether this work was recorded on `generation`.
     pub(crate) fn is_on(&self, generation: &Arc<VulkanGeneration>) -> bool {
         Arc::ptr_eq(&self.generation, generation)
     }
 
-    /// End recording and submit as `value`, which must be above every value given before on this generation.
-    ///
-    /// With [`QueueFault::Lost`] the work may have reached the queue: its objects are kept until the generation is
-    /// destroyed. With every other fault the queue did not take it (Vulkan requires a failing submit that is not
-    /// device loss to leave all state unaffected) and they are destroyed.
-    pub(crate) fn submit(mut self, value: u64) -> Result<(), QueueFault> {
+    /// End recording and submit as `value`, which must be above every value given before on this generation. The
+    /// caller holds the lane of this generation; nothing else of the owner is locked meanwhile.
+    pub(crate) fn submit(
+        mut self,
+        lane: &LaneGuard<'_>,
+        value: u64,
+        sync: SubmitSync<'_>,
+    ) -> Result<(), SubmitFault> {
         let device = &self.generation.device;
         // SAFETY: `begin` put the buffer in the recording state and its pool is used by this value only. A client
         // that breaks the recording rule of `Recording` does so through its own `unsafe` calls.
-        unsafe { device.end_command_buffer(self.commands) }.map_err(QueueFault::of)?;
-        let mut state = self.generation.lock_queue();
-        if state.sealed {
-            // Only a lost generation is sealed while work can still be brought to it.
-            return Err(QueueFault::Lost);
-        }
-        let objects = match self.objects {
-            Some(objects) if value > state.last_value => objects,
-            // The owner hands out values in order; a value out of order never reaches the queue.
-            _ => return Err(QueueFault::Driver(vk::Result::ERROR_UNKNOWN.as_raw())),
+        unsafe { device.end_command_buffer(self.commands) }
+            .map_err(|result| SubmitFault::Device(QueueFault::of(result)))?;
+        let objects = {
+            let mut state = self.generation.lock_state();
+            if state.sealed {
+                return Err(SubmitFault::Sealed);
+            }
+            match self.objects {
+                Some(objects) if value > state.last_value => {
+                    state.submitting += 1;
+                    objects
+                }
+                // The owner hands out values in order; a value out of order never reaches the queue.
+                _ => {
+                    let unknown = vk::Result::ERROR_UNKNOWN.as_raw();
+                    return Err(SubmitFault::Device(QueueFault::Driver(unknown)));
+                }
+            }
         };
-        let buffers = [self.commands];
-        // Waits for nothing outside unit tests.
-        let gate = self.generation.faults.gate();
-        let waits = gate.as_slice();
-        let wait_values = &[1u64][..waits.len()];
-        let wait_stages = &[vk::PipelineStageFlags::ALL_COMMANDS][..waits.len()];
-        let mut timeline =
-            vk::TimelineSemaphoreSubmitInfo::default().wait_semaphore_values(wait_values);
-        let submit = vk::SubmitInfo::default()
-            .wait_semaphores(waits)
-            .wait_dst_stage_mask(wait_stages)
-            .command_buffers(&buffers)
-            .push_next(&mut timeline);
-        let result = match self.generation.faults.answer(Call::Submit) {
-            Some(result) => Err(result),
-            // SAFETY: the buffer is executable, primary, of the queue's family and never submitted before; the fence
-            // is unsignalled and was never submitted; the queue lock is held, so access to the queue is
-            // synchronized, and nobody else refers to the fence; all referenced arrays outlive the call.
-            None => unsafe { device.queue_submit(state.queue, &[submit], objects.fence) },
-        };
+        let result = self.hand_over(lane, objects, sync);
+        let mut state = self.generation.lock_state();
+        state.submitting -= 1;
         match result {
-            Err(error) if error != vk::Result::ERROR_DEVICE_LOST => Err(QueueFault::of(error)),
+            Err(error) if error != vk::Result::ERROR_DEVICE_LOST => {
+                Err(SubmitFault::Device(QueueFault::of(error)))
+            }
             accepted => {
                 state.last_value = value;
                 // The objects now belong to the pending list.
@@ -223,8 +279,46 @@ impl RecordedWork {
                 if accepted.is_err() {
                     state.lose();
                 }
-                accepted.map_err(QueueFault::of)
+                accepted.map_err(|error| SubmitFault::Device(QueueFault::of(error)))
             }
+        }
+    }
+
+    /// `vkQueueSubmit`, with no lock but the lane held.
+    fn hand_over(
+        &self,
+        lane: &LaneGuard<'_>,
+        objects: WorkObjects,
+        sync: SubmitSync<'_>,
+    ) -> Result<(), vk::Result> {
+        let buffers = [self.commands];
+        // The gate waits outside unit tests never; the binary semaphores of presentation wait with any value.
+        let mut waits: Vec<vk::Semaphore> = sync.waits.to_vec();
+        waits.extend(self.generation.faults.gate());
+        let mut values = vec![0u64; sync.waits.len()];
+        values.resize(waits.len(), 1);
+        let stages = vec![vk::PipelineStageFlags::ALL_COMMANDS; waits.len()];
+        let signal_values = vec![0u64; sync.signals.len()];
+        let mut timeline = vk::TimelineSemaphoreSubmitInfo::default()
+            .wait_semaphore_values(&values)
+            .signal_semaphore_values(&signal_values);
+        let submit = vk::SubmitInfo::default()
+            .wait_semaphores(&waits)
+            .wait_dst_stage_mask(&stages)
+            .command_buffers(&buffers)
+            .signal_semaphores(sync.signals)
+            .push_next(&mut timeline);
+        match self.generation.faults.answer(Call::Submit) {
+            Some(result) => Err(result),
+            // SAFETY: the buffer is executable, primary, of the queue's family and never submitted before; the fence
+            // is unsignalled and was never submitted; the lane is held, so access to the queue is synchronized, and
+            // nobody else refers to the fence; the semaphores are the caller's, unsignalled with no pending signal
+            // (signals) or with a signal submitted and no other wait (waits); all referenced arrays outlive the call.
+            None => unsafe {
+                self.generation
+                    .device
+                    .queue_submit(lane.guard.queue, &[submit], objects.fence)
+            },
         }
     }
 }
@@ -236,17 +330,46 @@ impl Drop for RecordedWork {
             // is not pending and its fence not in use, and only this value refers to them.
             unsafe { objects.destroy(&self.generation.device) };
         }
+        self.generation.recording_ended();
     }
 }
 
 impl VulkanGeneration {
-    fn lock_queue(&self) -> MutexGuard<'_, QueueState> {
-        self.queue.lock().unwrap_or_else(PoisonError::into_inner)
+    pub(super) fn lock_state(&self) -> MutexGuard<'_, QueueState> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The lane: waits only for another submission or present of this generation.
+    pub(crate) fn lane(&self) -> LaneGuard<'_> {
+        LaneGuard {
+            guard: self.lane.lock().unwrap_or_else(PoisonError::into_inner),
+        }
+    }
+
+    /// A recording ended (submitted or dropped). Resources released while it ran wait for it.
+    fn recording_ended(&self) {
+        let mut state = self.lock_state();
+        state.recording = state.recording.saturating_sub(1);
+        if state.recording == 0 {
+            // Under the state lock, so no recording starts before the deferred releases have their value.
+            self.resources.recordings_ended(state.last_value);
+        }
+    }
+
+    /// What resources need to know of the queue.
+    pub(crate) fn view(&self) -> QueueView {
+        let state = self.lock_state();
+        QueueView {
+            observed: state.observed,
+            recording: state.recording,
+            lost: state.lost,
+            drained: state.sealed && state.drained,
+        }
     }
 
     /// The objects of all work, for the final destruction.
     pub(super) fn take_objects(&mut self) -> Vec<WorkObjects> {
-        let state = self.queue.get_mut().unwrap_or_else(PoisonError::into_inner);
+        let state = self.state.get_mut().unwrap_or_else(PoisonError::into_inner);
         std::mem::take(&mut state.pending)
             .into_iter()
             .map(|work| work.objects)
@@ -254,14 +377,14 @@ impl VulkanGeneration {
     }
 
     /// Whether `fence` is signalled. Reports a state and does not wait.
-    fn is_signalled(&self, fence: vk::Fence, call: Call) -> Result<bool, QueueFault> {
+    pub(super) fn is_signalled(&self, fence: vk::Fence, call: Call) -> Result<bool, QueueFault> {
         let result = match self.faults.answer(call) {
             Some(vk::Result::SUCCESS) => Ok(true),
             Some(vk::Result::NOT_READY) => Ok(false),
             Some(error) => Err(error),
-            // SAFETY: valid device and a fence of it that lives until this returns: the caller holds the queue lock,
-            // under which alone a fence leaves the pending list, or the fence is the sentinel. The query needs no
-            // external synchronization.
+            // SAFETY: valid device and a fence of it that lives until this returns: the caller holds the lock under
+            // which alone that fence is destroyed, or the fence is the sentinel. The query needs no external
+            // synchronization.
             None => unsafe { self.device.get_fence_status(fence) },
         };
         result.map_err(QueueFault::of)
@@ -292,7 +415,7 @@ impl VulkanGeneration {
 
     /// Highest value the queue was given.
     pub(crate) fn last_value(&self) -> u64 {
-        self.lock_queue().last_value
+        self.lock_state().last_value
     }
 
     /// Look, without waiting, how far the queue got, and free the objects of finished work. Returns the value up to
@@ -301,7 +424,7 @@ impl VulkanGeneration {
     /// A device that is known to be lost completes nothing any more, because its fences may then say anything
     /// (`vkGetFenceStatus`). Nor does a look that meets the loss, on a fence or on the sentinel, which is asked last.
     pub(crate) fn advance(&self) -> Result<u64, QueueFault> {
-        let mut state = self.lock_queue();
+        let mut state = self.lock_state();
         if state.lost {
             return Err(QueueFault::Lost);
         }
@@ -318,7 +441,7 @@ impl VulkanGeneration {
         if let Some(last) = finished.last() {
             state.observed = last.value;
         }
-        state.drained = state.sealed && state.pending.is_empty();
+        state.drained = state.sealed && state.empty();
         let observed = state.observed;
         drop(state);
         for work in finished {
@@ -341,23 +464,23 @@ impl VulkanGeneration {
         }
     }
 
-    /// Take nothing more. For good.
+    /// Take nothing more. For good. Never waits for a submission that is in the driver now.
     pub(crate) fn seal(&self) {
-        self.lock_queue().sealed = true;
+        self.lock_state().sealed = true;
     }
 
     /// The device was observed lost: take nothing more and call nothing completed any more. For good.
     pub(crate) fn lose(&self) {
-        self.lock_queue().lose();
+        self.lock_state().lose();
     }
 
     pub(crate) fn is_lost(&self) -> bool {
-        self.lock_queue().lost
+        self.lock_state().lost
     }
 
     /// Evidence that nothing the sealed queue took is still in use by the device.
     pub(crate) fn evidence(&self) -> Option<Quiescent> {
-        let state = self.lock_queue();
+        let state = self.lock_state();
         (state.sealed && state.drained).then_some(Quiescent { _private: () })
     }
 
@@ -368,14 +491,15 @@ impl VulkanGeneration {
     /// Look, without waiting, whether everything the sealed queue took has ended.
     ///
     /// On a healthy device it has when all of it completed. On a lost one it has when every fence answers with
-    /// success or device loss, which for this question is the same (Vulkan "Lost Device").
+    /// success or device loss, which for this question is the same (Vulkan "Lost Device"). A submission that is in the
+    /// driver now has not ended.
     pub(crate) fn confirm(&self) -> bool {
         if !self.is_lost() {
             // The result is in the marks.
             let _ = self.advance();
         }
-        let mut state = self.lock_queue();
-        if state.lost && !state.drained {
+        let mut state = self.lock_state();
+        if state.lost && !state.drained && state.submitting == 0 {
             state.drained = state.pending.iter().all(|work| {
                 matches!(
                     self.is_signalled(work.objects.fence, Call::Fence),
@@ -388,7 +512,7 @@ impl VulkanGeneration {
 
     /// [`Self::confirm`], looking again until `backoff` ends. `false` when it ended first, or nothing is sealed.
     pub(crate) fn drain(&self, backoff: &mut Backoff) -> bool {
-        if !self.lock_queue().sealed {
+        if !self.lock_state().sealed {
             return false;
         }
         loop {
@@ -415,7 +539,7 @@ impl VulkanGeneration {
     fn really_ended(&self, value: u64) -> bool {
         let mut backoff = Backoff::new(std::time::Duration::from_secs(10));
         loop {
-            let state = self.lock_queue();
+            let state = self.lock_state();
             let withheld = usize::from(self.faults.withheld_last());
             let given = state.pending.len().saturating_sub(withheld);
             let ended = state

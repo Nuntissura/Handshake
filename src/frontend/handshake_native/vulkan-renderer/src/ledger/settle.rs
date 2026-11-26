@@ -104,6 +104,12 @@ impl Shared {
         if leases > 0 && settlement.retained == ByteQuantity::Measured(0) {
             return Err(SettleRefusal::LeaseOutstanding { leases });
         }
+        // So do resources the owner made for the claim, until it destroyed them.
+        if record.owned > 0 && settlement.retained == ByteQuantity::Measured(0) {
+            return Err(SettleRefusal::ResourcesOutstanding {
+                resources: record.owned,
+            });
+        }
         let info = record.info;
         let reserved_bytes = record.charged_bytes;
         let held_bytes = record.held_bytes();
@@ -235,6 +241,11 @@ impl Shared {
             Some(record) if record.leases > 0 => {
                 return Err(SettleRefusal::LeaseOutstanding {
                     leases: record.leases,
+                })
+            }
+            Some(record) if record.owned > 0 => {
+                return Err(SettleRefusal::ResourcesOutstanding {
+                    resources: record.owned,
                 })
             }
             Some(_) => {}

@@ -6,8 +6,11 @@ use crate::ledger::ClaimHold;
 use crate::outcome::{AuthorizeRefusal, ReleaseRefusal};
 use crate::owner::OwnerShared;
 use crate::records::ByteQuantity;
+use crate::refusal::RecordRefusal;
+use crate::resource::sealed::TargetOf;
+use crate::resource::{ImageLayout, ImageTarget, OwnerBuffer};
 use crate::select::DeviceClass;
-use crate::vulkan::VulkanGeneration;
+use crate::vulkan::{ImageCommand, RecordedWork, VulkanGeneration};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -228,32 +231,139 @@ impl DeviceLease {
     }
 }
 
-/// What a client records into, inside [`crate::GpuClient::submit`].
+/// What a client records into, inside [`crate::GpuClient::submit`] and [`crate::GpuClient::present`].
 ///
 /// The command buffer is the owner's: primary, for the owner's queue family, begun for one submission. The client
 /// only records commands into it, only during the recording call, and leaves it in the recording state; the owner
-/// ends, submits and frees it.
-#[derive(Debug)]
-pub struct Recording {
-    command_buffer: u64,
+/// ends, submits and frees it. The owner also records into it on request: layout transitions, clears and readbacks of
+/// the client's own images ([`Self::transition`], [`Self::clear`], [`Self::read_back`]).
+pub struct Recording<'a> {
+    work: &'a RecordedWork,
     generation: u64,
+    /// The ledger and attachment of the recording client.
+    ledger: u64,
+    seat: u64,
 }
 
-impl Recording {
-    pub(crate) fn new(command_buffer: u64, generation: u64) -> Self {
+impl std::fmt::Debug for Recording<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Recording")
+            .field("generation", &self.generation)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<'a> Recording<'a> {
+    pub(crate) fn new(work: &'a RecordedWork, generation: u64, ledger: u64, seat: u64) -> Self {
         Self {
-            command_buffer,
+            work,
             generation,
+            ledger,
+            seat,
         }
     }
 
     /// Raw `VkCommandBuffer`.
     pub fn command_buffer(&self) -> u64 {
-        self.command_buffer
+        self.work.raw()
     }
 
     /// The device generation the command buffer belongs to.
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// The image, when it is this client's on this generation.
+    fn mine(&self, target: TargetOf) -> Result<ImageCommand, RecordRefusal> {
+        if target.ledger != self.ledger || target.seat != self.seat {
+            return Err(RecordRefusal::Foreign);
+        }
+        if target.generation != self.generation {
+            return Err(RecordRefusal::OtherGeneration);
+        }
+        Ok(ImageCommand::new(
+            target.image,
+            target.extent.width,
+            target.extent.height,
+        ))
+    }
+
+    /// Move `image` from layout `from`, which it is in now, to `to`, after every earlier command of this buffer and
+    /// before every later one.
+    pub fn transition(
+        &self,
+        image: &impl ImageTarget,
+        from: ImageLayout,
+        to: ImageLayout,
+    ) -> Result<(), RecordRefusal> {
+        let command = self.mine(image.target())?;
+        if to == ImageLayout::Undefined {
+            return Err(RecordRefusal::LayoutInvalid);
+        }
+        self.work
+            .transition(command, from.vk_layout(), to.vk_layout());
+        Ok(())
+    }
+
+    /// Fill `image`, which is in layout `from` now, with `color` (linear components), and leave it in `to`.
+    pub fn clear(
+        &self,
+        image: &impl ImageTarget,
+        from: ImageLayout,
+        color: [f32; 4],
+        to: ImageLayout,
+    ) -> Result<(), RecordRefusal> {
+        let target = image.target();
+        let command = self.mine(target)?;
+        if !target.usage.transfer_dst {
+            return Err(RecordRefusal::UsageMissing);
+        }
+        if to == ImageLayout::Undefined {
+            return Err(RecordRefusal::LayoutInvalid);
+        }
+        self.work
+            .clear(command, from.vk_layout(), color, to.vk_layout());
+        Ok(())
+    }
+
+    /// Copy every texel of `image`, which is in layout `from` now, row after row with no padding, to the start of
+    /// `buffer`, make the copy visible to the host when the submission's fence has signalled, and leave the image in
+    /// `to`. [`OwnerBuffer::read`] then returns what the device wrote.
+    pub fn read_back(
+        &self,
+        image: &impl ImageTarget,
+        from: ImageLayout,
+        buffer: &OwnerBuffer,
+        to: ImageLayout,
+    ) -> Result<(), RecordRefusal> {
+        let target = image.target();
+        let command = self.mine(target)?;
+        let origin = buffer.origin();
+        if origin.ledger != self.ledger || origin.seat != self.seat {
+            return Err(RecordRefusal::Foreign);
+        }
+        if origin.generation() != self.generation {
+            return Err(RecordRefusal::OtherGeneration);
+        }
+        if !target.usage.transfer_src || !buffer.handles.usage.transfer_dst {
+            return Err(RecordRefusal::UsageMissing);
+        }
+        if to == ImageLayout::Undefined {
+            return Err(RecordRefusal::LayoutInvalid);
+        }
+        let needed = target
+            .extent
+            .texels()
+            .saturating_mul(u64::from(target.format.texel_bytes()));
+        if buffer.handles.size < needed {
+            return Err(RecordRefusal::BufferTooSmall);
+        }
+        self.work.read_back(
+            command,
+            from.vk_layout(),
+            buffer.handles.buffer,
+            to.vk_layout(),
+        );
+        Ok(())
     }
 }

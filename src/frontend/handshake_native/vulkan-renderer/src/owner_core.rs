@@ -57,6 +57,11 @@ impl OwnerCore {
         self.diagnostics.record(event);
     }
 
+    /// Report an event of the owner's own making (resources, presentation).
+    pub(crate) fn report(&self, event: OwnerEvent) {
+        self.emit(event);
+    }
+
     /// The owner's side of the ledger.
     pub fn ledger(&self) -> &ClaimLedger {
         &self.ledger

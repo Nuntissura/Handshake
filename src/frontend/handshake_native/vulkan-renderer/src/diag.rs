@@ -252,6 +252,45 @@ pub enum OwnerEvent {
     },
     /// The owner closed while a rebind was creating a device on another thread; see [`crate::DeviceFate::Creating`].
     DeviceCreatingAtClose,
+    /// The owner made an image, buffer or surface for the subject's claim, charged with `bytes` inside its reservation.
+    ResourceMade {
+        subject: Subject,
+        bytes: u64,
+    },
+    /// The owner destroyed a resource of the subject's claim after observing that no work may use it any more; its
+    /// `bytes` are free inside the reservation again. Resources that end with their device are in
+    /// [`Self::GenerationRetired`] and [`Self::RetainedDeviceDestroyed`].
+    ResourceEnded {
+        subject: Subject,
+        bytes: u64,
+    },
+    /// `reason` is `ResourceRefusal::number()`.
+    ResourceRefused {
+        subject: Subject,
+        reason: u16,
+    },
+    /// A surface got swapchain `swapchain` of `width` x `height`; 0, 0, 0 when it was suspended (minimised or no size).
+    SwapchainChanged {
+        subject: Subject,
+        swapchain: u64,
+        width: u32,
+        height: u32,
+    },
+    /// The owner destroyed swapchain `swapchain` after its work and its presents were known to have ended.
+    SwapchainEnded {
+        subject: Subject,
+        swapchain: u64,
+    },
+    /// `reason` is `PresentRefusal::number()`: an acquire, a present or a configuration did not happen.
+    PresentRefused {
+        subject: Subject,
+        reason: u16,
+    },
+    /// `reason` is `AccessRefusal::number()`: the host did not read or write an owner buffer.
+    AccessRefused {
+        subject: Subject,
+        reason: u16,
+    },
 }
 
 impl OwnerEvent {
@@ -288,6 +327,13 @@ impl OwnerEvent {
             Self::RetainedDeviceDestroyed { .. } => 28,
             Self::DeviceLeaked { .. } => 29,
             Self::DeviceCreatingAtClose => 30,
+            Self::ResourceMade { .. } => 31,
+            Self::ResourceEnded { .. } => 32,
+            Self::ResourceRefused { .. } => 33,
+            Self::SwapchainChanged { .. } => 34,
+            Self::SwapchainEnded { .. } => 35,
+            Self::PresentRefused { .. } => 36,
+            Self::AccessRefused { .. } => 37,
         }
     }
 
@@ -311,7 +357,14 @@ impl OwnerEvent {
             | Self::ClientDropped { subject, .. }
             | Self::ClaimAbandoned { subject, .. }
             | Self::ClaimReclaimed { subject, .. }
-            | Self::ClaimLeaked { subject, .. } => Some(subject),
+            | Self::ClaimLeaked { subject, .. }
+            | Self::ResourceMade { subject, .. }
+            | Self::ResourceEnded { subject, .. }
+            | Self::ResourceRefused { subject, .. }
+            | Self::SwapchainChanged { subject, .. }
+            | Self::SwapchainEnded { subject, .. }
+            | Self::PresentRefused { subject, .. }
+            | Self::AccessRefused { subject, .. } => Some(subject),
             Self::Phase { .. }
             | Self::VulkanDeviceLost { .. }
             | Self::Unavailable { .. }
@@ -345,7 +398,18 @@ impl OwnerEvent {
             | Self::SubmitRefused { reason, .. }
             | Self::SubmissionRefused { reason, .. }
             | Self::AttachRefused { reason, .. }
+            | Self::ResourceRefused { reason, .. }
+            | Self::PresentRefused { reason, .. }
+            | Self::AccessRefused { reason, .. }
             | Self::DeviceRebindRefused { reason } => [reason as u64, 0, 0],
+            Self::ResourceMade { bytes, .. } | Self::ResourceEnded { bytes, .. } => [bytes, 0, 0],
+            Self::SwapchainChanged {
+                swapchain,
+                width,
+                height,
+                ..
+            } => [swapchain, width as u64, height as u64],
+            Self::SwapchainEnded { swapchain, .. } => [swapchain, 0, 0],
             Self::Settled {
                 outcome,
                 released_bytes,
@@ -417,7 +481,10 @@ impl OwnerEvent {
             | Self::ClaimLeaked { .. }
             | Self::LostDeviceSetAside { .. }
             | Self::DeviceLeaked { .. }
-            | Self::DeviceCreatingAtClose => true,
+            | Self::DeviceCreatingAtClose
+            | Self::ResourceRefused { .. }
+            | Self::PresentRefused { .. }
+            | Self::AccessRefused { .. } => true,
             Self::ShutdownOutstanding {
                 open_claims,
                 retained_claims,
@@ -432,14 +499,19 @@ impl OwnerEvent {
             | Self::ClientDropped { .. }
             | Self::ClaimReclaimed { .. }
             | Self::GenerationRetired { .. }
-            | Self::RetainedDeviceDestroyed { .. } => false,
+            | Self::RetainedDeviceDestroyed { .. }
+            | Self::ResourceMade { .. }
+            | Self::ResourceEnded { .. }
+            | Self::SwapchainChanged { .. }
+            | Self::SwapchainEnded { .. } => false,
         }
     }
 }
 
-/// Where the owner reports. Implementations must not panic, block, allocate without bound or call back into the
-/// owner: events are emitted on the thread of the call or dropped handle that caused them, with the ledger lock
-/// released but possibly while the owner is replacing or observing its device.
+/// Where the owner reports. Implementations must not panic, block or allocate without bound. Events reach it on the
+/// thread of the call or dropped handle that caused them, in the order they were emitted, one at a time and never
+/// while that thread holds a lock of the owner: an event emitted under one waits until the lock is released. A sink may
+/// therefore call back into the owner; what that emits is delivered after the sink returns.
 pub trait OwnerDiagnostics: Send + Sync {
     fn record(&self, event: OwnerEvent);
 }

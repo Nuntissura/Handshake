@@ -8,10 +8,13 @@ use crate::outcome::{
     AdmissionDenial, AuthorizeRefusal, ChargeRefusal, DeviceFault, RebindRefusal, RecordAborted,
     SettleRefusal, SubmissionRefusal, SubmitRefusal,
 };
+use crate::present::{Frame, OwnerSurface, Presented, SurfaceTarget};
 use crate::records::{
     ChargeClass, ClaimRequest, DeviceBinding, ReleaseReceipt, SettleReceipt, Settlement,
     SubmissionState,
 };
+use crate::refusal::{PresentRefusal, ResourceRefusal};
+use crate::resource::{BufferRequest, ImageRequest, OwnerBuffer, OwnerImage};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -120,9 +123,60 @@ impl GpuClient {
     /// work is submitted, so a claim that is revoked, lost or settled while recording submits nothing.
     pub fn submit<F>(&self, claim: &Claim, record: F) -> Result<Submission, SubmitRefusal>
     where
-        F: FnOnce(&Recording) -> Result<(), RecordAborted>,
+        F: FnOnce(&Recording<'_>) -> Result<(), RecordAborted>,
     {
         self.owner.submit(&self.ledger, claim, record)
+    }
+
+    /// Make a render-attachment image for `claim`: created, placed and owned by the owner, charged to the claim inside
+    /// its reservation, in the `UNDEFINED` layout. Dropping it releases it (see [`OwnerImage`]).
+    pub fn create_image(
+        &self,
+        claim: &Claim,
+        request: &ImageRequest,
+    ) -> Result<OwnerImage, ResourceRefusal> {
+        let made = self.owner.create_image(&self.ledger, claim, request);
+        self.owner.reap();
+        made
+    }
+
+    /// Make a buffer for `claim`, charged like an image: device memory as committed, upload and readback memory as
+    /// staging.
+    pub fn create_buffer(
+        &self,
+        claim: &Claim,
+        request: &BufferRequest,
+    ) -> Result<OwnerBuffer, ResourceRefusal> {
+        let made = self.owner.create_buffer(&self.ledger, claim, request);
+        self.owner.reap();
+        made
+    }
+
+    /// Make a surface on the window `target` names, for `claim` (a [`crate::OperationKind::Display`] claim, by
+    /// convention). The owner keeps `target`, and with it the window, until it destroyed the surface. Refused when the
+    /// owner was opened without presentation.
+    pub fn create_surface(
+        &self,
+        claim: &Claim,
+        target: Box<dyn SurfaceTarget>,
+    ) -> Result<OwnerSurface, ResourceRefusal> {
+        self.owner.create_surface(&self.ledger, claim, target)
+    }
+
+    /// Record into `frame` under `claim`, submit the work waiting for the frame's acquire, and present it behind the
+    /// work. Returns the submission at once, with how the present went; nothing on this path waits for the device.
+    /// `record` gets the frame to record against ([`Recording::transition`], [`Recording::clear`]) and must leave its
+    /// image in [`crate::ImageLayout::Present`].
+    pub fn present<F>(
+        &self,
+        claim: &Claim,
+        frame: Frame,
+        record: F,
+    ) -> Result<Presented, PresentRefusal>
+    where
+        F: FnOnce(&Recording<'_>, &Frame) -> Result<(), RecordAborted>,
+    {
+        self.owner.present(&self.ledger, claim, frame, record)
     }
 
     /// Where `submission` stands, asking the device when the owner does not know yet. Does not wait for work.

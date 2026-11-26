@@ -44,7 +44,19 @@
 //!    well. What cannot be reclaimed is reported as [`OwnerEvent::ClaimLeaked`].
 //! 9. [`GpuOwner::close`] is bounded. A device that clients hold or that still runs work is kept, observable, and
 //!    destroyed by the first call after both ended. A host that has to end before that ends its process: nothing here
-//!    waits for it.
+//!    waits for it. A submission stuck inside the driver holds only the queue's lane, so it keeps neither a close nor
+//!    any observation waiting.
+//! 10. Owner resources: [`GpuClient::create_image`] and [`GpuClient::create_buffer`] make render attachments and
+//!     buffers the owner creates, places (`gpu-alloc`), charges to the claim inside its reservation and destroys
+//!     itself, once nothing that may use them runs after the client dropped them. [`Recording::clear`],
+//!     [`Recording::transition`] and [`Recording::read_back`] record owner commands on them, and
+//!     [`OwnerBuffer::read`] hands what the device wrote to the host: the proof path of headless visual checks.
+//!     [`GpuOwner::memory_use`] reports the owner's memory objects, measured.
+//! 11. Presentation, when the host opened the owner with [`OwnerOptions::presentation`]:
+//!     [`GpuClient::create_surface`] on a window a [`SurfaceTarget`] names and keeps alive, [`OwnerSurface::configure`]
+//!     on create, resize, minimise and restore, [`OwnerSurface::acquire`] without waiting, [`GpuClient::present`]
+//!     with no wait on the frame path, and [`OwnerSurface::probe`] for a watcher that must see a loop that never
+//!     presents. Old swapchains are destroyed once their work and presents are known to have ended.
 //!
 //! # Failure modes and recovery
 //!
@@ -70,6 +82,14 @@
 //! | [`DeviceFate::Held`], [`DeviceFate::Unconfirmed`] | a closed device is held or still runs work | holders return it; [`GpuOwner::poll`] then destroys it |
 //! | [`DeviceFate::Creating`] | a rebind was creating a device during the close | it ends with [`OwnerEvent::DeviceRebindRefused`] |
 //! | [`OwnerEvent::DeviceLeaked`] | the last handle went before a device said that its work has ended | none in this process |
+//! | [`ResourceRefusal::Charge`] | the resource does not fit the claim's reservation | ask for less, or admit a larger claim |
+//! | [`ResourceRefusal::OverBudget`] | the driver's budget for a heap would be exceeded | release resources, or wait for other processes |
+//! | [`SettleRefusal::ResourcesOutstanding`], [`RebindRefusal::ResourcesHeld`] | owner resources of the claim still exist | drop them, [`GpuClient::poll`], then again |
+//! | [`AccessRefusal::InFlight`] | work of the client may still use the buffer | wait for it, then read again |
+//! | [`PresentRefusal::NotReady`] | no image is ready now | acquire again on the next frame |
+//! | [`PresentRefusal::OutOfDate`], [`PresentResult::OutOfDate`] | the swapchain no longer matches its window | [`OwnerSurface::configure`] |
+//! | [`PresentRefusal::SurfaceLost`], [`PresentRefusal::WindowInUse`] | the surface is gone, or the window has another swapchain | make a new surface, or configure later |
+//! | [`Unavailable::PresentationUnsupported`] | presentation was asked for and the device cannot present here | open without presentation, or fix the driver |
 //!
 //! # Diagnostics
 //!
@@ -87,8 +107,8 @@
 //!   creates the device itself, and it waits on a fence inside every pass. Device injection
 //!   ([`DeviceHandles`]), recording into a host command buffer ([`Recording`]) and asynchronous settlement
 //!   ([`Submission`]) are what it needs from here; taking them is the asset's change, not this unit's.
-//! - Not here yet: an allocation service (clients allocate from the lease and report it), images or attachments
-//!   owned by this unit, waits and signals for presentation, and the surface extensions a window needs.
+//! - This crate creates no window and depends on no window crate: the host's window crate supplies a
+//!   [`SurfaceTarget`] (its documentation says how `handshake_shell_window`'s token becomes one).
 //! - Authorization (kernel issuer, grants, capabilities) is a separate gate and is not performed here.
 //! - The ledger accounts for one process. The installation-wide persisted quota ledger is Core's.
 //! - UI passes, atlases, display lists, pipelines and text belong to the renderer asset, never here.
@@ -106,8 +126,11 @@ mod ledger;
 mod outcome;
 mod owner;
 mod owner_core;
+mod present;
 mod process;
 mod records;
+mod refusal;
+mod resource;
 pub mod select;
 mod vulkan;
 
@@ -127,13 +150,23 @@ pub use crate::outcome::{
 };
 pub use crate::owner::{GpuClient, GpuOwner, MAX_HELD_LOST_DEVICES, MAX_WAIT};
 pub use crate::owner_core::{OwnerCore, ShutdownReport};
+pub use crate::present::{
+    Frame, NativeWindow, OwnerOptions, OwnerSurface, PresentMode, PresentProbe, PresentProgress,
+    PresentResult, Presented, SurfaceTarget, SwapchainInfo, SwapchainRequest, SwapchainStatus,
+};
 pub use crate::records::{
     ByteQuantity, ChargeClass, ClaimDisposition, ClaimInfo, ClaimRequest, DeviceBinding,
     DeviceFate, LedgerCounters, LedgerUsage, ModuleUsage, OperationKind, QuotaPolicy,
     ReleaseReceipt, SettleOutcome, SettleReceipt, Settlement, SubmissionObservation,
     SubmissionState, WorkObserved,
 };
+pub use crate::refusal::{AccessRefusal, PresentRefusal, RecordRefusal, ResourceRefusal};
+pub use crate::resource::{
+    AttachmentFormat, BufferHandles, BufferMemory, BufferRequest, BufferUsage, Extent, ImageLayout,
+    ImageRequest, ImageTarget, ImageUsage, OwnerBuffer, OwnerHeapUse, OwnerImage, OwnerMemoryUse,
+    RenderAttachment,
+};
 pub use crate::select::{DeviceClass, BASELINE_API_VERSION};
 
 /// Self description for models and tooling.
-pub const DESCRIPTOR: &str = r#"{"schema":"handshake.vulkan_renderer.descriptor@1","crate":"handshake-vulkan-renderer","slice":1,"owner":"WP-KERNEL-012 MT-203","binding":"ash =0.38.0, Vulkan 1.3 baseline, direct Vulkan; loader from the system directory only","locked_crates":["ash","cfg-if","handshake-vulkan-renderer","libloading","windows-link"],"state":"one private Vulkan generation (instance, strict device pick, device, queue, a fence per submission), the owner-side claim ledger and the submit/observe/settle path; not mounted in any host; no window, surface, swapchain or drawing; no thread, timer or per-frame call","device_pick":"discrete, integrated or virtual GPU with a graphics queue; refuses CPU devices, SwiftShader, llvmpipe and the Direct3D-layered Dozen driver; no fallback","features_enabled":["dynamicRendering","timelineSemaphore"],"extensions_enabled_when_offered":["VK_EXT_memory_budget"],"capabilities":{"GpuOwner":"host only: policy, attach_client, revoke_client, usage, poll, probe, rebind_device, close","GpuClient":"one client, identity fixed at issue: admit, authorize, lease, charge, discharge, submit, observe, wait, settle, release_retained, rebind_claim, poll","Claim":"its holder, also without the client's handle: discharge, settle, release_retained","DeviceLease":"handles, handles_to_release, may_release, wait_release"},"ledger":"quota unavailable denies; a denial does not tell what others hold; bounded by bytes, claims and submissions per claim; a settled outcome never contradicts what the owner observed; a dropped claim is reclaimed only after its work was observed finished; one process only","submission":"attachment (module, client), operation, generation, value on the queue; the owner observes completion on its own fences, a client never reports it","waits":"every wait is bounded by the owner's own deadline (5 s at most) and looks at fence states between sleeps; no vkWaitSemaphores, vkWaitForFences, vkQueueWaitIdle or vkDeviceWaitIdle; no wait holds a lock that a client call needs","device_loss":"VK_ERROR_DEVICE_LOST or a signalled sentinel fence; a lost device completes nothing any more; rebind_device recreates the same adapter with generation + 1; a lost device that clients hold is set aside and destroyed with its last holder; charges are not refunded","close":"bounded; a device that is held or still runs work is kept, observable, and destroyed by the first call after both ended","diagnostics":"OwnerDiagnostics port: codes, counters and opaque module, client, claim and operation numbers, event-driven; host wiring to internal_diagnostics not included","unavailable":["vulkan_loader_missing","vulkan_instance_refused","api_below_baseline","no_physical_device","software_device_refused","layered_driver_refused","no_suitable_device","required_device_missing","feature_missing","device_creation_refused","physical_device_lost","out_of_memory","owner_already_open","vk_error"],"not_here":["kernel issuer and grants","installation-wide persisted quota ledger","GpuClientPort adapter (asset port lives in a wgpu crate)","memory allocation service and owner images","presentation waits and signals, surface extensions","windows, swapchains, UI pass, atlas, text"],"platform":"x86_64-pc-windows-msvc first"}"#;
+pub const DESCRIPTOR: &str = r#"{"schema":"handshake.vulkan_renderer.descriptor@1","crate":"handshake-vulkan-renderer","slice":2,"owner":"WP-KERNEL-012 MT-203","binding":"ash =0.38.0, Vulkan 1.3 baseline, direct Vulkan; loader from the system directory only","locked_crates":["ash","bitflags","cfg-if","gpu-alloc","gpu-alloc-types","handshake-vulkan-renderer","libloading","windows-link"],"state":"one private Vulkan generation (instance, strict device pick, device, queue, a fence per submission), the owner-side claim ledger and the submit/observe/settle path, owner images and buffers with measured memory, and presentation on host-named windows when asked for; not mounted in any host; creates no window and draws nothing of its own; no thread, timer or per-frame call","device_pick":"discrete, integrated or virtual GPU with a graphics queue; refuses CPU devices, SwiftShader, llvmpipe and the Direct3D-layered Dozen driver; no fallback","features_enabled":["dynamicRendering","timelineSemaphore"],"features_enabled_when_offered":["swapchainMaintenance1"],"extensions_enabled_when_offered":["VK_EXT_memory_budget"],"extensions_with_presentation":{"instance":["VK_KHR_surface","VK_KHR_win32_surface"],"instance_when_offered":["VK_KHR_get_surface_capabilities2","VK_EXT_surface_maintenance1"],"device":["VK_KHR_swapchain"],"device_when_offered":["VK_EXT_swapchain_maintenance1"]},"capabilities":{"GpuOwner":"host only: policy, attach_client, revoke_client, usage, poll, probe, rebind_device, close","GpuClient":"one client, identity fixed at issue: admit, authorize, lease, charge, discharge, submit, observe, wait, settle, release_retained, rebind_claim, poll, create_image, create_buffer, create_surface, present","OwnerImage":"attachment (raw image, view, format, extent, usage); dropped = released, destroyed after its work","OwnerBuffer":"handles, read, write (refused while work of its client runs)","OwnerSurface":"configure, suspend, acquire (timeout 0), swapchain, probe","Recording":"command_buffer, transition, clear, read_back","Claim":"its holder, also without the client's handle: discharge, settle, release_retained","DeviceLease":"handles, handles_to_release, may_release, wait_release"},"ledger":"quota unavailable denies; a denial does not tell what others hold; bounded by bytes, claims and submissions per claim; a settled outcome never contradicts what the owner observed; a dropped claim is reclaimed only after its work was observed finished; one process only","submission":"attachment (module, client), operation, generation, value on the queue; the owner observes completion on its own fences, a client never reports it","waits":"every wait is bounded by the owner's own deadline (5 s at most) and looks at fence states between sleeps; no vkWaitSemaphores, vkWaitForFences, vkQueueWaitIdle or vkDeviceWaitIdle; no wait holds a lock that a client call needs","device_loss":"VK_ERROR_DEVICE_LOST or a signalled sentinel fence; a lost device completes nothing any more; rebind_device recreates the same adapter with generation + 1; a lost device that clients hold is set aside and destroyed with its last holder; charges are not refunded","close":"bounded; a device that is held or still runs work is kept, observable, and destroyed by the first call after both ended","memory":"gpu-alloc 0.6.2 buddy and dedicated blocks over the owner's own vkAllocateMemory/vkFreeMemory; memory types by the resource's memoryTypeBits and use; a new memory object past VK_EXT_memory_budget's heap budget is refused, without the extension the budget is unknown; reserve on admission, charge on allocation inside the reservation, release once after the owner destroyed the resource","presentation":"surface from a host SurfaceTarget (Win32 hwnd, hinstance), swapchain recreated on resize, minimise and restore with oldSwapchain; acquire with timeout 0, present without waits; an old swapchain is destroyed after its submissions were observed and its presents are proven ended (present fence, or a later acquire fence); PresentProbe for watchers","diagnostics":"OwnerDiagnostics port: codes, counters and opaque module, client, claim and operation numbers, event-driven, never delivered while a lock of the owner is held; host wiring to internal_diagnostics not included","unavailable":["vulkan_loader_missing","vulkan_instance_refused","api_below_baseline","no_physical_device","software_device_refused","layered_driver_refused","no_suitable_device","required_device_missing","feature_missing","device_creation_refused","physical_device_lost","out_of_memory","owner_already_open","vk_error","presentation_unsupported"],"not_here":["kernel issuer and grants","installation-wide persisted quota ledger","GpuClientPort adapter (asset port lives in a wgpu crate)","window creation, UI pass, atlas, text","depth attachments, mip levels, multisampling"],"platform":"x86_64-pc-windows-msvc first"}"#;
