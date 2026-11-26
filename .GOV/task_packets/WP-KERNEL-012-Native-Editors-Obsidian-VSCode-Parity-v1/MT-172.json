@@ -13892,5 +13892,60 @@
     },
     "product_suspicion": "storage/surreal/preferences.rs:913 binds the protected $session in product code; other product structs have session, access or auth fields; under eval",
     "next_eval": "eval-reclaim-20261126-03 on dba6ec308 with eight targets"
+  },
+  "protected_bindings_and_cap_stop_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report",
+    "recorded_on": "2026-11-26",
+    "run_id": "eval-reclaim-20261126-03",
+    "commit": "dba6ec308",
+    "result": "no tests ran: the run's target-size guard stopped the build at 209,077,154,192 measured bytes (stop line 209e9) while package bins were relinking; infrastructure",
+    "measurement_note": "target_bytes() counts hardlinked debug/X and debug/deps/X twice (33 names, 15.34 GB); real usage about 193 GB",
+    "options": [
+      "count each hardlinked file once under the same 210 GB cap",
+      "Operator-approved partial removal after a fresh inspection (plans C, D1, D2)",
+      "raise the cap"
+    ],
+    "expected_environment_failures": [
+      "candle_e2e_smoke: all 5 tests #[ignore]; real weights need HANDSHAKE_TEST_CANDLE_MODEL_DIR",
+      "operator_chat_capture_tests: two tests need codex.cmd on PATH (tests/operator_chat_capture_tests.rs:150-158); host has codex.exe only"
+    ],
+    "review": {
+      "commits_pass_review": true,
+      "notes": [
+        "each new test can fail for its rule",
+        "fault seam test-utils only",
+        "repeat-safety fixture is not empty (3 queue transitions, 1 kill, a STOP, 2 threads and messages, 4 checkpoints)",
+        "powershell child opens no window and is killed on drop, including panic"
+      ],
+      "low": [
+        "repeat-safety comparison leaves out report rows other than the COMPLETED count, and Flight Recorder events",
+        "if nextest kills the test process the powershell child lives until its own 600 s sleep (job object kill UNVERIFIED)"
+      ]
+    },
+    "product_defect_high": {
+      "id": "PROTECTED-SESSION-BINDINGS",
+      "defect": "product code binds $session, which SurrealDB 3.2.0 refuses before any statement runs (engine/local/mod.rs:816, ds.rs:3919, context.rs:1072); every query through these sites fails",
+      "sites": [
+        "storage/surreal/preferences.rs:913 (work_profile_identity; reached from api/preferences.rs:238, operator_chat.rs:4975, production_factory.rs:6939,8172)",
+        "event_ledger.rs:276,289 (current_loom_exact_scope; from loom_store.rs:1547, loom_canvas_store.rs:1274)",
+        "local_accounts.rs:836 (used at 878, 1812, 2257, 2560, 2622), 1000, 1385, 1702",
+        "resource_authority.rs:184, 771, 7631, 12223 (bound at 12503), 13148 (bound at 13344)",
+        "workspaces.rs:1649"
+      ],
+      "not_bindings": [
+        "atelier/downloader.rs:1022",
+        "model_lane.rs:1740,3569",
+        "resource_authority.rs:5364,9544",
+        "palmistry.rs:201",
+        "visual_debug.rs:203",
+        "validator_sessions.rs:1279",
+        "stage.rs:268,280",
+        "fr_events.rs:237"
+      ],
+      "fix_caution": "rename the variable; dropping the bind makes $session read SurrealDB's built-in session object and silently match zero rows",
+      "callers_hide_it": "callers turn the error into a generic denial",
+      "possible_link": "workspaces.rs:1649 and the account and authority sites may explain the PT003 Workspace Create failure; to be confirmed by a run",
+      "covering_test_not_run": "tests/local_execution_authority_surreal_tests.rs (.unwrap() at 252)"
+    }
   }
 }
