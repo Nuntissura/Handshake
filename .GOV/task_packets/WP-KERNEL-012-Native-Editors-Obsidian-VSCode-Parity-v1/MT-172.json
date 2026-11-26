@@ -14152,5 +14152,48 @@
     },
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib --test restart_resume_surreal_tests --test worktree_vm_registry_surreal_tests --test user_manual_knowledge_surreal_tests -E 'test(/receipt_writer_schema_tests/) | (binary(restart_resume_surreal_tests) & test(/startup_runner_resumes_persists_report_and_is_idempotent|startup_runner_replays_only_the_exact_scoped_session_when_sequences_interleave|startup_pass_with_failed_completed_write_is_repeat_safe_on_the_next_pass/)) | (binary(worktree_vm_registry_surreal_tests) & test(=deterministic_failure_between_event_and_state_writes_rolls_back_both)) | (binary(user_manual_knowledge_surreal_tests) & test(=orphan_receipt_blocks_entity_mutation_without_disclosure))' (exactly 12 tests: 7 lib, 3 restart_resume, 1 worktree_vm, 1 user_manual)",
     "eval_status": "blocked with the other backend evals on the builder target cap (Operator decision pending)"
+  },
+  "sc3_static_review_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's report; SC3-N1 re-read by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "subject": "SC-3 commit 3ab0c671f",
+    "verdict": "passed for the SC-3 scope (field completeness and authority form at all 13 sites); static only, not a test verdict (the 7 new tests have not run)",
+    "deviation_144_148": "correct: the rule requires create, fs.write and the source_create resource and grant; the run-attachment write at 6482 records a separate source authority the same way; $routing_source_* bindings are filled exactly when there is a message or binding (lines 9579-9587), otherwise TransactionAuthorityRequired; both writes sit inside IF $has_message / IF $has_binding; create_scope and $wp012_routing_original come from the same task-local sources and selection rule (resource_authority.rs:479-499, :2664); cannot attribute to the wrong grant (a mismatch fails closed; root cannot hold routing sources)",
+    "q1": "all 32 ledger writes in storage model_lane.rs plus user_manual 239/374 carry every required key including wsids; swarm model_lane.rs has no direct ledger writes; dead sites confirmed dead (put_pair_immutable has zero references; user_manual 239 has no production caller)",
+    "q4": "guarded NONE at 6570/6653 accepted: fields are option<record<..>> with no ASSERT (schema.surql:7372-7380); no reader assumes presence; dereferencing readers fail closed",
+    "q5": "each test fails on the old text at the wsids coercion; the worktree_vm THROW assertion is correct (check_query_response surreal.rs:1494 skips 'not executed' errors; a THROW becomes TypesError::thrown); unproven: record-user route acceptance, authenticated-transaction wrappers, the binding fill, runtime pass",
+    "findings": [
+      {
+        "id": "SC3-N1",
+        "severity": "high, route; pre-existing, outside the wsids item; confirmed by the orchestrator",
+        "at": "storage model_lane.rs:144 (message ledger in commit_routing_atomic); model_lane_schema.surql write branch near 3192; schema.surql:10167 hands routing receipts to fn::wp012_routing_model_lane_receipt",
+        "defect": "the message ledger writes event_type MODEL_LANE_AUTHORITY_RECORDED while the write branch requires MODEL_LANE_MESSAGE_RECORDED for aggregate_type message, so a record user's create is denied and any routing transition carrying a message rolls back on the record-user route; reachable via swarm model_lane.rs:1585-1653 commit_routing_atomic",
+        "repair": "event_type MODEL_LANE_MESSAGE_RECORDED at 144 (the read branch accepts both)"
+      },
+      {
+        "id": "SC3-N2",
+        "severity": "medium; pre-existing; record-user reachability UNVERIFIED",
+        "at": "storage model_lane.rs:80",
+        "defect": "writes event_type MODEL_LANE_PAYLOAD_BOUND, which no receipt check accepts (general branch schema.surql:10196-10198 allows only the RECORDED and MESSAGE_RECORDED types; git grep finds the string only at line 80 and a doc comment)",
+        "repair": "write MODEL_LANE_AUTHORITY_RECORDED as line 148 does, or extend the schema"
+      },
+      {
+        "id": "SC3-F3",
+        "severity": "low",
+        "defect": "as root the unguarded sites store protected_resources:NONE and resource_grants:NONE (type::record given NONE builds the string key 'NONE', surrealdb-core fnc/type.rs:190-198, val/mod.rs:610) while guarded sites store NONE; follows the spec; no test pins it"
+      },
+      {
+        "id": "SC3-F4",
+        "severity": "low, test",
+        "defect": "the routing message/binding test asserts authority values it injected itself and never runs the source fill in routing_commit_bindings; on the old text it fails first at line 131, not 144"
+      }
+    ],
+    "routing": "SC3-N1 and SC3-N2 become picotask SC-3b (MT-172, code) after SC-4; the record-user route proof stays under SC-10",
+    "not_verified": [
+      "runtime behaviour",
+      "whether a record user reaches N2",
+      "$auth.id is NONE under root",
+      "an exhaustive check of the other create checks"
+    ]
   }
 }
