@@ -389,6 +389,8 @@ version = "0.1.0"
 dependencies = [
  "handshake-diag-ring",
  "handshake-vulkan-renderer",
+ "handshake_shell_accessibility",
+ "handshake_shell_input",
  "handshake_shell_surface",
  "handshake_shell_window",
  "ui_heartbeat",

@@ -1,7 +1,12 @@
 //! The shell crate of the kernel-owned shell (WP-KERNEL-012 MT-214 AC214-12): composition of the shell's crates and
 //! the toolkit-free host ports, with no widget, pane or domain logic of its own.
 //!
-//! So far it holds one composition, MT-215 slice 2: [`ShellHeartbeat`], the UI heartbeat port bound to the window
+//! It holds two compositions. MT-214 S5, [`program`]: the five crates as one process, with the pre-account startup gate
+//! ([`authority`]: the product opens the device only under `device.gpu.shell` and the kernel issuer, and refuses with a
+//! typed outcome without them), the heartbeat, the accessibility hub, the input tracker, and a shutdown that drains,
+//! settles claims and acknowledges the watcher only when the owner reported everything settled; [`outcome`] gives every
+//! end a typed kind and exit code. The binary is `handshake_shell` (`src/main.rs`); `examples/shell_program.rs` is the
+//! test binary for a manual run. And MT-215 slice 2: [`ShellHeartbeat`], the UI heartbeat port bound to the window
 //! crate's event loop and the surface crate's present path, so that a frozen UI thread or a stalled present reaches the
 //! diagnostics ring that the internal diagnostics and the standalone Palmistry watcher read. The module documentation
 //! of [`heartbeat`] is its manual: how a host uses it, what it proves and what reads it.
@@ -24,12 +29,24 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
+pub mod authority;
+pub mod outcome;
+pub mod shutdown;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod watches;
 
 #[cfg(windows)]
 pub mod heartbeat;
+#[cfg(windows)]
+pub mod program;
 
+pub use authority::{
+    resolve_product, run_product, DeviceAuthority, IssuedAuthority, StartupRefusal, TestBinary, CAPABILITY, MISSING,
+};
 #[cfg(windows)]
 pub use heartbeat::{OpenRefused, ShellHeartbeat};
+pub use outcome::{conclude, may_acknowledge, shutdown_settled, ExitKind};
+#[cfg(windows)]
+pub use program::{run_program, EndAfter, ProgramConfig, ProgramOutcome, ProgramReport};
+pub use shutdown::{NoWatcher, ShutdownWatcher, WatcherAck};
 pub use watches::{WatchRefused, MAX_WATCHED_WINDOWS};

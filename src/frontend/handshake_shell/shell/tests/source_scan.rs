@@ -2,8 +2,10 @@
 //! over every member of the shell's and the ports' workspaces, read from their manifests so a new member is scanned
 //! without editing this file (MT-215 E3), one publisher of the ring's heartbeat slot, one heartbeat port and one ring
 //! writer in product code (HB-7, E3); no window library, graphics binding, Win32 type or unsafe code in this crate's
-//! code, and only its three dependencies (AC214-1, AC215-1); nothing here moves focus or the cursor or injects input
-//! (HBR-QUIET); every loop of a test on a private desktop; and every ring file of a test removed by its guard (E7).
+//! code, and only its listed dependencies (AC214-1, AC215-1); nothing here moves focus or the cursor or injects input
+//! (HBR-QUIET); every loop of a test on a private desktop; every ring file of a test removed by its guard (E7); and the
+//! shell program's rules (MT-214 S5): the device opens in one place, the product binary declares no test authority and
+//! the test binary says it is one, nothing here installs a panic or exception handler, and no widget or pane logic.
 
 #[path = "../../window/tests/source/mod.rs"]
 mod source;
@@ -29,6 +31,8 @@ const WORKSPACES: &[&str] = &["..", "../../handshake_host_ports"];
 const KNOWN_MEMBERS: &[&str] = &[
     "../window",
     "../surface",
+    "../input",
+    "../accessibility",
     "../shell",
     "../../handshake_host_ports/ui_heartbeat",
 ];
@@ -617,7 +621,15 @@ fn no_window_library_or_graphics_binding_in_the_crates_code() {
         .collect();
     assert_eq!(
         named,
-        ["handshake_shell_window", "handshake_shell_surface", "ui_heartbeat"]
+        [
+            "handshake_shell_window",
+            "handshake_shell_surface",
+            "handshake_shell_input",
+            "handshake_shell_accessibility",
+            "ui_heartbeat",
+            "handshake-diag-ring",
+            "handshake-vulkan-renderer"
+        ]
     );
 }
 
@@ -633,6 +645,7 @@ fn nothing_moves_focus_or_cursor_or_injects_input() {
 fn every_loop_of_a_test_runs_on_a_private_desktop() {
     let _limit = TimeLimit::new(LIMIT);
     let mut loops = 0;
+    let mut program_loops = 0;
     for test in below("tests") {
         let code = &test.code;
         let calls: Vec<usize> = code
@@ -656,6 +669,20 @@ fn every_loop_of_a_test_runs_on_a_private_desktop() {
             );
         }
         loops += calls.len();
+        // The shell program's loop (MT-214 S5) runs inside `on_private_desktop` as well.
+        let programs: Vec<usize> = code
+            .match_indices("run_program(")
+            .map(|(at, _)| at)
+            .filter(|at| !code[..*at].trim_end().ends_with("fn"))
+            .collect();
+        for at in &programs {
+            assert!(
+                inside.is_some_and(|start| start < *at),
+                "{}: a program loop before or without a private desktop",
+                test.path
+            );
+        }
+        program_loops += programs.len();
         let direct = lines(
             std::slice::from_ref(&test),
             &["handshake_shell_window::run", "SetThreadDesktop", "CreateDesktopW"],
@@ -663,6 +690,7 @@ fn every_loop_of_a_test_runs_on_a_private_desktop() {
         assert!(direct.is_empty(), "{direct:#?}");
     }
     assert_eq!(loops, 2, "the scan sees both loops");
+    assert_eq!(program_loops, 2, "the scan sees both program loops");
 }
 
 /// What leaves a test's ring file to chance: removing it by hand, which a failure skips, or making a ring without the
@@ -689,7 +717,7 @@ fn every_ring_file_of_a_test_is_removed_by_its_guard() {
         .iter()
         .filter(|test| !lines(std::slice::from_ref(test), RING_WRITERS).is_empty())
         .count();
-    assert_eq!(rings, 2, "the scan sees both tests that make a ring");
+    assert_eq!(rings, 3, "the scan sees the three tests that make a ring");
 
     let by_hand = sample(
         "tests/sample.rs",
@@ -701,4 +729,100 @@ fn every_ring_file_of_a_test_is_removed_by_its_guard() {
         "let w = DiagRingWriterV2::create(&path, 1, n);",
     );
     assert_eq!(rings_left_to_chance(&[unguarded]).len(), 1);
+}
+
+/// A file of this crate as written, comments and literals included.
+fn text_of(path: &str) -> String {
+    std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).expect(path)
+}
+
+/// The files of `sources` that name `word` as a call or a type.
+fn files_naming(sources: &[Source], word: &str) -> Vec<String> {
+    let mut files: Vec<String> = sources
+        .iter()
+        .filter(|source| !lines_with(&source.code, word).is_empty())
+        .map(|source| source.path.clone())
+        .collect();
+    files.sort();
+    files
+}
+
+#[test]
+fn the_device_opens_in_one_place_and_only_the_gate_reaches_it_for_the_product() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = product_sources();
+    let opened = files_naming(&sources, "PresentHost::open");
+    assert_eq!(opened, ["../shell/src/program.rs"], "the presenter, and so the device, opens in one place");
+    let programs = files_naming(&below("src"), "run_program");
+    assert_eq!(
+        programs,
+        ["src/lib.rs", "src/main.rs", "src/program.rs"],
+        "the program is defined, re-exported and started by the product binary, nowhere else"
+    );
+
+    // The product binary asks the gate, declares no test authority and prints what it runs under; it has no flag that
+    // shows a window on a desktop.
+    let main = code_only(&text_of("src/main.rs"));
+    assert!(!lines_with(&main, "run_product").is_empty());
+    assert!(!lines_with(&main, "receipt").is_empty());
+    for word in ["TestBinary", "resolve_product", "IssuedAuthority"] {
+        assert!(lines_with(&main, word).is_empty(), "the product binary names {word}");
+    }
+    assert!(!text_of("src/main.rs").contains("show-on-my-desktop"), "the product binary has a desktop flag");
+
+    // A test declaration is made in no product code of this crate, only in its examples and tests.
+    let declared = files_naming(&below("src"), "TestBinary::declare");
+    assert!(declared.is_empty(), "a test authority is declared in product code: {declared:#?}");
+
+    // The example is a test binary: it needs its flag, declares itself and prints its receipt before the program runs.
+    let example_text = text_of("examples/shell_program.rs");
+    assert!(example_text.contains("--show-on-my-desktop"));
+    let example = code_only(&example_text);
+    assert!(lines_with(&example, "run_product").is_empty(), "the example takes the product's gate");
+    let flag = example.find("any(|argument| argument == SHOW_FLAG)").expect("the flag is required");
+    let declaration = example.find("TestBinary::declare").expect("the example declares itself");
+    let receipt = example.find("authority.receipt()").expect("the example prints its receipt");
+    let program = example.find("run_program(").expect("the example runs the program");
+    assert!(flag < declaration, "the flag is checked before anything is declared or opened");
+    assert!(declaration < receipt && receipt < program, "the receipt comes before the program runs");
+
+    // Each rule finds what it looks for.
+    let second_door = sample("../shell/src/sample.rs", "let host = PresentHost::open(c, d, a);");
+    assert_eq!(files_naming(&[second_door], "PresentHost::open").len(), 1);
+    let declared_in_src = sample("src/sample.rs", "let t = TestBinary::declare(\"x\");");
+    assert_eq!(files_naming(&[declared_in_src], "TestBinary::declare").len(), 1);
+}
+
+#[test]
+fn nothing_here_installs_a_panic_or_exception_handler_or_ends_the_process_itself() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = below("src");
+    assert!(sources.len() >= 7, "the scan reads the crate");
+    let words = [
+        "set_hook",
+        "take_hook",
+        "catch_unwind",
+        "resume_unwind",
+        "SetUnhandledExceptionFilter",
+        "AddVectoredExceptionHandler",
+        "SetErrorMode",
+        "abort",
+        "exit",
+        "ExitProcess",
+        "TerminateProcess",
+    ];
+    let found = lines(&sources, &words);
+    assert!(found.is_empty(), "{found:#?}");
+    let hook = sample("src/sample.rs", "std::panic::set_hook(Box::new(|_| {}));");
+    assert_eq!(lines(&[hook], &words).len(), 1);
+}
+
+#[test]
+fn the_shell_holds_no_widget_pane_or_layout_logic() {
+    let _limit = TimeLimit::new(LIMIT);
+    let words = ["Widget", "Pane", "Splitter", "Layout", "Theme", "Palette", "Button", "TextEdit", "Role"];
+    let found = lines(&below("src"), &words);
+    assert!(found.is_empty(), "{found:#?}");
+    let widget = sample("src/sample.rs", "struct Pane;");
+    assert_eq!(lines(&[widget], &words).len(), 1);
 }

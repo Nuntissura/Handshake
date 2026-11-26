@@ -128,6 +128,20 @@ pub struct SemanticFrame {
 }
 
 impl SemanticFrame {
+    /// The frame of a window that shows no content yet: the window's name and one named group, the shell's own frame
+    /// (MT-214 S5). The group is [`NodeKey`] `1`; the host builds no node itself, so the shell crate needs no AccessKit
+    /// type to publish it.
+    pub fn named_group(window_name: &str, group_name: &str) -> Self {
+        let mut group = Node::new(Role::Group);
+        group.set_label(group_name);
+        Self {
+            name: Some(window_name.to_owned()),
+            top: vec![NodeKey(1)],
+            nodes: vec![SemanticNode::new(NodeKey(1), group)],
+            focus: None,
+        }
+    }
+
     /// Put the focus on the node that shows `target`, the input crate's text focus of the window
     /// (`InputTracker::text_focus`); on the window itself when no node shows it or there is none.
     pub fn focus_on_text(&mut self, target: Option<TextTarget>) {

@@ -113,6 +113,24 @@ fn ids_stay_with_their_keys_across_frames() {
     assert_eq!(other.id_of(key(20)), Some(NodeId(2)), "numbered from the start in each window");
 }
 
+#[test]
+fn a_named_group_frame_is_the_whole_tree_and_stays_put() {
+    let mut tree = WindowTree::new(ScaleFactor::ONE);
+    let mut consumer = consumer_of(&tree);
+    let update = apply(&mut tree, &mut consumer, SemanticFrame::named_group("window", "shell frame"));
+    assert!(update.is_some(), "the first frame reaches the adapter");
+    same(&tree, &consumer);
+    let group = tree.id_of(key(1)).expect("the group has an id");
+    assert!(group != ROOT, "the window's id is its own");
+    let state = consumer.state();
+    assert_eq!(state.root().children().count(), 1, "one group below the window");
+    assert_eq!(state.node_by_id(group).map(|node| node.role()), Some(Role::Group));
+    // The same frame again changes nothing and keeps the id: only what changed is sent.
+    let again = apply(&mut tree, &mut consumer, SemanticFrame::named_group("window", "shell frame"));
+    assert!(again.is_none(), "an unchanged frame sends nothing");
+    assert_eq!(tree.id_of(key(1)), Some(group));
+}
+
 /// A small deterministic generator, so the sequence is the same in every run.
 struct Numbers(u64);
 

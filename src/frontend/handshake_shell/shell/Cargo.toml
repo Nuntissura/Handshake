@@ -9,18 +9,26 @@ name = "handshake_shell"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "Composition of the kernel-owned shell: the UI heartbeat port bound to the shell's event loop and present path."
+description = "Composition of the kernel-owned shell: the shell program (startup gate, loop, presenter, input, accessibility, heartbeat, drained shutdown) and the UI heartbeat port bound to its event loop and present path."
 
 [dependencies]
 handshake_shell_window = { path = "../window" }
 handshake_shell_surface = { path = "../surface" }
+handshake_shell_input = { path = "../input" }
+handshake_shell_accessibility = { path = "../accessibility" }
 ui_heartbeat = { path = "../../handshake_host_ports/ui_heartbeat" }
-
-[target.'cfg(windows)'.dev-dependencies]
-# Tests only: the ring the watcher reads, the GPU owner's types and test process rules, and the window crate's private
-# desktop. The revision winit 0.30.13 binds, as in the window and surface crates.
+# MT-214 S5: the program makes the ring's shutdown marker (the heartbeat's own ring writer comes from the caller), and
+# opens the GPU owner through the surface crate with the owner's own policy and module types.
 handshake-diag-ring = { path = "../../handshake_native/diag_ring" }
 handshake-vulkan-renderer = { path = "../../handshake_native/vulkan-renderer" }
+
+[[bin]]
+name = "handshake_shell"
+path = "src/main.rs"
+
+[target.'cfg(windows)'.dev-dependencies]
+# Tests only: the window crate's private desktop. The revision winit 0.30.13 binds, as in the window and surface
+# crates.
 windows-sys = { version = "=0.52.0", features = [
     "Win32_Foundation",
     "Win32_Security",
