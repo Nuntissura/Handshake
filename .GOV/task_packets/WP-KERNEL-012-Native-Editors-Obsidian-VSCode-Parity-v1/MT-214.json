@@ -2341,5 +2341,45 @@
       "the Palmistry handshake and ack",
       "UIA attach on an Operator desktop"
     ]
+  },
+  "shell_gaps_ownership_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, from a specialist analysis and an adversarial review",
+    "recorded_on": "2026-11-26",
+    "analysis": "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json (sha256 69da535f15678d36a0f8259c604d52459d2eb422efb8dabd6139bbd540089665)",
+    "pieces": {
+      "1_device_gpu_shell": {
+        "owner": "MT-219 (READY, unclaimed); registry file and workflow MT-174 (BLOCKED, claimed since 2026-10-10); MT-185 PENDING; MT-186 BLOCKED on MT-184",
+        "done": "MT-219 execution.depends_on corrected to [MT-174, MT-186] (MT-219.json#/dependency_correction_20261126)",
+        "blocker": "MT-186 blocks the authenticated publication step only, not S1 (no code, no file)",
+        "operator": "OD-3 reviewer and order (can wait)",
+        "hash_note": "worktree capability_registry.json sha256 da31a723... vs blob 75a43ff0... is core.autocrlf=true (index LF, worktree CRLF); CR-stripped worktree bytes hash to the blob; the extraction must hash LF bytes or record which form it hashed"
+      },
+      "2_kernel_issuer": {
+        "owner": "none (MT-203 G203-H3 'Not here'; no acceptance row names it; MT-213 does not cover it); spec BOOT-007 assigns it to the actual host runtime authority owner, pointing at Core",
+        "operator": "OD-8: (A) new MT-222 in WP-012 using the MT-203 process-root design, (B) a Core backend MT, (C) none for now (product keeps refusing)"
+      },
+      "3_palmistry_launcher": {
+        "owner": "none; MT-094 and MT-096 PASS (no reopen, CX-STATUS-001); MT-175 (BLOCKED, claim from 2026-10-10) and MT-199 list the file; no uncommitted edits in the product worktree (last commit 3f8391efb); MT-218 wrong module",
+        "route": "amend MT-215 (module handshake_host_ports, consistent with CX-UNIT-001 and its existing extraction-with-release pattern; exact AC215-11, write paths and step S8 in the analysis) with a thin re-export in the egui host; MT-175 and MT-199 release the file; MT-199 stays the adopter; MT-214 adds a ShutdownWatcher adapter and the v2 ring nonce",
+        "side_effect": "editing the file sends MT-094 and the MT-096 capstone back to READY_FOR_VALIDATION (CX-VAL-009); their proofs are cheap",
+        "operator": "approval needed (write-path addition reserved for the Operator by the MT-215 review and the takeover record); waiting for MT-199 is unsafe (blocked behind MT-214/215; AC199-9 implies the launcher exists)"
+      },
+      "4_quota_ledger": {
+        "owner": "none (GPU-QUOTA-006..010; no code or MT)",
+        "decision_interim": "deferred: AC214-10 cites only device.gpu.shell and the issuer; renderer-only startup stays under spec 15.9; GPU-QUOTA-012 fails closed with HostQuotaUnavailable; MT-203 acceptance does not cover GPU-QUOTA-006..010; test binaries use owner-local policy with protected claims refused",
+        "operator": "FYI with default defer"
+      },
+      "5_root_window": {
+        "owner": "MT-214",
+        "state": "recorded decisions cover focus after removal (slice 1) and its real-desktop waiver only; product root class, launch activation, taskbar presence and whether closing the root ends the process are open; code has WindowClass::Operator and Authority::Launch unused; the program uses Quiet",
+        "operator": "Operator class with one launch activation (default) and close ends the process (default yes)"
+      }
+    },
+    "proceeds_without_operator": [
+      "MT-219 depends_on correction (done)",
+      "quota interim (recorded here)",
+      "MT-214 slice work on test binaries"
+    ],
+    "product_startup": "stays blocked on pieces 1 and 2"
   }
 }

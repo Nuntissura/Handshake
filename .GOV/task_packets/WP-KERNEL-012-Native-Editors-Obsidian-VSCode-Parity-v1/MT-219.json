@@ -179,7 +179,7 @@
     "write_scope_source": "allowed_write_paths",
     "product_worktree": "../wtc-WP-KERNEL-012",
     "product_branch": "feat/WP-KERNEL-012",
-    "depends_on": [],
+    "depends_on": ["MT-174", "MT-186"],
     "start_precondition": "The holder of assets/capability_registry.json (MT-174 write scope, MT-185 publication) records the hand-over or runs the publication itself. If MT-185 publishes first, its two R2 entries are in the baseline; if not, the extraction diff contains them too and the reviewer sees both.",
     "allowed_write_paths": [
       "assets/capability_registry.json (only by the governed workflow's own publication step, never by hand)"
@@ -697,5 +697,13 @@
     "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
   },
   "created_at_utc": "2026-11-25T19:06:54Z",
-  "updated_at_utc": null
+  "updated_at_utc": null,
+  "dependency_correction_20261126": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-26",
+    "change": "execution.depends_on [] -> [\"MT-174\", \"MT-186\"]",
+    "why": "the contract already records backend_mt_ref MT-174 with contract_dependency_kind depends_on_completion while depends_on was empty; MT-186 (deployment and authenticated-context admission) is needed by the authenticated POST /jobs capability_registry_build publication step",
+    "authority": "dependency correction only, within the packet approval's limit to keys, acceptance rows and dependencies; no scope added; status stays READY (CX-STATUS-001/002); start_precondition order text unchanged (it needs Operator decision OD-3)",
+    "basis": "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json (specialist, sha256 69da535f...) corrected by an adversarial review (the specialist proposed MT-186 alone)"
+  }
 }
