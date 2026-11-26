@@ -1146,5 +1146,16 @@
       "HB-4": "unit only"
     },
     "next_actor": "GUI coding agent: repair R2-N1..N6"
+  },
+  "operator_decision_20261126_activation_after_removal": {
+    "decision_id": "WP012-ACTIVATION-AFTER-REMOVAL-20261126",
+    "operator_question": "After you close or minimise a window, should the keyboard go to its owner, else your top other Handshake window?",
+    "operator_quote": "Yes, that policy",
+    "decided_on": "2026-11-26",
+    "recorded_by": "ORCHESTRATOR root session",
+    "policy_name": "ACTIVATION_AFTER_REMOVAL (policy::activation_after_removal, carried out by place::hand_on)",
+    "policy": "after an Operator-approved minimise, hide or destroy (the Operator's own command or an open close request) leaves the keyboard nowhere, the keyboard goes to that window's owner, otherwise to the topmost other Operator window, and never while another program is in front; a model cannot trigger it",
+    "applies_to": "MT-214 slice 1, second remediation (R2-N5)",
+    "open_check": "behaviour on a real desktop (not only private test desktops) is still to be proven"
   }
 }
