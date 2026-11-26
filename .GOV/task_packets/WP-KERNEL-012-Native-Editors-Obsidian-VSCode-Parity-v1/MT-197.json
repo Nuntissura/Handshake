@@ -910,5 +910,39 @@
     ],
     "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged; design_result.status stays NOT_STARTED",
     "next_actor": "GUI coding agent for MT-214 S1 and MT-215 S1; expert UI designer (AC197-2) still unassigned; asset dev leader for the six conditions"
+  },
+  "asset_request_20261126": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-26",
+    "what": "refreshed asset request to the asset dev leader (Operator relays; the thread is not reachable from this session)",
+    "files": {
+      "request": "Handshake_Artifacts/WP-KERNEL-012/asset-requests-20261126/request.json (sha256 9a0eecc16b69ec3e3071f49cb489d5ff61ff79b4da4746eb93fc455bde1165cd)",
+      "message": "Handshake_Artifacts/WP-KERNEL-012/asset-requests-20261126/message-for-asset-dev-leader.md (sha256 4f50369dfbb044ac3292d10fca4fb51bea4ee2f1944da2568e1607d745ced5a2, 561 words)"
+    },
+    "basis": "assets origin 8eadc5b5 and Studio branch d32d0574 read by a specialist; nothing compiled",
+    "items_priority": [
+      "RQ-KUM-01 verdict and publication of kumihimo-ui, text adapter and Vulkan UI pass (KG-01)",
+      "RQ-KUM-02 UI pass on an injected MT-203 device with async settlement, read_pane fix, client port without wgpu (KG-02, KG-11)",
+      "RQ-KUM-03 one text port with paragraph, bidi, caret, hit test, fallback chain, virtual rows (KG-03)",
+      "RQ-KUM-04 one IME composition event type and Kumihimo-owned composition state (new; closes MT-214 S3-Q2)",
+      "RQ-KUM-05 host author-id policy (KG-04)",
+      "RQ-KUM-06 host tokens, metrics, icons and the decided motion table (KG-05; MT-200 motion_decision_20261126)",
+      "RQ-KUM-07 semantic tree completeness and stable-key projection onto the host accessibility frame (KG-06)",
+      "RQ-AKW-01 accesskit_windows transactional install that rolls back the window property (new; MT-214 E7-F9)",
+      "RQ-CAB-01 Cabinet view on kumihimo-ui (KG-09)",
+      "RQ-KUM-08 docking, tabs, pop-outs, gestures, presenters (KG-07)",
+      "RQ-HP-01 Handpick native mount as a Rust state machine (new)",
+      "RQ-KUM-09 widget coverage (KG-08) then KG-10"
+    ],
+    "gate": "MT-213 S4 onward cannot start until a Kumihimo revision covering items 1-6 is published and independently re-read",
+    "operator_dependency": "the Studio lanes SMB-UI-TREE-1 and SMB-VK-UI-PASS-1 need an independent verdict, which the Operator must release",
+    "not_verified": [
+      "whether the 2026-11-25 request (MT-198 asset_owner_request_text) reached the asset dev leader or got a reply",
+      "Studio commits newer than d32d0574",
+      "Cabinet head versus the c56cc95 pin",
+      "AccessKit 0.21.1 versus 0.25 role names",
+      "which text engine backs the text port for hosts without the Studio crates"
+    ],
+    "status": "handed to the Operator for relay 2026-11-26"
   }
 }
