@@ -1930,5 +1930,112 @@
       "route": "next GUI eval to confirm from code and runtime evidence and say whether it must change"
     },
     "tests": "nothing run; independent run pending"
+  },
+  "eval6_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report; the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-26",
+    "scope": "MT-214 slice 3 input crate, remediation5 and remediation6 clipboard harness; not an MT verdict; lifecycle unchanged",
+    "commit": "b8105b7b8",
+    "method": "exact copy (digest 3196479d..., unchanged after all runs); every run rebuilt from the copy, proven from Compiling lines and binary mtimes",
+    "results": {
+      "item1_input_crate": "failed: 39 passed, 1 failed (unit 33/33, source_scan 6/6, real_loop 0/1); mutations I-M1..M6 all caught (stale stamp, model input made the Operator's, end emitted twice, late commit, held keys, ImmNotifyIME in the scan)",
+      "item2_e5_remediation": "passed: window 124 passed, 1 failed (quiet_tests.rs:332, the same environment failure as eval5; file unchanged), 1 ignored; surface 39/39 (frame_loop 4/4 with closes_unproven asserted 0 at frame_loop.rs:626 and in the 6-cycle test; present_cases 8/8); E5-F2 closed (hiding before the proof gives closes_unproven 1, S-M1), E5-F3 closed (S-M2), E5-F4 closed (W-M1), R4-D3 closed (W-M2)",
+      "item3_clipboard_harness": "passed: the --ignored run stopped BLOCKED(environment) at support/mod.rs:235 (OpenClipboard error 5 on service-0x0-3e6$) before any write; a separate observer took 4,244,423 samples: WinSta0 sequence 95, owner, open window 0 and 4 formats never changed; stations identical before and after; all four impersonation conditions met (mod.rs:257-347); C-M1 (shared station call) caught"
+    },
+    "findings": [
+      {
+        "id": "E6-F1",
+        "severity": "high",
+        "at": "input/tests/real_loop.rs:236-257",
+        "defect": "the test can never pass: posted WM_SETFOCUS/KILLFOCUS give a quiet never-activated window no focus event; winit 0.30.13 window_state.rs:206-222 needs WM_NCACTIVATE first; instrumented run saw only Created, Key, Text",
+        "repair": "post (WM_NCACTIVATE, 1, 0) first; with that change the test passed 1/1 including the IME steps (R-M1)"
+      },
+      {
+        "id": "E6-F2",
+        "severity": "medium",
+        "at": "ime.rs:396-415; ime_tests.rs:296-323",
+        "defect": "preedit typed at target A is cancelled at A, then committed at B after a host focus move (rebound); with AllowIme(false) winit drops the input context without completing (winit ime.rs:141-150), so the text can come back at a later target",
+        "repair": "covered by the S3-Q1 commit change: complete before a focus move and deliver only to the composition's own target"
+      },
+      {
+        "id": "E6-F3",
+        "severity": "medium",
+        "at": "ime.rs:378-382",
+        "defect": "a result the IME delivers after WM_KILLFOCUS is dropped (test :241-269 asserts it); loses typed text",
+        "repair": "covered by the S3-Q1 commit change"
+      },
+      {
+        "id": "E6-F4",
+        "severity": "medium",
+        "at": "window.rs:502-544; key_gate.rs:73; window.rs:316-325",
+        "defect": "WM_IME_* messages take the newest key's origin with no age limit, including ones another program posts or sends; the key gate covers only 0x100-0x109 and the stamp gets a fresh serial, so CommandSource::from_input grants Operator authority; runtime not proven here (needs a hardware key); a model's steering input is never tagged as the Operator's (I-M2)",
+        "repair": "inherit the key's origin only during that key's own dispatch, refuse sent WM_IME_*, otherwise Unattributed"
+      },
+      {
+        "id": "E6-F5",
+        "severity": "low",
+        "at": "input README",
+        "defect": "the README says Chromium commits on window blur; Chromium's old IMM32 path (removed 2024-01-19) completed on a text-target change and before turning the IME off; current Chromium is TSF-only and confirms on a target change",
+        "repair": "correct the README"
+      },
+      {
+        "id": "E6-F6",
+        "severity": "low",
+        "at": "surface frame_loop not_hidden_while_proving",
+        "defect": "stayed silent under S-M1 because its proving check reads the swapchain and is false once hidden; only the closes_unproven assert catches that regression",
+        "repair": "make the check independent of the swapchain state"
+      },
+      {
+        "id": "E6-F7",
+        "severity": "low",
+        "at": "closing.rs:156-158",
+        "defect": "WM_SYSKEYDOWN F4 without the Alt bit (lParam bit 29) counts as Alt+F4, widening the recorded Alt+F4 residual",
+        "repair": "require the context bit"
+      },
+      {
+        "id": "E6-F8",
+        "severity": "low",
+        "at": "test_focus_ban.rs:466-485",
+        "defect": "the scan checks that a station check is present, not that it guards the write; a check that guards nothing passed (C-M2)",
+        "repair": "tie the check to the write it guards"
+      }
+    ],
+    "s3_q1_decision": {
+      "decision": "commit on focus loss, and change it now",
+      "basis": [
+        "Chromium and Qt (setFocusObject reset commits to the old target) both commit to the old target",
+        "Microsoft documents CPS_COMPLETE as setting the composition string as the result string",
+        "losing CJK text is worse than committing unconfirmed text"
+      ],
+      "fix": [
+        "a window-crate command that calls ImmNotifyIME(NI_COMPOSITIONSTR, CPS_COMPLETE) before a host focus move, before turning the IME off, and on WM_KILLFOCUS before the focus loss is reported",
+        "deliver the resulting commit to the composition's own target, never a new one",
+        "cancel only when the IME gives no result"
+      ],
+      "proof": "buildable and testable with posted messages now; real IMEs (Japanese, Pinyin, Korean) at the x64 gate or real desktop as a declared HBR-QUIET-004 step",
+      "note": "the input crate's source scan currently bans ImmNotifyIME; the fix must allow exactly this call with its exact shape"
+    },
+    "e6_q1_answer": "test_operator_window.rs:212 and :245 go to the test's own Pad (:421-424), not the Operator's clipboard; loop_core.rs:132-134 creates a SystemClipboard only when none is configured; probe E-M1 made SystemClipboard::new panic and test_operator_window still passed while the control test_quiet_window hit the probe; no change needed; hardening (low): scan read_clipboard( in tests outside the harness",
+    "operator_safety": "HBR-QUIET-001 held: 20 watched runs, 69,356 samples; no change in focus, Z-order, clipboard, input, cursor, stations or desktops; no test window on the Operator's desktop; foreground was 0 throughout, so the audit is weaker than on an active desktop",
+    "build_side_effect": "19 vctip.exe stopped after checking pid, creation time and the chain vctip < link < rustc < own cargo; runs waited about 25 minutes for another agent's build",
+    "logs": {
+      "eval-summary-b8105b7b8.json": "0da417e004cc0532...",
+      "eval-run-b8105b7b8-window.log": "25a68a54...",
+      "eval-run-b8105b7b8-surface.log": "b587bb79...",
+      "eval-run-b8105b7b8-input.log": "d405d82e...",
+      "eval-run-b8105b7b8-clipboard-ignored.log": "c3d5a4ee...",
+      "mutations-b8105b7b8.jsonl": "758d566d...",
+      "folder": "MT-214/eval-agent/ (probes in probe-b8105b7b8/)"
+    },
+    "routing": "input repairs (E6-F1..F5 and the S3-Q1 commit change) and the lows (E6-F6..F8) to the GUI coder after slice 4; then the wait-free heartbeat round",
+    "needs_native_x64_and_real_desktop": [
+      "real IME behaviour: CPS_COMPLETE timing, late results, S3-Q3 stale GCS_RESULTSTR winit re-reads at the end (event_loop.rs:1587-1599)",
+      "origin path from a hardware key",
+      "clipboard on a private station (x64)",
+      "real Alt+F4 and close-button behaviour",
+      "whether a closing window shown 2 s is noticed on the composited desktop",
+      "maintenance1 path",
+      "quiet_tests:332"
+    ]
   }
 }
