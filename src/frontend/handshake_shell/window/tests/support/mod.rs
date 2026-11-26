@@ -12,33 +12,41 @@
 #![allow(dead_code)] // Each test target uses a part.
 #![allow(unsafe_code)]
 
+mod watches;
+
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ptr;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use handshake_shell_window::{
     Control, DispatchedWake, Event, LoopConfig, LoopError, RunReport, ShellHost,
 };
-use windows_sys::Win32::Foundation::{GetLastError, BOOL, HWND, LPARAM, WPARAM};
+use windows_sys::Win32::Foundation::{GetLastError, BOOL, HANDLE, HWND, LPARAM, WPARAM};
 use windows_sys::Win32::System::StationsAndDesktops::{
-    CloseDesktop, CreateDesktopW, GetThreadDesktop, GetUserObjectInformationW, SetThreadDesktop,
-    HDESK, UOI_IO,
+    CloseDesktop, CloseWindowStation, CreateDesktopW, CreateWindowStationW,
+    GetProcessWindowStation, GetThreadDesktop, GetUserObjectInformationW, SetProcessWindowStation,
+    SetThreadDesktop, HDESK, HWINSTA, UOI_FLAGS, UOI_IO, UOI_NAME, USEROBJECTFLAGS,
 };
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, GetDesktopWindow, GetForegroundWindow, GetGUIThreadInfo,
-    GetWindow, GetWindowThreadProcessId, PeekMessageW, SendMessageW, SetWindowPos, GUITHREADINFO,
-    GW_HWNDNEXT, HWND_TOP, MSG, PM_NOREMOVE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
+    CreateWindowExW, DestroyWindow, GetDesktopWindow, GetGUIThreadInfo, GetWindow, PeekMessageW,
+    SendMessageW, SetWindowPos, GUITHREADINFO, GW_HWNDNEXT, HWND_TOP, MSG, PM_NOREMOVE, SWP_NOMOVE,
+    SWP_NOSIZE, SWP_SHOWWINDOW, WM_NULL, WSF_VISIBLE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP,
+    WS_VISIBLE,
 };
 
+use watches::{is_ours, FocusWatch, Watchdog};
+
 const GENERIC_ALL: u32 = 0x1000_0000;
+
+/// CreateWindowStation fails when the name exists.
+const CWF_CREATE_ONLY: u32 = 1;
 
 pub fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(Some(0)).collect()
@@ -137,6 +145,160 @@ pub fn on_private_desktop<T: Send + 'static>(
         "a window that must stay inactive was active or focused on the private desktop"
     );
     value
+}
+
+/// The name of the window station [`on_private_window_station`] switched the process to, in lower case, while it is.
+static STATION: Mutex<Option<String>> = Mutex::new(None);
+
+/// A window station of the test's own, the process's for as long as this lives. "A window station contains a
+/// clipboard, an atom table, and one or more desktop objects"; one that is not WinSta0 "cannot display a user interface
+/// or receive user input" (learn.microsoft.com/windows/win32/winstation/window-stations). SetProcessWindowStation
+/// "enables the process to access objects in the window station such as desktops, the clipboard, and global atoms",
+/// and a desktop CreateDesktop makes then belongs to it, as SetThreadDesktop requires.
+struct PrivateStation {
+    station: HWINSTA,
+    before: HWINSTA,
+}
+
+impl PrivateStation {
+    fn enter() -> Self {
+        let name = format!("hsk-shell-test-station-{}", std::process::id());
+        let wide_name = wide(&name);
+        // SAFETY: the name outlives the call; the station gets the default security.
+        let station = unsafe {
+            CreateWindowStationW(wide_name.as_ptr(), CWF_CREATE_ONLY, GENERIC_ALL, ptr::null())
+        };
+        // SAFETY: no arguments.
+        assert_ne!(station, 0, "no window station: error {}", unsafe { GetLastError() });
+        // SAFETY: no arguments, then a station of this process's session.
+        let (before, switched) = unsafe { (GetProcessWindowStation(), SetProcessWindowStation(station)) };
+        if switched == 0 {
+            // SAFETY: created above and not in use.
+            unsafe { CloseWindowStation(station) };
+            panic!("the process was not switched to the test's window station");
+        }
+        *STATION.lock().unwrap_or_else(PoisonError::into_inner) = Some(name.to_lowercase());
+        Self { station, before }
+    }
+}
+
+impl Drop for PrivateStation {
+    fn drop(&mut self) {
+        *STATION.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        // SAFETY: the station the process had, then the one made here, which nothing uses any more.
+        unsafe {
+            SetProcessWindowStation(self.before);
+            CloseWindowStation(self.station);
+        }
+    }
+}
+
+/// Run `work` as [`on_private_desktop`] does, with the process on a window station of the test's own: its clipboard is
+/// no other program's. The only place a test may use the operating system's clipboard; see
+/// [`assert_clipboard_is_private`].
+pub fn on_private_window_station<T: Send + 'static>(
+    limit: Duration,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> T {
+    let station = PrivateStation::enter();
+    let value = on_private_desktop(limit, work);
+    drop(station);
+    value
+}
+
+/// Panics unless the process is on the window station of [`on_private_window_station`], which is not interactive.
+/// Call before the operating system's clipboard is used, so the Operator's is never opened.
+pub fn assert_clipboard_is_private() {
+    let expected = STATION
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
+        .expect("only inside on_private_window_station");
+    // SAFETY: no arguments.
+    let station = unsafe { GetProcessWindowStation() };
+    let name = object_name(station).to_lowercase();
+    assert_eq!(name, expected, "the process's window station is the test's");
+    assert_ne!(name, "winsta0");
+    // SAFETY: integers; the result outlives the call and says its size.
+    let (asked, flags) = unsafe {
+        let mut flags: USEROBJECTFLAGS = std::mem::zeroed();
+        let asked = GetUserObjectInformationW(
+            station,
+            UOI_FLAGS,
+            (&mut flags as *mut USEROBJECTFLAGS).cast(),
+            size_of::<USEROBJECTFLAGS>() as u32,
+            ptr::null_mut(),
+        );
+        (asked, flags)
+    };
+    assert_ne!(asked, 0, "the station did not say whether it is interactive");
+    assert_eq!(flags.dwFlags & WSF_VISIBLE as u32, 0, "not interactive");
+}
+
+fn object_name(object: HANDLE) -> String {
+    let mut name = [0u16; 256];
+    let mut needed = 0;
+    // SAFETY: the buffer and the number outlive the call, which writes at most the buffer's size in bytes.
+    let asked = unsafe {
+        GetUserObjectInformationW(
+            object,
+            UOI_NAME,
+            name.as_mut_ptr().cast(),
+            (name.len() * size_of::<u16>()) as u32,
+            &mut needed,
+        )
+    };
+    assert_ne!(asked, 0, "the object has no name");
+    let end = name.iter().position(|unit| *unit == 0).unwrap_or(name.len());
+    String::from_utf16_lossy(&name[..end])
+}
+
+/// Run `work` on a new thread on the calling thread's desktop: another program, as far as the loop can tell.
+pub fn spawn_on_this_desktop<T: Send + 'static>(
+    work: impl FnOnce() -> T + Send + 'static,
+) -> JoinHandle<T> {
+    // SAFETY: no arguments.
+    let desktop = unsafe { GetThreadDesktop(GetCurrentThreadId()) };
+    std::thread::spawn(move || {
+        // SAFETY: the thread is new and has no window; the desktop outlives it, its caller's thread being on it.
+        assert_ne!(unsafe { SetThreadDesktop(desktop) }, 0);
+        work()
+    })
+}
+
+/// Send a message to a window of a thread that does not look at its queue for `hang`, as a hung program's. The calling
+/// thread waits in SendMessage meanwhile and handles only the messages other threads send it (SendMessage, Remarks).
+pub fn send_to_a_thread_that_hangs(hang: Duration) {
+    let (window, window_is) = channel();
+    let done = Arc::new(AtomicBool::new(false));
+    let finished = Arc::clone(&done);
+    let hung = spawn_on_this_desktop(move || {
+        let class = wide("STATIC");
+        // SAFETY: a class of the system's, hidden; every pointer outlives the call.
+        let hwnd = unsafe {
+            CreateWindowExW(0, class.as_ptr(), ptr::null(), WS_POPUP, 0, 0, 10, 10, 0, 0, 0, ptr::null())
+        };
+        assert_ne!(hwnd, 0);
+        let _ = window.send(hwnd);
+        std::thread::sleep(hang);
+        while !finished.load(Ordering::Acquire) {
+            // SAFETY: a structure of this function; nothing is taken out, the sent message is handled.
+            unsafe {
+                let mut message: MSG = std::mem::zeroed();
+                PeekMessageW(&mut message, 0, 0, 0, PM_NOREMOVE);
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        // SAFETY: created above, on this thread.
+        unsafe { DestroyWindow(hwnd) };
+    });
+    let hwnd = window_is.recv().expect("the hung thread made its window");
+    // SAFETY: plain values, to the window of the hung thread.
+    unsafe { SendMessageW(hwnd, WM_NULL, 0, 0) };
+    done.store(true, Ordering::Release);
+    if let Err(panic) = hung.join() {
+        std::panic::resume_unwind(panic);
+    }
 }
 
 /// Windows of the test's thread that must never be its active or focused window, and how often one was.
@@ -259,103 +421,6 @@ fn receives_input() -> bool {
     receives != 0
 }
 
-/// Ends the test process when it hangs. A modal loop that is not ended would hang forever.
-struct Watchdog {
-    alive: Option<Sender<()>>,
-    thread: Option<JoinHandle<()>>,
-}
-
-impl Watchdog {
-    fn start(limit: Duration) -> Self {
-        let (alive, watched) = channel::<()>();
-        let thread = std::thread::spawn(move || {
-            if watched.recv_timeout(limit) == Err(RecvTimeoutError::Timeout) {
-                eprintln!("the test did not end within {limit:?}");
-                std::process::exit(101);
-            }
-        });
-        Self {
-            alive: Some(alive),
-            thread: Some(thread),
-        }
-    }
-}
-
-impl Drop for Watchdog {
-    fn drop(&mut self) {
-        self.alive.take();
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct FocusSeen {
-    pub samples: u64,
-    /// Samples in which a window of this process was in the foreground, active or focused on the Operator's desktop.
-    pub ours: u64,
-}
-
-struct FocusWatch {
-    stop: Arc<AtomicBool>,
-    thread: Option<JoinHandle<FocusSeen>>,
-}
-
-impl FocusWatch {
-    /// The sampling thread stays on the process's own desktop, the Operator's.
-    fn start() -> Self {
-        let stop = Arc::new(AtomicBool::new(false));
-        let stopped = Arc::clone(&stop);
-        let thread = std::thread::spawn(move || {
-            let mut seen = FocusSeen::default();
-            while !stopped.load(Ordering::Acquire) {
-                seen.samples += 1;
-                if foreground_windows().into_iter().any(is_ours) {
-                    seen.ours += 1;
-                }
-                std::thread::sleep(Duration::from_millis(1));
-            }
-            seen
-        });
-        Self {
-            stop,
-            thread: Some(thread),
-        }
-    }
-
-    fn finish(mut self) -> FocusSeen {
-        self.stop.store(true, Ordering::Release);
-        self.thread.take().unwrap().join().unwrap()
-    }
-}
-
-impl Drop for FocusWatch {
-    fn drop(&mut self) {
-        self.stop.store(true, Ordering::Release);
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
-        }
-    }
-}
-
-fn foreground_windows() -> [HWND; 3] {
-    // SAFETY: integers and rectangles; the structure says its own size.
-    unsafe {
-        let mut info: GUITHREADINFO = std::mem::zeroed();
-        info.cbSize = size_of::<GUITHREADINFO>() as u32;
-        GetGUIThreadInfo(0, &mut info);
-        [GetForegroundWindow(), info.hwndActive, info.hwndFocus]
-    }
-}
-
-fn is_ours(hwnd: HWND) -> bool {
-    let mut process = 0;
-    // SAFETY: the number outlives the call.
-    unsafe { GetWindowThreadProcessId(hwnd, &mut process) };
-    hwnd != 0 && process == std::process::id()
-}
-
 /// A plain visible window on the private desktop, in the place of one of the Operator's.
 pub struct Decoy(pub HWND);
 
@@ -468,6 +533,12 @@ pub fn send_from_another_thread(hwnd: HWND, messages: Vec<(u32, WPARAM, LPARAM)>
 /// A list that a test's closures share.
 #[derive(Clone)]
 pub struct Log<T>(Rc<RefCell<Vec<T>>>);
+
+impl<T> Default for Log<T> {
+    fn default() -> Self {
+        Self(Rc::default())
+    }
+}
 
 impl<T: Clone + Debug + PartialEq> Log<T> {
     pub fn new() -> Self {

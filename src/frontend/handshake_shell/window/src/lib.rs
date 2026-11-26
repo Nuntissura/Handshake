@@ -24,7 +24,10 @@
 //! restore, hide, minimise or destroy the window the Operator works in, nor show it back from minimised, nor do any of
 //! that to its owner when the Operator works in a window it owns. A request to close that window lets a model remove
 //! it once, while the request is open. When a removal the Operator approved leaves the keyboard nowhere, it goes to
-//! the removed window's owner, else to the topmost other Operator window, and never away from another program.
+//! the removed window's owner, else to the topmost other Operator window, and never away from another program
+//! (ACTIVATION_AFTER_REMOVAL). Approved means the Operator's own command, or a close request that the Operator's own
+//! Alt+F4, close button or double-click on the system menu of that window made; a close message from another program,
+//! or from this one, opens a request that approves nothing, so a model cannot trigger the hand-on.
 //!
 //! A [`WindowClass::Quiet`] window is never activated: not by a command, not by a click, not by a style that something
 //! else sets, and not by a direct call of the operating system's: a CBT hook of the loop's thread refuses it, and every
@@ -35,11 +38,13 @@
 //!
 //! A wake is a message posted to a window of the loop, so the loops that the operating system runs for moving, sizing,
 //! menus and dialogs dispatch it as well. [`ShellHost::on_wake`] gets a [`DispatchedWake`], which only the loop can
-//! make: a wake message that was sent, or posted by anybody but the lane, dispatches nothing. An accepted wake is
-//! posted again until it is dispatched, also when other loops throw posts away, at intervals that grow to 8 s; after
-//! four posts nobody answered only once the loop shows that it runs, so a hung loop's queue holds at most four posts
-//! per lane. A refused post is tried again at intervals that grow from 10 ms to 8 s. From [`Control::finish`] on no
-//! wake reaches the host.
+//! make: a wake message that another thread sent, or that anybody but the lane posted, dispatches nothing. An accepted
+//! wake is posted again until it is dispatched, also when other loops throw posts away, at intervals that grow to 8 s;
+//! after four posts nobody answered only once the loop shows that it takes posts out of its queue: it dispatched a
+//! wake, or answered a sent probe while no wake post waited. So a loop that takes nothing out of its queue holds at
+//! most four posts per lane, whether it hangs or waits in a `SendMessage` to another thread, which still handles sent
+//! messages meanwhile. A refused post is tried again at intervals that grow from 10 ms to 8 s. From
+//! [`Control::finish`] on no wake reaches the host.
 //!
 //! What a dispatched wake does not prove: that anything was drawn, or that events reach the host. [`FrameProgress`]
 //! measures the first; the second stops while the host is inside a loop it opened itself.
@@ -52,8 +57,8 @@
 //! | [`Refusal::NeedsOperator`], [`Refusal::QuietWindow`] | activation without the Operator | show without activating |
 //! | [`Refusal::WouldMoveFocus`] | a model reached for the Operator's window | leave it, or ask the Operator |
 //! | [`Refusal::OperatorsWindow`] | a model tried to move, size or restore the Operator's window | leave it, or ask the Operator |
-//! | [`ClipboardError::CannotKeep`] | the clipboard holds only what a failed write could not put back | nothing was written; try again later |
-//! | [`RunReport::sent_keys_refused`], [`RunReport::sent_wakes_refused`] above 0 | another thread sent input or a wake | find the sender |
+//! | [`ClipboardError::NotRestored`] | the system refused the text after the clipboard was emptied; what was there had not been kept (KEEP_PLAIN_TEXT_OR_NOTHING, `clipboard` module) | tell the Operator the clipboard is empty; write again |
+//! | [`RunReport::sent_keys_refused`], [`RunReport::sent_wakes_refused`] above 0 | another thread sent input or a wake; keys and wakes taken out of the queue are not counted, also inside a loop that runs in a sent message | find the sender |
 //! | [`RunReport::activations_refused`] above 0 | something asked to activate a window that must not be | expected in tests that try; in the product, find the caller |
 //! | [`Refusal::NativeTokensHeld`] | a surface may still exist | release it, drop its token, ask again |
 //! | [`Refusal::ShutdownNotBegun`] | finish without shutdown | end the watcher first |
@@ -100,7 +105,7 @@ mod token;
 #[cfg(windows)]
 mod wake;
 
-pub use clipboard::{ClipboardError, TextClipboard, MAX_CLIPBOARD_BYTES};
+pub use clipboard::{ClipboardError, TextClipboard, KEEP_MAX_BYTES, MAX_CLIPBOARD_BYTES};
 pub use command::{
     CreateFailure, Placement, Refusal, WindowClass, WindowCommand, WindowSpec, WindowState,
 };

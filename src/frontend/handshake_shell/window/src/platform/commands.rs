@@ -4,7 +4,8 @@
 //! the activation on, or a clipboard write. A model command may not move, size, restore, hide, minimise or destroy the
 //! window the Operator works in, nor show it back from minimised (R2-N1); a request to close it lets a model remove it
 //! once, while the request is open. After a removal the Operator approved, the keyboard goes where
-//! `policy::activation_after_removal` says (R2-N5).
+//! `policy::activation_after_removal` says (R2-N5); a close request that another program made approves nothing
+//! (`policy::CloseWatch`, E3-F6).
 
 use super::loop_core::Core;
 use super::{monitors, place};
@@ -94,7 +95,7 @@ fn carry_out(
                 core.use_up(source);
             }
             // Shown again: a close request from before is over.
-            window.set_close_requested(None);
+            window.closing.end();
             place::show(&window.target(), plan, to_normal)
         }
         WindowCommand::Hide => {
@@ -171,19 +172,20 @@ fn carry_out(
 }
 
 /// Whether the window may be hidden or destroyed, and whether the Operator approved it: the Operator's own command, or
-/// an open request to close it. A model that removes the Operator's window on a close request uses the request up.
+/// an open request to close it that the Operator's own close gesture made (E3-F6). A model that removes the Operator's
+/// window on a close request, of anybody's, uses the request up.
 fn remove(
     core: &Core,
     window: &super::window::Window,
     authority: Authority,
     foreground: Foreground,
 ) -> Result<bool, Refusal> {
-    let open = window.close_open(core.now());
-    policy::may_remove(authority, foreground, open)?;
+    let request = window.closing.open(core.now());
+    policy::may_remove(authority, foreground, request.is_some())?;
     if authority == Authority::Model && foreground == Foreground::This {
-        window.set_close_requested(None);
+        window.closing.end();
     }
-    Ok(authority == Authority::Operator || open)
+    Ok(policy::removal_approved(authority, request))
 }
 
 /// ACTIVATION_AFTER_REMOVAL (`policy::activation_after_removal`, MT-214 R2-N5). An activation on the Operator's

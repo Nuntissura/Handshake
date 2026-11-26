@@ -1,50 +1,82 @@
-//! The operating system's clipboard, as text.
+//! The operating system's clipboard, as text: KEEP_PLAIN_TEXT_OR_NOTHING (`crate::clipboard`, MT-214 E3-F2, E3-F3).
 //!
-//! A write has to empty the clipboard before it puts text there: only `EmptyClipboard` makes the window the owner, and
-//! only the owner may put data on it (EmptyClipboard, SetClipboardData). So that a failed put does not leave the
-//! Operator's clipboard empty (MT-214 R2-N6), the write first copies what is there, one format of each group the
-//! system converts into each other, and puts it back when the put fails. What cannot be copied (owner-display, the
-//! display forms of a private format, the private and GDI-object ranges) is lost only on such a failure; a clipboard
-//! that holds nothing else is not touched at all ([`ClipboardError::CannotKeep`]). Copying asks a program that promised
-//! a format and did not render it yet to render it now, as reading does.
+//! A write has to empty the clipboard before it puts its text there: `EmptyClipboard` "assigns clipboard ownership to
+//! the window that has the clipboard open", and only then may that window put data on it (Clipboard Operations, "Cut
+//! and Copy Operations"). Which of the old content it keeps, to put back should the put be refused (R2-N6), is the
+//! policy: [`keep`] lists the formats (`EnumClipboardFormats` renders nothing), looks at the names of the registered
+//! ones, and asks for data only when everything there is plain text, and then for `CF_UNICODETEXT` alone.
+//!
+//! A withdrawal empties the clipboard only while it holds this window's own last write: its owner is this window
+//! ("A window becomes the clipboard owner when it ... calls the EmptyClipboard function. The window remains the
+//! clipboard owner until it is closed or another window empties the clipboard"), and the last write was not refused,
+//! since a refused one put the Operator's text back as this window's.
 
+use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
 
-use windows_sys::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL, HWND};
-use windows_sys::Win32::Graphics::Gdi::{CopyEnhMetaFileW, DeleteEnhMetaFile, HENHMETAFILE};
+use windows_sys::Win32::Foundation::{GlobalFree, HGLOBAL, HWND};
 use windows_sys::Win32::System::DataExchange::{
-    CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, GetClipboardOwner,
-    IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
+    CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData, GetClipboardFormatNameW,
+    GetClipboardOwner, IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
 };
 use windows_sys::Win32::System::Memory::{
     GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE,
 };
-use windows_sys::Win32::System::Ole::{
-    CF_BITMAP, CF_DIB, CF_DIBV5, CF_DSPBITMAP, CF_DSPENHMETAFILE, CF_DSPMETAFILEPICT,
-    CF_ENHMETAFILE, CF_GDIOBJFIRST, CF_GDIOBJLAST, CF_METAFILEPICT, CF_OEMTEXT, CF_OWNERDISPLAY,
-    CF_PALETTE, CF_PRIVATEFIRST, CF_PRIVATELAST, CF_TEXT, CF_UNICODETEXT,
-};
+use windows_sys::Win32::System::Ole::{CF_LOCALE, CF_OEMTEXT, CF_TEXT, CF_UNICODETEXT};
 
 use super::last_error;
-use crate::clipboard::{ClipboardError, TextClipboard, MAX_CLIPBOARD_BYTES};
+use crate::clipboard::{ClipboardError, TextClipboard, KEEP_MAX_BYTES, MAX_CLIPBOARD_BYTES};
 
 const FORMAT: u32 = CF_UNICODETEXT as u32;
 
 /// One UTF-16 unit is at most three bytes of UTF-8, and at least one.
 const MAX_UNITS: usize = MAX_CLIPBOARD_BYTES;
 
-/// The most formats looked at on one clipboard.
+/// The most formats looked at on one clipboard. One that lists more keeps nothing.
 const MAX_FORMATS: usize = 1_024;
+
+/// The formats of plain text, as the clipboard lists them: the one placed, and those the system makes from it.
+const PLAIN_TEXT: [u32; 4] = [FORMAT, CF_TEXT as u32, CF_OEMTEXT as u32, CF_LOCALE as u32];
+
+/// The registered formats with which a program keeps the clipboard history and the cloud clipboard away from what it
+/// copies (Clipboard Formats, "Cloud Clipboard and Clipboard History Formats").
+const MARKERS: [&str; 3] = [
+    "ExcludeClipboardContentFromMonitorProcessing",
+    "CanIncludeInClipboardHistory",
+    "CanUploadToCloudClipboard",
+];
+
+/// Registered formats are numbered from 0xC000 up to 0xFFFF (RegisterClipboardFormat).
+const REGISTERED_FIRST: u32 = 0xC000;
+
+/// The longest marker name, with room.
+const NAME_UNITS: usize = 64;
+
+/// What a write does when it keeps nothing of a clipboard that holds something (`crate::clipboard`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Unkept {
+    /// Write all the same; a refused put then leaves the clipboard empty ([`ClipboardError::NotRestored`]).
+    ReplaceAnyway,
+    /// Do not write ([`ClipboardError::CannotKeep`]).
+    LeaveAsIs,
+}
+
+/// KEEP_PLAIN_TEXT_OR_NOTHING.
+const UNKEPT: Unkept = Unkept::ReplaceAnyway;
 
 pub(super) struct SystemClipboard {
     /// Owns what is put on the clipboard. Never shown.
     owner: HWND,
+    last: LastWrite,
 }
 
 impl SystemClipboard {
     pub(super) fn new(owner: HWND) -> Self {
-        Self { owner }
+        Self {
+            owner,
+            last: LastWrite::default(),
+        }
     }
 
     fn open(&self) -> Result<OpenedClipboard, ClipboardError> {
@@ -54,6 +86,33 @@ impl SystemClipboard {
         } else {
             Ok(OpenedClipboard)
         }
+    }
+
+    fn owns(&self) -> bool {
+        // SAFETY: no arguments.
+        unsafe { GetClipboardOwner() == self.owner }
+    }
+}
+
+/// Whether what is on the clipboard is still this window's own last write (E3-F3).
+#[derive(Debug, Default)]
+struct LastWrite {
+    ours: bool,
+}
+
+impl LastWrite {
+    fn wrote(&mut self, written: &Result<(), ClipboardError>) {
+        self.ours = written.is_ok();
+    }
+
+    /// `owns`: the clipboard's owner is this window. Asked once more after it opened the clipboard.
+    fn may_withdraw(&mut self, owns: bool) -> bool {
+        self.ours &= owns;
+        self.ours
+    }
+
+    fn withdrawn(&mut self) {
+        self.ours = false;
     }
 }
 
@@ -68,30 +127,25 @@ impl Drop for OpenedClipboard {
 }
 
 /// Unlocks global memory.
-struct Locked<'a> {
+struct Locked {
     memory: HGLOBAL,
-    start: *mut u16,
-    owner: std::marker::PhantomData<&'a OpenedClipboard>,
+    start: *mut u8,
 }
 
-impl Drop for Locked<'_> {
+impl Drop for Locked {
     fn drop(&mut self) {
         // SAFETY: locked by whoever made this.
         unsafe { GlobalUnlock(self.memory) };
     }
 }
 
-fn lock(memory: HGLOBAL, _: &OpenedClipboard) -> Result<Locked<'_>, ClipboardError> {
+fn lock(memory: HGLOBAL) -> Result<Locked, ClipboardError> {
     // SAFETY: a plain value; null when it is no movable memory.
-    let start = unsafe { GlobalLock(memory) }.cast::<u16>();
+    let start = unsafe { GlobalLock(memory) }.cast::<u8>();
     if start.is_null() {
         return Err(ClipboardError::System(last_error()));
     }
-    Ok(Locked {
-        memory,
-        start,
-        owner: std::marker::PhantomData,
-    })
+    Ok(Locked { memory, start })
 }
 
 impl TextClipboard for SystemClipboard {
@@ -100,19 +154,19 @@ impl TextClipboard for SystemClipboard {
         if unsafe { IsClipboardFormatAvailable(FORMAT) } == 0 {
             return Ok(None);
         }
-        let opened = self.open()?;
+        let _opened = self.open()?;
         // SAFETY: the clipboard is open. The memory stays the clipboard's, and valid until it is closed.
         let memory = unsafe { GetClipboardData(FORMAT) };
         if memory == 0 {
             return Ok(None);
         }
         let memory = memory as HGLOBAL;
-        let locked = lock(memory, &opened)?;
+        let locked = lock(memory)?;
         // SAFETY: a plain value.
         let room = unsafe { GlobalSize(memory) } / size_of::<u16>();
-        // SAFETY: `room` units are readable while the memory is locked. Another program wrote them; every bit pattern
-        // is a u16.
-        let units = unsafe { slice::from_raw_parts(locked.start, room) };
+        // SAFETY: `room` units are readable while the memory is locked, and a lock is aligned for any value. Another
+        // program wrote them; every bit pattern is a u16.
+        let units = unsafe { slice::from_raw_parts(locked.start.cast::<u16>(), room) };
         let text = units.split(|unit| *unit == 0).next().unwrap_or(&[]);
         if text.len() > MAX_UNITS {
             return Err(ClipboardError::TooLarge);
@@ -129,97 +183,81 @@ impl TextClipboard for SystemClipboard {
             return Err(ClipboardError::TooLarge);
         }
         let units: Vec<u16> = text.encode_utf16().chain(Some(0)).collect();
+        // Before the clipboard is opened, so it is open for the swap only.
+        let data = text_memory(&units)?;
         let opened = self.open()?;
-        let data = text_memory(&units, &opened)?;
-        replace(&mut SystemBoard(&opened), FORMAT, data)
+        let written = replace(&mut SystemBoard::of(&opened), FORMAT, data, UNKEPT);
+        drop(opened);
+        self.last.wrote(&written);
+        written
     }
 
     fn withdraw(&mut self) -> Result<bool, ClipboardError> {
-        // SAFETY: no arguments.
-        if unsafe { GetClipboardOwner() } != self.owner {
+        if !self.last.may_withdraw(self.owns()) {
             return Ok(false);
         }
         let _opened = self.open()?;
-        // SAFETY: as above; opening it does not change who owns what is on it.
-        unsafe {
-            if GetClipboardOwner() != self.owner {
-                return Ok(false);
-            }
-            if EmptyClipboard() == 0 {
-                return Err(ClipboardError::System(last_error()));
-            }
+        // Opening it does not change who owns what is on it.
+        if !self.last.may_withdraw(self.owns()) {
+            return Ok(false);
         }
+        // SAFETY: the clipboard is open, by this window.
+        if unsafe { EmptyClipboard() } == 0 {
+            return Err(ClipboardError::System(last_error()));
+        }
+        self.last.withdrawn();
         Ok(true)
     }
 }
 
-fn text_memory(units: &[u16], opened: &OpenedClipboard) -> Result<Held, ClipboardError> {
+fn text_memory(units: &[u16]) -> Result<Held, ClipboardError> {
+    let size = std::mem::size_of_val(units);
     // SAFETY: plain values.
-    let memory = unsafe { GlobalAlloc(GMEM_MOVEABLE, std::mem::size_of_val(units)) };
+    let memory = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) };
     if memory.is_null() {
         return Err(ClipboardError::System(last_error()));
     }
-    let held = Held(Some(Handle::Memory(memory)));
-    let locked = lock(memory, opened)?;
-    // SAFETY: as many units as were allocated, and the memory is ours alone.
-    unsafe { ptr::copy_nonoverlapping(units.as_ptr(), locked.start, units.len()) };
+    let held = Held(Some(memory));
+    let locked = lock(memory)?;
+    // SAFETY: as many bytes as were allocated, and the memory is ours alone.
+    unsafe { ptr::copy_nonoverlapping(units.as_ptr().cast::<u8>(), locked.start, size) };
     drop(locked);
     Ok(held)
 }
 
-/// How a format can be kept (Standard Clipboard Formats).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Kind {
-    /// Global memory, which the system frees when the clipboard is emptied: copied byte for byte.
-    Memory,
-    /// An enhanced metafile: copied with `CopyEnhMetaFileW`.
-    Metafile,
-    /// A handle that is no memory, which the system makes again from another format of its group.
-    Twin,
-    /// Neither: lost when a failed write puts back what was there.
-    Lost,
-}
-
-fn kind(format: u32) -> Kind {
-    let Ok(format) = u16::try_from(format) else {
-        return Kind::Lost;
-    };
-    match format {
-        CF_ENHMETAFILE => Kind::Metafile,
-        CF_BITMAP | CF_METAFILEPICT | CF_PALETTE => Kind::Twin,
-        CF_OWNERDISPLAY | CF_DSPBITMAP | CF_DSPMETAFILEPICT | CF_DSPENHMETAFILE => Kind::Lost,
-        CF_PRIVATEFIRST..=CF_PRIVATELAST | CF_GDIOBJFIRST..=CF_GDIOBJLAST => Kind::Lost,
-        _ => Kind::Memory,
-    }
-}
-
-/// The groups of formats the system converts into each other (Synthesized Clipboard Formats); one of each is enough.
-fn group(format: u32) -> Option<usize> {
-    match u16::try_from(format).ok()? {
-        CF_TEXT | CF_OEMTEXT | CF_UNICODETEXT => Some(0),
-        CF_BITMAP | CF_DIB | CF_DIBV5 | CF_PALETTE => Some(1),
-        CF_ENHMETAFILE | CF_METAFILEPICT => Some(2),
-        _ => None,
-    }
-}
-
 /// A copy of one format.
+#[derive(Debug, PartialEq, Eq)]
 enum Copied<D> {
     Data(D),
-    /// The format holds nothing.
-    Nothing,
-    /// It holds something that could not be copied.
-    Failed,
+    /// More than the limit; not copied.
+    TooLarge,
+    /// It holds nothing that could be read, or the copy failed.
+    Unreadable,
+}
+
+/// Why a write keeps nothing of what is there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Skipped {
+    /// A marker of the clipboard history or the cloud clipboard.
+    Marked,
+    /// A format that is not plain text, or more formats than are looked at.
+    NotPlainText,
+    TooLarge,
+    Unreadable,
 }
 
 /// What a write needs of the open clipboard. Tests give their own.
 trait Board {
     type Data;
 
-    /// The formats on it, in their order.
-    fn formats(&self) -> Vec<u32>;
+    /// The formats on it, in their order, at most `most` of them.
+    fn formats(&self, most: usize) -> Vec<u32>;
 
-    fn copy(&self, format: u32, kind: Kind) -> Copied<Self::Data>;
+    /// Whether `format` is a registered format named as one of [`MARKERS`].
+    fn is_marker(&self, format: u32) -> bool;
+
+    /// A copy of its `CF_UNICODETEXT`, when that is at most `limit` bytes.
+    fn copy_text(&self, limit: usize) -> Copied<Self::Data>;
 
     /// Returns the error number when it failed.
     fn empty(&mut self) -> Result<(), u32>;
@@ -228,14 +266,25 @@ trait Board {
     fn put(&mut self, format: u32, data: Self::Data) -> Result<(), (Self::Data, u32)>;
 }
 
-/// Put `data` on the board in place of what is there, or leave that there (MT-214 R2-N6).
-fn replace<B: Board>(board: &mut B, format: u32, data: B::Data) -> Result<(), ClipboardError> {
-    let kept = keep(board)?;
+/// Put `data` on the board in place of what is there.
+fn replace<B: Board>(
+    board: &mut B,
+    format: u32,
+    data: B::Data,
+    unkept: Unkept,
+) -> Result<(), ClipboardError> {
+    let kept = keep(board);
+    if kept.is_err() && unkept == Unkept::LeaveAsIs {
+        return Err(ClipboardError::CannotKeep);
+    }
     board.empty().map_err(ClipboardError::System)?;
     let Err((refused, error)) = board.put(format, data) else {
         return Ok(());
     };
     drop(refused);
+    let Ok(kept) = kept else {
+        return Err(ClipboardError::NotRestored(error));
+    };
     for (format, data) in kept {
         // What the system does not take back is freed here.
         let _ = board.put(format, data);
@@ -243,87 +292,61 @@ fn replace<B: Board>(board: &mut B, format: u32, data: B::Data) -> Result<(), Cl
     Err(ClipboardError::System(error))
 }
 
-/// Everything on the board that can be put back. [`ClipboardError::CannotKeep`] when something could not be copied,
-/// or when it holds something and none of it can be kept.
-fn keep<B: Board>(board: &B) -> Result<Vec<(u32, B::Data)>, ClipboardError> {
-    let mut kept = Vec::new();
-    let mut kept_group = [false; 3];
-    let mut twins = Vec::new();
-    let mut lost = false;
-    for format in board.formats() {
-        let group = group(format);
-        if group.is_some_and(|group| kept_group[group]) {
-            continue;
-        }
-        match kind(format) {
-            Kind::Lost => lost = true,
-            Kind::Twin => twins.extend(group),
-            kind => match board.copy(format, kind) {
-                Copied::Data(data) => {
-                    if let Some(group) = group {
-                        kept_group[group] = true;
-                    }
-                    kept.push((format, data));
-                }
-                Copied::Nothing => {}
-                Copied::Failed => return Err(ClipboardError::CannotKeep),
-            },
-        }
+/// What of the board a write keeps: nothing of an empty one, plain text when there is nothing else (the module's
+/// policy), and otherwise why it keeps nothing. Asks for no data but plain text.
+fn keep<B: Board>(board: &B) -> Result<Vec<(u32, B::Data)>, Skipped> {
+    let formats = board.formats(MAX_FORMATS);
+    if formats.is_empty() {
+        return Ok(Vec::new());
     }
-    let twin_lost = twins.iter().any(|group| !kept_group[*group]);
-    if kept.is_empty() && (lost || twin_lost) {
-        return Err(ClipboardError::CannotKeep);
+    if formats.iter().any(|format| board.is_marker(*format)) {
+        return Err(Skipped::Marked);
     }
-    Ok(kept)
-}
-
-#[derive(Clone, Copy)]
-enum Handle {
-    Memory(HGLOBAL),
-    Metafile(HENHMETAFILE),
-}
-
-/// Clipboard data this process holds. Freed unless the clipboard takes it.
-struct Held(Option<Handle>);
-
-impl Held {
-    fn handle(&self) -> HANDLE {
-        match self.0 {
-            Some(Handle::Memory(memory)) => memory as HANDLE,
-            Some(Handle::Metafile(metafile)) => metafile,
-            None => 0,
-        }
+    let plain = formats.iter().all(|format| PLAIN_TEXT.contains(format));
+    if !plain || formats.len() >= MAX_FORMATS {
+        return Err(Skipped::NotPlainText);
+    }
+    match board.copy_text(KEEP_MAX_BYTES) {
+        Copied::Data(data) => Ok(vec![(FORMAT, data)]),
+        Copied::TooLarge => Err(Skipped::TooLarge),
+        Copied::Unreadable => Err(Skipped::Unreadable),
     }
 }
+
+/// Clipboard data this process holds. Wiped and freed unless the clipboard takes it.
+struct Held(Option<HGLOBAL>);
 
 impl Drop for Held {
     fn drop(&mut self) {
-        // SAFETY: made here, and the clipboard did not take it.
+        let Some(memory) = self.0.take() else { return };
+        // SAFETY: made here, and the clipboard did not take it: no other reference to it exists.
         unsafe {
-            match self.0.take() {
-                Some(Handle::Memory(memory)) => {
-                    GlobalFree(memory);
-                }
-                Some(Handle::Metafile(metafile)) => {
-                    DeleteEnhMetaFile(metafile);
-                }
-                None => {}
+            let size = GlobalSize(memory);
+            if let Ok(locked) = lock(memory) {
+                ptr::write_bytes(locked.start, 0, size);
             }
+            GlobalFree(memory);
         }
     }
 }
 
-/// The open clipboard of the operating system.
-struct SystemBoard<'a>(&'a OpenedClipboard);
+/// The open clipboard of the operating system, for as long as it is open.
+struct SystemBoard<'a>(PhantomData<&'a OpenedClipboard>);
+
+impl<'a> SystemBoard<'a> {
+    fn of(_: &'a OpenedClipboard) -> Self {
+        Self(PhantomData)
+    }
+}
 
 impl Board for SystemBoard<'_> {
     type Data = Held;
 
-    fn formats(&self) -> Vec<u32> {
+    fn formats(&self, most: usize) -> Vec<u32> {
         let mut formats = Vec::new();
         let mut format = 0;
-        while formats.len() < MAX_FORMATS {
-            // SAFETY: the clipboard is open; 0 after the last.
+        while formats.len() < most {
+            // SAFETY: the clipboard is open; 0 after the last. Lists, renders nothing.
             format = unsafe { EnumClipboardFormats(format) };
             if format == 0 {
                 break;
@@ -333,22 +356,48 @@ impl Board for SystemBoard<'_> {
         formats
     }
 
-    fn copy(&self, format: u32, kind: Kind) -> Copied<Held> {
+    fn is_marker(&self, format: u32) -> bool {
+        if format < REGISTERED_FIRST {
+            return false;
+        }
+        let mut name = [0u16; NAME_UNITS];
+        // SAFETY: the buffer outlives the call, which writes at most its length, the ending 0 included.
+        let length = unsafe { GetClipboardFormatNameW(format, name.as_mut_ptr(), NAME_UNITS as i32) };
+        let Ok(length) = usize::try_from(length) else {
+            return false;
+        };
+        let name = String::from_utf16_lossy(&name[..length.min(name.len())]);
+        // Registered names are atoms, which ignore case.
+        MARKERS.iter().any(|marker| marker.eq_ignore_ascii_case(&name))
+    }
+
+    fn copy_text(&self, limit: usize) -> Copied<Held> {
         // SAFETY: the clipboard is open; the handle stays the clipboard's while it is.
-        let handle = unsafe { GetClipboardData(format) };
-        if handle == 0 {
-            return Copied::Nothing;
+        let source = unsafe { GetClipboardData(FORMAT) } as HGLOBAL;
+        if source.is_null() {
+            return Copied::Unreadable;
         }
-        if kind == Kind::Metafile {
-            // SAFETY: an enhanced metafile handle, copied into memory (no file name).
-            let copy = unsafe { CopyEnhMetaFileW(handle, ptr::null()) };
-            return if copy == 0 {
-                Copied::Failed
-            } else {
-                Copied::Data(Held(Some(Handle::Metafile(copy))))
-            };
+        // SAFETY: a plain value; 0 for a handle that is no global memory.
+        let size = unsafe { GlobalSize(source) };
+        if size == 0 {
+            return Copied::Unreadable;
         }
-        copy_memory(handle as HGLOBAL, self.0)
+        if size > limit {
+            return Copied::TooLarge;
+        }
+        // SAFETY: plain values.
+        let memory = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) };
+        if memory.is_null() {
+            return Copied::Unreadable;
+        }
+        let held = Held(Some(memory));
+        let (Ok(from), Ok(to)) = (lock(source), lock(memory)) else {
+            return Copied::Unreadable;
+        };
+        // SAFETY: both blocks are `size` bytes long and locked, and they are not the same.
+        unsafe { ptr::copy_nonoverlapping(from.start, to.start, size) };
+        drop((from, to));
+        Copied::Data(held)
     }
 
     fn empty(&mut self) -> Result<(), u32> {
@@ -361,8 +410,9 @@ impl Board for SystemBoard<'_> {
     }
 
     fn put(&mut self, format: u32, mut data: Held) -> Result<(), (Held, u32)> {
+        let handle = data.0.map_or(0, |memory| memory as isize);
         // SAFETY: the clipboard is open and owned by this window. It owns the data only when the call succeeds.
-        if unsafe { SetClipboardData(format, data.handle()) } == 0 {
+        if unsafe { SetClipboardData(format, handle) } == 0 {
             return Err((data, last_error()));
         }
         data.0 = None;
@@ -370,171 +420,6 @@ impl Board for SystemBoard<'_> {
     }
 }
 
-/// A copy of global memory of the clipboard's. Memory that says it has no size is nothing.
-fn copy_memory(source: HGLOBAL, opened: &OpenedClipboard) -> Copied<Held> {
-    // SAFETY: a plain value; 0 for a handle that is no global memory.
-    let size = unsafe { GlobalSize(source) };
-    if size == 0 {
-        return Copied::Nothing;
-    }
-    // SAFETY: plain values.
-    let memory = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) };
-    if memory.is_null() {
-        return Copied::Failed;
-    }
-    let held = Held(Some(Handle::Memory(memory)));
-    let (Ok(from), Ok(to)) = (lock(source, opened), lock(memory, opened)) else {
-        return Copied::Failed;
-    };
-    // SAFETY: both blocks are `size` bytes long and locked, and they are not the same.
-    unsafe { ptr::copy_nonoverlapping(from.start.cast::<u8>(), to.start.cast::<u8>(), size) };
-    drop((from, to));
-    Copied::Data(held)
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const HTML: u32 = 0xC100;
-
-    /// A clipboard of the test's: formats with a value each, in order.
-    #[derive(Default)]
-    struct Pad {
-        on: Vec<(u32, u32)>,
-        uncopyable: Vec<u32>,
-        refuses_first_put: bool,
-        refuses_empty: bool,
-        emptied: bool,
-        puts: u32,
-    }
-
-    impl Board for Pad {
-        type Data = u32;
-
-        fn formats(&self) -> Vec<u32> {
-            self.on.iter().map(|(format, _)| *format).collect()
-        }
-
-        fn copy(&self, format: u32, _: Kind) -> Copied<u32> {
-            if self.uncopyable.contains(&format) {
-                return Copied::Failed;
-            }
-            let found = self.on.iter().find(|(on, _)| *on == format);
-            found.map_or(Copied::Nothing, |(_, value)| Copied::Data(*value))
-        }
-
-        fn empty(&mut self) -> Result<(), u32> {
-            if self.refuses_empty {
-                return Err(5);
-            }
-            self.on.clear();
-            self.emptied = true;
-            Ok(())
-        }
-
-        fn put(&mut self, format: u32, data: u32) -> Result<(), (u32, u32)> {
-            self.puts += 1;
-            if self.refuses_first_put && self.puts == 1 {
-                return Err((data, 8));
-            }
-            self.on.push((format, data));
-            Ok(())
-        }
-    }
-
-    fn text_and_more() -> Vec<(u32, u32)> {
-        let text = u32::from(CF_TEXT);
-        let oem = u32::from(CF_OEMTEXT);
-        vec![(HTML, 1), (FORMAT, 2), (16, 3), (text, 4), (oem, 5)]
-    }
-
-    #[test]
-    fn a_write_replaces_what_is_there() {
-        let mut pad = Pad {
-            on: text_and_more(),
-            ..Pad::default()
-        };
-        assert_eq!(replace(&mut pad, FORMAT, 9), Ok(()));
-        assert_eq!(pad.on, [(FORMAT, 9)]);
-    }
-
-    /// MT-214 R2-N6.
-    #[test]
-    fn a_failed_put_puts_back_what_was_there_one_format_of_each_group() {
-        let mut pad = Pad {
-            on: text_and_more(),
-            refuses_first_put: true,
-            ..Pad::default()
-        };
-        assert_eq!(replace(&mut pad, FORMAT, 9), Err(ClipboardError::System(8)));
-        assert!(pad.emptied);
-        assert_eq!(pad.on, [(HTML, 1), (FORMAT, 2), (16, 3)], "the system makes the other texts again");
-        // A bitmap: kept as the device-independent form the system makes it from.
-        let bitmap = [CF_BITMAP, CF_DIB, CF_DIBV5, CF_PALETTE].map(u32::from);
-        let mut pad = Pad {
-            on: bitmap.iter().copied().zip(10..).collect(),
-            refuses_first_put: true,
-            ..Pad::default()
-        };
-        assert!(replace(&mut pad, FORMAT, 9).is_err());
-        assert_eq!(pad.on, [(u32::from(CF_DIB), 11)]);
-    }
-
-    #[test]
-    fn a_clipboard_that_cannot_be_kept_is_not_touched() {
-        let private = u32::from(CF_PRIVATEFIRST);
-        for on in [vec![(private, 1)], vec![(u32::from(CF_BITMAP), 1)]] {
-            let mut pad = Pad {
-                on: on.clone(),
-                ..Pad::default()
-            };
-            assert_eq!(replace(&mut pad, FORMAT, 9), Err(ClipboardError::CannotKeep));
-            assert!(!pad.emptied && pad.puts == 0);
-            assert_eq!(pad.on, on);
-        }
-        // One format that holds something but cannot be copied (no memory) is enough.
-        let mut pad = Pad {
-            on: text_and_more(),
-            uncopyable: vec![HTML],
-            ..Pad::default()
-        };
-        assert_eq!(replace(&mut pad, FORMAT, 9), Err(ClipboardError::CannotKeep));
-        assert_eq!(pad.on, text_and_more());
-        // What cannot be kept beside what can does not stop a write.
-        let mut pad = Pad {
-            on: vec![(private, 1), (FORMAT, 2)],
-            ..Pad::default()
-        };
-        assert_eq!(replace(&mut pad, FORMAT, 9), Ok(()));
-    }
-
-    #[test]
-    fn an_empty_clipboard_is_written_and_a_refused_empty_changes_nothing() {
-        let mut pad = Pad::default();
-        assert_eq!(replace(&mut pad, FORMAT, 9), Ok(()));
-        assert_eq!(pad.on, [(FORMAT, 9)]);
-        let mut pad = Pad {
-            on: text_and_more(),
-            refuses_empty: true,
-            ..Pad::default()
-        };
-        assert_eq!(replace(&mut pad, FORMAT, 9), Err(ClipboardError::System(5)));
-        assert_eq!((pad.on, pad.puts), (text_and_more(), 0));
-    }
-
-    #[test]
-    fn formats_are_kept_by_what_their_handle_is() {
-        assert_eq!(kind(FORMAT), Kind::Memory);
-        assert_eq!(kind(HTML), Kind::Memory);
-        assert_eq!(kind(u32::from(CF_ENHMETAFILE)), Kind::Metafile);
-        for twin in [CF_BITMAP, CF_METAFILEPICT, CF_PALETTE] {
-            assert_eq!(kind(u32::from(twin)), Kind::Twin);
-            assert!(group(u32::from(twin)).is_some(), "it has a group to be made from");
-        }
-        for lost in [CF_OWNERDISPLAY, CF_DSPBITMAP, CF_PRIVATELAST, CF_GDIOBJFIRST] {
-            assert_eq!(kind(u32::from(lost)), Kind::Lost);
-        }
-        assert_eq!(kind(0x1_0000), Kind::Lost);
-    }
-}
+#[path = "clipboard_tests.rs"]
+mod tests;

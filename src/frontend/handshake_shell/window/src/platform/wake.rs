@@ -23,7 +23,8 @@ use windows_sys::Win32::System::Threading::{
     WaitForThreadpoolTimerCallbacks, PTP_CALLBACK_INSTANCE, PTP_TIMER,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetQueueStatus, PostMessageW, SendNotifyMessageW, QS_INPUT, WM_APP,
+    GetQueueStatus, PeekMessageW, PostMessageW, SendNotifyMessageW, MSG, PM_NOREMOVE, PM_NOYIELD,
+    PM_QS_POSTMESSAGE, QS_INPUT, WM_APP,
 };
 
 use crate::wake::{LaneId, WakeRefused};
@@ -35,12 +36,17 @@ pub(super) const WM_WAKE: u32 = WM_APP + 1;
 /// Sent to the service window by [`Pulse`]; the second parameter is the pulse's secret.
 pub(super) const WM_PROBE: u32 = WM_APP + 2;
 
-/// Signs that the loop runs, shared by the lanes of one loop (MT-214 R2-N3).
+/// Signs that the loop takes posts out of its queue, shared by the lanes of one loop (MT-214 R2-N3, E3-F4).
 ///
 /// A dispatched wake is one. Where none comes, a probe asks: a message sent, not posted, to the service window. The
 /// system dispatches a sent message inside every call that looks at the thread's queue (PeekMessage, Remarks), ours
-/// and anybody else's, so a loop that runs answers it whatever it does with posts, and one that hangs does not. At
-/// most one probe is under way.
+/// and anybody else's, so a loop that runs answers it whatever it does with posts, and one that hangs does not. A
+/// thread that waits in a SendMessage to another thread answers it too: "the sending thread will process incoming
+/// nonqueued messages while waiting" (SendMessage, Remarks), and takes nothing out of its queue meanwhile. So an
+/// answer counts only while no wake post waits in the queue ([`posts_wait`]): the posts were taken out and thrown
+/// away, and the next one is useful. While one waits, the answer says nothing a post would change. Neither does a
+/// request made on the loop's thread, which may run inside such a wait. At most one probe is under way, and it is
+/// always sent from a pool thread: sent from the loop's thread it would be answered inside the call that sends it.
 pub(super) struct Pulse {
     window: HWND,
     thread: u32,
@@ -71,7 +77,7 @@ impl Pulse {
         self.life.load(Ordering::Acquire)
     }
 
-    /// The loop runs: called on its thread.
+    /// The loop took a post out of its queue: called on its thread.
     fn alive(&self) {
         self.life.fetch_max(self.now(), Ordering::AcqRel);
     }
@@ -81,12 +87,8 @@ impl Pulse {
         unsafe { GetCurrentThreadId() == self.thread }
     }
 
-    /// Ask the loop whether it runs; its answer comes to [`Pulse::answered`].
+    /// Ask the loop whether it runs; its answer comes to [`Pulse::answered`]. Not on the loop's thread.
     fn ask(&self) {
-        if self.on_loop_thread() {
-            self.alive();
-            return;
-        }
         if self.asking.swap(true, Ordering::AcqRel) {
             return;
         }
@@ -98,14 +100,29 @@ impl Pulse {
         }
     }
 
-    /// The service window got a probe, on the loop's thread. Returns whether it was this pulse's.
+    /// The service window got a probe, on the loop's thread. Returns whether it was this pulse's, answered while no
+    /// wake post waited: a sign that the loop takes posts out of its queue (E3-F4).
     pub(super) fn answered(&self, token: LPARAM) -> bool {
         if token as usize != self.secret {
             return false;
         }
-        self.alive();
+        let counts = !posts_wait(self.window);
+        if counts {
+            self.alive();
+        }
         self.asking.store(false, Ordering::Release);
-        true
+        counts
+    }
+}
+
+/// Whether a wake post waits in the calling thread's queue, for `window`. Takes nothing out and processes only posted
+/// messages (PeekMessage: `PM_NOREMOVE`, `PM_QS_POSTMESSAGE`, a filter of one message).
+fn posts_wait(window: HWND) -> bool {
+    // SAFETY: a message structure that outlives the call; nothing is taken out of the queue.
+    unsafe {
+        let mut message: MSG = std::mem::zeroed();
+        let flags = PM_NOREMOVE | PM_NOYIELD | PM_QS_POSTMESSAGE;
+        PeekMessageW(&mut message, window, WM_WAKE, WM_WAKE, flags) != 0
     }
 }
 
@@ -134,6 +151,8 @@ impl LaneState {
         let look_at = match step {
             Step::Idle => None,
             Step::LookAt(at) => Some(at),
+            // Asked on the loop's thread, the pool asks at once.
+            Step::Ask(_) if self.pulse.on_loop_thread() => Some(now),
             Step::Ask(at) => {
                 self.pulse.ask();
                 Some(at)
@@ -280,9 +299,6 @@ impl Lane {
         let mut slot = self.state.slot();
         if !self.state.open.load(Ordering::Acquire) {
             return Err(WakeRefused::Closed);
-        }
-        if self.on_loop_thread() {
-            self.state.pulse.alive();
         }
         let now = self.state.now();
         let step = slot.request(now, value, nanos(delay), self.state.pulse.life());

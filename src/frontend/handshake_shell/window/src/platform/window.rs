@@ -2,7 +2,8 @@
 //!
 //! The hook sees every message first. It keeps a quiet window at the bottom of the Z order whoever asks for something
 //! else (the activation guard keeps it inactive), notes where an input came from before the library turns it into an
-//! event, keeps from the library what would end its loop, and reports what the library does not.
+//! event, keeps from the library what would end its loop, tells the Operator's close from anybody else's, and reports
+//! what the library does not.
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -17,19 +18,21 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     DefWindowProcW, GetMessageTime, GWL_EXSTYLE, MA_NOACTIVATE, STYLESTRUCT, WA_INACTIVE,
     WINDOWPOS, WM_ACTIVATE, WM_CHAR, WM_DEADCHAR, WM_DPICHANGED, WM_DROPFILES, WM_ENTERMENULOOP,
     WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE, WM_KEYFIRST, WM_KEYLAST,
-    WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST, WM_NCDESTROY, WM_POINTERDOWN, WM_POINTERUP,
-    WM_POINTERUPDATE, WM_STYLECHANGING, WM_SYSCHAR, WM_SYSDEADCHAR, WM_TOUCH,
-    WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING,
+    WM_MOUSEACTIVATE, WM_MOUSEFIRST, WM_MOUSELAST, WM_NCDESTROY, WM_NCMOUSEMOVE,
+    WM_NCXBUTTONDBLCLK, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_STYLECHANGING,
+    WM_SYSCHAR, WM_SYSDEADCHAR, WM_TOUCH, WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING,
 };
 use winit::dpi::LogicalSize as LibrarySize;
 use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use winit::window::{CursorIcon, WindowAttributes, WindowId};
+use winit::window::{WindowAttributes, WindowId};
 
-use super::key_gate::{self, KeyGate, Kept};
+use super::closing::{Closing, CommandEnds};
+use super::key_gate::{self, KeyGate, Kept, Passed};
 use super::loop_core::{Core, Creation, MessageOrigin};
 use super::place::Target;
+use super::retrieval::{self, Arrival};
 use super::{drops, guard, last_error, monitors, place, translate};
 use crate::command::{CreateFailure, Placement, Refusal, WindowClass, WindowState};
 use crate::event::{Display, ModalLoop, WindowEvent, WindowKey};
@@ -37,11 +40,18 @@ use crate::frame::FrameLedger;
 use crate::geometry::{ClientPoint, LogicalSize, PhysicalPosition, PhysicalSize, ScaleFactor};
 use crate::input::{CursorShape, Modifiers};
 use crate::monitor::{centered, outside_all, MonitorKey};
-use crate::origin::{DeviceKind, EventTime, InputStamp, Origin, OPERATOR_AUTHORITY_LIFETIME};
+use crate::origin::{DeviceKind, InputStamp, Origin};
 use crate::token::Win32Window;
 
 const CLASS_NAME: &str = "hsk_shell_window";
 const HOOK: usize = 1;
+
+/// What the hook does once the window library handled a message.
+#[derive(Default)]
+struct After {
+    key: Option<Passed>,
+    close_command: Option<CommandEnds>,
+}
 
 pub(super) struct Window {
     pub(super) key: WindowKey,
@@ -53,8 +63,8 @@ pub(super) struct Window {
     pub(super) hold: Arc<()>,
     pub(super) logical: Cell<LogicalSize>,
     pub(super) scale: Cell<ScaleFactor>,
-    /// When somebody last asked to close it, while that request is open.
-    close_requested: Cell<Option<EventTime>>,
+    /// Requests to close it.
+    pub(super) closing: Closing,
     pub(super) frames: RefCell<FrameLedger>,
     /// Where the window goes in the Z order while a show is carried out.
     order_during_show: Cell<Option<HWND>>,
@@ -130,7 +140,7 @@ impl Window {
             hold: Arc::new(()),
             logical: Cell::new(spec.inner),
             scale: Cell::new(place::scale(hwnd)),
-            close_requested: Cell::new(None),
+            closing: Closing::default(),
             frames: RefCell::default(),
             order_during_show: Cell::new(None),
             announced: Cell::new(false),
@@ -227,18 +237,6 @@ impl Window {
         Arc::strong_count(&self.hold).saturating_sub(1)
     }
 
-    /// A request to close it is open: made within [`OPERATOR_AUTHORITY_LIFETIME`], and neither used nor overtaken by
-    /// a show or the Operator's input since.
-    pub(super) fn close_open(&self, now: EventTime) -> bool {
-        self.close_requested
-            .get()
-            .is_some_and(|at| now.since(at) <= OPERATOR_AUTHORITY_LIFETIME)
-    }
-
-    pub(super) fn set_close_requested(&self, at: Option<EventTime>) {
-        self.close_requested.set(at);
-    }
-
     pub(super) fn state(&self) -> WindowState {
         WindowState {
             class: self.class,
@@ -282,7 +280,7 @@ impl Window {
 
     pub(super) fn set_cursor(&self, shape: CursorShape) {
         if let Some(library) = self.library.borrow().as_ref() {
-            let icon = cursor_icon(shape);
+            let icon = translate::cursor_icon(shape);
             library.set_cursor_visible(icon.is_some());
             if let Some(icon) = icon {
                 library.set_cursor(icon);
@@ -380,28 +378,42 @@ impl Window {
         }
     }
 
-    /// Before the window library sees a message. A value answers it in the library's place.
-    fn before(&self, core: &Core, message: u32, wparam: WPARAM, lparam: LPARAM) -> Option<LRESULT> {
+    /// Before the window library sees a message. An error answers it in the library's place.
+    fn before(
+        &self,
+        core: &Core,
+        message: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+        arrival: Arrival,
+    ) -> Result<After, LRESULT> {
+        let operators_input =
+            arrival == Arrival::Queue && core.message().origin == Origin::OperatorDevice;
+        let close_command = self
+            .closing
+            .before(core.now(), message, wparam, arrival, operators_input);
+        if close_command.is_some() {
+            return Ok(After {
+                close_command,
+                ..After::default()
+            });
+        }
         match message {
             WM_WINDOWPOSCHANGING => {
                 // SAFETY: the message carries a writable WINDOWPOS.
                 place::keep_quiet(&self.target(), unsafe { &mut *(lparam as *mut WINDOWPOS) });
-                None
             }
             WM_STYLECHANGING if wparam as i32 == GWL_EXSTYLE => {
                 // SAFETY: the message carries a writable STYLESTRUCT.
                 let style = unsafe { &mut *(lparam as *mut STYLESTRUCT) };
                 style.styleNew = place::class_style(self.class, style.styleNew);
-                None
             }
-            WM_MOUSEACTIVATE if self.class == WindowClass::Quiet => Some(MA_NOACTIVATE as LRESULT),
+            WM_MOUSEACTIVATE if self.class == WindowClass::Quiet => return Err(MA_NOACTIVATE as LRESULT),
             WM_ENTERSIZEMOVE | WM_EXITSIZEMOVE => {
                 self.modal_loop(core, ModalLoop::MoveOrSize, message == WM_ENTERSIZEMOVE);
-                None
             }
             WM_ENTERMENULOOP | WM_EXITMENULOOP => {
                 self.modal_loop(core, ModalLoop::Menu, message == WM_ENTERMENULOOP);
-                None
             }
             WM_DROPFILES => {
                 let (dropped, position) = drops::take(wparam);
@@ -409,30 +421,48 @@ impl Window {
                     self.key,
                     WindowEvent::FilesDropped(dropped.into_event(position, self.stamp(core))),
                 );
-                Some(0)
+                return Err(0);
             }
-            _ => self.gate_keys(core, message, wparam),
+            _ => {
+                return Ok(After {
+                    key: self.gate_keys(core, message, wparam, arrival)?,
+                    ..After::default()
+                })
+            }
+        }
+        Ok(After::default())
+    }
+
+    /// Once the window library handled the message `before` let through.
+    fn after(&self, after: After) {
+        if let Some(passed) = after.key {
+            self.keys.done(passed);
+        }
+        if let Some(ends) = after.close_command {
+            self.closing.after(ends);
         }
     }
 
     /// Keep from the window library what would end its loop or start a key nobody typed (`key_gate.rs`).
-    fn gate_keys(&self, core: &Core, message: u32, wparam: WPARAM) -> Option<LRESULT> {
-        let keyboard = (WM_KEYFIRST..=WM_KEYLAST).contains(&message);
-        let sent = keyboard && super::sent_by_another_thread();
+    fn gate_keys(
+        &self,
+        core: &Core,
+        message: u32,
+        wparam: WPARAM,
+        arrival: Arrival,
+    ) -> Result<Option<Passed>, LRESULT> {
+        let sent = arrival == Arrival::OtherThread;
         let checked = self.keys.check(message, wparam, sent, || {
             key_gate::next_key_message(self.hwnd)
         });
-        match checked {
-            Ok(()) => None,
-            Err(kept) => {
-                if kept == Kept::Sent {
-                    core.update_report(|report| {
-                        report.sent_keys_refused = report.sent_keys_refused.saturating_add(1);
-                    });
-                }
-                Some(0)
+        checked.map_err(|kept| {
+            if kept == Kept::Sent {
+                core.update_report(|report| {
+                    report.sent_keys_refused = report.sent_keys_refused.saturating_add(1);
+                });
             }
-        }
+            0
+        })
     }
 
     fn modal_loop(&self, core: &Core, kind: ModalLoop, began: bool) {
@@ -444,6 +474,7 @@ impl Window {
         let text = matches!(message, WM_CHAR | WM_DEADCHAR | WM_SYSCHAR | WM_SYSDEADCHAR);
         let keyboard = (WM_KEYFIRST..=WM_KEYLAST).contains(&message);
         let pointer = (WM_MOUSEFIRST..=WM_MOUSELAST).contains(&message)
+            || (WM_NCMOUSEMOVE..=WM_NCXBUTTONDBLCLK).contains(&message)
             || matches!(
                 message,
                 WM_MOUSELEAVE | WM_POINTERDOWN | WM_POINTERUP | WM_POINTERUPDATE | WM_TOUCH
@@ -506,11 +537,15 @@ unsafe extern "system" fn hook(
         // SAFETY: the message as it came.
         return unsafe { DefWindowProcW(hwnd, message, wparam, lparam) };
     };
+    let arrival = retrieval::arrival(hwnd, message, wparam, lparam);
     // Nested messages have origins of their own; this one's is put back when they are done.
     let outer = core.set_message(window.origin_of(message));
-    let answer = core
-        .guarded(|| window.before(&core, message, wparam, lparam))
-        .flatten();
+    let before = core.guarded(|| window.before(&core, message, wparam, lparam, arrival));
+    let (answer, after) = match before {
+        Some(Ok(after)) => (None, after),
+        Some(Err(result)) => (Some(result), After::default()),
+        None => (None, After::default()),
+    };
     let result = match answer {
         Some(result) => result,
         // The library may restore, and so activate, a window whose scale changes (MT-214 W3).
@@ -521,6 +556,7 @@ unsafe extern "system" fn hook(
         // SAFETY: the message as it came.
         None => unsafe { DefSubclassProc(hwnd, message, wparam, lparam) },
     };
+    window.after(after);
     match message {
         WM_WINDOWPOSCHANGED => {
             core.guarded(|| window.report_display(&core));
@@ -550,24 +586,4 @@ unsafe fn release(hwnd: HWND, reference: usize) {
         RemoveWindowSubclass(hwnd, Some(hook), HOOK);
         drop(Rc::from_raw(reference as *const Window));
     }
-}
-
-/// `None` hides the pointer.
-fn cursor_icon(shape: CursorShape) -> Option<CursorIcon> {
-    Some(match shape {
-        CursorShape::Arrow => CursorIcon::Default,
-        CursorShape::Hand => CursorIcon::Pointer,
-        CursorShape::Text => CursorIcon::Text,
-        CursorShape::Progress => CursorIcon::Progress,
-        CursorShape::Wait => CursorIcon::Wait,
-        CursorShape::Cross => CursorIcon::Crosshair,
-        CursorShape::Move => CursorIcon::Move,
-        CursorShape::NotAllowed => CursorIcon::NotAllowed,
-        CursorShape::ResizeColumns => CursorIcon::ColResize,
-        CursorShape::ResizeRows => CursorIcon::RowResize,
-        CursorShape::ResizeFalling => CursorIcon::NwseResize,
-        CursorShape::ResizeRising => CursorIcon::NeswResize,
-        CursorShape::Help => CursorIcon::Help,
-        CursorShape::Hidden => return None,
-    })
 }

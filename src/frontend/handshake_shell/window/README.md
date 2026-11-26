@@ -41,14 +41,16 @@ Win32 is needed beside it:
 | No activation of a quiet window, by anybody | nothing; `SWP_NOACTIVATE` added in `WM_WINDOWPOSCHANGING` does not stop `SetWindowPos`, a show after a hide or a restore (MT-214 W1 probe) | `platform/guard.rs`: a CBT hook of the loop's thread (`SetWindowsHookExW(WH_CBT, .., 0, GetCurrentThreadId())`) refuses `HCBT_ACTIVATE` of a quiet window or one it owns, and of every window of the thread while `place` changes one; installed before winit's first window, removed after the last (learn.microsoft.com: CBTProc, SetWindowsHookExW, UnhookWindowsHookEx) |
 | No taskbar button for a quiet window | `AddTab` for every window at creation and after Explorer restarts (`window.rs` 1249, `event_loop.rs` 2456) | `with_skip_taskbar` for the quiet class |
 | A hidden maximised window across a scale change | asks for a size, unmaximises with `SW_RESTORE`, which shows and activates, then hides (`event_loop.rs` 2302, `window_state.rs` 364) | no size asked for a minimised or maximised window; the message runs inside the guard |
-| A stray `WM_DEADCHAR` | `keyboard.rs` 161 unwraps a key press that is not there and panics; the panic ends the loop. Its look at the queue on a key down (115, `PeekMessageW`) dispatches messages other threads sent, so a sent dead key arrives before it opened the key (124) | `platform/key_gate.rs`: a keyboard message another thread sent never reaches winit (`InSendMessageEx`); of the queued ones, a dead key without an open key is kept from it, following winit's own decision (MT-214 W6, R2-N2) |
-| Wakes | `send_event` allocates, ignores a failed `PostMessage`, and its event is held back while any callback runs (`runner.rs` `should_buffer`) | a posted message to a window of ours, numbered and masked per lane, with a pool timer that posts again until one is dispatched; refused posts back off to one per 8 s, and after four unanswered posts the next waits until the loop answers a sent probe or dispatches a wake (R2-N3); a dropped lane's number is used again with a new mask (R2-N4) |
+| A stray `WM_DEADCHAR` | `keyboard.rs` 161 unwraps a key press that is not there and panics; the panic ends the loop. Its look at the queue on a key down (115, `PeekMessageW`) dispatches messages other threads sent, so a sent dead key arrives before it opened the key (124) | `platform/key_gate.rs`: a keyboard message another thread sent never reaches winit; of the others, a dead key without an open key is kept from it, following winit's own decision and taking it over when winit returns, and so is any dead key that comes while winit still handles a keyboard message of the window (MT-214 W6, R2-N2, E3-F5) |
+| A key or wake taken out of the queue, told from one another thread sent | `InSendMessageEx` says "sent" for every message while the thread handles one another thread sent, also for keys a loop inside it dispatches (E3-F5) | `platform/retrieval.rs`: a `WH_GETMESSAGE` hook of the loop's thread (`SetWindowsHookExW(WH_GETMESSAGE, .., 0, GetCurrentThreadId())`) notes the newest message `GetMessage` or `PeekMessage` took out and whether the thread was inside a sent message then; it reads and changes nothing, and sees this thread's queue only (learn.microsoft.com: GetMsgProc) |
+| Wakes | `send_event` allocates, ignores a failed `PostMessage`, and its event is held back while any callback runs (`runner.rs` `should_buffer`) | a posted message to a window of ours, numbered and masked per lane, with a pool timer that posts again until one is dispatched; refused posts back off to one per 8 s, and after four unanswered posts the next waits until the loop dispatches a wake or answers a sent probe while no wake post waits (R2-N3, E3-F4: a thread waiting in `SendMessage` to another thread answers probes and takes nothing out of its queue); a dropped lane's number is used again with a new mask (R2-N4) |
 | Host code that opens a dialog or menu | runs inside a callback, so every event and wake is held back meanwhile | callbacks only queue; the host is called from a window procedure |
 | Origin, device, time | not reported | `GetCurrentInputMessageSource`, `GetMessageTime` per message |
 | Precision touchpad | a fractional wheel delta | the same delta in whole 1/120 detents, and `IMDT_TOUCHPAD` |
 | File drop | one path at a time, no position, needs COM | `WM_DROPFILES`: all paths and the position |
 | Sleep, session end, display change | not reported | a hidden top-level service window |
-| Clipboard, work areas, wheel settings | none | Win32; a write copies what is on the clipboard first and puts it back if its own put fails (R2-N6) |
+| Clipboard, work areas, wheel settings | none | Win32; a write keeps the old content only when it is plain text alone, up to 1 MiB and with no marker of the clipboard history, and puts it back if its own put fails (KEEP_PLAIN_TEXT_OR_NOTHING, `src/clipboard.rs`, R2-N6, E3-F2); a withdrawal empties only this process's own last write (E3-F3) |
+| The Operator's close, told from anybody else's | `CloseRequested` for every `WM_CLOSE`, whoever sent or posted it | `window.rs` and `policy::CloseWatch`: only a close message the system sends inside a close command that the Operator's own Alt+F4, close button or system-menu double-click on that window started approves ACTIVATION_AFTER_REMOVAL (E3-F6) |
 
 Not needed in this slice, for the next ones to know: winit's IME is IMM32 only (`ime.rs`, `WM_IME_*`), off until asked;
 it has no TSF. AccessKit's Windows adapter subclasses a window handle that was not shown yet, so it attaches through
@@ -58,10 +60,15 @@ Costs of winit that stay: one loop per process, so one loop per test binary; it 
 extent for itself, which `run` puts at the bottom of the Z order and keeps from activation; it registers for raw input,
 which `run` turns off.
 
-Decisions for the Operator to confirm (MT-214 R2-N5, R2-N6): ACTIVATION_AFTER_REMOVAL (`policy.rs`) sends the keyboard,
-after a minimise, hide or destroy the Operator approved that left it nowhere, to the removed window's owner, else to the
-topmost other Operator window, and never while another program is in front. A clipboard write copies the formats on the
-clipboard before emptying it, which makes a program that promised a format render it, as reading does.
+Decisions: ACTIVATION_AFTER_REMOVAL (`policy.rs`, confirmed by the Operator 2026-11-26) sends the keyboard, after a
+minimise, hide or destroy the Operator approved that left it nowhere, to the removed window's owner, else to the topmost
+other Operator window, and never while another program is in front; a close request another program made approves
+nothing (E3-F6). KEEP_PLAIN_TEXT_OR_NOTHING (`src/clipboard.rs`, for the Operator to confirm, E3-F2): a write copies
+the old clipboard only when it holds plain text alone (no other format, no history or cloud marker, at most 1 MiB), and
+otherwise copies nothing and writes all the same, so a write the system refuses after emptying leaves the clipboard
+empty and says `clipboard.not_restored`. The other choice, refusing such writes (`clipboard.cannot_keep`), is one
+constant in `platform/clipboard.rs` and would make copies fail after the Operator copied in a browser, an office
+program, an image editor or a password manager.
 
 Window ghosting is left as the system has it: a hung Operator window can still be moved, minimised and closed through
 its ghost. Whether the ghost of a quiet window can surface is not inspected; it needs a real desktop and a hang.
@@ -98,17 +105,21 @@ for it, so the paths that need one run. One loop per test binary.
 
 | Target | Rule |
 | --- | --- |
-| unit tests | policy (restore is geometry, activation after removal), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys), clipboard put back after a failed write, key mapping against winit's own tables, wheel, drop parsing, key events print no key |
+| unit tests | policy (restore is geometry, activation after removal, the Operator's close gesture, a foreign close approves nothing), authority used once, queue order and loss position, frame ledger, wake slot (lost posts, refused posts back off, a hung loop gets four posts, forged numbers, yield), key gate (sent keyboard messages, stray dead keys, dead keys inside a key the library handles), how a message arrived, the clipboard policy against a clipboard that lists formats as the system does (only plain text asked for and kept, markers, the limit, the other choice, withdrawal after a restore), key mapping against winit's own tables, wheel, drop parsing, key events print no key |
 | unit tests, `platform/quiet_tests.rs` | the guard against every sequence that activates a plain window (with that control, each one counted as refused), sections, minimise hand-off, lifetime; behind the foreground below its owner chain; topmost foreground; the keyboard after an approved removal |
 | `test_geometry` | scale and size arithmetic |
-| `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hook is the guard's |
-| `test_wakes` | wakes on the loop's thread, not early, through a full queue, through thrown-away posts, not from forged or sent messages (a genuine post sent back from another thread is refused and counted), through 200 lanes whose number is used again, in a nested loop, in a dialog, during shutdown, none after `finish`, refused after the end |
+| `test_focus_ban`, `test_public_surface` | source scans, with a control that they find what they look for; the only hooks are the loop thread's own two, each for that thread |
+| `test_wakes` | wakes on the loop's thread, not early, through a full queue, through five thrown-away posts (one more than go out before a sign), not from forged or sent messages (a genuine post sent back from another thread is refused and counted), not from the posts 200 dropped lanes left under the number in use again, four posts and no more while the loop waits in a SendMessage to a hung thread, in a nested loop, in a dialog, during shutdown, none after `finish`, refused after the end |
 | `test_menu_loop` | wakes inside the system's menu loop |
+| `test_sent_keys` | keys a loop inside a message another thread sent takes out reach the library and are not counted as sent; keys another thread sends are refused and counted |
+| `test_clipboard` | on a window station of its own: a write asks no program to render a promised format, but promised plain text alone; withdrawal takes back only this process's own write |
 | `test_quiet_window` | a quiet window through every command, against each direct call that activated it (each refused by the guard), against foreign dead keys, and against keyboard messages another thread sends |
-| `test_operator_window` | activation and clipboard need the Operator, once; a model cannot move, size, restore or remove the Operator's window or the owner of its dialog; behind the foreground; the close request; a shell's minimise hands on to no window of ours; a close the Operator asked for hands the keyboard to the other Operator window |
+| `test_operator_window` | activation and clipboard need the Operator, once; a model cannot move, size, restore or remove the Operator's window or the owner of its dialog; behind the foreground; the close request; a shell's minimise hands on to no window of ours; a close another program asked for lets a model destroy the window but hands the keyboard nowhere |
 | `test_scale_change` | logical size exact over many scale changes; a requested frame is due; a hidden maximised window stays so |
 | `test_host_panic` | a panicking host leaves no window and is not called again |
 
 Left out, because they cannot run quietly: the move and size loop (needs a pressed button or moves the cursor), real
-keyboard, pointer, wheel and touchpad input (needs injection), dragging files in, the Operator's clipboard, real monitor
-changes, sleep and session end. They need the Operator (HBR-QUIET-004) or MT-202.
+keyboard, pointer, wheel and touchpad input (needs injection), and with it the Operator's close gesture and the hand-on
+after it inside the loop, dragging files in, the Operator's clipboard (the operating system's clipboard runs on a window
+station of the test's own), real monitor changes, sleep and session end. They need the Operator (HBR-QUIET-004) or
+MT-202.

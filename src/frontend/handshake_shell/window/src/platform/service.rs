@@ -20,6 +20,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::loop_core::Core;
+use super::retrieval::{self, Arrival};
 use super::wake::{WM_PROBE, WM_WAKE};
 use super::{guard, last_error};
 use crate::event::Event;
@@ -133,20 +134,26 @@ unsafe extern "system" fn procedure(
         Rc::increment_strong_count(core);
         Rc::from_raw(core)
     };
-    match core.guarded(|| answer(&core, message, wparam, lparam)).flatten() {
+    match core.guarded(|| answer(&core, hwnd, message, wparam, lparam)).flatten() {
         Some(result) => result,
         // SAFETY: the message as it came.
         None => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
     }
 }
 
-fn answer(core: &Rc<Core>, message: u32, wparam: WPARAM, lparam: LPARAM) -> Option<LRESULT> {
+fn answer(
+    core: &Rc<Core>,
+    hwnd: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> Option<LRESULT> {
     match message {
         WM_WAKE => {
-            // A wake is a posted message the loop took out of its queue. One sent from another thread is not
-            // (InSendMessageEx), even with a genuine number; one sent from this thread carries no number of an open
-            // post (`Lane::take`).
-            if super::sent_by_another_thread() {
+            // A wake is a posted message the loop took out of its queue, also inside a loop that runs inside a message
+            // another thread sent (`retrieval.rs`). One sent from another thread is not, even with a genuine number;
+            // one sent from this thread carries no number of an open post (`Lane::take`).
+            if retrieval::arrival(hwnd, message, wparam, lparam) == Arrival::OtherThread {
                 core.update_report(|report| {
                     report.sent_wakes_refused = report.sent_wakes_refused.saturating_add(1);
                 });

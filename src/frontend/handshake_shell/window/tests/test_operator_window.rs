@@ -1,7 +1,9 @@
 //! Real windows of the Operator's class on a desktop that receives no input: who may activate them, move, size or
 //! restore the one the Operator works in, and replace the clipboard; where a window shown without activation goes;
-//! what a minimise hands on, and where the keyboard goes when the window the Operator works in is closed (MT-214 W1,
-//! W4, R2-N1, R2-N5). It is also the control for the quiet window's test: the probe used there does see an activation.
+//! what a minimise hands on, and that a close message of another program's lets a model remove the window the Operator
+//! works in but hands the keyboard nowhere (MT-214 W1, W4, R2-N1, R2-N5, E3-F6). It is also the control for the quiet
+//! window's test: the probe used there does see an activation. The hand-on after the Operator's own close gesture needs
+//! hardware input; `platform/quiet_tests.rs` and `policy.rs` prove it below the loop.
 //!
 //! The desktop has no foreground window, so the active window of the loop's thread stands for it: the window the
 //! launch activated, and later a dialog that window owns.
@@ -166,7 +168,7 @@ impl State {
             5 => self.what_a_model_may_not_restore(control),
             6 => {
                 // The first window is shown again by the shell, and the Operator clicks into it (a direct call
-                // activates it, as in step 3). Then it is asked to close: `closed_again`.
+                // activates it, as in step 3). Then another program asks to close it: `closed_again`.
                 let host = CommandSource::host(50);
                 let show = WindowCommand::Show { activate: false };
                 control.command(&host, self.key(0), show).unwrap();
@@ -175,6 +177,7 @@ impl State {
                     SetWindowPos(self.hwnd(0), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
                 };
                 assert_eq!(active_window(), self.hwnd(0));
+                // Another program asks to close it: a posted close message, as Task Manager's or any tool's.
                 // SAFETY: plain values, to a window of this thread.
                 assert_ne!(unsafe { PostMessageW(self.hwnd(0), WM_CLOSE, 0, 0) }, 0);
                 return;
@@ -377,14 +380,23 @@ impl State {
         assert_ne!(display(), Display::Minimized);
     }
 
-    /// MT-214 R2-N5: asked to close, the window the Operator works in is destroyed by a model on that request, and the
-    /// keyboard goes to the other Operator window (ACTIVATION_AFTER_REMOVAL), not nowhere.
+    /// MT-214 E3-F6: another program asked to close the window the Operator works in. A model may destroy it on that
+    /// request, but the request is no approval of the Operator's: the keyboard is not handed to the other Operator
+    /// window (ACTIVATION_AFTER_REMOVAL; "a model cannot trigger it"). Inside the guard the system hands it to no
+    /// window of ours either.
     fn closed_again(&self, control: &Control) {
         assert_eq!(active_window(), self.hwnd(0));
+        let shown = control.window_state(self.key(1)).unwrap().display;
+        assert!(
+            matches!(shown, Display::Normal | Display::Maximized),
+            "the other window could take the keyboard: {shown:?}"
+        );
         control
             .command(&CommandSource::model(MODEL, 51), self.key(0), WindowCommand::Destroy)
             .unwrap();
-        assert_eq!(active_window(), self.hwnd(1));
+        assert!(control.window_state(self.key(0)).is_none(), "destroyed");
+        assert_ne!(active_window(), self.hwnd(1), "not handed on");
+        assert!(!control.window_state(self.key(1)).unwrap().focused);
         control.begin_shutdown().unwrap();
     }
 }

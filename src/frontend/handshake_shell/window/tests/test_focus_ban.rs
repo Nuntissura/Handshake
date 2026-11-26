@@ -1,5 +1,6 @@
 //! HBR-QUIET as a source scan: no call in this crate, its tests included, moves the Operator's focus or cursor or injects
-//! input, only one file can show or order a window, and the only hook is the loop thread's own activation guard.
+//! input, only one file can show or order a window, and the only hooks are the loop thread's own: its activation guard
+//! and its watch of what it takes out of its own queue (MT-214 E3-F5), each for that thread alone.
 
 mod source;
 
@@ -48,7 +49,7 @@ const NEVER: &[&str] = &[
     "set_outer_position",
 ];
 
-/// Hooks other than the guard's: global only, or seeing input.
+/// Hooks other than the loop thread's two: global only, or seeing input.
 const OTHER_HOOKS: &[&str] = &[
     "WH_KEYBOARD",
     "WH_KEYBOARD_LL",
@@ -56,7 +57,6 @@ const OTHER_HOOKS: &[&str] = &[
     "WH_MOUSE_LL",
     "WH_JOURNALRECORD",
     "WH_JOURNALPLAYBACK",
-    "WH_GETMESSAGE",
     "WH_CALLWNDPROC",
     "WH_CALLWNDPROCRET",
     "WH_SHELL",
@@ -66,8 +66,20 @@ const OTHER_HOOKS: &[&str] = &[
     "WH_DEBUG",
 ];
 
-/// The file of the activation guard, the only one that installs a hook.
-const GUARD: &str = "src/platform/guard.rs";
+/// The files that install a hook, and the one call each makes: a hook for the calling thread, with no module.
+const HOOKS: [(&str, &str); 2] = [
+    (
+        "src/platform/guard.rs",
+        "(WH_CBT,Some(on_cbt),0,GetCurrentThreadId())",
+    ),
+    (
+        "src/platform/retrieval.rs",
+        "(WH_GETMESSAGE,Some(on_get_message),0,GetCurrentThreadId())",
+    ),
+];
+
+/// The one file that may name the message hook: it sees the loop thread's own queue only.
+const MESSAGE_HOOK: (&str, &str) = ("src/platform/retrieval.rs", "WH_GETMESSAGE");
 
 /// Unit tests that show and order plain windows on a private desktop. Compiled for tests only.
 const TEST_ONLY: &str = "src/platform/quiet_tests.rs";
@@ -139,25 +151,33 @@ fn nothing_moves_focus_or_cursor_or_injects_input() {
 }
 
 #[test]
-fn the_only_hook_is_the_loop_threads_activation_guard() {
+fn the_only_hooks_are_the_loop_threads_own() {
     let sources = every_source();
     let installs = found(&sources, &["SetWindowsHookExW"], |_, _, _| false);
-    assert!(!installs.is_empty(), "the scan sees the guard");
-    assert!(
-        installs.iter().all(|hit| hit.starts_with(&format!("{GUARD}:"))),
-        "{installs:#?}"
-    );
+    let in_hook_files = |hit: &String| HOOKS.iter().any(|(file, _)| hit.starts_with(&format!("{file}:")));
+    assert!(installs.iter().all(in_hook_files), "{installs:#?}");
+    for (file, expected) in HOOKS {
+        assert!(
+            installs.iter().any(|hit| hit.starts_with(&format!("{file}:"))),
+            "the scan sees {file}: {installs:#?}"
+        );
+        // The call, once: for the calling thread, with no module.
+        let code = &source(&sources, file).code;
+        assert_eq!(code.matches("SetWindowsHookExW(").count(), 1, "{file}");
+        let call = code
+            .find("SetWindowsHookExW(")
+            .map(|at| arguments(&code[at + "SetWindowsHookExW".len()..]))
+            .unwrap();
+        let call: String = call.split_whitespace().collect();
+        assert_eq!(call, expected, "{file}");
+        assert!(!lines_with(code, "UnhookWindowsHookEx").is_empty(), "{file}: and it is removed");
+    }
     let others = found(&sources, OTHER_HOOKS, |_, _, _| false);
     assert!(others.is_empty(), "{others:#?}");
-    // The call: a CBT hook, for the calling thread, with no module.
-    let guard = &source(&sources, GUARD).code;
-    let call = guard
-        .find("SetWindowsHookExW(")
-        .map(|at| arguments(&guard[at + "SetWindowsHookExW".len()..]))
-        .unwrap();
-    let call: String = call.split_whitespace().collect();
-    assert_eq!(call, "(WH_CBT,Some(on_cbt),0,GetCurrentThreadId())");
-    assert!(!lines_with(guard, "UnhookWindowsHookEx").is_empty(), "and it is removed");
+    let message_hooks = found(&sources, &[MESSAGE_HOOK.1], |source, _, _| {
+        source.path == MESSAGE_HOOK.0
+    });
+    assert!(message_hooks.is_empty(), "{message_hooks:#?}");
 }
 
 #[test]
@@ -229,10 +249,14 @@ fn calls_of_run_script(code: &str) -> Vec<usize> {
         .collect()
 }
 
-/// Lines with a call of `run_script` that is not inside the closure of an `on_private_desktop(` call.
+/// The calls that run their closure on a private desktop; the second also on a window station of its own.
+const PRIVATE: [&str; 2] = ["on_private_desktop(", "on_private_window_station("];
+
+/// Lines with a call of `run_script` that is not inside the closure of a [`PRIVATE`] call.
 fn runs_outside_a_private_desktop(code: &str) -> Vec<usize> {
-    let spans: Vec<(usize, usize)> = code
-        .match_indices("on_private_desktop(")
+    let spans: Vec<(usize, usize)> = PRIVATE
+        .iter()
+        .flat_map(|call| code.match_indices(call))
         .map(|(at, word)| {
             let open = at + word.len() - 1;
             (open, open + arguments(&code[open..]).len())
@@ -269,20 +293,36 @@ fn every_test_that_runs_a_loop_runs_it_on_a_private_desktop() {
         let direct = found(std::slice::from_ref(test), &[DIRECT_RUN], |_, _, _| support);
         assert!(direct.is_empty() && !imports_run(&test.code), "{}: {direct:?}", test.path);
         runs += calls_of_run_script(&test.code).len();
-        let switches = ["SetThreadDesktop", "OpenInputDesktop", "OpenDesktopW", "CreateDesktopW"];
+        let switches = [
+            "SetThreadDesktop",
+            "OpenInputDesktop",
+            "OpenDesktopW",
+            "CreateDesktopW",
+            "OpenWindowStationW",
+            "CreateWindowStationW",
+            "SetProcessWindowStation",
+        ];
         let elsewhere = found(std::slice::from_ref(test), &switches, |source, word, _| {
             source.path == "tests/support/mod.rs"
-                && matches!(word, "SetThreadDesktop" | "CreateDesktopW")
+                && matches!(
+                    word,
+                    "SetThreadDesktop"
+                        | "CreateDesktopW"
+                        | "CreateWindowStationW"
+                        | "SetProcessWindowStation"
+                )
         });
         assert!(elsewhere.is_empty(), "{elsewhere:#?}");
     }
     assert!(runs >= 7, "the scan sees the loops: {runs}");
-    // In the crate's own source only its unit tests bind a thread to a desktop.
+    // In the crate's own source only its unit tests bind a thread to a desktop, and nothing switches window stations.
     let src = below("src");
     let bound = found(&src, &["SetThreadDesktop", "CreateDesktopW"], |source, _, _| {
         source.path == TEST_ONLY
     });
     assert!(bound.is_empty(), "{bound:#?}");
+    let stations = found(&src, &["CreateWindowStationW", "SetProcessWindowStation"], |_, _, _| false);
+    assert!(stations.is_empty(), "{stations:#?}");
 }
 
 #[test]
@@ -297,6 +337,10 @@ fn the_private_desktop_scan_sees_a_loop_outside_one() {
     assert_eq!(runs_outside_a_private_desktop(&one_of_two), [3]);
     let before = code_only("fn a() {\n    run_script(c, e, w);\n    on_private_desktop(LIMIT, || {});\n}\n");
     assert_eq!(runs_outside_a_private_desktop(&before), [2]);
+    let station = code_only(
+        "fn a() {\n    on_private_window_station(LIMIT, || { run_script(c, e, w) });\n    run_script(c, e, w);\n}\n",
+    );
+    assert_eq!(runs_outside_a_private_desktop(&station), [3]);
     // The loop started without `run_script`.
     let direct = Source {
         path: "tests/sample.rs".to_owned(),

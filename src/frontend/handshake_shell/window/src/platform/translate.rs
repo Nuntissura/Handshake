@@ -14,6 +14,7 @@ use winit::keyboard::{
     NamedKey as LibraryNamed, NativeKey, PhysicalKey as LibraryPhysical,
 };
 use winit::platform::scancode::PhysicalKeyExtScancode;
+use winit::window::CursorIcon;
 
 use super::loop_core::Core;
 use super::place;
@@ -21,7 +22,7 @@ use super::window::Window;
 use crate::event::WindowEvent;
 use crate::geometry::{ClientPoint, ScaleFactor};
 use crate::input::{
-    ContactEvent, ContactPhase, KeyEvent, KeyLocation, LogicalKey, Modifiers, PhysicalKey,
+    ContactEvent, ContactPhase, CursorShape, KeyEvent, KeyLocation, LogicalKey, Modifiers, PhysicalKey,
     PointerButton, PointerButtonEvent, PointerMoved, PressState, TextEvent, TypedText, WheelEvent,
     WHEEL_DETENT,
 };
@@ -55,10 +56,8 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
                 push(WindowEvent::ScaleChanged { from, to });
             }
         }
-        Library::CloseRequested => {
-            window.set_close_requested(Some(core.now()));
-            push(WindowEvent::CloseRequested);
-        }
+        // The request itself was opened when the close message came (`window.rs`).
+        Library::CloseRequested => push(WindowEvent::CloseRequested),
         Library::Destroyed => core.window_destroyed(window.key),
         Library::Focused(focused) => {
             if window.set_focused(focused) {
@@ -144,7 +143,7 @@ pub(super) fn window_event(core: &Rc<Core>, window: &Rc<Window>, event: Library)
 /// The Operator pressed a key or a button in the window after asking to close it: the request is over (MT-214 W4).
 fn went_on(window: &Window, pressed: bool, stamp: InputStamp) {
     if pressed && stamp.origin() == Origin::OperatorDevice {
-        window.set_close_requested(None);
+        window.closing.end();
     }
 }
 
@@ -167,6 +166,26 @@ pub(super) fn message_origin(
         _ => DeviceKind::Unknown,
     };
     (origin, device)
+}
+
+/// The library's cursor for a shape; `None` hides the pointer.
+pub(super) fn cursor_icon(shape: CursorShape) -> Option<CursorIcon> {
+    Some(match shape {
+        CursorShape::Arrow => CursorIcon::Default,
+        CursorShape::Hand => CursorIcon::Pointer,
+        CursorShape::Text => CursorIcon::Text,
+        CursorShape::Progress => CursorIcon::Progress,
+        CursorShape::Wait => CursorIcon::Wait,
+        CursorShape::Cross => CursorIcon::Crosshair,
+        CursorShape::Move => CursorIcon::Move,
+        CursorShape::NotAllowed => CursorIcon::NotAllowed,
+        CursorShape::ResizeColumns => CursorIcon::ColResize,
+        CursorShape::ResizeRows => CursorIcon::RowResize,
+        CursorShape::ResizeFalling => CursorIcon::NwseResize,
+        CursorShape::ResizeRising => CursorIcon::NeswResize,
+        CursorShape::Help => CursorIcon::Help,
+        CursorShape::Hidden => return None,
+    })
 }
 
 fn physical_key(key: LibraryPhysical) -> PhysicalKey {

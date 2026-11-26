@@ -1,7 +1,8 @@
-//! Wakes of a real loop: on its thread, in order, when due, through a full queue, through posts another loop throws
-//! away, not from a message anybody else posts or sends (a genuine post sent back from another thread included),
-//! through lanes whose numbers are used again, inside loops that run inside the host, and never after `finish`. One
-//! test, because a process has one loop.
+//! Wakes of a real loop: on its thread, in order, when due, through a full queue, through more posts another loop
+//! throws away than go out before a sign that the loop takes posts out of its queue, not from a message anybody else
+//! posts or sends (a genuine post sent back from another thread, and the posts of dropped lanes whose number is used
+//! again, included), with no more than four posts while the loop waits in a SendMessage to a hung thread, inside loops
+//! that run inside the host, and never after `finish`. One test, because a process has one loop.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -23,16 +24,29 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     PM_REMOVE, WM_APP, WM_DISPLAYCHANGE, WM_INITDIALOG, WM_NULL, WM_TIMER, WS_POPUP,
 };
 
-use support::{on_private_desktop, run_script, send_from_another_thread, wide, Decoy, Log};
+use support::{
+    on_private_desktop, run_script, send_from_another_thread, send_to_a_thread_that_hangs, wide,
+    Decoy, Log,
+};
 
-const LIMIT: Duration = Duration::from_secs(60);
+const LIMIT: Duration = Duration::from_secs(120);
 const DIALOG_RESULT: isize = 7;
 
 /// The crate's wake message (`src/platform/wake.rs`), as another program would post it.
 const WM_WAKE: u32 = WM_APP + 1;
 
-/// How long a foreign loop throws the posts away: three of them, at 0, 0.5 and 1.5 s.
-const THROWN_AWAY_FOR: Duration = Duration::from_millis(1_800);
+/// When an unanswered post is posted again, the first time (`wake_slot::REPEAT`).
+const REPOSTED_AFTER: Duration = Duration::from_millis(500);
+
+/// Posts that go out unanswered before the next waits for a sign that the loop takes posts out (`BLIND_POSTS`).
+const BLIND_POSTS: usize = 4;
+
+/// How long a foreign loop throws the posts away: five of them, at 0, 0.5, 1.5, 3.5 and 7.5 s, the last after the
+/// loop answered a probe while no post waited (MT-214 E3 named test: three were fewer than BLIND_POSTS).
+const THROWN_AWAY_FOR: Duration = Duration::from_millis(8_000);
+
+/// How long the loop waits in a SendMessage to a hung thread: past the probe after the fourth post, at 7.5 s.
+const HUNG_FOR: Duration = Duration::from_millis(9_000);
 
 fn service_window() -> HWND {
     let service = wide("hsk_shell_service");
@@ -69,6 +83,8 @@ enum Nested {
 
 struct State {
     thread: ThreadId,
+    /// The number lane a and the dropped lanes before it were opened under, as their posts carry it.
+    lane_number: Cell<WPARAM>,
     a: RefCell<Option<WakeLane>>,
     b: RefCell<Option<WakeLane>>,
     waker: RefCell<Option<LaneWaker>>,
@@ -142,8 +158,44 @@ impl State {
         posts
     }
 
+    /// MT-214 E3 named test: the posts the 200 dropped lanes left, under the number lane a has now, stay in the queue,
+    /// and lane a's own first post goes. A stale post that could settle a post of lane a would dispatch wake 1 at once;
+    /// without one, lane a posts again after [`REPOSTED_AFTER`] (`wake`, value 1).
+    fn only_stale_posts_left(&self) {
+        let mut posts = self.take_wake_posts();
+        let of = |posts: &[(WPARAM, LPARAM)], number: WPARAM| {
+            posts.iter().filter(|(lane, _)| *lane == number).count()
+        };
+        let number = posts
+            .iter()
+            .map(|(lane, _)| *lane)
+            .find(|number| of(&posts, *number) > 200)
+            .expect("the posts of the 200 dropped lanes and lane a's, under one number");
+        self.lane_number.set(number);
+        let own = posts
+            .iter()
+            .rposition(|(lane, _)| *lane == number)
+            .expect("lane a's post, the newest of its number");
+        posts.remove(own);
+        assert_eq!(of(&posts, number), 200, "the stale posts");
+        let service = service_window();
+        for (lane, token) in posts {
+            // SAFETY: plain values, to a window of this thread: the posts as they were, in their order.
+            assert_ne!(unsafe { PostMessageW(service, WM_WAKE, lane, token) }, 0);
+        }
+    }
+
+    /// The posts of lane a in the queue, taken out.
+    fn take_posts_of_lane_a(&self) -> usize {
+        let number = self.lane_number.get();
+        self.take_wake_posts()
+            .iter()
+            .filter(|(lane, _)| *lane == number)
+            .count()
+    }
+
     /// A loop that takes the wake posts out of the queue and throws them away, as somebody else's loop may.
-    fn throw_posts_away(&self) -> u32 {
+    fn throw_posts_away(&self) -> usize {
         let service = service_window();
         let until = Instant::now() + THROWN_AWAY_FOR;
         let mut thrown = 0;
@@ -233,6 +285,7 @@ impl State {
                 *self.a.borrow_mut() = Some(a);
                 *self.b.borrow_mut() = Some(b);
                 self.request(1, 0);
+                self.only_stale_posts_left();
                 // Wake messages nobody posted from a lane, sent at once (from this thread they run here) and posted
                 // for later, for every lane there is and one more. None of them may dispatch a wake: the wake of
                 // lane a is due, and would come from inside this handler.
@@ -278,6 +331,10 @@ impl State {
         self.wakes.add(value);
         match value {
             1 => {
+                assert!(
+                    self.requested_at.get().elapsed() >= REPOSTED_AFTER,
+                    "posted again, not dispatched by a post of a dropped lane"
+                );
                 self.request(2, 60);
             }
             2 => {
@@ -305,10 +362,11 @@ impl State {
                     .unwrap();
             }
             14 => {
-                // Every post of the next wake is thrown away for a while; one after that still dispatches it.
+                // Every post of the next wake is thrown away for a while, more than go out without a sign that the
+                // loop takes posts out; one after that still dispatches it.
                 self.request(15, 0);
                 let thrown = self.throw_posts_away();
-                assert!(thrown >= 3, "{thrown} posts thrown away");
+                assert!(thrown > BLIND_POSTS, "{thrown} posts thrown away");
             }
             15 => {
                 assert!(
@@ -333,8 +391,15 @@ impl State {
                 assert!(!self.wakes.all().contains(&16), "not from the sent copy");
             }
             16 => {
-                // Posted again, since its post was taken out. The post of the next wake is refused, and so is every
-                // other until the loop has caught up.
+                // Posted again, since its post was taken out. MT-214 E3-F4: while the loop waits in a SendMessage to a
+                // hung thread it answers probes, and takes nothing out of its queue: the next wake gets no post more
+                // than four meanwhile. They are thrown away afterwards; a probe then brings the wake.
+                self.request(17, 0);
+                send_to_a_thread_that_hangs(HUNG_FOR);
+                assert_eq!(self.take_posts_of_lane_a(), BLIND_POSTS, "posts while the loop waited");
+            }
+            17 => {
+                // The post of the next wake is refused, and so is every other until the loop has caught up.
                 self.fill_queue();
                 self.request(20, 0);
             }
@@ -379,6 +444,7 @@ fn a_wake_is_dispatched_by_every_loop_of_its_thread_and_by_nothing_else() {
     on_private_desktop(LIMIT, || {
         let state = Rc::new(State {
             thread: std::thread::current().id(),
+            lane_number: Cell::new(0),
             a: RefCell::default(),
             b: RefCell::default(),
             waker: RefCell::default(),
@@ -400,7 +466,7 @@ fn a_wake_is_dispatched_by_every_loop_of_its_thread_and_by_nothing_else() {
         .unwrap();
 
         let seen = state.wakes.all();
-        assert_eq!(&seen[..8], &[1, 2, 12, 14, 15, 16, 20, 21], "{seen:?}");
+        assert_eq!(&seen[..9], &[1, 2, 12, 14, 15, 16, 17, 20, 21], "{seen:?}");
         assert!(!seen.contains(&60));
         assert_eq!(state.wakes.count(&30), 3);
         assert_eq!(state.wakes.count(&40), 3);

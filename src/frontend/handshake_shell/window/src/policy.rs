@@ -1,7 +1,64 @@
 //! Who may move focus, and where a window goes in the Z order. Decisions only; `platform::place` carries them out.
 
+use std::time::Duration;
+
 use crate::command::{Refusal, WindowClass};
-use crate::origin::Authority;
+use crate::origin::{Authority, EventTime};
+
+/// How long after the Operator's close gesture the system's close command for it may come (MT-214 E3-F6). A posted
+/// command comes out of the queue ahead of input (PeekMessage, Remarks); a sent one at once.
+pub(crate) const CLOSE_GESTURE_LIFETIME: Duration = Duration::from_secs(1);
+
+/// Whether a request to close a window is the Operator's (MT-214 E3-F6). Only the Operator's own close gesture on the
+/// window makes one: Alt+F4, its close button or a double-click on its system menu, which the operating system reported
+/// as hardware and the loop took out of its queue. The system turns the gesture into a close command (`WM_SYSCOMMAND`,
+/// `SC_CLOSE`), posted or sent, and the command into the close message (`WM_CLOSE`), sent from within it on the same
+/// thread (so Wine's default window procedure; should Windows' post it, the Operator's close would count as anybody's,
+/// which only withholds the hand-on). A close message posted or sent by another program, or by this one, and a close
+/// command another thread sends, are nobody's approval; such a request still lets a model remove the window once, and
+/// hands nothing on.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct CloseWatch {
+    /// The Operator's newest close gesture, until a close command uses it.
+    gesture: Option<EventTime>,
+    /// A close command that used a gesture is being carried out.
+    closing: bool,
+}
+
+impl CloseWatch {
+    /// The Operator's own press of a key or button, taken out of the queue. Any other press ends a gesture.
+    pub(crate) fn operator_pressed(&mut self, now: EventTime, close_gesture: bool) {
+        self.gesture = close_gesture.then_some(now);
+    }
+
+    /// A close command begins. One another thread sent uses no gesture. Returns what [`CloseWatch::command_ends`] puts
+    /// back.
+    pub(crate) fn command_begins(&mut self, now: EventTime, from_other_thread: bool) -> bool {
+        let before = self.closing;
+        self.closing = !from_other_thread
+            && self
+                .gesture
+                .take()
+                .is_some_and(|at| now.since(at) <= CLOSE_GESTURE_LIFETIME);
+        before
+    }
+
+    pub(crate) fn command_ends(&mut self, before: bool) {
+        self.closing = before;
+    }
+
+    /// A close message: whether it is the Operator's. `sent_by_this_thread`: neither posted nor sent from another
+    /// thread, as the system sends it from within a close command.
+    pub(crate) fn message_is_operators(&self, sent_by_this_thread: bool) -> bool {
+        self.closing && sent_by_this_thread
+    }
+}
+
+/// Whether the Operator approved a removal (ACTIVATION_AFTER_REMOVAL): the Operator's own command, or an open request to
+/// close the window that the Operator's own close gesture made (`close`: an open request, and whether it is one).
+pub(crate) fn removal_approved(authority: Authority, close: Option<bool>) -> bool {
+    authority == Authority::Operator || close == Some(true)
+}
 
 /// What is in the foreground, seen from one window of ours.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,9 +189,9 @@ pub(crate) fn may_change_geometry(
     }
 }
 
-/// ACTIVATION_AFTER_REMOVAL (MT-214 R2-N5, proposed for the Operator to confirm): where the keyboard goes when a window
-/// that held the activation is minimised, hidden or destroyed with the Operator's approval (the Operator's own command,
-/// or an open request to close it) and the activation went nowhere. To the window's owner, else to the topmost other
+/// ACTIVATION_AFTER_REMOVAL (MT-214 R2-N5, confirmed by the Operator 2026-11-26: "a model cannot trigger it"): where
+/// the keyboard goes when a window that held the activation is minimised, hidden or destroyed with the Operator's
+/// approval ([`removal_approved`]) and the activation went nowhere. To the window's owner, else to the topmost other
 /// window of this loop that the Operator may work in, else nowhere; and never while another program is in the
 /// foreground, so a window the system gave the activation to keeps it. The caller passes only windows that may take
 /// it: of the Operator's class, shown, not minimised, enabled. Without the approval nothing is handed on.
@@ -348,6 +405,72 @@ mod tests {
         assert_eq!(after(false, true, false, Some(1), &[2]), None, "not approved");
         assert_eq!(after(true, false, false, Some(1), &[2]), None, "the activation is where it was");
         assert_eq!(after(true, true, true, Some(1), &[2]), None, "another program is in front");
+    }
+
+    fn at(millis: u64) -> EventTime {
+        EventTime {
+            nanos: millis * 1_000_000,
+        }
+    }
+
+    /// A gesture, then a close command and the close message inside it.
+    fn close(watch: &mut CloseWatch, command_at: u64, other_thread: bool, message_same_thread: bool) -> bool {
+        let before = watch.command_begins(at(command_at), other_thread);
+        let operators = watch.message_is_operators(message_same_thread);
+        watch.command_ends(before);
+        operators
+    }
+
+    /// MT-214 E3-F6: only the Operator's own close gesture makes a close request that approves the hand-on.
+    #[test]
+    fn a_close_is_the_operators_only_after_the_operators_own_close_gesture() {
+        let mut watch = CloseWatch::default();
+        assert!(!close(&mut watch, 0, false, true), "no gesture: a close of anybody's");
+        watch.operator_pressed(at(10), true);
+        assert!(!watch.message_is_operators(true), "a close message outside the command");
+        assert!(close(&mut watch, 20, false, true), "Alt+F4 or the close button");
+        assert!(!close(&mut watch, 30, false, true), "the gesture was used");
+        // A close command another thread sends uses no gesture; one this thread then carries out does.
+        watch.operator_pressed(at(40), true);
+        assert!(!close(&mut watch, 41, true, true));
+        assert!(close(&mut watch, 42, false, true));
+        // A close message posted or sent from another thread inside the command is nobody's.
+        watch.operator_pressed(at(50), true);
+        assert!(!close(&mut watch, 51, false, false));
+        // A gesture ends with its lifetime and with any other press of the Operator's.
+        let late = u64::try_from(CLOSE_GESTURE_LIFETIME.as_millis()).unwrap();
+        watch.operator_pressed(at(100), true);
+        assert!(!close(&mut watch, 101 + late, false, true));
+        watch.operator_pressed(at(200), true);
+        watch.operator_pressed(at(201), false);
+        assert!(!close(&mut watch, 202, false, true));
+        // Within its lifetime, to the end.
+        watch.operator_pressed(at(300), true);
+        assert!(close(&mut watch, 300 + late, false, true));
+    }
+
+    #[test]
+    fn a_close_command_inside_another_puts_back_what_was_there() {
+        let mut watch = CloseWatch::default();
+        watch.operator_pressed(at(0), true);
+        let outer = watch.command_begins(at(1), false);
+        let inner = watch.command_begins(at(2), true);
+        assert!(!watch.message_is_operators(true), "inside the inner one");
+        watch.command_ends(inner);
+        assert!(watch.message_is_operators(true), "the outer one again");
+        watch.command_ends(outer);
+        assert!(!watch.message_is_operators(true));
+    }
+
+    #[test]
+    fn a_request_of_anybody_else_lets_a_model_remove_the_window_and_approves_nothing() {
+        assert_eq!(may_remove(Authority::Model, Foreground::This, true), Ok(()));
+        assert!(!removal_approved(Authority::Model, Some(false)));
+        assert!(!removal_approved(Authority::Host, Some(false)));
+        assert!(!removal_approved(Authority::Model, None));
+        assert!(removal_approved(Authority::Model, Some(true)), "the Operator asked to close it");
+        assert!(removal_approved(Authority::Operator, None));
+        assert!(!removal_approved(Authority::Launch, None), "the launch removes nothing");
     }
 
     #[test]

@@ -6,10 +6,12 @@
 //! come out in order. A post that no dispatch settled is posted again, after an interval that doubles with each post
 //! nobody answered, up to [`REPEAT_MAX`], for as long as the wake is wanted (MT-214 W2, MT-215 F1).
 //!
-//! Bounded (MT-214 R2-N3, MT-215 F4). A refused post is tried again after [`RETRY`], doubled for each refusal in a row
-//! up to [`REPEAT_MAX`]. After [`BLIND_POSTS`] posts nobody answered, the next one waits for a sign that the loop runs:
-//! a dispatched wake of any lane, or a probe it answered. A loop that hangs keeps the posts it has in its queue, so
-//! more would only fill it; one that runs and threw them away gets the next post as soon as it answers.
+//! Bounded (MT-214 R2-N3, E3-F4, MT-215 F4). A refused post is tried again after [`RETRY`], doubled for each refusal in
+//! a row up to [`REPEAT_MAX`]. After [`BLIND_POSTS`] posts nobody answered, the next one waits for a sign that the loop
+//! takes posts out of its queue: a dispatched wake of any lane, or a probe it answered while no wake post waited
+//! (`platform::wake::Pulse`). A loop that takes nothing out, because it hangs or waits in a SendMessage to another
+//! thread, keeps the posts it has in its queue, so more would only fill it; it holds at most [`BLIND_POSTS`] per lane.
+//! One that runs and threw them away gets the next post as soon as it answers.
 
 use std::time::Duration;
 

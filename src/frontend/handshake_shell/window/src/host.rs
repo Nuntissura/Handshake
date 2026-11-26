@@ -86,7 +86,8 @@ pub struct RunReport {
     /// Wake messages another thread sent, refused: a wake comes out of the loop's own queue only.
     pub sent_wakes_refused: u64,
     /// Keyboard messages another thread sent, refused: input comes through the queue, and the window library is not
-    /// entered with a key while it looks at the queue for one (MT-214 R2-N2).
+    /// entered with a key while it looks at the queue for one (MT-214 R2-N2). Keys taken out of the queue are not
+    /// counted, also when a loop that runs inside a message another thread sent dispatches them (E3-F5).
     pub sent_keys_refused: u64,
 }
 

@@ -15,6 +15,7 @@ use winit::window::WindowId;
 
 use super::guard::{ActivationGuard, GuardRefused};
 use super::loop_core::Core;
+use super::retrieval::{RetrievalWatch, WatchRefused};
 use super::service::ServiceWindow;
 use super::window::Window;
 use super::{place, translate};
@@ -27,6 +28,11 @@ pub(crate) fn run(config: LoopConfig, host: Rc<dyn ShellHost>) -> Result<RunRepo
     let _guard = ActivationGuard::install().map_err(|refusal| match refusal {
         GuardRefused::AlreadyInstalled => LoopError::AlreadyCreated,
         GuardRefused::System(error) => LoopError::System(error),
+    })?;
+    // Likewise: what the thread's message calls take out of its queue (`retrieval.rs`).
+    let _retrieval = RetrievalWatch::install().map_err(|refusal| match refusal {
+        WatchRefused::AlreadyInstalled => LoopError::AlreadyCreated,
+        WatchRefused::System(error) => LoopError::System(error),
     })?;
     let event_loop = EventLoop::<()>::with_user_event()
         // Windows needs no particular thread; tests run the loop on one that is bound to a desktop of its own.

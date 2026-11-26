@@ -14,8 +14,9 @@ pub(super) const EVENT_LANE: u32 = 0;
 
 /// The most lanes open at once, the events' own included. The number of a dropped lane is used again (MT-214 R2-N4):
 /// a post of the dropped lane that is still in the queue carries that lane's mask, which the new one does not have,
-/// so it dispatches nothing (`wake.rs`). The bound also bounds the posts a hung loop gets, `wake_slot::BLIND_POSTS`
-/// per lane.
+/// so it dispatches nothing (`wake.rs`). The bound also bounds the posts a loop that takes nothing out of its queue
+/// gets, `wake_slot::BLIND_POSTS` per lane: one that hangs, and one that waits in a SendMessage to another thread and
+/// answers probes meanwhile (MT-214 E3-F4, `wake::Pulse`).
 const MAX_LANES: usize = 64;
 
 #[derive(Default)]
@@ -74,9 +75,9 @@ impl Lanes {
         drop(forgotten);
     }
 
-    /// The service window got a probe. One of the pulse's: the loop runs, so the lanes look again now whether to
-    /// post, instead of when their timers say. Inside a call that holds the lanes nothing is nudged; their timers
-    /// remain.
+    /// The service window got a probe. One of the pulse's, answered while no wake post waits: the loop takes posts out
+    /// of its queue, so the lanes look again now whether to post, instead of when their timers say. Inside a call that
+    /// holds the lanes nothing is nudged; their timers remain.
     pub(super) fn probe_answered(&self, token: LPARAM) {
         let Some(pulse) = self.pulse.get() else {
             return;
