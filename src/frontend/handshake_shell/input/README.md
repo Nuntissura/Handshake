@@ -2,7 +2,8 @@
 
 Typed input of the kernel-owned shell, with its origin and time, and the input method's composition as one event stream
 per focused text target (WP-KERNEL-012 MT-214 slice 3; AC214-5, AC214-6). Its only dependency is the window crate
-(`../window`); it has no unsafe code and calls no operating system function. The contract is in the crate documentation
+(`../window`); it has no unsafe code and calls no operating system function (the one call to the input method, the
+completion of a composition, is the window crate's: `window/src/platform/ime.rs`). The contract is in the crate documentation
 (`src/lib.rs`).
 
 ## What it does
@@ -27,11 +28,19 @@ text target with the window's text focus (`InputTracker::focus_text`) as `ImeEve
   cleared without a result string is a cancel (Microsoft Learn, WM_IME_COMPOSITION: "If none of the GCS_ values are set,
   the message indicates that the current composition has been canceled"); winit commits the empty result string there,
   which is left out (`ime_empty_commits`).
-- Focus loss ends an open composition at once: the window loses the keyboard, the host moves the text focus, the target
-  stops taking composed text, events are lost, the window goes, or a new composition begins. It sends `Cancel` when the
-  preedit was not committed, then `Disabled`, never also a commit: nothing of that composition reaches the target
-  afterwards. What the input method goes on with begins again as a new composition at the target that has the focus then
-  (`Synthetic::Rebound`), or is left out when none takes composed text (`ime_dropped`).
+- A composition whose target loses the focus is completed, not dropped (MT-214 S3-Q1). Before the host moves the text
+  focus, and before it turns composition off for the target, `InputTracker::take_requests` gives `ImeRequest::Complete`
+  (`WindowCommand::CompleteIme`: `ImmNotifyIME` `NI_COMPOSITIONSTR` `CPS_COMPLETE`, the composition string becomes the
+  result string) ahead of `AllowIme(false)`. When the window loses the keyboard it completes the composition itself
+  before it reports the loss. The composition then waits, at its own target, for the input method's result: a `Commit`
+  goes to that target and to no other, also when it comes after the loss of the keyboard; its preedit is shown nowhere
+  meanwhile (`ime_dropped`). It ends when the window reports the completion (`ImeChange::Completed`, which follows
+  what the input method gave at once), the input method ends it, the keyboard comes back, events are lost, the window
+  goes, or a new composition begins: a `Cancel` only when its preedit was not committed (no result came), then
+  `Disabled`, never also a commit. What the input method goes on with afterwards begins again as a new composition at
+  the target that has the focus then (`Synthetic::Rebound`), or is left out when none takes composed text
+  (`ime_dropped`); a commit of no composition reaches no target. The host carries out the requests right after
+  `focus_text`, and feeds the window's events as they come.
 - The candidate area follows the caret: the host reports the caret, viewport and scroll (`move_caret`, `scroll_text`)
   in logical pixels; on a change, a scroll or a scale change (`Resized`, `ScaleChanged`) the tracker asks for
   `WindowCommand::SetImeArea` with the caret in physical client pixels, kept inside the viewport when scrolled out, and
@@ -42,16 +51,22 @@ text target with the window's text focus (`InputTracker::focus_text`) as `ImeEve
 
 ## Decisions and open items
 
-- IME-FOCUS-CANCEL: on focus loss the tracker cancels; it cannot commit, since it keeps no composed text. Chromium asks
-  the input method to complete instead (`imm32_manager.cc` `CleanupComposition`: `ImmNotifyIME(NI_COMPOSITIONSTR,
-  CPS_COMPLETE)` when the window is deactivated while composing). If the input method commits before the focus message,
-  the target gets that commit and no cancel. Asking for completion would be a window crate call (`ImmNotifyIME`), not made
-  here; it needs a real input method on the Operator's desktop to prove (HBR-QUIET-004). Open for the Operator.
+- IME-FOCUS-COMMIT (S3-Q1, decided by the MT-214 evaluation, `eval6_20261126`): on focus loss the composition is
+  committed, not cancelled: the tracker keeps no composed text, so it asks the input method to complete it
+  (`ImmNotifyIME`, `NI_COMPOSITIONSTR`, `CPS_COMPLETE`) and passes on the result to the composition's own target. Chromium
+  and Qt commit to the old target as well. Chromium's old IMM32 path (removed 2024-01-19) completed the composition when
+  the text target changed and before it turned the input method off; it did not do so on window blur. Current Chromium
+  is TSF-only and confirms the composition on a target change (E6-F5, recorded by the evaluation; not re-read here).
+  How a real input method answers (a result at once or later, its timing) needs a real input method on the Operator's
+  desktop to prove (HBR-QUIET-004, MT-214 x64 gate).
 - The one event type that MT-216 and MT-217 consume is to be agreed with the Kumihimo text port (MT-198 KG-03). `ImeEvent`
   is the operating system's side of it; whether Kumihimo adopts it or maps it is the asset owner's decision.
-- The origin of an input method message is that of the window's newest key, as for text (`window/src/platform/window.rs`
-  `origin_of`): the operating system says nothing of `WM_IME_*`. A change made with the mouse in the candidate window
-  is attributed to that key too.
+- The origin of an input method message (E6-F4, `window/src/platform/window.rs` `attributed`): the operating system says
+  nothing of `WM_IME_*`, and anybody can post one, so it takes a key's origin only during that key's own dispatch, and
+  is otherwise not attributed (never the Operator's, which `CommandSource::from_input` would honour); one another thread
+  sent is refused. A composition that is not a model's is therefore protected from a model (`OperatorComposing`). A
+  change made with the mouse in the candidate window is not attributed. Text still takes the newest key's origin when
+  the operating system does not say.
 - UNVERIFIED: whether an input method leaves a stale result string that winit reads again at the composition's end after
   a cancel; it would show as a commit of old text. Needs a real input method.
 
@@ -61,8 +76,9 @@ winit 0.30.13 source in the Cargo home (`platform_impl/windows/event_loop.rs` `W
 `WM_IME_COMPOSITION`, `WM_IME_ENDCOMPOSITION`; `ime.rs`; `keyboard.rs` dead keys and repeat bit; `event.rs` `Ime`):
 followed for the event mapping, the start and end as enabled and disabled, the clearing preedit before a commit, the
 commit at the end for the Korean input method, and byte cursors. Microsoft Learn: WM_IME_COMPOSITION (a message with no
-GCS flags is a cancel), ImmNotifyIME (CPS_COMPLETE, CPS_CANCEL). Chromium `ui/base/ime/win/imm32_manager.cc`: complete on
-deactivation, candidate window `CFS_EXCLUDE` around the caret rectangle (winit does the same in `set_ime_cursor_area`).
+GCS flags is a cancel), ImmNotifyIME (CPS_COMPLETE: the composition string becomes the result string). Chromium
+`ui/base/ime/win/imm32_manager.cc` (the old IMM32 path): complete on a text target change and before turning the input
+method off, candidate window `CFS_EXCLUDE` around the caret rectangle (winit does the same in `set_ime_cursor_area`).
 TSF: winit has none; TSF input methods reach IMM32 applications through the system's compatibility layer.
 
 ## Tests
@@ -71,10 +87,10 @@ Validator only: `cargo test --locked -p handshake_shell_input` in `src/frontend/
 
 | Target | What it proves, and the mutation it fails for |
 | --- | --- |
-| unit `ime_tests` | sequences as winit's source writes them: a commit (no cancel), Esc (one cancel, empty commit left out), the Korean end, clause commits; focus loss mid-composition (one cancel, a late commit reaches nobody); focus loss after a commit (no cancel); focus moved (ends at the old target, goes on at the new); composition turned off; events lost and the window gone (one end); a composition over an open one; nothing without keyboard or target; a model refused while the Operator composes, not when the composition is a model's; cursors off the text; the candidate area at 100 % and 150 %, scrolled out, on scroll and scale change only, again at a composition's start; 400 generated interleavings of all of these keeping one target, one beginning, one end, a cancel only for uncommitted preedit and never a commit after it; the kept state prints no composed text. Fails if the cancel is dropped or doubled, a late commit is passed on, events go to an unfocused target, the area does not follow, or a model is not refused. |
+| unit `ime_tests` | sequences as winit's source writes them: a commit (no cancel), Esc (one cancel, empty commit left out), the Korean end, clause commits; the window's completion before the loss of the keyboard (a commit, no cancel); a result after the loss of the keyboard (the composition's own commit at its own target); no result (one cancel, by the input method's end, the keyboard coming back, events lost, the window gone, a new composition); focus loss after a commit (no cancel); focus moved (the window is asked to complete first, the result goes to the old target, what goes on begins at the new; a stale result reaches no target); composition turned off (completed, then turned off); a composition of no stated origin protected from a model; events lost and the window gone (one end); a composition over an open one; nothing without keyboard or target; a model refused while the Operator composes, not when the composition is a model's; cursors off the text; the candidate area at 100 % and 150 %, scrolled out, on scroll and scale change only, again at a composition's start; 400 generated interleavings of all of these keeping one target, one beginning, one end, a cancel only for uncommitted preedit and never a commit after it; the kept state prints no composed text. Fails if the cancel is dropped or doubled, a result is dropped, or goes to another target, the completion is not asked for before the move or the turning off, events go to an unfocused target, the area does not follow, or a model is not refused. |
 | unit `tracker_tests` | every input kind is one typed input with its stamp's origin, time and stamp; what is no input gives none; wheel sources; an older Operator stamp is not the Operator's; a model's input is always the model's, and refused for keys and text while the Operator composes; press, repeat with and without the mark, release; dead keys with the accent typed once by the next key; held keys released once with their press's origin when the keyboard goes, and not twice after winit's own release; buttons and keys of every window on lost events and a window gone; the hold limit; the input method through the tracker with its requests; a key prints no key. |
-| `source_scan` | no window library, Win32 type or unsafe code in the code, the window crate the only dependency, no loop or native window passed on; nothing injects input or a composition (`SendInput`, `keybd_event`, `mouse_event`, `Inject*`, `ImmSetCompositionString*`, `ImmNotifyIME`) or moves focus or the cursor, tests included; `InputEvent` has no public field and no public constructor; the input method state holds no text; every loop of a test on a private desktop; no banned crate locked. Each with a control that it finds what it looks for. |
-| `real_loop` | on a private desktop, posted to a quiet window through winit and the window crate: a space bar the system translates, its repeat and the focus going give one press, one repeat, one release and two texts; with the input method allowed for a target, start, emptied preedit, focus lost and the input method's own end give enabled, preedit and one synthesized end; a composition the host moves the focus from goes on at the new target as a new one; with a target that takes no composed text, `AllowIme(false)` stops the window's input method events. |
+| `source_scan` | no window library, Win32 type or unsafe code in the code, the window crate the only dependency, no loop or native window passed on; nothing injects input or a composition (`SendInput`, `keybd_event`, `mouse_event`, `Inject*`, `ImmSetCompositionString*`, `ImmNotifyIME`) or moves focus or the cursor, tests included; the window crate's source has exactly one `ImmNotifyIME` call, `ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0)`, in `platform/ime.rs`, and no cancel, convert, revert or set of a composition; `InputEvent` has no public field and no public constructor; the input method state holds no text; every loop of a test on a private desktop; no banned crate locked. Each with a control that it finds what it looks for. |
+| `real_loop` | on a private desktop, posted to a quiet window through winit and the window crate: a space bar the system translates, its repeat and the focus going give one press, one repeat, one release and two texts; every focus is posted after `WM_NCACTIVATE` of an active window (E6-F1; the test asserts the window reported its focus); with the input method allowed for a target, start, emptied preedit, focus lost (the window completes first and says so) and the input method's own end give enabled, preedit and one synthesized end; a composition the host moves the focus from is completed first and ends at its own target, and the input method goes on at the new target as a new one; with a target that takes no composed text, `AllowIme(false)` stops the window's input method events. |
 
 Needs the Operator's desktop and x64 hardware (HBR-QUIET-004, MT-202): real typing on real layouts (dead keys, AltGr),
 a real input method (Japanese, Chinese, Korean) and its candidate window placement at 100 %, 150 % and across monitors,

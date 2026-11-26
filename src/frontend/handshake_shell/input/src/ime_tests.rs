@@ -235,38 +235,104 @@ fn clause_by_clause_commits_are_all_passed_on_and_need_no_cancel() {
     assert!(!lines.iter().any(|line| line.contains("cancel")));
 }
 
-/// AC214-6: focus loss mid-composition sends one cancel, never also a commit: what the input method sends after it does
-/// not reach the target.
+/// AC214-6, MT-214 S3-Q1 (E6-F3): the window completes the composition before it reports the loss of its keyboard. What
+/// the input method gave then is a commit at the composition's own target, and the loss ends it without a cancel.
 #[test]
-fn focus_lost_mid_composition_cancels_once_and_a_late_commit_reaches_nobody() {
+fn focus_lost_after_the_windows_completion_commits_once_and_ends_without_a_cancel() {
+    let mut run = Run::new();
+    run.os(&[ImeChange::Started, preedit("か", Some((3, 3)))]);
+    run.lines();
+    // The window's completion: the result, its own report, and only then the loss of the keyboard.
+    run.os(&[preedit("", None), commit("家"), ImeChange::Completed]);
+    run.keyboard(false);
+    assert_eq!(
+        run.lines(),
+        [
+            "10 #1 preedit \"\" None",
+            "10 #1 commit \"家\"",
+            "10 #1 disabled input.synthetic.focus_lost"
+        ]
+    );
+    run.os(&[ImeChange::Ended]);
+    assert_eq!(
+        run.lines(),
+        Vec::<String>::new(),
+        "the input method's own end comes after"
+    );
+}
+
+/// MT-214 S3-Q1 (E6-F3): a result that comes after the loss of the keyboard is the composition's own commit, at its own
+/// target, not dropped. Its preedit is shown nowhere meanwhile. Fails if the late commit is dropped again.
+#[test]
+fn a_result_after_the_loss_of_the_keyboard_is_the_compositions_own_commit() {
     let mut run = Run::new();
     run.os(&[ImeChange::Started, preedit("か", Some((3, 3)))]);
     run.lines();
     run.keyboard(false);
-    let ended = std::mem::take(&mut run.out);
-    let lines: Vec<String> = ended.iter().map(line).collect();
-    assert_eq!(
-        lines,
-        [
-            "10 #1 cancel input.synthetic.focus_lost",
-            "10 #1 disabled input.synthetic.focus_lost"
-        ]
+    assert!(
+        run.lines().is_empty(),
+        "it waits for the input method's result, and shows nothing"
     );
-    for event in &ended {
-        assert_eq!(
-            event.origin(),
-            Origin::OperatorDevice,
-            "the composition's origin"
-        );
-        assert!(event.stamp().is_none(), "a synthesized end grants nothing");
-    }
-    run.os(&[preedit("", None), commit("か"), ImeChange::Ended]);
+    run.os(&[preedit("か", None), preedit("", None), commit("家")]);
     assert_eq!(
         run.lines(),
-        Vec::<String>::new(),
-        "the late result goes nowhere"
+        ["10 #1 commit \"家\""],
+        "its result, at its own target, with no cancel"
     );
-    assert_eq!(run.router.counts.dropped, 2, "the preedit and the commit");
+    assert_eq!(run.router.counts.dropped, 1, "the preedit shown nowhere");
+    run.os(&[ImeChange::Ended]);
+    let ended = std::mem::take(&mut run.out);
+    let lines: Vec<String> = ended.iter().map(line).collect();
+    assert_eq!(lines, ["10 #1 disabled input.synthetic.focus_lost"]);
+    for event in &ended {
+        assert_eq!(event.origin(), Origin::OperatorDevice, "the composition's origin");
+        assert!(event.stamp().is_none(), "a synthesized end grants nothing");
+    }
+    // A result of no composition reaches no target.
+    run.os(&[commit("か")]);
+    assert!(run.lines().is_empty());
+    assert_eq!(run.router.counts.settled, 1);
+}
+
+/// AC214-6, MT-214 S3-Q1: a composition whose preedit no result took ends with one cancel, never also a commit: by the
+/// input method's end, the keyboard coming back, events lost, the window gone, or another composition beginning.
+#[test]
+fn a_composition_that_got_no_result_ends_with_one_cancel() {
+    let waiting = || {
+        let mut run = Run::new();
+        run.os(&[ImeChange::Started, preedit("か", Some((3, 3)))]);
+        run.lines();
+        run.keyboard(false);
+        assert!(run.lines().is_empty());
+        run
+    };
+    let cancelled = |cause: &str| {
+        [
+            format!("10 #1 cancel input.synthetic.{cause}"),
+            format!("10 #1 disabled input.synthetic.{cause}"),
+        ]
+    };
+    let mut run = waiting();
+    run.os(&[ImeChange::Ended]);
+    assert_eq!(run.lines(), cancelled("focus_lost"), "the input method's end");
+    let mut run = waiting();
+    run.keyboard(true);
+    assert_eq!(run.lines(), cancelled("focus_lost"), "the keyboard came back");
+    let mut run = waiting();
+    let now = at(run.tick());
+    run.router.events_lost(now, &mut run.out);
+    run.router.events_lost(now, &mut run.out);
+    assert_eq!(run.lines(), cancelled("events_lost"), "events lost, once");
+    let mut run = waiting();
+    let now = at(run.tick());
+    run.router.gone(W, now, &mut run.out);
+    assert_eq!(run.lines(), cancelled("window_gone"), "the window gone");
+    let mut run = waiting();
+    run.os(&[ImeChange::Started]);
+    assert_eq!(run.lines(), cancelled("replaced"), "another composition began");
+    // Whatever came after reaches nobody, and the end was made once.
+    run.os(&[commit("か"), ImeChange::Ended]);
+    assert!(run.lines().is_empty());
     assert_eq!(run.router.counts.settled, 1);
 }
 
@@ -290,25 +356,34 @@ fn focus_lost_after_a_commit_ends_without_a_cancel() {
     );
 }
 
-/// The host moves the text focus mid-composition: the old target's composition ends there; what the input method goes
-/// on with begins again at the new target, as a composition of its own.
+/// MT-214 S3-Q1 (E6-F2): the host moves the text focus mid-composition. The window is asked to complete it before
+/// anything else; its result is the composition's commit at its own target, and what the input method goes on with
+/// afterwards begins again at the new target, as a composition of its own. Fails if the result goes to the new target,
+/// or the composition is cancelled before the input method could complete it.
 #[test]
-fn a_composition_the_focus_left_ends_at_its_target_and_goes_on_only_at_the_new_one() {
+fn a_composition_the_focus_left_gets_its_result_at_its_own_target_and_goes_on_only_at_the_new_one() {
     let mut run = Run::new();
     run.os(&[ImeChange::Started, preedit("か", None)]);
     run.lines();
+    run.router.take_requests();
     run.focus(focus(B, true), false).unwrap();
+    assert!(
+        run.lines().is_empty(),
+        "it waits for the completion, and is not cancelled"
+    );
+    assert_eq!(run.router.take_requests(), [(W, ImeRequest::Complete)]);
+    run.os(&[preedit("", None), commit("仮名"), ImeChange::Completed]);
     assert_eq!(
         run.lines(),
         [
-            "10 #1 cancel input.synthetic.focus_moved",
+            "10 #1 commit \"仮名\"",
             "10 #1 disabled input.synthetic.focus_moved"
         ]
     );
     run.os(&[
         preedit("かな", None),
         preedit("", None),
-        commit("仮名"),
+        commit("次"),
         ImeChange::Ended,
     ]);
     assert_eq!(
@@ -317,28 +392,56 @@ fn a_composition_the_focus_left_ends_at_its_target_and_goes_on_only_at_the_new_o
             "20 #2 enabled input.synthetic.rebound",
             "20 #2 preedit \"かな\" None",
             "20 #2 preedit \"\" None",
-            "20 #2 commit \"仮名\"",
+            "20 #2 commit \"次\"",
             "20 #2 disabled",
         ]
     );
 }
 
+/// MT-214 E6-F2: a composition the input method gave no result for is cancelled at its own target, once the completion
+/// is over; a result that comes later reaches no target, in particular not the new one.
 #[test]
-fn a_target_that_stops_taking_composed_text_ends_its_composition_and_turns_the_input_method_off() {
+fn a_stale_result_after_the_focus_moved_reaches_no_target() {
+    let mut run = Run::new();
+    run.os(&[ImeChange::Started, preedit("か", None)]);
+    run.lines();
+    run.focus(focus(B, true), false).unwrap();
+    run.os(&[ImeChange::Completed]);
+    assert_eq!(
+        run.lines(),
+        [
+            "10 #1 cancel input.synthetic.focus_moved",
+            "10 #1 disabled input.synthetic.focus_moved"
+        ]
+    );
+    run.os(&[commit("仮名")]);
+    assert!(run.lines().is_empty(), "not begun at the new target");
+    assert_eq!(run.router.counts.dropped, 1);
+    assert_eq!(run.router.counts.settled, 1);
+}
+
+#[test]
+fn a_target_that_stops_taking_composed_text_gets_its_result_and_the_input_method_is_turned_off_after() {
     let mut run = Run::new();
     run.router.take_requests();
     run.os(&[ImeChange::Started, preedit("か", None)]);
     run.lines();
     run.router.take_requests();
     run.focus(focus(A, false), false).unwrap();
+    assert!(run.lines().is_empty(), "it waits for the completion");
+    assert_eq!(
+        run.router.take_requests(),
+        [(W, ImeRequest::Complete), (W, ImeRequest::Allow(false))],
+        "completed before it is turned off"
+    );
+    run.os(&[commit("仮名"), ImeChange::Completed]);
     assert_eq!(
         run.lines(),
         [
-            "10 #1 cancel input.synthetic.ime_turned_off",
+            "10 #1 commit \"仮名\"",
             "10 #1 disabled input.synthetic.ime_turned_off"
         ]
     );
-    assert_eq!(run.router.take_requests(), [(W, ImeRequest::Allow(false))]);
     run.os(&[preedit("かな", None), commit("仮名")]);
     assert_eq!(
         run.lines(),
@@ -436,10 +539,35 @@ fn a_model_cannot_take_the_focus_from_the_operators_composition() {
     }
     assert_eq!(run.focus(moved, true), Ok(()));
     assert!(run.lines().is_empty());
-    // The shell may, and so may the Operator.
+    // The shell may, and so may the Operator: the composition waits for its result, then ends.
     assert_eq!(run.focus(focus(B, true), false), Ok(()));
+    assert!(run.lines().is_empty());
+    run.os(&[ImeChange::Completed]);
     assert_eq!(run.lines().len(), 2, "cancel and disabled");
     assert!(!run.router.operator_composing(W));
+}
+
+/// MT-214 E6-F4: the input method's messages carry the Operator's origin only during the Operator's key's own dispatch,
+/// so a composition of no stated origin is protected like the Operator's; only a model's own is not. Fails if the
+/// protection depends on the Operator's origin again.
+#[test]
+fn a_composition_of_no_stated_origin_is_protected_from_a_model() {
+    for origin in [Origin::Unattributed, Origin::OtherProgram] {
+        let mut run = Run::new();
+        let from = Source {
+            origin,
+            at: at(2),
+            stamp: None,
+        };
+        run.router
+            .change(W, &ImeChange::Started, from, &mut run.out);
+        assert!(run.router.operator_composing(W), "{origin:?}");
+        assert_eq!(
+            run.focus(focus(B, true), true),
+            Err(FocusRefusal::OperatorComposing),
+            "{origin:?}"
+        );
+    }
 }
 
 #[test]
@@ -461,6 +589,7 @@ fn a_model_may_move_the_focus_from_a_composition_that_is_not_the_operators() {
         router.focus(W, focus(B, true), true, at(3), &mut out),
         Ok(())
     );
+    router.change(W, &ImeChange::Completed, from, &mut out);
     assert_eq!(
         out.last().map(InputEvent::origin),
         Some(Origin::ModelAction(MODEL))
@@ -627,7 +756,11 @@ fn a_composition_that_begins_asks_for_the_area_again_and_turning_off_forgets_it(
         "{requests:?}"
     );
     run.focus(focus(A, false), false).unwrap();
-    assert_eq!(run.router.take_requests(), [(W, ImeRequest::Allow(false))]);
+    assert_eq!(
+        run.router.take_requests(),
+        [(W, ImeRequest::Complete), (W, ImeRequest::Allow(false))]
+    );
+    run.os(&[ImeChange::Completed]);
     run.focus(focus(A, true), false).unwrap();
     let requests = run.router.take_requests();
     assert!(
@@ -641,6 +774,7 @@ fn a_composition_that_begins_asks_for_the_area_again_and_turning_off_forgets_it(
         ImeRequest::Allow(true).command(),
         WindowCommand::AllowIme(true)
     );
+    assert_eq!(ImeRequest::Complete.command(), WindowCommand::CompleteIme);
 }
 
 // Every interleaving.
@@ -690,7 +824,7 @@ fn every_interleaving_keeps_one_target_one_end_and_never_a_commit_and_a_cancel()
             clock += 1;
             let from = operator(clock);
             out.clear();
-            match steps.next(12) {
+            match steps.next(13) {
                 0 => router.change(W, &ImeChange::Started, from, &mut out),
                 1..=3 => {
                     let text = texts[steps.next(4) as usize];
@@ -721,6 +855,7 @@ fn every_interleaving_keeps_one_target_one_end_and_never_a_commit_and_a_cancel()
                     focused = next;
                 }
                 10 => router.events_lost(at(clock), &mut out),
+                11 => router.change(W, &ImeChange::Completed, from, &mut out),
                 _ => router.change(W, &preedit("か", Some((0, 3))), from, &mut out),
             }
             for event in &out {
@@ -739,7 +874,9 @@ fn every_interleaving_keeps_one_target_one_end_and_never_a_commit_and_a_cancel()
                     event.synthetic(),
                     Some(cause) if cause != Synthetic::Rebound
                 );
-                if !synthesized_end {
+                // The result of a composition whose target lost the focus is its own commit, at its own target (S3-Q1).
+                let own_result = matches!(ime.change, Composition::Commit(_)) && state.enabled == 1;
+                if !synthesized_end && !own_result {
                     assert!(keyboard, "{context}: the window has no keyboard");
                     assert_eq!(
                         focused,

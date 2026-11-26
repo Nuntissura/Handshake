@@ -171,10 +171,16 @@ pub enum ImeChange {
     Commit(TypedText),
     /// The composition ended.
     Ended,
+    /// The window asked the input method to complete its composition ([`crate::WindowCommand::CompleteIme`], or the
+    /// window's keyboard going while a composition was open, before [`crate::WindowEvent::FocusChanged`] says so;
+    /// MT-214 S3-Q1). What the input method gave for it at once came before this. Not a change of the input method's
+    /// own; its stamp is not attributed.
+    Completed,
 }
 
-/// An input method change, and where and when it came from: the origin of the window's newest key, since the
-/// operating system says nothing of the input method's own messages.
+/// An input method change, and where and when it came from. The operating system says nothing of where the input
+/// method's own messages come from: they take the origin of a key only while that key is dispatched, and are not
+/// attributed otherwise; another thread's are refused (MT-214 E6-F4).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImeInput {
     /// What changed.

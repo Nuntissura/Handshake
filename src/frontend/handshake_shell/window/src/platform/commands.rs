@@ -165,6 +165,11 @@ fn carry_out(
             window.set_ime_area(area);
             Ok(())
         }
+        // Moves no window and no focus either (MT-214 S3-Q1).
+        WindowCommand::CompleteIme => {
+            window.complete_ime(core);
+            Ok(())
+        }
         WindowCommand::Destroy => {
             if window.tokens() > 0 {
                 return Err(Refusal::NativeTokensHeld);

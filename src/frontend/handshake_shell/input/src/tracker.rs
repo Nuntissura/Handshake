@@ -111,7 +111,8 @@ pub struct InputReport {
     pub stale_stamps: u64,
     /// Keys or buttons held beyond [`MAX_HELD_KEYS`] or [`MAX_HELD_BUTTONS`], not kept.
     pub holds_not_kept: u64,
-    /// Input method changes with no composition and no target that takes composed text.
+    /// Input method changes with no composition and no target that takes composed text, commits of no composition, and
+    /// preedit of a composition whose target lost the focus.
     pub ime_dropped: u64,
     /// Input method cursors outside their preedit text, passed on as none.
     pub ime_bad_cursors: u64,
@@ -174,7 +175,10 @@ impl InputTracker {
     }
 
     /// Move a window's text focus to a target, or to none; or change what its target takes and where its caret is.
-    /// The events it makes end the composition of the target that loses the focus.
+    /// A composition of the target that loses the focus, or stops taking composed text, is committed there, not dropped
+    /// (MT-214 S3-Q1): [`InputTracker::take_requests`] then asks the window to complete it ([`ImeRequest::Complete`],
+    /// before turning the input method off), and the result, or a cancel when none comes, reaches that target when the
+    /// window's `ImeChange::Completed` is fed. Carry the requests out right after this call.
     ///
     /// # Errors
     ///
@@ -232,7 +236,8 @@ impl InputTracker {
         self.ime.focused(window)
     }
 
-    /// What the host has to ask the windows for, with [`ImeRequest::command`]: the newest of each kind per window.
+    /// What the host has to ask the windows for, with [`ImeRequest::command`], in this order: the newest of each kind
+    /// per window, a completion before allowing and allowing before placing.
     pub fn take_requests(&mut self) -> Vec<(WindowKey, ImeRequest)> {
         self.ime.take_requests()
     }

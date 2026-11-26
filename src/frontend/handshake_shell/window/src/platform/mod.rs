@@ -10,6 +10,7 @@ mod closing;
 mod commands;
 mod drops;
 mod guard;
+mod ime;
 mod key_gate;
 mod lanes;
 mod loop_core;

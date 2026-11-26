@@ -19,7 +19,7 @@
 
 use std::cell::Cell;
 
-use windows_sys::Win32::Foundation::{HWND, WPARAM};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     PeekMessageW, HTCLOSE, HTSYSMENU, MSG, PM_NOREMOVE, PM_NOYIELD, PM_QS_POSTMESSAGE, SC_CLOSE,
@@ -77,21 +77,21 @@ impl Closing {
         result
     }
 
-    /// Before the window library sees `message`. `operators_input`: the Operator's own input, which the operating
-    /// system reported as hardware and the loop took out of its queue. `queued`: whether a close command for the window
-    /// waits in the queue now ([`queued_close`]); asked only for Alt+F4, the one gesture whose command may be posted
-    /// (E5-F4), and never while the watch changes, since a look at the queue may run messages other threads sent.
+    /// Before the window library sees `message` with its parameters. `operators_input`: the Operator's own input, which
+    /// the operating system reported as hardware and the loop took out of its queue. `queued`: whether a close command
+    /// for the window waits in the queue now ([`queued_close`]); asked only for Alt+F4, the one gesture whose command may
+    /// be posted (E5-F4), and never while the watch changes, since a look at the queue may run messages other threads
+    /// sent.
     pub(super) fn before(
         &self,
         now: EventTime,
-        message: u32,
-        wparam: WPARAM,
+        (message, wparam, lparam): (u32, WPARAM, LPARAM),
         arrival: Arrival,
         operators_input: bool,
         queued: impl FnOnce() -> bool,
     ) -> Option<Pending> {
         if operators_input {
-            if let Some(gesture) = press(message, wparam) {
+            if let Some(gesture) = press(message, wparam, lparam) {
                 let may_post = gesture && message == WM_SYSKEYDOWN && !queued();
                 let before = self.change(|watch| watch.press_begins(gesture));
                 return Some(Pending::Press { before, may_post });
@@ -150,12 +150,16 @@ pub(super) fn queued_close(hwnd: HWND) -> bool {
     }
 }
 
+/// The context code of a key message: Alt was down (`WM_SYSKEYDOWN`, `lParam` bit 29).
+const ALT_DOWN: LPARAM = 1 << 29;
+
 /// A press of a key or a button: whether it is one the system turns into a close of the window (Alt+F4, its close
 /// button, a double-click on its system menu); `None` for any other message. Whether the system does is what its
 /// handling shows (E4-F2): F4 without Alt, or a press on the close button that is dragged off it, makes no command.
-fn press(message: u32, wparam: WPARAM) -> Option<bool> {
+/// Alt+F4 is F4 with the context code set (MT-214 E6-F7): a `WM_SYSKEYDOWN` of F4 without it is no close gesture.
+fn press(message: u32, wparam: WPARAM, lparam: LPARAM) -> Option<bool> {
     let close = match message {
-        WM_SYSKEYDOWN => wparam == usize::from(VK_F4),
+        WM_SYSKEYDOWN => wparam == usize::from(VK_F4) && (lparam & ALT_DOWN) != 0,
         WM_NCLBUTTONDOWN => wparam == HTCLOSE as usize,
         WM_NCLBUTTONDBLCLK => wparam == HTSYSMENU as usize,
         WM_KEYDOWN | WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN | WM_XBUTTONDOWN
@@ -175,8 +179,8 @@ mod tests {
         }
     }
 
-    const ALT_F4: (u32, WPARAM) = (WM_SYSKEYDOWN, VK_F4 as WPARAM);
-    const BUTTON: (u32, WPARAM) = (WM_NCLBUTTONDOWN, HTCLOSE as WPARAM);
+    const ALT_F4: (u32, WPARAM, LPARAM) = (WM_SYSKEYDOWN, VK_F4 as WPARAM, ALT_DOWN | 0x003E_0001);
+    const BUTTON: (u32, WPARAM, LPARAM) = (WM_NCLBUTTONDOWN, HTCLOSE as WPARAM, 0);
 
     /// What the system does while it handles the Operator's gesture.
     #[derive(Clone, Copy, Debug)]
@@ -190,9 +194,9 @@ mod tests {
     }
 
     /// The hook's calls for the Operator's gesture: `queue` is what waits in the queue, `true` for a close command.
-    fn gesture(closing: &Closing, gesture: (u32, WPARAM), handling: Handling, queue: &Cell<bool>) {
+    fn gesture(closing: &Closing, gesture: (u32, WPARAM, LPARAM), handling: Handling, queue: &Cell<bool>) {
         let pending = closing
-            .before(at(1), gesture.0, gesture.1, Arrival::Queue, true, || queue.get())
+            .before(at(1), gesture, Arrival::Queue, true, || queue.get())
             .expect("a press");
         match handling {
             Handling::Sends => command(closing, 2, Arrival::ThisThread, Arrival::ThisThread),
@@ -204,8 +208,8 @@ mod tests {
 
     /// A close command, and the close message the system sends inside it.
     fn command(closing: &Closing, millis: u64, command: Arrival, message: Arrival) {
-        let ends = closing.before(at(millis), WM_SYSCOMMAND, SC_CLOSE as usize, command, false, || false);
-        closing.before(at(millis), WM_CLOSE, 0, message, false, || false);
+        let ends = closing.before(at(millis), (WM_SYSCOMMAND, SC_CLOSE as usize, 0), command, false, || false);
+        closing.before(at(millis), (WM_CLOSE, 0, 0), message, false, || false);
         closing.after(at(millis), ends.expect("a close command"), || false);
     }
 
@@ -233,7 +237,7 @@ mod tests {
         for message in [Arrival::Queue, Arrival::OtherThread] {
             let closing = Closing::default();
             let pending = closing
-                .before(at(1), BUTTON.0, BUTTON.1, Arrival::Queue, true, || false)
+                .before(at(1), BUTTON, Arrival::Queue, true, || false)
                 .unwrap();
             command(&closing, 2, Arrival::ThisThread, message);
             closing.after(at(3), pending, || false);
@@ -242,7 +246,7 @@ mod tests {
         // A close command another thread sent while the Operator's gesture was handled.
         let closing = Closing::default();
         let pending = closing
-            .before(at(1), BUTTON.0, BUTTON.1, Arrival::Queue, true, || false)
+            .before(at(1), BUTTON, Arrival::Queue, true, || false)
             .unwrap();
         command(&closing, 2, Arrival::OtherThread, Arrival::ThisThread);
         closing.after(at(3), pending, || false);
@@ -250,10 +254,10 @@ mod tests {
         // A gesture another program's input made, or another press: no gesture.
         let closing = Closing::default();
         let queue = Cell::new(false);
-        let other = closing.before(at(1), ALT_F4.0, ALT_F4.1, Arrival::Queue, false, || false);
+        let other = closing.before(at(1), ALT_F4, Arrival::Queue, false, || false);
         assert!(other.is_none(), "not the Operator's");
         let pending = closing
-            .before(at(1), WM_KEYDOWN, 0x41, Arrival::Queue, true, || panic!("no look for a key"))
+            .before(at(1), (WM_KEYDOWN, 0x41, 0x001E_0001), Arrival::Queue, true, || panic!("no look for a key"))
             .unwrap();
         queue.set(true);
         closing.after(at(2), pending, || panic!("no look after a key"));
@@ -276,7 +280,7 @@ mod tests {
         }
         let closing = Closing::default();
         let pending = closing
-            .before(at(1), BUTTON.0, BUTTON.1, Arrival::Queue, true, || false)
+            .before(at(1), BUTTON, Arrival::Queue, true, || false)
             .unwrap();
         // The tracking of the close button takes another program's close command out of the queue.
         command(&closing, 2, Arrival::Queue, Arrival::ThisThread);
@@ -295,12 +299,12 @@ mod tests {
     /// the system menu is handled, whose handling made none, is nobody's; the queue is not even looked at for them.
     #[test]
     fn a_close_posted_while_a_button_gesture_is_handled_is_nobodys() {
-        const SYSTEM_MENU: (u32, WPARAM) = (WM_NCLBUTTONDBLCLK, HTSYSMENU as WPARAM);
+        const SYSTEM_MENU: (u32, WPARAM, LPARAM) = (WM_NCLBUTTONDBLCLK, HTSYSMENU as WPARAM, 0);
         for made in [BUTTON, SYSTEM_MENU] {
             let closing = Closing::default();
             let queue = Cell::new(false);
             let pending = closing
-                .before(at(1), made.0, made.1, Arrival::Queue, true, || {
+                .before(at(1), made, Arrival::Queue, true, || {
                     panic!("the queue looked at before {made:?}")
                 })
                 .expect("a press");
@@ -323,14 +327,40 @@ mod tests {
         let closing = Closing::default();
         let queue = Cell::new(false);
         gesture(&closing, BUTTON, Handling::Sends, &queue);
-        closing.before(at(5), WM_CLOSE, 0, Arrival::Queue, false, || false);
+        closing.before(at(5), (WM_CLOSE, 0, 0), Arrival::Queue, false, || false);
         assert_eq!(closing.open(at(6)), Some(true), "not overtaken");
         let lifetime = u64::try_from(OPERATOR_AUTHORITY_LIFETIME.as_millis()).unwrap();
         assert_eq!(closing.open(at(2 + lifetime)), Some(true));
         assert_eq!(closing.open(at(3 + lifetime)), None, "ended with its lifetime");
-        closing.before(at(10 + lifetime), WM_CLOSE, 0, Arrival::Queue, false, || false);
+        closing.before(at(10 + lifetime), (WM_CLOSE, 0, 0), Arrival::Queue, false, || false);
         assert_eq!(closing.open(at(11 + lifetime)), Some(false));
-        assert_eq!(press(WM_NCLBUTTONDBLCLK, HTSYSMENU as usize), Some(true));
-        assert_eq!(press(0x0200, 0), None, "a pointer move is no press");
+        assert_eq!(press(WM_NCLBUTTONDBLCLK, HTSYSMENU as usize, 0), Some(true));
+        assert_eq!(press(0x0200, 0, 0), None, "a pointer move is no press");
+    }
+
+    /// MT-214 E6-F7: a `WM_SYSKEYDOWN` of F4 without the context code (Alt not down, `lParam` bit 29) is a press, but no
+    /// close gesture: a close command posted while it is handled is nobody's, and the queue is not looked at for it.
+    /// Fails if F4 alone counts as Alt+F4 again.
+    #[test]
+    fn f4_without_the_alt_context_code_is_no_close_gesture() {
+        let f4 = (WM_SYSKEYDOWN, VK_F4 as WPARAM, ALT_F4.2 & !ALT_DOWN);
+        assert_eq!(press(f4.0, f4.1, f4.2), Some(false), "a press, no gesture");
+        assert_eq!(press(ALT_F4.0, ALT_F4.1, ALT_F4.2), Some(true));
+        let closing = Closing::default();
+        let queue = Cell::new(false);
+        let pending = closing
+            .before(at(1), f4, Arrival::Queue, true, || panic!("the queue looked at for F4 alone"))
+            .expect("a press");
+        // A close command is posted while it is handled.
+        queue.set(true);
+        closing.after(at(3), pending, || panic!("the queue looked at after F4 alone"));
+        taken_out(&closing, &queue, 4);
+        assert_eq!(closing.open(at(5)), Some(false), "F4 alone approves nothing");
+        // The same key with the context code is Alt+F4, and its posted command the Operator's.
+        let closing = Closing::default();
+        let queue = Cell::new(false);
+        gesture(&closing, ALT_F4, Handling::Posts, &queue);
+        taken_out(&closing, &queue, 4);
+        assert_eq!(closing.open(at(5)), Some(true));
     }
 }

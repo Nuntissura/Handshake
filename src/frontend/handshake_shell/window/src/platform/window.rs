@@ -18,7 +18,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     DefWindowProcW, GetMessageTime, GWL_EXSTYLE, MA_NOACTIVATE, STYLESTRUCT, WA_INACTIVE,
     WINDOWPOS, WM_ACTIVATE, WM_CHAR, WM_DEADCHAR, WM_DPICHANGED, WM_DROPFILES, WM_ENTERMENULOOP,
     WM_ENTERSIZEMOVE, WM_EXITMENULOOP, WM_EXITSIZEMOVE, WM_IME_COMPOSITION, WM_IME_ENDCOMPOSITION,
-    WM_IME_STARTCOMPOSITION, WM_KEYFIRST, WM_KEYLAST, WM_MOUSEACTIVATE, WM_MOUSEFIRST,
+    WM_IME_STARTCOMPOSITION, WM_KEYFIRST, WM_KEYLAST, WM_KILLFOCUS, WM_MOUSEACTIVATE, WM_MOUSEFIRST,
     WM_MOUSELAST, WM_NCDESTROY, WM_NCMOUSEMOVE, WM_NCXBUTTONDBLCLK, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_STYLECHANGING,
     WM_SYSCHAR, WM_SYSDEADCHAR, WM_TOUCH, WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING,
 };
@@ -33,14 +33,14 @@ use super::key_gate::{self, KeyGate, Kept, Passed};
 use super::loop_core::{Core, Creation, MessageOrigin};
 use super::place::Target;
 use super::retrieval::{self, Arrival};
-use super::{drops, guard, last_error, monitors, place, translate};
+use super::{drops, guard, ime, last_error, monitors, place, translate};
 use crate::command::{CreateFailure, Placement, Refusal, WindowClass, WindowState};
 use crate::event::{Display, ModalLoop, WindowEvent, WindowKey};
 use crate::frame::FrameLedger;
 use crate::geometry::{
     ClientPoint, ClientRect, LogicalSize, PhysicalPosition, PhysicalSize, ScaleFactor,
 };
-use crate::input::{CursorShape, Modifiers};
+use crate::input::{CursorShape, ImeChange, ImeInput, Modifiers};
 use crate::monitor::{centered, outside_all, MonitorKey};
 use crate::origin::{DeviceKind, InputStamp, Origin};
 use crate::token::Win32Window;
@@ -80,6 +80,14 @@ pub(super) struct Window {
     position_reported: Cell<PhysicalPosition>,
     /// Where the newest key message came from. Its text messages are posted by the system and no longer say.
     key_origin: Cell<Option<(Origin, DeviceKind)>>,
+    /// Where the keyboard message the window library is handling now came from: what the input method makes of a key
+    /// during that key's own dispatch is that key's (MT-214 E6-F4).
+    dispatching_key: Cell<Option<(Origin, DeviceKind)>>,
+    /// The input method began a composition for the window and did not end it yet, as its messages that reached the
+    /// window library said.
+    composing: Cell<bool>,
+    /// The window asks the input method to complete its composition now: what it sends meanwhile is its answer.
+    completing: Cell<bool>,
     /// What keyboard messages the window library sees.
     keys: KeyGate,
     library: RefCell<Option<winit::window::Window>>,
@@ -153,6 +161,9 @@ impl Window {
             size_reported: Cell::new((PhysicalSize::default(), ScaleFactor::ONE)),
             position_reported: Cell::default(),
             key_origin: Cell::new(None),
+            dispatching_key: Cell::new(None),
+            composing: Cell::new(false),
+            completing: Cell::new(false),
             keys: KeyGate::default(),
             library: RefCell::new(Some(library)),
             core: Rc::downgrade(core),
@@ -308,6 +319,29 @@ impl Window {
         }
     }
 
+    /// Ask the input method to complete the window's composition (`WindowCommand::CompleteIme`, and the keyboard going
+    /// while a composition is open; MT-214 S3-Q1), then report `ImeChange::Completed`, not attributed. What the input
+    /// method sends meanwhile reaches the window library, which reports it before that, as its own messages: also inside
+    /// a message another thread sent, where a sent `WM_IME_*` is refused otherwise.
+    pub(super) fn complete_ime(&self, core: &Core) {
+        let outer = self.completing.replace(true);
+        let _ = ime::complete(self.hwnd);
+        self.completing.set(outer);
+        core.update_report(|report| {
+            report.ime_completions = report.ime_completions.saturating_add(1);
+        });
+        let message = core.set_message(MessageOrigin::NONE);
+        let stamp = self.stamp(core);
+        core.set_message(message);
+        core.push_window(
+            self.key,
+            WindowEvent::Ime(ImeInput {
+                change: ImeChange::Completed,
+                stamp,
+            }),
+        );
+    }
+
     pub(super) fn set_focused(&self, focused: bool) -> bool {
         self.focused.replace(focused) != focused
     }
@@ -405,11 +439,13 @@ impl Window {
         core: &Core,
         message: u32,
         wparam: WPARAM,
+        lparam: LPARAM,
         arrival: Arrival,
     ) -> Option<Pending> {
         let operators_input =
             arrival == Arrival::Queue && core.message().origin == Origin::OperatorDevice;
-        self.closing.before(core.now(), message, wparam, arrival, operators_input, || {
+        let key = (message, wparam, lparam);
+        self.closing.before(core.now(), key, arrival, operators_input, || {
             closing::queued_close(self.hwnd)
         })
     }
@@ -453,6 +489,22 @@ impl Window {
                 );
                 return Err(0);
             }
+            // MT-214 S3-Q1: the composition is completed before the library reports the focus loss, so its result
+            // reaches the target it was typed at.
+            WM_KILLFOCUS if self.composing.get() => self.complete_ime(core),
+            WM_IME_STARTCOMPOSITION | WM_IME_COMPOSITION | WM_IME_ENDCOMPOSITION => {
+                if refuses_ime(arrival, self.completing.get()) {
+                    core.update_report(|report| {
+                        report.sent_keys_refused = report.sent_keys_refused.saturating_add(1);
+                    });
+                    return Err(0);
+                }
+                match message {
+                    WM_IME_STARTCOMPOSITION => self.composing.set(true),
+                    WM_IME_ENDCOMPOSITION => self.composing.set(false),
+                    _ => {}
+                }
+            }
             _ => {
                 return Ok(After {
                     key: self.gate_keys(core, message, wparam, arrival)?,
@@ -495,28 +547,12 @@ impl Window {
         core.push_window(self.key, WindowEvent::ModalLoop { kind, began });
     }
 
-    /// Where an input message came from; nothing for any other message. Text and the input method's composition
-    /// messages, which the system or the input method makes of a key, take the origin of the newest key when the
-    /// operating system does not say (MT-214 S3).
+    /// Where an input message came from; nothing for any other message. Text, which the system makes of a key, takes
+    /// the origin of the newest key when the operating system does not say (MT-214 S3); the input method's composition
+    /// messages take a key's only during that key's own dispatch, and are not attributed otherwise (E6-F4).
     fn origin_of(&self, message: u32) -> MessageOrigin {
-        let text = matches!(
-            message,
-            WM_CHAR
-                | WM_DEADCHAR
-                | WM_SYSCHAR
-                | WM_SYSDEADCHAR
-                | WM_IME_STARTCOMPOSITION
-                | WM_IME_COMPOSITION
-                | WM_IME_ENDCOMPOSITION
-        );
-        let keyboard = (WM_KEYFIRST..=WM_KEYLAST).contains(&message) || text;
-        let pointer = (WM_MOUSEFIRST..=WM_MOUSELAST).contains(&message)
-            || (WM_NCMOUSEMOVE..=WM_NCXBUTTONDBLCLK).contains(&message)
-            || matches!(
-                message,
-                WM_MOUSELEAVE | WM_POINTERDOWN | WM_POINTERUP | WM_POINTERUPDATE | WM_TOUCH
-            );
-        if !keyboard && !pointer && message != WM_DROPFILES {
+        let kind = MessageKind::of(message);
+        if kind == MessageKind::Other {
             return MessageOrigin::NONE;
         }
         let mut source = INPUT_MESSAGE_SOURCE {
@@ -530,16 +566,18 @@ impl Window {
                 GetMessageTime(),
             )
         };
-        let mut from = if known {
+        let reported = if known {
             translate::message_origin(source.originId, source.deviceType)
         } else {
-            (Origin::Unattributed, DeviceKind::Unknown)
+            UNSAID
         };
-        if text {
-            if let (Origin::Unattributed, Some(key)) = (from.0, self.key_origin.get()) {
-                from = key;
-            }
-        } else if keyboard {
+        let from = attributed(
+            kind,
+            reported,
+            self.key_origin.get(),
+            self.dispatching_key.get(),
+        );
+        if kind == MessageKind::Key {
             self.key_origin.set(Some(from));
         }
         MessageOrigin {
@@ -548,6 +586,73 @@ impl Window {
             device: from.1,
         }
     }
+}
+
+/// What the operating system says of an input it does not attribute.
+const UNSAID: (Origin, DeviceKind) = (Origin::Unattributed, DeviceKind::Unknown);
+
+/// The kinds of message whose origin is noted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MessageKind {
+    /// A key down or up.
+    Key,
+    /// A character the system made of a key.
+    Text,
+    /// The input method's composition messages.
+    Ime,
+    /// The pointer, touch, pen, and files dropped.
+    Pointer,
+    Other,
+}
+
+impl MessageKind {
+    fn of(message: u32) -> Self {
+        match message {
+            WM_CHAR | WM_DEADCHAR | WM_SYSCHAR | WM_SYSDEADCHAR => Self::Text,
+            WM_IME_STARTCOMPOSITION | WM_IME_COMPOSITION | WM_IME_ENDCOMPOSITION => Self::Ime,
+            _ if (WM_KEYFIRST..=WM_KEYLAST).contains(&message) => Self::Key,
+            _ if (WM_MOUSEFIRST..=WM_MOUSELAST).contains(&message)
+                || (WM_NCMOUSEMOVE..=WM_NCXBUTTONDBLCLK).contains(&message)
+                || matches!(
+                    message,
+                    WM_MOUSELEAVE
+                        | WM_POINTERDOWN
+                        | WM_POINTERUP
+                        | WM_POINTERUPDATE
+                        | WM_TOUCH
+                        | WM_DROPFILES
+                ) =>
+            {
+                Self::Pointer
+            }
+            _ => Self::Other,
+        }
+    }
+}
+
+/// Where a message of `kind` counts as from. `reported`: what the operating system said; `newest_key`: the newest key
+/// message's origin; `dispatching_key`: that of the keyboard message the window library is handling now, if any. The
+/// input method's messages never take the newest key's: anybody can post them, and the key gate covers keys only, so
+/// they take a key's origin only from inside that key's own dispatch (MT-214 E6-F4), and are otherwise not attributed,
+/// whatever was reported for them; never the Operator's that `CommandSource::from_input` could use.
+fn attributed(
+    kind: MessageKind,
+    reported: (Origin, DeviceKind),
+    newest_key: Option<(Origin, DeviceKind)>,
+    dispatching_key: Option<(Origin, DeviceKind)>,
+) -> (Origin, DeviceKind) {
+    match (kind, newest_key) {
+        (MessageKind::Ime, _) => dispatching_key.unwrap_or(UNSAID),
+        (MessageKind::Text, Some(key)) if reported.0 == Origin::Unattributed => key,
+        _ => reported,
+    }
+}
+
+/// Whether an input method composition message is kept from the window library: one another thread sent (or this one
+/// sent while it handles another thread's), unless the window is completing its own composition, whose answer may come
+/// inside a sent focus message (MT-214 E6-F4, S3-Q1).
+fn refuses_ime(arrival: Arrival, completing: bool) -> bool {
+    arrival == Arrival::OtherThread && !completing
 }
 
 unsafe extern "system" fn hook(
@@ -577,8 +682,16 @@ unsafe extern "system" fn hook(
     let arrival = retrieval::arrival(hwnd, message, wparam, lparam);
     // Nested messages have origins of their own; this one's is put back when they are done.
     let outer = core.set_message(window.origin_of(message));
+    // A key's own dispatch: what the input method sends meanwhile takes its origin (MT-214 E6-F4). Not a character the
+    // system made of a key, whose origin is the newest key's.
+    let outer_key = (MessageKind::of(message) == MessageKind::Key).then(|| {
+        let current = core.message();
+        window
+            .dispatching_key
+            .replace(Some((current.origin, current.device)))
+    });
     let close = core
-        .guarded(|| window.close_before(&core, message, wparam, arrival))
+        .guarded(|| window.close_before(&core, message, wparam, lparam, arrival))
         .flatten();
     let before = core.guarded(|| window.before(&core, message, wparam, lparam, arrival));
     let (answer, after) = match before {
@@ -597,6 +710,9 @@ unsafe extern "system" fn hook(
         None => unsafe { DefSubclassProc(hwnd, message, wparam, lparam) },
     };
     window.after(after);
+    if let Some(outer_key) = outer_key {
+        window.dispatching_key.set(outer_key);
+    }
     if let Some(pending) = close {
         core.guarded(|| window.close_after(&core, pending));
     }
@@ -628,5 +744,52 @@ unsafe fn release(hwnd: HWND, reference: usize) {
     unsafe {
         RemoveWindowSubclass(hwnd, Some(hook), HOOK);
         drop(Rc::from_raw(reference as *const Window));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const OPERATOR: (Origin, DeviceKind) = (Origin::OperatorDevice, DeviceKind::Keyboard);
+    const INJECTED: (Origin, DeviceKind) = (Origin::OtherProgram, DeviceKind::Keyboard);
+
+    /// MT-214 E6-F4: the input method's messages take a key's origin only during that key's own dispatch. After the
+    /// Operator's key, one that anybody posts is not attributed, whatever the system reported for it, so its stamp never
+    /// carries the Operator's authority (`CommandSource::from_input`). Fails if they take the newest key's origin again.
+    #[test]
+    fn the_input_methods_messages_take_a_keys_origin_only_during_its_dispatch() {
+        for message in [WM_IME_STARTCOMPOSITION, WM_IME_COMPOSITION, WM_IME_ENDCOMPOSITION] {
+            let kind = MessageKind::of(message);
+            assert_eq!(kind, MessageKind::Ime, "{message:#x}");
+            assert_eq!(attributed(kind, UNSAID, Some(OPERATOR), None), UNSAID, "after the key");
+            assert_eq!(attributed(kind, OPERATOR, Some(OPERATOR), None), UNSAID, "reported, outside");
+            assert_eq!(attributed(kind, UNSAID, None, Some(OPERATOR)), OPERATOR, "inside its dispatch");
+            assert_eq!(attributed(kind, OPERATOR, Some(OPERATOR), Some(INJECTED)), INJECTED, "that key's");
+        }
+        // Text still takes the newest key's origin when the system does not say, as before (MT-214 S3).
+        for message in [WM_CHAR, WM_DEADCHAR, WM_SYSCHAR, WM_SYSDEADCHAR] {
+            let kind = MessageKind::of(message);
+            assert_eq!(kind, MessageKind::Text);
+            assert_eq!(attributed(kind, UNSAID, Some(OPERATOR), None), OPERATOR);
+            assert_eq!(attributed(kind, INJECTED, Some(OPERATOR), None), INJECTED);
+        }
+        // Keys and the pointer are what the system reported.
+        assert_eq!(MessageKind::of(0x100), MessageKind::Key);
+        assert_eq!(attributed(MessageKind::Key, INJECTED, Some(OPERATOR), Some(OPERATOR)), INJECTED);
+        assert_eq!(MessageKind::of(0x0200), MessageKind::Pointer);
+        assert_eq!(MessageKind::of(WM_DROPFILES), MessageKind::Pointer);
+        assert_eq!(MessageKind::of(WM_KILLFOCUS), MessageKind::Other);
+    }
+
+    /// MT-214 E6-F4: a composition message another thread sent never reaches the window library, except while the
+    /// window completes its own composition, whose answer can come inside a focus message another thread sent.
+    #[test]
+    fn a_composition_message_another_thread_sent_is_refused_unless_it_answers_a_completion() {
+        assert!(refuses_ime(Arrival::OtherThread, false));
+        assert!(!refuses_ime(Arrival::OtherThread, true));
+        for arrival in [Arrival::Queue, Arrival::ThisThread] {
+            assert!(!refuses_ime(arrival, false), "{arrival:?}");
+        }
     }
 }

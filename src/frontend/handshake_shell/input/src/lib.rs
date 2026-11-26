@@ -41,10 +41,12 @@
 //! window's text focus as [`ImeEvent`]s ([`Composition::Enabled`], `Preedit` with its cursor range, `Commit`,
 //! `Cancel`, `Disabled`), numbered per composition. Composed text reaches only the target where its composition
 //! began. A composition that showed preedit text ends in exactly one commit or one cancel, then disabled: also when
-//! the target loses the focus (the window loses the keyboard, the host moves the text focus, the target stops taking
-//! composed text, events are lost, the window goes), which ends it at once, with a cancel when its preedit was not
-//! committed, and nothing of it reaches that target afterwards. What the input method goes on with begins again as a
-//! new composition at the target that has the focus then ([`Synthetic::Rebound`]), or is left out when none takes
+//! the target loses the focus. Then the composition is completed, not dropped (MT-214 S3-Q1): the window is asked to
+//! complete it before the host moves the text focus or turns composition off ([`ImeRequest::Complete`], from
+//! [`InputTracker::take_requests`]) and completes it itself before it reports the loss of its keyboard; its result is
+//! a commit at its own target, never another, and a cancel is made only when no result came (events lost, the window
+//! gone or a new composition end it at once). What the input method goes on with afterwards begins again as a new
+//! composition at the target that has the focus then ([`Synthetic::Rebound`]), or is left out when none takes
 //! composed text. The candidate area follows the caret on scroll and on a scale change ([`CaretPlace::candidate_area`]). The composition itself is Kumihimo's (MT-198 KG-03): no preedit text, cursor or anchor
 //! is kept here. A model may not move the text focus, turn composition off, or type into a window while the
 //! Operator composes there.

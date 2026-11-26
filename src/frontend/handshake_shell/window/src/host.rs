@@ -87,8 +87,14 @@ pub struct RunReport {
     pub sent_wakes_refused: u64,
     /// Keyboard messages another thread sent, refused: input comes through the queue, and the window library is not
     /// entered with a key while it looks at the queue for one (MT-214 R2-N2). Keys taken out of the queue are not
-    /// counted, also when a loop that runs inside a message another thread sent dispatches them (E3-F5).
+    /// counted, also when a loop that runs inside a message another thread sent dispatches them (E3-F5). The input
+    /// method's composition messages (`WM_IME_STARTCOMPOSITION`, `WM_IME_COMPOSITION`, `WM_IME_ENDCOMPOSITION`) another
+    /// thread sent are refused and counted here too, except while the window completes its own composition (E6-F4).
     pub sent_keys_refused: u64,
+    /// Times a window asked the input method to complete its composition: [`crate::WindowCommand::CompleteIme`], and a
+    /// window's keyboard going while a composition was open (MT-214 S3-Q1). Counted whether or not the window had an
+    /// input context then.
+    pub ime_completions: u64,
 }
 
 /// The loop, as the host's handlers use it.

@@ -331,19 +331,40 @@ fn command(shell: &Shell<'_>, window: WindowKey, command: WindowCommand) {
 
 /// MT-214 E5-F2: a closing window is hidden only once its surface was released, after the proof of its presents
 /// ended. Every acquire of a hidden window's swapchain is out of date, so a proof begun before the hide never comes.
-fn not_hidden_while_proving(shell: &Shell<'_>, window: WindowKey) {
+///
+/// E6-F6: that same out-of-date acquire ends the proof and drops the swapchain at once, so the swapchain cannot show a
+/// hide that came first (the evaluation's S-M1 hid before the proof and this stayed silent). What does not depend on it:
+/// a hidden window whose proof ended unproven since its close began (`unproven_before`, the presenter's
+/// `closes_unproven` then). A proof that runs out of its time ends unproven too; these tests allow none.
+fn not_hidden_while_proving(shell: &Shell<'_>, window: WindowKey, unproven_before: u64) {
     let hidden = shell
         .control()
         .window_state(window)
         .is_some_and(|state| state.display == Display::Hidden);
+    let report = shell.report();
     let proving = shell
         .presentation(window)
         .is_some_and(|presentation| presentation.swapchain.is_some());
     assert!(
-        !(hidden && proving),
-        "hidden while its presents were being proven: {:?}",
-        shell.report()
+        !hidden_while_proving(hidden, proving, report.closes_unproven, unproven_before),
+        "hidden while its presents were being proven: {report:?}"
     );
+}
+
+/// Whether a window was hidden while its presents were being proven: it is hidden and either the swapchain of its proof
+/// still stands or a proof ended unproven since its close began. The second does not depend on the swapchain (E6-F6).
+fn hidden_while_proving(hidden: bool, proving: bool, unproven: u64, unproven_before: u64) -> bool {
+    hidden && (proving || unproven > unproven_before)
+}
+
+/// MT-214 E6-F6: the check holds when the swapchain is already gone, as it is once the out-of-date acquire of a hidden
+/// window ended the proof (the evaluation's mutation S-M1). Fails if it depends on the swapchain again.
+#[test]
+fn a_hide_before_the_proof_is_caught_without_the_swapchain() {
+    assert!(hidden_while_proving(true, false, 1, 0), "cut off, swapchain gone");
+    assert!(hidden_while_proving(true, true, 0, 0), "still proving");
+    assert!(!hidden_while_proving(true, false, 1, 1), "an earlier one is not this close's");
+    assert!(!hidden_while_proving(false, true, 2, 0), "not hidden");
 }
 
 /// Input, focus and move messages for the window, as the operating system posts them to it, and a move by the host:
@@ -596,6 +617,10 @@ fn closing_a_window_releases_its_target_once_and_keeps_the_other_presenting() {
     let Some(ended) = present_loop(2, || {
         let other_presented = Rc::new(Cell::new(0));
         let (note, check) = (Rc::clone(&other_presented), other_presented);
+        // The presenter's unproven closes before the close (E6-F6).
+        let unproven = Rc::new(Cell::new(0));
+        let before = [0; 4].map(|_| Rc::clone(&unproven));
+        let [at_close, at_damage, at_present, at_end] = before;
         vec![
             step("both windows present", |shell, app| {
                 settled(shell, app.window(0), 0) && settled(shell, app.window(1), 0)
@@ -603,25 +628,26 @@ fn closing_a_window_releases_its_target_once_and_keeps_the_other_presenting() {
             step("close the first", move |shell, app| {
                 assert_eq!(shell.report().targets_released, 0);
                 note.set(counts(shell, app.window(1)).1);
+                at_close.set(shell.report().closes_unproven);
                 shell.close_window(app.window(0)).expect("closing");
                 // Hidden at once with present fences; without them once its presents are proven ended (E5-F2).
-                not_hidden_while_proving(shell, app.window(0));
+                not_hidden_while_proving(shell, app.window(0), at_close.get());
                 true
             }),
-            step("damage the other", |shell, app| {
-                not_hidden_while_proving(shell, app.window(0));
+            step("damage the other", move |shell, app| {
+                not_hidden_while_proving(shell, app.window(0), at_damage.get());
                 shell.damage(app.window(1)).expect("damaged");
                 true
             }),
             step("the other still presents", move |shell, app| {
-                not_hidden_while_proving(shell, app.window(0));
+                not_hidden_while_proving(shell, app.window(0), at_present.get());
                 settled(shell, app.window(1), check.get())
             }),
-            step("the first lets its window go, once, before shutdown", |shell, app| {
+            step("the first lets its window go, once, before shutdown", move |shell, app| {
                 // Its presents are proven ended, by its present fences or, without them, by one present on a new
                 // swapchain whose image came back while it was still shown (MT-214 SF-2, E5-F2): the owner drops the
                 // target, the window goes.
-                not_hidden_while_proving(shell, app.window(0));
+                not_hidden_while_proving(shell, app.window(0), at_end.get());
                 let report = shell.report();
                 assert_eq!(report.closes_unproven, 0, "{report:?}");
                 assert!(report.targets_released <= 1, "once: {report:?}");
@@ -660,6 +686,9 @@ fn windows_opened_and_closed_one_after_another_leave_no_swapchain_behind() {
         })];
         for cycle in 0..CYCLES {
             let number = cycle + 1;
+            // The presenter's unproven closes before this window's close (E6-F6).
+            let at_close = Rc::new(Cell::new(0));
+            let at_gone = Rc::clone(&at_close);
             steps.extend([
                 step("open one more", move |shell, _| {
                     let at = 100 + 20 * cycle as i32;
@@ -672,12 +701,13 @@ fn windows_opened_and_closed_one_after_another_leave_no_swapchain_behind() {
                     app.windows.borrow().len() > number && settled(shell, app.window(number), 0)
                 }),
                 step("close it", move |shell, app| {
+                    at_close.set(shell.report().closes_unproven);
                     shell.close_window(app.window(number)).expect("closing");
-                    not_hidden_while_proving(shell, app.window(number));
+                    not_hidden_while_proving(shell, app.window(number), at_close.get());
                     true
                 }),
                 step("it is gone, with its swapchains and target", move |shell, app| {
-                    not_hidden_while_proving(shell, app.window(number));
+                    not_hidden_while_proving(shell, app.window(number), at_gone.get());
                     let now = swapchains(shell);
                     // The one that stays, and the closing window's old swapchain and the new one of its proof.
                     assert!(now <= 3, "{now} swapchains while window {number} closes");

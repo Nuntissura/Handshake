@@ -182,6 +182,81 @@ fn nothing_injects_input_or_a_composition_or_moves_focus_or_cursor() {
     );
 }
 
+/// The one call to the input method that is made at all (MT-214 S3-Q1), with its exact shape: complete the window's
+/// composition, so that its text is committed to the target it was typed at.
+const COMPLETION: &str = "ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0)";
+
+/// The window crate's one module that makes it.
+const COMPLETION_MODULE: &str = "../window/src/platform/ime.rs";
+
+/// What else asks the input method to do something with a composition: never, anywhere in the window crate.
+const COMPOSITION_CALLS: &[&str] = &[
+    "ImmSetCompositionStringW",
+    "ImmSetCompositionStringA",
+    "CPS_CANCEL",
+    "CPS_CONVERT",
+    "CPS_REVERT",
+];
+
+/// Every call of `ImmNotifyIME` in `sources`: where, and its text with the white space of its lines collapsed.
+fn notify_calls(sources: &[Source]) -> Vec<(String, String)> {
+    let mut calls = Vec::new();
+    for source in sources {
+        for (at, _) in source.code.match_indices("ImmNotifyIME(") {
+            let rest = &source.code[at..];
+            let end = rest.find(')').map_or(rest.len(), |end| end + 1);
+            let call = rest[..end].split_whitespace().collect::<Vec<_>>().join(" ");
+            calls.push((source.path.clone(), call));
+        }
+    }
+    calls
+}
+
+/// MT-214 S3-Q1: this crate never calls the input method (the scan above), and the window crate does it exactly once:
+/// `ImmNotifyIME` with `NI_COMPOSITIONSTR` and `CPS_COMPLETE`, in its `platform/ime.rs`, which turns a composition's
+/// string into its result string. No other call there asks the input method to cancel, convert, revert or set a
+/// composition. Fails if a second call, another shape (a cancel, a conversion) or another module appears.
+#[test]
+fn the_window_crate_makes_the_one_completion_call_and_no_other_composition_call() {
+    let window = below("../window/src");
+    assert!(window.len() >= 20, "the scan reads the window crate");
+    assert_eq!(
+        notify_calls(&window),
+        [(COMPLETION_MODULE.to_owned(), COMPLETION.to_owned())],
+        "one call, of this shape, in this module"
+    );
+    let found = lines(&window, COMPOSITION_CALLS);
+    assert!(found.is_empty(), "{found:#?}");
+    // The controls: a second call, another shape and another module are seen.
+    let sample = |path: &str, code: &str| Source {
+        path: path.to_owned(),
+        code: code_only(code),
+    };
+    let twice = sample(
+        COMPLETION_MODULE,
+        "ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
+ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);",
+    );
+    assert_eq!(notify_calls(&[twice]).len(), 2, "a second call is seen");
+    let elsewhere = sample(
+        "../window/src/platform/window.rs",
+        "ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);",
+    );
+    assert_ne!(notify_calls(&[elsewhere])[0].0, COMPLETION_MODULE, "another module is seen");
+    let cancel = sample(
+        COMPLETION_MODULE,
+        "ImmNotifyIME(
+    himc,
+    NI_COMPOSITIONSTR,
+    CPS_CANCEL,
+    0,
+);",
+    );
+    assert_ne!(notify_calls(&[cancel])[0].1, COMPLETION, "a cancel is another shape");
+    let set = [sample(COMPLETION_MODULE, "ImmSetCompositionStringW(h, 0, p, 1, q, 2);")];
+    assert_eq!(lines(&set, COMPOSITION_CALLS).len(), 1);
+}
+
 /// AC214-5: an input's origin and stamp are set inside the crate only. A public field would let a caller give a model's
 /// input the Operator's origin.
 #[test]

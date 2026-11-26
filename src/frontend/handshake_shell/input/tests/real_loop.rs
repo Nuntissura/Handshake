@@ -3,11 +3,17 @@
 //!
 //! Keys: a key down the system translates, its repeat, and the focus going: one press, one repeat, one release. The
 //! input method, allowed for a text target: a composition's start and its emptied preedit (`WM_IME_COMPOSITION` with no
-//! flags), the focus going mid-composition (one end, and none again when the input method's own end follows); a
-//! composition the host moves the text focus away from going on at the new target as one of its own; and nothing
-//! composed at all once a target that takes no composed text has the focus (`AllowIme(false)` carried out). A real
-//! input method's text needs the Operator's keyboard and desktop (HBR-QUIET-004). One loop per process, so this is a
-//! target of its own.
+//! flags), the focus going mid-composition (the window completes it first and says so, then one end, and none again
+//! when the input method's own end follows); a composition the host moves the text focus away from, which the window
+//! is asked to complete before it ends, going on at the new target as one of its own; and nothing composed at all once
+//! a target that takes no composed text has the focus (`AllowIme(false)` carried out). A real input method's text, and
+//! what it does when asked to complete, need the Operator's keyboard and desktop (HBR-QUIET-004). One loop per
+//! process, so this is a target of its own.
+//!
+//! The window library takes a window as focused only when it is active as well (winit 0.30.13 `window_state.rs`
+//! `has_active_focus`: `WM_NCACTIVATE` and `WM_SETFOCUS`), so every focus the test posts follows a `WM_NCACTIVATE` of
+//! an active window (MT-214 E6-F1). Posting the message activates nothing: the window stays inactive and not
+//! foreground, which `must_stay_inactive` holds.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -30,7 +36,7 @@ use handshake_shell_window::{
 use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     PostMessageW, WM_IME_COMPOSITION, WM_IME_ENDCOMPOSITION, WM_IME_STARTCOMPOSITION, WM_KEYDOWN,
-    WM_KILLFOCUS, WM_SETFOCUS,
+    WM_KILLFOCUS, WM_NCACTIVATE, WM_SETFOCUS,
 };
 
 use support::{must_stay_inactive, on_private_desktop, run_script, stop_watching, Log};
@@ -39,6 +45,9 @@ use support::{must_stay_inactive, on_private_desktop, run_script, stop_watching,
 const SPACE: WPARAM = 0x20;
 const SPACE_DOWN: LPARAM = 0x0039_0001;
 const SPACE_REPEAT: LPARAM = 0x4039_0001;
+
+/// The window is active (`WM_NCACTIVATE`, wparam true), which the window library needs before it reports a focus.
+const ACTIVE: (u32, WPARAM, LPARAM) = (WM_NCACTIVATE, 1, 0);
 
 const A: TextTarget = TextTarget(1);
 const B: TextTarget = TextTarget(2);
@@ -111,6 +120,8 @@ struct State {
     inputs: RefCell<Vec<InputEvent>>,
     /// The window crate's own input method events, as it reported them.
     window_ime: Log<String>,
+    /// The focus the window reported, as it changed.
+    window_focus: Log<bool>,
 }
 
 impl State {
@@ -191,8 +202,13 @@ impl State {
                 ImeChange::Preedit { .. } => "preedit".to_owned(),
                 ImeChange::Commit(_) => "commit".to_owned(),
                 ImeChange::Ended => "ended".to_owned(),
+                ImeChange::Completed => "completed".to_owned(),
                 _ => "other".to_owned(),
             }),
+            Event::Window {
+                event: WindowEvent::FocusChanged { focused },
+                ..
+            } => self.window_focus.add(focused),
             Event::Window {
                 event: WindowEvent::Destroyed,
                 ..
@@ -235,11 +251,18 @@ impl State {
         match self.step.get() {
             1 => post(
                 hwnd,
-                &[(WM_SETFOCUS, 0, 0), (WM_KEYDOWN, SPACE, SPACE_DOWN)],
+                &[ACTIVE, (WM_SETFOCUS, 0, 0), (WM_KEYDOWN, SPACE, SPACE_DOWN)],
             ),
             // One key at a time, so the character the system translates it to follows it in the queue.
             2 => post(hwnd, &[(WM_KEYDOWN, SPACE, SPACE_REPEAT)]),
             3 => {
+                // E6-F1: without the activation the window library reports no focus, and every step after this one
+                // waits for a focus that never comes.
+                assert_eq!(
+                    self.window_focus.all(),
+                    [true],
+                    "the window reported its focus"
+                );
                 assert_eq!(
                     self.space(),
                     [(KeyPhase::Press, false), (KeyPhase::Repeat, false)]
@@ -275,6 +298,7 @@ impl State {
                 post(
                     hwnd,
                     &[
+                        ACTIVE,
                         (WM_SETFOCUS, 0, 0),
                         (WM_IME_STARTCOMPOSITION, 0, 0),
                         (WM_IME_COMPOSITION, 0, 0),
@@ -284,11 +308,20 @@ impl State {
                 );
             }
             5 => {
+                // The window asked the input method to complete the composition before it reported the loss of its
+                // focus (S3-Q1): its report comes before the end, and a quiet input method has no result to give.
+                let window = self.window_ime.all();
+                let at = |name: &str| window.iter().position(|seen| seen == name);
                 assert_eq!(
-                    self.window_ime.all(),
+                    window.iter().filter(|seen| *seen != "completed").cloned().collect::<Vec<_>>(),
                     ["started", "preedit", "ended"],
-                    "the window's own events"
+                    "the window's own events: {window:?}"
                 );
+                assert!(
+                    at("completed") > at("preedit") && at("completed") < at("ended"),
+                    "completed before the loss of the keyboard: {window:?}"
+                );
+                assert_eq!(self.window_focus.all(), [true, false, true, false]);
                 assert_eq!(
                     self.take_compositions(),
                     [
@@ -300,22 +333,34 @@ impl State {
                 );
                 post(
                     hwnd,
-                    &[(WM_SETFOCUS, 0, 0), (WM_IME_STARTCOMPOSITION, 0, 0)],
+                    &[ACTIVE, (WM_SETFOCUS, 0, 0), (WM_IME_STARTCOMPOSITION, 0, 0)],
                 );
             }
             6 => {
                 assert_eq!(self.take_compositions(), ["1 #2 enabled"]);
+                // The host moves the text focus: the window is asked to complete the composition first (the tracker's
+                // request, carried out), and the composition ends at its own target once that is over.
+                self.window_ime.clear();
                 self.focus(control, text_focus(B, true));
                 assert_eq!(
                     self.take_compositions(),
-                    ["1 #2 disabled input.synthetic.focus_moved"]
+                    Vec::<String>::new(),
+                    "it waits for the completion, and is not cancelled before"
+                );
+            }
+            7 => {
+                assert_eq!(self.window_ime.all(), ["completed"], "the window completed it");
+                assert_eq!(
+                    self.take_compositions(),
+                    ["1 #2 disabled input.synthetic.focus_moved"],
+                    "ended at its own target when the completion was over"
                 );
                 post(
                     hwnd,
                     &[(WM_IME_COMPOSITION, 0, 0), (WM_IME_ENDCOMPOSITION, 0, 0)],
                 );
             }
-            7 => {
+            8 => {
                 assert_eq!(
                     self.take_compositions(),
                     [
@@ -335,7 +380,7 @@ impl State {
                     ],
                 );
             }
-            8 => {
+            9 => {
                 assert_eq!(
                     self.window_ime.all(),
                     Vec::<String>::new(),
@@ -371,8 +416,12 @@ fn keys_and_the_input_method_on_a_real_loop_reach_the_focused_target_and_end_onc
             move |control, _| steps.step(control),
         )
         .unwrap();
-        assert_eq!(state.step.get(), 8, "every step ran");
+        assert_eq!(state.step.get(), 9, "every step ran");
         assert_eq!(report.quiet_broken, 0);
+        assert_eq!(
+            report.ime_completions, 2,
+            "the loss of the keyboard, and the host's move of the text focus"
+        );
         assert_eq!(
             report.refusals, 0,
             "every request of the tracker was carried out"

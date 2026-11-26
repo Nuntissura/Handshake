@@ -467,7 +467,7 @@ fn f4_alone_makes_no_close_command_and_lends_nothing_to_a_posted_one() {
         let requests = Closing::default();
         let f4 = usize::from(VK_F4);
         let pending = requests
-            .before(at(1), WM_SYSKEYDOWN, f4, Arrival::Queue, true, || closing::queued_close(hwnd))
+            .before(at(1), (WM_SYSKEYDOWN, f4, 0x003E_0001), Arrival::Queue, true, || closing::queued_close(hwnd))
             .expect("a press");
         // SAFETY: plain values, for a window of this thread; the system's default handling of the key.
         unsafe { DefWindowProcW(hwnd, WM_SYSKEYDOWN, f4, 0x003E_0001) };
@@ -476,8 +476,8 @@ fn f4_alone_makes_no_close_command_and_lends_nothing_to_a_posted_one() {
         // Another program's close command, posted right after, taken out and carried out.
         post(SC_CLOSE);
         assert_eq!(take_command(hwnd), Some(SC_CLOSE as usize));
-        let ends = requests.before(at(3), WM_SYSCOMMAND, SC_CLOSE as usize, Arrival::Queue, false, || false);
-        requests.before(at(3), WM_CLOSE, 0, Arrival::ThisThread, false, || false);
+        let ends = requests.before(at(3), (WM_SYSCOMMAND, SC_CLOSE as usize, 0), Arrival::Queue, false, || false);
+        requests.before(at(3), (WM_CLOSE, 0, 0), Arrival::ThisThread, false, || false);
         requests.after(at(3), ends.expect("a close command"), || false);
         assert_eq!(requests.open(at(4)), Some(false), "nobody's");
         destroy(hwnd);

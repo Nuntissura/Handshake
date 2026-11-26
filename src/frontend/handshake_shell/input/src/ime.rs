@@ -3,11 +3,18 @@
 //! The window reports what the operating system's input method did ([`ImeChange`], from winit's IMM32 events). This
 //! routes it to the text target that has the window's text focus, numbers each composition, and ends every
 //! composition once: a composition that showed preedit text ends in exactly one [`Composition::Commit`] or one
-//! [`Composition::Cancel`], then [`Composition::Disabled`]. When the target loses the focus (the window loses the
-//! keyboard, the host moves the text focus, the target stops taking composed text, events are lost or the window goes)
-//! an open composition ends at once, with a cancel if its preedit was not committed, and nothing of it reaches that
-//! target afterwards. What the input method goes on with begins again, as a new composition, at the target that has
-//! the focus then (Synthetic::Rebound), or is left out when none takes composed text.
+//! [`Composition::Cancel`], then [`Composition::Disabled`].
+//!
+//! When the target loses the focus, its composition is committed, not dropped (MT-214 S3-Q1): the input method is
+//! asked to complete it (`WindowCommand::CompleteIme`, `ImmNotifyIME` `CPS_COMPLETE`) and its result goes to the
+//! composition's own target, never to another. Before the host moves the text focus or the target stops taking composed
+//! text, the tracker asks for the completion ([`ImeRequest::Complete`], before turning the input method off) and the
+//! composition waits for the window's [`ImeChange::Completed`]; the window itself completes before it reports the loss
+//! of its keyboard, and a composition with uncommitted preedit then waits for a late result until the input method ends
+//! it or the window has the keyboard again. While it waits, its preedit is shown nowhere; a commit goes to its target;
+//! it ends with a cancel only when no result came. Events lost, the window gone or a new composition end it at once.
+//! What the input method composes afterwards begins again, as a new composition, at the target that has the focus then
+//! (Synthetic::Rebound), or is left out when none takes composed text; a commit of no composition reaches no target.
 //!
 //! What is composed is Kumihimo's (MT-198 KG-03): this keeps no preedit text, cursor or anchor, only which
 //! composition is open for which target, whose it is, and whether its preedit was not committed yet.
@@ -149,9 +156,13 @@ pub struct TextFocus {
 }
 
 /// What the host asks the window for, so the operating system's input method follows the text focus. Carry it out
-/// with [`ImeRequest::command`].
+/// with [`ImeRequest::command`], in the order given.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ImeRequest {
+    /// Ask the input method to complete the window's composition, whose target lost the text focus: its result goes
+    /// to that target (MT-214 S3-Q1). Comes before an `Allow(false)` of the same window.
+    Complete,
     /// Let the input method compose for the window, or not.
     Allow(bool),
     /// Where its candidate window keeps clear of.
@@ -162,6 +173,7 @@ impl ImeRequest {
     /// The window command that carries it out. It moves no window and no focus.
     pub fn command(self) -> WindowCommand {
         match self {
+            Self::Complete => WindowCommand::CompleteIme,
             Self::Allow(allowed) => WindowCommand::AllowIme(allowed),
             Self::Area(area) => WindowCommand::SetImeArea(area),
         }
@@ -176,7 +188,8 @@ pub enum FocusRefusal {
     UnknownWindow,
     /// The target does not have the window's text focus.
     NotFocused,
-    /// The Operator composes in the window, and a model may not take that away (GUI-DESKTOP-041).
+    /// The Operator composes in the window, and a model may not take that away (GUI-DESKTOP-041): any composition that
+    /// is not a model's, since the input method's messages are attributed only during a key's own dispatch (E6-F4).
     OperatorComposing,
 }
 
@@ -211,17 +224,39 @@ struct Open {
     pending: bool,
 }
 
-/// The text focus of one window and its open composition.
+/// What a composition whose target lost the focus waits for before it ends (MT-214 S3-Q1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Until {
+    /// The host moved the text focus or turned composition off, and the window was asked to complete it: the window's
+    /// `ImeChange::Completed` after that request.
+    Completed,
+    /// The window lost the keyboard and completed it before it said so: the input method's own end, or the keyboard
+    /// coming back.
+    KeyboardBack,
+}
+
+/// A composition whose target lost the focus, waiting for the input method's result for it. Not its text.
+#[derive(Clone, Copy, Debug)]
+struct Completing {
+    open: Open,
+    /// Why its target lost the focus: the cause of the end this crate makes.
+    cause: Synthetic,
+    until: Until,
+}
+
+/// The text focus of one window, its open composition, and one whose target lost the focus.
 #[derive(Debug)]
 struct WindowText {
     scale: ScaleFactor,
     keyboard: bool,
     focus: Option<TextFocus>,
     open: Option<Open>,
+    completing: Option<Completing>,
     /// What the window was last asked for.
     allowed: bool,
     area: Option<ClientRect>,
     /// Requests the host did not take yet: the newest of each kind only.
+    want_complete: bool,
     want_allow: Option<bool>,
     want_area: Option<ClientRect>,
 }
@@ -233,8 +268,10 @@ impl WindowText {
             keyboard,
             focus: None,
             open: None,
+            completing: None,
             allowed: false,
             area: None,
+            want_complete: false,
             want_allow: None,
             want_area: None,
         }
@@ -306,12 +343,14 @@ impl ImeRouter {
             .map(|focus| focus.target)
     }
 
-    /// An Operator's composition is open in the window.
+    /// A composition that is not a model's is open in the window: the Operator's, as far as a model may take it away.
+    /// The input method's messages carry the Operator's origin only during the Operator's key's own dispatch (MT-214
+    /// E6-F4), so one of no stated origin is protected as well; this grants nothing.
     pub(crate) fn operator_composing(&self, window: WindowKey) -> bool {
         self.windows
             .get(&window)
             .and_then(|text| text.open)
-            .is_some_and(|open| open.origin == Origin::OperatorDevice)
+            .is_some_and(|open| !matches!(open.origin, Origin::ModelAction(_)))
     }
 
     pub(crate) fn created(&mut self, window: WindowKey, scale: ScaleFactor, keyboard: bool) {
@@ -328,6 +367,9 @@ impl ImeRouter {
         }
     }
 
+    /// The window got or lost the keyboard. The window asked the input method to complete an open composition before it
+    /// reported the loss (MT-214 S3-Q1): one whose preedit no commit took waits for a late result at its own target;
+    /// one without ends now. When the keyboard comes back, one that still waits got no result.
     pub(crate) fn keyboard(
         &mut self,
         window: WindowKey,
@@ -335,15 +377,28 @@ impl ImeRouter {
         at: EventTime,
         out: &mut Vec<InputEvent>,
     ) {
-        if let Some(text) = self.windows.get_mut(&window) {
-            text.keyboard = has;
+        let Some(text) = self.windows.get_mut(&window) else {
+            return;
+        };
+        text.keyboard = has;
+        if has {
+            let back = text
+                .completing
+                .is_some_and(|waiting| waiting.until == Until::KeyboardBack);
+            if back {
+                self.end_completing(window, None, at, out);
+            }
+            return;
         }
-        if !has {
+        if text.open.is_some_and(|open| open.pending) {
+            self.detach(window, Synthetic::FocusLost, Until::KeyboardBack, at, out);
+        } else {
             self.settle(window, Synthetic::FocusLost, at, out);
         }
     }
 
     pub(crate) fn gone(&mut self, window: WindowKey, at: EventTime, out: &mut Vec<InputEvent>) {
+        self.end_completing(window, Some(Synthetic::WindowGone), at, out);
         self.settle(window, Synthetic::WindowGone, at, out);
         self.windows.remove(&window);
     }
@@ -351,6 +406,7 @@ impl ImeRouter {
     pub(crate) fn events_lost(&mut self, at: EventTime, out: &mut Vec<InputEvent>) {
         let windows: Vec<WindowKey> = self.windows.keys().copied().collect();
         for window in windows {
+            self.end_completing(window, Some(Synthetic::EventsLost), at, out);
             self.settle(window, Synthetic::EventsLost, at, out);
         }
     }
@@ -370,6 +426,36 @@ impl ImeRouter {
         else {
             return;
         };
+        self.end(window, open, cause, at, out);
+    }
+
+    /// End the window's composition that waits for its result: a cancel when no result took its preedit, then disabled.
+    /// `cause`: why, when not why its target lost the focus.
+    fn end_completing(
+        &mut self,
+        window: WindowKey,
+        cause: Option<Synthetic>,
+        at: EventTime,
+        out: &mut Vec<InputEvent>,
+    ) {
+        let Some(waiting) = self
+            .windows
+            .get_mut(&window)
+            .and_then(|text| text.completing.take())
+        else {
+            return;
+        };
+        self.end(window, waiting.open, cause.unwrap_or(waiting.cause), at, out);
+    }
+
+    fn end(
+        &mut self,
+        window: WindowKey,
+        open: Open,
+        cause: Synthetic,
+        at: EventTime,
+        out: &mut Vec<InputEvent>,
+    ) {
         let from = Source {
             origin: open.origin,
             at,
@@ -380,6 +466,30 @@ impl ImeRouter {
         }
         emit(out, window, &open, Composition::Disabled, from, Some(cause));
         self.counts.settled = self.counts.settled.saturating_add(1);
+    }
+
+    /// The window's open composition stops following the text focus: it waits at its own target for the result of its
+    /// completion (MT-214 S3-Q1). For [`Until::Completed`] the window is asked to complete it. One that waited before
+    /// ends first.
+    fn detach(
+        &mut self,
+        window: WindowKey,
+        cause: Synthetic,
+        until: Until,
+        at: EventTime,
+        out: &mut Vec<InputEvent>,
+    ) {
+        self.end_completing(window, None, at, out);
+        let Some(text) = self.windows.get_mut(&window) else {
+            return;
+        };
+        let Some(open) = text.open.take() else {
+            return;
+        };
+        text.completing = Some(Completing { open, cause, until });
+        if until == Until::Completed {
+            text.want_complete = true;
+        }
     }
 
     /// Open a composition at the focused target, if it takes composed text and the window has the keyboard.
@@ -428,6 +538,10 @@ impl ImeRouter {
         }
     }
 
+    fn waiting(&self, window: WindowKey) -> Option<Completing> {
+        self.windows.get(&window).and_then(|text| text.completing)
+    }
+
     fn dropped(&mut self) {
         self.counts.dropped = self.counts.dropped.saturating_add(1);
     }
@@ -446,6 +560,7 @@ impl ImeRouter {
         }
         match change {
             ImeChange::Started => {
+                self.end_completing(window, Some(Synthetic::Replaced), from.at, out);
                 self.settle(window, Synthetic::Replaced, from.at, out);
                 match self.begin(window, from.origin) {
                     Some(open) => emit(out, window, &open, Composition::Enabled, from, None),
@@ -453,6 +568,14 @@ impl ImeRouter {
                 }
             }
             ImeChange::Preedit { text, cursor } => {
+                if self.waiting(window).is_some() {
+                    // Its target lost the focus: what it composes is shown nowhere. The empty preedit before a result
+                    // is no loss.
+                    if !text.as_str().is_empty() {
+                        self.dropped();
+                    }
+                    return;
+                }
                 let Some(mut open) = self.open_or_rebind(window, from, out) else {
                     self.dropped();
                     return;
@@ -480,12 +603,21 @@ impl ImeRouter {
                     self.counts.empty_commits = self.counts.empty_commits.saturating_add(1);
                     return;
                 }
-                let Some(mut open) = self.open_or_rebind(window, from, out) else {
+                let target = match self.windows.get_mut(&window) {
+                    Some(text) => text
+                        .completing
+                        .as_mut()
+                        .map(|waiting| &mut waiting.open)
+                        .or(text.open.as_mut()),
+                    None => None,
+                };
+                // The result of a composition goes to its own target only; one of no composition is begun nowhere.
+                let Some(open) = target else {
                     self.dropped();
                     return;
                 };
                 open.pending = false;
-                self.set_open(window, Some(open));
+                let open = *open;
                 emit(
                     out,
                     window,
@@ -496,6 +628,11 @@ impl ImeRouter {
                 );
             }
             ImeChange::Ended => {
+                if self.waiting(window).is_some() {
+                    // The input method ended the composition its target lost: a cancel when no result came.
+                    self.end_completing(window, None, from.at, out);
+                    return;
+                }
                 // Nothing open: the input method ends one this crate already ended, or none.
                 let Some(open) = self
                     .windows
@@ -510,11 +647,23 @@ impl ImeRouter {
                 }
                 emit(out, window, &open, Composition::Disabled, from, None);
             }
+            ImeChange::Completed => {
+                // The completion asked for when the text focus moved is over: what the input method gave came before.
+                // The window's own, before it reports the loss of its keyboard, leaves an open composition to that.
+                let asked = self
+                    .waiting(window)
+                    .is_some_and(|waiting| waiting.until == Until::Completed);
+                if asked {
+                    self.end_completing(window, None, from.at, out);
+                }
+            }
             _ => self.dropped(),
         }
     }
 
-    /// The host moved the window's text focus, or changed what its target takes. `model`: a model asked.
+    /// The host moved the window's text focus, or changed what its target takes. `model`: a model asked. A composition
+    /// of the target that loses the focus, or stops taking composed text, waits for the result the window is asked for
+    /// ([`ImeRequest::Complete`]).
     pub(crate) fn focus(
         &mut self,
         window: WindowKey,
@@ -536,9 +685,9 @@ impl ImeRouter {
             return Err(FocusRefusal::OperatorComposing);
         }
         if moves {
-            self.settle(window, Synthetic::FocusMoved, at, out);
+            self.detach(window, Synthetic::FocusMoved, Until::Completed, at, out);
         } else if turns_off {
-            self.settle(window, Synthetic::ImeTurnedOff, at, out);
+            self.detach(window, Synthetic::ImeTurnedOff, Until::Completed, at, out);
         }
         if let Some(text) = self.windows.get_mut(&window) {
             text.focus = focus;
@@ -568,10 +717,13 @@ impl ImeRouter {
         Ok(())
     }
 
-    /// What the host has to ask the windows for, allowing before placing.
+    /// What the host has to ask the windows for: completing before allowing, allowing before placing.
     pub(crate) fn take_requests(&mut self) -> Vec<(WindowKey, ImeRequest)> {
         let mut requests = Vec::new();
         for (window, text) in &mut self.windows {
+            if std::mem::take(&mut text.want_complete) {
+                requests.push((*window, ImeRequest::Complete));
+            }
             if let Some(allowed) = text.want_allow.take() {
                 requests.push((*window, ImeRequest::Allow(allowed)));
             }

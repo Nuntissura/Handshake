@@ -90,6 +90,12 @@ pub enum WindowCommand {
     AllowIme(bool),
     /// Where the input method's candidate window keeps clear of: the caret, in the client area.
     SetImeArea(ClientRect),
+    /// Ask the operating system's input method to complete the window's composition: its composition string becomes
+    /// the result string (`ImmNotifyIME`, `NI_COMPOSITIONSTR`, `CPS_COMPLETE`). What it gives at once arrives as
+    /// [`crate::WindowEvent::Ime`] before the [`crate::ImeChange::Completed`] the window reports after the request. For
+    /// the moment before the text focus moves or composition is turned off (MT-214 S3-Q1). It moves no window and no
+    /// focus.
+    CompleteIme,
     /// Destroy it. Refused while a [`crate::NativeWindowToken`] exists: a Vulkan surface must not outlive its window.
     Destroy,
 }
@@ -108,6 +114,7 @@ impl fmt::Debug for WindowCommand {
             Self::SetTitle(_) => f.write_str("SetTitle"),
             Self::AllowIme(allowed) => write!(f, "AllowIme({allowed})"),
             Self::SetImeArea(area) => write!(f, "SetImeArea({area:?})"),
+            Self::CompleteIme => f.write_str("CompleteIme"),
             Self::Destroy => f.write_str("Destroy"),
         }
     }

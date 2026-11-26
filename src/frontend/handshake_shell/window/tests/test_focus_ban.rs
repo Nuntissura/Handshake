@@ -462,7 +462,7 @@ fn bodies(code: &str) -> Vec<(usize, usize)> {
         .collect()
 }
 
-/// Lines of `code` with a clipboard write that no [`STATION_CHECK`] earlier in its own function guards.
+/// Lines of `code` with a clipboard write that no [`STATION_CHECK`] earlier in its own function guards ([`guards`]).
 fn unchecked_writes(code: &str) -> Vec<usize> {
     let bodies = bodies(code);
     let mut lines: Vec<usize> = CLIPBOARD_WRITES
@@ -475,13 +475,78 @@ fn unchecked_writes(code: &str) -> Vec<usize> {
                 .iter()
                 .filter(|(from, to)| (*from..*to).contains(at))
                 .max_by_key(|(from, _)| *from);
-            !inner.is_some_and(|(from, _)| code[*from..*at].contains(STATION_CHECK))
+            !inner.is_some_and(|(from, _)| {
+                code[*from..*at]
+                    .match_indices(STATION_CHECK)
+                    .any(|(check, _)| guards(code, from + check, *at))
+            })
         })
         .map(|at| code[..at].matches('\n').count() + 1)
         .collect();
     lines.sort_unstable();
     lines.dedup();
     lines
+}
+
+/// Where the innermost brace block of `code` around `at` opens and ends, braces included.
+fn block_around(code: &str, at: usize) -> Option<(usize, usize)> {
+    let mut open = Vec::new();
+    for (offset, c) in code[..at].char_indices() {
+        match c {
+            '{' => open.push(offset),
+            '}' => {
+                open.pop();
+            }
+            _ => {}
+        }
+    }
+    let from = *open.last()?;
+    Some((from, from + enclosed(&code[from..], '{', '}').len()))
+}
+
+/// Whether the [`STATION_CHECK`] at `check` guards the clipboard write at `write` after it (MT-214 E6-F8): a check that
+/// is there but guards nothing does not count. It guards it as `assert_clipboard_is_private();`, a statement of a block
+/// that holds the write; as the condition of an `if` whose block holds the write, with no `||` beside it; or as
+/// `if !clipboard_is_private() { return; }` before the write in a block that holds it.
+fn guards(code: &str, check: usize, write: usize) -> bool {
+    let Some((from, to)) = block_around(code, check) else {
+        return false;
+    };
+    if check >= write || !(from..to).contains(&write) {
+        return false;
+    }
+    let after = code[check + STATION_CHECK.len()..].trim_start();
+    if code[..check].ends_with("assert_") {
+        return after
+            .strip_prefix(')')
+            .is_some_and(|rest| rest.trim_start().starts_with(';'));
+    }
+    // The `if` the check is the condition of, and the block it opens.
+    let Some(condition_at) = code[..check]
+        .rmatch_indices("if ")
+        .map(|(at, _)| at)
+        .find(|at| !code[..*at].chars().next_back().is_some_and(is_word_end))
+    else {
+        return false;
+    };
+    let Some(open) = code[check..].find('{').map(|offset| check + offset) else {
+        return false;
+    };
+    let condition = &code[condition_at + "if ".len()..open];
+    if [";", "}", "||"].iter().any(|word| condition.contains(word)) {
+        return false;
+    }
+    let block = enclosed(&code[open..], '{', '}');
+    let negated = code[..check].trim_end().ends_with('!');
+    if negated {
+        // The rest of the block runs only on the fresh station: the condition is the check alone, its block returns.
+        let inner = block[1..block.len() - 1].trim();
+        condition.trim() == format!("!{STATION_CHECK})")
+            && matches!(inner, "return;" | "return")
+            && open + block.len() <= write
+    } else {
+        (open..open + block.len()).contains(&write)
+    }
 }
 
 /// What is wrong with how the harness's code makes the clipboard tests' window station and lets them write: it must
@@ -615,6 +680,27 @@ fn the_clipboard_scan_catches_a_shared_station_and_a_write_before_the_preflight(
     // A write without the check before it.
     let emptied = mutated(support, "impl Drop for EmptiedAtEnd", "if !clipboard_is_private()", "if false");
     assert!(!unchecked_writes(&emptied).is_empty());
+    // A check that is there and guards nothing (MT-214 E6-F8, the evaluation's C-M2): its block no longer returns, or
+    // it is no longer the whole condition, or an assert only names it.
+    let unguarded = mutated(support, "impl Drop for EmptiedAtEnd", "return;", "let _ = 0;");
+    assert!(!unchecked_writes(&unguarded).is_empty());
+    let either = mutated(support, "impl Drop for EmptiedAtEnd", "!clipboard_is_private()", "!clipboard_is_private() && false");
+    assert!(!unchecked_writes(&either).is_empty());
+    let or = mutated(clipboard_test, "fn other_program(", "&& clipboard_is_private()", "|| clipboard_is_private()");
+    assert!(!unchecked_writes(&or).is_empty());
+    let unused = mutated(clipboard_test, "fn put(", "assert_clipboard_is_private();", "let _ = assert_clipboard_is_private;");
+    assert!(!unchecked_writes(&unused).is_empty());
+    let elsewhere = mutated(
+        clipboard_test,
+        "fn put(",
+        "assert_clipboard_is_private();",
+        "if false { assert_clipboard_is_private(); }",
+    );
+    assert!(!unchecked_writes(&elsewhere).is_empty());
+    // And the code as it is passes, so each of these is caught for its own fault.
+    for path in HARNESS {
+        assert!(unchecked_writes(&source(&sources, path).code).is_empty(), "{path}");
+    }
     let put = mutated(clipboard_test, "fn put(", "assert_clipboard_is_private();", "");
     assert!(!unchecked_writes(&put).is_empty());
     let rendered = mutated(clipboard_test, "fn other_program(", "&& clipboard_is_private()", "");

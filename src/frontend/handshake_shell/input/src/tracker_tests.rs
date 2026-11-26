@@ -489,7 +489,17 @@ fn a_model_cannot_type_into_the_operators_composition() {
         "a model's click counts as the model's"
     );
     assert_eq!(tracker.report().model_refused, 4);
+    // The shell may: the window is asked to complete the composition, which ends when that is over (MT-214 S3-Q1).
     let ended = tracker.focus_text(W, None, FocusBy::Host, at(6)).unwrap();
+    assert!(ended.is_empty(), "it waits for the completion");
+    assert!(tracker
+        .take_requests()
+        .iter()
+        .any(|(_, request)| *request == ImeRequest::Complete));
+    let mut ended = Vec::new();
+    tracker
+        .ime
+        .change(W, &ImeChange::Completed, operator, &mut ended);
     assert!(matches!(
         ended.last().map(InputEvent::input),
         Some(Input::Ime(ime)) if ime.change == Composition::Disabled
@@ -811,6 +821,8 @@ fn input_method_events_reach_the_focused_target_through_the_tracker() {
                 3,
             ),
             window(W, WindowEvent::FocusChanged { focused: false }),
+            // The preedit no result took: the input method's own end is a cancel (MT-214 S3-Q1).
+            ime(ImeChange::Ended, 4),
         ],
     );
     let changes: Vec<(Composition, Option<Synthetic>, Origin)> = out
