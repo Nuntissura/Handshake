@@ -61,7 +61,13 @@ const NEVER: &[&str] = &[
     "SwitchDesktop",
     "OpenInputDesktop",
     "ShowWindow",
+    "ShowWindowAsync",
     "SetWindowPos",
+    "SetWindowPlacement",
+    "MoveWindow",
+    "DeferWindowPos",
+    "OpenIcon",
+    "CloseWindow",
     "SendMessageW",
     "focus_window",
     "request_user_attention",
@@ -146,16 +152,28 @@ fn block<'a>(code: &'a str, head: &str) -> &'a str {
     panic!("{head} has no end");
 }
 
+/// What a manifest has under the table `header`: its header on a line of its own (a comment that names the table is not
+/// the table), up to the next table (MT-214 E7-F4).
+fn table<'a>(manifest: &'a str, header: &str) -> Option<&'a str> {
+    let mut at = 0;
+    let mut start = None;
+    for line in manifest.split_inclusive('\n') {
+        let text = line.trim();
+        match start {
+            None if text == header => start = Some(at + line.len()),
+            Some(from) if text.starts_with('[') => return Some(&manifest[from..at]),
+            _ => {}
+        }
+        at += line.len();
+    }
+    start.map(|from| &manifest[from..])
+}
+
 /// The names of a dependency table of the manifest.
-fn dependencies(table: &str) -> Vec<String> {
+fn dependencies(header: &str) -> Vec<String> {
     let manifest = include_str!("../Cargo.toml");
-    let rest = manifest
-        .split(table)
-        .nth(1)
-        .unwrap_or_else(|| panic!("{table}"));
-    rest.split("\n[")
-        .next()
-        .unwrap_or_default()
+    table(manifest, header)
+        .unwrap_or_else(|| panic!("{header}"))
         .lines()
         .filter(|line| !line.starts_with('#') && !line.starts_with(' ') && !line.starts_with(']'))
         .filter_map(|line| line.split_once(" = ").map(|(name, _)| name.trim().to_owned()))
@@ -221,6 +239,11 @@ fn nothing_activates_orders_or_focuses_a_window_or_injects_input() {
         code: code_only("unsafe { SetFocus(hwnd) }; element.SetFocus()?; // SendInput(1, &i, 40)\nShowWindow(h, 4);"),
     }];
     assert_eq!(lines(&control, NEVER).len(), 1, "the scan finds calls, not mentions");
+    // E7-F8: asynchronous and placement forms of showing and moving a window.
+    for call in ["ShowWindowAsync(h, 1);", "SetWindowPlacement(h, &p);", "MoveWindow(h, 0, 0, 1, 1, 1);"] {
+        let sample = vec![Source { path: "tests/sample.rs".to_owned(), code: code_only(call) }];
+        assert_eq!(lines(&sample, NEVER).len(), 1, "{call}");
+    }
     assert_eq!(win32_set_focus(&control).len(), 1, "the Win32 call, not the provider's");
     let provider_only = vec![Source {
         path: "tests/sample.rs".to_owned(),
@@ -237,16 +260,18 @@ fn a_request_and_its_origin_are_made_inside_the_crate_only() {
     let public: Vec<&str> = fields.lines().map(str::trim).filter(|line| line.starts_with("pub")).collect();
     assert!(public.is_empty(), "{public:?}");
     assert!(!lines_with(fields, "origin").is_empty(), "the scan reads the fields");
-    let methods = block(&request.code, "impl AccessRequest {");
-    let mut public = 0;
-    for (at, _) in methods.match_indices("pub fn") {
-        let signature = &methods[at..];
-        let signature = &signature[..signature.find('{').unwrap_or(signature.len())];
-        public += 1;
-        for made in ["Self", "AccessRequest"] {
-            assert!(lines_with(signature, made).is_empty(), "{signature}");
-        }
-    }
+    // Every `impl AccessRequest` block of the crate, not the first alone (E7-F8).
+    let sources: Vec<Source> = below("src")
+        .into_iter()
+        .filter(|source| !source.path.ends_with("_tests.rs"))
+        .collect();
+    let made = request_makers(&sources);
+    assert!(made.is_empty(), "{made:#?}");
+    let public: usize = sources
+        .iter()
+        .flat_map(|source| impl_blocks(&source.code, "AccessRequest"))
+        .map(|methods| methods.matches("pub fn").count())
+        .sum();
     assert!(public >= 8, "the scan reads the methods: {public}");
     // The adapter's requests are another program's, and nothing in the crate says the Operator's.
     let hub = source("src/hub.rs");
@@ -254,8 +279,17 @@ fn a_request_and_its_origin_are_made_inside_the_crate_only() {
     for source in below("src") {
         assert!(lines_with(&source.code, "OperatorDevice").is_empty(), "{}", source.path);
     }
-    let forged = code_only("impl AccessRequest {\n    pub fn forge(origin: Origin) -> Self {\n    }\n}\n");
-    assert!(!lines_with(block(&forged, "impl AccessRequest {"), "Self").is_empty(), "the scan sees a constructor");
+    let sample = |code: &str| vec![Source { path: "src/sample.rs".to_owned(), code: code_only(code) }];
+    let forged = sample("impl AccessRequest {\n    pub fn forge(origin: Origin) -> Self {\n    }\n}\n");
+    assert_eq!(request_makers(&forged).len(), 1, "the scan sees a constructor");
+    // A second block, after a clean one, with a constructor of any shape that takes an origin.
+    let second = sample(
+        "impl AccessRequest {\n    pub fn at(&self) -> u8 { 1 }\n}\nimpl AccessRequest {\n    pub fn with(origin: Origin, w: u8) -> AccessRequest {\n    }\n}\n",
+    );
+    assert_eq!(request_makers(&second).len(), 1, "the second block is read too");
+    let taking = sample("impl AccessRequest {\n    pub fn set(&mut self, origin: Origin) {}\n    pub fn origin(&self) -> Origin { self.origin }\n}\n");
+    assert_eq!(request_makers(&taking).len(), 1, "taking an origin, not returning one");
+    assert_eq!(request_makers(&sample("impl From<u8> for AccessRequest {\n}\n")).len(), 1, "a trait impl");
 }
 
 /// Lines with a call of `run_script` outside the parentheses of an `on_private_desktop(` call.
@@ -308,13 +342,72 @@ fn every_loop_and_client_of_a_test_runs_on_a_private_desktop() {
         loops += test.code.matches("run_script(").count();
         let direct = lines(
             std::slice::from_ref(&test),
-            &["handshake_shell_window::run", "SetThreadDesktop", "CreateDesktopW", "std::thread::spawn", "thread::spawn"],
+            &[
+                "handshake_shell_window::run",
+                "SetThreadDesktop",
+                "CreateDesktopW",
+                "std::thread::spawn",
+                "thread::spawn",
+                "thread::Builder",
+                "thread::scope",
+                "Builder",
+            ],
         );
         assert!(direct.is_empty(), "a thread of a test is made by the support, on the loop's desktop: {direct:#?}");
     }
     assert!(loops >= 1, "the scan sees the loop");
     let outside = code_only("fn a() {\n    on_private_desktop(L, || {});\n    run_script(c, e, w);\n}\n");
     assert_eq!(loops_outside_a_private_desktop(&outside), [3], "the scan sees one outside");
+    // E7-F8: a thread made another way is found as well.
+    let words = ["thread::Builder", "thread::scope", "Builder"];
+    for made in [
+        "let h = std::thread::Builder::new().spawn(f);",
+        "use std::thread::{self, Builder};",
+        "std::thread::scope(|s| {});",
+    ] {
+        let sample = vec![Source { path: "tests/sample.rs".to_owned(), code: code_only(made) }];
+        assert!(!lines(&sample, &words).is_empty(), "{made}");
+    }
+}
+
+/// The text of each `impl <name> {` block in `code`, up to its closing brace.
+fn impl_blocks<'a>(code: &'a str, name: &str) -> Vec<&'a str> {
+    let head = format!("impl {name}");
+    let mut blocks = Vec::new();
+    for (at, _) in code.match_indices(&head) {
+        let after = &code[at + head.len()..];
+        if !after.trim_start().starts_with('{') {
+            continue;
+        }
+        let open = at + head.len() + after.find('{').unwrap_or(0);
+        blocks.push(block(&code[open..], "{"));
+    }
+    blocks
+}
+
+/// Signatures that make a request or take an origin, in any `impl AccessRequest` block of `sources`, and any impl of a
+/// trait for the request (`From`, `Default`, ...): the crate alone makes a request, with its own origin (E7-F8).
+fn request_makers(sources: &[Source]) -> Vec<String> {
+    let mut found = Vec::new();
+    for source in sources {
+        if !lines_with(&source.code, "for AccessRequest").is_empty() {
+            found.push(format!("{}: a trait impl for AccessRequest", source.path));
+        }
+        for methods in impl_blocks(&source.code, "AccessRequest") {
+            for (at, _) in methods.match_indices("pub fn") {
+                let signature = &methods[at..];
+                let signature = &signature[..signature.find('{').unwrap_or(signature.len())];
+                let params = signature.split("->").next().unwrap_or_default();
+                let makes = ["Self", "AccessRequest"]
+                    .iter()
+                    .any(|made| !lines_with(signature, made).is_empty());
+                if makes || !lines_with(params, "Origin").is_empty() {
+                    found.push(format!("{}: {}", source.path, signature.trim()));
+                }
+            }
+        }
+    }
+    found
 }
 
 /// AC214-1: the adapter is the asset's, at the revision the current application uses, and nothing banned is locked.
@@ -323,7 +416,8 @@ fn the_adapter_is_the_assets_and_no_banned_crate_is_locked() {
     let lock = include_str!("../../Cargo.lock");
     let workspace = include_str!("../../Cargo.toml");
     const REVISION: &str = "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8";
-    let patch = workspace.split("[patch.crates-io]").nth(1).expect("the workspace patches the adapter");
+    // The table's own header line: a comment that names the table comes first in the workspace manifest (E7-F4).
+    let patch = table(workspace, "[patch.crates-io]").expect("the workspace patches the adapter");
     assert!(patch.contains("accesskit_windows") && patch.contains(REVISION), "{patch}");
     let adapters: Vec<&str> = lock
         .split("[[package]]")
@@ -358,4 +452,16 @@ fn the_adapter_is_the_assets_and_no_banned_crate_is_locked() {
         assert!(!lock.contains(&format!("name = \"{name}\"")), "{name} is locked");
     }
     assert!(lock.contains("name = \"handshake_shell_accessibility\""), "the crate is locked");
+}
+
+/// MT-214 E7-F4: a table is found by its header line, not by the first mention of its name, which the workspace
+/// manifest has in a comment above it. Fails if the first mention is taken again.
+#[test]
+fn a_comment_naming_a_table_is_not_the_table() {
+    let manifest = "# members stay out of [patch.crates-io] unless pinned\n[workspace]\nmembers = []\n\n  [patch.crates-io]\na = { git = \"x\" }\n[profile.dev]\nb = 1\n";
+    let patch = table(manifest, "[patch.crates-io]").expect("the table");
+    assert_eq!(patch, "a = { git = \"x\" }\n", "up to the next table");
+    assert_eq!(table(manifest, "[workspace]"), Some("members = []\n\n"), "up to the next header");
+    assert_eq!(table("# [patch.crates-io] only\n", "[patch.crates-io]"), None, "a comment alone is no table");
+    assert_eq!(table("[a]\nx = 1\n", "[a]"), Some("x = 1\n"), "a table at the end");
 }

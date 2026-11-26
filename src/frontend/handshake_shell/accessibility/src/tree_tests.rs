@@ -431,3 +431,91 @@ fn text_runs_are_read_by_the_adapters_consumer() {
     assert_eq!(read.document_range().text(), text);
     assert!(read.text_selection().is_some(), "the caret reads back");
 }
+
+/// MT-214 E7-F2, mutation caught: a list relation pushed after the host's ids were cleared (accesskit 0.21.1 leaves
+/// the cleared slot empty and a later push adds nothing), so the relation by key is lost; or the relations of one kind
+/// not all kept in order.
+#[test]
+fn list_relations_by_key_are_kept_when_the_host_set_ids_of_the_same_kind() {
+    let mut tree = WindowTree::new(ScaleFactor::ONE);
+    let mut consumer = consumer_of(&tree);
+    let mut field = SemanticNode::new(key(2), Node::new(Role::TextInput));
+    field.node.push_labelled_by(NodeId(70));
+    field.node.push_described_by(NodeId(71));
+    field.node.push_controlled(NodeId(72));
+    field.node.push_flow_to(NodeId(73));
+    field.node.push_detail(NodeId(74));
+    field.node.push_to_radio_group(NodeId(75));
+    for (relation, to) in [
+        (Relation::LabelledBy, 1),
+        (Relation::LabelledBy, 3),
+        (Relation::DescribedBy, 3),
+        (Relation::Controls, 1),
+        (Relation::FlowTo, 3),
+        (Relation::Details, 1),
+        (Relation::RadioGroup, 2),
+        (Relation::RadioGroup, 1),
+    ] {
+        field.relations.push((relation, key(to)));
+    }
+    let label = |number: u64| {
+        let mut node = Node::new(Role::Label);
+        node.set_value("x");
+        SemanticNode::new(key(number), node)
+    };
+    let (update, cleared) = tree.apply(frame(&[1, 2, 3], vec![label(1), field, label(3)])).unwrap();
+    consumer.update_and_process_changes(update.unwrap(), &mut Ignore);
+    assert_eq!(cleared, 6, "every id the host set");
+    let id = |number: u64| tree.id_of(key(number)).unwrap();
+    let node = tree.node(id(2)).unwrap();
+    assert_eq!(node.labelled_by(), [id(1), id(3)]);
+    assert_eq!(node.described_by(), [id(3)]);
+    assert_eq!(node.controls(), [id(1)]);
+    assert_eq!(node.flow_to(), [id(3)]);
+    assert_eq!(node.details(), [id(1)]);
+    assert_eq!(node.radio_group(), [id(2), id(1)]);
+    same(&tree, &consumer);
+}
+
+/// MT-214 E7-F3, mutations caught: a circle of next-on-line or previous-on-line relations taken (the consumer walks
+/// them to the line's start or end without end, holding the tree's read lock), a line relation to something that is no
+/// text run, or a chain that is no circle refused.
+#[test]
+fn line_relations_that_would_hang_the_consumer_are_refused() {
+    let lines = |relations: &[(u64, Relation, u64)]| {
+        let mut nodes = vec![
+            with_children(labelled(1, Role::Label, "l"), &[2, 3, 4]),
+            run_of(2, "ab"),
+            run_of(3, "cd"),
+            run_of(4, "ef"),
+            labelled(5, Role::Button, "b"),
+        ];
+        for (from, relation, to) in relations {
+            let node = nodes.iter_mut().find(|node| node.key == key(*from)).unwrap();
+            node.relations.push((*relation, key(*to)));
+        }
+        frame(&[1, 5], nodes)
+    };
+    let (next, previous) = (Relation::NextOnLine, Relation::PreviousOnLine);
+    let mut tree = WindowTree::new(ScaleFactor::ONE);
+    let mut consumer = consumer_of(&tree);
+    // A line of three runs, each kind given from both ends: no circle.
+    apply(
+        &mut tree,
+        &mut consumer,
+        lines(&[(2, next, 3), (3, next, 4), (3, previous, 2), (4, previous, 3)]),
+    );
+    same(&tree, &consumer);
+    let before = tree.full();
+    let cases = [
+        (lines(&[(2, next, 3), (3, next, 2)]), FrameRefusal::LineCycle(key(2))),
+        (lines(&[(2, next, 2)]), FrameRefusal::LineCycle(key(2))),
+        (lines(&[(2, previous, 3), (3, previous, 4), (4, previous, 2)]), FrameRefusal::LineCycle(key(2))),
+        (lines(&[(2, next, 5)]), FrameRefusal::LineNotRun { from: key(2), to: key(5) }),
+        (lines(&[(3, previous, 1)]), FrameRefusal::LineNotRun { from: key(3), to: key(1) }),
+    ];
+    for (case, expected) in cases {
+        assert_eq!(tree.apply(case).map(|_| ()), Err(expected));
+        assert_eq!(tree.full(), before, "{expected:?} left the tree as it was");
+    }
+}

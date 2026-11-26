@@ -509,6 +509,57 @@ fn a_model_cannot_type_into_the_operators_composition() {
         .is_ok());
 }
 
+/// MT-214 E7-F7 (mutation M-B1): another program, through the accessibility tree, is no better placed than a model: it
+/// may not take the text focus or the composed text from the Operator's composition. Fails if `FocusBy::OtherProgram`
+/// stops yielding, and if the refusal outlives the composition.
+#[test]
+fn another_program_cannot_take_the_focus_from_the_operators_composition() {
+    let mut tracker = InputTracker::new();
+    tracker.feed(at(0), &created(W, true));
+    let focus = |target| {
+        Some(TextFocus {
+            target: crate::TextTarget(target),
+            accepts_ime: true,
+            caret: crate::CaretPlace::default(),
+        })
+    };
+    tracker
+        .focus_text(W, focus(1), FocusBy::Host, at(1))
+        .unwrap();
+    let operator = Source {
+        origin: Origin::OperatorDevice,
+        at: at(2),
+        stamp: None,
+    };
+    let mut out = Vec::new();
+    tracker
+        .ime
+        .change(W, &ImeChange::Started, operator, &mut out);
+    assert_eq!(
+        tracker.focus_text(W, focus(2), FocusBy::OtherProgram, at(3)),
+        Err(FocusRefusal::OperatorComposing),
+        "to another target"
+    );
+    assert_eq!(
+        tracker.focus_text(W, None, FocusBy::OtherProgram, at(3)),
+        Err(FocusRefusal::OperatorComposing),
+        "to none"
+    );
+    assert_eq!(tracker.text_focus(W), Some(crate::TextTarget(1)), "the focus stayed");
+    assert_eq!(tracker.report().model_refused, 2, "counted as refused");
+    // The Operator's composition over, another program may move the focus.
+    tracker.focus_text(W, None, FocusBy::Host, at(4)).unwrap();
+    let mut ended = Vec::new();
+    tracker
+        .ime
+        .change(W, &ImeChange::Completed, operator, &mut ended);
+    let moved = tracker
+        .focus_text(W, focus(2), FocusBy::OtherProgram, at(5))
+        .unwrap();
+    assert!(moved.is_empty());
+    assert_eq!(tracker.text_focus(W), Some(crate::TextTarget(2)));
+}
+
 /// Every press after the first until the release is a repeat, with or without the operating system's mark.
 #[test]
 fn a_key_is_pressed_once_then_repeats_until_released() {

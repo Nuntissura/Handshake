@@ -1,13 +1,15 @@
 //! Every window's tree, its adapter, and the requests that come back.
 
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
 use accesskit::{Action, ActivationHandler, NodeId, TreeUpdate};
-use handshake_shell_window::{Attribution, Event, EventTime, Origin, ScaleFactor, WindowEvent, WindowKey};
+use handshake_shell_window::{
+    Attribution, Display, Event, EventTime, Origin, ScaleFactor, WindowEvent, WindowKey,
+};
 
 use crate::frame::{FrameRefusal, NodeKey, SemanticFrame};
 use crate::request::{
@@ -53,7 +55,8 @@ pub enum AttachRefusal {
     UnknownWindow,
     /// It has an adapter already.
     AlreadyAttached,
-    /// It was shown already: the adapter must take the window's procedure before (accesskit_windows 0.29.2).
+    /// It was shown already, and may be hidden again: the adapter must take the window's procedure before it is first
+    /// shown (accesskit_windows 0.29.2). Known from the events fed ([`Accessibility::feed`]) and the window's visibility.
     AlreadyShown,
     /// Not the thread of the window: only the loop's thread may attach.
     WrongThread,
@@ -108,6 +111,18 @@ impl std::fmt::Debug for TreeSource {
     }
 }
 
+/// What an active adapter is given next: the whole tree when an activation got a placeholder since, so the adapter
+/// has a tree to apply the changes to (accesskit_windows 0.29.2, `update_if_active`; a partial update after a
+/// placeholder panics in the consumer's `Tree::new`), otherwise `update`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn next_update(needs_full: &Cell<bool>, tree: &RefCell<WindowTree>, update: TreeUpdate) -> TreeUpdate {
+    if needs_full.replace(false) {
+        tree.borrow().full()
+    } else {
+        update
+    }
+}
+
 struct Window {
     tree: Rc<RefCell<WindowTree>>,
     needs_full: Rc<Cell<bool>>,
@@ -130,6 +145,8 @@ impl Window {
 /// requests that come back. Lives on the loop's thread.
 pub struct Accessibility {
     windows: BTreeMap<WindowKey, Window>,
+    /// The windows the loop reported displayed at some time, whether they have a tree or not (MT-214 E7-F6).
+    shown: BTreeSet<WindowKey>,
     queue: Arc<RequestQueue>,
     sources: Rc<SourceCounts>,
     report: AccessReport,
@@ -146,6 +163,7 @@ impl Accessibility {
     pub fn new() -> Self {
         Self {
             windows: BTreeMap::new(),
+            shown: BTreeSet::new(),
             queue: Arc::default(),
             sources: Rc::default(),
             report: AccessReport::default(),
@@ -171,12 +189,25 @@ impl Accessibility {
     /// Forget a window: its adapter lets go of the window and of its native token, so it can be destroyed. `false`
     /// when there was nothing.
     pub fn close(&mut self, window: WindowKey) -> bool {
-        self.windows.remove(&window).is_some()
+        // The adapter lets go first; what its tools asked for goes with the window, so a window of the same key later
+        // never gets a request meant for the nodes this one had (MT-214 E7-F5).
+        let removed = self.windows.remove(&window);
+        let had = removed.is_some();
+        drop(removed);
+        self.queue.purge(window);
+        had
     }
 
     /// Forget every window, before `Control::finish`.
     pub fn close_all(&mut self) {
         self.windows.clear();
+        self.queue.purge_all();
+    }
+
+    /// The window was displayed at some time since the loop created it, as far as the events fed say.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub(crate) fn was_shown(&self, window: WindowKey) -> bool {
+        self.shown.contains(&window)
     }
 
     /// The windows with a tree.
@@ -188,6 +219,15 @@ impl Accessibility {
     pub fn feed(&mut self, event: &Event) {
         match event {
             Event::Window { window, event } => match event {
+                WindowEvent::Created { state, .. } => {
+                    self.shown.remove(window);
+                    if state.display != Display::Hidden {
+                        self.shown.insert(*window);
+                    }
+                }
+                WindowEvent::DisplayChanged { display } if *display != Display::Hidden => {
+                    self.shown.insert(*window);
+                }
                 WindowEvent::ScaleChanged { to, .. } => {
                     self.change(*window, |tree| tree.set_scale(*to));
                 }
@@ -197,10 +237,16 @@ impl Accessibility {
                 }
                 WindowEvent::Destroyed => {
                     self.windows.remove(window);
+                    self.shown.remove(window);
+                    self.queue.purge(*window);
                 }
                 _ => {}
             },
-            Event::LoopEnding => self.windows.clear(),
+            Event::LoopEnding => {
+                self.windows.clear();
+                self.shown.clear();
+                self.queue.purge_all();
+            }
             _ => {}
         }
     }
@@ -255,11 +301,7 @@ impl Accessibility {
         let mut taken = false;
         let raised = attached.update(|| {
             taken = true;
-            if needs_full.replace(false) {
-                tree.borrow().full()
-            } else {
-                update
-            }
+            next_update(&needs_full, &tree, update)
         });
         if taken {
             self.report.updates_sent += 1;
@@ -408,6 +450,107 @@ impl Accessibility {
 mod tests {
     use super::*;
 
+    /// MT-214 E7-F7, mutation M-B2 caught: the update after a placeholder not being the whole tree (the adapter's
+    /// consumer would panic on a partial one), or the whole tree given again after that.
+    #[test]
+    fn the_update_after_a_placeholder_is_whole_once() {
+        let mut hub = Accessibility::new();
+        let window = WindowKey::from_number(1);
+        assert!(hub.open(window, ScaleFactor::ONE));
+        let mut source = hub.source(window).unwrap();
+        let entry = &hub.windows[&window];
+        let partial = TreeUpdate {
+            nodes: Vec::new(),
+            tree: None,
+            focus: ROOT,
+        };
+        assert_eq!(
+            next_update(&entry.needs_full, &entry.tree, partial.clone()),
+            partial,
+            "no placeholder, the update as it is"
+        );
+        let held = entry.tree.borrow_mut();
+        assert_eq!(source.request_initial_tree(), None);
+        drop(held);
+        let whole = next_update(&entry.needs_full, &entry.tree, partial.clone());
+        assert!(whole.tree.is_some() && whole.nodes.len() == 1, "{whole:?}");
+        assert_eq!(whole, entry.tree.borrow().full());
+        assert_eq!(
+            next_update(&entry.needs_full, &entry.tree, partial.clone()),
+            partial,
+            "whole once"
+        );
+    }
+
+    /// MT-214 E7-F5, mutations caught: requests queued before a window closed, was destroyed, or the loop ended
+    /// reaching a window of the same key after, whose ids are numbered again.
+    #[test]
+    fn requests_of_a_window_that_went_do_not_reach_the_next_window_of_its_key() {
+        use accesskit::{ActionHandler, ActionRequest};
+        let window = WindowKey::from_number(1);
+        let other = WindowKey::from_number(2);
+        let ask = |hub: &Accessibility, window: WindowKey| {
+            hub.sink(window).unwrap().do_action(ActionRequest {
+                action: Action::Focus,
+                target: ROOT,
+                data: None,
+            });
+        };
+        let now = EventTime::from_nanos(1_000);
+        for end in 0..3 {
+            let mut hub = Accessibility::new();
+            assert!(hub.open(window, ScaleFactor::ONE) && hub.open(other, ScaleFactor::ONE));
+            ask(&hub, window);
+            ask(&hub, other);
+            match end {
+                0 => assert!(hub.close(window)),
+                1 => hub.feed(&Event::Window {
+                    window,
+                    event: WindowEvent::Destroyed,
+                }),
+                _ => hub.feed(&Event::LoopEnding),
+            }
+            assert!(hub.open(window, ScaleFactor::ONE), "the key comes back, with ids numbered again");
+            let kept: Vec<WindowKey> = hub.take_requests(now).iter().map(|r| r.window()).collect();
+            let expected: &[WindowKey] = if end == 2 { &[] } else { &[other] };
+            assert_eq!(kept, expected, "end {end}");
+        }
+        let mut hub = Accessibility::new();
+        assert!(hub.open(window, ScaleFactor::ONE) && hub.open(other, ScaleFactor::ONE));
+        ask(&hub, window);
+        ask(&hub, other);
+        hub.close_all();
+        assert!(hub.open(window, ScaleFactor::ONE));
+        assert!(hub.take_requests(now).is_empty(), "close_all");
+    }
+
+    /// MT-214 E7-F6, mutation caught: only the window's current display read, so a window shown and hidden again
+    /// counted as never shown.
+    #[test]
+    fn a_window_displayed_once_is_shown_for_good() {
+        let mut hub = Accessibility::new();
+        let window = WindowKey::from_number(1);
+        let display = |display| Event::Window {
+            window,
+            event: WindowEvent::DisplayChanged { display },
+        };
+        assert!(!hub.was_shown(window));
+        hub.feed(&display(Display::Hidden));
+        assert!(!hub.was_shown(window), "hidden is not shown");
+        hub.feed(&display(Display::Normal));
+        hub.feed(&display(Display::Hidden));
+        assert!(hub.was_shown(window), "shown, then hidden again");
+        hub.feed(&Event::Window {
+            window,
+            event: WindowEvent::Destroyed,
+        });
+        assert!(!hub.was_shown(window), "a window that went is forgotten");
+        hub.feed(&display(Display::Minimized));
+        assert!(hub.was_shown(window));
+        hub.feed(&Event::LoopEnding);
+        assert!(!hub.was_shown(window));
+    }
+
     /// Mutation caught: an activation while the tree is borrowed panicking inside the window's procedure, or the next
     /// update not whole after a placeholder.
     #[test]
@@ -447,6 +590,11 @@ mod attach {
         pub fn attach(&mut self, control: &Control, window: WindowKey) -> Result<(), AttachRefusal> {
             if self.windows.get(&window).is_some_and(|entry| entry.attached.is_some()) {
                 return Err(AttachRefusal::AlreadyAttached);
+            }
+            // Shown at some time, as the events fed say, though hidden again now (MT-214 E7-F6); the platform
+            // checks the window's visibility itself.
+            if self.was_shown(window) {
+                return Err(AttachRefusal::AlreadyShown);
             }
             let (Some(token), Some(state)) = (control.native_window(window), control.window_state(window)) else {
                 return Err(AttachRefusal::UnknownWindow);

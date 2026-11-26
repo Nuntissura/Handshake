@@ -34,12 +34,12 @@ use windows::Win32::System::Com::{
 use windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, IUIAutomationElement, IUIAutomationInvokePattern,
     TreeScope_Children, UIA_ButtonControlTypeId, UIA_CONTROLTYPE_ID, UIA_EditControlTypeId,
-    UIA_InvokePatternId,
+    UIA_InvokePatternId, UIA_TitleBarControlTypeId,
 };
 use windows_sys::Win32::Foundation::POINT;
 use windows_sys::Win32::Graphics::Gdi::ClientToScreen;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetWindow, PostMessageW, GW_HWNDNEXT, GW_HWNDPREV, WM_KILLFOCUS, WM_SETFOCUS,
+    GetWindow, PostMessageW, GW_HWNDNEXT, GW_HWNDPREV, WM_KILLFOCUS, WM_NCACTIVATE, WM_SETFOCUS,
 };
 
 use support::{
@@ -145,7 +145,9 @@ fn root_of(automation: &IUIAutomation, hwnd: isize) -> windows::core::Result<IUI
     unsafe { automation.ElementFromHandle(HWND(hwnd as *mut c_void)) }
 }
 
-/// Read a window's root and its children: name, automation id, control type, bounds, keyboard focus.
+/// Read a window's root and the provider's own children: name, automation id, control type, bounds, keyboard focus.
+/// UI Automation puts the window's non-client title bar (control type 50037, no name) before them; it is the system's,
+/// not the provider's, so it is left out (MT-214 E7-F1).
 fn read(automation: &IUIAutomation, hwnd: isize) -> windows::core::Result<Reading> {
     let root = root_of(automation, hwnd)?;
     // SAFETY: calls on interfaces of this thread.
@@ -155,6 +157,9 @@ fn read(automation: &IUIAutomation, hwnd: isize) -> windows::core::Result<Readin
         let mut children = Vec::new();
         for at in 0..found.Length()? {
             let element = found.GetElement(at)?;
+            if element.CurrentControlType()? == UIA_TitleBarControlTypeId {
+                continue;
+            }
             children.push(Element {
                 name: element.CurrentName()?.to_string(),
                 automation_id: element.CurrentAutomationId()?.to_string(),
@@ -170,7 +175,7 @@ fn read(automation: &IUIAutomation, hwnd: isize) -> windows::core::Result<Readin
     }
 }
 
-/// Read the first window, then Invoke its Save button and ask the provider to focus the second window's root.
+/// Read the first window, then Invoke its Save button, SetFocus the second window's root, and SetFocus its Open button.
 fn read_and_act(first: isize, second: isize) -> Result<Vec<Reading>, String> {
     with_automation(|automation| {
         let reading = read(automation, first)?;
@@ -188,6 +193,14 @@ fn read_and_act(first: isize, second: isize) -> Result<Vec<Reading>, String> {
                 }
             }
             root_of(automation, second)?.SetFocus()?;
+            let root = root_of(automation, second)?;
+            let found = root.FindAll(TreeScope_Children, &all)?;
+            for at in 0..found.Length()? {
+                let element = found.GetElement(at)?;
+                if element.CurrentName()? == "Open" {
+                    element.SetFocus()?;
+                }
+            }
         }
         Ok(vec![reading])
     })
@@ -205,8 +218,10 @@ struct State {
     notices: RefCell<Option<WakeLane>>,
     /// The two windows with trees, and their handles.
     windows: RefCell<Vec<(WindowKey, isize)>>,
-    /// A window shown before anything was attached.
+    /// A window shown before anything was attached, then hidden again.
     spare: Cell<Option<(WindowKey, isize)>>,
+    spare_hidden: Cell<bool>,
+    spare_done: Cell<bool>,
     shown: Cell<u32>,
     destroyed: Cell<u32>,
     step: Cell<u32>,
@@ -306,6 +321,12 @@ impl State {
             Event::Window {
                 window,
                 event: WindowEvent::DisplayChanged { display },
+            } if self.spare.get().is_some_and(|(spare, _)| spare == window) => {
+                self.spare_displayed(control, window, display);
+            }
+            Event::Window {
+                window,
+                event: WindowEvent::DisplayChanged { display },
             } if display != Display::Normal => {
                 self.seen.add(format!("{} display {display:?}", window.number()));
             }
@@ -338,8 +359,7 @@ impl State {
                 .unwrap();
             assert_eq!(self.hub.borrow_mut().attach(control, window), Err(AttachRefusal::AlreadyShown));
             assert!(!self.hub.borrow().windows().contains(&window), "nothing kept of a refused attach");
-            control.command(&self.source(), window, WindowCommand::Destroy).unwrap();
-            stop_watching(hwnd);
+            // It is hidden again when the loop reports it shown (`Self::spare_displayed`).
             return;
         }
         let at = self.windows.borrow().iter().position(|(key, _)| *key == window).unwrap();
@@ -358,6 +378,25 @@ impl State {
         }
     }
 
+    /// The spare window's display, as the loop reports it: shown, then hidden again, which no longer shows in its
+    /// visibility; attaching it is refused all the same, as the window was shown once (MT-214 E7-F6).
+    fn spare_displayed(&self, control: &Control, window: WindowKey, display: Display) {
+        let (_, hwnd) = self.spare.get().unwrap();
+        match display {
+            Display::Normal if !self.spare_hidden.replace(true) => {
+                control.command(&self.source(), window, WindowCommand::Hide).unwrap();
+            }
+            Display::Hidden => {
+                assert_eq!(self.hub.borrow_mut().attach(control, window), Err(AttachRefusal::AlreadyShown));
+                assert!(!self.hub.borrow().windows().contains(&window), "nothing kept of a refused attach");
+                control.command(&self.source(), window, WindowCommand::Destroy).unwrap();
+                stop_watching(hwnd);
+                self.spare_done.set(true);
+            }
+            _ => {}
+        }
+    }
+
     fn wake(&self, control: &Control, wake: &DispatchedWake<'_>) {
         self.take_requests(control);
         let ours = self.steps.borrow().as_ref().is_some_and(|lane| lane.id() == wake.lane());
@@ -370,6 +409,9 @@ impl State {
         let ((a, a_hwnd), (b, b_hwnd)) = (self.window(0), self.window(1));
         match self.step.get() {
             1 => {
+                if !self.spare_done.get() {
+                    return self.wake_in(Duration::from_millis(30));
+                }
                 assert_eq!(
                     control.command(&self.source(), a, WindowCommand::Destroy),
                     Err(Refusal::NativeTokensHeld),
@@ -388,9 +430,13 @@ impl State {
                 eprintln!("UIA readings: {readings:#?}");
                 self.check_reading(control, &readings);
                 self.no_activation(control, true);
-                // The keyboard reaches the first window (a posted message, as the input crate's real loop test does):
-                // the adapter shows the frame's focus while the window has it.
+                // The keyboard reaches the first window (posted messages, as the input crate's real loop test does): the
+                // window library takes a window as focused only when it is active as well, so the activation comes
+                // first (WM_NCACTIVATE, true; posting it activates nothing, the guard and the watches see to that), then
+                // the adapter shows the frame's focus while the window has it (MT-214 E7-F1).
                 // SAFETY: plain values, to a window of this thread.
+                assert_ne!(unsafe { PostMessageW(a_hwnd, WM_NCACTIVATE, 1, 0) }, 0);
+                // SAFETY: as above.
                 assert_ne!(unsafe { PostMessageW(a_hwnd, WM_SETFOCUS, 0, 0) }, 0);
                 self.hub.borrow_mut().update(a, first(Some(NAME))).unwrap();
                 self.next();
@@ -439,13 +485,22 @@ impl State {
                     .iter()
                     .map(|request| (request.window(), request.target(), request.action(), request.origin()))
                     .collect();
+                // The Invoke is one typed Click, first. A SetFocus of the client reaches the provider as a Focus request
+                // of the window or of the node, never as an activation: on a private desktop the root's SetFocus
+                // reached the provider with no request at all (the system's window element answered it), a child's
+                // with a request for the node and one for the window. So the child's request is required, and nothing
+                // but a window or node request of the second window may follow the Invoke (MT-214 E7-F1).
+                let focus_node = (b, AccessTarget::Node(SAVE), Action::Focus, Origin::OtherProgram);
+                let focus_window = (b, AccessTarget::Window, Action::Focus, Origin::OtherProgram);
                 assert_eq!(
-                    requests,
-                    [
-                        (a, AccessTarget::Node(SAVE), Action::Click, Origin::OtherProgram),
-                        (b, AccessTarget::Window, Action::Focus, Origin::OtherProgram),
-                    ],
-                    "the client's Invoke and SetFocus, typed, with their windows"
+                    requests.first(),
+                    Some(&(a, AccessTarget::Node(SAVE), Action::Click, Origin::OtherProgram)),
+                    "the client's Invoke, typed, with its window: {requests:?}"
+                );
+                assert!(requests.contains(&focus_node), "the child's SetFocus asked the provider: {requests:?}");
+                assert!(
+                    requests[1..].iter().all(|request| *request == focus_node || *request == focus_window),
+                    "only focus requests of the second window followed: {requests:?}"
                 );
                 self.no_activation(control, false);
                 let report = self.hub.borrow().report();
@@ -536,6 +591,7 @@ fn a_ui_automation_client_reads_each_windows_tree_and_acts_without_activating_it
         .unwrap();
         assert_eq!(state.step.get(), 5, "every step ran");
         assert_eq!(state.destroyed.get(), 2);
+        assert!(state.spare_done.get(), "the window shown and hidden again was refused and destroyed");
         assert_eq!(report.quiet_broken, 0);
         assert_eq!(report.refusals, 1, "the one Destroy refused while the adapter held the window");
         assert_eq!(report.windows_left, 0, "every adapter let go of its window");

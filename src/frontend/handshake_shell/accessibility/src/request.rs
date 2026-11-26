@@ -204,6 +204,23 @@ impl RequestQueue {
         std::mem::take(&mut *self.pending.lock().unwrap_or_else(PoisonError::into_inner))
     }
 
+    /// Forget what a window's assistive tools asked for: it closed, or was destroyed, and a window of the same key may
+    /// come after with other nodes under the ids it numbers again (MT-214 E7-F5).
+    pub(crate) fn purge(&self, window: WindowKey) {
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retain(|pending| pending.window != window);
+    }
+
+    /// Forget every request.
+    pub(crate) fn purge_all(&self) {
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
+    }
+
     pub(crate) fn dropped(&self) -> u64 {
         self.dropped.load(Ordering::Relaxed)
     }

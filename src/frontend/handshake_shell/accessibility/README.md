@@ -48,7 +48,16 @@ messages through a new hook, a larger change to that crate; it was not taken.
 The adapter panics instead of failing in three places, which the crate keeps from the loop: a second adapter on a
 window (one per window, refused as `AlreadyAttached`), a window already shown (`AlreadyShown`), and a failed install
 or event raise (caught: `AttachRefusal::Adapter`, `AccessReport::raise_failed`). Its text code unwraps and slices text
-runs on the threads tools call it from, so the crate refuses frames with runs it cannot read (`TextRunFault`).
+runs on the threads tools call it from, so the crate refuses frames with runs it cannot read (`TextRunFault`), and
+frames whose next-on-line or previous-on-line relations make a circle or lead to a node that is no text run, since the
+consumer walks them without end (`FrameRefusal::LineCycle`, `LineNotRun`). A window shown once is refused even when it is
+hidden again (`AlreadyShown`, from the events fed to `Accessibility::feed`; a Show and a Hide within one handler, before
+the loop reports either, cannot be told from a window never shown, and only its visibility is read then). A failed
+install leaves the adapter's window property (`AccessKitAdapter`), set before the procedure, pointing at freed state:
+the host removes it after the failure (`platform.rs` `guarded`), which is safe because it first refuses a window that
+already has the property. The asset should set the property after the procedure instead (asset request RQ-AKW-01); until
+then the removal is the host's, and a failure of `RemovePropW` itself is not reported. Requests an assistive tool queued
+for a window are dropped when the window closes, is destroyed, or the loop ends.
 
 ## Decisions and open items
 

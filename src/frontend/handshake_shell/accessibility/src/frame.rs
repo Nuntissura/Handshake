@@ -209,6 +209,17 @@ pub enum FrameRefusal {
     BadSelection(NodeKey),
     /// Two nodes show one text target.
     DuplicateTextTarget(TextTarget),
+    /// A line relation ([`Relation::NextOnLine`], [`Relation::PreviousOnLine`]) to something other than a text run.
+    LineNotRun {
+        /// Whose.
+        from: NodeKey,
+        /// To which.
+        to: NodeKey,
+    },
+    /// The next-on-line or previous-on-line relations of text runs lead round in a circle: the adapter's consumer
+    /// walks them to a line's start or end and would never come back (accesskit_consumer 0.31.0 `text.rs`
+    /// `line_start`, `line_end`).
+    LineCycle(NodeKey),
 }
 
 impl FrameRefusal {
@@ -226,6 +237,8 @@ impl FrameRefusal {
             Self::BadTextRun { .. } => "a11y.frame.bad_text_run",
             Self::BadSelection(_) => "a11y.frame.bad_selection",
             Self::DuplicateTextTarget(_) => "a11y.frame.duplicate_text_target",
+            Self::LineNotRun { .. } => "a11y.frame.line_not_run",
+            Self::LineCycle(_) => "a11y.frame.line_cycle",
         }
     }
 }
@@ -301,7 +314,51 @@ pub(crate) fn check(frame: &SemanticFrame) -> Result<Checked, FrameRefusal> {
             }
         }
     }
+    line_fault(frame, &checked)?;
     Ok(checked)
+}
+
+/// The line relations of a frame: each leads to a text run, and following either kind from any node ends (MT-214
+/// E7-F3). The consumer follows a relation as long as the node has one, with the tree's read lock held on a thread of
+/// an assistive tool, so a circle would hold that lock for good and the next update would wait on it.
+fn line_fault(frame: &SemanticFrame, checked: &Checked) -> Result<(), FrameRefusal> {
+    let mut next = BTreeMap::new();
+    let mut previous = BTreeMap::new();
+    for node in &frame.nodes {
+        for (relation, to) in &node.relations {
+            let lines = match relation {
+                Relation::NextOnLine => &mut next,
+                Relation::PreviousOnLine => &mut previous,
+                _ => continue,
+            };
+            if frame.nodes[checked.index[to]].node.role() != Role::TextRun {
+                return Err(FrameRefusal::LineNotRun {
+                    from: node.key,
+                    to: *to,
+                });
+            }
+            // The last one of a kind is the one the node keeps.
+            lines.insert(node.key, *to);
+        }
+    }
+    for lines in [&next, &previous] {
+        let mut ends = BTreeSet::new();
+        for start in lines.keys() {
+            let mut walked = BTreeSet::new();
+            let mut at = *start;
+            while !ends.contains(&at) {
+                if !walked.insert(at) {
+                    return Err(FrameRefusal::LineCycle(at));
+                }
+                match lines.get(&at) {
+                    Some(to) => at = *to,
+                    None => break,
+                }
+            }
+            ends.extend(walked);
+        }
+    }
+    Ok(())
 }
 
 /// What [`check`] learnt of a frame.

@@ -62,21 +62,47 @@ fn clear_ids(node: &mut Node) -> u64 {
     cleared
 }
 
-fn relate(node: &mut Node, relation: Relation, to: NodeId) {
-    match relation {
-        Relation::Controls => node.push_controlled(to),
-        Relation::Details => node.push_detail(to),
-        Relation::DescribedBy => node.push_described_by(to),
-        Relation::FlowTo => node.push_flow_to(to),
-        Relation::LabelledBy => node.push_labelled_by(to),
-        Relation::RadioGroup => node.push_to_radio_group(to),
-        Relation::ActiveDescendant => node.set_active_descendant(to),
-        Relation::ErrorMessage => node.set_error_message(to),
-        Relation::InPageLinkTarget => node.set_in_page_link_target(to),
-        Relation::MemberOf => node.set_member_of(to),
-        Relation::NextOnLine => node.set_next_on_line(to),
-        Relation::PreviousOnLine => node.set_previous_on_line(to),
-        Relation::PopupFor => node.set_popup_for(to),
+/// Set the relations a frame names. The list relations are built as one list and set: accesskit 0.21.1 `clear_*` leaves
+/// the property's slot empty, and a later `push_*` on an emptied slot adds nothing (`lib.rs` `Properties::clear`,
+/// `vec_type_methods`), so pushing after [`clear_ids`] would lose the relation (MT-214 E7-F2).
+fn relate_all(node: &mut Node, relations: &[(Relation, NodeId)]) {
+    let ids = |wanted: Relation| -> Vec<NodeId> {
+        relations
+            .iter()
+            .filter(|(relation, _)| *relation == wanted)
+            .map(|(_, to)| *to)
+            .collect()
+    };
+    macro_rules! set_list {
+        ($relation:expr, $set:ident) => {{
+            let list = ids($relation);
+            if !list.is_empty() {
+                node.$set(list);
+            }
+        }};
+    }
+    set_list!(Relation::Controls, set_controls);
+    set_list!(Relation::Details, set_details);
+    set_list!(Relation::DescribedBy, set_described_by);
+    set_list!(Relation::FlowTo, set_flow_to);
+    set_list!(Relation::LabelledBy, set_labelled_by);
+    set_list!(Relation::RadioGroup, set_radio_group);
+    for (relation, to) in relations {
+        match relation {
+            Relation::ActiveDescendant => node.set_active_descendant(*to),
+            Relation::ErrorMessage => node.set_error_message(*to),
+            Relation::InPageLinkTarget => node.set_in_page_link_target(*to),
+            Relation::MemberOf => node.set_member_of(*to),
+            Relation::NextOnLine => node.set_next_on_line(*to),
+            Relation::PreviousOnLine => node.set_previous_on_line(*to),
+            Relation::PopupFor => node.set_popup_for(*to),
+            Relation::Controls
+            | Relation::Details
+            | Relation::DescribedBy
+            | Relation::FlowTo
+            | Relation::LabelledBy
+            | Relation::RadioGroup => {}
+        }
     }
 }
 
@@ -165,9 +191,12 @@ impl WindowTree {
             let mut node = semantic.node;
             cleared += clear_ids(&mut node);
             node.set_children(semantic.children.iter().map(|key| id(*key)).collect::<Vec<_>>());
-            for (relation, to) in semantic.relations {
-                relate(&mut node, relation, id(to));
-            }
+            let relations: Vec<(Relation, NodeId)> = semantic
+                .relations
+                .iter()
+                .map(|(relation, to)| (*relation, id(*to)))
+                .collect();
+            relate_all(&mut node, &relations);
             if let Some(selection) = semantic.text_selection {
                 node.set_text_selection(TextSelection {
                     anchor: position(selection.anchor),
