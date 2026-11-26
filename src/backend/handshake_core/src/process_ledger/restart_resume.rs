@@ -378,6 +378,8 @@ pub struct SurrealRestartResumeRunner {
     cancel_before_resume: Arc<AtomicBool>,
     #[cfg(feature = "test-utils")]
     abort_report_fault: Arc<AtomicU8>,
+    #[cfg(feature = "test-utils")]
+    completed_report_fault: Arc<AtomicU8>,
 }
 
 const PERSIST_RESUME_REPORT: &str = r#"
@@ -440,6 +442,8 @@ impl SurrealRestartResumeRunner {
             cancel_before_resume: Arc::new(AtomicBool::new(false)),
             #[cfg(feature = "test-utils")]
             abort_report_fault: Arc::new(AtomicU8::new(0)),
+            #[cfg(feature = "test-utils")]
+            completed_report_fault: Arc::new(AtomicU8::new(0)),
         }
     }
 
@@ -455,6 +459,14 @@ impl SurrealRestartResumeRunner {
     #[cfg(feature = "test-utils")]
     pub fn arm_abort_report_fault_for_test(&self, fault: AbortReportFault) {
         self.abort_report_fault
+            .store(fault as u8, Ordering::Release);
+    }
+
+    /// Arms the same report-write faults for the bounded pass's COMPLETED report
+    /// write instead of the incomplete report write.
+    #[cfg(feature = "test-utils")]
+    pub fn arm_completed_report_fault_for_test(&self, fault: AbortReportFault) {
+        self.completed_report_fault
             .store(fault as u8, Ordering::Release);
     }
 
@@ -564,7 +576,7 @@ impl SurrealRestartResumeRunner {
         deadline: tokio::time::Instant,
     ) -> Result<BoundedRestartResumeOutcome, RestartResumeRuntimeError> {
         let acknowledged = {
-            let mut write = std::pin::pin!(self.persist_report(&report));
+            let mut write = std::pin::pin!(self.persist_completed_report(&report));
             match tokio::time::timeout_at(deadline, write.as_mut()).await {
                 Ok(result) => Some(result),
                 Err(_) => tokio::time::timeout(RESTART_RESUME_REPORT_GRACE, write.as_mut())
@@ -1384,20 +1396,18 @@ impl SurrealRestartResumeRunner {
         report: &ResumeReport,
     ) -> Result<(), RestartResumeRuntimeError> {
         #[cfg(feature = "test-utils")]
-        match self.abort_report_fault.swap(0, Ordering::AcqRel) {
-            1 => std::future::pending::<()>().await,
-            2 => {
-                return Err(RestartResumeRuntimeError::Store(
-                    "injected report persistence failure".to_owned(),
-                ))
-            }
-            3 => {
-                return Err(RestartResumeRuntimeError::Store(
-                    "injected report acknowledgement mismatch: []".to_owned(),
-                ))
-            }
-            _ => {}
-        }
+        apply_report_fault(&self.abort_report_fault).await?;
+        self.persist_report(report).await
+    }
+
+    /// Writes the bounded pass's COMPLETED report. The test-only COMPLETED-report
+    /// fault is consumed here and nowhere else.
+    async fn persist_completed_report(
+        &self,
+        report: &ResumeReport,
+    ) -> Result<(), RestartResumeRuntimeError> {
+        #[cfg(feature = "test-utils")]
+        apply_report_fault(&self.completed_report_fault).await?;
         self.persist_report(report).await
     }
 
@@ -1685,6 +1695,27 @@ fn recovery_store_write_key(
 ) -> IdempotencyKey {
     let target = format!("{table}@recovery-attempt:{}", candidate.attempt_count);
     store_write_key(candidate.session_id, event_seq, &target)
+}
+
+/// Consumes one armed test-only report-write fault: `Block` never acknowledges,
+/// the other two fail before any write reaches the store.
+#[cfg(feature = "test-utils")]
+async fn apply_report_fault(fault: &AtomicU8) -> Result<(), RestartResumeRuntimeError> {
+    match fault.swap(0, Ordering::AcqRel) {
+        1 => std::future::pending::<()>().await,
+        2 => {
+            return Err(RestartResumeRuntimeError::Store(
+                "injected report persistence failure".to_owned(),
+            ))
+        }
+        3 => {
+            return Err(RestartResumeRuntimeError::Store(
+                "injected report acknowledgement mismatch: []".to_owned(),
+            ))
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn empty_report(started_at_utc: DateTime<Utc>, elapsed: Duration) -> ResumeReport {

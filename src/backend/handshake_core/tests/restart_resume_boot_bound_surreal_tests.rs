@@ -6,7 +6,7 @@ mod process_ledger_surreal_support;
 use std::time::{Duration, Instant};
 
 use handshake_core::process_ledger::restart_resume::{
-    BoundedRestartResumeOutcome, SurrealRestartResumeRunner,
+    BoundedRestartResumeOutcome, RestartResumeRuntimeError, SurrealRestartResumeRunner,
 };
 use process_ledger_surreal_support::ProcessLedgerSurrealHarness;
 use surrealdb::types::{RecordId, SurrealValue};
@@ -34,6 +34,52 @@ WHERE owner_account_id = $owner_account_id
     AND access_space_id = $access_space_id
     AND workspace_id = $workspace_id;
 "#;
+
+#[derive(SurrealValue)]
+struct ScopeBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+const COUNT_EXACT_COMPLETED_REPORTS: &str = r#"
+RETURN array::len(SELECT VALUE id FROM kernel_restart_resume_report
+    WHERE owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id
+        AND fr_events_emitted CONTAINS 'FR-EVT-RESTART-RESUME-COMPLETED');
+"#;
+
+/// Durable restart reports in the harness's exact scope that carry the COMPLETED event.
+async fn exact_scope_completed_reports(harness: &ProcessLedgerSurrealHarness) -> i64 {
+    let scope = harness.resource_scope().clone();
+    let counts = harness
+        .storage()
+        .with_data_operation(move |database| {
+            let bindings = ScopeBindings {
+                owner_account_id: scope.account_uuid.to_string(),
+                actor_principal_id: scope.actor_uuid.to_string(),
+                authenticated_session_id: scope.session_uuid.to_string(),
+                access_space_id: scope.access_space_uuid.to_string(),
+                workspace_id: scope.workspace_id,
+            };
+            Box::pin(async move {
+                database
+                    .query_values::<i64, _>(COUNT_EXACT_COMPLETED_REPORTS, bindings)
+                    .await
+            })
+        })
+        .await
+        .expect("count exact-scope COMPLETED reports");
+    match counts.as_slice() {
+        [count] => *count,
+        other => panic!("COMPLETED report count returned {other:?}"),
+    }
+}
 
 #[tokio::test]
 async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker() {
@@ -135,6 +181,37 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
             BoundedRestartResumeOutcome::Completed(_) => panic!("zero-bound fault completed"),
         }
     }
+    assert_eq!(
+        exact_scope_completed_reports(&harness).await,
+        0,
+        "a TimedOut pass must leave no durable COMPLETED report"
+    );
+    // A pass that finished inside the bound but whose COMPLETED write is not
+    // acknowledged returns the error, never TimedOut, and waits at most the
+    // remaining bound plus the one-second grace.
+    let completion_bound = Duration::from_secs(5);
+    for fault in [
+        handshake_core::process_ledger::restart_resume::AbortReportFault::Block,
+        handshake_core::process_ledger::restart_resume::AbortReportFault::PersistenceFailure,
+        handshake_core::process_ledger::restart_resume::AbortReportFault::AcknowledgementMismatch,
+    ] {
+        let fault_runner = harness.restart_runner().await;
+        fault_runner.arm_completed_report_fault_for_test(fault);
+        let began = Instant::now();
+        let result = fault_runner.run_with_bound(completion_bound).await;
+        assert!(began.elapsed() < completion_bound + Duration::from_secs(2));
+        match result {
+            Err(RestartResumeRuntimeError::Store(_)) => {}
+            other => panic!(
+                "an unacknowledged COMPLETED write must return the error, not an outcome: {other:?}"
+            ),
+        }
+    }
+    assert_eq!(
+        exact_scope_completed_reports(&harness).await,
+        0,
+        "a failed COMPLETED write leaves no durable COMPLETED report"
+    );
     // `$session` is a protected SurrealDB parameter (surrealdb-core-3.2.0
     // cnf/mod.rs:23, PROTECTED_PARAM_NAMES), so the candidate id binds as `$session_run`.
     #[derive(SurrealValue)]
@@ -234,6 +311,11 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
     assert!(
         row.exit_code.is_none(),
         "timed-out cleanup must not create a terminal STOP"
+    );
+    assert_eq!(
+        exact_scope_completed_reports(&harness).await,
+        0,
+        "the bound-cancelled cleanup pass must leave no durable COMPLETED report"
     );
     harness.close().await;
 }
