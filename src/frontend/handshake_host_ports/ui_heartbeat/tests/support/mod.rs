@@ -2,6 +2,9 @@
 //! freeze decision watching the real ring file.
 //!
 //! Time here is virtual, so nothing sleeps and every run is the same.
+//!
+//! Ring files live in Cargo's temporary folder of the test target, inside the artifact root, so one a failed test leaves
+//! mapped is not left outside it (MT-215 F5, CX-GIT-003).
 
 #![allow(dead_code)]
 
@@ -16,7 +19,7 @@ use palmistry::freeze_detect::{FreezeDetector, FreezeState, POLL_INTERVAL};
 use palmistry::hung_window_probe::{FakeHungWindowProbe, HungWindowProbe, ProbeResult};
 use palmistry::ring_reader::PalmistryRingReader;
 use ui_heartbeat::{
-    EventLoopWake, MonotonicClock, UiHeartbeat, WakeOutcome, WakeRefused, WakeTicket,
+    EventLoopWake, FrameWait, MonotonicClock, UiHeartbeat, WakeOutcome, WakeRefused, WakeTicket,
 };
 
 /// How far the virtual clock moves per simulated step.
@@ -35,7 +38,7 @@ impl RingFile {
             .duration_since(std::time::UNIX_EPOCH)
             .expect("clock after 1970")
             .as_nanos();
-        Self(std::env::temp_dir().join(format!(
+        Self(Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
             "ui-heartbeat-{label}-{}-{unique}.ring",
             std::process::id()
         )))
@@ -156,6 +159,12 @@ impl ManualLoop {
 }
 
 impl EventLoopWake for ManualLoop {
+    type Dispatched<'a> = WakeTicket;
+
+    fn dispatched_ticket(&self, wake: &WakeTicket) -> Option<WakeTicket> {
+        Some(*wake)
+    }
+
     fn on_loop_thread(&self) -> bool {
         true
     }
@@ -177,6 +186,40 @@ impl EventLoopWake for ManualLoop {
     fn cancel_wakes(&self) {
         self.0.cancels.set(self.0.cancels.get() + 1);
         self.0.pending.borrow_mut().clear();
+    }
+}
+
+/// Frames of a host on the virtual clock: one is wanted since a time, or none.
+#[derive(Clone)]
+pub struct ManualFrames {
+    clock: ManualClock,
+    since: Rc<Cell<Option<u64>>>,
+}
+
+impl ManualFrames {
+    pub fn new(clock: ManualClock) -> Self {
+        Self {
+            clock,
+            since: Rc::default(),
+        }
+    }
+
+    /// A frame is wanted from now on, and none is presented.
+    pub fn want(&self) {
+        self.since.set(Some(self.clock.now()));
+    }
+
+    /// The wanted frame was presented.
+    pub fn presented(&self) {
+        self.since.set(None);
+    }
+}
+
+impl FrameWait for ManualFrames {
+    fn longest_wait(&self) -> Option<Duration> {
+        self.since
+            .get()
+            .map(|since| Duration::from_nanos(self.clock.now().saturating_sub(since)))
     }
 }
 
@@ -239,18 +282,19 @@ pub struct Verdict {
     pub state: FreezeState,
 }
 
-pub type DeskHeartbeat = UiHeartbeat<ManualClock, ManualLoop, DiagRingWriter>;
+pub type DeskHeartbeat = UiHeartbeat<ManualClock, ManualLoop, DiagRingWriter, ManualFrames>;
 
 /// A UI thread, its event loop, its heartbeat and the watcher.
 pub struct Desk {
     pub heartbeat: DeskHeartbeat,
     pub event_loop: ManualLoop,
     pub clock: ManualClock,
+    pub frames: ManualFrames,
     pub watcher: Watcher,
     /// Longest time between two beats of the last run, in nanoseconds.
     pub longest_gap: u64,
     last_beat_at: u64,
-    _ring: RingFile,
+    pub ring: RingFile,
 }
 
 impl Desk {
@@ -260,14 +304,21 @@ impl Desk {
             DiagRingWriter::create(ring.path(), DEFAULT_CAPACITY).expect("the ring is created");
         let clock = ManualClock::default();
         let event_loop = ManualLoop::new(clock.clone());
+        let frames = ManualFrames::new(clock.clone());
         Self {
-            heartbeat: UiHeartbeat::new(clock.clone(), event_loop.clone(), writer),
+            heartbeat: UiHeartbeat::with_frames(
+                clock.clone(),
+                event_loop.clone(),
+                writer,
+                frames.clone(),
+            ),
             event_loop,
             clock,
+            frames,
             watcher: Watcher::open(ring.path()),
             longest_gap: 0,
             last_beat_at: 0,
-            _ring: ring,
+            ring,
         }
     }
 
@@ -288,7 +339,7 @@ impl Desk {
     pub fn dispatch_due(&mut self) -> u64 {
         let mut beats = 0;
         while let Some(ticket) = self.event_loop.take_due() {
-            if let WakeOutcome::Beat(_) = self.heartbeat.on_wake(ticket) {
+            if let WakeOutcome::Beat(_) = self.heartbeat.on_wake(&ticket) {
                 beats += 1;
                 let now = self.clock.now();
                 self.longest_gap = self.longest_gap.max(now.saturating_sub(self.last_beat_at));

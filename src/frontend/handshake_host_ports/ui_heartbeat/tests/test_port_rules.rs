@@ -7,11 +7,15 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use handshake_diag_ring::{DiagRingReader, DiagRingWriter, Heartbeat, DEFAULT_CAPACITY};
-use support::{nanos, ManualClock, ManualLoop, RingFile, STEP};
+use handshake_diag_ring::{
+    DiagEvent, DiagEventCode, DiagPhase, DiagRingReader, DiagRingWriter, Heartbeat,
+    DEFAULT_CAPACITY,
+};
+use support::{nanos, ManualClock, ManualFrames, ManualLoop, RingFile, STEP};
 use ui_heartbeat::{
     EventLoopWake, HeartbeatSink, IgnoredWake, ProcessClock, RecorderHeartbeat, StartRefused,
-    UiHeartbeat, WakeOutcome, WakeRefused, WakeTicket, LOST_WAKE_GRACE, REFUSED_WAKE_RETRY,
+    UiHeartbeat, WakeOutcome, WakeRefused, WakeTicket, HANDLER_ALLOWANCE, LOST_WAKE_GRACE,
+    MAX_BEAT_GAP, MAX_OUTSTANDING_WAKES, PRESENT_STALL, REFUSED_WAKE_RETRY, TIMER_GRANULARITY,
     WAKE_DELAY,
 };
 
@@ -36,6 +40,10 @@ macro_rules! assert_not_implemented {
 struct AnywhereLoop;
 
 impl EventLoopWake for AnywhereLoop {
+    type Dispatched<'a> = WakeTicket;
+    fn dispatched_ticket(&self, wake: &WakeTicket) -> Option<WakeTicket> {
+        Some(*wake)
+    }
     fn on_loop_thread(&self) -> bool {
         true
     }
@@ -56,19 +64,27 @@ const _: fn() = || {
 assert_not_implemented!(UiHeartbeat<ProcessClock, AnywhereLoop, Option<DiagRingWriter>>, Send);
 assert_not_implemented!(UiHeartbeat<ProcessClock, AnywhereLoop, Option<DiagRingWriter>>, Sync);
 
-/// Keeps what was published.
+/// Keeps what was published, and the events recorded.
 #[derive(Clone, Default)]
-struct Published(Rc<RefCell<Vec<Heartbeat>>>);
+struct Published(Rc<RefCell<Vec<Heartbeat>>>, Rc<RefCell<Vec<DiagEvent>>>);
 
 impl Published {
     fn count(&self) -> usize {
         self.0.borrow().len()
+    }
+
+    fn events(&self) -> Vec<DiagEvent> {
+        self.1.borrow().clone()
     }
 }
 
 impl HeartbeatSink for Published {
     fn publish(&self, beat: Heartbeat) {
         self.0.borrow_mut().push(beat);
+    }
+
+    fn record(&self, event: DiagEvent) {
+        self.1.borrow_mut().push(event);
     }
 }
 
@@ -104,7 +120,7 @@ impl Bench {
     fn beat(&self) -> (WakeTicket, Heartbeat) {
         self.clock.advance(WAKE_DELAY);
         let ticket = self.event_loop.take_due().expect("a wake is due");
-        match self.heartbeat.on_wake(ticket) {
+        match self.heartbeat.on_wake(&ticket) {
             WakeOutcome::Beat(beat) => (ticket, beat),
             other => panic!("a due wake beats, got {other:?}"),
         }
@@ -123,6 +139,10 @@ struct InlineLoop {
 struct InlineRef(Rc<InlineLoop>);
 
 impl EventLoopWake for InlineRef {
+    type Dispatched<'a> = WakeTicket;
+    fn dispatched_ticket(&self, wake: &WakeTicket) -> Option<WakeTicket> {
+        Some(*wake)
+    }
     fn on_loop_thread(&self) -> bool {
         true
     }
@@ -131,7 +151,7 @@ impl EventLoopWake for InlineRef {
             if self.0.stop_inside.get() {
                 port.stop();
             } else {
-                self.0.outcome.set(Some(port.on_wake(ticket)));
+                self.0.outcome.set(Some(port.on_wake(&ticket)));
                 port.on_loop_turn();
             }
         }
@@ -201,12 +221,12 @@ fn only_a_wake_the_port_asked_for_and_has_not_seen_beats() {
     let published = bench.published.count();
 
     assert_eq!(
-        bench.heartbeat.on_wake(ticket),
+        bench.heartbeat.on_wake(&ticket),
         WakeOutcome::Ignored(IgnoredWake::AlreadyRedeemed)
     );
     for forged in [0, ticket.to_raw() + 2, u64::MAX] {
         assert!(matches!(
-            bench.heartbeat.on_wake(WakeTicket::from_raw(forged)),
+            bench.heartbeat.on_wake(&WakeTicket::from_raw(forged)),
             WakeOutcome::Ignored(_)
         ));
     }
@@ -222,7 +242,7 @@ fn posting_one_wake_many_times_gives_one_beat() {
     let ticket = bench.event_loop.take_due().expect("due");
     let before = bench.published.count();
     for _ in 0..10_000 {
-        bench.heartbeat.on_wake(ticket);
+        bench.heartbeat.on_wake(&ticket);
     }
     assert_eq!(bench.published.count(), before + 1);
     assert_eq!(bench.event_loop.pending(), 1, "one chain, not one per post");
@@ -239,7 +259,7 @@ fn a_loop_that_dispatches_inside_the_request_does_not_beat() {
     assert_eq!(published.count(), 0);
     // The same ticket, out of the queue this time.
     assert!(matches!(
-        port.on_wake(WakeTicket::from_raw(1)),
+        port.on_wake(&WakeTicket::from_raw(1)),
         WakeOutcome::Beat(_)
     ));
     assert_eq!(
@@ -262,7 +282,7 @@ fn stopping_inside_a_request_withdraws_the_wake_just_taken() {
     assert!(!port.is_running());
     assert!(looped.cancels.get() >= 2, "once by stop, once for the wake");
     assert_eq!(
-        port.on_wake(WakeTicket::from_raw(1)),
+        port.on_wake(&WakeTicket::from_raw(1)),
         WakeOutcome::Ignored(IgnoredWake::NotRunning)
     );
     assert_eq!(published.count(), 0);
@@ -295,12 +315,12 @@ fn a_wake_that_was_only_late_still_counts_and_the_chains_merge() {
     assert!(bench.heartbeat.on_loop_turn(), "a replacement is asked for");
 
     assert!(matches!(
-        bench.heartbeat.on_wake(late),
+        bench.heartbeat.on_wake(&late),
         WakeOutcome::Beat(_)
     ));
     let replacement = bench.event_loop.take_due().expect("the replacement");
     assert!(matches!(
-        bench.heartbeat.on_wake(replacement),
+        bench.heartbeat.on_wake(&replacement),
         WakeOutcome::Beat(_)
     ));
     assert_eq!(bench.event_loop.pending(), 1, "one wake in flight again");
@@ -319,7 +339,7 @@ fn a_slow_loop_keeps_beating() {
         // Each turn dispatches another event first, then one wake.
         bench.heartbeat.on_loop_turn();
         if let Some(ticket) = bench.event_loop.take_due() {
-            bench.heartbeat.on_wake(ticket);
+            bench.heartbeat.on_wake(&ticket);
         }
     }
     assert_eq!(bench.published.count(), before + 40, "one beat per turn");
@@ -377,7 +397,7 @@ fn stop_publishes_nothing_and_the_ring_outlives_the_last_beat() {
         let event_loop = ManualLoop::new(clock.clone());
         let heartbeat = UiHeartbeat::new(clock.clone(), event_loop.clone(), writer);
         heartbeat.start().expect("starts");
-        heartbeat.on_wake(event_loop.take_due().expect("due"));
+        heartbeat.on_wake(&event_loop.take_due().expect("due"));
         clock.advance(WAKE_DELAY);
         let late = event_loop.take_due().expect("dispatched after the stop");
         let last = heartbeat.last_beat();
@@ -387,7 +407,7 @@ fn stop_publishes_nothing_and_the_ring_outlives_the_last_beat() {
         assert_eq!(event_loop.cancels(), 1, "withdrawn once");
         assert!(!heartbeat.is_running());
         assert_eq!(
-            heartbeat.on_wake(late),
+            heartbeat.on_wake(&late),
             WakeOutcome::Ignored(IgnoredWake::NotRunning)
         );
         assert!(!heartbeat.on_loop_turn());
@@ -433,7 +453,7 @@ fn without_a_ring_writer_it_runs_and_stays_silent() {
         clock.advance(WAKE_DELAY);
         let ticket = event_loop.take_due().expect("due");
         assert!(matches!(
-            heartbeat.on_wake(ticket),
+            heartbeat.on_wake(&ticket),
             WakeOutcome::Beat(beat) if beat.counter == counter
         ));
     }
@@ -457,10 +477,240 @@ fn the_recorder_gets_the_counter_first_and_the_time_second() {
     let heartbeat = UiHeartbeat::new(
         clock,
         event_loop.clone(),
-        RecorderHeartbeat::new(recorder_heartbeat),
+        RecorderHeartbeat::new(recorder_heartbeat, || true),
     );
     heartbeat.start().expect("starts");
-    heartbeat.on_wake(event_loop.take_due().expect("due"));
+    heartbeat.on_wake(&event_loop.take_due().expect("due"));
     assert_eq!(RECORDED_COUNTER.load(Ordering::SeqCst), 1);
     assert_eq!(RECORDED_NANOS.load(Ordering::SeqCst), 777);
+}
+
+/// A loop that hands out a proof with each dispatch and says whether it dispatched that wake for the port.
+#[derive(Clone)]
+struct Vouching(ManualLoop);
+
+/// A dispatched wake as this loop hands it out: the ticket it carries, and whether the loop dispatched it for the port.
+struct Proof {
+    ticket: WakeTicket,
+    for_the_port: bool,
+}
+
+impl EventLoopWake for Vouching {
+    type Dispatched<'a> = Proof;
+    fn dispatched_ticket(&self, wake: &Proof) -> Option<WakeTicket> {
+        wake.for_the_port.then_some(wake.ticket)
+    }
+    fn on_loop_thread(&self) -> bool {
+        true
+    }
+    fn request_wake(&self, ticket: WakeTicket, delay: Duration) -> Result<(), WakeRefused> {
+        self.0.request_wake(ticket, delay)
+    }
+    fn cancel_wakes(&self) {
+        self.0.cancel_wakes();
+    }
+}
+
+/// MT-215 HB-7: the port takes the loop's proof of a dispatch, not a ticket. A wake that carries the very ticket the
+/// port waits for, but that the loop did not dispatch for it, publishes nothing and leaves the ticket redeemable.
+#[test]
+fn a_wake_the_loop_does_not_vouch_for_publishes_nothing() {
+    let clock = ManualClock::default();
+    let event_loop = ManualLoop::new(clock.clone());
+    let published = Published::default();
+    let heartbeat = UiHeartbeat::new(
+        clock.clone(),
+        Vouching(event_loop.clone()),
+        published.clone(),
+    );
+    heartbeat.start().expect("starts");
+    let ticket = event_loop.take_due().expect("due");
+
+    let foreign = Proof {
+        ticket,
+        for_the_port: false,
+    };
+    for _ in 0..3 {
+        assert_eq!(
+            heartbeat.on_wake(&foreign),
+            WakeOutcome::Ignored(IgnoredWake::ForeignWake)
+        );
+    }
+    assert_eq!(published.count(), 0);
+    assert_eq!(heartbeat.counters().ignored_wakes, 3);
+    let own = Proof {
+        ticket,
+        for_the_port: true,
+    };
+    assert!(matches!(
+        heartbeat.on_wake(&own),
+        WakeOutcome::Beat(beat) if beat.counter == 1
+    ));
+}
+
+/// MT-215 F4: a loop that has ended is asked nothing more, however many turns and resumes follow.
+#[test]
+fn a_closed_loop_ends_the_heartbeat_and_is_asked_nothing_more() {
+    let bench = Bench::running();
+    bench.event_loop.refuse(Some(WakeRefused::LoopClosed));
+    bench.beat();
+    let requests = bench.event_loop.requests();
+    assert!(!bench.heartbeat.is_running(), "the port stopped");
+    assert!(bench.heartbeat.counters().loop_closed);
+    for _ in 0..10_000 {
+        bench.clock.advance(Duration::from_secs(1));
+        assert!(!bench.heartbeat.on_loop_turn());
+        assert!(!bench.heartbeat.on_system_resume());
+    }
+    assert_eq!(
+        bench.event_loop.requests(),
+        requests,
+        "a closed loop was asked again"
+    );
+    assert_eq!(bench.heartbeat.start(), Err(StartRefused::Stopped));
+
+    // A loop that has ended before the first wake: refused once, then stopped.
+    let bench = Bench::new();
+    bench.event_loop.refuse(Some(WakeRefused::LoopClosed));
+    assert_eq!(
+        bench.heartbeat.start(),
+        Err(StartRefused::Wake(WakeRefused::LoopClosed))
+    );
+    assert_eq!(bench.heartbeat.start(), Err(StartRefused::Stopped));
+    assert_eq!(bench.event_loop.requests(), 1);
+}
+
+/// MT-215 F4: a loop that takes nothing out of its queue for an hour holds at most `MAX_OUTSTANDING_WAKES` of the
+/// port's wakes, however many turns and resumes come meanwhile; once it dispatches one, the chain goes on.
+#[test]
+fn outstanding_wakes_are_bounded_however_long_the_loop_takes_nothing_out() {
+    let bench = Bench::running();
+    assert_eq!(bench.event_loop.pending(), 1);
+    for turn in 0..72_000 {
+        bench.clock.advance(Duration::from_millis(50));
+        bench.heartbeat.on_loop_turn();
+        if turn % 72 == 0 {
+            bench.heartbeat.on_system_resume();
+        }
+    }
+    assert_eq!(
+        bench.event_loop.pending() as u64,
+        MAX_OUTSTANDING_WAKES,
+        "wakes outstanding after an hour"
+    );
+    let counters = bench.heartbeat.counters();
+    assert_eq!(counters.replaced_wakes, MAX_OUTSTANDING_WAKES - 1);
+    assert!(counters.held_back_wakes > 1_000, "{counters:?}");
+
+    let oldest = bench.event_loop.take_any().expect("in flight");
+    assert!(matches!(
+        bench.heartbeat.on_wake(&oldest),
+        WakeOutcome::Beat(_)
+    ));
+    let newest = std::iter::from_fn(|| bench.event_loop.take_any())
+        .last()
+        .expect("in flight");
+    assert!(matches!(
+        bench.heartbeat.on_wake(&newest),
+        WakeOutcome::Beat(_)
+    ));
+    bench.beat();
+    assert_eq!(bench.event_loop.pending(), 1, "one chain again");
+}
+
+/// MT-215 HB-4: while a frame has waited `PRESENT_STALL` without a present, dispatched wakes go on but publish no beat;
+/// the stall is recorded once when it begins and once when it ends, and the first beat after it is not overdue.
+#[test]
+fn a_present_stall_withholds_beats_and_is_recorded_once_each_way() {
+    let clock = ManualClock::default();
+    clock.set(nanos(Duration::from_secs(1)));
+    let event_loop = ManualLoop::new(clock.clone());
+    let published = Published::default();
+    let frames = ManualFrames::new(clock.clone());
+    let heartbeat = UiHeartbeat::with_frames(
+        clock.clone(),
+        event_loop.clone(),
+        published.clone(),
+        frames.clone(),
+    );
+    heartbeat.start().expect("starts");
+    let dispatch = || {
+        clock.advance(WAKE_DELAY);
+        heartbeat.on_wake(&event_loop.take_due().expect("a wake is due"))
+    };
+    assert!(matches!(dispatch(), WakeOutcome::Beat(_)));
+
+    frames.want();
+    let mut beats_while_waiting = 0;
+    let first_withheld = loop {
+        match dispatch() {
+            WakeOutcome::Beat(_) => beats_while_waiting += 1,
+            WakeOutcome::Withheld { frame_wait } => break frame_wait,
+            other => panic!("{other:?}"),
+        }
+    };
+    assert!(first_withheld >= PRESENT_STALL);
+    assert!(first_withheld < PRESENT_STALL + WAKE_DELAY + WAKE_DELAY);
+    assert!(
+        beats_while_waiting >= 18,
+        "beats go on below the stall: {beats_while_waiting}"
+    );
+    let last = heartbeat.last_beat().expect("beat before");
+    assert!(heartbeat.present_stalled());
+
+    let published_before = published.count();
+    for _ in 0..30 {
+        assert!(matches!(dispatch(), WakeOutcome::Withheld { .. }));
+    }
+    assert_eq!(published.count(), published_before, "no beat during the stall");
+    assert_eq!(event_loop.pending(), 1, "the chain goes on");
+    let events = published.events();
+    assert_eq!(events.len(), 1, "the stall is recorded once");
+    assert_eq!(events[0].event_code, DiagEventCode::SlowFrame.as_u16());
+    assert_eq!(events[0].phase_marker, DiagPhase::Degraded.as_u8());
+    assert_eq!(events[0].counter_a, last.counter);
+
+    frames.presented();
+    let WakeOutcome::Beat(beat) = dispatch() else {
+        panic!("a beat once the frame was presented");
+    };
+    assert_eq!(beat.counter, last.counter + 1);
+    let events = published.events();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[1].phase_marker, DiagPhase::Recovered.as_u8());
+    assert!(events[1].metric_micros >= events[0].metric_micros + 3_000_000);
+    let counters = heartbeat.counters();
+    assert_eq!(counters.present_stalls, 1);
+    assert_eq!(counters.withheld_beats, 31);
+    assert_eq!(counters.overdue_beats, 0, "the gap of a stall is explained");
+    assert!(!heartbeat.present_stalled());
+}
+
+/// MT-215 F3: a beat stays within `MAX_BEAT_GAP` when the wake is rounded up by the timer and a handler of up to
+/// `HANDLER_ALLOWANCE` runs when it comes due; with the earlier 200 ms delay it did not beyond about 35 ms.
+#[test]
+fn the_next_wake_leaves_room_for_the_timer_and_a_handler() {
+    assert!(HANDLER_ALLOWANCE >= Duration::from_millis(100));
+    let bench = Bench::running();
+    assert_eq!(bench.event_loop.last_delay(), WAKE_DELAY);
+    bench
+        .event_loop
+        .set_latency(TIMER_GRANULARITY + HANDLER_ALLOWANCE);
+    let mut at = bench.clock.now();
+    for _ in 0..100 {
+        loop {
+            bench.clock.advance(STEP);
+            if let Some(ticket) = bench.event_loop.take_due() {
+                assert!(matches!(
+                    bench.heartbeat.on_wake(&ticket),
+                    WakeOutcome::Beat(_)
+                ));
+                break;
+            }
+        }
+        let gap = Duration::from_nanos(bench.clock.now() - at);
+        assert!(gap <= MAX_BEAT_GAP, "{gap:?}");
+        at = bench.clock.now();
+    }
+    assert_eq!(bench.heartbeat.counters().overdue_beats, 0);
 }

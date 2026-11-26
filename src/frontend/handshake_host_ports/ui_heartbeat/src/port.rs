@@ -7,9 +7,14 @@ use std::time::Duration;
 use handshake_diag_ring::Heartbeat;
 
 use crate::clock::MonotonicClock;
+use crate::events::HeartbeatEvent;
+use crate::frames::{FrameWait, NoFrames};
 use crate::sink::HeartbeatSink;
 use crate::wake::{EventLoopWake, WakeRefused, WakeTicket};
-use crate::{LOST_WAKE_GRACE, MAX_BEAT_GAP, REFUSED_WAKE_RETRY, WAKE_DELAY};
+use crate::{
+    LOST_WAKE_GRACE, MAX_BEAT_GAP, MAX_OUTSTANDING_WAKES, PRESENT_STALL, REFUSED_WAKE_RETRY,
+    WAKE_DELAY,
+};
 
 /// Why [`UiHeartbeat::start`] did not start the heartbeat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,9 +23,10 @@ pub enum StartRefused {
     NotLoopThread,
     /// Already running.
     AlreadyRunning,
-    /// Already stopped; a stopped heartbeat stays silent.
+    /// Already stopped, or the loop has ended; a stopped heartbeat stays silent.
     Stopped,
-    /// The loop did not take the first wake. Nothing was published; starting again is allowed.
+    /// The loop did not take the first wake. Nothing was published. Starting again is allowed after
+    /// [`WakeRefused::Unavailable`]; after [`WakeRefused::LoopClosed`] the heartbeat is stopped.
     Wake(WakeRefused),
 }
 
@@ -29,6 +35,12 @@ pub enum StartRefused {
 pub enum WakeOutcome {
     /// The wake proved the loop is being serviced and this beat was published.
     Beat(Heartbeat),
+    /// The loop is serviced, but a frame has waited [`PRESENT_STALL`] without a present: no beat, so the watcher sees
+    /// the stall (MT-215 HB-4). The next wake was asked for as usual.
+    Withheld {
+        /// How long that frame has waited.
+        frame_wait: Duration,
+    },
     /// Nothing was published.
     Ignored(IgnoredWake),
 }
@@ -38,6 +50,8 @@ pub enum WakeOutcome {
 pub enum IgnoredWake {
     /// The port has not started or has stopped.
     NotRunning,
+    /// The loop says this is not a wake it dispatched for the port (MT-215 HB-7).
+    ForeignWake,
     /// The port never asked for this ticket.
     NeverRequested,
     /// This ticket, or a later one, was already dispatched.
@@ -51,7 +65,8 @@ pub enum IgnoredWake {
 pub struct HeartbeatCounters {
     /// Beats published.
     pub beats: u64,
-    /// Beats that came more than [`MAX_BEAT_GAP`] after the one before and were not explained by a system resume.
+    /// Beats that came more than [`MAX_BEAT_GAP`] after the one before and were not explained by a system resume or a
+    /// present stall.
     pub overdue_beats: u64,
     /// The longest such gap, in nanoseconds.
     pub longest_gap_nanos: u64,
@@ -59,12 +74,20 @@ pub struct HeartbeatCounters {
     pub resumes: u64,
     /// Wakes requested again because one was lost or a resume was reported.
     pub replaced_wakes: u64,
+    /// Replacements not asked for because [`MAX_OUTSTANDING_WAKES`] were already outstanding (MT-215 F4).
+    pub held_back_wakes: u64,
     /// Wake requests the loop did not take.
     pub refused_wakes: u64,
     /// Dispatched wakes that published nothing.
     pub ignored_wakes: u64,
+    /// Dispatched wakes whose beat was withheld for a present stall (MT-215 HB-4).
+    pub withheld_beats: u64,
+    /// Present stalls that began.
+    pub present_stalls: u64,
     /// Beats for which the clock read earlier than at the beat before.
     pub clock_regressions: u64,
+    /// The loop said it has ended; the port asks it for nothing more (MT-215 F4).
+    pub loop_closed: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -85,6 +108,17 @@ struct Wakes {
     replace_at_nanos: u64,
     /// The next beat follows a reported system resume.
     resumed: bool,
+    /// The next beat follows withheld ones, so its gap is explained.
+    after_withheld: bool,
+}
+
+/// A present stall under way.
+#[derive(Clone, Copy)]
+struct Stall {
+    /// The counter of the last beat before it.
+    last_counter: u64,
+    /// The longest wait seen.
+    longest: Duration,
 }
 
 /// The UI-thread heartbeat.
@@ -94,32 +128,50 @@ struct Wakes {
 /// beat proves.
 ///
 /// Every method takes `&self`, because a nested (modal) loop may call in again while an outer handler is still running.
-/// Each is bounded and, with a clock, loop and sink that keep their contracts, neither blocks, allocates nor panics.
-pub struct UiHeartbeat<C, L, S> {
+/// Each is bounded and, with a clock, loop, sink and frames that keep their contracts, neither blocks, allocates nor
+/// panics.
+pub struct UiHeartbeat<C, L, S, F = NoFrames> {
     clock: C,
     event_loop: L,
     sink: S,
+    frames: F,
     phase: Cell<Phase>,
     inside_call: Cell<bool>,
     wakes: Cell<Wakes>,
     last_beat: Cell<Heartbeat>,
     last_beat_read_nanos: Cell<u64>,
+    stall: Cell<Option<Stall>>,
+    events: Cell<u64>,
     counters: Cell<HeartbeatCounters>,
     ui_thread_only: PhantomData<*const ()>,
 }
 
-impl<C, L, S> UiHeartbeat<C, L, S>
+impl<C, L, S> UiHeartbeat<C, L, S, NoFrames>
 where
     C: MonotonicClock,
     L: EventLoopWake,
     S: HeartbeatSink,
 {
-    /// A heartbeat that has not started. Publishes nothing and requests nothing yet.
+    /// A heartbeat that has not started and watches no frames. Publishes nothing and requests nothing yet.
     pub fn new(clock: C, event_loop: L, sink: S) -> Self {
+        Self::with_frames(clock, event_loop, sink, NoFrames)
+    }
+}
+
+impl<C, L, S, F> UiHeartbeat<C, L, S, F>
+where
+    C: MonotonicClock,
+    L: EventLoopWake,
+    S: HeartbeatSink,
+    F: FrameWait,
+{
+    /// A heartbeat that has not started and withholds its beats while `frames` reports a present stall.
+    pub fn with_frames(clock: C, event_loop: L, sink: S, frames: F) -> Self {
         Self {
             clock,
             event_loop,
             sink,
+            frames,
             phase: Cell::new(Phase::Created),
             inside_call: Cell::new(false),
             wakes: Cell::new(Wakes::default()),
@@ -128,6 +180,8 @@ where
                 timestamp_nanos: 0,
             }),
             last_beat_read_nanos: Cell::new(0),
+            stall: Cell::new(None),
+            events: Cell::new(0),
             counters: Cell::new(HeartbeatCounters::default()),
             ui_thread_only: PhantomData,
         }
@@ -158,14 +212,20 @@ where
         requested.map_err(StartRefused::Wake)
     }
 
-    /// The loop dispatched `ticket`: publish a beat and ask for the next wake.
-    pub fn on_wake(&self, ticket: WakeTicket) -> WakeOutcome {
+    /// The loop dispatched `wake`: publish a beat, or withhold it during a present stall, and ask for the next wake.
+    ///
+    /// `wake` is the loop's own proof of the dispatch ([`EventLoopWake::Dispatched`]); the loop says which ticket it
+    /// carries, and a wake it did not dispatch for the port publishes nothing (MT-215 HB-7).
+    pub fn on_wake(&self, wake: &L::Dispatched<'_>) -> WakeOutcome {
         let Some(_call) = PortCall::enter(&self.inside_call) else {
             return self.ignored(IgnoredWake::InsidePortCall);
         };
         if self.phase.get() != Phase::Running {
             return self.ignored(IgnoredWake::NotRunning);
         }
+        let Some(ticket) = self.event_loop.dispatched_ticket(wake) else {
+            return self.ignored(IgnoredWake::ForeignWake);
+        };
         let mut wakes = self.wakes.get();
         if ticket.number() > wakes.requested {
             return self.ignored(IgnoredWake::NeverRequested);
@@ -176,10 +236,21 @@ where
 
         // The beat comes before the next request, so a loop that refuses the next wake cannot cost this one.
         let now = self.clock.now_nanos();
-        let beat = self.publish(now, wakes.resumed);
+        let outcome = match self.present_stall(now) {
+            Some(frame_wait) => {
+                self.count(|counters| counters.withheld_beats = counters.withheld_beats.saturating_add(1));
+                wakes.after_withheld = true;
+                WakeOutcome::Withheld { frame_wait }
+            }
+            None => {
+                let beat = self.publish(now, wakes.resumed, wakes.after_withheld);
+                wakes.resumed = false;
+                wakes.after_withheld = false;
+                WakeOutcome::Beat(beat)
+            }
+        };
 
         wakes.redeemed = ticket.number();
-        wakes.resumed = false;
         wakes.replace_at_nanos = now.saturating_add(nanos(LOST_WAKE_GRACE));
         self.wakes.set(wakes);
         // A replacement still in flight carries the chain on; otherwise ask for the next wake. A refusal is counted
@@ -187,13 +258,13 @@ where
         if wakes.redeemed == wakes.requested {
             let _ = self.request_wake(now, WAKE_DELAY);
         }
-        WakeOutcome::Beat(beat)
+        outcome
     }
 
     /// The loop dispatched something else (input, resize, redraw, a user event). Publishes nothing.
     ///
-    /// Recovers a wake that was refused, or lost with the timer or window that carried it. Returns whether a
-    /// replacement was taken by the loop.
+    /// Recovers a wake that was refused, or lost by a loop that broke its contract. Returns whether a replacement was
+    /// taken by the loop.
     pub fn on_loop_turn(&self) -> bool {
         let Some(_call) = PortCall::enter(&self.inside_call) else {
             return false;
@@ -263,7 +334,73 @@ where
         self.counters.get()
     }
 
-    fn publish(&self, now: u64, resumed: bool) -> Heartbeat {
+    /// Whether beats are withheld for a present stall now.
+    pub fn present_stalled(&self) -> bool {
+        self.stall.get().is_some()
+    }
+
+    /// The frames the port watches.
+    pub fn frames(&self) -> &F {
+        &self.frames
+    }
+
+    fn count(&self, change: impl FnOnce(&mut HeartbeatCounters)) {
+        let mut counters = self.counters.get();
+        change(&mut counters);
+        self.counters.set(counters);
+    }
+
+    /// `Some` with the frame's wait while beats are withheld. Records the stall once when it begins and once when it
+    /// ends.
+    fn present_stall(&self, now: u64) -> Option<Duration> {
+        let wait = self.frames.longest_wait();
+        let stalled = wait.filter(|wait| *wait >= PRESENT_STALL);
+        match (self.stall.get(), stalled) {
+            (None, None) => None,
+            (None, Some(waited)) => {
+                let last_counter = self.last_beat.get().counter;
+                self.stall.set(Some(Stall {
+                    last_counter,
+                    longest: waited,
+                }));
+                self.count(|counters| counters.present_stalls = counters.present_stalls.saturating_add(1));
+                self.record(
+                    now,
+                    HeartbeatEvent::PresentStalled {
+                        last_counter,
+                        waited,
+                    },
+                );
+                Some(waited)
+            }
+            (Some(stall), Some(waited)) => {
+                self.stall.set(Some(Stall {
+                    longest: stall.longest.max(waited),
+                    ..stall
+                }));
+                Some(waited)
+            }
+            (Some(stall), None) => {
+                self.stall.set(None);
+                self.record(
+                    now,
+                    HeartbeatEvent::PresentRecovered {
+                        last_counter: stall.last_counter,
+                        waited: stall.longest,
+                    },
+                );
+                None
+            }
+        }
+    }
+
+    fn record(&self, now: u64, event: HeartbeatEvent) {
+        let sequence = self.events.get().saturating_add(1);
+        self.events.set(sequence);
+        self.sink.record(event.to_diag_event(sequence, now));
+    }
+
+    fn publish(&self, now: u64, resumed: bool, after_withheld: bool) -> Heartbeat {
         let last = self.last_beat.get();
         let mut counters = self.counters.get();
         if self.last_beat().is_some() {
@@ -271,7 +408,7 @@ where
             let gap = now.saturating_sub(previous);
             if resumed {
                 counters.resumes = counters.resumes.saturating_add(1);
-            } else if gap > nanos(MAX_BEAT_GAP) {
+            } else if gap > nanos(MAX_BEAT_GAP) && !after_withheld {
                 counters.overdue_beats = counters.overdue_beats.saturating_add(1);
                 counters.longest_gap_nanos = counters.longest_gap_nanos.max(gap);
             }
@@ -293,15 +430,22 @@ where
         beat
     }
 
+    /// Ask for a replacement wake, unless [`MAX_OUTSTANDING_WAKES`] are outstanding already (MT-215 F4): a loop that
+    /// keeps its contract holds one and delivers it, so more would only pile up in a loop that takes nothing out.
     fn replace_wake(&self, now: u64) -> bool {
-        let mut counters = self.counters.get();
-        counters.replaced_wakes = counters.replaced_wakes.saturating_add(1);
-        self.counters.set(counters);
+        let mut wakes = self.wakes.get();
+        if wakes.requested.saturating_sub(wakes.redeemed) >= MAX_OUTSTANDING_WAKES {
+            self.count(|counters| counters.held_back_wakes = counters.held_back_wakes.saturating_add(1));
+            wakes.replace_at_nanos = now.saturating_add(nanos(LOST_WAKE_GRACE));
+            self.wakes.set(wakes);
+            return false;
+        }
+        self.count(|counters| counters.replaced_wakes = counters.replaced_wakes.saturating_add(1));
         self.request_wake(now, Duration::ZERO).is_ok()
     }
 
     /// Ask the loop for one more wake. Earlier tickets stay redeemable: a slow loop that dispatches them late is still
-    /// being serviced.
+    /// being serviced. A loop that has ended stops the port for good.
     fn request_wake(&self, now: u64, delay: Duration) -> Result<(), WakeRefused> {
         let mut wakes = self.wakes.get();
         let ticket = wakes.requested.saturating_add(1);
@@ -312,15 +456,17 @@ where
                 delay.saturating_add(LOST_WAKE_GRACE)
             }
             Err(_) => {
-                let mut counters = self.counters.get();
-                counters.refused_wakes = counters.refused_wakes.saturating_add(1);
-                self.counters.set(counters);
+                self.count(|counters| counters.refused_wakes = counters.refused_wakes.saturating_add(1));
                 REFUSED_WAKE_RETRY
             }
         };
         wakes.replace_at_nanos = now.saturating_add(nanos(replace_after));
         self.wakes.set(wakes);
-        if self.phase.get() == Phase::Stopped {
+        if taken == Err(WakeRefused::LoopClosed) {
+            // No wake will ever be dispatched: nothing to withdraw, and nothing to ask for again.
+            self.phase.set(Phase::Stopped);
+            self.count(|counters| counters.loop_closed = true);
+        } else if self.phase.get() == Phase::Stopped {
             // Stopped from inside the request; the wake it just took must not outlive the stop.
             self.event_loop.cancel_wakes();
         }
@@ -328,9 +474,7 @@ where
     }
 
     fn ignored(&self, reason: IgnoredWake) -> WakeOutcome {
-        let mut counters = self.counters.get();
-        counters.ignored_wakes = counters.ignored_wakes.saturating_add(1);
-        self.counters.set(counters);
+        self.count(|counters| counters.ignored_wakes = counters.ignored_wakes.saturating_add(1));
         WakeOutcome::Ignored(reason)
     }
 }

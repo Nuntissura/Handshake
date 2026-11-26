@@ -1,0 +1,30 @@
+# WP-KERNEL-012 — the shell crate of MT-214 AC214-12: composition only, no widget, pane or domain logic.
+#
+# Its first part is MT-215 slice 2: the shell's own adapter of the toolkit-free UI heartbeat port (AC215-1, "the new
+# shell has its own adapters"), over the window crate's wake lanes and the surface crate's present watches. The shell
+# depends on the port; the port depends on neither (MT-215 module_maintenance.dependency_direction). The shell binary
+# of MT-214 S5 joins this crate later.
+[package]
+name = "handshake_shell"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Composition of the kernel-owned shell: the UI heartbeat port bound to the shell's event loop and present path."
+
+[dependencies]
+handshake_shell_window = { path = "../window" }
+handshake_shell_surface = { path = "../surface" }
+ui_heartbeat = { path = "../../handshake_host_ports/ui_heartbeat" }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Tests only: the ring the watcher reads, the GPU owner's types and test process rules, and the window crate's private
+# desktop. The revision winit 0.30.13 binds, as in the window and surface crates.
+handshake-diag-ring = { path = "../../handshake_native/diag_ring" }
+handshake-vulkan-renderer = { path = "../../handshake_native/vulkan-renderer" }
+windows-sys = { version = "=0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_StationsAndDesktops",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }

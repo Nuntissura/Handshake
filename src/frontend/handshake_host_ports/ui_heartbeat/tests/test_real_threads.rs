@@ -29,6 +29,12 @@ struct ThreadLoop {
 }
 
 impl EventLoopWake for ThreadLoop {
+    type Dispatched<'a> = WakeTicket;
+
+    fn dispatched_ticket(&self, wake: &WakeTicket) -> Option<WakeTicket> {
+        Some(*wake)
+    }
+
     fn on_loop_thread(&self) -> bool {
         thread::current().id() == self.owner
     }
@@ -78,7 +84,7 @@ fn ui_thread(
         });
         match queue.recv_timeout(wait) {
             Ok(Message::Posted(ticket)) => {
-                heartbeat.on_wake(ticket);
+                heartbeat.on_wake(&ticket);
             }
             Ok(Message::Block { begun, release }) => {
                 heartbeat.on_loop_turn();
@@ -88,7 +94,7 @@ fn ui_thread(
             Ok(Message::Quit) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {
                 if let Some((_, ticket)) = timer.take() {
-                    heartbeat.on_wake(ticket);
+                    heartbeat.on_wake(&ticket);
                 }
             }
         }
@@ -184,7 +190,7 @@ fn another_thread_cannot_start_a_heartbeat_for_this_threads_loop() {
         let started = heartbeat.start();
         for raw in 0..100 {
             assert!(matches!(
-                heartbeat.on_wake(WakeTicket::from_raw(raw)),
+                heartbeat.on_wake(&WakeTicket::from_raw(raw)),
                 WakeOutcome::Ignored(_)
             ));
         }

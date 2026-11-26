@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use handshake_diag_ring::ring::DiagRingWriterV2;
-use handshake_diag_ring::DEFAULT_CAPACITY;
+use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagRingReader, DEFAULT_CAPACITY};
 use palmistry::freeze_detect::{
     FreezeState, FREEZE_THRESHOLD, MT084_IDLE_HEARTBEAT_CADENCE, POLL_INTERVAL,
 };
@@ -13,7 +13,8 @@ use palmistry::hung_window_probe::{FakeHungWindowProbe, ProbeResult};
 use palmistry::ring_reader::PalmistryRingReaderV2;
 use support::{all_healthy, nanos, Desk, ManualClock, ManualLoop, RingFile, Ui, Verdict, STEP};
 use ui_heartbeat::{
-    UiHeartbeat, WakeOutcome, LOST_WAKE_GRACE, MAX_BEAT_GAP, REFUSED_WAKE_RETRY, WAKE_DELAY,
+    UiHeartbeat, WakeOutcome, LOST_WAKE_GRACE, MAX_BEAT_GAP, PRESENT_STALL, REFUSED_WAKE_RETRY,
+    WAKE_DELAY,
 };
 
 fn first_unhealthy(verdicts: &[Verdict]) -> Option<&Verdict> {
@@ -34,6 +35,10 @@ fn cadence_agrees_with_the_watchers_constants() {
         "a lost wake is replaced long before it can look like a freeze"
     );
     assert!(REFUSED_WAKE_RETRY < MAX_BEAT_GAP);
+    assert!(
+        PRESENT_STALL + POLL_INTERVAL < FREEZE_THRESHOLD,
+        "a present stall is withheld well inside the watcher's threshold"
+    );
 }
 
 /// AC215-6, MT-084 RISK-004-1: an idle UI that draws nothing stays alive.
@@ -240,7 +245,7 @@ fn clock_running_backward_neither_stops_the_beat_nor_turns_time_back() {
     for _ in 0..20 {
         // The operating system's timer fires whatever our clock reads.
         let ticket = desk.event_loop.take_any().expect("a wake is in flight");
-        match desk.heartbeat.on_wake(ticket) {
+        match desk.heartbeat.on_wake(&ticket) {
             WakeOutcome::Beat(beat) => {
                 assert_eq!(beat.counter, last.counter + 1);
                 assert!(beat.timestamp_nanos > last.timestamp_nanos);
@@ -321,7 +326,7 @@ fn version_2_ring_carries_the_beat() {
     for counter in 1..=5 {
         clock.advance(WAKE_DELAY);
         let ticket = event_loop.take_due().expect("due");
-        let WakeOutcome::Beat(beat) = heartbeat.on_wake(ticket) else {
+        let WakeOutcome::Beat(beat) = heartbeat.on_wake(&ticket) else {
             panic!("a due wake beats");
         };
         assert_eq!(beat.counter, counter);
@@ -331,4 +336,50 @@ fn version_2_ring_carries_the_beat() {
         reader.read_last_events(16).is_empty(),
         "the heartbeat slot only: no record is written"
     );
+}
+
+/// MT-215 HB-4: a loop that lives and presents nothing goes stale while its window answers: the watcher suspects it
+/// and never confirms a freeze, the ring holds the typed stall, and the watcher is healthy again once frames present.
+#[test]
+fn a_present_stall_is_suspected_never_confirmed_and_recovers() {
+    let mut desk = Desk::running("present-stall");
+    let wanted_at = desk.clock.now();
+    desk.frames.want();
+    let verdicts = desk.run(
+        Duration::from_secs(9),
+        Ui::Dispatching,
+        ProbeResult::Responding,
+    );
+    assert!(verdicts.iter().all(|verdict| !verdict.state.is_frozen()));
+    let last = verdicts.last().expect("polled").state;
+    assert!(last.is_suspected(), "{last:?}");
+    let first = first_unhealthy(&verdicts).expect("the stall is noticed");
+    assert!(
+        Duration::from_nanos(first.at - wanted_at) >= PRESENT_STALL + FREEZE_THRESHOLD - MAX_BEAT_GAP,
+        "only once the beats were withheld for the watcher's threshold"
+    );
+    let reader = DiagRingReader::open(desk.ring.path()).expect("reader");
+    let stalls = |phase: DiagPhase| {
+        reader
+            .read_last_n(16)
+            .iter()
+            .filter(|event| {
+                event.event_code == DiagEventCode::SlowFrame.as_u16()
+                    && event.phase_marker == phase.as_u8()
+            })
+            .count()
+    };
+    assert_eq!(stalls(DiagPhase::Degraded), 1);
+    assert_eq!(stalls(DiagPhase::Recovered), 0);
+
+    desk.frames.presented();
+    let healthy = desk.run(
+        Duration::from_secs(2),
+        Ui::Dispatching,
+        ProbeResult::Responding,
+    );
+    assert_eq!(healthy.last().expect("polled").state, FreezeState::Healthy);
+    assert_eq!(stalls(DiagPhase::Recovered), 1);
+    assert_eq!(desk.heartbeat.counters().present_stalls, 1);
+    drop(reader);
 }
