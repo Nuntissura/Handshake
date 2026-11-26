@@ -13947,5 +13947,57 @@
       "possible_link": "workspaces.rs:1649 and the account and authority sites may explain the PT003 Workspace Create failure; to be confirmed by a run",
       "covering_test_not_run": "tests/local_execution_authority_surreal_tests.rs (.unwrap() at 252)"
     }
+  },
+  "protected_bindings_fix_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report; named check result verified by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "defect_id": "PROTECTED-SESSION-BINDINGS",
+    "commit": "8e565bfa17f299d7864d13c240154363b2a7e838",
+    "backend_tree": "f8cb7a1f08c6020c76fedcfff20cba1516f92e2b (identical at e29ca7cff, which changes src/frontend only)",
+    "fix": "13 bindings named session renamed with every $session use in the queries they serve to $session_record (the name resource_authority.rs already used); none dropped",
+    "sites_at_198dae691": [
+      "preferences.rs:913 (query 912)",
+      "event_ledger.rs:276 LoomScopeSessionBinding (query 288)",
+      "local_accounts.rs:837 CurrentActorPasswordBindings (queries 898, 1768; literals 878, 1812, 2257, 2560, 2622)",
+      "local_accounts.rs:1001 CurrentActorCredentialFenceBindings (1035)",
+      "local_accounts.rs:1386 AdministratorConfirmationPasswordBinding (1435-1451)",
+      "local_accounts.rs:1703 FirstOwnerBootstrapOriginRead (1727)",
+      "resource_authority.rs:185 navigation activation (197)",
+      "resource_authority.rs:772 artifact registration (917)",
+      "resource_authority.rs:7632 administration registration (7753)",
+      "resource_authority.rs:12224 MemberExchangeWrite (12264-12286): Member login was broken",
+      "resource_authority.rs:13149 AdministratorExchangeWrite (13161-13162): administrator login was broken",
+      "workspaces.rs:1650 FirstOwnerWorkspaceRecoveryRead (1762)",
+      "resource_authority/producer_authority_tests.rs:67 OpenRows (test helper)"
+    ],
+    "checked_not_bindings": "every not_bindings entry in protected_bindings_and_cap_stop_20261126 confirmed (decoded rows, nested values, or reads of SurrealDB's built-in $access/$auth/$token); no access/auth/token bindings and no LET with a protected name; schema function parameters named $session are allowed (only bound variables and LET are checked)",
+    "error_mapping_unchanged": "api/authority.rs:2733-2740 maps any exchange error to the generic denial and :1594 reports it only as credential_exchange; preference errors become HTTP 500 db_error via map_storage_error",
+    "tests_added": {
+      "per_store": "protected_session_binding_tests in preferences, event_ledger, local_accounts, resource_authority, workspaces, on an embedded store with the full production schema; preferences and event_ledger run the real query as a provisioned record user and assert the identity (catch a protected name and a dropped binding); the other three run the real read queries with production bindings and bind the write-only binding sets to a statement returning true (catch a protected name, not a dropped binding)",
+      "guard": "schema.rs scans all backend crates for protected names in bindings and LET and for $session outside schema files, with a self-test and a ratchet list of known non-binding structs; a python copy flags all 13 sites on the old code and none now"
+    },
+    "watch": "three .is_err() checks just before tests/local_execution_authority_surreal_tests.rs:252 probably passed only because every query failed; they now test real denial and may fail",
+    "pt003": "not explained by these sites: the first-claim path binds $account_session; the recorded failure is an empty result after statements ran, while a protected name fails before anything runs; workspaces.rs:1649 is recovery only; the test's Owner login does not use the broken exchanges. Remaining static candidate stays schema_repair_spec_20261125.pt003",
+    "compile_runs": {
+      "compile-check-20261126-07": "ITERATION --lib --tests on the uncommitted tree, refusals replaced by recording: exit 0, 24m31s, inputs unchanged",
+      "compile-check-20261126-08": "unmodified named check WP012-P1-MT-172-COMPILE on e29ca7cff: exit 0, 26m46s, inputs_unchanged true, dirty inputs none, cargo.log sha256 a963d0818af5fa7eda6b766d9f66ca5240c78df512e705bc26e5a47004bf4518, launcher sha256 005406f6... (unmodified); verified by the orchestrator"
+    },
+    "target_peak": "208.195 GB measured (double-counted hardlinks), 0.8 GB under the 209 GB stop line",
+    "waiver_needed_hbr_stop_005": {
+      "why": "the defect breaks production queries in files outside MT-172's write paths",
+      "files": {
+        "event_ledger.rs": "MT-153, MT-154, MT-173",
+        "local_accounts.rs": "MT-153, MT-154, MT-155, MT-173",
+        "preferences.rs": "MT-154",
+        "resource_authority.rs": "MT-173 (narrow grants MT-155, MT-168)",
+        "workspaces.rs": "MT-153, MT-154, MT-173",
+        "resource_authority/producer_authority_tests.rs": "no MT",
+        "schema.rs": "MT-172 among others (in scope)"
+      },
+      "status": "requested from the Operator 2026-11-26"
+    },
+    "gameplan_note": "the coder ran the WP gameplan builder before_round check: 59 steps unconfirmed and two checks fail; Codex CX-GP-001 retired these as gates, so not treated as one",
+    "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib --test local_execution_authority_surreal_tests -E 'test(/protected_session_binding_tests|protected_parameter_guard_tests/) | binary(local_execution_authority_surreal_tests)'; expect 7 lib tests plus all of local_execution_authority_surreal_tests including authenticated_store_integration_contract",
+    "eval_status": "blocked: the builder target is at the cap stop line; awaiting the Operator's cap decision"
   }
 }
