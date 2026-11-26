@@ -4832,5 +4832,33 @@
     ],
     "scope": "MT-173 slice SC-11; preferably inside schema revision 172 with the other schema changes",
     "spec_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/schema-writer-audit-20261125/repair-spec.json#/items (row_7)"
+  },
+  "sc1_login_nonce_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report; named check result verified by the orchestrator",
+    "recorded_on": "2026-11-26",
+    "picotask": "SC-1 login nonce (row 3) from schema_repair_spec_20261125",
+    "commit": "a0e0ee43b",
+    "paths": "src/backend/handshake_core/src/storage/surreal/resource_authority.rs only (MT-173 write path; no waiver needed)",
+    "defect": "MEMBER_PASSWORD_LOGIN_WRITE (:11923 account, :11928 principal, :11933 space) and MEMBER_EXCHANGE_WRITE (:12246, :12251, :12256) wrote auth_transition_nonce += 1; no composed schema defines that field and the three tables are SCHEMAFULL; SurrealDB 3.2.0 rejects an undefined key with FieldUndefined (doc/field.rs:151,167), so every Member login and exchange was denied (in addition to PROTECTED-SESSION-BINDINGS)",
+    "schema": "authorization_touch_nonce TYPE int DEFAULT 0 ASSERT $value >= 0 (schema.surql:8992-8994)",
+    "fix": "each site sets authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1, copied from the administrator twins; WHERE fences, RETURN AFTER, THROWs and the $session_record rename unchanged; no schema change; only remaining auth_transition_nonce text is a doc comment (resource_authority.rs:13569), verified by git grep",
+    "test": {
+      "name": "storage::surreal::resource_authority::member_login_nonce_tests::member_login_and_exchange_advance_the_defined_authorization_touch_nonce",
+      "runs_on": "embedded_test_backend() with the full production schema composition",
+      "calls": "login_local_account_target(.., Default) (POST /authority/login) and exchange_session_credential (POST /authority/session)",
+      "asserts": "both succeed, both return the redeemed identity, nonces on account, principal and space go 1 to 2 to 3",
+      "catches": "old code fails at login; exchange-only regression fails at exchange"
+    },
+    "deviation_to_review": {
+      "id": "SC1-D1",
+      "what": "the spec's enroll-then-redeem chain is not executed; the redeemed Member is seeded as stored state: account, principal and space as ordinary root writes, and the consumed member_enrollments row under SurrealDB OPTION IMPORT (skips events and field processing, keeps indexes) because the vault phase guard event (schema.surql:7880) needs a live issuer session; the real chain also needs OS-keychain custody and the workspace-create path suspected in PT003; the test asserts the seeded enrollment exists and is indexed before login"
+    },
+    "compile_runs": {
+      "compile-check-20261126-09": "ITERATION on 29763b430 plus the diff: exit 0, 28m, inputs unchanged, peak 208.195 GB",
+      "compile-check-20261126-10": "unmodified launcher refused (another agent's cargo running); nothing launched",
+      "compile-check-20261126-11": "unmodified launcher (sha256 005406f6...) on pushed e749ee2e9 (backend tree e2bc61163 identical to a0e0ee43b): exit 0, 25m08s, inputs_unchanged true, dirty none, cargo.log sha256 ba159940f6dd41ecaa44c1e911bba1f5d0e0230cd0f5f11898856111bfff6fd2; verified by the orchestrator; argv equals MT-173's WP012-P1-MT-173-COMPILE command although the label reads MT-172"
+    },
+    "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/member_login_nonce_tests/)' (exactly 1 test; batch with the pending MT-172 eval)",
+    "eval_status": "blocked with the MT-172 eval on the builder target cap (Operator decision pending)"
   }
 }
