@@ -2294,5 +2294,52 @@
     "commit": "80958a384",
     "see": "MT-215.json#/waitfree_remediation_20261126",
     "what": "surface watch atomic wanted_since and lock-free frame_wanted_for; window wake lane lock-free loop-thread path with Handoff mailbox, OS calls after unlock"
+  },
+  "slice5_shell_program_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet)",
+    "recorded_on": "2026-11-26",
+    "slice": "S5 shell program: pre-account startup gate, the loop composing all five crates, heartbeat, accessibility hub, input tracker, drained shutdown (AC214-10, AC214-11, AC214-12); S6 = multiwindow (AC214-8) and device loss/rebind plus readable unavailable state (AC214-9)",
+    "split_reason": "S5 needs only one window and nothing S6 adds; an unavailable device already ends as a typed outcome (exit 4)",
+    "commit": "eccb17e89 (only src/frontend/handshake_shell)",
+    "binary": "handshake_shell at shell/src/main.rs (working name); manual test binary shell/examples/shell_program.rs requires --show-on-my-desktop; code in shell/src/{authority,outcome,shutdown,program}.rs",
+    "wiring": {
+      "startup_gate": "run_product is the only product door and refuses with StartupRefusal::NoDeviceAuthority (exit 7) before anything opens; the authority type has an uninhabited field so no value exists until the real issuer does; a test binary declares TestBinary and its first line says product=false device_authority=none; PresentHost::open is called only in run_program; a missing device ends with exit 4 and the owner's key",
+      "loop": "on loop start the heartbeat opens and starts, then the root window opens quiet; on creation the accessibility adapter attaches before the first show, gets the frame, and the window shows with activate:false; the input tracker and hub follow every event",
+      "shutdown": "adapters closed at ShutdownBegan; the heartbeat beats through the drain; at LoopEnding shutdown_settled checks the owner report, abandoned claims and window counts; only a settled shutdown writes the ring Shutdown marker and asks the ShutdownWatcher; unsettled ends with exit 8; no panic hook or exception filter (scanned)"
+    },
+    "missing_from_other_mts": [
+      "device.gpu.shell not in the capability registry (MT-219 unpublished)",
+      "no kernel issuer API (NATIVE-RENDER-BOOT-007 defines semantics only)",
+      "no toolkit-free Palmistry launcher (palmistry_launch.rs lives in the egui host), so the binaries pass NoWatcher and --diag-ring makes a v1 ring without the launcher's v2 nonce",
+      "core's installation quota ledger does not exist; test binaries use their own policy",
+      "Operator-class root window and launch activation undecided; the root window is quiet"
+    ],
+    "tests": [
+      "tests/startup_gate.rs (no device): product refusal opens nothing; receipt says product=false; exit codes unique; shutdown_settled/may_acknowledge/conclude (unsettled acknowledged, windows left, claims abandoned)",
+      "tests/source_scan.rs: device opens in one place; product binary names no test authority and has no desktop flag; the example checks the flag, declares itself and prints its receipt first; no panic or exit handlers; no widget or pane words; dependency list; every program loop inside on_private_desktop",
+      "tests/shell_program.rs (real GPU, private desktop, own process): clean run (window destroyed, 0 quiet_broken, claims settled, one accessibility frame, at least 3 beats, one ring Shutdown marker, watcher asked once); a silent watcher gives exit 9",
+      "accessibility SemanticFrame::named_group helper with a consumer-applied test"
+    ],
+    "line_counts_ac214_12": {
+      "window": "10774/4482",
+      "surface": "3053/1762",
+      "input": "3563/864",
+      "accessibility": "2916/1066",
+      "shell": "1520/2346"
+    },
+    "implementer_checks": {
+      "check": "s5-check-1.log exit 0 no warnings",
+      "clippy": "s5-clippy-1.log exit 0",
+      "tree": "s5-tree-1.log no egui, eframe, wgpu, glow, kumihimo or accesskit_winit",
+      "Cargo.lock": "2 dependency lines added by hand for the shell package; --locked accepts it"
+    },
+    "tests_run": "none; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "the GPU tests on the x64 PC",
+      "actual Vulkan present and the heartbeat in a live run",
+      "the manual shell_program run",
+      "the Palmistry handshake and ack",
+      "UIA attach on an Operator desktop"
+    ]
   }
 }
