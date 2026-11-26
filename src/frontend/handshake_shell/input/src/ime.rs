@@ -298,6 +298,14 @@ impl ImeRouter {
         self.windows.contains_key(&window)
     }
 
+    /// The text target with the window's text focus.
+    pub(crate) fn focused(&self, window: WindowKey) -> Option<TextTarget> {
+        self.windows
+            .get(&window)
+            .and_then(|text| text.focus)
+            .map(|focus| focus.target)
+    }
+
     /// An Operator's composition is open in the window.
     pub(crate) fn operator_composing(&self, window: WindowKey) -> bool {
         self.windows

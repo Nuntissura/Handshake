@@ -1,0 +1,24 @@
+# HBR-QUIET: the window crate's ban, for both Win32 bindings this crate sees (windows-sys for its own two reads, windows
+# for the tests' UI Automation client). Clippy resolves these at the call site; tests/source_scan.rs always runs. The
+# window crate's test support, compiled into the tests here, shows and places a control window of its own on the private
+# desktop with windows-sys; ShowWindow and SetWindowPos of this crate's own files are banned by the source scan instead.
+disallowed-methods = [
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SetForegroundWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::BringWindowToTop", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SwitchToThisWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SetCursorPos", reason = "HBR-QUIET: never move the Operator's cursor", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow", reason = "HBR-QUIET: no activation", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SetFocus", reason = "HBR-QUIET: no focus change", allow-invalid = true },
+    { path = "windows_sys::Win32::System::Threading::AttachThreadInput", reason = "HBR-QUIET: no shared input state", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::keybd_event", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::mouse_event", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SendInput", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+    { path = "windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows::Win32::UI::WindowsAndMessaging::BringWindowToTop", reason = "HBR-QUIET: no foregrounding", allow-invalid = true },
+    { path = "windows::Win32::UI::WindowsAndMessaging::ShowWindow", reason = "HBR-QUIET: the window crate shows windows", allow-invalid = true },
+    { path = "windows::Win32::UI::WindowsAndMessaging::SetWindowPos", reason = "HBR-QUIET: the window crate places windows", allow-invalid = true },
+    { path = "windows::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow", reason = "HBR-QUIET: no activation", allow-invalid = true },
+    { path = "windows::Win32::UI::Input::KeyboardAndMouse::SetFocus", reason = "HBR-QUIET: no focus change", allow-invalid = true },
+    { path = "windows::Win32::UI::Input::KeyboardAndMouse::SendInput", reason = "HBR-QUIET: never inject input", allow-invalid = true },
+]

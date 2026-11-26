@@ -26,13 +26,17 @@ pub enum FocusBy<'a> {
     Model(Attribution),
     /// The shell itself, for example when a dialog closes.
     Host,
+    /// Another program, through the accessibility tree: an assistive tool or automation (MT-214 S4). Like a model, it
+    /// may not take the text focus from the Operator's composition.
+    OtherProgram,
 }
 
 impl FocusBy<'_> {
+    /// A model's or another program's: it yields to the Operator's composition.
     fn is_model(self) -> bool {
         match self {
             Self::Input(input) => input.is_model(),
-            Self::Model(_) => true,
+            Self::Model(_) | Self::OtherProgram => true,
             Self::Host => false,
         }
     }
@@ -220,6 +224,12 @@ impl InputTracker {
             place.scroll_x = x;
             place.scroll_y = y;
         })
+    }
+
+    /// The text target that has a window's text focus now, if any. The accessibility crate's frame follows it
+    /// (MT-214 S4).
+    pub fn text_focus(&self, window: WindowKey) -> Option<TextTarget> {
+        self.ime.focused(window)
     }
 
     /// What the host has to ask the windows for, with [`ImeRequest::command`]: the newest of each kind per window.

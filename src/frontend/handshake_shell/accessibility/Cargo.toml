@@ -1,0 +1,53 @@
+# WP-KERNEL-012 MT-214 S4 — the accessibility crate: the host's semantic tree to UI Automation, per window, and the
+# actions assistive tools and models ask for back as typed requests (AC214-7).
+#
+# AccessKit core is the only type vocabulary of the interface (AC214-1). The Windows adapter is the Operator's asset
+# copy of accesskit_windows 0.29.2 (Kumihimo third-party, assets rev 8eadc5b5, patched at the workspace root), used as
+# accesskit_winit uses it: a subclassing adapter on a window that was not shown yet. All of its code, and the two Win32
+# calls of this crate, are in src/platform.rs.
+[package]
+name = "handshake_shell_accessibility"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Accessibility of the kernel-owned shell: one AccessKit tree per window with node ids stable across frames, published to UI Automation without activating the window, and actions coming back as typed requests tagged with their origin. No toolkit or platform type in its interface but AccessKit core."
+
+[dependencies]
+handshake_shell_window = { path = "../window" }
+handshake_shell_input = { path = "../input" }
+# The node types of the interface (AC214-1). The version the current application and the asset adapter lock.
+accesskit = "=0.21.1"
+
+[target.'cfg(windows)'.dependencies]
+# The asset's adapter, through the workspace's [patch.crates-io] (asset rev 8eadc5b57dc2): ProviderOwnsSetFocus for the
+# root of a quiet window of this process, so a UI Automation SetFocus there asks the provider instead of the window.
+accesskit_windows = "=0.29.2"
+# Two reads before the adapter is attached (src/platform.rs). The revision winit 0.30.13 binds, as in the window crate.
+windows-sys = { version = "=0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+# Tests apply every update to the consumer the asset adapter reads from, so a malformed update fails there.
+accesskit_consumer = "=0.31.0"
+
+[target.'cfg(windows)'.dev-dependencies]
+# Tests only: the window crate's private desktop and watches, and messages to the test's own window.
+windows-sys = { version = "=0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_System_DataExchange",
+    "Win32_System_StationsAndDesktops",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }
+# Tests only: a UI Automation client, the version the asset adapter binds.
+windows = { version = "=0.61.3", features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_Variant",
+    "Win32_UI_Accessibility",
+] }
