@@ -2037,5 +2037,67 @@
       "maintenance1 path",
       "quiet_tests:332"
     ]
+  },
+  "slice4_implementation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "slice": "S4 accessibility crate (AC214-7)",
+    "commit": "619e704a8 (parent 3ab0c671f)",
+    "crate": "handshake_shell_accessibility at src/frontend/handshake_shell/accessibility (workspace member); all Win32 calls and unsafe code in src/platform.rs (two reads, nothing public); interface uses only AccessKit core types and the window and input crates' data types",
+    "line_counts_ac214_12": {
+      "accessibility": "src 2,430 (731 unit tests); tests and examples 904",
+      "window": "src 9,972; tests 4,396",
+      "surface": "src 3,004; tests 1,732",
+      "input": "src 3,204; tests 740",
+      "shell": "src 533; tests 1,288"
+    },
+    "tree_and_action_model": [
+      "the host gives each window a whole frame of nodes named by its own stable keys, with children, relations and selections by key",
+      "a key keeps its AccessKit id while it stays in every frame; a new or returning key gets an id that window never gave before",
+      "window scale is the root node's transform: logical bounds from the host; a scale change resends only the root",
+      "only changed nodes reach the adapter; frames the adapter would panic on are refused with a typed reason (duplicate keys, cycles, unreadable text runs, bad selections)",
+      "UIA actions queued (at most 256, overflow counted) and returned as AccessRequest with window, key, typed data in logical pixels and Origin::OtherProgram; model actions through model_action with Origin::ModelAction; nothing carries the Operator's origin",
+      "Argus can read snapshot in-process, so no message reaches the window"
+    ],
+    "asset_use": "workspace root patches accesskit_windows =0.29.2 to the assets repository rev 8eadc5b5 (same patch as the current app) and nothing else; against crates.io 0.29.2 the asset changes only ProviderOptions: the root of an own window with WS_EX_NOACTIVATE reports ProviderOwnsSetFocus; pulls no eframe or egui; follows accesskit_winit's Windows wiring (SubclassingAdapter attached on Created, before the first Show, holding the window token); AccessKit's plain Adapter not used (would need a new window-crate hook for WM_GETOBJECT); no asset request written",
+    "other_crates": "window crate unchanged; input crate: additive FocusBy::OtherProgram (also yields to the Operator's composition) and read-only InputTracker::text_focus",
+    "tests_written_not_run": [
+      "ids and updates: every update applied to accesskit_consumer over 400 random frames (catches position ids, reused ids, missing parents or stale nodes)",
+      "per-window trees: both windows number their button 2 and requests route correctly (catches one shared id map)",
+      "action round trip: stale, undeclared and excess requests dropped and counted; values never printed",
+      "bounds under DPI 1.0, 1.25, 1.5, 2.0 send the root only",
+      "focus: a focus request moves the input crate's text focus and the tree's focus follows",
+      "source scans: platform types only in platform.rs, focus and injection ban, private desktops, asset revision, no banned crate in the lock",
+      "uia_client: a real UI Automation client on a private desktop reads two quiet windows; asserts no activation tried, no focus or display change, Z order unchanged, desktop watches clean; Invoke and root SetFocus return as typed requests"
+    ],
+    "implementer_checks": {
+      "check --workspace --all-targets": "exit 0, no warnings (MT-214/gui-agent/logs/s4-check-3.log)",
+      "clippy --all-targets -D warnings": "exit 0 (s4-clippy-4.log; runs 1-3 failed on lints, fixed)",
+      "tree -e all --target x86_64-pc-windows-msvc": "no AC214-1 crate and no accesskit_winit (s4-tree-*.log)",
+      "Cargo.lock": "18 packages added and 4 version labels added to existing entries; no version changed; cargo's re-point of winapi-util to windows-sys 0.61 reverted by hand and --locked accepts it",
+      "vctip": "PID 55604 started at the first check but its parent was gone; not provably the agent's, left running"
+    },
+    "ac214_coverage": {
+      "this_slice": [
+        "AC214-7",
+        "AC214-1 and AC214-12 for this crate"
+      ],
+      "remaining": [
+        "AC214-3",
+        "AC214-4",
+        "AC214-8",
+        "AC214-9",
+        "AC214-10",
+        "AC214-11 (shell binary, slices S5/S6)"
+      ]
+    },
+    "tests": "nothing run; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "whether UIA tries to focus the window on a SetFocus below the root (the asset covers the root only)",
+      "that root SetFocus really tries no activation at runtime",
+      "a real screen reader against an Operator window",
+      "a real per-monitor DPI move",
+      "WM_GETOBJECT during modal loops"
+    ]
   }
 }
