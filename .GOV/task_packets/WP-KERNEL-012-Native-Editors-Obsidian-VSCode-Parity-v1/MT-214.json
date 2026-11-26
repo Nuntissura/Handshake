@@ -1863,5 +1863,38 @@
       "reviewer_recommendation": "A"
     },
     "routing": "harness fix queued for the GUI coder after the current E5 repair round (same crate)"
+  },
+  "remediation5_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report",
+    "recorded_on": "2026-11-26",
+    "remediates": "eval5_20261126 E5-F2, E5-F3, E5-F4 and R4-D3 (E5-F1 handled by clipboard_adversarial_decision_20261126); all confirmed in code, none refuted",
+    "commit": "bc954d50c79d31735816d23a16add2dc5a584874 (parent 534bd295b, a backend commit)",
+    "paths": "12 files under src/frontend/handshake_shell/{window,surface}; no backend, tests/support/mod.rs or test_clipboard.rs",
+    "fixes": {
+      "E5-F2": "surface/src/host/ending.rs no longer hides right after the proof present; the window stays shown (never activated) until the proof ends and is hidden once in close_step (:50, through hide at :112) after the surface is released; 2 s bound, timeout-0 acquires and no device-wide wait unchanged; tear_down hides a closing window when releasing it (:187); new Slot::hidden in surface/src/slot.rs; docs in shell.rs and the surface README",
+      "E5-F3": "surface/tests/frame_loop.rs:105 stirred_since waits only for keys, pointer and move; focus counter removed; focus messages still posted; requested-frame and submission assertions untouched (M1 still caught)",
+      "E5-F4": "window/src/platform/closing.rs:95,133: the posted-command path allowed only for Alt+F4 (WM_SYSKEYDOWN); the queue is no longer looked at for the close button or system menu; policy.rs doc and window README updated",
+      "R4-D3": "window/src/platform/clipboard.rs: one generic on_keeper (:110); read() (:222) runs read_text (:389) on it with the 250 ms bound, a Busy outcome and one errand at a time; test_focus_ban still sees exactly one SetThreadDesktop( call; docs of Control::read_clipboard, TextClipboard::read and ClipboardError::Busy updated"
+    },
+    "tests_added": {
+      "E5-F2": "not_hidden_while_proving (frame_loop.rs:334) in the closing test and the 6-cycle test: fails if the window is hidden while its surface still has a swapchain",
+      "E5-F4": "closing::tests::a_close_posted_while_a_button_gesture_is_handled_is_nobodys (:297): the old path panics or returns Some(true) (the eval's P6 probe)",
+      "R4-D3": "clipboard_tests::a_read_not_rendered_in_time_is_busy_and_never_makes_the_loop_wait (:246): injects a 1 s reader, touches no clipboard"
+    },
+    "implementer_checks": {
+      "check --workspace --all-targets": "exit 0, no warnings (MT-214/gui-agent/logs/e5-check-1.log)",
+      "clippy --all-targets -D warnings": "exit 0 (e5-clippy-1.log)",
+      "cargo tree": "40 crates, no AC214-1, egui, wgpu, glow or kumihimo (e5-tree-1.log)",
+      "Cargo.toml and Cargo.lock": "unchanged"
+    },
+    "residual": "a foreign close posted during Alt+F4's brief handling is still credited",
+    "tests": "nothing run; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "frame_loop confirming closes_unproven == 0 with the new order",
+      "whether keeping the window shown up to 2 s is unnoticeable on the composited Operator desktop",
+      "real Alt+F4 and close-button posting behaviour",
+      "a read from a hung clipboard owner (blocked by E5-F1)",
+      "maintenance1 path"
+    ]
   }
 }
