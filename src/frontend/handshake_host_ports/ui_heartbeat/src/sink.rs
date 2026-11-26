@@ -19,6 +19,27 @@ use handshake_diag_ring::{DiagEvent, DiagRingWriter, Heartbeat};
 ///     sink.publish(ui_heartbeat::Heartbeat { counter: 1, timestamp_nanos: 1 });
 /// }
 /// ```
+///
+/// Nothing else makes one either (MT-215 N3: adding `Default`, `Clone` or a public field broke no test before these
+/// three). No `Default`:
+///
+/// ```compile_fail,E0599
+/// let token = ui_heartbeat::PortToken::default();
+/// ```
+///
+/// No copy of a lent token:
+///
+/// ```compile_fail,E0308
+/// fn copy(token: &ui_heartbeat::PortToken) -> ui_heartbeat::PortToken {
+///     token.clone()
+/// }
+/// ```
+///
+/// No struct literal:
+///
+/// ```compile_fail,E0451
+/// let token = ui_heartbeat::PortToken { _sealed: () };
+/// ```
 #[derive(Debug)]
 pub struct PortToken {
     _sealed: (),

@@ -33,13 +33,16 @@
 //! member from the manifests and fails on any other writer of the slot, a second port or a second ring writer in
 //! product code.
 //!
-//! # What a beat waits for (MT-215 E6)
+//! # What a beat waits for (MT-215 E6, N2)
 //!
-//! The beat path allocates nothing (`tests/heartbeat_loop.rs` and `tests/heartbeat_present.rs` count it). It is
-//! bounded, not wait-free: it takes the heartbeat lane's slot lock, which the lane's pool timer callback holds for one
-//! slot step, at most one `PostMessageW` and one `SetThreadpoolTimer`, none of which waits; and each watched window's
-//! `PresentWatch` lock, which its writers hold for a copy of an `Arc` and an `Instant`. Wait-free reads would need the
-//! window and surface crates to keep that state in atomics.
+//! Nothing. The beat path allocates nothing (`tests/heartbeat_loop.rs` and `tests/heartbeat_present.rs` count it) and
+//! takes no lock (`tests/beat_path_locks.rs` scans it), so it is wait-free in the sense AC215-6 asks for: the port
+//! publishes the beat before it reads the frames; it reads each watched window's wait with one atomic load
+//! (`PresentWatch::frame_wanted_for`); and it asks the wake lane for the next wake with `try_lock` and an atomic
+//! hand-off, so a pool thread that holds the lane's slot, which it does for arithmetic only and never across a call into
+//! the system, costs the beat nothing: what the beat wanted is left for that thread, which does it before it lets go.
+//! The one thing a held slot can delay is a dispatch (the loop's thread posts the message again and takes it a moment
+//! later), never a beat that was dispatched.
 
 use std::cell::Cell;
 use std::marker::PhantomData;

@@ -1,5 +1,6 @@
 //! The present watches the heartbeat reads at each of its wakes (MT-215 HB-4): a fixed number of windows, no
-//! allocation, no wait beyond the watches' own copy under their lock.
+//! allocation, no lock and no wait: each watch is read with `PresentWatch::frame_wanted_for`, one atomic load and the
+//! clock (MT-215 N2, AC215-6).
 
 use std::cell::RefCell;
 use std::time::Duration;
@@ -36,7 +37,7 @@ pub(crate) trait Waits {
 
 impl Waits for PresentWatch {
     fn frame_wanted_for(&self) -> Option<Duration> {
-        self.read().frame_wanted_for
+        PresentWatch::frame_wanted_for(self)
     }
 }
 

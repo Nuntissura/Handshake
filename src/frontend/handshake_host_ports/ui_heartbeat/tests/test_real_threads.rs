@@ -242,6 +242,26 @@ fn a_test_that_holds_a_mapped_ring_and_ends_badly() {
     }
 }
 
+/// The ring the child named: `RING ` anywhere in a line, because libtest prints `test <name> ... ` in front of what a
+/// test prints when it runs with `--test-threads=1` (MT-215 N1; a `strip_prefix` found nothing, every run).
+fn ring_named(stdout: &str) -> Option<&str> {
+    stdout
+        .lines()
+        .find_map(|line| line.split_once("RING ").map(|(_, ring)| ring.trim_end()))
+}
+
+/// MT-215 N1: the line is found behind libtest's own prefix, and a ring-less output names none.
+#[test]
+fn the_ring_line_is_found_behind_the_test_runners_prefix() {
+    let _limit = TimeLimit::new(LIMIT);
+    assert_eq!(
+        ring_named("running 1 test\ntest a_test_that_holds ... RING C:/t/ring-1.bin\r\nTIMEOUT x\n"),
+        Some("C:/t/ring-1.bin")
+    );
+    assert_eq!(ring_named("RING plain\n"), Some("plain"));
+    assert_eq!(ring_named("running 1 test\ntest x ... ok\n"), None);
+}
+
 /// What a test process left behind.
 struct Ended {
     code: Option<i32>,
@@ -307,10 +327,7 @@ fn a_ring_file_is_removed_however_its_test_ends() {
     let _limit = TimeLimit::new(LIMIT);
     for (ending, expected) in [("panic", 101), ("overrun", TIMED_OUT)] {
         let ended = run_alone(ending);
-        let ring = ended
-            .stdout
-            .lines()
-            .find_map(|line| line.strip_prefix("RING "))
+        let ring = ring_named(&ended.stdout)
             .unwrap_or_else(|| panic!("{ending}: no ring named; {}", ended.stderr))
             .to_owned();
         let left = Path::new(&ring).exists();

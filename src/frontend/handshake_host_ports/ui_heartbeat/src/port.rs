@@ -224,12 +224,14 @@ where
             return self.ignored(IgnoredWake::AlreadyRedeemed);
         }
 
-        // The beat comes before the next request, so a loop that refuses the next wake cannot cost this one. A present
-        // stall changes what is recorded beside it, not whether it is published: a frozen UI thread goes stale, a
-        // stalled present shows as a fresh heartbeat plus its typed event, and the watcher can tell the two apart.
+        // The beat comes first: before the next request, so a loop that refuses the next wake cannot cost this one, and
+        // before the frames are read, so nothing the frames wait on can delay it (MT-215 N2, the wait-free beat path:
+        // the clock, the counters and the sink are all this thread touches before the beat is out). A present stall
+        // changes what is recorded beside it, not whether it is published: a frozen UI thread goes stale, a stalled
+        // present shows as a fresh heartbeat plus its typed event, and the watcher can tell the two apart.
         let now = self.clock.now_nanos();
-        self.track_present_stall(now);
         let beat = self.publish(now, wakes.resumed);
+        self.track_present_stall(now);
         wakes.resumed = false;
 
         wakes.redeemed = ticket.number();
