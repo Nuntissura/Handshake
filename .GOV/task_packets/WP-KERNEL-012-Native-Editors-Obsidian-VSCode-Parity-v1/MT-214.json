@@ -2288,5 +2288,11 @@
       "real per-monitor DPI move",
       "WM_GETOBJECT during modal loops"
     ]
+  },
+  "waitfree_change_20261126": {
+    "recorded_on": "2026-11-26",
+    "commit": "80958a384",
+    "see": "MT-215.json#/waitfree_remediation_20261126",
+    "what": "surface watch atomic wanted_since and lock-free frame_wanted_for; window wake lane lock-free loop-thread path with Handoff mailbox, OS calls after unlock"
   }
 }

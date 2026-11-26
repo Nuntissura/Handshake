@@ -1330,5 +1330,45 @@
       ],
       "status": "asked 2026-11-26; not blocking"
     }
+  },
+  "waitfree_remediation_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet)",
+    "recorded_on": "2026-11-26",
+    "implements": "slice2_eval2_20261126 waitfree_decision steps (a)-(c) and findings N1, N3, N4 (N2 is the wait-free item; N5 diag_ring stays with the Operator's ownership decision)",
+    "commits": {
+      "MT-215": "035643c38 (ui_heartbeat files, shell/src/heartbeat.rs, shell/src/watches.rs, shell tests)",
+      "MT-214": "80958a384 (surface/src/watch.rs, window/src/lib.rs, window/src/handoff.rs, window/src/platform/wake.rs, window/src/wake_slot.rs)"
+    },
+    "waitfree": {
+      "a": "ui_heartbeat/src/port.rs on_wake publishes before track_present_stall",
+      "b": "surface/src/watch.rs: wanted_since is an AtomicI64 (ns from a per-watch origin); PresentWatch::frame_wanted_for() is one atomic load plus the clock; shell/src/watches.rs uses it instead of read(); only the probe stays under a Mutex, taken only by read()",
+      "c": "window wake lane: the slot Mutex guards arithmetic only; decide counts a post as taken before it is made (WakeSlot::unposted for refusals); PostMessageW, probe and SetThreadpoolTimer run after the lock is released; the timer is set from an atomic want with a bounded re-check; the loop thread's take/request/cancel/nudge use try_lock and, if the slot is held, leave their work in Handoff (seqlock mailbox newest-wins request or cancel, retake flag, refused-number max, look flag); the holder drains Handoff before and after unlocking; a failed take re-posts the same token (one round trip later, never lost); pool threads keep the blocking lock; wake/probe/bound rules (E3-F4, HB-7, F1, F4) unchanged; WakeSlot::request now cfg(test) only"
+    },
+    "fixes": {
+      "N1": "ui_heartbeat/tests/test_real_threads.rs ring_named() splits on 'RING ' anywhere, plus a unit test with a libtest-prefixed line",
+      "N3": "three compile_fail doctests in ui_heartbeat/src/sink.rs (PortToken::default E0599, .clone E0308, struct literal E0451; error codes reasoned, not compiled)",
+      "N4": "shell/tests/source_scan.rs reads path crates from cargo metadata --offline --locked for both workspaces (vulkan-renderer/src now scanned; only handshake-diag-ring, palmistry and palmistry-control-protocol left out) and refuses use ... as renames of the ring-writer and port types, with controls and a JSON-parser sample"
+    },
+    "tests_added": [
+      "shell/tests/beat_path_locks.rs: scans the port crate, shell watches.rs and heartbeat.rs, surface frame_wanted_for and the lane's loop-thread functions; refuses Mutex, lock, join, sleep, Condvar, SendMessageW, .slot() and the pool helpers on the beat path; checks publish precedes track_present_stall and request_wake; with controls",
+      "window wake.rs unit test holding the slot while calling request, take, cancel and nudge (a blocking lock would hang it)",
+      "surface test: frame_wanted_for read while the probe lock is held",
+      "handoff.rs tests including a two-thread torn-mail test",
+      "wake_slot unposted test"
+    ],
+    "implementer_checks": {
+      "check --all-targets": "pass in both workspaces",
+      "clippy -D warnings": "pass in both (first shell run failed on dead_code for WakeSlot::request, fixed)",
+      "tree": "no banned crates in either workspace",
+      "logs": "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/logs/s2n-*.log, s2n2-*.log"
+    },
+    "tests_run": "none; independent run pending",
+    "needs_native_x64_or_real_desktop": [
+      "the window unit test and Handoff races on real SRWLOCK and ARM64 fences",
+      "lane behaviour under pool-thread contention (retake path) and the 250 ms cadence",
+      "the cargo metadata run inside the shell scan (reads toolchain and CARGO_HOME from the environment)",
+      "the compile_fail doctests",
+      "whether wake-lane timings still match the existing window wake tests"
+    ]
   }
 }
