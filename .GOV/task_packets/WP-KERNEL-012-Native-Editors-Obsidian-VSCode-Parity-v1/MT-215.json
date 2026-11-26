@@ -1272,5 +1272,63 @@
       "drivers on the real desktop",
       "seqlock fences on native ARM64"
     ]
+  },
+  "diag_ring_owner_review_20261126": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the adversarial reviewer's report",
+    "recorded_on": "2026-11-26",
+    "question": "who implements R1 (PresentStalled code 14) and R2 (serde and three_tier_evidence behind a default feature) in src/frontend/handshake_native/diag_ring, which has no live owner",
+    "verdict": "do not add a diag_ring grant to MT-215 on orchestrator authority; one Operator question; nothing is blocked while it waits (E4 closed by the SlowFrame mapping, eval2 P4; AC215-10 met by that mapping plus the filed request; R2 is a dependency-review question, not an acceptance criterion)",
+    "r1": {
+      "stalled_operation_11_fits": false,
+      "why": "code 11 counter_a holds a closed OperationCode enum 1..5 (handshake_internal_diagnostics/src/operation_watchdog.rs:27-33) with no present variant; its constructor fixes phase Degraded and severity Error and it has no recovery event (completion clears watchdog state); consumers count every code-11 record as a stall regardless of phase (panel.rs:310-313, operation_watchdog.rs:74-81), so a Recovered event would be miscounted; Palmistry ignores both codes (decodes only Crash and Freeze, filters with is_survivable_ordinary)",
+      "deferrable": true,
+      "cost_of_14": [
+        "is_ordinary_code change required: the v2 writer refuses non-ordinary codes (ring.rs:566-568) and the reader drops them (ring.rs:671)",
+        "no layout or version bump (sizes fixed at schema.rs:193, 428)",
+        "Palmistry and core must be rebuilt at the same commit: an older build drops code 14 and an older Palmistry rejects survivor records containing it (survivor_store.rs:355-358)",
+        "native panel shows event(14) (panel.rs:620); nothing breaks"
+      ]
+    },
+    "r2": {
+      "safe": true,
+      "evidence": "Palmistry src serialises DiagEvent (survivor_store.rs:359) and native and Palmistry tests use the evidence module or serde, all keeping the default feature; core uses only DiagRingReaderV2 (api/palmistry.rs:3227, 3420); ui_heartbeat and shell tests use only ring and schema; cargo tree --offline --locked -e normal --target x86_64-pc-windows-msvc -i serde in handshake_shell shows serde only through diag-ring to ui_heartbeat",
+      "change_to_request": "drop the shell dev-dependency default-features = false (MT-214 paths, test closure only; would change the shell lockfile's dependency set and force a full-scope round under CX-VAL-011); keep the default feature, gate the diag_ring tests, verify --locked metadata in all six workspaces"
+    },
+    "ownership": {
+      "c_reopen_081_095": "out: CX-STATUS-001 has no reopen transition (packet.json#/operator_decisions_20261002/0)",
+      "b_other_live_mt": "none has diag_ring in its write paths; commit dd33e65ee (MT-203, code 13) edited diag_ring with no grant found in .GOV (UNVERIFIED authority)",
+      "a_grant_in_mt215": "conflicts with CX-UNIT-001 (one owning module per MT, Codex:57), CX-MODULE-LIFECYCLE-002 (Codex:61) and HBR-MODULE-LIFECYCLE-007/008 (separate source and adoption MTs; MT-215 is the adopter); precedents MT-105 named schema exception and MT-175 bounded owner delta",
+      "standing_direction": "does not authorise it: Q12 was applied under a bounded author scope ('every other MT untouched', packet.json#/operator_vulkan_gui_refactor_20261125/approval); the takeover record excludes scope additions outside the contracts (#/operator_takeover_direction_20261125/does_not_grant); R2 is not Vulkan work; the 2026-10-02 precedent put the same kind of ownership question to the Operator",
+      "side_effect": "any diag_ring edit sends MT-081 and MT-095 back to READY_FOR_VALIDATION (CX-VAL-009); their proofs are cheap standalone diag_ring tests"
+    },
+    "recommended_contract_if_option_1": {
+      "new_mt": "MT-222 (next free id; no MT-222.json exists)",
+      "module_ref": "src/frontend/handshake_native/diag_ring",
+      "allowed_write_paths": "diag_ring/{Cargo.toml, Cargo.lock, src/schema.rs, src/lib.rs, src/three_tier_evidence.rs (cfg attributes only), tests/**}",
+      "forbidden": [
+        "ring layout and versions",
+        "record sizes",
+        "renumbering existing codes",
+        "consumer manifests and locks"
+      ],
+      "acceptance": [
+        "PresentStalled = 14 appended, constructor limited to Degraded(Warn) and Recovered(Info), in is_ordinary_code, with a v2 write-and-read test",
+        "a default 'evidence' feature gates three_tier_evidence and the serde derives",
+        "cargo test, clippy --all-targets -D warnings and cargo check --no-default-features --all-targets clean",
+        "cargo metadata --locked --offline resolves unchanged in all six consumer workspaces"
+      ],
+      "mt215_amendments": "depends_on += MT-222; adoption step moves events.rs to code 14 and sets ui_heartbeat default-features = false; proof: cargo tree -e normal -i serde_json in handshake_shell is empty"
+    },
+    "if_option_2": "add to MT-215 allowed_write_paths diag_ring/{Cargo.toml, src/schema.rs, src/lib.rs, src/three_tier_evidence.rs, tests/**}, limited to the R1 append and the R2 gate, flagged for owner review (MT-105 pattern)",
+    "r3_drift": "no action now: layout fixed by repr(C), compile-time asserts (schema.rs:190-196, 427-428) and runtime header checks (ring.rs:333, 622); shell ring tests run on the shipped versions; leave to MT-214's queued lock-parity check; no cargo update during R2",
+    "operator_question": {
+      "text": "Who implements R1 (code 14) and R2 (serde behind a default feature) in diag_ring, which has no live owner?",
+      "options": [
+        "1 New narrow diag_ring MT (MT-222); MT-215 adopts it (reviewer recommends)",
+        "2 Narrow diag_ring grant inside MT-215",
+        "3 Defer both and keep the SlowFrame mapping"
+      ],
+      "status": "asked 2026-11-26; not blocking"
+    }
   }
 }
