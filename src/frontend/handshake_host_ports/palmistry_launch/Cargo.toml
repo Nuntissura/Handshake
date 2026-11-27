@@ -1,0 +1,42 @@
+# WP-KERNEL-012 MT-215 S8 (AC215-11) — the toolkit-free Palmistry launcher port.
+#
+# Resolves and starts the existing standalone Palmistry watcher, binds the v2 diagnostics ring nonce and the
+# runtime-instance lease, completes the signed ready handshake, registers child liveness and requests shutdown with
+# acknowledgement. Moved out of the egui host unchanged (launch order, wire, signing, timing, ring layout and watcher
+# behaviour are the MT-094 launcher's); no new watcher, ring or recorder. No GUI toolkit, window library, GPU API or
+# `handshake-native` may enter this crate's closure (HBR-HOST-001); `tests/test_toolkit_free.rs` pins that.
+#
+# Every version below is the exact one `handshake_native/Cargo.lock` resolves, so both hosts run the same launcher
+# code against the same crate versions. Where the egui manifest declares a range, this manifest pins the resolved one.
+[package]
+name = "palmistry_launch"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Toolkit-free Palmistry launcher: resolve, start, v2 ring nonce + runtime-instance lease binding, signed ready handshake, child liveness, shutdown with acknowledgement."
+
+[dependencies]
+# The ring event types the launcher marks with. Same crate both processes already link.
+handshake-diag-ring = { path = "../../handshake_native/diag_ring" }
+# The embedded runtime-instance lease the signed launch binds (schema id, protocol, descriptor).
+handshake_runtime_instance = { path = "../../../backend/handshake_runtime_instance" }
+# The signed-launch wire types shared with the watcher.
+palmistry-control-protocol = { path = "../../palmistry_control_protocol" }
+interprocess = "=2.4.2"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+uuid = { version = "=1.23.3", features = ["v4"] }
+tracing = "=0.1.44"
+zeroize = "=1.9.0"
+rand = "=0.9.4"
+ed25519-dalek = "=3.0.0"
+sha2 = "=0.10.9"
+hex = "=0.4.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }

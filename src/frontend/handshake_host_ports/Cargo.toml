@@ -7,7 +7,7 @@
 # Standalone workspace root, as every sibling crate tree here: the repo has no root cargo workspace.
 [workspace]
 resolver = "2"
-members = ["ui_heartbeat"]
+members = ["ui_heartbeat", "palmistry_launch"]
 
 [profile.dev]
 debug = "line-tables-only"
