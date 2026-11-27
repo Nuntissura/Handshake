@@ -2643,5 +2643,17 @@
       "live watcher launch"
     ],
     "routing": "E9-F1 repair and R5 go to the GUI coder with E9-F3/E9-F4; the GPU hang to a read-only environment specialist; the stale egui scans and internal_diagnostics.rs:2282 are pre-existing failures that now block MT-094 and MT-092 revalidation and need owner routing"
+  },
+  "gpu_hang_diagnosis_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the environment specialist (Sonnet, read-only; no GPU test run)",
+    "recorded_on": "2026-11-27",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/specialist-gpu-hang-20261127/diagnosis.json (sha256 72ce32ff9ebcf6cf24d7fedc3dc38aace0d5c675ee7093ae7caed55349754619)",
+    "events": "System log: Kernel-Power 507 exit Modern Standby 15:35:03, 506 enter 16:46:33, 507 exit 20:10:30 (the eval's 'no exit event' was wrong); no dxgkrnl, Display, TDR 4101 or driver reset/load events; only Error-level event a DCOM 10016 at 15:42",
+    "processes": "no leftover multiwindow, shell_program, handshake, cargo, rustc or vulkaninfo process",
+    "gpu": "Qualcomm Adreno X2-85, PnP status OK, driver 32.0.163.2 (2026-06-30); vulkaninfo --summary at 20:14 exited in 0.34 s, enumerating Vulkan 1.4.341, the native Adreno GPU and the Dozen (D3D12) GPU",
+    "cause": "most likely environmental: the 18:33-19:52 hangs all fall inside the 16:46-20:10 Modern Standby interval (GPU and display powered down); timing correlation only, no GPU test re-run",
+    "hang_location": "logs show only each child hitting the 90 s timeout at gpu_env.rs:89; phase unknown",
+    "clearing": "the 20:10 wake probably cleared it; re-run one GPU test to confirm; if it still hangs the Operator would reboot; no process needs stopping",
+    "fail_fast_rule": "before GPU tests read the newest Kernel-Power 506 and 507 events; if 506 is newer than 507 skip with 'host in Modern Standby'; also run vulkaninfo --summary with a 15 s timeout (0.34 s when healthy); applied to every later GPU eval dispatch"
   }
 }
