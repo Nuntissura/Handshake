@@ -519,5 +519,12 @@
     "file": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
     "note": "When MT-215 edits this file, this MT returns to READY_FOR_VALIDATION under CX-VAL-009 (proof inputs intersect the candidate diff). Status is unchanged now (PASS_V1 stays until the file is edited).",
     "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1"
+  },
+  "s8_test_retarget_note_20261127": {
+    "decision_id": "WP012-S8-TEST-RETARGET-20261127",
+    "recorded_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/tests/test_palmistry_launch.rs (line 40, LAUNCHER_RS)",
+    "note": "test_palmistry_launch is owned by this MT. MT-215 retargets only the include_str! path of the launcher file to ../../handshake_host_ports/palmistry_launch/src/lib.rs in this file. CX-VAL-009: this MT returns to READY_FOR_VALIDATION when the file is edited (see revalidation_note_20261127); status unchanged now.",
+    "record_ref": "packet.json#/operator_decisions_20261127_s8_phase_b/decisions/0"
   }
 }

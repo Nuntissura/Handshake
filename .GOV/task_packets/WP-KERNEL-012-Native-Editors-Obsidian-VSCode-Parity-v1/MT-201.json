@@ -784,5 +784,20 @@
     ],
     "not_changed": "lifecycle status, verdicts, existing acceptance wording, pins, claims, allocations and recorded history are unchanged",
     "next_actor": "GUI coder A after MT-213 PASS and a published text port (KG-03)"
+  },
+  "native_manifest_release_20261127": {
+    "decision_id": "WP012-S8-MANIFEST-RELEASE-20261127",
+    "released_on": "2026-11-27",
+    "files": [
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/Cargo.lock"
+    ],
+    "released_to": "MT-215 (single named writer; one path-dependency line for palmistry_launch plus additive lock delta, S8 phase B)",
+    "released_by": "ORCHESTRATOR root session under packet.json#/operator_takeover_direction_20261125 and the Operator decision",
+    "status_changed": false,
+    "claim_changed": false,
+    "record_ref": "packet.json#/operator_decisions_20261127_s8_phase_b/decisions/1",
+    "custody_ref": "MT-215.json#/operator_decision_20261127_s8_phase_b/custody_record",
+    "note": "MT-201 keeps claim 01a1738d-2b8e-7151-9e9e-3972429af70c and status unchanged; it does not edit these two files while released."
   }
 }

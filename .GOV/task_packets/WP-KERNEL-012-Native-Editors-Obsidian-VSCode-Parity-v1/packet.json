@@ -15082,5 +15082,40 @@
         "note": "MT-215.json#/diag_ring_owner_review_20261126 had named MT-222 for a possible diag_ring MT (question open, no file existed); that MT, if chosen, takes MT-223."
       }
     }
+  },
+  "operator_decisions_20261127_s8_phase_b": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-27",
+    "basis": "MT-215 step S8 phase B (palmistry_launch crate extraction, 4dad81781); Operator chat answers 2026-11-27; adversarial review Handshake_Artifacts/WP-KERNEL-012/MT-215/specialist-manifest-handover/adversarial-review.json (conditions C1-C8) and addendum-tests.json in the same folder",
+    "decisions": [
+      {
+        "id": "WP012-S8-TEST-RETARGET-20261127",
+        "question": "Phase B moves the Palmistry launcher out of the old egui app into its new crate. Two old-app tests (test_palmistry_launch.rs and test_crash_client_install.rs) scan the launcher's source text, so they must point at the new crate's file. Their owners are MT-094, MT-092 and MT-175, not MT-215. May MT-215 change only those two include_str lines?",
+        "operator_answer": "Allow the two retargets (Recommended)",
+        "scope": "Only the include_str! path of the launcher file, retargeted to ../../handshake_host_ports/palmistry_launch/src/lib.rs, in exactly two lines: src/frontend/handshake_native/tests/test_palmistry_launch.rs line 40 (const LAUNCHER_RS) and src/frontend/handshake_native/tests/test_crash_client_install.rs line 226 (let launcher_src). Verified in wtc-WP-KERNEL-012 at 4dad81781; the dispatch text said line 39 for the first file, but line 39 is MAIN_RS and the LAUNCHER_RS include_str is line 40. No assertion text and no other test change.",
+        "not_edited": "src/frontend/handshake_native/tests/test_backend_down_responsive.rs:1076 is an entry of the MT-088 proof-hash path list (MT088_INTEGRATED_PROOF_PATHS), not a text scan; it is NOT edited.",
+        "effect": "MT-215 allowed_write_paths gains the two test files (include_str retarget only). Owners MT-094, MT-092 and MT-175 are noted; MT-092 and MT-094 return to READY_FOR_VALIDATION under CX-VAL-009 when the files are edited, not now.",
+        "record_refs": [
+          "MT-215.json#/operator_decision_20261127_s8_phase_b",
+          "MT-094.json#/s8_test_retarget_note_20261127",
+          "MT-092.json#/s8_test_retarget_note_20261127",
+          "MT-175.json#/s8_test_retarget_note_20261127",
+          "MT-088.json#/s8_proof_hash_coverage_note_20261127"
+        ]
+      },
+      {
+        "id": "WP012-S8-MANIFEST-RELEASE-20261127",
+        "question": "The new launcher crate also needs one dependency line in the old egui app's Cargo.toml, plus the new lock entries in Cargo.lock. Claims from retired team sessions still sit on those files (MT-212, and MT-175's own claim). No rule lets anyone take over an old claim. May the orchestrator release both files to MT-215 for this edit?",
+        "operator_answer": "Release to MT-215 (Recommended)",
+        "scope": "src/frontend/handshake_native/Cargo.toml (one path-dependency line for palmistry_launch) and the additive src/frontend/handshake_native/Cargo.lock delta, released to MT-215 for S8 phase B.",
+        "effect": "Release recorded by the orchestrator; claims and statuses of MT-212, MT-175 and MT-201 unchanged; acknowledgements recorded in those MTs (native_manifest_release_20261127).",
+        "record_refs": [
+          "MT-215.json#/operator_decision_20261127_s8_phase_b",
+          "MT-212.json#/native_manifest_release_20261127",
+          "MT-175.json#/native_manifest_release_20261127",
+          "MT-201.json#/native_manifest_release_20261127"
+        ]
+      }
+    ]
   }
 }

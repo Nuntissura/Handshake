@@ -231,7 +231,9 @@
       "src/frontend/handshake_native/src/accessibility/** (extraction with release only)",
       "src/frontend/handshake_native/Cargo.toml and Cargo.lock (one named writer)",
       "src/frontend/handshake_host_ports/palmistry_launch/**",
-      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs (extraction with release only: the file is also in MT-175 and MT-199 scope; one named writer and a recorded release are required)"
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs (extraction with release only: the file is also in MT-175 and MT-199 scope; one named writer and a recorded release are required)",
+      "src/frontend/handshake_native/tests/test_palmistry_launch.rs (S8 include_str retarget only, WP012-S8-TEST-RETARGET-20261127),",
+      "src/frontend/handshake_native/tests/test_crash_client_install.rs (S8 include_str retarget only, WP012-S8-TEST-RETARGET-20261127)"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -1517,5 +1519,44 @@
       }
     ],
     "disposition": "F1, F2, F3, F6, F7, F8, F9, F10, F11 go to the phase-B GUI dispatch; F4 (ui_heartbeat closure re-resolved by the shared lock) needs a focused ui_heartbeat test rerun by the eval agent; F5 is settled by the Operator decision WP012-S8-TEST-RETARGET-AND-MANIFEST-20261127 for the two scanning tests only; test_backend_down_responsive.rs:1076 is a proof-hash path list (MT-088), not edited, recorded as a coverage note for MT-088"
+  },
+  "operator_decision_20261127_s8_phase_b": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-27",
+    "decision_refs": [
+      "packet.json#/operator_decisions_20261127_s8_phase_b/decisions/0 (WP012-S8-TEST-RETARGET-20261127)",
+      "packet.json#/operator_decisions_20261127_s8_phase_b/decisions/1 (WP012-S8-MANIFEST-RELEASE-20261127)"
+    ],
+    "review_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-215/specialist-manifest-handover/adversarial-review.json (UPHOLD_WITH_CONDITIONS, C1-C8)",
+    "test_retarget": "allowed_write_paths gains tests/test_palmistry_launch.rs and tests/test_crash_client_install.rs, include_str retarget only (line 40 and line 226) to ../../handshake_host_ports/palmistry_launch/src/lib.rs. test_backend_down_responsive.rs is not edited.",
+    "custody_record": {
+      "files": [
+        "src/frontend/handshake_native/Cargo.toml",
+        "src/frontend/handshake_native/Cargo.lock"
+      ],
+      "released_by": "ORCHESTRATOR root session, under packet.json#/operator_takeover_direction_20261125 (WP authority) plus Operator decision WP012-S8-MANIFEST-RELEASE-20261127",
+      "released_to": "MT-215 step S8 phase B",
+      "claims_unchanged": "The MT-212 claim (01a1738d-2b8e-7151-9e9e-3972429af70c), the MT-175 claim (01a139f5-dc34-7af3-a3ed-e486ec461fb9), the MT-201 claim (01a1738d-2b8e-7151-9e9e-3972429af70c) and all statuses are unchanged; this record does not assert any claim is retired. Basis: MT-212 execution/path_authority is a potential-path list, not an active write lease; product worktree git status at 4dad81781 showed no uncommitted edit to the two files (re-verify at dispatch, C2).",
+      "single_writer": "the MT-215 GUI coding agent",
+      "compile_slot_and_target": "egui host check in the WP builder target Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+      "supersession": "For the S8 window this record supersedes the sole_generator 'Primary01a16f0c-3f8d-7fa2-8769-3e275ddf6005' lock rule written at MT-212.json#/context_capsule/host_build_units/cabinet_host/maintenance/lock_and_manifest_control: the MT-215 GUI coding agent generates the native lock for this edit. The rule applies again after the S8 commit."
+    },
+    "edit_limit": {
+      "allowed": "one path-dependency line for palmistry_launch in src/frontend/handshake_native/Cargo.toml plus an additive Cargo.lock delta",
+      "stop_and_report_on": [
+        "any changed existing package version",
+        "a second windows-sys version",
+        "a second interprocess version",
+        "a second serde version",
+        "any Kumihimo pin change"
+      ]
+    },
+    "commit_rule": "One commit holds the re-export, the manifest line and the lock delta.",
+    "host_check": "Run the MT-215 egui host check with --locked after lock generation, in the WP builder target named above.",
+    "c7_close_note": {
+      "next_round": "Cargo.lock gains a package, so the lockfile dependency set changes: the next validation round is full-scope under CX-VAL-011 (no scoped-mode opt-in record was found).",
+      "not_returned": "MT-032 and the other PASS MTs that list the native manifest in scope are not returned to READY_FOR_VALIDATION for the manifest edit; precedent: 59 src commits since 2026-11-20, and b9606fac3 (manifest and lock edit) returned neither MT-032 nor the 26 manifest-listing PASS MTs (adversarial review finding 3_MT-032).",
+      "returned_by_launcher_edit": "MT-094 and MT-096 return to READY_FOR_VALIDATION on the palmistry_launch.rs edit (existing revalidation notes); MT-092 and MT-094 also on the test retarget edits (CX-VAL-009)."
+    }
   }
 }

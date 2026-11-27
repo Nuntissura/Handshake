@@ -428,5 +428,12 @@
     ],
     "refactor_exposure": "low: Palmistry crash capture with out-of-process minidump; no operator surface of its own. The crash client installed from main.rs must be installed by the Vulkan shell start path in the same order.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "s8_test_retarget_note_20261127": {
+    "decision_id": "WP012-S8-TEST-RETARGET-20261127",
+    "recorded_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/tests/test_crash_client_install.rs (line 226, launcher_src)",
+    "note": "test_crash_client_install is owned by this MT. MT-215 retargets only the include_str! path of the launcher file to ../../handshake_host_ports/palmistry_launch/src/lib.rs in this file. CX-VAL-009: this MT returns to READY_FOR_VALIDATION when MT-215 edits the file (proof inputs intersect the candidate diff); PASS_V1 and the claim are unchanged now.",
+    "record_ref": "packet.json#/operator_decisions_20261127_s8_phase_b/decisions/0"
   }
 }

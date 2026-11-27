@@ -2766,5 +2766,12 @@
     ],
     "refactor_exposure": "high: The degraded state and bounded backend calls move to the Vulkan shell frame loop so a down route cannot block a frame. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus a Kumihimo status strip. Egui-bound today: app.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25). Its acceptance names egui_kittest as proof tool; the same assertions must run on the Vulkan shell.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "s8_proof_hash_coverage_note_20261127": {
+    "decision_id": "WP012-S8-TEST-RETARGET-20261127",
+    "recorded_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/tests/test_backend_down_responsive.rs",
+    "note": "Coverage note for this MT's next validation: after S8 phase B the proof-hash list entry src/diagnostics/palmistry_launch.rs (test_backend_down_responsive.rs:1076, MT088_INTEGRATED_PROOF_PATHS) covers only the thin re-export in the egui host, not the launcher logic, which lives in src/frontend/handshake_host_ports/palmistry_launch/src/lib.rs. By Operator decision the file is not edited; the recorded file_sha256 changes. Status unchanged.",
+    "record_ref": "packet.json#/operator_decisions_20261127_s8_phase_b/decisions/0"
   }
 }
