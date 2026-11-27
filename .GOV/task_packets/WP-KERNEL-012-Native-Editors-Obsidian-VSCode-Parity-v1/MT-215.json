@@ -1401,5 +1401,43 @@
     "mt214_work": "ShutdownWatcher adapter and the v2 ring nonce for the shell (MT-214 slice record; no MT-214 contract change).",
     "revalidation": "Editing the file returns MT-094 and the MT-096 capstone to READY_FOR_VALIDATION under CX-VAL-009 (revalidation_note_20261127 in each); their statuses change when the file is edited, not now.",
     "id_note": "A diag_ring MT proposed in diag_ring_owner_review_20261126 no longer takes MT-222 (allocated to the kernel issuer by WP012-OD8-KERNEL-ISSUER-20261127); it takes the next free id (MT-223) if the Operator chooses option 1."
+  },
+  "s8a_implementation_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commit, paths, push and final logs checked by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "step": "S8 phase A (AC215-11): new crate only; no file under src/frontend/handshake_native edited",
+    "decision_ref": "#/operator_decision_20261127_palmistry_launcher",
+    "commit": "4dad81781734ad92e01afe61e51c34a04b49f99e (pushed 0f7ccc2e0..4dad81781, no force; 5 files, all under src/frontend/handshake_host_ports: Cargo.toml members + palmistry_launch, Cargo.lock, palmistry_launch/Cargo.toml, src/lib.rs, tests/test_toolkit_free.rs)",
+    "port": {
+      "trait": "PalmistryLaunchSession { session_id() -> &str, ring_path() -> &Path, marker_sink() -> Option<fn(LaunchMarker)> (default None) }; LaunchSession plain struct implements it",
+      "generic_calls": "launch_palmistry, launch_palmistry_at, launch_palmistry_signed_at, launch_palmistry_or_degrade take <S: PalmistryLaunchSession + ?Sized>(session: &S, ..)",
+      "deviation_from_s8_text": "process instance id, v2 nonce, EmbeddedRuntimeInstanceLease and signing seed stay explicit arguments of launch_palmistry_signed_at (as before) instead of port fields, so main.rs:520 and tests/test_palmistry_launch.rs keep their calls; open for checker review",
+      "marker_sink": "the direct diagnostics::record_with call is replaced by a LaunchMarker with the same nine fields passed to the host sink; the handle keeps the sink for the shutdown marker",
+      "kept_in_egui": "PREINSTALLED_DIAG_SESSION, set_/take_preinstalled_diag_session; prepare_adoption, prepare_adoption_read, advance_adoption and the OwnedPalmistryAdoption state (they use crate::internal_diagnostics and crate::local_account); the handle exposes host_slot_mut() -> &mut Option<Box<dyn Any + Send>>, retained_watcher_process(), owned_child_exited(), adoption_operation_id(), registration_ready() (now pub)",
+      "made_public": "verify_signed_watcher_reply, signed_watcher_challenge_bytes (for the egui signed_launch_evidence_tests)",
+      "lint_allows": [
+        "clippy::too_many_arguments on launch_palmistry_signed_at",
+        "irrefutable_let_patterns on release_signed_stream",
+        "clippy::disallowed_methods on new_operation_id(), which keeps Uuid::new_v4 although the root clippy.toml bans it (\"Use Uuid::now_v7() per HBR-INT-008\"); open for checker review"
+      ]
+    },
+    "dependencies": "exact '=' pins matching src/frontend/handshake_native/Cargo.lock: interprocess 2.4.2, serde 1.0.229 (derive), serde_json 1.0.151, uuid 1.23.3 (v4), tracing 0.1.44, zeroize 1.9.0, rand 0.9.4, ed25519-dalek 3.0.0, sha2 0.10.9, hex 0.4.3, windows-sys 0.61.2 (Win32_Foundation, Win32_Storage_FileSystem, Win32_System_Pipes, Win32_System_Threading); path deps handshake-diag-ring, handshake_runtime_instance, palmistry-control-protocol; all 68 name/version pairs in the crate's cargo tree match the egui lock after cargo update --precise (downgrades in the shared host_ports lock also apply to ui_heartbeat, which still checks and passes clippy); narrower windows-sys and uuid feature sets than the egui host",
+    "tests": "ported to the new crate (built, not run): control_socket_name_is_namespace_safe_and_session_scoped, handshake_deadlines_cover_connect_and_ack, windows_busy_pipe_wait_uses_named_pipe_namespace, five bounded_control_read_*/timed_out_control_read_*, launcher_does_not_use_unsupported_named_pipe_timeouts, launcher_does_not_detach_control_reply_reader_threads, hello_wire_shape_matches_palmistry, ack_reply_decodes, missing_exe_resolves_to_not_found_error, job_object_contract_is_documented, signed_launch_verifier_rejects_forgery_replay_and_legacy_ack; new tests/test_toolkit_free.rs source scan; preinstalled_session_round_trips_then_empties stays in egui",
+    "phase_b_blocker": "tests that read the egui launcher file as text would fail against a thin re-export: tests/test_palmistry_launch.rs:40 (LAUNCHER_RS include_str: creation_flags, 0x0800_0000, Stdio::null(), banned focus and job-object names, current_exe), tests/test_crash_client_install.rs:226 (crash_socket_path(control_socket), pub fn crash_socket(&self)), tests/test_backend_down_responsive.rs:1076 (scanned source list); retargeting their include_str paths edits src/frontend/handshake_native/tests/**, which is not in MT-215 allowed_write_paths; under deliberation (specialist + adversarial) together with the egui manifest custody (Handshake_Artifacts/WP-KERNEL-012/MT-215/specialist-manifest-handover/)",
+    "phase_b_plan": "handshake_native/Cargo.toml path dependency on ../handshake_host_ports/palmistry_launch; expected Cargo.lock delta one new package; diagnostics/palmistry_launch.rs reduced to pub use palmistry_launch::* plus the preinstalled slot, adoption methods as an extension trait over PalmistryHandle with state in host_slot_mut(), the retained signed_launch_evidence_tests and preinstalled test; impl PalmistryLaunchSession for DiagSession in diagnostics/recorder.rs only; conformance test that the shell adapter and the egui host start the same watcher with the same v2 nonce through the one launch_palmistry_signed_at path (runtime run by the eval agent)",
+    "implementer_checks": {
+      "check_locked_final": "MT-215/gui-agent/logs/s8a-check-locked-final.log EXIT_CODE=0, sha256 6776f5a053b7479c1a0ea376455ae440dc8ce1a9035da3d12c85a396281ad956; its warnings are in the path dependencies palmistry (irrefutable if let) and handshake_runtime_instance (field never read), not in the new crate",
+      "clippy_final": "s8a-clippy-final.log (-D warnings) EXIT_CODE=0, sha256 09d9e1babbd6c26000843d0f31562fdaeb96a8eb8756a27a3ee65df7a97e9307; same dependency warnings",
+      "tree": "s8a-tree.log EXIT_CODE=0, sha256 eeace694e5022c10f553baea4e0cbdba59ce3f137315bb38a23d422433a54b7c; no egui, eframe, epaint, ecolor, emath, wgpu, glow, handshake-native, kumihimo, cabinet or context_menu_egui",
+      "failed_attempts": "s8a-clippy.log (3 errors) and s8a-clippy-2.log (1 error in the new test file), each fixed with a changed cause"
+    },
+    "tests_run": "none; build only",
+    "unverified": [
+      "byte-for-byte behaviour equivalence of the move (mechanical transform plus compiler; no line-by-line diff review yet)",
+      "Send/Sync of PalmistryHandle may differ (adoption field now Option<Box<dyn Any + Send>>)",
+      "phase B lock delta and the extension-trait approach",
+      "non-Windows cfg branches not compiled"
+    ],
+    "status_effect": "no status change; MT-094 and MT-096 return to READY_FOR_VALIDATION only when phase B edits diagnostics/palmistry_launch.rs"
   }
 }
