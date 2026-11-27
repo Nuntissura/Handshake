@@ -2509,5 +2509,34 @@
       "DPI moves and WM_GETOBJECT in modal loops",
       "the F8 clippy.toml additions were not run"
     ]
+  },
+  "e8_fixes_root_window_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commit, paths, push and logs checked by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "commit": "0f7ccc2e060ddba42814bdc1572a3664c2a70e8c (pushed, no force; 8 files, all under src/frontend/handshake_shell)",
+    "closes": [
+      "E8-F1",
+      "E8-F2a",
+      "E8-F2b",
+      "E8-F2c",
+      "E8-F3",
+      "WP012-SHELL-ROOT-WINDOW-20261127 (packet.json#/operator_decisions_20261127_shell_gaps)"
+    ],
+    "items": {
+      "E8-F1": "accessibility/tests/uia_client.rs ~494/502: local variable renamed focus_of_window; the scan's banned list unchanged",
+      "E8-F2a_F2b": "input/tests/source_scan.rs: squashed() collapses whitespace and a space before '(' so ImmNotifyIME ( and line-split calls count; COMPOSITION_CALLS also bans ImmSetComposition*, ImmGenerateMessage, ImmSetCandidateWindow, ImmSetConversionStatus, ImmSetOpenStatus, ImmSimulateHotKey, ImmEscape*, ImmConfigureIME, ImmSetStatusWindowPos; ImmAssociateContextEx stays allowed (used by the window crate); positive controls for the spaced and line-break forms and each new banned call",
+      "E8-F2c": "accessibility/tests/source_scan.rs: names(), impl_headers(), impl_blocks(), has_trait_impl_for() match by path suffix incl. generics and trait impls; controls impl crate::request::AccessRequest { pub fn forged }, impl request::AccessRequest { pub fn forged }, impl From<u8> for crate::request::AccessRequest; NotAccessRequest not flagged",
+      "E8-F3": "accessibility/src/platform.rs: the unit test runs inside on_private_desktop from the window crate's test support (#[path] include)",
+      "root_window": "shell/src/program.rs: ProgramConfig::operator_root (WindowClass::Operator, launched_by_operator true); ProgramConfig::new stays quiet; run_program forces DeviceAuthority::Test to Quiet with no launch before the device opens; created() takes the launch source once and only for the root and shows it with activate true, every other show activate false; detached panes and Settings always Quiet; closing the root ends the program; shell/src/main.rs uses operator_root; the example stays quiet; README updated",
+      "new_test": "shell/tests/source_scan.rs::the_product_root_is_an_operator_window_activated_once_and_no_test_binary_has_one; mutations it is written to catch: main.rs from ProgramConfig::new, Operator config without launch, a second activate true or take_launch_source, launch taken for a non-root window, Test authority not forced quiet, detached windows made Operator, any test or example naming WindowClass::Operator, operator_root, launched_by_operator: true or activate: true"
+    },
+    "implementer_checks": {
+      "check": "MT-214/gui-agent/e8-root-check.log (cargo check --workspace --all-targets): Finished, 0 warning or error lines, sha256 7f15a769f74f7745f1ab87a27235cb5883e7b68cb70eccee5c2a87328f0d10d1",
+      "clippy": "e8-root-clippy.log (-D warnings): Finished, 0 warning or error lines, sha256 c130b74c743542326e35ef552091840f55c185c30601c7b9ee39f98c91715d93",
+      "tree": "e8-root-tree.log: tree exit 0, no egui, eframe, wgpu, glow, kumihimo or accesskit_winit, sha256 8e261e7d96a741506294c28a057f7e6d00625bf46298188b144db0d0727d2288",
+      "earlier_failure": "a first check failed on a stray line break in a doc comment; fixed before the commit"
+    },
+    "tests_run": "none; the new scans and the root-window test were not executed; independent eval pending (queued behind the backend batch, one build per disk)",
+    "needs_real_desktop": "the Operator-class launch activation (root takes focus once at launch, nothing else does); MT-213 x64 gate"
   }
 }
