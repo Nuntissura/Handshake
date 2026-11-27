@@ -187,9 +187,10 @@ impl Core {
                 self.hide(control, &mut slot);
             }
         }
-        let _ = self.owner.poll();
-        self.settle_all(&slots);
-        self.settle_ending();
+        // The owner reports what it still held at its close, once; claims settled after that stay open in the report
+        // (MT-214 E9-F1). So they settle first, bounded; whatever is still waiting then is settled by the close's drain
+        // and the second settling below, and the report says so.
+        self.settle_before_close(&slots);
         // Bounded: the owner waits at most its own deadline for the queue (MT-203 `close`).
         let shutdown = self.owner.close();
         self.settle_all(&slots);
@@ -210,15 +211,34 @@ impl Core {
         self.try_finish(control);
     }
 
-    pub(super) fn settle_all(&self, slots: &[Rc<RefCell<Slot>>]) {
+    /// Look at the owner and settle every claim, again and again for at most [`decide::SETTLE_WINDOW`], until none is
+    /// waiting (see the call in [`Self::tear_down`]).
+    fn settle_before_close(&self, slots: &[Rc<RefCell<Slot>>]) {
+        let begun = Instant::now();
+        loop {
+            let _ = self.owner.poll();
+            let waiting = self.settle_all(slots);
+            let waiting = self.settle_ending() || waiting;
+            match decide::settle_wait(waiting, begun.elapsed()) {
+                decide::SettleWait::Again(pause) => std::thread::sleep(pause),
+                decide::SettleWait::Close | decide::SettleWait::GiveUp => return,
+            }
+        }
+    }
+
+    /// Settle the claim of every slot. Returns whether one is still waiting.
+    pub(super) fn settle_all(&self, slots: &[Rc<RefCell<Slot>>]) -> bool {
+        let mut waiting = false;
         for slot in slots {
             let mut slot = slot.borrow_mut();
             match slot.settle() {
                 Settled::Now => self.count(|report| report.claims_settled += 1),
                 Settled::Refused(refusal) => self.error(&mut slot, PresentError::Settle(refusal)),
-                Settled::Nothing | Settled::Waiting => {}
+                Settled::Waiting => waiting = true,
+                Settled::Nothing => {}
             }
         }
+        waiting
     }
 
     pub(super) fn try_finish(&self, control: &Control) {
@@ -240,5 +260,27 @@ impl Core {
             // Shutdown not begun, or the loop has ended: nothing to try again.
             Err(_) => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// MT-214 E9-F1: the owner's report is taken at its close, once, so the claims are settled before it, and again
+    /// after it for what the close's drain ended. The device-free order check of `tear_down` (the GPU proof of a clean
+    /// shutdown is the `multiwindow` and `shell_program` tests).
+    #[test]
+    fn tear_down_settles_the_claims_before_the_owner_closes_and_again_after() {
+        let code = include_str!("ending.rs");
+        let body = &code[code.find("pub(super) fn tear_down").expect("tear_down")..];
+        let end = body.find("
+    }
+").expect("the end of tear_down");
+        let body = &body[..end];
+        let before = body.find("self.settle_before_close(&slots)").expect("settling before the close");
+        let close = body.find("self.owner.close()").expect("the close");
+        let after = body.find("self.settle_all(&slots)").expect("settling after the close");
+        let counted = body.find("report.shutdown = Some(shutdown)").expect("the report is recorded");
+        assert!(before < close && close < after && after < counted, "{before} {close} {after} {counted}");
+        assert_eq!(body.matches("self.owner.close()").count(), 1, "one close");
     }
 }

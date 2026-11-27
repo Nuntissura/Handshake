@@ -207,6 +207,36 @@ pub(crate) const RETIRE_FRAME_DELAY: Duration = Duration::from_millis(16);
 /// meanwhile (8 ms doubling), and nothing waits for the device.
 pub(crate) const PROVE_WINDOW: Duration = Duration::from_secs(2);
 
+/// How long a shutdown lets the claims of released windows settle before the owner closes (MT-214 E9-F1): the owner
+/// reports what it still holds at its close, once, so a claim settled after the close stays in that report as open.
+pub(crate) const SETTLE_WINDOW: Duration = Duration::from_millis(500);
+
+/// The pause between two looks while a shutdown waits for claims to settle.
+pub(crate) const SETTLE_STEP: Duration = Duration::from_millis(2);
+
+/// What a shutdown does next while it waits for claims to settle before the owner closes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SettleWait {
+    /// Every claim is settled: close.
+    Close,
+    /// One is still waiting: look at the owner again after this pause.
+    Again(Duration),
+    /// One is still waiting and the window is over: close all the same; the close settles what it drained, and the
+    /// report says that it was open.
+    GiveUp,
+}
+
+/// The next step of a shutdown's wait for claims to settle, `elapsed` after it began.
+pub(crate) fn settle_wait(waiting: bool, elapsed: Duration) -> SettleWait {
+    if !waiting {
+        SettleWait::Close
+    } else if elapsed >= SETTLE_WINDOW {
+        SettleWait::GiveUp
+    } else {
+        SettleWait::Again(SETTLE_STEP.min(SETTLE_WINDOW - elapsed))
+    }
+}
+
 /// What the presenter's own timer is for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Need {
@@ -463,6 +493,24 @@ mod tests {
         let total: Duration = (0..POLL_LOOKS).map(poll_delay).sum();
         assert!(total < Duration::from_secs(12), "{total:?}");
         assert!(total > PROVE_WINDOW, "the looks outlast the proof of a closing window");
+    }
+
+    #[test]
+    fn a_shutdown_waits_for_its_claims_to_settle_before_the_owner_closes_and_gives_up_after_the_window() {
+        let none = Duration::ZERO;
+        assert_eq!(settle_wait(false, none), SettleWait::Close);
+        assert_eq!(settle_wait(false, SETTLE_WINDOW * 3), SettleWait::Close);
+        assert_eq!(settle_wait(true, none), SettleWait::Again(SETTLE_STEP));
+        let nearly = SETTLE_WINDOW - Duration::from_millis(1);
+        assert_eq!(settle_wait(true, nearly), SettleWait::Again(Duration::from_millis(1)));
+        assert_eq!(settle_wait(true, SETTLE_WINDOW), SettleWait::GiveUp);
+        assert_eq!(settle_wait(true, SETTLE_WINDOW * 2), SettleWait::GiveUp);
+        // The wait is bounded: following the steps ends within the window plus one step.
+        let mut elapsed = none;
+        while let SettleWait::Again(pause) = settle_wait(true, elapsed) {
+            elapsed += pause;
+        }
+        assert_eq!(elapsed, SETTLE_WINDOW);
     }
 
     #[test]
