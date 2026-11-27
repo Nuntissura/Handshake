@@ -2754,5 +2754,55 @@
     "picotasks": "P1 manifest, lock, scan list; P2 v2 ring in the program; P3 adapter; P4a session, ring, lease; P4b signed launch and argv seam; P5 wiring; P6 mutations (14); P7 non-GPU workspace run and line counts; P8 #[ignore] live proofs",
     "open": "10 decision points OD-1..OD-10 and 6 UNVERIFIED items in the plan; adversarial review dispatched to classify each OD as settled by authority, settled by evidence, or a genuine Operator question",
     "status_effect": "none; no product file changed"
+  },
+  "s7_palmistry_plan_review_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the adversarial reviewer (Sonnet, read-only, no cargo); hash and the rings==3 scan (shell/tests/source_scan.rs:723) verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/s7-palmistry-plan-review-20261127.json (sha256 2c046d40bba65e4dfc2f8754ad3af68628db8d20151b0b34b4a3079b03461b36)",
+    "verdict": "UPHOLD_WITH_CORRECTIONS; all five headline findings true",
+    "watcher_classification": "a parent ending without a prior Shutdown is abnormal whatever its exit code: post-mortem crash record plus survivor record; a clean Shutdown writes neither (palmistry lifecycle record_parent_exit, palmistry main.rs:1268-1345, read at local rev 4365736; pinned rev 80a5016 not local, logic identical in five local checkouts); mem::forget does not orphan the child (bounded finalize), leaks only the child process handle and the pinned exe image handle",
+    "corrections": {
+      "C1_medium": "leave-untold is not neutral: every end that skips ended(), including orderly DeviceUnavailable (exit 4), yields a crash record because the watcher launches before the device opens; state it; open case is Operator question Q1",
+      "C2_low": "ManuallyDrop over mem::forget; keep the fake Drop-count test",
+      "C3_high": "HBR-QUIET-003 no-orphan proof after failure or kill: add P8c live test (drop the adapter un-asked; post-mortem record exists; child gone within the finalize bound); S7 does not supply HBR-HOST-006 / GUI-DESKTOP-054 crash-survival acceptance (MT-202)",
+      "C4_medium": "confirmed (handle.handshake_acked()) untested by default tests; a hardcoded-true mutation survives until P8; list as unproven",
+      "C5_medium": "spawn_failed test must assert ErrorKind::NotFound (not any Err); scope the M14 scan per test function",
+      "C6_medium": "rings == 3 (source_scan.rs:723) conflicts with removing the create call from shell_program.rs; decide keep or change the count to 2",
+      "C7_low": "drop ShellSession, use the existing LaunchSession; keep signed_watcher_argv_without_spawn out of shell/src (tests only)",
+      "C8_medium": "Palmistry treats no heartbeat yet as Healthy (freeze_detect.rs:231): device-open and window-create hangs are not watched; settled by AC215-6; state it in README and state line",
+      "C9_low": "CX-VAL-011 triggered by the lock change; CX-VAL-009 re-open set empty (no PASS MT lists handshake_shell); keep out of authority.rs (MT-222)",
+      "C10_low": "heartbeat and ring-writer scans stay green and unweakened; the no-v1 scan must match whole words",
+      "C11_low": "lease as in egui, no issuer; forbid a _ lease binding; AC199-8 mutual exclusion stays with MT-199",
+      "C12_low": "quiet operation holds with C5; start() tests with the default ring path leave temp ring files",
+      "C13_low": "order buildable; mapping tests and scans self-authored; P8 the only independent proof",
+      "C14_low": "lock recomputation 89 closure packages, 44 new names plus 14 patch/semver lines, no banned crate",
+      "C15_info": "--diag-ring now means a V2 ring plus a watcher launch; no other consumer"
+    },
+    "extra_mutations": [
+      "S1 confirmed hardcoded",
+      "S2 lease bound to _",
+      "S3 zero nonce / zero transport key / equal ids behind spawn_failed",
+      "S4 example passing NoWatcher",
+      "S5 AlreadyDone, UnsignedNotApplicable, SignedUnconfirmed mapped to Acknowledged; signed-confirmed ack with failing status",
+      "S6 ask-twice on every branch",
+      "S7 no_lease and no_ring markers",
+      "S8 real handle Drop (P8c)",
+      "S9 ring_marked bool",
+      "S10 argv ring path vs created path"
+    ],
+    "od_classification": {
+      "OD-1": "a: plan A, no waiver (MT-215 operator decision mt214_work; HBR-STOP-005)",
+      "OD-2": "a plus narrow c: leave untold for unsettled, failed, refused and panic ends (MT-214 slice5 wiring.shutdown, outcome.rs, AC-014-4); the start-fails-before-anything-opens case is Q1",
+      "OD-3": "b: NotConnected, child still shut down and reaped (WatcherAck docs, AC-014-5, spec 5.8.6)",
+      "OD-4": "a: yes (MT-199 AC199-8)",
+      "OD-5": "a: no crash client in the shell (AC214-11 plus the scan; MT-199 AC199-9)",
+      "OD-6": "a/b: MT-199 is the adopter; transport key only required non-zero",
+      "OD-7": "a: always create the ring (AC199-9 startup parity)",
+      "OD-8": "a: the launcher's bounded 9 s wait (AC-014-5)",
+      "OD-9": "b: callers are main, the example and tests",
+      "OD-10": "a: CX-VAL-011 full-scope round; CX-VAL-009 re-open set empty"
+    },
+    "operator_question": "Q1: DeviceUnavailable (exit 4) after the watcher launched: A (recommended) treat as unexpected, crash record written, rule stays exact; B tell the watcher normal stop, one more small piece of code and a new rule that a start which opened nothing counts as completed",
+    "disposition": "implementation proceeds with the corrections and option A (needs no code); if the Operator picks B it is added as one picotask"
   }
 }
