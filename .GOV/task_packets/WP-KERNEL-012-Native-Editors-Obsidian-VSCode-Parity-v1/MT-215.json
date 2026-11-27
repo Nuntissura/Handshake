@@ -1611,5 +1611,22 @@
     },
     "pre_existing_failures": "the six egui host test targets failing with E0063 (test_code_note_cross_ref MT-034, test_ckc_embed MT-033, test_properties MT-017, test_locus_interop MT-068, test_notes_end_to_end MT-099, test_menu_wireup MT-069) already fail at 4dad81781: commit b9606fac3 (2026-11-20) bumped the handshake_rich_document_model pin to e75e34ff and added RichDocBody.block_id; HsLinkNode fields tag_ref_kind, target_block_id, target_kind belong to MT-191 and MT-192; the six test files are unchanged since; not caused by 9a127a239",
     "follow_up": "G1-G3 low, for a later MT-215 slice; the six broken test targets need an owner fix (test-only struct field updates) and are routed as a separate item"
+  },
+  "egui_six_tests_blocker_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the routing specialist and the adversarial reviewer (both Sonnet, read-only, no cargo)",
+    "recorded_on": "2026-11-27",
+    "blocker_id": "WP012-EGUI-SIX-TESTS-E0063-20261127",
+    "what": "six egui host test targets fail to compile with E0063 (one error each): test_ckc_embed:1170, test_menu_wireup:1816, test_notes_end_to_end:424, test_properties:625 lack RichDocBody.block_id; test_code_note_cross_ref:2359, test_locus_interop:2083 lack the new HsLinkNode fields",
+    "cause": "commit b9606fac3 (2026-11-20, MT-212 candidate handpick-notes-native-publication-20261120-01) bumped the handshake_rich_document_model pin to e75e34ff and added RichDocBody.block_id (backend_client.rs:11868); the HsLinkNode fields came with asset commit e75e34ff; the six test files are unchanged since; not caused by 9a127a239",
+    "files": {
+      "routing": "Handshake_Artifacts/WP-KERNEL-012/MT-215/specialist-broken-egui-tests/routing.json (sha256 5e0df6cdb7afbe6c0fa5c9ff17ffcdb24089d2053fd7e116c538e29e162ce00f)",
+      "adversarial_review": "same folder adversarial-review.json (sha256 4508ed50de738459b8ba8fd55c0fe5c80714b41c0c455eb704e19d7cc6144408)"
+    },
+    "fix": "add block_id: None at the four RichDocBody literals (optional field, no host reader, not asserted); use HsLinkNode::new(..) then .resolved = false at the two HsLinkNode literals (equal to the old literal at e75e34f); nothing weakened; hidden later errors unlikely (pin diff adds only NodeKind::HsEmbed, which none of the six matches on), borrowck and runtime unproven",
+    "owners": "test files are in their owners' allowed paths: MT-017, MT-069, MT-099 (PASS_V1), MT-033, MT-034, MT-068 (BLOCKED); the tests/** wildcard also sits in MT-111..MT-143 (MT-121, MT-122 READY_FOR_VALIDATION)",
+    "responsibility": "adversarial correction: CX-VAL-005 and CX-EXEC-001 point at the breaking commit's MT (MT-212); record a remediation first (CX-EXEC-012, CX-EXEC-014); HBR-STOP-005 disclosure applies if the vehicle MT is unrelated",
+    "needed_by": "MT-215 HP215-STATIC (host cargo check --tests expected clean; s8b-host-check.log exited 101 on these six); not built by MT-172, MT-213 or MT-214",
+    "cx_val_009_note": "MT-017 and MT-099 list backend_client.rs in scope.allowed_paths and b9606fac3 edited it, so by the letter they were due back to validation after b9606fac3; not changed here because the next validation round is already full-scope under CX-VAL-011 (Cargo.lock gained a package, #/operator_decision_20261127_s8_phase_b), which re-validates them anyway",
+    "disposition": "blocker recorded; the fix is applied just in time as a recorded remediation before MT-215 validation; the vehicle (MT-212 repairing its own fallout, or the owner MTs) is an Operator choice, to be asked with the next question batch"
   }
 }
