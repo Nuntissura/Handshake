@@ -907,7 +907,14 @@
       "src/backend/handshake_core/src/storage/surreal/workspace_settings.rs",
       "src/backend/handshake_core/src/storage/surreal/workspace_settings_schema.surql",
       "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
-      "src/backend/handshake_core/src/storage/tests.rs"
+      "src/backend/handshake_core/src/storage/tests.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision166.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision168.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision169.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision170.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision171.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision166_upgrade_tests.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/tests/knowledge_crdt_lease_recovery_tests.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -4917,5 +4924,78 @@
       "waiver": "none needed"
     },
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/reindex_unattributed_index_row_tests/)' (exactly 1 test; batch with the pending MT-172 and MT-173 evals)"
+  },
+  "operator_decisions_20261127_unblock": {
+    "recorded_by": "ORCHESTRATOR root session (paperwork agent)",
+    "recorded_on": "2026-11-27",
+    "decision_ids": [
+      "WP012-MT172-SCHEMA-REV172-SCOPE-20261127",
+      "WP012-MT172-ENTITY-IDENTITY-20261127",
+      "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127"
+    ],
+    "packet_ref": "packet.json#/operator_decisions_20261127_mt172_unblock",
+    "decision_summaries": {
+      "WP012-MT172-SCHEMA-REV172-SCOPE-20261127": "Allow, no old VM data (Recommended)",
+      "WP012-MT172-ENTITY-IDENTITY-20261127": "Rewrite the 5 tests (Recommended)",
+      "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127": "Approve the waiver (Recommended)"
+    },
+    "schema_repair_spec_20261125_operator_decisions_status": [
+      {
+        "index": 0,
+        "text": "row 7 design",
+        "status": "DECIDED",
+        "pointer": "MT-173.json#/operator_decision_20261126_cloud_consent_revocation (WP012-CLOUD-CONSENT-REVOCATION-DESIGN-20261126, 'Approve the design')"
+      },
+      {
+        "index": 1,
+        "text": "whether the PT003 change goes into revision 172",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0 (WP012-MT172-SCHEMA-REV172-SCOPE-20261127): PT003 in revision 172 only if a test first proves the cause"
+      },
+      {
+        "index": 2,
+        "text": "worktree VM stores that already created their table at run time: second predecessor, or Operator confirms none exist",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0 (WP012-MT172-SCHEMA-REV172-SCOPE-20261127): no old worktree-VM stores, no second predecessor"
+      },
+      {
+        "index": 3,
+        "text": "accept that per-session user-manual tests go red under the restored identity index",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/1 (WP012-MT172-ENTITY-IDENTITY-20261127): rewrite the 5 tests to the workspace-level rule"
+      },
+      {
+        "index": 4,
+        "text": "scope: schema_revision166/168/169/170.rs, new schema_revision171.rs, upgrade tests, guard test, Member login test, knowledge_crdt_lease_recovery_tests.rs are in no MT",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0 (WP012-MT172-SCHEMA-REV172-SCOPE-20261127): scope allowed; the 'Member login test' part was already obsolete (MT-173.json#/sc1_login_nonce_20261126) and the guard test lives in schema.rs"
+      }
+    ],
+    "write_paths_added": {
+      "WP012-MT172-SCHEMA-REV172-SCOPE-20261127": [
+        "src/backend/handshake_core/src/storage/surreal/schema_revision166.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision168.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision169.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision170.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision171.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision166_upgrade_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_crdt_lease_recovery_tests.rs"
+      ]
+    },
+    "scope_touched": "MT-173 SC-11 (cloud consent revocation) proceeds inside the revision-172 bump per decision [0]; row 5 knowledge-entity identity rides in the same bump; four of the five waiver files are MT-173-owned (see protected_bindings_waiver_20261127). MT-173 status unchanged."
+  },
+  "protected_bindings_waiver_20261127": {
+    "decision_id": "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127",
+    "recorded_on": "2026-11-27",
+    "commit": "8e565bfa17f299d7864d13c240154363b2a7e838",
+    "files_owned_by_this_mt_edited": [
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs"
+    ],
+    "change": "query bindings and $session uses renamed to $session_record (SurrealDB protected name); no binding dropped",
+    "note": "Out-of-scope edit by MT-172 under the HBR-STOP-005 waiver granted by the Operator on 2026-11-27 (answer 'Approve the waiver (Recommended)'). Informational only; this MT's status is unchanged.",
+    "record_ref": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/2"
   }
 }

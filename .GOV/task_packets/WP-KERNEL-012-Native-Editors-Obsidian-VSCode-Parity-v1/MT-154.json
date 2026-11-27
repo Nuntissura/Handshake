@@ -5085,5 +5085,19 @@
     "finding": "no authentication check seen in these handlers or in the router layers applied to kernel routes; dcc_projection returns session records",
     "confidence": "static reading; 290 and 367 not read in full; not run",
     "lifecycle": "unchanged; MT-154 owner decides the repair scope"
+  },
+  "protected_bindings_waiver_20261127": {
+    "decision_id": "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127",
+    "recorded_on": "2026-11-27",
+    "commit": "8e565bfa17f299d7864d13c240154363b2a7e838",
+    "files_owned_by_this_mt_edited": [
+      "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/preferences.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs"
+    ],
+    "change": "query bindings and $session uses renamed to $session_record (SurrealDB protected name); no binding dropped",
+    "note": "Out-of-scope edit by MT-172 under the HBR-STOP-005 waiver granted by the Operator on 2026-11-27 (answer 'Approve the waiver (Recommended)'). Informational only; this MT's status is unchanged.",
+    "record_ref": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/2"
   }
 }

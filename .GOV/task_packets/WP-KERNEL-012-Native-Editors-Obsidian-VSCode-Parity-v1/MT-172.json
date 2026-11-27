@@ -1268,7 +1268,20 @@
       "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
       "src/backend/handshake_core/src/storage/surreal/schema.rs",
       "src/backend/handshake_core/src/storage/surreal/schema.surql",
-      "src/backend/handshake_core/src/storage/surreal.rs"
+      "src/backend/handshake_core/src/storage/surreal.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision166.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision168.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision169.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision170.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision171.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision166_upgrade_tests.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/tests/knowledge_crdt_lease_recovery_tests.rs (WP012-MT172-SCHEMA-REV172-SCOPE-20261127)",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs (WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127)",
+      "src/backend/handshake_core/src/llm/mod.rs (WP012-MT172-OLLAMA-REMOVAL-20261127)",
+      "src/backend/handshake_core/src/api/loom.rs (WP012-MT172-OLLAMA-REMOVAL-20261127)",
+      "src/backend/handshake_core/src/workflows.rs (WP012-MT172-OLLAMA-REMOVAL-20261127)",
+      "src/backend/handshake_core/src/api/code_nav_index_account_tests.rs (WP012-MT172-OLLAMA-REMOVAL-20261127)",
+      "src/backend/handshake_core/tests/local_execution_authority_surreal_tests.rs (WP012-MT172-OLLAMA-REMOVAL-20261127)"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -14489,5 +14502,89 @@
       "same pattern not yet touched: model_registry.rs (9 sites), user_manual_knowledge.rs (3), storage/surreal.rs:5668, atelier/pose.rs (4), knowledge_code_index/engine.rs:166; ownership not yet checked"
     ],
     "next": "checker static review of the 19 rewrites; independent eval in the next backend batch"
+  },
+  "operator_decisions_20261127_unblock": {
+    "recorded_by": "ORCHESTRATOR root session (paperwork agent)",
+    "recorded_on": "2026-11-27",
+    "decision_ids": [
+      "WP012-MT172-SCHEMA-REV172-SCOPE-20261127",
+      "WP012-MT172-ENTITY-IDENTITY-20261127",
+      "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127",
+      "WP012-MT172-OLLAMA-REMOVAL-20261127"
+    ],
+    "packet_ref": "packet.json#/operator_decisions_20261127_mt172_unblock",
+    "decision_summaries": {
+      "WP012-MT172-SCHEMA-REV172-SCOPE-20261127": "Allow, no old VM data (Recommended)",
+      "WP012-MT172-ENTITY-IDENTITY-20261127": "Rewrite the 5 tests (Recommended)",
+      "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127": "Approve the waiver (Recommended)",
+      "WP012-MT172-OLLAMA-REMOVAL-20261127": "Delete it (Recommended)"
+    },
+    "schema_repair_spec_20261125_operator_decisions_status": [
+      {
+        "index": 0,
+        "text": "row 7 design",
+        "status": "DECIDED",
+        "pointer": "MT-173.json#/operator_decision_20261126_cloud_consent_revocation (WP012-CLOUD-CONSENT-REVOCATION-DESIGN-20261126, 'Approve the design')"
+      },
+      {
+        "index": 1,
+        "text": "whether the PT003 change goes into revision 172",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0 (WP012-MT172-SCHEMA-REV172-SCOPE-20261127): PT003 in revision 172 only if a test first proves the cause"
+      },
+      {
+        "index": 2,
+        "text": "worktree VM stores that already created their table at run time: second predecessor, or Operator confirms none exist",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0 (WP012-MT172-SCHEMA-REV172-SCOPE-20261127): no old worktree-VM stores, no second predecessor"
+      },
+      {
+        "index": 3,
+        "text": "accept that per-session user-manual tests go red under the restored identity index",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/1 (WP012-MT172-ENTITY-IDENTITY-20261127): rewrite the 5 tests to the workspace-level rule"
+      },
+      {
+        "index": 4,
+        "text": "scope: schema_revision166/168/169/170.rs, new schema_revision171.rs, upgrade tests, guard test, Member login test, knowledge_crdt_lease_recovery_tests.rs are in no MT",
+        "status": "DECIDED",
+        "pointer": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0 (WP012-MT172-SCHEMA-REV172-SCOPE-20261127): scope allowed; the 'Member login test' part was already obsolete (MT-173.json#/sc1_login_nonce_20261126) and the guard test lives in schema.rs"
+      }
+    ],
+    "write_paths_added": {
+      "WP012-MT172-SCHEMA-REV172-SCOPE-20261127": [
+        "src/backend/handshake_core/src/storage/surreal/schema_revision166.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision168.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision169.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision170.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision171.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema_revision166_upgrade_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_crdt_lease_recovery_tests.rs"
+      ],
+      "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127": [
+        "src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs"
+      ],
+      "WP012-MT172-OLLAMA-REMOVAL-20261127": [
+        "src/backend/handshake_core/src/llm/mod.rs",
+        "src/backend/handshake_core/src/api/loom.rs",
+        "src/backend/handshake_core/src/workflows.rs",
+        "src/backend/handshake_core/src/api/code_nav_index_account_tests.rs",
+        "src/backend/handshake_core/tests/local_execution_authority_surreal_tests.rs"
+      ]
+    },
+    "file_removal_approved_cx_107": "src/backend/handshake_core/src/llm/ollama.rs",
+    "hbr_stop_005_waiver": {
+      "commit": "8e565bfa17f299d7864d13c240154363b2a7e838",
+      "files_outside_scope": [
+        "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+        "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+        "src/backend/handshake_core/src/storage/surreal/preferences.rs",
+        "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+        "src/backend/handshake_core/src/storage/surreal/workspaces.rs"
+      ],
+      "helper_now_owned_by_mt_172": "src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs",
+      "grants": "#/protected_bindings_fix_20261126/waiver_needed_hbr_stop_005 (old key unchanged)"
+    },
+    "note": "schema_revision171.rs is a new file (does not exist yet). The entity-identity rewrite is a test-expectation change, not a deletion. MT-172 status unchanged."
   }
 }

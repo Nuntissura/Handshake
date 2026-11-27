@@ -1208,5 +1208,12 @@
     ],
     "refactor_exposure": "none: debug-bundle export and download authority; nothing moves to the Vulkan shell from this MT. Its native caller is not named in this MT.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "revalidation_note_20261127_schema_rev172": {
+    "decision_id": "WP012-MT172-SCHEMA-REV172-SCOPE-20261127",
+    "recorded_on": "2026-11-27",
+    "file": "schema.rs, schema.surql and the schema-version files (schema_revision166/168/169/170/171.rs) under src/backend/handshake_core/src/storage/surreal/",
+    "note": "When MT-172 edits the schema files for revision 172, this MT returns to READY_FOR_VALIDATION under CX-VAL-009 (proof inputs intersect the candidate diff). Status is unchanged now.",
+    "record_ref": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/0"
   }
 }

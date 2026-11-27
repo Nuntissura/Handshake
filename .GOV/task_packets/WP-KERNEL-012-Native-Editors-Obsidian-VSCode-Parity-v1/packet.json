@@ -15117,5 +15117,112 @@
         ]
       }
     ]
+  },
+  "operator_decisions_20261127_mt172_unblock": {
+    "recorded_by": "ORCHESTRATOR root session (paperwork agent)",
+    "recorded_on": "2026-11-27",
+    "basis": "Operator chat answers 2026-11-27 to the four-question set F1-F4; brief and adversarial review in Handshake_Artifacts/WP-KERNEL-012/MT-172/operator-brief-20261127/ (brief.json, adversarial-review.json#/final_question_set); commit 8e565bfa17f299d7864d13c240154363b2a7e838 files verified with git show --stat",
+    "decisions": [
+      {
+        "id": "WP012-MT172-SCHEMA-REV172-SCOPE-20261127",
+        "question": "MT-172 schema fix: to repair the database layout (missing search-index fields and the worktree-VM table), MT-172 must edit six database-version files and their upgrade tests that no task currently lists. It ships as one new database version. A Workspace Create fix that removes one existence check goes in only if a test first proves it is the cause. Six passed tasks (MT-139, 156, 164, 166, 170, 183) go back for re-validation. Allow it?",
+        "operator_answer": "Allow, no old VM data (Recommended)",
+        "effect": "MT-172 and MT-173 execution.allowed_write_paths gain the schema-version files (schema_revision166/168/169/170.rs, new schema_revision171.rs, schema_revision166_upgrade_tests.rs) and tests/knowledge_crdt_lease_recovery_tests.rs; ships as one new database version (revision 172). No old worktree-VM stores exist, so no second measured predecessor. The PT003 Workspace Create change (drops record::exists($row.setup_receipt) in fn::wp012_first_owner_workspace_receipt) goes into revision 172 only if a test first proves it is the cause. MT-139, 156, 164, 166, 170, 183 return to READY_FOR_VALIDATION under CX-VAL-009 when the schema files are edited, not now. Settles MT-172.json#/schema_repair_spec_20261125/operator_decisions[1], [2] and [4].",
+        "write_paths_added": [
+          "src/backend/handshake_core/src/storage/surreal/schema_revision166.rs",
+          "src/backend/handshake_core/src/storage/surreal/schema_revision168.rs",
+          "src/backend/handshake_core/src/storage/surreal/schema_revision169.rs",
+          "src/backend/handshake_core/src/storage/surreal/schema_revision170.rs",
+          "src/backend/handshake_core/src/storage/surreal/schema_revision171.rs",
+          "src/backend/handshake_core/src/storage/surreal/schema_revision166_upgrade_tests.rs",
+          "src/backend/handshake_core/tests/knowledge_crdt_lease_recovery_tests.rs"
+        ],
+        "record_refs": [
+          "MT-172.json#/operator_decisions_20261127_unblock",
+          "MT-173.json#/operator_decisions_20261127_unblock",
+          "MT-139.json#/revalidation_note_20261127_schema_rev172",
+          "MT-156.json#/revalidation_note_20261127_schema_rev172",
+          "MT-164.json#/revalidation_note_20261127_schema_rev172",
+          "MT-166.json#/revalidation_note_20261127_schema_rev172",
+          "MT-170.json#/revalidation_note_20261127_schema_rev172",
+          "MT-183.json#/revalidation_note_20261127_schema_rev172"
+        ]
+      },
+      {
+        "id": "WP012-MT172-ENTITY-IDENTITY-20261127",
+        "question": "MT-172 knowledge entities: the table should again allow only one entry per workspace, kind and key, so real duplicates are blocked. Five user-manual tests currently assume one entry per login session. May they be rewritten to the workspace-level rule, keeping every other check?",
+        "operator_answer": "Rewrite the 5 tests (Recommended)",
+        "effect": "The knowledge-entity table returns to one entry per workspace, kind and key inside the single revision-172 bump; the 5 user-manual tests are rewritten to workspace-level identity keeping every other assertion (a test-expectation change, not a deletion). No path added beyond decision 1 (user_manual_knowledge_surreal_tests.rs is already an MT-172 path; user_manual_knowledge_schema.surql is MT-173). Settles MT-172.json#/schema_repair_spec_20261125/operator_decisions[3].",
+        "write_paths_added": [],
+        "record_refs": [
+          "MT-172.json#/operator_decisions_20261127_unblock",
+          "MT-173.json#/operator_decisions_20261127_unblock"
+        ]
+      },
+      {
+        "id": "WP012-MT172-PROTECTED-BINDINGS-WAIVER-20261127",
+        "question": "MT-172 login fix waiver: commit 8e565bfa1 fixed broken login, preferences and workspace-recovery queries by renaming one query variable in 5 files owned by other tasks, plus one test helper nobody owns (producer_authority_tests.rs). The independent test run passed. The build rules need your approval for out-of-scope edits. Approve, and let MT-172 own that helper?",
+        "operator_answer": "Approve the waiver (Recommended)",
+        "effect": "HBR-STOP-005 waiver granted for commit 8e565bfa17f299d7864d13c240154363b2a7e838 (PROTECTED-SESSION-BINDINGS, $session renamed to $session_record). Files outside MT-172 scope: src/backend/handshake_core/src/storage/surreal/event_ledger.rs, src/backend/handshake_core/src/storage/surreal/local_accounts.rs, src/backend/handshake_core/src/storage/surreal/preferences.rs, src/backend/handshake_core/src/storage/surreal/resource_authority.rs, src/backend/handshake_core/src/storage/surreal/workspaces.rs. Unowned test helper src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs becomes an MT-172 write path. schema.rs in the same commit is already MT-172 scope. Grants MT-172.json#/protected_bindings_fix_20261126/waiver_needed_hbr_stop_005 by this record (old key not rewritten). Status of every owner MT unchanged.",
+        "write_paths_added": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs"
+        ],
+        "waiver_files": [
+          "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+          "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+          "src/backend/handshake_core/src/storage/surreal/preferences.rs",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+          "src/backend/handshake_core/src/storage/surreal/workspaces.rs"
+        ],
+        "owners_by_allowed_paths_scan": {
+          "event_ledger.rs": [
+            "MT-153",
+            "MT-154",
+            "MT-173"
+          ],
+          "local_accounts.rs": [
+            "MT-153",
+            "MT-154",
+            "MT-173"
+          ],
+          "preferences.rs": [
+            "MT-154"
+          ],
+          "resource_authority.rs": [
+            "MT-173"
+          ],
+          "workspaces.rs": [
+            "MT-146",
+            "MT-153",
+            "MT-154",
+            "MT-173"
+          ]
+        },
+        "record_refs": [
+          "MT-172.json#/operator_decisions_20261127_unblock",
+          "MT-173.json#/operator_decisions_20261127_unblock",
+          "MT-146.json#/protected_bindings_waiver_20261127",
+          "MT-153.json#/protected_bindings_waiver_20261127",
+          "MT-154.json#/protected_bindings_waiver_20261127"
+        ]
+      },
+      {
+        "id": "WP012-MT172-OLLAMA-REMOVAL-20261127",
+        "question": "MT-172 Ollama file: the old Ollama connector file (llm/ollama.rs, 929 lines) is compiled only for tests and ships in no build. The original task says to remove it, and an identical test stand-in already exists. Delete it and let MT-172 switch the 8 test imports in 5 more files? Your 'dont remove features or adapter' rule was about asset updates; say so if you meant it to cover this too.",
+        "operator_answer": "Delete it (Recommended)",
+        "effect": "CX-107 file-removal approval for exactly src/backend/handshake_core/src/llm/ollama.rs (no other file). MT-172 allowed_write_paths gain the five import files so the 8 test imports (crate::llm::ollama::InMemoryLlmClient) switch to llm::in_memory::InMemoryLlmClient. The question put to the Operator stated that the 'dont remove features or adapter' rule concerned asset updates, and the Operator did not extend it. MT-174 retained_ollama_default_boot_reconciliation is superseded. Unblocks llm_default_boot_resolution_tests::mt003_ollama_adapter_source_file_and_public_export_are_removed.",
+        "file_removal_approved": "src/backend/handshake_core/src/llm/ollama.rs",
+        "write_paths_added": [
+          "src/backend/handshake_core/src/llm/mod.rs",
+          "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/src/workflows.rs",
+          "src/backend/handshake_core/src/api/code_nav_index_account_tests.rs",
+          "src/backend/handshake_core/tests/local_execution_authority_surreal_tests.rs"
+        ],
+        "record_refs": [
+          "MT-172.json#/operator_decisions_20261127_unblock"
+        ]
+      }
+    ]
   }
 }
