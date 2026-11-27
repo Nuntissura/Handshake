@@ -1443,5 +1443,14 @@
         "text": "MT-080 AC-080-8 allows isolate-verify for known wgpu-flake binaries: confirm the allowance lapses with wgpu instead of carrying over."
       }
     ]
+  },
+  "palmistry_launch_release_20261127": {
+    "decision_id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+    "released_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+    "released_to": "MT-215 (single named writer; extraction with a thin re-export in the egui host)",
+    "status_changed": false,
+    "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1",
+    "note": "MT-199 does not edit the file while released and stays the adopter of the egui side (thin re-export, switch-over; AC199-6 and AC199-9 parity). Status and claim unchanged."
   }
 }

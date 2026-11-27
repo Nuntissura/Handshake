@@ -512,5 +512,12 @@
     ],
     "refactor_exposure": "low: Handshake launch of Palmistry and IPC handshake; no operator surface of its own. The launch call before eframe::run_native in main.rs moves to the Vulkan shell start path in the same order. Conflict with pure Vulkan, text unchanged here: AC 1 scans for eframe::run_native.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "revalidation_note_20261127": {
+    "decision_id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+    "recorded_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+    "note": "When MT-215 edits this file, this MT returns to READY_FOR_VALIDATION under CX-VAL-009 (proof inputs intersect the candidate diff). Status is unchanged now (PASS_V1 stays until the file is edited).",
+    "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1"
   }
 }

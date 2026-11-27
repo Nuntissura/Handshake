@@ -4665,7 +4665,9 @@
     "execution_restructure_ref": "packet.json#/operator_workflow_restructure_20261013",
     "gui_rollup_addition_ref": "packet.json#/operator_gui_rollup_20261026",
     "vulkan_gui_refactor_addition_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
-    "authored_count_note_20261125": "Numeric MT contract files: 205 before and 214 after the MT-213..MT-221 addition; authored_count above is historical and unchanged (MT-210..MT-212 were not counted there either)."
+    "authored_count_note_20261125": "Numeric MT contract files: 205 before and 214 after the MT-213..MT-221 addition; authored_count above is historical and unchanged (MT-210..MT-212 were not counted there either).",
+    "shell_gaps_addition_ref": "packet.json#/operator_decisions_20261127_shell_gaps/execution_record_20261127",
+    "authored_count_note_20261127": "Numeric MT contract files: 214 before and 215 after the MT-222 addition; authored_count above is historical and unchanged."
   },
   "packet_acceptance_matrix": {
     "schema": "PACKET_ACCEPTANCE_MATRIX_V1",
@@ -15009,6 +15011,76 @@
     "not_decided_yet": [
       "OD-3 registry diff reviewer and order (MT-219 publication; can wait, S1 is no-code)"
     ],
-    "interim_fyi": "installation quota ledger GPU-QUOTA-006..010 deferred with owner-local policy and protected claims refused (MT-214.json#/shell_gaps_ownership_20261126/pieces/4_quota_ledger)"
+    "interim_fyi": "installation quota ledger GPU-QUOTA-006..010 deferred with owner-local policy and protected claims refused (MT-214.json#/shell_gaps_ownership_20261126/pieces/4_quota_ledger)",
+    "execution_record_20261127": {
+      "recorded_on": "2026-11-27",
+      "recorded_by": "governance paperwork specialist (kernel JSON only; no product code)",
+      "contracts_authored": [
+        {
+          "decision_id": "WP012-OD8-KERNEL-ISSUER-20261127",
+          "mt_id": "MT-222",
+          "contract_ref": "MT-222.json",
+          "purpose": "Kernel shell-startup issuer for device.gpu.shell",
+          "owning_module": "src/frontend/handshake_kernel_authority (working path; no canonical name verified)",
+          "depends_on": [
+            "MT-219",
+            "MT-203"
+          ],
+          "status": "READY",
+          "acceptance": [
+            "AC222-1",
+            "AC222-2",
+            "AC222-3",
+            "AC222-4",
+            "AC222-5",
+            "AC222-6",
+            "AC222-7",
+            "AC222-8",
+            "AC222-9",
+            "AC222-10"
+          ],
+          "conditional_dependency": "standalone-source asset MT for reusable trust-port mechanics (BOOT-008), not yet authored",
+          "first_coding_slice": "S2 crate with the authority type and compile-fail tests (S1 is the no-code inputs and BOOT-008 check)"
+        }
+      ],
+      "contracts_amended": [
+        {
+          "decision_id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+          "mt_id": "MT-215",
+          "added": [
+            "AC215-11",
+            "allowed_write_paths +2",
+            "S8",
+            "forbidden_write_paths +1"
+          ],
+          "record_ref": "MT-215.json#/operator_decision_20261127_palmistry_launcher"
+        }
+      ],
+      "release_records": [
+        {
+          "mt_id": "MT-175",
+          "key": "palmistry_launch_release_20261127"
+        },
+        {
+          "mt_id": "MT-199",
+          "key": "palmistry_launch_release_20261127"
+        }
+      ],
+      "revalidation_notes": [
+        {
+          "mt_id": "MT-094",
+          "key": "revalidation_note_20261127"
+        },
+        {
+          "mt_id": "MT-096",
+          "key": "revalidation_note_20261127"
+        }
+      ],
+      "numbering": {
+        "allocated": "MT-222",
+        "next_unallocated_id": "MT-223",
+        "note": "MT-215.json#/diag_ring_owner_review_20261126 had named MT-222 for a possible diag_ring MT (question open, no file existed); that MT, if chosen, takes MT-223."
+      }
+    }
   }
 }

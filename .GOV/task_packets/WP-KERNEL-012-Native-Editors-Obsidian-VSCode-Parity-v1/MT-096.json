@@ -422,5 +422,12 @@
     ],
     "refactor_exposure": "high: The end-to-end freeze and crash proofs run on the Vulkan shell binary with the real watcher; the panel screenshot is the shell frame. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the standalone Palmistry watcher on the Vulkan shell binary and the GPU owner device identity. The native files this MT names hold no egui code of note (diagnostics/test_seams.rs; feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25); the egui code around them was not inspected. Conflict with pure Vulkan, text unchanged here: AC 5 requires a wgpu screenshot.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "revalidation_note_20261127": {
+    "decision_id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+    "recorded_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+    "note": "When MT-215 edits this file, this MT returns to READY_FOR_VALIDATION under CX-VAL-009 (proof inputs intersect the candidate diff). Status is unchanged now (PASS_V1 stays until the file is edited).",
+    "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1"
   }
 }

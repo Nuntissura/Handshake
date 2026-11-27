@@ -1,0 +1,819 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-222",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-GOV-PIN-002",
+    "CX-EXEC-003",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-EXEC-015",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-VAL-002",
+    "CX-VAL-005",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-STATUS-001",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003",
+    "CX-984-001",
+    "CX-984-002"
+  ],
+  "identity": {
+    "mt_id": "MT-222",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Kernel shell-startup issuer: process-root, generation-bound, renderer-only authority for device.gpu.shell",
+    "group": "GUI-VULKAN",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 1,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+  "context_capsule": {
+    "purpose_for_a_reader_without_history": "The trusted process root of the new Vulkan shell can mint one non-cloneable, non-serializable authority value, bound to actual process birth, shell generation and a renderer-only purpose, that is the only thing satisfying the shell's StartupRefusal::NoDeviceAuthority gate. Without it the product shell binary refuses to open the graphics device (exit 7); only test binaries run.",
+    "specification_anchor_refs": [
+      {
+        "id": "NATIVE-RENDER-BOOT-001",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": null,
+        "paraphrase_from_draft": "Pre-account render only under the exact registered full capability device.gpu.shell (verbatim text in MT-219.json#/context_capsule/specification_anchor_refs)."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-002",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": null,
+        "paraphrase_from_draft": "No caller-supplied identity, serialized state, registry label, capability string or liveness lease creates authority; no account, Principal, session or audit event is fabricated."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-003",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": null,
+        "paraphrase_from_draft": "Negative tests for forge, clone, replay, deserialize and stale handle."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-005/006",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": null,
+        "paraphrase_from_draft": "Shutdown, retirement or replacement denies new admissions; in-flight GPU ownership stays with the original owner until settlement."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-007",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": null,
+        "paraphrase_from_draft": "Defines required semantics, not an implemented API; the trust-port binding is supplied by the host runtime authority owner and the reusable renderer owner."
+      },
+      {
+        "id": "NATIVE-RENDER-BOOT-008",
+        "anchor": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#15.9",
+        "verbatim": null,
+        "paraphrase_from_draft": "Missing reusable trust-port mechanics go through canonical source, proof, publication, reread and a distinct exact-pinned adoption first."
+      }
+    ],
+    "read_context": [
+      "Re-read every cited line before editing; the packet author inspected only the draft record and the existing MT contracts, not the product source.",
+      "Draft contract: Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json piece n=2 draft_contract (file sha256 69da535f15678d36a0f8259c604d52459d2eb422efb8dabd6139bbd540089665); adversarial corrections: MT-214.json#/shell_gaps_ownership_20261126.",
+      "Design: Handshake_Artifacts/WP-KERNEL-012/MT-203/mt203-native-process-root-issuer-design-handback-20261113-02.json (DESIGN ONLY: the trusted Native process root is the prospective issuer; it owns one private shell generation, revocation and OS process birth).",
+      "MT-203.json#/gpu_contract_result/gaps G203-H3 ('Not here: kernel issuer and grants'); MT-214.json AC214-10, AC214-12 and conditional_dependencies; MT-219.json (registered capability).",
+      "capabilities.rs:22 declares device.gpu.shell and capabilities.rs:395 rejects it as a grant string (as read by the draft author; re-read before use)."
+    ],
+    "pillar_refs": [
+      "HBR-HOST",
+      "HBR-PRIV"
+    ],
+    "runtime_lane_refs": [],
+    "inspection_route_refs": [
+      "none (no operator surface; typed issuance and refusal outcomes are read through the shell receipt)"
+    ],
+    "account_bound_resource_refs": [],
+    "consumed_capability_refs": [
+      "device.gpu.shell published by MT-219",
+      "MT-203 GPU owner and settlement semantics"
+    ],
+    "context_digest": null,
+    "module_maintenance_refs": [
+      "MT-222.json#/execution/module_maintenance",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "A non-cloneable, non-serializable authority value that only the trusted process root can mint, bound to actual process birth, shell generation, renderer-only purpose and lifecycle, with revocation and denial after retirement; the shell's StartupRefusal::NoDeviceAuthority gate is satisfied by it and by nothing else.",
+    "requirement_refs": [
+      "packet.json#/operator_vulkan_gui_refactor_20261125",
+      "packet.json#/operator_professional_desktop_ui_20261024/requirements"
+    ],
+    "acceptance_refs": [
+      "AC222-1",
+      "AC222-2",
+      "AC222-3",
+      "AC222-4",
+      "AC222-5",
+      "AC222-6",
+      "AC222-7",
+      "AC222-8",
+      "AC222-9",
+      "AC222-10"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC222-1",
+        "text": "Authority type: the authority value is not Clone, Copy, Default, Serialize or Deserialize and has no public constructor; the only mint path takes a process-root proof created once at process birth. Compile-fail tests prove each of clone, copy, default, serialize, deserialize and direct construction does not compile outside the issuer crate."
+      },
+      {
+        "id": "AC222-2",
+        "text": "Registry binding: before arming, the issuer consumes the verified published registry entry (registry version digest and the exact device.gpu.shell entry published by MT-219) and arms only when digest and entry match; a missing file, missing entry, altered entry or digest mismatch leaves issuance unavailable with a typed refusal, tested for each case (handback-02 native_pre_effect_check)."
+      },
+      {
+        "id": "AC222-3",
+        "text": "Forge resistance: caller-supplied identity, serialized state, registry label, capability string and liveness lease cannot create authority; tests cover forge, replay of a prior value, deserialize attempt and stale handle (a handle from a retired generation) and each yields a typed denial (NATIVE-RENDER-BOOT-002, -003)."
+      },
+      {
+        "id": "AC222-4",
+        "text": "Lifecycle: shutdown, retirement or replacement of the shell generation revokes the value and denies every new admission after it; in-flight GPU ownership stays with the original MT-203 owner until its settlement, and the issuer neither settles nor releases it (NATIVE-RENDER-BOOT-005, -006). Tested with an in-flight claim at retirement."
+      },
+      {
+        "id": "AC222-5",
+        "text": "No fabricated identity: issuance and denial create no account, Principal, session or audit event and never invent pre-account attribution; attribution is the process instance and shell generation only (NATIVE-RENDER-BOOT-002)."
+      },
+      {
+        "id": "AC222-6",
+        "text": "Registered is not granted: CapabilityRegistry::can_perform still returns false for device.gpu.shell for every profile, role, model, account and string, and the existing test capabilities::tests::test_shell_gpu_capability_is_not_grantable_by_strings_or_profiles still passes unchanged."
+      },
+      {
+        "id": "AC222-7",
+        "text": "Shell gate: through the single named hand-over of src/frontend/handshake_shell/shell/src/authority.rs, run_product refuses with StartupRefusal::NoDeviceAuthority (exit 7) without the issuer's value and passes that gate with it; the shell crate has no other way to build an authority value; test binaries keep declaring their no-authority mode in their receipts."
+      },
+      {
+        "id": "AC222-8",
+        "text": "Independent verdict: the denial tests of AC222-1 to AC222-5 are reviewed or extended by an agent that did not write the issuer; the author's own tests are not the sole proof (GLOBAL-CLOSURE-042 separation)."
+      },
+      {
+        "id": "AC222-9",
+        "text": "Scope: the issuer only. No change to capabilities.rs grants, profiles or sessions, to the registry file (MT-219), to vulkan-renderer/** (MT-203) or to Master Spec text, and no Vulkan call, quota ledger or account-session authority is added."
+      },
+      {
+        "id": "AC222-10",
+        "text": "Reusable mechanics: no reusable trust-port mechanic is implemented in this MT. Any such mechanic found missing at S1 is added first through a distinct standalone-source MT in its canonical asset repository, re-read and pinned, and this crate only adapts it (NATIVE-RENDER-BOOT-008, CX-MODULE-LIFECYCLE-002); the host-side issuer stays a Handshake adaptation."
+      }
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "operator_decision_refs": [
+      "packet.json#/operator_decisions_20261127_shell_gaps/decisions/0",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/verbatim",
+      "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions"
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Authority and lifecycle design with negative-path proof.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": [
+      "CX-EXEC-003",
+      "CX-EXEC-013",
+      "CX-EXEC-015"
+    ]
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "src/frontend/handshake_kernel_authority",
+    "build_unit_ref": null,
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-219",
+      "MT-203"
+    ],
+    "start_precondition": "MT-219 has published device.gpu.shell (independently re-read) and MT-203 owner and settlement semantics are accepted. The shell authority.rs hand-over from MT-214 is recorded as one named writer before S5. Naming of the module is Operator work (OD-7): handshake_kernel_authority is a working path, no canonical name verified.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_kernel_authority/**",
+      "src/frontend/handshake_shell/shell/src/authority.rs (one named hand-over from MT-214; single writer recorded before S5)"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/capabilities.rs grants, profiles, sessions",
+      "src/frontend/handshake_native/vulkan-renderer/** (MT-203 GUI coding agent)",
+      "assets/capability_registry.json (MT-219)",
+      "Master Spec text",
+      "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to a standalone-source MT and MT-198",
+      "src/backend/** unless listed in allowed_write_paths",
+      "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
+      "any account, Principal, session or audit fabrication"
+    ],
+    "shared_resource_locks": [
+      "src/frontend/handshake_shell/shell/src/authority.rs: one named writer (MT-214 hands over to this MT, hands back at closure)"
+    ],
+    "inputs": [
+      "Master Spec v02.229 bundle (15.9 BOOT-001..009)",
+      "MT-203 process-root issuer design handback-02",
+      "the published registry file from MT-219 and its version digest",
+      "MT-214 shell authority.rs and StartupRefusal::NoDeviceAuthority"
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "S1 (no code): record the inputs, the registry digest MT-219 published, the BOOT-001..009 mapping to the types below, and the BOOT-008 check: list every trust-port mechanic needed and whether the pinned asset revision already provides it. If any is missing, stop and request the standalone-source MT first. Output: one inputs record in this MT, no file change."
+      },
+      {
+        "n": 2,
+        "step": "S2 (first coding slice): crate handshake_kernel_authority with the authority type, the process-root proof and the mint path; compile-fail tests for AC222-1."
+      },
+      {
+        "n": 3,
+        "step": "S3: registry binding before arming (AC222-2) with typed refusals for each mismatch."
+      },
+      {
+        "n": 4,
+        "step": "S4: generation, revocation and retirement denial with the in-flight settlement test (AC222-3, AC222-4, AC222-5)."
+      },
+      {
+        "n": 5,
+        "step": "S5: authority.rs hand-over adapter in the shell and the exit-7 gate test (AC222-7); confirm CapabilityRegistry::can_perform stays false (AC222-6)."
+      },
+      {
+        "n": 6,
+        "step": "S6: hand the denial tests to an independent reviewer (AC222-8); record hand-back of authority.rs to MT-214."
+      }
+    ],
+    "first_coding_slice": "S2: crate handshake_kernel_authority with the authority type, the process-root proof and the mint path; compile-fail tests for AC222-1.",
+    "expected_outputs": [
+      "crate handshake_kernel_authority with tests",
+      "shell authority.rs adapter",
+      "S1 inputs record and BOOT-008 check",
+      "independent verdict reference"
+    ],
+    "stop_conditions": [
+      "A reusable trust-port mechanic is missing from the pinned asset revision: stop; route to a standalone-source MT in the asset repository (BOOT-008).",
+      "The published registry entry from MT-219 is absent or its digest is unverified: stop; do not arm.",
+      "Any design that fabricates an account, Principal, session or audit event: stop.",
+      "The process root is found to be more than one binary or crate: stop and record it (one process root; no second root)."
+    ],
+    "may_create_canonical_capability": false,
+    "backend_mt_ref": null,
+    "contract_dependency_kind": "depends_on_completion",
+    "artifact_isolation": {
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT (the one Handshake_Artifacts root, HSK-ART-001)",
+      "owner_dir": "WP-KERNEL-012/MT-222/<owner-slug>",
+      "env": {
+        "CARGO_TARGET_DIR": "named in the dispatch, never chosen here (KB-OUT-008)",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "native_test_env_additions": {},
+      "flags": "-j 1; one cargo job per lane",
+      "reference_runner": null
+    },
+    "implementer_compile": {
+      "command": null,
+      "gap": "The crate manifest does not exist until S2; before that there is no command to run.",
+      "note": "Not run by the packet author. HANDSHAKE_BUILD_RULES implementer_check and test_entrypoint are still REPLACE_ME, so no repository-wide literal exists."
+    },
+    "git_rules": [
+      "Commit and push per slice as soon as it compiles (CX-EXEC-007)",
+      "No governance files on the product branch (CX-113A)",
+      "No index or branch operations outside the assigned worktree"
+    ],
+    "module_change_stage": "host_adoption",
+    "module_maintenance": {
+      "maintenance_id": "WP012-KERNEL-ISSUER-MAINT-01",
+      "owner": "WP-KERNEL-012 GUI lane",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake",
+      "canonical_path": "src/frontend/handshake_kernel_authority",
+      "purpose": "Kernel shell-startup issuer for device.gpu.shell; Handshake adaptation of the trust-port semantics.",
+      "public_contract": "issuer API returning the typed authority value or a typed refusal",
+      "test_entry": "crate tests plus the shell exit-7 gate test",
+      "dependency_direction": "the shell depends on this crate; this crate depends on no shell, egui or wgpu crate"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "CR222-DENIAL",
+        "kind": "test",
+        "claim_refs": [
+          "AC222-1",
+          "AC222-3",
+          "AC222-4",
+          "AC222-5"
+        ],
+        "command_or_method": "Crate tests: compile-fail for the type, forge, replay, deserialize and stale-handle denial, retirement with an in-flight claim, and no fabricated identity. Exact command named in the dispatch (no checked-in literal exists).",
+        "expected": "all pass; each denial is a typed outcome",
+        "timeout_seconds": 1800,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "test output",
+          "list of denial cases"
+        ]
+      },
+      {
+        "check_id": "CR222-REGISTRY",
+        "kind": "test",
+        "claim_refs": [
+          "AC222-2"
+        ],
+        "command_or_method": "Crate tests arm against the real published registry from MT-219 and against missing, altered and digest-mismatched copies.",
+        "expected": "arms only on exact match; others refuse typed",
+        "timeout_seconds": 900,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "test output",
+          "registry digest used"
+        ]
+      },
+      {
+        "check_id": "CR222-GATE",
+        "kind": "test",
+        "claim_refs": [
+          "AC222-7"
+        ],
+        "command_or_method": "Shell gate test: run_product without the value exits 7 with NoDeviceAuthority; with the issuer's value passes the gate; the shell has no other constructor.",
+        "expected": "pass",
+        "timeout_seconds": 900,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "test output",
+          "exit codes"
+        ]
+      },
+      {
+        "check_id": "CR222-NEGATIVE",
+        "kind": "test",
+        "claim_refs": [
+          "AC222-6"
+        ],
+        "command_or_method": "Validator runs the existing exact test capabilities::tests::test_shell_gpu_capability_is_not_grantable_by_strings_or_profiles.",
+        "expected": "pass",
+        "timeout_seconds": 900,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "test output"
+        ]
+      },
+      {
+        "check_id": "CR222-INDEPENDENT",
+        "kind": "inspection",
+        "claim_refs": [
+          "AC222-8",
+          "AC222-9",
+          "AC222-10"
+        ],
+        "command_or_method": "Independent reviewer re-reads the diff for scope (no grants, registry, renderer, spec or Vulkan call) and the BOOT-008 record, and reviews or extends the denial tests.",
+        "expected": "scope clean; no reusable mechanic implemented here",
+        "timeout_seconds": 3600,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "diff",
+          "review record"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_kernel_authority/**",
+      "src/frontend/handshake_shell/shell/src/authority.rs"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "location": null,
+    "reason": null,
+    "not_applicable_reason": "No operator surface; the shell manual is updated by MT-214 when the shell can start."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No operator surface; the refusal outcome is a typed receipt of the shell."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "process-instance and shell-generation identity only"
+    ],
+    "identity_and_scope_contexts": [
+      "Pre-account process attribution only; no account, Principal, session or audit event is created or widened"
+    ],
+    "enforcement_boundaries": [
+      "The issuer admits only the trusted process root; revoked or retired generations are denied by default"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [
+      "retirement or replacement of the shell generation denies new admissions (AC222-4)"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "CR222-DENIAL"
+    ]
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-HOST-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No control.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Authorizes the shell's device open only; performs no GPU work; in-flight ownership stays with the MT-203 owner.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-004",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No retained allocation.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No GUI behaviour.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-006",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Issuance and denial carry process instance and shell generation attribution; no account or session is invented.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-HOST-008",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No frame.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No frame.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Typed issuance and refusal outcomes are inspectable through the shell receipt.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Automated runs use a quiet, never-activated window or offscreen frame; zero focus or Z-order change.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "No OS input injection, cursor movement or foregrounding on any path, tests included.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Background launches record owner and are reclaimed; no orphan windows or processes.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-QUIET-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "A step that needs the foreground (real OS IME typing) is declared first and run by the Operator.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Three-tier diagnostic outcome recorded per tier (hbr_int_009_tier_obligations).",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "One owning module in execution.module_ref; write scope derives from its roots; dependency direction stated.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Only the new crate's own manifest is added; no other build unit changes.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No UI mechanic.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-COMPONENT-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No UI mechanic.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Accountable owner and independently selectable source, dependency, build, test and artifact closure for the issuer crate.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Exact embedding adapter; host policy stays in Handshake.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Any reusable trust-port mechanic lands in its canonical repository and is re-read before any host write (AC222-10).",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Missing shared logic is added to the asset first; no host workaround, copy or fork.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Scope linkage preserved on every projected resource.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Default deny kept for missing, stale or revoked context at every boundary touched.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Process authority only; no account content is held.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Retirement, replacement or revocation fences the authority and denies stale handles.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Concurrent agents plus Operator edits: no silent last-writer-wins; conflicts are typed.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No build.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "obligation_or_reason": "Owner cleans only its own scoped artifact folder.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface change.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface change.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "NOT_APPLICABLE",
+      "obligation_or_reason": "No surface change.",
+      "proof_ref": "MT-222.json#/proof/checks"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "NOT_APPLICABLE",
+      "reason": "pre-account: no audit event may be fabricated (AC222-5)"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "APPLICABLE",
+      "reason": "typed issuance and refusal outcome mapped to the existing allowlist; a missing code is requested as a typed addition"
+    },
+    {
+      "tier": "palmistry",
+      "status": "NOT_APPLICABLE",
+      "reason": "watcher launch and heartbeat are MT-214 and MT-215 work"
+    }
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "authorization only; no GPU work",
+    "diagnostics": {
+      "internal_diagnostics": "typed issuance and refusal outcome",
+      "flight_recorder": "none (pre-account)",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "process instance and shell generation only",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "NATIVE-RENDER-BOOT-001",
+      "NATIVE-RENDER-BOOT-002",
+      "NATIVE-RENDER-BOOT-003",
+      "NATIVE-RENDER-BOOT-005",
+      "NATIVE-RENDER-BOOT-006",
+      "NATIVE-RENDER-BOOT-007",
+      "NATIVE-RENDER-BOOT-008"
+    ],
+    "refactor_exposure": "high: opens the product shell's device gate (MT-214 S5, AC214-10)",
+    "recorded_at": "2026-11-27T03:29:28Z"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AUTHORITY_ISSUER",
+    "risks": [
+      "The shell author mints the authority that opens its own gate.",
+      "A serialized or cloned value is accepted as authority.",
+      "A registry label or capability string is read as a grant.",
+      "A retired generation's handle still opens the device.",
+      "The issuer fabricates a session or audit event for pre-account attribution.",
+      "Reusable trust-port logic is copied into the host instead of the asset.",
+      "The issuer becomes a second process root that drifts from the real one."
+    ],
+    "minimum_controls": [
+      "AC222-8 independent verdict and tests.",
+      "AC222-1 compile-fail tests and AC222-3 negative tests.",
+      "AC222-6 can_perform stays false.",
+      "AC222-4 retirement denial with in-flight settlement.",
+      "AC222-5 no fabricated identity.",
+      "AC222-10 and stop_conditions[0] (BOOT-008).",
+      "stop_conditions[3] and the single named writer of authority.rs."
+    ]
+  },
+  "operator_direction_20261125": {
+    "record_ref": "packet.json#/operator_vulkan_gui_refactor_20261125",
+    "recorded_by": "KERNEL_BUILDER GUI packet author (packet preparation only; no product code, no cargo, no verdict)",
+    "source": "Operator chat goal 2026-11-25, quoted verbatim (spelling kept) from the dispatch to the packet author; the author did not read the chat itself.",
+    "verbatim": [
+      {
+        "id": "Q1",
+        "quote": "you also manage a gui team that is refactoring the gui so handshake uses vulcan only. (should have its own microtasks packets)"
+      },
+      {
+        "id": "Q11",
+        "quote": "handshake as a app must run on a x64 desktop pc first, we only port to mac and arm later"
+      }
+    ],
+    "prior_decisions_ref": "packet.json#/operator_vulkan_gui_refactor_20261125/prior_operator_decisions",
+    "applies_here": "The shell needs a kernel issuer before it may open Vulkan before login."
+  },
+  "template_note": {
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json (V2 named by the dispatch)",
+    "extra_keys": "Keys outside the V2 shape (wp_id, mt_id, gui_obligation, resource_privacy_obligation, hbr_obligations, hbr_int_009_tier_obligations, handoff, ownership_check_20261125, operator_direction_20261125) follow the V2 instances in WP-KERNEL-STUDIO.",
+    "pin": "WP-KERNEL-012 is pinned at 896f4e15 (packet.json#/governance_pin). V2 and the HBR-HOST rows postdate that pin; they bind this new MT through the 2026-11-25 dispatch and the Operator decision WP012-OD8-KERNEL-ISSUER-20261127; no settled verdict is re-judged."
+  },
+  "lifecycle": {
+    "phase": "ready",
+    "status": "READY",
+    "blocked_on": null,
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
+    "invalidated_by_commit": null,
+    "claim_ref": null,
+    "last_submission_ref": null,
+    "last_verdict_ref": null,
+    "updated_at_utc": "2026-11-27T03:29:28Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "handoff": {
+    "next_actor": "WP-KERNEL-012 GUI lane after MT-219 and MT-203",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "claimed_by": null,
+    "worker_final_status": "AUTHORED_UNCLAIMED"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-222.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
+  },
+  "created_at_utc": "2026-11-27T03:29:28Z",
+  "updated_at_utc": null,
+  "conditional_dependencies": [
+    {
+      "mt_ref": "standalone-source asset MT for reusable trust-port mechanics (not yet authored; id allocated in the asset repository lane)",
+      "when": "S1 BOOT-008 check finds a reusable trust-port mechanic missing from the pinned asset revision; this MT does not proceed past S1 until that MT is re-read and pinned"
+    }
+  ],
+  "ownership_check_20261127": {
+    "searched": [
+      "MT-197..MT-205",
+      "MT-212..MT-221",
+      "packet.json",
+      "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json"
+    ],
+    "result": "No contract accepts the kernel issuer for device.gpu.shell: MT-203 records 'Not here' (G203-H3), MT-214 AC214-12 limits the shell to composition, MT-199 is host migration, MT-186 is account-session authority.",
+    "boundary": "Issuer only. Publication of the registry entry is MT-219; the quota ledger (GPU-QUOTA-006..010) stays deferred."
+  },
+  "operator_decision_20261127": {
+    "decision_id": "WP012-OD8-KERNEL-ISSUER-20261127",
+    "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/0",
+    "operator_answer": "New MT-222 in WP-012 (Recommended)",
+    "recorded_on": "2026-11-27",
+    "draft_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json piece n=2 draft_contract (file sha256 69da535f15678d36a0f8259c604d52459d2eb422efb8dabd6139bbd540089665)",
+    "corrections": "MT-214.json#/shell_gaps_ownership_20261126 (adversarial review); the draft's id placeholder is resolved to MT-222 by this decision.",
+    "id_note": "MT-215.json#/diag_ring_owner_review_20261126 proposed MT-222 for a possible diag_ring MT while its Operator question was open (no MT-222.json existed). This decision allocates MT-222 to the issuer; a diag_ring MT, if the Operator chooses option 1, takes the next free id (MT-223)."
+  }
+}

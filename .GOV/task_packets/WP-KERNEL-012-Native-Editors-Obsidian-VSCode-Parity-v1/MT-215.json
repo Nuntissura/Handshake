@@ -131,7 +131,8 @@
       "AC215-7",
       "AC215-8",
       "AC215-9",
-      "AC215-10"
+      "AC215-10",
+      "AC215-11"
     ],
     "materialized_acceptance": [
       {
@@ -173,6 +174,10 @@
       {
         "id": "AC215-10",
         "text": "internal_diagnostics: each outcome maps to the existing GuiDiagnosticOperation/Phase and DiagEventCode allowlist; a missing code is requested as a typed addition, never worked around with text."
+      },
+      {
+        "id": "AC215-11",
+        "text": "Toolkit-free Palmistry launcher: resolving and starting the existing standalone Palmistry watcher, binding the v2 diagnostics ring nonce and runtime-instance lease, the signed ready handshake, child liveness registration and shutdown request with acknowledgement are one crate under src/frontend/handshake_host_ports/palmistry_launch that compiles without egui, eframe, wgpu, glow and without the handshake-native crate, and exposes no toolkit type. The egui host keeps diagnostics/palmistry_launch.rs as a thin re-export so every existing module path and retained selector (including signed_launch_evidence_tests and test_palmistry_launch) runs unchanged. No launch order, wire, signing, timing, ring-layout or watcher behaviour changes; no new watcher, ring or recorder."
       }
     ],
     "spec_basis_refs": [
@@ -224,7 +229,9 @@
       "src/frontend/handshake_host_ports/focus_audit/**",
       "src/frontend/handshake_native/src/mcp/** (extraction with release only)",
       "src/frontend/handshake_native/src/accessibility/** (extraction with release only)",
-      "src/frontend/handshake_native/Cargo.toml and Cargo.lock (one named writer)"
+      "src/frontend/handshake_native/Cargo.toml and Cargo.lock (one named writer)",
+      "src/frontend/handshake_host_ports/palmistry_launch/**",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs (extraction with release only: the file is also in MT-175 and MT-199 scope; one named writer and a recorded release are required)"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -233,7 +240,8 @@
       "src/backend/** unless listed in allowed_write_paths",
       "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
       "Any change to the MCP wire JSON, permission checks or lease semantics",
-      "A second MCP server, watcher, ring or recorder"
+      "A second MCP server, watcher, ring or recorder",
+      "any change to DiagSession beyond implementing the new port"
     ],
     "shared_resource_locks": [
       "handshake_native/Cargo.toml, Cargo.lock, src/lib.rs, src/app.rs (single writer)",
@@ -272,6 +280,10 @@
       {
         "n": 7,
         "step": "S7: focus_audit target over every GUI root, then the conformance suite against both hosts."
+      },
+      {
+        "n": 8,
+        "step": "S8: palmistry_launch crate: move the launcher; replace the `super::DiagSession` parameter with a small port type owned by the new crate (session id, process instance id, runtime-instance fields) that the egui host's DiagSession implements; keep the egui file as re-export; run the existing launch tests unchanged in the egui host plus a conformance test that the shell adapter and the egui host start the same watcher with the same v2 nonce. The ShutdownWatcher adapter for the shell is MT-214 work."
       }
     ],
     "first_coding_slice": "S1 (first coding slice): ui_heartbeat crate. A port trait plus a monotonic timer helper driven by the host loop, calling diag_ring write_heartbeat; unit tests for monotonicity, allocation-free path, no-ring no-op and a stale counter when the loop is blocked. The egui host is untouched.",
@@ -1370,5 +1382,24 @@
       "the compile_fail doctests",
       "whether wake-lane timings still match the existing window wake tests"
     ]
+  },
+  "operator_decision_20261127_palmistry_launcher": {
+    "decision_id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+    "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1",
+    "recorded_on": "2026-11-27",
+    "question": "Approve moving the Palmistry launcher out of the old egui app into MT-215 so the new shell can be wired to Palmistry, with MT-175 and MT-199 handing the file over and MT-094 and MT-096 re-checked?",
+    "operator_quote": "Approve MT-215 amendment (Recommended)",
+    "amendment": {
+      "acceptance_added": "AC215-11",
+      "write_paths_added": 2,
+      "step_added": "S8",
+      "forbidden_added": "any change to DiagSession beyond implementing the new port",
+      "other_acceptance_changed": false
+    },
+    "source_text_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json piece n=3 amendment_text (file sha256 69da535f15678d36a0f8259c604d52459d2eb422efb8dabd6139bbd540089665)",
+    "single_writer": "MT-215 is the one named writer of src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs; MT-175 and MT-199 release it (palmistry_launch_release_20261127 in each); MT-199 stays the adopter of the egui side (thin re-export, switch-over).",
+    "mt214_work": "ShutdownWatcher adapter and the v2 ring nonce for the shell (MT-214 slice record; no MT-214 contract change).",
+    "revalidation": "Editing the file returns MT-094 and the MT-096 capstone to READY_FOR_VALIDATION under CX-VAL-009 (revalidation_note_20261127 in each); their statuses change when the file is edited, not now.",
+    "id_note": "A diag_ring MT proposed in diag_ring_owner_review_20261126 no longer takes MT-222 (allocated to the kernel issuer by WP012-OD8-KERNEL-ISSUER-20261127); it takes the next free id (MT-223) if the Operator chooses option 1."
   }
 }

@@ -14233,5 +14233,14 @@
     ],
     "refactor_exposure": "high: The native host files it reconciles are the egui host that the zero-egui shell replaces at the switch; the reconciled pane, MCP, accessibility and launch behaviour is what the shell must carry over. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the Kumihimo pane registry and the shell start path. Egui-bound today: app.rs, atelier_panel.rs, pane_registry.rs, mcp/*, accessibility/*, module_switcher.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25); the MT names 62 native files, this is a sample.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "palmistry_launch_release_20261127": {
+    "decision_id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+    "released_on": "2026-11-27",
+    "file": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+    "released_to": "MT-215 (single named writer; extraction with a thin re-export in the egui host)",
+    "status_changed": false,
+    "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1",
+    "note": "MT-175 keeps its write-path entry for history but does not edit the file while released; its retained selectors (diagnostics::palmistry_launch::signed_launch_evidence_tests::signed_launch_verifier_rejects_forgery_replay_and_legacy_ack and the test_palmistry_launch integration target) keep running unchanged through the re-export. Status and claim unchanged."
   }
 }
