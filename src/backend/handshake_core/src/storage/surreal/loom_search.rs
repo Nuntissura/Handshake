@@ -367,7 +367,7 @@ LET $existing = (SELECT
     mutation_fingerprint
 FROM $record LIMIT 2);
 LET $receipt = IF array::len($existing) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $existing[0].selection_event_id
        AND event_type = 'MODEL_RUNTIME_SELECTION_RECORDED'
        AND aggregate_type = 'model_runtime_registry'
@@ -378,7 +378,7 @@ LET $receipt = IF array::len($existing) = 1 {
        AND authenticated_session_id = $content.authenticated_session_id
        AND access_space_id = $content.access_space_id
        AND workspace_id = record::id($content.workspace_id)
-     LIMIT 2)
+     LIMIT 2); $hsk_rows
 } ELSE { [] };
 LET $event_existing = (SELECT event_id FROM kernel_event_ledger
 WHERE idempotency_key = $event.idempotency_key
@@ -440,7 +440,7 @@ WHERE owner_account_id = $owner_account_id
   AND lifecycle_state = 'active'
 LIMIT 2);
 LET $receipts = IF array::len($rows) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $rows[0].selection_event_id
        AND event_type = 'MODEL_RUNTIME_SELECTION_RECORDED'
        AND aggregate_type = 'model_runtime_registry'
@@ -451,7 +451,7 @@ LET $receipts = IF array::len($rows) = 1 {
        AND authenticated_session_id = $authenticated_session_id
        AND access_space_id = $access_space_id
        AND workspace_id = record::id($workspace_id)
-     LIMIT 2)
+     LIMIT 2); $hsk_rows
 } ELSE { [] };
 IF array::len($rows) > 1 OR array::len($receipts) > 1 {
     THROW 'MT-016 active embedding selection is ambiguous';
@@ -481,7 +481,7 @@ LET $existing = (SELECT
     mutation_fingerprint
 FROM $index_record LIMIT 2);
 LET $receipt = IF array::len($existing) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $existing[0].index_event_id
        AND event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED'
        AND aggregate_type = 'loom_block_search_index'
@@ -492,7 +492,7 @@ LET $receipt = IF array::len($existing) = 1 {
        AND authenticated_session_id = $content.authenticated_session_id
        AND access_space_id = $content.access_space_id
        AND workspace_id = record::id($content.workspace_id)
-     LIMIT 2)
+     LIMIT 2); $hsk_rows
 } ELSE { [] };
 LET $event_existing = (SELECT event_id FROM kernel_event_ledger
 WHERE idempotency_key = $event.idempotency_key
