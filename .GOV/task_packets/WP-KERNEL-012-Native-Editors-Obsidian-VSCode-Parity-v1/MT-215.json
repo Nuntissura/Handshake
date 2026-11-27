@@ -1659,5 +1659,27 @@
     ],
     "proof": "compile and run the moved test; shell source_scan 13 of 13; mutation: add DiagRingWriterV2::create + write_heartbeat to a product function in palmistry_launch lib.rs (before :2108) and in shell/src/lib.rs, each must fail the scan, then revert",
     "operator_question": "none: inside MT-215 scope, MT-215 lifecycle READY with no verdict"
+  },
+  "heartbeat_scan_repair_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commits, push, test counts, mutation failures and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "heartbeat_scan_repair": {
+      "authority": "#/heartbeat_scan_routing_20261127 (option d)",
+      "commit": "29ea185e1 (pushed): src/frontend/handshake_host_ports/palmistry_launch/src/lib.rs (-113) and new tests/test_two_hosts_argv.rs (+117); both write_heartbeat(1, 2) calls dropped; scan file unchanged",
+      "tests": "test_two_hosts_argv 1 pass (Uuid::now_v7 compiles, public API only); palmistry_launch lib 18 pass; test_toolkit_free 12 pass; shell source_scan 13 of 13; clippy -D warnings on palmistry_launch exit 0",
+      "mutations": "A: DiagRingWriterV2::create + write_heartbeat in a palmistry_launch product function, B: the same in shell/src/lib.rs; both fail the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer at source_scan.rs:545 (12 pass, 1 fail each); both reverted",
+      "logs_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/logs",
+      "logs_sha256": {
+        "two-hosts-test.log": "752245eed37723233934aa19a994c4e57c71327971f91f63e45c462cd05b311a",
+        "palmistry-lib-and-toolkit.log": "7329fe26e0c169e683238b760e2ffc09c486a33e65a04a5ca85b1218bc7ba05f",
+        "palmistry-clippy.log": "9d0bbdfbc65cda9f42f1e89d0cfc34ad6a64974821edcd9f35f47fe0163d8a0b",
+        "shell-scan.log": "7a8752195fdb081819e39d2ebb2c75688b89d3a8fea1d75ac3ffd1e3f408f901",
+        "mut-A-palmistry-product-heartbeat.log": "2a08fceb4e723d5f9f4a2fb856c13c3dc850fe70b06fb24b59d25897e6955e33",
+        "mut-B-shell-product-heartbeat.log": "2904d85325b2754e303656004410bec13d7ac12618cc167a7ad951dcc050f416"
+      },
+      "e3_convention": "tests of crates that the shell scans read live outside <crate>/src (the scan reads only <member>/src and closure src); a #[cfg(test)] module inside src is read as product code"
+    },
+    "six_tests_blocker": "WP012-EGUI-SIX-TESTS-E0063-20261127 cleared for compilation by 4f75baac6 under MT-212 (MT-212.json#/egui_six_tests_commit_20261127): handshake_native cargo check --locked --tests exit 0; the six targets not executed",
+    "status_effect": "no status change; MT-215 lifecycle READY"
   }
 }

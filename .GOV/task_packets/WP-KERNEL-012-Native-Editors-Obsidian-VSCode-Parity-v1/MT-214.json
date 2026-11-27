@@ -2713,5 +2713,29 @@
       "F9_low": "the source-order test does not catch settle_before_close emptied to {} or a comment holding the searched text"
     },
     "routing": "F1, F8 and F9 to the GUI coder as the next MT-214 picotask after the six-test repair; F6 open questions to the GUI eval (GPU runs measure shutdown time and the report); F2 accepted as a known limit of source scans"
+  },
+  "e9c_followups_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commit, push, test counts and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "authority": "#/e9b_static_review_20261127 F1, F8, F9",
+    "commit": "05a1050a3 (pushed): input/tests/source_scan.rs, surface/src/host/ending.rs, surface/src/shell.rs under src/frontend/handshake_shell",
+    "F1": "ImmConfigureIME moved to COMPOSITION_PREFIXES; mutations ImmConfigureIMEW( and ImmConfigureIMEA( in the window crate both fail; input source_scan 7 pass",
+    "F9": "ending.rs order test ignores // comments and fails on an empty settle_before_close body or a missing settle_all call; mutations emptied body and call-only-in-comment each fail it (33 pass, 1 fail)",
+    "F8": "PresentReport gained settle_wait_looks, settle_wait_micros, settle_wait_gave_up; PresentReport is built only inside the surface crate, no outside type changed",
+    "tests": "surface lib 34 pass; surface source_scan 5 pass; clippy -D warnings on the shell workspace exit 0",
+    "logs_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs",
+    "logs_sha256": {
+      "input-scan.log": "976f205c6e9dd56590aeb467c2a65be4dc7e5e424ae08189499f713f3c4429aa",
+      "mut-F1-configure-ime-w.log": "77b1549a3609c17be613a3c337fae8816e981beee1852b5f3b4b59792485614c",
+      "mut-F1-configure-ime-a.log": "45602313d37080aaa442ec52fb9c43a23a3b60419f7957fc7f6345802dd8b190",
+      "mut-F9-empty-body.log": "186ae4771cca788b667437ea2b77a3b9e41abb6045e3a04ef4ab1d8f7fcce790",
+      "mut-F9-call-in-comment.log": "ff935905427e53bab5ce7d4c2bf61ef4ef88ca3563f2697590cc9666cc3e5650",
+      "surface-lib.log": "f2dc30eb8e9c3ff183f28f99752d9997278709469ada4e13e9252019ab51b2a6",
+      "surface-scan.log": "4cbba22ff60008e1808de413066346946e6bc6bf8df68642eb1e9c50926d814e",
+      "clippy.log": "b6896c280df24ee704a95794a3a58fc1d4bdb24754389e481b84605756479f7c",
+      "hold-results.json": "846a595575fd660df8a653ef3aa7e8f97c108b3c0f03afe3d926646a3f7b7a48"
+    },
+    "unproven": "no GPU run (multiwindow, shell_program): E9-F1 repair and the 500 ms pre-close settle unmeasured on hardware; settle_wait_* fields will show it",
+    "next": "GUI eval (fresh eval agent) of e03e88281, 8003327ce, 29ea185e1, 05a1050a3 with GPU runs under the fail-fast rule"
   }
 }

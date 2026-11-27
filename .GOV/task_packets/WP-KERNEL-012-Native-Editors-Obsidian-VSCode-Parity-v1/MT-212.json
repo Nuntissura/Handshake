@@ -38525,5 +38525,14 @@
     "this_mt_role": "co-owner of internal_diagnostics.rs and main.rs in execution.allowed_write_paths; not the breaking commit's MT for these failures",
     "owner_note": "claim and status unchanged",
     "repair_vehicle_decision": "NOT_DECIDED"
+  },
+  "egui_six_tests_commit_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commit, push, file list, log hash and exit code verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "vehicle": "WP012-EGUI-SIX-TESTS-VEHICLE-20261127 (#/egui_six_tests_remediation_20261127), blocker WP012-EGUI-SIX-TESTS-E0063-20261127",
+    "commit": "4f75baac6 (pushed): the six test files only, src/frontend/handshake_native/tests/test_ckc_embed.rs, test_menu_wireup.rs, test_notes_end_to_end.rs, test_properties.rs (block_id: None at the RichDocBody literals), test_code_note_cross_ref.rs, test_locus_interop.rs (HsLinkNode::new(..) then resolved = false); 8 insertions, 14 deletions",
+    "proof": "cargo check --locked --tests --manifest-path src/frontend/handshake_native/Cargo.toml -j 1 --keep-going: EXIT_CODE=0, no error lines, STOPPED_AT_CAP=False; log Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/logs/six-check.log sha256 bf97d18f48335094f8dfd3fc732fb2e0a83dd07392413dc74521fbb561eacebd",
+    "not_run": "the six test targets were compiled, not executed",
+    "status_effect": "MT-212 claim and status unchanged; owners MT-017, MT-033, MT-034, MT-068, MT-069, MT-099 already carry CX-VAL-009 notes (#/egui_six_tests_fallout_20261127)"
   }
 }
