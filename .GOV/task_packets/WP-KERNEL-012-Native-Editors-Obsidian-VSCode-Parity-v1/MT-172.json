@@ -14232,5 +14232,82 @@
     },
     "not_read": "the WP-1 MT-020 and MT-003 records themselves (only the finding's acceptance line)",
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/n1_production_constructor_refuses_launch_without_dexterity_contract|production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan/)'"
+  },
+  "eval_reclaim_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report (Sonnet); counts, hashes and input check re-read by the orchestrator from result.json and junit.xml",
+    "recorded_on": "2026-11-27",
+    "check_id": "WP012-MT172-EVAL-RECLAIM-20261127-01",
+    "nature": "evidence only, not an MT verdict (CX-STATUS-003 run result: failed)",
+    "candidate_commit": "599a7a207e9a22848e3c5819b4e933ef1b2838f8",
+    "inputs": "result.json inputs_unchanged true, dirty_inputs [] for src/backend, src/shared, .cargo, rust-toolchain.toml and extra src/frontend/handshake_native/diag_ring, assets; HEAD moved to 4dad81781 during the run by a frontend-only commit (git diff 599a7a207..4dad81781 on the input paths is empty)",
+    "run": "reused the 20261126-03 script: nextest 0.9.146, --locked --offline --no-fail-fast --build-jobs 1, features app-runtime,surreal-test-support,test-utils, toolchain 1.97.1 x64, CARGO_HOME C:/hsk-wp012-cargo; 209e9 guard kept, not tripped; build 117 min 56 s, tests 1912.6 s; nextest exit 100",
+    "counts": "132 run, 96 passed, 36 failed, 0 timed out (junit 132 testcases, 36 failed)",
+    "per_target_pass_fail": {
+      "lib_filtered": "19/3",
+      "process_ledger_surreal_tests": "13/0",
+      "process_reclaim_real_lifecycle_surreal_tests": "22/0",
+      "process_runtime_owner_identity_surreal_tests": "2/0",
+      "restart_resume_boot_bound_surreal_tests": "1/1",
+      "restart_resume_surreal_tests": "3/1",
+      "embedded_model_surreal_ledger_tests": "7/2",
+      "operator_chat_capture_tests": "2/2",
+      "local_execution_authority_surreal_tests": "5/2",
+      "crash_recovery_e2e": "9/6",
+      "worktree_vm_registry_surreal_tests": "12/6",
+      "user_manual_knowledge_surreal_tests": "1/5",
+      "model_lane_navigation_api_surreal_tests": "0/1",
+      "model_lane_navigation_api_tests": "0/2",
+      "model_lane_navigation_surreal_tests": "0/2",
+      "pidless_cloud_lifecycle_tests": "0/3",
+      "candle_e2e_smoke": "ignored as expected"
+    },
+    "predictions": {
+      "confirmed": [
+        "protected_bindings_fix: protected_session_binding_tests 5/5, protected_parameter_guard_tests 2/2, production coordinator test passes",
+        "SC-1 member_login_nonce_tests 1/1",
+        "SC-2 order_by_projection_tests 3/3 and navigation_grant_query_tests 1/1"
+      ],
+      "refuted": [
+        "SC-3b: receipt_writer_schema_tests::routing_message_and_binding_receipts_carry_workspace_and_source_create_authority fails at model_lane.rs:11966 with array::len() given NONE (suspected model_lane_schema.surql:530 array::len($ledger.wsids)); the other 6 receipt tests pass",
+        "SC-4: reindex_unattributed_index_row_tests::reindex_replaces_an_index_row_without_receipt_and_keeps_stored_receipt_ids fails at loom_search.rs:1949 with array::len() given NONE",
+        "N1: n1_production_constructor_refuses_launch_without_dexterity_contract fails at swarm_orchestration/tests.rs:5158: unwrap on LedgerFailed, coordinator drain PROCESS_LEDGER_DURABILITY_ACK_TIMEOUT (STOP row not acked within 5000 ms); the factory-side guard test passes"
+      ],
+      "not_exercised": [
+        "SC-1 F2 (redeem permit FLEXIBLE)",
+        "sc3 deviation at 144_148 on the record-user route"
+      ]
+    },
+    "other_failures_eval_diagnosis_unproven": {
+      "environment": "operator_chat_capture_tests 2 (no codex.cmd on PATH, line 158); crash_recovery_e2e MT188 stdin must be a pipe (runtime_chaos.rs:1257)",
+      "suspected_product_or_schema": [
+        "user_manual_knowledge_surreal_tests 5: record::id() given NONE (user_manual_knowledge.rs ~145-221)",
+        "model_lane_navigation_* 5: internal_error from the document producer step (api_tests:923, nav_surreal:289, api_surreal:352)",
+        "worktree_vm_registry_surreal_tests 6: 3 HANDSHAKE_SURREAL_SCHEMA_TABLE_SET_MISMATCH on reopen (line 59), stale durable query anchor (1245), 2 scope-denial assertions (1131, 1688)",
+        "local_execution_authority_surreal_tests 2: canonical work profile event or ownership mismatch (preferences.rs:1004)",
+        "pidless_cloud_lifecycle_tests 3: RESOURCE_SCOPE_EXACT_REQUIRED (255) and likely the same at 212, 316",
+        "crash_recovery_e2e real-binary: no such field access_space_id for kernel_session_queue (runtime_child.rs:195); 4 MT-195 child exits 101 before readiness (runtime_child.rs:85)"
+      ],
+      "test_or_fixture_suspects": [
+        "embedded_model_surreal_ledger_tests 2: available_at bound as string (~936) and StartIdentityConflict on replay",
+        "restart_resume_boot_bound_surreal_tests 1: entered.load at 275 (known R3-2)",
+        "restart_resume_surreal_tests 1: repeat_safety duplicate idx_kernel_event_ledger_sequence at 827 (PT019)"
+      ]
+    },
+    "pt003": "no failure in this batch carries a Workspace Create error; the local_execution_authority tests create a workspace before failing later; PT003 itself UNVERIFIED (its original test not in the batch)",
+    "hygiene": "no process left behind; no new credentials, ports or registry entries; a Handshake folder under LocalAppData appeared (not investigated); t/ temp files 5.8 MB remain",
+    "target_bytes": "153,881,657,550 before, 169,369,729,772 after, 171.45e9 peak (script measure, hard links counted twice)",
+    "evidence_sha256": {
+      "folder": "Handshake_Artifacts/WP-KERNEL-012/MT-172/eval-reclaim-20261127-01",
+      "run.log": "9141cd84eafc0d75cfcdaf46c77ab8900cbb0b2d6bb38bf3f68cac06b0665a00",
+      "nextest/default/junit.xml": "6d797fb93e28d566db2ec4f03e7f184f62f7ff081d076806afbad7fb851fdb66",
+      "result.json": "9f297cbd6072fb6ec81f0cf47f0f9eed3f729b84e315f270a257c266cd66bae7",
+      "summary.out": "4c3c71245ef93076d5349a2778b93555037c93029a16125ddff034e06ab0c8bd"
+    },
+    "cannot_prove_here": [
+      "ARM64 host emulating x64: timing, ack-timeout and load failures (N1 drain, boot-bound entered) not separable from defects",
+      "native x64",
+      "candle with real weights"
+    ],
+    "next": "remediate the shared array::len(NONE) cause behind SC-3b and SC-4 first, then N1 drain; triage of the other failures against the pt001 dispositions by a specialist"
   }
 }

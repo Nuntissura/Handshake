@@ -1439,5 +1439,83 @@
       "non-Windows cfg branches not compiled"
     ],
     "status_effect": "no status change; MT-094 and MT-096 return to READY_FOR_VALIDATION only when phase B edits diagnostics/palmistry_launch.rs"
+  },
+  "s8a_static_review_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's static review (Sonnet); nothing compiled or run",
+    "recorded_on": "2026-11-27",
+    "commit": "4dad81781734ad92e01afe61e51c34a04b49f99e",
+    "verdict": "passed (static): after path normalisation launch argv, creation flags, Stdio, deadlines, pipe names, wire and serde, signing, nonce, lease, liveness and shutdown logic are unchanged; the three record_with sites are kept at the same points with the same nine fields (lib.rs:1494, 1934, 2017)",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-215/checker/s8a-static-review.json (sha256 21798ab26dd61c49ce5b8a31fb5b88fe41bec577ea53bc6f158bf94e0414d86b)",
+    "port_shape": "keep process instance id, v2 nonce, lease and signing seed as explicit arguments (the thin re-export needs the signature unchanged; the nonce exists before any session); the conformance test drives both hosts through launch_palmistry_signed_at and compares watcher argv and ring nonce",
+    "new_v4": "keep the allow under the HBR-INT-008 legacy clause; the id reaches the backend (api/palmistry.rs:973, 1001, 1033), so now_v7 would change what the backend receives; fix the comment and record a v4-to-v7 sweep item",
+    "findings": [
+      {
+        "id": "F1",
+        "severity": "medium",
+        "defect": "marker_sink() defaults to None, so a host impl that omits it silently stops recording the three launcher markers the egui host always recorded.",
+        "repair": "Make marker_sink a required trait method; add a phase-B test that the Handshake, Shutdown and Degraded markers reach the ring."
+      },
+      {
+        "id": "F2",
+        "severity": "medium",
+        "defect": "Option<Box<dyn Any + Send>> removes Sync from PalmistryHandle if the original handle was Sync. No current user needs Sync, but this is unverified.",
+        "repair": "Use Box<dyn Any + Send + Sync> and add a compile-time Send/Sync assertion."
+      },
+      {
+        "id": "F3",
+        "severity": "low",
+        "defect": "Comment says the id is never on the wire, but adoption_operation_id reaches the backend (api/palmistry.rs:973, 1001, 1033). The allow itself is acceptable; now_v7 here would be a wire-visible change.",
+        "repair": "Correct the comment, cite the HBR-INT-008 legacy clause, record a v4-to-v7 sweep item."
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "defect": "Shared lock downgrades memmap2, uuid, hybrid-array, quote, cpufeatures and re-resolves sha2 and thiserror in ui_heartbeat's closure; ui_heartbeat proof was recorded on the old lock.",
+        "repair": "Re-run ui_heartbeat focused tests on the new lock and record the lock sha256, or give palmistry_launch its own lock."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "defect": "Three tests read the launcher file by path: two fail against a thin re-export, one silently loses launcher coverage in the MT-088 proof hash. None is in allowed_write_paths.",
+        "repair": "Amend allowed_write_paths for the three files (retarget only) and point them at the new crate lib.rs."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "defect": "The plan edits recorder.rs for the DiagSession impl; recorder.rs is outside allowed_write_paths.",
+        "repair": "Put the impl in diagnostics/palmistry_launch.rs."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "defect": "The HBR-QUIET focus audit scans only handshake_native src; after the move the launcher is unaudited and native clippy.toml bans do not apply.",
+        "repair": "Add a focus-API ban scan with a positive control to palmistry_launch/tests/test_toolkit_free.rs."
+      },
+      {
+        "id": "F8",
+        "severity": "low",
+        "defect": "signed_launch_evidence_tests is duplicated in the new crate while the record says it stays in egui; verify_signed_watcher_reply and signed_watcher_challenge_bytes were made pub for it (673, 342).",
+        "repair": "Pick one owner for the module; revert unneeded pub if the egui copy is dropped."
+      },
+      {
+        "id": "F9",
+        "severity": "low",
+        "defect": "Manifest scan misses [dependencies.egui] table headers, package renames and block comments.",
+        "repair": "Match dependencies.* headers and package values, with positive controls."
+      },
+      {
+        "id": "F10",
+        "severity": "low",
+        "defect": "pub use palmistry_launch::* is ambiguous between the module and the extern crate.",
+        "repair": "Use ::palmistry_launch::*."
+      },
+      {
+        "id": "F11",
+        "severity": "low",
+        "defect": "Non-Windows branches uncompiled; no test run in phase A.",
+        "repair": "Run cargo check --tests for the crate before phase B and mark non-Windows unverified."
+      }
+    ],
+    "disposition": "F1, F2, F3, F6, F7, F8, F9, F10, F11 go to the phase-B GUI dispatch; F4 (ui_heartbeat closure re-resolved by the shared lock) needs a focused ui_heartbeat test rerun by the eval agent; F5 is settled by the Operator decision WP012-S8-TEST-RETARGET-AND-MANIFEST-20261127 for the two scanning tests only; test_backend_down_responsive.rs:1076 is a proof-hash path list (MT-088), not edited, recorded as a coverage note for MT-088"
   }
 }
