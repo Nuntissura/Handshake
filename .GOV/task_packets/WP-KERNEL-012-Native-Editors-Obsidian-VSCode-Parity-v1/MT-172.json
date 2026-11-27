@@ -14309,5 +14309,162 @@
       "candle with real weights"
     ],
     "next": "remediate the shared array::len(NONE) cause behind SC-3b and SC-4 first, then N1 drain; triage of the other failures against the pt001 dispositions by a specialist"
+  },
+  "triage_eval_reclaim_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the triage specialist and the adversarial reviewer (both Sonnet, read-only, nothing run)",
+    "recorded_on": "2026-11-27",
+    "eval_ref": "#/eval_reclaim_20261127",
+    "files": {
+      "triage": "Handshake_Artifacts/WP-KERNEL-012/MT-172/triage-eval-reclaim-20261127/triage.json (sha256 96eb0a98717f1f9cbc5963f41aa878714a5cbf9ef8e0b82f1424eb3285d95ab3)",
+      "adversarial_review": "same folder adversarial-review.json (sha256 cd5f43f337177e1e955ac5023f10341992846182245224dbcd72ec1f2cb9a012)"
+    },
+    "class_counts": "product 12, schema 8, test or fixture 11, environment 4, timing 1 (36 failures, 16 groups G01-G16)",
+    "adversarial_verdict": "UPHOLD_WITH_CORRECTIONS: causes and write paths hold for G01, G02, G03, G04, G05, G08, G09, G10, G13 (CRLF verified: core.autocrlf true, no *.rs .gitattributes rule); no proposed fix weakens a test; G02 has no code-only fix inside the write paths",
+    "corrections": [
+      {
+        "id": "C1",
+        "target": "TRQ-08 / G12",
+        "severity": "high",
+        "finding": "Fix option 'write the orphan START before the explicit-sequence seeds' still collides. The allocator's first sequence::nextval('kernel_event_sequence') is 1 (run.log: idx_kernel_event_ledger_sequence already contains 1); seeds 1 and 2 (restart_resume_surreal_tests.rs:783-784) would then collide with the START's 1. Only valid fix: re-base the explicit seeds above any allocator value (or draw them from the allocator), keeping 1<2 relative order. Replay sums payload 'by', so START/seed order is not asserted.",
+        "evidence": "restart_resume_surreal_tests.rs:277-304 seed_event, :783-784, :827; run.log lines 6640-6643"
+      },
+      {
+        "id": "C2",
+        "target": "TRQ-10 / G15",
+        "severity": "high",
+        "finding": "Proposed 'bound that starts after entered is signalled' is not implementable: the bound is the argument of run_with_bound(Duration::from_millis(100)) (test :262-265) that causes the entry. Valid options: raise the bound to a multiple of measured discovery time and add a Notify on kernel entry in BlockingScopedKill (process_ledger_surreal_support/mod.rs:256-261 already has a Notify 'release'), then await entry before asserting; or spawn the run with a long bound, await entry, assert timed_out after a short extra bound. Keep the R4-2 lower-bound requirement (owning_tests_eval2_20261126 review R4-2); do not just loosen elapsed < 2 s.",
+        "evidence": "restart_resume_boot_bound_surreal_tests.rs:262-275; assert at :274 (elapsed<2s) passed, :275 failed, so the run timed out before kill entry"
+      },
+      {
+        "id": "C3",
+        "target": "TRQ-06 / G07 vs BLOCKED-01 / G03",
+        "severity": "high",
+        "finding": "F34 seeds an incomplete legacy row (no workspace_id, no event fields) by CREATE before the table is defined (test :1640-1676). It only passes the seed today because worktree_vm_bindings is schemaless until ensure_schema runs. After SC-6/SC-9 moves the 18 SCHEMAFULL field DEFINEs into the composed catalog the seed CREATE itself fails on required fields; the test must then seed under OPTION IMPORT (precedent: SC-4 test). TRQ-06 step 2 therefore depends on BLOCKED-01; the triage states only the reverse direction.",
+        "evidence": "worktree_vm_registry_surreal_tests.rs:1640-1676; repair-spec.json#/items[id=runtime_table]; MT-173.json#/sc4_reindex_guard_20261126 (OPTION IMPORT precedent)"
+      },
+      {
+        "id": "C4",
+        "target": "TRQ-01 / G01",
+        "severity": "medium",
+        "finding": "Not NEW. The five tests are named in repair-spec row_5 (hidden_by_bootstrap_schema: user_manual_knowledge_surreal_tests) and in MT-172.json#/schema_repair_spec_20261125/operator_decisions[3] ('accept that per-session user-manual tests go red under the restored identity index'). TRQ-01 expected_green can flip back to red after SC-6 row 5 (uq_knowledge_entities_identity returns to workspace_id, entity_kind, entity_key). N10 (bundle_bridge never calls SurrealUserManualKnowledgeStore, repair-spec row_5 production_path) also stays open; green here does not discharge WP-1 MT-022 AC-8. Cause itself verified: record::id(primary_source_id|first_detected_in_run|last_detected_in_run) is unguarded at user_manual_knowledge.rs:151-153,221-223,271-273,299-301; schema.surql:3835-3836 are option<record>; recorded_event_id is required so needs no guard; WP-1 98efa4d019c4 has the same unguarded text (151,221,270,298), so the source never proved these tests either.",
+        "evidence": "user_manual_knowledge.rs; user_manual_knowledge_schema.surql:8-12; run.log 6648-6700"
+      },
+      {
+        "id": "C5",
+        "target": "BLOCKED-01 blocked_on",
+        "severity": "medium",
+        "finding": "Stale and over-broad. (a) Row 7 design is already decided: MT-173.json#/operator_decision_20261126_cloud_consent_revocation (WP012-CLOUD-CONSENT-REVOCATION-DESIGN-20261126, 'Approve the design', scope 'preferably inside schema revision 172'), yet MT-172.json#/schema_repair_spec_20261125/operator_decisions[0] still lists it as open. (b) PT003-in-172 and row 7 are optional additions ('if decided', repair-spec.json#/slices[id=SC-6]); they do not gate the 8 tests. (c) What strictly gates the 8 tests: scope for schema_revision166/168/169/170.rs, new schema_revision171.rs, upgrade/guard tests (MT-172.json#/schema_repair_spec_20261125/operator_decisions[4]; repair-spec.json#/scope_additions_for_operator; verified by scanning every MT-*.json: none is in any allowed_write_paths) and, for G03 only, the polluted-VM-store predecessor decision (operator_decisions[2]; repair-spec.json#/items[id=runtime_table]/existing_data). operator_decisions[3] gates only row 5, which rides in the same single bump (repair-spec.json#/revision_172_bump/one_bump=true), a design choice that could be narrowed to row 4 + VM table. (d) MT-210/211 serialisation (repair-spec.json#/revision_172_bump/mt_interlocks) and PIN-MEASURE/enroll (schema.rs:33-34) are procedure, not decisions. Decider: Operator for scope and predecessor; orchestrator for sequencing.",
+        "evidence": "MT-173.json#/operator_decision_20261126_cloud_consent_revocation; MT-172.json#/schema_repair_spec_20261125/operator_decisions[0..4]; repair-spec.json#/scope_additions_for_operator"
+      },
+      {
+        "id": "C6",
+        "target": "G14 / TRQ-09",
+        "severity": "medium",
+        "finding": "Class test_or_fixture_defect is UNVERIFIED and likely mis-framed. WP-1 98efa4d019c4 coordinator.rs has no stop_with_durable_ack (0 matches); KERNEL-012 coordinator.rs:2386 waits for a durable STOP ack. ledger_pair() (tests.rs:1208) is unchanged from WP-1 and its drain is never pumped, so the failure is deterministic (5000 ms x 2 passes = 10.1 s), not an emulation timing effect. At least seven drain_all().await.unwrap() sites exist in the first part of tests.rs alone, so family exposure is real and the cause is a behaviour change (PT018 durable ack), related to R2/D3 (defects.json) and the coordinator-no-pair-stop-ack fix artefact. Probe a sibling first (the triage says so); fix the shared helper or the product no-pair path, not only the N1 test. Do not shorten or bypass the ack wait.",
+        "evidence": "tests.rs:1208-1217, :5120-5158; coordinator.rs:2386; writer.rs:628-668"
+      },
+      {
+        "id": "C7",
+        "target": "G11 / TRQ-11",
+        "severity": "medium",
+        "finding": "Not purely NEW: the START-after-STOP throw at process_ledger.rs:2372-2376 interacts with R2 (defects.json: ledger writer must keep the batch, re-read deterministic event ids, accept or retry). A writer retry of an already-committed [START, STOP] batch replays START onto a stopped row and would throw StartIdentityConflict in production, so replay-idempotence is a real product question. Still an Operator/MT-013 decision; no passing test protects the current throw (process_ledger_surreal_tests.rs:274 covers only a different-identity START conflict), but terminal-row preservation (embedded_model_surreal_ledger_tests.rs:507-513) must stay green.",
+        "evidence": "process_ledger.rs:2372-2376; WP-1 process_ledger.rs:2202 identical"
+      },
+      {
+        "id": "C8",
+        "target": "G06 / TRQ-04",
+        "severity": "medium",
+        "finding": "Triage says diag-01 was in progress at 09:33. Current state: pt-arraylen-20261127/diag-01 and diag-02 finished (result.json exit_code 101, completed 08:30Z and 08:37Z) with 'could not compile handshake_core (lib test) due to 2 previous errors' and no probe output; diag-03 has no result.json. So no bisect evidence exists and TRQ-04 is blocked on the probe edits compiling, not merely on waiting. The claim 'expect two separate fixes' is unsupported; a shared cause is equally open (identical message). Unconsidered candidate class: a NONE wsids/ledger value reaching array::len in schema functions or ASSERT chains (schema.surql:6671, :10135, :10208, :7282; model_lane_schema.surql:530 array::len($ledger.wsids)); history is the S1 wsids writer sweep and repair-spec item wsids (model_lane.rs 80,131-148,6568,6651,11198,11227). F02 runs as root so permission-only paths are unlikely, but events and VALUE clauses on rows the test creates remain open.",
+        "evidence": "pt-arraylen-20261127/diag-01/result.json, diag-02/run.log tail; loom_search.rs:466-528 (every array::len there takes SELECT or [])"
+      },
+      {
+        "id": "C9",
+        "target": "G13 classification",
+        "severity": "low",
+        "finding": "CRLF claim VERIFIED: core.autocrlf=true; git ls-files --eol shows i/lf w/crlf for worktree_vm_registry.rs and the test file; the registry file has 3197 CRLF and 3197 LF (every line CRLF); .gitattributes has eol=lf rules but none for *.rs. The anchor text exists with LF at worktree_vm_registry.rs:1431-1432 (28 spaces). Normalising after include_str! is not a weakening. 'environment' is acceptable but the defect is a checkout-dependent test; label test_or_fixture too.",
+        "evidence": "byte count and git ls-files --eol output"
+      },
+      {
+        "id": "C10",
+        "target": "TRQ-02 / G04 residual risk",
+        "severity": "low",
+        "finding": "Cause verified. The child entrypoint runs the same seed_original_queue as the parent (runtime_child.rs:675-690), so exit 101 for F05-F07,F09 follows from the F08 error; the inference is sound. F08 panics in the parent at :195, the others at :85, one cause. Residual risks not in the triage: bootstrap_production_schemas (pub, surreal.rs:166) runs a bounded watchdog and the child must publish readiness within 120 s (runtime_child.rs:77-90) on ARM-emulated x64; the parent's later reopen/recovery calls may still use bootstrap_schema on a store now production-marked (is_production_report branch exists, surreal.rs:171-176), UNVERIFIED. TRQ-02 overlaps SC-10 ('move bootstrap_schema-only tests to the composed schema'); record SC-10 as satisfied for these call sites.",
+        "evidence": "runtime_child.rs; surreal.rs:166-193"
+      }
+    ],
+    "eval_hypotheses": "array::len(NONE) as one cause not supported (SC-3b runs as root, SC-4 as the record user; NONE sites unverified); record::id(NONE) behind five confirmed (G01, user_manual_knowledge.rs:151-153, 221-223, 271-273, 299-301)",
+    "corrected_queue": [
+      {
+        "order": 1,
+        "id": "TRQ-01",
+        "change": "keep; note row 5 (SC-6) may later turn these tests red; N10 not discharged"
+      },
+      {
+        "order": 2,
+        "id": "TRQ-02",
+        "change": "keep; keep child stderr; check 120 s readiness"
+      },
+      {
+        "order": 3,
+        "id": "TRQ-05",
+        "change": "moved up (one static test, no dependency)"
+      },
+      {
+        "order": 4,
+        "id": "TRQ-03",
+        "change": "keep; first confirm a scoped ModelLaneStore can be built in the integration test"
+      },
+      {
+        "order": 5,
+        "id": "TRQ-07",
+        "change": "keep"
+      },
+      {
+        "order": 6,
+        "id": "TRQ-08",
+        "change": "replace fix: re-base explicit seed sequences above allocator values (C1)"
+      },
+      {
+        "order": 7,
+        "id": "TRQ-10",
+        "change": "replace fix: larger bound plus entry Notify and await; keep lower bound (C2)"
+      },
+      {
+        "order": 8,
+        "id": "TRQ-09",
+        "change": "probe a sibling first; decide helper vs product no-pair path (C6)"
+      },
+      {
+        "order": 9,
+        "id": "TRQ-06",
+        "change": "step 1 (print Result) only; step 2 gated by BLOCKED-01 for F34 (C3)"
+      },
+      {
+        "order": 10,
+        "id": "TRQ-04",
+        "change": "moved down: blocked until probe edits compile (C8)"
+      },
+      {
+        "order": 11,
+        "id": "TRQ-11",
+        "change": "Operator/MT-013 decision first; read R2 (C7)"
+      },
+      {
+        "order": 12,
+        "id": "TRQ-12",
+        "change": "keep; Operator scope decision"
+      },
+      {
+        "order": "BLOCKED-01",
+        "change": "restate blockers per C5; row 7 decided; scope decision gates; re-check TRQ-01 and TRQ-06 expectations before the stage"
+      },
+      {
+        "order": "ENV-01",
+        "change": "keep"
+      }
+    ],
+    "blocked_01": "G02 + G03 (8 tests) need the SC-6 schema revision 172 stage; strictly gated by MT-172.json#/schema_repair_spec_20261125/operator_decisions[4] (scope for schema_revision166/168/169/170.rs, new schema_revision171.rs, upgrade/guard tests, in no MT) and [2] for G03 (worktree VM second predecessor or Operator confirms none); [0] row 7 already decided at MT-173.json#/operator_decision_20261126_cloud_consent_revocation; [1] PT003-in-172 optional",
+    "pt003": "original test api::code_nav_index_account_tests::mounted_first_owner_workspace_create_persists_original_receipt_and_grant (src/backend/handshake_core/src/api/code_nav_index_account_tests.rs:268); not in this batch; status UNVERIFIED",
+    "g06_note": "pt-arraylen diag-01 and diag-02 builds ended in compile errors per the reviewer; no bisect evidence yet (the coding agent's picotask is still running)"
   }
 }
