@@ -1635,5 +1635,29 @@
     "finding": "commit 9a127a239 (S8b) added two write_heartbeat calls in the #[cfg(test)] mod tests of src/frontend/handshake_host_ports/palmistry_launch/src/lib.rs (lines 2531 and 2596, git blame); MT-214's shell scan the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer reads that crate through its closure sources and fails at shell/tests/source_scan.rs:545 since 9a127a239; it passed at 4dad81781",
     "evidence": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs/e9b-scans.log sha256 aac8db91748233248c8c1d41b9d55575363388f7f52501c194fe4f7edea19008; MT-214.json#/e9b_fixes_20261127/heartbeat_scan_fallout",
     "status": "repair owner and form being routed; no file changed for it yet"
+  },
+  "heartbeat_scan_routing_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the routing specialist and its adversarial pass (Sonnet, read-only, no cargo); hashes, ring-writer list, main.rs:38 and MT-215 lifecycle verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "files": {
+      "routing": "Handshake_Artifacts/WP-KERNEL-012/MT-214/specialist-heartbeat-scan/routing.json (sha256 296b5a348c6189458c37c7e61c701c70c26e7e3d36171756e58a8a546c7753b7)",
+      "adversarial_review": "same folder adversarial-review.json (sha256 bb0ce436e410ff4045621a868c07612281d8711baa888169afbfe1dcbe597d02)"
+    },
+    "owners": "scan file src/frontend/handshake_shell/shell/tests/source_scan.rs is MT-214 (handshake_shell/shell/**); src/frontend/handshake_host_ports/palmistry_launch/** is MT-215; breaking commit 9a127a239 is MT-215 S8b; CX-UNIT-001, CX-VAL-005, CX-EXEC-001 route the repair to the MT-215 implementer, inside its allowed paths, so no HBR-STOP-005 waiver",
+    "rule": "AC215-6, HB-7 and E3 concern product code (two racing writers on one live ring); the scan's own messages say 'in product code' (source_scan.rs:563, :565); a test writing its own temp ring cannot cause that hazard",
+    "second_hidden_failure": "removing only the two write_heartbeat calls is not enough: source_scan.rs:565 asserts ring_writers_made <= 1, and RING_WRITERS (source_scan.rs:54) has no port filter, so shell/src/main.rs:38 plus lib.rs:2529 and :2594 (DiagRingWriterV2::create) give 3; the test aborts at :545 first (static, UNVERIFIED by run)",
+    "decision": "option d, adversarial verdict UPHOLD_WITH_CORRECTIONS: the MT-215 implementer moves two_hosts_build_the_same_signed_watcher_argv (palmistry_launch/src/lib.rs:2492-2610, with OtherHostSession and pair_value) into a new file under palmistry_launch/tests/ (the crate already has tests/test_toolkit_free.rs; the scan reads only <member>/src) and drops both write_heartbeat(1, 2) calls (DiagRingReaderV2::open at ring.rs:603-642 never reads the heartbeat slot; no assertion reads one); the scan is unchanged",
+    "rejected": {
+      "a_strip_test_modules": "MT-214 edit; weakens the scan and reopens E3; a first-marker cut would hide product code after the first #[cfg(test)] item in accessibility/src/lib.rs:76/:80 and platform.rs:122/:126; kept as fallback",
+      "b_drop_calls_only": "insufficient (:565)",
+      "c_line_allowlist": "brittle on a 2600-line file"
+    },
+    "corrections": [
+      "record the convention that tests of scanned crates live outside src/ in the MT-215 E3 note",
+      "confirm no proof command selects the moved test with --lib (specialist grep found none in the MT JSONs)",
+      "uuid::Uuid::now_v7 in the integration test: the crate declares uuid features [\"v4\"] only; the lib test already compiles with it through feature unification, UNVERIFIED for the tests/ target"
+    ],
+    "proof": "compile and run the moved test; shell source_scan 13 of 13; mutation: add DiagRingWriterV2::create + write_heartbeat to a product function in palmistry_launch lib.rs (before :2108) and in shell/src/lib.rs, each must fail the scan, then revert",
+    "operator_question": "none: inside MT-215 scope, MT-215 lifecycle READY with no verdict"
   }
 }
