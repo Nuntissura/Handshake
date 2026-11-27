@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-083",
@@ -429,5 +429,20 @@
     "file": "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
     "note": "When MT-215 edits this file, this MT returns to READY_FOR_VALIDATION under CX-VAL-009 (proof inputs intersect the candidate diff). Status is unchanged now (PASS_V1 stays until the file is edited).",
     "record_ref": "packet.json#/operator_decisions_20261127_shell_gaps/decisions/1"
+  },
+  "cx_val_009_return_20261127": {
+    "recorded_on": "2026-11-27",
+    "rule": "CX-VAL-009",
+    "old_status": "PASS_V1",
+    "new_status": "READY_FOR_VALIDATION",
+    "status_field": "lifecycle.status",
+    "commit": "9a127a23942bce40c4472c2cc504081cf9d18be6",
+    "branch": "feat/WP-KERNEL-012",
+    "edited_files_in_commit": [
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/frontend/handshake_native/tests/test_crash_client_install.rs",
+      "src/frontend/handshake_native/tests/test_palmistry_launch.rs"
+    ],
+    "reason": "Commit 9a127a239 edited files that intersect this MT's proof inputs, as announced in #/revalidation_note_20261127; the MT returns to READY_FOR_VALIDATION. validator_verdict, status_before_v1 and other lifecycle fields are left as they were (history)."
   }
 }
