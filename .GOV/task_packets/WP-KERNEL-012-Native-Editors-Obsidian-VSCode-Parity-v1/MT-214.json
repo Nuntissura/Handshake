@@ -2694,5 +2694,24 @@
     },
     "picotask_3": "six egui test literals under WP012-EGUI-SIX-TESTS-VEHICLE-20261127: edited in the product worktree, not built or committed (build slot held by PT-ARRAYLEN-2); the coder's background check script waits for the slot",
     "next": "GUI eval of e03e88281 and 8003327ce with GPU runs under the fail-fast rule; checker static review"
+  },
+  "e9b_static_review_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's static review (Sonnet); no edits, no cargo; file hash and F1 verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "commits": "e03e88281 and 8003327ce",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/checker/e9b-static-review.json (sha256 15cd5c714e0388a1b03575153a95d1ab22e05dcb3e24a98a84c5284e6f5725d0)",
+    "verdict": "passed (static); no Cargo.toml or Cargo.lock touched",
+    "findings": {
+      "F1_medium": "ImmConfigureIME is still an exact word in COMPOSITION_CALLS (input/tests/source_scan.rs:199), so ImmConfigureIMEW/ImmConfigureIMEA pass the scan; fix: move it to COMPOSITION_PREFIXES (input/tests/source_scan.rs:208)",
+      "F2_low": "code_only blanks string literals, so GetProcAddress(.., \"ImmSetCompositionStringW\") is not seen; every identifier form (spaced, line-broken, qualified, r#, use-as alias) is caught",
+      "F3_info": "the word-edge rule only widens matches (strict superset); no existing scan loses a catch",
+      "F4_info": "lines_with_prefix correct; controls assert my_ImmEscapeW and ImmAssociateContextEx are allowed",
+      "F5_info": "R5 whole-line assertion matches program.rs:695-697; launched_by_operator && true, a dropped root check, a rename or a dropped .flatten() fail it; brittle to reformat",
+      "F6_low": "settle_before_close runs on the shell loop thread inside on_event(ShutdownBegan); bounded at 500 ms by elapsed time; cannot stall a frame (surfaces released); blocks the pump up to 500 ms on top of the owner's close deadline; whether owner.poll or Slot::settle can block longer, and whether a claim needing a pump-delivered event can settle during the wait, UNVERIFIED",
+      "F7_info": "all settle_all callers handle the new bool; waiting claims are settled after close or counted in claims_abandoned, never reported as settled",
+      "F8_low": "a never-settling claim stays visible; a slow claim settled inside the 500 ms leaves no record that the wait happened",
+      "F9_low": "the source-order test does not catch settle_before_close emptied to {} or a comment holding the searched text"
+    },
+    "routing": "F1, F8 and F9 to the GUI coder as the next MT-214 picotask after the six-test repair; F6 open questions to the GUI eval (GPU runs measure shutdown time and the report); F2 accepted as a known limit of source scans"
   }
 }
