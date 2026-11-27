@@ -14586,5 +14586,24 @@
       "grants": "#/protected_bindings_fix_20261126/waiver_needed_hbr_stop_005 (old key unchanged)"
     },
     "note": "schema_revision171.rs is a new file (does not exist yet). The entity-identity rewrite is a test-expectation change, not a deletion. MT-172 status unchanged."
+  },
+  "pt_arraylen_static_review_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's static review (Sonnet); no edits, no cargo",
+    "recorded_on": "2026-11-27",
+    "commit": "57c6fcad4dd28e4734f6c05d8b658051f57b5d27",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-172/checker/pt-arraylen-static-review.json (sha256 babd17c643c98a19c771be9ad45821227e65e91a021b4347ef092a6719d08119)",
+    "verdict": "passed (static): all 19 rewrites semantically equal (ELSE arms unchanged, $hsk_rows block-local, no transaction change, no site relied on NONE); only 3 sites exercised by tests",
+    "findings": {
+      "F2_medium": "guard test has no positive control",
+      "F3_medium": "guard needle '{ (SELECT' is case- and spacing-exact; misses '{(SELECT', '{ ( SELECT', lowercase select and Rust line-continuation strings (model_lane.rs 69-74, 92-97 use them)",
+      "F4_high": "probe P2: the bare form IF c { SELECT .. } ELSE .. is also a non-array; the guard matches only the parenthesized form",
+      "F5_high": "the guard scans only model_lane.rs and loom_search.rs; new sites elsewhere are not caught",
+      "F6_high": "model_registry.rs 377, 391, 490, 504, 591, 756, 766, 780, 864: live bugs (LET $x = IF array::len($rows|$existing) = 1 { (SELECT ..) } ELSE { [] } followed by array::len); owners MT-172, MT-173, MT-196",
+      "F7_high": "user_manual_knowledge.rs 167, 316, 415 live bugs (owner MT-173); being fixed in TRQ-01",
+      "F8_medium": "pose.rs 2967, 2971, 3017, 3026 (owners MT-171, MT-141), engine.rs:166 (owner MT-171): other shapes, UNVERIFIED on 3.2.0",
+      "F9_low": "surreal.rs:5647 ELSE-branch (SELECT VALUE ..)[0] not used as an array (owners MT-172, MT-173)",
+      "F10_info": "surreal.rs:5668 is a plain UPDATE, not the pattern"
+    },
+    "disposition": "TRQ-01 covers F7 (bare-form note sent to the coder); a new picotask PT-ARRAYLEN-2 covers F2-F6 (guard hardening across src/backend with positive controls, the bare form, model_registry.rs sites inside MT-172/MT-173 paths); F8 needs probes and goes to its owners MT-171 and MT-141 if live"
   }
 }

@@ -1596,5 +1596,20 @@
       "whether the six E0063 failures are pre-existing"
     ],
     "status_effect": "diagnostics/palmistry_launch.rs and tests/test_crash_client_install.rs edited: MT-094, MT-096 and MT-092 return to READY_FOR_VALIDATION under CX-VAL-009 (recorded by the paperwork pass)"
+  },
+  "s8b_static_review_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's static review (Sonnet); no edits, no cargo",
+    "recorded_on": "2026-11-27",
+    "commit": "9a127a23942bce40c4472c2cc504081cf9d18be6",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-215/checker/s8b-static-review.json (sha256 1aeba75c4b81b8bed88572e922ba45b27d17126a41cfc300c0382fbba159cc6d)",
+    "verdict": "passed (static): adoption behaviour unchanged line for line; watcher argv identical to the original; F2 confirmed (the original handle held OwnedPalmistryAdoption with a Pin<Box<dyn Future + Send>>, so Send and not Sync); lock delta additive (+21, 0 removed); DiagSession gained only the port impl",
+    "findings": {
+      "G1_low": "signed_watcher_argv_without_spawn is pub with #[doc(hidden)] and no cfg gate; it spawns nothing and the argv holds no seed",
+      "G2_low": "egui conformance test is shallow (both argv from the same function) and has no positive control",
+      "G3_low": "PalmistryAdoptionExt uses #[allow(async_fn_in_trait)]; the advance_adoption future has no declared Send bound",
+      "G4_info": "no test exercises the adoption extension methods (none did originally)"
+    },
+    "pre_existing_failures": "the six egui host test targets failing with E0063 (test_code_note_cross_ref MT-034, test_ckc_embed MT-033, test_properties MT-017, test_locus_interop MT-068, test_notes_end_to_end MT-099, test_menu_wireup MT-069) already fail at 4dad81781: commit b9606fac3 (2026-11-20) bumped the handshake_rich_document_model pin to e75e34ff and added RichDocBody.block_id; HsLinkNode fields tag_ref_kind, target_block_id, target_kind belong to MT-191 and MT-192; the six test files are unchanged since; not caused by 9a127a239",
+    "follow_up": "G1-G3 low, for a later MT-215 slice; the six broken test targets need an owner fix (test-only struct field updates) and are routed as a separate item"
   }
 }
