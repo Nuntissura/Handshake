@@ -8,7 +8,7 @@
 #[path = "../../window/tests/source/mod.rs"]
 mod source;
 
-use source::{below, code_only, lines_with, Source};
+use source::{below, code_only, lines_with, lines_with_prefix, Source};
 
 /// Not in this crate's code at all: they come through the window crate, privately.
 const LIBRARIES: &[&str] = &[
@@ -191,19 +191,34 @@ const COMPLETION_MODULE: &str = "../window/src/platform/ime.rs";
 
 /// What else asks the input method to do something with a composition: never, anywhere in the window crate.
 const COMPOSITION_CALLS: &[&str] = &[
-    "ImmSetComposition",
     "ImmGenerateMessage",
     "ImmSetCandidateWindow",
     "ImmSetConversionStatus",
     "ImmSetOpenStatus",
     "ImmSimulateHotKey",
-    "ImmEscape",
     "ImmConfigureIME",
     "ImmSetStatusWindowPos",
     "CPS_CANCEL",
     "CPS_CONVERT",
     "CPS_REVERT",
 ];
+
+/// Names banned with every suffix: `ImmSetCompositionStringW`, `ImmSetCompositionWindow`, `ImmEscapeA`, `ImmEscapeW`
+/// and whatever else starts so (MT-214 E9-F3). `ImmAssociateContextEx`, which the window crate uses, starts with neither.
+const COMPOSITION_PREFIXES: &[&str] = &["ImmSetComposition", "ImmEscape"];
+
+/// The lines of `sources` that call one of `COMPOSITION_CALLS` or a name that starts with one of `COMPOSITION_PREFIXES`.
+fn composition_lines(sources: &[Source]) -> Vec<String> {
+    let mut found = lines(sources, COMPOSITION_CALLS);
+    for source in sources {
+        for prefix in COMPOSITION_PREFIXES {
+            for number in lines_with_prefix(&source.code, prefix) {
+                found.push(format!("{}:{number}: {prefix}*", source.path));
+            }
+        }
+    }
+    found
+}
 
 /// The code with every run of white space (spaces, tabs, line breaks) made one space, and none left before a `(`, so
 /// that `ImmNotifyIME (` and `ImmNotifyIME` and a line break read as `ImmNotifyIME(` (MT-214 E8-F2a).
@@ -238,7 +253,7 @@ fn the_window_crate_makes_the_one_completion_call_and_no_other_composition_call(
         [(COMPLETION_MODULE.to_owned(), COMPLETION.to_owned())],
         "one call, of this shape, in this module"
     );
-    let found = lines(&window, COMPOSITION_CALLS);
+    let found = composition_lines(&window);
     assert!(found.is_empty(), "{found:#?}");
     // The controls: a second call, another shape and another module are seen.
     let sample = |path: &str, code: &str| Source {
@@ -267,7 +282,7 @@ ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);",
     );
     assert_ne!(notify_calls(&[cancel])[0].1, COMPLETION, "a cancel is another shape");
     let set = [sample(COMPLETION_MODULE, "ImmSetCompositionStringW(h, 0, p, 1, q, 2);")];
-    assert_eq!(lines(&set, COMPOSITION_CALLS).len(), 1);
+    assert_eq!(composition_lines(&set).len(), 1);
     // E8-F2a: a call with white space before its parenthesis, or a line break, is still a call.
     let spaced = sample(
         COMPLETION_MODULE,
@@ -286,9 +301,22 @@ ImmNotifyIME
         "ImmSetOpenStatus(himc, 1);",
         "ImmSimulateHotKey(hwnd, 1);",
         "ImmEscapeW(hkl, himc, 0, p);",
+        "ImmEscapeA(hkl, himc, 0, p);",
+        "ImmSetCompositionStringW(himc, 0, p, 1, q, 2);",
+        "ImmSetCompositionStringA(himc, 0, p, 1, q, 2);",
+        "ImmSetCompositionWindow(himc, &form);",
+        "ImmSetCompositionFontW(himc, &font);",
+        "ImmSetComposition (himc);",
+        "ImmEscapeW
+(hkl, himc, 0, p);",
     ] {
-        let found = lines(&[sample(COMPLETION_MODULE, call)], COMPOSITION_CALLS);
+        let found = composition_lines(&[sample(COMPLETION_MODULE, call)]);
         assert_eq!(found.len(), 1, "{call} is seen");
+    }
+    // E9-F3: the window crate's own call stays allowed, and so does a name that only ends with a banned name.
+    for allowed in ["ImmAssociateContextEx(hwnd, himc, IACE_DEFAULT);", "my_ImmEscapeW(1);"] {
+        let found = composition_lines(&[sample(COMPLETION_MODULE, allowed)]);
+        assert!(found.is_empty(), "{allowed} is not flagged: {found:?}");
     }
 }
 

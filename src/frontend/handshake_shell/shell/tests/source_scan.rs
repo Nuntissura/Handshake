@@ -865,7 +865,11 @@ fn the_product_root_is_an_operator_window_activated_once_and_no_test_binary_has_
     assert_eq!(activating, 1, "one show activates, in one place");
     let launches: usize = sources.iter().map(|source| squeezed(source).matches("take_launch_source(").count()).sum();
     assert_eq!(launches, 1, "the launch is taken in one place");
-    assert!(code.contains("self.root.get()==Some(window)"), "only the root takes the launch");
+    // The exact guarded statement (MT-214 E9 R5): `launched_by_operator && true` or a dropped root test must fail.
+    assert!(
+        code.contains("letlaunch=(self.config.launched_by_operator&&self.root.get()==Some(window)).then(||control.take_launch_source(self.next_id())).flatten();"),
+        "only the Operator-launched root takes the launch"
+    );
     assert!(code.contains("Some(launch)=>control.command(&launch,window,WindowCommand::Show{activate:true})"));
     assert!(code.contains("None=>control.command(&self.source(),window,WindowCommand::Show{activate:false})"));
 

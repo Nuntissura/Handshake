@@ -40,17 +40,38 @@ fn collect(folder: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
-/// The lines of `code` in which `word` stands on its own, counted from 1.
+fn part_of_word(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+/// The lines of `code` in which `word` stands on its own, counted from 1. A boundary is checked only at an edge of
+/// `word` that is itself a word character: `operator_root(` is found before `ring`, and `ProgramConfig::new(` before
+/// an argument (MT-214 E9-F4).
 pub fn lines_with(code: &str, word: &str) -> Vec<usize> {
-    let part_of_word = |c: char| c.is_alphanumeric() || c == '_';
+    let starts = word.chars().next().is_some_and(part_of_word);
+    let ends = word.chars().next_back().is_some_and(part_of_word);
     code.lines()
         .enumerate()
         .filter(|(_, line)| {
             line.match_indices(word).any(|(at, _)| {
                 let before = line[..at].chars().next_back();
                 let after = line[at + word.len()..].chars().next();
-                !before.is_some_and(part_of_word) && !after.is_some_and(part_of_word)
+                !(starts && before.is_some_and(part_of_word)) && !(ends && after.is_some_and(part_of_word))
             })
+        })
+        .map(|(number, _)| number + 1)
+        .collect()
+}
+
+/// The lines of `code` in which a name starts with `prefix`, whatever follows it (`ImmEscape` finds `ImmEscapeW` and
+/// `ImmEscapeA`), counted from 1. What comes before must not be part of a word (MT-214 E9-F3).
+#[allow(dead_code)] // used by the input crate's scan only; this file is included by several test binaries
+pub fn lines_with_prefix(code: &str, prefix: &str) -> Vec<usize> {
+    code.lines()
+        .enumerate()
+        .filter(|(_, line)| {
+            line.match_indices(prefix)
+                .any(|(at, _)| !line[..at].chars().next_back().is_some_and(part_of_word))
         })
         .map(|(number, _)| number + 1)
         .collect()
