@@ -1168,6 +1168,7 @@ fn live_rich_shell(document_id: &str) -> (HandshakeApp, tokio::runtime::Runtime)
         pane_id.as_ref(),
         handshake_native::backend_client::RichDocBody {
             document_id: document_id.to_owned(),
+            block_id: None,
             workspace_id: "ws-ckc-test".to_owned(),
             doc_version: 1,
             title: document_id.to_owned(),

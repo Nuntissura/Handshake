@@ -2356,13 +2356,8 @@ fn mt034_canonical_argus_create_open_and_reveal() {
 fn ac4_unresolved_code_ref_chip_renders_without_panic() {
     use handshake_native::rich_editor::wikilinks::inline_view::{chip_colors, chip_label};
     // A symbol the backend 404'd -> the chip is marked resolved=false (the 404 path sets this).
-    let unresolved = HsLinkNode {
-        ref_kind: "code".into(),
-        ref_value: "ent-deleted".into(),
-        label: "src/gone.rs#Gone".into(),
-        resolved: false,
-        provenance: None,
-    };
+    let mut unresolved = HsLinkNode::new("code", "ent-deleted", "src/gone.rs#Gone");
+    unresolved.resolved = false;
     // The label is the greyed `unresolved` text (never a panic).
     let label = chip_label(&unresolved);
     assert!(

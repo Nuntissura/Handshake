@@ -422,6 +422,7 @@ fn rich_doc_body_with_content(
 ) -> handshake_native::backend_client::RichDocBody {
     handshake_native::backend_client::RichDocBody {
         document_id: document_id.to_owned(),
+        block_id: None,
         workspace_id: "ws-mt099".to_owned(),
         doc_version,
         title: document_id.to_owned(),

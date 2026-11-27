@@ -1814,6 +1814,7 @@ fn file_export_click_yields_export_bytes_not_save_manager_state() {
         .state_mut()
         .apply_loaded_rich_document_for_test(handshake_native::backend_client::RichDocBody {
         document_id: "KRD-mt069-export-target".to_owned(),
+        block_id: None,
         workspace_id: "default-project".to_owned(),
         doc_version: 1,
         title: "MT-069 export target".to_owned(),

@@ -2080,13 +2080,8 @@ fn ac005_typed_blocker_distinct_from_live_404_and_chip_greys() {
 
     // The chip renders GREYED (the error affordance) and does NOT panic when the record is unresolved
     // (the designed unavailable/unresolved state -> resolved=false on the hsLink atom).
-    let unresolved = HsLinkNode {
-        ref_kind: LOCUS_REF_KIND.into(),
-        ref_value: "locus://mt/MT-034".into(),
-        label: "MT-034".into(),
-        resolved: false,
-        provenance: None,
-    };
+    let mut unresolved = HsLinkNode::new(LOCUS_REF_KIND, "locus://mt/MT-034", "MT-034");
+    unresolved.resolved = false;
     let label = chip_label(&unresolved);
     assert!(
         label.contains("unresolved"),

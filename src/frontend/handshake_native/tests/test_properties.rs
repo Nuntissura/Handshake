@@ -623,6 +623,7 @@ fn mt017_app_load_path_installs_properties_context() {
 
     app.apply_loaded_rich_document_for_test(RichDocBody {
         document_id: "KRD-MT017-APP".into(),
+        block_id: None,
         workspace_id: "ws-mt017".into(),
         doc_version: 17,
         title: "Loaded Properties Title".into(),
