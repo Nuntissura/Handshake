@@ -12095,23 +12095,52 @@ mod if_branch_subquery_guard_tests {
     //! condition folded into the WHERE yield arrays; the lone-SELECT block yields NONE, with or without
     //! parentheses around the IF and inside or outside BEGIN/COMMIT. Every following
     //! `array::len($x)` then fails with "Expected `array` but found `NONE`" (the SC-3b routing message and
-    //! binding commit; the SC-4 reindex of an unattributed index row). The writers in these two files use
-    //! the inner-LET form; this guard keeps the lone-SELECT block form out of them.
+    //! binding commit; the SC-4 reindex of an unattributed index row). The writers in these files use
+    //! the inner-LET form; this guard keeps the lone-SELECT block form out of them (TRQ-01 added
+    //! user_manual_knowledge.rs).
     fn collapsed(source: &str) -> String {
         source.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 
+    /// Count of branch blocks whose lone expression is a SELECT: the parenthesized form, and, when
+    /// `bare` is set, the unparenthesized form (checker finding F4: also a non-array on 3.2.0).
+    fn lone_select_blocks(source: &str, bare: bool) -> usize {
+        // Built from parts so this test's own text is not a match.
+        let paren = ["{ (", "SELECT"].concat();
+        let plain = ["{ ", "SELECT"].concat();
+        let flat = collapsed(source);
+        let mut hits = flat.matches(paren.as_str()).count();
+        if bare {
+            hits += flat.matches(plain.as_str()).count();
+        }
+        hits
+    }
+
     #[test]
     fn no_if_branch_holds_only_a_parenthesized_select() {
-        // Built from parts so this test's own text is not a match.
-        let needle = ["{ (", "SELECT"].concat();
-        for (file, source) in [
-            ("model_lane.rs", include_str!("model_lane.rs")),
-            ("loom_search.rs", include_str!("loom_search.rs")),
+        for (file, source, bare) in [
+            ("model_lane.rs", include_str!("model_lane.rs"), false),
+            ("loom_search.rs", include_str!("loom_search.rs"), false),
+            // TRQ-01: the bare form is also forbidden here (the other files are a separate picotask).
+            ("user_manual_knowledge.rs", include_str!("user_manual_knowledge.rs"), true),
         ] {
-            let flat = collapsed(source);
-            let hits = flat.matches(needle.as_str()).count();
-            assert_eq!(hits, 0, "{file}: {hits} branch block(s) hold only a parenthesized subquery; bind it with an inner LET and return the variable");
+            let hits = lone_select_blocks(source, bare);
+            assert_eq!(hits, 0, "{file}: {hits} branch block(s) hold only a subquery; bind it with an inner LET and return the variable");
         }
+    }
+
+    #[test]
+    fn lone_select_matcher_flags_known_bad_forms_and_passes_the_inner_let_form() {
+        // Positive controls: the matcher must flag the known-bad strings.
+        let bad_paren = ["LET $x = IF c { (", "SELECT a FROM t LIMIT 2) } ELSE { [] };"].concat();
+        let bad_bare = ["LET $x = IF c {
+    ", "SELECT a FROM t LIMIT 2
+} ELSE { [] };"].concat();
+        assert_eq!(lone_select_blocks(&bad_paren, false), 1);
+        assert_eq!(lone_select_blocks(&bad_paren, true), 1);
+        assert_eq!(lone_select_blocks(&bad_bare, true), 1);
+        // Negative control: the inner-LET form is not flagged.
+        let good = ["LET $x = IF c { LET $r = (", "SELECT a FROM t LIMIT 2); $r } ELSE { [] };"].concat();
+        assert_eq!(lone_select_blocks(&good, true), 0);
     }
 }

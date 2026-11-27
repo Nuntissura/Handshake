@@ -148,9 +148,9 @@ LET $existing = (SELECT
     display_name,
     detection_provenance,
     lifecycle_state,
-    record::id(primary_source_id) AS primary_source_id,
-    record::id(first_detected_in_run) AS first_detected_in_run,
-    record::id(last_detected_in_run) AS last_detected_in_run,
+    IF primary_source_id = NONE { NONE } ELSE { record::id(primary_source_id) } AS primary_source_id,
+    IF first_detected_in_run = NONE { NONE } ELSE { record::id(first_detected_in_run) } AS first_detected_in_run,
+    IF last_detected_in_run = NONE { NONE } ELSE { record::id(last_detected_in_run) } AS last_detected_in_run,
     record::id(recorded_event_id) AS recorded_event_id,
     mutation_fingerprint,
     created_at,
@@ -165,7 +165,7 @@ WHERE owner_account_id = $entity.owner_account_id
     AND entity_key = $entity.entity_key
 LIMIT 2);
 LET $linked_event = IF array::len($existing) = 1 {
-    (SELECT event_id
+    LET $hsk_rows = (SELECT event_id
     FROM kernel_event_ledger
     WHERE event_id = $existing[0].recorded_event_id
         AND aggregate_type = 'knowledge_entity'
@@ -185,7 +185,7 @@ LET $linked_event = IF array::len($existing) = 1 {
         AND authenticated_session_id = $entity.authenticated_session_id
         AND access_space_id = $entity.access_space_id
         AND workspace_id = record::id($entity.workspace_id)
-    LIMIT 2)
+    LIMIT 2); $hsk_rows
 } ELSE { [] };
 LET $event_existing = (SELECT event_id
 FROM kernel_event_ledger
@@ -218,9 +218,9 @@ IF array::len($existing) > 1 OR array::len($linked_event) > 1
         display_name,
         detection_provenance,
         lifecycle_state,
-        record::id(primary_source_id) AS primary_source_id,
-        record::id(first_detected_in_run) AS first_detected_in_run,
-        record::id(last_detected_in_run) AS last_detected_in_run,
+        IF primary_source_id = NONE { NONE } ELSE { record::id(primary_source_id) } AS primary_source_id,
+        IF first_detected_in_run = NONE { NONE } ELSE { record::id(first_detected_in_run) } AS first_detected_in_run,
+        IF last_detected_in_run = NONE { NONE } ELSE { record::id(last_detected_in_run) } AS last_detected_in_run,
         record::id(recorded_event_id) AS recorded_event_id,
         mutation_fingerprint,
         created_at,
@@ -268,9 +268,9 @@ IF array::len($existing) > 1 OR array::len($linked_event) > 1
         display_name,
         detection_provenance,
         lifecycle_state,
-        record::id(primary_source_id) AS primary_source_id,
-        record::id(first_detected_in_run) AS first_detected_in_run,
-        record::id(last_detected_in_run) AS last_detected_in_run,
+        IF primary_source_id = NONE { NONE } ELSE { record::id(primary_source_id) } AS primary_source_id,
+        IF first_detected_in_run = NONE { NONE } ELSE { record::id(first_detected_in_run) } AS first_detected_in_run,
+        IF last_detected_in_run = NONE { NONE } ELSE { record::id(last_detected_in_run) } AS last_detected_in_run,
         record::id(recorded_event_id) AS recorded_event_id,
         mutation_fingerprint,
         created_at,
@@ -296,9 +296,9 @@ LET $existing = (SELECT
     display_name,
     detection_provenance,
     lifecycle_state,
-    record::id(primary_source_id) AS primary_source_id,
-    record::id(first_detected_in_run) AS first_detected_in_run,
-    record::id(last_detected_in_run) AS last_detected_in_run,
+    IF primary_source_id = NONE { NONE } ELSE { record::id(primary_source_id) } AS primary_source_id,
+    IF first_detected_in_run = NONE { NONE } ELSE { record::id(first_detected_in_run) } AS first_detected_in_run,
+    IF last_detected_in_run = NONE { NONE } ELSE { record::id(last_detected_in_run) } AS last_detected_in_run,
     record::id(recorded_event_id) AS recorded_event_id,
     mutation_fingerprint,
     created_at,
@@ -314,7 +314,7 @@ WHERE owner_account_id = $owner_account_id
     AND entity_key = $entity_key
 LIMIT 2);
 LET $linked_event = IF array::len($existing) = 1 {
-    (SELECT event_id
+    LET $hsk_rows = (SELECT event_id
     FROM kernel_event_ledger
     WHERE event_id = $existing[0].recorded_event_id
         AND aggregate_type = 'knowledge_entity'
@@ -334,7 +334,7 @@ LET $linked_event = IF array::len($existing) = 1 {
         AND authenticated_session_id = $authenticated_session_id
         AND access_space_id = $access_space_id
         AND workspace_id = record::id($workspace_id)
-    LIMIT 2)
+    LIMIT 2); $hsk_rows
 } ELSE { [] };
 IF array::len($existing) > 1 OR array::len($linked_event) > 1 {
     THROW 'UserManual knowledge entity identity is ambiguous';
@@ -413,7 +413,7 @@ WHERE owner_account_id = $owner_account_id
     AND entity_key = $entity_key
 LIMIT 2);
 LET $receipt = IF array::len($entity) = 1 {
-    (SELECT id, event_id
+    LET $hsk_rows = (SELECT id, event_id
     FROM kernel_event_ledger
     WHERE id = $entity[0].recorded_event_id
         AND owner_account_id = $owner_account_id
@@ -421,7 +421,7 @@ LET $receipt = IF array::len($entity) = 1 {
         AND authenticated_session_id = $authenticated_session_id
         AND access_space_id = $access_space_id
         AND workspace_id = record::id($workspace_id)
-    LIMIT 2)
+    LIMIT 2); $hsk_rows
 } ELSE { [] };
 IF array::len($entity) != 1 OR array::len($receipt) != 1 {
     THROW 'canonical receipt mismatch fixture requires one exact entity and receipt';
