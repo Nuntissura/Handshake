@@ -107,6 +107,13 @@ pub struct PresentReport {
     pub shutdown: Option<ShutdownReport>,
     /// Times the loop refused to end because a window target was still held.
     pub finish_refused: u64,
+    /// Looks the shutdown made at the owner and the claims before the owner closed, waiting for claims to settle
+    /// (MT-214 E9-F1, F8); `1` when none was waiting.
+    pub settle_wait_looks: u64,
+    /// How long that wait took, in microseconds.
+    pub settle_wait_micros: u64,
+    /// Whether the wait ended at its limit with a claim still waiting.
+    pub settle_wait_gave_up: bool,
     /// Closed windows whose presents were not proven ended in time, without `VK_EXT_swapchain_maintenance1`: their last
     /// swapchain and the window are kept until the owner closes (MT-214 SF-2).
     pub closes_unproven: u64,
@@ -152,6 +159,9 @@ impl Default for PresentReport {
             last_error: None,
             shutdown: None,
             finish_refused: 0,
+            settle_wait_looks: 0,
+            settle_wait_micros: 0,
+            settle_wait_gave_up: false,
             closes_unproven: 0,
             device_losses: 0,
             device_rebinds: 0,

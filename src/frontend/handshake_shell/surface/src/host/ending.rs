@@ -215,13 +215,24 @@ impl Core {
     /// waiting (see the call in [`Self::tear_down`]).
     fn settle_before_close(&self, slots: &[Rc<RefCell<Slot>>]) {
         let begun = Instant::now();
+        let mut looks = 0u64;
         loop {
+            looks += 1;
             let _ = self.owner.poll();
             let waiting = self.settle_all(slots);
             let waiting = self.settle_ending() || waiting;
             match decide::settle_wait(waiting, begun.elapsed()) {
                 decide::SettleWait::Again(pause) => std::thread::sleep(pause),
-                decide::SettleWait::Close | decide::SettleWait::GiveUp => return,
+                ended @ (decide::SettleWait::Close | decide::SettleWait::GiveUp) => {
+                    let gave_up = ended == decide::SettleWait::GiveUp;
+                    let micros = u64::try_from(begun.elapsed().as_micros()).unwrap_or(u64::MAX);
+                    self.count(|report| {
+                        report.settle_wait_looks = looks;
+                        report.settle_wait_micros = micros;
+                        report.settle_wait_gave_up = gave_up;
+                    });
+                    return;
+                }
             }
         }
     }
@@ -265,17 +276,34 @@ impl Core {
 
 #[cfg(test)]
 mod tests {
+    /// The code with `//` comments (to the end of each line) removed, so a comment holding a searched text finds nothing.
+    fn without_comments(code: &str) -> String {
+        code.lines()
+            .map(|line| line.split("//").next().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("
+")
+    }
+
     /// MT-214 E9-F1: the owner's report is taken at its close, once, so the claims are settled before it, and again
     /// after it for what the close's drain ended. The device-free order check of `tear_down` (the GPU proof of a clean
     /// shutdown is the `multiwindow` and `shell_program` tests).
     #[test]
     fn tear_down_settles_the_claims_before_the_owner_closes_and_again_after() {
-        let code = include_str!("ending.rs");
+        let code = without_comments(include_str!("ending.rs"));
         let body = &code[code.find("pub(super) fn tear_down").expect("tear_down")..];
         let end = body.find("
     }
 ").expect("the end of tear_down");
         let body = &body[..end];
+        // The wait itself is not empty and settles the claims (MT-214 E9b F9).
+        let wait = &code[code.find("fn settle_before_close(").expect("settle_before_close")..];
+        let wait = &wait[..wait.find("
+    }
+").expect("the end of settle_before_close")];
+        let inner = wait[wait.find('{').expect("its body") + 1..].trim();
+        assert!(!inner.is_empty(), "settle_before_close has a body");
+        assert!(inner.contains("self.settle_all(slots)") && inner.contains("self.owner.poll()"), "{inner}");
         let before = body.find("self.settle_before_close(&slots)").expect("settling before the close");
         let close = body.find("self.owner.close()").expect("the close");
         let after = body.find("self.settle_all(&slots)").expect("settling after the close");

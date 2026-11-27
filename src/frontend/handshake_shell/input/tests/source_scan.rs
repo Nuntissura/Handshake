@@ -196,7 +196,6 @@ const COMPOSITION_CALLS: &[&str] = &[
     "ImmSetConversionStatus",
     "ImmSetOpenStatus",
     "ImmSimulateHotKey",
-    "ImmConfigureIME",
     "ImmSetStatusWindowPos",
     "CPS_CANCEL",
     "CPS_CONVERT",
@@ -205,7 +204,7 @@ const COMPOSITION_CALLS: &[&str] = &[
 
 /// Names banned with every suffix: `ImmSetCompositionStringW`, `ImmSetCompositionWindow`, `ImmEscapeA`, `ImmEscapeW`
 /// and whatever else starts so (MT-214 E9-F3). `ImmAssociateContextEx`, which the window crate uses, starts with neither.
-const COMPOSITION_PREFIXES: &[&str] = &["ImmSetComposition", "ImmEscape"];
+const COMPOSITION_PREFIXES: &[&str] = &["ImmSetComposition", "ImmEscape", "ImmConfigureIME"];
 
 /// The lines of `sources` that call one of `COMPOSITION_CALLS` or a name that starts with one of `COMPOSITION_PREFIXES`.
 fn composition_lines(sources: &[Source]) -> Vec<String> {
@@ -304,6 +303,9 @@ ImmNotifyIME
         "ImmEscapeA(hkl, himc, 0, p);",
         "ImmSetCompositionStringW(himc, 0, p, 1, q, 2);",
         "ImmSetCompositionStringA(himc, 0, p, 1, q, 2);",
+        "ImmConfigureIMEW(hkl, hwnd, 1, p);",
+        "ImmConfigureIMEA(hkl, hwnd, 1, p);",
+        "ImmConfigureIME(hkl, hwnd, 1, p);",
         "ImmSetCompositionWindow(himc, &form);",
         "ImmSetCompositionFontW(himc, &font);",
         "ImmSetComposition (himc);",
