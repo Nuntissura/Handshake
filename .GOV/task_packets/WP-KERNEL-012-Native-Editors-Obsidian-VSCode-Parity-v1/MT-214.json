@@ -838,7 +838,7 @@
     {
       "mt_ref": "MT-219.json",
       "when": "S5 product startup: device.gpu.shell published and the kernel issuer reviewed"
-    },
+    }, {"mt_ref": "MT-222.json", "when": "S5 product startup: the kernel issuer (WP012-OD8-KERNEL-ISSUER-20261127)"},
     {
       "mt_ref": "MT-198.json",
       "when": "S4 text runs and roles: Kumihimo semantic tree contract at the pinned revision"
