@@ -491,7 +491,7 @@ impl State {
                 // with a request for the node and one for the window. So the child's request is required, and nothing
                 // but a window or node request of the second window may follow the Invoke (MT-214 E7-F1).
                 let focus_node = (b, AccessTarget::Node(SAVE), Action::Focus, Origin::OtherProgram);
-                let focus_window = (b, AccessTarget::Window, Action::Focus, Origin::OtherProgram);
+                let focus_of_window = (b, AccessTarget::Window, Action::Focus, Origin::OtherProgram);
                 assert_eq!(
                     requests.first(),
                     Some(&(a, AccessTarget::Node(SAVE), Action::Click, Origin::OtherProgram)),
@@ -499,7 +499,7 @@ impl State {
                 );
                 assert!(requests.contains(&focus_node), "the child's SetFocus asked the provider: {requests:?}");
                 assert!(
-                    requests[1..].iter().all(|request| *request == focus_node || *request == focus_window),
+                    requests[1..].iter().all(|request| *request == focus_node || *request == focus_of_window),
                     "only focus requests of the second window followed: {requests:?}"
                 );
                 self.no_activation(control, false);

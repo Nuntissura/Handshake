@@ -111,8 +111,13 @@ pub struct ProgramConfig {
     pub title: String,
     /// The window's size.
     pub size: LogicalSize,
-    /// Quiet or Operator window. Quiet never takes the foreground, the keyboard or a place above other windows.
+    /// The root window's class. Quiet never takes the foreground, the keyboard or a place above other windows; the
+    /// product's root is [`WindowClass::Operator`] ([`ProgramConfig::operator_root`], WP012-SHELL-ROOT-WINDOW-20261127).
+    /// Detached panes and detached Settings stay quiet windows whatever this is.
     pub class: WindowClass,
+    /// The Operator started this process to work in it: the root is activated once, with the launch authority, when it
+    /// is first shown. Only for an Operator root of the product; a test binary's run ignores it.
+    pub launched_by_operator: bool,
     /// Where the window goes; the primary monitor's centre when `None`.
     pub placement: Option<Placement>,
     /// The diagnostics ring the heartbeat writes, made by the caller. The heartbeat is silent without one.
@@ -124,16 +129,30 @@ pub struct ProgramConfig {
 }
 
 impl ProgramConfig {
-    /// A quiet 960 by 600 window, centred on the primary monitor, until it is closed.
+    /// A quiet 960 by 600 window, centred on the primary monitor, until it is closed. What tests and examples use.
     pub fn new(ring: Option<DiagRingWriter>) -> Self {
         Self {
             title: "Handshake shell".to_owned(),
             size: LogicalSize::new(960.0, 600.0),
             class: WindowClass::Quiet,
+            launched_by_operator: false,
             placement: None,
             ring,
             end_after: EndAfter::default(),
             plan: Vec::new(),
+        }
+    }
+}
+
+impl ProgramConfig {
+    /// The product's root: an Operator window that takes the focus once, at the Operator's launch (the launch
+    /// authority, used once), and whose close ends the process. WP012-SHELL-ROOT-WINDOW-20261127: "Operator window,
+    /// closes app". Only the product binary calls this.
+    pub fn operator_root(ring: Option<DiagRingWriter>) -> Self {
+        Self {
+            class: WindowClass::Operator,
+            launched_by_operator: true,
+            ..Self::new(ring)
         }
     }
 }
@@ -269,10 +288,16 @@ fn policy_of(authority: &DeviceAuthority) -> QuotaPolicy {
 ///
 /// The ring writer in `config` is the heartbeat's. `watcher` is asked to acknowledge only a settled shutdown.
 pub fn run_program(
-    config: ProgramConfig,
+    mut config: ProgramConfig,
     authority: DeviceAuthority,
     watcher: Box<dyn ShutdownWatcher>,
 ) -> ProgramOutcome {
+    // A test binary never has an Operator window or a launch activation, whatever its config says (HBR-QUIET).
+    if matches!(authority, DeviceAuthority::Test(_)) {
+        config.class = WindowClass::Quiet;
+        config.launched_by_operator = false;
+    }
+    let launched_by_operator = config.launched_by_operator && config.class == WindowClass::Operator;
     let present = PresentConfig::new(policy_of(&authority), MODULE);
     let app = Rc::new(ProgramApp::new(config, watcher));
     let host = match PresentHost::open(present, Arc::new(NullDiagnostics), app.clone()) {
@@ -285,7 +310,7 @@ pub fn run_program(
         }
     };
     let loop_config = LoopConfig {
-        launched_by_operator: false,
+        launched_by_operator,
         ..LoopConfig::default()
     };
     let run = handshake_shell_window::run(loop_config, host.clone());
@@ -352,6 +377,7 @@ struct Config {
     title: String,
     size: LogicalSize,
     class: WindowClass,
+    launched_by_operator: bool,
     placement: Option<Placement>,
     end_after: EndAfter,
 }
@@ -362,6 +388,7 @@ impl ProgramApp {
             title,
             size,
             class,
+            launched_by_operator,
             placement,
             ring,
             end_after,
@@ -372,6 +399,7 @@ impl ProgramApp {
                 title,
                 size,
                 class,
+                launched_by_operator,
                 placement,
                 end_after,
             },
@@ -409,11 +437,16 @@ impl ProgramApp {
         self.counts.set(counts);
     }
 
-    /// The next command's source: the shell itself, numbered.
-    fn source(&self) -> CommandSource {
+    /// The next command's number.
+    fn next_id(&self) -> u64 {
         let id = self.commands.get() + 1;
         self.commands.set(id);
-        CommandSource::host(id)
+        id
+    }
+
+    /// The next command's source: the shell itself, numbered.
+    fn source(&self) -> CommandSource {
+        CommandSource::host(self.next_id())
     }
 
     /// The first failure ends the program: shutdown begins, and the kind is what the program ends with.
@@ -529,7 +562,7 @@ impl ProgramApp {
             inner: detached.size,
             min_inner: None,
             placement: Placement::System,
-            class: self.config.class,
+            class: WindowClass::Quiet,
         };
         let _ = self.open_window(shell, detached.kind(), spec);
     }
@@ -657,11 +690,15 @@ impl ProgramApp {
         if let Err(refusal) = given {
             self.access_code.set(self.access_code.get().or(Some(refusal.code())));
         }
-        let shown = control.command(
-            &self.source(),
-            window,
-            WindowCommand::Show { activate: false },
-        );
+        // The root of an Operator-launched product takes the focus once, with the launch authority; every other show
+        // is quiet. `take_launch_source` gives the launch once, so no second window can be activated by it.
+        let launch = (self.config.launched_by_operator && self.root.get() == Some(window))
+            .then(|| control.take_launch_source(self.next_id()))
+            .flatten();
+        let shown = match launch {
+            Some(launch) => control.command(&launch, window, WindowCommand::Show { activate: true }),
+            None => control.command(&self.source(), window, WindowCommand::Show { activate: false }),
+        };
         if let Err(refusal) = shown {
             self.fail(shell, ExitKind::NoWindow, refusal.code());
         }

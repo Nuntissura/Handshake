@@ -118,17 +118,24 @@ impl Drop for Attached {
     }
 }
 
+/// The window crate's test support: a private desktop under the watches (HBR-QUIET-001), as the integration tests use.
+#[cfg(test)]
+#[path = "../../window/tests/support/mod.rs"]
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::cell::Cell;
+    use std::time::Duration;
 
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DestroyWindow, SetPropW, HWND_MESSAGE,
     };
 
+    use super::support::on_private_desktop;
     use super::*;
 
-    /// A message-only window of this thread: never shown, never active, no input.
+    /// A message-only window of this thread (a thread on a private desktop): never shown, never active, no input.
     struct Hidden(isize);
 
     impl Hidden {
@@ -181,8 +188,13 @@ mod tests {
 
     /// MT-214 E7-F9, mutation caught: a failed install leaving the adapter's window property on the window, pointing
     /// at state that was freed; or a cleanup that takes a property that was there before.
+    /// MT-214 E8-F3: the window is made on a private desktop, like every window of every other test.
     #[test]
     fn a_failed_install_leaves_no_property_and_another_owners_is_not_touched() {
+        on_private_desktop(Duration::from_secs(60), a_failed_install_on_this_desktop);
+    }
+
+    fn a_failed_install_on_this_desktop() {
         let window = Hidden::new();
         let failed: Result<(), AttachRefusal> = guarded(window.0, || {
             window.set_property(0x00DE_AD00);

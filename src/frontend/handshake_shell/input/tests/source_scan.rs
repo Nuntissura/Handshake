@@ -191,22 +191,35 @@ const COMPLETION_MODULE: &str = "../window/src/platform/ime.rs";
 
 /// What else asks the input method to do something with a composition: never, anywhere in the window crate.
 const COMPOSITION_CALLS: &[&str] = &[
-    "ImmSetCompositionStringW",
-    "ImmSetCompositionStringA",
+    "ImmSetComposition",
+    "ImmGenerateMessage",
+    "ImmSetCandidateWindow",
+    "ImmSetConversionStatus",
+    "ImmSetOpenStatus",
+    "ImmSimulateHotKey",
+    "ImmEscape",
+    "ImmConfigureIME",
+    "ImmSetStatusWindowPos",
     "CPS_CANCEL",
     "CPS_CONVERT",
     "CPS_REVERT",
 ];
 
-/// Every call of `ImmNotifyIME` in `sources`: where, and its text with the white space of its lines collapsed.
+/// The code with every run of white space (spaces, tabs, line breaks) made one space, and none left before a `(`, so
+/// that `ImmNotifyIME (` and `ImmNotifyIME` and a line break read as `ImmNotifyIME(` (MT-214 E8-F2a).
+fn squashed(code: &str) -> String {
+    code.split_whitespace().collect::<Vec<_>>().join(" ").replace(" (", "(")
+}
+
+/// Every call of `ImmNotifyIME` in `sources`: where, and its text with the white space collapsed first.
 fn notify_calls(sources: &[Source]) -> Vec<(String, String)> {
     let mut calls = Vec::new();
     for source in sources {
-        for (at, _) in source.code.match_indices("ImmNotifyIME(") {
-            let rest = &source.code[at..];
+        let code = squashed(&source.code);
+        for (at, _) in code.match_indices("ImmNotifyIME(") {
+            let rest = &code[at..];
             let end = rest.find(')').map_or(rest.len(), |end| end + 1);
-            let call = rest[..end].split_whitespace().collect::<Vec<_>>().join(" ");
-            calls.push((source.path.clone(), call));
+            calls.push((source.path.clone(), rest[..end].replace("( ", "(")));
         }
     }
     calls
@@ -255,6 +268,28 @@ ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);",
     assert_ne!(notify_calls(&[cancel])[0].1, COMPLETION, "a cancel is another shape");
     let set = [sample(COMPLETION_MODULE, "ImmSetCompositionStringW(h, 0, p, 1, q, 2);")];
     assert_eq!(lines(&set, COMPOSITION_CALLS).len(), 1);
+    // E8-F2a: a call with white space before its parenthesis, or a line break, is still a call.
+    let spaced = sample(
+        COMPLETION_MODULE,
+        "ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
+ImmNotifyIME (himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
+ImmNotifyIME
+(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);",
+    );
+    assert_eq!(notify_calls(&[spaced]).len(), 3, "a call written with a space or a line break is seen");
+    // E8-F2b: the other calls that make or send a composition message, or set a composition's state.
+    for call in [
+        "ImmGenerateMessage(himc);",
+        "ImmSetCompositionWindow(himc, &form);",
+        "ImmSetCandidateWindow(himc, &form);",
+        "ImmSetConversionStatus(himc, 0, 0);",
+        "ImmSetOpenStatus(himc, 1);",
+        "ImmSimulateHotKey(hwnd, 1);",
+        "ImmEscapeW(hkl, himc, 0, p);",
+    ] {
+        let found = lines(&[sample(COMPLETION_MODULE, call)], COMPOSITION_CALLS);
+        assert_eq!(found.len(), 1, "{call} is seen");
+    }
 }
 
 /// AC214-5: an input's origin and stamp are set inside the crate only. A public field would let a caller give a model's

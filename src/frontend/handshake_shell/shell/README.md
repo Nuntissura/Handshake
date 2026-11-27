@@ -52,8 +52,12 @@ an uninhabited type until it exists; Core's installation-wide quota ledger (the 
 toolkit-free Palmistry launcher (`palmistry_launch.rs` is in the egui host), so the watcher seam `ShutdownWatcher` is
 passed `NoWatcher` and the ring is a v1 writer from `--diag-ring`, without the launcher's v2 nonce.
 
-Not yet (MT-214 S6): more than one window, device loss and rebind, the readable unavailable state, the Operator-class
-root window and launch activation. Windows with `--diag-ring` and `NoWatcher` show `watcher=not_connected` in the end line.
+Root window (WP012-SHELL-ROOT-WINDOW-20261127, "Operator window, closes app"): the product binary opens its root with
+`ProgramConfig::operator_root`: `WindowClass::Operator`, activated once with the launch authority (`Authority::Launch`)
+when first shown, and closing it ends the process. Detached panes and Settings stay quiet. Tests and examples keep the
+quiet root (`run_program` makes a `TestBinary` quiet whatever its config says); a source scan fails otherwise. The launch
+activation itself needs a real desktop. Windows with `--diag-ring` and `NoWatcher` show `watcher=not_connected` in the
+end line.
 
 Tests: `tests/startup_gate.rs` (no device, any machine), `tests/source_scan.rs`, `tests/shell_program.rs` (real device,
 private desktop, own process; skips without a device unless `HANDSHAKE_REQUIRE_VULKAN_GPU` is not 0).

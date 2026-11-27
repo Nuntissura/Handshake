@@ -796,6 +796,127 @@ fn the_device_opens_in_one_place_and_only_the_gate_reaches_it_for_the_product() 
     assert_eq!(files_naming(&[declared_in_src], "TestBinary::declare").len(), 1);
 }
 
+/// A source's code with every white space removed, so `activate : true` and `activate:` with a line break `true` read alike.
+fn squeezed(source: &Source) -> String {
+    source.code.split_whitespace().collect()
+}
+
+/// The sources of every test and example of the crates other than the window crate (whose own Operator-class tests
+/// run on private desktops under its own scans): a test binary has no Operator window and no activation.
+fn test_binary_sources() -> Vec<Source> {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    ["tests", "examples", "../surface/tests", "../surface/examples", "../input/tests", "../accessibility/tests"]
+        .into_iter()
+        .filter(|folder| manifest.join(folder).is_dir())
+        .flat_map(below)
+        .filter(|source| source.path != "tests/source_scan.rs")
+        .collect()
+}
+
+/// What an Operator window or a focus-taking show is, in code with its white space removed.
+const OPERATOR_WINDOW_WORDS: &[&str] = &["WindowClass::Operator", "operator_root(", "launched_by_operator:true", "activate:true"];
+
+fn operator_windows(sources: &[Source]) -> Vec<String> {
+    let mut found = Vec::new();
+    for source in sources {
+        let code = squeezed(source);
+        for word in OPERATOR_WINDOW_WORDS {
+            if code.contains(word) {
+                found.push(format!("{}: {word}", source.path));
+            }
+        }
+    }
+    found
+}
+
+/// WP012-SHELL-ROOT-WINDOW-20261127 ("Operator window, closes app"): the product's root is an Operator window that
+/// takes the focus once, at the Operator's launch, with the launch authority; a test binary or example never has an
+/// Operator window or a focus-taking show. Mutations caught: the product binary built from the quiet config; the
+/// Operator config without the launch; a second `activate: true` show or a second `take_launch_source`; a
+/// test, example or the test binaries' own path (`run_program` for a `TestBinary`) with an Operator window or a launch.
+#[test]
+fn the_product_root_is_an_operator_window_activated_once_and_no_test_binary_has_one() {
+    let _limit = TimeLimit::new(LIMIT);
+    let main = code_only(&text_of("src/main.rs"));
+    assert!(!lines_with(&main, "ProgramConfig::operator_root(").is_empty(), "the product's root is the Operator's");
+    assert!(lines_with(&main, "ProgramConfig::new(").is_empty(), "the product's root is not the quiet one");
+
+    let program = source_in(&below("src"), "src/program.rs");
+    let code = squeezed(&program);
+    let root = block_of(&code, "pubfnoperator_root(");
+    assert!(root.contains("class:WindowClass::Operator"), "{root}");
+    assert!(root.contains("launched_by_operator:true"), "{root}");
+    let quiet = block_of(&code, "pubfnnew(ring:Option<DiagRingWriter>)");
+    assert!(quiet.contains("class:WindowClass::Quiet") && quiet.contains("launched_by_operator:false"), "{quiet}");
+    // Only the loop's own start asks the window crate for the launch, and only when the root is an Operator window.
+    assert!(code.contains("launched_by_operator=config.launched_by_operator&&config.class==WindowClass::Operator"));
+    // A test authority is made quiet before anything opens.
+    let run = block_of(&code, "pubfnrun_program(");
+    let forced = run.find("DeviceAuthority::Test(_)").expect("a test authority is checked");
+    assert!(run[forced..].starts_with("DeviceAuthority::Test(_))"), "{run}");
+    assert!(run[forced..].contains("config.class=WindowClass::Quiet;config.launched_by_operator=false;"));
+    assert!(forced < run.find("PresentConfig::new(").expect("the presenter's config"), "before the device opens");
+    // Detached panes and Settings stay quiet.
+    assert!(block_of(&code, "fnopen_detached(").contains("class:WindowClass::Quiet"));
+
+    // Once: one show that activates, one launch taken, in the whole crate; it is the root's, with the launch source.
+    let sources = below("src");
+    let activating: usize = sources.iter().map(|source| squeezed(source).matches("activate:true").count()).sum();
+    assert_eq!(activating, 1, "one show activates, in one place");
+    let launches: usize = sources.iter().map(|source| squeezed(source).matches("take_launch_source(").count()).sum();
+    assert_eq!(launches, 1, "the launch is taken in one place");
+    assert!(code.contains("self.root.get()==Some(window)"), "only the root takes the launch");
+    assert!(code.contains("Some(launch)=>control.command(&launch,window,WindowCommand::Show{activate:true})"));
+    assert!(code.contains("None=>control.command(&self.source(),window,WindowCommand::Show{activate:false})"));
+
+    // No test, example or test binary has an Operator window or a show that takes the focus.
+    let tests = test_binary_sources();
+    assert!(tests.len() >= 10, "the scan reads the tests and examples: {}", tests.len());
+    let found = operator_windows(&tests);
+    assert!(found.is_empty(), "a test binary has an Operator window or an activation: {found:#?}");
+    let example = text_of("examples/shell_program.rs");
+    assert!(example.contains("TestBinary::declare") && !example.contains("operator_root"));
+
+    // Each rule finds what it looks for.
+    let operator = sample("tests/sample.rs", "let spec = WindowSpec { class: WindowClass::Operator, ..s };");
+    assert_eq!(operator_windows(&[operator]).len(), 1);
+    let launch = sample("tests/sample.rs", "ProgramConfig { launched_by_operator : true, ..c }");
+    assert_eq!(operator_windows(&[launch]).len(), 1);
+    let show = sample("examples/sample.rs", "WindowCommand::Show {
+ activate : true }");
+    assert_eq!(operator_windows(&[show]).len(), 1);
+    let door = sample("examples/sample.rs", "let c = ProgramConfig::operator_root(ring);");
+    assert_eq!(operator_windows(&[door]).len(), 1);
+}
+
+fn source_in(sources: &[Source], path: &str) -> Source {
+    sources
+        .iter()
+        .find(|source| source.path == path)
+        .map(|source| Source { path: source.path.clone(), code: source.code.clone() })
+        .unwrap_or_else(|| panic!("{path} is read"))
+}
+
+/// The text of the brace block that follows `head` in `code` (white space removed), through its closing brace.
+fn block_of<'a>(code: &'a str, head: &str) -> &'a str {
+    let at = code.find(head).unwrap_or_else(|| panic!("{head} is in the code"));
+    let open = at + code[at..].find('{').expect("a block");
+    let mut depth = 0;
+    for (offset, character) in code[open..].char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return &code[at..open + offset + 1];
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("{head} has no end");
+}
+
 #[test]
 fn nothing_here_installs_a_panic_or_exception_handler_or_ends_the_process_itself() {
     let _limit = TimeLimit::new(LIMIT);

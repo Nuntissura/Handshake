@@ -370,19 +370,52 @@ fn every_loop_and_client_of_a_test_runs_on_a_private_desktop() {
     }
 }
 
-/// The text of each `impl <name> {` block in `code`, up to its closing brace.
-fn impl_blocks<'a>(code: &'a str, name: &str) -> Vec<&'a str> {
-    let head = format!("impl {name}");
-    let mut blocks = Vec::new();
-    for (at, _) in code.match_indices(&head) {
-        let after = &code[at + head.len()..];
-        if !after.trim_start().starts_with('{') {
+/// Whether `path` names `name`, by its last path segment: `AccessRequest`, `request::AccessRequest` and
+/// `crate::request::AccessRequest` all do (E8-F2c).
+fn names(path: &str, name: &str) -> bool {
+    let mut path = path.trim();
+    if path.starts_with('<') {
+        // `impl<T> AccessRequest`: the generics come first.
+        let mut depth = 0;
+        let end = path.find(|c| {
+            depth += i32::from(c == '<') - i32::from(c == '>');
+            depth == 0
+        });
+        path = end.map_or(path, |end| path[end + 1..].trim());
+    }
+    path == name || path.ends_with(&format!("::{name}"))
+}
+
+/// Each `impl ... {` header of `code` (what follows `impl`, up to its `{`) with the offset of that brace.
+fn impl_headers(code: &str) -> Vec<(&str, usize)> {
+    let mut headers = Vec::new();
+    for (at, _) in code.match_indices("impl") {
+        let before_ok = code[..at].chars().next_back().is_none_or(|c| !(c.is_alphanumeric() || c == '_'));
+        let rest = &code[at + 4..];
+        if !before_ok || !rest.starts_with(|c: char| c.is_whitespace() || c == '<') {
             continue;
         }
-        let open = at + head.len() + after.find('{').unwrap_or(0);
-        blocks.push(block(&code[open..], "{"));
+        if let Some(open) = rest.find('{') {
+            headers.push((&rest[..open], at + 4 + open));
+        }
     }
-    blocks
+    headers
+}
+
+/// The text of each inherent `impl <name> {` block in `code` (the name by path suffix), up to its closing brace.
+fn impl_blocks<'a>(code: &'a str, name: &str) -> Vec<&'a str> {
+    impl_headers(code)
+        .into_iter()
+        .filter(|(header, _)| !header.contains(" for ") && names(header, name))
+        .map(|(_, open)| block(&code[open..], "{"))
+        .collect()
+}
+
+/// Whether `code` has a trait impl for `name` (`impl X for name`, the name by path suffix).
+fn has_trait_impl_for(code: &str, name: &str) -> bool {
+    impl_headers(code)
+        .into_iter()
+        .any(|(header, _)| header.rsplit_once(" for ").is_some_and(|(_, target)| names(target, name)))
 }
 
 /// Signatures that make a request or take an origin, in any `impl AccessRequest` block of `sources`, and any impl of a
@@ -390,7 +423,7 @@ fn impl_blocks<'a>(code: &'a str, name: &str) -> Vec<&'a str> {
 fn request_makers(sources: &[Source]) -> Vec<String> {
     let mut found = Vec::new();
     for source in sources {
-        if !lines_with(&source.code, "for AccessRequest").is_empty() {
+        if has_trait_impl_for(&source.code, "AccessRequest") {
             found.push(format!("{}: a trait impl for AccessRequest", source.path));
         }
         for methods in impl_blocks(&source.code, "AccessRequest") {
