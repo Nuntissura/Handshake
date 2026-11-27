@@ -2381,5 +2381,133 @@
       "MT-214 slice work on test binaries"
     ],
     "product_startup": "stays blocked on pieces 1 and 2"
+  },
+  "slice6_multiwindow_loss_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet)",
+    "recorded_on": "2026-11-27",
+    "slice": "S6 multiwindow (AC214-8) and device loss, rebind and readable unavailable state (AC214-9)",
+    "commit": "599a7a207e9a22848e3c5819b4e933ef1b2838f8 (only src/frontend/handshake_shell)",
+    "multiwindow": "shell windows.rs: WindowKind {Root, DetachedPane, DetachedSettings}, DetachedSpec, WindowBook counting by kind and flagging reused keys; ProgramConfig.plan of Actions (Open, CloseDetached(n), AwaitCreated, AwaitPresented, AwaitSurvivors) stands in for the unpublished UI-layer detach and close requests; all windows on the one presenter (one device, one owner ledger, own claim, surface and accessibility tree each); CloseDetached releases only that window, asks the others for a frame, and ProgramReport.survivors_presented records each survivor presenting; closing the root ends the program",
+    "loss_rebind": "surface crate recovery.rs (pure bookkeeping) and host/loss.rs: a loss (frame refused as lost or GpuOwner::poll) starts one recovery however many windows report it; every surface released; a pending capture ends ReadbackError::Ended(DeviceLost); steps run on the presenter timer and never wait: rebind_device, rebind_claim per window, new surface, frame request; passable refusals retried at most 24 looks; three losses in a row without a presented frame end as GaveUp; a loss during the move counts as a new loss; ShellApp::on_device(DeviceEvent::Lost, Rebound or GaveUp) and PresentReport counters",
+    "unavailable": "UnavailableState (unavailable.rs) for a device that never opened or did not come back: typed value, per-reason sentence, exit DeviceUnavailable (4), accessibility frame with the sentence, receipt line HSK_SHELL_UNAVAILABLE ... drawn=false drawn_waits_for=ui_layer fallback_renderer=none; ProgramOutcome.unavailable; binary and example print the line; nothing drawn; with no device no window opens so the tree text has no window",
+    "missing": [
+      "GpuOwner has no public fault-injection seam (vulkan/fault.rs is cfg(test) inside the renderer), so no program-level loss test: needs a public test-support way to inject VK_ERROR_DEVICE_LOST into a real GpuOwner (MT-203)",
+      "drawn unavailable text waits for the UI layer (Kumihimo)",
+      "the UI layer's detach and close request channel does not exist",
+      "S5 gaps unchanged: device.gpu.shell, kernel issuer, Palmistry launcher"
+    ],
+    "tests": [
+      "recovery.rs unit tests (duplicate loss, stale generation, loss during claim move, bounded repeated loss, reset after a presented frame, bounded refusals, permanent refusal)",
+      "decide.rs: a lost device is recovered, not stopped on; other device faults still stop",
+      "windows.rs: close one keeps the others, key never reused, survivors_presented strictness",
+      "tests/unavailable.rs: every reason has a distinct sentence and exit 4; sentence in the accessibility tree; receipt line; only GaveUp ends the program",
+      "tests/multiwindow.rs (real GPU, private desktop, own process): one ledger, 4 claims, 1 generation, survivors present, closed window destroyed early, all settled",
+      "source_scan: no D3D, OpenGL or software fallback in the five crates or their manifests and the GPU owner's, with positive controls; program-loop count now 3"
+    ],
+    "line_counts_ac214_12": {
+      "window": "10774/4482",
+      "surface": "3834/1762",
+      "input": "3563/864",
+      "accessibility": "2916/1066",
+      "shell": "2195/2718"
+    },
+    "implementer_checks": {
+      "check": "s6-check-1.log exit 0 no warnings",
+      "clippy": "s6-clippy-1.log exit 0",
+      "tree": "s6-tree-1.log no egui, eframe, wgpu, glow, kumihimo or accesskit_winit"
+    },
+    "tests_run": "none; independent run pending",
+    "needs_native_x64_and_real_desktop": [
+      "the new tests, in particular the multiwindow GPU test",
+      "a real device loss and rebind",
+      "seeing the quiet windows"
+    ]
+  },
+  "eval8_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report (Sonnet); the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-27",
+    "commit": "64f8b250f4d39bf86255eb8abfac0f5775d65907",
+    "method": "copies of 819 blobs (digest 8e5d1985...) matched the commit after all runs; every crate compiled from the copy",
+    "item1_input_window_surface_ime": {
+      "verdict": "passed (this machine)",
+      "counts": "input 46/46 (unit 38, real_loop 1, source_scan 7); surface 40/40 (frame_loop 5/5); window 127 passed, 1 failed (quiet_tests.rs:332, the known environment failure; file changed only in the Closing::before signature), 1 ignored",
+      "real_loop": "passes for the right reason: mutating out the pre-focus WM_NCACTIVATE (I10), the WM_KILLFOCUS completion (I1) and the Completed report (I11) each fails it at its own assertion",
+      "clipboard_ignored": "stops BLOCKED(environment) at support/mod.rs:235 (OpenClipboard error 5); clipboard sequence stayed 327; nothing written",
+      "mutations_caught": [
+        "I2, I4 commit after focus loss only to its own target",
+        "I3, I16 cancel only when no result",
+        "I5 IME takes the newest key's origin, I6 sent IME accepted, I7 F4 without Alt, I8",
+        "I12 Allow before Complete, I13 focus move ends composition at once",
+        "I14 frame_loop, I15 test_focus_ban, I9b second ImmNotifyIME in another module"
+      ],
+      "notes": [
+        "origin comes only from a key's own dispatch; refuses_ime is false while completing is set, so a message sent during complete_ime is accepted but tagged Unattributed",
+        "a result committed by a completion reaches the target as Unattributed, not the Operator's; whether the host accepts that needs a real IME"
+      ]
+    },
+    "item2_accessibility": {
+      "verdict": "failed: 27 passed, 1 failed (unit 21/21, source_scan 5/6, uia_client 1/1)",
+      "uia_client": "passed on a private desktop in 4 of 4 runs; step-5 trace Click(a, Save), Focus(b, Window), Focus(b, node), all OtherProgram, matching the new expectation",
+      "e7_closure": "E7-F1..F9 each caught by a mutation (A1, A2 fails at the 90 s limit, A3, A4, A5, A5b, A5c, A6, A7, A7b, A9, A15, M-S1..M-S4, MoveWindow and OpenIcon)",
+      "f9": "the guard removes a property only after seeing it was null before the call; accesskit_windows 0.29.2 install() does SetPropW first and SetWindowLongPtrW last with no panic after a successful subclass; it cannot remove a property it did not set apart from a theoretical cross-thread race",
+      "f6_limits": "a Show and Hide inside one handler (README) and a hub created after the window was shown (only the platform visibility check applies); not probed"
+    },
+    "findings": [
+      {
+        "id": "E8-F1",
+        "severity": "medium",
+        "at": "accessibility/tests/uia_client.rs:494, :502; source_scan.rs:234",
+        "defect": "a local variable named focus_window is a banned token in source_scan NEVER, so nothing_activates_orders_or_focuses_a_window_or_injects_input fails; the coder ran only check and clippy",
+        "repair": "rename the variable"
+      },
+      {
+        "id": "E8-F2a",
+        "severity": "low",
+        "at": "input/tests/source_scan.rs",
+        "defect": "a second ImmNotifyIME written with a space before the parenthesis survives (the scan matches the text ImmNotifyIME( only)",
+        "repair": "collapse whitespace before matching"
+      },
+      {
+        "id": "E8-F2b",
+        "severity": "low",
+        "defect": "a window-crate ImmGenerateMessage call survives",
+        "repair": "add ImmGenerateMessage and similar IMM calls to the banned list"
+      },
+      {
+        "id": "E8-F2c",
+        "severity": "low",
+        "at": "accessibility source_scan a_request_and_its_origin",
+        "defect": "impl crate::request::AccessRequest { pub fn forged(window, origin: Origin) -> Self } passes (mutation A12b)",
+        "repair": "match the impl by path suffix"
+      },
+      {
+        "id": "E8-F3",
+        "severity": "low",
+        "at": "accessibility platform.rs unit test",
+        "defect": "creates a message-only STATIC window of the test process on the Operator's own desktop (invisible, not in the Z order)",
+        "repair": "run it on a private desktop like the other tests"
+      }
+    ],
+    "operator_safety": "held: 41 watched runs, 146,673 samples plus a tight clipboard sampler of about 38 million; zero changes to foreground, focus, Z order, clipboard (sequence 327, owner and formats constant), input, cursor, window stations or desktops; no visible test window on the Operator's desktop; foreground 0 throughout (weak audit on an active desktop); two vctip.exe stopped after pid, creation time and parent chain matched; waited about 1 h 50 min for other builds",
+    "logs": {
+      "eval-summary-64f8b250f.json": "4c9e84a81138bedeaaa71a5c27604793db26cb9bf383802aeef3a242a86c4189",
+      "window": "ea5575a2...",
+      "surface": "9fe86825...",
+      "input": "08046619...",
+      "accessibility": "bde9ca69...",
+      "clipboard-ignored": "ae5a453a...",
+      "uia-nocapture": "97da1679...",
+      "mutations": "mutations-64f8b250f.jsonl",
+      "folder": "MT-214/eval-agent/ (probes in probe-64f8b250f/)"
+    },
+    "cannot_prove_here": [
+      "real IME behaviour (CPS_COMPLETE timing, late and stale results)",
+      "native x64",
+      "a real screen reader",
+      "SetFocus on an Operator window on the real input desktop",
+      "origin from a hardware key and real Alt+F4",
+      "DPI moves and WM_GETOBJECT in modal loops",
+      "the F8 clippy.toml additions were not run"
+    ]
   }
 }

@@ -14981,5 +14981,34 @@
       }
     ],
     "does_not_grant": "file removal (CX-107, HSK-ART-005), spec or Codex edits (CX-105), process stops, or scope additions outside the contracts; those stay separate Operator approvals"
+  },
+  "operator_decisions_20261127_shell_gaps": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-27",
+    "basis": "MT-214.json#/shell_gaps_ownership_20261126 (specialist analysis plus adversarial review)",
+    "decisions": [
+      {
+        "id": "WP012-OD8-KERNEL-ISSUER-20261127",
+        "question": "Who should build the kernel issuer that grants the new Vulkan shell permission to open the graphics device?",
+        "operator_answer": "New MT-222 in WP-012 (Recommended)",
+        "effect": "author MT-222 in WP-KERNEL-012 from the draft contract in Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json (working module handshake_kernel_authority, depends on MT-219 and MT-203); reusable trust-port mechanics go through a separate standalone-source MT in the asset repository first (BOOT-008)"
+      },
+      {
+        "id": "WP012-PALMISTRY-LAUNCHER-MT215-20261127",
+        "question": "Approve moving the Palmistry launcher out of the old egui app into MT-215 so the new shell can be wired to Palmistry, with MT-175 and MT-199 handing the file over and MT-094 and MT-096 re-checked?",
+        "operator_answer": "Approve MT-215 amendment (Recommended)",
+        "effect": "amend MT-215 per the analysis (AC215-11, write paths, step S8); the egui host keeps a thin re-export; MT-175 and MT-199 release palmistry_launch.rs to one writer; MT-199 stays the adopter; MT-214 adds a ShutdownWatcher adapter and the v2 ring nonce; editing the file returns MT-094 and the MT-096 capstone to READY_FOR_VALIDATION (CX-VAL-009)"
+      },
+      {
+        "id": "WP012-SHELL-ROOT-WINDOW-20261127",
+        "question": "How should the main window of the new Vulkan shell behave when you launch Handshake?",
+        "operator_answer": "Operator window, closes app (Recommended)",
+        "effect": "the product root is an Operator-class window that takes focus once at the Operator's launch (Authority::Launch); closing the root ends the process; detached panes and Settings unchanged; test binaries stay quiet on private desktops"
+      }
+    ],
+    "not_decided_yet": [
+      "OD-3 registry diff reviewer and order (MT-219 publication; can wait, S1 is no-code)"
+    ],
+    "interim_fyi": "installation quota ledger GPU-QUOTA-006..010 deferred with owner-local policy and protected claims refused (MT-214.json#/shell_gaps_ownership_20261126/pieces/4_quota_ledger)"
   }
 }

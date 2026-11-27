@@ -14212,5 +14212,25 @@
       "compile-check-20261126-21": "unmodified launcher (005406f6...) WP012-P1-MT-172-COMPILE on d574acdc4: exit 0, inputs_unchanged true, dirty none, cargo.log sha256 64a294fd851e86d46bf92ae35f2f91633c37d4a95f1eac2323b8c9170ea6d24a; verified by the orchestrator"
     },
     "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/receipt_writer_schema_tests/)' (supersedes the SC-3 lib filter; batch with the pending evals)"
+  },
+  "n1_dexterity_guard_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); named check verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "picotask": "N1 (HIGH) Dexterity launch contract required again (pt001-reconciliation-20261125/dispositions.json N1)",
+    "commit": "6f67873b2c304b285a5fbb0bd148db4850c5e841",
+    "defect": "coordinator.rs Inner.dexterity_launch_required was constant false in new (~1375); new_with_model_lane_store called new then patched fields; the spawn guard at ~2608 ((true,_,false) rejects a launch with no contract) was dead; production_factory.rs:3656 asserts that guard error for build_production_swarm_coordinator and so could not hold",
+    "source_ported": "commit 98efa4d019c4 (source_head in rebind-71cc3b6d3.json), coordinator.rs 1118-1215: new passes true, new_with_model_lane_store passes Some(store) and true, a private new_with_dexterity_launch_requirement(.., Option<ModelLaneStore>, bool) builds Inner and derives routing_execution_store from the store; test-only new_legacy_without_dexterity_for_tests behind cfg(any(test, feature test-utils)); current Inner fields kept; the post-construction mutation removed",
+    "call_sites": "SwarmCoordinator::new( became new_legacy_without_dexterity_for_tests( at 78 sites (source also 78): swarm_orchestration/tests.rs 65, production_factory.rs 10, distillation/parallel_distill/tests.rs 2, tests/pidless_cloud_lifecycle_tests.rs 1; the other 5 integration-test new( calls stay on new as in the source; no production path weakened",
+    "tests": [
+      "production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan (production_factory.rs, unchanged): would fail if the flag went back to false",
+      "new n1_production_constructor_refuses_launch_without_dexterity_contract (swarm_orchestration/tests.rs): SwarmCoordinator::new refuses a contract-less spawn with the guard error, the factory is never entered (create_calls == 0), the legacy test constructor still dispatches"
+    ],
+    "files": "coordinator.rs, production_factory.rs, swarm_orchestration/tests.rs, distillation/parallel_distill/tests.rs, tests/pidless_cloud_lifecycle_tests.rs; all inside MT-172 write paths",
+    "compile_runs": {
+      "compile-check-20261126-22": "ITERATION: exit 0, inputs unchanged, cargo.log sha256 5243f0e6...",
+      "compile-check-20261126-23": "unmodified launcher on 6f67873b2 (first launch refused while GUI compilers ran, rerun in the same folder): exit 0, inputs_unchanged true, dirty none, cargo.log sha256 d376da7a3b3c7860607b7a791ed33813413236eee8c1d769bfc2d3510fedaa65; verified by the orchestrator"
+    },
+    "not_read": "the WP-1 MT-020 and MT-003 records themselves (only the finding's acceptance line)",
+    "eval_command": "cargo nextest run --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib -E 'test(/n1_production_constructor_refuses_launch_without_dexterity_contract|production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan/)'"
   }
 }
