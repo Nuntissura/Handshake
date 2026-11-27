@@ -2737,5 +2737,22 @@
     },
     "unproven": "no GPU run (multiwindow, shell_program): E9-F1 repair and the 500 ms pre-close settle unmeasured on hardware; settle_wait_* fields will show it",
     "next": "GUI eval (fresh eval agent) of e03e88281, 8003327ce, 29ea185e1, 05a1050a3 with GPU runs under the fail-fast rule"
+  },
+  "s7_palmistry_plan_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's plan-only run (Sonnet); no build, no edits; plan hash and the Drop backstop (palmistry_launch lib.rs:1550-1557) verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "slice": "S7 Palmistry and internal-diagnostics wiring for the shell (AC214-11; adoption of AC215-11), route #/shell_gaps_ownership_20261126/pieces/3_palmistry_launcher",
+    "plan": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/s7-palmistry-plan-20261127.json (sha256 9fd63ac8f103935e3a1f7e2c0b73b5533849e43603f3c0e5161a316c5cac2712)",
+    "headline_findings": [
+      "ProgramConfig.ring is Option<DiagRingWriter> (program.rs:124,133,151,347) and the Shutdown marker is a v1 write (:772-785): S7 retypes the program to DiagRingWriterV2",
+      "impl Drop for PalmistryHandle sends Shutdown when shutdown was not performed: an unsettled end, a failed loop or an unwind would be reported as clean",
+      "launch_palmistry_or_degrade is the unsigned legacy path; the shell uses resolve_palmistry_exe + launch_palmistry_signed_at",
+      "the signed launch returns Ok with handshake_acked=false on a failed handshake",
+      "the marker sink is a plain fn(LaunchMarker)"
+    ],
+    "shape": "PalmistryWatcher adapter and ShellSession in a new shell/src/palmistry.rs (about 180-210 lines of composition, no new crate); one DiagRingWriterV2::create in product code; lease keyed by the shell session with HANDSHAKE_HOST_SCOPE_ID; no crash client (AC214-11 keeps the OS handler); five pinned deps, additive lock delta estimated 44-48 packages (cargo to confirm), CX-VAL-011 full-scope round",
+    "picotasks": "P1 manifest, lock, scan list; P2 v2 ring in the program; P3 adapter; P4a session, ring, lease; P4b signed launch and argv seam; P5 wiring; P6 mutations (14); P7 non-GPU workspace run and line counts; P8 #[ignore] live proofs",
+    "open": "10 decision points OD-1..OD-10 and 6 UNVERIFIED items in the plan; adversarial review dispatched to classify each OD as settled by authority, settled by evidence, or a genuine Operator question",
+    "status_effect": "none; no product file changed"
   }
 }
