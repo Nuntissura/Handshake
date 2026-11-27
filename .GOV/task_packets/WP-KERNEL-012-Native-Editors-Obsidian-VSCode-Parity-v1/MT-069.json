@@ -464,5 +464,11 @@
     ],
     "refactor_exposure": "high: The menu entries are shell descriptors whose disabled reasons are shown; they call the same editor commands. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus the shell menu bar and the one command descriptor source. Egui-bound today: top_menu_bar.rs (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25). Its acceptance names egui_kittest as proof tool; the same assertions must run on the Vulkan shell.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "egui_six_tests_note_20261127": {
+    "recorded_on": "2026-11-27",
+    "decision_id": "WP012-EGUI-SIX-TESTS-VEHICLE-20261127",
+    "note": "The six-test file this MT lists is repaired by MT-212 under this decision (blocker WP012-EGUI-SIX-TESTS-E0063-20261127). CX-VAL-009 applies when the file is edited: PASS MTs return to READY_FOR_VALIDATION at that point, not now. No status changed here.",
+    "record_ref": "MT-212.json#/egui_six_tests_remediation_20261127"
   }
 }

@@ -541,5 +541,35 @@
       "src/frontend/handshake_native/tests/test_palmistry_launch.rs"
     ],
     "reason": "Commit 9a127a239 edited files that intersect this MT's proof inputs, as announced in #/revalidation_note_20261127; the MT returns to READY_FOR_VALIDATION. validator_verdict, status_before_v1 and other lifecycle fields are left as they were (history)."
+  },
+  "preexisting_egui_failures_20261127": {
+    "recorded_on": "2026-11-27",
+    "source_ref": "MT-214.json#/eval9_final_20261127/egui_host_9a127a239",
+    "status_change": "none",
+    "failures": [
+      {
+        "test": "tests/test_palmistry_launch.rs::main_launches_palmistry_before_run_native",
+        "cause": "main.rs has had no launch_palmistry_or_degrade since commit eba6c4037 (MT-175 candidate commit, 2026-10-14)"
+      },
+      {
+        "test": "tests/test_crash_client_install.rs::main_arms_the_crash_client_after_palmistry_launch",
+        "cause": "same: main.rs has had no launch_palmistry_or_degrade since eba6c4037"
+      },
+      {
+        "test": "src/internal_diagnostics.rs:2282 (palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body)",
+        "cause": "asserts !source.contains(\"launch_palmistry_with_retry\") while that string is in its own assert line, so it cannot pass; introduced by checkpoint 34fb6f344 (2026-10-11), unchanged since"
+      }
+    ],
+    "not_caused_by": "9a127a239",
+    "blocks": "revalidation of MT-094 and MT-092 (both READY_FOR_VALIDATION)",
+    "likely_repair_owners": {
+      "rule": "CX-VAL-005 and CX-EXEC-001: the breaking commit's MT",
+      "main_rs_removal": "MT-175 (eba6c4037 recorded in MT-175.json#/successor_connected_batch_checkpoint_20261014; also referenced by MT-186 and MT-188)",
+      "internal_diagnostics_rs": "MT-175 and MT-212 list internal_diagnostics.rs in allowed write paths; the assertion line predates eba6c4037 (34fb6f344), so the repair vehicle needs an Operator or orchestrator routing decision",
+      "tests_owners": "MT-094 (test_palmistry_launch.rs) per its scope"
+    },
+    "this_mt_role": "revalidation blocked by failing test_palmistry_launch",
+    "owner_note": "test file and main.rs are in this MT scope; the failing assertion checks main.rs wiring removed by MT-175",
+    "repair_vehicle_decision": "NOT_DECIDED"
   }
 }

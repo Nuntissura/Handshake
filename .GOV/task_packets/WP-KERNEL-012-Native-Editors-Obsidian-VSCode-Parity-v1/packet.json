@@ -15224,5 +15224,36 @@
         ]
       }
     ]
+  },
+  "operator_decisions_20261127_rev172_and_egui": {
+    "recorded_on": "2026-11-27",
+    "recorded_by": "paperwork agent for ORCHESTRATOR root session, transcribing Operator chat answers verbatim",
+    "decisions": [
+      {
+        "id": "WP012-MT172-SC5-GUARD-20261127",
+        "question": "Schema revision 172 (MT-172): the original repair plan includes a guard test that fails whenever database code writes a field the schema doesn't define. It would live in schema.rs, which MT-172 may already edit. Include it in this schema stage?",
+        "operator_answer": "Include it now (Recommended)",
+        "effect": "SC-5 added as R172-26 after the confirm run, in schema.rs"
+      },
+      {
+        "id": "WP012-MT172-OUTSCOPE-TEST-WAIVER-20261127",
+        "question": "Schema revision 172 (MT-172): a few existing tests outside MT-172 and MT-173 must be run to prove the new schema. If one of them turns out red or proves nothing on the new schema, may that exact test file be edited?",
+        "operator_answer": "Allow per named file (Recommended)",
+        "effect": "a run-only test file outside MT-172/MT-173 may be edited only after a recorded run shows it red or vacuous on the composed schema, limited to that file, with a per-file HBR-STOP-005 waiver record naming the run"
+      },
+      {
+        "id": "WP012-EGUI-SIX-TESTS-VEHICLE-20261127",
+        "question": "Six old-egui-app tests stopped compiling on 2026-11-20, when MT-212's commit added two struct fields the tests don't set. The fix is a one-line field addition in each test. MT-215 needs them compiling before it can be validated. Who should make the fix?",
+        "operator_answer": "MT-212 repairs its fallout (Recommended)",
+        "effect": "MT-212 is the vehicle for the six test-literal repairs (blocker WP012-EGUI-SIX-TESTS-E0063-20261127) as one recorded remediation; the six test files are added to MT-212 for that repair only; MT-212's old claim and status unchanged; owners MT-017, MT-033, MT-034, MT-068, MT-069, MT-099 get CX-VAL-009 notes"
+      }
+    ],
+    "record_ref": "MT-172.json#/rev172_plan_20261127/operator_decisions_20261127",
+    "related_refs": [
+      "MT-172.json#/sc5_guard_inclusion_20261127",
+      "MT-172.json#/outscope_test_waiver_policy_20261127",
+      "MT-212.json#/egui_six_tests_remediation_20261127",
+      "MT-215.json#/egui_six_tests_blocker_20261127"
+    ]
   }
 }

@@ -189,7 +189,13 @@
       "src/frontend/handshake_native/motion_preference/README.md",
       "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
       "src/frontend/handshake_native_composition_tests/Cargo.toml",
-      "src/frontend/handshake_native_composition_tests/Cargo.lock"
+      "src/frontend/handshake_native_composition_tests/Cargo.lock",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs (six-test remediation only, WP012-EGUI-SIX-TESTS-VEHICLE-20261127)",
+      "src/frontend/handshake_native/tests/test_menu_wireup.rs (six-test remediation only, WP012-EGUI-SIX-TESTS-VEHICLE-20261127)",
+      "src/frontend/handshake_native/tests/test_notes_end_to_end.rs (six-test remediation only, WP012-EGUI-SIX-TESTS-VEHICLE-20261127)",
+      "src/frontend/handshake_native/tests/test_properties.rs (six-test remediation only, WP012-EGUI-SIX-TESTS-VEHICLE-20261127)",
+      "src/frontend/handshake_native/tests/test_code_note_cross_ref.rs (six-test remediation only, WP012-EGUI-SIX-TESTS-VEHICLE-20261127)",
+      "src/frontend/handshake_native/tests/test_locus_interop.rs (six-test remediation only, WP012-EGUI-SIX-TESTS-VEHICLE-20261127)"
     ],
     "forbidden_write_paths": [
       "Original MT acceptance/status rewrites",
@@ -38427,5 +38433,97 @@
     "needed_by": "MT-215 HP215-STATIC (host cargo check --tests expected clean; s8b-host-check.log exited 101 on these six); not built by MT-172, MT-213 or MT-214",
     "cx_val_009_note": "MT-017 and MT-099 list backend_client.rs in scope.allowed_paths and b9606fac3 edited it, so by the letter they were due back to validation after b9606fac3; not changed here because the next validation round is already full-scope under CX-VAL-011 (Cargo.lock gained a package, #/operator_decision_20261127_s8_phase_b), which re-validates them anyway",
     "disposition": "blocker recorded; the fix is applied just in time as a recorded remediation before MT-215 validation; the vehicle (MT-212 repairing its own fallout, or the owner MTs) is an Operator choice, to be asked with the next question batch"
+  },
+  "egui_six_tests_remediation_20261127": {
+    "decision_id": "WP012-EGUI-SIX-TESTS-VEHICLE-20261127",
+    "blocker_id": "WP012-EGUI-SIX-TESTS-E0063-20261127",
+    "recorded_on": "2026-11-27",
+    "operator_answer": "MT-212 repairs its fallout (Recommended)",
+    "remediation_basis": [
+      "CX-EXEC-012: a remediation pass fixes a failure already recorded in an MT/WP; the recorded failure and its stated remediation are the specification",
+      "CX-EXEC-014: only the MT's named proof commands run; implementers run compile and static checks only; extra runs require a recorded remediation naming them"
+    ],
+    "breaking_commit": "b9606fac3",
+    "breaking_commit_note": "commit b9606fac3 (2026-11-20, MT-212 candidate handpick-notes-native-publication-20261120-01) bumped the handshake_rich_document_model pin to e75e34ff and added RichDocBody.block_id (backend_client.rs:11868); the HsLinkNode fields came with asset commit e75e34ff; the six test files are unchanged since; not caused by 9a127a239",
+    "vehicle": "MT-212 (the breaking commit's MT, CX-VAL-005 and CX-EXEC-001) repairs its own fallout",
+    "single_writer": "GUI coding agent, for this repair only",
+    "claim_and_status": "MT-212 claim and lifecycle status unchanged",
+    "edits": [
+      {
+        "file": "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+        "line": 1170,
+        "edit": "add block_id: None at the RichDocBody literal"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_menu_wireup.rs",
+        "line": 1816,
+        "edit": "add block_id: None at the RichDocBody literal"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_notes_end_to_end.rs",
+        "line": 424,
+        "edit": "add block_id: None at the RichDocBody literal"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_properties.rs",
+        "line": 625,
+        "edit": "add block_id: None at the RichDocBody literal"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_code_note_cross_ref.rs",
+        "line": 2359,
+        "edit": "build the HsLinkNode literal with HsLinkNode::new(..) then set .resolved = false (equal to the old literal at e75e34f)"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_locus_interop.rs",
+        "line": 2083,
+        "edit": "build the HsLinkNode literal with HsLinkNode::new(..) then set .resolved = false (equal to the old literal at e75e34f)"
+      }
+    ],
+    "constraints": [
+      "nothing weakened",
+      "no assertion changed",
+      "proof: host cargo check --tests clean for the six targets (MT-215 HP215-STATIC); borrowck and runtime unproven"
+    ],
+    "owners_notified": [
+      "MT-017",
+      "MT-033",
+      "MT-034",
+      "MT-068",
+      "MT-069",
+      "MT-099"
+    ],
+    "record_ref": "MT-215.json#/egui_six_tests_blocker_20261127",
+    "same_content_as": "MT-212.json#/egui_six_tests_fallout_20261127"
+  },
+  "preexisting_egui_failures_20261127": {
+    "recorded_on": "2026-11-27",
+    "source_ref": "MT-214.json#/eval9_final_20261127/egui_host_9a127a239",
+    "status_change": "none",
+    "failures": [
+      {
+        "test": "tests/test_palmistry_launch.rs::main_launches_palmistry_before_run_native",
+        "cause": "main.rs has had no launch_palmistry_or_degrade since commit eba6c4037 (MT-175 candidate commit, 2026-10-14)"
+      },
+      {
+        "test": "tests/test_crash_client_install.rs::main_arms_the_crash_client_after_palmistry_launch",
+        "cause": "same: main.rs has had no launch_palmistry_or_degrade since eba6c4037"
+      },
+      {
+        "test": "src/internal_diagnostics.rs:2282 (palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body)",
+        "cause": "asserts !source.contains(\"launch_palmistry_with_retry\") while that string is in its own assert line, so it cannot pass; introduced by checkpoint 34fb6f344 (2026-10-11), unchanged since"
+      }
+    ],
+    "not_caused_by": "9a127a239",
+    "blocks": "revalidation of MT-094 and MT-092 (both READY_FOR_VALIDATION)",
+    "likely_repair_owners": {
+      "rule": "CX-VAL-005 and CX-EXEC-001: the breaking commit's MT",
+      "main_rs_removal": "MT-175 (eba6c4037 recorded in MT-175.json#/successor_connected_batch_checkpoint_20261014; also referenced by MT-186 and MT-188)",
+      "internal_diagnostics_rs": "MT-175 and MT-212 list internal_diagnostics.rs in allowed write paths; the assertion line predates eba6c4037 (34fb6f344), so the repair vehicle needs an Operator or orchestrator routing decision",
+      "tests_owners": "MT-094 (test_palmistry_launch.rs) per its scope"
+    },
+    "this_mt_role": "co-owner of internal_diagnostics.rs and main.rs in execution.allowed_write_paths; not the breaking commit's MT for these failures",
+    "owner_note": "claim and status unchanged",
+    "repair_vehicle_decision": "NOT_DECIDED"
   }
 }

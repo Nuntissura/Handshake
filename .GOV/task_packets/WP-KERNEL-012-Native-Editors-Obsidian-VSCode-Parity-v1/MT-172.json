@@ -14665,5 +14665,24 @@
       }
     ],
     "next": "after PT-ARRAYLEN-2, the coding agent starts R172-01 (PT003 run with pre-authored observer) on a clean backend tree"
+  },
+  "sc5_guard_inclusion_20261127": {
+    "decision_id": "WP012-MT172-SC5-GUARD-20261127",
+    "recorded_on": "2026-11-27",
+    "operator_answer": "Include it now (Recommended)",
+    "rule": "SC-5 (guard test: fails whenever database code writes a field the schema does not define) becomes picotask R172-26 in schema.rs, ordered after the confirm run",
+    "file": "schema.rs (already in MT-172 scope)",
+    "record_ref": "MT-172.json#/rev172_plan_20261127/operator_decisions_20261127"
+  },
+  "outscope_test_waiver_policy_20261127": {
+    "decision_id": "WP012-MT172-OUTSCOPE-TEST-WAIVER-20261127",
+    "recorded_on": "2026-11-27",
+    "operator_answer": "Allow per named file (Recommended)",
+    "rule": [
+      "A run-only test file outside MT-172/MT-173 may be edited only after a recorded run shows it red or vacuous on the composed schema.",
+      "The edit is limited to that one file.",
+      "A per-file HBR-STOP-005 waiver record naming the run is written before the edit."
+    ],
+    "record_ref": "MT-172.json#/rev172_plan_20261127/operator_decisions_20261127"
   }
 }

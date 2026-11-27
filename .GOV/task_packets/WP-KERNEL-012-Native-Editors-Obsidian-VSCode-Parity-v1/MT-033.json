@@ -1641,5 +1641,11 @@
     ],
     "refactor_exposure": "medium: Drag sources and drop targets become shell drag events; the embed node and Stage route stay host logic. Needs the zero-egui Vulkan shell (WP-KERNEL-012 MT-199) plus a Kumihimo pane and the shared drag/drop path of the shell. Egui-bound today: app.rs, rich_editor/renderer/rich_editor_widget.rs, graph/canvas_board.rs, atelier_side_panel.rs, stage_pane.rs and 1 more files it names (feat/WP-KERNEL-012 working tree at 3f8391ef, read 2026-11-25). Its acceptance names egui_kittest as proof tool; the same assertions must run on the Vulkan shell.",
     "recorded_at": "2026-11-25T19:05:27Z"
+  },
+  "egui_six_tests_note_20261127": {
+    "recorded_on": "2026-11-27",
+    "decision_id": "WP012-EGUI-SIX-TESTS-VEHICLE-20261127",
+    "note": "The six-test file this MT lists is repaired by MT-212 under this decision (blocker WP012-EGUI-SIX-TESTS-E0063-20261127). CX-VAL-009 applies when the file is edited: PASS MTs return to READY_FOR_VALIDATION at that point, not now. No status changed here.",
+    "record_ref": "MT-212.json#/egui_six_tests_remediation_20261127"
   }
 }
