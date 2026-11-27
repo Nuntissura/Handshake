@@ -2655,5 +2655,44 @@
     "hang_location": "logs show only each child hitting the 90 s timeout at gpu_env.rs:89; phase unknown",
     "clearing": "the 20:10 wake probably cleared it; re-run one GPU test to confirm; if it still hangs the Operator would reboot; no process needs stopping",
     "fail_fast_rule": "before GPU tests read the newest Kernel-Power 506 and 507 events; if 506 is newer than 507 skip with 'host in Modern Standby'; also run vulkaninfo --summary with a 15 s timeout (0.34 s when healthy); applied to every later GPU eval dispatch"
+  },
+  "e9b_fixes_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commits, push, log hashes and mutation rows verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "picotask_1": {
+      "items": "E9-F3, E9-F4, R5 (#/eval9_final_20261127)",
+      "commit": "e03e88281ed4e68161364bfd994520bf48a79569 (pushed): input/tests/source_scan.rs, shell/tests/source_scan.rs, window/tests/source/mod.rs under src/frontend/handshake_shell",
+      "change": "prefix bans for ImmSetComposition* and ImmEscape*; lines_with checks word edges only at word characters; lines_with_prefix added (#[allow(dead_code)] because two including scan files do not use it); R5: shell scan asserts the whole guarded let launch=(..launched_by_operator&&self.root.get()==Some(window)).then(..).flatten(); statement",
+      "tests": "input source_scan 7 pass; shell source_scan 12 pass, 1 fail (the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer, see heartbeat_scan_fallout)",
+      "mutations": "e9b-mutations.jsonl (sha256 57beab08604dd80ccb8648a240e940305d6ffb3152477d4075390a8913bddf38): baseline plus 29 rows E8F1, E8F2a x4, E8F2b x5, E8F2c x5, R1-R8e; every row lists its intended test among the failures; no compile errors; all reverted (the three E8F2b and R5 misses of eval9 now caught)",
+      "clippy": "-D warnings exit 0",
+      "logs": {
+        "e9b-scans.log": "aac8db91748233248c8c1d41b9d55575363388f7f52501c194fe4f7edea19008",
+        "e9b-clippy.log": "07e10fd3d91e83c669ec49345dda8fe71e92769ff0eab88699257703325499f3"
+      },
+      "log_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs"
+    },
+    "picotask_2": {
+      "item": "E9-F1 (open claims in the shutdown report)",
+      "commit": "8003327ced229d1918d8653228c0197e6a59f5d5 (pushed): surface/src/decide.rs, surface/src/host/ending.rs",
+      "cause": "the owner's report is single-shot at close(); claims settled only after close drains, so a settle after close cannot change the report",
+      "change": "settle_before_close loops poll + settle_all for at most 500 ms with 2 ms pauses before close; if claims still wait it closes anyway; the post-close settle is unchanged; settle_all now returns whether a claim still waits",
+      "tests": "pure settle_wait test in decide.rs; source-order test in ending.rs (settle < close < second settle < report recorded); surface lib 34 pass, surface source_scan 5 pass; clippy -D warnings exit 0",
+      "log": {
+        "e9b-e9b-surface-unit.log": "391925474222bb17052e6130d0991ba705d68fc00aaa4ec39dbe5e9297f205fd"
+      },
+      "unproven": "multiwindow and shell_program GPU runs not done; that the first settle completes inside 500 ms is not shown (if not, the report stays unsettled as before)"
+    },
+    "heartbeat_scan_fallout": {
+      "test": "shell/tests/source_scan.rs::the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer, assert at line 545",
+      "flagged": [
+        "../../handshake_host_ports/palmistry_launch/src/lib.rs:2531 writer.write_heartbeat(1, 2)",
+        "../../handshake_host_ports/palmistry_launch/src/lib.rs:2596 writer2.write_heartbeat(1, 2)"
+      ],
+      "origin": "git blame: both lines from 9a127a239 (MT-215 S8b), inside the #[cfg(test)] mod tests that starts at lib.rs:2108; the scan passed at 4dad81781 (eval9 shell rerun 12 pass, 1 fail E9-F4)",
+      "status": "repair owner and form being routed (read-only specialist with adversarial review)"
+    },
+    "picotask_3": "six egui test literals under WP012-EGUI-SIX-TESTS-VEHICLE-20261127: edited in the product worktree, not built or committed (build slot held by PT-ARRAYLEN-2); the coder's background check script waits for the slot",
+    "next": "GUI eval of e03e88281 and 8003327ce with GPU runs under the fail-fast rule; checker static review"
   }
 }

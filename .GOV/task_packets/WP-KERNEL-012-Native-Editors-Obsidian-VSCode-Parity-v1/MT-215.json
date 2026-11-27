@@ -1628,5 +1628,12 @@
     "needed_by": "MT-215 HP215-STATIC (host cargo check --tests expected clean; s8b-host-check.log exited 101 on these six); not built by MT-172, MT-213 or MT-214",
     "cx_val_009_note": "MT-017 and MT-099 list backend_client.rs in scope.allowed_paths and b9606fac3 edited it, so by the letter they were due back to validation after b9606fac3; not changed here because the next validation round is already full-scope under CX-VAL-011 (Cargo.lock gained a package, #/operator_decision_20261127_s8_phase_b), which re-validates them anyway",
     "disposition": "blocker recorded; the fix is applied just in time as a recorded remediation before MT-215 validation; the vehicle (MT-212 repairing its own fallout, or the owner MTs) is an Operator choice, to be asked with the next question batch"
+  },
+  "heartbeat_scan_fallout_20261127": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-27",
+    "finding": "commit 9a127a239 (S8b) added two write_heartbeat calls in the #[cfg(test)] mod tests of src/frontend/handshake_host_ports/palmistry_launch/src/lib.rs (lines 2531 and 2596, git blame); MT-214's shell scan the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer reads that crate through its closure sources and fails at shell/tests/source_scan.rs:545 since 9a127a239; it passed at 4dad81781",
+    "evidence": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs/e9b-scans.log sha256 aac8db91748233248c8c1d41b9d55575363388f7f52501c194fe4f7edea19008; MT-214.json#/e9b_fixes_20261127/heartbeat_scan_fallout",
+    "status": "repair owner and form being routed; no file changed for it yet"
   }
 }
