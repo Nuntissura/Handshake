@@ -1558,5 +1558,43 @@
       "not_returned": "MT-032 and the other PASS MTs that list the native manifest in scope are not returned to READY_FOR_VALIDATION for the manifest edit; precedent: 59 src commits since 2026-11-20, and b9606fac3 (manifest and lock edit) returned neither MT-032 nor the 26 manifest-listing PASS MTs (adversarial review finding 3_MT-032).",
       "returned_by_launcher_edit": "MT-094 and MT-096 return to READY_FOR_VALIDATION on the palmistry_launch.rs edit (existing revalidation notes); MT-092 and MT-094 also on the test retarget edits (CX-VAL-009)."
     }
+  },
+  "s8b_implementation_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commit, paths and logs checked by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "step": "S8 phase B (AC215-11): egui host switched to the toolkit-free crate",
+    "decision_refs": [
+      "#/operator_decision_20261127_palmistry_launcher",
+      "#/operator_decision_20261127_s8_phase_b"
+    ],
+    "commit": "9a127a23942bce40c4472c2cc504081cf9d18be6 (pushed 57c6fcad4..9a127a239, no force; 7 files: palmistry_launch/src/lib.rs, palmistry_launch/tests/test_toolkit_free.rs, handshake_native/Cargo.toml (one line), Cargo.lock (+21, 0 removed), src/diagnostics/palmistry_launch.rs (thin re-export), tests/test_palmistry_launch.rs and tests/test_crash_client_install.rs (include_str path only))",
+    "lock_delta": "additive only (cargo metadata --offline): new package palmistry_launch 0.1.0 and its dependency list, one line in handshake-native's dependency list; no existing version changed, no second windows-sys, interprocess or serde, no Kumihimo pin change",
+    "egui_file": "pub use ::palmistry_launch::* (F10), preinstalled slot, PalmistryAdoptionExt extension trait with state in host_slot_mut(), impl PalmistryLaunchSession for DiagSession (F6), retained tests preinstalled_session_round_trips_then_empties, signed_launch_evidence_tests (single owner, F8), a Send/!Sync check, a sink check and the egui conformance test",
+    "crate_changes": {
+      "F1": "marker_sink required; markers via record_handshake_marker, record_shutdown_marker, record_degraded_marker; test covers all three and the real Degraded path through launch_palmistry_or_degrade",
+      "F2": "slot stays Box<dyn Any + Send>: the original retained adoption attempt is a Pin<Box<dyn Future + Send>>, so the original handle was Send and not Sync (field analysis, not compiled at 0f7ccc2e0); handle_auto_traits_match_the_original asserts Send and !Sync",
+      "F3": "comment corrected; new_v4 kept under the HBR-INT-008 legacy clause",
+      "F7": "focus and foreground API ban scan with positive control",
+      "F8": "duplicate signed_launch_evidence_tests removed from the crate",
+      "F9": "manifest scan covers [dependencies.x] headers incl. target and dev, package renames, dotted keys, # and block comments, with positive controls",
+      "seam": "doc-hidden build_watcher_command, signed_bootstrap and signed_watcher_argv_without_spawn; argv, order and validation unchanged",
+      "conformance": "LaunchSession, DiagSession and a stub host go through signed_watcher_argv_without_spawn (same signed_bootstrap validation and build_watcher_command as launch_palmistry_signed_at, nothing spawned); asserts argv equality, --ring-version 2, --ring-nonce, --signing-process-instance, --runtime-instance-id and the schema, host-scope, lease and creation-time flags; positive control: another nonce changes the argv; source scan: one Command::new, one definition and two callers each"
+    },
+    "logs": {
+      "folder": "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/logs/",
+      "s8b-crate-check.log": "EXIT 0, 0111f1f2da32dd170f3a0570efd6781a2e08724244e015129760fb165d505063",
+      "s8b-crate-clippy.log": "EXIT 0 (-D warnings), c615811aeb5a3499b38d895f53f437ac3019488d14f82db1b3ecaf3098f887fb",
+      "s8b-crate-test.log": "EXIT 0, 19 lib + 12 toolkit-free tests pass, f5baec325f47deb7892cb0d3499937b1082f50495e214ab742471360c6a9624e",
+      "s8b-crate-tree.log": "EXIT 0, no forbidden crate, 770c08474296ac189e64f53a5fdcb09f50785daa6360b271182e208483ee0402",
+      "s8b-lock-resolve.log": "EXIT 0, a9ed690922f7f18e990f716c7aa7c214ad912fa1a5c846440b18802232fc78ec",
+      "s8b-host-check.log": "EXIT 101, 4e39dc036a5d63440d4bc3b43c598e1d2e9745850a5b1135d48b4863534e8054: handshake-native lib test target, test_palmistry_launch and test_crash_client_install compiled; six test targets fail with E0063 missing struct fields on RichDocBody (block_id) and HsLinkNode (tag_ref_kind, target_block_id, target_kind): test_code_note_cross_ref, test_ckc_embed, test_properties, test_locus_interop, test_notes_end_to_end, test_menu_wireup; whether they fail at 4dad81781 too is UNVERIFIED (checker to confirm); target 169.37e9 -> 173.74e9 bytes"
+    },
+    "unverified": [
+      "no egui host test run (extension trait runtime, egui conformance test, Send/!Sync test)",
+      "non-Windows branches not compiled",
+      "ui_heartbeat re-run (F4)",
+      "whether the six E0063 failures are pre-existing"
+    ],
+    "status_effect": "diagnostics/palmistry_launch.rs and tests/test_crash_client_install.rs edited: MT-094, MT-096 and MT-092 return to READY_FOR_VALIDATION under CX-VAL-009 (recorded by the paperwork pass)"
   }
 }

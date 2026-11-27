@@ -2538,5 +2538,52 @@
     },
     "tests_run": "none; the new scans and the root-window test were not executed; independent eval pending (queued behind the backend batch, one build per disk)",
     "needs_real_desktop": "the Operator-class launch activation (root takes focus once at launch, nothing else does); MT-213 x64 gate"
+  },
+  "eval9_partial_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's PARTIAL report (Sonnet); the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-27",
+    "commit": "4dad81781 (git archive of src/frontend, 838 blobs matched, plus src/backend/handshake_runtime_instance)",
+    "status": "partial: first shell-workspace run done; the shell rerun, bisect and MT-215 ports scripts ran unattended after the slot freed (done markers 11:15-11:24) and are not yet interpreted; about 45 mutations defined, none executed",
+    "run1": "297 passed, 13 failed, 1 ignored (clipboard); window lib 112/112 and test_* pass, quiet_tests.rs no longer fails; surface, input lib 38 + real_loop 1, accessibility lib 22 + source_scan 6, shell lib 10, beat_path_locks 5, heartbeat_loop 1, heartbeat_present 1, startup_gate 7, unavailable 5 pass",
+    "findings": [
+      {
+        "id": "E9-F1",
+        "severity": "high (cause unproven)",
+        "at": "shell tests multiwindow and shell_program (2)",
+        "defect": "ExitKind::ShutdownUnsettled, settled=false, ring_marked=false on the real GPU with 4 windows; expected Clean and WatcherNotAcknowledged",
+        "next": "diag probe of the ShutdownReport; ARM64 D3D-mapping teardown possible, UNVERIFIED"
+      },
+      {
+        "id": "E9-F2",
+        "severity": "medium",
+        "at": "accessibility/tests/uia_client.rs:558",
+        "defect": "activations_refused 1 or 2 against baseline 0, deterministic in 3 reruns; passed 4/4 at 64f8b250f",
+        "next": "bisect copies bis-64f8b250f and bis-80958a384 ran unattended; they separate a window-crate regression (wait-free 80958a384) from environment drift"
+      },
+      {
+        "id": "E9-F3",
+        "severity": "medium",
+        "at": "input/tests/source_scan.rs:270",
+        "defect": "the ImmSetComposition ban uses whole-word matching, so ImmSetCompositionStringW and ImmEscapeW are not caught; the E8-F2b claim is false and its own control fails"
+      },
+      {
+        "id": "E9-F4",
+        "severity": "medium",
+        "at": "shell/tests/source_scan.rs:841",
+        "defect": "the root-window test fails at its first assertion on the pristine commit: lines_with is whole-word and operator_root( is followed by ring; the next assertion (no ProgramConfig::new( line in main) is vacuous for new(ring) for the same reason; the implementer never ran it"
+      }
+    ],
+    "operator_safety_run1": "33,305 samples, 2,475 enumeration passes; 0 foreground, focus or Z-order changes by the run; 6 clipboard-state changes in the before phase, none attributed to the run; only vctip.exe windows seen; the first uia reruns recompiled the accessibility crate without the build slot (minor slot-rule breach)",
+    "logs": {
+      "folder": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval9-20261127/",
+      "eval-run-4dad81781-all.log": "fa4268bb922ab7f6b91c74494d9c961f56c1639218c09acfbd679556389d47a8",
+      "eval-result-4dad81781-all.json": "aafa9f8faaf204fd1beb2aa713f5f4b5ba63fcfdc75527e0bb65fbcf053f92f4"
+    },
+    "cannot_prove_here": [
+      "native x64 GPU teardown",
+      "real IME",
+      "a screen reader",
+      "SetFocus on the real input desktop"
+    ]
   }
 }

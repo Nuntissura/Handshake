@@ -14466,5 +14466,28 @@
     "blocked_01": "G02 + G03 (8 tests) need the SC-6 schema revision 172 stage; strictly gated by MT-172.json#/schema_repair_spec_20261125/operator_decisions[4] (scope for schema_revision166/168/169/170.rs, new schema_revision171.rs, upgrade/guard tests, in no MT) and [2] for G03 (worktree VM second predecessor or Operator confirms none); [0] row 7 already decided at MT-173.json#/operator_decision_20261126_cloud_consent_revocation; [1] PT003-in-172 optional",
     "pt003": "original test api::code_nav_index_account_tests::mounted_first_owner_workspace_create_persists_original_receipt_and_grant (src/backend/handshake_core/src/api/code_nav_index_account_tests.rs:268); not in this batch; status UNVERIFIED",
     "g06_note": "pt-arraylen diag-01 and diag-02 builds ended in compile errors per the reviewer; no bisect evidence yet (the coding agent's picotask is still running)"
+  },
+  "pt_arraylen_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); named check verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "picotask": "PT-ARRAYLEN: SC-3b-R and SC-4-R (eval refutations in #/eval_reclaim_20261127)",
+    "commit": "57c6fcad4dd28e4734f6c05d8b658051f57b5d27 (pushed; only src/backend/handshake_core/src/storage/surreal/model_lane.rs and loom_search.rs; loom_search.rs is MT-173 scope)",
+    "root_cause": "SurrealDB 3.2.0: LET $x = IF cond { (SELECT ..) } ELSE { [] } evaluates to NONE, not an array, when the SELECT branch is taken; the next array::len($x) fails. The suspected wsids/permission cause (model_lane_schema.surql:530) was wrong",
+    "sites": {
+      "SC-3b-R": "ROUTING_COMMIT_QUERY model_lane.rs 93, 94, 97 ($message_existing, $binding_existing, $source_lane), failing at LET $result = IF array::len(..) line 98 when has_message and has_binding are true",
+      "SC-4-R": "REINDEX_QUERY loom_search.rs LET $receipt line 483; SELECT branch taken only when an index row exists (second reindex, test line 1949); the earlier record::id guard was a different real bug"
+    },
+    "evidence": "MT-172/pt-arraylen-20261127/diag-04/run.log (sha256 a43a787716e895d8919f7a4b1258fb3d94a17725e17c109e4b6691f332501d65): bisection on the real queries and 12 minimal probes; a lone SELECT branch gives NONE with or without parentheses, inside or outside a transaction; an inner LET, a SELECT with no IF, or the condition folded into WHERE gives an array",
+    "fix": "IF c { LET $hsk_rows = (SELECT ..); $hsk_rows } ELSE {..} at 19 sites (model_lane.rs 16, loom_search.rs 3) plus source guard test if_branch_subquery_guard_tests::no_if_branch_holds_only_a_parenthesized_select",
+    "focused_test": "MT-172/pt-arraylen-20261127/focused-01/run.log sha256 6e13f2f5144adfa62993a057c3bd8533fe6f6ecbb0870b2d00749bb7f83c7c41: exit 0, 9 run, 9 passed (the two refuted tests plus the 7 receipt_writer_schema_tests); run on the dirty tree before the commit",
+    "compile_runs": {
+      "compile-check-20261127-01": "ITERATION on 4dad81781 plus dirty model_lane.rs and loom_search.rs: exit 0, inputs_unchanged true, cargo.log sha256 8467ef4fcd8a6ade6519a7404b781ed2e4f63fc8d0f9ff9130745ee952e23b22",
+      "compile-check-20261127-02": "unmodified launcher (sha256 005406f62f7b97de99c8c7c9b138e6fdedd15b21cc7a5793156bd7b0b32b4587), check_id WP012-P1-MT-172-COMPILE, head 57c6fcad4: exit 0, inputs_unchanged true, dirty none, cargo.log sha256 5c7d61cceea8f9e0028257a7a9bce8de60604570998085a4354fd63fac3bb950; verified by the orchestrator"
+    },
+    "unverified": [
+      "13 other rewritten model_lane.rs sites (promotion, CRDT, lane, source) compile-checked, not exercised",
+      "same pattern not yet touched: model_registry.rs (9 sites), user_manual_knowledge.rs (3), storage/surreal.rs:5668, atelier/pose.rs (4), knowledge_code_index/engine.rs:166; ownership not yet checked"
+    ],
+    "next": "checker static review of the 19 rewrites; independent eval in the next backend batch"
   }
 }
