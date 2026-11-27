@@ -223,7 +223,7 @@ fn crash_socket_derivation_is_pinned_equal_across_crates() {
 #[test]
 fn main_arms_the_crash_client_after_palmistry_launch() {
     let main_src = include_str!("../src/main.rs");
-    let launcher_src = include_str!("../src/diagnostics/palmistry_launch.rs");
+    let launcher_src = include_str!("../../handshake_host_ports/palmistry_launch/src/lib.rs");
 
     // Strip full-line comments so the scan matches CODE, not the prose that names these APIs.
     let code_only = |src: &str| -> String {

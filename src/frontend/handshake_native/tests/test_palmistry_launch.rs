@@ -37,7 +37,7 @@ use handshake_native::diagnostics::{
 // ── Source-of-truth scans (compile-time embeds; disk-agnostic, no cwd dependency) ────────────────────
 
 const MAIN_RS: &str = include_str!("../src/main.rs");
-const LAUNCHER_RS: &str = include_str!("../src/diagnostics/palmistry_launch.rs");
+const LAUNCHER_RS: &str = include_str!("../../handshake_host_ports/palmistry_launch/src/lib.rs");
 const CARGO_TOML: &str = include_str!("../Cargo.toml");
 
 /// Strip full-line `//` / `///` / `//!` comments so a SOURCE-SCAN matches CODE, not prose. (The doc

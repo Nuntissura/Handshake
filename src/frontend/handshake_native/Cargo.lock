@@ -1844,6 +1844,7 @@ dependencies = [
  "object",
  "palmistry",
  "palmistry-control-protocol",
+ "palmistry_launch",
  "pulldown-cmark",
  "rand 0.9.4",
  "regex",
@@ -3422,6 +3423,26 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "palmistry_launch"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "handshake-diag-ring",
+ "handshake_runtime_instance",
+ "hex",
+ "interprocess",
+ "palmistry-control-protocol",
+ "rand 0.9.4",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tracing",
+ "uuid",
+ "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]

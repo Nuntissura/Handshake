@@ -110,10 +110,9 @@ pub trait PalmistryLaunchSession {
     fn session_id(&self) -> &str;
     /// The diag-ring backing file Palmistry maps (`--ring-path`).
     fn ring_path(&self) -> &Path;
-    /// Where launcher markers go. `None` records nothing (a host without a recorder).
-    fn marker_sink(&self) -> Option<LaunchMarkerSink> {
-        None
-    }
+    /// Where launcher markers go. Required (no default), so a host cannot silently stop recording the Handshake,
+    /// Shutdown and Degraded markers the egui host always recorded; a host without a recorder returns `None`.
+    fn marker_sink(&self) -> Option<LaunchMarkerSink>;
 }
 
 /// A host-neutral [`PalmistryLaunchSession`] for hosts that hold only these values.
@@ -1045,6 +1044,21 @@ fn perform_handshake(
     }
 }
 
+/// The Handshake marker: the startup handshake was acknowledged (counter_a is the parent pid).
+fn record_handshake_marker(sink: Option<LaunchMarkerSink>, parent_pid: u32) {
+    record_marker(sink, DiagEventCode::PalmistryHandshake, DiagPhase::Start, DiagSeverity::Info, parent_pid as u64);
+}
+
+/// The Shutdown marker: the owned watcher exited cleanly (counter_a is the child pid).
+fn record_shutdown_marker(sink: Option<LaunchMarkerSink>, child_pid: u32) {
+    record_marker(sink, DiagEventCode::Shutdown, DiagPhase::End, DiagSeverity::Info, child_pid as u64);
+}
+
+/// The Degraded marker: the watcher could not be launched and the host continues without it.
+fn record_degraded_marker(sink: Option<LaunchMarkerSink>) {
+    record_marker(sink, DiagEventCode::PalmistryHandshake, DiagPhase::Degraded, DiagSeverity::Warn, 0);
+}
+
 /// Record a typed internal_diagnostics marker for a launcher lifecycle event (handshake / shutdown /
 /// degrade). All-typed integer payload (no text) — the §5.8.3 allowlist stays structural.
 fn record_marker(
@@ -1130,6 +1144,8 @@ pub struct PalmistryHandle {
     signed_watcher_process: Option<SignedWatcherProcess>,
     adoption_operation_id: uuid::Uuid,
     /// Host-owned extension state (the egui host keeps its adoption operation here); opaque to the launcher.
+    /// `Send` only: the original handle was `Send` and not `Sync` (its adoption state holds a `dyn Future + Send`),
+    /// and this keeps exactly those auto traits (`handle_auto_traits_match_the_original`).
     host_slot: Option<Box<dyn Any + Send>>,
     marker_sink: Option<LaunchMarkerSink>,
     child: Child,
@@ -1145,6 +1161,16 @@ pub struct PalmistryHandle {
     /// late-connect step; MT-092/MT-094 remediation).
     crash_socket: String,
     shutdown_done: bool,
+}
+
+/// Exit probe of the owned watcher child (see [`PalmistryHandle::host_slot_and_child_probe`]).
+pub struct OwnedChildProbe<'a>(&'a mut Child);
+
+impl OwnedChildProbe<'_> {
+    /// Whether the owned watcher child has exited (`Err` when its status cannot be read).
+    pub fn has_exited(&mut self) -> io::Result<bool> {
+        Ok(self.0.try_wait()?.is_some())
+    }
 }
 
 /// Borrowed view of the owned signed watcher process identity captured at launch.
@@ -1307,9 +1333,10 @@ impl PalmistryHandle {
             })
     }
 
-    /// Whether the owned watcher child has exited (`Err` when its status cannot be read).
-    pub fn owned_child_exited(&mut self) -> io::Result<bool> {
-        Ok(self.child.try_wait()?.is_some())
+    /// The host slot and a probe of the owned child, borrowed together (disjoint fields), so a host can advance its
+    /// slot state while checking the child without moving the state out of the slot.
+    pub fn host_slot_and_child_probe(&mut self) -> (&mut Option<Box<dyn Any + Send>>, OwnedChildProbe<'_>) {
+        (&mut self.host_slot, OwnedChildProbe(&mut self.child))
     }
 
     /// Launch-local signed evidence; not backend adoption/START/authenticated key delivery.
@@ -1491,13 +1518,7 @@ impl PalmistryHandle {
                     "owned Palmistry watcher reaped"
                 );
                 if clean {
-                    record_marker(
-                        self.marker_sink,
-                        DiagEventCode::Shutdown,
-                        DiagPhase::End,
-                        DiagSeverity::Info,
-                        self.child.id() as u64,
-                    );
+                    record_shutdown_marker(self.marker_sink, self.child.id());
                     ShutdownOutcome::ExitedCleanly(ShutdownExit { acknowledgement, status })
                 } else {
                     ShutdownOutcome::ExitedUncleanly { acknowledgement, status }
@@ -1636,6 +1657,29 @@ pub fn launch_palmistry_signed_at<S: PalmistryLaunchSession + ?Sized>(
     signing_seed: zeroize::Zeroizing<Vec<u8>>,
     transport_public_key: [u8; 32],
 ) -> io::Result<PalmistryHandle> {
+    let bootstrap = signed_bootstrap(
+        session,
+        ring_path,
+        native_lease,
+        process_instance_id,
+        launch_nonce,
+        signing_seed,
+        transport_public_key,
+    )?;
+    launch_palmistry_at_with_bootstrap(exe, session, ring_path, control_socket, Some(bootstrap))
+}
+
+/// The signed-launch validation both the real launch and the argv seam run: original session, process instance,
+/// nonce, seed, transport key, the canonical native session lease and the existing ring. Spawns nothing.
+fn signed_bootstrap<S: PalmistryLaunchSession + ?Sized>(
+    session: &S,
+    ring_path: &Path,
+    native_lease: &handshake_runtime_instance::EmbeddedRuntimeInstanceLease,
+    process_instance_id: uuid::Uuid,
+    launch_nonce: [u8; 16],
+    signing_seed: zeroize::Zeroizing<Vec<u8>>,
+    transport_public_key: [u8; 32],
+) -> io::Result<SignedWatcherBootstrap> {
     let original_session = uuid::Uuid::parse_str(session.session_id()).map_err(|_| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -1678,39 +1722,63 @@ pub fn launch_palmistry_signed_at<S: PalmistryLaunchSession + ?Sized>(
     }
     // Validate the actual existing ring, not a path/CLI assertion of version or nonce.
     let _ring = handshake_diag_ring::ring::DiagRingReaderV2::open(ring_path, launch_nonce)?;
-    launch_palmistry_at_with_bootstrap(
-        exe,
-        session,
-        ring_path,
-        control_socket,
-        Some(SignedWatcherBootstrap {
-            process_instance_id,
-            launch_nonce,
-            signing_seed,
-            transport_public_key,
-            native_descriptor: descriptor.clone(),
-            parent_os_creation_time_100ns,
-        }),
-    )
+    Ok(SignedWatcherBootstrap {
+        process_instance_id,
+        launch_nonce,
+        signing_seed,
+        transport_public_key,
+        native_descriptor: descriptor.clone(),
+        parent_os_creation_time_100ns,
+    })
 }
 
-fn launch_palmistry_at_with_bootstrap<S: PalmistryLaunchSession + ?Sized>(
+/// The watcher argument vector the signed launch would pass, built through the same validation and command builder
+/// as [`launch_palmistry_signed_at`], without spawning anything (the host-conformance seam: two hosts with the same
+/// inputs must get the same vector). Not a launch entry point.
+#[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
+pub fn signed_watcher_argv_without_spawn<S: PalmistryLaunchSession + ?Sized>(
     exe: &Path,
     session: &S,
     ring_path: &Path,
     control_socket: &str,
-    bootstrap: Option<SignedWatcherBootstrap>,
-) -> io::Result<PalmistryHandle> {
-    let parent_pid = std::process::id();
+    native_lease: &handshake_runtime_instance::EmbeddedRuntimeInstanceLease,
+    process_instance_id: uuid::Uuid,
+    launch_nonce: [u8; 16],
+    signing_seed: zeroize::Zeroizing<Vec<u8>>,
+    transport_public_key: [u8; 32],
+) -> io::Result<Vec<std::ffi::OsString>> {
+    let bootstrap = signed_bootstrap(
+        session,
+        ring_path,
+        native_lease,
+        process_instance_id,
+        launch_nonce,
+        signing_seed,
+        transport_public_key,
+    )?;
+    let command = build_watcher_command(
+        exe,
+        session,
+        ring_path,
+        control_socket,
+        std::process::id(),
+        Some(&bootstrap),
+    );
+    Ok(command.get_args().map(std::ffi::OsStr::to_os_string).collect())
+}
 
-    // MT-092/MT-094 remediation — the launcher-side half of the §6.13.6 crash rendezvous: DERIVE the
-    // minidumper crash-socket path from the SAME control-socket base name Palmistry derives it from
-    // (Palmistry's crash server binds `crash_socket_path(control_socket)` during its startup; no extra
-    // CLI arg is needed because both sides share the one derivation rule, pinned equal by the
-    // cross-crate wire test). The handle carries it so `main()` can arm the crash CLIENT against it
-    // AFTER the watcher is up (late-connect).
-    let crash_socket = crash_socket_path(control_socket);
-
+/// Build the watcher command (argv, stdio, creation flags) for one launch. The one place the argv is made: both
+/// hosts reach it through [`launch_palmistry_signed_at`] / [`launch_palmistry_at`], so the shell adapter and the
+/// egui host start the watcher with the same argument vector for the same inputs.
+fn build_watcher_command<S: PalmistryLaunchSession + ?Sized>(
+    exe: &Path,
+    session: &S,
+    ring_path: &Path,
+    control_socket: &str,
+    parent_pid: u32,
+    bootstrap: Option<&SignedWatcherBootstrap>,
+) -> Command {
     // The MT-089 inputs, passed as CLI args (which OVERRIDE env in palmistry's intake) so the launcher
     // never mutates its OWN process environment. Spawn FREE-STANDING (no job — SPAWN_NOT_KILL_ON_JOB_CLOSE)
     // and HEADLESS/QUIET: CREATE_NO_WINDOW + null stdio (never inherits/steals the console; HBR-QUIET).
@@ -1732,7 +1800,7 @@ fn launch_palmistry_at_with_bootstrap<S: PalmistryLaunchSession + ?Sized>(
         command.creation_flags(CREATE_NO_WINDOW);
     }
 
-    if let Some(bootstrap) = bootstrap.as_ref() {
+    if let Some(bootstrap) = bootstrap {
         let nonce_hex: String = bootstrap
             .launch_nonce
             .iter()
@@ -1762,6 +1830,27 @@ fn launch_palmistry_at_with_bootstrap<S: PalmistryLaunchSession + ?Sized>(
             .arg(bootstrap.parent_os_creation_time_100ns.to_string())
             .stdin(Stdio::piped());
     }
+    command
+}
+
+fn launch_palmistry_at_with_bootstrap<S: PalmistryLaunchSession + ?Sized>(
+    exe: &Path,
+    session: &S,
+    ring_path: &Path,
+    control_socket: &str,
+    bootstrap: Option<SignedWatcherBootstrap>,
+) -> io::Result<PalmistryHandle> {
+    let parent_pid = std::process::id();
+
+    // MT-092/MT-094 remediation — the launcher-side half of the §6.13.6 crash rendezvous: DERIVE the
+    // minidumper crash-socket path from the SAME control-socket base name Palmistry derives it from
+    // (Palmistry's crash server binds `crash_socket_path(control_socket)` during its startup; no extra
+    // CLI arg is needed because both sides share the one derivation rule, pinned equal by the
+    // cross-crate wire test). The handle carries it so `main()` can arm the crash CLIENT against it
+    // AFTER the watcher is up (late-connect).
+    let crash_socket = crash_socket_path(control_socket);
+
+    let mut command = build_watcher_command(exe, session, ring_path, control_socket, parent_pid, bootstrap.as_ref());
     let expected_signer = bootstrap.as_ref().map(|bootstrap| {
         let exact = zeroize::Zeroizing::new(
             <[u8; 32]>::try_from(bootstrap.signing_seed.as_slice()).expect("validated exact seed"),
@@ -1931,13 +2020,7 @@ fn launch_palmistry_at_with_bootstrap<S: PalmistryLaunchSession + ?Sized>(
                 control_socket,
                 "palmistry startup handshake acked (Tier 3 confirmed watching, §6.13.3)"
             );
-            record_marker(
-                session.marker_sink(),
-                DiagEventCode::PalmistryHandshake,
-                DiagPhase::Start,
-                DiagSeverity::Info,
-                parent_pid as u64,
-            );
+            record_handshake_marker(session.marker_sink(), parent_pid);
             (Some(reader), true, None)
         }
         Ok(Err(err)) => {
@@ -1981,8 +2064,10 @@ fn launch_palmistry_at_with_bootstrap<S: PalmistryLaunchSession + ?Sized>(
     })
 }
 
-/// The launch-local operation id. `new_v4` is kept as before the move (random, never on the launcher wire); the
-/// repo's `Uuid::now_v7` rule (HBR-INT-008) is not applied here so no launch behaviour changes in this extraction.
+/// The adoption operation id. `new_v4` is kept as before the move under the HBR-INT-008 legacy clause: this id
+/// reaches the backend (the adoption request carries it; `api/palmistry.rs` 973, 1001 and 1033 read it), so
+/// switching to `Uuid::now_v7` here would change what the backend receives. The extraction must not change the wire;
+/// a v4-to-v7 sweep is a separate item.
 #[allow(clippy::disallowed_methods)]
 fn new_operation_id() -> uuid::Uuid {
     uuid::Uuid::new_v4()
@@ -2014,13 +2099,7 @@ pub fn launch_palmistry_or_degrade<S: PalmistryLaunchSession + ?Sized>(
             );
             // A typed internal_diagnostics event so the absence of the Tier-3 watcher is observable on the
             // ring + the in-app panel (a BackendUnreachable-style degradation marker, but for the watcher).
-            record_marker(
-                session.marker_sink(),
-                DiagEventCode::PalmistryHandshake,
-                DiagPhase::Degraded,
-                DiagSeverity::Warn,
-                0,
-            );
+            record_degraded_marker(session.marker_sink());
             None
         }
     }
@@ -2030,6 +2109,19 @@ pub fn launch_palmistry_or_degrade<S: PalmistryLaunchSession + ?Sized>(
 mod tests {
     use super::*;
     use interprocess::local_socket::traits::Listener as _;
+
+    /// Serializes the tests that set the process-wide watcher-exe override.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    /// Markers the test sink received.
+    static MARKERS: Mutex<Vec<LaunchMarker>> = Mutex::new(Vec::new());
+
+    fn collect_marker(marker: LaunchMarker) {
+        MARKERS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).push(marker);
+    }
+
+    fn collected() -> Vec<LaunchMarker> {
+        MARKERS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone()
+    }
     use interprocess::local_socket::{GenericNamespaced, ToNsName};
 
     fn unique_test_socket(label: &str) -> String {
@@ -2276,6 +2368,7 @@ mod tests {
         // trigger). A scoped env set/remove on a unique key the rest of the suite never reads.
         let bogus = std::env::temp_dir().join("definitely-not-a-palmistry-binary-mt094.exe");
         let _ = std::fs::remove_file(&bogus);
+        let _env = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let prev = std::env::var_os(ENV_PALMISTRY_EXE);
         std::env::set_var(ENV_PALMISTRY_EXE, &bogus);
         let resolved = resolve_palmistry_exe();
@@ -2293,144 +2386,228 @@ mod tests {
         assert!(SPAWN_NOT_KILL_ON_JOB_CLOSE.contains("6.13.3"));
         assert!(SPAWN_NOT_KILL_ON_JOB_CLOSE.contains("free-standing"));
     }
-}
 
-#[cfg(test)]
-mod signed_launch_evidence_tests {
-    use super::*;
+    // ---- F1: the Handshake, Shutdown and Degraded markers reach the host sink ----
+
     #[test]
-    fn signed_launch_verifier_rejects_forgery_replay_and_legacy_ack() {
-        use ed25519_dalek::Signer;
-        let identity = SignedWatcherIdentity {
-            protocol_version: 1,
-            session_id: uuid::Uuid::from_u128(1),
-            process_instance_id: uuid::Uuid::from_u128(2),
-            parent_pid: 3,
-            watcher_pid: 4,
-            ring_version: 2,
-            record_size: 120,
-            launch_nonce: [5; 16],
-            runtime_instance_schema_id: EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.to_string(),
-            runtime_instance_id: uuid::Uuid::from_u128(1),
-            runtime_host_scope_id: "signed-wire-unit-test".to_string(),
-            runtime_lease_protocol: EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL.to_string(),
-            runtime_lease_address: std::net::Ipv4Addr::LOCALHOST.into(),
-            runtime_lease_port: 43210,
-            parent_os_creation_time_100ns: 17,
+    fn launcher_markers_reach_the_host_sink() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        MARKERS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clear();
+
+        // The three marker functions the launch sites call, with the exact code, phase, severity and counter.
+        record_handshake_marker(Some(collect_marker), 4242);
+        record_shutdown_marker(Some(collect_marker), 777);
+        record_degraded_marker(Some(collect_marker));
+        let seen = collected();
+        assert_eq!(seen.len(), 3, "each marker must reach the sink exactly once: {seen:?}");
+        assert_eq!(
+            (seen[0].code, seen[0].phase, seen[0].severity, seen[0].counter_a),
+            (DiagEventCode::PalmistryHandshake, DiagPhase::Start, DiagSeverity::Info, 4242)
+        );
+        assert_eq!(
+            (seen[1].code, seen[1].phase, seen[1].severity, seen[1].counter_a),
+            (DiagEventCode::Shutdown, DiagPhase::End, DiagSeverity::Info, 777)
+        );
+        assert_eq!(
+            (seen[2].code, seen[2].phase, seen[2].severity, seen[2].counter_a),
+            (DiagEventCode::PalmistryHandshake, DiagPhase::Degraded, DiagSeverity::Warn, 0)
+        );
+        assert!(seen.iter().all(|m| m.thread_id == 0 && m.sequence_id == 0 && m.counter_b == 0 && m.metric_micros == 0));
+        assert!(seen.iter().all(|m| m.timestamp_nanos != 0), "the launcher stamps the marker time");
+
+        // A host that returns no sink records nothing (and cannot be a silent default: the trait method is required).
+        record_degraded_marker(None);
+        assert_eq!(collected().len(), 3);
+
+        // The real Degraded path: a missing watcher through `launch_palmistry_or_degrade` reaches the host sink.
+        MARKERS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clear();
+        let bogus = std::env::temp_dir().join("definitely-not-a-palmistry-binary-mt215-s8.exe");
+        let _ = std::fs::remove_file(&bogus);
+        let prev = std::env::var_os(ENV_PALMISTRY_EXE);
+        std::env::set_var(ENV_PALMISTRY_EXE, &bogus);
+        let session = LaunchSession {
+            session_id: uuid::Uuid::from_u128(1).to_string(),
+            ring_path: std::env::temp_dir().join("unused-mt215-s8.ring"),
+            marker_sink: Some(collect_marker),
         };
-        let seed = zeroize::Zeroizing::new([7; 32]);
-        let signer = ed25519_dalek::SigningKey::from_bytes(&seed);
-        let verifier = signer.verifying_key().to_bytes();
-        let challenge = [8; 32];
-        let transport = [9; 32];
-        let expected_identity = br#"{"protocol_version":1,"session_id":"00000000-0000-0000-0000-000000000001","process_instance_id":"00000000-0000-0000-0000-000000000002","parent_pid":3,"watcher_pid":4,"ring_version":2,"record_size":120,"launch_nonce":[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],"runtime_instance_schema_id":"hsk.embedded_runtime.instance@2","runtime_instance_id":"00000000-0000-0000-0000-000000000001","runtime_host_scope_id":"signed-wire-unit-test","runtime_lease_protocol":"hsk.embedded_runtime.loopback_udp_exclusive@1","runtime_lease_address":"127.0.0.1","runtime_lease_port":43210,"parent_os_creation_time_100ns":17}"#;
-        let mut expected = b"handshake-current-watcher-provenance-v1\0".to_vec();
-        expected.extend_from_slice(&(expected_identity.len() as u64).to_le_bytes());
-        expected.extend_from_slice(expected_identity);
-        expected.extend_from_slice(&[8; 32]);
-        expected.extend_from_slice(&[9; 32]);
-        assert_eq!(
-            signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap(),
-            expected,
-        );
-        let signature = signer
-            .sign(&signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap())
-            .to_bytes();
-        let reply = serde_json::json!({"type":"ProvenanceReadyV1","identity":identity,"challenge":challenge,"transport_public_key":transport,"public_verifier":verifier,"signature":signature.to_vec()});
-        let bytes = serde_json::to_vec(&reply).unwrap();
-        assert_eq!(
-            verify_signed_watcher_reply(&bytes, &identity, verifier, challenge, transport)
-                .unwrap()
-                .identity,
-            identity
-        );
-        assert!(
-            verify_signed_watcher_reply(&bytes, &identity, verifier, [10; 32], transport).is_err()
-        );
-        assert!(
-            verify_signed_watcher_reply(&bytes, &identity, [11; 32], challenge, transport).is_err()
-        );
-        assert!(
-            verify_signed_watcher_reply(&bytes, &identity, verifier, challenge, [12; 32]).is_err()
-        );
-        for field in ["parent_pid", "watcher_pid", "ring_version", "record_size"] {
-            let mut forged = reply.clone();
-            forged["identity"][field] = serde_json::json!(99);
-            assert!(verify_signed_watcher_reply(
-                &serde_json::to_vec(&forged).unwrap(),
-                &identity,
-                verifier,
-                challenge,
-                transport
-            )
-            .is_err());
+        let handle = launch_palmistry_or_degrade(&session, "mt215-s8-degrade");
+        match prev {
+            Some(v) => std::env::set_var(ENV_PALMISTRY_EXE, v),
+            None => std::env::remove_var(ENV_PALMISTRY_EXE),
         }
-        for (field, changed) in [
-            ("runtime_instance_schema_id", serde_json::json!("wrong-schema")),
-            ("runtime_instance_id", serde_json::json!(uuid::Uuid::from_u128(99))),
-            ("runtime_host_scope_id", serde_json::json!("wrong-host")),
-            ("runtime_lease_protocol", serde_json::json!("wrong-protocol")),
-            ("runtime_lease_address", serde_json::json!("127.0.0.2")),
-            ("runtime_lease_port", serde_json::json!(43211)),
-            ("parent_os_creation_time_100ns", serde_json::json!(18)),
+        assert!(handle.is_none(), "a missing watcher degrades to no handle");
+        let degraded = collected();
+        assert_eq!(degraded.len(), 1, "{degraded:?}");
+        assert_eq!((degraded[0].code, degraded[0].phase), (DiagEventCode::PalmistryHandshake, DiagPhase::Degraded));
+    }
+
+    /// The production part of this file (everything before the test module).
+    fn production_source() -> &'static str {
+        let source = include_str!("lib.rs");
+        &source[..source.find("\n#[cfg(test)]\nmod tests {").expect("test module marker")]
+    }
+
+    #[test]
+    fn every_launch_site_hands_the_session_sink_to_its_marker() {
+        let production = production_source();
+        for site in [
+            "record_handshake_marker(session.marker_sink(), parent_pid)",
+            "record_shutdown_marker(self.marker_sink, self.child.id())",
+            "record_degraded_marker(session.marker_sink())",
         ] {
-            let mut forged = reply.clone();
-            forged["identity"][field] = changed;
-            assert!(verify_signed_watcher_reply(
-                &serde_json::to_vec(&forged).unwrap(),
-                &identity,
-                verifier,
-                challenge,
-                transport,
-            )
-            .is_err());
-            let mut missing = reply.clone();
-            missing["identity"].as_object_mut().unwrap().remove(field);
-            assert!(verify_signed_watcher_reply(
-                &serde_json::to_vec(&missing).unwrap(),
-                &identity,
-                verifier,
-                challenge,
-                transport,
-            )
-            .is_err());
+            assert_eq!(production.matches(site).count(), 1, "launch site missing or duplicated: {site}");
         }
-        let mut unknown = reply.clone();
-        unknown["identity"]["unrecognized_runtime_identity"] = serde_json::json!(true);
-        assert!(verify_signed_watcher_reply(
-            &serde_json::to_vec(&unknown).unwrap(),
-            &identity,
-            verifier,
-            challenge,
-            transport,
+        assert_eq!(
+            production.matches("record_marker(").count(),
+            4,
+            "only the three marker functions and the definition may call record_marker"
+        );
+        let trait_body = &production[production.find("pub trait PalmistryLaunchSession").unwrap()..];
+        let trait_body = &trait_body[..trait_body.find("\n}\n").unwrap()];
+        assert!(
+            trait_body.contains("fn marker_sink(&self) -> Option<LaunchMarkerSink>;"),
+            "marker_sink must be a required trait method, not a defaulted one"
+        );
+    }
+
+    // ---- F2: the handle keeps the original handle's auto traits (Send, not Sync) ----
+    //
+    // The original handle held `Option<OwnedPalmistryAdoption>`, whose retained HTTP attempt is a
+    // `Pin<Box<dyn Future + Send>>`: Send and not Sync. The host slot (`Box<dyn Any + Send>`) keeps exactly that.
+
+    #[test]
+    fn handle_auto_traits_match_the_original() {
+        fn is_send<T: Send>() {}
+        is_send::<PalmistryHandle>();
+        // Compiles only while `PalmistryHandle` is not `Sync` (the ambiguity appears if it becomes `Sync`).
+        trait AmbiguousIfSync<A> {
+            fn some_item() {}
+        }
+        impl<T: ?Sized> AmbiguousIfSync<()> for T {}
+        impl<T: ?Sized + Sync> AmbiguousIfSync<u8> for T {}
+        let _ = <PalmistryHandle as AmbiguousIfSync<_>>::some_item;
+    }
+
+    // ---- S8 conformance: two hosts, one launch path, one watcher argv ----
+
+    /// A second host session type, standing in for any host that is not `LaunchSession`.
+    struct OtherHostSession {
+        id: String,
+        ring: PathBuf,
+    }
+
+    impl PalmistryLaunchSession for OtherHostSession {
+        fn session_id(&self) -> &str {
+            &self.id
+        }
+        fn ring_path(&self) -> &Path {
+            &self.ring
+        }
+        fn marker_sink(&self) -> Option<LaunchMarkerSink> {
+            None
+        }
+    }
+
+    fn pair_value<'a>(argv: &'a [std::ffi::OsString], flag: &str) -> &'a std::ffi::OsString {
+        let at = argv.iter().position(|a| a == flag).unwrap_or_else(|| panic!("{flag} missing from {argv:?}"));
+        &argv[at + 1]
+    }
+
+    #[test]
+    fn two_hosts_build_the_same_signed_watcher_argv() {
+        let dir = std::env::temp_dir().join(format!(
+            "hsk-mt215-s8-conformance-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let session_uuid = uuid::Uuid::now_v7();
+        let process_instance = uuid::Uuid::now_v7();
+        let nonce = [0x66u8; 16];
+        let ring = dir.join("conformance.ring");
+        let writer =
+            handshake_diag_ring::ring::DiagRingWriterV2::create(&ring, handshake_diag_ring::DEFAULT_CAPACITY, nonce)
+                .unwrap();
+        writer.write_heartbeat(1, 2);
+        let lease = handshake_runtime_instance::acquire_embedded_runtime_instance_lease(
+            session_uuid,
+            "mt215-s8-conformance",
         )
-        .is_err());
-        let mut forged = reply.clone();
-        forged["signature"] = serde_json::json!(vec![0; 64]);
-        assert!(verify_signed_watcher_reply(
-            &serde_json::to_vec(&forged).unwrap(),
-            &identity,
-            verifier,
-            challenge,
-            transport
-        )
-        .is_err());
-        forged["signature"] = serde_json::json!(vec![0; 63]);
-        assert!(verify_signed_watcher_reply(
-            &serde_json::to_vec(&forged).unwrap(),
-            &identity,
-            verifier,
-            challenge,
-            transport
-        )
-        .is_err());
-        assert!(verify_signed_watcher_reply(
-            br#"{"type":"Ack"}"#,
-            &identity,
-            verifier,
-            challenge,
-            transport
-        )
-        .is_err());
+        .unwrap();
+        let control_socket = control_socket_name(&session_uuid.to_string());
+        let exe = Path::new("palmistry-conformance-never-launched.exe");
+
+        let shell = LaunchSession {
+            session_id: session_uuid.to_string(),
+            ring_path: ring.clone(),
+            marker_sink: None,
+        };
+        let other = OtherHostSession { id: session_uuid.to_string(), ring: ring.clone() };
+        let build = |session: &dyn PalmistryLaunchSession, ring: &Path, nonce: [u8; 16]| {
+            signed_watcher_argv_without_spawn(
+                exe,
+                session,
+                ring,
+                &control_socket,
+                &lease,
+                process_instance,
+                nonce,
+                zeroize::Zeroizing::new(vec![0x77; 32]),
+                [0x88; 32],
+            )
+            .unwrap()
+        };
+        let shell_argv = build(&shell, &ring, nonce);
+        let other_argv = build(&other, &ring, nonce);
+        assert_eq!(shell_argv, other_argv, "both hosts must build the identical watcher argv");
+
+        // The vector carries the v2 nonce, the process instance and the runtime-instance lease.
+        let descriptor = lease.descriptor();
+        assert_eq!(pair_value(&shell_argv, "--session-id"), &std::ffi::OsString::from(session_uuid.to_string()));
+        assert_eq!(pair_value(&shell_argv, "--ring-version"), &std::ffi::OsString::from("2"));
+        assert_eq!(pair_value(&shell_argv, "--ring-nonce"), &std::ffi::OsString::from("66".repeat(16)));
+        assert_eq!(
+            pair_value(&shell_argv, "--signing-process-instance"),
+            &std::ffi::OsString::from(process_instance.to_string())
+        );
+        assert_eq!(
+            pair_value(&shell_argv, "--runtime-instance-id"),
+            &std::ffi::OsString::from(descriptor.instance_id.to_string())
+        );
+        for flag in [
+            "--runtime-instance-schema-id",
+            "--runtime-host-scope-id",
+            "--runtime-lease-protocol",
+            "--runtime-lease-address",
+            "--runtime-lease-port",
+            "--parent-os-creation-time-100ns",
+            "--parent-pid",
+            "--ring-path",
+            "--control-socket",
+        ] {
+            let _ = pair_value(&shell_argv, flag);
+        }
+
+        // Positive control: the comparison can fail (a different nonce must change the vector).
+        let ring2 = dir.join("conformance-2.ring");
+        let writer2 =
+            handshake_diag_ring::ring::DiagRingWriterV2::create(&ring2, handshake_diag_ring::DEFAULT_CAPACITY, [0x55; 16])
+                .unwrap();
+        writer2.write_heartbeat(1, 2);
+        let other_nonce = build(&shell, &ring2, [0x55; 16]);
+        assert_ne!(shell_argv, other_nonce);
+
+        drop((writer, writer2));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn real_and_seam_launch_share_one_validation_and_one_command_builder() {
+        let production = production_source();
+        for name in ["build_watcher_command", "signed_bootstrap"] {
+            assert_eq!(production.matches(&format!("fn {name}<")).count(), 1, "one definition of {name}");
+            assert_eq!(production.matches(&format!("{name}(")).count(), 2, "{name}: the launch and the seam call it");
+        }
+        assert_eq!(production.matches("Command::new(").count(), 1, "one place builds the watcher command");
     }
 }
