@@ -2585,5 +2585,63 @@
       "a screen reader",
       "SetFocus on the real input desktop"
     ]
+  },
+  "eval9_final_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's final report (Sonnet); the eval agent ran the tests itself and wrote none of the code",
+    "recorded_on": "2026-11-27",
+    "commits": "4dad81781 (shell, host ports) and 9a127a239 (egui host)",
+    "summary_file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval9-20261127/eval9-summary-20261127.json (sha256 b0f14d33163b5276bcf8e1341a4d45665e9de059ce9aaf8d5391add97e8db069; copy in the MT-215 eval folder)",
+    "shell_rerun": "the 4 backend-crate source_scan failures are gone (copy omission); source_scan 12 pass, 1 fail (E9-F4); multiwindow and shell_program still ShutdownUnsettled",
+    "E9-F1": {
+      "verdict": "code ordering defect, not ARM64",
+      "evidence": "at owner.close() the report shows open_claims 2 (1 in shell_program), charged_bytes 256 MiB per claim, in_flight 0, leases 0, device Destroyed, claims_abandoned 0, windows 4/4; GPU teardown clean; claims are settled only by settle_all after close(), and the report is taken before that (surface/src/host/ending.rs tear_down ~190-200); probe log probe-e9f1-run1-ordering.log sha256 324782d03591905895a04d305155d758ce9eb693de25f558fa65d2b190d0d90e",
+      "repair": "settle before taking the report, or take the report after the final settle",
+      "unproven": "why the first settle waits (surface still held or InFlight), and that the repair works"
+    },
+    "E9-F2": "uia activations_refused not a regression: the 64f8b250f and 80958a384 copies pass, the 4dad81781 tree passes 2/2 now after 3/3 failures at 09:24; window crate unchanged between 80958a384 and 4dad81781; environment or timing drift, cause unproven",
+    "ports": "71 pass, 0 fail, 1 ignored: palmistry_launch 15+7, ui_heartbeat 3+2+20+4+15+5 doctests; re-resolved host_ports lock sha256 7e92b316…051a at both commits; no egui, eframe, wgpu in the palmistry_launch tree; checker F4 closed",
+    "mutations": {
+      "defined": 48,
+      "caught": 38,
+      "missed": [
+        "E8F2b set-composition-string, set-composition-window, escape-w (= E9-F3)",
+        "R5: launched_by_operator && true passes; shell/tests/source_scan.rs:871 only checks a substring self.root.get()==Some(window); repair: assert the whole line at program.rs:695",
+        "T10: no focus-call scan in the launcher at 4dad81781 (phase B 9a127a239 added the F7 focus ban scan)"
+      ],
+      "invalid": [
+        "T5 (cargo cannot resolve)",
+        "T11 (compile error)"
+      ],
+      "controls_green": 3,
+      "note": "no window opened; all source scans"
+    },
+    "egui_host_9a127a239": {
+      "build": "ok (export needed src/backend for an include_str!)",
+      "diagnostics_lib": "58 pass, 1 fail: internal_diagnostics.rs:2282 asserts the source lacks a string its own assert line contains (cannot pass; not caused by 9a127a239)",
+      "conformance_and_send_sync": "pass",
+      "test_palmistry_launch": "3 pass, 1 fail, 2 ignored",
+      "test_crash_client_install": "4 pass, 1 fail",
+      "stale_scans": "main_launches_palmistry_before_run_native and main_arms_the_crash_client_after_palmistry_launch fail because main.rs has had no launch_palmistry_or_degrade since eba6c4037 (pre-existing, not S8b)",
+      "watcher": "the two tests that would start a watcher are #[ignore] and did not run"
+    },
+    "gpu_hang": "every GPU shell test hangs 90 s since 18:33, the pristine tree included; undiagnosed; the host entered Modern Standby at 16:46 with no exit event logged (unverified)",
+    "operator_safety": "66 runs, 862,321 samples: 0 foreground, focus, Z-order or clipboard changes (clip_seq 337 throughout); only invisible vctip.exe windows seen once; target 177.6e9 bytes at last sample",
+    "logs_sha256_prefixes": {
+      "shell-rerun": "f85c63c1…c056717",
+      "c-uia-tree-1": "af4f2398…a0c83",
+      "c-uia-tree-2": "fbdf8ba5…11135",
+      "ports": "1dee29f1…e05a",
+      "host-lib": "c4b37a31…a1c2",
+      "host-palmistry": "2be4a7e0…2590",
+      "host-crash": "815ccc1b…daf"
+    },
+    "cannot_prove_here": [
+      "native x64 GPU",
+      "the GPU hang cause",
+      "why the first settle waits",
+      "real IME and screen reader",
+      "live watcher launch"
+    ],
+    "routing": "E9-F1 repair and R5 go to the GUI coder with E9-F3/E9-F4; the GPU hang to a read-only environment specialist; the stale egui scans and internal_diagnostics.rs:2282 are pre-existing failures that now block MT-094 and MT-092 revalidation and need owner routing"
   }
 }

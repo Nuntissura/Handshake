@@ -14605,5 +14605,65 @@
       "F10_info": "surreal.rs:5668 is a plain UPDATE, not the pattern"
     },
     "disposition": "TRQ-01 covers F7 (bare-form note sent to the coder); a new picotask PT-ARRAYLEN-2 covers F2-F6 (guard hardening across src/backend with positive controls, the bare form, model_registry.rs sites inside MT-172/MT-173 paths); F8 needs probes and goes to its owners MT-171 and MT-141 if live"
+  },
+  "trq01_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); named check verified by the orchestrator",
+    "recorded_on": "2026-11-27",
+    "picotask": "TRQ-01 (triage group G01), #/triage_eval_reclaim_20261127",
+    "commit": "ab76fb1efed087a148d4ace3f3e285ff3d57512f (pushed; user_manual_knowledge.rs (MT-173 scope) and model_lane.rs (guard test) only)",
+    "fixes": {
+      "record_id_guards": "primary_source_id, first_detected_in_run, last_detected_in_run are NONE for a user_manual_page row; all 12 projections (3 fields at 4 sites: upsert existing SELECT, unchanged-branch RETURN, changed-branch RETURN, GET query) now IF x = NONE { NONE } ELSE { record::id(x) }",
+      "if_branch_subqueries": "LET $linked_event (upsert), LET $linked_event (GET) and LET $receipt (mismatch fixture) rewritten to the inner-LET form; no bare-form site in this file (checker F4)",
+      "guard": "if_branch_subquery_guard_tests also scans user_manual_knowledge.rs for the parenthesized and the bare form; new lone_select_matcher_flags_known_bad_forms_and_passes_the_inner_let_form gives positive and negative controls"
+    },
+    "focused_test": "MT-172/trq01-20261127/focused-02/run.log sha256 3a91d174f61c925e19edb374d22f387bf6057973542efc38d693438bb5f95af8: 8 run, 4 passed (2 guard tests, orphan_receipt_blocks_entity_mutation_without_disclosure, each_scope_dimension_mismatch_and_mixed_or_incomplete_scope_fail_closed), 4 failed",
+    "remaining_failures": "the 4 no longer fail at record::id; after the upserts succeed: InvalidCatalog(\"canonical schema fingerprint mismatch\") at tests line 63 in durable_counts (3 tests) and HANDSHAKE_SURREAL_SCHEMA_INFO_MISMATCH on reopen (1 test); schema level, left to the revision 172 stage (R172 row 5 rewrite and enrolment); not a TRQ-01 change",
+    "compile_runs": {
+      "compile-check-20261127-03": "ITERATION: exit 0, inputs_unchanged true, dirty model_lane.rs and user_manual_knowledge.rs (expected), cargo.log sha256 60afdfef9add8efa1e3fbf9918551844195aa68c87a2eb42fa5e2e35fd0a2221",
+      "compile-check-20261127-04": "unmodified launcher (sha256 005406f62f7b97de99c8c7c9b138e6fdedd15b21cc7a5793156bd7b0b32b4587), WP012-P1-MT-172-COMPILE, head ab76fb1ef: exit 0, inputs_unchanged true, dirty none, cargo.log sha256 f5ca98b31fde905a9ef4daa3576aa8c81612012730a8ce81e86d49f58a83f445; verified by the orchestrator"
+    },
+    "status": "TRQ-01 code fixes in; G01 not yet green (schema-level remainder); independent eval pending"
+  },
+  "rev172_plan_20261127": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the planning specialist and the adversarial reviewer (both Sonnet, read-only, nothing built)",
+    "recorded_on": "2026-11-27",
+    "files": {
+      "plan": "Handshake_Artifacts/WP-KERNEL-012/MT-172/rev172-plan-20261127/plan.json (sha256 b66220fe5942d05a282acd63f807381d10b70d44e3e6eda2929a6bf8ae557d2d)",
+      "adversarial_review": "same folder adversarial-review.json (sha256 7be162dc21b29ba7f37fa75c8ec9c5ab73ae3bad5aa5a679f2725dfce7dd2d41)"
+    },
+    "plan": "27 picotasks R172-00..25 for SC-6..SC-10: phase 0 preflight and PT003 run before any DDL; phase 1 DDL rows 1+2, row 8 FLEXIBLE, VM table, rows 4, 5, 6, 7; phase 2 schema_revision171.rs and the 167-171 arm, upgrade families, harness, constants; phase 3 measure, enroll, SC-8 confirm; phase 4 SC-9 runtime-DDL removal (G03), user-manual 5 test rewrite, G02 and index writers, row proofs, final compile and regression, row 7 code and test",
+    "verified_by_review": "base pin equals sha256 of HEAD schema.surql; the plan's script reproduces a1af8b93… and f8f592f0…; naming right (e199a1f4c added schema_revision170.rs, 84b9eb772 enrolled pins 23 minutes later); 27 of 28 anchors match (R172-02b schema.surql:8483 is 8489)",
+    "adversarial_verdict": "UPHOLD_WITH_CORRECTIONS",
+    "corrections": [
+      "C1 red window: commit locally per picotask and push ONE stage commit (DDL + revision module + harness + constants), measure on that SHA, then enroll (e199a1f4c precedent, repair-spec#/revision_172_bump, MT-153 step 1); no 13 red pushes",
+      "C2 R172-01 and R172-09 depend on TRQ-01 being committed (done: ab76fb1ef)",
+      "C3 write row 7 code (R172-23/24) and R172-17 before the stage build",
+      "C4 split R172-10, -11, -12 into 2-3 each; fold R172-00 into R172-01; if PT003 lands add its function to the 171->172 delta",
+      "C5 operator_chat_capture_tests.rs and worktree_model_lane_live_surreal_tests.rs are in MT-172; rows 4, 5, 7 edit MT-173-only files and run under MT-173; tests hidden by bootstrap_schema prove nothing on the composed schema",
+      "C6 PT003: pre-author the observer so one build covers both runs; print exists(), event_type and the conjuncts; prove sufficiency with a test-local copy of the function; a third candidate (the function's own $session parameter) UNVERIFIED",
+      "C7 row 8 settled by existing authority: producer_bound_flexible_roots precedent, F2 repair text, create predicate pinning nested content; allowlist, FLEXIBLE 190->194, no wildcards",
+      "C8 row 5 THROW matches the spec and WP012-MT172-ENTITY-IDENTITY-20261127; no downgrade path exists, note it in the commit and the manual"
+    ],
+    "operator_decisions_20261127": [
+      {
+        "id": "WP012-MT172-SC5-GUARD-20261127",
+        "question": "Schema revision 172 (MT-172): the original repair plan includes a guard test that fails whenever database code writes a field the schema doesn't define. It would live in schema.rs, which MT-172 may already edit. Include it in this schema stage?",
+        "operator_answer": "Include it now (Recommended)",
+        "effect": "SC-5 added as R172-26 after the confirm run, in schema.rs"
+      },
+      {
+        "id": "WP012-MT172-OUTSCOPE-TEST-WAIVER-20261127",
+        "question": "Schema revision 172 (MT-172): a few existing tests outside MT-172 and MT-173 must be run to prove the new schema. If one of them turns out red or proves nothing on the new schema, may that exact test file be edited?",
+        "operator_answer": "Allow per named file (Recommended)",
+        "effect": "a run-only test file outside MT-172/MT-173 may be edited only after a recorded run shows it red or vacuous on the composed schema, limited to that file, with a per-file HBR-STOP-005 waiver record naming the run"
+      },
+      {
+        "id": "WP012-EGUI-SIX-TESTS-VEHICLE-20261127",
+        "question": "Six old-egui-app tests stopped compiling on 2026-11-20, when MT-212's commit added two struct fields the tests don't set. The fix is a one-line field addition in each test. MT-215 needs them compiling before it can be validated. Who should make the fix?",
+        "operator_answer": "MT-212 repairs its fallout (Recommended)",
+        "effect": "MT-212 is the vehicle for the six test-literal repairs (blocker WP012-EGUI-SIX-TESTS-E0063-20261127) as one recorded remediation; the six test files are added to MT-212 for that repair only; MT-212's old claim and status unchanged; owners MT-017, MT-033, MT-034, MT-068, MT-069, MT-099 get CX-VAL-009 notes"
+      }
+    ],
+    "next": "after PT-ARRAYLEN-2, the coding agent starts R172-01 (PT003 run with pre-authored observer) on a clean backend tree"
   }
 }
