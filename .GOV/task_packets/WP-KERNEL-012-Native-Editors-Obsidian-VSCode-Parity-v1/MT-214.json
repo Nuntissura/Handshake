@@ -3432,5 +3432,21 @@
       "harness_basis_sha256": "f8712ed8f3577f02b4bbd8f1d95846ca7712202335870bded5424cee71b5fc2e"
     },
     "x64_p8": "Pending by Operator direction. Four-test-file patch applies without edits, SHA-256 633ae98f15fa041b903d958eaca92cb88d9a4f642d3f755076e5a0ab74b23218. No new execution or lifecycle verdict."
+  },
+  "e9_pt4_pt6_private_job_preflight_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent inert process checks and adversarial cleanup review",
+    "recorded_on": "2026-11-28",
+    "basis": "#/e9_pt4_pt6_remaining_proof_20261128",
+    "helper_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/gpu-pt4-repeat-pt6-current-20261128/run_hold.py",
+    "initial_sha256": "bc55d9507d83d8685fc7e1d5d01d4981f2b75fc4c4ef4b415fde7f8551b2fe04",
+    "observed_problem": "Exact device-free managed --check reached process.wait success but initial job accounting still saw one active process. Installed CPython Windows wait retains its process handle, and a separate owned PID was briefly counted in the GUI agent's isolated observation.",
+    "source": "https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information",
+    "decision": "Close the retired CPython Windows process handle after collecting its exit, then allow a bounded 500 ms for job accounting to settle. A remaining descendant fails the check. Cleanup terminates only the assigned job or the exact unreleased bootstrap and retains the slot if bounded cleanup cannot be proven.",
+    "revised_sha256": "54a955a233b936f7d006daf47a2ce5c5960a723c47d73a986f7b72068df4d7ac",
+    "independent_acceptance": {
+      "normal": "Exact managed headless --check verified 2,463 archived files, reported two owned processes over the job lifetime and zero active.",
+      "negative": "An intentionally lingering owned child was rejected. A separate handle read confirmed its exact PID had exited with 124 after cleanup.",
+      "scope": "Preparation only. No GPU, cargo, source injection, foreground window or build slot. Live PT-4/PT-6 and x64 P8 retain their existing proof requirements."
+    }
   }
 }
