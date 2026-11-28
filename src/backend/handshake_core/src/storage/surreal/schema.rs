@@ -13652,6 +13652,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(field_definitions.len(), AUTHORED_FIELD_DEFINITION_COUNT);
         let producer_bound_flexible_roots = BTreeMap::from([
+            (("model_sessions", "engine_profile_binding"), r###"DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions TYPE option<object> FLEXIBLE;"###),
             (("member_enrollments", "issue"), r###"DEFINE FIELD OVERWRITE issue ON TABLE member_enrollments TYPE object FLEXIBLE READONLY;"###),
             (("session_exchange_credentials", "member_login_binding"), r###"DEFINE FIELD OVERWRITE member_login_binding ON TABLE session_exchange_credentials
  TYPE option<object> FLEXIBLE PERMISSIONS NONE;"###),
@@ -13664,6 +13665,25 @@ mod tests {
             (("member_enrollment_redemption_permits", "principal_before"), r###"DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;"###),
             (("member_enrollment_redemption_permits", "space_before"), r###"DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;"###),
         ]);
+        let profile_origin_guard = canonical_upgrade_spans(SCHEMA, &[
+            "DEFINE EVENT OVERWRITE engine_profile_session_origin_guard ON TABLE model_sessions\n",
+        ]);
+        let (&start, &end) = profile_origin_guard.first_key_value()
+            .expect("engine profile session origin guard must be defined");
+        assert!(
+            SCHEMA[start..end].starts_with(r###"DEFINE EVENT OVERWRITE engine_profile_session_origin_guard ON TABLE model_sessions
+    WHEN $event IN ['CREATE', 'UPDATE'] AND ($after.engine_profile_binding != NONE OR $before.engine_profile_binding != NONE) THEN {
+        IF ($event = 'CREATE' AND $after.state != 'CREATED')
+            OR $after.job_id != NONE OR !fn::wp012_engine_profile_session($after, true)
+            OR ($event = 'UPDATE' AND ($before.engine_profile_binding != $after.engine_profile_binding
+                OR $before.model_id != $after.model_id OR $before.backend != $after.backend
+                OR $before.wp_id != $after.wp_id OR $before.mt_id != $after.mt_id
+                OR $before.parent_session_id != $after.parent_session_id)) {
+            THROW 'ENGINE_PROFILE_SESSION_ORIGIN_MISMATCH';
+        };
+"###),
+            "model_sessions.engine_profile_binding must retain its authorization and origin guard"
+        );
         let guarded_flexible_roots = BTreeMap::from([
             (("blocks", "derived_content"), (r###"DEFINE FIELD OVERWRITE derived_content ON TABLE blocks TYPE object FLEXIBLE DEFAULT {} PERMISSIONS FOR select NONE;"###, r###"DEFINE FIELD OVERWRITE derived_content.* ON TABLE blocks TYPE any PERMISSIONS FOR select NONE;"###)),
             (("fems_memory_packs", "pack"), (r###"DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs TYPE object FLEXIBLE
