@@ -4997,5 +4997,21 @@
     "change": "query bindings and $session uses renamed to $session_record (SurrealDB protected name); no binding dropped",
     "note": "Out-of-scope edit by MT-172 under the HBR-STOP-005 waiver granted by the Operator on 2026-11-27 (answer 'Approve the waiver (Recommended)'). Informational only; this MT's status is unchanged.",
     "record_ref": "packet.json#/operator_decisions_20261127_mt172_unblock/decisions/2"
+  },
+  "r172_189_depth_hypothesis_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex); specialist and independent adversarial pass",
+    "recorded_on": "2026-11-28",
+    "finding_ref": "MT-172.json#/r172_02e_result_20261128",
+    "failure": "Authorized owner rollback case at code_nav_index_account_tests.rs:189 still returns internal. Original run logged computation_depth, and the fix A variant subtype is unobserved.",
+    "evidence": "Pinned SurrealDB 3.2.0 legacy src/doc/select.rs:19–27 evaluates the permission and WHERE separately; detached controls cannot prove full predicate evaluation on the authorized transaction.",
+    "candidate_hypothesis": "Excessive nesting of the existing ordered receipt conjunction on the real transaction. Preserve every operand, short-circuit and auth context. SurrealDB 3.2.0 expr/expression.rs:717–722 and dbs/options.rs:239–246 support isolated review of association and depth. This is a hypothesis, not an approved implementation or proof.",
+    "competing_cause": "Changed state may raise another internal error, or a nested computed-value call could dominate independently of the conjunction shape.",
+    "future_discriminator": "If MT-173 authorizes a changed pushed candidate and adds the exact proof command, the existing single first_owner_workspace_receipt_compute_only_observes_rollback case can discriminate. Capture the error family on failure. Preserve rollback, logout and negative coverage. No unchanged rerun.",
+    "authority_blockers": [
+      "Existing MT-173 claim",
+      "MT-171/MT-172 dependencies and shared schema writer",
+      "No named runtime command for this case in current MT-173 authority"
+    ],
+    "lifecycle_change": "none; review record only"
   }
 }

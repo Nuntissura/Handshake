@@ -3345,5 +3345,35 @@
       "verified": "Applies to pushed 167ae6a9b; four test files only. No compile or live evidence."
     },
     "status_effect": "No formal MT verdict."
+  },
+  "e9f2_pt6_patch_eval_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex); independently verified patch binding, result, constituent hashes, outer test counts and effect assertion",
+    "recorded_on": "2026-11-28",
+    "picotask": "PT-6",
+    "authority_ref": "#/e9f1_fix_design_20261128",
+    "pristine_commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "pristine_tree": "8c512875423933aa74e71c8196f277c962e490ef",
+    "patch_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/pt6-patch-167ae6a9b/mt214-pt6.patch",
+    "patch_sha256": "2f32fbfa7ddec1813150cd7545a64b99d6cc6c987d2cd81b27a98ce1dc79e0c5",
+    "patched_test_sha256": "b1b9dc01265c454df35d8ef8a043af79b737ae2c47e4502307871a7d0d4674fd",
+    "proof_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/gpu-pt6-20261128/results.json",
+    "proof_sha256": "88fa2a94e41fa2030a3093d9523af8b64154885eb59dbf732305317b56903463",
+    "tests": {
+      "patched_passed": 5,
+      "patched_failed": 0,
+      "test_cases_per_trial": 1,
+      "patch_builds": 1,
+      "guard_sensitivity_failed_as_expected": 1,
+      "mutation_exit_code": 101,
+      "assertion": "quiet_broken changed from expected 0 to 1, at patched uia_client.rs:564"
+    },
+    "operator_effect_checks": {
+      "during_samples": 5878,
+      "clipboard_sequence": 404,
+      "owned_operator_windows": 0,
+      "owned_processes_left": 0
+    },
+    "isolation": "Patched test and guard variant used only the evaluator-owned export. Scratch restored and slot and waiter absent after the run.",
+    "disposition": "Scoped patch diagnostic passed. Product adoption and formal candidate proof remain pending. The shared product branch has coordinated local schema staging that must not be published early."
   }
 }
