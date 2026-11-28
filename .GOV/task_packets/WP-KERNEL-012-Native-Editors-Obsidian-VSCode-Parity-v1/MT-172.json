@@ -15165,5 +15165,26 @@
       }
     ],
     "runtime_verdict": "pending"
+  },
+  "r172_23_followup_and_cleanup_cas_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent scoped Git diff inspection",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_cloud_revocation_cleanup_scope_20261128",
+    "local_intermediates": [
+      {
+        "pico": "R172-23 checker follow-up",
+        "commit": "0c84da34132123f45bbbfbf74e6e26db4026602b",
+        "tree": "834c97892827acbcb6fb40b11b44440b00cd733d",
+        "static": "One scope-bound query snapshot reads the authority and ledger candidate sets. Independent exact receipt verification retained. Immutable base and declared stream are checked against exact allowed writer fields."
+      },
+      {
+        "pico": "MT-172 cleanup CAS preparation",
+        "commit": "8b8f65094a50b3bb232c661837faa29bb8175333",
+        "tree": "ca8842bc8ea004412257a06b0eb2543363543ce8",
+        "static": "Existing private dispatcher used. Legacy call preserves SQL, result index 3 and exact readback. Protected path normalizes wrapper to result index 2 for the later typed call."
+      }
+    ],
+    "decision": "Keep the approved shared CloudLane and revocation witness in the production model module. The shared ledger cleanup branch can reuse it without re-reading the mutable projection. Preserve the existing shared-first bootstrap and keep old authority outside the cleanup branch. Treat the new helper as a production catalog identity only.",
+    "status": "No Cargo or product push. Existing model-lane DDL for approved exact cleanup access active. Shared event gate and runtime owner wiring follow."
   }
 }
