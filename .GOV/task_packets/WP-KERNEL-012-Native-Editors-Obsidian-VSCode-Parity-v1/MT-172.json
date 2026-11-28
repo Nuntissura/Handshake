@@ -14740,5 +14740,39 @@
       "settling_run": "filter test(=registry_restart_recovers_configured_set_defaults_and_stable_receipts) | test(=orphan_receipt_stale_and_revoked_authority_are_rejected) with --test model_registry_persistence_tests; run A on an export of 05a1050a3, run B on 5aa9c7c43 only if A is green; A red with the same messages = pre-existing; use an exported tree (git archive), not a new worktree"
     },
     "operator_question": "none for the recommended route"
+  },
+  "r172_01_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); result.json, test outcomes, log, junit and observer file hashes and the printed conjuncts verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "picotask": "R172-01 (with R172-00 folded in and the R172-02 observer pre-authored, #/rev172_plan_20261127 corrections C4, C6)",
+    "preflight": "green: PRODUCTION_GENERATED a1af8b93.., PRODUCTION_SOURCE rev171 f8f592f0.., BASE_GENERATED ec2a2552..; module hash prefixes 55838a2b / abd49a97 / 13646bc3 / 56c13f1a; src/backend clean; HEAD equal to origin",
+    "observer_commits": "d4be06ad9938c25c8349f40e92f3eb7dd85a989e (test account_tests::pt003_first_owner_setup_receipt_observer) and 2a5653cba54c6046b961597b10b8d9dc84ffcf99 (writes its report beside the run); only src/backend/handshake_core/src/api/code_nav_index_account_tests.rs; pushed, no force",
+    "run": "MT-172/r172-01-20261128/focused-01 on HEAD 0a956b785 (src/backend unchanged since 2a5653cba): exit 100, inputs_unchanged true, 4 run, 1 passed, 3 failed, about 29 min; run.log sha256 43ea6e4dc7e35c4a9bf79fa508bec5d7482ec047f91df84f103e3ba41f6265e4; junit sha256 13d40d5199cd43a6aff8c825de1d611bb429771c77937b202fa30c7a6c955555; observer output pt003-observer.txt sha256 ed9d4a390e53921f75759f576cde35d9b2e8be0f4ff1be96c54994aca1760299; target peak 184.9e9 bytes",
+    "tests": {
+      "mounted_first_owner_workspace_create_persists_original_receipt_and_grant": "FAIL at code_nav_index_account_tests.rs:528: phase=workspace_post_not_created logout=checked drained=false closure=closed_store_preserved; preceded by HSK_FIRST_OWNER_WORKSPACE_RECEIPT_CHECK branch=first_claim check=row_cardinality reason=empty, check=actor_receipt reason=one, HSK_FIRST_OWNER_WORKSPACE_CREATE_OBSERVATION_ERROR phase=transaction_receipt class=invalid_input",
+      "first_owner_workspace_receipt_scalar_projection_observes_rollback": "FAIL at :182: empty where one_visible expected (the plan believed it green: new finding)",
+      "first_owner_workspace_receipt_compute_only_observes_rollback": "FAIL at :189: internal (internal_family=computation_depth) where one_visible expected (the plan believed it green: new finding)",
+      "pt003_first_owner_setup_receipt_observer": "PASS (observer)"
+    },
+    "observer": {
+      "record_user": "a_exists_setup_receipt false; b_event_type None; c01 purpose, c02 version, c03 owner_role, c04 origin_link true; c05-c24 false (c05-c22 read through setup_receipt, c23 setup_account and c24 setup_principal read local_account_setup:primary); v_first_workspace_state unclaimed, v_nonce 0, v_original_present false; copies copy_full, copy_no_exists, copy_param all false",
+      "root": "a_exists_setup_receipt true; b_event_type LOCAL_ACCOUNT_SETUP; c01-c24 all true; same v_*; copies all true",
+      "strict_function": "projection form false and WHERE form [] for both (expected: row unclaimed, first_workspace_* unset); fn::wp012_first_owner_workspace_sources false for both",
+      "ddl": "three test-local function definitions accepted"
+    },
+    "conclusion": {
+      "verified": [
+        "the Workspace Create receipt failure is still present at HEAD; PT003 is not closed by 8e565bfa1",
+        "as the record user the setup_receipt link reads as not existing and event_type is NONE, while root sees the receipt with event_type LOCAL_ACCOUNT_SETUP",
+        "every setup_receipt term and both local_account_setup:primary terms are false for the record user and true for root, so the unreadable-row cause covers local_account_setup:primary too",
+        "copy_no_exists is false for the record user: dropping record::exists($row.setup_receipt) is not sufficient; the plan's stop condition holds and R172-02b (schema edit) is not allowed",
+        "the typed-record-parameter copy behaves like the others"
+      ],
+      "unverified": [
+        "why the record user cannot read the kernel_event_ledger setup_receipt row and local_account_setup:primary in this WHERE-clause context (table or field SELECT permissions for the record-user access method are the first suspects, not inspected)",
+        "the function's own $session parameter as a cause"
+      ]
+    },
+    "next": "a read-only specialist with an adversarial pass reads the kernel_event_ledger and local_account_setup permissions in the composed schema, explains the record-user denial, proposes the smallest fix and its owner MT (MT-172 or MT-173); then one picotask confirms by run"
   }
 }
