@@ -14347,5 +14347,25 @@
       "--lib internal_diagnostics::tests::palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body -- --exact"
     ],
     "limits": "No edits or proof. Current exact backend Cargo has the input lock. Use same three existing named selectors and canonical native manifest; no watcher GUI is needed."
+  },
+  "bounded_diag_focused_proof_route_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), native dependency and authority readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/operator_decision_20261128_bounded_diag_repairs",
+      "#/operator_claim_transfer_20261128",
+      "#/bounded_diag_exact_anchor_readback_20261128"
+    ],
+    "decision": "Once the three exact source-scan repairs are reviewed and published, use one compatible pinned Nextest native invocation with the native manifest and local .cargo configuration, --locked --offline, default features, and serial profile. Use --lib and the two named --test targets with exact combined selectors so unrelated native app launches and ignored watcher cases are excluded.",
+    "evaluator_target": "Handshake_Artifacts/WP-KERNEL-012/MT-215/eval-agent/target",
+    "target_reason": "Handoff assigns this target to the native evaluator. Observed prior native outputs under MT-174 belong to a previous custody window. MT-174 phase02 backend grant and 209e9 stop line do not transfer to this native test.",
+    "native_config": "WPV-nextest-native.toml",
+    "nextest_sha256": "124cf1963c7c4c43cfc698e17daf441eb8ab8e160c053d83ebe2d40e82834f4c",
+    "selectors": [
+      "kind(=lib) & test(=internal_diagnostics::tests::palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body)",
+      "binary(=test_palmistry_launch) & test(=main_launches_palmistry_before_run_native)",
+      "binary(=test_crash_client_install) & test(=main_arms_the_crash_client_after_palmistry_launch)"
+    ],
+    "proof": "One fresh JUnit with exactly the three intended cases and scoped headless foreground audit. No app, GPU or real watcher selected. Existing native product integration remains under its separate named proof. No edits or run for this record."
   }
 }

@@ -875,5 +875,17 @@
     "purpose": "Canonical typed startup command entry and version in the same S1 commit.",
     "writer": "The single backend coder, coordinated with the GUI agent before any edit.",
     "x64_acceptance": "Pending by Operator direction."
+  },
+  "s1_narrow_build_and_receipt_decision_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), GUI dependency specialist and separate adversarial readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/execution/implementation_steps/0",
+      "#/operator_s1_manual_scope_20261128"
+    ],
+    "decision": "S1 uses one standalone shell-gate crate, manifest/lock, README and one scoped test target under the authorized gate path. No dependency on the shell, device, asset or integration seams in S1. The single backend coder coordinates with the GUI lane and updates the approved typed startup page and UserManual version in the same commit.",
+    "receipt": "Expose shell-gate --receipt <path> and judge a real headless invocation. Report native machine architecture separately from toolchain/build architecture and only package identifiers supported by the current lock or source. The eleven acceptance case statuses remain NOT_RUN. Invalid invocation or write must fail. Named feature checks remain with their later S10 scope.",
+    "proof": "For the S1 static proof, independently bind successful locked x64 cargo tree normal dependency output to the exact candidate manifest and lock, target and exit. Reject absent, empty, malformed, wrong-root and banned-transitive closure input. Retain the contract's API source scan and exact implementer compile with matching before/after input digest.",
+    "limits": "S1 can prove the standalone static and receipt surfaces only. The integrated AC213-1 and operator-deferred real x64 desktop proof remain unexecuted. No source edits or product tests for this record."
   }
 }
