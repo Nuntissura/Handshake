@@ -15316,5 +15316,27 @@
       "retained_summary_sha256": "5045380e9ff2158449072dd7e2827870eeb62d816806cd3655492da575b92e63",
       "cargo_cleanup": "No Cargo targets authorized for deletion. MT-170/wpv/target retained under MT-174 preservation authority."
     }
+  },
+  "operator_decisions_20261128_diag_ring": {
+    "decision_id": "WP012-MT223-DIAG-RING-20261128",
+    "operator_answer": "approved",
+    "resolves": "MT-215.json#/diag_ring_owner_review_20261126/operator_question (option 1)",
+    "allocated_mt": "MT-223",
+    "contract_ref": "MT-223.json",
+    "module_maintenance_ref": "MT-223.json#/execution/module_maintenance",
+    "architecture_binding": {
+      "touched_module": "src/frontend/handshake_native/diag_ring",
+      "boundary_change": "Existing standalone diagnostics crate retained. Only the evidence dependency becomes optional, with defaults unchanged; producer adoption is separate."
+    },
+    "closure_refs": [
+      "AC223-1",
+      "AC223-2",
+      "AC223-3",
+      "AC223-4"
+    ],
+    "dependency": "MT-223 published source and independent proof -> only MT-215 diag_ring adoption slice, not S8 or MT-215's existing slices",
+    "historical_counts": "packet.json#/microtasks/contract_glob discovers MT-223.json. MT-222 was added by a root execution record without rewriting the historical mt_plan arrays; preserve those historical counts and current active/next status.",
+    "state": "CONTRACT_RECORDED_PENDING_PREDECESSORS",
+    "activation_blockers_ref": "MT-223.json#/activation_blockers"
   }
 }

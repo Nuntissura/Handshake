@@ -14294,5 +14294,18 @@
     "this_mt_role": "likely repair owner (breaking commit eba6c4037 is this MT's candidate; internal_diagnostics.rs and main.rs in allowed paths)",
     "owner_note": "status BLOCKED unchanged",
     "repair_vehicle_decision": "NOT_DECIDED"
+  },
+  "operator_decision_20261128_bounded_diag_repairs": {
+    "authority_ref": "packet.json#/operator_takeover_decisions_20261128/diagnostics",
+    "recorded_at_utc": "2026-11-28T06:56:07Z",
+    "decision": "Use MT-175 as the repair vehicle for the two stale source scans and the self-matching diagnostic assertion.",
+    "failures_ref": "MT-175.json#/preexisting_egui_failures_20261127",
+    "scope": [
+      "src/frontend/handshake_native/tests/test_palmistry_launch.rs::main_launches_palmistry_before_run_native",
+      "src/frontend/handshake_native/tests/test_crash_client_install.rs::main_arms_the_crash_client_after_palmistry_launch",
+      "src/frontend/handshake_native/src/internal_diagnostics.rs::palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body"
+    ],
+    "claim_route": "Existing MT-175 claim remains. Resolve claimant availability or obtain an explicit takeover decision before dispatch. No lifecycle or prior verdict change.",
+    "proof": "Only the three existing named assertions on the defined candidate, reusing a compatible build. Check the current production symbol/order; preserve the original safety assertions and do not repair by disabling a scan."
   }
 }

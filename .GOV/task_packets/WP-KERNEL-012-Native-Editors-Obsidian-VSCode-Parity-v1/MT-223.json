@@ -1,0 +1,502 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-223",
+  "created_at_utc": "2026-11-28T06:56:07Z",
+  "updated_at_utc": "2026-11-28T06:56:07Z",
+  "identity": {
+    "mt_id": "MT-223",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Diagnostic ring code 14 and optional evidence",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "governance_basis": {
+    "wp_pin": "896f4e15",
+    "pinned_build_rules_version": "1.11.0",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json at 896f4e15",
+    "operator_decision_ref": "packet.json#/operator_decisions_20261128_diag_ring",
+    "post_pin_scope": "Operator approved a narrow separate owner and MT-215 adoption. Use present repository scope/resume controls where directly ordered. The approval does not re-pin WP-012 or blanket-adopt V2/HBR-HOST or later attempt counters. The source-first and exact pin below are expressly scoped by the decision and reflect current lifecycle policy without reopening old verdicts."
+  },
+  "context_capsule": {
+    "specification_anchor_refs": [
+      ".GOV/spec/SPEC_CURRENT.md -> v02.229 manifest and INDEX",
+      "05-security-and-observability.md#5.8.2,5.8.3,5.8.6",
+      "06-mechanical-integrations.md#6.13.4,6.13.7,6.13.8",
+      "15-native-desktop-gui-vulkan-gpu-ownership.md#GUI-DESKTOP-049,GUI-DESKTOP-050,GUI-DESKTOP-053"
+    ],
+    "read_context": [
+      "MT-081.json#/scope",
+      "MT-095.json#/scope",
+      "MT-215.json#/diag_ring_owner_review_20261126",
+      "packet.json#/operator_decisions_20261127_shell_gaps/execution_record_20261127/numbering",
+      "Handshake_Artifacts/WP-KERNEL-012/MT-215/gui-agent/diag-ring-typed-addition-request.json"
+    ],
+    "pillar_refs": [
+      "HBR-INT-009",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-VIS-004",
+      "HBR-QUIET-001",
+      "HBR-SWARM-005",
+      "HBR-SWARM-006",
+      "HBR-MAN-004"
+    ],
+    "consumed_capability_refs": [
+      "MT-081 shared-memory typed ring",
+      "MT-095 optional three-tier evidence implementation"
+    ],
+    "module_maintenance_refs": [
+      "MT-223.json#/execution/module_maintenance"
+    ]
+  },
+  "closure_unit": {
+    "outcome": "One source-only diag_ring change with independently verified canonical revision and focused standalone evidence. The unchanged host defaults and independent MT-215 adoption remain separately recorded.",
+    "requirement_refs": [
+      "Master Spec v02.229 §§5.8.2–5.8.6 and §§6.13.4–6.13.8",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "GUI-DESKTOP-053",
+      "AC215-10",
+      "WP012-MT223-DIAG-RING-20261128 R1/R2"
+    ],
+    "acceptance_refs": [
+      "AC223-1",
+      "AC223-2",
+      "AC223-3",
+      "AC223-4"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC223-1",
+        "text": "Append PresentStalled = 14 to the existing typed ordinary/survivable allowlist. Named constructors pair Degraded with Warn and Recovered with Info only. Document existing numeric fields: previous published beat and watched-window count, elapsed microseconds, event sequence and monotonic timestamp. No text, renumber, layout or ring-version change."
+      },
+      {
+        "id": "AC223-2",
+        "text": "The existing V2 round-trip case proves both code 14 transitions survive the real mapped ring with correct numeric payload, zero reserved/padding fields and unchanged v1/v2 compatibility. Semantically inconsistent code 14 must not enter the typed constructor path; old unknown-code rejection remains."
+      },
+      {
+        "id": "AC223-3",
+        "text": "Default evidence preserves the existing three-tier JSON emission/read-back, diagnostic event serde round trip and public evidence API. No-default removes evidence and serde from the standalone normal/build closure while the same focused ring round-trip still succeeds."
+      },
+      {
+        "id": "AC223-4",
+        "text": "The six direct consumer manifests remain byte-identical and resolve with locked offline metadata. A source-only candidate with exact origin revision, subtree, Cargo.lock and toolchain digests and independent proof is ready for pinned adoption. No MT-215, MT-214, Palmistry, Core or default consumer changes in this source commit."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "Narrow Rust ABI and Cargo feature change in a pre-existing standalone crate with named independent review.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "execution": {
+    "lane": "diagnostics",
+    "module_ref": "src/frontend/handshake_native/diag_ring",
+    "build_unit_ref": "src/frontend/handshake_native/diag_ring/Cargo.toml",
+    "write_scope_source": "allowed_write_paths",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "start_precondition": "Operator approved narrow source ownership. Before claim, resolve all activation_blockers, verify the current canonical module source and single writer, and dispatch only the named feature-scoped proof. Re-read the slot, artifact paths and owner before a run.",
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/diag_ring/Cargo.toml",
+      "src/frontend/handshake_native/diag_ring/Cargo.lock",
+      "src/frontend/handshake_native/diag_ring/src/schema.rs",
+      "src/frontend/handshake_native/diag_ring/src/lib.rs",
+      "src/frontend/handshake_native/diag_ring/src/three_tier_evidence.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_ring_roundtrip.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_schema_allowlist.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_three_tier_evidence.rs"
+    ],
+    "forbidden_write_paths": [
+      "All paths outside execution.allowed_write_paths",
+      "src/frontend/handshake_native/diag_ring/src/ring.rs",
+      "src/frontend/handshake_native/diag_ring/.cargo/config.toml",
+      "Ring layout, versions, header/record sizes, old event discriminants, evidence schema/keys, watcher wire or policy, consumer manifests/locks/adapter code, new process/default-feature changes outside this crate",
+      "src/frontend/handshake_host_ports/**",
+      "src/frontend/handshake_shell/**",
+      "src/frontend/palmistry/**",
+      "src/backend/**",
+      ".GOV/**"
+    ],
+    "shared_resource_locks": [
+      "src/frontend/handshake_native/diag_ring has one writer for R1/R2. MT-081 and MT-095 predecessors have settled PASS_V1, with invalidation assessed on actual candidate under the WP pin; never take their old claims."
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Inspect current discriminants and V2 ordinary gate. Add code 14 and two typed transitions in schema.rs through the existing shared allowlist; keep ring.rs, wire version/layout and all prior codes untouched. Extend only the existing V2 round-trip test to exercise both transitions, payload and retained reject checks."
+      },
+      {
+        "n": 2,
+        "step": "Make serde and serde_json optional behind default evidence. Gate schema derives, lib module/re-exports, evidence-only test functions and the evidence-only integration target, preserving all existing default APIs and schemas. Document feature and code fields in the existing crate rustdoc."
+      },
+      {
+        "n": 3,
+        "step": "Run only the admitted compile/static source check and report. Commit the source-only paths, run independent named proof under the WP topology and verify the pushed origin revision independently. Do not enable adoption or rewrite prior PASS records on local proof."
+      }
+    ],
+    "expected_outputs": [
+      "Existing ring module only",
+      "Named focused source-proof references, independently read origin source SHA, subtree, Cargo.lock, toolchain and scoped evidence digests",
+      "Pinned handoff to MT-215 adoption slice"
+    ],
+    "stop_conditions": [
+      "Module authority or single writer disputed",
+      "Code 14 no longer free, a prior code or layout would change",
+      "Consumer metadata requires a manifest/lock edit outside this MT",
+      "A requested public/host UserManual change needs paths outside this MT",
+      "Artifact root/slot unsafe or source readback disagrees with proof"
+    ],
+    "implementer_compile": {
+      "command": "cargo +1.97.1-x86_64-pc-windows-msvc check --locked --offline --manifest-path src/frontend/handshake_native/diag_ring/Cargo.toml -j 1 --tests",
+      "note": "Compile/static implementation evidence only. Retain input digest before/after and follow dispatch limits. Case-specific no-default runtime and consumer closure evidence belongs to the assigned independent validator."
+    },
+    "artifact_isolation": {
+      "artifact_root": "Verified HANDSHAKE_ARTIFACTS_ROOT from WP-012 handoff/Codex",
+      "owner_dir": "WP-KERNEL-012/MT-223/<declared-owner>",
+      "env": {
+        "CARGO_TARGET_DIR": "assignment-declared owned target",
+        "RUSTUP_TOOLCHAIN": "1.97.1-x86_64-pc-windows-msvc",
+        "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+      },
+      "flags": "Existing atomic WP-012 build slot, -j 1, --locked --offline. Configure test TMP and artifact paths in owner; legacy crate .cargo/config.toml target must not win."
+    },
+    "module_change_stage": "standalone_source",
+    "module_maintenance": {
+      "owner": "MT-223 narrow diag_ring owner on claim",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake.git",
+      "canonical_ref": "refs/heads/feat/WP-KERNEL-012",
+      "canonical_path": "src/frontend/handshake_native/diag_ring",
+      "package": "handshake-diag-ring",
+      "provenance": "Existing MT-081 location and MT-095 evidence owner, path dependencies, clean source tree and independently read origin feature ref at 167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42 at authoring. No alternate original source was found in inspected WP records. The standalone Cargo manifest declares publish=false and its own workspace.",
+      "source_release": "Git commit and module subtree plus lock/toolchain/proof digests through existing branch; no crates.io publish, new ref, or move into a separate repository. Later source/host isolation is expressed by separate commits and pinned dependency/proof, even though this pre-existing source shares the repository.",
+      "direct_consumer_manifests": [
+        "src/frontend/handshake_native/Cargo.toml",
+        "src/frontend/palmistry/Cargo.toml",
+        "src/frontend/handshake_host_ports/ui_heartbeat/Cargo.toml",
+        "src/frontend/handshake_host_ports/palmistry_launch/Cargo.toml",
+        "src/frontend/handshake_shell/shell/Cargo.toml",
+        "src/backend/handshake_core/Cargo.toml"
+      ],
+      "public_contract": "Fixed-width typed events in the existing ring, existing v2 mmap and nonce rules, a default-preserved evidence API, optional evidence-free ring consumers, no private recorder/watcher.",
+      "rollback": "Before host emission, candidate contains new readers only and old producers retain existing SlowFrame. After activation, disable/revert the producer mapping before reverting receiver packages. Keep a matching new reader for already-written code-14 survivor records; old readers may skip code 14 and old Palmistry can reject an entire mixed record, so preserve those records for a compatible reader and never silently drop/rewrite them."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-081.json#/validation_v1",
+      "MT-095.json#/validation_v1",
+      "MT-215.json#/diag_ring_owner_review_20261126"
+    ],
+    "checks": [
+      {
+        "check_id": "DR223-R1",
+        "claim_refs": [
+          "AC223-1",
+          "AC223-2",
+          "AC223-3"
+        ],
+        "command_or_method": "Independent validator: `cargo +1.97.1-x86_64-pc-windows-msvc test --locked --offline --manifest-path src/frontend/handshake_native/diag_ring/Cargo.toml -j 1 --test test_ring_roundtrip additive_v2_roundtrip_preserves_v1_and_refuses_mixed_layouts -- --exact` then repeat this same single case with `--no-default-features` before the test-runner separator to prove the changed no-default interface. Review schema.rs ABI/discriminant diff and the named constructors in the same candidate.",
+        "expected": "Exactly 1 executed for each feature combination. Both transitions read back with the requested fields; existing layout, nonce and unknown-code checks still hold.",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact source commit/tree/Cargo.lock/toolchain, isolated mapped test artifact identity and hashed pass counts for default + no-default."
+        ]
+      },
+      {
+        "check_id": "DR223-R2-DEFAULT",
+        "claim_refs": [
+          "AC223-3"
+        ],
+        "command_or_method": "Independent validator: `cargo +1.97.1-x86_64-pc-windows-msvc test --locked --offline --manifest-path src/frontend/handshake_native/diag_ring/Cargo.toml -j 1 --test test_three_tier_evidence three_tier_evidence_emit_to_external_root_and_parse_back -- --exact` and `cargo +1.97.1-x86_64-pc-windows-msvc test --locked --offline --manifest-path src/frontend/handshake_native/diag_ring/Cargo.toml -j 1 --test test_schema_allowlist diag_event_serde_round_trips_for_survivor_store -- --exact`. Keep the pre-existing default behavior in both reviewed roles.",
+        "expected": "Exactly 1 executed in each focused case; the existing emitted JSON and survivor diagnostic event round trip.",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate digest, result counts and log hashes; one actual governed external root for temporary evidence."
+        ]
+      },
+      {
+        "check_id": "DR223-R2-NODEFAULT",
+        "claim_refs": [
+          "AC223-3"
+        ],
+        "command_or_method": "`cargo +1.97.1-x86_64-pc-windows-msvc tree --locked --offline --manifest-path src/frontend/handshake_native/diag_ring/Cargo.toml --no-default-features --target x86_64-pc-windows-msvc -e normal,build --prefix none --format '{p} [{f}]'`; use DR223-R1's no-default runtime result for the same ABI.",
+        "expected": "No active evidence feature on handshake-diag-ring, and no serde/serde_json package in the standalone normal/build graph. Do not infer the loaded graph from Cargo.lock.",
+        "timeout_seconds": 60,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Hash of actual tree output captured on the candidate and the approved target."
+        ]
+      },
+      {
+        "check_id": "DR223-ORIGIN",
+        "claim_refs": [
+          "AC223-4"
+        ],
+        "command_or_method": "Verify source-only scoped diff and actual default consumer manifests and their current locks; run `cargo metadata --locked --offline --format-version 1 --manifest-path <declared manifest>` for the six manifest paths under execution.module_maintenance, with workspace/lock equivalent results reused only when the selected graph is equivalent. Independently fetch and read the existing origin product branch after the source-only commit is pushed; match source commit, subtree, lock and proof before adoption.",
+        "expected": "All direct consumer inputs and lock compatibility resolve without editing a consumer or claiming host runtime. An independent remote identity matches the proven canonical source.",
+        "timeout_seconds": 120,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact consumer manifest/lock paths and results; origin URL/ref and independently read SHA + module subtree, lock and proof hashes."
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "relevant_input_paths": [
+      "src/frontend/handshake_native/diag_ring/Cargo.toml",
+      "src/frontend/handshake_native/diag_ring/Cargo.lock",
+      "src/frontend/handshake_native/diag_ring/src/schema.rs",
+      "src/frontend/handshake_native/diag_ring/src/lib.rs",
+      "src/frontend/handshake_native/diag_ring/src/three_tier_evidence.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_ring_roundtrip.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_schema_allowlist.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_three_tier_evidence.rs",
+      "src/frontend/handshake_native/diag_ring/src/ring.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/handshake_host_ports/ui_heartbeat/Cargo.toml",
+      "src/frontend/handshake_host_ports/palmistry_launch/Cargo.toml",
+      "src/frontend/handshake_shell/shell/Cargo.toml",
+      "src/backend/handshake_core/Cargo.toml",
+      "rust-toolchain.toml",
+      ".cargo/config.toml",
+      "src/frontend/handshake_native/.cargo/config.toml",
+      "src/frontend/handshake_native/diag_ring/.cargo/config.toml",
+      "src/frontend/palmistry/.cargo/config.toml",
+      "src/frontend/handshake_native/Cargo.lock",
+      "src/frontend/palmistry/Cargo.lock",
+      "src/frontend/handshake_host_ports/Cargo.lock",
+      "src/frontend/handshake_shell/Cargo.lock",
+      "src/backend/handshake_core/Cargo.lock"
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-223.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-223.md"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "next_actor": "Orchestrator to resolve the pinned proof and single-writer prerequisites before claim."
+  },
+  "scope": {
+    "summary": "Grant the existing handshake-diag-ring module its narrow source owner for code 14 and optional evidence with default compatibility. Host adoption is a separate pinned slice on MT-215.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/diag_ring/Cargo.toml",
+      "src/frontend/handshake_native/diag_ring/Cargo.lock",
+      "src/frontend/handshake_native/diag_ring/src/schema.rs",
+      "src/frontend/handshake_native/diag_ring/src/lib.rs",
+      "src/frontend/handshake_native/diag_ring/src/three_tier_evidence.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_ring_roundtrip.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_schema_allowlist.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_three_tier_evidence.rs"
+    ],
+    "forbidden_paths": [
+      "All paths outside execution.allowed_write_paths",
+      "src/frontend/handshake_native/diag_ring/src/ring.rs",
+      "src/frontend/handshake_native/diag_ring/.cargo/config.toml",
+      "Ring layout, versions, header/record sizes, old event discriminants, evidence schema/keys, watcher wire or policy, consumer manifests/locks/adapter code, new process/default-feature changes outside this crate",
+      "src/frontend/handshake_host_ports/**",
+      "src/frontend/handshake_shell/**",
+      "src/frontend/palmistry/**",
+      "src/backend/**",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC223-1: Append PresentStalled = 14 to the existing typed ordinary/survivable allowlist. Named constructors pair Degraded with Warn and Recovered with Info only. Document existing numeric fields: previous published beat and watched-window count, elapsed microseconds, event sequence and monotonic timestamp. No text, renumber, layout or ring-version change.",
+      "AC223-2: The existing V2 round-trip case proves both code 14 transitions survive the real mapped ring with correct numeric payload, zero reserved/padding fields and unchanged v1/v2 compatibility. Semantically inconsistent code 14 must not enter the typed constructor path; old unknown-code rejection remains.",
+      "AC223-3: Default evidence preserves the existing three-tier JSON emission/read-back, diagnostic event serde round trip and public evidence API. No-default removes evidence and serde from the standalone normal/build closure while the same focused ring round-trip still succeeds.",
+      "AC223-4: The six direct consumer manifests remain byte-identical and resolve with locked offline metadata. A source-only candidate with exact origin revision, subtree, Cargo.lock and toolchain digests and independent proof is ready for pinned adoption. No MT-215, MT-214, Palmistry, Core or default consumer changes in this source commit."
+    ],
+    "proof_targets": [
+      "DR223-R1",
+      "DR223-R2-DEFAULT",
+      "DR223-R2-NODEFAULT",
+      "DR223-ORIGIN"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "No GUI or host-active producer change in standalone MT-223. Observe the real mapped ring and typed result here. Live GUI/TraceProjection proof for the active producer belongs to MT-215/MT-214 adoption."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "src/frontend/handshake_native/src/manual_content_editors.rs::palmistry_body (existing entry; writer unresolved)",
+      "src/frontend/handshake_native/diag_ring/src/lib.rs and src/schema.rs (standalone module contract)"
+    ],
+    "expected_evidence": [
+      "Existing module rustdoc describes the two feature configurations, event semantics and rollback.",
+      "Resolve the exact in-product entry, existing manual version rules and a single authorized writer for the same change before claim."
+    ]
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Existing local ring mechanical diagnostic bytes; existing evidence JSON under verified artifact root"
+    ],
+    "identity_and_scope_contexts": [
+      "Existing reader nonce/process ownership and typed numeric identifiers remain unchanged; no new project/account or resource attribution boundary"
+    ],
+    "enforcement_boundaries": [
+      "Allowlist and fixed C layout",
+      "Existing evidence JSON schema unchanged",
+      "No operational content or new display/export/retrieval paths"
+    ],
+    "expected_evidence": [
+      "Both transitions use typed numerics only, inherited reserved field stays zero, existing default evidence schema remains unchanged."
+    ]
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "APPLICABLE",
+      "proof_ref": "DR223-R1",
+      "obligation_or_reason": "Standalone Tier 2 transport proof. Host tier dispositions stay bound to the named adoption, with no new business event or standalone watcher claim."
+    },
+    {
+      "rule_ref": "HBR-PRIV-004",
+      "disposition": "APPLICABLE",
+      "proof_ref": "DR223-R1",
+      "obligation_or_reason": "No widening or source content enters the shared-map payload."
+    },
+    {
+      "rule_ref": "HBR-PRIV-005",
+      "disposition": "APPLICABLE",
+      "proof_ref": "DR223-R1",
+      "obligation_or_reason": "Retain existing mechanical attribution fields; make no new account or resource authority claim."
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "APPLICABLE",
+      "proof_ref": "MT223-TRACEPROJECTION-DISPOSITION",
+      "obligation_or_reason": "Typed ring read-back supports standalone ABI proof only. Resolve the exact durable projection proof or a justified applicability disposition before claim."
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "APPLICABLE",
+      "proof_ref": "DR223-R1",
+      "obligation_or_reason": "Headless, no GUI/process manipulation."
+    },
+    {
+      "rule_ref": "HBR-SWARM-005",
+      "disposition": "APPLICABLE",
+      "proof_ref": "DR223-ORIGIN",
+      "obligation_or_reason": "Use approved owner and slot; no repo-local output, preserve active agent target ownership."
+    },
+    {
+      "rule_ref": "HBR-SWARM-006",
+      "disposition": "APPLICABLE",
+      "proof_ref": "DR223-ORIGIN",
+      "obligation_or_reason": "Clean only owned disposable output, retaining required evidence and explicit shared target reuse."
+    },
+    {
+      "rule_ref": "HBR-MAN-004",
+      "disposition": "APPLICABLE",
+      "proof_ref": "MT223-USERMANUAL-OWNER",
+      "obligation_or_reason": "Bind the exact existing in-product manual entry and same-change writer before claim; module rustdoc covers only source usage."
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "A present-stall diagnostic is mechanical, outside business authority."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "DEFERRED",
+      "reason": "Standalone source proves typed mapped read-back; MT-215 owns live producer mapping."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "DEFERRED",
+      "reason": "Standalone source makes code survivable; MT-215/MT-214 retain coordinated live reader/producer proof. No new watcher, rule or process."
+    }
+  ],
+  "handoff": {
+    "next_actor": "Independent validator under WP-012's declared topology after reviewed source-only submission. On PASS hand pinned source and compatibility evidence to MT-215 adoption only.",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "worker_final_status": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "SOURCE_ABI_AND_DEFAULT_COMPATIBILITY",
+    "risks": [
+      "A new code renumbers or punches through old unknown-code or nonce gates",
+      "Disabling serialization breaks default evidence or a downstream default consumer",
+      "Older Palmistry ignores or rejects code-14 records before all readers match",
+      "Linking MT-215 wholesale would invalidate S8 or create a false predecessor"
+    ],
+    "minimum_controls": [
+      "Existing V2 exact case both feature combinations plus old controls",
+      "Default evidence/serde targeted proofs and locked downstream graph",
+      "Rebuild compatible readers prior to emitting code 14 and retain original encoded evidence across rollback",
+      "Add conditional dependency on the new MT-215 adoption only, leave S8 and prior proofs intact"
+    ]
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-223.md",
+    "status": "ON_DEMAND_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "activation_blockers": [
+    {
+      "id": "MT223-USERMANUAL-OWNER",
+      "condition": "Pin the in-product UserManual entry and name one authorized writer for the same change under HBR-MAN-004.",
+      "found": "Existing frontend entry is palmistry_body in src/frontend/handshake_native/src/manual_content_editors.rs. MT-214 and MT-215 name the frontend entry and src/backend/handshake_core/src/user_manual as a shared single-writer surface. No MT-223 write grant or same-change route to this entry is recorded.",
+      "effect": "Source crate rustdoc can document the API; it does not satisfy in-product HBR-MAN-004 on its own."
+    },
+    {
+      "id": "MT223-TRACEPROJECTION-DISPOSITION",
+      "condition": "Bind the existing durable TraceProjection run to the exact scoped claim or record a justified applicable-status decision under pinned HBR-VIS-004.",
+      "found": "The existing projection requires a durable EventLedger chain. The standalone mapped-ring fixture proves ABI and typed events only.",
+      "effect": "If HBR-VIS-004 applies, the observation must identify task, context, return, tool calls, artifact, validation and promotion where applicable, bound to the exact candidate. Do not create a synthetic business event."
+    }
+  ]
+}

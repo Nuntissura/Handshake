@@ -1743,5 +1743,48 @@
       "native x64 GPU, real IME, real screen reader"
     ],
     "routing": "E9-F1: 8003327ce adds 0.5 s per shutdown without settling anything; fix design goes to a GUI specialist with an adversarial pass, with a per-slot probe from the eval agent; E9-F2 back to diagnosis; egui runtime failures and the cwd-relative artifact path to owner routing (MT-017, MT-033, MT-034, MT-068, MT-069, MT-099)"
+  },
+  "operator_decision_20261128_diag_ring_adoption": {
+    "decision_id": "WP012-MT223-DIAG-RING-20261128",
+    "authority_ref": "packet.json#/operator_decisions_20261128_diag_ring",
+    "scope": "Conditional handoff only. S1–S8 acceptance, current READY status, S8 scope and any claim stay unchanged.",
+    "source_mt_ref": "MT-223.json",
+    "source_maintenance_ref": "MT-223.json#/execution/module_maintenance",
+    "stage": "host_adoption (this new slice only)",
+    "conditional_depends_on": [
+      {
+        "mt_ref": "MT-223.json",
+        "when": "Only on the diag_ring adoption slice. Independently re-read the pushed source revision, subtree and Cargo.lock, resolve source proof and pin the exact existing adapter before writes."
+      }
+    ],
+    "pin_fields_required_before_write": [
+      "canonical source ref and commit",
+      "module subtree hash",
+      "source Cargo.lock/toolchain hash",
+      "proof refs and independent origin reread",
+      "same-repository adoption candidate ancestry and empty diff for the module relative to source",
+      "consumer Cargo.lock digest",
+      "exact host adapter paths",
+      "rollback"
+    ],
+    "adapter": "src/frontend/handshake_host_ports/ui_heartbeat",
+    "allowed_changes": [
+      "ui_heartbeat/Cargo.toml: set default-features = false for existing diag_ring normal dependency only. No S8, shell direct edge or other consumer changes.",
+      "ui_heartbeat/src/events.rs, src/port.rs, src/frames.rs and the two existing affected port tests: use source owner's typed code-14 constructors, current last published beat and actual bounded number of watched windows when supplied by the host. Preserve the existing wait-free heartbeat, elapsed duration and phase semantics. Enable code-14 emission only after exact receiver compatibility and coordinated shell proof/amendment are ready."
+    ],
+    "isolated_dependency_proof": "cargo +1.97.1-x86_64-pc-windows-msvc tree --locked --offline --manifest-path src/frontend/handshake_host_ports/Cargo.toml -p ui_heartbeat --target x86_64-pc-windows-msvc -e normal,build --prefix none --format '{p} [{f}]'",
+    "isolated_dependency_expected": "With only ui_heartbeat selected, diag_ring default/evidence and serde/serde_json absent in normal/build graph. Dev tests intentionally can resolve the Palmistry default consumer. Do not claim package absence in the full shell or S8 graph. Cargo feature graph method: https://doc.rust-lang.org/stable/cargo/commands/cargo-tree.html#feature-unification",
+    "focused_adoption_proof": [
+      "Use existing `a_present_stall_keeps_every_beat_and_is_recorded_once_each_way` in test_port_rules and `a_present_stall_keeps_the_heartbeat_fresh_and_is_told_by_its_event` in test_watcher_agreement only for changed assertions. No broad suite. Command form `cargo test --locked --offline --manifest-path src/frontend/handshake_host_ports/Cargo.toml -p ui_heartbeat -j 1 --test <target> <case> -- --exact` under existing slot and independent validation.",
+      "Coordinate MT-214's exact existing `heartbeat_present::a_stalled_present_keeps_the_beat_and_is_recorded_once_each_way` case through private desktop and Vulkan fail-fast. Preserve phase/progression/clock checks. Read live matching Palmistry/core output or retain exact DEFERRED dependency; component proof does not satisfy whole host/watcher acceptance."
+    ],
+    "mt214_dependencies": [
+      "MT-214 owns shell `src/watches.rs` for actual bounded count, `tests/heartbeat_present.rs:97` for the changed expectation, and `src/lib.rs:24` for the changed in-shell manual table. Route any needed edit to that exact owner; no cross-MT write grant. Retain old mapping until the matching consumer proof and documentation obligation can be closed."
+    ],
+    "receiver_and_manual_conditions": [
+      "Palmistry and Core readers are rebuilt against the same accepted ring input before emitting 14. Warn/use a match-pin at rollout rather than changing wire layout. Legacy readers cannot be assumed to retain the new code.",
+      "Locate the existing in-product UserManual entry and authorized owner for any changed diagnostic behavior, preserving its current scope. If the existing write scope cannot update that entry in the same change, request exact routing or scope and leave event switch blocked. Pending doc and live tier proof never imply PASS."
+    ],
+    "status_effect": "None on MT-215 S8, the original AC215-10 proof, or existing settled verdicts. Review MT-081/MT-095 input intersection on actual candidate under the WP pin. No cycle because MT-223 has no dependency on MT-215; its six metadata compatibility reads are against existing inputs."
   }
 }
