@@ -15966,5 +15966,34 @@
     ],
     "source_check": "Registry production source no longer contains runtime DEFINE or ensure_schema. In the integration target the exact imported legacy row uses OPTION IMPORT.",
     "limits": "No binary-wide verdict from 15 scoped cases. The other named diagnoses remain open under their own authority."
+  },
+  "r172_17_vm_registry_focused_confirmation_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent JUnit, raw log, source, Git and slot readback",
+    "recorded_on": "2026-11-28",
+    "basis": "#/r172_17_vm_registry_focused_scope_20261128",
+    "candidate": "4cb6eefc6d7c71ea390c95e34e9661f16443b10b",
+    "tree": "78249b33a11df6cff55b111e4bbfe543c230e32b",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-17-vm-registry-20261128/focused-01",
+    "counts": {
+      "executed": 15,
+      "passed": 15,
+      "failed": 0,
+      "filtered": 3
+    },
+    "verified_source_sha256": "dffdd28c6d6b143464778dec7599f68bbdcd55ecb4adde1bc72ada2359098051",
+    "source_check": "Registry production source contains no runtime DEFINE or ensure_schema. The prior green set and exact three G03 cases passed.",
+    "digests": {
+      "log": "c8511468d5659a0c7aade9bcfa92da37f84eacbee31137a428cd18f9cc195c4e",
+      "junit": "bf2c4fcf086787bb6be78f056edb89bbd544dc48c1514208c330d4c0425b7eff",
+      "result": "178209f8f4339b3fc2b5d48807575b48ab4ded4feb2fd5a09ca2dd4edb58b172",
+      "cases": "dcfdd640cc00fb8411a0a62a9abe829727e2232c45169d2f0dcfbd91da9cd2da",
+      "wrapper": "5480cabf894c792a0b98eafa89c914561ac477bd7acd645d92e2c3058713b392",
+      "slot_release": "f30f781785c1211b34bcbe6cd4b8a47d736c4e78cbc75dc573da14e66982805e",
+      "unchanged_raw_inputs": "7670c988b28e44a304cb9ab5ed0821ef8ef9e48c91e3d9b132b3538da525a813"
+    },
+    "target_peak_bytes": 192947388580,
+    "released_utc": "2026-11-28T15:48:02.715222Z",
+    "disposition": "R172-17 scoped proof complete. No binary-wide verdict and no formal MT verdict. Three other named cases remain routed to TRQ-06/G13.",
+    "next": "R172-18 five original named cases first. No expectation changes before baseline. The existing orphan case and planned new non-disclosure collision case are reserved for the subsequent seven-case acceptance proof."
   }
 }
