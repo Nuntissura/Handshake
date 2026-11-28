@@ -14684,5 +14684,33 @@
       "A per-file HBR-STOP-005 waiver record naming the run is written before the edit."
     ],
     "record_ref": "MT-172.json#/rev172_plan_20261127/operator_decisions_20261127"
+  },
+  "pt_arraylen2_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); commit, push, focused-07 result, named check -06 verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "picotask": "PT-ARRAYLEN-2 (#/pt_arraylen_static_review_20261127 follow-ups: crate-wide guard, model_registry.rs sites, F8/F9 probes)",
+    "commit": "5aa9c7c43d8e563462b3637761fa4d96267ddad3 (pushed): src/backend/handshake_core/src/storage/surreal/model_lane.rs (guard) and model_registry.rs only",
+    "root_cause_correction": "a lone-SELECT IF/ELSE branch block in SurrealDB 3.2.0 gives NONE for 0 rows, the bare row object for exactly 1 row and an array only for 2+ rows (probes C1, C1b, C3); the earlier 'always NONE' came from an empty table; the inner-LET form LET $hsk_rows = (SELECT ..); $hsk_rows returns the array in every case; guard doc comment updated",
+    "fixes": "model_registry.rs: 9 sites to the inner-LET form; regression test read_registration_query_returns_the_stored_row_through_its_receipt_branches runs the production READ_REGISTRATION_QUERY against a stored row and its receipt, expects 1 row, and asserts the pre-fix text fails (Mem engine, schemaless tables)",
+    "guard": "if_branch_subquery_guard_tests scans every .rs and .surql under src; matches {(, { ( , lowercase, bare, and backslash-newline or \\n escapes between brace and keyword; 3 tests (crate scan, 9 positive plus negative controls, allowlist disposition); out-of-scope entries are exact (file, line) pairs with owner MT, probe result and reason; a stale entry fails",
+    "allowlist": {
+      "pose.rs:2967, 2971, 3017": "not live (probes E1, E3, E6); owners MT-171, MT-141",
+      "pose.rs:3026": "LIVE: (SELECT VALUE record::id(..)) gives NONE for 0 rows and a bare string for 1 row, and pose.rs:3920 decodes it as Vec<Uuid>; needs the inner-LET form; owners MT-171 (BLOCKED), MT-141 (PASS_V6); derived from probes and the decode code, not run against the pose.rs statement",
+      "engine.rs:166": "not live (E4), owner MT-171",
+      "model_lease.rs:257": "not live (E8b-d), owner MT-171; new site not in the static review",
+      "surreal.rs:5647": "not live (E9), owners MT-172, MT-173; new site not in the static review"
+    },
+    "probes_f8_f9": "ELSE-branch FROM ONLY $existing and (SELECT VALUE x FROM $y)[0] in either branch return the row or value: not live; same results on the production-composition store and Mem; probe source MT-172/pt-arraylen2-20261127/probe_module_zz_arraylen2.rs (not committed)",
+    "focused_run": "MT-172/pt-arraylen2-20261127/focused-07/run.log sha256 be0e612ce8f36828efc3eb9339b33a4652e899aba5b5050c07d070b36669ec67: exit 0, 5 run, 5 passed (3 guard tests, the regression test, model_registry_optional_info_preserves_none_null_and_equality); earlier runs focused-01..06 (06 found a guard self-match, fixed); focused-05 probes only",
+    "compile_runs": {
+      "compile-check-20261127-05": "ITERATION copy: exit 0, inputs_unchanged true, dirty model_lane.rs and model_registry.rs (expected), cargo.log sha256 7fdbf46cd9dd7d4d3f3c21fa3f6934fe2158324eb4f7a94a729ebf5bda9f31f7",
+      "compile-check-20261127-06": "unmodified launcher (sha256 005406f62f7b97de99c8c7c9b138e6fdedd15b21cc7a5793156bd7b0b32b4587), WP012-P1-MT-172-COMPILE, head 5aa9c7c43, tree d8207df6: exit 0, inputs_unchanged true, dirty none, cargo.log sha256 643553ecfed6762670b0b5b9be402866c74483592763a1f40f5c2580ac2f94c3; verified by the orchestrator"
+    },
+    "open_findings": {
+      "persistence_tests": "model_registry_persistence_tests fail at the first persist: 9 of 10 'boot-set readback returned 0 rows'; orphan_receipt_stale_and_revoked_authority_are_rejected 'palmistry_watcher_custodian table does not exist'; seen only with the fix applied (focused-01, -02); no baseline at HEAD run; the unfixed and fixed persist queries both returned rows=1 on Mem; the coder's added integration test was removed because it cannot pass until this is fixed; triage pending",
+      "pose_3026": "live defect in a PASS_V6 file (MT-141) and a BLOCKED MT (MT-171); routing pending"
+    },
+    "cx_val_009": "model_registry.rs is in MT-172, MT-173 and MT-196 allowed paths, all BLOCKED; no PASS MT returns",
+    "status": "PT-ARRAYLEN-2 code in; independent eval pending"
   }
 }

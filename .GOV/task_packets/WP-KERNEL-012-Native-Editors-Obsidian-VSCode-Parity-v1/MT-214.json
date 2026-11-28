@@ -2804,5 +2804,13 @@
     },
     "operator_question": "Q1: DeviceUnavailable (exit 4) after the watcher launched: A (recommended) treat as unexpected, crash record written, rule stays exact; B tell the watcher normal stop, one more small piece of code and a new rule that a start which opened nothing counts as completed",
     "disposition": "implementation proceeds with the corrections and option A (needs no code); if the Operator picks B it is added as one picotask"
+  },
+  "operator_decision_20261128_s7_no_gpu_stop": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-28",
+    "id": "WP012-MT214-S7-NO-GPU-STOP-20261128",
+    "question": "New Vulkan shell (MT-214): it starts its Palmistry crash watcher first, then looks for a usable graphics card. If there is none, it stops with a clear message and exit code 4. Should the watcher record that stop as unexpected (a crash record), or be told it was a normal stop?",
+    "operator_answer": "Record as unexpected (Recommended)",
+    "effect": "S7 option A: on DeviceUnavailable (exit 4) after the launch the watcher is left untold and writes a post-mortem crash record; the rule 'the watcher is told only after a fully completed orderly close' stays exact; no extra code; closes Q1 of #/s7_palmistry_plan_review_20261127"
   }
 }
