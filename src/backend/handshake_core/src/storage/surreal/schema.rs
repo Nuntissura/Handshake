@@ -13685,6 +13685,7 @@ mod tests {
             "model_sessions.engine_profile_binding must retain its authorization and origin guard"
         );
         let guarded_flexible_roots = BTreeMap::from([
+            (("kernel_event_ledger", "payload"), (r###"DEFINE FIELD OVERWRITE payload ON TABLE kernel_event_ledger TYPE object FLEXIBLE PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true);"###, r###"DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true);"###)),
             (("blocks", "derived_content"), (r###"DEFINE FIELD OVERWRITE derived_content ON TABLE blocks TYPE object FLEXIBLE DEFAULT {} PERMISSIONS FOR select NONE;"###, r###"DEFINE FIELD OVERWRITE derived_content.* ON TABLE blocks TYPE any PERMISSIONS FOR select NONE;"###)),
             (("fems_memory_packs", "pack"), (r###"DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs TYPE object FLEXIBLE
     PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read' OR fn::wp012_model_lane_navigation_memory_raw_access($this, { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id), authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace }, $navigation_selection);"###, r###"DEFINE FIELD OVERWRITE pack.* ON TABLE fems_memory_packs TYPE any
