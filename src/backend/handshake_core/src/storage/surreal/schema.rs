@@ -3497,6 +3497,7 @@ fn imported_schema_upgrade_spans() -> BTreeMap<usize, usize> {
     // Replay the complete current shared cohort after legacy definitions, including
     // changed navigation guards and declarations outside the imported transaction.
     spans.extend(canonical_upgrade_spans(SCHEMA, PRE_ARGUS_CURRENT_BASE_HEADERS));
+    spans.extend(revision166::shared_upgrade_spans());
     spans
 }
 
@@ -14860,6 +14861,20 @@ mod tests {
         assert!(imported.range(block_start..block_end).next().is_none());
         let imported_upgrade = mt109_authority_upgrade_query();
         let emitted = schema_declaration_occurrences(&imported_upgrade);
+        for (start, end) in revision166::shared_upgrade_spans() {
+            assert_eq!(imported.get(&start), Some(&end));
+            let canonical = schema_declaration_occurrences(&SCHEMA[start..end]);
+            let [expected] = canonical.as_slice() else {
+                panic!("revision 166 span must select exactly one declaration");
+            };
+            let actual = emitted.iter().rfind(|item| item.identity == expected.identity);
+            assert_eq!(
+                actual.map(|item| item.statement),
+                Some(expected.statement),
+                "older import must retain the exact final revision 166 declaration: {}",
+                expected.identity,
+            );
+        }
         let marked = schema_declaration_occurrences(&SCHEMA[block_start..block_end]);
         assert_eq!(marked.len(), 30);
         for expected in marked {

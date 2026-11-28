@@ -66,17 +66,22 @@ pub(super) fn predecessor_catalog_sha256(production: bool) -> Result<String, Sur
     ))
 }
 
+pub(super) fn shared_upgrade_spans() -> BTreeMap<usize, usize> {
+    canonical_upgrade_spans(SCHEMA, BASE_HEADERS)
+}
+
 pub(super) fn upgrade_statements(production: bool) -> String {
-    let mut sources = vec![(SCHEMA, BASE_HEADERS)];
+    let mut sources = vec![(SCHEMA, shared_upgrade_spans())];
     if production {
+        let registry = include_str!("model_registry_schema.surql");
         sources.push((
-            include_str!("model_registry_schema.surql"),
-            MODEL_REGISTRY_HEADERS,
+            registry,
+            canonical_upgrade_spans(registry, MODEL_REGISTRY_HEADERS),
         ));
     }
     let mut result = String::new();
-    for (source, headers) in sources {
-        for (start, end) in canonical_upgrade_spans(source, headers) {
+    for (source, spans) in sources {
+        for (start, end) in spans {
             result.push_str(&source[start..end]);
             result.push('\n');
         }
