@@ -15186,5 +15186,27 @@
     ],
     "decision": "Keep the approved shared CloudLane and revocation witness in the production model module. The shared ledger cleanup branch can reuse it without re-reading the mutable projection. Preserve the existing shared-first bootstrap and keep old authority outside the cleanup branch. Treat the new helper as a production catalog identity only.",
     "status": "No Cargo or product push. Existing model-lane DDL for approved exact cleanup access active. Shared event gate and runtime owner wiring follow."
+  },
+  "r172_cleanup_ddl_checkpoints_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent Git object and bounded review",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_cloud_revocation_cleanup_scope_20261128",
+    "local_intermediates": [
+      {
+        "pico": "Cleanup projection",
+        "commit": "83774c5d9c6abea36584622e73ad5332a67e7cdd",
+        "tree": "3c6f73ab955a48f4757f5cb17e46c2abc4321340",
+        "static": "Four cleanup-only helper identities and the existing model_lane_authority table modified. Existing generic branches preserved. Independent red team confirmed canonical aggregate, scope, cloud/fence binding and causal integrity. Runtime acknowledgments remain typed owner evidence."
+      },
+      {
+        "pico": "Cleanup shared ledger",
+        "commit": "279f74f32bd3795a023167c158d147e6fb55c197",
+        "tree": "bafbe750f320cc59ff63f163c01ff71238fa5a5d",
+        "static": "The active shared model-lane receipt function alone gained a cleanup branch. Readback validates the row, event and cloud witness without rereading mutable receipt projection; create/replacement also validates exact current causal state."
+      }
+    ],
+    "execution_decision": "The protected typed Rust phase will re-read the full canonical revocation overlay, maintain idempotent pending replay and require the private verified START and actual STOP/outbox completion evidence. SQL independently binds exact cloud scope, ownership and causal event. Keep process/outbox owner grants and raw access unchanged.",
+    "upgrade_note": "The shared receipt function is already emitted in the 164–166 and imported paths, with a duplicate at 164; remove just overlapping selected declarations from the stage composition. 167–171 need the full shared receipt delta. Existing edited identities are inverted byte-exact; distinguish genuinely new production helper identities in predecessor subtraction.",
+    "status": "No Cargo or product push. Typed storage/facade picotask active, later coordinator and focused proof pending."
   }
 }
