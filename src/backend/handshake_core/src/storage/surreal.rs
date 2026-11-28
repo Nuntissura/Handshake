@@ -1893,47 +1893,68 @@ impl SurrealAdminContext<'_> {
     where
         B: surrealdb::types::SurrealValue + Send,
     {
-        #[cfg(not(test))]
-        {
-            Ok(self
-                .client
-                .query(statement.into())
-                .bind(surrealdb::types::SurrealValue::into_value(bindings))
-                .await?
-                .check()?)
+        self.query_bound_with_transaction_throw(statement, bindings, None)
+            .await
+    }
+
+    async fn query_bound_with_transaction_throw<B>(
+        &self,
+        statement: impl Into<String> + Send,
+        bindings: B,
+        expected_throw: Option<&'static str>,
+    ) -> Result<surrealdb::IndexedResults, SurrealStorageError>
+    where
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        use surrealdb::types::QueryError;
+
+        let mut response = self
+            .client
+            .query(statement.into())
+            .bind(surrealdb::types::SurrealValue::into_value(bindings))
+            .await?;
+        if !cfg!(test) && expected_throw.is_none() {
+            return Ok(response.check()?);
         }
+
+        let is_masked = |error: &surrealdb::Error| {
+            matches!(
+                error.query_details(),
+                Some(QueryError::NotExecuted | QueryError::Cancelled)
+            )
+        };
+        let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+        errors.sort_by_key(|(index, _)| *index);
         #[cfg(test)]
-        {
-            let mut response = self.client
-                .query(statement.into())
-                .bind(surrealdb::types::SurrealValue::into_value(bindings))
-                .await?;
-            let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
-            errors.sort_by_key(|(index, _)| *index);
-            let first_error = errors.first().map(|(_, error)| error.clone());
-            let masked = errors.iter().filter(|(_, error)| matches!(
-                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
-            )).count();
-            if !errors.is_empty() {
-                eprintln!("SURREAL_ADMIN_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
-                for (index, error) in errors.iter().filter(|(_, error)| !matches!(
-                    error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
-                )) {
-                    eprintln!("SURREAL_ADMIN_STATEMENT_ERROR index={index} error={error:?}");
+        if !errors.is_empty() {
+            let masked = errors.iter().filter(|(_, error)| is_masked(error)).count();
+            eprintln!("SURREAL_ADMIN_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
+            for (index, error) in errors.iter().filter(|(_, error)| !is_masked(error)) {
+                eprintln!("SURREAL_ADMIN_STATEMENT_ERROR index={index} error={error:?}");
+            }
+            if masked == errors.len() {
+                if let Some((index, error)) = errors.first() {
+                    eprintln!("SURREAL_ADMIN_FIRST_MASKED_ERROR index={index} error={error:?}");
                 }
-                if masked == errors.len() {
-                    if let Some((index, error)) = errors.first() {
-                        eprintln!("SURREAL_ADMIN_FIRST_MASKED_ERROR index={index} error={error:?}");
-                    }
-                    if let Some((index, error)) = errors.last() {
-                        eprintln!("SURREAL_ADMIN_LAST_MASKED_ERROR index={index} error={error:?}");
-                    }
+                if let Some((index, error)) = errors.last() {
+                    eprintln!("SURREAL_ADMIN_LAST_MASKED_ERROR index={index} error={error:?}");
                 }
             }
-            // take_errors removes failures; preserve check's original first error.
-            if let Some(error) = first_error { return Err(error.into()); }
-            Ok(response.check()?)
         }
+
+        let mut errors = errors.into_iter().map(|(_, error)| error);
+        let Some(first_error) = errors.next() else {
+            return Ok(response.check()?);
+        };
+        if let Some(expected) = expected_throw.filter(|_| is_masked(&first_error)) {
+            let mut causes = errors.filter(|error| !is_masked(error));
+            if let (Some(error), None) = (causes.next(), causes.next()) {
+                if error.is_thrown() && error.message() == expected {
+                    return Err(error.into());
+                }
+            }
+        }
+        Err(first_error.into())
     }
 }
 

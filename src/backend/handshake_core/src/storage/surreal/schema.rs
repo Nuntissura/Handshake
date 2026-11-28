@@ -9502,7 +9502,7 @@ UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revi
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
 "#);
-    database.query_bound(upgrade, RoutingSuccessorBindings {
+    database.query_bound_with_transaction_throw(upgrade, RoutingSuccessorBindings {
         version: SCHEMA_VERSION.to_owned(),
         previous_revision: previous_state.revision,
         revision: SCHEMA_REVISION,
@@ -9514,7 +9514,7 @@ COMMIT TRANSACTION;
         source: source.clone(),
         generated: generated.clone(),
         pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
-    }).await?;
+    }, production.then_some("An error occurred: HSK-SCHEMA-172-KNOWLEDGE-ENTITY-DUPLICATE")).await?;
 
     let observed = if production {
         inspect_production_schema(database).await?
