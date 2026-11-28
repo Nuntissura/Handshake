@@ -1,10 +1,9 @@
 //! The watcher's acknowledgement of an explicit shutdown (MT-214 AC214-11).
 //!
-//! Palmistry's launcher, with its control socket and signed `Shutdown` message, lives in the egui host
-//! (`handshake_native/src/diagnostics/palmistry_launch.rs`), which this shell may not depend on. The shell therefore
-//! holds a seam: the program asks a [`ShutdownWatcher`] to acknowledge only after the owner reported every claim
-//! settled and every window gone, never before. No toolkit-free launcher exists yet, so the binaries pass
-//! [`NoWatcher`], which says so.
+//! Palmistry's launcher, with its control socket and signed `Shutdown` message, is the toolkit-free crate
+//! `handshake_host_ports/palmistry_launch` (MT-215 AC215-11). The program asks a [`ShutdownWatcher`] to acknowledge only
+//! after the owner reported every claim settled and every window gone, never before. [`crate::PalmistryWatcher`] is the
+//! one over the launcher's watcher; [`NoWatcher`] says that none is connected, for tests and for a start without one.
 
 /// What the watcher answered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,7 +35,7 @@ pub trait ShutdownWatcher {
     fn acknowledge_shutdown(&self) -> WatcherAck;
 }
 
-/// No watcher is connected: the launcher port does not exist yet outside the egui host.
+/// No watcher is connected.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NoWatcher;
 

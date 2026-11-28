@@ -33,6 +33,8 @@
 
 pub mod authority;
 pub mod outcome;
+#[cfg(windows)]
+pub mod palmistry;
 pub mod shutdown;
 pub mod unavailable;
 pub mod windows;
@@ -52,6 +54,8 @@ pub use heartbeat::{OpenRefused, ShellHeartbeat};
 pub use outcome::{conclude, may_acknowledge, shutdown_settled, ExitKind};
 #[cfg(windows)]
 pub use program::{run_program, EndAfter, ProgramConfig, ProgramOutcome, ProgramReport};
+#[cfg(windows)]
+pub use palmistry::{watcher_ack, OwnedWatcher, PalmistryWatcher};
 pub use shutdown::{NoWatcher, ShutdownWatcher, WatcherAck};
 pub use unavailable::{unavailable_after, Cause, UnavailableState, When, HEADLINE};
 pub use windows::{Action, DetachedSpec, KindCounts, WindowKind};

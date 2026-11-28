@@ -38,6 +38,7 @@ const KNOWN_MEMBERS: &[&str] = &[
     "../accessibility",
     "../shell",
     "../../handshake_host_ports/ui_heartbeat",
+    "../../handshake_host_ports/palmistry_launch",
 ];
 
 /// The port's own code, which defines what the rules below forbid elsewhere.
@@ -599,6 +600,80 @@ fn the_heartbeat_slot_has_one_publisher_one_port_and_one_ring_writer() {
     assert_eq!(ring_writers_made(&[two_writers]).len(), 2);
 }
 
+/// MT-214 S7 (P2): the program's ring is the launcher's version 2 ring, and nothing in the shell's code names the version 1
+/// writer. Whole words: `DiagRingWriterV2` contains `DiagRingWriter`, which is not the same name.
+#[test]
+fn the_program_ring_is_version_two_and_no_version_one_writer_is_named() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = below("src");
+    assert!(sources.len() >= 7, "the scan reads the crate");
+    let found = lines(&sources, &["DiagRingWriter", "DiagRingReader", "RING_VERSION"]);
+    assert!(found.is_empty(), "the version 1 ring in the shell's code: {found:#?}");
+    let program = source_in(&sources, "src/program.rs");
+    assert!(!lines_with(&program.code, "DiagRingWriterV2").is_empty(), "the program holds the version 2 writer");
+    assert!(!lines_with(&program.code, "DiagEventV2").is_empty(), "its marker is a version 2 event");
+
+    let v1 = sample("src/sample.rs", "pub ring: Option<DiagRingWriter>,");
+    assert_eq!(lines(&[v1], &["DiagRingWriter"]).len(), 1);
+    let v2 = sample("src/sample.rs", "pub ring: Option<DiagRingWriterV2>,");
+    assert!(lines(&[v2], &["DiagRingWriter"]).is_empty(), "the version 2 name is another word");
+}
+
+/// MT-214 S7 (P2, AC214-11, MT-215 HB-3): `ended` marks the ring and asks the watcher only inside the settled check, the
+/// marker first, and a failed ring write is not reported as a marked ring.
+#[test]
+fn the_watcher_is_asked_only_inside_the_settled_check_after_the_ring_marker() {
+    let _limit = TimeLimit::new(LIMIT);
+    let program = source_in(&below("src"), "src/program.rs");
+    let code = squeezed(&program);
+    let ended = block_of(&code, "fnended(&self");
+    let settled = ended.find("ifmay_acknowledge(ended.settled)").expect("the settled check");
+    let marker = ended.find("ring.write(").expect("the ring marker");
+    let asked = ended.find("acknowledge_shutdown()").expect("the watcher is asked");
+    assert!(settled < marker && marker < asked, "settled check, then ring marker, then the watcher: {ended}");
+    assert_eq!(ended.matches("acknowledge_shutdown()").count(), 1, "the watcher is asked once");
+    let settled_block = block_of(ended, "ifmay_acknowledge(");
+    assert!(
+        settled_block.contains("acknowledge_shutdown()") && settled_block.contains("ring.write("),
+        "the marker and the question are inside the settled check: {ended}"
+    );
+    assert!(
+        !ended.contains("ring_marked=true"),
+        "the ring is marked only when the write says it was: {ended}"
+    );
+    assert!(ended.contains("ring_marked=") && ended.contains("ring.write("), "{ended}");
+
+    // Each rule finds what it looks for.
+    let early = sample(
+        "src/sample.rs",
+        "fn ended(&self, shell: &Shell<'_>) { self.watcher.acknowledge_shutdown(); if may_acknowledge(s) { ring.write(e); } }",
+    );
+    let code = squeezed(&early);
+    let sample_ended = block_of(&code, "fnended(&self");
+    assert!(sample_ended.find("acknowledge_shutdown()") < sample_ended.find("ifmay_acknowledge(s)"));
+}
+
+/// MT-214 S7 (P3, AC214-11): the adapter never lets an unasked watcher drop (the launcher's handle sends a clean Shutdown
+/// when dropped), tells the watcher only in the one place that is asked, and takes `confirmed` from the handle's own report.
+#[test]
+fn the_adapter_never_drops_an_unasked_watcher_and_takes_confirmation_from_the_handle() {
+    let _limit = TimeLimit::new(LIMIT);
+    let adapter = source_in(&below("src"), "src/palmistry.rs");
+    let code = squeezed(&adapter);
+    assert!(code.contains("RefCell<Option<ManuallyDrop<Box<dynOwnedWatcher>>>>"), "the held watcher is never dropped");
+    assert!(code.contains("ManuallyDrop::into_inner(watcher).shut_down()"), "the one way out is the question");
+    assert!(!code.contains("implDropfor"), "no Drop of the adapter can send what the question must");
+    assert_eq!(code.matches(".shutdown(").count(), 1, "the launcher's shutdown is called in one place");
+    assert_eq!(code.matches("request_shutdown_and_wait").count(), 0, "no other way to send the Shutdown");
+    // The confirmation is the handle's report and nothing else.
+    let from_handle = block_of(&code, "pubfnfrom_handle(");
+    assert!(from_handle.contains("letconfirmed=handle.handshake_acked();"), "{from_handle}");
+    assert_eq!(code.matches("handshake_acked()").count(), 1);
+    // Each rule finds what it looks for.
+    let dropping = sample("src/sample.rs", "impl Drop for Watcher { fn drop(&mut self) { self.0.take(); } }");
+    assert!(squeezed(&dropping).contains("implDropfor"));
+}
+
 #[test]
 fn no_window_library_or_graphics_binding_in_the_crates_code() {
     let _limit = TimeLimit::new(LIMIT);
@@ -631,7 +706,12 @@ fn no_window_library_or_graphics_binding_in_the_crates_code() {
             "handshake_shell_accessibility",
             "ui_heartbeat",
             "handshake-diag-ring",
-            "handshake-vulkan-renderer"
+            "handshake-vulkan-renderer",
+            "palmistry_launch",
+            "handshake_runtime_instance",
+            "uuid",
+            "zeroize",
+            "rand"
         ]
     );
 }
@@ -720,6 +800,8 @@ fn every_ring_file_of_a_test_is_removed_by_its_guard() {
         .iter()
         .filter(|test| !lines(std::slice::from_ref(test), RING_WRITERS).is_empty())
         .count();
+    // Three: the two heartbeat tests and tests/shell_program.rs, which keeps its own version 2 create (MT-214 S7 P2); the
+    // Palmistry tests make no ring by a create call here, they go through the shell's session (P4a).
     assert_eq!(rings, 3, "the scan sees the three tests that make a ring");
 
     let by_hand = sample(
@@ -846,7 +928,7 @@ fn the_product_root_is_an_operator_window_activated_once_and_no_test_binary_has_
     let root = block_of(&code, "pubfnoperator_root(");
     assert!(root.contains("class:WindowClass::Operator"), "{root}");
     assert!(root.contains("launched_by_operator:true"), "{root}");
-    let quiet = block_of(&code, "pubfnnew(ring:Option<DiagRingWriter>)");
+    let quiet = block_of(&code, "pubfnnew(ring:Option<DiagRingWriterV2>)");
     assert!(quiet.contains("class:WindowClass::Quiet") && quiet.contains("launched_by_operator:false"), "{quiet}");
     // Only the loop's own start asks the window crate for the launch, and only when the root is an Operator window.
     assert!(code.contains("launched_by_operator=config.launched_by_operator&&config.class==WindowClass::Operator"));
