@@ -66,6 +66,7 @@ confirmed watcher, which is supplementary. `--diag-ring` now also names the ring
 | --- | --- |
 | Clean, settled close | the ring's `Shutdown` marker, then the watcher is told (signed) and reaped; exit 0 when it acknowledged or none was connected (an unconfirmed watcher is reported not connected), 9 when a confirmed watcher did not acknowledge |
 | Endings that skip the acknowledgement: no device (exit 4), a refused window (exit 5), a failed loop (exit 6), a refused heartbeat (exit 10), an unsettled close (exit 8), a panic | the watcher is left untold and records the parent's end as unexpected (Operator decision WP012-MT214-S7-NO-GPU-STOP-20261128: a crash record) |
+| Before any window | `palmistry::start` runs before the device opens and before any window exists, on the thread that starts the program, and its signed launch waits for the watcher's handshake, bounded by the launcher's overall deadline of about 9 s (`palmistry_launch`, `HANDSHAKE_OVERALL_DEADLINE`); a slow or unresponsive watcher delays the first window by up to about 9 s, then the start degrades and the program runs without it |
 | Before the loop starts (device open, window creation) | not watched before the first heartbeat: Palmistry reads a process with no heartbeat yet as healthy, so a hang there is not detected |
 | Crash | no panic hook, exception filter or crash client in this crate; the OS's handler stays; the watcher records the end without a Shutdown |
 | `ManuallyDrop` | an adapter dropped without a question never lets the launcher's handle send a clean Shutdown |

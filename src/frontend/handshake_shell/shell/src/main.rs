@@ -7,7 +7,8 @@
 //! process (WP012-SHELL-ROOT-WINDOW-20261127), and it has no flag that opens a window on a desktop; a run to look at is `examples/shell_program.rs`.
 //!
 //! Options (read only after the gate passed, so a refused start parses nothing): `--diag-ring <path>` is the version 2
-//! diagnostics ring's file (without it the launcher's default path for the session is used).
+//! diagnostics ring's file (without it the launcher's default path for the session is used). A `--diag-ring` with no path
+//! after it, or another flag in its place, is a usage error (exit 2) before the Palmistry session starts.
 //!
 //! After the gate the binary prints its receipt, starts the Palmistry session (`handshake_shell::palmistry::start`: lease,
 //! ring, signed launch, handshake marker), prints one `HSK_SHELL_PALMISTRY` state line, and runs the program with the
@@ -36,21 +37,17 @@ fn run() -> ExitCode {
 
 #[cfg(windows)]
 fn run() -> ExitCode {
-    use std::path::Path;
-
     use handshake_shell::palmistry::{self, Started};
     use handshake_shell::{run_product, run_program, ProgramConfig};
 
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let outcome = run_product(|authority| {
+    let outcome = run_product(|authority| -> Result<_, &'static str> {
         println!("{}", authority.receipt());
-        let ring_path = arguments
-            .iter()
-            .position(|argument| argument == "--diag-ring")
-            .and_then(|at| arguments.get(at + 1));
+        // A `--diag-ring` without a path is a usage error before anything starts, never the next flag taken as a path.
+        let ring_path = palmistry::diag_ring_argument(&arguments)?;
         // The Palmistry session: the lease, the version 2 ring, the signed launch and its handshake marker. A refusal at any
         // step is a degrade (no watcher), never a failed start.
-        let started = palmistry::start(ring_path.map(Path::new));
+        let started = palmistry::start(ring_path);
         println!("{}", started.state_line());
         let Started {
             ring,
@@ -65,14 +62,18 @@ fn run() -> ExitCode {
         );
         // The lease is held until the program has returned.
         drop(lease);
-        outcome
+        Ok(outcome)
     });
     match outcome {
         Err(refusal) => {
             eprintln!("{}", refusal.line());
             ExitCode::from(ExitKind::NoDeviceAuthority.code())
         }
-        Ok(outcome) => {
+        Ok(Err(message)) => {
+            eprintln!("usage: {message}");
+            ExitCode::from(ExitKind::Usage.code())
+        }
+        Ok(Ok(outcome)) => {
             if let Some(state) = &outcome.unavailable {
                 println!("{}", state.line());
                 eprintln!("{}", state.text());

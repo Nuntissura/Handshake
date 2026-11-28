@@ -718,6 +718,11 @@ fn the_session_takes_the_lease_then_makes_the_one_ring_with_the_launch_nonce() {
     );
     assert_eq!(prepare.matches("make_ring(").count(), 1, "one ring per start");
     assert_eq!(prepare.matches("Uuid::now_v7()").count(), 1, "one session id per start");
+    // The process id is never the session id: the shell asks again for an equal one (the launcher refuses equal ids).
+    assert!(
+        code.contains("process_instance_id:distinct_from(session,Uuid::now_v7),"),
+        "the process instance id is made by the guard"
+    );
     assert!(
         prepare.contains("letlease=match(seams.host_scope)()"),
         "the lease is bound to a name the start hands on: {prepare}"
@@ -801,14 +806,15 @@ fn the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_prog
     let raw = |path: &str| -> String { text_of(path).split_whitespace().collect() };
     let raw_main = raw("src/main.rs");
     assert!(
-        raw_main.contains("palmistry::start(ring_path.map(Path::new))")
-            && raw_main.contains(".position(|argument|argument==\"--diag-ring\")")
-            && raw_main.contains("letring_path="),
-        "main.rs hands --diag-ring to the start"
+        raw_main.contains("palmistry::start(ring_path)")
+            && raw_main.contains("letring_path=palmistry::diag_ring_argument(&arguments)?;")
+            && raw_main.contains("Ok(Err(message))=>{eprintln!(\"usage:{message}\");ExitCode::from(ExitKind::Usage.code())"),
+        "main.rs hands --diag-ring to the start, and a missing path is a usage error before it"
     );
     assert!(
-        raw("examples/shell_program.rs").contains("palmistry::start(value(\"--diag-ring\").map(std::path::Path::new))"),
-        "the example hands --diag-ring to the start"
+        raw("examples/shell_program.rs").contains("palmistry::start(ring_path)")
+            && raw("examples/shell_program.rs").contains("letring_path=matchpalmistry::diag_ring_argument(arguments){Ok(path)=>path,Err(message)=>{eprintln!(\"{message}\\n{USAGE}\");returnExitCode::from(ExitKind::Usage.code());}};"),
+        "the example hands --diag-ring to the start, and a missing path is a usage error before it"
     );
 
     // The wording of what the watcher does not cover.
@@ -821,6 +827,10 @@ fn the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_prog
     let readme = text_of("README.md");
     assert!(readme.contains("not watched before the first heartbeat"), "the README names the blind window");
     assert!(readme.contains("left untold"), "the README names the untold endings");
+    assert!(
+        readme.contains("about 9 s") && readme.contains("before the device opens and before any window exists"),
+        "the README states the launcher's bounded handshake wait before any window"
+    );
     assert!(readme.contains("a refused window (exit 5)"), "the README names the refused window among them");
     assert!(text_of("src/main.rs").contains("not watched"), "the product binary's documentation names the blind window");
     let main_docs: String = text_of("src/main.rs").split_whitespace().collect::<Vec<_>>().join(" ");
@@ -839,16 +849,48 @@ fn the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_prog
     assert!(!start_order_faults(&sound.replace("lease,..", "lease:_,.."), true).is_empty());
 }
 
-/// The `#[test]` functions of a test file that are not `#[ignore]`d, each with its attributes and body (code only).
-fn default_tests(code: &str) -> Vec<String> {
-    code.split("#[test]")
-        .skip(1)
-        .filter(|chunk| {
-            let head = chunk.split("fn ").next().unwrap_or("");
-            !head.contains("#[ignore")
-        })
-        .map(str::to_owned)
-        .collect()
+/// A test file split into its `#[test]` functions, each with whether it is `#[ignore]`d, and what is outside them: the
+/// helpers above, between and below the tests, which belong to no test and are read as part of every default one. In
+/// code-only text, so a brace in a literal or a comment is blank.
+struct Split {
+    outside: String,
+    tests: Vec<(bool, String)>,
+}
+
+/// Where the function that opens `chunk` (attributes, then `fn`) ends: after the brace that closes its body.
+fn function_end(chunk: &str) -> usize {
+    let Some(open) = chunk.find("fn ").and_then(|at| chunk[at..].find('{').map(|brace| at + brace)) else {
+        return chunk.len();
+    };
+    let mut depth = 0;
+    for (offset, character) in chunk[open..].char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return open + offset + 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    chunk.len()
+}
+
+fn split_tests(code: &str) -> Split {
+    let mut chunks = code.split("#[test]");
+    let mut outside = chunks.next().unwrap_or("").to_owned();
+    let mut tests = Vec::new();
+    for chunk in chunks {
+        let ignored = chunk.split("fn ").next().unwrap_or("").contains("#[ignore");
+        let end = function_end(chunk);
+        tests.push((ignored, chunk[..end].to_owned()));
+        // What follows the function, up to the next test, is a helper, also after an `#[ignore]`d one (MT-214 S7 F7).
+        outside.push('\n');
+        outside.push_str(&chunk[end..]);
+    }
+    Split { outside, tests }
 }
 
 /// What a default test must not reach: a real launch, the product resolver, the environment override of the watcher.
@@ -861,43 +903,122 @@ const REAL_WATCHER_WORDS: &[&str] = &[
     "palmistry::start(",
     "Seams::production",
     "HANDSHAKE_PALMISTRY_EXE",
+    "ENV_PALMISTRY_EXE",
     "current_exe",
     "PalmistryHandle",
 ];
 
+fn part_of_a_name(character: char) -> bool {
+    character.is_alphanumeric() || character == '_'
+}
+
+/// The calls of `name` that name no path and no receiver: `start(` after an import, not `x.start(`, `Type::start(` or
+/// `fn start(`.
+fn bare_calls(code: &str, name: &str) -> usize {
+    let call = format!("{name}(");
+    code.match_indices(&call)
+        .filter(|(at, _)| {
+            let before = code[..*at].trim_end_matches(' ');
+            let joined = code[..*at].chars().next_back().is_some_and(|c| part_of_a_name(c) || c == '.' || c == ':');
+            !joined && !before.ends_with("fn")
+        })
+        .count()
+}
+
+/// Whether a `use` of `code` that names the Palmistry module imports `name` itself (`palmistry::start`, `palmistry::{a, start}`).
+fn imports_from_palmistry(code: &str, name: &str) -> bool {
+    code.split("use ").skip(1).any(|statement| {
+        let statement = statement.split(';').next().unwrap_or("");
+        statement.contains("palmistry") && statement.split(|c| !part_of_a_name(c)).any(|token| token == name)
+    })
+}
+
+/// A test source with the environment variable's name visible: the code-only text blanks string literals, so a
+/// `"HANDSHAKE_PALMISTRY_EXE"` in a call would never match. Comments stay blank (MT-214 S7 F7).
+fn with_env_names(path: &str, raw: &str) -> Source {
+    Source {
+        path: path.to_owned(),
+        code: code_only(&raw.replace("\"HANDSHAKE_PALMISTRY_EXE\"", " HANDSHAKE_PALMISTRY_EXE ")),
+    }
+}
+
+/// The tests of this crate as the real-watcher scan reads them (this file as it is: it names the words in literals).
+fn tests_for_the_watcher_scan() -> Vec<Source> {
+    below("tests")
+        .into_iter()
+        .map(|test| {
+            if test.path == "tests/source_scan.rs" {
+                test
+            } else {
+                with_env_names(&test.path, &text_of(&test.path))
+            }
+        })
+        .collect()
+}
+
 fn real_watchers_in_default_tests(tests: &[Source]) -> Vec<String> {
     let mut found = Vec::new();
     for test in tests {
-        // The helpers above the first test are read as part of every default test.
-        let prelude = test.code.split("#[test]").next().unwrap_or("").to_owned();
-        for body in std::iter::once(format!("{prelude}fn prelude(")).chain(default_tests(&test.code)) {
+        let split = split_tests(&test.code);
+        let helpers = format!("fn the_helpers_outside_the_tests({}", split.outside);
+        let default: Vec<String> = split.tests.iter().filter(|(ignored, _)| !ignored).map(|(_, body)| body.clone()).collect();
+        for body in std::iter::once(helpers).chain(default) {
+            let name = body.split("fn ").nth(1).and_then(|rest| rest.split('(').next()).unwrap_or("?").to_owned();
             for word in REAL_WATCHER_WORDS {
                 if !lines_with(&body, word).is_empty() {
-                    let name = body.split("fn ").nth(1).and_then(|rest| rest.split('(').next()).unwrap_or("?");
                     found.push(format!("{}: {name} reaches {word}", test.path));
                 }
+            }
+            // A bare `start(` after an import reaches the product's start: the real launcher.
+            if imports_from_palmistry(&test.code, "start") && bare_calls(&body, "start") > 0 {
+                found.push(format!("{}: {name} calls start( from palmistry", test.path));
             }
         }
     }
     found
 }
 
-/// MT-214 S7 (P4b, AC214-11, HBR-QUIET): no default test starts a real watcher. Per function: a test that would is
-/// `#[ignore]`d with a reason. Every `resolve_exe` a test gives the session is one of the two helpers that name no exe or an
-/// exe that is not there.
+/// Every seam a test file gives the session that does not name one of the two resolvers that start nothing, every file
+/// that defines a resolver of those names itself, and every file that gives the session seams it does not show.
+fn resolver_faults(tests: &[Source]) -> Vec<String> {
+    let mut faults = Vec::new();
+    for test in tests.iter().filter(|test| test.path != "tests/source_scan.rs") {
+        let seams: Vec<&str> = test
+            .code
+            .match_indices("resolve_exe:")
+            .map(|(at, _)| test.code[at..].split('}').next().unwrap_or(""))
+            .collect();
+        for seam in &seams {
+            if !(seam.contains("&exe_missing") || seam.contains("&exe_not_there")) {
+                faults.push(format!("{}: a resolver that is not one of the two that start nothing: {seam}", test.path));
+            }
+        }
+        if bare_calls(&test.code, "start_with") + test.code.matches("::start_with(").count() > 0 && seams.is_empty() {
+            faults.push(format!("{}: start_with is called with seams this file does not show", test.path));
+        }
+        if test.path != "tests/palmistry_session.rs"
+            && (test.code.contains("fn exe_missing(") || test.code.contains("fn exe_not_there("))
+        {
+            faults.push(format!("{}: defines a resolver of the whitelisted names", test.path));
+        }
+    }
+    faults
+}
+
+/// MT-214 S7 (P4b, F7, AC214-11, HBR-QUIET): no default test starts a real watcher. Per function: a test that would is
+/// `#[ignore]`d with a reason. The helpers outside the tests are read with every default test, wherever they stand. Every
+/// `resolve_exe` any test gives the session is one of the two helpers that name no exe or an exe that is not there.
 #[test]
 fn no_default_test_reaches_a_real_watcher() {
     let _limit = TimeLimit::new(LIMIT);
-    let tests = below("tests");
+    let tests = tests_for_the_watcher_scan();
     let found = real_watchers_in_default_tests(&tests);
     assert!(found.is_empty(), "{found:#?}");
     let session = source_in(&tests, "tests/palmistry_session.rs");
-    let resolvers: Vec<&str> = session.code.match_indices("resolve_exe:").map(|(at, _)| session.code[at..].split('}').next().unwrap_or("")).collect();
-    assert!(resolvers.len() >= 8, "the scan sees the session's seams: {resolvers:#?}");
-    assert!(
-        resolvers.iter().all(|seam| seam.contains("&exe_missing") || seam.contains("&exe_not_there")),
-        "a test resolver that is not one of the two that start nothing: {resolvers:#?}"
-    );
+    let resolvers = session.code.matches("resolve_exe:").count();
+    assert!(resolvers >= 8, "the scan sees the session's seams: {resolvers}");
+    let faults = resolver_faults(&tests);
+    assert!(faults.is_empty(), "{faults:#?}");
 
     // Each rule finds what it looks for, per function.
     let real = sample(
@@ -914,6 +1035,53 @@ fn no_default_test_reaches_a_real_watcher() {
     assert_eq!(real_watchers_in_default_tests(&[product]).len(), 1);
     let helper = sample("tests/sample.rs", "fn exe() { resolve_palmistry_exe(); }\n#[test]\nfn x() {}");
     assert_eq!(real_watchers_in_default_tests(&[helper]).len(), 1, "a helper above the tests is read too");
+    // A helper placed after an `#[ignore]`d test, or between tests, is read all the same.
+    let after_ignored = sample(
+        "tests/sample.rs",
+        "#[test]\n#[ignore = \"live\"]\nfn loud() { }\nfn exe() { resolve_palmistry_exe(); }\n#[test]\nfn x() {}",
+    );
+    assert_eq!(real_watchers_in_default_tests(&[after_ignored]).len(), 1, "a helper after an ignored test is read too");
+    let between = sample("tests/sample.rs", "#[test]\nfn a() {}\nfn exe() { Seams::production(); }\n#[test]\nfn b() {}");
+    assert_eq!(real_watchers_in_default_tests(&[between]).len(), 1, "a helper between tests is read too");
+    // A bare `start(` after an import is the product's start; a method, a path or a definition of that name is not.
+    let imported = sample(
+        "tests/sample.rs",
+        "use handshake_shell::palmistry::{start, Seams};\n#[test]\nfn x() { let s = start(None); }",
+    );
+    assert_eq!(real_watchers_in_default_tests(&[imported]).len(), 1, "a bare start( after an import");
+    let alone = sample("tests/sample.rs", "use handshake_shell::palmistry::start;\nfn help() { start(None); }\n#[test]\nfn x() {}");
+    assert_eq!(real_watchers_in_default_tests(&[alone]).len(), 1, "a bare start( in a helper");
+    let other_starts = sample(
+        "tests/sample.rs",
+        "use handshake_shell::palmistry::Seams;\nfn start(path: P) {}\n#[test]\nfn x() { let s = Sampler::start(p); h.start(); start(p); }",
+    );
+    assert!(real_watchers_in_default_tests(&[other_starts]).is_empty(), "no import of start, no finding");
+    let methods = sample(
+        "tests/sample.rs",
+        "use handshake_shell::palmistry::{start, Seams};\n#[test]\nfn x() { h.start(); Sampler::start(p); }",
+    );
+    assert!(real_watchers_in_default_tests(&[methods]).is_empty(), "a method or a path is not the import");
+    // The environment variable's name is a string literal: it is made visible to the scan.
+    let by_literal = with_env_names("tests/sample.rs", "#[test]\nfn x() { std::env::set_var(\"HANDSHAKE_PALMISTRY_EXE\", p); }");
+    assert_eq!(real_watchers_in_default_tests(&[by_literal]).len(), 1, "the variable named in a literal");
+    let in_a_comment = with_env_names("tests/sample.rs", "#[test]\nfn x() { /* HANDSHAKE_PALMISTRY_EXE */ }\n// \"HANDSHAKE_PALMISTRY_EXE\"\n");
+    assert!(real_watchers_in_default_tests(&[in_a_comment]).is_empty(), "a comment names nothing");
+    let by_constant = sample("tests/sample.rs", "#[test]\nfn x() { std::env::set_var(ENV_PALMISTRY_EXE, p); }");
+    assert_eq!(real_watchers_in_default_tests(&[by_constant]).len(), 1, "the launcher's constant for it");
+    // Resolvers: the two that start nothing, in any file; nothing else, and no copy of their names.
+    let seams = sample(
+        "tests/palmistry_session.rs",
+        "fn exe_missing() {}\nfn t() { start_with(None, &Seams { host_scope: &s, resolve_exe: &exe_missing }); }",
+    );
+    assert!(resolver_faults(&[seams]).is_empty());
+    let real_resolver = sample("tests/other.rs", "fn t() { start_with(None, &Seams { host_scope: &s, resolve_exe: &my_exe }); }");
+    assert_eq!(resolver_faults(&[real_resolver]).len(), 1, "a resolver of another name in another file");
+    let closure = sample("tests/other.rs", "fn t() { start_with(None, &Seams { host_scope: &s, resolve_exe: &|| { Ok(p) } }); }");
+    assert_eq!(resolver_faults(&[closure]).len(), 1, "a closure that returns a path");
+    let copy = sample("tests/other.rs", "fn exe_missing() { }\nfn t() { let x = Seams { host_scope: &s, resolve_exe: &exe_missing }; }");
+    assert_eq!(resolver_faults(&[copy]).len(), 1, "a lookalike of a whitelisted name");
+    let hidden = sample("tests/other.rs", "fn t() { start_with(None, &seams_from_elsewhere()); }");
+    assert_eq!(resolver_faults(&[hidden]).len(), 1, "seams the file does not show");
 }
 
 /// MT-214 S7 (P4b, AC214-11): one signed launch, the launcher's other entries and its argv seam stay out of the shell's

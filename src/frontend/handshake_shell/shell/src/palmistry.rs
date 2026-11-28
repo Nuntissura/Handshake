@@ -189,6 +189,18 @@ fn non_zero<const N: usize>() -> [u8; N] {
     }
 }
 
+/// A process instance id that is not `session`: the next one `next` makes that differs. Two `Uuid::now_v7()` calls are
+/// distinct in practice, and the signed launch refuses equal ids, so the shell never hands the launcher a pair it would
+/// refuse (MT-214 S7 F5).
+fn distinct_from(session: Uuid, mut next: impl FnMut() -> Uuid) -> Uuid {
+    loop {
+        let id = next();
+        if id != session {
+            return id;
+        }
+    }
+}
+
 impl LaunchInputs {
     fn new(session: Uuid, ring_path: PathBuf) -> Self {
         let session_id = session.to_string();
@@ -199,7 +211,7 @@ impl LaunchInputs {
                 ring_path,
                 marker_sink: None,
             },
-            process_instance_id: Uuid::now_v7(),
+            process_instance_id: distinct_from(session, Uuid::now_v7),
             launch_nonce: non_zero::<16>(),
             seed: Zeroizing::new(non_zero::<32>()),
             transport_public_key: non_zero::<32>(),
@@ -209,6 +221,23 @@ impl LaunchInputs {
     /// The signing seed, as the launcher takes it: a copy that is wiped when it is dropped.
     pub fn signing_seed(&self) -> Zeroizing<Vec<u8>> {
         Zeroizing::new(self.seed.to_vec())
+    }
+}
+
+/// The path `--diag-ring` names in `arguments` (the program's arguments after its name), or `None` without the flag. A flag
+/// with no value, an empty one, or another flag in its place is an error, never a path: `--diag-ring --seconds` must not
+/// make a ring file named `--seconds` (MT-214 S7 F4).
+///
+/// # Errors
+///
+/// A message for the usage line when `--diag-ring` has no path.
+pub fn diag_ring_argument(arguments: &[String]) -> Result<Option<&Path>, &'static str> {
+    let Some(at) = arguments.iter().position(|argument| argument == "--diag-ring") else {
+        return Ok(None);
+    };
+    match arguments.get(at + 1) {
+        Some(value) if !value.is_empty() && !value.starts_with("--") => Ok(Some(Path::new(value))),
+        _ => Err("--diag-ring needs a path"),
     }
 }
 
@@ -468,5 +497,52 @@ impl Started {
             self.state.reason(),
             self.inputs.session.session_id,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn arguments(words: &[&str]) -> Vec<String> {
+        words.iter().map(|word| (*word).to_owned()).collect()
+    }
+
+    #[test]
+    fn diag_ring_takes_a_path_and_refuses_a_missing_one() {
+        assert_eq!(diag_ring_argument(&arguments(&[])), Ok(None));
+        assert_eq!(diag_ring_argument(&arguments(&["--seconds", "5"])), Ok(None));
+        assert_eq!(
+            diag_ring_argument(&arguments(&["--diag-ring", "ring.bin"])),
+            Ok(Some(Path::new("ring.bin")))
+        );
+        assert_eq!(
+            diag_ring_argument(&arguments(&["--seconds", "5", "--diag-ring", "r.bin", "--other"])),
+            Ok(Some(Path::new("r.bin")))
+        );
+        let needs = Err("--diag-ring needs a path");
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring"])), needs);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring", "--seconds", "5"])), needs);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring", ""])), needs);
+        assert_eq!(diag_ring_argument(&arguments(&["--seconds", "5", "--diag-ring"])), needs);
+    }
+
+    #[test]
+    fn the_process_id_is_never_the_session_id() {
+        let session = Uuid::now_v7();
+        let other = Uuid::now_v7();
+        let mut asked = 0;
+        let id = distinct_from(session, || {
+            asked += 1;
+            if asked < 3 {
+                session
+            } else {
+                other
+            }
+        });
+        assert_eq!((id, asked), (other, 3), "an equal id is asked for again");
+        let inputs = LaunchInputs::new(session, PathBuf::from("ring.bin"));
+        assert_ne!(inputs.process_instance_id, session);
+        assert_ne!(inputs.process_instance_id.to_string(), inputs.session.session_id);
     }
 }

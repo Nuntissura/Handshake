@@ -49,6 +49,13 @@ fn show(arguments: &[String]) -> ExitCode {
             .position(|argument| argument == name)
             .and_then(|at| arguments.get(at + 1))
     };
+    let ring_path = match palmistry::diag_ring_argument(arguments) {
+        Ok(path) => path,
+        Err(message) => {
+            eprintln!("{message}\n{USAGE}");
+            return ExitCode::from(ExitKind::Usage.code());
+        }
+    };
     let seconds = value("--seconds")
         .and_then(|seconds| seconds.parse::<u64>().ok())
         .unwrap_or(30)
@@ -57,7 +64,7 @@ fn show(arguments: &[String]) -> ExitCode {
     println!("{}", authority.receipt());
     // The Palmistry session, as the product binary starts it: a real watcher only when `HANDSHAKE_HOST_SCOPE_ID` is set and
     // `HANDSHAKE_PALMISTRY_EXE` (or a `palmistry.exe` beside this one) exists; otherwise it degrades and says so.
-    let started = palmistry::start(value("--diag-ring").map(std::path::Path::new));
+    let started = palmistry::start(ring_path);
     println!("{}", started.state_line());
     let Started {
         ring,
