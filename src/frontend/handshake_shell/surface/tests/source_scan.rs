@@ -289,13 +289,21 @@ fn shutdown_problems(raw: &str) -> Vec<String> {
         "fn prove_before_release(",
         &[
             "ifself.present_fences{return;}",
-            "self.begin_proof(control,&mutslot,self.config.shutdown_prove_window)",
-            "decide::wait_for(self.config.shutdown_prove_window,decide::PROVE_STEP,",
+            "decide::clamp_prove_window(self.config.shutdown_prove_window)",
+            "decide::proof_deadline(started,window)",
+            "self.begin_proof(control,&mutslot,deadline)",
+            "decide::wait_for(window.saturating_sub(started.elapsed()),decide::PROVE_STEP,",
             "self.owner.poll()",
             "self.prove_step(&mutslot)",
             "self.end_proof(&mutslot,false)",
-            "report.shutdown_prove_gave_up=waited.gave_up",
+            "decide::proof_gave_up(waited.gave_up,self.deadline_ends.get()-ended_at_deadline)",
+            "report.shutdown_prove_gave_up=gave_up",
         ],
+    );
+    // A proof that ends at its own deadline is counted before it is ended (F3).
+    in_order(
+        "fn prove_step(",
+        &["Instant::now()>=until", "self.deadline_ends.set(self.deadline_ends.get().saturating_add(1))", "self.end_proof(slot,false)"],
     );
     in_order(
         "fn settle_before_close(",
@@ -307,7 +315,10 @@ fn shutdown_problems(raw: &str) -> Vec<String> {
             "self.settle_ending()",
         ],
     );
-    in_order("fn close_window(", &["self.begin_proof(control,&mutslot,decide::PROVE_WINDOW)"]);
+    in_order(
+        "fn close_window(",
+        &["self.begin_proof(control,&mutslot,decide::proof_deadline(Instant::now(),decide::PROVE_WINDOW))"],
+    );
     let tear_down = body_of(&code, "fn tear_down(").map(squeezed).unwrap_or_default();
     if tear_down.matches("self.owner.close()").count() != 1 {
         problems.push("tear_down closes the owner other than once".to_owned());
@@ -358,7 +369,7 @@ mod t {
             changed("        if self.present_fences {
             return;
         }
-        let mut begun", "        let mut begun"),
+        // The one clock", "        // The one clock"),
         ),
         ("no sweep", changed("self.end_proof(&mut slot, false);", "let _ = &slot;")),
         (
@@ -371,7 +382,13 @@ mod t {
         let shutdown = self.owner.close();"),
         ),
         ("no settle window", changed("decide::settle_window(self.report().closes_unproven)", "decide::SETTLE_WINDOW")),
-        ("the closing window's own bound", changed("self.begin_proof(control, &mut slot, decide::PROVE_WINDOW)", "self.begin_proof(control, &mut slot, decide::PROVE_STEP)")),
+        (
+            "the closing window's own bound",
+            changed("decide::proof_deadline(Instant::now(), decide::PROVE_WINDOW)", "decide::proof_deadline(Instant::now(), decide::PROVE_STEP)"),
+        ),
+        ("an unclamped shutdown window", changed("decide::clamp_prove_window(self.config.shutdown_prove_window)", "self.config.shutdown_prove_window")),
+        ("a give-up that only reads the shared wait", changed("decide::proof_gave_up(waited.gave_up, self.deadline_ends.get() - ended_at_deadline)", "waited.gave_up")),
+        ("a deadline end that is not counted", changed("self.deadline_ends.set(self.deadline_ends.get().saturating_add(1));", "")),
     ];
     for (what, text) in controls {
         assert!(!shutdown_problems(&text).is_empty(), "{what} is refused");

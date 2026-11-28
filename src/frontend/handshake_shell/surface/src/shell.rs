@@ -72,6 +72,9 @@ impl PresentConfig {
 /// Counters of the presenter. Mechanical numbers only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PresentReport {
+    /// Whether the owner proves the end of a swapchain by its own present fences (`VK_EXT_swapchain_maintenance1`): then
+    /// a shutdown begins no proof (`shutdown_proofs_begun` stays 0).
+    pub present_fences: bool,
     /// Surfaces made on windows, made again after a loss included.
     pub surfaces_made: u64,
     /// Surfaces released (closed windows, lost surfaces, shutdown).
@@ -153,6 +156,7 @@ pub struct PresentReport {
 impl Default for PresentReport {
     fn default() -> Self {
         Self {
+            present_fences: false,
             surfaces_made: 0,
             surfaces_released: 0,
             surfaces_remade: 0,

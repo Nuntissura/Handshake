@@ -925,12 +925,51 @@ fn bare_calls(code: &str, name: &str) -> usize {
         .count()
 }
 
-/// Whether a `use` of `code` that names the Palmistry module imports `name` itself (`palmistry::start`, `palmistry::{a, start}`).
-fn imports_from_palmistry(code: &str, name: &str) -> bool {
-    code.split("use ").skip(1).any(|statement| {
+/// What a `use` of `code` that names the Palmistry module makes callable as the product's `start` (MT-214 E9-F1 F8):
+/// the names it can be called by bare (`palmistry::start` and `palmistry::{a, start}` give `start`, `start as x` gives
+/// `x`, a glob gives `start`), and the names the module itself can be reached by (`palmistry as p`, `{self as p}`), whose
+/// `p::start(` is the same call.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct PalmistryNames {
+    bare: Vec<String>,
+    modules: Vec<String>,
+}
+
+fn palmistry_names(code: &str) -> PalmistryNames {
+    let mut names = PalmistryNames::default();
+    for statement in code.split("use ").skip(1) {
         let statement = statement.split(';').next().unwrap_or("");
-        statement.contains("palmistry") && statement.split(|c| !part_of_a_name(c)).any(|token| token == name)
-    })
+        if !statement.contains("palmistry") {
+            continue;
+        }
+        if statement.contains('*') {
+            names.bare.push("start".to_owned());
+        }
+        let tokens: Vec<&str> = statement.split(|c| !part_of_a_name(c)).filter(|token| !token.is_empty()).collect();
+        for (at, token) in tokens.iter().enumerate() {
+            let alias = (tokens.get(at + 1) == Some(&"as")).then(|| tokens.get(at + 2)).flatten();
+            match (*token, alias) {
+                ("start", Some(alias)) => names.bare.push((*alias).to_owned()),
+                ("start", None) => names.bare.push("start".to_owned()),
+                ("palmistry" | "self", Some(alias)) => names.modules.push((*alias).to_owned()),
+                _ => {}
+            }
+        }
+    }
+    names
+}
+
+/// The calls of `module::start(` in `code`, where `module` is not itself the tail of a longer path.
+fn module_start_calls(code: &str, module: &str) -> usize {
+    let call = format!("{module}::start(");
+    code.match_indices(&call)
+        .filter(|(at, _)| !code[..*at].chars().next_back().is_some_and(|c| part_of_a_name(c) || c == ':' || c == '.'))
+        .count()
+}
+
+/// Whether `body` reaches the product's start by any name `names` gives it.
+fn calls_palmistry_start(names: &PalmistryNames, body: &str) -> bool {
+    names.bare.iter().any(|name| bare_calls(body, name) > 0) || names.modules.iter().any(|module| module_start_calls(body, module) > 0)
 }
 
 /// A test source with the environment variable's name visible: the code-only text blanks string literals, so a
@@ -970,7 +1009,7 @@ fn real_watchers_in_default_tests(tests: &[Source]) -> Vec<String> {
                 }
             }
             // A bare `start(` after an import reaches the product's start: the real launcher.
-            if imports_from_palmistry(&test.code, "start") && bare_calls(&body, "start") > 0 {
+            if calls_palmistry_start(&palmistry_names(&test.code), &body) {
                 found.push(format!("{}: {name} calls start( from palmistry", test.path));
             }
         }
@@ -978,8 +1017,23 @@ fn real_watchers_in_default_tests(tests: &[Source]) -> Vec<String> {
     found
 }
 
-/// Every seam a test file gives the session that does not name one of the two resolvers that start nothing, every file
-/// that defines a resolver of those names itself, and every file that gives the session seams it does not show.
+/// The two resolvers that start nothing, by their exact names.
+const RESOLVERS: &[&str] = &["exe_missing", "exe_not_there"];
+
+/// What a resolver that starts nothing must not hold: a process, the environment, the product's resolver or launcher.
+const RESOLVER_FORBIDDEN: &[&str] = &["Command", "spawn", "process::", "env::var", "set_var", "palmistry", "launch", "current_exe", "start"];
+
+/// The body of `fn name(` in `code`, braces included.
+fn function_body<'a>(code: &'a str, name: &str) -> Option<&'a str> {
+    let head = format!("fn {name}(");
+    let at = code.find(&head)?;
+    let chunk = &code[at..];
+    Some(&chunk[..function_end(chunk)])
+}
+
+/// Every seam a test file gives the session that does not name, exactly, one of the two resolvers that start nothing,
+/// every file that defines a resolver of those names itself, every body of those two that holds more than it should,
+/// and every file that gives the session seams it does not show.
 fn resolver_faults(tests: &[Source]) -> Vec<String> {
     let mut faults = Vec::new();
     for test in tests.iter().filter(|test| test.path != "tests/source_scan.rs") {
@@ -989,8 +1043,22 @@ fn resolver_faults(tests: &[Source]) -> Vec<String> {
             .map(|(at, _)| test.code[at..].split('}').next().unwrap_or(""))
             .collect();
         for seam in &seams {
-            if !(seam.contains("&exe_missing") || seam.contains("&exe_not_there")) {
+            let value = seam["resolve_exe:".len()..].split([',', '}']).next().unwrap_or("").trim();
+            if !RESOLVERS.iter().any(|name| value == format!("&{name}")) {
                 faults.push(format!("{}: a resolver that is not one of the two that start nothing: {seam}", test.path));
+            }
+        }
+        for name in RESOLVERS {
+            let Some(body) = function_body(&test.code, name) else {
+                continue;
+            };
+            for word in RESOLVER_FORBIDDEN {
+                if body.contains(word) {
+                    faults.push(format!("{}: the resolver {name} holds {word}", test.path));
+                }
+            }
+            if *name == "exe_missing" && body.contains("Ok(") {
+                faults.push(format!("{}: the resolver {name} returns a path", test.path));
             }
         }
         if bare_calls(&test.code, "start_with") + test.code.matches("::start_with(").count() > 0 && seams.is_empty() {
@@ -1061,6 +1129,29 @@ fn no_default_test_reaches_a_real_watcher() {
         "use handshake_shell::palmistry::{start, Seams};\n#[test]\nfn x() { h.start(); Sampler::start(p); }",
     );
     assert!(real_watchers_in_default_tests(&[methods]).is_empty(), "a method or a path is not the import");
+    // Another name for the start (F8): the module renamed, `self` renamed, the item renamed, a glob.
+    for (what, text) in [
+        ("palmistry as p", "use handshake_shell::palmistry as p;\n#[test]\nfn x() { let s = p::start(None); }"),
+        ("{self as p}", "use handshake_shell::palmistry::{self as p, Seams};\n#[test]\nfn x() { let s = p::start(None); }"),
+        ("start as x", "use handshake_shell::palmistry::start as x;\n#[test]\nfn y() { let s = x(None); }"),
+        ("{Seams, start as go}", "use handshake_shell::palmistry::{Seams, start as go};\nfn help() { go(None); }\n#[test]\nfn y() {}"),
+        ("a glob", "use handshake_shell::palmistry::*;\n#[test]\nfn x() { let s = start(None); }"),
+        ("a nested glob", "use handshake_shell::{palmistry::*, other};\n#[test]\nfn x() { let s = start(None); }"),
+    ] {
+        let renamed = sample("tests/sample.rs", text);
+        assert_eq!(real_watchers_in_default_tests(&[renamed]).len(), 1, "{what} reaches the start");
+    }
+    // No finding when the other names are not the start: another module renamed, another item renamed, a call of a
+    // name the glob does not give, and the renamed item's own old name.
+    for (what, text) in [
+        ("another module as p", "use handshake_shell::window as p;\n#[test]\nfn x() { p::start(None); }"),
+        ("palmistry as p, called q::start", "use handshake_shell::palmistry as p;\n#[test]\nfn x() { q::start(None); my::p::start(None); }"),
+        ("start as x, called start", "use handshake_shell::palmistry::start as x;\nfn start(path: P) {}\n#[test]\nfn y() { start(None); }"),
+        ("a glob, called stop", "use handshake_shell::palmistry::*;\n#[test]\nfn x() { stop(None); }"),
+    ] {
+        let other = sample("tests/sample.rs", text);
+        assert!(real_watchers_in_default_tests(&[other]).is_empty(), "{what} reaches nothing");
+    }
     // The environment variable's name is a string literal: it is made visible to the scan.
     let by_literal = with_env_names("tests/sample.rs", "#[test]\nfn x() { std::env::set_var(\"HANDSHAKE_PALMISTRY_EXE\", p); }");
     assert_eq!(real_watchers_in_default_tests(&[by_literal]).len(), 1, "the variable named in a literal");
@@ -1082,6 +1173,33 @@ fn no_default_test_reaches_a_real_watcher() {
     assert_eq!(resolver_faults(&[copy]).len(), 1, "a lookalike of a whitelisted name");
     let hidden = sample("tests/other.rs", "fn t() { start_with(None, &seams_from_elsewhere()); }");
     assert_eq!(resolver_faults(&[hidden]).len(), 1, "seams the file does not show");
+    // The name is exact: a longer one that begins with a whitelisted name is another function.
+    let longer = sample(
+        "tests/palmistry_session.rs",
+        "fn t() { start_with(None, &Seams { host_scope: &s, resolve_exe: &exe_missing_for_real }); }",
+    );
+    assert_eq!(resolver_faults(&[longer]).len(), 1, "a name that only begins with a whitelisted one");
+    let trailing = sample(
+        "tests/palmistry_session.rs",
+        "fn exe_missing() -> R { Err(e) }\nfn t() { start_with(None, &Seams { host_scope: &s, resolve_exe: &exe_missing, }); }",
+    );
+    assert!(resolver_faults(&[trailing]).is_empty(), "a trailing comma after the exact name");
+    // The two bodies are read: one that starts a process, reads the environment or returns a path for the missing one.
+    let clean = sample(
+        "tests/palmistry_session.rs",
+        "fn exe_missing() -> R { Err(io::Error::new(NotFound, \"x\")) }\nfn exe_not_there() -> R { let p = Path::new(env!(\"T\")).join(\"n\"); assert!(!p.exists()); Ok(p) }\nfn t() { start_with(None, &Seams { host_scope: &s, resolve_exe: &exe_missing }); }",
+    );
+    assert!(resolver_faults(&[clean]).is_empty(), "the two real bodies are clean");
+    for (what, body) in [
+        ("a process", "fn exe_missing() -> R { Command::new(x).spawn(); Err(e) }"),
+        ("the environment", "fn exe_missing() -> R { let p = std::env::var(x); Err(e) }"),
+        ("the product's exe", "fn exe_not_there() -> R { Ok(std::env::current_exe()?) }"),
+        ("a path from the missing one", "fn exe_missing() -> R { Ok(p) }"),
+        ("the product's start", "fn exe_not_there() -> R { let h = palmistry::start(None); Ok(p) }"),
+    ] {
+        let fault = sample("tests/palmistry_session.rs", &format!("{body}\nfn t() {{ start_with(None, &Seams {{ host_scope: &s, resolve_exe: &exe_missing }}); }}"));
+        assert!(!resolver_faults(&[fault]).is_empty(), "a resolver body with {what} is refused");
+    }
 }
 
 /// MT-214 S7 (P4b, AC214-11): one signed launch, the launcher's other entries and its argv seam stay out of the shell's

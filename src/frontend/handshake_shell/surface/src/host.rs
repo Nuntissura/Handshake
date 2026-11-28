@@ -121,6 +121,8 @@ pub(crate) struct Core {
     config: PresentConfig,
     /// The owner proves the end of old swapchains by their own present fences; otherwise later presents prove it.
     present_fences: bool,
+    /// Proofs that ended at their own deadline (E9-F1 F3); read around the shutdown's proof.
+    deadline_ends: Cell<u64>,
     lane: RefCell<Option<WakeLane>>,
     armed: Cell<Option<Instant>>,
     schedule: RefCell<Schedule>,
@@ -155,6 +157,7 @@ impl Core {
             owner,
             config,
             present_fences,
+            deadline_ends: Cell::new(0),
             lane: RefCell::new(None),
             armed: Cell::new(None),
             schedule: RefCell::new(Schedule::default()),
@@ -162,7 +165,10 @@ impl Core {
             slots: RefCell::new(BTreeMap::new()),
             unpresented: RefCell::new(BTreeSet::new()),
             ending: RefCell::new(Vec::new()),
-            report: Cell::new(PresentReport::default()),
+            report: Cell::new(PresentReport {
+                present_fences,
+                ..PresentReport::default()
+            }),
             released: Arc::new(AtomicU64::new(0)),
             looks: Cell::new((0, 0)),
             finish_tries: Cell::new(0),

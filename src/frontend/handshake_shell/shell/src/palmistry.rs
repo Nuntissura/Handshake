@@ -192,14 +192,21 @@ fn non_zero<const N: usize>() -> [u8; N] {
 /// A process instance id that is not `session`: the next one `next` makes that differs. Two `Uuid::now_v7()` calls are
 /// distinct in practice, and the signed launch refuses equal ids, so the shell never hands the launcher a pair it would
 /// refuse (MT-214 S7 F5).
+///
+/// Bounded (MT-214 E9-F1 F8): after [`DISTINCT_TRIES`] equal answers it returns the session id with its low bit flipped,
+/// which is never equal to it, instead of asking for ever.
 fn distinct_from(session: Uuid, mut next: impl FnMut() -> Uuid) -> Uuid {
-    loop {
+    for _ in 0..DISTINCT_TRIES {
         let id = next();
         if id != session {
             return id;
         }
     }
+    Uuid::from_u128(session.as_u128() ^ 1)
 }
+
+/// How many times [`distinct_from`] asks before it derives an id itself.
+const DISTINCT_TRIES: u32 = 8;
 
 impl LaunchInputs {
     fn new(session: Uuid, ring_path: PathBuf) -> Self {
@@ -224,18 +231,29 @@ impl LaunchInputs {
     }
 }
 
-/// The path `--diag-ring` names in `arguments` (the program's arguments after its name), or `None` without the flag. A flag
-/// with no value, an empty one, or another flag in its place is an error, never a path: `--diag-ring --seconds` must not
-/// make a ring file named `--seconds` (MT-214 S7 F4).
+/// The path `--diag-ring` names in `arguments` (the program's arguments after its name), or `None` without the flag. Two
+/// shapes name it: `--diag-ring path` and `--diag-ring=path`. A flag with no value, an empty one, or another flag in its
+/// place is an error, never a path: `--diag-ring --seconds` must not make a ring file named `--seconds` (MT-214 S7 F4).
+/// The flag given more than once, in either shape, is an error too: which ring the watcher reads must not depend on
+/// which occurrence is read first (MT-214 E9-F1 F7).
 ///
 /// # Errors
 ///
-/// A message for the usage line when `--diag-ring` has no path.
+/// A message for the usage line when `--diag-ring` has no path, or is given more than once.
 pub fn diag_ring_argument(arguments: &[String]) -> Result<Option<&Path>, &'static str> {
-    let Some(at) = arguments.iter().position(|argument| argument == "--diag-ring") else {
+    const FLAG: &str = "--diag-ring";
+    let named = |argument: &String| argument == FLAG || argument.starts_with("--diag-ring=");
+    let Some(at) = arguments.iter().position(named) else {
         return Ok(None);
     };
-    match arguments.get(at + 1) {
+    if arguments[at + 1..].iter().any(named) {
+        return Err("--diag-ring given more than once");
+    }
+    let value = match arguments[at].strip_prefix("--diag-ring=") {
+        Some(value) => Some(value),
+        None => arguments.get(at + 1).map(String::as_str),
+    };
+    match value {
         Some(value) if !value.is_empty() && !value.starts_with("--") => Ok(Some(Path::new(value))),
         _ => Err("--diag-ring needs a path"),
     }
@@ -528,6 +546,28 @@ mod tests {
     }
 
     #[test]
+    fn diag_ring_takes_the_equals_shape_and_refuses_a_repeated_flag_in_any_shape() {
+        let needs = Err("--diag-ring needs a path");
+        let twice = Err("--diag-ring given more than once");
+        assert_eq!(
+            diag_ring_argument(&arguments(&["--diag-ring=ring.bin"])),
+            Ok(Some(Path::new("ring.bin")))
+        );
+        assert_eq!(
+            diag_ring_argument(&arguments(&["--seconds", "5", "--diag-ring=a=b.bin", "--other"])),
+            Ok(Some(Path::new("a=b.bin")))
+        );
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring="])), needs);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring=--seconds"])), needs);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring", "a.bin", "--diag-ring", "b.bin"])), twice);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring", "a.bin", "--diag-ring=b.bin"])), twice);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring=a.bin", "--diag-ring", "b.bin"])), twice);
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring=a.bin", "--diag-ring=b.bin"])), twice);
+        // A repeated flag without a value is a repeat, not a path.
+        assert_eq!(diag_ring_argument(&arguments(&["--diag-ring", "--diag-ring"])), twice);
+    }
+
+    #[test]
     fn the_process_id_is_never_the_session_id() {
         let session = Uuid::now_v7();
         let other = Uuid::now_v7();
@@ -541,6 +581,14 @@ mod tests {
             }
         });
         assert_eq!((id, asked), (other, 3), "an equal id is asked for again");
+        // A source that only ever answers the session id ends after the bound, with an id that differs.
+        let mut asked = 0;
+        let derived = distinct_from(session, || {
+            asked += 1;
+            session
+        });
+        assert_eq!(asked, DISTINCT_TRIES);
+        assert_ne!(derived, session);
         let inputs = LaunchInputs::new(session, PathBuf::from("ring.bin"));
         assert_ne!(inputs.process_instance_id, session);
         assert_ne!(inputs.process_instance_id.to_string(), inputs.session.session_id);

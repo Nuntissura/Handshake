@@ -66,7 +66,12 @@ while old swapchains, captures or closing windows wait for it: 8 ms doubling to 
   until the owner closes, counted in `PresentReport::closes_unproven`.
 - Shutdown (`Shell::shutdown`): after the application heard `ShutdownBegan`, every surface is released, claims settled,
   the owner closed (bounded by its own deadline), claims still open let go, and `Control::finish` tried until no target
-  is held.
+  is held. Without `VK_EXT_swapchain_maintenance1` the presents of every window with a surface are proven ended first
+  (MT-214 E9-F1), under one deadline (`PresentConfig::shutdown_prove_window`, 1 s by default, capped at 30 s) that
+  starts before the first swapchain is made. The deadline bounds the pauses between looks, not each call: a swapchain
+  creation or a look at the owner that blocks is not interrupted, so a shutdown can end later than the deadline by that
+  call. `PresentReport::shutdown_prove_gave_up` is true when any proof ended at its deadline, the shared wait's or a
+  window's own. `PresentReport::present_fences` says whether a shutdown proves nothing because the owner has its fences.
 - Nothing on the frame path waits: acquire with timeout 0, present without waits. `vkDeviceWaitIdle` is not called
   anywhere in the owner or here.
 

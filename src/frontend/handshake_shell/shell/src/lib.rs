@@ -4,7 +4,7 @@
 //! It holds two compositions. MT-214 S5, [`program`]: the five crates as one process, with the pre-account startup gate
 //! ([`authority`]: the product opens the device only under `device.gpu.shell` and the kernel issuer, and refuses with a
 //! typed outcome without them), the heartbeat, the accessibility hub, the input tracker, and a shutdown that drains,
-//! settles claims and acknowledges the watcher only when the owner reported everything settled; [`outcome`] gives every
+//! settles claims and acknowledges the watcher only when the owner reported everything settled and the run ended with no typed failure; [`outcome`] gives every
 //! end a typed kind and exit code. The binary is `handshake_shell` (`src/main.rs`); `examples/shell_program.rs` is the
 //! test binary for a manual run. MT-214 S6 adds [`windows`] (the root window, detached panes and the detached Settings
 //! window on one device and one owner ledger, AC214-8) and [`unavailable`] (the typed, readable state when no device is

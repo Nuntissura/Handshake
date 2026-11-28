@@ -15,6 +15,12 @@
 //! until the device is destroyed, so the report would show it open. The proofs of all windows run together on the
 //! loop's thread, bounded by one deadline, [`decide::SHUTDOWN_PROVE_WINDOW`] (`PresentConfig::shutdown_prove_window`);
 //! a window whose proof does not come in time is counted in `closes_unproven` and released all the same.
+//!
+//! What the deadline bounds: the pauses between looks, not each call. A swapchain creation in `begin_proof` and a look at
+//! the owner are calls that can block on the owner's own work; the clock starts before the first creation, so their
+//! time counts against it, but a call that is already running is not interrupted, and a shutdown can end later than
+//! the window by that call (nothing here adds an unbounded wait). `shutdown_prove_gave_up` is true when any proof
+//! ended at its deadline, whether the shared wait or a window's own deadline fired first.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -90,7 +96,7 @@ impl Core {
         self.schedule.borrow_mut().cancel(Need::Frame(key));
         if !self.present_fences && slot.has_surface() {
             // The window stays shown until the proof ended (E5-F2): a hidden window's acquires are out of date.
-            self.begin_proof(control, &mut slot, decide::PROVE_WINDOW);
+            self.begin_proof(control, &mut slot, decide::proof_deadline(Instant::now(), decide::PROVE_WINDOW));
         } else {
             self.release(&mut slot);
         }
@@ -121,10 +127,11 @@ impl Core {
         }
     }
 
-    /// Begin the proof of a window's presents (module documentation), to be over within `window`: a new swapchain when
-    /// the current one presented, then the first step, which presents on it.
-    fn begin_proof(&self, control: &Control, slot: &mut Slot, window: Duration) {
-        slot.proving = Some(Instant::now() + window);
+    /// Begin the proof of a window's presents (module documentation), to be over by `deadline` (see
+    /// [`decide::proof_deadline`]): a new swapchain when the current one presented, then the first step, which presents
+    /// on it. The deadline bounds the pauses between steps, not each call (module documentation).
+    fn begin_proof(&self, control: &Control, slot: &mut Slot, deadline: Instant) {
+        slot.proving = Some(deadline);
         if slot.presented_on_current() {
             let inner = control
                 .window_state(slot.key)
@@ -164,6 +171,9 @@ impl Core {
                 false
             }
             None if Instant::now() >= until => {
+                // Ended at its own deadline: counted for `shutdown_prove_gave_up`, which the shared wait alone misses
+                // when this deadline fires first (MT-214 E9-F1 F3).
+                self.deadline_ends.set(self.deadline_ends.get().saturating_add(1));
                 self.end_proof(slot, false);
                 false
             }
@@ -187,19 +197,25 @@ impl Core {
         if self.present_fences {
             return;
         }
+        // The one clock starts before the first swapchain is made, and the window is capped (a public setting must not
+        // panic the shutdown through `Instant` arithmetic): `decide::clamp_prove_window`.
+        let started = Instant::now();
+        let window = decide::clamp_prove_window(self.config.shutdown_prove_window);
+        let deadline = decide::proof_deadline(started, window);
+        let ended_at_deadline = self.deadline_ends.get();
         let mut begun = 0u64;
         for slot in slots {
             let mut slot = slot.borrow_mut();
             if slot.has_surface() && slot.proving.is_none() && !slot.closing {
                 begun += 1;
-                self.begin_proof(control, &mut slot, self.config.shutdown_prove_window);
+                self.begin_proof(control, &mut slot, deadline);
             }
         }
         if !slots.iter().any(|slot| slot.borrow().proving.is_some()) {
             self.count(|report| report.shutdown_proofs_begun = begun);
             return;
         }
-        let waited = decide::wait_for(self.config.shutdown_prove_window, decide::PROVE_STEP, || {
+        let waited = decide::wait_for(window.saturating_sub(started.elapsed()), decide::PROVE_STEP, || {
             let _ = self.owner.poll();
             let mut waiting = false;
             for slot in slots {
@@ -216,10 +232,11 @@ impl Core {
                 self.end_proof(&mut slot, false);
             }
         }
+        let gave_up = decide::proof_gave_up(waited.gave_up, self.deadline_ends.get() - ended_at_deadline);
         self.count(|report| {
             report.shutdown_proofs_begun = begun;
-            report.shutdown_prove_micros = waited.micros;
-            report.shutdown_prove_gave_up = waited.gave_up;
+            report.shutdown_prove_micros = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX);
+            report.shutdown_prove_gave_up = gave_up;
         });
     }
 

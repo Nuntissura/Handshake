@@ -215,8 +215,31 @@ pub(crate) const SETTLE_WINDOW: Duration = Duration::from_millis(500);
 /// How long a shutdown lets the presents of every window with a surface be proven ended, without
 /// `VK_EXT_swapchain_maintenance1`, before the surfaces are released (MT-214 E9-F1). One deadline shared by all windows,
 /// begun together: the loop's thread waits here, so it is shorter than [`PROVE_WINDOW`], which a closing window keeps
-/// asynchronously. Measured proofs took 12 to 25 ms per window and 31 ms for two.
+/// asynchronously. Measured proofs took 12 to 25 ms per window and 31 ms for two. The deadline bounds the pauses
+/// between looks, not each call: a swapchain creation or a look at the owner that blocks is not interrupted, so a
+/// shutdown can end later than this by that call. The clock starts before the first creation.
 pub(crate) const SHUTDOWN_PROVE_WINDOW: Duration = Duration::from_secs(1);
+
+/// The longest a proof may be given, whatever `PresentConfig::shutdown_prove_window` says (MT-214 E9-F1 F2): an absurd
+/// setting (`Duration::MAX`) would overflow `Instant` arithmetic and panic, or hold the loop's thread for as long.
+pub(crate) const MAX_PROVE_WINDOW: Duration = Duration::from_secs(30);
+
+/// `window`, capped at [`MAX_PROVE_WINDOW`].
+pub(crate) fn clamp_prove_window(window: Duration) -> Duration {
+    window.min(MAX_PROVE_WINDOW)
+}
+
+/// When a proof begun at `now` must be over: `window` (capped) later, never a panic; where the clock cannot hold that
+/// instant, `now` itself, which ends the proof at its first look.
+pub(crate) fn proof_deadline(now: Instant, window: Duration) -> Instant {
+    now.checked_add(clamp_prove_window(window)).unwrap_or(now)
+}
+
+/// Whether a shutdown's proof gave up: the shared wait ended at its limit, or any proof ended at its own deadline (a
+/// window's own deadline can fire before the shared wait's look, MT-214 E9-F1 F3).
+pub(crate) fn proof_gave_up(wait_gave_up: bool, ended_at_deadline: u64) -> bool {
+    wait_gave_up || ended_at_deadline > 0
+}
 
 /// The pause between two looks while a shutdown waits for proofs or for claims to settle.
 pub(crate) const PROVE_STEP: Duration = Duration::from_millis(1);
@@ -556,6 +579,25 @@ mod tests {
         let begun = Instant::now();
         let waited = wait_for(window, Duration::from_secs(10), || true);
         assert!(waited.gave_up && begun.elapsed() < Duration::from_secs(5), "{waited:?}");
+    }
+
+    #[test]
+    fn an_absurd_prove_window_is_capped_and_never_panics() {
+        let now = Instant::now();
+        assert_eq!(clamp_prove_window(Duration::MAX), MAX_PROVE_WINDOW);
+        assert_eq!(clamp_prove_window(Duration::from_secs(1)), Duration::from_secs(1));
+        assert_eq!(clamp_prove_window(Duration::ZERO), Duration::ZERO);
+        assert_eq!(proof_deadline(now, Duration::from_secs(1)), now + Duration::from_secs(1));
+        assert_eq!(proof_deadline(now, Duration::MAX), now + MAX_PROVE_WINDOW);
+        assert_eq!(proof_deadline(now, Duration::ZERO), now);
+    }
+
+    #[test]
+    fn a_proof_that_ended_at_its_own_deadline_is_a_give_up_even_when_the_shared_wait_was_not() {
+        assert!(!proof_gave_up(false, 0));
+        assert!(proof_gave_up(true, 0));
+        assert!(proof_gave_up(false, 1), "a window's own deadline fired first");
+        assert!(proof_gave_up(true, 3));
     }
 
     #[test]

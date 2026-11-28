@@ -112,14 +112,30 @@ pub fn has_present_fences(owner: &GpuOwner) -> bool {
         .contains(&"VK_EXT_swapchain_maintenance1")
 }
 
+/// How many proofs a shutdown begins: none with present fences, one per window with a surface without them.
+pub fn expected_shutdown_proofs(present_fences: bool, windows_with_surface: u64) -> u64 {
+    if present_fences {
+        0
+    } else {
+        windows_with_surface
+    }
+}
+
 /// MT-214 E9-F1, on a GPU without `VK_EXT_swapchain_maintenance1`: a shutdown proved the presents of every window that
 /// still had a surface (`windows_with_surface`) ended before it released the surface, none ended unproven, and the
 /// owner's own single-shot report at its close held nothing: no claim open, nothing in flight, no lease. The settle wait
 /// before the close was not needed (one look, in a fraction of its window). The verdict is the owner's report, not these
 /// counters, which are the presenter's own record of it.
+///
+/// With `VK_EXT_swapchain_maintenance1` (`report.present_fences`) a shutdown begins no proof: the owner ends the
+/// surfaces by their own present fences, so `shutdown_proofs_begun` is 0 whatever the window count.
 pub fn assert_shutdown_proved(report: &handshake_shell_surface::PresentReport, windows_with_surface: u64) {
     assert_eq!(report.closes_unproven, 0, "{report:?}");
-    assert_eq!(report.shutdown_proofs_begun, windows_with_surface, "{report:?}");
+    assert_eq!(
+        report.shutdown_proofs_begun,
+        expected_shutdown_proofs(report.present_fences, windows_with_surface),
+        "{report:?}"
+    );
     assert!(!report.shutdown_prove_gave_up, "{report:?}");
     assert!(!report.settle_wait_gave_up, "{report:?}");
     assert!(report.settle_wait_looks <= 2, "{report:?}");

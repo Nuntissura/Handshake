@@ -31,7 +31,7 @@ impl WatcherAck {
 /// Acknowledges an explicit shutdown to the standalone watcher.
 pub trait ShutdownWatcher {
     /// Tell the watcher this process closed cleanly, and wait for its answer within the watcher's own bound. Called
-    /// once, after the shutdown settled.
+    /// once, only when the shutdown settled and no typed failure ended the run.
     fn acknowledge_shutdown(&self) -> WatcherAck;
 }
 

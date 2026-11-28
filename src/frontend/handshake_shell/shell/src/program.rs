@@ -33,8 +33,9 @@
 //! before), then the presenter releases surfaces, settles claims and closes the owner. The heartbeat keeps beating
 //! through that drain. At `LoopEnding`, with the loop still running, the heartbeat has stopped and the program checks
 //! what the owner reported: every claim settled, nothing retained or in flight, the device destroyed, every window
-//! destroyed. Only then does it write the ring's `Shutdown` marker and ask the [`ShutdownWatcher`] to acknowledge
-//! (MT-215 HB-3). A shutdown that is not settled is never acknowledged and ends with [`ExitKind::ShutdownUnsettled`].
+//! destroyed. Only then, and only when no typed failure ended the run, does it write the ring's `Shutdown` marker and ask
+//! the [`ShutdownWatcher`] to acknowledge (MT-215 HB-3). A shutdown that is not settled, or a run that ended in a typed
+//! failure, is never acknowledged; an unsettled one ends with [`ExitKind::ShutdownUnsettled`].
 //! A crash leaves the operating system's exception handler and the panic hook as they are: this crate installs neither.
 //!
 //! # Several windows (AC214-8)
@@ -299,7 +300,7 @@ fn test_policy() -> QuotaPolicy {
 
 /// Open the device under `authority` and run the shell until it closes. The only place the device is opened.
 ///
-/// The ring writer in `config` is the heartbeat's. `watcher` is asked to acknowledge only a settled shutdown.
+/// The ring writer in `config` is the heartbeat's. `watcher` is asked to acknowledge only when the shutdown settled and no typed failure ended the run.
 pub fn run_program(
     mut config: ProgramConfig,
     authority: DeviceAuthority,

@@ -14,6 +14,36 @@ use handshake_vulkan_renderer::{
 
 use support::gpu_env::{in_own_process, ran_in_its_own_process};
 
+/// MT-214 E9-F1 F4, device-free: the shutdown helper's two branches. With present fences a shutdown begins no proof;
+/// without them it begins one per window with a surface. It does not check anything else of a report built by hand.
+#[test]
+fn the_shutdown_helper_expects_no_proof_with_present_fences_and_one_per_window_without() {
+    assert_eq!(support::expected_shutdown_proofs(true, 4), 0);
+    assert_eq!(support::expected_shutdown_proofs(true, 0), 0);
+    assert_eq!(support::expected_shutdown_proofs(false, 4), 4);
+    assert_eq!(support::expected_shutdown_proofs(false, 0), 0);
+}
+
+fn report_of(present_fences: bool, begun: u64) -> handshake_shell_surface::PresentReport {
+    handshake_shell_surface::PresentReport {
+        present_fences,
+        shutdown_proofs_begun: begun,
+        ..handshake_shell_surface::PresentReport::default()
+    }
+}
+
+#[test]
+#[should_panic(expected = "right: 0")]
+fn the_shutdown_helper_refuses_a_proof_begun_with_present_fences() {
+    support::assert_shutdown_proved(&report_of(true, 1), 1);
+}
+
+#[test]
+#[should_panic(expected = "right: 2")]
+fn the_shutdown_helper_refuses_missing_proofs_without_present_fences() {
+    support::assert_shutdown_proved(&report_of(false, 0), 2);
+}
+
 const SIZES: [Extent; 3] = [
     Extent {
         width: 1,
