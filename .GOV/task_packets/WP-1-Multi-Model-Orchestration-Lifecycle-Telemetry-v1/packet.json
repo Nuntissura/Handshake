@@ -588,5 +588,19 @@
       "scope": "Every affected original or future Handshake GUI MT and GUI team under this packet consumes the referenced current shared requirement. Backend-only unaffected work continues independently."
     },
     "preservation": "Reference only: retain all original scope/acceptance/source/spec/governance pins, failures/reviews/lifecycle, spent outcomes, current admission and physical custody. No new execution/attempt grant, repin or duplicated rule body."
+  },
+  "shared_vulkan_routing_20261128": {
+    "source_ref": "packet.json#/operator_gui_shared_requirement_20261024",
+    "coverage_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-212.json#/picotask_plan/original_contract_coverage",
+    "coverage_selector": {
+      "field": "source_domain",
+      "equals": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1"
+    },
+    "routing_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-212.json#/vulkan_direct_routing_20261125",
+    "join": "Match this packet's original source_mt, then resolve its picos in the Vulkan routing.",
+    "native_drawing_gate_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-213.json#/execution/start_precondition",
+    "native_drawing_gate_applies_to": "Affected native drawing and migration rows only. Use the individual row's disposition and dependencies.",
+    "verified_source_contract_count": 30,
+    "scope_effect": "Direct navigation to existing requirements and work. Original claims, accepted proof, task scope, pins and validation authority remain as recorded."
   }
 }
