@@ -3490,5 +3490,159 @@
       "reason": "Each static case opens the changed UIA source from its manifest or sibling tests directory. Keep separate receipts and the existing two PT-4 repeat checks and one PT-6 UIA. Remaining prior results unchanged."
     },
     "x64_p8": "Pending by Operator"
+  },
+  "e9_pt4_repetitions_and_pt6_proof_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent raw artifact, exact case, quiet audit and slot readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/e9_pt6_ui_automation_candidate_20261128",
+      "#/e9f1_pt4_pt5_gpu_hold_20261128"
+    ],
+    "candidate": "4cb6eefc6d7c71ea390c95e34e9661f16443b10b",
+    "tree": "78249b33a11df6cff55b111e4bbfe543c230e32b",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/gpu-pt4-repeat-pt6-current-20261128/run-4cb6eefc6d",
+    "counts": {
+      "selected_executions": 10,
+      "passed": 10,
+      "failed": 0,
+      "gpu_skips": 0
+    },
+    "cases": {
+      "pt6-static-no-activation": {
+        "binary_sha256": {
+          "source_scan": "eb33588a6c1d7bccbc2ed79b8604b25b2618b9d6fad2b9b757ff28fdccf16db7"
+        },
+        "clipboard_sequence": [
+          467
+        ],
+        "filtered": 5,
+        "job_active": 0,
+        "job_processes": 12,
+        "log_sha256": "8bb3e733f030465a01d96c7a9db1dd6fd3eab0bfea96f3044f3ac04956111869",
+        "passed": 1,
+        "result_sha256": "1babda7fc78441293b139199bf29447b6b62c3e010f08ed9ad9a1119fc8ba8b3",
+        "samples_sha256": "c3820eaecbc4c10649f60ff51ee863a6d02ebf2a715df13d90b62d513a59f186",
+        "test_names": [
+          "nothing_activates_orders_or_focuses_a_window_or_injects_input"
+        ],
+        "verified_receipt_sha256": "4a511ccac2d54a640cc05dca6741b7118e53e0ff77a88a50f486ac944891be9f",
+        "gpu_gate_sha256": null
+      },
+      "pt6-static-private-desktop": {
+        "binary_sha256": {
+          "source_scan": "eb33588a6c1d7bccbc2ed79b8604b25b2618b9d6fad2b9b757ff28fdccf16db7"
+        },
+        "clipboard_sequence": [
+          467
+        ],
+        "filtered": 5,
+        "job_active": 0,
+        "job_processes": 7,
+        "log_sha256": "15bf02e945996281133257521ecd4fa91ada47aac328f4242f5209643321dce7",
+        "passed": 1,
+        "result_sha256": "d89db2d799f6b82c2e0ec3451490b0a2ce75981036f97fd3756bf125918fd4bf",
+        "samples_sha256": "5e6686729b50d4545091ecb6827091dfc815b0df3f0ea36bdfa582f7bcb053fd",
+        "test_names": [
+          "every_loop_and_client_of_a_test_runs_on_a_private_desktop"
+        ],
+        "verified_receipt_sha256": "7a201e7f2468dcd62865917702e554710c09449765ace10d461175f5b9d0d2b3",
+        "gpu_gate_sha256": null
+      },
+      "pt6-static-operator-root": {
+        "binary_sha256": {
+          "source_scan": "4bb59c858ced983b3230164f29fc623f66fe01d5827e1fbf83da665b0461e605"
+        },
+        "clipboard_sequence": [
+          467
+        ],
+        "filtered": 19,
+        "job_active": 0,
+        "job_processes": 16,
+        "log_sha256": "1931a54e3e201826e960e17b40e9c295b3d3153b16464027c7aaaeab665a234d",
+        "passed": 1,
+        "result_sha256": "412ec0021beac510a06ac94cf0fb02d9d7d6ef357d75acda82bd5021bdab189f",
+        "samples_sha256": "eeaf2cf2e5e0ebcf119cd0ffa43bcc442421fd3345da12ee593f71d5a1b103f3",
+        "test_names": [
+          "the_product_root_is_an_operator_window_activated_once_and_no_test_binary_has_one"
+        ],
+        "verified_receipt_sha256": "5327890438a9c7183f7efd82ca08e9fac130abc959a031c5abb745a6a43c704a",
+        "gpu_gate_sha256": null
+      },
+      "pt4-repeat-2": {
+        "binary_sha256": {
+          "multiwindow": "7909aa8eed07ef474673976b865fb3e1adc47c489a7b56a3ef82a9a9ffdaa2b9",
+          "shell_program": "0c72b6c20c0d979068bcc5bf590560e37c62bc4eefed0996b27df6ca34b24910"
+        },
+        "clipboard_sequence": [
+          467
+        ],
+        "filtered": 0,
+        "gate_sha256": "ac787eaa9bcc0f301522ec38c50694b46f70a60f4dd0a3db47064ac26d0d7261",
+        "job_active": 0,
+        "job_processes": 15,
+        "log_sha256": "7991b4e8acbdd07035975da34dc50ca708129e9215ed0ffef36d35f090650834",
+        "passed": 3,
+        "result_sha256": "2739cecad7a201635249d20e863face4fb5e89f84bdc29eb3951e62e85f06b2c",
+        "samples_sha256": "447f8bf9506f16635b8cb76d99491599a35f635850597e4ef12a2d8b644c13ec",
+        "test_names": [
+          "a_watcher_that_does_not_answer_is_a_typed_ending_not_a_clean_one",
+          "the_program_runs_drains_marks_the_ring_and_asks_the_watcher_once",
+          "the_root_detached_panes_and_settings_share_one_device_and_closing_one_keeps_the_others"
+        ],
+        "verified_receipt_sha256": "932f2180f2a73100c27cd5c71b21977003d99ea4c7aef48f1d3d16443b121fd0",
+        "gpu_gate_sha256": "ac787eaa9bcc0f301522ec38c50694b46f70a60f4dd0a3db47064ac26d0d7261"
+      },
+      "pt4-repeat-3": {
+        "binary_sha256": {
+          "multiwindow": "7909aa8eed07ef474673976b865fb3e1adc47c489a7b56a3ef82a9a9ffdaa2b9",
+          "shell_program": "0c72b6c20c0d979068bcc5bf590560e37c62bc4eefed0996b27df6ca34b24910"
+        },
+        "clipboard_sequence": [
+          467
+        ],
+        "filtered": 0,
+        "gate_sha256": "1ff85db5f86760a9b8ad04e5f4572276c42c14fc90a6360ab78f319e9d161053",
+        "job_active": 0,
+        "job_processes": 11,
+        "log_sha256": "beb92440d5c4f1e166f29246adfbb220238da0c32f21841fae09286320f3ef2f",
+        "passed": 3,
+        "result_sha256": "6241680ac21f6af77ce94da2820dba4cc585527258081784bca1f506bd58a478",
+        "samples_sha256": "18e6e5d7e3ec7e616b487b9f9261d3ac1a43ea6f1bfd6c0c9ef07e703f0bebd4",
+        "test_names": [
+          "a_watcher_that_does_not_answer_is_a_typed_ending_not_a_clean_one",
+          "the_program_runs_drains_marks_the_ring_and_asks_the_watcher_once",
+          "the_root_detached_panes_and_settings_share_one_device_and_closing_one_keeps_the_others"
+        ],
+        "verified_receipt_sha256": "33ab354a10129b841817db76926f5d612846cf76c5ea8272a484a675b83cab72",
+        "gpu_gate_sha256": "1ff85db5f86760a9b8ad04e5f4572276c42c14fc90a6360ab78f319e9d161053"
+      },
+      "pt6-uia-confirm": {
+        "binary_sha256": {
+          "uia_client": "3534ff6d3ea4cc58be790e31596907c06fa4cefc8a4c449acc94b99ad7922341"
+        },
+        "clipboard_sequence": [
+          467
+        ],
+        "filtered": 0,
+        "gate_sha256": "55d26ba989423bea495e1ffdfa64701bcb936561d22cd0f62c18d2c0bf420dee",
+        "job_active": 0,
+        "job_processes": 9,
+        "log_sha256": "24bf47209c4b21a8c3a198a34db22cdf3767e5d7779a6a62c1118afd81e88a5a",
+        "passed": 1,
+        "result_sha256": "1dcb2fffe443a4c49987c7cd8b2e1223b42f42c4e042993c2e219844f1702655",
+        "samples_sha256": "c8873cea9ab284f33dc8e4ae00c48dc47c4a66ea080f5cf73dce84a0d702015b",
+        "test_names": [
+          "a_ui_automation_client_reads_each_windows_tree_and_acts_without_activating_it"
+        ],
+        "verified_receipt_sha256": "57bbbfc6dd79180bdeacc808f515a00f35db328302ed6c4191e7a984b5b60dff",
+        "gpu_gate_sha256": "55d26ba989423bea495e1ffdfa64701bcb936561d22cd0f62c18d2c0bf420dee"
+      }
+    },
+    "inputs_sha256": "a287c75c45df91c2b28de5c256bb7dbd0972d242cd9448f932fd3e4c7a6d7c79",
+    "outcome_sha256": "043619d09c48b66056d4496cf5bdddc9dd9adc3cc4c31658b39bd139255e6443",
+    "slot_release_sha256": "13f871e03ad57f69c3d25d23c320999c052b3cab78921ee1a47cba08ea3e6a4b",
+    "released_at_utc": "2026-11-28T14:27:09.793694+00:00",
+    "quiet": "Private desktop exercised on three GPU commands. No attributed foreground, focus, Z-order or clipboard changes. Clipboard sequence 467 remained constant throughout all six commands. Owned jobs reported zero active processes and scratch restored. Slot and unique wait gone.",
+    "disposition": "PT-4 now has all three required repetitions, along with existing zero-time negative and mutation. PT-5 diagnostic remains valid. PT-6 current UIA and three exact consuming static scans passed. This is focused evaluator evidence. No formal MT verdict. Operator-deferred x64 P8 remains pending."
   }
 }
