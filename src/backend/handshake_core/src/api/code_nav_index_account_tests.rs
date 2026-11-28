@@ -357,8 +357,8 @@ async fn pt003_first_owner_setup_receipt_observer() {
     assert!(backend.close_and_remove().await.is_ok(), "pt003 observer fixture cleanup unobserved");
 }
 
-// R172-02c confirming run: test code only, no production code is touched.
-const PT003_REPORT_DIR: &str = "WP-KERNEL-012/MT-172/r172-02c-20261128";
+// R172-02c/02d confirming run: test code only, no production code is touched.
+const PT003_REPORT_DIR: &str = "WP-KERNEL-012/MT-172/r172-02d-20261128";
 
 fn pt003_write_report(name: &str, report: &str) {
     eprintln!("{report}");
@@ -572,6 +572,44 @@ async fn pt003_patched_strict_probe() {
     assert_eq!(outcome, "one_visible", "pt003 patched strict probe");
 }
 
+fn pt003_clip(text: String) -> String {
+    let text = text.replace('\n', " ");
+    if text.chars().count() <= 900 { text } else { format!("{}...[clipped]", text.chars().take(900).collect::<String>()) }
+}
+
+fn pt003_chain(terms: usize, subject: &str) -> String {
+    vec![format!("{subject}.version = 1"); terms].join(" AND ")
+}
+
+/// Defines one function in its own admin call, so a parse error hides nothing else.
+async fn pt003_depth_define(state: &AppState, label: &str, fname: &str, body: String) -> String {
+    let ddl = format!("DEFINE FUNCTION OVERWRITE fn::{fname}($row: object) {{ RETURN {body}; }};");
+    format!("{label} define = {}\n", pt003_clip(pt003_root_ddl(state, ddl, 1).await))
+}
+
+/// (a) root projection, (b) root WHERE, (c) record-user SELECT permission gate calling the function.
+async fn pt003_depth_eval(
+    state: &AppState, scope: &crate::storage::surreal::resource_authority::RecordUserScope,
+    bindings: &Value, label: &str, fname: &str,
+) -> String {
+    let projection = format!("SELECT fn::{fname}($this) AS r FROM first_owner_administration_origins:primary;");
+    let in_where = format!("SELECT VALUE id FROM first_owner_administration_origins:primary WHERE fn::{fname}($this);");
+    let mut out = String::new();
+    out.push_str(&format!("{label} (a) root projection = {}\n", pt003_clip(pt003_root_owned(state, projection, bindings).await)));
+    out.push_str(&format!("{label} (b) root where_fn = {}\n", pt003_clip(pt003_root_owned(state, in_where, bindings).await)));
+    let gate_ddl = format!(
+        "LET $o = (SELECT * OMIT id FROM ONLY first_owner_administration_origins:primary);
+         DEFINE TABLE OVERWRITE pt003_gate_{label} SCHEMALESS PERMISSIONS FOR select WHERE fn::{fname}($this) FOR create, update, delete NONE;
+         CREATE pt003_gate_{label}:1 CONTENT $o;"
+    );
+    out.push_str(&format!("{label} (c) gate define = {}\n", pt003_clip(pt003_root_ddl(state, gate_ddl, 3).await)));
+    let gate = pt003_leak(format!("SELECT VALUE id FROM pt003_gate_{label};"));
+    let view = pt003_record_user_view(state, scope, gate, bindings).await;
+    let verdict = pt003_verdict(&view, &format!("pt003_gate_{label}"));
+    out.push_str(&format!("{label} (c) record_user gate = {verdict} (raw {})\n", pt003_clip(view)));
+    out
+}
+
 #[tokio::test]
 async fn pt003_compute_only_depth_probe() {
     let MountedIndexAccountFixture { _binding, backend, state, router, headers, session } =
@@ -580,46 +618,54 @@ async fn pt003_compute_only_depth_probe() {
         .await
         .unwrap_or_else(|_| panic!("pt003 depth probe account authentication failed"));
     let (scope, bindings) = pt003_scope_and_bindings!(credentials, session);
-    let mut report = String::from("PT003-O5 compute-only depth probe\n");
-    let depths = [40usize, 77, 80, 100, 110, 118, 125];
-    let mut ddl = String::from("LET $o = (SELECT * OMIT id FROM ONLY first_owner_administration_origins:primary);\n");
-    let mut statement_count = 1;
-    for n in depths {
-        let chain_row = vec!["$row.version = 1"; n].join(" AND ");
-        let chain_this = vec!["$this.version = 1"; n].join(" AND ");
-        ddl.push_str(&format!(
-            "DEFINE FUNCTION OVERWRITE fn::pt003_chain_{n}($row: object) {{ RETURN {chain_row}; }};
-             DEFINE TABLE OVERWRITE pt003_depth_{n} SCHEMALESS PERMISSIONS FOR select WHERE {chain_this} FOR create, update, delete NONE;
-             CREATE pt003_depth_{n}:1 CONTENT $o;
-             "
-        ));
-        statement_count += 3;
-    }
-    let mirror = pt003_strict_function_text()
-        .replacen("fn::wp012_first_owner_workspace_receipt(", "fn::pt003_mirror_strict(", 1);
-    ddl.push_str(&mirror);
-    statement_count += 1;
-    report.push_str(&format!("DDL\n{}", pt003_root_ddl(&state, ddl, statement_count).await));
-    for n in depths {
-        let projection = format!("SELECT fn::pt003_chain_{n}($this) AS r FROM first_owner_administration_origins:primary;");
-        let in_where = format!("SELECT VALUE id FROM first_owner_administration_origins:primary WHERE fn::pt003_chain_{n}($this);");
-        report.push_str(&format!("N={n} root projection = {}\n", pt003_root_owned(&state, projection, &bindings).await));
-        report.push_str(&format!("N={n} root where_fn = {}\n", pt003_root_owned(&state, in_where, &bindings).await));
-        let gate = pt003_leak(format!("SELECT VALUE id FROM pt003_depth_{n};"));
+    let mut report = String::from("PT003-O5 compute-only depth probe (R172-02d, one DDL call per function)\n");
+    for n in [20usize, 40, 60, 77, 80, 100, 110, 118] {
+        let label = format!("chain_{n}");
+        let fname = format!("pt003_chain_{n}");
+        report.push_str(&pt003_depth_define(&state, &label, &fname, pt003_chain(n, "$row")).await);
+        report.push_str(&pt003_depth_eval(&state, &scope, &bindings, &label, &fname).await);
+        let inline = format!(
+            "LET $o = (SELECT * OMIT id FROM ONLY first_owner_administration_origins:primary);
+             DEFINE TABLE OVERWRITE pt003_inline_{n} SCHEMALESS PERMISSIONS FOR select WHERE {} FOR create, update, delete NONE;
+             CREATE pt003_inline_{n}:1 CONTENT $o;", pt003_chain(n, "$this")
+        );
+        report.push_str(&format!("{label} (d) inline gate define = {}\n", pt003_clip(pt003_root_ddl(&state, inline, 3).await)));
+        let gate = pt003_leak(format!("SELECT VALUE id FROM pt003_inline_{n};"));
         let view = pt003_record_user_view(&state, &scope, gate, &bindings).await;
-        report.push_str(&format!("N={n} record_user inline gate = {} (raw {view})\n", pt003_verdict(&view, "pt003_depth_")));
+        let verdict = pt003_verdict(&view, "pt003_inline_");
+        report.push_str(&format!("{label} (d) record_user inline gate = {verdict} (raw {})\n", pt003_clip(view)));
     }
+    // Mirror of the strict shape: 77 terms, the 5th term calls a 28-term chain.
+    report.push_str(&pt003_depth_define(&state, "sub_28", "pt003_sub_28", pt003_chain(28, "$row")).await);
+    let mirror_body = format!("{} AND fn::pt003_sub_28($row) AND {}", pt003_chain(4, "$row"), pt003_chain(72, "$row"));
+    report.push_str(&pt003_depth_define(&state, "mirror_77_with_28", "pt003_mirror_77_with_28", mirror_body).await);
+    report.push_str(&pt003_depth_eval(&state, &scope, &bindings, "mirror_77_with_28", "pt003_mirror_77_with_28").await);
+    // Textual copy of the production strict function under another name, in its own call.
+    let strict_copy = pt003_strict_function_text()
+        .replacen("fn::wp012_first_owner_workspace_receipt(", "fn::pt003_mirror_strict(", 1);
+    report.push_str(&format!("mirror_strict define = {}\n", pt003_clip(pt003_root_ddl(&state, strict_copy, 1).await)));
     let swap = |text: &str| text.replace("fn::wp012_first_owner_workspace_receipt", "fn::pt003_mirror_strict");
-    report.push_str(&format!("mirror root projection = {}\n", pt003_root_owned(&state, swap(PT003_STRICT_PROJECTION), &bindings).await));
-    report.push_str(&format!("mirror root where_fn = {}\n", pt003_root_owned(&state, swap(PT003_STRICT_WHERE), &bindings).await));
-    report.push_str(&format!("mirror record_user projection = {}\n",
-        pt003_record_user_view(&state, &scope, pt003_leak(swap(PT003_STRICT_PROJECTION)), &bindings).await));
-    report.push_str(&format!("mirror record_user where_fn = {}\n",
-        pt003_record_user_view(&state, &scope, pt003_leak(swap(PT003_STRICT_WHERE)), &bindings).await));
-    pt003_write_report("pt003-depth.txt", &report);
+    report.push_str(&format!("mirror_strict root projection = {}\n", pt003_clip(pt003_root_owned(&state, swap(PT003_STRICT_PROJECTION), &bindings).await)));
+    report.push_str(&format!("mirror_strict root where_fn = {}\n", pt003_clip(pt003_root_owned(&state, swap(PT003_STRICT_WHERE), &bindings).await)));
+    report.push_str(&format!("mirror_strict record_user projection = {}\n",
+        pt003_clip(pt003_record_user_view(&state, &scope, pt003_leak(swap(PT003_STRICT_PROJECTION)), &bindings).await)));
+    report.push_str(&format!("mirror_strict record_user where_fn = {}\n",
+        pt003_clip(pt003_record_user_view(&state, &scope, pt003_leak(swap(PT003_STRICT_WHERE)), &bindings).await)));
+    // Baseline: the production strict function evaluated the way the compute-only rollback test evaluates it.
+    let (baseline_scope, _) = pt003_scope_and_bindings!(credentials, session);
+    let baseline = state.surreal
+        .probe_first_owner_workspace_receipt_projection(
+            &credentials.context, &baseline_scope, crate::storage::NewWorkspace { name: "Owned indexed workspace".to_owned() },
+        )
+        .await;
+    let baseline_ok = baseline.is_ok();
+    report.push_str(&format!("BASELINE production strict function via probe_first_owner_workspace_receipt_projection = {}\n",
+        pt003_clip(format!("{baseline:?}"))));
     drop(router);
     drop(state);
-    assert!(backend.close_and_remove().await.is_ok(), "pt003 depth probe fixture cleanup unobserved");
+    let closed = if baseline_ok { backend.close_and_remove().await.is_ok() } else { backend.close_and_preserve().await.is_ok() };
+    report.push_str(&format!("fixture close ok = {closed}\n"));
+    pt003_write_report("pt003-depth.txt", &report);
 }
 
 #[derive(PartialEq, SurrealValue)]
