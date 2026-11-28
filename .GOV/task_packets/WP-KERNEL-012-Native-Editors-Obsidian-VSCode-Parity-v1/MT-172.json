@@ -14936,5 +14936,18 @@
     },
     "next": "Begin the authorized R172-02b stage slice. Keep :189 open for separate MT-173 root-cause review. No unchanged rerun.",
     "lifecycle_change": "none; diagnostic only"
+  },
+  "r172_02b_local_stage_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex); verified local commit, exact file/line and static statement count",
+    "recorded_on": "2026-11-28",
+    "source_ref": "#/rev172_plan_20261127",
+    "picotask": "R172-02b",
+    "local_intermediate_commit": "fafc3aae2ff8ce06af3617a9a8b5abb885119b6b",
+    "tree": "02b0647b21a3d51e6d9448615e7c912ff1f2908b",
+    "parent_pushed_commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "scope": "schema.surql:8489 only. R172-10 restore pair reference is recorded in the local commit body.",
+    "focused_static_check": "One changed line, statement headers 5301 before and after, clean scoped diff.",
+    "limit": "Local STAGE-INTERMEDIATE per C1; no Cargo, no push and no claim regarding the separate :189 test.",
+    "next": "R172-03, two declared DDL rows. One picotask at a time."
   }
 }

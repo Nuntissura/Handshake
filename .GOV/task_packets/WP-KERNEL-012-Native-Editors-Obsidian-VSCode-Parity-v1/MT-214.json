@@ -3264,5 +3264,86 @@
       "pt9-released.txt": "a5bc16280ffc32864756b6507a312c256e616583e4fbd45f2a497dba38461e61"
     },
     "next": "eval agent GPU hold: the three shell GPU tests and a_shutdown_with_no_time_to_prove_... in surface/tests/frame_loop.rs compile but have not run (PT-4), PT-5 E9-F2 probe, S7 P8 live proofs"
+  },
+  "e9f1_pt4_pt5_gpu_hold_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex); independently inspected run logs, structured results, source binding and restored scratch bytes",
+    "recorded_on": "2026-11-28",
+    "authority_ref": "#/e9f1_fix_design_20261128",
+    "candidate_commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "candidate_tree": "8c512875423933aa74e71c8196f277c962e490ef",
+    "host": "Windows ARM64 and Qualcomm native Vulkan with the x64 toolchain. This is the focused MT-214 diagnostic hold.",
+    "source_archive_sha256": "92c54e773fca9687f729ed7a978f70c6af4b7ce3aa474c6c7796539fade4f905",
+    "proof_root": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/gpu-hold-20261128",
+    "run_log_sha256": {
+      "pt4-pristine": "9e0ae6ad7d9182400cf4bdaf25b2a4eb9c805c6752486814171e65d11e71cc54",
+      "pt4-mutation-me": "80ab2e5e65e5a2f4d13f83224ec1c46c8d70a5fd82f42905f8598e305aa56e6b",
+      "pt5-uia-1": "c5f618b3456a0d76df619f74ca101c0a67a45d04c6073d1a0f15dd8494bd2367",
+      "pt5-uia-2": "21607acd2354d6dd2b292a44702e942de2d779098b9cf1c1399e89cc4c25b3be",
+      "pt5-uia-3": "c0f5c85c681f3ac7dfbbe27cc80928b93424a4a362025128ab1fc7a11f80f12a",
+      "pt5-uia-4": "e62663a214c8ef19e239879518451102ee7692547a5081f5a6c7a7f653007d26",
+      "pt5-uia-5": "34354207ac2a1d7fc658cb1386196b0da000039aa6bd3c8c3f0182482d478b42"
+    },
+    "structured_result_sha256": {
+      "pt4-pristine": "176690ba282b2e6b34b338543fadf98483adb7d9e3208e42e8f331ca7909f845",
+      "pt4-mutation-me": "f674ed3ec6bb548ae0c2d7bfd3baaabc6c21cc6b57e363dc7613ea4515dd5f76",
+      "pt5-uia-1": "faa8e00dec27a100c8812e6c259fa278de188096a44a50d20b1216800d352563",
+      "pt5-uia-2": "122bbf4ce688c18165c4b2049fa9a14f9411c5098bef76493ba949f635ba800a",
+      "pt5-uia-3": "f8428f1247071124f2c524c36a53a621dc97616bda7169271740bb1f928e8b7b",
+      "pt5-uia-4": "708f3f98d16c646a79281813775f5e638abd95add3fd7ba027b9b87be0865975",
+      "pt5-uia-5": "88ad78a385104783df499b0c7d4ed6959c46ea69514dacc638ac5649848efc6c"
+    },
+    "foreground_sample_sha256": {
+      "pt4-pristine": "13d8c0c06ae6a80e01d9ce8d913f39195c4934d3d89afdc4f800339389245140",
+      "pt4-mutation-me": "f5517d80cfb3cdc7d68b0f72c97589e535d31f8d3e693530e534e5573b8cd5b2",
+      "pt5-uia-1": "2e16f0babd83d4845962bd606b00db44132406accccc3ed3b611723ef589c0d2",
+      "pt5-uia-2": "d1b721f6b243cedac84de7b3fd12feed192f9706b7b379874a6b473a916c3ae0",
+      "pt5-uia-3": "262429a3e4cc8e851d037e4af3ed90c39d937160f536a6e39f90bd8c72d4e11b",
+      "pt5-uia-4": "07d89461c370f17dbca5b49e88f04fc72c71df842cebd3cb463da9dea3456d4b",
+      "pt5-uia-5": "2ff40f825af07a0dfedfcb78c5c249bc71898d852c4ce87d94b865b602e381dd"
+    },
+    "timeline_sha256": {
+      "1": "bf66d1b6ab683cd1272eaa877ecc4e1ca218952d2a79918e8d3c75996e9fc76d",
+      "2": "695db85a3920959e018665a5f52f11f73d54a330b989d953c00e7d3f41b551de",
+      "3": "39bbafdd8e5ad7615535f8847ccc5e1e26a5e95e9e7f3789ff75a91b1a8715d1",
+      "4": "bc23928ac334e270ccb2c9c1e211392b274adc3a116efb88a27c87ec818da525",
+      "5": "3a9cd13830a24291c7b9d69e9a35bd5ceb8126eefa76cacb92577759be8ba2f1"
+    },
+    "pt4": {
+      "pristine": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "gpu_skip": 0,
+        "unrelated_filtered": 3
+      },
+      "ME": {
+        "cargo_exit": 101,
+        "outer_cases_failed_as_expected": 2,
+        "shell_outcome": "shutdown_unsettled code=8 in both cases; watcher not asked",
+        "note": "Two nested harness summaries repeat the same failures, so only the outer two cases are counted."
+      }
+    },
+    "pt5": {
+      "trials": 5,
+      "executed_per_trial": 1,
+      "same_failure": 5,
+      "recorded_effect": "The first refused activation in every trial targets window B within about 1.2 ms of the test client's root SetFocus. Before/after Z neighbors stay equal, quiet_broken is zero, and instrumentation sees zero active, focus and foreground HWND in the refusals.",
+      "limits": "The second refusal lies around the same call boundary, but two logs contain interleaved annotations. No exact internal Windows message source is claimed.",
+      "next": "PT-6 review of effect assertions and test premise, preserving the production guard."
+    },
+    "quiet": {
+      "all_7_results_no_attributed_state_changes": true,
+      "all_7_results_no_attributed_z_order_changes": true,
+      "during_clipboard_sequence": 404,
+      "operator_desktop_test_windows": 0,
+      "slot_and_wait_marker_absent_after_hold": true
+    },
+    "p8": {
+      "status": "UNPROVEN; declared x64 host and live proof still unavailable",
+      "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/p8-patch-167ae6a9b/mt214-s7-p8.patch",
+      "sha256": "633ae98f15fa041b903d958eaca92cb88d9a4f642d3f755076e5a0ab74b23218",
+      "verified": "Applies to pushed 167ae6a9b; four test files only. No compile or live evidence."
+    },
+    "status_effect": "No formal MT verdict."
   }
 }
