@@ -946,6 +946,7 @@
     "foreground_or_interactive_tools_forbidden": true,
     "depends_on": [],
     "allowed_write_paths": [
+      "src/backend/handshake_core/tests/fixtures/schema_pre_mt141.surql",
       "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
       "src/backend/handshake_core/src/api/mod.rs",
       "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs",
@@ -15707,5 +15708,28 @@
     ],
     "next_check": "Bounded seven affected unit selectors (Argus direct/stale receipt, MT139 base predecessor, MT151, two MT152, 171 duplicate, MT154 emission). No replay of prior green crash-safety or other unaffected cases. MT141 and MT150 wait for exact fixture scope separately and are not selected.",
     "publication": "Normal fast-forward, fetched and direct remote equal. Clean except existing pointer and no active build slot or compiler prior to dispatch."
+  },
+  "operator_exact_mt141_fixture_scope_20261128": {
+    "decision_id": "WP012-MT172-EXACT-MT141-FIXTURE-20261128",
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "operator_quote": "Approve exact fixture file (Recommended)",
+    "approved_path": "src/backend/handshake_core/tests/fixtures/schema_pre_mt141.surql",
+    "authority": "Single frozen historical test fixture for the two existing MT141/MT150 migration checks. The existing authorized schema.rs test helper may consume it. No product schema or historical pin edits.",
+    "source": {
+      "commit": "20270f3a5cd45d8c0cb6c54e7e4ec763d3f6587f",
+      "product_blob": "45869db3f4411f405eed070fcb6b4b3502c1d328",
+      "bytes": 568114,
+      "sha256": "5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779"
+    },
+    "secondary_pin": {
+      "derived_by": "Remove the exact one preexisting MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS 275-byte delta from original fixture, with independent final old RAW SHA check.",
+      "verified_source_blob": "e13c0a14f9394365d064a19b5b4d7e4061ec721d",
+      "bytes": 567839,
+      "sha256": "0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6"
+    },
+    "reason": "Current tests fail before opening a database while reconstructing older sources from the evolved live ledger declaration. Specialist and adversarial agent independently recovered exact original provenance. No tracked existing fixture can derive the pinned inputs with the known small delta.",
+    "predecessor": "Current seven-case R172-16 recovery must release its slot and verify unchanged input closure before product writes begin.",
+    "followup": "One coding picotask for exact fixture plus its two private test helper consumers, then only named MT141/MT150 proof unless another proven case belongs to the same changed candidate."
   }
 }
