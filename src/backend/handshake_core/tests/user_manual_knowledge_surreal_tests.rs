@@ -1,6 +1,8 @@
 mod surreal_test_store_support;
 
-use handshake_core::storage::surreal::{RowFilter, SurrealUserManualKnowledgeStore};
+use handshake_core::storage::surreal::{
+    bootstrap_production_schemas, RowFilter, SurrealUserManualKnowledgeStore,
+};
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
     OwnerAccountId, ResourceScope, WorkspaceScopeRef,
@@ -40,13 +42,13 @@ async fn open_fixture() -> (
     SurrealUserManualKnowledgeStore,
     ExactResourceScopeAttribution,
 ) {
-    let mut isolated = IsolatedSurrealTestStore::create()
+    let isolated = IsolatedSurrealTestStore::create()
         .await
         .expect("allocate isolated embedded store");
-    let storage = isolated.storage().clone();
-    let store = SurrealUserManualKnowledgeStore::open(storage)
+    bootstrap_production_schemas(isolated.storage())
         .await
-        .expect("open UserManual knowledge provider");
+        .expect("bootstrap production schema composition");
+    let store = SurrealUserManualKnowledgeStore::new(isolated.storage().clone());
     let scope = exact_scope("mt022-knowledge-workspace");
     store
         .ensure_workspace_fixture(scope.workspace_id.as_str())
@@ -127,7 +129,7 @@ async fn exact_scope_retry_and_predecessor_chain_survive_shutdown_and_reopen() {
     assert_ne!(second_a.event_ledger_event_id, b.event_ledger_event_id);
 
     drop(store);
-isolated
+    isolated
         .reopen()
         .await
         .expect("reopen exact allocated scope");
@@ -136,9 +138,7 @@ isolated
     assert_eq!(isolated.database(), database);
     assert_eq!(reopened_storage.config().namespace(), namespace);
     assert_eq!(reopened_storage.config().database(), database);
-    let reopened = SurrealUserManualKnowledgeStore::open(reopened_storage)
-        .await
-        .expect("reopen provider over same storage");
+    let reopened = SurrealUserManualKnowledgeStore::new(reopened_storage);
 
     let persisted = reopened
         .get_user_manual_page_entity_by_identity(&scope, ENTITY_KEY)

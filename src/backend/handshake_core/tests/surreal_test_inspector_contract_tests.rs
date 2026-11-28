@@ -1,6 +1,6 @@
 use handshake_core::storage::surreal::{
     bootstrap_schema, RowFilter, ScalarValue, SurrealStorage, SurrealStorageConfig,
-    SurrealTestInspectorError, EXPECTED_SCHEMA_INFO_SHA256,
+    SurrealTestInspectorError,
 };
 use handshake_core::storage::{NewDocument, NewWorkspace, WriteContext};
 
@@ -22,7 +22,10 @@ async fn inspector_observes_catalog_rows_and_references_through_closed_selectors
         .await
         .expect("inspect schema catalog");
     assert_eq!(catalog.schema_version, bootstrap.schema_version);
-    assert_eq!(catalog.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+    assert_eq!(
+        catalog.info_fingerprint_sha256,
+        bootstrap.info_fingerprint_sha256
+    );
     assert_eq!(catalog.tables_defined, catalog.tables.len());
     assert_eq!(
         catalog.fields_defined,
