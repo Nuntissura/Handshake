@@ -2,10 +2,9 @@
 //! desktop: two windows, each with a tree of its own under the same keys, read by a client on another thread of the
 //! same desktop; then the keyboard focus, a scale change, an Invoke and a SetFocus on a window.
 //!
-//! Reading is proven not to activate, focus, show or reorder either window: the window crate's guard refuses no
-//! activation meanwhile, no quiet window breaks, no focus or display change is reported, the windows keep their place
-//! in the Z order, and the watches of the support module (Operator's desktop, private desktop) see no window of the
-//! process active or focused. One loop per process, so this is a target of its own.
+//! The read-only phase rejects any activation attempt. The action phase records refused attempts and checks
+//! that neither window activates, takes OS keyboard focus, changes display state or moves in the Z order.
+//! The support watches monitor both desktops throughout. One loop per process, so this is a target of its own.
 #![cfg(windows)]
 #![allow(unsafe_code)]
 
@@ -38,8 +37,10 @@ use windows::Win32::UI::Accessibility::{
 };
 use windows_sys::Win32::Foundation::POINT;
 use windows_sys::Win32::Graphics::Gdi::ClientToScreen;
+use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetWindow, PostMessageW, GW_HWNDNEXT, GW_HWNDPREV, WM_KILLFOCUS, WM_NCACTIVATE, WM_SETFOCUS,
+    GetGUIThreadInfo, GetWindow, PostMessageW, GUITHREADINFO, GW_HWNDNEXT, GW_HWNDPREV, WM_KILLFOCUS,
+    WM_NCACTIVATE, WM_SETFOCUS,
 };
 
 use support::{
@@ -485,11 +486,9 @@ impl State {
                     .iter()
                     .map(|request| (request.window(), request.target(), request.action(), request.origin()))
                     .collect();
-                // The Invoke is one typed Click, first. A SetFocus of the client reaches the provider as a Focus request
-                // of the window or of the node, never as an activation: on a private desktop the root's SetFocus
-                // reached the provider with no request at all (the system's window element answered it), a child's
-                // with a request for the node and one for the window. So the child's request is required, and nothing
-                // but a window or node request of the second window may follow the Invoke (MT-214 E7-F1).
+                // The Invoke is one typed Click, first. A SetFocus reaching the provider yields a typed Focus.
+                // The system's window element may handle the root's call. The child's request is required, and
+                // only a window or node request of the second window may follow the Invoke (MT-214 E7-F1).
                 let focus_node = (b, AccessTarget::Node(SAVE), Action::Focus, Origin::OtherProgram);
                 let focus_of_window = (b, AccessTarget::Window, Action::Focus, Origin::OtherProgram);
                 assert_eq!(
@@ -550,14 +549,37 @@ impl State {
         close_to(open.rect, self.expected(b_hwnd, scale(b), Rect::new(20.0, 20.0, 120.0, 60.0)));
     }
 
-    /// Nothing activated a window: the guard refused no activation since the client began (none was tried), no quiet
-    /// window broke, and the windows kept their place in the Z order. With `reading`, also no focus or display change.
+    /// Check both phases for activation effects. The read-only phase also forbids attempts and focus events.
     fn no_activation(&self, control: &Control, reading: bool) {
         let report = control.report();
         let (refused, places) = self.before.get().unwrap();
-        assert_eq!(report.activations_refused, refused, "an activation was tried: {report:?}");
+        if reading {
+            assert_eq!(report.activations_refused, refused, "an activation was tried: {report:?}");
+        } else {
+            eprintln!(
+                "UIA activation refusals before and after actions: {refused} -> {}",
+                report.activations_refused
+            );
+        }
         assert_eq!(report.quiet_broken, 0);
         assert_eq!(self.places(), places, "a window moved in the Z order");
+        // SAFETY: the query uses this loop thread and a writable structure with its size set.
+        let (queried, info) = unsafe {
+            let mut info: GUITHREADINFO = std::mem::zeroed();
+            info.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
+            (GetGUIThreadInfo(GetCurrentThreadId(), &mut info), info)
+        };
+        assert_ne!(
+            queried,
+            0,
+            "reading the loop thread's GUI state: {}",
+            std::io::Error::last_os_error()
+        );
+        assert_eq!(
+            (info.hwndActive, info.hwndFocus),
+            (0, 0),
+            "the loop thread activated or focused a window"
+        );
         let changes = self.seen.all();
         let changes: Vec<&String> = changes
             .iter()
