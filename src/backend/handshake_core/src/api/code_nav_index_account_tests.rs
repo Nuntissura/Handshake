@@ -189,6 +189,167 @@ async fn first_owner_workspace_receipt_compute_only_observes_rollback() {
     assert_eq!(outcome, "one_visible", "receipt compute-only scalar probe after checked rollback");
 }
 
+// PT003 observer (R172-02, folded into R172-01): no production code is touched.
+const PT003_SETUP_RECEIPT_TERMS: &str = r#"
+    $row.purpose = 'prospective_first_owner_administration' AND $row.version = 1
+    AND $row.account.account_role = 'Owner'
+    AND $row.account.first_owner_administration_origin = first_owner_administration_origins:primary
+    AND $row.setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP'
+    AND $row.setup_receipt.event_sequence > 0 AND $row.setup_receipt.created_at = $row.created_at
+    AND $row.setup_receipt.actor_kind = 'operator'
+    AND $row.setup_receipt.actor_id = record::id($row.operator_principal)
+    AND $row.setup_receipt.aggregate_type = 'local_account'
+    AND $row.setup_receipt.aggregate_id = record::id($row.account)
+    AND $row.setup_receipt.source_component = 'local_account_authority'
+    AND $row.setup_receipt.payload.schema_version = 'hsk.local_account_event@1'
+    AND $row.setup_receipt.payload.account_id = record::id($row.account)
+    AND $row.setup_receipt.payload.principal_id = record::id($row.operator_principal)
+    AND $row.setup_receipt.payload.access_space_id = record::id($row.space)
+    AND $row.setup_receipt.payload.session_id = NULL
+    AND $row.setup_receipt.payload.delegation_chain = [record::id($row.operator_principal)]
+    AND $row.setup_receipt.payload.resource_refs = [{ kind: 'local_account', id: record::id($row.account) }]
+    AND $row.setup_receipt.payload.action = 'LOCAL_ACCOUNT_SETUP'
+    AND $row.setup_receipt.payload.result = 'allow' AND $row.setup_receipt.payload.policy_version = 1
+    AND local_account_setup:primary.account_id = $row.account
+    AND local_account_setup:primary.principal_id = $row.operator_principal
+"#;
+
+const PT003_CONJUNCTS: &str = r#"
+SELECT
+ record::exists(setup_receipt) AS a_exists_setup_receipt,
+ setup_receipt.event_type AS b_event_type,
+ purpose = 'prospective_first_owner_administration' AS c01_purpose, version = 1 AS c02_version,
+ account.account_role = 'Owner' AS c03_owner_role,
+ account.first_owner_administration_origin = first_owner_administration_origins:primary AS c04_origin_link,
+ first_workspace_state AS v_first_workspace_state, first_workspace_receipt_nonce AS v_nonce,
+ first_workspace_original != NONE AS v_original_present,
+ setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP' AS c05_event_type,
+ setup_receipt.event_sequence > 0 AS c06_event_sequence,
+ setup_receipt.created_at = created_at AS c07_created_at,
+ setup_receipt.actor_kind = 'operator' AS c08_actor_kind,
+ setup_receipt.actor_id = record::id(operator_principal) AS c09_actor_id,
+ setup_receipt.aggregate_type = 'local_account' AS c10_aggregate_type,
+ setup_receipt.aggregate_id = record::id(account) AS c11_aggregate_id,
+ setup_receipt.source_component = 'local_account_authority' AS c12_source_component,
+ setup_receipt.payload.schema_version = 'hsk.local_account_event@1' AS c13_schema_version,
+ setup_receipt.payload.account_id = record::id(account) AS c14_payload_account,
+ setup_receipt.payload.principal_id = record::id(operator_principal) AS c15_payload_principal,
+ setup_receipt.payload.access_space_id = record::id(space) AS c16_payload_space,
+ setup_receipt.payload.session_id = NULL AS c17_payload_session_null,
+ setup_receipt.payload.delegation_chain = [record::id(operator_principal)] AS c18_delegation,
+ setup_receipt.payload.resource_refs = [{ kind: 'local_account', id: record::id(account) }] AS c19_resource_refs,
+ setup_receipt.payload.action = 'LOCAL_ACCOUNT_SETUP' AS c20_payload_action,
+ setup_receipt.payload.result = 'allow' AS c21_payload_result,
+ setup_receipt.payload.policy_version = 1 AS c22_policy_version,
+ local_account_setup:primary.account_id = account AS c23_setup_account,
+ local_account_setup:primary.principal_id = operator_principal AS c24_setup_principal
+FROM first_owner_administration_origins:primary
+WHERE account = type::record('local_accounts', $proof_account);
+"#;
+
+const PT003_COPIES: &str = r#"
+SELECT fn::pt003_copy_full($this) AS copy_full, fn::pt003_copy_no_exists($this) AS copy_no_exists,
+ fn::pt003_copy_param($this, type::record('authenticated_sessions', $proof_session)) AS copy_param
+FROM first_owner_administration_origins:primary
+WHERE account = type::record('local_accounts', $proof_account);
+"#;
+
+const PT003_STRICT_PROJECTION: &str = r#"
+SELECT fn::wp012_first_owner_workspace_receipt($this, $proof_op, type::record('workspaces', $proof_op),
+ type::record('protected_resources', $proof_resource), type::record('resource_grants', $proof_resource),
+ type::record('authenticated_sessions', $proof_session), $proof_channel, $proof_name, time::now()) AS strict_result
+FROM first_owner_administration_origins:primary
+WHERE account = type::record('local_accounts', $proof_account);
+"#;
+
+const PT003_STRICT_WHERE: &str = r#"
+SELECT VALUE id FROM first_owner_administration_origins:primary
+WHERE fn::wp012_first_owner_workspace_receipt($this, $proof_op, type::record('workspaces', $proof_op),
+ type::record('protected_resources', $proof_resource), type::record('resource_grants', $proof_resource),
+ type::record('authenticated_sessions', $proof_session), $proof_channel, $proof_name, time::now());
+"#;
+
+const PT003_SOURCES: &str = r#"
+SELECT fn::wp012_first_owner_workspace_sources($this) AS sources_result
+FROM first_owner_administration_origins:primary
+WHERE account = type::record('local_accounts', $proof_account);
+"#;
+
+async fn pt003_record_user_view(
+    state: &AppState, scope: &crate::storage::surreal::resource_authority::RecordUserScope,
+    statement: &'static str, bindings: &Value,
+) -> String {
+    let bindings = bindings.clone();
+    let result = state.surreal.with_record_user_scope(scope.clone(), state.surreal.with_data_operation(move |database| {
+        Box::pin(async move { database.query_values::<surrealdb::types::Value, _>(statement, bindings).await })
+    })).await;
+    format!("{result:?}")
+}
+
+async fn pt003_root_view(state: &AppState, statement: &'static str, bindings: &Value) -> String {
+    match state.surreal.test_admin_query_bound(statement.to_owned(), bindings.clone()).await {
+        Ok(mut response) => format!("{:?}", response.take::<surrealdb::types::Value>(0)),
+        Err(error) => format!("ADMIN_ERR {error:?}"),
+    }
+}
+
+#[tokio::test]
+async fn pt003_first_owner_setup_receipt_observer() {
+    use crate::storage::surreal::resource_authority::{RecordUserScope, ResourceAction};
+
+    let MountedIndexAccountFixture { _binding, backend, state, router, headers, session } =
+        mounted_index_account_fixture(false).await;
+    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .unwrap_or_else(|_| panic!("pt003 observer account authentication failed"));
+    let operation = uuid::Uuid::now_v7().to_string();
+    let resource = uuid::Uuid::now_v7().to_string();
+    // Same prospective Workspace/Create scope as first_owner_workspace_receipt_scalar_outcome.
+    let scope = RecordUserScope {
+        workspace_id: Some(operation.clone()),
+        resource_id: resource.clone(),
+        session_id: credentials.context.session_id.clone(),
+        session_token: credentials.session_token,
+        channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
+        capability_id: "fs.write".to_owned(),
+        action: ResourceAction::Create,
+        grant_id: None,
+    };
+    let bindings = json!({
+        "proof_account": session["account_id"], "proof_session": session["session_id"],
+        "proof_op": operation, "proof_resource": resource,
+        "proof_channel": credentials.channel_binding_hash, "proof_name": "Owned indexed workspace",
+    });
+    // Test-local copies of fn::wp012_first_owner_workspace_receipt (schema.surql 8471-8500): the
+    // setup-receipt and row-level terms only, with and without record::exists($row.setup_receipt).
+    // The third copy takes a typed record parameter to observe the (UNVERIFIED) parameter candidate.
+    let terms = PT003_SETUP_RECEIPT_TERMS;
+    let ddl = format!(
+        "DEFINE FUNCTION OVERWRITE fn::pt003_copy_full($row: object) {{ RETURN record::exists($row.setup_receipt) AND {terms}; }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_copy_no_exists($row: object) {{ RETURN {terms}; }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_copy_param($row: object, $sx: record<authenticated_sessions>) {{ RETURN $sx != NONE AND {terms}; }};"
+    );
+    match state.surreal.test_admin_query(ddl).await {
+        Ok(mut response) => {
+            for index in 0..3 {
+                eprintln!("PT003 ddl[{index}] = {:?}", response.take::<Option<surrealdb::types::Value>>(index));
+            }
+        }
+        Err(error) => eprintln!("PT003 ddl ADMIN_ERR {error:?}"),
+    }
+    let statements: [(&str, &'static str); 5] = [
+        ("conjuncts", PT003_CONJUNCTS), ("copies", PT003_COPIES), ("strict_projection", PT003_STRICT_PROJECTION),
+        ("strict_where", PT003_STRICT_WHERE), ("sources", PT003_SOURCES),
+    ];
+    for (label, statement) in statements {
+        eprintln!("PT003 record_user {label} = {}", pt003_record_user_view(&state, &scope, statement, &bindings).await);
+        eprintln!("PT003 root {label} = {}", pt003_root_view(&state, statement, &bindings).await);
+    }
+    drop(router);
+    drop(state);
+    assert!(backend.close_and_remove().await.is_ok(), "pt003 observer fixture cleanup unobserved");
+}
+
 #[derive(PartialEq, SurrealValue)]
 struct MountedFirstOwnerReceipt {
     setup_operation_id: String,
