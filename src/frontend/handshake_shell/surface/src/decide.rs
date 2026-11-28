@@ -209,31 +209,59 @@ pub(crate) const PROVE_WINDOW: Duration = Duration::from_secs(2);
 
 /// How long a shutdown lets the claims of released windows settle before the owner closes (MT-214 E9-F1): the owner
 /// reports what it still holds at its close, once, so a claim settled after the close stays in that report as open.
+/// Only while no window ended its proof unproven (see [`settle_window`]).
 pub(crate) const SETTLE_WINDOW: Duration = Duration::from_millis(500);
 
-/// The pause between two looks while a shutdown waits for claims to settle.
-pub(crate) const SETTLE_STEP: Duration = Duration::from_millis(2);
+/// How long a shutdown lets the presents of every window with a surface be proven ended, without
+/// `VK_EXT_swapchain_maintenance1`, before the surfaces are released (MT-214 E9-F1). One deadline shared by all windows,
+/// begun together: the loop's thread waits here, so it is shorter than [`PROVE_WINDOW`], which a closing window keeps
+/// asynchronously. Measured proofs took 12 to 25 ms per window and 31 ms for two.
+pub(crate) const SHUTDOWN_PROVE_WINDOW: Duration = Duration::from_secs(1);
 
-/// What a shutdown does next while it waits for claims to settle before the owner closes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SettleWait {
-    /// Every claim is settled: close.
-    Close,
-    /// One is still waiting: look at the owner again after this pause.
-    Again(Duration),
-    /// One is still waiting and the window is over: close all the same; the close settles what it drained, and the
-    /// report says that it was open.
-    GiveUp,
+/// The pause between two looks while a shutdown waits for proofs or for claims to settle.
+pub(crate) const PROVE_STEP: Duration = Duration::from_millis(1);
+
+/// How long a shutdown waits for claims to settle before the owner closes, given how many windows ended their proof
+/// unproven: [`SETTLE_WINDOW`] while none did (a claim that is only in flight or leased settles with time), a single
+/// look once one did (its claim holds a resource that no waiting releases, so waiting is dead time).
+pub(crate) fn settle_window(closes_unproven: u64) -> Duration {
+    if closes_unproven == 0 {
+        SETTLE_WINDOW
+    } else {
+        Duration::ZERO
+    }
 }
 
-/// The next step of a shutdown's wait for claims to settle, `elapsed` after it began.
-pub(crate) fn settle_wait(waiting: bool, elapsed: Duration) -> SettleWait {
-    if !waiting {
-        SettleWait::Close
-    } else if elapsed >= SETTLE_WINDOW {
-        SettleWait::GiveUp
-    } else {
-        SettleWait::Again(SETTLE_STEP.min(SETTLE_WINDOW - elapsed))
+/// What [`wait_for`] did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Waited {
+    /// Looks made, at least one.
+    pub(crate) looks: u64,
+    /// How long it took, in microseconds.
+    pub(crate) micros: u64,
+    /// Whether it ended at its window with the last look still waiting.
+    pub(crate) gave_up: bool,
+}
+
+/// Look, and look again after `step`, until a look says that nothing waits any more or `window` is over. It owns the
+/// clock and the sleep: it always makes one look, never sleeps past the window, and gives up only after a look that
+/// found something waiting at or after the window's end. `look` returns whether something is still waiting.
+pub(crate) fn wait_for(window: Duration, step: Duration, mut look: impl FnMut() -> bool) -> Waited {
+    let begun = Instant::now();
+    let mut looks = 0u64;
+    loop {
+        looks += 1;
+        let waiting = look();
+        let elapsed = begun.elapsed();
+        let over = !waiting || elapsed >= window;
+        if over {
+            return Waited {
+                looks,
+                micros: u64::try_from(elapsed.as_micros()).unwrap_or(u64::MAX),
+                gave_up: waiting,
+            };
+        }
+        std::thread::sleep(step.min(window - elapsed));
     }
 }
 
@@ -496,21 +524,85 @@ mod tests {
     }
 
     #[test]
-    fn a_shutdown_waits_for_its_claims_to_settle_before_the_owner_closes_and_gives_up_after_the_window() {
-        let none = Duration::ZERO;
-        assert_eq!(settle_wait(false, none), SettleWait::Close);
-        assert_eq!(settle_wait(false, SETTLE_WINDOW * 3), SettleWait::Close);
-        assert_eq!(settle_wait(true, none), SettleWait::Again(SETTLE_STEP));
-        let nearly = SETTLE_WINDOW - Duration::from_millis(1);
-        assert_eq!(settle_wait(true, nearly), SettleWait::Again(Duration::from_millis(1)));
-        assert_eq!(settle_wait(true, SETTLE_WINDOW), SettleWait::GiveUp);
-        assert_eq!(settle_wait(true, SETTLE_WINDOW * 2), SettleWait::GiveUp);
-        // The wait is bounded: following the steps ends within the window plus one step.
-        let mut elapsed = none;
-        while let SettleWait::Again(pause) = settle_wait(true, elapsed) {
-            elapsed += pause;
-        }
-        assert_eq!(elapsed, SETTLE_WINDOW);
+    fn wait_for_makes_one_look_and_stops_when_nothing_waits() {
+        let mut calls = 0;
+        let begun = Instant::now();
+        let waited = wait_for(Duration::from_secs(30), Duration::from_secs(5), || {
+            calls += 1;
+            false
+        });
+        assert_eq!(calls, 1);
+        assert_eq!(waited.looks, 1);
+        assert!(!waited.gave_up);
+        assert!(begun.elapsed() < Duration::from_secs(2), "no sleep when nothing waits");
+    }
+
+    #[test]
+    fn wait_for_gives_up_after_its_window_when_a_look_always_waits() {
+        let window = Duration::from_millis(30);
+        let begun = Instant::now();
+        let mut calls = 0;
+        let waited = wait_for(window, Duration::from_millis(2), || {
+            calls += 1;
+            assert!(calls < 500, "the wait never gave up");
+            true
+        });
+        let took = begun.elapsed();
+        assert!(waited.gave_up);
+        assert!(waited.looks >= 2, "{waited:?}");
+        assert!(Duration::from_micros(waited.micros) >= window, "{waited:?}");
+        assert!(took >= window, "{took:?}");
+        // Never sleeps past the window: a step far longer than the window is cut to what is left of it.
+        let begun = Instant::now();
+        let waited = wait_for(window, Duration::from_secs(10), || true);
+        assert!(waited.gave_up && begun.elapsed() < Duration::from_secs(5), "{waited:?}");
+    }
+
+    #[test]
+    fn wait_for_succeeds_when_a_later_look_finds_nothing_waiting() {
+        let mut calls = 0;
+        let waited = wait_for(Duration::from_secs(30), Duration::from_millis(1), || {
+            calls += 1;
+            calls < 3
+        });
+        assert_eq!((waited.looks, waited.gave_up), (3, false));
+    }
+
+    #[test]
+    fn wait_for_with_zero_window_makes_exactly_one_look() {
+        let mut calls = 0;
+        let waited = wait_for(Duration::ZERO, Duration::from_millis(1), || {
+            calls += 1;
+            assert!(calls < 500, "the wait never gave up");
+            true
+        });
+        assert_eq!((calls, waited.looks, waited.gave_up), (1, 1, true));
+        let mut calls = 0;
+        let waited = wait_for(Duration::ZERO, Duration::from_millis(1), || {
+            calls += 1;
+            false
+        });
+        assert_eq!((calls, waited.looks, waited.gave_up), (1, 1, false));
+    }
+
+    #[test]
+    fn settle_window_is_500ms_while_nothing_ended_unproven_and_zero_after_one_did() {
+        assert_eq!(settle_window(0), Duration::from_millis(500));
+        assert_eq!(settle_window(0), SETTLE_WINDOW);
+        assert_eq!(settle_window(1), Duration::ZERO);
+        assert_eq!(settle_window(u64::MAX), Duration::ZERO);
+    }
+
+    #[test]
+    fn the_shutdown_prove_window_is_one_second_below_the_closing_windows_and_the_ceiling_is_bounded() {
+        assert_eq!(SHUTDOWN_PROVE_WINDOW, Duration::from_secs(1));
+        assert_eq!(PROVE_STEP, Duration::from_millis(1));
+        assert!(SHUTDOWN_PROVE_WINDOW < PROVE_WINDOW);
+        assert!(PROVE_STEP < SETTLE_WINDOW);
+        // The documented ceiling of a shutdown's loop-thread time: the proof, the settle wait (only while nothing ended
+        // unproven) and the owner's own close bound (MT-203 `MAX_WAIT`, 5 s).
+        let owner_close = Duration::from_secs(5);
+        assert_eq!(SHUTDOWN_PROVE_WINDOW + SETTLE_WINDOW + owner_close, Duration::from_millis(6500));
     }
 
     #[test]

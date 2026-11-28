@@ -211,30 +211,21 @@ impl Core {
         self.try_finish(control);
     }
 
-    /// Look at the owner and settle every claim, again and again for at most [`decide::SETTLE_WINDOW`], until none is
-    /// waiting (see the call in [`Self::tear_down`]).
+    /// Look at the owner and settle every claim, again and again for at most [`decide::settle_window`], until none is
+    /// waiting (see the call in [`Self::tear_down`]). The window is [`decide::SETTLE_WINDOW`] while no window ended its
+    /// proof unproven, and a single look once one did: then a claim holds a resource that waiting cannot release.
     fn settle_before_close(&self, slots: &[Rc<RefCell<Slot>>]) {
-        let begun = Instant::now();
-        let mut looks = 0u64;
-        loop {
-            looks += 1;
+        let window = decide::settle_window(self.report().closes_unproven);
+        let waited = decide::wait_for(window, decide::PROVE_STEP, || {
             let _ = self.owner.poll();
             let waiting = self.settle_all(slots);
-            let waiting = self.settle_ending() || waiting;
-            match decide::settle_wait(waiting, begun.elapsed()) {
-                decide::SettleWait::Again(pause) => std::thread::sleep(pause),
-                ended @ (decide::SettleWait::Close | decide::SettleWait::GiveUp) => {
-                    let gave_up = ended == decide::SettleWait::GiveUp;
-                    let micros = u64::try_from(begun.elapsed().as_micros()).unwrap_or(u64::MAX);
-                    self.count(|report| {
-                        report.settle_wait_looks = looks;
-                        report.settle_wait_micros = micros;
-                        report.settle_wait_gave_up = gave_up;
-                    });
-                    return;
-                }
-            }
-        }
+            self.settle_ending() || waiting
+        });
+        self.count(|report| {
+            report.settle_wait_looks = waited.looks;
+            report.settle_wait_micros = waited.micros;
+            report.settle_wait_gave_up = waited.gave_up;
+        });
     }
 
     /// Settle the claim of every slot. Returns whether one is still waiting.

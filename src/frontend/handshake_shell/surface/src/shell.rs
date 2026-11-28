@@ -1,5 +1,7 @@
 //! What the application on top sees: how presentation is configured, the handle its handlers get, and what it reports.
 
+use std::time::Duration;
+
 use handshake_shell_window::{
     CommandSource, Control, DispatchedWake, Event, Refusal, WindowKey, WindowSpec,
 };
@@ -9,6 +11,7 @@ use handshake_vulkan_renderer::{
 };
 
 use crate::clear::{Background, ClearFrame};
+use crate::decide;
 use crate::error::PresentError;
 use crate::host::Core;
 use crate::readback::{FrameReadback, ReadbackError};
@@ -42,10 +45,15 @@ pub struct PresentConfig {
     pub mode: PresentMode,
     /// Bytes each window's claim reserves.
     pub reserve_per_window: u64,
+    /// How long a shutdown waits, once and for all windows together, for the presents of every window with a surface to
+    /// be proven ended before their surfaces are released, without `VK_EXT_swapchain_maintenance1` (MT-214 E9-F1). A
+    /// window whose proof does not come in time is counted in `closes_unproven` and released all the same. Zero gives
+    /// every proof one look only.
+    pub shutdown_prove_window: Duration,
 }
 
 impl PresentConfig {
-    /// Dark background, BGRA8 UNORM, FIFO, [`DEFAULT_RESERVE_PER_WINDOW`].
+    /// Dark background, BGRA8 UNORM, FIFO, [`DEFAULT_RESERVE_PER_WINDOW`], a shutdown proof window of one second.
     pub fn new(policy: QuotaPolicy, module: ModuleId) -> Self {
         Self {
             policy,
@@ -56,6 +64,7 @@ impl PresentConfig {
             format: AttachmentFormat::Bgra8Unorm,
             mode: PresentMode::Fifo,
             reserve_per_window: DEFAULT_RESERVE_PER_WINDOW,
+            shutdown_prove_window: decide::SHUTDOWN_PROVE_WINDOW,
         }
     }
 }
@@ -114,6 +123,13 @@ pub struct PresentReport {
     pub settle_wait_micros: u64,
     /// Whether the wait ended at its limit with a claim still waiting.
     pub settle_wait_gave_up: bool,
+    /// Windows whose presents the shutdown began to prove ended before releasing their surfaces (MT-214 E9-F1): the
+    /// windows with a surface at `ShutdownBegan`, without `VK_EXT_swapchain_maintenance1`.
+    pub shutdown_proofs_begun: u64,
+    /// How long the shutdown waited for those proofs, in microseconds.
+    pub shutdown_prove_micros: u64,
+    /// Whether that wait ended at its limit with a proof still to come: every window it left is in `closes_unproven`.
+    pub shutdown_prove_gave_up: bool,
     /// Closed windows whose presents were not proven ended in time, without `VK_EXT_swapchain_maintenance1`: their last
     /// swapchain and the window are kept until the owner closes (MT-214 SF-2).
     pub closes_unproven: u64,
@@ -162,6 +178,9 @@ impl Default for PresentReport {
             settle_wait_looks: 0,
             settle_wait_micros: 0,
             settle_wait_gave_up: false,
+            shutdown_proofs_begun: 0,
+            shutdown_prove_micros: 0,
+            shutdown_prove_gave_up: false,
             closes_unproven: 0,
             device_losses: 0,
             device_rebinds: 0,
