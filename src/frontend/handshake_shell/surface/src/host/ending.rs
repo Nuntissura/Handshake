@@ -9,6 +9,12 @@
 //! evaluation of 29763b430), so a proof begun before the hide never comes (E5-F2). Then the window is hidden, the
 //! surface released, the owner ends it with its work, and the window is destroyed. Nothing waits for the device; after
 //! [`decide::PROVE_WINDOW`] the window is hidden and the surface released all the same, and counted.
+//!
+//! A shutdown does the same for every window that still has a surface, before it releases any (MT-214 E9-F1): the owner
+//! reports what it still holds at its close, once, and a claim whose surface was released without that proof is held
+//! until the device is destroyed, so the report would show it open. The proofs of all windows run together on the
+//! loop's thread, bounded by one deadline, [`decide::SHUTDOWN_PROVE_WINDOW`] (`PresentConfig::shutdown_prove_window`);
+//! a window whose proof does not come in time is counted in `closes_unproven` and released all the same.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -84,7 +90,7 @@ impl Core {
         self.schedule.borrow_mut().cancel(Need::Frame(key));
         if !self.present_fences && slot.has_surface() {
             // The window stays shown until the proof ended (E5-F2): a hidden window's acquires are out of date.
-            self.begin_proof(control, &mut slot);
+            self.begin_proof(control, &mut slot, decide::PROVE_WINDOW);
         } else {
             self.release(&mut slot);
         }
@@ -115,10 +121,10 @@ impl Core {
         }
     }
 
-    /// Begin the proof of a closing window's presents (module documentation): a new swapchain when the current one
-    /// presented, then the first step, which presents on it.
-    fn begin_proof(&self, control: &Control, slot: &mut Slot) {
-        slot.proving = Some(Instant::now() + decide::PROVE_WINDOW);
+    /// Begin the proof of a window's presents (module documentation), to be over within `window`: a new swapchain when
+    /// the current one presented, then the first step, which presents on it.
+    fn begin_proof(&self, control: &Control, slot: &mut Slot, window: Duration) {
+        slot.proving = Some(Instant::now() + window);
         if slot.presented_on_current() {
             let inner = control
                 .window_state(slot.key)
@@ -172,16 +178,63 @@ impl Core {
         self.release(slot);
     }
 
-    /// After the application heard `Event::ShutdownBegan`: release every surface, settle the claims, close the owner
-    /// and end the loop, now or once the owner let go of the last window target.
+    /// Without `VK_EXT_swapchain_maintenance1`, prove the presents of every window with a surface ended before any
+    /// surface is released (MT-214 E9-F1, module documentation): begin every proof, then look at the owner and step
+    /// every proof together until none is under way or `PresentConfig::shutdown_prove_window` is over. A proof that is
+    /// still under way then is ended unproven: counted in `closes_unproven`, and its surface released all the same by
+    /// that end.
+    fn prove_before_release(&self, control: &Control, slots: &[Rc<RefCell<Slot>>]) {
+        if self.present_fences {
+            return;
+        }
+        let mut begun = 0u64;
+        for slot in slots {
+            let mut slot = slot.borrow_mut();
+            if slot.has_surface() && slot.proving.is_none() && !slot.closing {
+                begun += 1;
+                self.begin_proof(control, &mut slot, self.config.shutdown_prove_window);
+            }
+        }
+        if !slots.iter().any(|slot| slot.borrow().proving.is_some()) {
+            self.count(|report| report.shutdown_proofs_begun = begun);
+            return;
+        }
+        let waited = decide::wait_for(self.config.shutdown_prove_window, decide::PROVE_STEP, || {
+            let _ = self.owner.poll();
+            let mut waiting = false;
+            for slot in slots {
+                let mut slot = slot.borrow_mut();
+                if slot.proving.is_some() && self.prove_step(&mut slot) {
+                    waiting = true;
+                }
+            }
+            waiting
+        });
+        for slot in slots {
+            let mut slot = slot.borrow_mut();
+            if slot.proving.is_some() {
+                self.end_proof(&mut slot, false);
+            }
+        }
+        self.count(|report| {
+            report.shutdown_proofs_begun = begun;
+            report.shutdown_prove_micros = waited.micros;
+            report.shutdown_prove_gave_up = waited.gave_up;
+        });
+    }
+
+    /// After the application heard `Event::ShutdownBegan`: prove the presents of the windows that still have a surface
+    /// ended, release every surface, settle the claims, close the owner and end the loop, now or once the owner let go
+    /// of the last window target.
     pub(super) fn tear_down(&self, control: &Control) {
         if self.torn_down.replace(true) {
             return;
         }
         let slots = self.all_slots();
+        self.prove_before_release(control, &slots);
         for slot in &slots {
             let mut slot = slot.borrow_mut();
-            // A proof still under way is given up, as the owner closes now; its closing window is hidden with it.
+            // Nothing is under proof any more (the call above ended every one); a closing window is hidden now.
             self.release(&mut slot);
             if slot.closing {
                 self.hide(control, &mut slot);
@@ -262,44 +315,5 @@ impl Core {
             // Shutdown not begun, or the loop has ended: nothing to try again.
             Err(_) => {}
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    /// The code with `//` comments (to the end of each line) removed, so a comment holding a searched text finds nothing.
-    fn without_comments(code: &str) -> String {
-        code.lines()
-            .map(|line| line.split("//").next().unwrap_or(""))
-            .collect::<Vec<_>>()
-            .join("
-")
-    }
-
-    /// MT-214 E9-F1: the owner's report is taken at its close, once, so the claims are settled before it, and again
-    /// after it for what the close's drain ended. The device-free order check of `tear_down` (the GPU proof of a clean
-    /// shutdown is the `multiwindow` and `shell_program` tests).
-    #[test]
-    fn tear_down_settles_the_claims_before_the_owner_closes_and_again_after() {
-        let code = without_comments(include_str!("ending.rs"));
-        let body = &code[code.find("pub(super) fn tear_down").expect("tear_down")..];
-        let end = body.find("
-    }
-").expect("the end of tear_down");
-        let body = &body[..end];
-        // The wait itself is not empty and settles the claims (MT-214 E9b F9).
-        let wait = &code[code.find("fn settle_before_close(").expect("settle_before_close")..];
-        let wait = &wait[..wait.find("
-    }
-").expect("the end of settle_before_close")];
-        let inner = wait[wait.find('{').expect("its body") + 1..].trim();
-        assert!(!inner.is_empty(), "settle_before_close has a body");
-        assert!(inner.contains("self.settle_all(slots)") && inner.contains("self.owner.poll()"), "{inner}");
-        let before = body.find("self.settle_before_close(&slots)").expect("settling before the close");
-        let close = body.find("self.owner.close()").expect("the close");
-        let after = body.find("self.settle_all(&slots)").expect("settling after the close");
-        let counted = body.find("report.shutdown = Some(shutdown)").expect("the report is recorded");
-        assert!(before < close && close < after && after < counted, "{before} {close} {after} {counted}");
-        assert_eq!(body.matches("self.owner.close()").count(), 1, "one close");
     }
 }

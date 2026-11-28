@@ -225,3 +225,176 @@ fn no_banned_crate_is_locked() {
         assert!(lock.contains(&format!("name = \"{name}\"")), "{name} is not locked");
     }
 }
+
+/// `code` without any whitespace, so the scans do not depend on how rustfmt breaks a line.
+fn squeezed(code: &str) -> String {
+    code.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+/// The text between the braces of the function whose signature starts with `signature`, in code only text.
+fn body_of<'a>(code: &'a str, signature: &str) -> Option<&'a str> {
+    let at = code.find(signature)?;
+    let open = at + code[at..].find('{')?;
+    let mut depth = 0;
+    for (offset, c) in code[open..].char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&code[open + 1..open + offset]);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// What is wrong with the order of the shutdown in the text of `host/ending.rs` (MT-214 E9-F1): the proof of every
+/// window's presents before any surface is released, the claims settled before the owner closes and again after, one
+/// close. Read on the code of the file only: cut at its test module, comments and the content of literals blanked, so
+/// a call named in a string, a comment or a test is not a call.
+fn shutdown_problems(raw: &str) -> Vec<String> {
+    let raw = raw.replace('\r', "");
+    let code = code_only(raw.split("#[cfg(test)]").next().unwrap_or(""));
+    let mut problems = Vec::new();
+    // Each name must come after the one before it, in the squeezed body of the function.
+    let mut in_order = |function: &str, names: &[&str]| {
+        let Some(body) = body_of(&code, function) else {
+            problems.push(format!("{function} is missing"));
+            return;
+        };
+        let body = squeezed(body);
+        let mut after = 0;
+        for name in names {
+            match body[after..].find(name) {
+                Some(at) => after += at + name.len(),
+                None => problems.push(format!("{function}: `{name}` is missing or out of order")),
+            }
+        }
+    };
+    in_order(
+        "fn tear_down(",
+        &[
+            "self.prove_before_release(control,&slots)",
+            "self.release(&mutslot)",
+            "self.settle_before_close(&slots)",
+            "self.owner.close()",
+            "self.settle_all(&slots)",
+            "report.shutdown=Some(shutdown)",
+        ],
+    );
+    in_order(
+        "fn prove_before_release(",
+        &[
+            "ifself.present_fences{return;}",
+            "self.begin_proof(control,&mutslot,self.config.shutdown_prove_window)",
+            "decide::wait_for(self.config.shutdown_prove_window,decide::PROVE_STEP,",
+            "self.owner.poll()",
+            "self.prove_step(&mutslot)",
+            "self.end_proof(&mutslot,false)",
+            "report.shutdown_prove_gave_up=waited.gave_up",
+        ],
+    );
+    in_order(
+        "fn settle_before_close(",
+        &[
+            "decide::settle_window(self.report().closes_unproven)",
+            "decide::wait_for(window,decide::PROVE_STEP,",
+            "self.owner.poll()",
+            "self.settle_all(slots)",
+            "self.settle_ending()",
+        ],
+    );
+    in_order("fn close_window(", &["self.begin_proof(control,&mutslot,decide::PROVE_WINDOW)"]);
+    let tear_down = body_of(&code, "fn tear_down(").map(squeezed).unwrap_or_default();
+    if tear_down.matches("self.owner.close()").count() != 1 {
+        problems.push("tear_down closes the owner other than once".to_owned());
+    }
+    problems
+}
+
+#[test]
+fn a_shutdown_proves_before_it_releases_settles_before_the_owner_closes_and_again_after() {
+    let raw = include_str!("../src/host/ending.rs");
+    assert_eq!(shutdown_problems(raw), Vec::<String>::new());
+    // The scan has teeth: each of these is the real text with one thing changed, and each is refused.
+    let call = "        self.prove_before_release(control, &slots);
+";
+    let changed = |from: &str, to: &str| {
+        let raw = raw.replace('\r', "");
+        assert_eq!(raw.matches(from).count(), 1, "the control's text is in the file once: {from}");
+        raw.replace(from, to)
+    };
+    let controls = [
+        // Named in a string literal, in a comment, only in a test module, or after the release.
+        ("a string literal", changed(call, "        let _ = \"self.prove_before_release(control, &slots)\";
+")),
+        ("a comment", changed(call, "        // self.prove_before_release(control, &slots);
+")),
+        (
+            "a test module",
+            changed(call, "") + "#[cfg(test)]
+mod t {
+    fn f() {
+        self.prove_before_release(control, &slots);
+    }
+}
+",
+        ),
+        (
+            "after the release",
+            changed(call, "").replace(
+                "        self.settle_before_close(&slots);
+",
+                &format!("{call}        self.settle_before_close(&slots);
+"),
+            ),
+        ),
+        // The guard, the sweep of proofs that did not come, the settling and the single close.
+        (
+            "no guard",
+            changed("        if self.present_fences {
+            return;
+        }
+        let mut begun", "        let mut begun"),
+        ),
+        ("no sweep", changed("self.end_proof(&mut slot, false);", "let _ = &slot;")),
+        (
+            "settling in a literal",
+            changed("let waiting = self.settle_all(slots);", "let waiting = \"self.settle_all(slots)\".is_empty();"),
+        ),
+        (
+            "two closes",
+            changed("let shutdown = self.owner.close();", "let _ = self.owner.close();
+        let shutdown = self.owner.close();"),
+        ),
+        ("no settle window", changed("decide::settle_window(self.report().closes_unproven)", "decide::SETTLE_WINDOW")),
+        ("the closing window's own bound", changed("self.begin_proof(control, &mut slot, decide::PROVE_WINDOW)", "self.begin_proof(control, &mut slot, decide::PROVE_STEP)")),
+    ];
+    for (what, text) in controls {
+        assert!(!shutdown_problems(&text).is_empty(), "{what} is refused");
+    }
+}
+
+#[test]
+fn the_shutdown_order_scan_reads_code_not_the_tests_comments_or_strings() {
+    // The helpers of the scan itself, on small fixtures.
+    let code = code_only("fn a() { let x = \"fn b() { }\"; } // fn c() { }
+fn b() { one(); }
+");
+    assert_eq!(body_of(&code, "fn b(").map(str::trim), Some("one();"));
+    assert_eq!(body_of(&code, "fn c("), None);
+    assert_eq!(squeezed(" a 
+	 b "), "ab");
+    let mut fixture = String::from("fn tear_down(c: &Control) {
+    self.owner.close();
+}
+");
+    assert!(shutdown_problems(&fixture).len() >= 4, "a text without the order is refused");
+    fixture.push_str("#[cfg(test)]
+mod t {}
+");
+    assert!(!shutdown_problems(&fixture).is_empty());
+}
