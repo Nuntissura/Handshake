@@ -498,5 +498,27 @@
       "found": "The existing projection requires a durable EventLedger chain. The standalone mapped-ring fixture proves ABI and typed events only.",
       "effect": "If HBR-VIS-004 applies, the observation must identify task, context, return, tool calls, artifact, validation and promotion where applicable, bound to the exact candidate. Do not create a synthetic business event."
     }
-  ]
+  ],
+  "canonical_manual_trace_readback_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent dependency review",
+    "recorded_on": "2026-11-28",
+    "prior_ref": "#/activation_blockers",
+    "canonical_manual": {
+      "authority": ".GOV/spec/master-spec-v02.229/spec-modules/10-product-surfaces.md#10.15.1",
+      "typed_content": "src/backend/handshake_core/src/user_manual/seed.rs",
+      "version": "src/backend/handshake_core/src/user_manual/mod.rs::USER_MANUAL_VERSION",
+      "existing_ui": "src/frontend/handshake_native/src/manual_content_editors.rs::palmistry_body is a legacy local display. The product currently registers it locally. It does not establish a named writer or same-commit backend UserManual proof.",
+      "writer_status": "UNRESOLVED"
+    },
+    "trace_projection": {
+      "pinned_rule": "HBR-VIS-004 under WP pin 896f4e15",
+      "owners": [
+        "src/backend/handshake_core/src/kernel/trace_projection.rs",
+        "src/backend/handshake_core/src/inspector_read/trace_projection.rs"
+      ],
+      "observed": "Both projections are implemented and consume durable session events. The scoped mapped-ring check validates its typed record and supplies no exact durable projection proof.",
+      "disposition": "Require the applicable exact host proof or an explicitly authorized source/adoption disposition. Keep the current blocker."
+    },
+    "lifecycle_change": "none"
+  }
 }

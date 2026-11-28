@@ -839,5 +839,29 @@
     "coder_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
   },
   "created_at_utc": "2026-11-25T19:06:54Z",
-  "updated_at_utc": null
+  "updated_at_utc": null,
+  "s1_authority_readback_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent dependency review",
+    "recorded_on": "2026-11-28",
+    "phase_ref": "#/execution/implementation_steps/0",
+    "reviewed_source": [
+      ".GOV/spec/master-spec-v02.229/spec-modules/10-product-surfaces.md#10.15.1",
+      ".GOV/spec/master-spec-v02.229/spec-modules/10-product-surfaces.md#10.15.7",
+      "#/user_manual_obligation",
+      "#/execution/allowed_write_paths"
+    ],
+    "available_scope": "S1 defines a receipt writer and dependency-closure test without a window or GPU. Its receipt reports unexecuted checks truthfully.",
+    "blocker": "The contract requires a same-commit canonical in-product developer entry and version bump. Its write grant covers only the gate crate and forbids edits to other product crates. No active exact writer or grant was found for this entry.",
+    "narrow_resolution": {
+      "entry_candidate": "src/backend/handshake_core/src/user_manual/seed.rs::startup-and-run-commands",
+      "version": "src/backend/handshake_core/src/user_manual/mod.rs::USER_MANUAL_VERSION",
+      "status": "EXACT_OPERATOR_SCOPE_APPROVAL_REQUESTED"
+    },
+    "gate_readback": {
+      "drawing": "S4 and later require the published and independently read Kumihimo pin from existing MT-198 KG-01..KG-05.",
+      "uia": "MT-198 KG-06 specifically binds S6 semantic-tree/UIA work.",
+      "acceptance": "AC213-11 requires the x64 desktop. This is separate from the non-GPU S1 scope."
+    },
+    "lifecycle_change": "none"
+  }
 }

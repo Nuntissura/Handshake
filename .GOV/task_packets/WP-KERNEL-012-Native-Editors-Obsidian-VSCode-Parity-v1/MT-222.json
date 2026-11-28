@@ -815,5 +815,43 @@
     "draft_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json piece n=2 draft_contract (file sha256 69da535f15678d36a0f8259c604d52459d2eb422efb8dabd6139bbd540089665)",
     "corrections": "MT-214.json#/shell_gaps_ownership_20261126 (adversarial review); the draft's id placeholder is resolved to MT-222 by this decision.",
     "id_note": "MT-215.json#/diag_ring_owner_review_20261126 proposed MT-222 for a possible diag_ring MT while its Operator question was open (no MT-222.json existed). This decision allocates MT-222 to the issuer; a diag_ring MT, if the Operator chooses option 1, takes the next free id (MT-223)."
+  },
+  "s1_boot008_dependency_readback_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent specialist and adversarial dependency inquiry",
+    "recorded_on": "2026-11-28",
+    "authority_ref": ".GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md#NATIVE-RENDER-BOOT-008",
+    "preconditions": [
+      "MT-219.json#/s1_published_inputs_20261128: device.gpu.shell is absent from the independently re-read registry.",
+      "MT-203's accepted GPU ownership and settlement evidence still required."
+    ],
+    "source_readback": [
+      {
+        "ref": "Nuntissura/assets refs/heads/codex/handpick",
+        "revision": "8eadc5b57dc20d96bf29340f835505ad8ff7cbc8",
+        "observed": "Kumihimo/product/kumihimo-vulkan contains the decorative transition source. It has no package manifest or published trust-port implementation at this revision."
+      },
+      {
+        "ref": "Nuntissura/assets refs/heads/codex/handshake-studio-assets",
+        "revision": "d32d0574a827b9bc71eb38e0149b84b1ced36a7a",
+        "observed": "hsk-studio-render-gpu includes typed admission, revocation, generation and settlement, with a mandatory wgpu dependency. The Vulkan UI pass uses its local owner."
+      }
+    ],
+    "source_route": [
+      "MT-198.json#/standalone_source_gaps_20261125 (KG-02: existing Kumihimo presenter with host-owned Vulkan admission and settlement)",
+      "MT-198.json#/standalone_source_gaps_20261125 (KG-11: typed client port separated from wgpu)"
+    ],
+    "adoption_boundary": "Existing asset owner handles missing reusable trust-port mechanics through a distinct canonical source MT after release. Handshake retains process identity, registry acknowledgement, issuer policy and revocation. No source MT id or release pin exists for this follow-on.",
+    "s5_writer_evidence": {
+      "entry": "src/frontend/handshake_shell/shell/src/main.rs enters through run_product.",
+      "existing_path": "MT-222 allows shell/src/authority.rs after handover.",
+      "additional_paths_requiring_coordination": [
+        "src/frontend/handshake_shell/shell/Cargo.toml",
+        "src/frontend/handshake_shell/Cargo.lock",
+        "src/frontend/handshake_shell/shell/src/program.rs",
+        "src/frontend/handshake_shell/shell/tests/startup_gate.rs"
+      ],
+      "reason": "The exact dependency is absent. Issued still resolves through the uninhabited placeholder. The proof assumes an absent issuer today and must continue proving refusal when no genuine issuer is present."
+    },
+    "lifecycle_change": "none; exact S1 recording still needs the published MT-219 input and accepted MT-203 owner proof"
   }
 }

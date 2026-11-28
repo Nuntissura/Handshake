@@ -3375,5 +3375,27 @@
     },
     "isolation": "Patched test and guard variant used only the evaluator-owned export. Scratch restored and slot and waiter absent after the run.",
     "disposition": "Scoped patch diagnostic passed. Product adoption and formal candidate proof remain pending. The shared product branch has coordinated local schema staging that must not be published early."
+  },
+  "window_clipboard_split_readback_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), GUI size review and adversarial dependency check",
+    "recorded_on": "2026-11-28",
+    "basis": "#/s7_p4_p6_static_review_20261128/low/F13_size_advisory",
+    "observed_commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "current_boundary": {
+      "interface": "window/src/clipboard.rs; TextClipboard, ClipboardError and limits re-exported at window/src/lib.rs:112",
+      "platform": "window/src/platform/clipboard.rs; SystemClipboard remains platform-private",
+      "owner": "window/src/platform/loop_core.rs:129–137 is the only constructor caller. The window loop owns the service HWND."
+    },
+    "extraction_candidate": "Keep the existing window API, command authority, service ownership and real integration test. Move a coherent existing clipboard implementation behind an unpublished host-private path dependency only after the boundary below is resolved. No second clipboard owner or new OS window.",
+    "approval_and_design_blockers": [
+      "AC214-12 and execution.expected_outputs describe five product crates. F13 is an advisory for later; reconcile the explicit count before adding a sixth compiled package.",
+      "A cross-crate constructor cannot keep Rust pub(super) visibility to the window crate. Preserve the one window-owned service. Do not expose HWND or hide a raw handle under a public primitive. Keep the real Windows adapter window-private until a typed checked ownership boundary is proven."
+    ],
+    "proof_scope": [
+      "Preserve the existing focus and public-interface scan obligations. Extend their actual file discovery to relocated source so a split neither drops the named clipboard anchors nor bypasses focus, window order, real desktop, or closure checks.",
+      "Use the locked affected compile and dependency closure, moved device-free unit cases, the two affected scan targets and the existing injected clipboard authorization case for focused iteration. Adding a path package changes the lock; preserve any full-scope independent round required by the active WP's pinned or explicitly adopted validation rules.",
+      "The existing real clipboard proof remains x64 private station and preflight gated. Device-free proof never substitutes for the declared OS integration."
+    ],
+    "lifecycle_change": "none; no code, authority, or new crate granted"
   }
 }

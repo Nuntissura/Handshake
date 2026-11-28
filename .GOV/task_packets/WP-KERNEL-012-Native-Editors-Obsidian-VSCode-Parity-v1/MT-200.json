@@ -1031,5 +1031,36 @@
       "no focus steal or window show during animation frames"
     ],
     "routing": "MT-218 motion clock implements mt218_clock_rules; MT-200 presentation applies the table; Kumihimo unchanged"
+  },
+  "motion_reference_readback_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "basis": "#/motion_decision_20261126",
+    "references": [
+      {
+        "source": "https://learn.microsoft.com/en-us/windows/apps/develop/motion/connected-animation",
+        "found": "WinUI carries one shared item across views to preserve context.",
+        "application": "Use this as visual reference only for the already-approved moved-pane settle. Keep the committed rectangle, stable AccessKit identity and focus current from the first frame."
+      },
+      {
+        "source": "https://doc.qt.io/qt-6/qml-qtquick-listview.html#moveDisplaced-prop",
+        "found": "Qt distinguishes the object being moved from neighbors displaced by its layout change.",
+        "application": "Review the moved pane separately from adjacent panes and dividers. Compare the existing D8 proof conditions, which keep adjacent geometry and hit-testing truthful."
+      },
+      {
+        "source": "https://gnome.pages.gitlab.gnome.org/libadwaita/doc/1.10/class.Animation.html",
+        "found": "Libadwaita skips motion when a widget is unmapped or the system disables animations.",
+        "application": "Use as a reference for the existing hidden-window and reduced-motion behavior. Verify no animation-only redraw requests after its final frame."
+      }
+    ],
+    "portal_observation": {
+      "path": "handshake-portal/product/handpick/web/handpick.css:64,75–78",
+      "observed": "Current Portal composer reveal is 200 ms ease-out with opacity 0.65 to 1 and a bottom clip that opens to the full rectangle. Reduced motion disables the reveal animation."
+    },
+    "proof_refs": [
+      "#/closure_unit/materialized_acceptance (AC200-11)",
+      "#/motion_decision_20261126/decision"
+    ],
+    "effect": "Reference evidence for existing MT-200/MT-218 motion and Handpick parity. Existing timings, design, implementation authority and dependency gates carry forward."
   }
 }
