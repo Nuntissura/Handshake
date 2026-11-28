@@ -15520,5 +15520,54 @@
     "shared_schema_sha256": "484e778038ef73837d608dacc04a457f34d2359630d5150ffa854ae9ebac0d25",
     "remote_verified": "79ecb07c721b5277676e72717a7068da31cd1092",
     "next": "One R172-14 bounded measurement on corrected verified pushed SHA and same four selectors. No pins enrolled."
+  },
+  "r172_14_corrected_measure_result_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently reread exact raw log/JUnit/result hashes",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "#/rev172_plan_20261127",
+    "prior_failure": "#/r172_14_first_measure_result_20261128",
+    "candidate": "79ecb07c721b5277676e72717a7068da31cd1092",
+    "tree": "31b9953e33645e7d16696094f4d399863534ed83",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-14-pin-measure-20261128/focused-02",
+    "exit_code": 100,
+    "counts": {
+      "executed": 4,
+      "passed": 1,
+      "expected_preenrollment_assertion_failures": 3,
+      "unexpected_failures": 0
+    },
+    "phases": {
+      "definitions_errors": 0,
+      "indexes_and_rest_errors": 0,
+      "passed_case": "schema_contract_is_wave_scoped_and_identity_safe"
+    },
+    "observed": {
+      "base": {
+        "sha256": "ddba2a065732ad9906f9315452e2c925e65cca2856975b66d966294fe1e43db3",
+        "tables": 313,
+        "fields": 4013,
+        "indexes": 860,
+        "events": 50
+      },
+      "final": {
+        "sha256": "94812b57620b05da964aa1d34c9701498667cbe33ae4c011f7fee2faf046690c",
+        "tables": 341,
+        "fields": 4596,
+        "indexes": 937,
+        "events": 60
+      },
+      "declarative_sha256": "229bc04f5c19a48ed29a8205b2a286b5b73ba898634c61d67d1dc516c18ec1fc",
+      "generated_sha256": "484e778038ef73837d608dacc04a457f34d2359630d5150ffa854ae9ebac0d25",
+      "production_source_sha256": "4315a7e0bc70390f7fde75e2aaf43e0c2cb6d1f42eb1a252d62da020ebd477e9",
+      "production_inventory_sha256": "5519105ccdb3bdac4dcd7e97584ea47c6546017214cac84755a22999bca81ba6"
+    },
+    "sha256": {
+      "log": "6aa6e15e9d7188a426690006b24f94e39c4b215122e87bba9dd0281d1ee0c972",
+      "junit": "0142699244a7c568e69e7f348a7bdab397eb66e9b8d6f810f5658f42ea872a8a",
+      "result": "fca78ba0a8df0e09b568be30f45aaed61688bf5798854a0407b6aad605f50516",
+      "evidence": "31e73108d401f9f7a5d9f37b60097dfe1de5b930413c59572c6e0e571cadefac"
+    },
+    "decision": "Use the three measured values and the final field/index tuple for R172-15. The declarative test reports its expected old-hash mismatch before later counts. Raw base counts match the current static counts, and no additional count change is supported. Slot released, exact pushed candidate and full inputs unchanged.",
+    "state": "R172-15 coding turn active. Confirmation and independent technical verdict remain pending."
   }
 }
