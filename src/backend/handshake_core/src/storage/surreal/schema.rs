@@ -4787,7 +4787,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-174 engine-profile declarations: exact source/catalog pins include five functions,
 // one authored field and one event. Live INFO and compatible reopen remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "201f0e49b2604a3a6036c4d9092061fe1d9d936b0ec7adda37b273e96154d356";
+    "484e778038ef73837d608dacc04a457f34d2359630d5150ffa854ae9ebac0d25";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.

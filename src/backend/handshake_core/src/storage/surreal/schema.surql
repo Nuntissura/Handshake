@@ -8066,10 +8066,6 @@ DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_redemption_permits TYPE
 DEFINE FIELD OVERWRITE a_auth ON TABLE member_enrollment_redemption_permits TYPE record<member_enrollments>;
 DEFINE FIELD OVERWRITE a_jti ON TABLE member_enrollment_redemption_permits TYPE string;
 DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_redemption_permits TYPE string;
-DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
-DEFINE FIELD OVERWRITE account_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
-DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
-DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
 DEFINE FIELD OVERWRITE phc ON TABLE member_enrollment_redemption_permits TYPE string;
 DEFINE FIELD OVERWRITE prior_revision ON TABLE member_enrollment_redemption_permits TYPE int;
 DEFINE INDEX OVERWRITE member_recipient_one_attempt_per_original ON TABLE member_enrollment_redemption_permits FIELDS a_auth UNIQUE;
@@ -8216,6 +8212,10 @@ DEFINE TABLE OVERWRITE member_enrollment_redemption_permits TYPE NORMAL SCHEMAFU
     PERMISSIONS FOR select WHERE fn::wp012_member_recipient_permit_read($this)
     FOR create WHERE fn::wp012_member_recipient_permit_create($this)
     FOR update WHERE fn::wp012_member_recipient_permit_update($before, $after) FOR delete NONE;
+DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE account_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
 DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_read($m: object) {
     LET $r = $m.issue.administration_resource;
     LET $p = $m.issue.workspace_resource;

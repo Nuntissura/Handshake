@@ -129,6 +129,23 @@ fn declaration_spans(source: &str, declarations: &[(&str, Inverse)]) -> BTreeMap
 pub(super) fn restore_shared_schema(mut source: String) -> String {
     let (start, end) = shared_block_span();
     replace_once(&mut source, &SCHEMA[start..end], "");
+    let permit_fields_start = unique_offset(
+        SCHEMA,
+        "DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits ",
+    ).expect("revision 172 permit fields begin");
+    let permit_fields_end = unique_offset(
+        SCHEMA,
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_read(",
+    ).expect("revision 172 permit fields end");
+    let permit_fields = &SCHEMA[permit_fields_start..permit_fields_end];
+    if let Some(offset) = unique_offset(&source, permit_fields) {
+        source.replace_range(offset..offset + permit_fields.len(), "");
+        let previous_offset = unique_offset(
+            &source,
+            "DEFINE FIELD OVERWRITE phc ON TABLE member_enrollment_redemption_permits ",
+        ).expect("revision 171 permit field position");
+        source.insert_str(previous_offset, permit_fields);
+    }
     restore_declarations(&mut source, SCHEMA, SHARED_DECLARATIONS);
     source
 }
