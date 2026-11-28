@@ -3044,5 +3044,45 @@
       "behaviour with VK_EXT_swapchain_maintenance1"
     ],
     "next": "E9-F1 fix design from this evidence (SF-2 proof on every shown window at ShutdownBegan, removal or bounding of the 500 ms wait, multiwindow quota vs window count) by a GUI specialist with an adversarial pass; E9-F2 trigger isolation"
+  },
+  "s7_p5_p7_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commits, push, file lists, the product-binary refusal and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "commits": {
+      "P5": "74951e642: shell/src/main.rs, shell/examples/shell_program.rs, shell/src/palmistry.rs (Started::state_line), shell/README.md, shell/tests/source_scan.rs; main: run_product(|authority| receipt, palmistry::start(--diag-ring or None), HSK_SHELL_PALMISTRY state line (watched_from=first_heartbeat untold_on=device_unavailable,loop_failed,heartbeat_refused,shutdown_unsettled,panic), run_program(operator_root(ring), authority, Box::new(watcher)), drop(lease)); handshake marker written inside start(); example the same without a gate; make_ring, fresh_nonce and NoWatcher gone from main and the example; README and state line state C1 (untold on exit 4 and every end that skips ended()) and C8 (not watched before the first heartbeat)",
+      "P6": "36558732a: shell/tests/source_scan.rs only: --diag-ring scanned as handed to the start in main and the example",
+      "P7": "no files",
+      "pushed": "483f54c1c..36558732a, no force, explicit paths; authority.rs, ending.rs, decide.rs, src/backend, palmistry_launch, egui host untouched; cargo fmt not run (tree not rustfmt-clean)"
+    },
+    "product_binary_run": "one safe run: HSK_SHELL_REFUSED code=startup.no_device_authority capability=device.gpu.shell (MT-219 unpublished; NATIVE-RENDER-BOOT-007 no API), exit=7; no HSK_SHELL_PALMISTRY line, no handshake-diag-*.ring created (0 before, 0 after), no palmistry process; s7-p5-product-run.log sha256 prefix 994457c06c03b296",
+    "p5_proof": "-j 1 --locked --offline: check all targets exit 0; clippy -D warnings exit 0; palmistry_session 13, palmistry_watcher 6, source_scan 20, startup_gate 7, unavailable 5; new scan the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_program with positive controls",
+    "p6_mutations": {
+      "caught": [
+        "M9a start before the gate, outside the closure",
+        "M13 lease dropped before run_program",
+        "S4 example passes NoWatcher",
+        "M5c main passes NoWatcher",
+        "S2b main lease bound to _",
+        "W1 state-line watched_from wording dropped",
+        "W2 README 'left untold' dropped",
+        "W3 README 'not watched before the first heartbeat' dropped",
+        "example names make_ring",
+        "start called with None instead of --diag-ring (first a survivor; scan strengthened; caught)"
+      ],
+      "dropped": "M9b unsound (start after run_program cannot compile)",
+      "note": "the first round-2 baseline was invalid (string literals blanked in code-only text); fixed with a raw whitespace-stripped read; baseline 20/20; table s7-p6-mutation-table.log faf4144b0c4e811b"
+    },
+    "p7_workspace_run": "s7-p7-tests.log 3b0073e53db27eaf: window lib 112 and integration tests (focus_ban 9, geometry 5, host_panic 1, menu_loop 1, operator_window 1, public_surface 3, quiet_window 1, scale_change 1, sent_keys 1, wakes 1) pass; test_clipboard ignored by design; surface lib 34, headless 1, source_scan 5; input lib 38, real_loop 1, source_scan 7; accessibility lib 22, source_scan 6; accessibility uia_client 0 pass 1 fail (activations_refused 1 at uia_client.rs:558, rerun same: E9-F2, not touched by this diff); shell lib 10, beat_path_locks 5, heartbeat_loop 1, palmistry_session 13, palmistry_watcher 6, source_scan 20, startup_gate 7, unavailable 5; final shell rerun green (a6baceac54d32992); workspace clippy -D warnings exit 0 (25fa7b7ef83f10a9); GPU targets excluded",
+    "tree": "216 lines, 0 matches for egui, eframe, wgpu, glow, epaint, emath, ecolor, kumihimo, handshake-native, cabinet (b35552dac2a71d6c)",
+    "line_counts_ac214_12": {
+      "window": "10774 (tests 4503)",
+      "surface": "4199 (1525)",
+      "input": "3563 (929)",
+      "accessibility": "2928 (1099)",
+      "shell": "2821 (3803)"
+    },
+    "size_note": "AC214-12 asks for counts reported each slice; the window crate is the largest at 10.7k lines; the Operator's direction asks for many small crates per module or feature: a split review of the window crate is a later item",
+    "unproven": "real signed handshake and acknowledgement; confirmed flag from a live handle; handshake_unconfirmed with a real handle; no orphan after an unasked end (C3, P8c); shell_program GPU read-back; the whole watcher path in the product binary, which still refuses before start() runs",
+    "next": "P8 live proofs (P8a-c, #[ignore] tests with a real watcher on the private desktop) by the eval agent; checker static review of P4a-P6"
   }
 }
