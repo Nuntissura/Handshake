@@ -15731,5 +15731,44 @@
     "reason": "Current tests fail before opening a database while reconstructing older sources from the evolved live ledger declaration. Specialist and adversarial agent independently recovered exact original provenance. No tracked existing fixture can derive the pinned inputs with the known small delta.",
     "predecessor": "Current seven-case R172-16 recovery must release its slot and verify unchanged input closure before product writes begin.",
     "followup": "One coding picotask for exact fixture plus its two private test helper consumers, then only named MT141/MT150 proof unless another proven case belongs to the same changed candidate."
+  },
+  "r172_16_focused_recovery_result_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified exact run and two independent source/engine reviews",
+    "recorded_on": "2026-11-28",
+    "candidate": "741ae1240f95ad8100bef4ba46b71aacd85f44c3",
+    "tree": "4c2b98d9ef5cfc90a6db512d6a6f7c597511ee2a",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-16-pin-confirm-20261128/focused-02",
+    "counts": {
+      "executed": 7,
+      "passed": 3,
+      "failed": 4,
+      "filtered": 2600
+    },
+    "passed": [
+      "Argus revision 164 upgrade and restart",
+      "Revision 171 duplicate atomic preflight and positive index control",
+      "MT154 current declaration ownership proof"
+    ],
+    "digests": {
+      "log": "95133ffb93bd8bc64f05cc7983b1c30a7b014cbcc021ce10ab9f58a448218e1d",
+      "junit": "f9fba565ee06db57e84604836be73217cb9ed1ff253176dc105a02462a012f4b",
+      "result": "a44af693e96588112887ac9bbc4eb693554d7cbfab063687448ce3ff9415a76e",
+      "evidence": "96fc32e18cb153f0d34fb34c35ef226b15febd9384ff1b228a6758502e5fe09a"
+    },
+    "target_peak": 194515883568,
+    "attempts": [
+      {
+        "ref": "#/r172_16_first_confirm_result_20261128",
+        "failure": "Four exact imported BASE predecessor cases abort when the imported helper hoists the existing first-owner SCHEMAFULL definition after a FLEXIBLE field."
+      },
+      {
+        "ref": "#/r172_16_seven_repaired_candidate_20261128",
+        "change": "Keep existing exact first-owner table declaration before dependent FLEXIBLE, no new DDL or pins.",
+        "result": "The same four cases now reach COMMIT with no unmasked statement error and return Transaction conflict: Resource busy. Exact terminal slots 1448/1440."
+      }
+    ],
+    "distinct_next_hypothesis": "Current imported CKC scan runs from its marker through the first COMMIT, spanning the new revision-172 block. The same block then emits again through explicit revision171 append, including worktree_vm_binding_id_unique. Pinned SurrealDB DEFINE INDEX OVERWRITE retires/restarts a separate provisional build. The repository has exact duplicate-builder conflict handling precedent. Duplicate emission proven independently; the precise locked key is still unverified.",
+    "intended_fix": "End imported CKC discovery at the existing revision-172 block marker before its prior COMMIT. Keep all preceding canonical CKC SQL and explicit revision171 span ownership. Validate single exact occurrence for new block/index, no lost historical indexes, no DDL or pin change.",
+    "bounded_followup": "CX-EXEC-003A: same four assertions twice, change the proven duplicate emission first. Run one changed focused probe after known fixes and verified push. Reuse all unchanged passes. The two approved frozen fixture cases can be selected separately in the same compatible compile without broad rerun. No proof until live validator results."
   }
 }
