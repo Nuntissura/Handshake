@@ -15995,5 +15995,39 @@
     "released_utc": "2026-11-28T15:48:02.715222Z",
     "disposition": "R172-17 scoped proof complete. No binary-wide verdict and no formal MT verdict. Three other named cases remain routed to TRQ-06/G13.",
     "next": "R172-18 five original named cases first. No expectation changes before baseline. The existing orphan case and planned new non-disclosure collision case are reserved for the subsequent seven-case acceptance proof."
+  },
+  "r172_18_user_manual_original_baseline_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), raw log/JUnit/Git/slot re-read and fixture/inspector source inspection",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_16_imported_base_catalog_confirmation_20261128",
+      "#/rev172_plan_20261127"
+    ],
+    "candidate": "4cb6eefc6d7c71ea390c95e34e9661f16443b10b",
+    "tree": "78249b33a11df6cff55b111e4bbfe543c230e32b",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-18-user-manual-identity-20261128/baseline-01",
+    "counts": {
+      "executed": 5,
+      "passed": 1,
+      "failed": 4,
+      "filtered": 1
+    },
+    "passed": "each_scope_dimension_mismatch_and_mixed_or_incomplete_scope_fail_closed",
+    "failures": [
+      "Citation ambiguity, corrupted canonical receipt and stale predecessor race reach durable_counts, where test inspector rejects the partial catalog against the historical 6f3dfff2 pin (log lines 5097, 5138, 5158). All report observed 2b2be93b.",
+      "Exact retry opens the original directory/namespace/database on restart, then BASE bootstrap rejects table/field/index counts 313/4019/862 (log line 5118). Canonical BASE count is 313/4013/860."
+    ],
+    "digests": {
+      "log": "80c93c74e8b0b3fbdad13928c81244629c7a12381e129b366374f8196bd46499",
+      "junit": "88fbecfd7ea243ddb39234c897a0b7d60e4e72556f04f753f7ddb8c0d3e8b137",
+      "result": "29d8cb879b9457e0594a93d452f7357783cd432fc6fee683f7adef76134c3daa",
+      "cases": "5c9a3a9d4a66ab7eee3fd68f709a0cb1bc18f5a5cc3f0703ba935f15c99da341",
+      "release": "4c8c6fd8ed233d2eeebba4d248f1ce00d6a83096b4f3f6c6b60b647b5135d738",
+      "unchanged_inputs": "7670c988b28e44a304cb9ab5ed0821ef8ef9e48c91e3d9b132b3538da525a813"
+    },
+    "peak_target_bytes": 191922689897,
+    "released_utc": "2026-11-28T15:51:11.392905Z",
+    "verified_defect": "Fixture first uses the isolated BASE helper, then provider open executes the stand-alone module schema. That exact module adds six BASE-missing fields and two new indexes. The isolated reopen still verifies BASE, while the test inspector uses a historical pin independent of either current BASE or current FINAL.",
+    "disposition": "Reached the required pre-edit baseline. No old identity assertion was shown obsolete at the failed seams. Preserve visible behavior and durability assertions. Restore a canonical test catalog and exact validated inspector first. The orphan case remains reserved for the subsequent acceptance run."
   }
 }
