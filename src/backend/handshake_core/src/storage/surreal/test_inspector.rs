@@ -6,6 +6,7 @@ use thiserror::Error;
 
 use super::schema::{
     canonical_catalog_fingerprint, canonicalize_info, info_entry_name, parse_named_array,
+    test_inspector_expected_catalog_pin,
 };
 use super::{SurrealStorage, SurrealStorageError};
 
@@ -405,15 +406,24 @@ impl SurrealTestInspector {
 
 
     pub async fn schema_catalog(&self) -> Result<SchemaCatalogSnapshot, SurrealTestInspectorError> {
-        let database_info: SurrealValueData = self
+        let catalog_basis = self
             .storage
             .with_admin_operation(|database| {
                 Box::pin(async move {
+                    let Some(expected_pin) = test_inspector_expected_catalog_pin(&database).await?
+                    else {
+                        return Ok(None);
+                    };
                     let mut db_response = database.query("INFO FOR DB STRUCTURE;").await?;
-                    Ok(canonicalize_info(db_response.take(0)?))
+                    Ok(Some((canonicalize_info(db_response.take(0)?), expected_pin)))
                 })
             })
             .await?;
+        let Some((database_info, expected_pin)) = catalog_basis else {
+            return Err(SurrealTestInspectorError::InvalidCatalog(
+                "expected a complete current base or production schema receipt".to_owned(),
+            ));
+        };
         let table_names = parse_named_array(&database_info, "tables")
             .map_err(SurrealTestInspectorError::InvalidCatalog)?;
         let table_definitions = named_objects(&database_info, "tables")?;
@@ -455,18 +465,9 @@ impl SurrealTestInspector {
         // MT-151: one fingerprint definition shared with bootstrap's `inspect_schema`.
         let info_fingerprint_sha256 =
             canonical_catalog_fingerprint(database_info.clone(), canonical_tables);
-        if super::EXPECTED_SCHEMA_INFO_SHA256
-            .bytes()
-            .all(|byte| byte == b'0')
-        {
-            return Err(SurrealTestInspectorError::InvalidCatalog(
-                "canonical schema fingerprint is not pinned".to_owned(),
-            ));
-        }
-        if info_fingerprint_sha256 != super::EXPECTED_SCHEMA_INFO_SHA256 {
+        if info_fingerprint_sha256 != expected_pin {
             return Err(SurrealTestInspectorError::InvalidCatalog(format!(
-                "canonical schema fingerprint mismatch: expected {}, observed {info_fingerprint_sha256}",
-                super::EXPECTED_SCHEMA_INFO_SHA256
+                "canonical schema fingerprint mismatch: expected {expected_pin}, observed {info_fingerprint_sha256}"
             )));
         }
         let mut tables = Vec::with_capacity(table_names.len());

@@ -7636,6 +7636,26 @@ fn has_production_identity(state: &SchemaState, config: &SurrealStorageConfig) -
         && state.source_manifest_sha256 == production_source_sha256()
 }
 
+#[cfg(feature = "surreal-test-support")]
+pub(super) async fn test_inspector_expected_catalog_pin(
+    database: &SurrealAdminContext<'_>,
+) -> Result<Option<&'static str>, SurrealStorageError> {
+    let Some(state) = read_context_and_state(database).await? else {
+        return Ok(None);
+    };
+    if state.is_exact_current(&database.config) {
+        return Ok(ROUTING_SUCCESSOR_BASE_INFO);
+    }
+    Ok(ROUTING_SUCCESSOR_PRODUCTION_INFO
+        .map(|(pin, _, _)| pin)
+        .filter(|pin| {
+            has_production_identity(&state, &database.config)
+                && state.generated_surql_sha256 == production_generated_sha256()
+                && state.apply_state == "complete"
+                && state.info_fingerprint_sha256 == *pin
+        }))
+}
+
 pub(super) fn is_production_report(report: &SchemaBootstrapReport) -> bool {
     report.source_manifest_sha256 == production_source_sha256()
 }
