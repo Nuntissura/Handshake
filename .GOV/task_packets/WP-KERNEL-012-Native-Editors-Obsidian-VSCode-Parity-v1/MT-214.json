@@ -3018,5 +3018,31 @@
     },
     "unproven": "real-watcher handshake and acknowledgement (P8); confirmed flag from a live handle (scan only); handshake_unconfirmed with a real handle (classify unit-tested only); shell_program GPU read-back",
     "next": "P5 wiring (start() into run_product, watcher into run_program), P6 remaining mutations, P7 non-GPU workspace run and line counts; P8 live proofs by the eval agent"
+  },
+  "e9f1_e9f2_probe_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's diagnosis (Sonnet); probes in a scratch copy only; summary hash and the 512 MiB test quota (shell/src/program.rs policy_of, limit_bytes 512 << 20) verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "summary_file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/e9f1-probe-20261128/probe-summary.json (sha256 1a77fc28597cbc44392121420163802068174a46019a987e5451c2660481ccef; per-log sha256 inside)",
+    "method": "git -c core.autocrlf=false archive of 05a1050a3, byte-identical to the eval10 LF tree; probe edits only in probe-tree via make_probe2.py; private-desktop harness; one build-slot hold 01:24:04Z-01:28:32Z",
+    "e9f1": {
+      "q1_why_open": "one Display claim per window; slot surface=false, claim=true, closing=false at every look; the owner answers SettleRefusal::ResourcesOutstanding{resources:1} (199-201 looks in 0.5 s, 1953-1992 in the 5 s variant); in_flight 0 and leases 0; the surface was released without present proof (present_fences=false) and the owner keeps one resource until presents are proven ended; the close drain ends it; which owner object resources=1 is: UNVERIFIED (surface or swapchain per source)",
+      "q2_order": "no window goes through SF-2 at shutdown: tear_down releases each surface at once (proving=false, presented_on_current=true); non-closing windows are never hidden; multiwindow l1: release key1 +1.4 ms, key2 +2.8 ms, owner.close +504.6 ms, returned +530.5 ms, windows destroyed +537.9-539.6 ms; shell_program same shape",
+      "q3_proof_before_hide": "variant running SF-2 on every window at ShutdownBegan while still shown, before any release or hide: prove() NeedsPresent, Waiting, Proven in 12-25 ms; every claim settles on look 1; owner.close report open_claims 0, retained 0, charged_bytes 0, in_flight 0, leases 0, device Destroyed, is_settled true; tear_down 29-52 ms instead of about 530 ms; shell_program 2 of 2 pass",
+      "q4_report_after_final_settle": "ledger reads open_claims 0, retained 0, charged_bytes 0, in_flight 0, leases 0, claims_abandoned 0; GpuOwner::close() is single-shot (a second close returns the first report), so such a report needs a ledger snapshot (usage()), not a second close",
+      "multiwindow_extra": "windows 3 and 4 never get a claim: Admission(BudgetExceeded{requested_bytes:268435456}); the test quota in shell/src/program.rs policy_of is 512 MiB and each window reserves 256 MiB, so only 2 windows are admitted, 2 frames presented, the plan never finishes (multiwindow.rs:93 in the variant); multiwindow cannot pass until the quota or the window count changes",
+      "dead_time": "8003327ce's 500 ms pre-close wait never succeeds in base (every look waiting)"
+    },
+    "e9f2": {
+      "rate": "0 of 5 pass on the probe tree and 0 of 5 on pristine 05a1050a3 (activations_refused 2 at uia_client.rs:558 pristine, :561 probe); the eval9 pass is not reproduced (0 of 10)",
+      "refusals": "both HCBT_ACTIVATE, never HCBT_SETFOCUS; both of the first window (class hsk_shell_window, title test); reason is_quiet=true, still_sections 0, allowed 0; window visible 1, iconic 0, foreground 0, thread active and focus 0; the first 80-90 ms after the step-2 check passed with 0, the second about 2.0 s later; both on the loop thread inside winit dispatch_peeked_messages (user32 frames unnamed)",
+      "trigger": "UNVERIFIED which test input triggers each refusal (the test posts WM_NCACTIVATE and WM_SETFOCUS at step 2, WM_KILLFOCUS at step 4, and runs UIA invoke and SetFocus from a client thread)"
+    },
+    "operator_safety": "gate before all 15 GPU batches (507 at 2026-11-27T20:10:30 newer than 506): not in Modern Standby; vulkaninfo 0.23-0.69 s; 13046 samples at 20 ms: 1 foreground value, clipboard sequence 337 never written, 1 Z-order top; no run window on the Operator's desktop, no process left, nothing stopped",
+    "unverified": [
+      "the hidden-window out-of-date claim of the ending.rs design note (not exercised at shutdown)",
+      "the exact trigger of each activation refusal",
+      "behaviour with VK_EXT_swapchain_maintenance1"
+    ],
+    "next": "E9-F1 fix design from this evidence (SF-2 proof on every shown window at ShutdownBegan, removal or bounding of the 500 ms wait, multiwindow quota vs window count) by a GUI specialist with an adversarial pass; E9-F2 trigger isolation"
   }
 }
