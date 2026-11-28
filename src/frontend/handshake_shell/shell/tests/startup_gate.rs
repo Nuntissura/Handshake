@@ -76,8 +76,8 @@ fn a_shutdown_is_settled_only_when_everything_is() {
 
 #[test]
 fn only_a_settled_shutdown_is_acknowledged_and_an_unsettled_one_is_never_reported_clean() {
-    assert!(may_acknowledge(true));
-    assert!(!may_acknowledge(false));
+    assert!(may_acknowledge(true, None));
+    assert!(!may_acknowledge(false, None));
     assert_eq!(conclude(false, None, None), ExitKind::ShutdownUnsettled);
     assert_eq!(
         conclude(false, None, Some(WatcherAck::Acknowledged)),
@@ -92,6 +92,14 @@ fn only_a_settled_shutdown_is_acknowledged_and_an_unsettled_one_is_never_reporte
     assert_eq!(conclude(true, None, Some(WatcherAck::Acknowledged)), ExitKind::Clean);
     assert_eq!(conclude(true, None, Some(WatcherAck::NotConnected)), ExitKind::Clean);
     assert_eq!(conclude(true, None, None), ExitKind::Clean);
+    // The realistic pair: a failed run is never asked, so it has no answer, and ends with its own failure.
+    assert_eq!(
+        conclude(true, Some(ExitKind::NoWindow), None),
+        ExitKind::NoWindow,
+        "a settled shutdown after a refused window ends with the refusal"
+    );
+    // Defensive ordering of the pure function: `ended` can no longer produce an answer beside a failure (the watcher is
+    // not asked after one), but if one came the run's own failure would still be named before the watcher's silence.
     assert_eq!(
         conclude(true, Some(ExitKind::NoWindow), Some(WatcherAck::NotAcknowledged)),
         ExitKind::NoWindow,
@@ -115,4 +123,18 @@ fn without_a_watcher_nothing_is_acknowledged_and_it_says_so() {
     .map(|ack| ack.name())
     .collect();
     assert_eq!(names.len(), 3);
+}
+
+/// MT-214 E9-F1 Q6: a run that ended with a typed failure (a refused window, a failed loop, a refused heartbeat) leaves the
+/// watcher untold whatever its shutdown reported; only a settled shutdown with no failure is told.
+#[test]
+fn may_acknowledge_needs_a_settled_shutdown_and_no_failure() {
+    assert!(may_acknowledge(true, None));
+    assert!(!may_acknowledge(false, None));
+    for kind in ExitKind::ALL.into_iter().filter(|kind| *kind != ExitKind::Clean) {
+        assert!(!may_acknowledge(true, Some(kind)), "{kind:?}: a settled shutdown after a failure is not told");
+        assert!(!may_acknowledge(false, Some(kind)), "{kind:?}: an unsettled one is never told");
+    }
+    // Every ending the program can fail with is covered by the table above.
+    assert_eq!(ExitKind::ALL.len(), 10);
 }

@@ -627,7 +627,9 @@ fn the_watcher_is_asked_only_inside_the_settled_check_after_the_ring_marker() {
     let program = source_in(&below("src"), "src/program.rs");
     let code = squeezed(&program);
     let ended = block_of(&code, "fnended(&self");
-    let settled = ended.find("ifmay_acknowledge(ended.settled)").expect("the settled check");
+    let settled = ended
+        .find("ifmay_acknowledge(ended.settled,self.failure.get())")
+        .expect("the settled check, which also reads the run's failure (MT-214 E9-F1 Q6)");
     let marker = ended.find("ring.write(").expect("the ring marker");
     let asked = ended.find("acknowledge_shutdown()").expect("the watcher is asked");
     assert!(settled < marker && marker < asked, "settled check, then ring marker, then the watcher: {ended}");
@@ -650,11 +652,18 @@ fn the_watcher_is_asked_only_inside_the_settled_check_after_the_ring_marker() {
     // Each rule finds what it looks for.
     let early = sample(
         "src/sample.rs",
-        "fn ended(&self, shell: &Shell<'_>) { self.watcher.acknowledge_shutdown(); if may_acknowledge(s) { ring.write(e); } }",
+        "fn ended(&self, shell: &Shell<'_>) { self.watcher.acknowledge_shutdown(); if may_acknowledge(s, self.failure.get()) { ring.write(e); } }",
     );
     let code = squeezed(&early);
     let sample_ended = block_of(&code, "fnended(&self");
-    assert!(sample_ended.find("acknowledge_shutdown()") < sample_ended.find("ifmay_acknowledge(s)"));
+    assert!(sample_ended.find("acknowledge_shutdown()") < sample_ended.find("ifmay_acknowledge(s,self.failure.get())"));
+    // A check that does not read the run's failure is not the settled check of the pin above.
+    let blind = sample(
+        "src/sample.rs",
+        "fn ended(&self, shell: &Shell<'_>) { if may_acknowledge(ended.settled) { ring.write(e); } }",
+    );
+    let blind = squeezed(&blind);
+    assert!(block_of(&blind, "fnended(&self").find("ifmay_acknowledge(ended.settled,self.failure.get())").is_none());
 }
 
 /// MT-214 S7 (P3, AC214-11): the adapter never lets an unasked watcher drop (the launcher's handle sends a clean Shutdown
@@ -806,13 +815,16 @@ fn the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_prog
     let session = text_of("src/palmistry.rs");
     assert!(session.contains("watched_from=first_heartbeat"), "the state line says where watching starts");
     assert!(
-        session.contains("untold_on=device_unavailable,loop_failed,heartbeat_refused,shutdown_unsettled,panic"),
+        session.contains("untold_on=device_unavailable,no_window,loop_failed,heartbeat_refused,shutdown_unsettled,panic"),
         "the state line names the endings that leave the watcher untold"
     );
     let readme = text_of("README.md");
     assert!(readme.contains("not watched before the first heartbeat"), "the README names the blind window");
     assert!(readme.contains("left untold"), "the README names the untold endings");
+    assert!(readme.contains("a refused window (exit 5)"), "the README names the refused window among them");
     assert!(text_of("src/main.rs").contains("not watched"), "the product binary's documentation names the blind window");
+    let main_docs: String = text_of("src/main.rs").split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(main_docs.contains("a refused window, exit 5"), "the product binary's documentation names the refused window");
 
     // Each rule finds what it looks for.
     let sound = "run_product(|authority|{println!(\"{}\",authority.receipt());letstarted=palmistry::start(p);        letStarted{ring,watcher,lease,..}=started;letoutcome=run_program(c,authority,Box::new(watcher));drop(lease);outcome});matchoutcome{";

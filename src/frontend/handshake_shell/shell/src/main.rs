@@ -13,8 +13,8 @@
 //! ring, signed launch, handshake marker), prints one `HSK_SHELL_PALMISTRY` state line, and runs the program with the
 //! ring and the watcher. A refused start runs none of this. The watcher is watched from the first heartbeat on, so the
 //! device open and the window creation before the loop starts are not watched; an ending that never reaches the
-//! acknowledgement (no device, exit 4, a failed loop, a refused heartbeat, an unsettled close, a panic) leaves the watcher
-//! untold, and it records the end as unexpected.
+//! acknowledgement (no device, exit 4, a refused window, exit 5, a failed loop, a refused heartbeat, an unsettled close, a
+//! panic) leaves the watcher untold, and it records the end as unexpected.
 
 use std::process::ExitCode;
 

@@ -40,7 +40,7 @@ no canonical product name is verified). Test binary for a manual run: `examples/
 | The device opens only under `device.gpu.shell` and the kernel issuer; without them a typed refusal, exit code 7, nothing opened | `src/authority.rs` (`run_product`), `src/main.rs` |
 | A test or example binary says `product=false device_authority=none` in its first line | `DeviceAuthority::receipt`, `examples/shell_program.rs` |
 | Missing or rejected device: typed end `device_unavailable` (4) with the owner's key | `src/program.rs` (`run_program`) |
-| Shutdown drains (the heartbeat beats through it), settles claims, and only a settled one is marked in the ring and acknowledged by the watcher | `ProgramApp::ended`, `src/outcome.rs` (`shutdown_settled`, `may_acknowledge`, `conclude`) |
+| Shutdown drains (the heartbeat beats through it), settles claims, and only a settled one of a run with no typed failure is marked in the ring and acknowledged by the watcher | `ProgramApp::ended`, `src/outcome.rs` (`shutdown_settled`, `may_acknowledge`, `conclude`) |
 | Crash behaviour untouched: no panic hook, exception filter or process exit in this crate | `tests/source_scan.rs` |
 
 Exit codes: 0 clean, 2 usage, 3 unsupported, 4 device unavailable, 5 no window, 6 loop failed, 7 no device authority, 8
@@ -65,7 +65,7 @@ confirmed watcher, which is supplementary. `--diag-ring` now also names the ring
 | What | Behaviour |
 | --- | --- |
 | Clean, settled close | the ring's `Shutdown` marker, then the watcher is told (signed) and reaped; exit 0 when it acknowledged or none was connected (an unconfirmed watcher is reported not connected), 9 when a confirmed watcher did not acknowledge |
-| Endings that skip the acknowledgement: no device (exit 4), a failed loop, a refused heartbeat, an unsettled close (exit 8), a panic | the watcher is left untold and records the parent's end as unexpected (Operator decision WP012-MT214-S7-NO-GPU-STOP-20261128: a crash record) |
+| Endings that skip the acknowledgement: no device (exit 4), a refused window (exit 5), a failed loop (exit 6), a refused heartbeat (exit 10), an unsettled close (exit 8), a panic | the watcher is left untold and records the parent's end as unexpected (Operator decision WP012-MT214-S7-NO-GPU-STOP-20261128: a crash record) |
 | Before the loop starts (device open, window creation) | not watched before the first heartbeat: Palmistry reads a process with no heartbeat yet as healthy, so a hang there is not detected |
 | Crash | no panic hook, exception filter or crash client in this crate; the OS's handler stays; the watcher records the end without a Shutdown |
 | `ManuallyDrop` | an adapter dropped without a question never lets the launcher's handle send a clean Shutdown |

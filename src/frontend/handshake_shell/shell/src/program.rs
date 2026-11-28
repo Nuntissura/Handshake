@@ -760,7 +760,7 @@ impl ProgramApp {
     }
 
     /// `LoopEnding`, with the loop still running: the heartbeat has stopped. Check what the owner reported, and only a
-    /// settled shutdown is marked in the ring and acknowledged by the watcher.
+    /// settled shutdown of a run with no typed failure is marked in the ring and acknowledged by the watcher.
     fn ended(&self, shell: &Shell<'_>) {
         let mut ended = Ended::default();
         if let Some(heartbeat) = self.heartbeat.borrow_mut().take() {
@@ -781,7 +781,7 @@ impl ProgramApp {
             run.windows_created,
             run.windows_destroyed,
         );
-        if may_acknowledge(ended.settled) {
+        if may_acknowledge(ended.settled, self.failure.get()) {
             if let Some(ring) = self.ring.borrow().as_ref() {
                 let nanos = u64::try_from(self.origin.elapsed().as_nanos()).unwrap_or(u64::MAX);
                 let marker = DiagEvent::generic(

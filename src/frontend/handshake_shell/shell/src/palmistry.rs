@@ -6,8 +6,9 @@
 //!
 //! # What the watcher is told
 //!
-//! Only a settled shutdown reaches [`PalmistryWatcher::acknowledge_shutdown`] (the program asks after the owner reported
-//! every claim settled and every window gone, `crate::may_acknowledge`). Anything else never asks, and an adapter that is
+//! Only a settled shutdown of a run with no typed failure reaches [`PalmistryWatcher::acknowledge_shutdown`] (the program
+//! asks after the owner reported every claim settled and every window gone and no refused window, refused heartbeat or
+//! failed loop ended the run, `crate::may_acknowledge`). Anything else never asks, and an adapter that is
 //! dropped without having been asked does not tell the watcher either: the launcher's handle sends a clean Shutdown when it
 //! is dropped, which for an unsettled end, a failed loop or a panic unwinding through the program would say "closed
 //! cleanly" about a process that did not. So the adapter holds the watcher in a [`ManuallyDrop`] and lets go of it without
@@ -458,11 +459,11 @@ impl Started {
     /// The one state line the product binary and the example print after the start, before the program runs. It names the
     /// outcome and says what the watcher does not cover: it is watched from the first heartbeat on (a watcher with no
     /// heartbeat yet reads the process as healthy), so the device open and the window creation before the loop starts are
-    /// not watched; and an ending that never reaches the acknowledgement (no device, a failed loop, a refused heartbeat, an
-    /// unsettled close, a panic) leaves the watcher untold, so it records the end as unexpected.
+    /// not watched; and an ending that never reaches the acknowledgement (no device, a refused window, a failed loop, a
+    /// refused heartbeat, an unsettled close, a panic) leaves the watcher untold, so it records the end as unexpected.
     pub fn state_line(&self) -> String {
         format!(
-            "HSK_SHELL_PALMISTRY state={} reason={} session={} watched_from=first_heartbeat untold_on=device_unavailable,loop_failed,heartbeat_refused,shutdown_unsettled,panic",
+            "HSK_SHELL_PALMISTRY state={} reason={} session={} watched_from=first_heartbeat untold_on=device_unavailable,no_window,loop_failed,heartbeat_refused,shutdown_unsettled,panic",
             self.state.name(),
             self.state.reason(),
             self.inputs.session.session_id,

@@ -91,9 +91,12 @@ pub const fn shutdown_settled(
     matches!(owner_settled, Some(true)) && claims_abandoned == 0 && windows_created == windows_destroyed
 }
 
-/// What the watcher may be told: only a settled shutdown is acknowledged.
-pub const fn may_acknowledge(settled: bool) -> bool {
-    settled
+/// What the watcher may be told: only a settled shutdown of a run that ended with no typed failure. A run that ended with
+/// a refused window, a refused heartbeat or a failed loop (`failure`) is not an orderly close, whatever its shutdown
+/// reported: the ring is not marked and the watcher is not asked, so it records the end as unexpected, with the exit
+/// code and the last events (MT-214 E9-F1 Q6; the Operator's decision WP012-MT214-S7-NO-GPU-STOP-20261128).
+pub const fn may_acknowledge(settled: bool, failure: Option<ExitKind>) -> bool {
+    settled && failure.is_none()
 }
 
 /// How the program ends. An unsettled shutdown outranks everything: nothing is reported clean over work still held.
