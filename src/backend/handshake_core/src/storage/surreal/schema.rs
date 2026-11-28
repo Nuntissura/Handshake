@@ -16985,8 +16985,8 @@ mod tests {
                     };
                     assert_eq!(expected_model_receipt.get("schema_version"), Some(&SurrealValue::into_value("mt003-model-lane-authority-v8".to_owned())));
                     assert_eq!(expected_model_receipt.get("schema_revision"), Some(&SurrealValue::into_value(8_i64)));
-                    expected_model_receipt.insert("schema_version".to_owned(), SurrealValue::into_value("mt003-model-lane-authority-v9".to_owned()));
-                    expected_model_receipt.insert("schema_revision".to_owned(), SurrealValue::into_value(9_i64));
+                    expected_model_receipt.insert("schema_version".to_owned(), SurrealValue::into_value("mt003-model-lane-authority-v11".to_owned()));
+                    expected_model_receipt.insert("schema_revision".to_owned(), SurrealValue::into_value(11_i64));
                     assert_eq!(after[3], SurrealValueData::Object(expected_model_receipt), "model-lane transition preserves primary identity and every other raw receipt field");
                 }
                 let current_catalog = reopened.with_admin_operation(|database| Box::pin(async move { Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256) })).await?;
