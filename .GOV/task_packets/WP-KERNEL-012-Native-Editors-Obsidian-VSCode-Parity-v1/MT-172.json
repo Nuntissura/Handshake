@@ -15898,5 +15898,73 @@
       "wrapper_sha256": "12184226a782c89801473771879c0f3a9b1077b36ff24a3f7fe5d742211dae10",
       "scope": "Exact same seven cases as focused-03 because the six older migrations consume the changed closure and the seventh asserts it. Reuse unchanged prior Argus, pin measurement and atomic revision171→172 evidence."
     }
+  },
+  "r172_16_imported_base_catalog_confirmation_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent raw log, JUnit, Git, input digest and process/slot readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_16_imported_base_catalog_candidate_20261128",
+      "#/r172_16_imported_base_catalog_result_20261128"
+    ],
+    "published_candidate": "4cb6eefc6d7c71ea390c95e34e9661f16443b10b",
+    "tree": "78249b33a11df6cff55b111e4bbfe543c230e32b",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-16-pin-confirm-20261128/focused-04",
+    "counts": {
+      "executed": 7,
+      "passed": 7,
+      "failed": 0,
+      "filtered": 2600
+    },
+    "passed": [
+      "MT139 exact pre-MT139 catalog, data preservation and restart",
+      "MT141 historical exact MT150 pin, provenance constraint and restart",
+      "MT150 historical exact MT109 pin, Loom event receipt field and restart",
+      "MT151 exact MT142 pin, journal key and restart",
+      "MT152 exact MT151 pin, FEMS anchors and restart",
+      "MT152 exact MT151 pin, legacy duplicates preserved, deterministic sibling keys and future duplicate rejection",
+      "Structural proof of final canonical shared BASE declarations and single emission of revision172 declarations"
+    ],
+    "digests": {
+      "log": "edbef8bcc32c299051215cde3aba498ced00d9922701fd6d286dc3c889bff6b3",
+      "junit": "24154122c9bc765c34ac3865ba549a2b66ec6319c57336ea9ac07e7ba5cb869d",
+      "result": "efff25f82f49110a34e556a034b8ea73ef2a8b8f9aa8522627ea5dae3e75636f",
+      "cases": "e3cc6653d3df1ad176d0d31bc6608a064e74b06c98831c14f762c6625762fded",
+      "wrapper_result": "4d2c308ee74dae5fef722ffe9980970753575a5860700a4f79334950060ae563",
+      "slot_release": "09615db44bbc960ba8b30d2bf293ca55771afacdd52973ef6f897090c2cdaf33",
+      "before_and_after_input_receipt": "3b8d95871ddb8d1a1f71e6b459f676e19dc360181d3199ff2db3082d57da1ecb"
+    },
+    "unchanged_raw_inputs": {
+      "count": 7873,
+      "raw_sha256": "7670c988b28e44a304cb9ab5ed0821ef8ef9e48c91e3d9b132b3538da525a813",
+      "index_sha256": "a10bff8622a5226324d27279dde05c86accf243e4e19e3c4cfc532c905b3a6ab"
+    },
+    "peak_target_bytes": 194519726591,
+    "released_utc": "2026-11-28T14:59:27.866674Z",
+    "disposition": "Focused R172-16 proof complete with prior valid fresh, pin, successor, crash-safety and unaffected repaired case results retained. No full MT or WP validator verdict. Proceed to R172-17."
+  },
+  "r172_17_vm_registry_focused_scope_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent prior JUnit and source readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_16_imported_base_catalog_confirmation_20261128",
+      "#/rev172_plan_20261127"
+    ],
+    "baseline_artifact": "Handshake_Artifacts/WP-KERNEL-012/MT-172/eval-reclaim-20261127-01/nextest/default/junit.xml",
+    "baseline_junit_sha256": "6d797fb93e28d566db2ec4f03e7f184f62f7ff081d076806afbad7fb851fdb66",
+    "exact_target": "worktree_vm_registry_surreal_tests",
+    "focused_test_count": 15,
+    "decision": "Prove the three required G03 tests and all twelve prior green tests on the current shared schema candidate, with the required no-DEFINE source inspection. The older results do not attest to the updated registry or schema.",
+    "g03": [
+      "durable_binding_survives_registry_restart_and_terminalizes",
+      "snapshot_restore_receipts_are_atomic_and_restart_stable",
+      "tampered_or_wrong_receipt_linkage_fails_closed_after_restart"
+    ],
+    "omitted_named_diagnoses": [
+      "exact_scope_mismatch_fails_before_a_second_spawn (TRQ-06)",
+      "incomplete_legacy_row_denies_without_mutation_event_or_identifier_disclosure (TRQ-06)",
+      "every_durable_surreal_query_block_predicates_all_five_scope_fields (G13/C9)"
+    ],
+    "source_check": "Registry production source no longer contains runtime DEFINE or ensure_schema. In the integration target the exact imported legacy row uses OPTION IMPORT.",
+    "limits": "No binary-wide verdict from 15 scoped cases. The other named diagnoses remain open under their own authority."
   }
 }
