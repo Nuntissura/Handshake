@@ -15262,5 +15262,59 @@
     "current_handoff": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-orchestrator-handoff-20261128.json",
     "reason": "Operator asked to pause at a clean point and hand the orchestrator role to a successor agent",
     "supersedes_for_workflow": "WP-KERNEL-012-phase02-successor-handoff-v8.json team model (replaced by the Operator's 2026-11-27 single-orchestrator goal); product scope references in v8 still hold"
+  },
+  "operator_takeover_decisions_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "source": "Operator reply following the WP-KERNEL-012 takeover decisions in the current chat",
+    "asset_request": {
+      "decision": "Send the prepared request to the nominated Kumihimo asset repository chat.",
+      "request_ref": "Handshake_Artifacts/WP-KERNEL-012/asset-requests-20261126/request.json",
+      "thread_id": "01a17374-1d96-7e02-9aea-77b0f62f20dc",
+      "intake_turn_id": "01a220e5-9ecc-7053-a4ae-08fdbf92e5df",
+      "intake_status": "Acknowledged and queued. No published revision or proof claimed; existing asset execution pause remains."
+    },
+    "studio": {
+      "decision": "Keep Studio development paused until WP-KERNEL-012 finishes.",
+      "lane_ids": [
+        "SMB-UI-TREE-1",
+        "SMB-VK-UI-PASS-1"
+      ],
+      "release_status": "NOT_RELEASED",
+      "operator_transfer_prompt": "Draft delivered in the current chat. Scope: the two named lanes, independent validation, and pinned Kumihimo publication if both pass.",
+      "affected_predecessor_ref": "MT-213.json#/execution/start_precondition",
+      "affected_asset_requirement_ref": "MT-198.json#/standalone_source_gaps_20261125"
+    },
+    "registry_publication": {
+      "decision": "OPEN",
+      "reference": "MT-219.json#/dependency_correction_20261126",
+      "reviewer": "UNNAMED",
+      "order": "UNDECIDED"
+    },
+    "diagnostics": {
+      "decision": "Approve narrow MT-223 diag_ring R1 and R2, with MT-215 adopting. Approve MT-175 as repair vehicle for the two recorded stale scans and the self-matching assertion.",
+      "diag_ring_ref": "MT-215.json#/diag_ring_owner_review_20261126",
+      "mt175_ref": "MT-175.json#/preexisting_egui_failures_20261127",
+      "claim_takeover": "NOT_AUTHORIZED; existing MT-175 claim remains"
+    },
+    "x64_host": {
+      "compile_host": "Current Windows ARM64 tablet, per Operator preference for its disk speed.",
+      "proof_host": "Windows x64 desktop PC; identifier and access remain unresolved.",
+      "operator_report": "Handshake development on the PC is paused. The Operator does not know how to reach it remotely.",
+      "affected": [
+        "MT-213 x64 acceptance",
+        "MT-214 S7 P8 x64 live proof"
+      ]
+    },
+    "cleanup": {
+      "decision": "Approve deleting only the nested eval10 Handshake_Artifacts folder.",
+      "removed": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval10-20261127/Handshake_Artifacts/",
+      "verified_absent": true,
+      "generated_files_removed": 12,
+      "bytes_removed": 4824,
+      "retained_summary_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval10-20261127/eval10-summary-20261127.json",
+      "retained_summary_sha256": "5045380e9ff2158449072dd7e2827870eeb62d816806cd3655492da575b92e63",
+      "cargo_cleanup": "No Cargo targets authorized for deletion. MT-170/wpv/target retained under MT-174 preservation authority."
+    }
   }
 }
