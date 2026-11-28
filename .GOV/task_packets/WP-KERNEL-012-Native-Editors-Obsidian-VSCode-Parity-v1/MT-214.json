@@ -2968,5 +2968,55 @@
       "F13_info": "P4b look-ahead: the launcher's marker sink writes its own Shutdown marker; pass no sink"
     },
     "routing": "F2, F3, F6, F13 forwarded to the GUI coder for P4a/P4b; F1 stays with P8c"
+  },
+  "s7_p4_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commits, push, file lists, test counts, banned-crate tree and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "authority": "#/s7_palmistry_plan_20261127, #/s7_palmistry_plan_review_20261127, #/s7_p1_p3_static_review_20261128 (F2, F3, F6, F13 folded in)",
+    "commits": {
+      "P4a": "8a3086b8a: shell/src/palmistry.rs (Degrade NoHostScope/NoLease/NoRing, LaunchInputs, make_ring as the one DiagRingWriterV2::create, fresh_nonce, Seams, prepare()), src/main.rs and examples/shell_program.rs (call make_ring, name no create), tests/palmistry_session.rs (8 tests), tests/source_scan.rs (one ring writer in palmistry.rs, lease before ring, ring made with inputs.launch_nonce, named lease binding with no let _, empty marker sink; stricter ended() check S9; crash_handler and minidumper words M12)",
+      "P4b": "483f54c1c: palmistry.rs (Degrade ExeNotFound/SpawnFailed, LaunchState, classify, PalmistryWatcher::confirmed, Started, start, start_with: prepare, resolve_palmistry_exe, the one launch_palmistry_signed_at; any failure leaves no handle and writes a Degraded marker; Ok(handle) goes straight to PalmistryWatcher::from_handle), palmistry_session.rs (+5 tests; spawn_failed asserts ErrorKind::NotFound against a nonexistent exe), source_scan.rs (no_default_test_reaches_a_real_watcher; the_one_signed_launch_follows_the_lease_the_ring_and_the_exe_and_adopts_its_handle_at_once)",
+      "pushed": "0a956b785..483f54c1c, no force; each commit passes its own scan",
+      "transitional": "main.rs and the example still call make_ring with their own nonce and pass NoWatcher; start() is not yet wired into run_product; P5 swaps make_ring for start()"
+    },
+    "proof": "P4b state, -j1, --locked --offline: shell workspace check exit 0; clippy -D warnings exit 0; palmistry_session 13, palmistry_watcher 6, source_scan 19, startup_gate 7, unavailable 5, all pass; cargo tree 0 matches for egui, eframe, wgpu, glow, epaint, emath, ecolor, kumihimo, handshake-native, cabinet; P4a state alone: check and clippy exit 0, session 8, watcher 6, source_scan 17, startup_gate 7, unavailable 5; one compile fix (Seams literals after rustfmt); no watcher started, no window opened, clipboard untouched",
+    "rustfmt_side_effect": "rustfmt followed #[path] mod limits into ui_heartbeat/tests/support/limits.rs; the coder reverted that file with git checkout; not in either commit",
+    "mutations": {
+      "caught": [
+        "M6 second create in main.rs",
+        "S2 lease bound to _",
+        "S3a zero nonce",
+        "S3b zero transport key (P4a and P4b)",
+        "S3c process id equals session id",
+        "S7 degraded marker omitted in prepare",
+        "S7b degrade marker omitted for exe or spawn failure",
+        "S9 ring_marked || true (after strengthening the ended() scan)",
+        "M12 crash_handler word",
+        "M7 marker_sink Some",
+        "M8 ring made with another nonce",
+        "M4 ring before lease",
+        "M4b exe resolved before lease and ring",
+        "M5a launch_palmistry_or_degrade named",
+        "M5b launch_palmistry_at called",
+        "S10 launch with another ring path",
+        "F6 step between launch and adoption",
+        "M10 classify(true) (scan only)",
+        "M10b classify swapped",
+        "M14a default test with the real resolver",
+        "M14b default test with Seams::production",
+        "M14d helper calling the real resolver above the tests (first a survivor; scan extended to the prelude with a positive control; v2 caught)"
+      ],
+      "control": "M14c #[ignore]d live test passes by design"
+    },
+    "logs_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs (prefix s7-p4)",
+    "logs_sha256_prefix": {
+      "s7-p4-final-tests.log": "5e2c202b21d98681",
+      "s7-p4-final-clippy.log": "5342a90e5735db88",
+      "s7-p4-tree.log": "b35552dac2a71d6c",
+      "s7-p4-mut-F6-step-between-launch-and-adoption.log": "8d25b0f9581ebfcc",
+      "s7-p4-mut-M14d-helper-resolver-above-tests-v2.log": "41d7a2a1671258a7"
+    },
+    "unproven": "real-watcher handshake and acknowledgement (P8); confirmed flag from a live handle (scan only); handshake_unconfirmed with a real handle (classify unit-tested only); shell_program GPU read-back",
+    "next": "P5 wiring (start() into run_product, watcher into run_program), P6 remaining mutations, P7 non-GPU workspace run and line counts; P8 live proofs by the eval agent"
   }
 }
