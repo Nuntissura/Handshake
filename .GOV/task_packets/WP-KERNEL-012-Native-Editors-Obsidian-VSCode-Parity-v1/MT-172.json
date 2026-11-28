@@ -16129,5 +16129,19 @@
     "peak_target_bytes": 195218947653,
     "released_utc": "2026-11-28T17:27:43.718455Z",
     "disposition": "R172-18 plan routes this observed specific non-disclosure failure to MT-173. Keep durable behavior and the exact test assertions. Review the narrow denial normalization at the existing UserManual writer boundary before edits. No unchanged rerun."
+  },
+  "r172_18_manual_identity_conflict_normalization_decision_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), specialist and independent adversarial pinned SDK review",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_18_manual_identity_collision_red_20261128",
+      "#/rev172_plan_20261127"
+    ],
+    "claimant": "/root/rev172_coder_resume (existing MT-173 claim)",
+    "path": "src/backend/handshake_core/src/storage/surreal/user_manual_knowledge.rs",
+    "rationale": "The known exact identity uniqueness violation is retained as a Surreal SDK Internal statement error with a message rendering the conflicting record and index values. The generic StorageError conversion carries driver text into the public denial. Existing shared parsing searches substrings and is too broad by itself for this boundary.",
+    "decision": "At the writer's current data-operation result, classify only the SDK Internal database error whose raw message starts with the exact pinned identity-index violation header. Return a static typed StorageError::Conflict. Preserve the ordinary conversion for every unmatched error. Keep the existing unique index, bindings, transaction, receipt linkage, rollback and exact-scope lookup unchanged.",
+    "privacy": "Keep protected payload or IDs outside the public message, receipts and diagnostics. Existing storage diagnostics only observe success/error status.",
+    "proof": "Run the exact seven UserManual cases because they consume the changed writer. Carry forward the unchanged fresh BASE inspector proof. No new tests or broad binaries required."
   }
 }
