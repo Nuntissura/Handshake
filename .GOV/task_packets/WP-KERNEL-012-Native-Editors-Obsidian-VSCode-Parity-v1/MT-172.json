@@ -15411,5 +15411,44 @@
     "condition": "R172-C1-PREPUSH-LIB passes for the exact tree, build inputs remain unchanged, target feature remote remains at recorded predecessor, and all 35 IDs are independently recoverable and byte-verified in a scoped out-of-repo Git bundle. Otherwise this exact operation does not proceed.",
     "reason": "No separate matching remote WP-012 backup branch exists. The Operator approved a verified scoped bundle as the one-time preservation substitute. This keeps the separate local picotask commits recoverable while permitting the required single stage history commit.",
     "postconditions": "New tip has exactly one recorded predecessor, exact compiled tree and byte-equivalent build inputs. Publish only declared feat/WP-KERNEL-012 through normal fast-forward and independently reread it before R172-14. Never force."
+  },
+  "r172_c1_stage_published_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent log/receipt and Git object verification",
+    "recorded_on": "2026-11-28",
+    "approval_ref": "#/operator_r172_c1_git_exception_20261128",
+    "compile": {
+      "check_id": "R172-C1-PREPUSH-LIB",
+      "checkpoint": "871ab1f76c7561662101229c86b9a9308d7dd7ab",
+      "tree": "be698af2e642458234cfa46eec472e5ba8b3e9bd",
+      "exit_code": 0,
+      "warnings": 566,
+      "elapsed_as_reported": "9m 44s",
+      "peak_target_bytes": 190931302839,
+      "inputs_unchanged": true,
+      "log_sha256": "046a38c93bf8f3fcb275d2152cff2a654a2efacad715cadc2db1325263e43f3c",
+      "result_sha256": "f29d18bcfc07385bf9a2e110d148c1073f5af228c28ba936369a50a24ac33f6b",
+      "slot_release_sha256": "80900091affad91a19a89cea80ab73a6247a03009012ad9fbc12abe0a93b1c83",
+      "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-c1-prebuild-20261128/run-01"
+    },
+    "preservation": {
+      "bundle": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-c1-publication-20261128/revision-172-local-checkpoints.bundle",
+      "verification": "bundle-verification.json in same folder",
+      "bundle_sha256": "241520cf97d7b1e3a80b27e6148ece53b1d19de02027b4c96ecc48635151bb47",
+      "checkpoint_count": 35,
+      "bundled_new_objects_verified": 330,
+      "limitation": "Windows created read-only copies of the verified pack. Their optional cleanup was refused by the command policy and they were left in the same artifact directory."
+    },
+    "pushed": {
+      "branch": "refs/heads/feat/WP-KERNEL-012",
+      "commit": "e46d017c4566a42e7a8bf1e09458fd1dafaa31ae",
+      "sole_parent": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+      "tree": "be698af2e642458234cfa46eec472e5ba8b3e9bd",
+      "named_paths": 18,
+      "local_and_fetched_remote_match": true,
+      "verify_input_index_sha256": "3abb0cccf586806c3ad460b4058f3e02cef4ce5e5b51050c9e87def9c5d87344",
+      "verify_raw_inputs_sha256": "4c3ef284a8f1a0fdd34456e1b51e5d7bda37fef2466c5a4169c7666572e96ce5",
+      "verify_raw_input_count": 7872
+    },
+    "next": "R172-14 focused measurement on pushed exact SHA, then enroll measured pins. C1 compile establishes local stage compile only, no tests or technical verdict."
   }
 }
