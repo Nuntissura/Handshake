@@ -717,11 +717,11 @@ fn the_session_takes_the_lease_then_makes_the_one_ring_with_the_launch_nonce() {
     assert!(code.contains("marker_sink:None,"), "the launcher's marker sink stays empty");
     assert!(!code.contains("marker_sink:Some"), "a function pointer cannot reach the heartbeat's ring writer");
 
-    // main and the example make their ring through the session's maker and name no writer.
+    // main and the example get their ring from the session's start and name no writer or maker.
     for path in ["src/main.rs", "examples/shell_program.rs"] {
-        let text = squeezed(&sample(path, &text_of(path)));
-        assert!(text.contains("make_ring("), "{path} makes its ring through the session's maker");
+        let text = squeezed(&sample(path, &code_only(&text_of(path))));
         assert!(!text.contains("DiagRingWriter"), "{path} names a ring writer");
+        assert!(!text.contains("make_ring(") && !text.contains("fresh_nonce("), "{path} makes a ring of its own");
     }
 
     // Each rule finds what it looks for.
@@ -734,6 +734,82 @@ fn the_session_takes_the_lease_then_makes_the_one_ring_with_the_launch_nonce() {
     );
     let late = squeezed(&late);
     assert!(late.find("make_ring(") < late.find("acquire_embedded_runtime_instance_lease("));
+}
+
+/// What is wrong with the order of the Palmistry start in the text of a binary's source, squeezed (MT-214 S7 P5). `gated` is
+/// the product binary, whose whole session sits inside the `run_product` closure; the example has no gate.
+fn start_order_faults(text: &str, gated: bool) -> Vec<String> {
+    let mut faults = Vec::new();
+    let position = |needle: &str| text.find(needle);
+    let (Some(receipt), Some(start), Some(program), Some(release)) = (
+        position("authority.receipt()"),
+        position("palmistry::start("),
+        position("run_program("),
+        position("drop(lease)"),
+    ) else {
+        return vec!["the receipt, the start, the program or the lease's release is missing".to_owned()];
+    };
+    if !(receipt < start && start < program && program < release) {
+        faults.push("the order is not receipt, start, program, lease released".to_owned());
+    }
+    if text.matches("palmistry::start(").count() != 1 {
+        faults.push("the start is not made exactly once".to_owned());
+    }
+    if gated {
+        match (position("run_product(|authority|"), position("matchoutcome{")) {
+            (Some(gate), Some(after)) if gate < receipt && release < after => {}
+            _ => faults.push("the session is not inside the product gate's closure".to_owned()),
+        }
+    }
+    if !text.contains("Box::new(watcher)") {
+        faults.push("the program is not given the session's watcher".to_owned());
+    }
+    if text.contains("NoWatcher") {
+        faults.push("a binary names NoWatcher".to_owned());
+    }
+    if text.contains("lease:_") || text.contains("let_=") || text.contains("let_:") {
+        faults.push("the lease is bound to `_`".to_owned());
+    }
+    faults
+}
+
+/// MT-214 S7 (P5, AC214-11): the start sits inside the product gate's closure after the receipt and before the program, the
+/// program gets the session's ring and watcher, and the lease lives until the program has returned. The example does the
+/// same without a gate. The watcher's blind window and the endings that leave it untold are written in the state line, the
+/// product binary's documentation and the README.
+#[test]
+fn the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_program() {
+    let _limit = TimeLimit::new(LIMIT);
+    let main = squeezed(&sample("src/main.rs", &code_only(&text_of("src/main.rs"))));
+    let faults = start_order_faults(&main, true);
+    assert!(faults.is_empty(), "main.rs: {faults:#?}");
+    let example = squeezed(&sample("examples/shell_program.rs", &code_only(&text_of("examples/shell_program.rs"))));
+    let faults = start_order_faults(&example, false);
+    assert!(faults.is_empty(), "the example: {faults:#?}");
+
+    // The wording of what the watcher does not cover.
+    let session = text_of("src/palmistry.rs");
+    assert!(session.contains("watched_from=first_heartbeat"), "the state line says where watching starts");
+    assert!(
+        session.contains("untold_on=device_unavailable,loop_failed,heartbeat_refused,shutdown_unsettled,panic"),
+        "the state line names the endings that leave the watcher untold"
+    );
+    let readme = text_of("README.md");
+    assert!(readme.contains("not watched before the first heartbeat"), "the README names the blind window");
+    assert!(readme.contains("left untold"), "the README names the untold endings");
+    assert!(text_of("src/main.rs").contains("not watched"), "the product binary's documentation names the blind window");
+
+    // Each rule finds what it looks for.
+    let sound = "run_product(|authority|{println!(\"{}\",authority.receipt());letstarted=palmistry::start(p);        letStarted{ring,watcher,lease,..}=started;letoutcome=run_program(c,authority,Box::new(watcher));drop(lease);outcome});matchoutcome{";
+    assert!(start_order_faults(sound, true).is_empty());
+    let start_first = "run_product(|authority|{letstarted=palmistry::start(p);println!(\"{}\",authority.receipt());        letStarted{ring,watcher,lease,..}=started;letoutcome=run_program(c,authority,Box::new(watcher));drop(lease);outcome});matchoutcome{";
+    assert!(!start_order_faults(start_first, true).is_empty());
+    let early_release = sound.replace("drop(lease);", "").replace("letoutcome=run_program(", "drop(lease);letoutcome=run_program(");
+    assert!(!start_order_faults(&early_release, true).is_empty());
+    let outside_gate = sound.replace("matchoutcome{", "").replace("outcome});", "outcome});drop(lease);");
+    assert!(!start_order_faults(&outside_gate, true).is_empty());
+    assert!(!start_order_faults(&sound.replace("Box::new(watcher)", "Box::new(NoWatcher)"), true).is_empty());
+    assert!(!start_order_faults(&sound.replace("lease,..", "lease:_,.."), true).is_empty());
 }
 
 /// The `#[test]` functions of a test file that are not `#[ignore]`d, each with its attributes and body (code only).

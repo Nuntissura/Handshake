@@ -6,8 +6,15 @@
 //! authority, its root is an Operator window that takes the focus once at the Operator's launch and whose close ends the
 //! process (WP012-SHELL-ROOT-WINDOW-20261127), and it has no flag that opens a window on a desktop; a run to look at is `examples/shell_program.rs`.
 //!
-//! Options (read only after the gate passed, so a refused start parses nothing): `--diag-ring <path>` makes the
-//! version 2 diagnostics ring the heartbeat writes.
+//! Options (read only after the gate passed, so a refused start parses nothing): `--diag-ring <path>` is the version 2
+//! diagnostics ring's file (without it the launcher's default path for the session is used).
+//!
+//! After the gate the binary prints its receipt, starts the Palmistry session (`handshake_shell::palmistry::start`: lease,
+//! ring, signed launch, handshake marker), prints one `HSK_SHELL_PALMISTRY` state line, and runs the program with the
+//! ring and the watcher. A refused start runs none of this. The watcher is watched from the first heartbeat on, so the
+//! device open and the window creation before the loop starts are not watched; an ending that never reaches the
+//! acknowledgement (no device, exit 4, a failed loop, a refused heartbeat, an unsettled close, a panic) leaves the watcher
+//! untold, and it records the end as unexpected.
 
 use std::process::ExitCode;
 
@@ -29,24 +36,36 @@ fn run() -> ExitCode {
 
 #[cfg(windows)]
 fn run() -> ExitCode {
-    use handshake_shell::palmistry::{fresh_nonce, make_ring};
-    use handshake_shell::{run_product, run_program, NoWatcher, ProgramConfig};
+    use std::path::Path;
+
+    use handshake_shell::palmistry::{self, Started};
+    use handshake_shell::{run_product, run_program, ProgramConfig};
 
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let outcome = run_product(|authority| {
         println!("{}", authority.receipt());
-        let ring = arguments
+        let ring_path = arguments
             .iter()
             .position(|argument| argument == "--diag-ring")
-            .and_then(|at| arguments.get(at + 1))
-            // The shell's one ring maker. Until the Palmistry session is wired in (MT-214 S7 P5) the ring has a nonce of
-            // its own and no watcher reads it.
-            .and_then(|path| make_ring(std::path::Path::new(path), fresh_nonce()).ok());
-        run_program(
+            .and_then(|at| arguments.get(at + 1));
+        // The Palmistry session: the lease, the version 2 ring, the signed launch and its handshake marker. A refusal at any
+        // step is a degrade (no watcher), never a failed start.
+        let started = palmistry::start(ring_path.map(Path::new));
+        println!("{}", started.state_line());
+        let Started {
+            ring,
+            watcher,
+            lease,
+            ..
+        } = started;
+        let outcome = run_program(
             ProgramConfig::operator_root(ring),
             authority,
-            Box::new(NoWatcher),
-        )
+            Box::new(watcher),
+        );
+        // The lease is held until the program has returned.
+        drop(lease);
+        outcome
     });
     match outcome {
         Err(refusal) => {

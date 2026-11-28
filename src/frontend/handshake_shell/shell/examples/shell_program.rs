@@ -40,10 +40,8 @@ fn show(_: &[String]) -> ExitCode {
 fn show(arguments: &[String]) -> ExitCode {
     use std::time::Duration;
 
-    use handshake_shell::palmistry::{fresh_nonce, make_ring};
-    use handshake_shell::{
-        run_program, DeviceAuthority, EndAfter, NoWatcher, ProgramConfig, TestBinary,
-    };
+    use handshake_shell::palmistry::{self, Started};
+    use handshake_shell::{run_program, DeviceAuthority, EndAfter, ProgramConfig, TestBinary};
 
     let value = |name: &str| {
         arguments
@@ -55,18 +53,25 @@ fn show(arguments: &[String]) -> ExitCode {
         .and_then(|seconds| seconds.parse::<u64>().ok())
         .unwrap_or(30)
         .clamp(1, 600);
-    // The shell's one ring maker. Until the Palmistry session is wired in (MT-214 S7 P5) the ring has a nonce of its own
-    // and no watcher reads it.
-    let ring = value("--diag-ring")
-        .and_then(|path| make_ring(std::path::Path::new(path), fresh_nonce()).ok());
     let authority = DeviceAuthority::Test(TestBinary::declare("shell_program_example"));
     println!("{}", authority.receipt());
+    // The Palmistry session, as the product binary starts it: a real watcher only when `HANDSHAKE_HOST_SCOPE_ID` is set and
+    // `HANDSHAKE_PALMISTRY_EXE` (or a `palmistry.exe` beside this one) exists; otherwise it degrades and says so.
+    let started = palmistry::start(value("--diag-ring").map(std::path::Path::new));
+    println!("{}", started.state_line());
+    let Started {
+        ring,
+        watcher,
+        lease,
+        ..
+    } = started;
     let mut config = ProgramConfig::new(ring);
     config.end_after = EndAfter {
         time: Some(Duration::from_secs(seconds)),
         frames_presented: None,
     };
-    let outcome = run_program(config, authority, Box::new(NoWatcher));
+    let outcome = run_program(config, authority, Box::new(watcher));
+    drop(lease);
     if let Some(state) = &outcome.unavailable {
         println!("{}", state.line());
         eprintln!("{}", state.text());

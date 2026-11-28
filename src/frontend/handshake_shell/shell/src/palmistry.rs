@@ -453,3 +453,19 @@ pub fn start_with(ring_path: Option<&Path>, seams: &Seams<'_>) -> Started {
         inputs,
     }
 }
+
+impl Started {
+    /// The one state line the product binary and the example print after the start, before the program runs. It names the
+    /// outcome and says what the watcher does not cover: it is watched from the first heartbeat on (a watcher with no
+    /// heartbeat yet reads the process as healthy), so the device open and the window creation before the loop starts are
+    /// not watched; and an ending that never reaches the acknowledgement (no device, a failed loop, a refused heartbeat, an
+    /// unsettled close, a panic) leaves the watcher untold, so it records the end as unexpected.
+    pub fn state_line(&self) -> String {
+        format!(
+            "HSK_SHELL_PALMISTRY state={} reason={} session={} watched_from=first_heartbeat untold_on=device_unavailable,loop_failed,heartbeat_refused,shutdown_unsettled,panic",
+            self.state.name(),
+            self.state.reason(),
+            self.inputs.session.session_id,
+        )
+    }
+}

@@ -48,16 +48,37 @@ shutdown unsettled, 9 watcher not acknowledged, 10 heartbeat refused (`ExitKind`
 
 Missing from other MTs (nothing was invented): `device.gpu.shell` in the capability registry (MT-219 is not published);
 the kernel issuer's reviewed trust-port binding (NATIVE-RENDER-BOOT-007 defines semantics, no API): `IssuedAuthority` holds
-an uninhabited type until it exists; Core's installation-wide quota ledger (the test binaries use their own policy); a
-toolkit-free Palmistry launcher (`palmistry_launch.rs` is in the egui host), so the watcher seam `ShutdownWatcher` is
-passed `NoWatcher` and the ring is a v1 writer from `--diag-ring`, without the launcher's v2 nonce.
+an uninhabited type until it exists; Core's installation-wide quota ledger (the test binaries use their own policy).
+
+## The Palmistry session (MT-214 S7, AC214-11)
+
+`src/palmistry.rs` is the shell's side of the watcher; the launcher is `palmistry_launch` (MT-215). The product binary
+(after the gate, receipt first) calls `palmistry::start`: session id, lease (`HANDSHAKE_HOST_SCOPE_ID` from the
+environment), the one version 2 ring (`--diag-ring PATH`, else the launcher's default path for the session), the watcher's
+exe (`HANDSHAKE_PALMISTRY_EXE` or a sibling `palmistry.exe`), the one signed launch, and the `PalmistryHandshake` marker.
+It prints one `HSK_SHELL_PALMISTRY state=... reason=... session=...` line, then runs the program with the ring and the
+watcher, and drops the lease only after the program has returned. A refused start (exit 7) runs none of this. Any failure
+of the session is a degrade (reasons `no_host_scope`, `no_lease`, `no_ring`, `exe_not_found`, `spawn_failed`, or state
+`handshake_unconfirmed` for a running watcher whose signed handshake was not confirmed): the program runs without a
+confirmed watcher, which is supplementary. `--diag-ring` now also names the ring a launched watcher reads.
+
+| What | Behaviour |
+| --- | --- |
+| Clean, settled close | the ring's `Shutdown` marker, then the watcher is told (signed) and reaped; exit 0 when it acknowledged or none was connected (an unconfirmed watcher is reported not connected), 9 when a confirmed watcher did not acknowledge |
+| Endings that skip the acknowledgement: no device (exit 4), a failed loop, a refused heartbeat, an unsettled close (exit 8), a panic | the watcher is left untold and records the parent's end as unexpected (Operator decision WP012-MT214-S7-NO-GPU-STOP-20261128: a crash record) |
+| Before the loop starts (device open, window creation) | not watched before the first heartbeat: Palmistry reads a process with no heartbeat yet as healthy, so a hang there is not detected |
+| Crash | no panic hook, exception filter or crash client in this crate; the OS's handler stays; the watcher records the end without a Shutdown |
+| `ManuallyDrop` | an adapter dropped without a question never lets the launcher's handle send a clean Shutdown |
+
+Proof here is shape and fakes: the mapping, the order and the one-launch rules are tested without a process
+(`tests/palmistry_watcher.rs`, `tests/palmistry_session.rs`, `tests/source_scan.rs`). The real handshake, acknowledgement
+and the orphan check are live proofs by a separate agent (P8) and are not supplied by these tests.
 
 Root window (WP012-SHELL-ROOT-WINDOW-20261127, "Operator window, closes app"): the product binary opens its root with
 `ProgramConfig::operator_root`: `WindowClass::Operator`, activated once with the launch authority (`Authority::Launch`)
 when first shown, and closing it ends the process. Detached panes and Settings stay quiet. Tests and examples keep the
 quiet root (`run_program` makes a `TestBinary` quiet whatever its config says); a source scan fails otherwise. The launch
-activation itself needs a real desktop. Windows with `--diag-ring` and `NoWatcher` show `watcher=not_connected` in the
-end line.
+activation itself needs a real desktop. A start without a confirmed watcher shows `watcher=not_connected` in the end line.
 
 Tests: `tests/startup_gate.rs` (no device, any machine), `tests/source_scan.rs`, `tests/shell_program.rs` (real device,
 private desktop, own process; skips without a device unless `HANDSHAKE_REQUIRE_VULKAN_GPU` is not 0).
