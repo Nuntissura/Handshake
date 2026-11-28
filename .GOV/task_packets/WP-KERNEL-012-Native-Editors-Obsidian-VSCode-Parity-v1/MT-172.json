@@ -15028,5 +15028,62 @@
     ],
     "status": "Local product commits independently inspected. No Cargo run, product push, or runtime verdict for these intermediate commits.",
     "next": "R172-08 then the remaining schema stage. R172-10 owns the duplicate preflight; R172-12 owns its negative reopen proof."
+  },
+  "r172_c1_publication_decision_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), specialist and separate red-team reviewed",
+    "recorded_on": "2026-11-28",
+    "source_refs": [
+      "MT-172.json#/rev172_plan_20261127/corrections/0",
+      "MT-172.json#/r172_02b_local_stage_20261128",
+      "adversarial-review.json#/findings/F1",
+      "CX-108",
+      "CX-114",
+      "CX-GIT-002",
+      "CX-EXEC-007"
+    ],
+    "remote_product_tip": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "decision": "Continue approved local picotasks while the stage is assembled. Publish one stage history commit containing the verified final tree, including fix A, rather than publishing the incomplete intermediate chain. Run the lib compile gate, perform the exact pushed-SHA pin measurement, then enroll. No validator round on the unmeasured stage.",
+    "why": "The precedent stage e199a1f4c and enrollment 84b9eb772 are direct single-parent commits. An ordinary push of the checkpoint tip would expose red schema intermediate commits. Detached plumbing alone diverges from the canonical clean worktree required by R172-14. The live WP has no separate matching backup branch to retain checkpoint objects. Before moving the active branch from its completed local checkpoint chain, bind the exact final tip/tree, independently verify preservation of all original commit IDs and obtain the narrow Git authorization if a matching backup remains unavailable.",
+    "review": {
+      "specialist": "r172_scope_specialist",
+      "adversarial": "r172_scope_redteam",
+      "predecessor_enroll": "84b9eb772"
+    },
+    "status": "Technical decision recorded. No rewrite, new branch, product push, build, or lifecycle change."
+  },
+  "r172_08_upgrade_ownership_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), specialist and separate red-team reviewed",
+    "recorded_on": "2026-11-28",
+    "source_refs": [
+      "MT-172.json#/rev172_plan_20261127",
+      "R172-08 local product 3dda4cd469941057b2dc8eb18149c4db6d87199b"
+    ],
+    "local_static": {
+      "commit": "3dda4cd469941057b2dc8eb18149c4db6d87199b",
+      "tree": "355587a651df686228c3ea39f2147055ebadce07",
+      "verification": "21 field headers plus one event body changed, declaration identity inventory unchanged, former transition checks and row 7 definitions intact."
+    },
+    "decisions": [
+      {
+        "family": "167–171",
+        "action": "Emit the entire revision-172 shared delta, and the entire module delta for production. Restore the prior shared source and four exact module bodies for every 167–171 production tuple before hashing and observing the historical catalog.",
+        "why": "These direct upgrade paths do not render full current modules. The previous source/source-plural functions are distinct from Fix A's receipt function."
+      },
+      {
+        "family": "164–166 production",
+        "action": "Let the existing full model-lane fragment own the revision-172 model declarations. Omit only the two changed model purpose identities from the earlier Argus selector, preserve unrelated historical selectors, and append the remaining Loom, UserManual, and Cloud declarations before the global state update. Verify committed Cloud declaration overlap against the older four-header selector.",
+        "why": "All three install the live model module before its registry update. The existing Cloud selector on 164/166 only installs selected definitions; 165 has no Cloud fragment."
+      },
+      {
+        "family": "164, 165 and imported base; 166 base",
+        "action": "Retain the five changed shared identities in the earlier Member emitter on 164/165/imported paths and omit those exact five from the later revision-172 append. Emit the full shared delta on 166.",
+        "why": "The earlier emitter already uses the live four permit snapshot declarations and Fix A receipt definition. 166 does not invoke that emitter."
+      }
+    ],
+    "proof": [
+      "Use the existing revision-166 declaration completeness proof and verify occurrence counts separately from its final-definition map, which collapses duplicates. Use the scheduled exact revision-164 and revision-166 upgrade and restart tests. Count only newly introduced catalog identities in predecessor subtraction; leave all old pins exact.",
+      "Keep the knowledge-entity duplicate preflight immediately before the canonical unique-index statement, inside the same transaction and before the state update."
+    ],
+    "status": "Static R172-08 checkpoint and design for R172-10–12. No Cargo, product push, or runtime verdict."
   }
 }
