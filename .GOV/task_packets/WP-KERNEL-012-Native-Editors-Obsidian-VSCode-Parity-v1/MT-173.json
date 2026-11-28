@@ -5038,5 +5038,33 @@
     },
     "proof": "Static inspect exact file, both predicates, row cardinality, transaction placement and stable receipt identity. Preserve named runtime checks for the pushed stage; no standalone broad run.",
     "lifecycle_change": "None."
+  },
+  "r172_09_cloud_visibility_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), with specialist and independent adversarial review",
+    "recorded_on": "2026-11-28",
+    "authority_refs": [
+      "#/operator_decision_20261126_cloud_consent_revocation",
+      "MT-172.json#/r172_08_upgrade_ownership_20261128"
+    ],
+    "checked_local_commits": [
+      {
+        "commit": "50a2358e5a6b10612430f716d6c644e08d844c11",
+        "tree": "8833c1021ba653e9879ce9fec298300470351eef",
+        "check": "Three named files. Six Cloud and two ModelLane declaration identities in place; two Rust purpose gates and mapping; existing consent receipt @2 and lane terminal @1 used. Initial select scope needed correction."
+      },
+      {
+        "commit": "5e59b19169542b70db2ac55e871b7c41241dbcab",
+        "tree": "84604d37978d0f6b2128e9ce2f8e1f56ddfbfdd7",
+        "check": "One shared read predicate changed. Exact Workspace/Update can read the three base dependencies and two overlays. CloudLane/Create can read consent_revocation for the final launch check. Both append gates unchanged."
+      }
+    ],
+    "implementation_decision": {
+      "read_matrix": "Both authority table reads and linked ledger reads use the corrected same-scope predicate. Standalone CloudRun is unchanged because its protected writer does not inspect the revocation overlay.",
+      "overlays": "Use the complete committed row and linked receipt from the selected kind, validate exact scope and typed parent identities, and preserve stable original records/receipts on identical retries. No rewriting base JSON or stored receipts.",
+      "terminal_refs": "The DB-allocated event ID and sequence carry the terminal evidence; preserve the existing nullable last_recovery_event_ref instead of assigning a provisional UUID.",
+      "transactions": "Reuse genuine Workspace/Update authority on the mounted product route; commit the durable fence before runtime cancellation, then use a separate protected transaction for the terminal write. Preserve the legacy forbidden route and durable cleanup order."
+    },
+    "open_dependency": "The generic SessionCleanupReceipt and durable outbox path for live lanes needs a verified existing authority or an explicitly bounded durable change. Expiry between fence and finalize requires a scope-bounded historical receipt read. No runtime claim.",
+    "lifecycle_change": "none"
   }
 }
