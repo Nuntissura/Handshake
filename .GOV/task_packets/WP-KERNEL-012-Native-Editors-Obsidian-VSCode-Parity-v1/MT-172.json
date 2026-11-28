@@ -15130,5 +15130,40 @@
       "proof": "Existing model_lane_launch_revocation_and_context_switch_fail_closed_on_a_live_launch with genuine Workspace Update and durable scoped cleanup assertion. Its recording sink does not independently prove production outbox durability; the unchanged production worker is the authoritative sink for that evidence."
     },
     "next": "R172-24a scoped HTTP plus two short immutable revocation calls, then separate receipt authority/runtime pieces. One coding picotask at a time."
+  },
+  "r172_24a_and_cleanup_sequence_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), with focused specialist and independent checker",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_cloud_revocation_cleanup_scope_20261128",
+    "checkpoint": {
+      "pico": "R172-24a",
+      "commit": "a3e08614bfd24b25fa18ff3045c5703be3774c21",
+      "tree": "b4e11a4f8ab532350abbb2f7e28604dbd7845d24",
+      "verification": "Two named files. Scoped handler uses current exact-account check and existing Workspace Update authority helper; generic legacy route untouched. Two separate protected store wrappers, stable immutable kind writes, canonical returned results and established terminal diagnostics. Static only."
+    },
+    "checker_decision": {
+      "pico": "R172-23 correction",
+      "finding": "An overlay with the proper run/consent/plan but mismatching immutable base identity could be accepted, and separate ledger and projection queries could straddle a valid commit.",
+      "chosen_correction": "Retain all immutable base values and stream, allowing only the writer's exact revocation/terminal fields and allocated ledger metadata. Query linked ledger/projection in one scoped read and keep canonical linkage validation. Separate one-file picotask."
+    },
+    "cleanup_sequence": [
+      {
+        "slice": "CAS preparation",
+        "reason": "Reuse the unchanged compare-and-swap query/envelope via existing dispatcher. Keep the current documented Storage index and use wrapper normalization when called within the protected transaction. Existing workspace CAS test remains the regression target."
+      },
+      {
+        "slice": "Exact receipt schema",
+        "reason": "Use dedicated cleanup-kind clauses on the existing model authority and kernel receipt gates, scoped to the committed revocation and exact lane/instance/process. Preserve current old paths; include changed definitions in revision 172 inverse and applicable upgrade fragments."
+      },
+      {
+        "slice": "Owned cleanup wiring",
+        "reason": "Typed identity only in pending state. The existing detached owner does not inherit task-locals; use the existing captured operation in the owner in memory, re-enter only around scoped receipt storage, and require an authenticated matching retry. Never carry credential or opaque capture into durable state. Preserve original process STOP and both outbox acknowledgments before completion."
+      },
+      {
+        "slice": "Focused proof",
+        "reason": "Exact live-launch revocation under genuine Workspace Update, canonical completed cleanup receipt, and identical retry. Hold broad suite until its required inputs stabilize."
+      }
+    ],
+    "runtime_verdict": "pending"
   }
 }
