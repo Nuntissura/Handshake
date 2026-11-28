@@ -14827,5 +14827,36 @@
       "o5": "not completed: the depth DDL batch was rejected by the parser (Exceeded expression recursion depth limit at [20:2658], the N=125 function); chains up to N=118 parsed, 125 did not; nothing was defined, so no computation-depth outcome was observed; :189 unclassified"
     },
     "next": "R172-02d: O5 retry, test only (each chain and the mirror defined in its own call, N <= 118, evaluated as projection, root WHERE and record-user gate on the compute-only fixture) to decide A2; then the revision 172 stage from R172-02b (fix A in place at schema.surql:8489) through R172-13 as local commits, one pushed stage commit, measure, enroll, confirm (correction C1)"
+  },
+  "r172_02d_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); commit, push, run.log and pt003-depth.txt hashes and the printed chain_118 errors and baseline verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "picotask": "R172-02d O5 compute-only depth probe retry (#/r172_02c_20261128 o5)",
+    "commit": "d95388db29e615822817d7c14a00aefe8ba52ad3 (pushed, no force): src/backend/handshake_core/src/api/code_nav_index_account_tests.rs only (test code; PT003_REPORT_DIR now MT-172/r172-02d-20261128; depth probe reworked to one DDL call per chain)",
+    "run": "MT-172/r172-02d-20261128/focused-01 on HEAD 133768e6a (src/backend identical to d95388db2, clean): exit 100, 05:22:38Z-05:49:15Z, target peak 193.57e9; run.log sha256 613b7c7ca1c584ee0ef41ac8d3d3357113c2010b417c95c245f676b7d3ea7fb6; pt003-depth.txt sha256 0bc5ea640357cd892f5dd56f87de16c92c5d784b74c836d12ca7f57460037022",
+    "tests": {
+      "pt003_compute_only_depth_probe": "PASS (printer)",
+      "first_owner_workspace_receipt_compute_only_observes_rollback": "FAIL at :189: internal where one_visible expected; run.log:4759 HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY branch=scalar_probe stage=response statement=0 kind=internal internal_family=computation_depth"
+    },
+    "depth_outcomes": {
+      "N_20_40_60_77_80_100_110": "root projection true, root WHERE returns the origins row, function-calling permission gate visible, inline N-term permission gate visible",
+      "N_118": "all four paths: Reached excessive computation depth due to functions, subqueries, or computed values",
+      "mirror_77_with_nested_28": "projection true, WHERE row, gate visible (about 101 deep passes)",
+      "textual_copy_of_production_strict_function": "no depth error; strict_result false and WHERE [] in the unclaimed fixture (state, not error)",
+      "baseline": "production strict function via probe_first_owner_workspace_receipt_projection = Ok(internal)"
+    },
+    "conclusions": {
+      "verified": [
+        "the :189 failure is a computation-depth failure (internal_family=computation_depth)",
+        "on the compute-only path evaluation first fails between N=111 and 118 (110 passes, 118 fails), consistent with the 120 limit minus a small call overhead",
+        "the 77-term strict function alone is below the limit: the 77-term chain, the 77-with-28 mirror and the textual copy raise no depth error"
+      ],
+      "unverified": [
+        "what exceeds the limit: the failing statement is the scalar probe (workspaces.rs:1578-1585, SELECT VALUE true FROM FIRST_OWNER_WORKSPACE_READ's FROM and WHERE inside the claim transaction on the origins table), a statement WHERE of about 45 or more terms with link dereferences evaluated together with the origins SELECT permission predicate that calls the strict function; whether their depths stack is untested",
+        "whether fix A (removing record::exists, itself a record fetch) lowers that combined depth enough for :189"
+      ],
+      "a2": "regrouping the strict function's chain (fix A2) is not supported by this run; the candidate for regrouping, if any, is the statement WHERE of FIRST_OWNER_WORKSPACE_READ (workspaces.rs, MT-173 scope), which needs its own probe"
+    },
+    "next": "R172-02e: evaluate on the :189 compute-only path (a) the exact scalar query text, (b) the same with the strict function patched as fix A, (c) the statement WHERE regrouped into parenthesised blocks of 20 terms; decides whether fix A alone settles :189 or a workspaces.rs change (MT-173) is needed"
   }
 }
