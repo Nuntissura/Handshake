@@ -16052,5 +16052,21 @@
       ]
     },
     "proof": "The shared fixture and inspector changes invalidate the six existing UserManual case proofs. Verify the six plus the changed existing BASE inspector contract. Preserve the separate R172-18 required new same-key different-scope negative as its own coding picotask. No product behavior change or catalog repin."
+  },
+  "r172_18_composed_fixture_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent two-commit scope, direct Git, current receipt predicates and wrapper verification",
+    "recorded_on": "2026-11-28",
+    "basis": "#/r172_18_composed_fixture_and_inspector_decision_20261128",
+    "product_candidate": "4dcc43abc1da9f6755471c112c44cc1afd9ddf3d",
+    "tree": "c12e00d591572c3cc35cceef83c12f2ecccfd7f9",
+    "test_commit": "406c4f0b99bde10fced1ed94b2d82679696d8ffc",
+    "adopted_scope": "MT-172 fixture + fresh BASE contract, then MT-173 inspector and shared schema helper under the approved separate claim. Exactly four authorized files. Actual production schema SQL and all pins unchanged.",
+    "proof": {
+      "state": "Pending",
+      "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-18-user-manual-identity-20261128/catalog-01",
+      "wrapper_sha256": "85f1c3d35209892fee4edfd591a6bf0b2b1c1eac35fdd135b84436c1e0630927",
+      "runner_sha256": "9662bf5d6607f5df4ef105df50815b7a6331f79ba677172a2e0ecae49a6e4382",
+      "scope": "One compatible build. Six existing UserManual cases with composed fixture plus one exact already-existing typed BASE inspector contract. No new collision test in this proof."
+    }
   }
 }
