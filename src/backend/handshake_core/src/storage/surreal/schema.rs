@@ -3487,8 +3487,10 @@ fn imported_schema_upgrade_spans() -> BTreeMap<usize, usize> {
     }
     let start = SCHEMA.find("-- CKC 0337_atelier_ckc_search_tag_notes (MT-011). pg_trgm, pgvector and the")
         .expect("canonical imported Atelier block must exist");
-    let end = start + SCHEMA[start..].find("COMMIT TRANSACTION;")
+    let commit = start + SCHEMA[start..].find("COMMIT TRANSACTION;")
         .expect("canonical imported Atelier block must terminate");
+    let (revision172_start, _) = revision171::shared_block_span();
+    let end = commit.min(revision172_start);
     for line in SCHEMA[start..end].lines().filter(|line| line.starts_with("DEFINE ")) {
         assert!(schema_statements_enclosing(line, &mut spans) > 0);
     }
@@ -14877,6 +14879,34 @@ mod tests {
         }
         assert_eq!(successor, expected_argus,
             "Argus-only emitter must contain exactly its two current canonical definitions");
+
+        let (block_start, block_end) = revision171::shared_block_span();
+        assert!(imported.range(block_start..block_end).next().is_none());
+        let imported_upgrade = mt109_authority_upgrade_query();
+        let emitted = schema_declaration_occurrences(&imported_upgrade);
+        let marked = schema_declaration_occurrences(&SCHEMA[block_start..block_end]);
+        assert_eq!(marked.len(), 30);
+        for expected in marked {
+            let mut definitions = emitted.iter().filter(|item| item.identity == expected.identity);
+            assert_eq!(
+                definitions.next().map(|item| item.statement),
+                Some(expected.statement),
+                "missing or changed imported declaration: {}", expected.identity,
+            );
+            assert!(
+                definitions.next().is_none(),
+                "duplicate imported declaration: {}", expected.identity,
+            );
+        }
+        assert_eq!(
+            imported_upgrade.matches(
+                "REMOVE INDEX IF EXISTS uq_atelier_collection_1 ON TABLE atelier_collection;",
+            ).count(),
+            1,
+        );
+        assert!(!emitted.iter().any(|item|
+            item.identity == "index:atelier_collection:uq_atelier_collection_1"));
+
         let mut resolved_tables = BTreeSet::new();
         for (current, _) in MT154_SCHEMA_DELTAS {
             let mut declarations = current.lines().filter(|line| {

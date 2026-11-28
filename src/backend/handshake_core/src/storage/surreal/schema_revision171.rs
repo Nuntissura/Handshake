@@ -64,7 +64,7 @@ const PRODUCTION_DECLARATIONS: &[(&str, &str, &[(&str, Inverse)])] = &[
     ("cloud_model_lane", include_str!("cloud_model_lane_schema.surql"), CLOUD_MODEL_LANE_DECLARATIONS),
 ];
 
-fn shared_block_span() -> (usize, usize) {
+pub(super) fn shared_block_span() -> (usize, usize) {
     let start = unique_offset(SCHEMA, SHARED_BLOCK_BEGIN).expect("revision 172 shared block begins");
     let end = unique_offset(SCHEMA, SHARED_BLOCK_END).expect("revision 172 shared block ends")
         + SHARED_BLOCK_END.len();
