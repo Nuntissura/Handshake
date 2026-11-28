@@ -15085,5 +15085,30 @@
       "Keep the knowledge-entity duplicate preflight immediately before the canonical unique-index statement, inside the same transaction and before the state update."
     ],
     "status": "Static R172-08 checkpoint and design for R172-10–12. No Cargo, product push, or runtime verdict."
+  },
+  "operator_cloud_revocation_cleanup_scope_20261128": {
+    "decision_id": "WP012-MT172-CLOUD-REVOCATION-CLEANUP-20261128",
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "operator_quote": "Approve exact cleanup scope (Recommended)",
+    "operator_answer_source": "Question reply for exact MT-172 cleanup scope on live cloud cancellation",
+    "dependency": "The mounted Workspace/Update request can durably revoke consent, but current generic SessionCleanupReceipt and kernel ledger rules do not admit its live cancellation cleanup. The coordinator requires those receipts before terminal finalization. The runtime's authorized STOP and outbox owners do not grant cleanup receipt access.",
+    "authorization": "Within MT-172, wire only the typed read/write and linked immutable events for the exact live provider session and process covered by a committed cloud consent revocation. The original Workspace Update and exact owner, actor, session, access space, workspace, run, plan, consent and lane bindings must match. Preserve the current process STOP and outbox authors, checks and ordering.",
+    "allowed_existing_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "src/backend/handshake_core/src/api/operator_chat.rs",
+      "src/backend/handshake_core/tests/model_lane_launch_surreal_tests.rs"
+    ],
+    "decision_reason": "Specialist and independent red team found no reusable record-user cleanup grant or callback. Preserve the canonical receipt handle and audit chain, require exact stored START/instance/process binding, allow only valid atomic cleanup transitions, use stable event IDs and idempotent identical replay, and allow completion only after the current STOP and paired outbox confirmations. The existing scoped live-launch revocation test is the focused runtime proof with the genuine Workspace Update binding and cleanup-completion assertion.",
+    "cloud_expiry_checkpoint": {
+      "commit": "b54e748ef2fd3b82137b73bf41e3240a4cb0e073",
+      "tree": "7516081c90458e42f36de3736caefaa04e182ec0",
+      "verified": "Change is confined to original consent clock checks; only genuine Workspace Update revocation may read an expired receipt, retaining exact links and a valid interval. Existing launch and ordinary reads retain clock gating."
+    },
+    "lifecycle_change": "None. R172-23 remains the sole coding picotask. Split the cleanup dependency into bounded implementation checkpoints after static consensus."
   }
 }
