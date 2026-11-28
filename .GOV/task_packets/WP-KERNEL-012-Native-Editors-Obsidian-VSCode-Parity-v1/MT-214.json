@@ -2874,5 +2874,69 @@
       "native x64 GPU, real IME, real screen reader"
     ],
     "routing": "E9-F1: 8003327ce adds 0.5 s per shutdown without settling anything; fix design goes to a GUI specialist with an adversarial pass, with a per-slot probe from the eval agent; E9-F2 back to diagnosis; egui runtime failures and the cwd-relative artifact path to owner routing (MT-017, MT-033, MT-034, MT-068, MT-069, MT-099)"
+  },
+  "s7_p1_p3_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commits, push, test counts, banned-crate tree, lock removals and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "authority": "#/s7_palmistry_plan_20261127, #/s7_palmistry_plan_review_20261127, #/operator_decision_20261128_s7_no_gpu_stop",
+    "commits": {
+      "P1": "a9f14bab1: shell/Cargo.toml (palmistry_launch, handshake_runtime_instance, uuid =1.23.3 v7, zeroize =1.9.0, rand =0.9.4, pinned to the launcher) and src/frontend/handshake_shell/Cargo.lock",
+      "P2": "f81ce5cd3: program.rs (ProgramConfig and ProgramApp ring and heartbeat sink are DiagRingWriterV2; Shutdown marker DiagEventV2; ring_marked is the bool ring.write returns), main.rs and examples/shell_program.rs (transitional v2 ring until P4a), tests/shell_program.rs (own V2 ring, read back with DiagRingReaderV2; rings == 3 at source_scan.rs:723 stays exact)",
+      "P3": "0a956b785: shell/src/palmistry.rs (cfg(windows) OwnedWatcher, fail-closed watcher_ack, PalmistryWatcher holding RefCell<Option<ManuallyDrop<Box<dyn OwnedWatcher>>>>, no Drop impl), lib.rs, shutdown.rs, tests/palmistry_watcher.rs (6 tests), tests/source_scan.rs (scan edits for P1-P3: dependency list, KNOWN_MEMBERS, :849 signature, whole-word no-v1 scan, ended() order scan, adapter scan)",
+      "pushed": "2a5653cba..0a956b785, no force",
+      "bisect_note": "source_scan.rs with the P1-P3 scan edits sits in P3, so P1 and P2 alone are not green against the scan"
+    },
+    "proof": {
+      "check": "first check compiled clean",
+      "clippy": "-D warnings first failed on two clippy::drop_non_drop lints in tests/palmistry_watcher.rs; #[allow] added on those two tests; rerun clean",
+      "tests": "--locked --offline, no GPU, no watcher: palmistry_watcher 6, source_scan 16, startup_gate 7, unavailable 5, all pass (s7-final-tests.log)",
+      "tree": "no egui, eframe, wgpu, glow, epaint, emath, ecolor, kumihimo or handshake-native in the closure (s7-tree.log, 0 matches); winit 0.30.13 is the window crate's existing private dependency"
+    },
+    "lock_delta": {
+      "added": "43 packages: 41 new names and 2 new semver lines (getrandom 0.4.3, r-efi 6.0.0)",
+      "changed": "cargo re-resolved one existing edge: winapi-util 0.1.11 now depends on windows-sys 0.61.2 instead of 0.48.0",
+      "removed": "windows-sys 0.48.0, windows-targets 0.48.5 and seven windows_* 0.48.5 crates, now unreferenced and pruned; references to windows-targets 0.52.6 and its platform crates lose their version suffix because one version remains",
+      "deviation": "the plan's own additive-only stop condition fired; the coder continued because cargo made the change unprompted; no Codex or HBR rule found that forbids a resolver re-selection within a declared range; disposition pending the dependency checker's review (winapi-util declared range and its users in the closure)",
+      "cx_val_011": "lockfile dependency set changed: the next validation round is full-scope"
+    },
+    "mutations": {
+      "caught": [
+        "M1 ExitedUncleanly to Acknowledged (mapping test)",
+        "S5 unsigned to Acknowledged (mapping test)",
+        "S5b failing status still Acknowledged (mapping test)",
+        "M2 ManuallyDrop removed (compile error only, not a test; the ManuallyDrop scan would also fail)",
+        "M10 unconfirmed treated as confirmed (asked-once test)",
+        "S1 confirmed = true hardcoded (adapter scan)",
+        "M11 v1 DiagRingWriter in shell/src (no-v1 scan)",
+        "ring_marked = true unconditional (ended() scan)",
+        "M3 watcher asked outside the settled check (first a survivor; scan strengthened to require the marker and the question inside the settled block; rerun caught)"
+      ],
+      "dropped_as_unsound": [
+        "S6",
+        "P1 dependency-list drift"
+      ]
+    },
+    "logs_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs",
+    "logs_sha256_prefix": {
+      "s7-lock-before.lock": "8e7585e6dd913444",
+      "s7-lockdelta.log": "fff5242995881aef",
+      "s7-p1-check-1.log": "377359352ebe8b90",
+      "s7-check-locked.log": "07cf128b6a4a514c",
+      "s7-final-clippy.log": "e5c85d9c20f10637",
+      "s7-final-tests.log": "f6b1a3f28ff95d23",
+      "s7-tree.log": "84c17a1acc5ff852",
+      "s7-mut-M1-uncleanly-acknowledged.log": "fcb61d0261a903ec",
+      "s7-mut-S5-unsigned-acknowledged.log": "d7fec0c4396c4ac2",
+      "s7-mut-S5b-failing-status-acknowledged.log": "76432df86b43d6dc",
+      "s7-mut-M2-adapter-drops-watcher.log": "8c6147d491ffa216",
+      "s7-mut-M10-unconfirmed-acknowledged.log": "370f72334f1d6047",
+      "s7-mut-S1-confirmed-hardcoded.log": "1687d7a45696d72d",
+      "s7-mut-M11-v1-writer-named.log": "d7956bfd0f7f0813",
+      "s7-mut-P2-ring_marked-true-unconditional.log": "518f3e90ff9aec9a",
+      "s7-mut-M3-watcher-asked-before-settled-check.log": "0c327b2e1551fe8f",
+      "s7-mut-v2-M3-watcher-asked-before-settled-check.log": "7a3d39a6db9ffa68"
+    },
+    "unproven": "real-watcher acknowledgement; shell_program GPU test (compiles only); v2 marker read-back in shell_program.rs",
+    "next": "P4a onward (session via LaunchSession, lease, ring creation, signed launch, argv seam, wiring) carrying C3, C5, C7, C8, C11, C12 and the remaining S-mutations; checker static review of P1-P3 including the lock re-resolution"
   }
 }
