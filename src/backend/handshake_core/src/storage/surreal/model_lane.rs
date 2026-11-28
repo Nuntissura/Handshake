@@ -12088,59 +12088,218 @@ mod receipt_writer_schema_tests {
 
 #[cfg(test)]
 mod if_branch_subquery_guard_tests {
-    //! PT-ARRAYLEN (MT-172, MT-173). SurrealDB 3.2.0 evaluates `LET $x = IF cond <block holding only a
-    //! parenthesized SELECT> ELSE <block>` to NONE (not an array) when the first block is taken; the SELECT
-    //! as the block's lone expression is dropped. Measured on the production schema composition: the
-    //! literal `[]` branch, a SELECT without the IF, an inner `LET $t = (SELECT ..); $t` block, and a
-    //! condition folded into the WHERE yield arrays; the lone-SELECT block yields NONE, with or without
-    //! parentheses around the IF and inside or outside BEGIN/COMMIT. Every following
-    //! `array::len($x)` then fails with "Expected `array` but found `NONE`" (the SC-3b routing message and
-    //! binding commit; the SC-4 reindex of an unattributed index row). The writers in these files use
-    //! the inner-LET form; this guard keeps the lone-SELECT block form out of them (TRQ-01 added
-    //! user_manual_knowledge.rs).
-    fn collapsed(source: &str) -> String {
-        source.split_whitespace().collect::<Vec<_>>().join(" ")
+    //! PT-ARRAYLEN and PT-ARRAYLEN-2 (MT-172, MT-173). SurrealDB 3.2.0 evaluates `LET $x = IF cond <block
+    //! holding only a SELECT> ELSE <block>` to NONE (not an array) when the first block is taken; the SELECT
+    //! as the block's lone expression is unwrapped, with or without parentheses around it. Measured on the
+    //! production schema composition: the literal `[]` branch, a SELECT without the IF, an inner
+    //! `LET $t = (SELECT ..); $t` block and a condition folded into the WHERE yield arrays; the lone-SELECT
+    //! block yields NONE for no rows, the bare row for exactly one row and an array only for two or more (probes
+    //! PT-ARRAYLEN-2 C1, C1b, C3), inside or outside BEGIN/COMMIT. Every following `array::len($x)` then fails with
+    //! "Expected `array` but found `NONE`". The writers use the inner-LET form.
+    //!
+    //! The guard reads every `.rs` and `.surql` file under this crate's `src` and flags each `{` whose
+    //! first token is a SELECT, so a new site anywhere is caught. It reads whitespace, an optional `(`, the
+    //! Rust string continuation `\<newline>` and the escapes `\n \r \t` between the brace and the keyword,
+    //! and the keyword in any case. Sites outside the owning MTs are listed in `OUT_OF_SCOPE`, one exact
+    //! `(file, line)` entry each (no wildcards); an entry that no longer matches fails too, so the list
+    //! cannot go stale.
+    use std::path::{Path, PathBuf};
+
+    const KEYWORD: &[u8] = b"select";
+
+    /// One `{` whose first token is a SELECT: its 1-based line, and whether a `(` sits between them.
+    #[derive(Debug, PartialEq, Eq)]
+    struct LoneSelect {
+        line: usize,
+        parenthesized: bool,
     }
 
-    /// Count of branch blocks whose lone expression is a SELECT: the parenthesized form, and, when
-    /// `bare` is set, the unparenthesized form (checker finding F4: also a non-array on 3.2.0).
-    fn lone_select_blocks(source: &str, bare: bool) -> usize {
-        // Built from parts so this test's own text is not a match.
-        let paren = ["{ (", "SELECT"].concat();
-        let plain = ["{ ", "SELECT"].concat();
-        let flat = collapsed(source);
-        let mut hits = flat.matches(paren.as_str()).count();
-        if bare {
-            hits += flat.matches(plain.as_str()).count();
+    fn lone_select_blocks(source: &str) -> Vec<LoneSelect> {
+        let bytes = source.as_bytes();
+        let mut hits = Vec::new();
+        let mut line = 1;
+        for (open, &byte) in bytes.iter().enumerate() {
+            if byte == b'\n' {
+                line += 1;
+            }
+            if byte != b'{' {
+                continue;
+            }
+            let (mut at, mut parenthesized) = (open + 1, false);
+            loop {
+                match bytes.get(at) {
+                    Some(next) if next.is_ascii_whitespace() => at += 1,
+                    Some(b'(') => {
+                        parenthesized = true;
+                        at += 1;
+                    }
+                    Some(b'\\') if matches!(bytes.get(at + 1), Some(b'\n' | b'\r' | b'n' | b'r' | b't')) => at += 2,
+                    _ => break,
+                }
+            }
+            let keyword = bytes.get(at..at + KEYWORD.len()).is_some_and(|word| word.eq_ignore_ascii_case(KEYWORD));
+            let boundary = matches!(bytes.get(at + KEYWORD.len()), Some(next) if next.is_ascii_whitespace() || *next == b'*' || *next == b'\\');
+            if keyword && boundary {
+                hits.push(LoneSelect { line, parenthesized });
+            }
         }
         hits
     }
 
+    /// A site the guard reports but this picotask does not own.
+    struct OutOfScope {
+        file: &'static str,
+        line: usize,
+        owner_mt: &'static str,
+        /// Result of the PT-ARRAYLEN-2 probe on SurrealDB 3.2.0 for this exact shape.
+        probe: &'static str,
+        reason: &'static str,
+    }
+
+    const OUT_OF_SCOPE: &[OutOfScope] = &[
+        OutOfScope {
+            file: "atelier/pose.rs",
+            line: 2967,
+            owner_mt: "MT-171, MT-141",
+            probe: "not live: ELSE-branch (SELECT cols FROM ONLY $existing) returns the row object (probe E1, 3.2.0)",
+            reason: "FROM ONLY yields the row object by design; the value is read as a record, never as an array",
+        },
+        OutOfScope {
+            file: "atelier/pose.rs",
+            line: 2971,
+            owner_mt: "MT-171, MT-141",
+            probe: "not live: RETURN IF NONE-branch (SELECT cols FROM ONLY $id) returns the row object (probe E3, 3.2.0)",
+            reason: "FROM ONLY yields the row object by design; the value is returned as a record",
+        },
+        OutOfScope {
+            file: "atelier/pose.rs",
+            line: 3017,
+            owner_mt: "MT-171, MT-141",
+            probe: "not live: (SELECT VALUE id .. LIMIT 1)[0] returns the record id (probe E6, 3.2.0)",
+            reason: "the [0] index is applied to the SELECT result, so the lone-block unwrapping does not change the value",
+        },
+        OutOfScope {
+            file: "atelier/pose.rs",
+            line: 3026,
+            owner_mt: "MT-171, MT-141",
+            probe: "LIVE: (SELECT VALUE record::id(..)) as the lone block gives NONE for 0 rows and a bare string for 1 row (probes E7b, E7c, 3.2.0); the Rust read at pose.rs 3920 decodes it as Vec<Uuid>",
+            reason: "not fixed here: pose.rs belongs to MT-171 and MT-141; needs the inner-LET form there",
+        },
+        OutOfScope {
+            file: "knowledge_code_index/engine.rs",
+            line: 166,
+            owner_mt: "MT-171",
+            probe: "not live: ELSE-branch (SELECT VALUE x FROM $lease)[0] returns the value (probe E4, 3.2.0)",
+            reason: "the [0] index is applied to the SELECT result, so the lone-block unwrapping does not change the value",
+        },
+        OutOfScope {
+            file: "atelier/model_lease.rs",
+            line: 257,
+            owner_mt: "MT-171",
+            probe: "not live: one holder gives an object, zero gives NONE, and the following SELECT * FROM $holders still yields arrays with the right lengths (probes E8b, E8c, E8d, 3.2.0)",
+            reason: "the holders value is only re-selected, never array-measured directly; inner-LET form is still advisable in MT-171",
+        },
+        OutOfScope {
+            file: "storage/surreal.rs",
+            line: 5647,
+            owner_mt: "MT-172, MT-173",
+            probe: "not live: a top-level IF whose first branch is a bare SELECT statement returns the row, which the Vec decode takes as one element (probe E9 through query_values_at, 3.2.0)",
+            reason: "a statement result, not a LET bound value measured by array::len",
+        },
+    ];
+
+    fn source_files(dir: &Path, out: &mut Vec<PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("read a source directory") {
+            let path = entry.expect("read a directory entry").path();
+            if path.is_dir() {
+                source_files(&path, out);
+            } else if matches!(path.extension().and_then(|extension| extension.to_str()), Some("rs" | "surql")) {
+                out.push(path);
+            }
+        }
+    }
+
+    /// Hits not covered by an allowlist entry, and allowlist entries that no longer match a hit.
+    fn disposition(hits: &[(String, usize)], allowed: &[OutOfScope]) -> (Vec<String>, Vec<String>) {
+        let unlisted = hits
+            .iter()
+            .filter(|(file, line)| !allowed.iter().any(|entry| entry.file == file && entry.line == *line))
+            .map(|(file, line)| format!("{file}:{line}"))
+            .collect();
+        let stale = allowed
+            .iter()
+            .filter(|entry| !hits.iter().any(|(file, line)| entry.file == file && entry.line == *line))
+            .map(|entry| format!("{}:{}", entry.file, entry.line))
+            .collect();
+        (unlisted, stale)
+    }
+
     #[test]
-    fn no_if_branch_holds_only_a_parenthesized_select() {
-        for (file, source, bare) in [
-            ("model_lane.rs", include_str!("model_lane.rs"), false),
-            ("loom_search.rs", include_str!("loom_search.rs"), false),
-            // TRQ-01: the bare form is also forbidden here (the other files are a separate picotask).
-            ("user_manual_knowledge.rs", include_str!("user_manual_knowledge.rs"), true),
-        ] {
-            let hits = lone_select_blocks(source, bare);
-            assert_eq!(hits, 0, "{file}: {hits} branch block(s) hold only a subquery; bind it with an inner LET and return the variable");
+    fn no_if_branch_in_the_crate_holds_only_a_select() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut files = Vec::new();
+        source_files(&root, &mut files);
+        assert!(files.len() > 100, "the scan must reach the whole crate, found {} files", files.len());
+        let mut hits = Vec::new();
+        for path in files {
+            let source = std::fs::read_to_string(&path).expect("read a source file");
+            let relative = path.strip_prefix(&root).expect("under src").to_string_lossy().replace('\\', "/");
+            hits.extend(lone_select_blocks(&source).into_iter().map(|hit| (relative.clone(), hit.line)));
+        }
+        let (unlisted, stale) = disposition(&hits, OUT_OF_SCOPE);
+        assert!(
+            unlisted.is_empty(),
+            "branch block(s) hold only a SELECT, which SurrealDB 3.2.0 evaluates to NONE; bind it with an inner LET and return the variable: {unlisted:?}"
+        );
+        assert!(stale.is_empty(), "OUT_OF_SCOPE entries no longer match a hit; update or remove them: {stale:?}");
+        for entry in OUT_OF_SCOPE {
+            assert!(
+                !entry.owner_mt.is_empty() && !entry.probe.is_empty() && !entry.reason.is_empty(),
+                "{}:{} needs an owner, a probe result and a reason",
+                entry.file,
+                entry.line
+            );
         }
     }
 
     #[test]
-    fn lone_select_matcher_flags_known_bad_forms_and_passes_the_inner_let_form() {
-        // Positive controls: the matcher must flag the known-bad strings.
-        let bad_paren = ["LET $x = IF c { (", "SELECT a FROM t LIMIT 2) } ELSE { [] };"].concat();
-        let bad_bare = ["LET $x = IF c {
-    ", "SELECT a FROM t LIMIT 2
-} ELSE { [] };"].concat();
-        assert_eq!(lone_select_blocks(&bad_paren, false), 1);
-        assert_eq!(lone_select_blocks(&bad_paren, true), 1);
-        assert_eq!(lone_select_blocks(&bad_bare, true), 1);
-        // Negative control: the inner-LET form is not flagged.
-        let good = ["LET $x = IF c { LET $r = (", "SELECT a FROM t LIMIT 2); $r } ELSE { [] };"].concat();
-        assert_eq!(lone_select_blocks(&good, true), 0);
+    fn matcher_flags_every_known_bad_form_and_passes_the_inner_let_form() {
+        // Positive controls, each built from parts so this file's own text is not a match.
+        let bad_forms: [(&str, String, bool); 9] = [
+            ("parenthesized", ["LET $x = IF c { (", "SELECT a FROM t LIMIT 2) } ELSE { [] };"].concat(), true),
+            ("parenthesized, no space", ["LET $x = IF c {(", "SELECT a FROM t) } ELSE { [] };"].concat(), true),
+            ("parenthesized, spaced paren", ["LET $x = IF c { ( ", "SELECT a FROM t ) } ELSE { [] };"].concat(), true),
+            ("lowercase", ["LET $x = IF c { (", "select a from t) } ELSE { [] };"].concat(), true),
+            ("bare", ["LET $x = IF c { ", "SELECT a FROM t LIMIT 2 } ELSE { [] };"].concat(), false),
+            ("bare, multi-line", ["LET $x = IF c {\n    ", "SELECT a FROM t LIMIT 2\n} ELSE { [] };"].concat(), false),
+            ("string continuation", ["LET $x = IF c { \\\n       (", "SELECT a FROM t) \\\n } ELSE { [] };"].concat(), true),
+            ("string escape", ["LET $x = IF c {\\n  (", "SELECT a FROM t) } ELSE { [] };"].concat(), true),
+            ("else branch", ["LET $x = IF c { [] } ELSE { (", "SELECT VALUE a FROM $y)[0] };"].concat(), true),
+        ];
+        for (name, source, parenthesized) in bad_forms {
+            let hits = lone_select_blocks(&source);
+            assert_eq!(hits.len(), 1, "{name}: {hits:?}");
+            assert_eq!(hits[0].parenthesized, parenthesized, "{name}");
+        }
+        // Negative controls: the inner-LET form, a format placeholder and an import list are not flagged.
+        let good_let = ["LET $x = IF c { LET $r = (", "SELECT a FROM t LIMIT 2); $r } ELSE { [] };"].concat();
+        assert!(lone_select_blocks(&good_let).is_empty());
+        let placeholder = ["format!(\"{", "select};\")"].concat();
+        assert!(lone_select_blocks(&placeholder).is_empty());
+        let import = ["use crate::sandbox::{", "select, TrustClass};"].concat();
+        assert!(lone_select_blocks(&import).is_empty());
+        let identifier = ["if ready { ", "selected = 1; }"].concat();
+        assert!(lone_select_blocks(&identifier).is_empty());
+    }
+
+    #[test]
+    fn disposition_reports_unlisted_hits_and_stale_entries() {
+        let allowed = [OutOfScope { file: "a.rs", line: 3, owner_mt: "MT-0", probe: "p", reason: "r" }];
+        let (unlisted, stale) = disposition(&[("a.rs".to_owned(), 3), ("b.rs".to_owned(), 9)], &allowed);
+        assert_eq!(unlisted, vec!["b.rs:9".to_owned()]);
+        assert!(stale.is_empty());
+        let (unlisted, stale) = disposition(&[("a.rs".to_owned(), 4)], &allowed);
+        assert_eq!(unlisted, vec!["a.rs:4".to_owned()]);
+        assert_eq!(stale, vec!["a.rs:3".to_owned()]);
     }
 }

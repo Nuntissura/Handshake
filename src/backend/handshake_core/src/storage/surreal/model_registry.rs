@@ -108,6 +108,80 @@ mod tests {
             assert_eq!(observed, Value::Bool(matches), "actual={actual}, expected={expected}");
         }
     }
+
+    /// PT-ARRAYLEN-2 (MT-172, MT-173): SurrealDB 3.2.0 evaluates a branch block whose only expression is a
+    /// SELECT to NONE for no rows, to the bare row object for exactly one row, and to an array only for two
+    /// or more, so the read query's `array::len($receipts)` failed whenever a registration row existed
+    /// (one row, one receipt). The production read query now binds the subquery with an inner LET: with one
+    /// stored row and its one receipt it returns exactly that row. The pre-fix text, rebuilt below from the
+    /// production text, fails on this engine, which ties the test to the bug.
+    #[tokio::test]
+    async fn read_registration_query_returns_the_stored_row_through_its_receipt_branches() {
+        use super::{ExactScopeBindings, ReadRegistrationBindings, READ_REGISTRATION_QUERY};
+        use surrealdb::types::{RecordId, SurrealValue};
+
+        let client = Surreal::new::<Mem>(()).await.expect("open isolated Mem store");
+        client.use_ns("read_registration").use_db("read_registration").await.expect("select Mem context");
+        client
+            .query(
+                "CREATE kernel_event_ledger:ev1 SET event_id = 'ev1', event_type = 'MODEL_RUNTIME_SELECTION_RECORDED',
+                    aggregate_type = 'model_runtime_registry', aggregate_id = 'row1',
+                    payload = { mutation_fingerprint: 'mf', selection_revision: 1 },
+                    owner_account_id = 'owner', actor_principal_id = 'actor',
+                    authenticated_session_id = 'session', access_space_id = 'space', workspace_id = 'ws';
+                 CREATE model_runtime_registry:row1 SET registry_row_id = 'row1', artifact_sha256 = 'aa',
+                    lifecycle_state = 'active', selection_revision = 1,
+                    selection_created_event_id = kernel_event_ledger:ev1,
+                    selection_updated_event_id = kernel_event_ledger:ev1,
+                    mutation_fingerprint = 'mf', latest_mutation_fingerprint = 'mf',
+                    current_selection_fingerprint = 'cf',
+                    owner_account_id = 'owner', actor_principal_id = 'actor',
+                    authenticated_session_id = 'session', access_space_id = 'space',
+                    workspace_id = workspaces:ws;",
+            )
+            .await
+            .expect("seed the registry row and its receipt")
+            .check()
+            .expect("seed statements succeed");
+        let bindings = || {
+            ReadRegistrationBindings {
+                scope: ExactScopeBindings {
+                    owner_account_id: "owner".to_owned(),
+                    actor_principal_id: "actor".to_owned(),
+                    authenticated_session_id: "session".to_owned(),
+                    access_space_id: "space".to_owned(),
+                    workspace_id: RecordId::new("workspaces", "ws"),
+                },
+                artifact_sha256: "aa".to_owned(),
+            }
+            .into_value()
+        };
+
+        let mut response = client
+            .query(READ_REGISTRATION_QUERY)
+            .bind(bindings())
+            .await
+            .expect("run the production read query")
+            .check()
+            .expect("the production read query succeeds when a row exists");
+        // Statement 5 is the query's `RETURN $rows` (see `load_by_artifact_sha256`).
+        let rows: Value = response.take(5).expect("decode the returned rows");
+        let Value::Array(rows) = rows else {
+            panic!("the read query must return an array, got {rows:?}");
+        };
+        assert_eq!(rows.len(), 1, "the stored registration row is returned");
+
+        // The pre-fix text: the subqueries as the lone expression of their branch blocks.
+        let unfixed = READ_REGISTRATION_QUERY
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .replace("LET $hsk_rows = (", "(")
+            .replace("LIMIT 2); $hsk_rows }", "LIMIT 2) }");
+        assert!(!unfixed.contains("$hsk_rows"), "the pre-fix rebuild removed the inner LET");
+        let outcome = client.query(unfixed).bind(bindings()).await.expect("send the pre-fix query").check();
+        assert!(outcome.is_err(), "the pre-fix form no longer fails on this engine: the inner LET may be retired");
+    }
 }
 
 #[derive(Clone)]
@@ -375,7 +449,7 @@ WHERE owner_account_id = $scope.owner_account_id
   AND artifact_sha256 = $artifact_sha256
 LIMIT 2);
 LET $receipts = IF array::len($rows) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $rows[0].selection_updated_event_id
        AND aggregate_type = 'model_runtime_registry'
        AND aggregate_id = $rows[0].registry_row_id
@@ -386,10 +460,11 @@ LET $receipts = IF array::len($rows) = 1 {
        AND authenticated_session_id = $scope.authenticated_session_id
        AND access_space_id = $scope.access_space_id
        AND workspace_id = record::id($scope.workspace_id)
-     LIMIT 2)
+     LIMIT 2);
+    $hsk_rows
 } ELSE { [] };
 LET $created_receipts = IF array::len($rows) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $rows[0].selection_created_event_id
        AND event_type = 'MODEL_RUNTIME_SELECTION_RECORDED'
        AND aggregate_type = 'model_runtime_registry'
@@ -401,7 +476,8 @@ LET $created_receipts = IF array::len($rows) = 1 {
        AND authenticated_session_id = $scope.authenticated_session_id
        AND access_space_id = $scope.access_space_id
        AND workspace_id = record::id($scope.workspace_id)
-     LIMIT 2)
+     LIMIT 2);
+    $hsk_rows
 } ELSE { [] };
 IF array::len($rows) > 1 OR array::len($receipts) > 1
    OR array::len($created_receipts) > 1 {
@@ -488,7 +564,7 @@ FOR $item IN $rows {
       AND artifact_sha256 = $item.content.artifact_sha256
     LIMIT 2);
     LET $latest_receipt = IF array::len($existing) = 1 {
-        (SELECT event_id FROM kernel_event_ledger
+        LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
          WHERE event_id = $existing[0].selection_updated_event_id
            AND aggregate_type = 'model_runtime_registry'
            AND aggregate_id = $existing[0].registry_row_id
@@ -499,10 +575,11 @@ FOR $item IN $rows {
            AND authenticated_session_id = $item.content.authenticated_session_id
            AND access_space_id = $item.content.access_space_id
            AND workspace_id = record::id($item.content.workspace_id)
-         LIMIT 2)
+         LIMIT 2);
+        $hsk_rows
     } ELSE { [] };
     LET $created_receipt = IF array::len($existing) = 1 {
-        (SELECT event_id FROM kernel_event_ledger
+        LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
          WHERE event_id = $existing[0].selection_created_event_id
            AND event_type = 'MODEL_RUNTIME_SELECTION_RECORDED'
            AND aggregate_type = 'model_runtime_registry'
@@ -514,7 +591,8 @@ FOR $item IN $rows {
            AND authenticated_session_id = $item.content.authenticated_session_id
            AND access_space_id = $item.content.access_space_id
            AND workspace_id = record::id($item.content.workspace_id)
-         LIMIT 2)
+         LIMIT 2);
+        $hsk_rows
     } ELSE { [] };
     LET $event_existing = (SELECT event_id FROM kernel_event_ledger
      WHERE idempotency_key = $item.event.idempotency_key LIMIT 2);
@@ -589,7 +667,7 @@ WHERE owner_account_id = $scope.owner_account_id
   AND artifact_sha256 = $artifact_sha256
 LIMIT 2);
 LET $latest_receipt = IF array::len($rows) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $rows[0].selection_updated_event_id
        AND aggregate_type = 'model_runtime_registry'
        AND aggregate_id = $rows[0].registry_row_id
@@ -600,7 +678,8 @@ LET $latest_receipt = IF array::len($rows) = 1 {
        AND authenticated_session_id = $scope.authenticated_session_id
        AND access_space_id = $scope.access_space_id
        AND workspace_id = record::id($scope.workspace_id)
-     LIMIT 2)
+     LIMIT 2);
+    $hsk_rows
 } ELSE { [] };
 LET $request_receipt = (SELECT event_id FROM kernel_event_ledger
  WHERE idempotency_key = $event.idempotency_key LIMIT 2);
@@ -754,17 +833,18 @@ FOR $item IN $rows {
        AND purpose = $item.content.purpose
      LIMIT 2);
     LET $selected = IF array::len($existing) = 1 {
-        (SELECT runtime_role, lifecycle_state FROM model_runtime_registry
+        LET $hsk_rows = (SELECT runtime_role, lifecycle_state FROM model_runtime_registry
          WHERE owner_account_id = $item.content.owner_account_id
            AND actor_principal_id = $item.content.actor_principal_id
            AND authenticated_session_id = $item.content.authenticated_session_id
            AND access_space_id = $item.content.access_space_id
            AND workspace_id = $item.content.workspace_id
            AND artifact_sha256 = $existing[0].artifact_sha256
-         LIMIT 2)
+         LIMIT 2);
+        $hsk_rows
     } ELSE { [] };
     LET $existing_receipt = IF array::len($existing) = 1 {
-        (SELECT event_id FROM kernel_event_ledger
+        LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
          WHERE event_id = $existing[0].selection_updated_event_id
            AND aggregate_type = 'model_runtime_active_selection'
            AND aggregate_id = $existing[0].purpose
@@ -775,10 +855,11 @@ FOR $item IN $rows {
            AND authenticated_session_id = $item.content.authenticated_session_id
            AND access_space_id = $item.content.access_space_id
            AND workspace_id = record::id($item.content.workspace_id)
-         LIMIT 2)
+         LIMIT 2);
+        $hsk_rows
     } ELSE { [] };
     LET $created_receipt = IF array::len($existing) = 1 {
-        (SELECT event_id FROM kernel_event_ledger
+        LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
          WHERE event_id = $existing[0].selection_created_event_id
            AND event_type = 'MODEL_RUNTIME_SELECTION_RECORDED'
            AND aggregate_type = 'model_runtime_active_selection'
@@ -791,7 +872,8 @@ FOR $item IN $rows {
            AND authenticated_session_id = $item.content.authenticated_session_id
            AND access_space_id = $item.content.access_space_id
            AND workspace_id = record::id($item.content.workspace_id)
-         LIMIT 2)
+         LIMIT 2);
+        $hsk_rows
     } ELSE { [] };
     LET $event_existing = (SELECT event_id FROM kernel_event_ledger
      WHERE idempotency_key = $item.event.idempotency_key LIMIT 2);
@@ -862,7 +944,7 @@ LET $rows = (SELECT id, purpose, runtime_role, artifact_sha256,
    AND purpose = $purpose
  LIMIT 2);
 LET $latest_receipt = IF array::len($rows) = 1 {
-    (SELECT event_id FROM kernel_event_ledger
+    LET $hsk_rows = (SELECT event_id FROM kernel_event_ledger
      WHERE event_id = $rows[0].selection_updated_event_id
        AND aggregate_type = 'model_runtime_active_selection'
        AND aggregate_id = $rows[0].purpose
@@ -873,7 +955,8 @@ LET $latest_receipt = IF array::len($rows) = 1 {
        AND authenticated_session_id = $scope.authenticated_session_id
        AND access_space_id = $scope.access_space_id
        AND workspace_id = record::id($scope.workspace_id)
-     LIMIT 2)
+     LIMIT 2);
+    $hsk_rows
 } ELSE { [] };
 LET $request_receipt = (SELECT event_id FROM kernel_event_ledger
  WHERE idempotency_key = $event.idempotency_key LIMIT 2);
