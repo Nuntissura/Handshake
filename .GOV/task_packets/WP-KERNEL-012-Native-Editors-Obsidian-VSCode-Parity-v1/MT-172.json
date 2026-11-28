@@ -14871,5 +14871,31 @@
       "(c) and (d) are surrogates outside the transaction (SCALAR_QUERY is a static in workspaces.rs cfg(test) code; record user, root first sets a claimed state on origins:primary, bindings inlined); the statement WHERE has only 8 terms, so regrouping at 20 is a structural no-op; a true in-transaction (c)/(d) needs a test seam in workspaces.rs (MT-173)",
       "(e) root WHERE alone plus the predicate alone and (f) actor only are surrogates; the receipt half of the permission only fires in-transaction when $first_owner_workspace_receipt_read is set, which test code cannot bind"
     ]
+  },
+  "eval_backend_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report (Sonnet); the eval agent ran the tests itself and wrote none of the code; summary hash verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "summary_file": "Handshake_Artifacts/WP-KERNEL-012/MT-172/eval-backend-20261128/eval-summary-20261128.json (sha256 54e4618e3539ee06351ee8cc1d792ddc94d064a8a76b5438d65bc25048415f45; per-log sha256 inside)",
+    "verdicts": {
+      "57c6fcad4_PT-ARRAYLEN": "passed for the guard and the lib-exercised sites: 11 of 11 lib tests (3 guard, 7 receipt_writer_schema_tests, 1 reindex); reverting any one of the 19 sites fails the guard (19 of 19); inconclusive at runtime for model_lane.rs 616, 643, 644, 783, 790, 804 and loom_search.rs 370, 443 (no lib test; integration binaries not run)",
+      "ab76fb1ef_TRQ-01": "passed for the guard extension and the 3 inner-LET rewrites (3 of 3 caught); user_manual_knowledge_surreal_tests 2 pass, 4 fail, all schema level (three at tests:63 canonical schema fingerprint mismatch, one at :133 HANDSHAKE_SURREAL_SCHEMA_INFO_MISMATCH after its second-upsert assertions passed): same as recorded, no regression; no record::id or array::len error; end-to-end proof of the 12 record::id guards inconclusive",
+      "5aa9c7c43_PT-ARRAYLEN-2": "passed: guard 3 and model_registry lib 2 (incl. the regression test) pass; reverting each of the 9 model_registry.rs sites fails the guard (9 of 9); reverting the $created_receipts site of READ_REGISTRATION_QUERY fails the regression test at model_registry.rs:166 and the guard; the other 8 sites have no behavioural test"
+    },
+    "guard_survivors_beyond_claim": [
+      "IF c THEN (SELECT ..) ELSE [] END and the bare THEN form (live at 1 row; no occurrence in src today)",
+      "a /* */ comment between the brace and SELECT (live at 1 row)",
+      "(SELECT(a) ..) with no space after the keyword (live at 1 row)",
+      "a -- comment after the brace (not probed)",
+      "{ RETURN (SELECT ..) } (NONE at 0, 1 and 2 rows)",
+      "lone SELECT in .json or .sql files",
+      "sibling crates under src/backend and src/shared and handshake_core/tests are not scanned (no hit there today)"
+    ],
+    "not_a_bug": "a lone SELECT after other statements in a block returns an array",
+    "probe_caveat": "at 0 rows every variant errored because the probe table was undefined; 0-row results confounded; rows 1 and 2 clean",
+    "pose_3026": "GREEN: atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel (21.8 s) and atelier_pose_workspace_route_and_keyboard_navigation_are_durable (22.1 s) pass at HEAD; per #/pose3026_persist_routing_20261128 the route is: correct the LIVE wording of the pose.rs:3026 allowlist entry in model_lane.rs and #/pt_arraylen2_20261128/open_findings/pose_3026 (the statement shape itself not probed)",
+    "persistence_baseline": "PRE-EXISTING: 05a1050a3 gives 1 pass, 9 fail; HEAD gives the same tests and messages (src/backend at HEAD differs from 5aa9c7c43 only by a test addition); registry_restart_recovers_configured_set_defaults_and_stable_receipts at tests/model_registry_persistence_tests.rs:367 'persist boot set: AuthorityUnavailable(boot-set readback returned 0 rows for 2 registrations)'; orphan_receipt_stale_and_revoked_authority_are_rejected at :834 'Failed to check permission: The table palmistry_watcher_custodian does not exist'; 7 more with the 0-row text at :326, :448, :524, :638, :697, :760, :893; not caused by PT-ARRAYLEN-2",
+    "not_run": "persistence run B (not needed); integration binaries for the unexercised sites (loom_search_v2_tests, mt016_surreal_loom_search_tests, model_lane_recovery_surreal_tests, model_lane_promotion_surreal_tests, the binary driving DECIDE_CRDT_PROPOSAL_QUERY); a probe with the table defined and empty; a probe of the pose.rs:3026 statement shape (selectors in the summary)",
+    "setup_notes": "the exported tree needs a scratch .git (build.rs:41 panics without one); one hold wasted by a CRLF anchor bug in the mutation script (kept under hold2b-mutation-NOT-APPLIED-anchor-bug, not evidence); target peak 193.6e9",
+    "routing": "guard survivors to a later PT-ARRAYLEN-3 guard hardening picotask; the persistence failures (bootstrap-only test store lacking palmistry_watcher_custodian; repair-spec SC-10 class) to the triage queue; pose allowlist wording correction in the rev 172 stage"
   }
 }

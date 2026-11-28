@@ -3107,5 +3107,11 @@
     "route": "MT-171 owns pose.rs (exact allowed path) and is the repair vehicle if the run is red: fix at pose.rs:3026-3028 to the inner-LET form, paired with removing the pose.rs:3026 entry from the OUT_OF_SCOPE allowlist in storage/surreal/model_lane.rs; the remediation names atelier_pose_tests::atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel and atelier_pose_workspace_route_and_keyboard_navigation_are_durable as proof",
     "refs": "MT-172.json#/pose3026_persist_routing_20261128, #/pt_arraylen2_20261128",
     "status_effect": "none"
+  },
+  "pose3026_settled_20261128": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-28",
+    "result": "the settling run is GREEN: atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel and atelier_pose_workspace_route_and_keyboard_navigation_are_durable pass at HEAD (MT-172.json#/eval_backend_20261128/pose_3026)",
+    "effect": "no MT-171 remediation; the finding #/pose3026_finding_20261128 is closed as not live on the tested paths; the guard allowlist wording in storage/surreal/model_lane.rs is corrected under MT-172"
   }
 }

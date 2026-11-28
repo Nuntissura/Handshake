@@ -121,5 +121,19 @@
     "record anything the paused agents reported after this file was written",
     "dispatch, in parallel: the backend coding agent on R172-02e's run, the eval agent on the GUI GPU hold (PT-4, PT-5, P8), and keep the checker for each new commit",
     "raise the open Operator items in one short batch when the Operator is present"
-  ]
+  ],
+  "pause_closeout": {
+    "recorded_at_utc": "2026-11-28T06:30:00Z",
+    "status": "PAUSED: no agent of the previous session is running; the build slot is free",
+    "product_head": "feat/WP-KERNEL-012 at 167ae6a9b, equal to origin; product worktree clean except the untracked .gameplan-active",
+    "backend_eval": "finished and stopped; summary recorded at MT-172.json#/eval_backend_20261128: PT-ARRAYLEN, TRQ-01 and PT-ARRAYLEN-2 passed at the guard and lib level; pose.rs:3026 GREEN (MT-171.json#/pose3026_settled_20261128; correct the allowlist wording in the rev 172 stage); model_registry_persistence_tests failures are PRE-EXISTING (triage queue); guard survivors beyond its claim listed for a later guard-hardening picotask",
+    "gui_coder": "PT-9 committed and pushed as 167ae6a9b, all non-GPU tests green, 12 of 12 mutations killed (MT-214.json#/e9f1_pt9_20261128); GPU tests compile but have not run",
+    "backend_coder": "stopped; R172-02e probe f4d049cd1 committed, not compiled, not run (MT-172.json#/r172_02e_20261128)",
+    "stale_slot_cleared": "at 06:25:39Z the orchestrator removed a stale .build-slot whose owner.txt read 'backend coder R172-02e 2026-11-28T06:24:29Z' (written by a leftover poller after that agent stopped; no cargo, rustc or poller process and no run folder existed)",
+    "successor_starts_with": [
+      "R172-02e run (backend coding agent)",
+      "GPU hold by the eval agent: PT-4, PT-5, S7 P8",
+      "rev 172 stage after R172-02e decides whether fix A also fixes :189"
+    ]
+  }
 }

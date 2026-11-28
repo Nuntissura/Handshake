@@ -3233,5 +3233,36 @@
       "F11_info": "README 9 s correct (palmistry_launch lib.rs:172, :391, :2016); 'degrades and runs without it' is loose: the unconfirmed watcher is kept, reaped and reported NotConnected"
     },
     "routing": "no finding blocks the eval agent's GPU hold; F4 with or before PT-4; F1-F3, F6-F8, F11 wording in one small follow-up picotask"
+  },
+  "e9f1_pt9_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commit, push, file list, final test results and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "authority": "#/e9f1_fix_static_review_20261128 (F1-F8, F11)",
+    "commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42 (pushed, no force; 14 files under shell/** and surface/** only)",
+    "fixes": {
+      "F4": "PresentReport.present_fences set in Core::new; assert_shutdown_proved expects 0 proofs with present fences, one per window otherwise (support::expected_shutdown_proofs); three device-free tests in surface/tests/headless.rs",
+      "F2": "decide::clamp_prove_window caps at MAX_PROVE_WINDOW 30 s; proof_deadline uses checked_add; begin_proof takes a deadline",
+      "F3": "Core.deadline_ends counts proofs that ended at their own deadline; decide::proof_gave_up(wait_gave_up, ended_at_deadline) feeds shutdown_prove_gave_up",
+      "F1": "the shutdown clock starts before the first begin_proof swapchain creation; wait window = window - started.elapsed(); shutdown_prove_micros from started; docs say the deadline bounds the pauses, not each call",
+      "F6": "four docs: acknowledged only when settled and no typed failure",
+      "F7": "diag_ring_argument rejects a repeated flag in any shape, supports --diag-ring=path, empty or --prefixed value is a needs-a-path error",
+      "F8": "distinct_from bounded at DISTINCT_TRIES 8 then flips the low bit; real-watcher scan catches module aliases, {self as p}, start as x and globs; resolver whitelist exact names; exe_missing and exe_not_there bodies scanned",
+      "F11": "README: the unconfirmed watcher is kept, reaped when the program ends and reported NotConnected"
+    },
+    "proof": "-j 1 --locked --offline: check --all-targets and clippy --all-targets -D warnings pass for surface and shell; surface lib 40, surface source_scan 7, surface headless the_shutdown_helper 3, shell lib 14, beat_path_locks 5, palmistry_session 13, palmistry_watcher 6, source_scan 20, startup_gate 8, unavailable 5, all pass (pt9-final.log); one fix inside the hold (a source_scan control text); cargo tree 0 banned crates; no GPU test run",
+    "mutations": "12 applied, run, reverted, all killed (pt9-mutations.log): F4 helper ignores present fences, F2 no clamp, F3 give-up ignores deadline ends, F3 wiring, F1 wait window not reduced, F7 repeat check off, F7 equals shape, F8 distinct_from fallback, F8 aliases, F8 globs, F8 resolver prefix, F8 resolver bodies; F6 and F11 doc only",
+    "logs_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs (mutation script MT-214/gui-agent/pt9mut.py)",
+    "logs_sha256": {
+      "pt9-check-surface.log": "299f16a2c523be18fef769975d2df00e0505521db047540feea3a74b94666887",
+      "pt9-check-shell.log": "f1f639f166cc87533e4acacac27612423109333ee710201407b875b2b92d00b3",
+      "pt9-clippy-surface.log": "0ed58e440115211f372cf0de28ec441346f3b3ec56f2f805072ebdf20d03c9f6",
+      "pt9-clippy-shell.log": "f1b5e8094dca21b0d36489386e1387ae26172facd255382d311ca143db03ad29",
+      "pt9-test-surface.log": "f55ff93b5127313de10a5773ed0e7d46c8806d3adcc1f5492d2b9ab6758767fb (pre-fix run)",
+      "pt9-test-shell.log": "fc89db5f0f8e14272b194806b1cd175d5c67e1211ce8ee7e70ce69b616f17e09",
+      "pt9-mutations.log": "3268a663e2022f865a0caf6713e2dee7f1bc17f038443511dbfe49a516102989",
+      "pt9-final.log": "a78a01791e2f8d3ab74b901165490948b1f2f308f40b5f567279d4adf7daf098",
+      "pt9-released.txt": "a5bc16280ffc32864756b6507a312c256e616583e4fbd45f2a497dba38461e61"
+    },
+    "next": "eval agent GPU hold: the three shell GPU tests and a_shutdown_with_no_time_to_prove_... in surface/tests/frame_loop.rs compile but have not run (PT-4), PT-5 E9-F2 probe, S7 P8 live proofs"
   }
 }
