@@ -3084,5 +3084,29 @@
     "size_note": "AC214-12 asks for counts reported each slice; the window crate is the largest at 10.7k lines; the Operator's direction asks for many small crates per module or feature: a split review of the window crate is a later item",
     "unproven": "real signed handshake and acknowledgement; confirmed flag from a live handle; handshake_unconfirmed with a real handle; no orphan after an unasked end (C3, P8c); shell_program GPU read-back; the whole watcher path in the product binary, which still refuses before start() runs",
     "next": "P8 live proofs (P8a-c, #[ignore] tests with a real watcher on the private desktop) by the eval agent; checker static review of P4a-P6"
+  },
+  "s7_p4_p6_static_review_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's static review (Sonnet); no build, no edits; hash, program.rs ended() (may_acknowledge(ended.settled) with no failure check, program.rs:768-791) and startup_gate.rs:96-99 (conclude with NoWindow and an ack) verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "commits": "8a3086b8a (P4a), 483f54c1c (P4b), 74951e642 (P5), 36558732a (P6)",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/checker/s7-p4-p6-static-review.json (sha256 c58a11839b5f42a9bd0ed4042f0dfbc1511dcf8e4eedba7c46e4cdeb27a0eeda)",
+    "verdict": "failed (static), on F1 only; no high finding",
+    "F1_medium": "the untold-ending wording is false for settled shutdowns: fail() ends the loop, LoopEnding runs ended(), and ended() asks the watcher whenever the shutdown settled without reading self.failure (program.rs:456-462, 754-791, 879); so a refused heartbeat (exit 10), a refused window (exit 5, no_window) and a loop_failed raised inside the loop write the Shutdown marker and send a clean Shutdown, with a nonzero exit and no crash record; startup_gate.rs:96 already tests an ack beside a NoWindow failure (S5 design, eccb17e89); the state line (untold_on=..loop_failed,heartbeat_refused..), README:68 and main.rs:14-17 say those endings leave the watcher untold; no_window is named nowhere; what really leaves it untold: DeviceUnavailable (run_program returns before the loop), LoopError from the window loop, an unsettled shutdown, a panic; source_scan.rs:809 pins only the wording; fix either ended() skipping marker and ask when self.failure is set, or the three wordings; static reading, device run (P8) to confirm",
+    "passes": {
+      "F2_handle": "Ok(handle) straight into from_handle; inside only handshake_acked() and Box::new; ManuallyDrop after adoption; the scan pins text, not behaviour",
+      "F3_degrade": "each failure leaves no handle and one Degraded marker; no lease or ring leak; ring made after the lease attempt (also when the lease fails, OD-7); default temp ring file never removed",
+      "F5_ids": "ring and launch share inputs.launch_nonce; nonce, seed, key from rand 0.9.4 ThreadRng (ChaCha12, OS-seeded); process id and session id are separate Uuid::now_v7() calls with no inequality guard in the shell (the launcher refuses equal ids); the transport key has no private half, so MT-199 cannot adopt this watcher with it",
+      "F6_sink": "marker_sink None, one Shutdown marker",
+      "F7_quiet": "default tests reach the real launcher only with a path asserted not to exist (spawn NotFound); scan gaps: a bare start( or start_with( after an import, a helper placed after an #[ignore]d test, the HANDSHAKE_PALMISTRY_EXE string needle can never match (literals blanked), the resolver whitelist reads only palmistry_session.rs",
+      "F8_scans": "not weakened; the raw whitespace-stripped read also matches comments and strings (adequate against accidents)",
+      "F9_order_lease": "receipt, start, state line, run_program, drop(lease); a refused start runs none of it; state line prints the session uuid only; lease released on unwind while the watcher stays untold (Palmistry's reaction NOT_INSPECTED, P8c should include a panic case)",
+      "F12_scope": "six files under shell/**; lock and shell/Cargo.toml unchanged since a9f14bab1"
+    },
+    "low": {
+      "F4": "--diag-ring with a missing value takes the next flag as a path or is silently ignored (the example would create a file named --seconds)",
+      "F10": "the launcher's handshake wait (about 9 s per OD-8) blocks startup before any window; README silent"
+    },
+    "F13_size_advisory": "window crate split order: clipboard (about 1.1k lines, self-contained), geometry and monitor (about 1.0k), pure types crate origin/policy/command/event/token (about 1.4k), then wake and key translation (coupling partly inspected)",
+    "routing": "F1 needs a behaviour-or-wording decision: the S5 design (settled shutdown asks even after a typed failure) and the Operator's no-GPU decision (told only after a fully completed orderly close) read differently for typed in-loop failures; routed to the GUI specialist with an adversarial pass; F4, F7, F10 and the F1 fix go to the next GUI picotask; F13 to a later window-crate split item"
   }
 }
