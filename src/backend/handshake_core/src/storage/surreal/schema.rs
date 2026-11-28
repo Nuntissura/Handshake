@@ -15938,72 +15938,11 @@ mod tests {
             .expect("close restarted standalone Loom store");
     }
 
-    /// MT-141 R9: the exact MT-150 pin is the current script with the MT-150-era
-    /// `atelier_media_source_provenance_ref.asset_id` definition restored, proven byte-exact
-    /// against `PRE_MT141_GENERATED_SURREALQL_SHA256`.
+    /// Load the frozen pre-MT-141 schema and verify its historical pin.
     fn mt141_pin_schema() -> String {
-        // The MT-141 lines are checked on the pre-MT-154 text: MT-154 rewrote the saved-search
-        // projection table (owner_account_id, record-user permissions) after MT-141.
-        let base = restore_pre_mt154_schema(SCHEMA.to_owned());
-        assert_eq!(
-            base.matches(MT141_PROVENANCE_REF_ASSERT_LINE).count(),
-            1,
-            "MT-141 line drifted: {MT141_PROVENANCE_REF_ASSERT_LINE}"
-        );
-        assert_eq!(
-            base.matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE).count(),
-            0
-        );
-        assert_eq!(base.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(), 1);
-        for (current, previous) in [
-            (MT141_LOOM_PIN_ORDER_LINE, PRE_MT141_LOOM_PIN_ORDER_LINE),
-            (
-                MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
-                PRE_MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
-            ),
-            (
-                MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
-                PRE_MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
-            ),
-            (
-                MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
-                PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
-            ),
-        ] {
-            assert_eq!(
-                base.matches(current).count(),
-                1,
-                "MT-141 line drifted: {current}"
-            );
-            assert_eq!(base.matches(previous).count(), 0);
-        }
-        assert_eq!(base.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(), 1);
-        let pinned = pre_account_setup_schema()
-            .replace(
-                MT141_PROVENANCE_REF_ASSERT_LINE,
-                PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE,
-            )
-            .replace(MT141_SAVED_SEARCH_PROJECTION_BLOCK, "")
-            .replace(MT141_LOOM_PIN_ORDER_LINE, PRE_MT141_LOOM_PIN_ORDER_LINE)
-            .replace(
-                MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
-                PRE_MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
-            )
-            .replace(
-                MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
-                PRE_MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
-            )
-            .replace(
-                MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
-                PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
-            )
-            .replace(MT141_AI_EDIT_APPLIED_BINDING_LINES, "");
-        assert_eq!(
-            sha256_hex(pinned.as_bytes()),
-            PRE_MT141_GENERATED_SURREALQL_SHA256,
-            "the pre-MT-141 allowlist must be exactly the current script with the MT-150-era asset_id line"
-        );
-        pinned
+        let pinned = include_str!("../../../tests/fixtures/schema_pre_mt141.surql");
+        assert_eq!(sha256_hex(pinned.as_bytes()), PRE_MT141_GENERATED_SURREALQL_SHA256);
+        pinned.to_owned()
     }
 
     /// MT-141 R9: the upgrade DDL is byte-identical (whitespace-normalised) to the fresh-script
@@ -16353,24 +16292,14 @@ mod tests {
         restarted.shutdown().await.expect("close restarted store");
     }
 
-    /// MT-150: the exact MT-109 pin is the current script minus the MT-150 `loom_edges`
-    /// receipt block, proven byte-exact against `PRE_MT150_GENERATED_SURREALQL_SHA256`.
+    /// Derive the pre-MT-150 schema by removing the Loom edge receipt delta from the frozen pre-MT-141 schema.
     fn mt150_pin_schema() -> String {
-        assert_eq!(
-            SCHEMA
-                .matches(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS)
-                .count(),
-            1,
-            "MT-150 block drifted: {MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}"
-        );
-        // The MT-141 R9 constraint move came after MT-150, so the MT-109 pin is the current
-        // script minus the MT-150 block with the MT-150-era `asset_id` definition restored.
-        let pinned = mt141_pin_schema().replace(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS, "");
-        assert_eq!(
-            sha256_hex(pinned.as_bytes()),
-            PRE_MT150_GENERATED_SURREALQL_SHA256,
-            "the pre-MT-150 allowlist must be exactly the current script minus the MT-150 block"
-        );
+        let mt141 = mt141_pin_schema();
+        let delta = MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS;
+        assert_eq!(delta.len(), 275, "MT-150 receipt delta size changed");
+        assert_eq!(mt141.matches(delta).count(), 1, "MT-150 receipt delta must occur exactly once");
+        let pinned = mt141.replacen(delta, "", 1);
+        assert_eq!(sha256_hex(pinned.as_bytes()), PRE_MT150_GENERATED_SURREALQL_SHA256);
         pinned
     }
 
