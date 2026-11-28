@@ -15342,5 +15342,27 @@
     "decision": "For archived 165 production, reuse the existing 166 four-header Cloud selector before the new filtered 172 append. Both archived 165 source blobs, aaadc90652596940246106fe3b028601799b037d and 791e666350ce03875f4bd2dff9396f09646964a7, independently match ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77 and the prior frozen Cloud. Existing 165 does not materialize those four and the production return bypasses module installers. These four are disjoint from the six revision-172 Cloud changes. The exact 165 runtime/catalog proof remains required.",
     "older_selector_decision": "164 duplicates exact receipt and three changed ModelLane declarations. Retain sole prior owners and the verified 236-production/89-base early selected count. 166 retains prior receipt plus live model, 164/165 retain all six shared prior owners plus live model, and the filtered append owns only remaining declarations.",
     "status": "No Cargo or product push. R172-11b is current, both catalog subtractions and historical fixtures remain."
+  },
+  "r172_11b_11c_historical_catalog_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), scoped independent Git verification",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "#/rev172_plan_20261127",
+    "local_intermediates": [
+      {
+        "pico": "R172-11b",
+        "commit": "c60fed41c5510430403fe029b13656d077bbb7a8",
+        "tree": "66875274fad9486b9df61335dc5047a20efdd7ff",
+        "static": "Filtered declarations in 164–166, exact three Argus model overlap removals and one shared duplicate removal. Existing four Cloud declarations once in each production path."
+      },
+      {
+        "pico": "R172-11c",
+        "commit": "2e5a637837837552192d194f46a470aa9a4ded2a",
+        "tree": "6a01b91019d1c8de2ec76cb349a8a400fda3b540",
+        "static": "In both subtraction calculators one source enumerates exact 30 shared and four production-only additions, preserving the four historical identity sets."
+      }
+    ],
+    "limits": "Archived 165 Cloud sources do not reproduce the frozen entire 165 production tuple, and the enrolled 165 exact runtime proof remains unavailable from those archives. The dormant routing-production static reconstruction disagrees with its pin already at 171; the only actual test caller uses BASE. No predecessor hashes or runtime verdicts were changed.",
+    "r172_12_decision": "All enrolled 167–171 share exact module/state sources. Apply the revision171 inverse to the four affected modules in each predecessor and execute the same restored production sources from the hashed ordered tuple. Installing current modules first would leave four new functions in the historical catalog. Preserve existing frozen fixtures; targeted tests use exact INFO and duplicate rollback/reopen.",
+    "status": "Local static only. R172-12a historical installer active. No Cargo or product push."
   }
 }
