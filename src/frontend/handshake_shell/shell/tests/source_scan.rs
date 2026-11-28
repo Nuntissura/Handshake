@@ -642,6 +642,10 @@ fn the_watcher_is_asked_only_inside_the_settled_check_after_the_ring_marker() {
         "the ring is marked only when the write says it was: {ended}"
     );
     assert!(ended.contains("ring_marked=") && ended.contains("ring.write("), "{ended}");
+    assert!(
+        ended.contains("ended.ring_marked=DiagEventV2::ordinary(marker).is_some_and(|event|ring.write(event));"),
+        "the ring is marked exactly when the write returned true, nothing else decides it: {ended}"
+    );
 
     // Each rule finds what it looks for.
     let early = sample(
@@ -672,6 +676,64 @@ fn the_adapter_never_drops_an_unasked_watcher_and_takes_confirmation_from_the_ha
     // Each rule finds what it looks for.
     let dropping = sample("src/sample.rs", "impl Drop for Watcher { fn drop(&mut self) { self.0.take(); } }");
     assert!(squeezed(&dropping).contains("implDropfor"));
+}
+
+/// Whether `code` (white space removed) binds something to `_`, which drops it at once.
+fn binds_to_underscore(code: &str) -> bool {
+    code.contains("let_=") || code.contains("let_:")
+}
+
+/// MT-214 S7 (P4a, AC214-11, MT-199 AC199-8): the session makes the shell's one ring, takes its lease before the ring, makes
+/// the ring with the launch nonce of the launch inputs, holds the lease in a named binding, and records no marker through
+/// the launcher's function-pointer sink (the ring writer is the heartbeat's).
+#[test]
+fn the_session_takes_the_lease_then_makes_the_one_ring_with_the_launch_nonce() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = product_sources();
+    let writers = ring_writers_made(&sources);
+    assert_eq!(writers.len(), 1, "one ring writer, made by the session: {writers:#?}");
+    assert!(writers[0].starts_with("../shell/src/palmistry.rs:"), "{writers:#?}");
+
+    let session = source_in(&below("src"), "src/palmistry.rs");
+    let code = squeezed(&session);
+    let make = block_of(&code, "pubfnmake_ring(");
+    assert!(make.contains("DiagRingWriterV2::create("), "{make}");
+    assert_eq!(code.matches("DiagRingWriterV2::create(").count(), 1, "the create call is in make_ring only");
+    let prepare = block_of(&code, "pubfnprepare(");
+    let lease = prepare.find("acquire_embedded_runtime_instance_lease(").expect("the lease is acquired");
+    let ring = prepare.find("make_ring(").expect("the ring is made");
+    assert!(lease < ring, "the lease is taken before the ring is made: {prepare}");
+    assert!(
+        prepare.contains("make_ring(&inputs.session.ring_path,inputs.launch_nonce)"),
+        "the ring is made with the launch nonce and the ring path of the launch inputs: {prepare}"
+    );
+    assert_eq!(prepare.matches("make_ring(").count(), 1, "one ring per start");
+    assert_eq!(prepare.matches("Uuid::now_v7()").count(), 1, "one session id per start");
+    assert!(
+        prepare.contains("letlease=match(seams.host_scope)()"),
+        "the lease is bound to a name the start hands on: {prepare}"
+    );
+    assert!(!binds_to_underscore(&code), "a binding to `_` drops its value at once: the lease would not be held");
+    assert!(code.contains("marker_sink:None,"), "the launcher's marker sink stays empty");
+    assert!(!code.contains("marker_sink:Some"), "a function pointer cannot reach the heartbeat's ring writer");
+
+    // main and the example make their ring through the session's maker and name no writer.
+    for path in ["src/main.rs", "examples/shell_program.rs"] {
+        let text = squeezed(&sample(path, &text_of(path)));
+        assert!(text.contains("make_ring("), "{path} makes its ring through the session's maker");
+        assert!(!text.contains("DiagRingWriter"), "{path} names a ring writer");
+    }
+
+    // Each rule finds what it looks for.
+    assert!(binds_to_underscore(&squeezed(&sample("src/sample.rs", "let _ = acquire_embedded_runtime_instance_lease(id, scope);"))));
+    assert!(binds_to_underscore(&squeezed(&sample("src/sample.rs", "let _lease: u8 = 1; let _: u8 = 2;"))));
+    assert!(!binds_to_underscore(&squeezed(&sample("src/sample.rs", "let lease = acquire(id, scope);"))));
+    let late = sample(
+        "src/sample.rs",
+        "pub fn prepare() { let r = make_ring(a, b); let lease = acquire_embedded_runtime_instance_lease(i, s); }",
+    );
+    let late = squeezed(&late);
+    assert!(late.find("make_ring(") < late.find("acquire_embedded_runtime_instance_lease("));
 }
 
 #[test]
@@ -1020,11 +1082,17 @@ fn nothing_here_installs_a_panic_or_exception_handler_or_ends_the_process_itself
         "exit",
         "ExitProcess",
         "TerminateProcess",
+        "crash_handler",
+        "minidumper",
     ];
     let found = lines(&sources, &words);
     assert!(found.is_empty(), "{found:#?}");
     let hook = sample("src/sample.rs", "std::panic::set_hook(Box::new(|_| {}));");
     assert_eq!(lines(&[hook], &words).len(), 1);
+    let crash_client = sample("src/sample.rs", "let _crash_handler = crash_handler::install(); minidumper::Client::with_name(n);");
+    assert_eq!(lines(&[crash_client], &words).len(), 2, "one finding for each word");
+    let minidump = sample("src/sample.rs", "use minidumper::Client;");
+    assert_eq!(lines(&[minidump], &words).len(), 1);
 }
 
 #[test]

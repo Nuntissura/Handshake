@@ -19,14 +19,17 @@ fn main() -> ExitCode {
 
 #[cfg(not(windows))]
 fn run() -> ExitCode {
-    eprintln!("HSK_SHELL_END kind={} code={}", ExitKind::Unsupported.name(), ExitKind::Unsupported.code());
+    eprintln!(
+        "HSK_SHELL_END kind={} code={}",
+        ExitKind::Unsupported.name(),
+        ExitKind::Unsupported.code()
+    );
     ExitCode::from(ExitKind::Unsupported.code())
 }
 
 #[cfg(windows)]
 fn run() -> ExitCode {
-    use handshake_diag_ring::ring::DiagRingWriterV2;
-    use handshake_diag_ring::DEFAULT_CAPACITY;
+    use handshake_shell::palmistry::{fresh_nonce, make_ring};
     use handshake_shell::{run_product, run_program, NoWatcher, ProgramConfig};
 
     let arguments: Vec<String> = std::env::args().skip(1).collect();
@@ -36,12 +39,14 @@ fn run() -> ExitCode {
             .iter()
             .position(|argument| argument == "--diag-ring")
             .and_then(|at| arguments.get(at + 1))
-            .and_then(|path| {
-                // Transitional until the Palmistry session starts the ring (MT-214 S7 P4a): a version 2 ring with its own nonce.
-                let nonce = *uuid::Uuid::now_v7().as_bytes();
-                DiagRingWriterV2::create(std::path::Path::new(path), DEFAULT_CAPACITY, nonce).ok()
-            });
-        run_program(ProgramConfig::operator_root(ring), authority, Box::new(NoWatcher))
+            // The shell's one ring maker. Until the Palmistry session is wired in (MT-214 S7 P5) the ring has a nonce of
+            // its own and no watcher reads it.
+            .and_then(|path| make_ring(std::path::Path::new(path), fresh_nonce()).ok());
+        run_program(
+            ProgramConfig::operator_root(ring),
+            authority,
+            Box::new(NoWatcher),
+        )
     });
     match outcome {
         Err(refusal) => {

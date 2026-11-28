@@ -25,9 +25,24 @@
 //! at `LoopEnding`, after the heartbeat stopped.
 
 use std::cell::RefCell;
+use std::io;
 use std::mem::ManuallyDrop;
+use std::path::{Path, PathBuf};
 
-use palmistry_launch::{PalmistryHandle, ShutdownAcknowledgement, ShutdownOutcome};
+use handshake_diag_ring::ring::DiagRingWriterV2;
+use handshake_diag_ring::schema::DiagEventV2;
+use handshake_diag_ring::{
+    default_backing_path, DiagEvent, DiagEventCode, DiagPhase, DiagSeverity, DEFAULT_CAPACITY,
+};
+use handshake_runtime_instance::{
+    acquire_embedded_runtime_instance_lease, resolve_embedded_runtime_host_scope,
+    EmbeddedRuntimeInstanceLease,
+};
+use palmistry_launch::{
+    control_socket_name, LaunchSession, PalmistryHandle, ShutdownAcknowledgement, ShutdownOutcome,
+};
+use uuid::Uuid;
+use zeroize::Zeroizing;
 
 use crate::shutdown::{ShutdownWatcher, WatcherAck};
 
@@ -49,7 +64,10 @@ impl OwnedWatcher for PalmistryHandle {
 pub fn watcher_ack(outcome: &ShutdownOutcome) -> WatcherAck {
     match outcome {
         ShutdownOutcome::ExitedCleanly(done)
-            if matches!(done.acknowledgement, ShutdownAcknowledgement::SignedConfirmed) && done.success() =>
+            if matches!(
+                done.acknowledgement,
+                ShutdownAcknowledgement::SignedConfirmed
+            ) && done.success() =>
         {
             WatcherAck::Acknowledged
         }
@@ -106,5 +124,199 @@ impl ShutdownWatcher for PalmistryWatcher {
         } else {
             WatcherAck::NotConnected
         }
+    }
+}
+
+/// Why there is no watcher. Each is a stable code for the state line and the ring marker.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Degrade {
+    /// `HANDSHAKE_HOST_SCOPE_ID` is not set (or is not usable): the signed launch needs the lease it names.
+    NoHostScope,
+    /// The loopback lease could not be taken.
+    NoLease,
+    /// The version 2 ring could not be made.
+    NoRing,
+}
+
+impl Degrade {
+    /// A stable code, for diagnostics.
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::NoHostScope => "no_host_scope",
+            Self::NoLease => "no_lease",
+            Self::NoRing => "no_ring",
+        }
+    }
+}
+
+/// Everything the signed launch is made of, built once and read by both the ring and the launch, so the two cannot
+/// disagree: the launcher's own session record (session id and ring path, with no marker sink: the ring writer belongs to
+/// the heartbeat and a function pointer cannot reach it), the control socket, the process instance, the one launch nonce,
+/// the signing seed and the launch-local transport key.
+pub struct LaunchInputs {
+    /// The launcher's own session record: `session_id` is the session uuid, the lease's instance id and the ring's owner.
+    pub session: LaunchSession,
+    /// The watcher's control socket, derived from the session id by the launcher's rule.
+    pub control_socket: String,
+    /// The process instance id: not the session id (the signed launch refuses equal ids).
+    pub process_instance_id: Uuid,
+    /// The ring's launch nonce: the value the ring is made with and the watcher is told with `--ring-nonce`.
+    pub launch_nonce: [u8; 16],
+    seed: Zeroizing<[u8; 32]>,
+    /// A launch-local, non-zero transport key. No secret half is held: the shell never adopts the watcher (MT-199 does).
+    pub transport_public_key: [u8; 32],
+}
+
+fn non_zero<const N: usize>() -> [u8; N] {
+    loop {
+        let bytes = rand::random::<[u8; N]>();
+        if bytes != [0; N] {
+            return bytes;
+        }
+    }
+}
+
+impl LaunchInputs {
+    fn new(session: Uuid, ring_path: PathBuf) -> Self {
+        let session_id = session.to_string();
+        Self {
+            control_socket: control_socket_name(&session_id),
+            session: LaunchSession {
+                session_id,
+                ring_path,
+                marker_sink: None,
+            },
+            process_instance_id: Uuid::now_v7(),
+            launch_nonce: non_zero::<16>(),
+            seed: Zeroizing::new(non_zero::<32>()),
+            transport_public_key: non_zero::<32>(),
+        }
+    }
+
+    /// The signing seed, as the launcher takes it: a copy that is wiped when it is dropped.
+    pub fn signing_seed(&self) -> Zeroizing<Vec<u8>> {
+        Zeroizing::new(self.seed.to_vec())
+    }
+}
+
+/// A fresh, non-zero launch nonce for a ring.
+pub fn fresh_nonce() -> [u8; 16] {
+    non_zero::<16>()
+}
+
+/// The one place the shell makes a diagnostics ring: the launcher's version 2 ring, with the launch nonce in its header.
+pub fn make_ring(path: &Path, nonce: [u8; 16]) -> io::Result<DiagRingWriterV2> {
+    DiagRingWriterV2::create(path, DEFAULT_CAPACITY, nonce)
+}
+
+/// What the session reads from outside. Tests give their own; the product uses [`Seams::production`].
+pub struct Seams<'a> {
+    /// The host scope id the lease is bound to (`HANDSHAKE_HOST_SCOPE_ID` in the product).
+    pub host_scope: &'a dyn Fn() -> io::Result<String>,
+}
+
+fn production_host_scope() -> io::Result<String> {
+    resolve_embedded_runtime_host_scope().map_err(io::Error::other)
+}
+
+impl Seams<'static> {
+    /// The product's: the host scope comes from the environment, as for the egui host.
+    pub fn production() -> Self {
+        Self {
+            host_scope: &production_host_scope,
+        }
+    }
+}
+
+/// The first half of a start: the ids, the lease and the ring. It holds them; nothing is launched.
+pub struct Prepared {
+    /// The launch inputs: one set.
+    pub inputs: LaunchInputs,
+    /// The lease, bound to the session id. Keep it in a named binding until the program has returned.
+    pub lease: Option<EmbeddedRuntimeInstanceLease>,
+    /// The ring, made with the inputs' nonce, if it could be made.
+    pub ring: Option<DiagRingWriterV2>,
+    /// Why the launch cannot go on, if it cannot.
+    pub degrade: Option<Degrade>,
+}
+
+fn now_nanos() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| {
+            u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX)
+        })
+}
+
+/// Records the Palmistry handshake in the ring: `Start` when confirmed (the counter is this process id), `Degraded`
+/// otherwise. Returns whether the ring took it.
+fn mark(ring: Option<&DiagRingWriterV2>, confirmed: bool) -> bool {
+    let Some(ring) = ring else {
+        return false;
+    };
+    let (phase, severity, counter) = if confirmed {
+        (
+            DiagPhase::Start,
+            DiagSeverity::Info,
+            u64::from(std::process::id()),
+        )
+    } else {
+        (DiagPhase::Degraded, DiagSeverity::Warn, 0)
+    };
+    let marker = DiagEvent::generic(
+        DiagEventCode::PalmistryHandshake,
+        phase,
+        severity,
+        0,
+        0,
+        counter,
+        0,
+        0,
+        now_nanos(),
+    );
+    DiagEventV2::ordinary(marker).is_some_and(|event| ring.write(event))
+}
+
+/// Takes the lease, then makes the ring, for one session. A refusal at either step is a [`Degrade`], not an error: the
+/// watcher is supplementary and the program runs without it. A degraded start that has a ring marks it.
+///
+/// `ring_path` is the ring's file (`--diag-ring`); without it the launcher's default path for the session is used, so
+/// that a launched watcher always has a ring to read.
+pub fn prepare(ring_path: Option<&Path>, seams: &Seams<'_>) -> Prepared {
+    let session = Uuid::now_v7();
+    let ring_path = ring_path.map_or_else(
+        || default_backing_path(&session.to_string()),
+        Path::to_path_buf,
+    );
+    let inputs = LaunchInputs::new(session, ring_path);
+    let mut degrade = None;
+    let lease = match (seams.host_scope)() {
+        Err(_) => {
+            degrade = Some(Degrade::NoHostScope);
+            None
+        }
+        Ok(host_scope) => match acquire_embedded_runtime_instance_lease(session, host_scope) {
+            Ok(lease) => Some(lease),
+            Err(_) => {
+                degrade = Some(Degrade::NoLease);
+                None
+            }
+        },
+    };
+    let ring = match make_ring(&inputs.session.ring_path, inputs.launch_nonce) {
+        Ok(ring) => Some(ring),
+        Err(_) => {
+            degrade.get_or_insert(Degrade::NoRing);
+            None
+        }
+    };
+    if degrade.is_some() {
+        mark(ring.as_ref(), false);
+    }
+    Prepared {
+        inputs,
+        lease,
+        ring,
+        degrade,
     }
 }
