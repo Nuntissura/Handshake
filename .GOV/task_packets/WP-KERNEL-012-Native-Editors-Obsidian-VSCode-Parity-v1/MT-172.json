@@ -16098,5 +16098,36 @@
     "target_peak_bytes": 193384594104,
     "released_utc": "2026-11-28T16:44:59.314703Z",
     "disposition": "Catalog fixture and inspector prerequisite proven. The original cases still retain their exact identity, authorization, reopen and receipt assertions. Next is the single planned same-key cross-session collision denial test. No MT verdict or broader suite."
+  },
+  "r172_18_manual_identity_collision_red_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent exact test diff, raw log/JUnit, input and release re-read",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_18_composed_fixture_proof_20261128",
+      "#/rev172_plan_20261127"
+    ],
+    "candidate": "3407237b7aa62046d1cc1563327bb9ad080447d6",
+    "tree": "9b294e8d79603aba164bcd276adb0ce9d80d9075",
+    "prior_six_unchanged": "Existing integration source prefix is byte-identical (18,005 bytes), plus one appended test. Production sources unchanged. MT-013 compile manifest is generated for a separate smoke target.",
+    "exact_test": "same_workspace_manual_entity_collision_is_denied_without_disclosure",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-18-user-manual-identity-20261128/collision-01",
+    "counts": {
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "filtered": 6
+    },
+    "observed": "The competing session received a denial. All assertions before the privacy check passed, including original owner's row and linked receipt, entity/ledger counts, no read from the second exact scope, and exact owned-scope cleanup. Privacy assertion failed at run.log:5085–5086. The denial contained a guarded value. The test does not print it and did not reach the subsequent typed-conflict assertion.",
+    "digests": {
+      "log": "32b864b944cfe6395c2564b1523de71e80399bed74c2cd9f8c287091cab1bd5e",
+      "junit": "b3f53fefd757a408719ce313e328223972e822d2c587f39a1e22258a4d7e6e09",
+      "result": "cb65d4dc44ac309876e93344543e40c4b5953cfef179bd8c33a6049a4d83a8fa",
+      "cases": "bea8e3194b72c4c83417afb3c97cad405000ec39487c0eeb6b03b2c99b1f5def",
+      "release": "7b571ec8bb88b109866a61ed8b85a87207c92019450079e380a9af2978b0eaa9",
+      "unchanged_raw_input": "c1bc3b7e076bc1cc777d4f7c30bfe1b57aa1535b0d97d22374cad863e2f933ed"
+    },
+    "peak_target_bytes": 195218947653,
+    "released_utc": "2026-11-28T17:27:43.718455Z",
+    "disposition": "R172-18 plan routes this observed specific non-disclosure failure to MT-173. Keep durable behavior and the exact test assertions. Review the narrow denial normalization at the existing UserManual writer boundary before edits. No unchanged rerun."
   }
 }
