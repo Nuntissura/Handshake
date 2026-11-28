@@ -47,6 +47,9 @@ pub(super) fn matches_observed_catalog(observed: &ObservedSchema, production: bo
         && observed.indexes_defined == indexes
 }
 
+const FIRST_OWNER_ORIGINS_TABLE_HEADER: &str =
+    "DEFINE TABLE OVERWRITE first_owner_administration_origins ";
+
 const UPGRADE_HEADERS: &[&str] = &[
     "DEFINE TABLE OVERWRITE workspaces ",
     "DEFINE EVENT OVERWRITE mt109_workspace_reconciliation_queue ON TABLE workspaces",
@@ -55,7 +58,7 @@ const UPGRADE_HEADERS: &[&str] = &[
     "DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources ",
     "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_metadata(",
     "DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_claim(",
-    "DEFINE TABLE OVERWRITE first_owner_administration_origins ",
+    FIRST_OWNER_ORIGINS_TABLE_HEADER,
     EVENT_HEADER,
     "DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create(",
     "DEFINE FUNCTION OVERWRITE fn::mt120_resource_create(",
@@ -65,6 +68,15 @@ pub(super) fn append_upgrade_statements(mut prior: String) -> String {
     let mut delta = String::new();
     for (start, end) in canonical_upgrade_spans(SCHEMA, UPGRADE_HEADERS) {
         let statement = &SCHEMA[start..end];
+        // Keep the SCHEMAFULL table before the Member fields that depend on it.
+        if statement.starts_with(FIRST_OWNER_ORIGINS_TABLE_HEADER) {
+            if let Some(offset) = prior.find(statement) {
+                let end = offset + statement.len();
+                let suffix = prior[end..].replace(statement, "");
+                prior.replace_range(end.., &suffix);
+                continue;
+            }
+        }
         prior = prior.replace(statement, "");
         delta.push_str(statement);
         delta.push('\n');
