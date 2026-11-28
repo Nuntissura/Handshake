@@ -544,7 +544,18 @@ impl SurrealUserManualKnowledgeStore {
                         .await
                 })
             })
-            .await?;
+            .await
+            .map_err(|failure| match failure {
+                SurrealStorageError::Database(error)
+                    if error.is_internal()
+                        && error.message().starts_with(
+                            "Database index `uq_knowledge_entities_identity` already contains ",
+                        ) =>
+                {
+                    StorageError::Conflict("UserManual knowledge identity conflict")
+                }
+                other => StorageError::from(other),
+            })?;
         one_mutation(rows)
     }
 
