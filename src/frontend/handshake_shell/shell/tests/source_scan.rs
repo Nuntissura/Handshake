@@ -787,6 +787,21 @@ fn the_start_follows_the_receipt_inside_the_gate_and_the_lease_outlives_the_prog
     let faults = start_order_faults(&example, false);
     assert!(faults.is_empty(), "the example: {faults:#?}");
 
+    // The ring's file is the operator's `--diag-ring` path, handed to the start and to nothing else (string literals are
+    // blank in the code-only text, so these read the raw text with its white space removed).
+    let raw = |path: &str| -> String { text_of(path).split_whitespace().collect() };
+    let raw_main = raw("src/main.rs");
+    assert!(
+        raw_main.contains("palmistry::start(ring_path.map(Path::new))")
+            && raw_main.contains(".position(|argument|argument==\"--diag-ring\")")
+            && raw_main.contains("letring_path="),
+        "main.rs hands --diag-ring to the start"
+    );
+    assert!(
+        raw("examples/shell_program.rs").contains("palmistry::start(value(\"--diag-ring\").map(std::path::Path::new))"),
+        "the example hands --diag-ring to the start"
+    );
+
     // The wording of what the watcher does not cover.
     let session = text_of("src/palmistry.rs");
     assert!(session.contains("watched_from=first_heartbeat"), "the state line says where watching starts");
