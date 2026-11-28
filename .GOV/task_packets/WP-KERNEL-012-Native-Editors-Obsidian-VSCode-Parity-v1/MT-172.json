@@ -15250,5 +15250,33 @@
     ],
     "next": "Wire the forward proof-only completion facade and storage path. Then bind ordinary boot recovery to uncredentialed legacy receipt provenance, preserve all focused named checks and finish revision-172 stage.",
     "status": "Static only. Product local, no Cargo or runtime verdict."
+  },
+  "r172_cleanup_local_stage_closeout_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent scoped Git diff inspection",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_cloud_revocation_cleanup_scope_20261128",
+    "local_intermediates": [
+      {
+        "pico": "Typed cleanup completion writer",
+        "commit": "b4811b297552e1aaa5ba3952aff35c0e2a469132",
+        "tree": "5db4b58a7b164b8126d8df31b72337d498789d14",
+        "static": "Consumes private owned STOP and paired outbox proof, revalidates exact immutable cloud authority in same protected transaction, and replays identical canonical completed receipt."
+      },
+      {
+        "pico": "Existing cleanup owner conflict",
+        "commit": "ba15c64604c694957d4abee27afd636f2101cee2",
+        "tree": "2b219e98b5d4eb93140a3f60212aabc4808d9a1f",
+        "static": "One coordinator branch returns a retryable exact live generation conflict before changing its existing ownership or finalizing. Durable consent fence stays in place."
+      },
+      {
+        "pico": "Ordinary boot cleanup isolation",
+        "commit": "5e155e27897f16837726ae6a38c8a69a04b44e5a",
+        "tree": "8fda8c5045b8eda8493a0010b29ad5415a2a7655",
+        "static": "Existing boot path requires a positive linked event and all five durable authority fields absent. Unrelated generic list, ordering and stored receipt validation remain intact."
+      }
+    ],
+    "proof_decision": "The current named live-launch proof injects a manual process ledger and recording sink. Use the existing real Surreal STOP batcher and durable outbox bridge APIs in that one authorized live test, then independently read the exact STOP process UUID and both stable event IDs. No need to rereun their separate unchanged suites for this step.",
+    "next": "R172-10a frozen tuple and byte-exact inverse, then 10b canonical forward statements and 10c active wiring. Runtime validation and migration enrollment have not run.",
+    "status": "Product checkpoints remain local. No Cargo or runtime verdict."
   }
 }
