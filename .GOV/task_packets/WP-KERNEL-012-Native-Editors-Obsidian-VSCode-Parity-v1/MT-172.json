@@ -15656,5 +15656,56 @@
       }
     ],
     "next": "Five serial picotask corrections, then exact failed unit selectors only where current inputs and previous green evidence permit reuse. No formal verdict; prior approved six revalidation MTs routed at independent candidate freeze under CX-VAL-009/010."
+  },
+  "r172_16_scoped_repairs_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified scoped commits and source hashes",
+    "recorded_on": "2026-11-28",
+    "r172_16_ref": "#/r172_16_first_confirm_result_20261128",
+    "local_intermediates": [
+      {
+        "case": "Four old base-family SCHEMAFULL failures",
+        "commit": "1b3d65668111c80cf85c846ba0df624950466254",
+        "tree": "ff92880d5152628e82e8275e764421451b253a2d",
+        "check": "Preserves exact first canonical table when already present; emits once if absent. Imported and Member chronology fixed; independent standalone 166–168 bytes unchanged."
+      },
+      {
+        "case": "171 duplicate typed rollback error",
+        "commit": "ebacef664752b0bf3f86f73c10f70922ca81e6eb",
+        "tree": "58a5fdbc5ca3e2db9c498a21caa36e0f18045cb3",
+        "check": "Opt-in from one production-scoped upgrade; returns only the unique exact existing typed duplicate throw behind a masked first result. Other cases retain original behavior. CRLF-aware diff matches existing mixed-source newline convention."
+      },
+      {
+        "case": "Argus v11 target receipt",
+        "commit": "51656b1f0119713c6382a2cad42c289941da589f",
+        "tree": "9e85f62f02417c99d0cf48d4ed54cfb092d34146",
+        "check": "Only two expected values corrected to established v11/11. Unchanged frozen v8/8 comparison and complete second reopen proof."
+      },
+      {
+        "case": "MT154 evolved declaration identity proof",
+        "commit": "741ae1240f95ad8100bef4ba46b71aacd85f44c3",
+        "tree": "4c2b98d9ef5cfc90a6db512d6a6f7c597511ee2a",
+        "check": "Two exact current owner/retention checks cover evolved ModelSessions and unchanged historically frozen knowledge retrieval traces; other 177 literal checks preserved."
+      }
+    ],
+    "fixture_scope_requested": {
+      "path": "src/backend/handshake_core/tests/fixtures/schema_pre_mt141.surql",
+      "basis": "Exact MT150 vintage blob 45869db3f4411f405eed070fcb6b4b3502c1d328 matches PRE_MT141; exact existing 275-byte delta removal reproduces independently pinned MT109 vintage blob e13c0a14f9394365d064a19b5b4d7e4061ec721d. No currently tracked exact fixture. No fixture written."
+    },
+    "state": "Four scoped source/test picos static, covering seven failed cases. Authorization needed for fifth fixture pico. No repin or new run yet."
+  },
+  "r172_16_seven_repaired_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent Git scope and remote verification",
+    "recorded_on": "2026-11-28",
+    "repair_ref": "#/r172_16_scoped_repairs_20261128",
+    "pushed": "741ae1240f95ad8100bef4ba46b71aacd85f44c3",
+    "tree": "4c2b98d9ef5cfc90a6db512d6a6f7c597511ee2a",
+    "previous_pushed": "e964e35ca8f84dd452f38402ab054e54eac7c978",
+    "scope": [
+      "src/backend/handshake_core/src/storage/surreal.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision168.rs"
+    ],
+    "next_check": "Bounded seven affected unit selectors (Argus direct/stale receipt, MT139 base predecessor, MT151, two MT152, 171 duplicate, MT154 emission). No replay of prior green crash-safety or other unaffected cases. MT141 and MT150 wait for exact fixture scope separately and are not selected.",
+    "publication": "Normal fast-forward, fetched and direct remote equal. Clean except existing pointer and no active build slot or compiler prior to dispatch."
   }
 }
