@@ -358,7 +358,7 @@ async fn pt003_first_owner_setup_receipt_observer() {
 }
 
 // R172-02c/02d confirming run: test code only, no production code is touched.
-const PT003_REPORT_DIR: &str = "WP-KERNEL-012/MT-172/r172-02d-20261128";
+const PT003_REPORT_DIR: &str = "WP-KERNEL-012/MT-172/r172-02e-20261128";
 
 fn pt003_write_report(name: &str, report: &str) {
     eprintln!("{report}");
@@ -666,6 +666,125 @@ async fn pt003_compute_only_depth_probe() {
     let closed = if baseline_ok { backend.close_and_remove().await.is_ok() } else { backend.close_and_preserve().await.is_ok() };
     report.push_str(&format!("fixture close ok = {closed}\n"));
     pt003_write_report("pt003-depth.txt", &report);
+}
+
+// R172-02e: scalar-query depth probe. Test code only.
+const PT003_READ_CONST: &str = "const FIRST_OWNER_WORKSPACE_READ: &str = r#\"";
+
+fn pt003_workspace_read_text() -> &'static str {
+    let source = include_str!("../storage/surreal/workspaces.rs");
+    let start = source.find(PT003_READ_CONST).expect("pt003 read const not found");
+    let rest = &source[start..];
+    &rest[..rest.find("\"#;").expect("pt003 read const end not found")]
+}
+
+fn pt003_workspace_read_where() -> Vec<String> {
+    let where_text = pt003_workspace_read_text().split_once("\nWHERE ").expect("pt003 read WHERE not found").1
+        .trim().trim_end_matches(';');
+    where_text.split(" AND ").map(|term| term.split_whitespace().collect::<Vec<_>>().join(" ")).collect()
+}
+
+fn pt003_regrouped_where(block: usize) -> String {
+    pt003_workspace_read_where().chunks(block).map(|chunk| format!("({})", chunk.join(" AND "))).collect::<Vec<_>>().join(" AND ")
+}
+
+/// The :189 SCALAR_QUERY shape (SELECT VALUE true over the production FROM) with a chosen WHERE.
+fn pt003_scalar_text(where_clause: &str) -> String {
+    let from = pt003_workspace_read_text().split_once("\nFROM ").expect("pt003 read FROM").1
+        .split_once("\nWHERE ").expect("pt003 read WHERE").0;
+    format!("SELECT VALUE true FROM {from} WHERE {where_clause};")
+}
+
+fn pt003_inline_scalar_bindings(text: &str) -> String {
+    text.replace("$workspace_grant", "type::record('resource_grants', $proof_resource)")
+        .replace("$workspace", "type::record('workspaces', $proof_op)")
+        .replace("$operation_id", "$proof_op")
+        .replace("$resource", "type::record('protected_resources', $proof_resource)")
+        .replace("$account_session", "type::record('authenticated_sessions', $proof_session)")
+        .replace("$channel_hash", "$proof_channel")
+        .replace("$name", "$proof_name")
+        .replace("$deadline", "<datetime>'2099-01-01T00:00:00Z'")
+}
+
+const PT003_CLAIMED_STATE: &str = r#"
+UPDATE first_owner_administration_origins:primary SET first_workspace_state = 'created', first_workspace_receipt_nonce = 1,
+ first_workspace_operation_id = $proof_op, first_workspace = type::record('workspaces', $proof_op),
+ first_workspace_resource = type::record('protected_resources', $proof_resource),
+ first_workspace_grant = type::record('resource_grants', $proof_resource),
+ first_workspace_session = type::record('authenticated_sessions', $proof_session),
+ first_workspace_channel_hash = $proof_channel, first_workspace_name = $proof_name,
+ first_workspace_deadline = <datetime>'2099-01-01T00:00:00Z' RETURN first_workspace_state;
+"#;
+
+async fn pt003_surrogate_set(
+    state: &AppState, scope: &crate::storage::surreal::resource_authority::RecordUserScope, bindings: &Value, label: &str,
+    flat_where: &str, grouped_where: &str,
+) -> String {
+    let mut out = String::new();
+    for (name, where_clause) in [("flat", flat_where), ("grouped20", grouped_where)] {
+        let text = pt003_inline_scalar_bindings(&pt003_scalar_text(where_clause));
+        out.push_str(&format!("{label} scalar_{name} root = {}\n", pt003_clip(pt003_root_owned(state, text.clone(), bindings).await)));
+        out.push_str(&format!("{label} scalar_{name} record_user = {}\n",
+            pt003_clip(pt003_record_user_view(state, scope, pt003_leak(text), bindings).await)));
+    }
+    out.push_str(&format!("{label} strict_projection record_user = {}\n",
+        pt003_clip(pt003_record_user_view(state, scope, PT003_STRICT_PROJECTION, bindings).await)));
+    out.push_str(&format!("{label} strict_where record_user = {}\n",
+        pt003_clip(pt003_record_user_view(state, scope, PT003_STRICT_WHERE, bindings).await)));
+    out
+}
+
+#[tokio::test]
+async fn pt003_scalar_depth_probe() {
+    let production = pt003_strict_function_text();
+    let conjunct = "record::exists($row.setup_receipt) AND ";
+    assert_eq!(production.matches(conjunct).count(), 1, "pt003 conjunct occurrence count");
+    let patched = production.replacen(conjunct, "", 1);
+    let terms = pt003_workspace_read_where();
+    let flat_where = terms.join(" AND ");
+    let grouped_where = pt003_regrouped_where(20);
+    let mut report = format!(
+        "PT003-O6 scalar depth probe (R172-02e)\nstatement WHERE terms = {}\nregrouped WHERE (blocks of at most 20) = {grouped_where}\n",
+        terms.len()
+    );
+    // (a) and (b): the real :189 path (compute-only fixture, probe_first_owner_workspace_receipt_projection, in-transaction SCALAR_QUERY).
+    eprintln!("PT003-O6 marker (a) baseline begin");
+    let (outcome_a, run_a) = pt003_probe_run(true, None).await;
+    report.push_str(&format!("(a) baseline SCALAR_QUERY on the :189 path: outcome = {outcome_a}\n{run_a}"));
+    eprintln!("PT003-O6 marker (b) fix A begin");
+    let (outcome_b, run_b) = pt003_probe_run(true, Some(patched.clone())).await;
+    report.push_str(&format!("(b) fix A, SCALAR_QUERY on the :189 path: outcome = {outcome_b}\n{run_b}"));
+    eprintln!("PT003-O6 marker surrogate runs begin");
+    // (c), (d), (e), (f): surrogate runs outside the transaction in one compute-only fixture.
+    // The in-transaction SCALAR_QUERY text is fixed inside workspaces.rs, so a regrouped WHERE cannot run on the :189 path from test code.
+    let MountedIndexAccountFixture { _binding, backend, state, router, headers, session } =
+        mounted_index_account_fixture(true).await;
+    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .unwrap_or_else(|_| panic!("pt003 scalar depth probe account authentication failed"));
+    let (scope, bindings) = pt003_scope_and_bindings!(credentials, session);
+    report.push_str("SURROGATE runs follow (outside the creation transaction; not the :189 path)\n");
+    let claim = pt003_root_owned(&state, PT003_CLAIMED_STATE.to_owned(), &bindings).await;
+    report.push_str(&format!("claimed-state root update = {}\n", pt003_clip(claim)));
+    // (e) statement WHERE alone as root, no permission predicate in play, then the permission predicate alone.
+    let where_root = pt003_inline_scalar_bindings(&format!(
+        "SELECT VALUE true FROM first_owner_administration_origins:primary WHERE {flat_where};"));
+    report.push_str(&format!("(e) statement WHERE alone root = {}\n", pt003_clip(pt003_root_owned(&state, where_root, &bindings).await)));
+    let predicate = "SELECT VALUE (fn::wp012_first_owner_workspace_actor($this) AND fn::wp012_first_owner_workspace_receipt($this, $proof_op, type::record('workspaces', $proof_op), type::record('protected_resources', $proof_resource), type::record('resource_grants', $proof_resource), type::record('authenticated_sessions', $proof_session), $proof_channel, $proof_name, time::now())) FROM first_owner_administration_origins:primary;";
+    report.push_str(&format!("(e) permission predicate alone (actor AND receipt, projection) record_user = {}\n",
+        pt003_clip(pt003_record_user_view(&state, &scope, predicate, &bindings).await)));
+    // (f) actor function alone: root projection, root WHERE and a record-user SELECT permission gate calling it.
+    report.push_str(&pt003_depth_eval(&state, &scope, &bindings, "actor_only", "wp012_first_owner_workspace_actor").await);
+    // (c) regrouped WHERE with the production strict function.
+    report.push_str(&pt003_surrogate_set(&state, &scope, &bindings, "(c) production_fn", &flat_where, &grouped_where).await);
+    // (d) the same with fix A applied in this store.
+    report.push_str(&format!("fix A define = {}\n", pt003_clip(pt003_root_ddl(&state, patched, 1).await)));
+    report.push_str(&pt003_surrogate_set(&state, &scope, &bindings, "(d) fixA_fn", &flat_where, &grouped_where).await);
+    drop(router);
+    drop(state);
+    let closed = backend.close_and_remove().await.is_ok();
+    report.push_str(&format!("fixture close ok = {closed}\n"));
+    pt003_write_report("pt003-scalar-depth.txt", &report);
 }
 
 #[derive(PartialEq, SurrealValue)]
