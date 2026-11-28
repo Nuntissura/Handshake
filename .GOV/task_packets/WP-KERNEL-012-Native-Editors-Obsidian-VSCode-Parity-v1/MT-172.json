@@ -15278,5 +15278,69 @@
     "proof_decision": "The current named live-launch proof injects a manual process ledger and recording sink. Use the existing real Surreal STOP batcher and durable outbox bridge APIs in that one authorized live test, then independently read the exact STOP process UUID and both stable event IDs. No need to rereun their separate unchanged suites for this step.",
     "next": "R172-10a frozen tuple and byte-exact inverse, then 10b canonical forward statements and 10c active wiring. Runtime validation and migration enrollment have not run.",
     "status": "Product checkpoints remain local. No Cargo or runtime verdict."
+  },
+  "r172_10a_10b_source_delta_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently applied authored Rust literals to immutable Git blobs and inspected scoped forward diff",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "#/rev172_plan_20261127",
+    "local_intermediates": [
+      {
+        "pico": "R172-10a",
+        "commit": "795cdae3392a0413d206d9a38ac97cf12649d8ac",
+        "tree": "81a61a78cd298aa6d11c4f36a3a2152193e93ded",
+        "static": "Frozen contract tuple and restore data. Five restored outputs byte-matched the pinned 167ae6a9b blobs; second pass unchanged.",
+        "restored": {
+          "schema.surql": {
+            "declaration_count": 6,
+            "sha256": "ec2a2552e0abd613ef53f814b07e65673b167f58afb0f04ade1f50cb0885d651"
+          },
+          "loom_search_schema.surql": {
+            "declaration_count": 7,
+            "sha256": "55838a2b94e7eca696de04aadf4ce5b70b9a29562f6ee01f8b0e0f1f46d8bce8"
+          },
+          "user_manual_knowledge_schema.surql": {
+            "declaration_count": 7,
+            "sha256": "abd49a97afbda36eec818a04fc08ffd5f51f88f8ff8e42ea19fcb7e937985805"
+          },
+          "model_lane_schema.surql": {
+            "declaration_count": 29,
+            "sha256": "13646bc3199836a49a43503279e64ab47b9a6a4a8ffe8acd05e9c59aae638320"
+          },
+          "cloud_model_lane_schema.surql": {
+            "declaration_count": 6,
+            "sha256": "56c13f1aa6a26f5dca6b76612bf4bb97e44ab26f5a8c3d1360f1a1648b5b23cb"
+          }
+        }
+      },
+      {
+        "pico": "R172-10b",
+        "commit": "1cc744d98a11fe0474cd1af9dd170638f3266117",
+        "tree": "b29aefe38862598d2545ddc3fa5c9cf750e04b90",
+        "static": "Shared canonical block and six declaration spans produce 36 base definitions. Four production inventories add 49. Inverse/PRE pins retained. Named three-key duplicate preflight is immediately before the unique index in the emitted body."
+      }
+    ],
+    "state": "Static only. R172-10c direct predecessor wiring active. No Cargo or product push."
+  },
+  "r172_10c_11a_and_165_cloud_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently inspected product commits and both specialist/adversarial 165 archived-Cloud evidence",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "#/rev172_plan_20261127",
+    "local_intermediates": [
+      {
+        "pico": "R172-10c",
+        "commit": "f0e920a03636659b138695302bcde8d887b5dcfa",
+        "tree": "9d1ab9d0a2e42924da89c117eb1320d0e0911f9a",
+        "static": "Direct 171 (complete or pending) recognition, catalog match, revision170 inverse chain and transactional 172 body. 167–170 prior reads remain. Stage pins None."
+      },
+      {
+        "pico": "R172-11a",
+        "commit": "9d32bc040964664ebccd7ba81279d0dfe77a7061",
+        "tree": "5eb2c931d0d5295d51f2ef5c240bf7a4178878b5",
+        "static": "Existing imported transition emits all six changed shared declarations via prior owners, so appended fragment contains only the 30 new definitions before existing state update."
+      }
+    ],
+    "decision": "For archived 165 production, reuse the existing 166 four-header Cloud selector before the new filtered 172 append. Both archived 165 source blobs, aaadc90652596940246106fe3b028601799b037d and 791e666350ce03875f4bd2dff9396f09646964a7, independently match ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77 and the prior frozen Cloud. Existing 165 does not materialize those four and the production return bypasses module installers. These four are disjoint from the six revision-172 Cloud changes. The exact 165 runtime/catalog proof remains required.",
+    "older_selector_decision": "164 duplicates exact receipt and three changed ModelLane declarations. Retain sole prior owners and the verified 236-production/89-base early selected count. 166 retains prior receipt plus live model, 164/165 retain all six shared prior owners plus live model, and the filtered append owns only remaining declarations.",
+    "status": "No Cargo or product push. R172-11b is current, both catalog subtractions and historical fixtures remain."
   }
 }
