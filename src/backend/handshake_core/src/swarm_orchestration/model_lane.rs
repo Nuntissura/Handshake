@@ -683,7 +683,7 @@ const MODEL_LANE_NAVIGATION_RECORD_KINDS: &[SurrealRecordKind] = &[
     SurrealRecordKind::CloudConsentDenial,
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct DurableSessionCleanupReceipt {
     pub instance_id: String,
     pub lane_id: Option<String>,
@@ -695,6 +695,92 @@ pub(crate) struct DurableSessionCleanupReceipt {
     pub reason: String,
     pub exit_code: i32,
     pub last_error: Option<String>,
+}
+
+#[derive(Clone)]
+pub(crate) struct CloudRevocationCleanupIdentity {
+    pub(crate) instance_id: super::ids::ModelInstanceId,
+    pub(crate) process_uuid: Uuid,
+    pub(crate) run_id: String,
+    pub(crate) lane_id: String,
+    pub(crate) projection_plan_id: String,
+    pub(crate) consent_receipt_id: String,
+    pub(crate) reason: String,
+}
+
+impl CloudRevocationCleanupIdentity {
+    pub(crate) fn aggregate_id(&self) -> String {
+        cleanup_receipt_aggregate_id(&self.instance_id.to_string(), self.process_uuid)
+    }
+
+    pub(crate) fn matches_receipt(&self, receipt: &DurableSessionCleanupReceipt) -> bool {
+        receipt.instance_id == self.instance_id.to_string()
+            && receipt.lane_id.as_deref() == Some(self.lane_id.as_str())
+            && receipt.process_uuid == self.process_uuid
+            && receipt.terminal_state == "Cancelled" && receipt.exit_code == -1
+            && receipt.reason == self.reason
+    }
+}
+
+pub(crate) struct CloudRevocationCleanupTarget {
+    pub(crate) identity: CloudRevocationCleanupIdentity,
+    pub(crate) start: crate::process_ledger::ProcessStart,
+}
+
+pub(crate) enum CloudRevocationCleanupPhase {
+    Pending(Option<String>),
+    TeardownSucceeded(Option<String>),
+    ExactProcessReclaimSucceeded(String),
+}
+
+pub(crate) struct CloudRevocationCleanupProgress {
+    pub(crate) target: CloudRevocationCleanupTarget,
+    pub(crate) terminal_event_id: Uuid,
+    pub(crate) resource_evicted_event_id: Uuid,
+    pub(crate) phase: CloudRevocationCleanupPhase,
+}
+
+pub(crate) struct CloudRevocationCleanupCompletion {
+    identity: CloudRevocationCleanupIdentity,
+    terminal_event_id: Uuid,
+    resource_evicted_event_id: Uuid,
+}
+
+impl CloudRevocationCleanupCompletion {
+    pub(crate) fn into_parts(self) -> (CloudRevocationCleanupIdentity, Uuid, Uuid) {
+        (
+            self.identity,
+            self.terminal_event_id,
+            self.resource_evicted_event_id,
+        )
+    }
+}
+
+pub(crate) struct VerifiedCloudRevocationCleanup {
+    pub(crate) record: SurrealModelLaneRecord,
+    pub(crate) receipt: DurableSessionCleanupReceipt,
+}
+
+impl CloudRevocationCleanupProgress {
+    pub(crate) fn receipt(&self) -> DurableSessionCleanupReceipt {
+        let (status, last_error) = match &self.phase {
+            CloudRevocationCleanupPhase::Pending(error) => ("cleanup_pending", error.clone()),
+            CloudRevocationCleanupPhase::TeardownSucceeded(error) => ("teardown_succeeded", error.clone()),
+            CloudRevocationCleanupPhase::ExactProcessReclaimSucceeded(error) => ("exact_process_reclaim_succeeded", Some(error.clone())),
+        };
+        DurableSessionCleanupReceipt {
+            instance_id: self.target.identity.instance_id.to_string(),
+            lane_id: Some(self.target.identity.lane_id.clone()),
+            process_uuid: self.target.identity.process_uuid,
+            terminal_event_id: self.terminal_event_id,
+            resource_evicted_event_id: self.resource_evicted_event_id,
+            status: status.to_owned(),
+            terminal_state: "Cancelled".to_owned(),
+            reason: self.target.identity.reason.clone(),
+            exit_code: -1,
+            last_error,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3138,15 +3224,15 @@ impl ModelLaneStore {
     }
 
     /// Durable cleanup intents that survived a coordinator/runtime restart.
-    /// Boot reconciliation is restricted to the exact product resource scope;
-    /// unattributed and foreign-scope receipts are deliberately invisible.
+    /// Boot reconciliation reads only exact-scope receipts whose linked event
+    /// carries no original request authority.
     pub(crate) async fn pending_session_cleanup_receipts(
         &self,
     ) -> ModelLaneResult<Vec<DurableSessionCleanupReceipt>> {
         let scope = self.surreal_read_scope("read pending swarm-session cleanup receipts")?;
         let provider = self.provider().await?;
         let rows = provider
-            .list_kind(SurrealRecordKind::SessionCleanupReceipt, &scope)
+            .list_uncredentialed_session_cleanup_receipts(&scope)
             .await?;
         let mut receipts = Vec::new();
         for row in rows {
@@ -3198,6 +3284,109 @@ impl ModelLaneStore {
             && receipt.status == "completed"
             && receipt.terminal_state == terminal_state
             && receipt.reason == reason)
+    }
+
+    pub(crate) async fn record_cloud_revocation_cleanup_progress(
+        &self,
+        progress: CloudRevocationCleanupProgress,
+    ) -> ModelLaneResult<VerifiedCloudRevocationCleanup> {
+        let scope = self.surreal_write_scope("record cloud revocation cleanup progress")?;
+        let provider = self.provider().await?.clone();
+        let writer = provider.clone();
+        let store = self.clone();
+        let write_scope = scope.clone();
+        provider.with_cloud_authority_transaction(
+            crate::storage::surreal::ContextCoordinationPurpose::CloudConsentRevocation,
+            scope,
+            move || async move {
+                store.verify_cloud_revocation_cleanup_identity(&progress.target.identity).await?;
+                Ok(writer.record_cloud_revocation_cleanup_progress(&progress, &write_scope).await?)
+            },
+        ).await
+    }
+
+    pub(super) async fn record_cloud_revocation_cleanup_completion(
+        &self,
+        proof: super::coordinator::CloudRevocationCleanupCompletionProof,
+    ) -> ModelLaneResult<VerifiedCloudRevocationCleanup> {
+        let (target, generation, terminal_event_id, resource_evicted_event_id) = proof.into_parts();
+        if generation == 0
+            || target.start.process_uuid != target.identity.process_uuid
+            || terminal_event_id == resource_evicted_event_id
+            || terminal_event_id == target.identity.process_uuid
+            || resource_evicted_event_id == target.identity.process_uuid
+        {
+            return Err(ModelLaneError::AuthorityDenied(
+                "CX-MM-007 cleanup completion proof does not match its START or stable event identities".into(),
+            ));
+        }
+
+        let scope = self.surreal_write_scope("record cloud revocation cleanup completion")?;
+        let provider = self.provider().await?.clone();
+        let writer = provider.clone();
+        let store = self.clone();
+        let write_scope = scope.clone();
+        provider.with_cloud_authority_transaction(
+            crate::storage::surreal::ContextCoordinationPurpose::CloudConsentRevocation,
+            scope,
+            move || async move {
+                store.verify_cloud_revocation_cleanup_identity(&target.identity).await?;
+                let completion = CloudRevocationCleanupCompletion {
+                    identity: target.identity,
+                    terminal_event_id,
+                    resource_evicted_event_id,
+                };
+                Ok(writer
+                    .record_cloud_revocation_cleanup_completion(completion, &write_scope)
+                    .await?)
+            },
+        ).await
+    }
+
+    pub(crate) async fn cloud_revocation_cleanup_completion(
+        &self,
+        identity: CloudRevocationCleanupIdentity,
+    ) -> ModelLaneResult<Option<VerifiedCloudRevocationCleanup>> {
+        let scope = self.surreal_write_scope("verify cloud revocation cleanup completion")?;
+        let provider = self.provider().await?.clone();
+        let reader = provider.clone();
+        let store = self.clone();
+        let write_scope = scope.clone();
+        provider.with_cloud_authority_transaction(
+            crate::storage::surreal::ContextCoordinationPurpose::CloudConsentRevocation,
+            scope,
+            move || async move {
+                store.verify_cloud_revocation_cleanup_identity(&identity).await?;
+                let receipt = reader.cloud_revocation_cleanup_readback(&identity, &write_scope).await?;
+                Ok(receipt.filter(|verified| verified.receipt.status == "completed"))
+            },
+        ).await
+    }
+
+    async fn verify_cloud_revocation_cleanup_identity(&self, identity: &CloudRevocationCleanupIdentity) -> ModelLaneResult<()> {
+        let exact = require_exact_lifecycle_write_scope(self)?;
+        let scope = cloud_model_lane_scope(&exact);
+        let cloud = self.cloud_authority().await?;
+        let denied = || ModelLaneError::AuthorityDenied("CX-MM-007 cleanup target lacks a matching cloud lane and committed consent revocation".into());
+        let lane = cloud.get(CloudModelLaneRecordKind::CloudLane, &identity.lane_id, &scope).await?.ok_or_else(denied)?;
+        let lane: ModelLaneRecord = serde_json::from_str(&lane.record_json)?;
+        let consent = cloud.get(CloudModelLaneRecordKind::ConsentReceipt, &identity.consent_receipt_id, &scope).await?.ok_or_else(denied)?;
+        let revoked: ModelLaneCloudConsentReceiptRecord = serde_json::from_str(&consent.record_json)?;
+        validate_cloud_consent_authority_surreal(&revoked, &consent)?;
+        let revocation_reason = revoked.diagnostic_payload["revocation_reason"].as_str().ok_or_else(denied)?;
+        if revoked.status != ModelLaneCloudConsentReceiptStatus::Revoked || revoked.approved
+            || revoked.run_id != identity.run_id || revoked.projection_plan_id != identity.projection_plan_id
+            || revoked.consent_receipt_id != identity.consent_receipt_id
+            || lane.run_id != identity.run_id || lane.lane_id != identity.lane_id
+            || lane.model_session_id != format!("swarm-session:{}", identity.instance_id)
+            || lane.process_ownership_ref.as_deref() != Some(format!("process-ledger://{}", identity.process_uuid).as_str())
+            || lane.projection_plan_ref.as_deref() != Some(identity.projection_plan_id.as_str())
+            || lane.consent_receipt_ref.as_deref() != Some(identity.consent_receipt_id.as_str())
+            || identity.reason != format!("CX-MM-007 cloud consent revoked: {revocation_reason}")
+        {
+            return Err(denied());
+        }
+        Ok(())
     }
 
     pub async fn record_successful_launch(
@@ -4955,8 +5144,19 @@ impl ModelLaneStore {
         revoked_by_ref: &str,
         reason: &str,
     ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
-        self.fence_cloud_consent_revocation_surreal(consent_receipt_id, revoked_by_ref, reason)
-            .await
+        let scope = self.surreal_write_scope("fence_cloud_consent_revocation")?;
+        let provider = self.provider().await?.clone();
+        let store = self.clone();
+        let consent_receipt_id = consent_receipt_id.to_owned();
+        let revoked_by_ref = revoked_by_ref.to_owned();
+        let reason = reason.to_owned();
+        provider.with_cloud_authority_transaction(
+            crate::storage::surreal::ContextCoordinationPurpose::CloudConsentRevocation,
+            scope,
+            move || async move {
+                store.fence_cloud_consent_revocation_surreal(&consent_receipt_id, &revoked_by_ref, &reason).await
+            },
+        ).await
     }
 
     pub(crate) async fn finalize_cloud_consent_revocation(
@@ -4966,13 +5166,25 @@ impl ModelLaneStore {
         reason: &str,
         provider_cancelled_lane_ids: &std::collections::BTreeSet<String>,
     ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
-        self.finalize_cloud_consent_revocation_surreal(
-            consent_receipt_id,
-            revoked_by_ref,
-            reason,
-            provider_cancelled_lane_ids,
-        )
-        .await
+        let scope = self.surreal_write_scope("finalize_cloud_consent_revocation")?;
+        let provider = self.provider().await?.clone();
+        let store = self.clone();
+        let consent_receipt_id = consent_receipt_id.to_owned();
+        let revoked_by_ref = revoked_by_ref.to_owned();
+        let reason = reason.to_owned();
+        let provider_cancelled_lane_ids = provider_cancelled_lane_ids.clone();
+        provider.with_cloud_authority_transaction(
+            crate::storage::surreal::ContextCoordinationPurpose::CloudConsentRevocation,
+            scope,
+            move || async move {
+                store.finalize_cloud_consent_revocation_surreal(
+                    &consent_receipt_id,
+                    &revoked_by_ref,
+                    &reason,
+                    &provider_cancelled_lane_ids,
+                ).await
+            },
+        ).await
     }
 
     #[cfg(feature = "test-utils")]
@@ -9024,35 +9236,33 @@ impl ModelLaneStore {
                 "storage_authority": "embedded_surrealdb",
             }),
         );
-        let event_id = Uuid::now_v7().to_string();
-        let event_seq = next_cloud_event_sequence();
         let revoked = ModelLaneCloudConsentReceiptRecord {
             consent_receipt_hash: cloud_consent_receipt_hash(&receipt_inner)?,
             target_bindings_hash: existing.target_bindings_hash.clone(),
-            event_ledger_event_id: event_id.clone(),
-            event_ledger_seq: event_seq,
-            event_stream_version: event_seq,
-            transaction_seq: event_seq,
+            event_ledger_event_id: String::new(),
+            event_ledger_seq: 0,
+            event_stream_version: 0,
+            transaction_seq: 0,
             inner: receipt_inner,
         };
         let payload = cloud_consent_receipt_event_payload(&revoked);
         let stored = store
-            .replace(
-                CloudModelLaneRecordKind::ConsentReceipt,
+            .put_immutable(
+                CloudModelLaneRecordKind::ConsentRevocation,
                 consent_receipt_id,
+                &revoked.run_id,
+                Some(&revoked.projection_plan_id),
+                Some(consent_receipt_id),
+                &revoked.idempotency_key,
                 serde_json::to_string(&revoked)?,
-                event_id,
-                event_seq,
+                String::new(),
+                0,
                 serde_json::to_string(&payload)?,
                 &scope,
             )
-            .await?
-            .ok_or_else(|| {
-                ModelLaneError::AuthorityDenied(
-                    "CX-MM-007 consent receipt disappeared during revocation".into(),
-                )
-            })?;
-        validate_cloud_consent_authority_surreal(&revoked, &stored)?;
+            .await?;
+        let stored_record: ModelLaneCloudConsentReceiptRecord = serde_json::from_str(&stored.record_json)?;
+        validate_cloud_consent_authority_surreal(&stored_record, &stored)?;
         Ok(covered_lanes)
     }
 
@@ -9130,12 +9340,9 @@ impl ModelLaneStore {
                 lane.lane_id
             ));
             validate_lane(&lane)?;
-            let event_id = Uuid::now_v7().to_string();
-            let event_seq = next_cloud_event_sequence();
-            lane.last_recovery_event_ref = Some(event_id.clone());
             let record = ModelLaneRecord {
-                event_ledger_event_id: event_id.clone(),
-                event_ledger_seq: event_seq,
+                event_ledger_event_id: String::new(),
+                event_ledger_seq: 0,
                 inner: lane,
             };
             let mut payload = json!({
@@ -9157,31 +9364,31 @@ impl ModelLaneStore {
                 )
             })?;
             let stored = store
-                .replace(
-                    CloudModelLaneRecordKind::CloudLane,
+                .put_immutable(
+                    CloudModelLaneRecordKind::LaneTerminal,
                     &record.lane_id,
+                    &record.run_id,
+                    record.projection_plan_ref.as_deref(),
+                    Some(consent_receipt_id),
+                    &format!("model-lane:{}:{}", record.run_id, record.lane_id),
                     serde_json::to_string(&record)?,
-                    event_id,
-                    event_seq,
+                    String::new(),
+                    0,
                     serde_json::to_string(&payload)?,
                     &scope,
                 )
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 cloud lane {} disappeared during revocation",
-                        record.lane_id
-                    ))
-                })?;
-            if stored.event_id != record.event_ledger_event_id
-                || stored.event_seq != record.event_ledger_seq
-            {
-                return Err(ModelLaneError::IntegrityViolation(format!(
-                    "cloud lane {} SurrealDB EventLedger envelope mismatch",
-                    record.lane_id
-                )));
-            }
-            cancelled.push(record);
+                .await?;
+            let stored_record: ModelLaneRecord = serde_json::from_str(&stored.record_json)?;
+            payload["record"] = serde_json::to_value(&stored_record)?;
+            validate_surreal_event_envelope(
+                &stored_record.event_ledger_event_id,
+                stored_record.event_ledger_seq,
+                &payload,
+                &stored,
+                "cloud lane",
+                &stored_record.lane_id,
+            )?;
+            cancelled.push(stored_record);
         }
         Ok(cancelled)
     }

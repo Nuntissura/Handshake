@@ -25,7 +25,7 @@ use std::sync::{Arc, OnceLock, Weak};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use surrealdb::types::SurrealValue;
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::kernel::context_bundle::{canonical_json_bytes, sha256_hex};
@@ -192,7 +192,6 @@ pub(crate) struct WorktreeVmRestoreOutcome {
 struct WorktreeVmDurableStore {
     storage: SurrealStorage,
     access: ResourceAccessContext,
-    schema_ready: Arc<OnceCell<()>>,
 }
 
 static DURABLE_SERIALIZERS: OnceLock<std::sync::Mutex<HashMap<String, Weak<Mutex<()>>>>> =
@@ -223,10 +222,10 @@ impl WorktreeVmRegistry {
     }
 
     /// Construct a registry whose binding authority survives a registry/app
-    /// component restart in Handshake's embedded SurrealDB. The store lazily
-    /// bootstraps its MT-023 schema on first use; every durable read and
-    /// mutation predicates the complete five-field scope and every returned
-    /// row is authorized again after deserialization.
+    /// component restart in Handshake's embedded SurrealDB. The composed
+    /// schema defines the binding table. Every durable read and mutation
+    /// predicates the complete five-field scope and every returned row is
+    /// authorized again after deserialization.
     pub fn new_durable(
         adapter: Arc<dyn SandboxAdapter>,
         storage: SurrealStorage,
@@ -239,7 +238,6 @@ impl WorktreeVmRegistry {
             durable: Some(WorktreeVmDurableStore {
                 storage,
                 access,
-                schema_ready: Arc::new(OnceCell::new()),
             }),
         }
     }
@@ -1031,38 +1029,12 @@ impl WorktreeVmRegistry {
     }
 }
 
-const WORKTREE_VM_SCHEMA: &str = r#"
-DEFINE TABLE IF NOT EXISTS worktree_vm_bindings SCHEMAFULL;
-DEFINE FIELD IF NOT EXISTS binding_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS worktree_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS adapter_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS process_handle_json ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS latest_snapshot_json ON worktree_vm_bindings TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS binding_state ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS generation ON worktree_vm_bindings TYPE int;
-DEFINE FIELD IF NOT EXISTS failure_reason ON worktree_vm_bindings TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS reservation_id ON worktree_vm_bindings TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS owner_account_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS actor_principal_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS authenticated_session_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS access_space_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS workspace_id ON worktree_vm_bindings TYPE string;
-DEFINE FIELD IF NOT EXISTS updated_at_unix_ms ON worktree_vm_bindings TYPE int;
-DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE worktree_vm_bindings TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
-DEFINE FIELD OVERWRITE event_ledger_event_type ON TABLE worktree_vm_bindings TYPE string;
-DEFINE FIELD OVERWRITE event_ledger_payload_hash ON TABLE worktree_vm_bindings TYPE string;
-DEFINE INDEX IF NOT EXISTS worktree_vm_binding_id_unique ON worktree_vm_bindings FIELDS binding_id UNIQUE;
-"#;
-
 const EVENT_RESERVED: &str = "TASK_INTENT_RECORDED";
 const EVENT_STARTED: &str = "SESSION_STARTED";
 const EVENT_RESTORED: &str = "TRACE_REPLAYED";
 const EVENT_SNAPSHOTTED: &str = "ARTIFACT_STORED";
 const EVENT_TERMINATED: &str = "SESSION_COMPLETED";
 const EVENT_COMPENSATED: &str = "SESSION_FAILED";
-
-#[derive(Debug, SurrealValue)]
-struct EmptySurrealBindings {}
 
 #[derive(Clone, Debug)]
 struct DurableScopeStrings {
@@ -1374,27 +1346,6 @@ impl WorktreeVmDurableStore {
         })
     }
 
-    async fn ensure_schema(&self) -> Result<(), WorktreeVmError> {
-        self.schema_ready
-            .get_or_try_init(|| async {
-                self.storage
-                    .with_data_operation(|database| {
-                        Box::pin(async move {
-                            let _ = database
-                                .query_values::<surrealdb::types::Value, _>(
-                                    WORKTREE_VM_SCHEMA,
-                                    EmptySurrealBindings {},
-                                )
-                                .await?;
-                            Ok(())
-                        })
-                    })
-                    .await
-            })
-            .await?;
-        Ok(())
-    }
-
     async fn verify_receipt_linkage(
         &self,
         worktree_id: &str,
@@ -1475,7 +1426,6 @@ impl WorktreeVmDurableStore {
     }
 
     async fn reserve(&self, worktree_id: &str) -> Result<Uuid, WorktreeVmError> {
-        self.ensure_schema().await?;
         let scope = self.scope_strings()?;
         let reservation_id = Uuid::now_v7();
         let reservation_text = reservation_id.to_string();
@@ -1699,7 +1649,6 @@ impl WorktreeVmDurableStore {
         worktree_id: &str,
         reservation_id: Uuid,
     ) -> Result<(), WorktreeVmError> {
-        self.ensure_schema().await?;
         let scope = self.scope_strings()?;
         let record_id = self.record_id(worktree_id)?;
         let reservation_text = reservation_id.to_string();
@@ -1872,7 +1821,6 @@ impl WorktreeVmDurableStore {
         state: WorktreeVmBindingState,
         reservation_id: Uuid,
     ) -> Result<WorktreeVmBindingIdentity, WorktreeVmError> {
-        self.ensure_schema().await?;
         let scope = self.scope_strings()?;
         // The canonical binding identity is the immutable sandbox process UUID.
         // Replaying the same reservation/handle therefore reuses the same
@@ -2071,7 +2019,6 @@ impl WorktreeVmDurableStore {
         binding: &WorktreeVmBindingRecord,
         snapshot: &SnapshotRef,
     ) -> Result<(), WorktreeVmError> {
-        self.ensure_schema().await?;
         let scope = self.scope_strings()?;
         let record_id = self.record_id(&binding.worktree_id)?;
         let binding_text = binding.binding_id.to_string();
@@ -2252,7 +2199,6 @@ impl WorktreeVmDurableStore {
         &self,
         binding: &WorktreeVmBindingRecord,
     ) -> Result<(), WorktreeVmError> {
-        self.ensure_schema().await?;
         let scope = self.scope_strings()?;
         let record_id = self.record_id(&binding.worktree_id)?;
         let binding_text = binding.binding_id.to_string();
@@ -2442,7 +2388,6 @@ impl WorktreeVmDurableStore {
         &self,
         worktree_id: &str,
     ) -> Result<Option<StoredBindingRow>, WorktreeVmError> {
-        self.ensure_schema().await?;
         let bindings = self.scoped_record_bindings(worktree_id)?;
         let rows = self
             .storage
@@ -2531,7 +2476,6 @@ impl WorktreeVmDurableStore {
         &self,
         manifest: &WarmVmSnapshotManifest,
     ) -> Result<(), WorktreeVmError> {
-        self.ensure_schema().await?;
         let expected_scope = snapshot_resource_scope(self.require_scope()?);
         let manifest_scope = manifest
             .resource_scope

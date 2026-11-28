@@ -1,4 +1,5 @@
 use super::{SurrealStorage, SurrealStorageError};
+use crate::kernel::context_bundle::{canonical_json_bytes, sha256_hex};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use surrealdb::types::SurrealValue;
@@ -31,8 +32,10 @@ pub(crate) enum CloudModelLaneRecordKind {
     ProjectionPlan,
     ConsentReceipt,
     ConsentDenial,
+    ConsentRevocation,
     CloudRun,
     CloudLane,
+    LaneTerminal,
 }
 
 impl CloudModelLaneRecordKind {
@@ -41,8 +44,10 @@ impl CloudModelLaneRecordKind {
             Self::ProjectionPlan => "projection_plan",
             Self::ConsentReceipt => "consent_receipt",
             Self::ConsentDenial => "consent_denial",
+            Self::ConsentRevocation => "consent_revocation",
             Self::CloudRun => "cloud_run",
             Self::CloudLane => "cloud_lane",
+            Self::LaneTerminal => "lane_terminal",
         }
     }
 }
@@ -114,6 +119,7 @@ struct ScopedLookupBindings {
     kind: String,
     aggregate_id: String,
     run_id: String,
+    projection_plan_id: String,
     consent_receipt_id: String,
     owner_account_id: String,
     actor_principal_id: String,
@@ -128,6 +134,12 @@ struct StoredRowValue {
     event_id: String,
     event_seq: i64,
     event_payload_json: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct CloudOverlaySnapshot {
+    events: Vec<String>,
+    candidates: Vec<StoredRowValue>,
 }
 
 impl From<StoredRowValue> for CloudModelLaneStoredRow {
@@ -243,6 +255,8 @@ impl CloudModelLaneStore {
             CloudModelLaneRecordKind::CloudRun => super::model_lane::ContextCoordinationPurpose::CloudRun,
             CloudModelLaneRecordKind::CloudLane => super::model_lane::ContextCoordinationPurpose::CloudLane,
             CloudModelLaneRecordKind::ConsentDenial => super::model_lane::ContextCoordinationPurpose::CloudConsentDenial,
+            CloudModelLaneRecordKind::ConsentRevocation | CloudModelLaneRecordKind::LaneTerminal =>
+                super::model_lane::ContextCoordinationPurpose::CloudConsentRevocation,
         };
         if !sealed || !super::MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| *purpose == expected_purpose).unwrap_or(false) {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
@@ -489,53 +503,8 @@ impl CloudModelLaneStore {
         .await
     }
 
-    pub(crate) async fn replace(
-        &self,
-        kind: CloudModelLaneRecordKind,
-        aggregate_id: &str,
-        record_json: String,
-        event_id: String,
-        event_seq: i64,
-        event_payload_json: String,
-        scope: &CloudModelLaneScope,
-    ) -> Result<Option<CloudModelLaneStoredRow>, SurrealStorageError> {
-        let bindings = AuthorityWriteBindings {
-            record_id: String::new(),
-            event_id,
-            kind: kind.as_str().to_owned(),
-            aggregate_id: aggregate_id.to_owned(),
-            run_id: String::new(),
-            projection_plan_id: String::new(),
-            consent_receipt_id: String::new(),
-            idempotency_key: String::new(),
-            record_json,
-            event_seq,
-            event_payload_json,
-            owner_account_id: scope.owner_account_id.clone(),
-            actor_principal_id: scope.actor_principal_id.clone(),
-            authenticated_session_id: scope.authenticated_session_id.clone(),
-            access_space_id: scope.access_space_id.clone(),
-            workspace_id: scope.workspace_id.clone(),
-        };
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-                database.query_values_at::<StoredRowValue, _>(
-                "BEGIN TRANSACTION;\
-                 LET $target = (SELECT VALUE id FROM model_lane_cloud_authority WHERE kind = $kind AND aggregate_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 1);\
-                 IF array::len($target) = 0 { RETURN []; } ELSE {\
-                   LET $current = (SELECT * FROM ONLY $target[0]);\
-                   LET $ledger = CREATE type::record('model_lane_cloud_event_ledger', $event_id) CONTENT { aggregate_kind: $kind, aggregate_id: $aggregate_id, run_id: $current.run_id, event_seq: $event_seq, payload_json: $event_payload_json, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
-                   RETURN UPDATE $target[0] SET record_json = $record_json, event_id = $event_id, event_seq = $event_seq, event_payload_json = $event_payload_json;\
-                 };\
-                 COMMIT TRANSACTION;",
-                    bindings,
-                    2,
-            ).await
-        })).await?;
-        Ok(rows.into_iter().next().map(Into::into))
-    }
-
     async fn validate_actual_receipt(&self, kind: CloudModelLaneRecordKind, aggregate_id: &str, run_id: &str,
-        scope: &CloudModelLaneScope, row: &CloudModelLaneStoredRow) -> Result<(), SurrealStorageError> {
+        scope: &CloudModelLaneScope, row: &CloudModelLaneStoredRow) -> Result<serde_json::Value, SurrealStorageError> {
         let bindings = ReceiptLookupBindings { event_id: row.event_id.clone(), kind: kind.as_str().to_owned(),
             aggregate_id: aggregate_id.to_owned(), run_id: run_id.to_owned(), event_seq: row.event_seq,
             payload_json: row.event_payload_json.clone(), owner_account_id: scope.owner_account_id.clone(),
@@ -551,7 +520,109 @@ impl CloudModelLaneStore {
             || payload.get("record") != Some(&record) {
             return Err(SurrealStorageError::InvalidCloudModelLaneRecord { reason: "cloud authority has no matching independent durable receipt" });
         }
-        Ok(())
+        Ok(payload)
+    }
+
+    async fn read_overlay(
+        &self,
+        base_kind: CloudModelLaneRecordKind,
+        aggregate_id: &str,
+        run_id: &str,
+        base_record: &serde_json::Value,
+        base_event_seq: i64,
+        scope: &CloudModelLaneScope,
+    ) -> Result<Option<CloudModelLaneStoredRow>, SurrealStorageError> {
+        let (kind, projection_field, consent_field, schema_id, status) = match base_kind {
+            CloudModelLaneRecordKind::ConsentReceipt => (
+                CloudModelLaneRecordKind::ConsentRevocation,
+                "projection_plan_id",
+                "consent_receipt_id",
+                "hsk.model_lane_cloud_consent_receipt@2",
+                "revoked",
+            ),
+            CloudModelLaneRecordKind::CloudLane => (
+                CloudModelLaneRecordKind::LaneTerminal,
+                "projection_plan_ref",
+                "consent_receipt_ref",
+                "hsk.model_lane_terminal@1",
+                "cancelled",
+            ),
+            _ => return Ok(None),
+        };
+        let base_ref = |field| {
+            base_record.get(field).and_then(serde_json::Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or(SurrealStorageError::InvalidCloudModelLaneRecord {
+                    reason: "cloud overlay base has no canonical projection or consent reference",
+                })
+        };
+        let projection = base_ref(projection_field)?;
+        let consent = base_ref(consent_field)?;
+        let mut bindings = lookup_bindings(kind, aggregate_id, run_id, consent, scope);
+        bindings.projection_plan_id = projection.to_owned();
+
+        let mismatch = || SurrealStorageError::InvalidCloudModelLaneRecord {
+            reason: "cloud overlay has no unique matching authority and receipt",
+        };
+        let snapshot = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_first::<CloudOverlaySnapshot, _>(
+                "RETURN {
+                    events: (SELECT VALUE record::id(id) FROM model_lane_cloud_event_ledger
+                        WHERE aggregate_kind = $kind AND aggregate_id = $aggregate_id
+                          AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+                          AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id
+                          AND workspace_id = $workspace_id LIMIT 2),
+                    candidates: (SELECT record_json, event_id, event_seq, event_payload_json FROM model_lane_cloud_authority
+                        WHERE kind = $kind AND aggregate_id = $aggregate_id AND run_id = $run_id
+                          AND projection_plan_id = $projection_plan_id AND consent_receipt_id = $consent_receipt_id
+                          AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+                          AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id
+                          AND workspace_id = $workspace_id LIMIT 2)
+                };",
+                bindings,
+            ).await
+        })).await?;
+        let CloudOverlaySnapshot { events, candidates } = snapshot.ok_or_else(mismatch)?;
+        if events.is_empty() && candidates.is_empty() {
+            return Ok(None);
+        }
+        let [event_id] = events.as_slice() else {
+            return Err(mismatch());
+        };
+        let [candidate]: [StoredRowValue; 1] = candidates.try_into().map_err(|_| mismatch())?;
+        if &candidate.event_id != event_id || candidate.event_seq <= base_event_seq {
+            return Err(mismatch());
+        }
+
+        let row = candidate.into();
+        let payload = self.validate_actual_receipt(kind, aggregate_id, run_id, scope, &row).await?;
+        let record = &payload["record"];
+        let matches_terminal_state = if kind == CloudModelLaneRecordKind::LaneTerminal {
+            record["lane_id"].as_str() == Some(aggregate_id)
+                && record["failstate_code"].as_str() == Some("CX-MM-007")
+                && payload["status"].as_str() == Some(status)
+                && payload["lane_id"].as_str() == Some(aggregate_id)
+                && payload["run_id"].as_str() == Some(run_id)
+                && payload["consent_receipt_id"].as_str() == Some(consent)
+                && terminal_overlay_matches_base(base_record, record, run_id, aggregate_id)
+        } else {
+            record["approved"].as_bool() == Some(false)
+                && record["revocation_ref"].as_str().is_some_and(|reference| !reference.trim().is_empty())
+                && payload["revocation_ref"] == record["revocation_ref"]
+                && consent_overlay_matches_base(base_record, record, consent)
+        };
+        if payload["schema_id"].as_str() != Some(schema_id)
+            || payload["dexterity_kernel"].as_str() != Some("Dexterity")
+            || payload["reason_code"].as_str() != Some("CX-MM-007")
+            || record["status"].as_str() != Some(status)
+            || record["run_id"].as_str() != Some(run_id)
+            || record[projection_field].as_str() != Some(projection)
+            || record[consent_field].as_str() != Some(consent)
+            || !matches_terminal_state
+        {
+            return Err(mismatch());
+        }
+        Ok(Some(row))
     }
 
     async fn query_rows(&self, statement: &'static str, bindings: ScopedLookupBindings)
@@ -574,11 +645,109 @@ impl CloudModelLaneStore {
             let aggregate = record.get(match kind { CloudModelLaneRecordKind::ProjectionPlan => "projection_plan_id", CloudModelLaneRecordKind::ConsentReceipt => "consent_receipt_id", CloudModelLaneRecordKind::CloudRun => "run_id", CloudModelLaneRecordKind::CloudLane => "lane_id", _ => unreachable!() }).and_then(serde_json::Value::as_str).ok_or(SurrealStorageError::InvalidCloudModelLaneRecord { reason: "cloud canonical aggregate is absent" })?;
             let run = record.get("run_id").and_then(serde_json::Value::as_str).ok_or(SurrealStorageError::InvalidCloudModelLaneRecord { reason: "cloud canonical run is absent" })?;
             self.validate_actual_receipt(kind, aggregate, run, &scope, &row).await?;
-            result.push(row);
+            let overlay = self.read_overlay(kind, aggregate, run, &record, row.event_seq, &scope).await?;
+            result.push(overlay.unwrap_or(row));
         }
         Ok(result)
     }
 
+}
+
+fn immutable_overlay_fields_match(
+    base: &serde_json::Value,
+    overlay: &serde_json::Value,
+    mutable_fields: &[&str],
+    optional_fields: &[&str],
+    empty_array_defaults: &[&str],
+) -> bool {
+    use serde_json::Value;
+
+    let (Some(base), Some(overlay)) = (base.as_object(), overlay.as_object()) else {
+        return false;
+    };
+    base.keys().chain(overlay.keys()).all(|field| {
+        let (base, overlay) = (base.get(field), overlay.get(field));
+        mutable_fields.contains(&field.as_str())
+            || base == overlay
+            || (optional_fields.contains(&field.as_str())
+                && base.unwrap_or(&Value::Null) == overlay.unwrap_or(&Value::Null))
+            || (empty_array_defaults.contains(&field.as_str())
+                && [base, overlay].into_iter().all(|value| {
+                    value.is_none_or(|value| value.as_array().is_some_and(Vec::is_empty))
+                }))
+    })
+}
+
+fn consent_overlay_matches_base(base: &serde_json::Value, overlay: &serde_json::Value, consent: &str) -> bool {
+    use serde_json::{json, Value};
+
+    let mutable = [
+        "status", "approved", "revoked_at_utc", "revocation_ref", "revocation_input_hash",
+        "diagnostic_payload", "consent_receipt_hash", "event_ledger_event_id", "event_ledger_seq",
+        "event_stream_version", "transaction_seq",
+    ];
+    let optional = ["lane_id", "model_session_id", "provider_kind", "requested_model_id", "target_bindings_hash"];
+    if !immutable_overlay_fields_match(base, overlay, &mutable, &optional, &["target_bindings"]) {
+        return false;
+    }
+
+    let (Some(base_diagnostics), Some(body), Some(actor), Some(reason)) = (
+        base.get("diagnostic_payload"),
+        overlay.as_object(),
+        overlay["revocation_ref"].as_str(),
+        overlay["diagnostic_payload"]["revocation_reason"].as_str(),
+    ) else {
+        return false;
+    };
+    if actor.trim().is_empty() || reason.trim().is_empty()
+        || !overlay["revoked_at_utc"].as_str().is_some_and(|value| chrono::DateTime::parse_from_rfc3339(value).is_ok())
+        || overlay["event_stream_version"] != overlay["event_ledger_seq"]
+        || overlay["transaction_seq"] != overlay["event_ledger_seq"]
+    {
+        return false;
+    }
+    let mut diagnostics = base_diagnostics.as_object().cloned().unwrap_or_default();
+    diagnostics.extend([
+        ("consent_status".to_owned(), json!("CX-MM-007")),
+        ("revocation_reason".to_owned(), json!(reason)),
+        ("revoked_by_ref".to_owned(), json!(actor)),
+        ("storage_authority".to_owned(), json!("embedded_surrealdb")),
+    ]);
+    let input_hash = sha256_hex(&canonical_json_bytes(&json!({
+        "consent_receipt_id": consent,
+        "revoked_by_ref": actor,
+        "reason": reason,
+    })));
+    let mut body = body.clone();
+    for key in ["consent_receipt_hash", "event_ledger_event_id", "event_ledger_seq", "event_stream_version", "transaction_seq", "target_bindings_hash"] {
+        body.remove(key);
+    }
+    let receipt_hash = sha256_hex(&canonical_json_bytes(&Value::Object(body)));
+    overlay["diagnostic_payload"] == Value::Object(diagnostics)
+        && overlay["revocation_input_hash"].as_str() == Some(input_hash.as_str())
+        && overlay["consent_receipt_hash"].as_str() == Some(receipt_hash.as_str())
+}
+
+fn terminal_overlay_matches_base(base: &serde_json::Value, overlay: &serde_json::Value, run: &str, lane: &str) -> bool {
+    let mutable = [
+        "status", "recovery_state", "failstate_code", "reason_ref", "recovery_hint_ref", "last_runtime_status_ref",
+        "event_ledger_event_id", "event_ledger_seq",
+    ];
+    let optional = [
+        "engine_profile", "model_id", "effective_capability_snapshot_ref", "capability_negotiation_ref",
+        "provider_feature_profile_ref", "requested_execution_policy_ref", "effective_execution_policy_ref",
+        "projection_plan_ref", "consent_receipt_ref", "heartbeat_at_utc", "lease_expires_at_utc",
+        "reclaim_after_utc", "cancellation_ref", "reclaim_policy_ref", "terminal_status_mapping_ref",
+        "process_ownership_ref", "no_os_process_reason_ref", "backpressure_ref", "loop_counter_ref",
+        "last_recovery_event_ref", "startup_failure_ref", "work_packet_id", "micro_task_id", "task_board_id",
+        "locus_binding",
+    ];
+    immutable_overlay_fields_match(base, overlay, &mutable, &optional, &[])
+        && matches!(base["status"].as_str(), Some("planned" | "ready" | "running" | "waiting" | "reclaimable"))
+        && overlay["recovery_state"].as_str() == Some("terminal")
+        && overlay["reason_ref"].as_str() == Some(format!("cloud-consent-revoked://dexterity/{run}/{lane}").as_str())
+        && overlay["recovery_hint_ref"].as_str() == Some("usermanual://model-lane-cloud-projection-consent#recovery")
+        && overlay["last_runtime_status_ref"].as_str() == Some(format!("runtime-status://dexterity/{lane}/cloud-consent-revoked").as_str())
 }
 
 fn lookup_bindings(
@@ -592,6 +761,7 @@ fn lookup_bindings(
         kind: kind.as_str().to_owned(),
         aggregate_id: aggregate_id.to_owned(),
         run_id: run_id.to_owned(),
+        projection_plan_id: String::new(),
         consent_receipt_id: consent_receipt_id.to_owned(),
         owner_account_id: scope.owner_account_id.clone(),
         actor_principal_id: scope.actor_principal_id.clone(),

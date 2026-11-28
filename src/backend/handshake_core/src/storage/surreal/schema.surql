@@ -8066,10 +8066,10 @@ DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_redemption_permits TYPE
 DEFINE FIELD OVERWRITE a_auth ON TABLE member_enrollment_redemption_permits TYPE record<member_enrollments>;
 DEFINE FIELD OVERWRITE a_jti ON TABLE member_enrollment_redemption_permits TYPE string;
 DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_redemption_permits TYPE string;
-DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits TYPE object;
-DEFINE FIELD OVERWRITE account_before ON TABLE member_enrollment_redemption_permits TYPE object;
-DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits TYPE object;
-DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits TYPE object;
+DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE account_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits TYPE object FLEXIBLE;
 DEFINE FIELD OVERWRITE phc ON TABLE member_enrollment_redemption_permits TYPE string;
 DEFINE FIELD OVERWRITE prior_revision ON TABLE member_enrollment_redemption_permits TYPE int;
 DEFINE INDEX OVERWRITE member_recipient_one_attempt_per_original ON TABLE member_enrollment_redemption_permits FIELDS a_auth UNIQUE;
@@ -8486,7 +8486,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_receipt(
         AND $workspace.edit_event_id = $row.first_workspace_original.edit
         AND $workspace.last_actor_id = $row.first_workspace_original.actor
         AND $workspace.last_actor_kind = 'HUMAN'
-        AND record::exists($row.setup_receipt) AND $row.setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP'
+        AND $row.setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP'
         AND $row.setup_receipt.event_sequence > 0 AND $row.setup_receipt.created_at = $row.created_at
         AND $row.setup_receipt.actor_kind = 'operator'
         AND $row.setup_receipt.actor_id = record::id($row.operator_principal)
@@ -8979,6 +8979,39 @@ DEFINE FIELD OVERWRITE unlinked_at_utc ON TABLE atelier_collection_item_unlink_r
 DEFINE INDEX OVERWRITE pk_atelier_collection_item_unlink_receipt ON TABLE atelier_collection_item_unlink_receipt FIELDS unlink_receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_collection_item_unlink_receipt_collection ON TABLE atelier_collection_item_unlink_receipt FIELDS collection_id, unlinked_at_utc;
 DEFINE INDEX OVERWRITE idx_atelier_collection_item_unlink_receipt_unlinked_by ON TABLE atelier_collection_item_unlink_receipt FIELDS unlinked_by;
+
+-- WP012_REVISION_172_BEGIN
+DEFINE TABLE OVERWRITE workspace_activation_outcome TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE envelope_json ON TABLE workspace_activation_outcome TYPE string READONLY ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE state ON TABLE workspace_activation_outcome TYPE string ASSERT $value IN ['prepared', 'applied'];
+DEFINE FIELD OVERWRITE result_json ON TABLE workspace_activation_outcome TYPE option<string> ASSERT $value = NONE OR ($this.state = 'applied' AND $this.witness_json != NONE);
+DEFINE FIELD OVERWRITE witness_json ON TABLE workspace_activation_outcome TYPE option<string> ASSERT $value = NONE OR ($this.state = 'applied' AND $this.result_json != NONE);
+DEFINE FIELD OVERWRITE prepared_at ON TABLE workspace_activation_outcome TYPE datetime READONLY;
+DEFINE FIELD OVERWRITE applied_at ON TABLE workspace_activation_outcome TYPE option<datetime> ASSERT $value = NONE OR $this.state = 'applied';
+DEFINE EVENT OVERWRITE workspace_activation_outcome_transition_guard ON TABLE workspace_activation_outcome WHEN $event IN ['CREATE', 'UPDATE', 'DELETE'] THEN { IF $auth != NONE OR $event = 'DELETE' { THROW 'HSK-ACTIVATION-OUTCOME-DENIED'; }; IF $event = 'CREATE' { IF $after.state != 'prepared' OR $after.result_json != NONE OR $after.witness_json != NONE OR $after.applied_at != NONE { THROW 'HSK-ACTIVATION-OUTCOME-DENIED'; }; } ELSE { IF $before.state != 'prepared' OR $after.state != 'applied' OR $before.id != $after.id OR $before.envelope_json != $after.envelope_json OR $after.result_json = NONE OR $after.witness_json = NONE OR $after.applied_at = NONE { THROW 'HSK-ACTIVATION-OUTCOME-DENIED'; }; }; };
+DEFINE FIELD OVERWRITE creation_basis_json ON TABLE ai_jobs TYPE option<string> READONLY ASSERT $value = NONE OR $this.creation_basis_sha256 != NONE;
+DEFINE FIELD OVERWRITE creation_basis_sha256 ON TABLE ai_jobs TYPE option<string> READONLY ASSERT $value = NONE OR ($this.creation_basis_json != NONE AND $value = crypto::sha256($this.creation_basis_json));
+DEFINE TABLE OVERWRITE worktree_vm_bindings TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE binding_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE worktree_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE adapter_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE process_handle_json ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE latest_snapshot_json ON TABLE worktree_vm_bindings TYPE option<string>;
+DEFINE FIELD OVERWRITE binding_state ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE generation ON TABLE worktree_vm_bindings TYPE int;
+DEFINE FIELD OVERWRITE failure_reason ON TABLE worktree_vm_bindings TYPE option<string>;
+DEFINE FIELD OVERWRITE reservation_id ON TABLE worktree_vm_bindings TYPE option<string>;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE access_space_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE workspace_id ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE updated_at_unix_ms ON TABLE worktree_vm_bindings TYPE int;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE worktree_vm_bindings TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE event_ledger_event_type ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE event_ledger_payload_hash ON TABLE worktree_vm_bindings TYPE string;
+DEFINE INDEX OVERWRITE worktree_vm_binding_id_unique ON TABLE worktree_vm_bindings FIELDS binding_id UNIQUE;
+-- WP012_REVISION_172_END
 
 COMMIT TRANSACTION;
 
@@ -10102,6 +10135,38 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_read($row: object) {
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: bool) {
+    IF $row.aggregate_type = 'session_cleanup_receipt' AND $wp012_original_purpose = 'cloud_consent_revocation' {
+        IF $wp012_recovery_head_only = true OR $wp012_recovery_discovery_only = true
+            OR $wp012_original_subject_kind != 'workspace' OR $wp012_original_action != 'update'
+            OR $wp012_original_capability != 'fs.write' OR $wp012_original_subject_id != $row.workspace_id
+            OR $record_kind != $row.aggregate_type OR $aggregate_id != $row.aggregate_id
+            OR !fn::wp012_cloud_revocation_cleanup_event($row, $row, $row.kernel_task_run_id, $row.aggregate_id) { RETURN false; };
+        LET $receipt = encoding::json::decode($row.payload.event_payload_json);
+        IF !type::is_object($receipt)
+            OR !fn::wp012_cloud_revocation_cleanup_witness($row, $row.kernel_task_run_id, $row.aggregate_id, $receipt, $row.event_sequence) { RETURN false; };
+        LET $version = $row.payload.event_stream_version;
+        IF !$write { RETURN $version != 1 OR $receipt.status = 'cleanup_pending'; };
+
+        LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'session_cleanup_receipt', $row.aggregate_id,
+            $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+        IF $record_id != $key OR $event_id != $row.event_id
+            OR $record_json != $row.payload.event_payload_json OR $event_payload_json != $record_json { RETURN false; };
+        LET $current = SELECT * FROM ONLY type::record('model_lane_authority', $key);
+        IF $row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' {
+            RETURN $current = NONE AND $version = 1 AND $run_id = $row.kernel_task_run_id AND $receipt.status = 'cleanup_pending';
+        };
+        IF $row.event_type != 'MODEL_LANE_AUTHORITY_REPLACED' OR $current = NONE
+            OR !type::is_int($expected_event_stream_version) OR $expected_event_stream_version < 1
+            OR $current.event_stream_version != $expected_event_stream_version OR $version != $expected_event_stream_version + 1
+            OR $current.record_kind != $row.aggregate_type OR $current.aggregate_id != $row.aggregate_id OR $current.run_id != $row.kernel_task_run_id
+            OR $current.owner_account_id != $row.owner_account_id OR $current.actor_principal_id != $row.actor_principal_id
+            OR $current.authenticated_session_id != $row.authenticated_session_id
+            OR $current.access_space_id != $row.access_space_id OR $current.workspace_id != $row.workspace_id
+            OR $current.event_id != $row.causation_id OR $current.event_ledger_event_id != type::record('kernel_event_ledger', $row.causation_id)
+            OR $current.event_seq >= $row.event_sequence
+            OR !fn::wp012_cloud_revocation_cleanup_projection($current, 'read') { RETURN false; };
+        RETURN fn::wp012_cloud_revocation_cleanup_transition(encoding::json::decode($current.record_json), $receipt);
+    };
     IF !$write AND $wp012_recovery_head_only = true {
         -- Only fixed head/membership queries install this lexical flag. Nested canonical
         -- run/profile checks retain their original receipt and field permissions.

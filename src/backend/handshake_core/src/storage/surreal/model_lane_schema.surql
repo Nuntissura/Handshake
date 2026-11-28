@@ -134,41 +134,41 @@ DEFINE INDEX IF NOT EXISTS model_lane_routing_extra_event_scope_replay ON model_
 DEFINE FIELD IF NOT EXISTS applied_update_id ON knowledge_crdt_ai_edit_proposals TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS applied_update_sha256 ON knowledge_crdt_ai_edit_proposals TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS applied_event_id ON knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
-DEFINE FIELD IF NOT EXISTS last_transition_event_id ON knowledge_crdt_ai_edit_proposals TYPE record<kernel_event_ledger>;
+DEFINE FIELD OVERWRITE last_transition_event_id ON knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR (record::exists($value) AND $this.owner_account_id != NONE);
 
 -- Every CRDT authority row is attributed directly to the same exact
 -- five-field ResourceScope used by ModelLane. Missing legacy attribution is
 -- intentionally unreadable by the scoped provider.
-DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_crdt_updates TYPE string;
-DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_crdt_updates TYPE string;
-DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_crdt_updates TYPE string;
-DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_crdt_updates TYPE string;
+DEFINE FIELD OVERWRITE owner_account_id ON kernel_crdt_updates TYPE option<string> ASSERT $value = NONE OR ($this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE);
+DEFINE FIELD OVERWRITE actor_principal_id ON kernel_crdt_updates TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
+DEFINE FIELD OVERWRITE authenticated_session_id ON kernel_crdt_updates TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
+DEFINE FIELD OVERWRITE access_space_id ON kernel_crdt_updates TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_update_scope_ref ON kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, update_bytes_ref UNIQUE;
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_update_scope_sequence ON kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_seq UNIQUE;
 
-DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_crdt_snapshots TYPE string;
-DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_crdt_snapshots TYPE string;
-DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_crdt_snapshots TYPE string;
-DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_crdt_snapshots TYPE string;
+DEFINE FIELD OVERWRITE owner_account_id ON kernel_crdt_snapshots TYPE option<string> ASSERT $value = NONE OR ($this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE);
+DEFINE FIELD OVERWRITE actor_principal_id ON kernel_crdt_snapshots TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
+DEFINE FIELD OVERWRITE authenticated_session_id ON kernel_crdt_snapshots TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
+DEFINE FIELD OVERWRITE access_space_id ON kernel_crdt_snapshots TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_snapshot_scope_ref ON kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, snapshot_bytes_ref UNIQUE;
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_snapshot_scope_sequence ON kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, covered_update_seq;
 
-DEFINE FIELD IF NOT EXISTS owner_account_id ON knowledge_crdt_agent_lane_leases TYPE string;
-DEFINE FIELD IF NOT EXISTS actor_principal_id ON knowledge_crdt_agent_lane_leases TYPE string;
-DEFINE FIELD IF NOT EXISTS authenticated_session_id ON knowledge_crdt_agent_lane_leases TYPE string;
-DEFINE FIELD IF NOT EXISTS access_space_id ON knowledge_crdt_agent_lane_leases TYPE string;
-DEFINE FIELD IF NOT EXISTS workspace_id ON knowledge_crdt_agent_lane_leases TYPE string;
+DEFINE FIELD OVERWRITE owner_account_id ON knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR ($this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND $this.recorded_event_id != NONE AND $this.last_transition_event_id != NONE);
+DEFINE FIELD OVERWRITE actor_principal_id ON knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND $this.recorded_event_id != NONE AND $this.last_transition_event_id != NONE);
+DEFINE FIELD OVERWRITE authenticated_session_id ON knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND $this.recorded_event_id != NONE AND $this.last_transition_event_id != NONE);
+DEFINE FIELD OVERWRITE access_space_id ON knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.workspace_id != NONE AND $this.recorded_event_id != NONE AND $this.last_transition_event_id != NONE);
+DEFINE FIELD OVERWRITE workspace_id ON knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.recorded_event_id != NONE AND $this.last_transition_event_id != NONE);
 DEFINE FIELD IF NOT EXISTS document_id ON knowledge_crdt_agent_lane_leases TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS crdt_document_id ON knowledge_crdt_agent_lane_leases TYPE option<string>;
-DEFINE FIELD IF NOT EXISTS recorded_event_id ON knowledge_crdt_agent_lane_leases TYPE record<kernel_event_ledger>;
-DEFINE FIELD IF NOT EXISTS last_transition_event_id ON knowledge_crdt_agent_lane_leases TYPE record<kernel_event_ledger>;
+DEFINE FIELD OVERWRITE recorded_event_id ON knowledge_crdt_agent_lane_leases TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR ($this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND $this.last_transition_event_id != NONE);
+DEFINE FIELD OVERWRITE last_transition_event_id ON knowledge_crdt_agent_lane_leases TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR ($this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND $this.recorded_event_id != NONE);
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_lease_scope_identity ON knowledge_crdt_agent_lane_leases FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, lease_id UNIQUE;
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_lease_scope_document ON knowledge_crdt_agent_lane_leases FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, scope_kind, scope_id, expires_at_utc;
 
-DEFINE FIELD IF NOT EXISTS owner_account_id ON knowledge_crdt_ai_edit_proposals TYPE string;
-DEFINE FIELD IF NOT EXISTS actor_principal_id ON knowledge_crdt_ai_edit_proposals TYPE string;
-DEFINE FIELD IF NOT EXISTS authenticated_session_id ON knowledge_crdt_ai_edit_proposals TYPE string;
-DEFINE FIELD IF NOT EXISTS access_space_id ON knowledge_crdt_ai_edit_proposals TYPE string;
+DEFINE FIELD OVERWRITE owner_account_id ON knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.last_transition_event_id != NONE);
+DEFINE FIELD OVERWRITE actor_principal_id ON knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
+DEFINE FIELD OVERWRITE authenticated_session_id ON knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
+DEFINE FIELD OVERWRITE access_space_id ON knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($this.owner_account_id != NONE);
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_proposal_scope_identity ON knowledge_crdt_ai_edit_proposals FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, proposal_id UNIQUE;
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_proposal_scope_document ON knowledge_crdt_ai_edit_proposals FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, review_state, created_at_utc;
 DEFINE INDEX IF NOT EXISTS model_lane_crdt_proposal_scope_applied_event ON knowledge_crdt_ai_edit_proposals FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, applied_event_id;
@@ -184,6 +184,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_operation_matrix($kind: string, $
         OR ($kind = 'workspace' AND $purpose IN ['artifact_binding', 'handoff', 'guarded_message', 'run_create', 'lane_create', 'profile_admission_create', 'profile_admission_transition', 'profile_admission_finalization', 'workspace_claim', 'index_run_claim', 'cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial', 'diagnostic_record', 'recovery_checkpoint_record'] AND $action = 'create')
         OR ($kind = 'workspace' AND $purpose = 'profile_session_write' AND $action IN ['create', 'update'])
         OR ($kind = 'workspace' AND $purpose = 'recovery_execute' AND $action = 'update')
+        OR ($kind = 'workspace' AND $purpose = 'cloud_consent_revocation' AND $action = 'update')
         OR ($kind = 'workspace' AND $purpose IN ['routing_create', 'run_attachment'] AND $action = 'create')
         OR ($kind = 'workspace' AND $purpose = 'routing_transition' AND $action = 'update')
         OR ($kind = 'workspace' AND $purpose = 'routing_diagnostics_read' AND $action = 'read')
@@ -305,7 +306,7 @@ DEFINE FIELD OVERWRITE authority_grant_id ON model_lane_context_coordination TYP
 DEFINE FIELD OVERWRITE authority_session_id ON model_lane_context_coordination TYPE record<authenticated_sessions>;
 DEFINE FIELD OVERWRITE authority_capability_id ON model_lane_context_coordination TYPE string;
 DEFINE FIELD OVERWRITE authority_action ON model_lane_context_coordination TYPE 'read' | 'create' | 'update';
-DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination TYPE 'consume' | 'recovery_execute' | 'artifact_binding' | 'handoff' | 'guarded_message' | 'document_claim' | 'workspace_claim' | 'index_run_claim' | 'lease_renew' | 'lease_release' | 'lease_expiry' | 'crdt_update' | 'crdt_snapshot' | 'proposal_record' | 'proposal_decide' | 'proposal_apply' | 'cloud_projection_plan' | 'cloud_consent_receipt' | 'cloud_run' | 'cloud_lane' | 'cloud_consent_denial' | 'recovery_checkpoint_record';
+DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination TYPE 'consume' | 'recovery_execute' | 'artifact_binding' | 'handoff' | 'guarded_message' | 'document_claim' | 'workspace_claim' | 'index_run_claim' | 'lease_renew' | 'lease_release' | 'lease_expiry' | 'crdt_update' | 'crdt_snapshot' | 'proposal_record' | 'proposal_decide' | 'proposal_apply' | 'cloud_projection_plan' | 'cloud_consent_receipt' | 'cloud_run' | 'cloud_lane' | 'cloud_consent_denial' | 'cloud_consent_revocation' | 'recovery_checkpoint_record';
 DEFINE FIELD OVERWRITE state ON model_lane_context_coordination TYPE 'held' | 'released';
 DEFINE FIELD OVERWRITE holder_operation_id ON model_lane_context_coordination TYPE uuid;
 DEFINE FIELD OVERWRITE generation ON model_lane_context_coordination TYPE int ASSERT $value > 0;
@@ -2171,6 +2172,133 @@ DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_record($row: object, $
         AND $row.event_stream_version = 1;
 };
 
+DEFINE FUNCTION OVERWRITE fn::wp012_cloud_revocation_cleanup_witness($scope: object, $run_id: string, $aggregate_id: string, $receipt: object, $event_seq: int) {
+    IF $wp012_original_purpose != 'cloud_consent_revocation' OR $wp012_original_subject_kind != 'workspace'
+        OR $wp012_original_action != 'update' OR $wp012_original_capability != 'fs.write'
+        OR !fn::wp012_context_coordination_fence($scope, 'workspace', $scope.workspace_id) { RETURN false; };
+    IF $receipt.schema_id != 'hsk.swarm_session_cleanup_receipt@1'
+        OR array::len(array::filter(object::keys($receipt), |$key| $key NOT IN ['schema_id', 'instance_id', 'lane_id',
+            'process_uuid', 'terminal_event_id', 'resource_evicted_event_id', 'status', 'terminal_state', 'reason', 'exit_code', 'last_error'])) != 0
+        OR !type::is_string($receipt.instance_id) OR string::trim($receipt.instance_id) = ''
+        OR !type::is_string($receipt.lane_id) OR string::trim($receipt.lane_id) = ''
+        OR !type::is_string($receipt.reason) OR string::trim($receipt.reason) = ''
+        OR $receipt.terminal_state != 'Cancelled' OR !type::is_int($receipt.exit_code) OR $receipt.exit_code != -1
+        OR $receipt.status NOT IN ['cleanup_pending', 'teardown_succeeded', 'exact_process_reclaim_succeeded', 'completed'] { RETURN false; };
+    LET $ids = [$receipt.process_uuid, $receipt.terminal_event_id, $receipt.resource_evicted_event_id];
+    IF array::len(array::filter($ids, |$id| type::is_string($id)
+            AND string::matches($id, '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'))) != 3
+        OR array::len(array::distinct($ids)) != 3
+        OR $aggregate_id != string::concat('session-cleanup:', $receipt.instance_id, ':', $receipt.process_uuid) { RETURN false; };
+    LET $has_error = $receipt.last_error != NONE AND $receipt.last_error != NULL;
+    IF ($has_error AND (!type::is_string($receipt.last_error) OR string::trim($receipt.last_error) = ''))
+        OR ($receipt.status = 'completed' AND $has_error)
+        OR ($receipt.status = 'exact_process_reclaim_succeeded' AND !$has_error) { RETURN false; };
+
+    LET $lanes = SELECT * FROM model_lane_cloud_authority WHERE kind = 'cloud_lane' AND aggregate_id = $receipt.lane_id
+        AND run_id = $run_id AND owner_account_id = $scope.owner_account_id AND actor_principal_id = $scope.actor_principal_id
+        AND authenticated_session_id = $scope.authenticated_session_id AND access_space_id = $scope.access_space_id
+        AND workspace_id = $scope.workspace_id LIMIT 2;
+    IF array::len($lanes) != 1 OR !fn::wp012_cloud_authority_read($lanes[0]) { RETURN false; };
+    LET $lane = encoding::json::decode($lanes[0].record_json);
+    IF $lane.lane_id != $receipt.lane_id OR $lane.run_id != $run_id
+        OR $lane.model_session_id != string::concat('swarm-session:', $receipt.instance_id)
+        OR $lane.process_ownership_ref != string::concat('process-ledger://', $receipt.process_uuid)
+        OR !type::is_string($lane.consent_receipt_ref) OR string::trim($lane.consent_receipt_ref) = ''
+        OR !type::is_string($lane.projection_plan_ref) OR string::trim($lane.projection_plan_ref) = '' { RETURN false; };
+    LET $consents = SELECT * FROM model_lane_cloud_authority WHERE kind IN ['consent_receipt', 'consent_revocation']
+        AND aggregate_id = $lane.consent_receipt_ref AND consent_receipt_id = $lane.consent_receipt_ref
+        AND projection_plan_id = $lane.projection_plan_ref AND run_id = $run_id
+        AND owner_account_id = $scope.owner_account_id AND actor_principal_id = $scope.actor_principal_id
+        AND authenticated_session_id = $scope.authenticated_session_id AND access_space_id = $scope.access_space_id
+        AND workspace_id = $scope.workspace_id LIMIT 3;
+    LET $originals = array::filter($consents, |$row| $row.kind = 'consent_receipt');
+    LET $revocations = array::filter($consents, |$row| $row.kind = 'consent_revocation');
+    IF array::len($originals) != 1 OR array::len($revocations) != 1
+        OR !fn::wp012_cloud_authority_read($originals[0]) OR !fn::wp012_cloud_authority_read($revocations[0]) { RETURN false; };
+    LET $base = encoding::json::decode($originals[0].record_json);
+    LET $revoked = encoding::json::decode($revocations[0].record_json);
+    LET $envelope = encoding::json::decode($revocations[0].event_payload_json);
+    LET $reason = $revoked.diagnostic_payload.revocation_reason;
+    LET $base_targets = IF $base.target_bindings = NONE { [] } ELSE { $base.target_bindings };
+    LET $revoked_targets = IF $revoked.target_bindings = NONE { [] } ELSE { $revoked.target_bindings };
+    RETURN $revocations[0].event_seq > $originals[0].event_seq AND $revocations[0].event_seq > $lanes[0].event_seq
+        AND $event_seq > $revocations[0].event_seq
+        AND $envelope.schema_id = 'hsk.model_lane_cloud_consent_receipt@2' AND $envelope.dexterity_kernel = 'Dexterity'
+        AND $envelope.reason_code = 'CX-MM-007' AND $envelope.revocation_ref = $revoked.revocation_ref
+        AND $revoked.status = 'revoked' AND $revoked.approved = false
+        AND $revoked.event_ledger_stream_id = $base.event_ledger_stream_id
+        AND $revoked.approver = $base.approver AND $revoked.scope_hash = $base.scope_hash
+        AND $revoked.consent_scope = $base.consent_scope AND type::is_array($base_targets) AND $base_targets = $revoked_targets
+        AND type::is_string($reason) AND string::trim($reason) != ''
+        AND $receipt.reason = string::concat('CX-MM-007 cloud consent revoked: ', $reason);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_cloud_revocation_cleanup_event($event: object, $scope: object, $run_id: string, $aggregate_id: string) {
+    IF $event.aggregate_type != 'session_cleanup_receipt' OR $event.aggregate_id != $aggregate_id
+        OR $event.kernel_task_run_id != $run_id OR $event.session_run_id != $run_id OR $event.source_component != 'model_lane'
+        OR $event.owner_account_id != $scope.owner_account_id OR $event.actor_principal_id != $scope.actor_principal_id
+        OR $event.authenticated_session_id != $scope.authenticated_session_id
+        OR $event.access_space_id != $scope.access_space_id OR $event.workspace_id != $scope.workspace_id
+        OR $event.wsids != [$scope.workspace_id] OR $event.actor_kind != 'principal' OR $event.actor_id != $scope.actor_principal_id
+        OR $event.authority_session_id != $auth.id
+        OR $event.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR $event.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR $event.authority_action != 'update' OR $event.authority_capability_id != 'fs.write'
+        OR $event.event_version != 'kernel_event_v1' OR $event.event_id != record::id($event.id)
+        OR $event.idempotency_key != $event.event_id OR $event.event_sequence <= 0 OR $event.correlation_id != NONE
+        OR !type::is_object($event.payload) OR !type::is_string($event.payload.event_payload_json)
+        OR array::sort(object::keys($event.payload)) != ['event_payload_json', 'event_stream_version', 'record_kind', 'run_id']
+        OR $event.payload.record_kind != 'session_cleanup_receipt' OR $event.payload.run_id != $run_id
+        OR !type::is_int($event.payload.event_stream_version) OR $event.payload_hash != crypto::sha256($event.payload.event_payload_json) { RETURN false; };
+    RETURN ($event.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' AND $event.payload.event_stream_version = 1 AND $event.causation_id = NONE)
+        OR ($event.event_type = 'MODEL_LANE_AUTHORITY_REPLACED' AND $event.payload.event_stream_version > 1
+            AND type::is_string($event.causation_id) AND string::trim($event.causation_id) != '' AND $event.causation_id != $event.event_id);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_cloud_revocation_cleanup_transition($before: object, $after: object) {
+    IF $before.status NOT IN ['cleanup_pending', 'teardown_succeeded', 'exact_process_reclaim_succeeded'] { RETURN false; };
+    LET $previous = object::from_entries(array::filter(object::entries($before), |$entry| $entry[0] NOT IN ['status', 'last_error']));
+    LET $next = object::from_entries(array::filter(object::entries($after), |$entry| $entry[0] NOT IN ['status', 'last_error']));
+    RETURN $previous = $next AND ($after.status IN ['cleanup_pending', 'completed']
+        OR ($after.status = 'teardown_succeeded' AND $before.status IN ['cleanup_pending', 'teardown_succeeded'])
+        OR ($after.status = 'exact_process_reclaim_succeeded' AND $before.status = 'cleanup_pending'));
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_cloud_revocation_cleanup_projection($row: object, $operation: string) {
+    IF $row.record_kind != 'session_cleanup_receipt' OR $record_kind != $row.record_kind
+        OR $aggregate_id != $row.aggregate_id OR $row.idempotency_key != string::concat('session-cleanup:', $row.aggregate_id)
+        OR record::id($row.id) != crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'session_cleanup_receipt',
+            $row.aggregate_id, $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000')) { RETURN false; };
+    LET $receipt = encoding::json::decode($row.record_json);
+    IF !type::is_object($receipt) OR !fn::wp012_cloud_revocation_cleanup_witness($row, $row.run_id, $row.aggregate_id, $receipt, $row.event_seq)
+        OR $row.search_terms != [string::concat('instance_id=', $receipt.instance_id), string::concat('process_uuid=', $receipt.process_uuid),
+            string::concat('status=', $receipt.status)] { RETURN false; };
+    LET $event = SELECT * FROM ONLY $row.event_ledger_event_id;
+    IF $event = NONE OR !fn::wp012_cloud_revocation_cleanup_event($event, $row, $row.run_id, $row.aggregate_id)
+        OR $row.event_id != $event.event_id OR $row.event_ledger_event_id != type::record('kernel_event_ledger', $row.event_id)
+        OR $row.event_seq != $event.event_sequence OR $row.transaction_seq != $row.event_seq
+        OR $row.event_stream_version != $event.payload.event_stream_version OR $row.record_json != $event.payload.event_payload_json { RETURN false; };
+    IF $operation = 'create' { RETURN $row.event_stream_version = 1 AND $receipt.status = 'cleanup_pending'; };
+    IF $row.event_stream_version = 1 {
+        IF $receipt.status != 'cleanup_pending' { RETURN false; };
+    } ELSE {
+        LET $prior = SELECT * FROM ONLY type::record('kernel_event_ledger', $event.causation_id);
+        IF $prior = NONE OR !fn::wp012_cloud_revocation_cleanup_event($prior, $row, $row.run_id, $row.aggregate_id)
+            OR $prior.payload.event_stream_version != $row.event_stream_version - 1 OR $prior.event_sequence >= $row.event_seq
+            OR !fn::wp012_cloud_revocation_cleanup_transition(encoding::json::decode($prior.payload.event_payload_json), $receipt) { RETURN false; };
+    };
+    IF $operation != 'update' { RETURN $operation = 'read'; };
+    IF !type::is_int($expected_event_stream_version) OR $expected_event_stream_version < 1 OR !type::is_string($event_id)
+        OR !type::is_string($record_json) { RETURN false; };
+    LET $next = SELECT * FROM ONLY type::record('kernel_event_ledger', $event_id);
+    IF $next = NONE OR !fn::wp012_cloud_revocation_cleanup_event($next, $row, $row.run_id, $row.aggregate_id)
+        OR $next.payload.event_stream_version != $expected_event_stream_version + 1 OR $next.payload.event_payload_json != $record_json { RETURN false; };
+    IF $row.event_id = $next.event_id { RETURN $row.event_stream_version = $expected_event_stream_version + 1; };
+    RETURN $row.event_stream_version = $expected_event_stream_version AND $next.causation_id = $row.event_id
+        AND $next.event_sequence > $row.event_seq
+        AND fn::wp012_cloud_revocation_cleanup_transition($receipt, encoding::json::decode($record_json));
+};
+
 DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
     PERMISSIONS FOR select WHERE IF $wp012_recovery_discovery_only = true {
         fn::wp012_recovery_discovery_access($this)
@@ -2184,6 +2312,8 @@ DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
         fn::wp012_promotion_source_access($this, false) AND fn::wp012_promotion_identity($this)
     } ELSE IF record_kind = 'producer_association' {
         fn::wp012_validator_association_record($this, false)
+    } ELSE IF record_kind = 'session_cleanup_receipt' AND $wp012_original_purpose = 'cloud_consent_revocation' {
+        fn::wp012_cloud_revocation_cleanup_projection($this, 'read')
     } ELSE IF $wp012_role_evidence_capture != NONE {
         fn::wp012_model_lane_role_target_capture($this)
     } ELSE IF $wp012_role_evidence_consume != NONE {
@@ -2197,6 +2327,8 @@ DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
         fn::wp012_promotion_source_access($this, true) AND fn::wp012_promotion_identity($this)
     } ELSE IF record_kind = 'producer_association' {
         fn::wp012_validator_association_record($this, true)
+    } ELSE IF record_kind = 'session_cleanup_receipt' AND $wp012_original_purpose = 'cloud_consent_revocation' {
+        fn::wp012_cloud_revocation_cleanup_projection($this, 'create')
     } ELSE IF record_kind IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
         fn::wp012_model_lane_role_create($this)
     } ELSE {
@@ -2206,6 +2338,8 @@ DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
         AND fn::wp012_model_lane_source_access($this, true) AND fn::wp012_model_lane_source_identity($this)
     }
     FOR update WHERE record_kind = 'run' AND fn::wp012_run_attachment_authority($this, true)
+        OR (record_kind = 'session_cleanup_receipt' AND $wp012_original_purpose = 'cloud_consent_revocation'
+            AND fn::wp012_cloud_revocation_cleanup_projection($this, 'update'))
     FOR delete NONE;
 
 -- This producer branch preserves the original Document Update grant; it is not general content Read.
@@ -2391,7 +2525,7 @@ DEFINE TABLE OVERWRITE knowledge_crdt_agent_lane_leases SCHEMAFULL
         AND authority_subject_kind = $wp012_original_subject_kind AND authority_subject_id = $wp012_original_subject_id
     FOR update WHERE fn::wp012_model_lane_crdt_lease_access($this, true) AND fn::wp012_model_lane_crdt_lease_identity($this)
     FOR delete NONE;
-DEFINE FIELD OVERWRITE lease_id ON knowledge_crdt_agent_lane_leases TYPE string ASSERT IF $this.owner_account_id = NONE AND $this.actor_principal_id = NONE AND $this.authenticated_session_id = NONE AND $this.access_space_id = NONE AND $this.workspace_id = NONE { (record::id($this.id) = $value) } ELSE { $this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND record::id($this.id) = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_lease', $value, $this.owner_account_id, $this.actor_principal_id, $this.authenticated_session_id, $this.access_space_id, $this.workspace_id], '\u0000')) };
+DEFINE FIELD OVERWRITE lease_id ON knowledge_crdt_agent_lane_leases TYPE string ASSERT IF $this.owner_account_id = NONE AND $this.actor_principal_id = NONE AND $this.authenticated_session_id = NONE AND $this.access_space_id = NONE AND $this.workspace_id = NONE { (record::id($this.id) = $value) } ELSE { $this.owner_account_id != NONE AND $this.actor_principal_id != NONE AND $this.authenticated_session_id != NONE AND $this.access_space_id != NONE AND $this.workspace_id != NONE AND $this.recorded_event_id != NONE AND $this.last_transition_event_id != NONE AND record::id($this.id) = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'crdt_lease', $value, $this.owner_account_id, $this.actor_principal_id, $this.authenticated_session_id, $this.access_space_id, $this.workspace_id], '\u0000')) };
 DEFINE FIELD OVERWRITE authority_resource_id ON knowledge_crdt_agent_lane_leases TYPE option<record<protected_resources>>;
 DEFINE FIELD OVERWRITE authority_grant_id ON knowledge_crdt_agent_lane_leases TYPE option<record<resource_grants>>;
 DEFINE FIELD OVERWRITE authority_capability_id ON knowledge_crdt_agent_lane_leases TYPE option<string>;
@@ -2656,66 +2790,70 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_application_evidence($proposal: o
 };
 
 DEFINE EVENT OVERWRITE wp012_model_lane_proposal_transition ON knowledge_crdt_ai_edit_proposals WHEN $event = 'UPDATE' THEN {
-    IF !fn::wp012_model_lane_proposal_access($before, true) OR !fn::wp012_model_lane_proposal_access($after, true)
-        OR !fn::wp012_model_lane_proposal_identity($before) OR !fn::wp012_model_lane_proposal_identity($after) {
-        THROW 'HSK-403-MODEL-LANE-PROPOSAL';
-    };
-    LET $promotion = $wp012_original_purpose = 'proposal_decide' AND $before.review_state = 'approved' AND $after.review_state = 'promoted';
-    LET $mutable = IF $promotion {
-        ['review_state', 'promotion_requested_event_id', 'promotion_accepted_event_id', 'last_transition_event_id']
-    } ELSE IF $wp012_original_purpose = 'proposal_decide' {
-        ['review_state', 'decided_by', 'decided_at_utc', 'decision_reason', 'decided_event_id', 'last_transition_event_id']
-    } ELSE { ['applied_update_id', 'applied_update_sha256', 'applied_event_id', 'last_transition_event_id'] };
-    LET $original = object::from_entries(array::filter(object::entries($before), |$entry| $entry[0] NOT IN $mutable));
-    LET $next = object::from_entries(array::filter(object::entries($after), |$entry| $entry[0] NOT IN $mutable));
-    IF $original != $next { THROW 'HSK-403-MODEL-LANE-PROPOSAL-IMMUTABLE'; };
-    IF $promotion {
-        LET $head = SELECT * FROM kernel_crdt_updates WHERE document_id = $before.document_id
-            AND crdt_document_id = $before.crdt_document_id AND owner_account_id = $before.owner_account_id
-            AND actor_principal_id = $before.actor_principal_id AND authenticated_session_id = $before.authenticated_session_id
-            AND access_space_id = $before.access_space_id AND workspace_id = $before.workspace_id ORDER BY update_seq DESC LIMIT 1;
-        IF $before.applied_event_id = NONE OR $before.promotion_requested_event_id != NONE OR $before.promotion_accepted_event_id != NONE
-            OR $auth.principal_id.principal_kind NOT IN ['human_account', 'break_glass_operator']
-            OR $auth.principal_id.status != 'enabled' OR $auth.principal_id.actor_kind != 'operator'
-            OR $after.promotion_requested_event_id.actor_id != $auth.principal_id.actor_id
-            OR $after.promotion_accepted_event_id.authority_session_id != $auth.id
-            OR $after.promotion_accepted_event_id.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
-            OR $after.promotion_accepted_event_id.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
-            OR array::len($head) != 1 OR $head[0].update_id != $before.applied_update_id
-            OR $head[0].update_seq != $before.base_update_seq + 1
-            OR !fn::wp012_model_lane_application_evidence($before, $head[0], (SELECT * FROM ONLY $before.applied_event_id)) {
-            THROW 'HSK-403-MODEL-LANE-PROPOSAL-PROMOTION';
+    IF $auth != NONE
+        OR $after.owner_account_id != NONE OR $after.applied_event_id != NONE OR $after.last_transition_event_id != NONE
+        OR $before.owner_account_id != NONE OR $before.applied_event_id != NONE OR $before.last_transition_event_id != NONE {
+        IF !fn::wp012_model_lane_proposal_access($before, true) OR !fn::wp012_model_lane_proposal_access($after, true)
+            OR !fn::wp012_model_lane_proposal_identity($before) OR !fn::wp012_model_lane_proposal_identity($after) {
+            THROW 'HSK-403-MODEL-LANE-PROPOSAL';
         };
-    } ELSE IF $wp012_original_purpose = 'proposal_decide' {
-        IF $before.review_state != 'proposed' OR $after.review_state NOT IN ['approved', 'rejected']
-            OR $before.decided_event_id != NONE OR $after.decided_event_id = NONE
-            OR $auth.principal_id.principal_kind NOT IN ['human_account', 'break_glass_operator']
-            OR $auth.principal_id.actor_kind != 'operator' OR $after.decided_by != $auth.principal_id.actor_id
-            OR $after.decided_event_id.authority_session_id != $auth.id
-            OR $after.decided_event_id.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
-            OR $after.decided_event_id.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
-            OR $after.decided_at_utc = NONE OR $after.decided_at_utc > time::now() {
-            THROW 'HSK-403-MODEL-LANE-PROPOSAL-REVIEW';
-        };
-    } ELSE {
-        IF $wp012_original_purpose != 'proposal_apply' OR $before.review_state != 'approved'
-            OR $before.applied_update_id != NONE OR $after.applied_update_id = NONE
-            OR $after.applied_update_sha256 != $before.diff_sha256 { THROW 'HSK-403-MODEL-LANE-PROPOSAL-APPLY'; };
-        LET $updates = SELECT * FROM kernel_crdt_updates WHERE update_id = $after.applied_update_id
-            AND owner_account_id = $before.owner_account_id AND actor_principal_id = $before.actor_principal_id
-            AND authenticated_session_id = $before.authenticated_session_id AND access_space_id = $before.access_space_id
-            AND workspace_id = $before.workspace_id AND document_id = $before.document_id AND crdt_document_id = $before.crdt_document_id;
-        IF array::len($updates) != 1 OR !fn::wp012_model_lane_crdt_document_access($updates[0], false, false)
-            OR $updates[0].actor_id != $before.actor_id OR $updates[0].actor_kind != $before.actor_kind
-            OR $updates[0].session_id != $before.session_id OR $updates[0].trace_id != $before.correlation_id
-            OR $updates[0].update_seq != $before.base_update_seq + 1 OR $updates[0].state_vector_before != $before.base_state_vector
-            OR $after.applied_event_id.payload.yjs_update_sha256 != $updates[0].update_sha256
-            OR $after.applied_event_id.payload.update_seq != $updates[0].update_seq
-            OR $after.applied_event_id.payload.update_state_vector_before != $updates[0].state_vector_before
-            OR $after.applied_event_id.payload.update_event_ledger_event_id != record::id($updates[0].event_ledger_event_id)
-            OR $after.applied_event_id.payload.update_ledger_payload_hash != $updates[0].event_ledger_event_id.payload_hash
-            OR !fn::wp012_model_lane_application_evidence($before, $updates[0], (SELECT * FROM ONLY $after.applied_event_id)) {
-            THROW 'HSK-403-MODEL-LANE-PROPOSAL-APPLICATION';
+        LET $promotion = $wp012_original_purpose = 'proposal_decide' AND $before.review_state = 'approved' AND $after.review_state = 'promoted';
+        LET $mutable = IF $promotion {
+            ['review_state', 'promotion_requested_event_id', 'promotion_accepted_event_id', 'last_transition_event_id']
+        } ELSE IF $wp012_original_purpose = 'proposal_decide' {
+            ['review_state', 'decided_by', 'decided_at_utc', 'decision_reason', 'decided_event_id', 'last_transition_event_id']
+        } ELSE { ['applied_update_id', 'applied_update_sha256', 'applied_event_id', 'last_transition_event_id'] };
+        LET $original = object::from_entries(array::filter(object::entries($before), |$entry| $entry[0] NOT IN $mutable));
+        LET $next = object::from_entries(array::filter(object::entries($after), |$entry| $entry[0] NOT IN $mutable));
+        IF $original != $next { THROW 'HSK-403-MODEL-LANE-PROPOSAL-IMMUTABLE'; };
+        IF $promotion {
+            LET $head = SELECT * FROM kernel_crdt_updates WHERE document_id = $before.document_id
+                AND crdt_document_id = $before.crdt_document_id AND owner_account_id = $before.owner_account_id
+                AND actor_principal_id = $before.actor_principal_id AND authenticated_session_id = $before.authenticated_session_id
+                AND access_space_id = $before.access_space_id AND workspace_id = $before.workspace_id ORDER BY update_seq DESC LIMIT 1;
+            IF $before.applied_event_id = NONE OR $before.promotion_requested_event_id != NONE OR $before.promotion_accepted_event_id != NONE
+                OR $auth.principal_id.principal_kind NOT IN ['human_account', 'break_glass_operator']
+                OR $auth.principal_id.status != 'enabled' OR $auth.principal_id.actor_kind != 'operator'
+                OR $after.promotion_requested_event_id.actor_id != $auth.principal_id.actor_id
+                OR $after.promotion_accepted_event_id.authority_session_id != $auth.id
+                OR $after.promotion_accepted_event_id.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+                OR $after.promotion_accepted_event_id.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+                OR array::len($head) != 1 OR $head[0].update_id != $before.applied_update_id
+                OR $head[0].update_seq != $before.base_update_seq + 1
+                OR !fn::wp012_model_lane_application_evidence($before, $head[0], (SELECT * FROM ONLY $before.applied_event_id)) {
+                THROW 'HSK-403-MODEL-LANE-PROPOSAL-PROMOTION';
+            };
+        } ELSE IF $wp012_original_purpose = 'proposal_decide' {
+            IF $before.review_state != 'proposed' OR $after.review_state NOT IN ['approved', 'rejected']
+                OR $before.decided_event_id != NONE OR $after.decided_event_id = NONE
+                OR $auth.principal_id.principal_kind NOT IN ['human_account', 'break_glass_operator']
+                OR $auth.principal_id.actor_kind != 'operator' OR $after.decided_by != $auth.principal_id.actor_id
+                OR $after.decided_event_id.authority_session_id != $auth.id
+                OR $after.decided_event_id.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+                OR $after.decided_event_id.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+                OR $after.decided_at_utc = NONE OR $after.decided_at_utc > time::now() {
+                THROW 'HSK-403-MODEL-LANE-PROPOSAL-REVIEW';
+            };
+        } ELSE {
+            IF $wp012_original_purpose != 'proposal_apply' OR $before.review_state != 'approved'
+                OR $before.applied_update_id != NONE OR $after.applied_update_id = NONE
+                OR $after.applied_update_sha256 != $before.diff_sha256 { THROW 'HSK-403-MODEL-LANE-PROPOSAL-APPLY'; };
+            LET $updates = SELECT * FROM kernel_crdt_updates WHERE update_id = $after.applied_update_id
+                AND owner_account_id = $before.owner_account_id AND actor_principal_id = $before.actor_principal_id
+                AND authenticated_session_id = $before.authenticated_session_id AND access_space_id = $before.access_space_id
+                AND workspace_id = $before.workspace_id AND document_id = $before.document_id AND crdt_document_id = $before.crdt_document_id;
+            IF array::len($updates) != 1 OR !fn::wp012_model_lane_crdt_document_access($updates[0], false, false)
+                OR $updates[0].actor_id != $before.actor_id OR $updates[0].actor_kind != $before.actor_kind
+                OR $updates[0].session_id != $before.session_id OR $updates[0].trace_id != $before.correlation_id
+                OR $updates[0].update_seq != $before.base_update_seq + 1 OR $updates[0].state_vector_before != $before.base_state_vector
+                OR $after.applied_event_id.payload.yjs_update_sha256 != $updates[0].update_sha256
+                OR $after.applied_event_id.payload.update_seq != $updates[0].update_seq
+                OR $after.applied_event_id.payload.update_state_vector_before != $updates[0].state_vector_before
+                OR $after.applied_event_id.payload.update_event_ledger_event_id != record::id($updates[0].event_ledger_event_id)
+                OR $after.applied_event_id.payload.update_ledger_payload_hash != $updates[0].event_ledger_event_id.payload_hash
+                OR !fn::wp012_model_lane_application_evidence($before, $updates[0], (SELECT * FROM ONLY $after.applied_event_id)) {
+                THROW 'HSK-403-MODEL-LANE-PROPOSAL-APPLICATION';
+            };
         };
     };
 };

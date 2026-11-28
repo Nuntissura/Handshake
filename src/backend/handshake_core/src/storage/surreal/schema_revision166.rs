@@ -52,8 +52,10 @@ pub(super) fn predecessor_catalog_sha256(production: bool) -> Result<String, Sur
     for identity in BASE_ADDITIONS
         .iter()
         .chain(if production { MODULE_ADDITIONS } else { &[] }.iter())
+        .copied()
+        .chain(revision_172_catalog_additions(production))
     {
-        if !entries.remove(*identity) {
+        if !entries.remove(identity) {
             return Err(SurrealStorageError::TransactionWorker(format!(
                 "first-pin catalog addition missing: {identity}"
             )));

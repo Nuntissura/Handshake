@@ -1653,8 +1653,9 @@ async fn incomplete_legacy_row_denies_without_mutation_event_or_identifier_discl
         .with_data_operation(|database| {
             Box::pin(async move {
                 database
-                    .query_values::<LegacyProofRow, _>(
+                    .query_values::<surrealdb::types::Value, _>(
                         r#"
+                        OPTION IMPORT;
                         CREATE type::record('worktree_vm_bindings', $record_id) CONTENT {
                             binding_id: $binding_id,
                             worktree_id: $worktree_id,
@@ -1685,12 +1686,16 @@ async fn incomplete_legacy_row_denies_without_mutation_event_or_identifier_discl
         ResourceAccessContext::for_account(scope),
     );
 
-    assert!(matches!(
-        registry.ensure_worktree_vm(&worktree_id).await,
-        Err(WorktreeVmError::ScopeDenied(
-            ScopeDenied::ExactAttributionMismatch
-        ))
-    ));
+    let outcome = registry.ensure_worktree_vm(&worktree_id).await;
+    assert!(
+        matches!(
+            &outcome,
+            Err(WorktreeVmError::ScopeDenied(
+                ScopeDenied::ExactAttributionMismatch
+            ))
+        ),
+        "incomplete legacy binding must be denied: {outcome:?}"
+    );
     assert_eq!(adapter.spawn_count.load(Ordering::SeqCst), 0);
     assert_eq!(
         unscoped_event_count(&harness.storage, &worktree_id).await,

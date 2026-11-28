@@ -2,19 +2,30 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_schema_access() {
     LET $scope = { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id), authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace };
     RETURN fn::wp012_model_lane_original_operation($scope)
         AND (($wp012_original_action = 'read' AND $wp012_original_purpose = 'source_read')
-            OR ($wp012_original_action = 'create' AND $wp012_original_purpose IN ['cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial']));
+            OR ($wp012_original_action = 'create' AND $wp012_original_purpose IN ['cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial'])
+            OR ($wp012_original_subject_kind = 'workspace' AND $wp012_original_action = 'update' AND $wp012_original_purpose = 'cloud_consent_revocation'));
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_cloud_source_access($row: object) {
-    IF $row.kind NOT IN ['projection_plan', 'consent_receipt', 'cloud_run', 'cloud_lane', 'consent_denial']
+    IF $row.kind NOT IN ['projection_plan', 'consent_receipt', 'cloud_run', 'cloud_lane', 'consent_denial', 'consent_revocation', 'lane_terminal']
         OR !fn::wp012_model_lane_original_operation($row) { RETURN false; };
+    LET $revocation = $row.kind IN ['consent_revocation', 'lane_terminal'];
     RETURN ($wp012_original_action = 'read' AND $wp012_original_purpose = 'source_read')
-        OR ($wp012_original_action = 'create' AND $wp012_original_purpose IN ['cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial']);
+        OR (!$revocation AND $wp012_original_action = 'create' AND $wp012_original_purpose IN ['cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial'])
+        OR ($row.kind = 'consent_revocation' AND $wp012_original_action = 'create' AND $wp012_original_purpose = 'cloud_lane')
+        OR ($row.kind IN ['projection_plan', 'consent_receipt', 'cloud_lane', 'consent_revocation', 'lane_terminal']
+            AND $wp012_original_subject_kind = 'workspace' AND $wp012_original_action = 'update' AND $wp012_original_purpose = 'cloud_consent_revocation');
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_cloud_receipt_create($row: object) {
     LET $scoped = object::extend($row, { kind: $row.aggregate_kind });
+    LET $revocation = $row.aggregate_kind IN ['consent_revocation', 'lane_terminal'];
     IF !fn::wp012_cloud_source_access($scoped)
-        OR $wp012_original_action != 'create' OR ($row.aggregate_kind = 'consent_denial' AND $wp012_original_purpose != 'cloud_consent_denial') OR ($row.aggregate_kind = 'projection_plan' AND $wp012_original_purpose != 'cloud_projection_plan') OR ($row.aggregate_kind = 'consent_receipt' AND $wp012_original_purpose != 'cloud_consent_receipt') OR ($row.aggregate_kind IN ['cloud_run', 'cloud_lane'] AND $row.aggregate_kind != $wp012_original_purpose)
+        OR (!$revocation AND $wp012_original_action != 'create')
+        OR ($revocation AND ($wp012_original_action != 'update' OR $wp012_original_purpose != 'cloud_consent_revocation'))
+        OR ($row.aggregate_kind = 'consent_denial' AND $wp012_original_purpose != 'cloud_consent_denial')
+        OR ($row.aggregate_kind = 'projection_plan' AND $wp012_original_purpose != 'cloud_projection_plan')
+        OR ($row.aggregate_kind = 'consent_receipt' AND $wp012_original_purpose != 'cloud_consent_receipt')
+        OR ($row.aggregate_kind IN ['cloud_run', 'cloud_lane'] AND $row.aggregate_kind != $wp012_original_purpose)
         OR !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id)
         OR $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
         OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
@@ -29,17 +40,33 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_receipt_create($row: object) {
     RETURN type::is_object($record) AND $payload.dexterity_kernel = 'Dexterity'
         AND $record.run_id = $row.run_id AND $record.event_ledger_event_id = $row.event_id
         AND $record.event_ledger_seq = $row.event_seq
-        AND ($row.aggregate_kind NOT IN ['projection_plan', 'consent_receipt'] OR ($record.event_stream_version = $row.event_seq AND $record.transaction_seq = $row.event_seq))
+        AND ($row.aggregate_kind NOT IN ['projection_plan', 'consent_receipt', 'consent_revocation'] OR ($record.event_stream_version = $row.event_seq AND $record.transaction_seq = $row.event_seq))
         AND $record.event_ledger_stream_id = $row.event_ledger_stream_id
         AND (($row.aggregate_kind = 'projection_plan' AND $record.projection_plan_id = $row.aggregate_id AND $payload.schema_id = 'hsk.model_lane_cloud_projection_plan@2')
             OR ($row.aggregate_kind = 'consent_receipt' AND $record.consent_receipt_id = $row.aggregate_id AND $payload.schema_id = 'hsk.model_lane_cloud_consent_receipt@2')
             OR ($row.aggregate_kind = 'cloud_run' AND $record.run_id = $row.aggregate_id AND $payload.schema_id = 'hsk.model_lane_run@1')
             OR ($row.aggregate_kind = 'cloud_lane' AND $record.lane_id = $row.aggregate_id AND $payload.schema_id = 'hsk.model_lane@1')
-            OR ($row.aggregate_kind = 'consent_denial' AND $record.lane_id = $row.aggregate_id AND $payload.schema_id = 'hsk.model_lane_cloud_consent_denial@1' AND $record.provider_call_attempted = false AND $record.partial_authority_state_created = false));
+            OR ($row.aggregate_kind = 'consent_denial' AND $record.lane_id = $row.aggregate_id AND $payload.schema_id = 'hsk.model_lane_cloud_consent_denial@1' AND $record.provider_call_attempted = false AND $record.partial_authority_state_created = false)
+            OR ($row.aggregate_kind = 'consent_revocation' AND $payload.schema_id = 'hsk.model_lane_cloud_consent_receipt@2'
+                AND $record.consent_receipt_id = $row.aggregate_id AND $record.status = 'revoked' AND $record.approved = false
+                AND type::is_string($record.revocation_ref) AND string::trim($record.revocation_ref) != ''
+                AND $payload.reason_code = 'CX-MM-007' AND $payload.revocation_ref = $record.revocation_ref)
+            OR ($row.aggregate_kind = 'lane_terminal' AND $payload.schema_id = 'hsk.model_lane_terminal@1'
+                AND $record.lane_id = $row.aggregate_id AND $payload.lane_id = $record.lane_id AND $payload.run_id = $record.run_id
+                AND $record.status = 'cancelled' AND $payload.status = 'cancelled'
+                AND $record.failstate_code = 'CX-MM-007' AND $payload.reason_code = 'CX-MM-007'
+                AND type::is_string($record.consent_receipt_ref) AND string::trim($record.consent_receipt_ref) != ''
+                AND $payload.consent_receipt_id = $record.consent_receipt_ref));
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_cloud_authority_create($row: object) {
-    IF !fn::wp012_cloud_source_access($row) OR $wp012_original_action != 'create'
-        OR ($row.kind = 'consent_denial' AND $wp012_original_purpose != 'cloud_consent_denial') OR ($row.kind = 'projection_plan' AND $wp012_original_purpose != 'cloud_projection_plan') OR ($row.kind = 'consent_receipt' AND $wp012_original_purpose != 'cloud_consent_receipt') OR ($row.kind IN ['cloud_run', 'cloud_lane'] AND $row.kind != $wp012_original_purpose)
+    LET $revocation = $row.kind IN ['consent_revocation', 'lane_terminal'];
+    IF !fn::wp012_cloud_source_access($row)
+        OR (!$revocation AND $wp012_original_action != 'create')
+        OR ($revocation AND ($wp012_original_action != 'update' OR $wp012_original_purpose != 'cloud_consent_revocation'))
+        OR ($row.kind = 'consent_denial' AND $wp012_original_purpose != 'cloud_consent_denial')
+        OR ($row.kind = 'projection_plan' AND $wp012_original_purpose != 'cloud_projection_plan')
+        OR ($row.kind = 'consent_receipt' AND $wp012_original_purpose != 'cloud_consent_receipt')
+        OR ($row.kind IN ['cloud_run', 'cloud_lane'] AND $row.kind != $wp012_original_purpose)
         OR !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id) { RETURN false; };
     LET $key = crypto::sha256(string::join(['handshake.model-lane.cloud-authority.v1', $row.kind, $row.idempotency_key, $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
     IF record::id($row.id) != $key { RETURN false; };
@@ -49,8 +76,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_authority_create($row: object) {
         AND $row.kind = $ledger.aggregate_kind AND $row.aggregate_id = $ledger.aggregate_id AND $row.run_id = $ledger.run_id
         AND $row.event_payload_json = $ledger.payload_json AND $ledger.payload_hash = crypto::sha256($ledger.payload_json)
         AND fn::wp012_cloud_record_identity($row, $record) AND $record = encoding::json::decode($ledger.payload_json).record
-        AND (($row.kind = 'cloud_lane' AND $row.idempotency_key = string::concat('model-lane:', $record.run_id, ':', $record.lane_id))
-            OR ($row.kind != 'cloud_lane' AND $row.idempotency_key = $record.idempotency_key))
+        AND (($row.kind IN ['cloud_lane', 'lane_terminal'] AND $row.idempotency_key = string::concat('model-lane:', $record.run_id, ':', $record.lane_id))
+            OR ($row.kind NOT IN ['cloud_lane', 'lane_terminal'] AND $row.idempotency_key = $record.idempotency_key))
         AND $row.owner_account_id = $ledger.owner_account_id AND $row.actor_principal_id = $ledger.actor_principal_id
         AND $row.authenticated_session_id = $ledger.authenticated_session_id AND $row.access_space_id = $ledger.access_space_id
         AND $row.workspace_id = $ledger.workspace_id AND $row.authority_resource_id = $ledger.authority_resource_id
@@ -126,23 +153,33 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_attribution($scope: object, $row: obje
 DEFINE FUNCTION OVERWRITE fn::wp012_cloud_record_identity($row: object, $record: object) {
     IF $record.run_id != $row.run_id OR $record.event_ledger_event_id != $row.event_id
         OR $record.event_ledger_seq != $row.event_seq OR string::trim($record.event_ledger_stream_id) = ''
-        OR ($row.kind IN ['projection_plan', 'consent_receipt'] AND ($record.event_stream_version != $row.event_seq OR $record.transaction_seq != $row.event_seq)) { RETURN false; };
+        OR ($row.kind IN ['projection_plan', 'consent_receipt', 'consent_revocation'] AND ($record.event_stream_version != $row.event_seq OR $record.transaction_seq != $row.event_seq)) { RETURN false; };
     // The pinned canonical consent_scope/target_bindings algorithm returns None.
     // Its derived field is omitted by serde; a supplied derived hash is noncanonical.
-    IF $row.kind IN ['projection_plan', 'consent_receipt'] AND $record.target_bindings_hash != NONE { RETURN false; };
+    IF $row.kind IN ['projection_plan', 'consent_receipt', 'consent_revocation'] AND $record.target_bindings_hash != NONE { RETURN false; };
     IF $row.kind = 'projection_plan' {
         LET $body = object::from_entries(array::filter(object::entries($record), |$entry| $entry[0] NOT IN ['event_ledger_event_id', 'event_ledger_seq', 'event_stream_version', 'transaction_seq', 'target_bindings_hash', 'projection_plan_hash']));
         RETURN $record.projection_plan_id = $row.aggregate_id AND $row.projection_plan_id = $row.aggregate_id
             AND $record.status = 'active' AND fn::wp012_cloud_attribution($record.export_delegation.source_scope, $row)
             AND $record.projection_plan_hash = crypto::sha256(encoding::json::encode($body));
     };
-    IF $row.kind = 'consent_receipt' {
+    IF $row.kind IN ['consent_receipt', 'consent_revocation'] {
         LET $body = object::from_entries(array::filter(object::entries($record), |$entry| $entry[0] NOT IN ['event_ledger_event_id', 'event_ledger_seq', 'event_stream_version', 'transaction_seq', 'target_bindings_hash', 'consent_receipt_hash']));
+        IF $row.kind = 'consent_revocation' {
+            RETURN $record.consent_receipt_id = $row.aggregate_id AND $row.consent_receipt_id = $row.aggregate_id
+                AND $row.projection_plan_id = $record.projection_plan_id
+                AND $record.status = 'revoked' AND $record.approved = false
+                AND type::is_string($record.revocation_ref) AND string::trim($record.revocation_ref) != ''
+                AND fn::wp012_cloud_attribution($record.approver, $row)
+                AND $record.consent_receipt_hash = crypto::sha256(encoding::json::encode($body));
+        };
         LET $plans = SELECT * FROM model_lane_cloud_authority WHERE kind = 'projection_plan' AND aggregate_id = $record.projection_plan_id
             AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
             AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id;
         IF array::len($plans) != 1 { RETURN false; };
         LET $plan = encoding::json::decode($plans[0].record_json);
+        LET $valid_from = type::datetime($record.valid_from_utc);
+        LET $valid_until = type::datetime($record.valid_until_utc);
         RETURN $record.consent_receipt_id = $row.aggregate_id AND $row.consent_receipt_id = $row.aggregate_id
             AND $row.projection_plan_id = $record.projection_plan_id AND $record.approved = true AND $record.status = 'approved'
             AND fn::wp012_cloud_attribution($record.approver, $row)
@@ -153,7 +190,11 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_record_identity($row: object, $record:
             AND $record.scope_hash = $plan.scope_hash AND $record.consent_scope = $plan.consent_scope
             AND $record.target_bindings = $plan.target_bindings AND $record.export_posture = $plan.export_posture
             AND $record.retention_policy = $plan.retention_policy AND $record.fan_out_targets = $plan.fan_out_targets
-            AND type::datetime($record.valid_from_utc) <= time::now() AND type::datetime($record.valid_until_utc) > time::now();
+            AND type::is_datetime($valid_from) AND type::is_datetime($valid_until)
+            AND $valid_from < $valid_until AND $valid_from <= time::now()
+            AND ($valid_until > time::now()
+                OR ($wp012_original_subject_kind = 'workspace' AND $wp012_original_action = 'update'
+                    AND $wp012_original_purpose = 'cloud_consent_revocation' AND fn::wp012_model_lane_original_operation($row)));
     };
     IF $row.kind IN ['cloud_run', 'cloud_lane'] {
         LET $consents = SELECT * FROM model_lane_cloud_authority WHERE kind = 'consent_receipt' AND aggregate_id = $record.consent_receipt_ref
@@ -172,6 +213,11 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_record_identity($row: object, $record:
                 AND $target.provider_kind = $record.provider_kind AND $target.requested_model_id = $record.model_id
                 AND $target.capability_snapshot_ref = $record.effective_capability_snapshot_ref
                 AND $target.provider_endpoint_ref = $record.adapter_id)) = 1));
+    };
+    IF $row.kind = 'lane_terminal' {
+        RETURN $record.lane_id = $row.aggregate_id AND $record.status = 'cancelled' AND $record.failstate_code = 'CX-MM-007'
+            AND type::is_string($record.consent_receipt_ref) AND string::trim($record.consent_receipt_ref) != ''
+            AND $row.consent_receipt_id = $record.consent_receipt_ref AND $row.projection_plan_id = $record.projection_plan_ref;
     };
     RETURN $row.kind = 'consent_denial' AND $record.lane_id = $row.aggregate_id
         AND $record.provider_call_attempted = false AND $record.partial_authority_state_created = false;
@@ -294,7 +340,7 @@ DEFINE FIELD OVERWRITE allocation ON model_lane_cloud_event_ledger TYPE object F
         OR $record.event_stream_version != NONE OR $record.transaction_seq != NONE { THROW 'HSK-CLOUD-CALLER-METADATA-DENIED'; };
     LET $seq = sequence::nextval('kernel_event_sequence');
     LET $metadata = object::extend({ event_ledger_event_id: record::id($this.id), event_ledger_seq: $seq },
-        IF $this.aggregate_kind IN ['projection_plan', 'consent_receipt'] { { event_stream_version: $seq, transaction_seq: $seq } } ELSE { {} });
+        IF $this.aggregate_kind IN ['projection_plan', 'consent_receipt', 'consent_revocation'] { { event_stream_version: $seq, transaction_seq: $seq } } ELSE { {} });
     LET $payload = encoding::json::encode(object::extend($prepared, { record: object::extend($record, $metadata) }));
     RETURN { event_seq: $seq, payload_json: $payload, payload_hash: crypto::sha256($payload) };
 } PERMISSIONS FOR select NONE;

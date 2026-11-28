@@ -541,19 +541,22 @@ async fn scoped_launch_single_run_cloud_consent(
 async fn scoped_revoke_single_run_cloud_consent(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
+    headers: HeaderMap,
     request: Json<OperatorChatSingleRunCloudRevokeRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
     let service = routing_service(&state)?;
-    let cancelled = service
-        .revoke_single_run_cloud_consent_scoped(
+    let cancelled = with_routing_request_authority(
+        &state,
+        &headers,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+        service.revoke_single_run_cloud_consent_scoped(
             &request.consent_receipt_id,
             &request.revoked_by_ref,
             &request.reason,
             scope.exact(),
-        )
-        .await
-        .map_err(launch_api_error)?;
+        ),
+    ).await?;
     Ok(Json(json!({
         "consent_receipt_id": request.consent_receipt_id,
         "cancelled_lanes": cancelled,

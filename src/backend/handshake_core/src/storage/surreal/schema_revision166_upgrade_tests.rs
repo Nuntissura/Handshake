@@ -175,14 +175,30 @@ mod revision166_upgrade {
         );
         let current = production_schema_sources();
         assert_eq!(old.len(), current.len());
-        let emitted = format!(
-            "{}\n{}\n{}",
-            revision166::upgrade_statements(true),
+        let earlier = |production| {
+            revision166::upgrade_statements(production)
+                + schema_function_definition("wp012_first_owner_workspace_source")
+                + "\n" + &revision169::upgrade_statements()
+        };
+        let earlier_production = earlier(true);
+        let cloud = revision166::cloud_upgrade_statements(true);
+        let revision172_production =
+            revision171::upgrade_statements_after(true, revision171::PriorUpgrade::ModelLane);
+        let production_fragments = [
+            earlier_production.as_str(),
             include_str!("model_lane_schema.surql"),
-            revision166::cloud_upgrade_statements(true)
-        );
-        let emitted = declarations(&emitted);
-        let base_emitted = declarations(&revision166::upgrade_statements(false));
+            cloud.as_str(),
+            revision172_production.as_str(),
+        ];
+        assert_revision_172_overwrites_once(true, &production_fragments);
+        let emitted = declarations(&production_fragments.join("\n"));
+
+        let earlier_base = earlier(false);
+        let revision172_base =
+            revision171::upgrade_statements_after(false, revision171::PriorUpgrade::ModelLane);
+        let base_fragments = [earlier_base.as_str(), revision172_base.as_str()];
+        assert_revision_172_overwrites_once(false, &base_fragments);
+        let base_emitted = declarations(&base_fragments.join("\n"));
         let mut changed_sources = Vec::new();
         for ((name, previous), (current_name, next)) in old.iter().zip(&current) {
             assert_eq!(name, current_name);
@@ -211,7 +227,7 @@ mod revision166_upgrade {
         }
         assert_eq!(
             changed_sources,
-            ["shared", "model_registry", "model_lane", "cloud_model_lane"]
+            ["shared", "model_registry", "loom_search", "model_lane", "cloud_model_lane", "user_manual_knowledge"]
         );
         let previous = declarations(
             &old.iter()

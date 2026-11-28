@@ -46,7 +46,8 @@ pub(super) fn matches_observed_catalog(observed: &ObservedSchema, production: bo
         && observed.indexes_defined == indexes
 }
 
-pub(super) fn restore_shared_schema(mut source: String) -> String {
+pub(super) fn restore_shared_schema(source: String) -> String {
+    let mut source = revision171::restore_shared_schema(source);
     for name in RECEIPT_FUNCTIONS {
         let current = schema_function_definition(name);
         assert!(source.matches(current).count() <= 1, "revision 170 receipt function duplicated");

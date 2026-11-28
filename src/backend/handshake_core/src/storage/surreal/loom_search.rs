@@ -511,18 +511,40 @@ IF array::len($source) != 1 {
     IF array::len($receipt) != 1 {
         THROW 'MT-016 Loom index has inconsistent receipt evidence';
     };
-    RETURN SELECT record::id(block_id) AS block_id, embedding_model,
+    LET $result = (SELECT record::id(block_id) AS block_id, embedding_model,
         record::id(index_event_id) AS index_event_id, mutation_fingerprint,
-        false AS changed FROM $index_record;
+        false AS changed FROM $index_record
+        WHERE owner_account_id = $content.owner_account_id
+          AND actor_principal_id = $content.actor_principal_id
+          AND authenticated_session_id = $content.authenticated_session_id
+          AND access_space_id = $content.access_space_id
+          AND workspace_id = $content.workspace_id
+          AND index_event_id = type::record('kernel_event_ledger', $receipt[0].event_id)
+        LIMIT 2);
+    IF array::len($result) != 1 {
+        THROW 'MT-016 Loom index has inconsistent receipt evidence';
+    };
+    RETURN $result;
 } ELSE {
     IF array::len($event_existing) != 0 {
         THROW 'MT-016 Loom index receipt exists without its mutation';
     };
     CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT $event;
     UPSERT $index_record CONTENT $content;
-    RETURN SELECT record::id(block_id) AS block_id, embedding_model,
+    LET $result = (SELECT record::id(block_id) AS block_id, embedding_model,
         record::id(index_event_id) AS index_event_id, mutation_fingerprint,
-        true AS changed FROM $index_record;
+        true AS changed FROM $index_record
+        WHERE owner_account_id = $content.owner_account_id
+          AND actor_principal_id = $content.actor_principal_id
+          AND authenticated_session_id = $content.authenticated_session_id
+          AND access_space_id = $content.access_space_id
+          AND workspace_id = $content.workspace_id
+          AND index_event_id = $content.index_event_id
+        LIMIT 2);
+    IF array::len($result) != 1 {
+        THROW 'MT-016 Loom index has inconsistent receipt evidence';
+    };
+    RETURN $result;
 };
 COMMIT TRANSACTION;
 "#;

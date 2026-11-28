@@ -27,6 +27,7 @@ use crate::process_ledger::{
     ProcessOwnershipRecordId, ProcessStart, ProcessStop, ScopedReclaim, ScopedReclaimTrigger,
     StopRecordOutcome,
 };
+use crate::storage::surreal::CapturedModelLaneOperation;
 
 use super::breaker::{AdmitDecision, BreakerConfig, FailureFingerprint, FailureFingerprintBreaker};
 use super::checkout_lease::CheckoutLeaseGuard;
@@ -38,11 +39,14 @@ use super::ids::{
 };
 use super::model_lane::{
     build_failed_launch_records, build_successful_launch_records, DexterityLaunchAdapterKind,
+    CloudRevocationCleanupIdentity, CloudRevocationCleanupPhase, CloudRevocationCleanupProgress,
+    CloudRevocationCleanupTarget,
     DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest, LaunchAuthority,
     ModelLaneDownstreamContextBundle, ModelLaneKind, ModelLaneMessageRecord, ModelLaneRecord,
     ModelLaneRunRecord, ModelLaneStatus, ModelLaneStore, NewModelLaneContextBundleArtifactBinding,
     NewModelLaneMessage, RuntimeBinding as ModelLaneRuntimeBinding,
 };
+use super::resource_scope::ExactResourceScopeAttribution;
 use super::state::ModelSessionState;
 use crate::kernel::{KernelActor, ModelAdapter, ModelAdapterOutput, ModelAdapterRequest};
 
@@ -978,6 +982,7 @@ impl Drop for ManagedGenerationFinalizer {
                 owner_outcome_tx: watch::channel(CleanupOwnerOutcome::Idle).0,
                 terminal_event_id: Uuid::now_v7(),
                 resource_evicted_event_id: Uuid::now_v7(),
+                cloud_revocation: None,
             });
             (handle.cancel.clone(), Arc::clone(&handle.runtime))
         };
@@ -1148,6 +1153,65 @@ struct PendingSessionCleanup {
     owner_outcome_tx: watch::Sender<CleanupOwnerOutcome>,
     terminal_event_id: Uuid,
     resource_evicted_event_id: Uuid,
+    cloud_revocation: Option<CloudRevocationCleanupIntent>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct CloudRevocationCleanupAuthority {
+    scope: ExactResourceScopeAttribution,
+    resource_id: String,
+    grant_id: String,
+}
+
+#[derive(Clone)]
+struct CloudRevocationCleanupIntent {
+    identity: CloudRevocationCleanupIdentity,
+    authority: CloudRevocationCleanupAuthority,
+    stop: Option<CloudRevocationStopAck>,
+}
+
+impl CloudRevocationCleanupIntent {
+    fn matches(&self, identity: &CloudRevocationCleanupIdentity, authority: &CloudRevocationCleanupAuthority) -> bool {
+        self.authority == *authority && self.identity.instance_id == identity.instance_id
+            && self.identity.process_uuid == identity.process_uuid && self.identity.run_id == identity.run_id
+            && self.identity.lane_id == identity.lane_id && self.identity.projection_plan_id == identity.projection_plan_id
+            && self.identity.consent_receipt_id == identity.consent_receipt_id && self.identity.reason == identity.reason
+    }
+}
+
+#[derive(Clone, Copy)]
+struct CloudRevocationStopAck {
+    process_uuid: Uuid,
+    spawn_generation: u64,
+}
+
+pub(super) struct CloudRevocationCleanupCompletionProof {
+    target: CloudRevocationCleanupTarget,
+    stop: CloudRevocationStopAck,
+    terminal_event_id: Uuid,
+    resource_evicted_event_id: Uuid,
+}
+
+impl CloudRevocationCleanupCompletionProof {
+    pub(super) fn into_parts(self) -> (CloudRevocationCleanupTarget, u64, Uuid, Uuid) {
+        (self.target, self.stop.spawn_generation, self.terminal_event_id, self.resource_evicted_event_id)
+    }
+}
+
+struct CleanupReceiptOwner<'a> {
+    instance_id: ModelInstanceId,
+    spawn_generation: u64,
+    terminal: ModelSessionState,
+    reason: &'a str,
+    exit_code: i32,
+    authority: Option<&'a CapturedModelLaneOperation>,
+}
+
+enum OwnedCleanupReceipt<'a> {
+    Pending(Option<&'a str>),
+    TeardownSucceeded(Option<&'a str>),
+    ExactProcessReclaimSucceeded(&'a str),
+    Completed { terminal_ack: Uuid, eviction_ack: Uuid },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2316,6 +2380,7 @@ impl SwarmCoordinator {
             exit_code,
             None,
             CleanupContentionPolicy::WaitForOwner,
+            None,
         )
         .await
     }
@@ -3419,6 +3484,26 @@ impl SwarmCoordinator {
         Ok(launched)
     }
 
+    fn cloud_revocation_cleanup_authority(store: &ModelLaneStore) -> SwarmResult<CloudRevocationCleanupAuthority> {
+        use crate::storage::surreal::{current_model_lane_subject, current_record_user_scope, resource_authority::{ResourceAction, ResourceKind}};
+
+        let denied = || SwarmError::LedgerFailed("CX-MM-007 cleanup requires the original scoped workspace update authority".into());
+        let scope = ExactResourceScopeAttribution::try_from_resource_scope(store.write_scope().ok_or_else(denied)?)
+            .map_err(|_| denied())?;
+        let current = current_record_user_scope().ok_or_else(denied)?;
+        let subject = current_model_lane_subject().ok_or_else(denied)?;
+        let grant_id = current.grant_id.filter(|grant| !grant.trim().is_empty()).ok_or_else(denied)?;
+        if store.access().exact_read_scope() != Some(&scope) || subject.kind != ResourceKind::Workspace
+            || subject.external_id != scope.workspace_id.as_str()
+            || current.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || current.session_id != scope.authenticated_session_id.as_uuid().to_string()
+            || current.action != ResourceAction::Update || current.capability_id != "fs.write" || current.resource_id.trim().is_empty()
+        {
+            return Err(denied());
+        }
+        Ok(CloudRevocationCleanupAuthority { scope, resource_id: current.resource_id, grant_id })
+    }
+
     pub async fn revoke_cloud_consent_receipt(
         &self,
         consent_receipt_id: &str,
@@ -3430,6 +3515,7 @@ impl SwarmCoordinator {
                 "CX-MM-007 cloud consent revoke requires ModelLaneStore".into(),
             )
         })?;
+        let authority = Self::cloud_revocation_cleanup_authority(store)?;
         // Fence under the same receipt advisory authority used by launch
         // persistence before taking an ephemeral runtime snapshot. A launch that
         // commits first is included; a launch that loses the fence re-preflights
@@ -3469,77 +3555,90 @@ impl SwarmCoordinator {
             revoke_fence.store(true, Ordering::SeqCst);
             cancel.cancel();
         }
+        let mut identities = Vec::new();
+        for lane in &covered_lanes {
+            let Some(instance) = lane.model_session_id.strip_prefix("swarm-session:") else { continue; };
+            let Some(process) = lane.process_ownership_ref.as_deref().and_then(|value| value.strip_prefix("process-ledger://")) else { continue; };
+            let instance_id = parse_routing_model_instance_id(instance)?;
+            let process_uuid = Uuid::parse_str(process).map_err(|_| SwarmError::LedgerFailed("CX-MM-007 covered lane process identity is invalid".into()))?;
+            let projection_plan_id = lane.projection_plan_ref.as_ref().filter(|plan| !plan.trim().is_empty())
+                .ok_or_else(|| SwarmError::LedgerFailed("CX-MM-007 covered lane has no projection plan".into()))?;
+            if instance_id.to_string() != instance || process_uuid.to_string() != process
+                || lane.consent_receipt_ref.as_deref() != Some(consent_receipt_id)
+            {
+                return Err(SwarmError::LedgerFailed("CX-MM-007 covered lane has a mismatched cleanup identity".into()));
+            }
+            identities.push(CloudRevocationCleanupIdentity {
+                instance_id, process_uuid, run_id: lane.run_id.clone(), lane_id: lane.lane_id.clone(),
+                projection_plan_id: projection_plan_id.clone(), consent_receipt_id: consent_receipt_id.to_owned(), reason: cancel_reason.clone(),
+            });
+        }
         let live = {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
-            registry
-                .values_mut()
-                .filter_map(|handle| {
-                    let covered = handle.dexterity_consent_receipt_id.as_deref()
-                        == Some(consent_receipt_id)
-                        || handle
-                            .dexterity_lane_id
-                            .as_ref()
-                            .is_some_and(|lane_id| target_lane_ids.contains(lane_id));
-                    if !covered || handle.state.is_terminal() {
-                        return None;
+            let mut live = Vec::new();
+            for handle in registry.values() {
+                let covered = handle.dexterity_consent_receipt_id.as_deref() == Some(consent_receipt_id)
+                    || handle.dexterity_lane_id.as_ref().is_some_and(|lane_id| target_lane_ids.contains(lane_id));
+                if !covered || handle.state.is_terminal() { continue; }
+                let Some(identity) = identities.iter().find(|identity| {
+                    identity.instance_id == handle.instance_id && identity.process_uuid == handle.process_record_id.as_uuid()
+                        && handle.dexterity_lane_id.as_deref() == Some(identity.lane_id.as_str())
+                        && handle.dexterity_consent_receipt_id.as_deref() == Some(identity.consent_receipt_id.as_str())
+                }) else {
+                    if !handle.dexterity_model_lane_persisted && handle.cleanup.is_none() { continue; }
+                    return Err(SwarmError::LedgerFailed("CX-MM-007 live cleanup does not match the committed lane and process".into()));
+                };
+                if let Some(cleanup) = &handle.cleanup {
+                    let Some(intent) = &cleanup.cloud_revocation else {
+                        return Err(SwarmError::LedgerFailed(format!(
+                            "CX-MM-007 cloud revocation cleanup conflict for lane {}, instance {}, generation {}. Retry after the existing cleanup finishes.",
+                            identity.lane_id, handle.instance_id, handle.spawn_generation,
+                        )));
+                    };
+                    if !intent.matches(identity, &authority) {
+                        return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup retry changed its original authority or target".into()));
                     }
-                    if handle.state != ModelSessionState::Cancelling {
-                        handle.state = ModelSessionState::Cancelling;
-                        handle.cleanup = Some(PendingSessionCleanup {
-                            authoritative_start: None, retained_stop: None, lifecycle_attempted: false,
-                            terminal: ModelSessionState::Cancelled,
-                            reason: cancel_reason.clone(),
-                            exit_code: -1,
-                            teardown_succeeded: false,
-                            stop_succeeded: false,
-                            owner_generation: 0,
-                            in_progress: false,
-                            owner_outcome_tx: watch::channel(CleanupOwnerOutcome::Idle).0,
-                            terminal_event_id: Uuid::now_v7(),
-                            resource_evicted_event_id: Uuid::now_v7(),
-                        });
-                    }
-                    // Specialized finalization below owns the terminal lane row.
-                    handle.dexterity_model_lane_persisted = false;
-                    Some((handle.instance_id, handle.dexterity_lane_id.clone()))
-                })
-                .collect::<Vec<_>>()
+                } else if handle.state == ModelSessionState::Cancelling {
+                    return Err(SwarmError::LedgerFailed("CX-MM-007 cancelling session has no cleanup intent".into()));
+                }
+                live.push((identity.clone(), handle.spawn_generation));
+            }
+            for (identity, _) in &live {
+                let handle = registry.get_mut(&identity.instance_id).ok_or(SwarmError::UnknownInstance(identity.instance_id))?;
+                if handle.cleanup.is_none() {
+                    handle.state = ModelSessionState::Cancelling;
+                    handle.cleanup = Some(PendingSessionCleanup {
+                        authoritative_start: None, retained_stop: None, lifecycle_attempted: false,
+                        terminal: ModelSessionState::Cancelled, reason: cancel_reason.clone(), exit_code: -1,
+                        teardown_succeeded: false, stop_succeeded: false, owner_generation: 0, in_progress: false,
+                        owner_outcome_tx: watch::channel(CleanupOwnerOutcome::Idle).0,
+                        terminal_event_id: Uuid::now_v7(), resource_evicted_event_id: Uuid::now_v7(),
+                        cloud_revocation: Some(CloudRevocationCleanupIntent { identity: identity.clone(), authority: authority.clone(), stop: None }),
+                    });
+                }
+                // The scoped finalizer owns the immutable cloud termination.
+                handle.dexterity_model_lane_persisted = false;
+            }
+            live
         };
-        let mut provider_cancelled_lane_ids = std::collections::BTreeSet::new();
-        for (instance_id, lane_id) in live {
+        for (identity, generation) in &live {
             match self
-                .cancel_session(instance_id, cancel_reason.clone())
+                .terminate_with_contention(identity.instance_id, ModelSessionState::Cancelled, &cancel_reason, -1,
+                    Some(*generation), CleanupContentionPolicy::WaitForOwner, Some((identity, &authority)))
                 .await
             {
-                Ok(()) => {
-                    if let Some(lane_id) = lane_id {
-                        provider_cancelled_lane_ids.insert(lane_id);
-                    }
-                }
-                Err(SwarmError::UnknownInstance(_)) => {}
+                Ok(()) | Err(SwarmError::UnknownInstance(_)) => {}
                 Err(error) => return Err(error),
             }
         }
 
-        // If runtime cleanup completed but terminal finalization failed, the
-        // live handle is already evicted. Recover the truthful cancellation
-        // outcome from the existing durable cleanup receipt on identical retry.
-        for lane in &covered_lanes {
-            if provider_cancelled_lane_ids.contains(&lane.lane_id) {
-                continue;
-            }
-            if let Some(instance_id) = lane.model_session_id.strip_prefix("swarm-session:") {
-                let Some(process_uuid) = lane.process_ownership_ref.as_deref()
-                    .and_then(|reference| reference.strip_prefix("process-ledger://"))
-                    .and_then(|id| Uuid::parse_str(id).ok()) else { continue; };
-                if lane.process_ownership_ref.as_deref() != Some(format!("process-ledger://{process_uuid}").as_str()) { continue; }
-                let completed = store
-                    .session_cleanup_completed(instance_id, process_uuid, Some(&lane.lane_id), "Cancelled", &cancel_reason)
-                    .await
-                    .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
-                if completed {
-                    provider_cancelled_lane_ids.insert(lane.lane_id.clone());
-                }
+        let mut provider_cancelled_lane_ids = std::collections::BTreeSet::new();
+        for identity in identities {
+            let lane_id = identity.lane_id.clone();
+            if store.cloud_revocation_cleanup_completion(identity).await
+                .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?.is_some()
+            {
+                provider_cancelled_lane_ids.insert(lane_id);
             }
         }
 
@@ -6708,6 +6807,7 @@ impl SwarmCoordinator {
             exit_code,
             Some(spawn_generation),
             CleanupContentionPolicy::WaitForOwner,
+            None,
         )
         .await
     }
@@ -6720,7 +6820,17 @@ impl SwarmCoordinator {
         exit_code: i32,
         expected_spawn_generation: Option<u64>,
         contention: CleanupContentionPolicy,
+        revocation: Option<(&CloudRevocationCleanupIdentity, &CloudRevocationCleanupAuthority)>,
     ) -> SwarmResult<()> {
+        if let Some((identity, authority)) = revocation {
+            let store = self.inner.model_lane_store.as_ref().ok_or_else(|| SwarmError::LedgerFailed("CX-MM-007 cleanup has no ModelLaneStore".into()))?;
+            if identity.instance_id != instance_id || expected_spawn_generation.is_none()
+                || terminal != ModelSessionState::Cancelled || exit_code != -1 || identity.reason != reason
+                || Self::cloud_revocation_cleanup_authority(store)? != *authority
+            {
+                return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup requires its exact original authority and target".into()));
+            }
+        }
         self.trace_terminate(instance_id, || {
             format!("entered terminal={terminal:?} reason={reason:?} exit_code={exit_code}")
         });
@@ -6731,6 +6841,7 @@ impl SwarmCoordinator {
                 reason,
                 exit_code,
                 expected_spawn_generation,
+                revocation,
             )? {
                 CleanupClaim::Owner(claim) => {
                     // Only the single owner is detached from its caller. Dropping a
@@ -6738,6 +6849,7 @@ impl SwarmCoordinator {
                     // waiters remain ordinary caller-owned futures, so retries cannot
                     // accumulate detached tasks behind one slow owner.
                     let coordinator = self.clone();
+                    let authority = revocation.map(|_| crate::storage::surreal::capture_model_lane_operation());
                     let outcome_tx = claim.outcome_tx.clone();
                     let cleanup_owner = CleanupOwnershipGuard {
                         inner: Arc::clone(&self.inner),
@@ -6755,6 +6867,7 @@ impl SwarmCoordinator {
                                 &claim.reason,
                                 claim.exit_code,
                                 claim.terminal_record,
+                                authority,
                             )
                             .await;
                         let outcome = match &result {
@@ -6833,6 +6946,7 @@ impl SwarmCoordinator {
         reason: &str,
         exit_code: i32,
         expected_spawn_generation: Option<u64>,
+        revocation: Option<(&CloudRevocationCleanupIdentity, &CloudRevocationCleanupAuthority)>,
     ) -> SwarmResult<CleanupClaim> {
         let mut registry = self.inner.registry.lock().expect("registry poisoned");
         let Some(handle) = registry.get_mut(&instance_id) else {
@@ -6849,6 +6963,14 @@ impl SwarmCoordinator {
                     "session {instance_id} has a cancelling state without a cleanup receipt"
                 ))
             })?;
+            match (pending.cloud_revocation.as_ref(), revocation) {
+                (None, None) => {}
+                (Some(intent), Some((identity, authority))) if intent.matches(identity, authority)
+                    && identity.process_uuid == handle.process_record_id.as_uuid()
+                    && handle.dexterity_lane_id.as_deref() == Some(identity.lane_id.as_str())
+                    && handle.dexterity_consent_receipt_id.as_deref() == Some(identity.consent_receipt_id.as_str()) => {}
+                _ => return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup claimant does not own this intent".into())),
+            }
             if let Some(invocation) = self
                 .inner
                 .managed_generations
@@ -6918,6 +7040,9 @@ impl SwarmCoordinator {
             self.trace_terminate(instance_id, || step);
             return Err(SwarmError::UnknownInstance(instance_id));
         }
+        if revocation.is_some() {
+            return Err(SwarmError::LedgerFailed("CX-MM-007 exact revocation cleanup intent is unavailable".into()));
+        }
         let step = format!("fresh_cleanup from_state={:?}", handle.state);
         self.trace_terminate(instance_id, || step);
         if let Some(invocation) = self
@@ -6945,6 +7070,7 @@ impl SwarmCoordinator {
             owner_outcome_tx: outcome_tx.clone(),
             terminal_event_id: Uuid::now_v7(),
             resource_evicted_event_id: Uuid::now_v7(),
+            cloud_revocation: None,
         });
         let terminal_record = if handle.dexterity_model_lane_persisted {
             self.inner
@@ -6974,7 +7100,12 @@ impl SwarmCoordinator {
         reason: &str,
         exit_code: i32,
         terminal_record: Option<(ModelLaneStore, String)>,
+        authority: Option<CapturedModelLaneOperation>,
     ) -> SwarmResult<()> {
+        let receipt_owner = CleanupReceiptOwner { instance_id, spawn_generation, terminal, reason, exit_code, authority: authority.as_ref() };
+        if authority.is_some() {
+            self.capture_session_stop(instance_id, spawn_generation, exit_code, reason)?;
+        }
         // Fence provider work before any durable Surreal receipt can block. The
         // typed in-memory cleanup intent above survives a timed-out durable
         // write and is retried by the background/restart reconciliation path.
@@ -6989,11 +7120,25 @@ impl SwarmCoordinator {
                 });
                 return Err(SwarmError::UnknownInstance(instance_id));
             };
+            if authority.is_some() {
+                let valid_start = handle.cleanup.as_ref().is_some_and(|cleanup| {
+                    cleanup.cloud_revocation.as_ref().is_some_and(|intent| {
+                        cleanup.authoritative_start.as_ref().is_some_and(|start| {
+                            start.process_uuid == intent.identity.process_uuid
+                                && start.process_uuid == handle.process_record_id.as_uuid()
+                        })
+                    })
+                });
+                if !valid_start {
+                    return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup no longer holds the covered process START".into()));
+                }
+            }
             handle.cancel.cancel();
             handle.runtime.cancel(handle.cancel.clone());
         }
 
-        if let Err(start_error) = self.capture_session_stop(instance_id, spawn_generation, exit_code, reason) {
+        let captured_start = if authority.is_some() { Ok(()) } else { self.capture_session_stop(instance_id, spawn_generation, exit_code, reason) };
+        if let Err(start_error) = captured_start {
             let (teardown, succeeded) = {
                 let registry = self.inner.registry.lock().expect("registry poisoned");
                 let handle = registry.get(&instance_id).filter(|handle| handle.spawn_generation == spawn_generation)
@@ -7036,14 +7181,7 @@ impl SwarmCoordinator {
         // returned from the function's normal exit, so nothing is silenced.
         let mut deferred_durable_error: Option<SwarmError> = None;
         if let Err(err) = self
-            .record_cleanup_receipt(
-                instance_id,
-                "cleanup_pending",
-                terminal,
-                reason,
-                exit_code,
-                None,
-            )
+            .record_cleanup_receipt(&receipt_owner, OwnedCleanupReceipt::Pending(None))
             .await
         {
             deferred_durable_error = Some(err);
@@ -7141,14 +7279,7 @@ impl SwarmCoordinator {
                 let step = format!("teardown_err {teardown_error}");
                 self.trace_terminate(instance_id, || step);
                 let pending_receipt_error = self
-                    .record_cleanup_receipt(
-                        instance_id,
-                        "cleanup_pending",
-                        terminal,
-                        reason,
-                        exit_code,
-                        Some(&teardown_error),
-                    )
+                    .record_cleanup_receipt(&receipt_owner, OwnedCleanupReceipt::Pending(Some(&teardown_error)))
                     .await
                     .err();
                 let pending_receipt_context = pending_receipt_error
@@ -7243,15 +7374,14 @@ impl SwarmCoordinator {
                     let cleanup = handle.cleanup.as_mut().expect("cleanup initialized");
                     cleanup.teardown_succeeded = true;
                     cleanup.stop_succeeded = true;
+                    if let Some(intent) = &mut cleanup.cloud_revocation {
+                        intent.stop = Some(CloudRevocationStopAck { process_uuid: process_record_id.as_uuid(), spawn_generation });
+                    }
                 }
                 stop_succeeded = true;
                 self.record_cleanup_receipt(
-                    instance_id,
-                    "exact_process_reclaim_succeeded",
-                    terminal,
-                    reason,
-                    exit_code,
-                    Some(&teardown_error),
+                    &receipt_owner,
+                    OwnedCleanupReceipt::ExactProcessReclaimSucceeded(&teardown_error),
                 )
                 .await?;
             } else {
@@ -7269,12 +7399,8 @@ impl SwarmCoordinator {
                         .teardown_succeeded = true;
                 }
                 self.record_cleanup_receipt(
-                    instance_id,
-                    "teardown_succeeded",
-                    terminal,
-                    reason,
-                    exit_code,
-                    None,
+                    &receipt_owner,
+                    OwnedCleanupReceipt::TeardownSucceeded(None),
                 )
                 .await?;
             }
@@ -7291,12 +7417,8 @@ impl SwarmCoordinator {
             if let Err(err) = stop_result {
                 let detail = err.to_string();
                 self.record_cleanup_receipt(
-                    instance_id,
-                    "teardown_succeeded",
-                    terminal,
-                    reason,
-                    exit_code,
-                    Some(&detail),
+                    &receipt_owner,
+                    OwnedCleanupReceipt::TeardownSucceeded(Some(&detail)),
                 )
                 .await?;
                 return Err(SwarmError::LedgerFailed(detail));
@@ -7306,11 +7428,11 @@ impl SwarmCoordinator {
                 .get_mut(&instance_id)
                 .filter(|handle| handle.spawn_generation == spawn_generation)
                 .ok_or(SwarmError::UnknownInstance(instance_id))?;
-            handle
-                .cleanup
-                .as_mut()
-                .expect("cleanup initialized")
-                .stop_succeeded = true;
+            let cleanup = handle.cleanup.as_mut().expect("cleanup initialized");
+            cleanup.stop_succeeded = true;
+            if let Some(intent) = &mut cleanup.cloud_revocation {
+                intent.stop = Some(CloudRevocationStopAck { process_uuid: process_record_id.as_uuid(), spawn_generation });
+            }
         }
 
         // Runtime teardown and the process-ledger STOP are complete, but a
@@ -7323,14 +7445,7 @@ impl SwarmCoordinator {
         if let Some(err) = deferred_durable_error {
             let detail = err.to_string();
             if let Err(receipt_err) = self
-                .record_cleanup_receipt(
-                    instance_id,
-                    "cleanup_pending",
-                    terminal,
-                    reason,
-                    exit_code,
-                    Some(&detail),
-                )
+                .record_cleanup_receipt(&receipt_owner, OwnedCleanupReceipt::Pending(Some(&detail)))
                 .await
             {
                 self.trace_terminate(instance_id, || {
@@ -7403,7 +7518,10 @@ impl SwarmCoordinator {
                 SwarmError::LedgerFailed("delegated runtime session revocation remains pending".into())
             })?;
         }
-        self.record_cleanup_receipt(instance_id, "completed", terminal, reason, exit_code, None)
+        self.record_cleanup_receipt(
+            &receipt_owner,
+            OwnedCleanupReceipt::Completed { terminal_ack: terminal_event_id, eviction_ack: resource_evicted_event_id },
+        )
             .await?;
 
         // Only terminalize and release capacity after teardown, STOP, and the
@@ -7460,18 +7578,16 @@ impl SwarmCoordinator {
 
     async fn record_cleanup_receipt(
         &self,
-        instance_id: ModelInstanceId,
-        status: &str,
-        terminal: ModelSessionState,
-        reason: &str,
-        exit_code: i32,
-        last_error: Option<&str>,
+        owner: &CleanupReceiptOwner<'_>,
+        phase: OwnedCleanupReceipt<'_>,
     ) -> SwarmResult<()> {
         if let Some(store) = self.inner.model_lane_store.as_ref() {
-            let (lane_id, process_uuid, terminal_event_id, resource_evicted_event_id) = {
+            let instance_id = owner.instance_id;
+            let (lane_id, process_uuid, terminal_event_id, resource_evicted_event_id, cloud) = {
                 let registry = self.inner.registry.lock().expect("registry poisoned");
                 let handle = registry
                     .get(&instance_id)
+                    .filter(|handle| handle.spawn_generation == owner.spawn_generation)
                     .ok_or(SwarmError::UnknownInstance(instance_id))?;
                 let cleanup = handle.cleanup.as_ref().ok_or_else(|| {
                     SwarmError::LedgerFailed(format!(
@@ -7483,22 +7599,61 @@ impl SwarmCoordinator {
                     handle.process_record_id.as_uuid(),
                     cleanup.terminal_event_id,
                     cleanup.resource_evicted_event_id,
+                    cleanup.cloud_revocation.as_ref().map(|intent| (intent.clone(), cleanup.authoritative_start.clone())),
                 )
+            };
+            let write = async {
+                if let Some((intent, start)) = cloud {
+                    let captured = owner.authority.cloned().ok_or_else(|| SwarmError::LedgerFailed("CX-MM-007 cleanup owner is missing its original request authority".into()))?;
+                    let start = start.ok_or_else(|| SwarmError::LedgerFailed("CX-MM-007 cleanup receipt requires its retained START".into()))?;
+                    if intent.identity.instance_id != instance_id || intent.identity.process_uuid != process_uuid
+                        || start.process_uuid != process_uuid || lane_id.as_deref() != Some(intent.identity.lane_id.as_str())
+                        || owner.terminal != ModelSessionState::Cancelled || owner.exit_code != -1 || owner.reason != intent.identity.reason
+                    {
+                        return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup receipt target or START changed".into()));
+                    }
+                    let target = CloudRevocationCleanupTarget { identity: intent.identity, start };
+                    return crate::storage::surreal::with_captured_model_lane_operation(store.surreal_storage(), captured, async move {
+                        if Self::cloud_revocation_cleanup_authority(store)? != intent.authority {
+                            return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup owner authority no longer matches its intent".into()));
+                        }
+                        let phase = match phase {
+                            OwnedCleanupReceipt::Pending(error) => CloudRevocationCleanupPhase::Pending(error.map(str::to_owned)),
+                            OwnedCleanupReceipt::TeardownSucceeded(error) => CloudRevocationCleanupPhase::TeardownSucceeded(error.map(str::to_owned)),
+                            OwnedCleanupReceipt::ExactProcessReclaimSucceeded(error) => CloudRevocationCleanupPhase::ExactProcessReclaimSucceeded(error.to_owned()),
+                            OwnedCleanupReceipt::Completed { terminal_ack, eviction_ack } => {
+                                let stop = intent.stop.filter(|stop| stop.process_uuid == process_uuid && stop.spawn_generation == owner.spawn_generation)
+                                    .ok_or_else(|| SwarmError::LedgerFailed("CX-MM-007 cleanup completion requires its owned STOP acknowledgment".into()))?;
+                                if terminal_ack != terminal_event_id || eviction_ack != resource_evicted_event_id || terminal_ack == eviction_ack {
+                                    return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup completion outbox acknowledgments do not match its stable IDs".into()));
+                                }
+                                let proof = CloudRevocationCleanupCompletionProof { target, stop, terminal_event_id, resource_evicted_event_id };
+                                return store.record_cloud_revocation_cleanup_completion(proof).await.map(|_| ())
+                                    .map_err(|error| SwarmError::LedgerFailed(format!("session cleanup receipt persistence failed: {error}")));
+                            }
+                        };
+                        store.record_cloud_revocation_cleanup_progress(CloudRevocationCleanupProgress {
+                            target, terminal_event_id, resource_evicted_event_id, phase,
+                        }).await.map(|_| ()).map_err(|error| SwarmError::LedgerFailed(format!("session cleanup receipt persistence failed: {error}")))
+                    }).await;
+                }
+                if owner.authority.is_some() {
+                    return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup owner lost its typed intent".into()));
+                }
+                let (status, last_error) = match phase {
+                    OwnedCleanupReceipt::Pending(error) => ("cleanup_pending", error),
+                    OwnedCleanupReceipt::TeardownSucceeded(error) => ("teardown_succeeded", error),
+                    OwnedCleanupReceipt::ExactProcessReclaimSucceeded(error) => ("exact_process_reclaim_succeeded", Some(error)),
+                    OwnedCleanupReceipt::Completed { .. } => ("completed", None),
+                };
+                store.record_session_cleanup_receipt(
+                    &instance_id.to_string(), lane_id.as_deref(), process_uuid, terminal_event_id, resource_evicted_event_id,
+                    status, &format!("{:?}", owner.terminal), owner.reason, owner.exit_code, last_error,
+                ).await.map_err(|err| SwarmError::LedgerFailed(format!("session cleanup receipt persistence failed: {err}")))
             };
             tokio::time::timeout(
                 self.inner.config.teardown_timeout,
-                store.record_session_cleanup_receipt(
-                    &instance_id.to_string(),
-                    lane_id.as_deref(),
-                    process_uuid,
-                    terminal_event_id,
-                    resource_evicted_event_id,
-                    status,
-                    &format!("{terminal:?}"),
-                    reason,
-                    exit_code,
-                    last_error,
-                ),
+                write,
             )
             .await
             .map_err(|_| {
@@ -7506,12 +7661,9 @@ impl SwarmCoordinator {
                     "session cleanup receipt persistence exceeded {:?}",
                     self.inner.config.teardown_timeout
                 ))
-            })?
-            .map_err(|err| {
-                SwarmError::LedgerFailed(format!(
-                    "session cleanup receipt persistence failed: {err}"
-                ))
-            })?;
+            })??;
+        } else if owner.authority.is_some() {
+            return Err(SwarmError::LedgerFailed("CX-MM-007 cleanup owner has no ModelLaneStore".into()));
         }
         Ok(())
     }
@@ -7528,7 +7680,7 @@ impl SwarmCoordinator {
             .expect("registry poisoned")
             .iter()
             .filter_map(|(instance_id, handle)| {
-                handle.cleanup.as_ref().map(|cleanup| {
+                handle.cleanup.as_ref().filter(|cleanup| cleanup.cloud_revocation.is_none()).map(|cleanup| {
                     (
                         *instance_id,
                         handle.spawn_generation,
@@ -7563,6 +7715,7 @@ impl SwarmCoordinator {
                     exit_code,
                     Some(spawn_generation),
                     CleanupContentionPolicy::SkipIfOwned,
+                    None,
                 )
                 .await
             {

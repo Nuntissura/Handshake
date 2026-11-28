@@ -857,6 +857,8 @@ pub(crate) enum ModelLaneRecordKind {
     CloudProjectionPlan,
     CloudConsentReceipt,
     CloudConsentDenial,
+    CloudConsentRevocation,
+    CloudLaneTerminal,
     RoleEvidence,
     ValidatorDesignation,
     RoleEvidenceConsumption,
@@ -884,6 +886,8 @@ impl ModelLaneRecordKind {
             Self::CloudProjectionPlan => "cloud_projection_plan",
             Self::CloudConsentReceipt => "cloud_consent_receipt",
             Self::CloudConsentDenial => "cloud_consent_denial",
+            Self::CloudConsentRevocation => "consent_revocation",
+            Self::CloudLaneTerminal => "lane_terminal",
             Self::RoleEvidence => "role_evidence",
             Self::ValidatorDesignation => "validator_designation",
             Self::RoleEvidenceConsumption => "role_evidence_consumption",
@@ -1638,7 +1642,7 @@ pub(crate) enum ContextCoordinationPurpose {
     Consume, SourceRead, NavigationRead, FinalPromotionRead, FinalPromotionRecord, PromotionDecisionRead, RoutingDiagnosticsRead, RoutingCreate, RoutingTransition, RunAttachment, RecoveryExecute, DiagnosticRecord, RecoveryCheckpointRecord, ArtifactBinding, Handoff, GuardedMessage, RunCreate, LaneCreate, ProfileSessionWrite, ProfileAdmissionCreate, ProfileAdmissionTransition, ProfileAdmissionFinalization, CrdtUpdate, CrdtSnapshot,
     DocumentClaim, WorkspaceClaim, SourceRootClaim, IndexRunClaim, LeaseRenew, LeaseRelease, LeaseExpiry,
     ProposalRecord, ProposalDecide, ProposalApply,
-    CloudProjectionPlan, CloudConsentReceipt, CloudRun, CloudLane, CloudConsentDenial,
+    CloudProjectionPlan, CloudConsentReceipt, CloudRun, CloudLane, CloudConsentDenial, CloudConsentRevocation,
 }
 
 impl ContextCoordinationPurpose {
@@ -1662,6 +1666,7 @@ impl ContextCoordinationPurpose {
             Self::ProposalRecord => "proposal_record", Self::ProposalDecide => "proposal_decide", Self::ProposalApply => "proposal_apply",
             Self::CloudProjectionPlan => "cloud_projection_plan", Self::CloudConsentReceipt => "cloud_consent_receipt",
             Self::CloudRun => "cloud_run", Self::CloudLane => "cloud_lane", Self::CloudConsentDenial => "cloud_consent_denial",
+            Self::CloudConsentRevocation => "cloud_consent_revocation",
             Self::DocumentClaim => "document_claim", Self::WorkspaceClaim => "workspace_claim",
             Self::SourceRootClaim => "source_root_claim", Self::IndexRunClaim => "index_run_claim",
             Self::LeaseRenew => "lease_renew", Self::LeaseRelease => "lease_release", Self::LeaseExpiry => "lease_expiry",
@@ -1684,7 +1689,8 @@ impl ContextCoordinationPurpose {
                 | Self::CloudProjectionPlan | Self::CloudConsentReceipt | Self::CloudRun | Self::CloudLane | Self::CloudConsentDenial =>
                 kind == ResourceKind::Workspace && action == ResourceAction::Create,
             Self::FinalPromotionRecord | Self::RoutingCreate | Self::RunAttachment => kind == ResourceKind::Workspace && action == ResourceAction::Create,
-            Self::RoutingTransition | Self::RecoveryExecute => kind == ResourceKind::Workspace && action == ResourceAction::Update,
+            Self::RoutingTransition | Self::RecoveryExecute | Self::CloudConsentRevocation =>
+                kind == ResourceKind::Workspace && action == ResourceAction::Update,
             Self::SourceRootClaim => false,
         }
     }
@@ -5692,7 +5698,8 @@ impl SurrealModelLaneStore {
     {
         if !matches!(purpose, ContextCoordinationPurpose::CloudProjectionPlan
             | ContextCoordinationPurpose::CloudConsentReceipt | ContextCoordinationPurpose::CloudRun
-            | ContextCoordinationPurpose::CloudLane | ContextCoordinationPurpose::CloudConsentDenial) {
+            | ContextCoordinationPurpose::CloudLane | ContextCoordinationPurpose::CloudConsentDenial
+            | ContextCoordinationPurpose::CloudConsentRevocation) {
             return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
         }
         let domains = vec![("workspace", scope.workspace_id.clone(), None)];
@@ -5755,6 +5762,7 @@ impl SurrealModelLaneStore {
                 | ContextCoordinationPurpose::RunCreate | ContextCoordinationPurpose::LaneCreate | ContextCoordinationPurpose::ProfileSessionWrite | ContextCoordinationPurpose::ProfileAdmissionCreate | ContextCoordinationPurpose::ProfileAdmissionTransition | ContextCoordinationPurpose::ProfileAdmissionFinalization
                 | ContextCoordinationPurpose::CloudProjectionPlan | ContextCoordinationPurpose::CloudConsentReceipt
                 | ContextCoordinationPurpose::CloudRun | ContextCoordinationPurpose::CloudLane | ContextCoordinationPurpose::CloudConsentDenial
+                | ContextCoordinationPurpose::CloudConsentRevocation
                 | ContextCoordinationPurpose::WorkspaceClaim | ContextCoordinationPurpose::IndexRunClaim)
                 .then(|| super::ModelLaneOperationSubject {
                     kind: super::resource_authority::ResourceKind::Workspace,
@@ -5866,7 +5874,7 @@ impl SurrealModelLaneStore {
         event_payload_json: String,
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
-        self.put_immutable_with_query(&ModelLaneQuery::Storage(&self.storage), kind, aggregate_id, run_id, idempotency_key, record_json, search_terms, event_payload_json, scope).await
+        self.put_immutable_with_query(&ModelLaneQuery::Storage(&self.storage), kind, aggregate_id, run_id, idempotency_key, record_json, search_terms, event_payload_json, None, scope).await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -5882,7 +5890,7 @@ impl SurrealModelLaneStore {
         event_payload_json: String,
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
-        self.put_immutable_with_query(&ModelLaneQuery::Transaction(transaction), kind, aggregate_id, run_id, idempotency_key, record_json, search_terms, event_payload_json, scope).await
+        self.put_immutable_with_query(&ModelLaneQuery::Transaction(transaction), kind, aggregate_id, run_id, idempotency_key, record_json, search_terms, event_payload_json, None, scope).await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -5896,6 +5904,7 @@ impl SurrealModelLaneStore {
         record_json: String,
         search_terms: Vec<String>,
         event_payload_json: String,
+        event_id: Option<String>,
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
         validate_scope(scope)?;
@@ -5905,7 +5914,7 @@ impl SurrealModelLaneStore {
         let bindings = WriteBindings {
             event_ledger_stream_id: declared_event_stream(kind, &record_json)?,
             record_id: stable_record_id(kind.as_str(), aggregate_id, scope),
-            event_id: format!("evt-model-lane-{}", uuid::Uuid::now_v7()),
+            event_id: event_id.unwrap_or_else(|| format!("evt-model-lane-{}", uuid::Uuid::now_v7())),
             record_kind: kind.as_str().to_owned(),
             aggregate_id: aggregate_id.to_owned(),
             run_id: run_id.to_owned(),
@@ -6615,6 +6624,234 @@ COMMIT TRANSACTION;
         event_id: String,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneRecord>, SurrealStorageError> {
+        self.replace_if_version_with_query(
+            &ModelLaneQuery::Storage(&self.storage),
+            kind,
+            aggregate_id,
+            expected_event_stream_version,
+            record_json,
+            search_terms,
+            event_payload_json,
+            event_id,
+            scope,
+        ).await
+    }
+
+    fn cloud_cleanup_context(&self, scope: &ModelLaneScope) -> Result<super::ProtectedTransaction, SurrealStorageError> {
+        validate_scope(scope)?;
+        let protected = super::PROTECTED_TRANSACTION.try_with(Clone::clone)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        let purpose = super::MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| *purpose).ok();
+        let subject = super::current_model_lane_subject().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if purpose != Some(ContextCoordinationPurpose::CloudConsentRevocation)
+            || subject.kind != super::resource_authority::ResourceKind::Workspace
+            || subject.external_id != scope.workspace_id
+            || protected.authority.action != super::resource_authority::ResourceAction::Update
+            || protected.authority.capability_id != "fs.write"
+            || protected.authority.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || protected.authority.session_id != scope.authenticated_session_id
+        {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        Ok(protected)
+    }
+
+    pub(crate) async fn cloud_revocation_cleanup_readback(
+        &self,
+        identity: &crate::swarm_orchestration::model_lane::CloudRevocationCleanupIdentity,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<crate::swarm_orchestration::model_lane::VerifiedCloudRevocationCleanup>, SurrealStorageError> {
+        let protected = self.cloud_cleanup_context(scope)?;
+        let transaction = super::SurrealTransactionContext { transaction: protected.transaction.as_ref() };
+        transaction.require_authenticated_scope(&self.storage, &protected.authority)?;
+        self.cloud_cleanup_in_transaction(&transaction, identity, scope).await
+    }
+
+    async fn cloud_cleanup_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        identity: &crate::swarm_orchestration::model_lane::CloudRevocationCleanupIdentity,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<crate::swarm_orchestration::model_lane::VerifiedCloudRevocationCleanup>, SurrealStorageError> {
+        use crate::swarm_orchestration::model_lane::{DurableSessionCleanupReceipt, VerifiedCloudRevocationCleanup};
+
+        let kind = ModelLaneRecordKind::SessionCleanupReceipt;
+        let aggregate_id = identity.aggregate_id();
+        let Some(record) = self.get_in_transaction(transaction, kind, &aggregate_id, scope).await? else {
+            return Ok(None);
+        };
+        let linked = self.validated_event_link_in_transaction(transaction, kind, &record, scope).await?.event_payload_json;
+        let invalid = || SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup receipt or its linked event is invalid" };
+        if linked != record.record_json || record.aggregate_id != aggregate_id || record.run_id != identity.run_id
+            || record.idempotency_key != format!("session-cleanup:{aggregate_id}")
+        {
+            return Err(invalid());
+        }
+        let full: serde_json::Value = serde_json::from_str(&linked).map_err(|_| invalid())?;
+        let receipt: DurableSessionCleanupReceipt = serde_json::from_value(full.clone()).map_err(|_| invalid())?;
+        if !identity.matches_receipt(&receipt) || cloud_cleanup_json(&receipt)? != full
+            || !matches!(receipt.status.as_str(), "cleanup_pending" | "teardown_succeeded" | "exact_process_reclaim_succeeded" | "completed")
+        {
+            return Err(invalid());
+        }
+        Ok(Some(VerifiedCloudRevocationCleanup { record, receipt }))
+    }
+
+    pub(crate) async fn record_cloud_revocation_cleanup_progress(
+        &self,
+        progress: &crate::swarm_orchestration::model_lane::CloudRevocationCleanupProgress,
+        scope: &ModelLaneScope,
+    ) -> Result<crate::swarm_orchestration::model_lane::VerifiedCloudRevocationCleanup, SurrealStorageError> {
+        let protected = self.cloud_cleanup_context(scope)?;
+        let transaction = super::SurrealTransactionContext { transaction: protected.transaction.as_ref() };
+        transaction.require_authenticated_scope(&self.storage, &protected.authority)?;
+        let identity = &progress.target.identity;
+        if progress.target.start.process_uuid != identity.process_uuid {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup START does not match the process identity" });
+        }
+        let mut desired = progress.receipt();
+        let missing = || SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup is missing its pending receipt" };
+        let stale = || SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup phase has a stale predecessor" };
+        let current = if let Some(current) = self.cloud_cleanup_in_transaction(&transaction, identity, scope).await? {
+            if current.receipt.terminal_event_id != desired.terminal_event_id
+                || current.receipt.resource_evicted_event_id != desired.resource_evicted_event_id
+            {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup outbox identity changed" });
+            }
+            let initial_retry = desired.status == "cleanup_pending" && desired.last_error.is_none();
+            let complete = current.receipt.status == "completed";
+            if complete || initial_retry {
+                return Ok(current);
+            }
+            if desired.status == "cleanup_pending" {
+                match current.receipt.status.as_str() {
+                    "teardown_succeeded" => desired.status.clone_from(&current.receipt.status),
+                    "exact_process_reclaim_succeeded" => return Ok(current),
+                    _ => {}
+                }
+            }
+            if current.receipt == desired {
+                return Ok(current);
+            }
+            let allowed = match desired.status.as_str() {
+                "cleanup_pending" => true,
+                "teardown_succeeded" => matches!(current.receipt.status.as_str(), "cleanup_pending" | "teardown_succeeded"),
+                "exact_process_reclaim_succeeded" => current.receipt.status == "cleanup_pending",
+                _ => false,
+            };
+            if !allowed { return Err(stale()); }
+            Some(current)
+        } else if desired.status != "cleanup_pending" {
+            return Err(missing());
+        } else {
+            None
+        };
+
+        self.write_cloud_cleanup_receipt(&transaction, identity, current, desired, scope)
+            .await
+    }
+
+    pub(crate) async fn record_cloud_revocation_cleanup_completion(
+        &self,
+        completion: crate::swarm_orchestration::model_lane::CloudRevocationCleanupCompletion,
+        scope: &ModelLaneScope,
+    ) -> Result<crate::swarm_orchestration::model_lane::VerifiedCloudRevocationCleanup, SurrealStorageError> {
+        let protected = self.cloud_cleanup_context(scope)?;
+        let transaction = super::SurrealTransactionContext { transaction: protected.transaction.as_ref() };
+        transaction.require_authenticated_scope(&self.storage, &protected.authority)?;
+        let (identity, terminal_event_id, resource_evicted_event_id) = completion.into_parts();
+        let current = self
+            .cloud_cleanup_in_transaction(&transaction, &identity, scope)
+            .await?
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "scoped cloud cleanup is missing its pending receipt",
+            })?;
+        if current.receipt.terminal_event_id != terminal_event_id
+            || current.receipt.resource_evicted_event_id != resource_evicted_event_id
+        {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "scoped cloud cleanup outbox identity changed",
+            });
+        }
+
+        let mut desired = current.receipt.clone();
+        desired.status = "completed".to_owned();
+        desired.last_error = None;
+        match current.receipt.status.as_str() {
+            "completed" if current.receipt == desired => return Ok(current),
+            "cleanup_pending" | "teardown_succeeded" | "exact_process_reclaim_succeeded" => {}
+            _ => {
+                return Err(SurrealStorageError::InvalidModelLaneRecord {
+                    reason: "scoped cloud cleanup phase has a stale predecessor",
+                });
+            }
+        }
+        self.write_cloud_cleanup_receipt(&transaction, &identity, Some(current), desired, scope)
+            .await
+    }
+
+    async fn write_cloud_cleanup_receipt(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        identity: &crate::swarm_orchestration::model_lane::CloudRevocationCleanupIdentity,
+        current: Option<crate::swarm_orchestration::model_lane::VerifiedCloudRevocationCleanup>,
+        desired: crate::swarm_orchestration::model_lane::DurableSessionCleanupReceipt,
+        scope: &ModelLaneScope,
+    ) -> Result<crate::swarm_orchestration::model_lane::VerifiedCloudRevocationCleanup, SurrealStorageError> {
+        let kind = ModelLaneRecordKind::SessionCleanupReceipt;
+        let aggregate_id = identity.aggregate_id();
+        let record_json = cloud_cleanup_json(&desired)?.to_string();
+        let search_terms = vec![format!("instance_id={}", desired.instance_id),
+            format!("process_uuid={}", desired.process_uuid), format!("status={}", desired.status)];
+        let predecessor = current.as_ref().map_or("", |value| value.record.event_id.as_str());
+        let key = stable_record_id(kind.as_str(), &aggregate_id, scope);
+        let event_id = format!("evt-model-lane-cleanup-{}", sha256_hex(format!("{key}\0{predecessor}\0{record_json}").as_bytes()));
+        let query = ModelLaneQuery::Transaction(transaction);
+        let written = if let Some(current) = current {
+            self.replace_if_version_with_query(&query, kind, &aggregate_id, current.record.event_stream_version,
+                record_json.clone(), search_terms, record_json, event_id.clone(), scope).await?
+        } else {
+            Some(self.put_immutable_with_query(&query, kind, &aggregate_id, &identity.run_id,
+                &format!("session-cleanup:{aggregate_id}"), record_json.clone(), search_terms, record_json, Some(event_id.clone()), scope).await?)
+        };
+        let failed_after_event = || SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup compare failed after appending its event" };
+        let Some(written) = written else {
+            let events = transaction.query_values_at::<String, _>(
+                "SELECT VALUE event_id FROM type::record('kernel_event_ledger', $event_id) WHERE aggregate_type = $record_kind AND aggregate_id = $aggregate_id AND kernel_task_run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;",
+                EventLinkBindings { event_id, record_kind: kind.as_str().to_owned(), aggregate_id: aggregate_id.clone(),
+                    run_id: identity.run_id.clone(), event_ledger_stream_id: None, owner_account_id: scope.owner_account_id.clone(),
+                    actor_principal_id: scope.actor_principal_id.clone(), authenticated_session_id: scope.authenticated_session_id.clone(),
+                    access_space_id: scope.access_space_id.clone(), workspace_id: scope.workspace_id.clone() },
+                0,
+            ).await?;
+            if !events.is_empty() { return Err(failed_after_event()); }
+            let reason = if self.cloud_cleanup_in_transaction(transaction, identity, scope).await?.is_some() {
+                "scoped cloud cleanup phase has a stale predecessor"
+            } else {
+                "scoped cloud cleanup is missing its pending receipt"
+            };
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason });
+        };
+        let readback = self.cloud_cleanup_in_transaction(transaction, identity, scope).await?.ok_or_else(failed_after_event)?;
+        if written.event_id != event_id || readback.record != written || readback.receipt != desired {
+            return Err(failed_after_event());
+        }
+        Ok(readback)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn replace_if_version_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        kind: ModelLaneRecordKind,
+        aggregate_id: &str,
+        expected_event_stream_version: i64,
+        record_json: String,
+        search_terms: Vec<String>,
+        event_payload_json: String,
+        event_id: String,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneRecord>, SurrealStorageError> {
         validate_scope(scope)?;
         if aggregate_id.trim().is_empty()
             || event_id.trim().is_empty()
@@ -6643,8 +6880,7 @@ COMMIT TRANSACTION;
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_values_at::<StoredRow, _>(
+        let rows = query.query_values_at::<StoredRow, _>(
                 "BEGIN TRANSACTION;\
                  LET $target = type::record('model_lane_authority', $record_id);\
                  LET $current = (SELECT * FROM ONLY $target WHERE record_kind = $record_kind AND aggregate_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
@@ -6657,8 +6893,7 @@ COMMIT TRANSACTION;
                  COMMIT TRANSACTION;",
                 bindings,
                 3,
-            ).await
-        })).await?;
+        ).await?;
         let Some(row) = rows.into_iter().next().map(SurrealModelLaneRecord::from) else {
             return Ok(None);
         };
@@ -7850,6 +8085,25 @@ COMMIT TRANSACTION;
         ).await
     }
 
+    pub(crate) async fn list_uncredentialed_session_cleanup_receipts(
+        &self,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRecord>, SurrealStorageError> {
+        validate_scope(scope)?;
+        self.query_rows(
+            "SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq \
+             FROM model_lane_authority WHERE record_kind = $record_kind AND owner_account_id = $owner_account_id \
+             AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id \
+             AND access_space_id = $access_space_id AND workspace_id = $workspace_id \
+             AND event_ledger_event_id = type::record('kernel_event_ledger', event_id) \
+             AND event_ledger_event_id.event_id = event_id \
+             AND event_ledger_event_id.authority_resource_id = NONE AND event_ledger_event_id.authority_grant_id = NONE \
+             AND event_ledger_event_id.authority_session_id = NONE AND event_ledger_event_id.authority_capability_id = NONE \
+             AND event_ledger_event_id.authority_action = NONE ORDER BY event_seq ASC;",
+            scoped_bindings(ModelLaneRecordKind::SessionCleanupReceipt, "", "", "", scope),
+        ).await
+    }
+
     #[cfg(feature = "surreal-test-support")]
     pub(crate) async fn test_list_kind_bounded(
         &self,
@@ -8723,6 +8977,16 @@ COMMIT TRANSACTION;
         record: &SurrealModelLaneRecord,
         scope: &ModelLaneScope,
     ) -> Result<(), SurrealStorageError> {
+        self.validated_event_link_in_transaction(transaction, kind, record, scope).await.map(|_| ())
+    }
+
+    async fn validated_event_link_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        kind: ModelLaneRecordKind,
+        record: &SurrealModelLaneRecord,
+        scope: &ModelLaneScope,
+    ) -> Result<StoredEventLink, SurrealStorageError> {
         validate_scope(scope)?;
         let bindings = EventLinkBindings {
             event_id: record.event_id.clone(),
@@ -8741,7 +9005,8 @@ COMMIT TRANSACTION;
             bindings,
             0,
         ).await?;
-        validate_stored_event_link(kind, record, scope, &rows)
+        validate_stored_event_link(kind, record, scope, &rows)?;
+        Ok(rows.into_iter().next().expect("validated unique model-lane event link"))
     }
 
     async fn revalidate_recovery_discovery_authority(&self, scope: &ModelLaneScope) -> Result<(), SurrealStorageError> {
@@ -9743,6 +10008,17 @@ fn run_event_bindings(run_id: &str, event_ledger_stream_id: Option<&str>, event_
         access_space_id: scope.access_space_id.clone(),
         workspace_id: scope.workspace_id.clone(),
     }
+}
+
+fn cloud_cleanup_json(receipt: &crate::swarm_orchestration::model_lane::DurableSessionCleanupReceipt) -> Result<serde_json::Value, SurrealStorageError> {
+    #[derive(serde::Serialize)]
+    struct Document<'a> {
+        schema_id: &'static str,
+        #[serde(flatten)]
+        receipt: &'a crate::swarm_orchestration::model_lane::DurableSessionCleanupReceipt,
+    }
+    serde_json::to_value(Document { schema_id: "hsk.swarm_session_cleanup_receipt@1", receipt })
+        .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "scoped cloud cleanup could not encode its flat receipt" })
 }
 
 fn stable_record_id(kind: &str, aggregate_id: &str, scope: &ModelLaneScope) -> String {
