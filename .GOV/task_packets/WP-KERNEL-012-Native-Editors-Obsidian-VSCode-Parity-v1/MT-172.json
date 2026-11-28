@@ -15110,5 +15110,25 @@
       "verified": "Change is confined to original consent clock checks; only genuine Workspace Update revocation may read an expired receipt, retaining exact links and a valid interval. Existing launch and ordinary reads retain clock gating."
     },
     "lifecycle_change": "None. R172-23 remains the sole coding picotask. Split the cleanup dependency into bounded implementation checkpoints after static consensus."
+  },
+  "r172_23_cleanup_implementation_decision_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "source_ref": "MT-172.json#/operator_cloud_revocation_cleanup_scope_20261128",
+    "checkpoint": {
+      "pico": "R172-23",
+      "commit": "0b295cbc0093a5e9a8f3521cda56ceb56b507750",
+      "tree": "5598d3361df7b484f109c5a05646ab0567c6ad8d",
+      "path": "src/backend/handshake_core/src/storage/surreal/cloud_model_lane.rs",
+      "review": "Scoped Git diff confirms both accepted writer kinds use the existing immutable write, removal of mutable replacement, full validated DB envelope, and exact linked ledger and target identity matching. Independent code checker assigned. No runtime proof."
+    },
+    "cleanup_decision": {
+      "specialist": "r172_scope_specialist",
+      "adversarial": "r172_scope_redteam",
+      "rule": "Use a typed cleanup-only path with the approved original Workspace Update and a short workspace transaction around each durable receipt phase. Do not nest BEGIN/COMMIT inside the opened transaction. Reuse CAS semantics and require canonical row and linked immutable event together before commit. The general writer’s readback does not compare the cleanup payload, so cleanup-specific readback validates full receipt equality and original identity.",
+      "witness": "Use exact committed consent and covered lane, and retained server-derived session, START generation, process, reason and stable terminal/eviction IDs. Require witnessed STOP and both existing outbox acknowledgments before completion. Process/outbox retain their current independent owner and access; no generic data read grant. Preserve identical retry and original receipt identity.",
+      "proof": "Existing model_lane_launch_revocation_and_context_switch_fail_closed_on_a_live_launch with genuine Workspace Update and durable scoped cleanup assertion. Its recording sink does not independently prove production outbox durability; the unchanged production worker is the authoritative sink for that evidence."
+    },
+    "next": "R172-24a scoped HTTP plus two short immutable revocation calls, then separate receipt authority/runtime pieces. One coding picotask at a time."
   }
 }
