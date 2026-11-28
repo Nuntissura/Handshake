@@ -14317,5 +14317,35 @@
     "approval_ref": "packet.json#/operator_execution_approvals_20261128",
     "previous_claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "effect": "Transfer and routing only; status, dependencies and verdict are retained."
+  },
+  "bounded_diag_exact_anchor_readback_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), scoped independent source review",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_decision_20261128_bounded_diag_repairs",
+    "claim_ref": "#/operator_claim_transfer_20261128",
+    "candidate_inspected": "741ae1240f95ad8100bef4ba46b71aacd85f44c3",
+    "repairs": [
+      {
+        "case": "main_launches_palmistry_before_run_native",
+        "observed": "Native main creates ring and uses install_v2, launches current signed shared entry, then runs eframe and transfers watcher handle. Two stale anchors exist in this one test.",
+        "scope": "Update the scan to assert actual create/install/handoff and signed launcher order. Retain handle transfer."
+      },
+      {
+        "case": "main_arms_the_crash_client_after_palmistry_launch",
+        "observed": "The current main uses launch_palmistry_signed_at, then conditionally arms the late crash client with handle.crash_socket(), then runs eframe.",
+        "scope": "Retarget the obsolete symbol while preserving exact from-handle socket and launch/arm/loop order."
+      },
+      {
+        "case": "palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body",
+        "observed": "Forbidden source tokens only occur in the test assertions. The production maintain loop has a stop-sampler boundary; launch uses sealed response and a zeroizing capped buffer.",
+        "scope": "Anchor checks to the actual functions and exclude only exact terminal test-module body from negative token scan. Preserve positive/negative expectations."
+      }
+    ],
+    "target_examples": [
+      "--test test_palmistry_launch main_launches_palmistry_before_run_native -- --exact",
+      "--test test_crash_client_install main_arms_the_crash_client_after_palmistry_launch -- --exact",
+      "--lib internal_diagnostics::tests::palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body -- --exact"
+    ],
+    "limits": "No edits or proof. Current exact backend Cargo has the input lock. Use same three existing named selectors and canonical native manifest; no watcher GUI is needed."
   }
 }
