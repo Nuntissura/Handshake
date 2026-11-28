@@ -14858,5 +14858,18 @@
       "a2": "regrouping the strict function's chain (fix A2) is not supported by this run; the candidate for regrouping, if any, is the statement WHERE of FIRST_OWNER_WORKSPACE_READ (workspaces.rs, MT-173 scope), which needs its own probe"
     },
     "next": "R172-02e: evaluate on the :189 compute-only path (a) the exact scalar query text, (b) the same with the strict function patched as fix A, (c) the statement WHERE regrouped into parenthesised blocks of 20 terms; decides whether fix A alone settles :189 or a workspaces.rs change (MT-173) is needed"
+  },
+  "r172_02e_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the coding agent's report (Sonnet); commit and push verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "picotask": "R172-02e scalar query depth probe (#/r172_02d_20261128 next)",
+    "commit": "f4d049cd13829cbd41155ccb1b5b0911542f3f54 (pushed, no force): src/backend/handshake_core/src/api/code_nav_index_account_tests.rs only; pt003_scalar_depth_probe; PT003_REPORT_DIR set to MT-172/r172-02e-20261128",
+    "status": "committed, NOT compiled and NOT run: paused for the successor (WP-KERNEL-012-orchestrator-handoff-20261128.json)",
+    "run_spec": "copy MT-172/pt-arraylen-20261127/run_focused.py to MT-172/r172-02e-20261128/focused-01; selector test(/^api::code_nav_index::account_tests::(pt003_scalar_depth_probe|first_owner_workspace_receipt_compute_only_observes_rollback)$/); report file MT-172/r172-02e-20261128/pt003-scalar-depth.txt; up to two compile fixes",
+    "design_notes": [
+      "(a) baseline and (b) fix A run on the real :189 path (pt003_probe_run(true, ddl) calls probe_first_owner_workspace_receipt_projection; fix A = root redefines the strict function without 'record::exists($row.setup_receipt) AND '); the outcome string is only 'internal'; the internal_family is in run.log in the HSK_FIRST_OWNER_WORKSPACE_RECEIPT_QUERY line after the markers 'PT003-O6 marker (a)' and '(b)'",
+      "(c) and (d) are surrogates outside the transaction (SCALAR_QUERY is a static in workspaces.rs cfg(test) code; record user, root first sets a claimed state on origins:primary, bindings inlined); the statement WHERE has only 8 terms, so regrouping at 20 is a structural no-op; a true in-transaction (c)/(d) needs a test seam in workspaces.rs (MT-173)",
+      "(e) root WHERE alone plus the predicate alone and (f) actor only are surrogates; the receipt half of the permission only fires in-transaction when $first_owner_workspace_receipt_read is set, which test code cannot bind"
+    ]
   }
 }

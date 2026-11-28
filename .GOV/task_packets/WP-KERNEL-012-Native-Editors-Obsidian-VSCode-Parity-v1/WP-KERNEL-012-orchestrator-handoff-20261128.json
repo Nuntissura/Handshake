@@ -1,0 +1,125 @@
+{
+  "schema_id": "hsk.phase_handoff@1",
+  "file_id": "WP-KERNEL-012-orchestrator-handoff-20261128",
+  "file_kind": "handoff",
+  "version": 9,
+  "wp_id": "WP-KERNEL-012",
+  "updated_at_utc": "2026-11-28T06:20:00Z",
+  "status": "PAUSED_FOR_SUCCESSOR",
+  "previous_handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json (legacy team model; superseded for workflow by #/operator_goal_20261127; its product scope references still hold)",
+  "authority_precedence": [
+    "Operator instructions in chat",
+    ".GOV/codex/Handshake_Codex_v1.4.md and .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    "root AGENTS.md / CLAUDE.md of this kernel",
+    "MT-*.json and packet.json in this folder (the MT record keys named below are the evidence trail; read them, do not trust this summary over them)",
+    "this handoff (navigation only; where it disagrees with an MT record, the MT record wins)"
+  ],
+  "operator_goal_20261127": {
+    "summary": "One orchestrator steers subagents; no teams. Roles: one coding agent (backend, one picotask at a time), one code checker and dependency agent, one GUI agent (asynchronous, parallel), one specialist per question (with an adversarial pass), one eval agent. Refresh agents after each cargo build cycle. Reuse cargo; clean stale cargo only after inspection and Operator approval. Replace the egui GUI with the Vulkan shell; clean professional UI, motion where useful, no SaaS look, no text bloat, sub menus, tabs or trees. Kumihimo for windows and panels, Cabinet for file trees, Handpick as the search multitool (same behaviour as C:/Projects/LLM Projects/handshake-portal); assets are updated first by the asset dev leader thread, then adopted in the host; never remove features or adapters. Wire the GUI to internal_diagnostic and to the standalone Palmistry watcher/recorder. Many small crates per module or feature, no large crates. Resolve questions, failures and blockers without the Operator by research (online, Master Spec, product code, MTs) with at least one adversarial agent; do not guess, do not decide alone; ask the Operator only for scope, waivers, removals or claim takeovers.",
+    "platform": "the Operator works on an ARM64 Windows tablet; Handshake must run on an x64 desktop PC first (that PC is not named yet)",
+    "paste_text_ref": "C:/Users/iljas/.codex/attachments/470dac73-a622-46df-a672-f8140ef6e187/pasted-text-1.txt (older GPT-era GUI lead brief; still valid for its design references .GOV/docs_repo/wp012-desktop-ui-drafts/ui-draft-mockup.html and desktop-material-reference.png, Vulkan-only rendering with central GPU ownership, assets-first with Kumihimo at C:/Projects/LLM Projects/.assets/Kumihimo; its team structure is replaced by the goal above)"
+  },
+  "topology": {
+    "kernel": "C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel on branch gov_kernel; all governance writes here; another desktop PC also pushes gov_kernel, so always `git fetch origin gov_kernel && git rebase origin/gov_kernel` before `git push origin gov_kernel`; never force",
+    "product": "C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012 on branch feat/WP-KERNEL-012 (HEAD f4d049cd1 at pause, equal to origin, unless PT-9 lands after it, see #/pause_state); product commits stage explicit paths only; never stage .GOV, .gameplan-active or another lane's files; no branch or worktree creation",
+    "artifacts": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/ (per-MT folders; never create a Handshake_Artifacts folder anywhere else)",
+    "untracked_leave_alone": [".gameplan-active (product worktree)", ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.confirmations.yaml.tmp-44496 (kernel)"]
+  },
+  "build": {
+    "env": "RUSTUP_TOOLCHAIN=1.97.1-x86_64-pc-windows-msvc, CARGO_HOME=C:/hsk-wp012-cargo, -j 1, CARGO_PROFILE_DEV_DEBUG=line-tables-only, --locked --offline; backend features app-runtime,surreal-test-support,test-utils",
+    "slot_protocol": "one compiler on this disk: take the slot by atomic `mkdir Handshake_Artifacts/WP-KERNEL-012/.build-slot` with owner.txt (agent name plus UTC time) and only when tasklist shows no cargo.exe or rustc.exe; release by removing owner.txt and the folder the moment the run ends; a waiting agent keeps a uniquely named `.build-slot-wait-<agent>-<task>` file (two agents once shared a name and one deleted the other's); fairness: after releasing, do not retake for 10 minutes while another wait file exists; exactly one poller per agent, and it must end with the agent (a stray poller once retook the slot)",
+    "targets": {
+      "backend_builder": "MT-174/kb-phase02/target (stop line 209e9 bytes counting hard links twice; last peak 193.57e9)",
+      "gui_coder": "MT-214/gui-agent/target",
+      "gui_eval": "MT-214/eval-agent/target",
+      "egui_host_and_launcher_eval": "MT-215/eval-agent/target (and MT-215/gui-agent/target)",
+      "disk": "C: 83G free of 953G (92% used) at pause; a cargo cleanup proposal is due (inspect with .GOV/docs_repo/wp-studio-module-work/tools/lead/target_report.py first; deletion needs the Operator's approval of an exact list, valid replies 'approved' or 'proceed')"
+    },
+    "named_check": "unmodified launcher MT-174/kb-phase02/compile-check-20261125-01/run_check.py (sha256 005406f62f7b97de99c8c7c9b138e6fdedd15b21cc7a5793156bd7b0b32b4587, check_id WP012-P1-MT-172-COMPILE); run it in a new compile-check-<date>-NN folder; accept only exit 0, inputs_unchanged true, dirty none; last green run -06 at 5aa9c7c43",
+    "focused_run_harness": "copy MT-172/pt-arraylen-20261127/run_focused.py into a new run folder: `python run_focused.py <folder> \"<nextest filterset>\"`; its argv hard-codes --lib; add --test <binary> for integration binaries",
+    "exports_for_eval": "`git -c core.autocrlf=false archive <commit> <paths>` into the eval folder (a CRLF export once broke two tests for no product reason)",
+    "gpu_fail_fast": "before any GPU test: newest Kernel-Power 506 vs 507 (`Get-WinEvent -FilterHashtable @{LogName='System';ProviderName='Microsoft-Windows-Kernel-Power';Id=506,507} -MaxEvents 4`); if 506 is newer the host is in Modern Standby, skip; `vulkaninfo --summary` with a 15 s timeout (healthy about 0.2-0.7 s)",
+    "operator_safety": "GUI tests only on the private-desktop harness, never --show-on-my-desktop, never write the clipboard (HBR-QUIET); sample foreground, focus, Z-order and clipboard sequence during GUI evals; never stop a process this session did not start without the Operator's PROCESS_STOP_APPROVED:<PIDs>"
+  },
+  "recording_method": {
+    "tool": "Handshake_Artifacts/WP-KERNEL-012/orchestrator-tools/add_root_key.py (sha256 2a3423a8791ed2b057fa3951d7233b4af968a4e9693751117ef5dc38b96fd6ae): `python add_root_key.py <MT.json> <new_key> <obj.json>` appends one root key and refuses to change any other byte",
+    "rule": "verify every agent claim yourself (commit, push, file list, log sha256, test counts) before recording; write the record JSON with the Write tool (inline heredocs with complex quoting failed); one commit per record set on gov_kernel, message ends with the attribution line"
+  },
+  "lanes": {
+    "backend_MT-172": {
+      "status": "MT-172 BLOCKED (lifecycle), work active through picotasks",
+      "done_this_session": {
+        "PT-ARRAYLEN": "57c6fcad4 (#/pt_arraylen_20261127, #/pt_arraylen_static_review_20261127)",
+        "TRQ-01": "ab76fb1ef (#/trq01_20261127)",
+        "PT-ARRAYLEN-2": "5aa9c7c43, crate-wide lone-SELECT guard plus model_registry.rs (#/pt_arraylen2_20261128); engine fact: a lone-SELECT IF/ELSE branch gives NONE for 0 rows, a bare object for 1 row, an array for 2+; always `LET $x = (SELECT ..); $x`",
+        "R172-01": "PT003 still red at HEAD (#/r172_01_20261128)",
+        "PT003_cause": "specialist and adversarial (#/pt003_permissions_20261128), confirmed by run R172-02c 001c268da (#/r172_02c_20261128): inside a PERMISSIONS predicate record::exists($row.setup_receipt) checks the record user's own rights on the unreadable setup ledger row; removing that conjunct (fix A, schema.surql:8489) makes the :182 scalar projection probe return one_visible",
+        "R172-02d": "d95388db2 (#/r172_02d_20261128): :189 is a computation-depth failure; plain chains pass at N=110 and fail at 118 on that path; the 77-term strict function alone is below the limit"
+      },
+      "next_in_order": [
+        "R172-02e: run the committed probe f4d049cd1 (not compiled yet; up to two compile fixes allowed): copy run_focused.py to MT-172/r172-02e-20261128/focused-01, selector `test(/^api::code_nav_index::account_tests::(pt003_scalar_depth_probe|first_owner_workspace_receipt_compute_only_observes_rollback)$/)`; report file MT-172/r172-02e-20261128/pt003-scalar-depth.txt; parts (a) baseline and (b) fix A run on the real :189 path (the internal_family is in run.log after the markers 'PT003-O6 marker (a)' and '(b)'); parts (c)-(f) are surrogates outside the transaction because SCALAR_QUERY is a static in workspaces.rs cfg(test) code; the statement WHERE has only 8 terms, so regrouping at 20 is a no-op; a true in-transaction variant needs a test seam in workspaces.rs (MT-173 scope); decide from (b) whether fix A also fixes :189",
+        "revision 172 stage per MT-172.json#/rev172_plan_20261127 (plan Handshake_Artifacts/WP-KERNEL-012/MT-172/rev172-plan-20261127/plan.json, corrections C1-C8): R172-02b fix A in place, R172-03..R172-13 as local commits, then ONE pushed stage commit (C1, no red pushes), R172-14 measure pins, R172-15 enroll, R172-16 confirm, R172-17..R172-25, R172-26 the SC-5 guard (Operator decision WP012-MT172-SC5-GUARD-20261127); rows 4, 5 and 7 edit MT-173-only files and run under MT-173 (C5); delete src/backend/handshake_core/src/llm/ollama.rs and switch its 8 test imports (Operator-approved); a run-only test file outside MT-172/MT-173 may be edited only after a recorded run shows it red or vacuous, with a per-file HBR-STOP-005 waiver record (WP012-MT172-OUTSCOPE-TEST-WAIVER-20261127)",
+        "triage queue TRQ-02..TRQ-12 (#/triage_eval_reclaim_20261127), N1 drain ack (depends on WP-1 stop_with_durable_ack)",
+        "named compile check after any product (non-test) change; WP_VALIDATOR verdict on MT-172 at the end"
+      ],
+      "open_findings": {
+        "pose_3026": "possible lone-SELECT defect at src/backend/handshake_core/src/atelier/pose.rs:3026, routed to MT-171 pending one settling run (#/pose3026_persist_routing_20261128, MT-171.json#/pose3026_finding_20261128); the backend eval runs it (see #/pause_state)",
+        "persistence_tests": "model_registry_persistence_tests fail at the first persist; baseline run A on 05a1050a3 vs B on 5aa9c7c43 defined in #/pose3026_persist_routing_20261128; in the backend eval",
+        "C2_latent": "strict re-reads at workspaces.rs:807 and :1691 (custom function in a WHERE) correct only if run as root; MT-173; do not pre-empt"
+      }
+    },
+    "gui_MT-214_vulkan_shell": {
+      "crates": "src/frontend/handshake_shell: window (10774 lines), surface (4199), input (3563), accessibility (2928), shell (2821); no egui, eframe, wgpu, glow, kumihimo-egui or cabinet in the closure",
+      "done_this_session": {
+        "E9_scans": "e03e88281, 05a1050a3 (#/e9b_fixes_20261127, #/e9c_followups_20261127)",
+        "S7_palmistry_wiring": "P1 a9f14bab1, P2 f81ce5cd3, P3 0a956b785, P4a 8a3086b8a, P4b 483f54c1c, P5 74951e642, P6 36558732a (#/s7_p1_p3_20261128, #/s7_p4_20261128, #/s7_p5_p7_20261128; reviews #/s7_p1_p3_static_review_20261128, #/s7_p4_p6_static_review_20261128); Operator decision #/operator_decision_20261128_s7_no_gpu_stop (a no-GPU stop is left untold, so Palmistry writes a crash record)",
+        "E9-F1_shutdown_claims": "probe #/e9f1_e9f2_probe_20261128, design #/e9f1_fix_design_20261128, code PT-1 d70532794, PT-2 7adf5aefe, PT-3 0c8c27ad5, PT-8 c270269bb, S7 fixups 133768e6a (#/e9f1_implementation_20261128), static review passed (#/e9f1_fix_static_review_20261128)"
+      },
+      "next_in_order": [
+        "PT-9: the static review's follow-ups F1-F8 and F11 (in progress at pause, see #/pause_state; if not committed, the edits sit in the product worktree under shell/ and surface/)",
+        "eval agent GPU hold: PT-4 (shell_program, multiwindow, frame_loop, the zero-window negative test with --nocapture and no HSK_GPU_SKIP line, GPU mutation ME must give exit 8), PT-5 E9-F2 probe (design in Handshake_Artifacts/WP-KERNEL-012/MT-214/specialist-e9f1-fix-20261128/fix-design.json), S7 P8 live watcher proofs P8a-P8c including a panic case and the no-orphan check (C3, HBR-QUIET-003)",
+        "PT-6 E9-F2 repair per PT-5; PT-7 optional minimised-window shutdown probe",
+        "window crate split into smaller crates (advisory order in #/s7_p4_p6_static_review_20261128 F13: clipboard, then geometry and monitor, then a pure types crate)",
+        "UI design work per the goal (Kumihimo panels, Cabinet tree, Handpick search, motion research at Handshake_Artifacts/WP-KERNEL-012/MT-200/motion-research-20261126.json) once the shell runs; asset gaps go to the asset dev leader thread first"
+      ],
+      "blocked": "S5 product startup needs MT-219 (device.gpu.shell published) and MT-222 (kernel issuer); the product binary refuses with exit 7 until both exist"
+    },
+    "MT-215_host_ports": "S8a 4dad81781, S8b 9a127a239, heartbeat test move 29ea185e1 (#/heartbeat_scan_repair_20261127); eval10 passed it (#/eval10_20261128); READY",
+    "MT-212_egui_six_tests": "4f75baac6 makes the six egui test targets compile (#/egui_six_tests_commit_20261127); eval10 ran them: 15 failing cases (7 stale test or product, 1 flaky, 7 environment) to route to owners MT-017, MT-033, MT-034, MT-068, MT-069, MT-099 (MT-212.json#/eval10_20261128)"
+  },
+  "pause_state": {
+    "recorded_at_utc": "2026-11-28T06:20:00Z",
+    "backend_coder": "stopped; probe f4d049cd1 pushed, not run (see lanes.backend_MT-172.next_in_order[0])",
+    "backend_eval": "agent a33f1f55cec321c90 asked to finish its current hold (hold 3, a mutation build) and write Handshake_Artifacts/WP-KERNEL-012/MT-172/eval-backend-20261128/eval-summary-20261128.json with a not_run list; the summary is the input for the pose and persistence routes; if it is missing, rerun the remaining items from #/pose3026_persist_routing_20261128",
+    "gui_coder": "agent aa10ae104910a4f49 asked to finish PT-9 in one hold, commit, push, release and stop; outcome to be recorded in MT-214 as e9f1_pt9_<date>",
+    "build_slot": "held by 'backend eval' at pause; the successor checks .build-slot/owner.txt and tasklist before anything; a slot whose owner agent is gone and no cargo/rustc runs may be cleared only after confirming the owner is stopped",
+    "final_update": "see #/pause_closeout once the two agents above have reported"
+  },
+  "operator_items_open": [
+    "send the asset request message to the asset dev leader thread (drafted earlier in this WP under Handshake_Artifacts/WP-KERNEL-012/asset-requests-20261126)",
+    "release Studio lanes SMB-UI-TREE-1 and SMB-VK-UI-PASS-1",
+    "OD-3 reviewer and order for MT-219 (#/shell_gaps_ownership_20261126 in MT-214.json)",
+    "diag_ring ownership (MT-223 option)",
+    "name the x64 desktop PC for MT-213",
+    "owner of the internal_diagnostics.rs:2282 repair (assertion that cannot pass; NOT_DECIDED) and the vehicle for MT-175's stale scans (MT-175 BLOCKED)",
+    "approval to delete the stray folder Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval10-20261127/Handshake_Artifacts/ (HSK-ART-004, made by a cwd-relative path in the egui test support)",
+    "a cargo cleanup list (disk 92% used) after inspection"
+  ],
+  "pitfalls_learned": [
+    "subagent reports are claims: verify commits, pushes, hashes and test counts before recording",
+    "a subagent may keep reporting while its background poller lives; stop or message it, check owner.txt and processes",
+    "agents finishing a background wait sometimes hand back interim reports; resume them with SendMessage instead of spawning duplicates",
+    "do not run two GUI coders or two backend coders at once; give every agent a unique wait-file name",
+    "leftover `find /` searches from finished specialists waste IO: stop them (they are this session's tasks)",
+    "source-scan tests read code-only text with string literals blanked; scans that need literal text must read raw text",
+    "SurrealDB 3.2.0: record::exists inside a PERMISSIONS predicate keeps the caller's permissions while link dereference does not; computation depth limit is about 120 (plain chain 110 passes, 118 fails)",
+    "a GPU hang once came from Modern Standby (16:46-20:10 on 2026-11-27); use the fail-fast check"
+  ],
+  "successor_first_actions": [
+    "read this file, then the MT-172 and MT-214 keys named in #/lanes (latest first)",
+    "check #/pause_closeout (or, if absent, the backend eval summary and the PT-9 commit) and the build slot",
+    "record anything the paused agents reported after this file was written",
+    "dispatch, in parallel: the backend coding agent on R172-02e's run, the eval agent on the GUI GPU hold (PT-4, PT-5, P8), and keep the checker for each new commit",
+    "raise the open Operator items in one short batch when the Operator is present"
+  ]
+}

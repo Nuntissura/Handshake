@@ -15255,5 +15255,12 @@
       "MT-212.json#/egui_six_tests_remediation_20261127",
       "MT-215.json#/egui_six_tests_blocker_20261127"
     ]
+  },
+  "orchestrator_handoff_20261128": {
+    "recorded_by": "ORCHESTRATOR root session",
+    "recorded_on": "2026-11-28",
+    "current_handoff": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-orchestrator-handoff-20261128.json",
+    "reason": "Operator asked to pause at a clean point and hand the orchestrator role to a successor agent",
+    "supersedes_for_workflow": "WP-KERNEL-012-phase02-successor-handoff-v8.json team model (replaced by the Operator's 2026-11-27 single-orchestrator goal); product scope references in v8 still hold"
   }
 }
