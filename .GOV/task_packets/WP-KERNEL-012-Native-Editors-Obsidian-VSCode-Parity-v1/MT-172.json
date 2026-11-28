@@ -15821,5 +15821,62 @@
       "wrapper_sha256": "248cb8bbfed005ac2a06a1bd9b46cb15cc2672f66a6512f41a1ec76c0b4ec085",
       "scope": "Exactly four changed imported migration failures, both approved fixture cases and the changed structural declaration test. Reuse all other unchanged passes. One governed lib build slot."
     }
+  },
+  "r172_16_imported_base_catalog_result_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent JUnit/Git/catalog check with specialist and adversarial review",
+    "recorded_on": "2026-11-28",
+    "candidate": "168154b2358b9076546c5a8dbad5831a6207b450",
+    "tree": "fde620f26d84298a1b9d2f3a4b524f27b6fbe30d",
+    "basis": [
+      "#/r172_16_focused_recovery_result_20261128",
+      "#/r172_16_historical_fixture_and_import_candidate_20261128"
+    ],
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-16-pin-confirm-20261128/focused-03",
+    "counts": {
+      "executed": 7,
+      "passed": 1,
+      "failed": 6,
+      "filtered": 2600
+    },
+    "digests": {
+      "log": "de8d7c17601477091754e40880b803f6fc9c5e512a11e43a9cb7b642ef9192af",
+      "junit": "a92bb447f07afd4b6944a7edcb67499aecbee2ed27a5ead74074ea980bc0e50a",
+      "result": "95651018a50b781f2112fd5f3bad68992506bfb4641a9af3870994061d69b2e2",
+      "evidence": "25ae1f208a4a3f719eda70f3d061e5ce7ba5c8fb4d941ad7862774b81e832496",
+      "slot_release": "898d26351c5f698254cbd60bf54989f0f6f8d89c894014a9ccd564b81596243f",
+      "unchanged_raw_worktree": "b9d8f6b7dda21bd94475a4df08efc503a4ba1a98a98f26f23de2a9081774aaf8"
+    },
+    "peak_target_bytes": 194524326460,
+    "released_utc": "2026-11-28T14:18:39.735180Z",
+    "structural_pass": "schema_delta_upgrade_statements_re_emit_every_mt154_delta, including each revision 172 declaration emitted once and preservation of the legacy index drop.",
+    "new_failure": {
+      "guard_lines": [
+        4763,
+        4790,
+        4829,
+        4866,
+        4903,
+        4940
+      ],
+      "expected_base": {
+        "tables": 313,
+        "fields": 4013,
+        "indexes": 860
+      },
+      "observed_base": {
+        "tables": 313,
+        "fields": 4012,
+        "indexes": 860
+      },
+      "history": "All six cases now get past COMMIT. The two exact restored historical fixtures reach their runtime upgrade and fail at the same subsequent BASE check. Catalog checks remain active."
+    },
+    "diagnosis": {
+      "missing_field": "model_sessions.engine_profile_binding",
+      "affected_identities": "MT141 and MT150 show twenty missing or stale exact shapes: five engine-profile functions, model_sessions table ACL/field/origin event, eleven kernel_event_ledger field shapes, and kernel_process_lifecycle.engine_kind. MT151 and MT152 report a subset with the same owner. The affected field/event/table shapes match the independently measured R14 BASE.",
+      "source": "Older complete_imported_schema_upgrade collects pre-Argus/Member/revision168/revision171 spans but omits revision166 shared BASE declarations. Argus already uses those canonical declarations. Patching only the field would pass the count and leave the separate pinned fingerprint red.",
+      "r14_raw_log_sha256": "6aa6e15e9d7188a426690006b24f94e39c4b215122e87bba9dd0281d1ee0c972"
+    },
+    "decision": "Reuse the existing revision166 canonical BASE span selection for the older import, merging by source offset before current Member and successor emission. Preserve all pins and production schema sources. Shared BASE headers contain no indexes. Reuse the selector in revision166's existing emitter without changing its output or production registry suffix. Retain all existing guards, Member ownership, revision172 one-emission, source order and independently pinned fingerprint/reopen assertions.",
+    "bounded_followup": "Distinct post-COMMIT diagnosis under CX-EXEC-003A. One focused changed-candidate attempt after exact static closure check and independent review. Retest only the six affected runtime cases plus the changed structural case. No unchanged rerun; prior Argus and revision171 atomic results remain valid if their emitted bytes remain identical."
   }
 }
