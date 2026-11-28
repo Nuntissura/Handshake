@@ -5066,5 +5066,23 @@
     },
     "open_dependency": "The generic SessionCleanupReceipt and durable outbox path for live lanes needs a verified existing authority or an explicitly bounded durable change. Expiry between fence and finalize requires a scope-bounded historical receipt read. No runtime claim.",
     "lifecycle_change": "none"
+  },
+  "r172_189_real_branch_discriminator_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), separate specialist and independent adversarial pass",
+    "recorded_on": "2026-11-28",
+    "supersedes_hypothesis_ref": "#/r172_189_depth_hypothesis_20261128",
+    "recorded_attempts": [
+      {
+        "receipt": "MT-172.json#/r172_02e_result_20261128",
+        "case": "first_owner_workspace_receipt_compute_only_observes_rollback",
+        "baseline": "Actual authenticated compute-only scalar query reaches computation_depth before result decoding; callback rollback, logout and fixture cleanup observed in the test flow.",
+        "fix_A": "Removed setup receipt exists predicate in the comparison fixture. Real case still returned internal, but exact patched subtype was not captured.",
+        "limit": "Detached tests omitted first_owner_workspace_receipt_read and did not materialize the strict original/workspace/recorder/memory resource and grant graph. Their actor-only successes and grouped eight-term WHERE are not evidence about the live branch."
+      }
+    ],
+    "verified_hypothesis": "Receipt permission and statement WHERE use distinct evaluator frames. The live strict permission reaches the nested workspace_sources/workspace_source path from operand 4 of 77 ordered receipt conjuncts. The nested source predicate has 30 operands and begins with actual resource/grant record reads, so the two left spines consume depth before fetches. Failing leaf and total are not measured.",
+    "next_discriminator": "One changed disposable composed fixture with equivalent ordered association of the strict receipt predicate and unchanged actual authenticated transaction, bindings, grant checks, known truth conditions, scalar output, rollback, logout and cleanup. Preserve the unmodified production regression test and production schema. Use existing pt003_probe_run support, record exact engine error family with the single targeted diagnostic. Any production fix follows separate qualified evidence and pin handling.",
+    "scope": "src/backend/handshake_core/src/api/code_nav_index_account_tests.rs is outside current MT-173 allowed paths. Existing Operator decision MT-172.json#/outscope_test_waiver_policy_20261127 permits exact named red run-only test file only after verified composed failure and a pre-edit per-file HBR-STOP-005 waiver record naming the run. Prior run and embedded production fixture verified; record exact waiver and selector before dispatch if this is the selected next picotask after R172-16 confirmation. Workspaces production route remains intact.",
+    "status": "Read-only diagnosis and plan only. No repeat or source change. Existing R172-16 confirmation running on e964e35ca."
   }
 }
