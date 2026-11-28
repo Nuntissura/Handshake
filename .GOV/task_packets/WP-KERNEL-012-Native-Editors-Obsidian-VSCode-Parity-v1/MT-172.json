@@ -15770,5 +15770,56 @@
     "distinct_next_hypothesis": "Current imported CKC scan runs from its marker through the first COMMIT, spanning the new revision-172 block. The same block then emits again through explicit revision171 append, including worktree_vm_binding_id_unique. Pinned SurrealDB DEFINE INDEX OVERWRITE retires/restarts a separate provisional build. The repository has exact duplicate-builder conflict handling precedent. Duplicate emission proven independently; the precise locked key is still unverified.",
     "intended_fix": "End imported CKC discovery at the existing revision-172 block marker before its prior COMMIT. Keep all preceding canonical CKC SQL and explicit revision171 span ownership. Validate single exact occurrence for new block/index, no lost historical indexes, no DDL or pin change.",
     "bounded_followup": "CX-EXEC-003A: same four assertions twice, change the proven duplicate emission first. Run one changed focused probe after known fixes and verified push. Reuse all unchanged passes. The two approved frozen fixture cases can be selected separately in the same compatible compile without broad rerun. No proof until live validator results."
+  },
+  "r172_16_historical_fixture_and_import_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent Git, fixture-byte, archived schema and runner readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/operator_exact_mt141_fixture_scope_20261128",
+      "#/r172_16_focused_recovery_result_20261128"
+    ],
+    "published_commit": "168154b2358b9076546c5a8dbad5831a6207b450",
+    "published_tree": "fde620f26d84298a1b9d2f3a4b524f27b6fbe30d",
+    "previous_feature_tip": "741ae1240f95ad8100bef4ba46b71aacd85f44c3",
+    "checkpoints": [
+      {
+        "commit": "485f514ee116a85605067a50f36b3eae95386bdf",
+        "scope": "Approved immutable historic fixture and two private test-helper consumers."
+      },
+      {
+        "commit": "0f473db3962266d08562659d8654fd02984dcc9d",
+        "scope": "Stop the legacy imported scan before the marked revision-172 block. The explicit append emits every new definition once. Existing imported declaration proof covers all 30, including the VM unique index, and checks the old Atelier index removal."
+      },
+      {
+        "commit": "168154b2358b9076546c5a8dbad5831a6207b450",
+        "scope": "Delete the five now-dead test constants used only in the previous MT-141 helper. Preserve other expectations, history pins and production SQL."
+      }
+    ],
+    "fixture": {
+      "path": "src/backend/handshake_core/tests/fixtures/schema_pre_mt141.surql",
+      "source_commit": "20270f3a5cd45d8c0cb6c54e7e4ec763d3f6587f",
+      "git_blob": "45869db3f4411f405eed070fcb6b4b3502c1d328",
+      "raw_bytes": 568114,
+      "raw_sha256": "5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779",
+      "mt150_delta_bytes": 275,
+      "mt150_delta_occurrences": 1,
+      "mt150_git_blob": "e13c0a14f9394365d064a19b5b4d7e4061ec721d",
+      "mt150_raw_bytes": 567839,
+      "mt150_raw_sha256": "0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6"
+    },
+    "prior_import": {
+      "comparison_base": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+      "matched_raw_bytes": 32096,
+      "matched_sha256": "1c36063d2058ec42936ffa85c7d2aa23a4a8dc9c2302163476f89f96cf8f9f2a",
+      "retained_definitions": 201,
+      "explicit_revision172_definitions": 30,
+      "preserved_product_schema": "schema.surql blob unchanged by all three commits relative to 741ae124."
+    },
+    "proof": {
+      "state": "Pending runtime",
+      "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-16-pin-confirm-20261128/focused-03",
+      "wrapper_sha256": "248cb8bbfed005ac2a06a1bd9b46cb15cc2672f66a6512f41a1ec76c0b4ec085",
+      "scope": "Exactly four changed imported migration failures, both approved fixture cases and the changed structural declaration test. Reuse all other unchanged passes. One governed lib build slot."
+    }
   }
 }
