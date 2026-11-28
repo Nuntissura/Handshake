@@ -3448,5 +3448,47 @@
       "negative": "An intentionally lingering owned child was rejected. A separate handle read confirmed its exact PID had exited with 124 after cleanup.",
       "scope": "Preparation only. No GPU, cargo, source injection, foreground window or build slot. Live PT-4/PT-6 and x64 P8 retain their existing proof requirements."
     }
+  },
+  "e9_pt6_ui_automation_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified patch replay, exact scoped commit and direct feature ref",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/e9_pt4_pt6_remaining_proof_20261128",
+      "#/e9_pt4_pt6_private_job_preflight_20261128"
+    ],
+    "adoption_commit": "6c4d54a350d478ddc5709829c27d64a4527f8839",
+    "published_commit": "4cb6eefc6d7c71ea390c95e34e9661f16443b10b",
+    "published_tree": "78249b33a11df6cff55b111e4bbfe543c230e32b",
+    "path": "src/frontend/handshake_shell/accessibility/tests/uia_client.rs",
+    "patch_sha256": "2f32fbfa7ddec1813150cd7545a64b99d6cc6c987d2cd81b27a98ce1dc79e0c5",
+    "lf_git_blob": {
+      "raw_bytes": 27829,
+      "lines": 621,
+      "sha256": "79e97b8894967c3fea93261755f247d7978263d1446cb4790e9aa0d23615ba19"
+    },
+    "crlf_eval_scratch": {
+      "raw_bytes": 28450,
+      "lines": 621,
+      "sha256": "b1b9dc01265c454df35d8ef8a043af79b737ae2c47e4502307871a7d0d4674fd"
+    },
+    "representation_decision": "The exact prior patch application outside a Git worktree reproduced all-CRLF bytes; scoped adoption preserves existing LF repository format. Verified byte-equivalent after normalizing only line endings. Future evaluation checks the published LF blob and reproduces the prior CRLF scratch bytes exactly.",
+    "pending_hold": {
+      "helper_sha256": "e4d0a3bb408b3a8974c56f0dd6a23183f268d892c656688e2e5c0a850c13de53",
+      "cases_per_run": [
+        1,
+        1,
+        1,
+        3,
+        3,
+        1
+      ],
+      "added_static_selectors": [
+        "handshake_shell_accessibility::source_scan::nothing_activates_orders_or_focuses_a_window_or_injects_input",
+        "handshake_shell_accessibility::source_scan::every_loop_and_client_of_a_test_runs_on_a_private_desktop",
+        "handshake_shell::source_scan::the_product_root_is_an_operator_window_activated_once_and_no_test_binary_has_one"
+      ],
+      "reason": "Each static case opens the changed UIA source from its manifest or sibling tests directory. Keep separate receipts and the existing two PT-4 repeat checks and one PT-6 UIA. Remaining prior results unchanged."
+    },
+    "x64_p8": "Pending by Operator"
   }
 }

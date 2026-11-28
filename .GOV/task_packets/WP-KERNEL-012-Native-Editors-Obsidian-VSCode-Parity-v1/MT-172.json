@@ -15878,5 +15878,25 @@
     },
     "decision": "Reuse the existing revision166 canonical BASE span selection for the older import, merging by source offset before current Member and successor emission. Preserve all pins and production schema sources. Shared BASE headers contain no indexes. Reuse the selector in revision166's existing emitter without changing its output or production registry suffix. Retain all existing guards, Member ownership, revision172 one-emission, source order and independently pinned fingerprint/reopen assertions.",
     "bounded_followup": "Distinct post-COMMIT diagnosis under CX-EXEC-003A. One focused changed-candidate attempt after exact static closure check and independent review. Retest only the six affected runtime cases plus the changed structural case. No unchanged rerun; prior Argus and revision171 atomic results remain valid if their emitted bytes remain identical."
+  },
+  "r172_16_imported_base_catalog_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified scoped commits and direct feature ref",
+    "recorded_on": "2026-11-28",
+    "basis": "#/r172_16_imported_base_catalog_result_20261128",
+    "published_commit": "4cb6eefc6d7c71ea390c95e34e9661f16443b10b",
+    "published_tree": "78249b33a11df6cff55b111e4bbfe543c230e32b",
+    "parent_commit": "6c4d54a350d478ddc5709829c27d64a4527f8839",
+    "owned_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema_revision166.rs"
+    ],
+    "checked_change": "Older imported upgrade includes the 73 uniquely resolved revision166 shared BASE declarations by canonical offset. Contains all twenty diagnosed changed identities and no index. Table precedes dependent FLEXIBLE field and origin event. Production schema sources and all pins unchanged.",
+    "compatibility": "Original revision166 parsing, BASE and registry span order, and revision168 tail are preserved. Existing Member append remains authoritative for its action and both newly overlapped functions are exact copies. The changed structural test checks the exact effective declaration of each selected BASE header and retains the revision172 non-duplication checks.",
+    "proof": {
+      "status": "Pending runtime",
+      "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-16-pin-confirm-20261128/focused-04",
+      "wrapper_sha256": "12184226a782c89801473771879c0f3a9b1077b36ff24a3f7fe5d742211dae10",
+      "scope": "Exact same seven cases as focused-03 because the six older migrations consume the changed closure and the seventh asserts it. Reuse unchanged prior Argus, pin measurement and atomic revision171→172 evidence."
+    }
   }
 }
