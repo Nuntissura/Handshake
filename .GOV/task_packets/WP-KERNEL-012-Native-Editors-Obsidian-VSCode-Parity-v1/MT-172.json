@@ -15491,5 +15491,34 @@
       }
     ],
     "state": "R172-14 attempt 1. No pins enrolled. Host thread creation refused after build, so distinct prebuild agent was reassigned to a fresh coding turn for the correction. No broad rerun."
+  },
+  "r172_14_corrective_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified Git scopes, raw schema and direct re-read of pushed corrective candidate",
+    "recorded_on": "2026-11-28",
+    "first_measure_ref": "#/r172_14_first_measure_result_20261128",
+    "local_to_pushed": [
+      {
+        "pico": "Permit schema definition order",
+        "commit": "09f5bc9a2fa0ea41fff8e80715bf8cdb2ff06c09",
+        "tree": "c744a5826dd271c2da9046fa5701c3d1418ec69e",
+        "check": "Exact four FLEXIBLE statements relocated after existing SCHEMAFULL table, with identical permissions, exact historical inverse and current generated SHA."
+      },
+      {
+        "pico": "Typed engine profile contract",
+        "commit": "f01b3daf25c030896f6828ef822ee6f9249d159e",
+        "tree": "577760175b8d82dedd054b650f4985e26697e2b7",
+        "check": "Existing test pins the exact typed binding and origin event precondition, denying job-bound profile input and retaining binding immutability. No DDL."
+      },
+      {
+        "pico": "Guarded ledger wildcard contract",
+        "commit": "79ecb07c721b5277676e72717a7068da31cd1092",
+        "tree": "31b9953e33645e7d16696094f4d399863534ed83",
+        "check": "Existing expected map pins exact historical parent and child ACL pair; scoped replay covers 194 FLEXIBLE roots, 253 wildcards and 255 TYPE-any definitions including intentional union roots."
+      }
+    ],
+    "authorization_and_cause": "Independent red team and coder reproduced the second historical wildcard mismatch by applying the exact existing contract loop after modeling the engine profile root. No other wildcard differences remain in the complete static replay. Both pre-stage declarations and ACLs are preserved.",
+    "shared_schema_sha256": "484e778038ef73837d608dacc04a457f34d2359630d5150ffa854ae9ebac0d25",
+    "remote_verified": "79ecb07c721b5277676e72717a7068da31cd1092",
+    "next": "One R172-14 bounded measurement on corrected verified pushed SHA and same four selectors. No pins enrolled."
   }
 }
