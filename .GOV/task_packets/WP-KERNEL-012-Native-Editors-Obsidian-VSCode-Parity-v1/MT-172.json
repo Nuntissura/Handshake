@@ -15589,5 +15589,72 @@
     },
     "verification": "Exact independently verified engine source lines, static enrollment slots only, clean diff, direct/fetched remote and local SHA equal. Independent adversarial re-read all 656 raw table/database observations confirmed all reported counts and three expected pin assertions.",
     "next": "R172-16 designated confirmation on this exact pushed SHA with required plan lib filter, scoped changed Argus 164 proof, and crash-safety integration target. No validator verdict, other MT acceptance, or genuine x64 proof."
+  },
+  "r172_16_first_confirm_result_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified raw run log, JUnit, result and release with specialist/adversarial diagnosis",
+    "recorded_on": "2026-11-28",
+    "candidate": "e964e35ca8f84dd452f38402ab054e54eac7c978",
+    "tree": "32ae30c1a31c61db2923eb9f3225d6145e326ea5",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-16-pin-confirm-20261128/focused-01",
+    "counts": {
+      "executed": 43,
+      "passed": 34,
+      "failed": 9,
+      "nextest_filtered": 2577,
+      "targets": {
+        "handshake_core": {
+          "executed": 31,
+          "passed": 22,
+          "failed": 9
+        },
+        "surreal_test_store_crash_safety_tests": {
+          "executed": 12,
+          "passed": 12,
+          "failed": 0
+        }
+      }
+    },
+    "sha256": {
+      "log": "fcc003ac63420b88873b161382dc312bf3b48bb780727d17071d2b7ed0582c69",
+      "junit": "45bc37c4db355650e935a0702d32f2f75b722e65cfd2e072e5f895ff834f6e1c",
+      "result": "0342682bbb2845802c63cd5cd58ada30931cb6445b11865c3a12efecf9cb956f",
+      "slot_release": "5ad8f9d445d418ac443c0a77e7268da6d7761b04f05c99183c976aa45e55705a",
+      "evidence": "52cd5e6e5baef9c23c857508dd036cafc57a8fd093b5a543f0e507db05e1bb05"
+    },
+    "target_peak": 193650161154,
+    "passed_scope": "All crash-safety cases and 166 through 171 exact upgrade/reopen. Current BASE/FINAL pins, declarative, and schema contract verified by named cases.",
+    "failure_groups": [
+      {
+        "case_count": 4,
+        "tests": "MT139 exact base predecessor, MT151 exact MT142 predecessor, both MT152 exact MT151 predecessor cases",
+        "finding": "Engine statement index 1389 or 1381 precisely maps to first_owner_administration_origins.first_workspace_original FLEXIBLE. Existing revision168 delta helper pulls the already emplaced canonical table to the end, making it implicitly schemaless before dependent fields in these histories.",
+        "decision": "Keep the canonical SCHEMAFULL table at earlier position when the prior DDL owns it; emit exactly once when absent in standalone path."
+      },
+      {
+        "case_count": 2,
+        "tests": "MT141 and MT150 exact historical source upgrade",
+        "finding": "Fixture construction misses full old Argus event ledger text even at 167ae6a9b; no database opened. Exact MT150 and MT109 earlier Git blobs reproduce pinned hashes, linked by the exact existing 275-byte delta.",
+        "decision": "Request exact scope for one fixture, then reuse the canonical historic bytes and retain both independent hash assertions."
+      },
+      {
+        "case_count": 1,
+        "tests": "Argus 164 direct upgrade + reopen",
+        "finding": "Observed v11/11 is preexisting canonical target; assertion expects obsolete v9/9. Predecessor v8/8, primary identity, complete state and other receipts otherwise verified.",
+        "decision": "Update two test expected values only and run missed second-reopen assertions."
+      },
+      {
+        "case_count": 1,
+        "tests": "171 knowledge duplicate guard",
+        "finding": "Intended unique typed HSK error logged at result 53; first masked NotExecuted is returned to canonical test and prevents rollback/positive proof.",
+        "decision": "Opt-in exact duplicate marker propagation from existing bound transaction only; keep other error semantics and actual follow-on rollback/index assertions."
+      },
+      {
+        "case_count": 1,
+        "tests": "MT154 declaration survival",
+        "finding": "Test literals stale for model_sessions and knowledge_retrieval_traces; all other 177 current matches verified. Existing evolved live permissions must hold.",
+        "decision": "Test-only canonical identity proof for two known cases retains exact current provider selection, original job guards and existing historical fixture bytes."
+      }
+    ],
+    "next": "Five serial picotask corrections, then exact failed unit selectors only where current inputs and previous green evidence permit reuse. No formal verdict; prior approved six revalidation MTs routed at independent candidate freeze under CX-VAL-009/010."
   }
 }
