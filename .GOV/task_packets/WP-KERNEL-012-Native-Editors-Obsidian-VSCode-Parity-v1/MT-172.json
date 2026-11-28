@@ -15569,5 +15569,25 @@
     },
     "decision": "Use the three measured values and the final field/index tuple for R172-15. The declarative test reports its expected old-hash mismatch before later counts. Raw base counts match the current static counts, and no additional count change is supported. Slot released, exact pushed candidate and full inputs unchanged.",
     "state": "R172-15 coding turn active. Confirmation and independent technical verdict remain pending."
+  },
+  "r172_15_enrollment_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent static comparison of Git diff and raw engine output",
+    "recorded_on": "2026-11-28",
+    "measurement_ref": "#/r172_14_corrected_measure_result_20261128",
+    "pushed_commit": "e964e35ca8f84dd452f38402ab054e54eac7c978",
+    "pushed_tree": "32ae30c1a31c61db2923eb9f3225d6145e326ea5",
+    "parent": "79ecb07c721b5277676e72717a7068da31cd1092",
+    "scope": "Only three values in src/backend/handshake_core/src/storage/surreal/schema.rs.",
+    "enrolled": {
+      "base_INFO": "ddba2a065732ad9906f9315452e2c925e65cca2856975b66d966294fe1e43db3",
+      "production_INFO": [
+        "94812b57620b05da964aa1d34c9701498667cbe33ae4c011f7fee2faf046690c",
+        4596,
+        937
+      ],
+      "declarative": "229bc04f5c19a48ed29a8205b2a286b5b73ba898634c61d67d1dc516c18ec1fc"
+    },
+    "verification": "Exact independently verified engine source lines, static enrollment slots only, clean diff, direct/fetched remote and local SHA equal. Independent adversarial re-read all 656 raw table/database observations confirmed all reported counts and three expected pin assertions.",
+    "next": "R172-16 designated confirmation on this exact pushed SHA with required plan lib filter, scoped changed Argus 164 proof, and crash-safety integration target. No validator verdict, other MT acceptance, or genuine x64 proof."
   }
 }
