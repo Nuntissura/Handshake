@@ -15229,5 +15229,26 @@
     ],
     "review_followup": "A diagnostic-only pending retry must preserve attained teardown phase and existing exact-reclaim teardown error. Keep the linked witness and stable outbox IDs. Coordinator, private completion proof and ordinary recovery isolation are still pending.",
     "status": "Static verification only. Product remains local, no Cargo or runtime verdict."
+  },
+  "r172_cleanup_coordinator_checkpoint_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent Git object and scoped diff inspection",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_cloud_revocation_cleanup_scope_20261128",
+    "local_intermediates": [
+      {
+        "pico": "Preserve attained cleanup phase",
+        "commit": "1cc4d2fb4b7dc058ddd2b6f0e158df8ee7583c5e",
+        "tree": "1a0d93444d46f94b7fff18716e487b428239297c",
+        "static": "Exact current/stable ID checked retry retains teardown phase. Exact reclaim keeps the original error and linked receipt. No generic changes."
+      },
+      {
+        "pico": "Owned cloud cleanup coordinator",
+        "commit": "2f6257d2e4d5395528e98d030c15988229735da9",
+        "tree": "b1e6eceffa900d7d18fed90cdd9593c241f7cc86",
+        "static": "Coordinator-only. Same captured Workspace Update is restored only around scoped receipt operations. STOP ACK is owned and generation-bound; completion proof is private and forms only after both stable outbox ACKs. Canonical completion lookup determines provider-cancelled outcome. Independent checker assigned."
+      }
+    ],
+    "next": "Wire the forward proof-only completion facade and storage path. Then bind ordinary boot recovery to uncredentialed legacy receipt provenance, preserve all focused named checks and finish revision-172 stage.",
+    "status": "Static only. Product local, no Cargo or runtime verdict."
   }
 }
