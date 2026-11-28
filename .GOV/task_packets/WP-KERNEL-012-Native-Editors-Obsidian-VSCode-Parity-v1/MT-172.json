@@ -15450,5 +15450,46 @@
       "verify_raw_input_count": 7872
     },
     "next": "R172-14 focused measurement on pushed exact SHA, then enroll measured pins. C1 compile establishes local stage compile only, no tests or technical verdict."
+  },
+  "r172_14_first_measure_result_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent direct log/JUnit/receipt hashes and separate specialist/adversarial diagnosis",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "#/rev172_plan_20261127",
+    "candidate": "e46d017c4566a42e7a8bf1e09458fd1dafaa31ae",
+    "tree": "be698af2e642458234cfa46eec472e5ba8b3e9bd",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-14-pin-measure-20261128/focused-01",
+    "exit_code": 100,
+    "counts": {
+      "executed": 4,
+      "passed": 0,
+      "failed": 4,
+      "skipped_in_junit": 0,
+      "filtered_or_skipped_by_nextest": 2603
+    },
+    "sha256": {
+      "log": "20e2b5eae20d20cc1b5f1b007b2a933dcda47e60b046dce2e70183880f0138d4",
+      "junit": "ec9216548b45bcb694cb0c9520bd650a0e6c1c40f3fe543482616ecb695c0564",
+      "result": "1b3044726214c29508a3c967a6dc2b08ac4fb162d5c32c21974896559ac31689",
+      "evidence": "57ed7c300382e8aab8fb41adcdc3cfe6210ee2e342626ea8a0a52ddceaa4bd7b",
+      "slot_released": "cd43baf3c698e4e727f7f44ca90e3303c851bf9a9b2597f0f7e0531b670e4d69"
+    },
+    "target_bytes_peak": 193598913054,
+    "inputs_unchanged": true,
+    "base_info_available": false,
+    "final_info_available": false,
+    "declarative_observation": "229bc04f5c19a48ed29a8205b2a286b5b73ba898634c61d67d1dc516c18ec1fc",
+    "diagnoses": [
+      {
+        "assertion": "MT139 BASE definitions index 4123; MT109 BASE apply",
+        "evidence": "Four FLEXIBLE redemption permit fields at 8069–8072 run before their SCHEMAFULL table at 8215, so the engine initially sees a schemaless implicit table. Confirmed exact source-map and both direct reads.",
+        "remediation": "Put the existing exact FLEXIBLE field declarations after the immutable SCHEMAFULL table definition so table policy helpers stay in their existing order. Preserve all ACL/field shapes and restore exact 171 field texts and positions. Repeat only on changed inputs."
+      },
+      {
+        "assertion": "schema_contract_is_wave_scoped_and_identity_safe",
+        "evidence": "Existing model_sessions.engine_profile_binding uses FLEXIBLE without TYPE any wildcard at both 167ae6a9b and stage. Existing trigger protects binding across both writer paths, requires profile authority and rejects job-bound images; typed producer is scoped to durable originals. SQL outer arbitrary-key closure was not proven.",
+        "remediation": "Pin the exact existing immutable typed-root definition and guard in the existing contract test with no wildcard or ACL/schema change."
+      }
+    ],
+    "state": "R172-14 attempt 1. No pins enrolled. Host thread creation refused after build, so distinct prebuild agent was reassigned to a fresh coding turn for the correction. No broad rerun."
   }
 }
