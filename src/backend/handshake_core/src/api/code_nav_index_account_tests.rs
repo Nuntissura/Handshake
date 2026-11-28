@@ -329,21 +329,31 @@ async fn pt003_first_owner_setup_receipt_observer() {
          DEFINE FUNCTION OVERWRITE fn::pt003_copy_no_exists($row: object) {{ RETURN {terms}; }};
          DEFINE FUNCTION OVERWRITE fn::pt003_copy_param($row: object, $sx: record<authenticated_sessions>) {{ RETURN $sx != NONE AND {terms}; }};"
     );
+    let mut report = String::new();
     match state.surreal.test_admin_query(ddl).await {
         Ok(mut response) => {
             for index in 0..3 {
-                eprintln!("PT003 ddl[{index}] = {:?}", response.take::<Option<surrealdb::types::Value>>(index));
+                report.push_str(&format!("PT003 ddl[{index}] = {:?}
+", response.take::<Option<surrealdb::types::Value>>(index)));
             }
         }
-        Err(error) => eprintln!("PT003 ddl ADMIN_ERR {error:?}"),
+        Err(error) => report.push_str(&format!("PT003 ddl ADMIN_ERR {error:?}
+")),
     }
     let statements: [(&str, &'static str); 5] = [
         ("conjuncts", PT003_CONJUNCTS), ("copies", PT003_COPIES), ("strict_projection", PT003_STRICT_PROJECTION),
         ("strict_where", PT003_STRICT_WHERE), ("sources", PT003_SOURCES),
     ];
     for (label, statement) in statements {
-        eprintln!("PT003 record_user {label} = {}", pt003_record_user_view(&state, &scope, statement, &bindings).await);
-        eprintln!("PT003 root {label} = {}", pt003_root_view(&state, statement, &bindings).await);
+        report.push_str(&format!("PT003 record_user {label} = {}
+", pt003_record_user_view(&state, &scope, statement, &bindings).await));
+        report.push_str(&format!("PT003 root {label} = {}
+", pt003_root_view(&state, statement, &bindings).await));
+    }
+    // Passing tests hide stderr under nextest, so the observation is also written beside the run.
+    eprintln!("{report}");
+    if let Some(root) = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT") {
+        let _ = std::fs::write(std::path::Path::new(&root).join("WP-KERNEL-012/MT-172/r172-01-20261128/pt003-observer.txt"), &report);
     }
     drop(router);
     drop(state);
