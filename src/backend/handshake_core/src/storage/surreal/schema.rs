@@ -32,8 +32,10 @@ pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
 pub const SCHEMA_REVISION: i64 = 172;
 
 // Enroll these pins only after independent BASE and FINAL engine INFO measurement.
-const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
-const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> =
+    Some(("94812b57620b05da964aa1d34c9701498667cbe33ae4c011f7fee2faf046690c", 4596, 937));
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> =
+    Some("ddba2a065732ad9906f9315452e2c925e65cca2856975b66d966294fe1e43db3");
 const PRE_MEMBER_PASSWORD_POLICY_REVISION: i64 = 167;
 const PRE_MEMBER_PASSWORD_POLICY_BASE_GENERATED: &str =
     "6f6e4a5bd5dad4b856e355233dcf435c4febce3e1da7a70b87587f2a1ddd6c43";
@@ -4815,7 +4817,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // (previous 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e); statically derived
 // with the compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "32eb3ad02c24abb2e88a2865f731217f0583185d897b7442b6b87928eec8279f";
+    "229bc04f5c19a48ed29a8205b2a286b5b73ba898634c61d67d1dc516c18ec1fc";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
