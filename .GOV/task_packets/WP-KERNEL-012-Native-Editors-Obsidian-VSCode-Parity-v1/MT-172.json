@@ -15208,5 +15208,26 @@
     "execution_decision": "The protected typed Rust phase will re-read the full canonical revocation overlay, maintain idempotent pending replay and require the private verified START and actual STOP/outbox completion evidence. SQL independently binds exact cloud scope, ownership and causal event. Keep process/outbox owner grants and raw access unchanged.",
     "upgrade_note": "The shared receipt function is already emitted in the 164–166 and imported paths, with a duplicate at 164; remove just overlapping selected declarations from the stage composition. 167–171 need the full shared receipt delta. Existing edited identities are inverted byte-exact; distinguish genuinely new production helper identities in predecessor subtraction.",
     "status": "No Cargo or product push. Typed storage/facade picotask active, later coordinator and focused proof pending."
+  },
+  "r172_cleanup_typed_storage_and_retry_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), scoped Git diff inspection and independent read-only review",
+    "recorded_on": "2026-11-28",
+    "scope_ref": "#/operator_cloud_revocation_cleanup_scope_20261128",
+    "local_intermediates": [
+      {
+        "pico": "Typed cleanup storage/facade",
+        "commit": "8ba322d9f2ab587cb8ec86eff5bfc289d458b50b",
+        "tree": "960549c02e5450286c3789a290c7c0418116de50",
+        "static": "Exact same-storage protected transaction. Re-read corrected typed revocation overlay, preserve old generic flows, read back exact linked immutable event, distinguish stale vs no canonical receipt vs post-event mismatch. No completion write exposed yet."
+      },
+      {
+        "pico": "Evicted completion lookup",
+        "commit": "4ea503ff69f6137b4c9d7e8ba8e79f26ac1289b6",
+        "tree": "0b5e2dd6cc701adf9abe24a2fbb2769ebc1d638f",
+        "static": "Read-only identity uses exact canonical lane, session, process and consent. A retained actual START remains required for writes and must match the process UUID. Full linked receipt and scope checks remain in the protected read."
+      }
+    ],
+    "review_followup": "A diagnostic-only pending retry must preserve attained teardown phase and existing exact-reclaim teardown error. Keep the linked witness and stable outbox IDs. Coordinator, private completion proof and ordinary recovery isolation are still pending.",
+    "status": "Static verification only. Product remains local, no Cargo or runtime verdict."
   }
 }
