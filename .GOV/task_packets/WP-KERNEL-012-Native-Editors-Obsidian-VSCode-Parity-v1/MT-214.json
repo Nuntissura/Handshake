@@ -2938,5 +2938,35 @@
     },
     "unproven": "real-watcher acknowledgement; shell_program GPU test (compiles only); v2 marker read-back in shell_program.rs",
     "next": "P4a onward (session via LaunchSession, lease, ring creation, signed launch, argv seam, wiring) carrying C3, C5, C7, C8, C11, C12 and the remaining S-mutations; checker static review of P1-P3 including the lock re-resolution"
+  },
+  "s7_p1_p3_static_review_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker and dependency agent's static review (Sonnet); no edits, no build, cargo tree queries only; hash, winapi-util declared range and the egui host lock entry verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "commits": "a9f14bab1, f81ce5cd3, 0a956b785 (#/s7_p1_p3_20261128)",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/checker/s7-p1-p3-static-review.json (sha256 71ce601a6fcec83ca1b19f77969801113973972cdbb7d47bccdebffe5e5fb53d)",
+    "verdict": "passed (static); no high finding",
+    "lock_disposition": {
+      "decision": "accepted; settled by evidence and rules, no Operator decision",
+      "evidence": "winapi-util 0.1.11 declares windows-sys >=0.48.0, <=0.61.* (registry Cargo.toml, verified); palmistry_launch pins windows-sys =0.61.2, so cargo unified onto it and pruned the 0.48 chain; winapi-util reaches the closure only through same-file and walkdir, a build-dependency of jni 0.22.4 via android-activity 0.6.1 via winit 0.30.13 on android only; cargo tree --target x86_64-pc-windows-msvc -e normal,build -i winapi-util prints nothing, so it is not compiled for the Windows shell",
+      "rules": "only CX-VAL-011 conditions a lockfile change (full-scope round, already declared); no Codex or HBR rule forbids a non-additive lock change; 'additive only' was the plan's own stop condition, not in MT-214 execution.stop_conditions; Cargo.lock and shell/Cargo.toml are allowed write paths",
+      "alignment": "egui host lock keeps windows-sys 0.48.0 for winapi-util (frozen, untouched, verified); composition_tests and toolkit_spike locks already use 0.61.2; host_ports lock has no winapi-util",
+      "pin_back": "not possible without an artificial windows-sys 0.48 constraint clashing with palmistry_launch =0.61.2; not tested by experiment"
+    },
+    "findings": {
+      "F1_medium_open_by_design": "C3 / HBR-QUIET-003 no-orphan not supplied by P3; ManuallyDrop forgoes the launcher's Drop backstop (kill and reap); an unsettled end while the process keeps running leaves the watcher alive without a post-mortem record; the product binary exits right after run_program; P8c",
+      "F2_low": "from_handle (palmistry.rs:76-79) accepts an unsigned handle; a clean close then maps to NotAcknowledged (fail closed); P4b must use launch_palmistry_signed_at",
+      "F3_low": "examples/shell_program.rs:60-64 closure indentation is not rustfmt-clean",
+      "F4_low": "the two #[allow(clippy::drop_non_drop)] are justified and commented",
+      "F5_info": "watcher_ack sound and fail-closed; 8-row table covers every variant against launcher lib.rs:1093-1141",
+      "F6_info": "no P1-P3 path drops a real handle without a shutdown request; P4a/P4b risk: a launch succeeds and a later step fails before from_handle, dropping the live handle (the launcher's Drop then sends a clean Shutdown)",
+      "F7_info": "v2 ring retype correct: heartbeat returns the writer (into_sink) before the marker; Shutdown code 10 is ordinary; ring_marked follows the write; order settled check, marker, watcher kept and scanned; GPU read-back unproven",
+      "F8_info": "scans not weakened; RING_WRITERS untouched; rings==3 valid; no-v1 scan whole-word over src/ only; all scans self-authored",
+      "F9_info": "transitional v2 ring in main.rs and the example uses a v7-uuid nonce, no reader today; the one-writer scan forces P4a to remove it",
+      "F10_info": "handshake_runtime_instance, zeroize, rand unused until P4a",
+      "F11_info": "P1 and P2 alone fail source_scan; no rule requires each commit to pass; bisect_note covers it",
+      "F12_info": "scope clean: all 11 files in allowed_write_paths; nothing in authority.rs, palmistry_launch, egui host, vulkan-renderer, src/backend or .GOV",
+      "F13_info": "P4b look-ahead: the launcher's marker sink writes its own Shutdown marker; pass no sink"
+    },
+    "routing": "F2, F3, F6, F13 forwarded to the GUI coder for P4a/P4b; F1 stays with P8c"
   }
 }
