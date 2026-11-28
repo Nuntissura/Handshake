@@ -21,6 +21,14 @@ ui_heartbeat = { path = "../../handshake_host_ports/ui_heartbeat" }
 # opens the GPU owner through the surface crate with the owner's own policy and module types.
 handshake-diag-ring = { path = "../../handshake_native/diag_ring" }
 handshake-vulkan-renderer = { path = "../../handshake_native/vulkan-renderer" }
+# MT-214 S7: the toolkit-free Palmistry launcher (MT-215 AC215-11) and what its signed launch is made of: the embedded
+# runtime-instance lease, the ids, the zeroizing seed and the nonce. Exact pins equal the launcher's, so the shell adds no
+# second version of any of them.
+palmistry_launch = { path = "../../handshake_host_ports/palmistry_launch" }
+handshake_runtime_instance = { path = "../../../backend/handshake_runtime_instance" }
+uuid = { version = "=1.23.3", features = ["v7"] }
+zeroize = "=1.9.0"
+rand = "=0.9.4"
 
 [[bin]]
 name = "handshake_shell"
