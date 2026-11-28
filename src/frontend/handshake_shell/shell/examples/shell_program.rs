@@ -40,7 +40,8 @@ fn show(_: &[String]) -> ExitCode {
 fn show(arguments: &[String]) -> ExitCode {
     use std::time::Duration;
 
-    use handshake_diag_ring::{DiagRingWriter, DEFAULT_CAPACITY};
+    use handshake_diag_ring::ring::DiagRingWriterV2;
+    use handshake_diag_ring::DEFAULT_CAPACITY;
     use handshake_shell::{
         run_program, DeviceAuthority, EndAfter, NoWatcher, ProgramConfig, TestBinary,
     };
@@ -56,7 +57,11 @@ fn show(arguments: &[String]) -> ExitCode {
         .unwrap_or(30)
         .clamp(1, 600);
     let ring = value("--diag-ring")
-        .and_then(|path| DiagRingWriter::create(std::path::Path::new(path), DEFAULT_CAPACITY).ok());
+        .and_then(|path| {
+        // Transitional until the Palmistry session starts the ring (MT-214 S7 P4a): a version 2 ring with its own nonce.
+        let nonce = *uuid::Uuid::now_v7().as_bytes();
+        DiagRingWriterV2::create(std::path::Path::new(path), DEFAULT_CAPACITY, nonce).ok()
+    });
     let authority = DeviceAuthority::Test(TestBinary::declare("shell_program_example"));
     println!("{}", authority.receipt());
     let mut config = ProgramConfig::new(ring);

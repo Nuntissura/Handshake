@@ -7,7 +7,7 @@
 //! process (WP012-SHELL-ROOT-WINDOW-20261127), and it has no flag that opens a window on a desktop; a run to look at is `examples/shell_program.rs`.
 //!
 //! Options (read only after the gate passed, so a refused start parses nothing): `--diag-ring <path>` makes the
-//! diagnostics ring the heartbeat writes.
+//! version 2 diagnostics ring the heartbeat writes.
 
 use std::process::ExitCode;
 
@@ -25,7 +25,8 @@ fn run() -> ExitCode {
 
 #[cfg(windows)]
 fn run() -> ExitCode {
-    use handshake_diag_ring::{DiagRingWriter, DEFAULT_CAPACITY};
+    use handshake_diag_ring::ring::DiagRingWriterV2;
+    use handshake_diag_ring::DEFAULT_CAPACITY;
     use handshake_shell::{run_product, run_program, NoWatcher, ProgramConfig};
 
     let arguments: Vec<String> = std::env::args().skip(1).collect();
@@ -35,7 +36,11 @@ fn run() -> ExitCode {
             .iter()
             .position(|argument| argument == "--diag-ring")
             .and_then(|at| arguments.get(at + 1))
-            .and_then(|path| DiagRingWriter::create(std::path::Path::new(path), DEFAULT_CAPACITY).ok());
+            .and_then(|path| {
+                // Transitional until the Palmistry session starts the ring (MT-214 S7 P4a): a version 2 ring with its own nonce.
+                let nonce = *uuid::Uuid::now_v7().as_bytes();
+                DiagRingWriterV2::create(std::path::Path::new(path), DEFAULT_CAPACITY, nonce).ok()
+            });
         run_program(ProgramConfig::operator_root(ring), authority, Box::new(NoWatcher))
     });
     match outcome {

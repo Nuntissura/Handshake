@@ -66,7 +66,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use handshake_diag_ring::{DiagEvent, DiagEventCode, DiagPhase, DiagRingWriter, DiagSeverity};
+use handshake_diag_ring::ring::DiagRingWriterV2;
+use handshake_diag_ring::schema::DiagEventV2;
+use handshake_diag_ring::{DiagEvent, DiagEventCode, DiagPhase, DiagSeverity};
 use handshake_shell_accessibility::{AccessReport, Accessibility, SemanticFrame};
 use handshake_shell_input::{InputReport, InputTracker};
 use handshake_shell_surface::{
@@ -120,8 +122,9 @@ pub struct ProgramConfig {
     pub launched_by_operator: bool,
     /// Where the window goes; the primary monitor's centre when `None`.
     pub placement: Option<Placement>,
-    /// The diagnostics ring the heartbeat writes, made by the caller. The heartbeat is silent without one.
-    pub ring: Option<DiagRingWriter>,
+    /// The diagnostics ring the heartbeat writes, made by the caller: the launcher's version 2 ring, the one a watcher
+    /// started with its nonce reads. The heartbeat is silent without one.
+    pub ring: Option<DiagRingWriterV2>,
     /// When the program ends by itself.
     pub end_after: EndAfter,
     /// What the program does by itself after it starts: detached windows opened and closed, in order (AC214-8).
@@ -130,7 +133,7 @@ pub struct ProgramConfig {
 
 impl ProgramConfig {
     /// A quiet 960 by 600 window, centred on the primary monitor, until it is closed. What tests and examples use.
-    pub fn new(ring: Option<DiagRingWriter>) -> Self {
+    pub fn new(ring: Option<DiagRingWriterV2>) -> Self {
         Self {
             title: "Handshake shell".to_owned(),
             size: LogicalSize::new(960.0, 600.0),
@@ -148,7 +151,7 @@ impl ProgramConfig {
     /// The product's root: an Operator window that takes the focus once, at the Operator's launch (the launch
     /// authority, used once), and whose close ends the process. WP012-SHELL-ROOT-WINDOW-20261127: "Operator window,
     /// closes app". Only the product binary calls this.
-    pub fn operator_root(ring: Option<DiagRingWriter>) -> Self {
+    pub fn operator_root(ring: Option<DiagRingWriterV2>) -> Self {
         Self {
             class: WindowClass::Operator,
             launched_by_operator: true,
@@ -344,8 +347,8 @@ struct ProgramApp {
     config: Config,
     origin: Instant,
     watcher: Box<dyn ShutdownWatcher>,
-    ring: RefCell<Option<DiagRingWriter>>,
-    heartbeat: RefCell<Option<ShellHeartbeat<Option<DiagRingWriter>>>>,
+    ring: RefCell<Option<DiagRingWriterV2>>,
+    heartbeat: RefCell<Option<ShellHeartbeat<Option<DiagRingWriterV2>>>>,
     access: RefCell<Accessibility>,
     input: RefCell<InputTracker>,
     notice: RefCell<Option<WakeLane>>,
@@ -771,7 +774,7 @@ impl ProgramApp {
         if may_acknowledge(ended.settled) {
             if let Some(ring) = self.ring.borrow().as_ref() {
                 let nanos = u64::try_from(self.origin.elapsed().as_nanos()).unwrap_or(u64::MAX);
-                ring.write(DiagEvent::generic(
+                let marker = DiagEvent::generic(
                     DiagEventCode::Shutdown,
                     DiagPhase::End,
                     DiagSeverity::Info,
@@ -781,8 +784,9 @@ impl ProgramApp {
                     0,
                     0,
                     nanos,
-                ));
-                ended.ring_marked = true;
+                );
+                // Marked only when the ring took the record: a refused write is not a marked ring.
+                ended.ring_marked = DiagEventV2::ordinary(marker).is_some_and(|event| ring.write(event));
             }
             ended.watcher = Some(self.watcher.acknowledge_shutdown());
         }

@@ -18,7 +18,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use handshake_diag_ring::{DiagEventCode, DiagRingReader, DiagRingWriter, DEFAULT_CAPACITY};
+use handshake_diag_ring::ring::{DiagRingReaderV2, DiagRingWriterV2};
+use handshake_diag_ring::{DiagEventCode, DEFAULT_CAPACITY};
 use handshake_shell::{
     run_program, DeviceAuthority, EndAfter, ExitKind, ProgramConfig, ShutdownWatcher, TestBinary, WatcherAck,
 };
@@ -34,6 +35,8 @@ const LIMIT: Duration = Duration::from_secs(100);
 const TIME_LIMIT: Duration = Duration::from_secs(90);
 /// Long enough for several beats (the port asks for one every 100 ms) and for the window's first frames.
 const RUN_FOR: Duration = Duration::from_millis(800);
+/// The ring's launch nonce: the program's ring is the launcher's version 2 ring.
+const NONCE: [u8; 16] = [0x5a; 16];
 
 /// A watcher that counts how often it was asked.
 struct Counting(Arc<AtomicU32>);
@@ -55,7 +58,7 @@ impl ShutdownWatcher for Silent {
     }
 }
 
-fn config(ring: Option<DiagRingWriter>) -> ProgramConfig {
+fn config(ring: Option<DiagRingWriterV2>) -> ProgramConfig {
     let mut config = ProgramConfig::new(ring);
     config.title = "shell program test".to_owned();
     config.size = LogicalSize::new(240.0, 140.0);
@@ -96,7 +99,7 @@ fn the_program_runs_drains_marks_the_ring_and_asks_the_watcher_once() {
     let asked = Arc::new(AtomicU32::new(0));
     let for_watcher = Arc::clone(&asked);
     let outcome = on_private_desktop(LIMIT, move || {
-        let writer = DiagRingWriter::create(&path, DEFAULT_CAPACITY).expect("the ring");
+        let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, NONCE).expect("the ring");
         let authority = DeviceAuthority::Test(TestBinary::declare("shell_program_test"));
         assert!(authority.receipt().contains("product=false"));
         run_program(config(Some(writer)), authority, Box::new(Counting(for_watcher)))
@@ -130,11 +133,11 @@ fn the_program_runs_drains_marks_the_ring_and_asks_the_watcher_once() {
     assert!(report.ring_marked);
     assert_eq!(report.watcher, Some(WatcherAck::Acknowledged));
     assert_eq!(asked.load(Ordering::SeqCst), 1, "asked exactly once");
-    let reader = DiagRingReader::open(ring.path()).expect("the reader");
+    let reader = DiagRingReaderV2::open(ring.path(), NONCE).expect("the reader");
     let marked = reader
         .read_last_n(32)
         .iter()
-        .filter(|event| event.event_code == DiagEventCode::Shutdown.as_u16())
+        .filter(|event| event.event.event_code == DiagEventCode::Shutdown.as_u16())
         .count();
     assert_eq!(marked, 1, "one shutdown marker in the ring");
 }
