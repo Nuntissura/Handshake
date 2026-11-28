@@ -14712,5 +14712,33 @@
     },
     "cx_val_009": "model_registry.rs is in MT-172, MT-173 and MT-196 allowed paths, all BLOCKED; no PASS MT returns",
     "status": "PT-ARRAYLEN-2 code in; independent eval pending"
+  },
+  "pose3026_persist_routing_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the routing specialist and its adversarial pass (Sonnet, read-only, no cargo); hashes, the pose.rs:3024-3029 text and commit a0d0a726c verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "files": {
+      "routing": "Handshake_Artifacts/WP-KERNEL-012/MT-172/specialist-pose3026-persist-20261128/routing.json (sha256 0535f0867e3e3bb8238f4b88d7eff148a938306b1eec5d60dad2d994b4d8e6d3)",
+      "adversarial_review": "same folder adversarial-review.json (sha256 1ffedbb7e9f2eea98c275a0df68364bf33cb32697bd7acb39c49d70e12d13246)"
+    },
+    "verdict": "UPHOLD_WITH_CORRECTIONS (folded into routing.json)",
+    "pose_3026": {
+      "file": "src/backend/handshake_core/src/atelier/pose.rs:3026 (LET $deactivated = IF $domain.active { (SELECT VALUE record::id(rig_id) ..) } ELSE { [] }), decoded as Vec<Uuid> at pose.rs:3920",
+      "origin": "a0d0a726c (2026-09-16), MT-141 remediation_v1 under the Operator session waiver 2026-09-15 (WAIVER-2); MT-141 scope is tests/ only, so it is a waiver author, not an owner",
+      "owners": "MT-171 (BLOCKED) lists pose.rs exactly; directory-scope owners MT-138 (PASS_V7, atelier/), MT-154 (FAIL_V4), MT-149 (PASS_V1, src/), MT-127 (BLOCKED, src/**)",
+      "evidence_conflict": "probes E7b/E7c (top-level statements, not the production RETURN shape) show NONE for 0 rows and a bare string for 1 row; MT-141 remediation_v1 proof 103 records atelier_pose_tests exit 0, 11 passed, same engine pin (builder run, log folder gone, never run by a validator); so 'LIVE' is derived, not observed",
+      "impact_if_live": "every activation (upsert_pose_workspace_rig_state active=true, route_pose_workspace_to_rig, apply_pose_workspace_keyboard_action) errors after the state write committed; deactivation events not appended",
+      "settling_run": "one test at HEAD: kind(test) & binary(atelier_pose_tests) & test(=atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel), optionally plus atelier_pose_workspace_route_and_keyboard_navigation_are_durable; assigned to the eval agent's backend batch",
+      "route": "red: record a remediation in MT-171 (owner, BLOCKED, no verdict; CX-EXEC-001, CX-EXEC-012) with the inner-LET fix at pose.rs:3026-3028, paired with removing the pose.rs:3026 entry from the OUT_OF_SCOPE allowlist in model_lane.rs under one recorded route; MT-171's named proof is compile-only (CX-EXEC-014) so the remediation names the pose tests; CX-VAL-009 for MT-138 and MT-149 decided mechanically at round freeze. green: correct the allowlist's LIVE wording and #/pt_arraylen2_20261128/open_findings/pose_3026",
+      "not_mt172": "MT-172 editing pose.rs would be an out-of-scope product edit (HBR-STOP-005) not needed to unblock MT-172; not chosen",
+      "open_rule_question": "CX-UNIT-001 module binding is shared by MT-171, MT-172, MT-173 (all src/backend/handshake_core); exact allowed_write_paths read as binding"
+    },
+    "persistence_tests": {
+      "static": "the 9 inner-LET rewrites sit in branches guarded by array::len(..) = 1; on a first persist $existing is empty and the ELSE [] arm runs, so the executed text is the same before and after; every failure is at the first persist; residual risk: a planner effect of LET-in-branch-in-FOR on a SCHEMAFULL store, unmeasured",
+      "counts": "focused-02: 8 fail '0 rows', 1 fails the palmistry error, 1 static test passes; focused-01 had 11 tests including the coder-added one; both runs on 8003327ce plus a dirty copy of the fix; no recorded run of this binary on committed 5aa9c7c43",
+      "group": "not in the G01-G16 eval-reclaim set; closest class G04 and repair-spec SC-10 (migrate bootstrap_schema-only tests): the test store is built with bootstrap_schema + bootstrap_model_registry_schema only (tests:225-226)",
+      "palmistry_table": "palmistry_watcher_custodian is defined only in palmistry_schema.surql:22, installed by install_palmistry_schema through bootstrap_production_schemas; base schema.surql functions (7090-7231) select from it; the test store lacks it; link to the 0-row failures UNVERIFIED",
+      "settling_run": "filter test(=registry_restart_recovers_configured_set_defaults_and_stable_receipts) | test(=orphan_receipt_stale_and_revoked_authority_are_rejected) with --test model_registry_persistence_tests; run A on an export of 05a1050a3, run B on 5aa9c7c43 only if A is green; A red with the same messages = pre-existing; use an exported tree (git archive), not a new worktree"
+    },
+    "operator_question": "none for the recommended route"
   }
 }
