@@ -39,7 +39,8 @@ use handshake_runtime_instance::{
     EmbeddedRuntimeInstanceLease,
 };
 use palmistry_launch::{
-    control_socket_name, LaunchSession, PalmistryHandle, ShutdownAcknowledgement, ShutdownOutcome,
+    control_socket_name, launch_palmistry_signed_at, resolve_palmistry_exe, LaunchSession,
+    PalmistryHandle, ShutdownAcknowledgement, ShutdownOutcome,
 };
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -111,6 +112,11 @@ impl PalmistryWatcher {
     pub fn holds_watcher(&self) -> bool {
         self.owned.borrow().is_some()
     }
+
+    /// Whether the watcher's signed handshake was confirmed (the handle's own report, taken at construction).
+    pub fn confirmed(&self) -> bool {
+        self.confirmed
+    }
 }
 
 impl ShutdownWatcher for PalmistryWatcher {
@@ -136,6 +142,10 @@ pub enum Degrade {
     NoLease,
     /// The version 2 ring could not be made.
     NoRing,
+    /// The watcher's exe could not be resolved (no override file, no sibling `palmistry.exe`).
+    ExeNotFound,
+    /// The signed launch failed before a handle existed: the exe could not be started, or an input was refused.
+    SpawnFailed,
 }
 
 impl Degrade {
@@ -145,6 +155,8 @@ impl Degrade {
             Self::NoHostScope => "no_host_scope",
             Self::NoLease => "no_lease",
             Self::NoRing => "no_ring",
+            Self::ExeNotFound => "exe_not_found",
+            Self::SpawnFailed => "spawn_failed",
         }
     }
 }
@@ -213,6 +225,9 @@ pub fn make_ring(path: &Path, nonce: [u8; 16]) -> io::Result<DiagRingWriterV2> {
 pub struct Seams<'a> {
     /// The host scope id the lease is bound to (`HANDSHAKE_HOST_SCOPE_ID` in the product).
     pub host_scope: &'a dyn Fn() -> io::Result<String>,
+    /// The watcher's exe (`resolve_palmistry_exe` in the product). A test gives a path that does not exist, so the
+    /// launcher's error path is run and no process is started.
+    pub resolve_exe: &'a dyn Fn() -> io::Result<PathBuf>,
 }
 
 fn production_host_scope() -> io::Result<String> {
@@ -224,6 +239,7 @@ impl Seams<'static> {
     pub fn production() -> Self {
         Self {
             host_scope: &production_host_scope,
+            resolve_exe: &resolve_palmistry_exe,
         }
     }
 }
@@ -318,5 +334,122 @@ pub fn prepare(ring_path: Option<&Path>, seams: &Seams<'_>) -> Prepared {
         lease,
         ring,
         degrade,
+    }
+}
+
+/// How the start ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LaunchState {
+    /// The watcher runs and its signed handshake was confirmed.
+    Launched,
+    /// The watcher runs and is owned, but its signed handshake was not confirmed: it is shut down and reaped at the end like
+    /// any other, and reported as not connected.
+    HandshakeUnconfirmed,
+    /// No watcher: the reason.
+    Degraded(Degrade),
+}
+
+impl LaunchState {
+    /// A stable name, for the state line.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Launched => "launched",
+            Self::HandshakeUnconfirmed => "handshake_unconfirmed",
+            Self::Degraded(_) => "degraded",
+        }
+    }
+
+    /// A stable reason code, for the state line.
+    pub const fn reason(self) -> &'static str {
+        match self {
+            Self::Launched => "confirmed",
+            Self::HandshakeUnconfirmed => "handshake_unconfirmed",
+            Self::Degraded(reason) => reason.code(),
+        }
+    }
+}
+
+/// The state of a launch that returned a handle: confirmed or not, as the handle reports it.
+pub const fn classify(confirmed: bool) -> LaunchState {
+    if confirmed {
+        LaunchState::Launched
+    } else {
+        LaunchState::HandshakeUnconfirmed
+    }
+}
+
+/// A whole start: what the program is given and what the caller keeps until the program has returned.
+pub struct Started {
+    /// The ring, for the program's heartbeat.
+    pub ring: Option<DiagRingWriterV2>,
+    /// The program's [`ShutdownWatcher`]: over the launched watcher, or over none.
+    pub watcher: PalmistryWatcher,
+    /// The lease. Keep it in a named binding that lives until `run_program` has returned.
+    pub lease: Option<EmbeddedRuntimeInstanceLease>,
+    /// How the start ended.
+    pub state: LaunchState,
+    /// The kind of the error that ended a resolve or a launch, if one did.
+    pub failure: Option<io::ErrorKind>,
+    /// The launch inputs the ring and the launch were made from.
+    pub inputs: LaunchInputs,
+}
+
+/// Starts the session: the lease, the ring, the watcher's exe and the signed launch, in that order. Any refusal leaves no
+/// watcher, marks the ring `Degraded` and goes on: the program runs without a watcher.
+pub fn start(ring_path: Option<&Path>) -> Started {
+    start_with(ring_path, &Seams::production())
+}
+
+/// [`start`] with its outside reads given.
+pub fn start_with(ring_path: Option<&Path>, seams: &Seams<'_>) -> Started {
+    let prepared = prepare(ring_path, seams);
+    let Prepared {
+        inputs,
+        lease,
+        ring,
+        degrade,
+    } = prepared;
+    let mut watcher = PalmistryWatcher::none();
+    let mut failure = None;
+    let state = match (degrade, lease.as_ref()) {
+        (Some(reason), _) => LaunchState::Degraded(reason),
+        (None, None) => LaunchState::Degraded(Degrade::NoLease),
+        (None, Some(held)) => match (seams.resolve_exe)() {
+            Err(error) => {
+                failure = Some(error.kind());
+                LaunchState::Degraded(Degrade::ExeNotFound)
+            }
+            Ok(exe) => match launch_palmistry_signed_at(
+                &exe,
+                &inputs.session,
+                &inputs.session.ring_path,
+                &inputs.control_socket,
+                held,
+                inputs.process_instance_id,
+                inputs.launch_nonce,
+                inputs.signing_seed(),
+                inputs.transport_public_key,
+            ) {
+                Err(error) => {
+                    failure = Some(error.kind());
+                    LaunchState::Degraded(Degrade::SpawnFailed)
+                }
+                Ok(handle) => {
+                    watcher = PalmistryWatcher::from_handle(handle);
+                    classify(watcher.confirmed())
+                }
+            },
+        },
+    };
+    if degrade.is_none() {
+        mark(ring.as_ref(), state == LaunchState::Launched);
+    }
+    Started {
+        ring,
+        watcher,
+        lease,
+        state,
+        failure,
+        inputs,
     }
 }

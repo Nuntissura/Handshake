@@ -6,15 +6,18 @@
 #[path = "../../../handshake_host_ports/ui_heartbeat/tests/support/limits.rs"]
 mod limits;
 
+use std::ffi::OsString;
 use std::io;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use handshake_diag_ring::ring::{DiagRingReader, DiagRingReaderV2};
 use handshake_diag_ring::{
     DiagEventCode, DiagPhase, DiagSeverity, DEFAULT_CAPACITY, HEADER_SIZE, RING_MAGIC,
 };
-use handshake_shell::palmistry::{prepare, Degrade, Seams};
-use palmistry_launch::PalmistryLaunchSession;
+use handshake_shell::palmistry::{classify, prepare, start_with, Degrade, LaunchState, Seams};
+use handshake_shell::{ShutdownWatcher, WatcherAck};
+use palmistry_launch::{signed_watcher_argv_without_spawn, LaunchSession, PalmistryLaunchSession};
 
 use limits::{RingFile, TimeLimit};
 
@@ -27,6 +30,20 @@ fn scope_set() -> io::Result<String> {
 
 fn scope_unset() -> io::Result<String> {
     Err(io::Error::new(io::ErrorKind::NotFound, "no host scope"))
+}
+
+fn exe_missing() -> io::Result<PathBuf> {
+    Err(io::Error::new(io::ErrorKind::NotFound, "no watcher exe"))
+}
+
+/// A file that is not there, in the test target's own folder: the real launcher is asked to start it and cannot.
+fn exe_not_there() -> io::Result<PathBuf> {
+    let path = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("hsk-s7-no-such-watcher.exe");
+    assert!(
+        !path.exists(),
+        "the watcher that is not there must not be there"
+    );
+    Ok(path)
 }
 
 fn scope_blank() -> io::Result<String> {
@@ -57,6 +74,7 @@ fn no_host_scope_degrades_with_a_marker_and_no_lease() {
         Some(file.path()),
         &Seams {
             host_scope: &scope_unset,
+            resolve_exe: &exe_missing,
         },
     );
     assert_eq!(prepared.degrade, Some(Degrade::NoHostScope));
@@ -79,6 +97,7 @@ fn a_blank_host_scope_gives_no_lease_and_a_marker() {
         Some(file.path()),
         &Seams {
             host_scope: &scope_blank,
+            resolve_exe: &exe_missing,
         },
     );
     assert_eq!(prepared.degrade, Some(Degrade::NoLease));
@@ -98,6 +117,7 @@ fn a_ring_that_cannot_be_made_degrades_without_a_ring() {
         Some(folder),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     assert_eq!(prepared.degrade, Some(Degrade::NoRing));
@@ -116,6 +136,7 @@ fn a_good_start_has_a_lease_a_ring_and_no_degrade() {
         Some(file.path()),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     assert_eq!(prepared.degrade, None);
@@ -134,6 +155,7 @@ fn the_ring_is_a_version_two_ring_with_the_launch_nonce() {
         Some(file.path()),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     let nonce = prepared.inputs.launch_nonce;
@@ -176,6 +198,7 @@ fn the_session_ids_are_the_leases_and_the_launcher_accepts_them() {
         Some(file.path()),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     let inputs = &prepared.inputs;
@@ -215,6 +238,7 @@ fn the_launchers_marker_sink_is_empty() {
         Some(file.path()),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     assert!(
@@ -232,12 +256,14 @@ fn two_starts_have_two_sessions_and_two_nonces() {
         Some(first_file.path()),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     let second = prepare(
         Some(second_file.path()),
         &Seams {
             host_scope: &scope_set,
+            resolve_exe: &exe_missing,
         },
     );
     assert_ne!(
@@ -245,4 +271,209 @@ fn two_starts_have_two_sessions_and_two_nonces() {
         second.inputs.session.session_id()
     );
     assert_ne!(first.inputs.launch_nonce, second.inputs.launch_nonce);
+}
+
+fn value(argv: &[OsString], flag: &str) -> OsString {
+    let at = argv
+        .iter()
+        .position(|argument| argument == flag)
+        .unwrap_or_else(|| panic!("{flag} is not in {argv:?}"));
+    argv[at + 1].clone()
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+#[test]
+fn a_watcher_exe_that_cannot_be_resolved_degrades_with_a_marker() {
+    let _limit = TimeLimit::new(LIMIT);
+    let file = RingFile::new("exe-missing");
+    let started = start_with(
+        Some(file.path()),
+        &Seams {
+            host_scope: &scope_set,
+            resolve_exe: &exe_missing,
+        },
+    );
+    assert_eq!(started.state, LaunchState::Degraded(Degrade::ExeNotFound));
+    assert_eq!(started.state.name(), "degraded");
+    assert_eq!(started.state.reason(), "exe_not_found");
+    assert_eq!(started.failure, Some(io::ErrorKind::NotFound));
+    assert!(!started.watcher.holds_watcher());
+    assert!(started.lease.is_some());
+    assert_eq!(
+        handshakes(file.path(), started.inputs.launch_nonce),
+        vec![degraded()]
+    );
+    assert_eq!(
+        started.watcher.acknowledge_shutdown(),
+        WatcherAck::NotConnected
+    );
+}
+
+#[test]
+fn a_launch_that_cannot_start_the_exe_degrades_and_the_error_is_not_found() {
+    let _limit = TimeLimit::new(LIMIT);
+    let file = RingFile::new("spawn-failed");
+    let started = start_with(
+        Some(file.path()),
+        &Seams {
+            host_scope: &scope_set,
+            resolve_exe: &exe_not_there,
+        },
+    );
+    assert_eq!(started.state, LaunchState::Degraded(Degrade::SpawnFailed));
+    assert_eq!(started.state.reason(), "spawn_failed");
+    // Not any error: the exe is what is missing. A refused input (zero nonce, ids, ring) would be another kind.
+    assert_eq!(started.failure, Some(io::ErrorKind::NotFound));
+    assert!(!started.watcher.holds_watcher(), "no handle, no watcher");
+    assert!(
+        started.lease.is_some(),
+        "the lease stays held until the caller lets it go"
+    );
+    assert_eq!(
+        handshakes(file.path(), started.inputs.launch_nonce),
+        vec![degraded()]
+    );
+}
+
+#[test]
+fn a_degraded_start_before_the_launch_never_resolves_the_exe() {
+    let _limit = TimeLimit::new(LIMIT);
+    let file = RingFile::new("no-resolve");
+    let started = start_with(
+        Some(file.path()),
+        &Seams {
+            host_scope: &scope_unset,
+            resolve_exe: &exe_not_there,
+        },
+    );
+    assert_eq!(started.state, LaunchState::Degraded(Degrade::NoHostScope));
+    assert_eq!(started.failure, None);
+    assert_eq!(
+        handshakes(file.path(), started.inputs.launch_nonce).len(),
+        1,
+        "one marker, not two"
+    );
+}
+
+#[test]
+fn an_unconfirmed_handshake_is_not_a_confirmed_launch() {
+    assert_eq!(classify(true), LaunchState::Launched);
+    assert_eq!(classify(false), LaunchState::HandshakeUnconfirmed);
+    assert_eq!(
+        LaunchState::HandshakeUnconfirmed.name(),
+        "handshake_unconfirmed"
+    );
+}
+
+/// The launch inputs of a real start, through the launcher's validation and command builder (which spawn nothing), against
+/// the launcher's own neutral session built from the same values.
+#[test]
+fn the_launch_inputs_make_the_launchers_argv_with_the_ring_nonce_and_path() {
+    let _limit = TimeLimit::new(LIMIT);
+    let file = RingFile::new("argv");
+    let started = start_with(
+        Some(file.path()),
+        &Seams {
+            host_scope: &scope_set,
+            resolve_exe: &exe_not_there,
+        },
+    );
+    let inputs = &started.inputs;
+    let lease = started.lease.as_ref().expect("the lease");
+    let exe = exe_not_there().unwrap();
+    let build = |session: &dyn PalmistryLaunchSession, nonce: [u8; 16]| {
+        signed_watcher_argv_without_spawn(
+            &exe,
+            session,
+            session.ring_path(),
+            &inputs.control_socket,
+            lease,
+            inputs.process_instance_id,
+            nonce,
+            inputs.signing_seed(),
+            inputs.transport_public_key,
+        )
+    };
+    // The real inputs pass the launcher's validation (a zero nonce, a zero key or equal ids would not).
+    let shell = build(&inputs.session, inputs.launch_nonce)
+        .expect("the launcher accepts the shell's inputs");
+    // The launcher's neutral session, built from the values and not from the shell's record.
+    let neutral = LaunchSession {
+        session_id: inputs.session.session_id().to_owned(),
+        ring_path: file.path().to_path_buf(),
+        marker_sink: None,
+    };
+    assert_eq!(
+        shell,
+        build(&neutral, inputs.launch_nonce).unwrap(),
+        "the same inputs, the same vector"
+    );
+
+    let bytes = std::fs::read(file.path()).unwrap();
+    assert_eq!(
+        value(&shell, "--ring-nonce"),
+        OsString::from(hex(&bytes[48..64])),
+        "the argv carries the ring's nonce"
+    );
+    assert_eq!(
+        value(&shell, "--ring-path"),
+        file.path().as_os_str(),
+        "the argv carries the ring the shell made"
+    );
+    assert_eq!(value(&shell, "--ring-version"), OsString::from("2"));
+    assert_eq!(
+        value(&shell, "--session-id"),
+        OsString::from(inputs.session.session_id())
+    );
+    assert_eq!(
+        value(&shell, "--runtime-instance-id"),
+        OsString::from(inputs.session.session_id())
+    );
+    assert_eq!(
+        value(&shell, "--signing-process-instance"),
+        OsString::from(inputs.process_instance_id.to_string())
+    );
+    assert_eq!(
+        value(&shell, "--control-socket"),
+        OsString::from(&inputs.control_socket)
+    );
+    for flag in [
+        "--parent-pid",
+        "--parent-os-creation-time-100ns",
+        "--runtime-lease-address",
+        "--runtime-lease-port",
+    ] {
+        let _ = value(&shell, flag);
+    }
+
+    // Positive control: the comparison can fail. A nonce the ring does not hold is refused, and a second start has
+    // another vector.
+    assert!(
+        build(&inputs.session, [0x55; 16]).is_err(),
+        "a nonce the ring does not carry is refused"
+    );
+    let other_file = RingFile::new("argv-other");
+    let other = start_with(
+        Some(other_file.path()),
+        &Seams {
+            host_scope: &scope_set,
+            resolve_exe: &exe_not_there,
+        },
+    );
+    let other_argv = signed_watcher_argv_without_spawn(
+        &exe,
+        &other.inputs.session,
+        other.inputs.session.ring_path(),
+        &other.inputs.control_socket,
+        other.lease.as_ref().unwrap(),
+        other.inputs.process_instance_id,
+        other.inputs.launch_nonce,
+        other.inputs.signing_seed(),
+        other.inputs.transport_public_key,
+    )
+    .unwrap();
+    assert_ne!(shell, other_argv);
 }

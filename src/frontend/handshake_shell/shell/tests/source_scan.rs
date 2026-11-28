@@ -736,6 +736,129 @@ fn the_session_takes_the_lease_then_makes_the_one_ring_with_the_launch_nonce() {
     assert!(late.find("make_ring(") < late.find("acquire_embedded_runtime_instance_lease("));
 }
 
+/// The `#[test]` functions of a test file that are not `#[ignore]`d, each with its attributes and body (code only).
+fn default_tests(code: &str) -> Vec<String> {
+    code.split("#[test]")
+        .skip(1)
+        .filter(|chunk| {
+            let head = chunk.split("fn ").next().unwrap_or("");
+            !head.contains("#[ignore")
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+/// What a default test must not reach: a real launch, the product resolver, the environment override of the watcher.
+const REAL_WATCHER_WORDS: &[&str] = &[
+    "launch_palmistry_signed_at(",
+    "launch_palmistry_or_degrade",
+    "launch_palmistry(",
+    "launch_palmistry_at(",
+    "resolve_palmistry_exe",
+    "palmistry::start(",
+    "Seams::production",
+    "HANDSHAKE_PALMISTRY_EXE",
+    "current_exe",
+    "PalmistryHandle",
+];
+
+fn real_watchers_in_default_tests(tests: &[Source]) -> Vec<String> {
+    let mut found = Vec::new();
+    for test in tests {
+        // The helpers above the first test are read as part of every default test.
+        let prelude = test.code.split("#[test]").next().unwrap_or("").to_owned();
+        for body in std::iter::once(format!("{prelude}fn prelude(")).chain(default_tests(&test.code)) {
+            for word in REAL_WATCHER_WORDS {
+                if !lines_with(&body, word).is_empty() {
+                    let name = body.split("fn ").nth(1).and_then(|rest| rest.split('(').next()).unwrap_or("?");
+                    found.push(format!("{}: {name} reaches {word}", test.path));
+                }
+            }
+        }
+    }
+    found
+}
+
+/// MT-214 S7 (P4b, AC214-11, HBR-QUIET): no default test starts a real watcher. Per function: a test that would is
+/// `#[ignore]`d with a reason. Every `resolve_exe` a test gives the session is one of the two helpers that name no exe or an
+/// exe that is not there.
+#[test]
+fn no_default_test_reaches_a_real_watcher() {
+    let _limit = TimeLimit::new(LIMIT);
+    let tests = below("tests");
+    let found = real_watchers_in_default_tests(&tests);
+    assert!(found.is_empty(), "{found:#?}");
+    let session = source_in(&tests, "tests/palmistry_session.rs");
+    let resolvers: Vec<&str> = session.code.match_indices("resolve_exe:").map(|(at, _)| session.code[at..].split('}').next().unwrap_or("")).collect();
+    assert!(resolvers.len() >= 8, "the scan sees the session's seams: {resolvers:#?}");
+    assert!(
+        resolvers.iter().all(|seam| seam.contains("&exe_missing") || seam.contains("&exe_not_there")),
+        "a test resolver that is not one of the two that start nothing: {resolvers:#?}"
+    );
+
+    // Each rule finds what it looks for, per function.
+    let real = sample(
+        "tests/sample.rs",
+        "#[test]\nfn calm() { let a = 1; }\n#[test]\nfn loud() { let h = launch_palmistry_signed_at(&exe, s, r, c, l, p, n, k, t); }",
+    );
+    assert_eq!(real_watchers_in_default_tests(&[real]).len(), 1, "only the loud function is named");
+    let ignored = sample(
+        "tests/sample.rs",
+        "#[test]\n#[ignore = \"live\"]\nfn loud() { let h = launch_palmistry_signed_at(&exe, s, r, c, l, p, n, k, t); }",
+    );
+    assert!(real_watchers_in_default_tests(&[ignored]).is_empty(), "an ignored live test may launch");
+    let product = sample("tests/sample.rs", "#[test]\nfn x() { let s = palmistry::start(None); }");
+    assert_eq!(real_watchers_in_default_tests(&[product]).len(), 1);
+    let helper = sample("tests/sample.rs", "fn exe() { resolve_palmistry_exe(); }\n#[test]\nfn x() {}");
+    assert_eq!(real_watchers_in_default_tests(&[helper]).len(), 1, "a helper above the tests is read too");
+}
+
+/// MT-214 S7 (P4b, AC214-11): one signed launch, the launcher's other entries and its argv seam stay out of the shell's
+/// code, the launch comes after the lease, the ring and the exe, the launched handle goes straight to the adapter, and a
+/// handshake that was not confirmed is classified from the adapter's own flag.
+#[test]
+fn the_one_signed_launch_follows_the_lease_the_ring_and_the_exe_and_adopts_its_handle_at_once() {
+    let _limit = TimeLimit::new(LIMIT);
+    let sources = below("src");
+    for word in [
+        "launch_palmistry_or_degrade",
+        "launch_palmistry(",
+        "launch_palmistry_at(",
+        "signed_watcher_argv_without_spawn",
+        "request_shutdown_and_wait",
+    ] {
+        assert!(lines(&sources, &[word]).is_empty(), "{word} in the shell's code");
+    }
+    assert_eq!(lines(&sources, &["launch_palmistry_signed_at("]).len(), 1, "one signed launch");
+    let session = source_in(&sources, "src/palmistry.rs");
+    let code = squeezed(&session);
+    let start = block_of(&code, "pubfnstart_with(");
+    let prepared = start.find("prepare(ring_path,seams)").expect("the lease and the ring come first");
+    let exe = start.find("(seams.resolve_exe)()").expect("the exe is resolved");
+    let launch = start.find("launch_palmistry_signed_at(").expect("the launch");
+    assert!(prepared < exe && exe < launch, "lease and ring, then the exe, then the launch: {start}");
+    assert!(start.contains("&inputs.session.ring_path"), "the launch reads the ring path of the inputs");
+    assert!(start.contains("inputs.launch_nonce,"), "the launch reads the nonce of the inputs");
+    assert!(
+        start.contains("Ok(handle)=>{watcher=PalmistryWatcher::from_handle(handle);classify(watcher.confirmed())}"),
+        "the handle is adopted before anything else can fail, and classified from the adapter's flag: {start}"
+    );
+    assert!(!start.contains('?') && !start.contains("return"), "no early return between the launch and the adapter: {start}");
+    assert_eq!(start.matches("PalmistryHandle").count(), 0, "the handle is not named, so it is not held or dropped here");
+
+    // Each rule finds what it looks for.
+    let late = sample(
+        "src/sample.rs",
+        "pub fn start_with() { let h = launch_palmistry_signed_at(a)?; let w = from_handle(h); }",
+    );
+    let late = squeezed(&late);
+    let sample_start = block_of(&late, "pubfnstart_with(");
+    assert!(sample_start.contains('?'), "an early return after the launch is seen");
+    assert!(!sample_start.contains("Ok(handle)=>{watcher=PalmistryWatcher::from_handle(handle);"));
+    let legacy = sample("src/sample.rs", "let h = launch_palmistry_or_degrade(&s, &r, c);");
+    assert_eq!(lines(&[legacy], &["launch_palmistry_or_degrade"]).len(), 1);
+}
+
 #[test]
 fn no_window_library_or_graphics_binding_in_the_crates_code() {
     let _limit = TimeLimit::new(LIMIT);
