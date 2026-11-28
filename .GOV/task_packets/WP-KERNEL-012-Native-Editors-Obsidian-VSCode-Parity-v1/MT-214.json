@@ -2812,5 +2812,67 @@
     "question": "New Vulkan shell (MT-214): it starts its Palmistry crash watcher first, then looks for a usable graphics card. If there is none, it stops with a clear message and exit code 4. Should the watcher record that stop as unexpected (a crash record), or be told it was a normal stop?",
     "operator_answer": "Record as unexpected (Recommended)",
     "effect": "S7 option A: on DeviceUnavailable (exit 4) after the launch the watcher is left untold and writes a post-mortem crash record; the rule 'the watcher is told only after a fully completed orderly close' stays exact; no extra code; closes Q1 of #/s7_palmistry_plan_review_20261127"
+  },
+  "eval10_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the eval agent's report (Sonnet); the eval agent ran the tests itself and wrote none of the code; summary hash (both copies) and the ending.rs:3-4 design note verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "summary_file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/eval-agent/eval10-20261127/eval10-summary-20261127.json (sha256 5045380e9ff2158449072dd7e2827870eeb62d816806cd3655492da575b92e63; copy in MT-215/eval-agent/eval10-20261127)",
+    "method": "LF export of 05a1050a3, tree digest 66eab384f5cbfc656d54a3d85770583ac5c52f82b6c44c57044fedf50f8dd10a, 2460 files byte-identical to the commit blobs before and after; a first CRLF export made two palmistry_launch lib tests fail for no product reason and was discarded (crlf-first-run/)",
+    "verdicts": {
+      "e03e88281": "passed: shell source_scan 31 pass across five crates (shell 13, input 7, 6, 5); ImmSetComposition, ImmEscape and R5 mutations caught",
+      "8003327ce": "failed: E9-F1 not fixed on the GPU; multiwindow.rs:82, shell_program.rs:107, shell_program.rs:155 each ShutdownUnsettled code=8 settled=false; open claims at close 2 (multiwindow, 4 windows), 1 and 1; claims_abandoned 0; settle wait looks 204/205/202, micros 500455/500375/500301, gave_up true every time; every look waiting=true from look 1; tear_down about 526 ms, so about 0.5 s dead time per shutdown; values from a probe copy logging the same locals as settle_wait_*",
+      "05a1050a3": "passed at scan and unit level: ImmConfigureIMEW/IMEA caught; F8 fields live; F9 partly closed (M2, M2c survive)",
+      "29ea185e1": "passed: palmistry_launch lib 18, test_toolkit_free 12, test_two_hosts_argv 1; clippy -D warnings exit 0; shell scan 13 of 13; heartbeat mutation M4 caught",
+      "4f75baac6": "inconclusive: targets compile and run headless (no window); test_ckc_embed 26 pass, test_code_note_cross_ref 18 pass; test_locus_interop 33 pass 4 fail 1 ignored; test_menu_wireup 38 pass 3 fail; test_notes_end_to_end 10 pass 4 fail; test_properties 22 pass 4 fail"
+    },
+    "egui_failures": {
+      "product_or_stale_test": [
+        "test_locus_interop.rs:2201 (AC-007) expects pub use handshake_wikilink_semantics::parser; but rich_editor/wikilinks/mod.rs:54 has ..parser::legacy_native as parser;",
+        "test_menu_wireup.rs:1171, :313, :1379",
+        "test_notes_end_to_end.rs:1004, :1769, :561"
+      ],
+      "serial_rerun": "menu and notes: 49 pass, 6 fail (persistent)",
+      "flaky": "test_notes_end_to_end.rs:1497 failed only in the parallel run",
+      "environment": [
+        "icacls errors at backend_proof_support/mod.rs:3930 (4 cases)",
+        "HANDSHAKE_TEST_STAGE_BINDING_ROOT missing at mod.rs:4909 (live-backend test)",
+        "test_properties.rs:238 and :344 need HANDSHAKE_GPU_SCREENSHOT=1 on a real GPU (not set)"
+      ],
+      "predates_4f75baac6": "UNVERIFIED: nothing before 4f75baac6 compiles (E0063); the commit only changed literals"
+    },
+    "other": {
+      "libs": "surface lib 34 pass; window lib 112 pass (quiet_tests.rs:332 did not fail this time)",
+      "diagnostics_lib": "internal_diagnostics.rs:2282 still fails, unchanged (filter diagnostics 55 pass 1 fail)",
+      "uia": "accessibility/tests/uia_client.rs:558 activations_refused 2, expected 0: E9-F2 reproduced at 05a1050a3"
+    },
+    "gpu": "newest Kernel-Power 507 (20:10:30 11-27) newer than 506 (16:46:33): not in Modern Standby; vulkaninfo 0.18-0.57 s; every GPU test finished in 1.5-7.6 s; never the Operator's desktop",
+    "checker_f6": "owner.poll max 153-170 us, settle_all max 346-548 us over about 204 looks: no call blocks; no claim settled during the wait; source (surface/src/host/ending.rs:3-4): a surface released without proof of its last presents is kept, with its window, until the owner closes, and Slot::settle returns Waiting while it holds the surface, so the pre-close wait cannot succeed for those claims (per-slot state not logged, UNVERIFIED)",
+    "mutations": {
+      "run": 16,
+      "survivors": [
+        "M1b SETTLE_WINDOW 10 ms (nothing pins the 500 ms bound)",
+        "M1c loop never gives up (elapsed replaced by ZERO)",
+        "M2 settle_all skipped, text kept in a string literal (order test strips only // comments)",
+        "M2c poll and settle_all skipped the same way",
+        "M3d GetProcAddress with the name in a string literal (known F2 limit)",
+        "M4b write_heartbeat in palmistry_launch/tests (passes by design)"
+      ],
+      "caught": [
+        "M1 0 ms bound (decide.rs unit test)",
+        "M2b",
+        "M3, M3b, M3c, M3e",
+        "M4",
+        "M5, M5b, M5c"
+      ]
+    },
+    "operator_safety": "459,388 samples at 20 ms; clipboard sequence 337 throughout, never written; 5 distinct foreground values, none attributed to eval processes; 4 invisible vctip.exe windows from the eval's own cargo-link chain (pid 49356, matched by creation time) stopped by the eval agent; nothing else stopped",
+    "stray_folder": "the egui tests wrote MT-214/eval-agent/eval10-20261127/Handshake_Artifacts/handshake-test/native_gui/pid-*/screenshot_marker.jsonl: a Handshake_Artifacts folder outside the canonical root (HSK-ART-004), produced by a cwd-relative artifact path in the egui test support; listed for Operator-approved deletion, not deleted",
+    "cannot_prove_here": [
+      "per-slot reason the claims stay unsettled",
+      "whether the egui failures predate 4f75baac6",
+      "GPU-screenshot egui tests",
+      "native x64 GPU, real IME, real screen reader"
+    ],
+    "routing": "E9-F1: 8003327ce adds 0.5 s per shutdown without settling anything; fix design goes to a GUI specialist with an adversarial pass, with a per-slot probe from the eval agent; E9-F2 back to diagnosis; egui runtime failures and the cwd-relative artifact path to owner routing (MT-017, MT-033, MT-034, MT-068, MT-069, MT-099)"
   }
 }
