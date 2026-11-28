@@ -16068,5 +16068,35 @@
       "runner_sha256": "9662bf5d6607f5df4ef105df50815b7a6331f79ba677172a2e0ecae49a6e4382",
       "scope": "One compatible build. Six existing UserManual cases with composed fixture plus one exact already-existing typed BASE inspector contract. No new collision test in this proof."
     }
+  },
+  "r172_18_composed_fixture_proof_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent exact JUnit, raw artifact, Git, input digest and slot verification",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_18_user_manual_original_baseline_20261128",
+      "#/r172_18_composed_fixture_candidate_20261128"
+    ],
+    "candidate": "4dcc43abc1da9f6755471c112c44cc1afd9ddf3d",
+    "tree": "c12e00d591572c3cc35cceef83c12f2ecccfd7f9",
+    "artifact_ref": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-18-user-manual-identity-20261128/catalog-01",
+    "counts": {
+      "executed": 7,
+      "passed": 7,
+      "failed": 0,
+      "filtered": 1
+    },
+    "coverage": "All six original UserManual behaviors (including exact same storage reopen, all dimensions, orphan receipt and corrupted canonical receipt), plus fresh BASE inspector catalog parity and closed selector/reference contract. All four previously failed baseline cases passed.",
+    "digests": {
+      "log": "0c7dbae4c715de5b219f06a7ba8aa60d065d5f8cb18cbbb52d3f2bbffd9f88fa",
+      "junit": "64ff432c614755f33f7c738c758d4ed95003290b08df91c556f58d5b0ce866bd",
+      "result": "6d6c995085323050fa56695732a7fbeda9506d9c733c4bbf776119d5fe8bdb5d",
+      "cases": "179b8751e2627f4e42d863b72b7173fb3f5a8f82c7f98cdcc2554e7b4eb20605",
+      "wrapper_result": "5f628e45ec13bc9ea18fc50641882590c0679ad0dd9090271e12d414f8ddb5f4",
+      "release": "8d8ac58374f1c8172cc00429d14434dd1b64d0cdb6f6291b8116df389cc06bd3",
+      "unchanged_inputs": "82f94657af51041c1a4bf53120e8df4e156de245a259457cf3030db7d62c520f"
+    },
+    "target_peak_bytes": 193384594104,
+    "released_utc": "2026-11-28T16:44:59.314703Z",
+    "disposition": "Catalog fixture and inspector prerequisite proven. The original cases still retain their exact identity, authorization, reopen and receipt assertions. Next is the single planned same-key cross-session collision denial test. No MT verdict or broader suite."
   }
 }
