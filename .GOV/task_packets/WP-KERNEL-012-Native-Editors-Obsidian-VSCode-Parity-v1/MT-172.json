@@ -14897,5 +14897,44 @@
     "not_run": "persistence run B (not needed); integration binaries for the unexercised sites (loom_search_v2_tests, mt016_surreal_loom_search_tests, model_lane_recovery_surreal_tests, model_lane_promotion_surreal_tests, the binary driving DECIDE_CRDT_PROPOSAL_QUERY); a probe with the table defined and empty; a probe of the pose.rs:3026 statement shape (selectors in the summary)",
     "setup_notes": "the exported tree needs a scratch .git (build.rs:41 panics without one); one hold wasted by a CRLF anchor bug in the mutation script (kept under hold2b-mutation-NOT-APPLIED-anchor-bug, not evidence); target peak 193.6e9",
     "routing": "guard survivors to a later PT-ARRAYLEN-3 guard hardening picotask; the persistence failures (bootstrap-only test store lacking palmistry_watcher_custodian; repair-spec SC-10 class) to the triage queue; pose allowlist wording correction in the rev 172 stage"
+  },
+  "r172_02e_result_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently verified files and pushed candidate",
+    "recorded_on": "2026-11-28",
+    "source_ref": "#/r172_02e_20261128",
+    "candidate_commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "candidate_tree": "8c512875423933aa74e71c8196f277c962e490ef",
+    "probe_commit": "f4d049cd13829cbd41155ccb1b5b0911542f3f54",
+    "inputs_unchanged": true,
+    "proof_input_diff_from_probe_empty": true,
+    "started_at_utc": "2026-11-28T06:33:27.808491Z",
+    "completed_at_utc": "2026-11-28T07:06:02.892790Z",
+    "exit_code": 100,
+    "target_bytes_peak": 193570658771,
+    "slot_released_verified": true,
+    "proof_root": "Handshake_Artifacts/WP-KERNEL-012/MT-172/r172-02e-20261128",
+    "sha256": {
+      "focused-01/running.json": "6af53949bbc25224cd0164b8c0525816dcc4f54392728f0a5769f0c12d6efc4f",
+      "focused-01/result.json": "b12b57309ca1b85cf5af8230296ad9ccc82dde2b53000953f9ae37075e74e757",
+      "focused-01/run.log": "eb481b9cf3251292bab95c9384456a4e7561743ad339554e47c210866f4f27f1",
+      "focused-01/nextest/default/junit.xml": "bade15c5e175e249615768abbcef453bef7728a8db73aab1a651e1707ccf629d",
+      "pt003-scalar-depth.txt": "226c037c08fe63a3925c524699bbfd3a56f4f586ecd9abca4a8f6fd64e02c658"
+    },
+    "cases": {
+      "executed": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped_in_junit": 0,
+      "failed_case": "first_owner_workspace_receipt_compute_only_observes_rollback at :189, computation_depth (run.log:4759)",
+      "passed_diagnostic": "pt003_scalar_depth_probe"
+    },
+    "outcome": {
+      "baseline": "internal (report lines 4–5)",
+      "fix_A": "DDL applied, same real transaction returned internal (report lines 6–8)",
+      "decision": "Fix A does not resolve :189. Its patched error subtype was not separately captured. The separate :182 result in R172-02c still supports the authorized stage slice.",
+      "limits": "Outside-transaction controls establish no remediation. The statement WHERE has eight terms, so regrouping by twenty did not change it."
+    },
+    "next": "Begin the authorized R172-02b stage slice. Keep :189 open for separate MT-173 root-cause review. No unchanged rerun.",
+    "lifecycle_change": "none; diagnostic only"
   }
 }
