@@ -3397,5 +3397,40 @@
       "The existing real clipboard proof remains x64 private station and preflight gated. Device-free proof never substitutes for the declared OS integration."
     ],
     "lifecycle_change": "none; no code, authority, or new crate granted"
+  },
+  "e9_pt4_pt6_remaining_proof_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), checked against private-desktop GUI agent source/receipt readback",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/e9f1_pt4_pt5_gpu_hold_20261128",
+      "#/e9f2_pt6_patch_eval_20261128"
+    ],
+    "closure_commit_readback": "168154b2358b9076546c5a8dbad5831a6207b450",
+    "prior_proof_reuse": {
+      "pt4": "Reuse the six existing focused passes, including the negative for a zero-duration proof window, and the two expected exit-8 shell outcomes on mutation ME. The referenced design also calls for three repetitions of shell_program and multiwindow. The first hold contains one, so run only the two remaining repetitions of those targets.",
+      "pt5": "All five unchanged diagnostic reproductions are usable. No PT5 repro rerun.",
+      "pt6": "Exact patch still applies. Reuse five scratch passes plus expected guard sensitivity failure as diagnostic evidence. Adopt the test-only patch, then run one exact UI Automation case on the committed candidate."
+    },
+    "executable_provenance": {
+      "shell_program": "Current warm-cache executable timestamp matches mutation ME result, not pristine.",
+      "uia_client": "Current warm-cache executable timestamp matches guard mutation result, not PT6 pass.",
+      "multiwindow": "Timestamp matches the existing pristine run but no historical executable digest exists. Run through the governed Cargo and private-desktop capture with shell_program.",
+      "action": "Use the warm canonical eval target with current Git-bound pristine shell source and exact committed PT6 test source. Do not directly reuse the affected executables."
+    },
+    "admitted_followup": {
+      "prerequisites": [
+        "A slot and test-owned candidate independent from the active backend build",
+        "Verified exact committed and published PT6 patch for the candidate",
+        "Private-desktop foreground/quiet audit enabled",
+        "Newest Kernel-Power transition 507 and native vulkaninfo success within 15 seconds before each targeted run"
+      ],
+      "tests": [
+        "Two serial repetitions each of handshake_shell shell_program (2 cases) and multiwindow (1 case)",
+        "One exact handshake_shell_accessibility uia_client a_ui_automation_client_reads_each_windows_tree_and_acts_without_activating_it"
+      ],
+      "repeated_proof": "Run each in the same compatible hold, one build job, one test thread. Accept only exact case counts, no HSK_GPU_SKIP, source and test provenance, and no attributable desktop or clipboard changes.",
+      "harness_basis_sha256": "f8712ed8f3577f02b4bbd8f1d95846ca7712202335870bded5424cee71b5fc2e"
+    },
+    "x64_p8": "Pending by Operator direction. Four-test-file patch applies without edits, SHA-256 633ae98f15fa041b903d958eaca92cb88d9a4f642d3f755076e5a0ab74b23218. No new execution or lifecycle verdict."
   }
 }
