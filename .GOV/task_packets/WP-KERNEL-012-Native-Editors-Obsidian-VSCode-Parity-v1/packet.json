@@ -15338,5 +15338,30 @@
     "historical_counts": "packet.json#/microtasks/contract_glob discovers MT-223.json. MT-222 was added by a root execution record without rewriting the historical mt_plan arrays; preserve those historical counts and current active/next status.",
     "state": "CONTRACT_RECORDED_PENDING_PREDECESSORS",
     "activation_blockers_ref": "MT-223.json#/activation_blockers"
+  },
+  "operator_execution_approvals_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_at_utc": "2026-11-28T07:52:25Z",
+    "source": "Operator explicitly approved both claim transfers and both MT-213 UserManual files in this chat.",
+    "claims": [
+      {
+        "mt": "MT-173",
+        "previous_holder": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+        "new_holder": "/root/rev172_coder_resume",
+        "scope": "Existing approved revision-172 implementation in MT-173-owned paths only."
+      },
+      {
+        "mt": "MT-175",
+        "previous_holder": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "new_holder": "/root/rev172_coder_resume",
+        "scope": "Only the two stale scans and the diagnostic assertion in MT-175's approved bounded repair record."
+      }
+    ],
+    "mt213_s1_manual_files": [
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs"
+    ],
+    "execution": "One implementation picotask at a time. Use focused checks; deliberate blockers with a specialist and independent red-team agent and record the decision and reason. x64 proof is pending by Operator direction.",
+    "preservation": "Retain historical claims, scope limits, blockers, independent acceptance, and pinned governance."
   }
 }

@@ -222,7 +222,9 @@
       "src/frontend/handshake_shell_gate/Cargo.lock",
       "src/frontend/handshake_shell_gate/src/**",
       "src/frontend/handshake_shell_gate/tests/**",
-      "src/frontend/handshake_shell_gate/README.md"
+      "src/frontend/handshake_shell_gate/README.md",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -230,7 +232,7 @@
       "Canonical asset sources (Nuntissura/assets) from a host MT; asset gaps go to MT-198",
       "src/backend/** unless listed in allowed_write_paths",
       "Another lane's uncommitted files; shared files without a recorded single-writer hand-over",
-      "Any product crate: the gate consumes them, it never edits them",
+      "Product crates are consumption-only except the two canonical UserManual paths approved for MT-213 S1",
       "src/frontend/handshake_native/**"
     ],
     "shared_resource_locks": [
@@ -863,5 +865,15 @@
       "acceptance": "AC213-11 requires the x64 desktop. This is separate from the non-GPU S1 scope."
     },
     "lifecycle_change": "none"
+  },
+  "operator_s1_manual_scope_20261128": {
+    "approval_ref": "packet.json#/operator_execution_approvals_20261128",
+    "exact_paths": [
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs"
+    ],
+    "purpose": "Canonical typed startup command entry and version in the same S1 commit.",
+    "writer": "The single backend coder, coordinated with the GUI agent before any edit.",
+    "x64_acceptance": "Pending by Operator direction."
   }
 }

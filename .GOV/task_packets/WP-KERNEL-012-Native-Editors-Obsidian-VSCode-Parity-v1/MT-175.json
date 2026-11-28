@@ -3143,10 +3143,10 @@
     "blocks": [],
     "active": true,
     "validator_verdict": null,
-    "claimed_by": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
-    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "claimed_by": "/root/rev172_coder_resume",
+    "claimed_at_utc": "2026-11-28T07:52:25Z",
     "completed_by": null,
-    "next_actor": "Fresh disjoint teams implement connected source batch; integrator assembles then one affected independent review and stable original native check"
+    "next_actor": "Single backend coder: bounded diagnostics repair when its picotask is assigned."
   },
   "scope": {
     "summary": "Reconcile native import paths preserving current native host",
@@ -14307,5 +14307,15 @@
     ],
     "claim_route": "Existing MT-175 claim remains. Resolve claimant availability or obtain an explicit takeover decision before dispatch. No lifecycle or prior verdict change.",
     "proof": "Only the three existing named assertions on the defined candidate, reusing a compatible build. Check the current production symbol/order; preserve the original safety assertions and do not repair by disabling a scan."
+  },
+  "operator_claim_transfer_20261128": {
+    "mt": "MT-175",
+    "previous_holder": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "new_holder": "/root/rev172_coder_resume",
+    "scope": "Only the two stale scans and the diagnostic assertion in MT-175's approved bounded repair record.",
+    "at_utc": "2026-11-28T07:52:25Z",
+    "approval_ref": "packet.json#/operator_execution_approvals_20261128",
+    "previous_claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "effect": "Transfer and routing only; status, dependencies and verdict are retained."
   }
 }
