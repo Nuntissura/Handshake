@@ -3108,5 +3108,50 @@
     },
     "F13_size_advisory": "window crate split order: clipboard (about 1.1k lines, self-contained), geometry and monitor (about 1.0k), pure types crate origin/policy/command/event/token (about 1.4k), then wake and key translation (coupling partly inspected)",
     "routing": "F1 needs a behaviour-or-wording decision: the S5 design (settled shutdown asks even after a typed failure) and the Operator's no-GPU decision (told only after a fully completed orderly close) read differently for typed in-loop failures; routed to the GUI specialist with an adversarial pass; F4, F7, F10 and the F1 fix go to the next GUI picotask; F13 to a later window-crate split item"
+  },
+  "e9f1_fix_design_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI specialist and its adversarial pass (Sonnet, read-only, no cargo); hashes and the anchors outcome.rs:94-96 (may_acknowledge(settled) returns settled), program.rs:278-288 (Test quota 512 << 20, max_claims 4) and ending.rs:180-186 (tear_down release loop) verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "files": {
+      "fix_design": "Handshake_Artifacts/WP-KERNEL-012/MT-214/specialist-e9f1-fix-20261128/fix-design.json (sha256 c56b71511bbb713008dac040540b8277960ba43574e17dd9fb2f49d3d880249e)",
+      "adversarial_review": "same folder adversarial-review.json (sha256 b9000aae7d524468fc692ad43eff953a8037fa44c27376154173ec2d49fe3d1a)"
+    },
+    "verdict": "UPHOLD_WITH_CORRECTIONS (C1-C5 applied in the files)",
+    "e9f1_fix": {
+      "cause": "tear_down (surface/src/host/ending.rs:177-212) releases every surface at once (:185) without SF-2 proof; the owner keeps one resource per claim until close() destroys the device (ResourcesOutstanding, MT-203 ledger/settle.rs:109, :247); the single-shot close report shows the claims open, exit 8",
+      "design": "prove_before_release at the start of tear_down, before the release loop, only when !present_fences (the close_window guard at :85): begin_proof per window with a surface, then a bounded wait (owner.poll plus one prove_step per window, 1 ms pause) on one shared deadline SHUTDOWN_PROVE_WINDOW = 1 s (probe: 12-25 ms per window; shorter than PROVE_WINDOW 2 s because it blocks the loop thread); a window still proving at the deadline goes through end_proof(false), counted in closes_unproven, released anyway; then release and hide, one settle look, owner.close() (owner's own report kept), post-close settle, report; decide.rs wait_for(window, step, look) owns clock and sleep and replaces settle_wait/SettleWait/SETTLE_STEP; begin_proof gets a window parameter (close_window keeps 2 s, tear_down uses PresentConfig.shutdown_prove_window, default 1 s); PresentReport gains shutdown_proofs_begun, shutdown_prove_micros, shutdown_prove_gave_up; settle_wait_* stay and GPU tests assert them; closes_unproven becomes honest (base counted 0 while every claim was unproven)",
+      "settle_wait": "kept as a bounded fallback keyed on closes_unproven (C1): 500 ms while no window ended unproven, 0 ms (one look) once one has; with VK_EXT_swapchain_maintenance1 waiting is the only mechanism (UNVERIFIED, never observed); closes M1b/M1c via wait_for unit tests and M2/M2c by moving the order test to surface/tests/source_scan.rs (code_only scanner; cut ending.rs at #[cfg(test)], literal and comment controls, C3)",
+      "rejected": "a report from a usage() snapshot after the final settle: close() is single-shot, LedgerUsage has no device fate, it would count claims settled by device destruction rather than proof (the state AC214-3 forbids); diagnostic only",
+      "tests": "decide.rs units (one look when nothing waits; gives up after its window; zero window makes one look; settle_window(0) 500 ms and (1) 0; shutdown prove window below PROVE_WINDOW); order scan; GPU: shell_program both tests with asserts on closes_unproven, shutdown_prove_gave_up, settle_wait_gave_up; multiwindow; frame_loop closing-window regression; new zero-window negative test (shutdown_prove_window ZERO ends closes_unproven 1, !is_settled, no hang, claims_abandoned 0); mutations MA-MI; RED already recorded (eval10 exit 8 on 05a1050a3 and 8003327ce); verdict is the owner's ShutdownReport.is_settled() in the eval agent's own GPU run (C2)",
+      "c4": "AC214-11 'drains, settles claims': the proof loop polls until in_flight 0 and close() drains again; GPU tests name in_flight and leases"
+    },
+    "quota": "test-policy defect: multiwindow needs the four windows AC214-8 names and asserts ledger_admitted 4 and claims_peak 4; shell/src/program.rs:278-288 Test arm only: limit_bytes = TEST_MAX_CLAIMS (4) x DEFAULT_RESERVE_PER_WINDOW = 1 GiB, plus a device-free unit test pinning the relation; Issued arm untouched; the close_window path has never run on the GPU at this level, so a new failure there is a new finding",
+    "e9f2": "trigger not isolable from the logs (all windows titled test; first-window attribution UNVERIFIED); refusal 1 at 72-89 ms after the step-2 check, refusal 2 at 2.007-2.015 s later, step 5 46-61 ms after; ranked: (1) the client's UIA calls in read_and_act (Invoke, root and child SetFocus), (2)/(3) the test's own posts at step 2 or 4; guard looks correct (is_quiet true; foreground, active, focus 0); quiet_broken, places, raise_failed asserts after the failing line never evaluated; most likely a test-premise defect, not proven; PT-5 probe defined (timestamps per step, logs around each PostMessageW and UIA call, hwnds of a, b, spare, InSendMessageEx, GetActiveWindow, GetFocus in the refusal log; 5 runs); repair decision table in the file",
+    "q6_failure_ending": {
+      "answer": "leave the watcher untold after a typed in-loop failure followed by a settled shutdown; settled by authority, no Operator question",
+      "authority": "Palmistry treats an exit as clean only if an explicit Shutdown came first and never consults the exit code (palmistry control.rs:81-83, main.rs:1268-1341); AC-012-2, AC-012-3, AC-014-4, AC-016-2 and AC214-11 separate clean from unexpected exits; the Operator's no-GPU decision states the rule 'told only after a fully completed orderly close'; S7 OD-2 lists failed and refused ends as untold; state line, README:68, main.rs:14-17 already say untold",
+      "against": "slice5 'only a settled shutdown asks' is a necessary condition only; startup_gate.rs:96 tests name priority and stays true; the reading of 'fully completed orderly close' as settled and no typed failure is UNVERIFIED",
+      "fix_pt8": "outcome.rs may_acknowledge(settled, failure) = settled && failure.is_none(); program.rs:774 passes self.failure.get(); truth-table test over every ExitKind; keep startup_gate.rs:96-99 ordering asserts and add the realistic pair with no ack; update source_scan pins at :630-657 and :809; add no_window to the state line, README:68 and main.rs:14-17"
+    },
+    "scope": "all files inside MT-214 allowed_write_paths; MT-203 device crate read only; HBR-STOP-005 not triggered unless PT-7 shows an owner-side limit; CX-VAL-009 re-opens any PASS MT whose inputs intersect surface/**, shell/**, window/**, accessibility/** (which MTs, UNVERIFIED; MT-215 a candidate)",
+    "residual_risks": [
+      "a minimised window ends unproven by design and gives exit 8 (prove_presents on a suspended swapchain UNVERIFIED; PT-7)",
+      "GPU with swapchain-maintenance unobserved",
+      "multiwindow may reveal a close_window defect",
+      "E9-F2 trigger unattributed until PT-5",
+      "a retire frame blanks real UI content for tens of ms at exit once such content exists",
+      "worst-case loop-thread block about 6.5 s (was 5.5 s); healthy path tens of ms"
+    ],
+    "picotasks": [
+      "PT-1 surface, no GPU: wait_for, SHUTDOWN_PROVE_WINDOW, PROVE_STEP, settle_window, PresentConfig/PresentReport fields; units; MA-MC",
+      "PT-2 surface, no GPU: prove_before_release, begin_proof window parameter, unproven sweep, order scan moved; MD-MI",
+      "PT-3 shell, no GPU: policy_of quota and unit test, new GPU-test asserts, zero-window test (compile only)",
+      "PT-4 GPU, eval agent: shell_program, multiwindow, frame_loop, negative test, GPU mutation ME (exit 8)",
+      "PT-5 GPU, eval agent: E9-F2 probe (same hold as PT-4)",
+      "PT-6 GPU: E9-F2 repair per PT-5",
+      "PT-7 optional GPU: minimised-window shutdown probe",
+      "PT-8 shell, no GPU: failed runs leave the watcher untold (with PT-3)"
+    ],
+    "operator_question": "none"
   }
 }
