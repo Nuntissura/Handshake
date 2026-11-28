@@ -15364,5 +15364,52 @@
     "limits": "Archived 165 Cloud sources do not reproduce the frozen entire 165 production tuple, and the enrolled 165 exact runtime proof remains unavailable from those archives. The dormant routing-production static reconstruction disagrees with its pin already at 171; the only actual test caller uses BASE. No predecessor hashes or runtime verdicts were changed.",
     "r172_12_decision": "All enrolled 167–171 share exact module/state sources. Apply the revision171 inverse to the four affected modules in each predecessor and execute the same restored production sources from the hashed ordered tuple. Installing current modules first would leave four new functions in the historical catalog. Preserve existing frozen fixtures; targeted tests use exact INFO and duplicate rollback/reopen.",
     "status": "Local static only. R172-12a historical installer active. No Cargo or product push."
+  },
+  "r172_12_13_stage_candidate_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent Git evidence and specialist/adversarial C1 review",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "#/rev172_plan_20261127",
+    "local_intermediates": [
+      {
+        "pico": "R172-12a",
+        "commit": "471f4b6d899862b00b2d507201b82dac631f9718",
+        "tree": "6c2d20dde085cb3252427aee0135eb32bcc79c3e",
+        "static": "Exact predecessor harness using the same restored sources for hash and install. 171 base/production case and mixed single-field guard added."
+      },
+      {
+        "pico": "R172-12b",
+        "commit": "de82fed0b57e9b51b96cdef9daa80b61bcb90ef8",
+        "tree": "b573f09b96a651b872b7518b08b900904814de3b",
+        "static": "164 and 166 declaration proofs use actual filtered order, count exact 172 OVERWRITEs before map folding. Historic fixtures preserved."
+      },
+      {
+        "pico": "R172-12c",
+        "commit": "143382628f0ddb2af9ec9d2e65b474675bcdb898",
+        "tree": "6bf6381b22fdece2a46e3d24d0cf5133d3909ceb",
+        "static": "Exact isolated 171 duplicate negative and positive control staged in revision_171_knowledge_entity_duplicate_preflight_is_atomic. Runtime not run."
+      },
+      {
+        "pico": "R172-13",
+        "commit": "871ab1f76c7561662101229c86b9a9308d7dd7ab",
+        "tree": "be698af2e642458234cfa46eec472e5ba8b3e9bd",
+        "static": "Raw shared schema SHA-256 201f0e49b2604a3a6036c4d9092061fe1d9d936b0ec7adda37b273e96154d356 and 313 table headers independently read; current exact static counts recorded in commit. INFO and old pins preserved."
+      }
+    ],
+    "publication_stage": "Final local checkpoint is 35 commits above verified public 167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42. Pre-push lib compile binds complete final tree and exact index/worktree/environment; handshake_core build.rs consumes worktree and index contents, not commit topology. Named compile requires pushed input and is preserved as a distinct gate. Official R172-14 measurement only on independently verified pushed SHA.",
+    "state": "Pre-push compile dispatched with no process and no slot present. Formal tests pending. One-time backup/squash authorization requested for the exact tree only."
+  },
+  "operator_r172_c1_git_exception_20261128": {
+    "decision_id": "WP012-R172-C1-GIT-EXCEPTION-20261128",
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "operator_quote": "Approve verified bundle and squash (Recommended)",
+    "scope": "One conditional soft reset of local feat/WP-KERNEL-012 to the verified current remote predecessor, then one explicit-path stage commit and normal fast-forward only.",
+    "local_checkpoint": "871ab1f76c7561662101229c86b9a9308d7dd7ab",
+    "required_tree": "be698af2e642458234cfa46eec472e5ba8b3e9bd",
+    "remote_predecessor": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "checkpoint_count": 35,
+    "condition": "R172-C1-PREPUSH-LIB passes for the exact tree, build inputs remain unchanged, target feature remote remains at recorded predecessor, and all 35 IDs are independently recoverable and byte-verified in a scoped out-of-repo Git bundle. Otherwise this exact operation does not proceed.",
+    "reason": "No separate matching remote WP-012 backup branch exists. The Operator approved a verified scoped bundle as the one-time preservation substitute. This keeps the separate local picotask commits recoverable while permitting the required single stage history commit.",
+    "postconditions": "New tip has exactly one recorded predecessor, exact compiled tree and byte-equivalent build inputs. Publish only declared feat/WP-KERNEL-012 through normal fast-forward and independently reread it before R172-14. Never force."
   }
 }
