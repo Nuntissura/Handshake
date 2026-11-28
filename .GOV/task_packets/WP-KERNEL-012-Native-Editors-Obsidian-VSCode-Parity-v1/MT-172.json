@@ -14987,5 +14987,46 @@
     ],
     "status": "Local intermediate checkpoints. No backend Cargo or product push for these edits.",
     "next": "R172-06 under existing MT-173 owner-only scope. Claim transfer requested and pending; use existing revision 172 plan and retain all original proof."
+  },
+  "r172_06_07_static_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independent Git object and scoped diff inspection",
+    "recorded_on": "2026-11-28",
+    "plan_ref": "MT-172.json#/rev172_plan_20261127",
+    "preflight": {
+      "pico": "R172-00",
+      "immutable_input": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+      "trq01": "ab76fb1ef reachable from immutable input",
+      "sha256": {
+        "PRODUCTION_GENERATED": "a1af8b9349d6942e3d8b027382a7815fa166effb192f88fd37b6fe9708b68e5e",
+        "PRODUCTION_SOURCE_rev171": "f8f592f0a32d63cad7732a3e2b6b6fb1af8bfc554d7a38de453bb1e8ba546458",
+        "BASE_GENERATED": "ec2a2552e0abd613ef53f814b07e65673b167f58afb0f04ade1f50cb0885d651",
+        "loom_search_schema.surql": "55838a2b94e7eca696de04aadf4ce5b70b9a29562f6ee01f8b0e0f1f46d8bce8",
+        "user_manual_knowledge_schema.surql": "abd49a97afbda36eec818a04fc08ffd5f51f88f8ff8e42ea19fcb7e937985805",
+        "model_lane_schema.surql": "13646bc3199836a49a43503279e64ab47b9a6a4a8ffe8acd05e9c59aae638320",
+        "cloud_model_lane_schema.surql": "56c13f1aa6a26f5dca6b76612bf4bb97e44ab26f5a8c3d1360f1a1648b5b23cb"
+      }
+    },
+    "local_intermediates": [
+      {
+        "pico": "R172-06 scope prerequisite",
+        "commit": "df4568fa3d143f8be4579c187453d4969d242f8b",
+        "tree": "71676b7cb536f0d431689d88d2886a9478b77798",
+        "static": "Both outward receipt queries use all five scope fields and the existing trusted linked receipt. A transaction-local guard requires one scoped result. The internal legacy probe and response statement slot are unchanged."
+      },
+      {
+        "pico": "R172-06",
+        "commit": "af16e8528f7c2a87a7090a2faed6bce15f99f709",
+        "tree": "a2ac40b61fcc5d0694419ed959ce5a6f7628e43a",
+        "static": "Seven scoped Loom schema definitions replaced in place and inspected against the plan."
+      },
+      {
+        "pico": "R172-07",
+        "commit": "d934560b9b5a14cb473da40ecc9daa93d5facfe8",
+        "tree": "c0657b1b8ec07d1a780d7cbd979c12f1885aeb67",
+        "static": "Six optional attribution field guards and the exact workspace/kind/key unique index replaced in place. Unrelated indices retained."
+      }
+    ],
+    "status": "Local product commits independently inspected. No Cargo run, product push, or runtime verdict for these intermediate commits.",
+    "next": "R172-08 then the remaining schema stage. R172-10 owns the duplicate preflight; R172-12 owns its negative reopen proof."
   }
 }

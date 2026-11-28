@@ -5023,5 +5023,20 @@
     "approval_ref": "packet.json#/operator_execution_approvals_20261128",
     "previous_claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "effect": "Transfer and routing only; status, dependencies and verdict are retained."
+  },
+  "r172_06_scope_decision_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex)",
+    "recorded_on": "2026-11-28",
+    "scope": "MT-173 R172-06 prerequisite, existing Loom reindex query only.",
+    "approval_ref": "packet.json#/operator_execution_approvals_20261128",
+    "trigger": "R172-06 explicitly gates optional schema fields on an exact scope check for index receipt return projections. The unchanged and write branches projected a receipt without explicitly checking the index row's full tuple.",
+    "deliberation": {
+      "specialist": "/root/r172_scope_specialist identified the missing exact row scope at both return points and the need to keep rollback inside the transaction.",
+      "red_team": "/root/r172_scope_redteam confirmed the exact row check at both returns and preserved internal optional receipt read, recovery semantics and top-level reply index.",
+      "decision": "Make exact authenticated scope and trusted receipt binding explicit on both outward reads, require one result per branch, and fail closed inside the existing transaction. Preserve the internal optional receipt read, source check, ledger lookup, legacy replacement, and reply shape. Keep MT-173's schema optionality edit for the next picotask.",
+      "rejected": "Filtering the initial internal candidate lookup would change legacy repair behavior. Checking only after Rust consumes a reply would allow a failed readback after commit."
+    },
+    "proof": "Static inspect exact file, both predicates, row cardinality, transaction placement and stable receipt identity. Preserve named runtime checks for the pushed stage; no standalone broad run.",
+    "lifecycle_change": "None."
   }
 }
