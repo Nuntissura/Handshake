@@ -16029,5 +16029,28 @@
     "released_utc": "2026-11-28T15:51:11.392905Z",
     "verified_defect": "Fixture first uses the isolated BASE helper, then provider open executes the stand-alone module schema. That exact module adds six BASE-missing fields and two new indexes. The isolated reopen still verifies BASE, while the test inspector uses a historical pin independent of either current BASE or current FINAL.",
     "disposition": "Reached the required pre-edit baseline. No old identity assertion was shown obsolete at the failed seams. Preserve visible behavior and durability assertions. Restore a canonical test catalog and exact validated inspector first. The orphan case remains reserved for the subsequent acceptance run."
+  },
+  "r172_18_composed_fixture_and_inspector_decision_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), specialist and independent adversarial source review",
+    "recorded_on": "2026-11-28",
+    "basis": [
+      "#/r172_18_user_manual_original_baseline_20261128",
+      "#/rev172_plan_20261127"
+    ],
+    "decision": "Restore canonical production-composed UserManual fixture plus exact read-only catalog validation before any identity assertion rewrite. The failed checks stop at catalog setup/inspection, not a demonstrated obsolete identity assertion.",
+    "fixture": "Use normal bootstrap_production_schemas and non-DDL provider constructor after initial isolated allocation. Keep existing same-directory/namespace/database reopen, which already verifies production receipt then BASE internally. Retain registrar, existing behavior assertions and the orphan test. Existing process ledger production-composed fixture independently proves this exact reopen pattern.",
+    "inspector": "Read exact current namespace/database and complete schema receipt using existing read_context_and_state. Reuse exact BASE state predicate or exact FINAL production identity/generated/status/pin comparisons. Select only the independently enrolled expected mode pin. Separately compare the live catalog fingerprint as before. Fail closed with no exact receipt, preserve typed selectors, no bootstrap, new permissions, pin enrollment or history changes.",
+    "base_contract": "Keep existing fresh BASE typed inspector contract. Compare inspector readback to the independently verified normal bootstrap report in that test. Retain the previous version, counts, reference and typed selector checks and separate rejection case.",
+    "ownership": {
+      "mt172": "The fresh coding actor changes only the existing UserManual integration fixture and fresh BASE inspector contract test.",
+      "mt173": "The existing approved claimant /root/rev172_coder_resume owns the test-only inspector and minimal shared schema helper, in the next sequential coding turn.",
+      "write_scope": [
+        "src/backend/handshake_core/tests/user_manual_knowledge_surreal_tests.rs",
+        "src/backend/handshake_core/tests/surreal_test_inspector_contract_tests.rs",
+        "src/backend/handshake_core/src/storage/surreal/test_inspector.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      ]
+    },
+    "proof": "The shared fixture and inspector changes invalidate the six existing UserManual case proofs. Verify the six plus the changed existing BASE inspector contract. Preserve the separate R172-18 required new same-key different-scope negative as its own coding picotask. No product behavior change or catalog repin."
   }
 }
