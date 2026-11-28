@@ -705,5 +705,31 @@
     "why": "the contract already records backend_mt_ref MT-174 with contract_dependency_kind depends_on_completion while depends_on was empty; MT-186 (deployment and authenticated-context admission) is needed by the authenticated POST /jobs capability_registry_build publication step",
     "authority": "dependency correction only, within the packet approval's limit to keys, acceptance rows and dependencies; no scope added; status stays READY (CX-STATUS-001/002); start_precondition order text unchanged (it needs Operator decision OD-3)",
     "basis": "Handshake_Artifacts/WP-KERNEL-012/MT-214/shell-gaps-ownership-20261126.json (specialist, sha256 69da535f...) corrected by an adversarial review (the specialist proposed MT-186 alone)"
+  },
+  "s1_published_inputs_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), specialist readback and independent remote reference/blob verification",
+    "recorded_on": "2026-11-28",
+    "slice": "S1 no-code inputs",
+    "origin_ref": "refs/heads/feat/WP-KERNEL-012",
+    "published_commit": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "registry_path": "assets/capability_registry.json",
+    "registry_blob": "b94df7441c217048a2e61bfc28a2ea6ca502aee6",
+    "registry_sha256": "75a43ff027231f517bc3263aed2ba9aa8b1db51c9dc72e7f7ddf8feec3e91af2",
+    "registry_bytes": 12714,
+    "distinct_entries": 37,
+    "absent": [
+      "device.gpu.shell",
+      "model_lane.navigation.read",
+      "model_lane.recovery.execute"
+    ],
+    "spec_ref": "Master Spec v02.229, §§11.1.6.5 and 15.9; NATIVE-RENDER-REG-001..003 and NATIVE-RENDER-BOOT-001/002/007/009",
+    "projected_diff": "If MT-185 publishes first, preserve its 39-entry published registry and add the one native shell capability. If jointly reviewed, preserve the current 37 and add only the three named entries. Both prospective counts are 40. Actual generated diff was not acquired.",
+    "blockers": [
+      "MT-174 registry write custody handover",
+      "MT-186 authenticated route prerequisites",
+      "OD-3 review order and named human reviewer for the actual extracted hash"
+    ],
+    "next": "Prefer MT-185 publication first if viable. Ask for the human reviewer and exact approval with the generated diff in hand; no synthetic registry file.",
+    "status_effect": "No lifecycle change or publication."
   }
 }

@@ -14949,5 +14949,43 @@
     "focused_static_check": "One changed line, statement headers 5301 before and after, clean scoped diff.",
     "limit": "Local STAGE-INTERMEDIATE per C1; no Cargo, no push and no claim regarding the separate :189 test.",
     "next": "R172-03, two declared DDL rows. One picotask at a time."
+  },
+  "revision172_stage_checkpoints_20261128": {
+    "recorded_by": "ORCHESTRATOR (Codex), independently inspected local Git objects and scope",
+    "recorded_on": "2026-11-28",
+    "source_ref": "#/rev172_plan_20261127",
+    "last_pushed_product": "167ae6a9be3c4cb3306dfe5dff11b3eb9f18de42",
+    "local_intermediates": [
+      {
+        "pico": "R172-03",
+        "commit": "f89109fff938d9f36b7352262fcabe1884eda1c5",
+        "tree": "2c2ab5567a0a3e53aaeb2a3a505c7f681a277752",
+        "scope": "schema.surql: activation outcome and admission basis only",
+        "static": "One table, eight fields, one event, exact repair text and named writer keys."
+      },
+      {
+        "pico": "R172-04",
+        "commit": "7521b5f52a4e28e28aacdf9a3d211961ac19a04c",
+        "tree": "6c6a8cc94c8e7d214b56b0456382405870bb8dfd",
+        "scope": "Four named permit snapshots and local schema test allowlist/count",
+        "static": "190 to 194 FLEXIBLE roots; 253 wildcard definitions unchanged. Existing exact-content controls preserved."
+      },
+      {
+        "pico": "R172-05",
+        "commit": "ba58c95211fb5e07eb204596e482096c327fef62",
+        "tree": "c7e93fcaea3b928831d18816d0d00141471b257e",
+        "scope": "Existing worktree VM table moved to the composed schema",
+        "static": "One table, 18 fields, one unique index. Existing record reference retained. No data backfill."
+      },
+      {
+        "pico": "R172-17 code only (C3)",
+        "commit": "a69a2aff87da1c1046289006d211c75a4a5eda04",
+        "tree": "db9b1357ca310cc24c342f8358cc13784504b954",
+        "scope": "Remove duplicate registry DDL and adjust the existing deliberately incomplete legacy test seed",
+        "static": "No duplicate schema initializer remains. Existing ExactAttributionMismatch and no-spawn assertions retained. Runtime follows enrollment."
+      }
+    ],
+    "status": "Local intermediate checkpoints. No backend Cargo or product push for these edits.",
+    "next": "R172-06 under existing MT-173 owner-only scope. Claim transfer requested and pending; use existing revision 172 plan and retain all original proof."
   }
 }
