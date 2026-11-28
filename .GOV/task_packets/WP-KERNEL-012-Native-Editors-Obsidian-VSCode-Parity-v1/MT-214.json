@@ -3201,5 +3201,37 @@
     ],
     "untouched": "shell/src/authority.rs, the MT-203 device crate, palmistry_launch, the egui host, src/backend, .GOV",
     "next": "checker static review; then the eval agent's GPU hold: PT-4 (shell_program, multiwindow, frame_loop, zero-window negative test, GPU mutation ME), PT-5 (E9-F2 probe), S7 P8 live watcher proofs"
+  },
+  "e9f1_fix_static_review_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the code checker's static review (Sonnet); no build, no edits; hash and the F4 helper (surface/tests/support/mod.rs:120-136, assert_eq shutdown_proofs_begun == windows_with_surface with no present-fences condition) verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "commits": "d70532794, 7adf5aefe, 0c8c27ad5, c270269bb, 133768e6a (#/e9f1_implementation_20261128)",
+    "file": "Handshake_Artifacts/WP-KERNEL-012/MT-214/checker/e9f1-fix-static-review.json (sha256 77a263be91b8dfcb544e4dd21532cb1dc70ee746317539a24d2a827c027e03ca)",
+    "verdict": "passed (static only; not a runtime verdict on AC214-3, AC214-8, AC214-11)",
+    "checks": {
+      "bounds": "wait_for cannot underflow: window - elapsed is reached only while waiting and elapsed < window; mutation MA hit that guard, not a product path",
+      "gating": "prove_before_release returns at once with present_fences; settle window keyed on closes_unproven (C1)",
+      "order": "prove, release, hide, settle look, one owner.close(), post-close settle, report; the owner's own ShutdownReport; no usage() snapshot",
+      "counting": "release_surface clears proving (slot.rs:298): each window counted once; a minimised window one unproven count; a closing window not counted twice",
+      "proof_window": "begin_proof has two callers: close_window keeps PROVE_WINDOW 2 s, prove_before_release uses the config window",
+      "quota": "test_policy() only in the Test arm; Issued arm unchanged; exact 1 GiB pin correct (a claim is charged at most its reservation, ledger.rs:231, :348)",
+      "watcher_after_failure": "may_acknowledge(settled, failure) at program.rs:784, the only product call site; startup_gate covers all 10 ExitKind values; README, state line (no_window) and main.rs match the code",
+      "scope": "surface/** and shell/** only; authority.rs, MT-203 device crate, palmistry_launch, egui host, src/backend and the lock untouched",
+      "survivors": "eval10 M1b (pinned 500 ms and 1 s), M1c (calls < 500 assert), M2 and M2c (code-only scan with literal and comment controls) closed"
+    },
+    "findings": {
+      "F4_medium_fix_now": "assert_shutdown_proved (surface/tests/support/mod.rs:120-136; called from shell_program.rs:126, :164 and multiwindow.rs:123) asserts shutdown_proofs_begun == window count; on a GPU with VK_EXT_swapchain_maintenance1 prove_before_release returns early, so all three shell tests fail on a test premise; pass present_fences into the helper; does not block PT-4 on this GPU (present_fences false)",
+      "F1_low": "the 1 s deadline bounds the pauses, not the calls: begin_proof swapchain creations run before the clock starts and each look can block on an owner present (ending.rs:186-224, decide.rs:597); the 6.5 s unit test only adds constants",
+      "F2_low": "Instant::now() + window panics for an absurd public shutdown_prove_window (ending.rs:127); default safe",
+      "F3_low": "for windows begun at shutdown each slot's own deadline fires first, so shutdown_prove_gave_up stays false on most timeouts; only closes_unproven catches a timeout (ending.rs:144-172, :202-223)",
+      "F5_low": "the zero-window test returns ok on present-fence GPUs with only a println (frame_loop.rs:760); the eval runs it with --nocapture and confirms no HSK_GPU_SKIP line",
+      "F6_low": "four docs still say acknowledged when settled without the no-typed-failure condition (shell/src/lib.rs:7, program.rs:36-37 and :302, shutdown.rs:35)",
+      "F7_low": "diag_ring_argument reads only the first occurrence (a repeated flag is accepted) and ignores --diag-ring=path; the order scan checks names and order, not reachability",
+      "F8_low": "distinct_from has no retry bound; the F7 scan misses palmistry as p, start as x and glob imports; the resolver whitelist matches by substring and the two whitelisted resolver bodies are not scanned",
+      "F9_info": "a fail() after ended() would still have asked the watcher; no such path found (UNVERIFIED)",
+      "F10_info": "a window hidden but not closed would wait the full 1 s and end unproven (exit 8); whether any shell window is hidden without being closed UNVERIFIED; include in PT-7",
+      "F11_info": "README 9 s correct (palmistry_launch lib.rs:172, :391, :2016); 'degrades and runs without it' is loose: the unconfirmed watcher is kept, reaped and reported NotConnected"
+    },
+    "routing": "no finding blocks the eval agent's GPU hold; F4 with or before PT-4; F1-F3, F6-F8, F11 wording in one small follow-up picotask"
   }
 }
