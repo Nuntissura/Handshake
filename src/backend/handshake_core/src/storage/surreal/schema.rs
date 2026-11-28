@@ -14789,6 +14789,15 @@ mod tests {
             SCHEMA_VERSION, PRE_ARGUS_RECEIPT_REVISION, SCHEMA_LINEAGE_SHA256, manifest,
         )).unwrap().as_bytes()), PRE_ARGUS_PRODUCTION_SOURCE_SHA256);
 
+        const MODEL_SESSIONS: &str = "DEFINE TABLE OVERWRITE model_sessions ";
+        const RETRIEVAL_TRACES: &str = "DEFINE TABLE OVERWRITE knowledge_retrieval_traces ";
+        let model_sessions = canonical_upgrade_spans(SCHEMA, &[MODEL_SESSIONS]);
+        let (&model_start, &model_end) = model_sessions.first_key_value().unwrap();
+        let model_sessions = &SCHEMA[model_start..model_end];
+        let retrieval_traces = canonical_upgrade_spans(SCHEMA, &[RETRIEVAL_TRACES]);
+        let (&trace_start, &trace_end) = retrieval_traces.first_key_value().unwrap();
+        let retrieval_traces = &SCHEMA[trace_start..trace_end];
+
         for production in [false, true] {
             let current_sources = if production { production_schema_sources() } else { vec![("shared", SCHEMA)] };
             let previous_sources = if production { &frozen.sources[..] } else { &frozen.sources[..1] };
@@ -14813,8 +14822,14 @@ mod tests {
             for identity in previous.keys() {
                 assert!(current.contains_key(identity), "predecessor declaration removal needs explicit migration: {identity}");
             }
+            assert_eq!(previous.get("table:knowledge_retrieval_traces").map(String::as_str),
+                Some(retrieval_traces), "frozen Argus already has the exact current retrieval traces table");
             let mut upgraded = previous;
             let argus = pre_argus_current_upgrade_statements(production);
+            for emitted in [&argus, &revision166::upgrade_statements(production)] {
+                assert_eq!(emitted.matches(MODEL_SESSIONS).count(), 1);
+                assert_eq!(emitted.matches(model_sessions).count(), 1);
+            }
             // routing_sql_fragment installs this source before its data and receipt updates.
             let model_lane = if production { include_str!("model_lane_schema.surql") } else { "" };
             let cloud = revision166::cloud_upgrade_statements(production);
@@ -14829,6 +14844,8 @@ mod tests {
             ];
             assert_revision_172_overwrites_once(production, &fragments.map(|(sql, _)| sql));
             for (sql, require_overwrite) in fragments {
+                assert!(!sql.contains(RETRIEVAL_TRACES),
+                    "Argus must retain its existing retrieval traces table");
                 apply_schema_declarations(&mut upgraded, sql, require_overwrite);
             }
             for (identity, statement) in &current {
@@ -14860,11 +14877,39 @@ mod tests {
         }
         assert_eq!(successor, expected_argus,
             "Argus-only emitter must contain exactly its two current canonical definitions");
+        let mut resolved_tables = BTreeSet::new();
         for (current, _) in MT154_SCHEMA_DELTAS {
-            let mut spans = BTreeMap::new();
-            assert!(schema_statements_enclosing(current, &mut spans) > 0,
-                "MT-154 delta has no enclosing OVERWRITE statement in schema.surql: {current}");
+            let mut declarations = current.lines().filter(|line| {
+                !line.is_empty() && !line.starts_with("--")
+            });
+            match declarations.next() {
+                Some(historical) if historical.starts_with(MODEL_SESSIONS) => {
+                    assert!(declarations.next().is_none());
+                    assert!(resolved_tables.insert(MODEL_SESSIONS));
+                    let profile_read = " OR fn::wp012_engine_profile_session($this, false)";
+                    let profile_write = " OR fn::wp012_engine_profile_session($this, true)";
+                    assert_eq!(model_sessions.matches(profile_read).count(), 1);
+                    assert_eq!(model_sessions.matches(profile_write).count(), 1);
+                    assert_eq!(
+                        model_sessions.replacen(profile_read, "", 1).replacen(profile_write, "", 1),
+                        historical,
+                        "EngineProfile is the only addition to the historical job-bound table",
+                    );
+                }
+                Some(historical) if historical.starts_with(RETRIEVAL_TRACES) => {
+                    assert!(declarations.next().is_none());
+                    assert!(resolved_tables.insert(RETRIEVAL_TRACES));
+                    assert_eq!(imported.get(&trace_start), Some(&trace_end),
+                        "the import selector must include the exact current retrieval traces table");
+                }
+                _ => {
+                    let mut spans = BTreeMap::new();
+                    assert!(schema_statements_enclosing(current, &mut spans) > 0,
+                        "MT-154 delta has no enclosing OVERWRITE statement in schema.surql: {current}");
+                }
+            }
         }
+        assert_eq!(resolved_tables, BTreeSet::from([MODEL_SESSIONS, RETRIEVAL_TRACES]));
         let statements = schema_delta_upgrade_statements();
         if SCHEMA.contains(MT154_AUTHORITY_BLOCK_BEGIN) {
             assert!(statements.starts_with("-- MT154_AUTHORITY_BEGIN\n"));
