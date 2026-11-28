@@ -488,3 +488,102 @@ async fn mismatched_canonical_receipt_fails_closed_after_legitimate_entity_creat
     drop(store);
     isolated.cleanup().await.expect("clean exact test scope");
 }
+
+#[tokio::test]
+async fn same_workspace_manual_entity_collision_is_denied_without_disclosure() {
+    use handshake_core::storage::StorageError;
+
+    let (mut isolated, store, owner_scope) = open_fixture().await;
+    let original = store
+        .upsert_user_manual_page_entity(
+            &owner_scope,
+            ENTITY_KEY,
+            "Owner's runtime recovery",
+            provenance("owner"),
+        )
+        .await
+        .expect("create the owner entity and its receipt");
+    assert!(original.changed);
+    let mut other_scope = owner_scope.clone();
+    other_scope.authenticated_session_id = AuthenticatedSessionRef::mint();
+    let counts_before = durable_counts(&store).await;
+
+    let attempt = {
+        let inspector = store.storage().test_inspector();
+        let ledger = inspector
+            .table_selector("kernel_event_ledger")
+            .await
+            .expect("select canonical event table");
+        let receipt_fields = [
+            ledger.field("payload").expect("select receipt payload"),
+            ledger
+                .field("payload_hash")
+                .expect("select receipt payload hash"),
+        ];
+        let read_receipt = || {
+            inspector.project(
+                &ledger,
+                &receipt_fields,
+                RowFilter::IdEquals(original.event_ledger_event_id.clone()),
+            )
+        };
+        let receipt_before = read_receipt().await.expect("read the owner's receipt");
+        assert_eq!(receipt_before.len(), 1, "the owner's receipt must exist");
+
+        let attempt = store
+            .upsert_user_manual_page_entity(
+                &other_scope,
+                ENTITY_KEY,
+                "Other session's runtime recovery",
+                provenance("other-session"),
+            )
+            .await;
+
+        assert_eq!(durable_counts(&store).await, counts_before);
+        let persisted = store
+            .get_user_manual_page_entity_by_identity(&owner_scope, ENTITY_KEY)
+            .await
+            .expect("read the owner entity after the collision")
+            .expect("the owner entity remains visible to its exact scope");
+        assert_eq!(persisted.entity, original.entity);
+        assert_eq!(
+            persisted.event_ledger_event_id,
+            original.event_ledger_event_id
+        );
+        assert_eq!(
+            read_receipt()
+                .await
+                .expect("read the receipt after the collision"),
+            receipt_before
+        );
+        assert!(store
+            .get_user_manual_page_entity_by_identity(&other_scope, ENTITY_KEY)
+            .await
+            .expect("read the entity from the other exact scope")
+            .is_none());
+
+        attempt
+    };
+    drop(store);
+    isolated.cleanup().await.expect("clean exact test scope");
+
+    let denial = attempt.expect_err("the competing session must be denied");
+    let message = denial.to_string();
+    let owner_session = owner_scope.authenticated_session_id.to_string();
+    assert!(
+        ![
+            original.entity.entity_id.as_str(),
+            original.entity.display_name.as_str(),
+            original.event_ledger_event_id.as_str(),
+            owner_session.as_str(),
+            ENTITY_KEY,
+        ]
+        .into_iter()
+        .any(|protected| message.contains(protected)),
+        "the collision denial disclosed the owner entity, session, or receipt"
+    );
+    assert!(
+        matches!(denial, StorageError::Conflict(_)),
+        "the collision must return a typed storage conflict"
+    );
+}
