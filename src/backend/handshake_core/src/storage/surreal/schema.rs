@@ -5051,30 +5051,6 @@ fn mt141_upgrade_statements() -> String {
 {MT141_AI_EDIT_APPLIED_BINDING_LINES}"
     )
 }
-/// The MT-150-era `asset_id` definition, used only to reconstruct the exact MT-150 pin script
-/// in tests (`mt141_pin_schema`, `mt150_pin_schema`).
-#[cfg(test)]
-const PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE: &str = "\
-DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
-";
-/// The MT-150-era definitions the V2-R2 lines replace, used only to reconstruct the exact
-/// MT-150 pin script in tests (`mt141_pin_schema`).
-#[cfg(test)]
-const PRE_MT141_LOOM_PIN_ORDER_LINE: &str = "\
-DEFINE FIELD OVERWRITE pin_order ON TABLE loom_blocks TYPE option<int> ASSERT $value = NONE OR $value >= 0;
-";
-#[cfg(test)]
-const PRE_MT141_QUICK_SWITCHER_SOURCE_KIND_LINE: &str = "\
-DEFINE FIELD OVERWRITE source_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'symbol' | 'work_packet' | 'micro_task' | 'user_manual_page';
-";
-#[cfg(test)]
-const PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE: &str = "\
-DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_view_fr_outbox TYPE record<loom_blocks> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
-";
-#[cfg(test)]
-const PRE_MT141_QUICK_SWITCHER_RESULT_KIND_LINE: &str = "\
-DEFINE FIELD OVERWRITE result_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'knowledge_entity' | 'user_manual_page';
-";
 /// MT-150 upgrade statements: the durable EventLedger receipt binding on `loom_edges`, so a
 /// tag/mention edge create or delete carries the same atomic receipt linkage as `loom_blocks`
 /// and `loom_folders`. Applied with the state update in one transaction on top of every
