@@ -122,6 +122,8 @@ fn the_program_runs_drains_marks_the_ring_and_asks_the_watcher_once() {
     );
     assert_eq!(report.present.claims_abandoned, 0);
     assert_eq!(report.present.claims_settled, report.present.surfaces_made);
+    // E9-F1: the one window's presents were proven ended before its surface was released.
+    support::assert_shutdown_proved(&report.present, 1);
     // The accessibility hub: the tree was attached before the first show and the shell frame given, whole, once.
     assert_eq!(report.attach_refused, 0, "{:?}", report.access_code);
     assert_eq!(report.access.frames, 1, "{:?}", report.access);
@@ -159,5 +161,6 @@ fn a_watcher_that_does_not_answer_is_a_typed_ending_not_a_clean_one() {
     assert_eq!(asked.load(Ordering::SeqCst), 1);
     let report = outcome.report.expect("the loop ran");
     assert!(report.settled, "it was the watcher's silence, not unsettled work");
+    support::assert_shutdown_proved(&report.present, 1);
     assert!(!report.ring_marked, "no ring was given, so none was marked");
 }

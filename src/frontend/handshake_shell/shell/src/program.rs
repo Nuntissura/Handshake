@@ -72,7 +72,7 @@ use handshake_diag_ring::{DiagEvent, DiagEventCode, DiagPhase, DiagSeverity};
 use handshake_shell_accessibility::{AccessReport, Accessibility, SemanticFrame};
 use handshake_shell_input::{InputReport, InputTracker};
 use handshake_shell_surface::{
-    DeviceEvent, PresentConfig, PresentHost, PresentReport, Shell, ShellApp,
+    DeviceEvent, PresentConfig, PresentHost, PresentReport, Shell, ShellApp, DEFAULT_RESERVE_PER_WINDOW,
 };
 use handshake_shell_window::{
     CommandSource, Control, DispatchedWake, Event, LogicalSize, LoopConfig, LoopError, Placement,
@@ -273,17 +273,27 @@ impl ProgramOutcome {
     }
 }
 
-/// The quota the test binaries' claims run under: room for a few windows' claims and their frames. The product's comes
-/// from the kernel issuer and Core's ledger, which do not exist.
+/// The claims the test binaries' quota holds at once: the root window, two detached panes and a detached Settings
+/// window (AC214-8), each with the product's reservation.
+const TEST_MAX_CLAIMS: u32 = 4;
+
+/// The quota the test binaries' claims run under: room for [`TEST_MAX_CLAIMS`] windows' claims, each reserving
+/// [`DEFAULT_RESERVE_PER_WINDOW`], and their frames. The product's comes from the kernel issuer and Core's ledger, which
+/// do not exist.
 fn policy_of(authority: &DeviceAuthority) -> QuotaPolicy {
     match authority {
         DeviceAuthority::Issued(issued) => issued.unreachable(),
-        DeviceAuthority::Test(_) => QuotaPolicy::Configured {
-            revision: PolicyRevision(1),
-            limit_bytes: 512 << 20,
-            max_claims: 4,
-            max_in_flight_per_claim: 16,
-        },
+        DeviceAuthority::Test(_) => test_policy(),
+    }
+}
+
+/// The test binaries' quota: [`TEST_MAX_CLAIMS`] claims of [`DEFAULT_RESERVE_PER_WINDOW`] each.
+fn test_policy() -> QuotaPolicy {
+    QuotaPolicy::Configured {
+        revision: PolicyRevision(1),
+        limit_bytes: u64::from(TEST_MAX_CLAIMS) * DEFAULT_RESERVE_PER_WINDOW,
+        max_claims: TEST_MAX_CLAIMS,
+        max_in_flight_per_claim: 16,
     }
 }
 
@@ -908,5 +918,36 @@ impl ShellApp for ProgramApp {
         } else if on_lane(&self.tick) && wake.value() == TICK {
             self.tick(shell);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    /// MT-214 E9-F1: the test quota admits the four windows AC214-8 asks for, each with the reservation the presenter
+    /// makes by default. With 512 MiB it admitted two of four (windows 3 and 4 were refused `BudgetExceeded`). Needs no
+    /// device.
+    #[test]
+    fn the_test_quota_admits_as_many_windows_as_it_allows_claims() {
+        let policy = test_policy();
+        let QuotaPolicy::Configured {
+            limit_bytes,
+            max_claims,
+            ..
+        } = policy
+        else {
+            panic!("a test binary runs under a configured quota: {policy:?}");
+        };
+        assert_eq!(max_claims, 4, "root, two detached panes, detached Settings");
+        assert_eq!(max_claims, TEST_MAX_CLAIMS);
+        // The reservation is the presenter's own default, not a smaller one made for the test.
+        let present = PresentConfig::new(policy, MODULE);
+        assert_eq!(present.reserve_per_window, DEFAULT_RESERVE_PER_WINDOW);
+        assert!(
+            limit_bytes >= u64::from(max_claims) * present.reserve_per_window,
+            "{limit_bytes} bytes hold {max_claims} windows of {} bytes",
+            present.reserve_per_window
+        );
+        assert_eq!(limit_bytes, 1 << 30);
     }
 }

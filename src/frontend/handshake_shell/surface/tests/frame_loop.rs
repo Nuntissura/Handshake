@@ -252,6 +252,15 @@ fn present_loop(
     windows: usize,
     steps: impl FnOnce() -> Vec<Step> + Send + 'static,
 ) -> Option<Ended> {
+    present_loop_with(None, windows, steps)
+}
+
+/// [`present_loop`], with the shutdown's proof window set when `shutdown_prove_window` is given.
+fn present_loop_with(
+    shutdown_prove_window: Option<Duration>,
+    windows: usize,
+    steps: impl FnOnce() -> Vec<Step> + Send + 'static,
+) -> Option<Ended> {
     on_private_desktop(LIMIT, move || {
         let app = Rc::new(App {
             wanted: windows,
@@ -264,7 +273,10 @@ fn present_loop(
             seen: Cell::default(),
             shut: Cell::new(false),
         });
-        let config = PresentConfig::new(support::policy(), ModuleId(214));
+        let mut config = PresentConfig::new(support::policy(), ModuleId(214));
+        if let Some(window) = shutdown_prove_window {
+            config.shutdown_prove_window = window;
+        }
         let log = Arc::new(support::EventLog::default());
         let host = match PresentHost::open(config, log, app.clone()) {
             Ok(host) => host,
@@ -729,4 +741,34 @@ fn windows_opened_and_closed_one_after_another_leave_no_swapchain_behind() {
     assert_eq!(report.closes_unproven, 0, "{report:?}");
     assert_eq!(ended.run.windows_destroyed, CYCLES as u64 + 1);
     assert_eq!(report.errors, 0, "{:?}", report.last_error);
+}
+
+/// MT-214 E9-F1, the negative case: a shutdown whose proof window is zero gives every proof one look only, so the
+/// presented window's proof does not come. It is counted (`closes_unproven`), its surface is released all the same, and
+/// the owner's own report shows the claim open: not settled. The shutdown still ends, at once, with no claim let go
+/// (the close's drain and the settle after it close what device destruction ended).
+#[test]
+fn a_shutdown_with_no_time_to_prove_ends_unproven_and_unsettled_without_hanging() {
+    in_own_process!();
+    let begun = Instant::now();
+    let Some(ended) = present_loop_with(Some(Duration::ZERO), 1, || {
+        vec![step("the window presents", |shell, app| settled(shell, app.window(0), 0))]
+    }) else {
+        return;
+    };
+    let took = begun.elapsed();
+    if ended.present_fences {
+        // With present fences nothing is proven at a shutdown: the owner ends the surfaces by their own fences.
+        println!("HSK_GPU_SKIP reason=present_fences_prove_nothing");
+        return;
+    }
+    let report = ended.report;
+    assert_eq!(report.shutdown_proofs_begun, 1, "{report:?}");
+    assert_eq!(report.closes_unproven, 1, "{report:?}");
+    assert_eq!(report.surfaces_released, report.surfaces_made, "{report:?}");
+    let owner = report.shutdown.expect("the owner closed");
+    assert!(!owner.is_settled(), "a claim released without proof is not settled: {owner:?}");
+    assert_eq!(report.claims_abandoned, 0, "{report:?}");
+    assert_eq!(ended.run.windows_destroyed, 1);
+    assert!(took < Duration::from_secs(60), "the shutdown ended: {took:?}");
 }

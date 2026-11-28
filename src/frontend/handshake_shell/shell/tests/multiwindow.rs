@@ -118,6 +118,9 @@ fn the_root_detached_panes_and_settings_share_one_device_and_closing_one_keeps_t
         "the owner closed with nothing held: {:?}",
         report.present.shutdown
     );
+    // E9-F1: the presents of the three windows that still had a surface at the shutdown were proven ended before their
+    // surfaces were released; the closed pane proved its own when it closed. Nothing ended unproven.
+    support::assert_shutdown_proved(&report.present, report.run.windows_created - report.windows_closed_early);
 
     // One accessibility tree per window, each attached before it was shown.
     assert_eq!(report.attach_refused, 0, "{:?}", report.access_code);

@@ -111,3 +111,26 @@ pub fn has_present_fences(owner: &GpuOwner) -> bool {
         .extensions
         .contains(&"VK_EXT_swapchain_maintenance1")
 }
+
+/// MT-214 E9-F1, on a GPU without `VK_EXT_swapchain_maintenance1`: a shutdown proved the presents of every window that
+/// still had a surface (`windows_with_surface`) ended before it released the surface, none ended unproven, and the
+/// owner's own single-shot report at its close held nothing: no claim open, nothing in flight, no lease. The settle wait
+/// before the close was not needed (one look, in a fraction of its window). The verdict is the owner's report, not these
+/// counters, which are the presenter's own record of it.
+pub fn assert_shutdown_proved(report: &handshake_shell_surface::PresentReport, windows_with_surface: u64) {
+    assert_eq!(report.closes_unproven, 0, "{report:?}");
+    assert_eq!(report.shutdown_proofs_begun, windows_with_surface, "{report:?}");
+    assert!(!report.shutdown_prove_gave_up, "{report:?}");
+    assert!(!report.settle_wait_gave_up, "{report:?}");
+    assert!(report.settle_wait_looks <= 2, "{report:?}");
+    assert!(
+        std::time::Duration::from_micros(report.settle_wait_micros) < std::time::Duration::from_millis(500),
+        "{report:?}"
+    );
+    let owner = report.shutdown.expect("the owner's report at its close");
+    assert_eq!(owner.open_claims, 0, "{owner:?}");
+    assert_eq!(owner.in_flight, 0, "{owner:?}");
+    assert_eq!(owner.leases, 0, "{owner:?}");
+    assert!(owner.is_settled(), "{owner:?}");
+    assert_eq!(report.claims_abandoned, 0, "{report:?}");
+}
