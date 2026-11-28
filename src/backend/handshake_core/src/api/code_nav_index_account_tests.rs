@@ -350,14 +350,276 @@ async fn pt003_first_owner_setup_receipt_observer() {
         report.push_str(&format!("PT003 root {label} = {}
 ", pt003_root_view(&state, statement, &bindings).await));
     }
-    // Passing tests hide stderr under nextest, so the observation is also written beside the run.
-    eprintln!("{report}");
-    if let Some(root) = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT") {
-        let _ = std::fs::write(std::path::Path::new(&root).join("WP-KERNEL-012/MT-172/r172-01-20261128/pt003-observer.txt"), &report);
-    }
+    report.push_str(&pt003_o1_to_o3b(&state, &scope, &bindings).await);
+    pt003_write_report("pt003-observer.txt", &report);
     drop(router);
     drop(state);
     assert!(backend.close_and_remove().await.is_ok(), "pt003 observer fixture cleanup unobserved");
+}
+
+// R172-02c confirming run: test code only, no production code is touched.
+const PT003_REPORT_DIR: &str = "WP-KERNEL-012/MT-172/r172-02c-20261128";
+
+fn pt003_write_report(name: &str, report: &str) {
+    eprintln!("{report}");
+    if let Some(root) = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT") {
+        let dir = std::path::Path::new(&root).join(PT003_REPORT_DIR);
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(dir.join(name), report);
+    }
+}
+
+async fn pt003_root_owned(state: &AppState, statement: String, bindings: &Value) -> String {
+    match state.surreal.test_admin_query_bound(statement, bindings.clone()).await {
+        Ok(mut response) => format!("{:?}", response.take::<surrealdb::types::Value>(0)),
+        Err(error) => format!("ADMIN_ERR {error:?}"),
+    }
+}
+
+async fn pt003_root_ddl(state: &AppState, ddl: String, count: usize) -> String {
+    match state.surreal.test_admin_query(ddl).await {
+        Ok(mut response) => (0..count)
+            .map(|index| format!("  ddl[{index}] = {:?}\n", response.take::<Option<surrealdb::types::Value>>(index)))
+            .collect(),
+        Err(error) => format!("  ddl ADMIN_ERR {error:?}\n"),
+    }
+}
+
+fn pt003_verdict(view: &str, marker: &str) -> &'static str {
+    if !view.starts_with("Ok(") { "ERR" } else if view.contains(marker) { "visible" } else { "hidden" }
+}
+
+fn pt003_leak(statement: String) -> &'static str { Box::leak(statement.into_boxed_str()) }
+
+// Same prospective Workspace/Create scope as first_owner_workspace_receipt_scalar_outcome.
+macro_rules! pt003_scope_and_bindings {
+    ($credentials:expr, $session:expr) => {{
+        use crate::storage::surreal::resource_authority::{RecordUserScope, ResourceAction};
+        let operation = uuid::Uuid::now_v7().to_string();
+        let resource = uuid::Uuid::now_v7().to_string();
+        let scope = RecordUserScope {
+            workspace_id: Some(operation.clone()), resource_id: resource.clone(),
+            session_id: $credentials.context.session_id.clone(), session_token: $credentials.session_token.clone(),
+            channel_binding_hash: Some($credentials.channel_binding_hash.clone()), capability_id: "fs.write".to_owned(),
+            action: ResourceAction::Create, grant_id: None,
+        };
+        let bindings = json!({
+            "proof_account": $session["account_id"], "proof_session": $session["session_id"],
+            "proof_op": operation, "proof_resource": resource,
+            "proof_channel": $credentials.channel_binding_hash.clone(), "proof_name": "Owned indexed workspace",
+        });
+        (scope, bindings)
+    }};
+}
+
+/// O1 (root INFO), O2 (record user direct reads), O3 (gate tables), O3b (custom function in a WHERE).
+async fn pt003_o1_to_o3b(
+    state: &AppState, scope: &crate::storage::surreal::resource_authority::RecordUserScope, bindings: &Value,
+) -> String {
+    let mut out = String::new();
+    for (label, statement) in [
+        ("kernel_event_ledger", "INFO FOR TABLE kernel_event_ledger STRUCTURE;"),
+        ("local_account_setup", "INFO FOR TABLE local_account_setup STRUCTURE;"),
+        ("first_owner_administration_origins", "INFO FOR TABLE first_owner_administration_origins STRUCTURE;"),
+        ("db", "INFO FOR DB;"),
+    ] {
+        out.push_str(&format!("PT003-O1 root {label} = {}\n", pt003_root_owned(state, statement.to_owned(), bindings).await));
+    }
+
+    // O2: the setup ledger row id is read as root, then probed as the record user at top level.
+    let rid = match state.surreal.test_admin_query(
+        "SELECT VALUE <string>setup_receipt FROM ONLY first_owner_administration_origins:primary;".to_owned(),
+    ).await {
+        Ok(mut response) => response.take::<Option<String>>(0).ok().flatten(),
+        Err(_) => None,
+    };
+    out.push_str(&format!("PT003-O2 setup_receipt rid (root) = {rid:?}\n"));
+    let mut bound = bindings.clone();
+    if let Some(map) = bound.as_object_mut() { map.insert("proof_setup".to_owned(), json!(rid)); }
+    let setup_statements: [(&str, &'static str); 5] = [
+        ("setup_ledger_direct", "SELECT id, event_type FROM type::record($proof_setup);"),
+        ("setup_ledger_by_filter", "SELECT id FROM kernel_event_ledger WHERE id = type::record($proof_setup);"),
+        ("local_account_setup_primary", "SELECT * FROM local_account_setup:primary;"),
+        ("exists_setup_rid", "RETURN record::exists(type::record($proof_setup));"),
+        ("event_type_setup_rid", "RETURN type::record($proof_setup).event_type;"),
+    ];
+    for (label, statement) in setup_statements {
+        out.push_str(&format!("PT003-O2 record_user {label} = {}\n", pt003_record_user_view(state, scope, statement, &bound).await));
+        out.push_str(&format!("PT003-O2 root {label} = {}\n", pt003_root_owned(state, statement.to_owned(), &bound).await));
+    }
+    let control_statements: [(&str, &'static str); 6] = [
+        ("ctl_origin_direct", "SELECT id FROM first_owner_administration_origins:primary;"),
+        ("ctl_exists_origin", "RETURN record::exists(first_owner_administration_origins:primary);"),
+        ("ctl_origin_deref", "RETURN first_owner_administration_origins:primary.purpose;"),
+        ("ctl_exists_session", "RETURN record::exists(type::record('authenticated_sessions', $proof_session));"),
+        ("ctl_exists_account", "RETURN record::exists(type::record('local_accounts', $proof_account));"),
+        ("ctl_ledger_sample", "SELECT id, event_type FROM kernel_event_ledger LIMIT 3;"),
+    ];
+    for (label, statement) in control_statements {
+        out.push_str(&format!("PT003-O2 record_user {label} = {}\n", pt003_record_user_view(state, scope, statement, &bound).await));
+    }
+
+    // O3: one-term SELECT predicates on test-local gate tables, each holding a copy of the origin row.
+    let terms = PT003_SETUP_RECEIPT_TERMS;
+    let inline_terms = terms.replace("$row", "$this");
+    let full_inline = format!("record::exists($this.setup_receipt) AND {inline_terms}");
+    let gates: Vec<(&str, String)> = vec![
+        ("control", "true".to_owned()),
+        ("exists", "record::exists($this.setup_receipt)".to_owned()),
+        ("not_exists", "!record::exists($this.setup_receipt)".to_owned()),
+        ("exists_account", "record::exists($this.account)".to_owned()),
+        ("exists_origin", "record::exists(first_owner_administration_origins:primary)".to_owned()),
+        ("deref", "$this.setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP'".to_owned()),
+        ("las", "local_account_setup:primary.account_id = $this.account".to_owned()),
+        ("full_inline", full_inline),
+        ("noex_inline", inline_terms),
+        ("full_fn", "fn::pt003_copy_full($this)".to_owned()),
+        ("noex_fn", "fn::pt003_copy_no_exists($this)".to_owned()),
+    ];
+    let mut ddl = format!(
+        "DEFINE FUNCTION OVERWRITE fn::pt003_copy_full($row: object) {{ RETURN record::exists($row.setup_receipt) AND {terms}; }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_copy_no_exists($row: object) {{ RETURN {terms}; }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_t_true($row: object) {{ RETURN true; }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_t_exists($row: object) {{ RETURN record::exists($row.setup_receipt); }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_t_not_exists($row: object) {{ RETURN !record::exists($row.setup_receipt); }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_t_exists_account($row: object) {{ RETURN record::exists($row.account); }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_t_deref($row: object) {{ RETURN $row.setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP'; }};
+         DEFINE FUNCTION OVERWRITE fn::pt003_t_las($row: object) {{ RETURN local_account_setup:primary.account_id = $row.account; }};
+         LET $o = (SELECT * OMIT id FROM ONLY first_owner_administration_origins:primary);
+         DEFINE TABLE OVERWRITE pt003_open SCHEMALESS PERMISSIONS FULL;
+         CREATE pt003_open:1 CONTENT $o;
+         "
+    );
+    let mut statement_count = 11;
+    for (name, predicate) in &gates {
+        ddl.push_str(&format!(
+            "DEFINE TABLE OVERWRITE pt003_gate_{name} SCHEMALESS PERMISSIONS FOR select WHERE {predicate} FOR create, update, delete NONE;
+             CREATE pt003_gate_{name}:1 CONTENT $o;
+             "
+        ));
+        statement_count += 2;
+    }
+    out.push_str(&format!("PT003-O3 gate DDL\n{}", pt003_root_ddl(state, ddl, statement_count).await));
+    for (name, _) in &gates {
+        let statement = pt003_leak(format!("SELECT VALUE id FROM pt003_gate_{name};"));
+        let view = pt003_record_user_view(state, scope, statement, &bound).await;
+        out.push_str(&format!("PT003-O3 gate {name} = {} (raw {view})\n", pt003_verdict(&view, &format!("pt003_gate_{name}"))));
+    }
+    // O3b: the same terms through a custom function call in a WHERE (legacy executor path).
+    for name in ["t_true", "t_exists", "t_not_exists", "t_exists_account", "t_deref", "t_las", "copy_full", "copy_no_exists"] {
+        let statement = pt003_leak(format!("SELECT VALUE id FROM pt003_open WHERE fn::pt003_{name}($this);"));
+        let view = pt003_record_user_view(state, scope, statement, &bound).await;
+        out.push_str(&format!("PT003-O3b where_fn {name} = {} (raw {view})\n", pt003_verdict(&view, "pt003_open")));
+    }
+    out
+}
+
+async fn pt003_probe_run(compute_only: bool, ddl: Option<String>) -> (String, String) {
+    let MountedIndexAccountFixture { _binding, backend, state, router, headers, session } =
+        mounted_index_account_fixture(compute_only).await;
+    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .unwrap_or_else(|_| panic!("pt003 probe account authentication failed"));
+    let (scope, _) = pt003_scope_and_bindings!(credentials, session);
+    let mut report = String::new();
+    if let Some(ddl) = ddl { report.push_str(&pt003_root_ddl(&state, ddl, 1).await); }
+    let observed = state
+        .surreal
+        .probe_first_owner_workspace_receipt_projection(
+            &credentials.context, &scope, crate::storage::NewWorkspace { name: "Owned indexed workspace".to_owned() },
+        )
+        .await;
+    let outcome = match observed {
+        Ok(outcome) => {
+            let _ = request(&router, "POST", "/authority/logout", &headers, Value::Null).await;
+            drop(router);
+            drop(state);
+            assert!(backend.close_and_remove().await.is_ok(), "pt003 probe fixture cleanup unobserved");
+            outcome.to_owned()
+        }
+        Err(error) => {
+            drop(router);
+            drop(state);
+            assert!(backend.close_and_preserve().await.is_ok(), "pt003 probe fixture close unobserved");
+            format!("PROBE_ERR {error:?}")
+        }
+    };
+    report.push_str(&format!("outcome = {outcome}\n"));
+    (outcome, report)
+}
+
+fn pt003_strict_function_text() -> String {
+    let schema = include_str!("../storage/surreal/schema.surql");
+    let start = schema.find("DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_receipt(")
+        .expect("pt003 strict function definition not found");
+    let rest = &schema[start..];
+    let end = rest.find("\n};").expect("pt003 strict function end not found") + 3;
+    rest[..end].to_owned()
+}
+
+#[tokio::test]
+async fn pt003_patched_strict_probe() {
+    let production = pt003_strict_function_text();
+    let conjunct = "record::exists($row.setup_receipt) AND ";
+    assert_eq!(production.matches(conjunct).count(), 1, "pt003 conjunct occurrence count");
+    let patched = production.replacen(conjunct, "", 1);
+    let (outcome, report) = pt003_probe_run(false, Some(patched.clone())).await;
+    let report = format!(
+        "PT003-O4 patched strict probe (conjunct removed; production text {} bytes, patched {} bytes)\n{report}",
+        production.len(), patched.len()
+    );
+    pt003_write_report("pt003-patched.txt", &report);
+    assert_eq!(outcome, "one_visible", "pt003 patched strict probe");
+}
+
+#[tokio::test]
+async fn pt003_compute_only_depth_probe() {
+    let MountedIndexAccountFixture { _binding, backend, state, router, headers, session } =
+        mounted_index_account_fixture(true).await;
+    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .unwrap_or_else(|_| panic!("pt003 depth probe account authentication failed"));
+    let (scope, bindings) = pt003_scope_and_bindings!(credentials, session);
+    let mut report = String::from("PT003-O5 compute-only depth probe\n");
+    let depths = [40usize, 77, 80, 100, 110, 118, 125];
+    let mut ddl = String::from("LET $o = (SELECT * OMIT id FROM ONLY first_owner_administration_origins:primary);\n");
+    let mut statement_count = 1;
+    for n in depths {
+        let chain_row = vec!["$row.version = 1"; n].join(" AND ");
+        let chain_this = vec!["$this.version = 1"; n].join(" AND ");
+        ddl.push_str(&format!(
+            "DEFINE FUNCTION OVERWRITE fn::pt003_chain_{n}($row: object) {{ RETURN {chain_row}; }};
+             DEFINE TABLE OVERWRITE pt003_depth_{n} SCHEMALESS PERMISSIONS FOR select WHERE {chain_this} FOR create, update, delete NONE;
+             CREATE pt003_depth_{n}:1 CONTENT $o;
+             "
+        ));
+        statement_count += 3;
+    }
+    let mirror = pt003_strict_function_text()
+        .replacen("fn::wp012_first_owner_workspace_receipt(", "fn::pt003_mirror_strict(", 1);
+    ddl.push_str(&mirror);
+    statement_count += 1;
+    report.push_str(&format!("DDL\n{}", pt003_root_ddl(&state, ddl, statement_count).await));
+    for n in depths {
+        let projection = format!("SELECT fn::pt003_chain_{n}($this) AS r FROM first_owner_administration_origins:primary;");
+        let in_where = format!("SELECT VALUE id FROM first_owner_administration_origins:primary WHERE fn::pt003_chain_{n}($this);");
+        report.push_str(&format!("N={n} root projection = {}\n", pt003_root_owned(&state, projection, &bindings).await));
+        report.push_str(&format!("N={n} root where_fn = {}\n", pt003_root_owned(&state, in_where, &bindings).await));
+        let gate = pt003_leak(format!("SELECT VALUE id FROM pt003_depth_{n};"));
+        let view = pt003_record_user_view(&state, &scope, gate, &bindings).await;
+        report.push_str(&format!("N={n} record_user inline gate = {} (raw {view})\n", pt003_verdict(&view, "pt003_depth_")));
+    }
+    let swap = |text: &str| text.replace("fn::wp012_first_owner_workspace_receipt", "fn::pt003_mirror_strict");
+    report.push_str(&format!("mirror root projection = {}\n", pt003_root_owned(&state, swap(PT003_STRICT_PROJECTION), &bindings).await));
+    report.push_str(&format!("mirror root where_fn = {}\n", pt003_root_owned(&state, swap(PT003_STRICT_WHERE), &bindings).await));
+    report.push_str(&format!("mirror record_user projection = {}\n",
+        pt003_record_user_view(&state, &scope, pt003_leak(swap(PT003_STRICT_PROJECTION)), &bindings).await));
+    report.push_str(&format!("mirror record_user where_fn = {}\n",
+        pt003_record_user_view(&state, &scope, pt003_leak(swap(PT003_STRICT_WHERE)), &bindings).await));
+    pt003_write_report("pt003-depth.txt", &report);
+    drop(router);
+    drop(state);
+    assert!(backend.close_and_remove().await.is_ok(), "pt003 depth probe fixture cleanup unobserved");
 }
 
 #[derive(PartialEq, SurrealValue)]
