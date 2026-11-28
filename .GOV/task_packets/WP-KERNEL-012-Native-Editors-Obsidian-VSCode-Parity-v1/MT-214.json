@@ -3153,5 +3153,53 @@
       "PT-8 shell, no GPU: failed runs leave the watcher untold (with PT-3)"
     ],
     "operator_question": "none"
+  },
+  "e9f1_implementation_20261128": {
+    "recorded_by": "ORCHESTRATOR root session, transcribing the GUI coding agent's report (Sonnet); commits, push, file lists and log hashes verified by the orchestrator",
+    "recorded_on": "2026-11-28",
+    "authority": "#/e9f1_fix_design_20261128, #/s7_p4_p6_static_review_20261128",
+    "commits": {
+      "PT-1": "d70532794: surface/src/decide.rs (wait_for owns clock and sleep; SHUTDOWN_PROVE_WINDOW, PROVE_STEP, settle_window), surface/src/host/ending.rs (settle_before_close now uses wait_for), surface/src/shell.rs (PresentConfig.shutdown_prove_window, PresentReport shutdown_proofs_begun/prove_micros/prove_gave_up); surface lib 39, headless 1, source_scan 5",
+      "PT-2": "7adf5aefe: ending.rs prove_before_release (every window with a surface proves before any release, bounded, counted unproven) and surface/tests/source_scan.rs (order scan on code-only text with controls); surface lib 38, headless 1, source_scan 7",
+      "PT-3": "0c8c27ad5: shell/src/program.rs (Test arm through test_policy(): TEST_MAX_CLAIMS x DEFAULT_RESERVE_PER_WINDOW = 1 GiB, unit-pinned), shell/tests/multiwindow.rs and shell_program.rs (asserts on closes_unproven, prove, settle, in_flight, leases), surface/tests/frame_loop.rs and support/mod.rs (zero-window negative test, skips itself when the GPU has present fences; compile-only here); shell lib 11, beat_path_locks 5, heartbeat_loop 1, palmistry_session 13, palmistry_watcher 6, source_scan 20, startup_gate 7, unavailable 5",
+      "PT-8": "c270269bb: outcome.rs may_acknowledge(settled, failure); program.rs passes the failure; truth table; startup_gate.rs (8); source_scan pins; no_window in the state line, README and main.rs docs",
+      "S7_fixups": "133768e6a: F4 palmistry::diag_ring_argument errors on --diag-ring without a path, main.rs and the example exit 2; F5 distinct_from guard keeps the process id from equalling the session id; F7 scan reads helpers after #[ignore]d tests, bare imported start(, the HANDSHAKE_PALMISTRY_EXE literal and ENV_PALMISTRY_EXE, rejects resolvers outside exe_missing / exe_not_there in every test file; F10 README states the 9 s bound (launcher HANDSHAKE_OVERALL_DEADLINE 9 s)",
+      "pushed": "after each commit, no force; slot held 04:04:29Z to about 04:13Z"
+    },
+    "proof": "each commit: check --all-targets and clippy -D warnings (-j 1 --locked --offline) plus the non-GPU surface and shell tests, all green; cargo tree 208 lines, 0 banned crates (9ccf063a1ae95ef3); GPU test targets built only",
+    "mutations": {
+      "PT-1": "MA (caught by a Duration underflow panic in wait_for, not by the never-gave-up assert), MB1 10 ms, MB2 60 s, MC1, MC2: all red",
+      "PT-2": "MD, MD2 (call in a string literal), ME, MF, MG, MH, MI1 (two closes), MI2 (close before the settle): all red on a_shutdown_proves_before_it_releases_settles_before_the_owner_closes_and_again_after",
+      "PT-3": "MQ (512 << 20 restored) red on the program.rs unit test",
+      "PT-8": "MF1 failure term dropped (truth table), MF2 ended() passes None (ended() scan), MF3 no_window removed from the state line (wording scan): red",
+      "S7": "MF4-MF10 red",
+      "not_run": "GPU-only mutations (ME on a real GPU, MG against the zero-window test, MF on an extension GPU)"
+    },
+    "logs_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-214/gui-agent/logs (prefix e9f1fix; 24 mutation logs e9f1fix-mut-<ID>.log)",
+    "logs_sha256_prefix": {
+      "pt1-check": "79c89ddd802f440f",
+      "pt1-clippy": "1ab9e4d61f16e7ea",
+      "pt1-surface-tests": "c6cddb46457c93ee",
+      "pt2-check": "af8dc4dbd1e99cd2",
+      "pt2-clippy": "cd7fddbe0158b99b",
+      "pt2-surface-tests": "59d2f345e9d4d22d",
+      "pt3-check": "39f7fb45af3835db",
+      "pt3-clippy": "cc4c99683cab8f82",
+      "pt3-surface-tests": "af028678cd385617",
+      "pt3-shell-tests": "82bdd4af26bccd0e",
+      "pt8-check": "c83183bdf0bce75b",
+      "pt8-clippy": "f4242165fd521f92",
+      "pt8-surface-tests": "4dc5d195ce40c123",
+      "pt8-shell-tests": "2adb673492febd7e",
+      "pt9-surface-tests": "e57e1d52399e6d12",
+      "pt9-shell-tests": "f6a1ac6476c62ecb"
+    },
+    "notes": [
+      "present-fences assumption: on a GPU with VK_EXT_swapchain_maintenance1 the new GPU asserts (shutdown_proofs_begun equal to the window count, settle_wait_looks <= 2) would fail; untested, noted in the helper's doc",
+      "the PT-9 check and clippy logs were overwritten by later reruns",
+      "the PT-8 and fixup proofs are self-authored unit and scan tests"
+    ],
+    "untouched": "shell/src/authority.rs, the MT-203 device crate, palmistry_launch, the egui host, src/backend, .GOV",
+    "next": "checker static review; then the eval agent's GPU hold: PT-4 (shell_program, multiwindow, frame_loop, zero-window negative test, GPU mutation ME), PT-5 (E9-F2 probe), S7 P8 live watcher proofs"
   }
 }
